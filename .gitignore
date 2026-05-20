@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+
+# Node
+node_modules/
+dist/
+build/
+.pnpm-store/
+.next/
+.cache/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+alpaca info.txt
+alpaca_info.txt
+Untitled
+secrets/
+
+# Local data
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+data/
+bars_cache/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# Claude Code (commit shared settings.json, ignore personal .local.json)
+.claude/settings.local.json
+.claude/*.local.json
+
+# Logs
+*.log
+logs/
