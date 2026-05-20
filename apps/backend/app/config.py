@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
+    ws_heartbeat_seconds: float = 5.0
+
     mcp_backend_token: str = Field(default="change-me-shared-secret", alias="MCP_BACKEND_TOKEN")
 
 
