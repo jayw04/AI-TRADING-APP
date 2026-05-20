@@ -91,7 +91,10 @@ Lock these before writing any code so they don't churn later.
   VITE_API_BASE=http://127.0.0.1:8000
   VITE_WS_BASE=ws://127.0.0.1:8000
 
-  # --- Anthropic (used from P5+, placeholder now) ---
+  # --- Anthropic API ---
+  # Used by the backend from P6+ for Agent Strategy invocations and (P7+)
+  # NL → Python strategy authoring. NOT used by Claude Code in P5 agent panel
+  # — that authenticates itself.
   ANTHROPIC_API_KEY=
   ```
 - [ ] Copy `.env.example` to a local `.env` (not committed) with dev values.

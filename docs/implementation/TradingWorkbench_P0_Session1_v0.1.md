@@ -304,7 +304,11 @@ MCP_BACKEND_TOKEN=change-me-shared-secret
 VITE_API_BASE=http://127.0.0.1:8000
 VITE_WS_BASE=ws://127.0.0.1:8000
 
-# --- Anthropic API (used from P5+; placeholder now) ---
+# --- Anthropic API ---
+# Used by the backend from P6+ for:
+#   - Agent Strategy invocations (server-side Claude API calls per scheduled tick)
+#   - NL → Python strategy authoring (P7+)
+# NOT used by Claude Code in P5 agent panel — that authenticates itself.
 ANTHROPIC_API_KEY=
 
 # --- Alpaca (used from P1; placeholder now) ---
