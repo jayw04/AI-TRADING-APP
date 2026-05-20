@@ -26,6 +26,18 @@ class Settings(BaseSettings):
 
     mcp_backend_token: str = Field(default="change-me-shared-secret", alias="MCP_BACKEND_TOKEN")
 
+    # --- Trading mode ---
+    # `paper` (default) or `live`. Live additionally requires WORKBENCH_LIVE_ACK=I_UNDERSTAND.
+    # Resolved by app/brokers/alpaca/credentials.py; see ADR 0002 and docs/runbook/live-mode.md.
+    trading_mode: str = "paper"
+    live_ack: str = ""
+
+    # --- Alpaca credentials (not WORKBENCH_-prefixed) ---
+    alpaca_paper_api_key: str = Field(default="", alias="ALPACA_PAPER_API_KEY")
+    alpaca_paper_api_secret: str = Field(default="", alias="ALPACA_PAPER_API_SECRET")
+    alpaca_live_api_key: str = Field(default="", alias="ALPACA_LIVE_API_KEY")
+    alpaca_live_api_secret: str = Field(default="", alias="ALPACA_LIVE_API_SECRET")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
