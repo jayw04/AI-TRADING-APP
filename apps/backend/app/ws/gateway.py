@@ -7,7 +7,8 @@ heartbeat task. Client-driven topic subscription lands in P1+.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+import contextlib
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -20,7 +21,7 @@ log = get_logger("ws")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 async def heartbeat_loop() -> None:
@@ -74,8 +75,6 @@ async def ws_endpoint(websocket: WebSocket) -> None:
     finally:
         if forwarder is not None:
             forwarder.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await forwarder
-            except (asyncio.CancelledError, Exception):
-                pass
         await subscription.aclose()

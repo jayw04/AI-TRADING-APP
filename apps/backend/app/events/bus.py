@@ -7,7 +7,8 @@ Each subscriber owns an asyncio.Queue that the bus fans out to on publish.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+import contextlib
+from collections.abc import AsyncGenerator
 from functools import lru_cache
 from typing import Any
 
@@ -25,13 +26,11 @@ class EventBus:
                 queue.put_nowait(event)
             except asyncio.QueueFull:
                 # Drop oldest on backpressure so a slow subscriber can't stall the producer.
-                try:
+                with contextlib.suppress(asyncio.QueueEmpty):
                     queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    pass
                 queue.put_nowait(event)
 
-    async def subscribe(self, topic: str) -> AsyncIterator[dict[str, Any]]:
+    async def subscribe(self, topic: str) -> AsyncGenerator[dict[str, Any], None]:
         queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=self._queue_maxsize)
         async with self._lock:
             self._subscribers.setdefault(topic, []).append(queue)

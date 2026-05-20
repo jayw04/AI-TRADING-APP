@@ -30,18 +30,17 @@ def fast_heartbeat_app(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_ws_emits_connected_and_heartbeat(fast_heartbeat_app) -> None:
-    with TestClient(fast_heartbeat_app) as client:
-        with client.websocket_connect("/ws") as ws:
-            connected = ws.receive_json()
-            assert connected["type"] == "system.connected"
-            assert "ts" in connected
-            assert "server_version" in connected
+    with TestClient(fast_heartbeat_app) as client, client.websocket_connect("/ws") as ws:
+        connected = ws.receive_json()
+        assert connected["type"] == "system.connected"
+        assert "ts" in connected
+        assert "server_version" in connected
 
-            saw_heartbeat = False
-            for _ in range(50):
-                msg = ws.receive_json()
-                if msg.get("type") == "system.heartbeat":
-                    assert "ts" in msg
-                    saw_heartbeat = True
-                    break
-            assert saw_heartbeat, "did not receive a system.heartbeat within 50 messages"
+        saw_heartbeat = False
+        for _ in range(50):
+            msg = ws.receive_json()
+            if msg.get("type") == "system.heartbeat":
+                assert "ts" in msg
+                saw_heartbeat = True
+                break
+        assert saw_heartbeat, "did not receive a system.heartbeat within 50 messages"

@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -14,7 +15,8 @@ from app.api.v1 import api_router
 from app.config import get_settings
 from app.db.session import get_sessionmaker
 from app.utils.logging import configure_logging, get_logger
-from app.ws.gateway import heartbeat_loop, router as ws_router
+from app.ws.gateway import heartbeat_loop
+from app.ws.gateway import router as ws_router
 
 
 def create_app() -> FastAPI:
@@ -28,10 +30,8 @@ def create_app() -> FastAPI:
             yield
         finally:
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
 
     app = FastAPI(
         title="Trading Workbench Backend",

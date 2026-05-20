@@ -25,7 +25,7 @@ class FakeBackendClient:
         self._ping = ping or {"pong": True}
         self._ping_error = ping_error
 
-    async def __aenter__(self) -> "FakeBackendClient":
+    async def __aenter__(self) -> FakeBackendClient:
         return self
 
     async def __aexit__(self, *_exc: object) -> None:

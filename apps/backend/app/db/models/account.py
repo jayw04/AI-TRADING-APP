@@ -1,5 +1,5 @@
-import enum
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 
-class AccountMode(str, enum.Enum):
+class AccountMode(StrEnum):
     paper = "paper"
     live = "live"
 
