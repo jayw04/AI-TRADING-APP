@@ -1,6 +1,6 @@
 # Trading Workbench
 
-Local-first trading workbench (Alpaca + TradingView + Claude Code).
+The Trading Workbench is a local-first trading application for active equity traders. It pairs a trader-facing web UI (charts via TradingView, order management, positions, journal, strategy console) with a **Claude Code–powered agent layer** that helps author, monitor, and (optionally) execute systematic strategies. Broker integration is **Alpaca** — paper trading first, with a gated path to live.
 
 > ⚠️ **Status: Pre-MVP.** Not for production trading. Paper trading only by default; live trading requires explicit, audited opt-in.
 
@@ -8,7 +8,7 @@ Local-first trading workbench (Alpaca + TradingView + Claude Code).
 
 **Phase P0 — Scaffolding.** No trading logic yet. Goal: `docker compose up` brings up backend (healthy), MCP server (responding), and frontend (renders empty shell). See [`docs/implementation/TradingWorkbench_P0_Checklist_v0.1.md`](docs/implementation/TradingWorkbench_P0_Checklist_v0.1.md).
 
-P0 progress: Groups 1–7 complete (repo bootstrap, FastAPI backend, SQLAlchemy/Alembic DB + seed, WebSocket gateway, MCP server, React/Vite frontend, Docker Compose). Groups 8–10 remaining (CI, docs, exit gate).
+P0 progress: Groups 1–8 complete. Groups 9–10 remaining (docs, exit gate).
 
 ## Quickstart (Docker — recommended)
 
@@ -68,7 +68,7 @@ workbench-mcp     # SSE on 127.0.0.1:8765
 
 ## Architecture
 
-See [`docs/design/TradingWorkbench_DesignDocument_v0.1.md`](docs/design/TradingWorkbench_DesignDocument_v0.1.md) §4.
+See [Design Doc §4.1](docs/design/TradingWorkbench_DesignDocument_v0.1.md#41-conceptual-diagram-described) for the conceptual diagram. ADRs in [`docs/adr/`](docs/adr/) capture the load-bearing decisions.
 
 A FastAPI backend hosts the order router, risk engine, strategy engine, and an event-driven WebSocket gateway. A separate MCP server, talking to the backend over HTTP with a shared secret, exposes a curated set of tools to Claude Code (read-only + propose-order for advisory sessions; full action surface inside the strict bounds of an "Agent Strategy" for autonomous trading). A React + TypeScript frontend renders the trader-facing UI. All three services run locally via Docker Compose, bound to `127.0.0.1`. SQLite for MVP; PostgreSQL-ready via SQLAlchemy + Alembic.
 
@@ -132,3 +132,5 @@ Internal / proprietary. Owned by **DigiTech Edge** (IP-holding) and licensed to 
 - [Design Doc v0.1](docs/design/TradingWorkbench_DesignDocument_v0.1.md)
 - [P0 Checklist v0.1](docs/implementation/TradingWorkbench_P0_Checklist_v0.1.md)
 - [P0 Session 1 v0.1](docs/implementation/TradingWorkbench_P0_Session1_v0.1.md)
+- [Runbooks](docs/runbook/) — operational how-tos
+- [ADRs](docs/adr/) — architecture decision records
