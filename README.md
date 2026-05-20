@@ -13,8 +13,8 @@ P0 progress: Groups 1–3 complete (repo bootstrap, FastAPI backend, SQLAlchemy/
 ## Quickstart (target — not all groups complete yet)
 
 ```bash
-git clone https://github.com/globalcomplyai/trading-workbench.git
-cd trading-workbench
+git clone https://github.com/jayw04/AI-TRADING-APP.git
+cd AI-TRADING-APP
 cp .env.example .env       # then edit .env with your local values
 ./scripts/dev.sh           # brings up all services via docker compose (Group 7)
 # open http://localhost:5173
@@ -87,8 +87,9 @@ data/              SQLite DB lives here (gitignored)
 
 ## Repo
 
-- GitHub: `globalcomplyai/trading-workbench` (private)
-- Default branch: `main` with branch protection (PR + CI required)
+- GitHub: [`jayw04/AI-TRADING-APP`](https://github.com/jayw04/AI-TRADING-APP) (private)
+- Default branch: `main` with branch protection (PR + CI required — planned, set up after Group 8 CI)
+- Original planning docs reference `globalcomplyai/trading-workbench`; the repo lives under `jayw04` for now and may transfer to an org later.
 
 ## License
 
