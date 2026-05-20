@@ -1,0 +1,74 @@
+name: trading-workbench
+
+services:
+  backend:
+    build:
+      context: ./apps/backend
+    container_name: workbench-backend
+    env_file:
+      - .env
+    environment:
+      # Container listens on all interfaces; the port mapping below confines
+      # exposure to host 127.0.0.1.
+      WORKBENCH_HOST: 0.0.0.0
+      # SQLite path inside the container; volume below persists it to host.
+      WORKBENCH_DB_URL: sqlite+aiosqlite:////app/data/workbench.sqlite
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./apps/backend/strategies_user:/app/strategies_user
+      - ./apps/backend/bars_cache:/app/bars_cache
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 10s
+      timeout: 3s
+      start_period: 20s
+      retries: 5
+    restart: unless-stopped
+
+  mcp-server:
+    build:
+      context: ./apps/mcp-server
+    container_name: workbench-mcp
+    env_file:
+      - .env
+    environment:
+      MCP_HOST: 0.0.0.0
+      # Inside the compose network, the backend is reachable by service name.
+      MCP_BACKEND_URL: http://backend:8000
+    ports:
+      - "127.0.0.1:8765:8765"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1', 8765)); s.close()" || exit 1
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 5
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile.dev
+    container_name: workbench-frontend
+    env_file:
+      - .env
+    environment:
+      VITE_DEV_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      # Bind-mount source for hot reload; anonymous volume keeps the
+      # container's node_modules from being shadowed by the host's.
+      - ./apps/frontend:/app
+      - /app/node_modules
+    restart: unless-stopped

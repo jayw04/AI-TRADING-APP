@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:20-alpine
+
+ENV PNPM_HOME=/usr/local/share/pnpm \
+    PATH=/usr/local/share/pnpm:$PATH
+
+RUN corepack enable
+
+WORKDIR /app
+
+# Install deps first so node_modules caches across source edits.
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Source is bind-mounted by docker-compose for hot reload; this COPY only
+# matters when someone runs `docker build` standalone.
+COPY . .
+
+EXPOSE 5173
+
+CMD ["pnpm", "dev", "--host", "0.0.0.0"]

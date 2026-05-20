@@ -8,31 +8,63 @@ Local-first trading workbench (Alpaca + TradingView + Claude Code).
 
 **Phase P0 — Scaffolding.** No trading logic yet. Goal: `docker compose up` brings up backend (healthy), MCP server (responding), and frontend (renders empty shell). See [`docs/implementation/TradingWorkbench_P0_Checklist_v0.1.md`](docs/implementation/TradingWorkbench_P0_Checklist_v0.1.md).
 
-P0 progress: Groups 1–3 complete (repo bootstrap, FastAPI backend, SQLAlchemy/Alembic DB + seed). Groups 4–10 remaining.
+P0 progress: Groups 1–7 complete (repo bootstrap, FastAPI backend, SQLAlchemy/Alembic DB + seed, WebSocket gateway, MCP server, React/Vite frontend, Docker Compose). Groups 8–10 remaining (CI, docs, exit gate).
 
-## Quickstart (target — not all groups complete yet)
+## Quickstart (Docker — recommended)
 
 ```bash
 git clone https://github.com/jayw04/AI-TRADING-APP.git
 cd AI-TRADING-APP
-cp .env.example .env       # then edit .env with your local values
-./scripts/dev.sh           # brings up all services via docker compose (Group 7)
+./scripts/dev.sh                       # creates .env from .env.example, builds, brings up all 3 services
 # open http://localhost:5173
 ```
 
-Until Docker Compose lands (Group 7), run the backend standalone:
+The script:
+1. Creates `.env` from `.env.example` if it doesn't exist (edit it with real Alpaca creds when you reach P1).
+2. Builds the backend, MCP server, and frontend images.
+3. Starts the stack via `docker compose up`. All three services bind to `127.0.0.1` only (local-first).
+
+On boot, the backend container self-bootstraps: runs `alembic upgrade head` then `seed_dev_data.py` (both idempotent), then serves FastAPI on `:8000`. SQLite lives in `./data/` on the host (persists across `docker compose down`).
+
+Verify:
+- `curl http://127.0.0.1:8000/healthz` → `{"status":"ok","db":"ok"}`
+- `curl -H "X-Workbench-Auth: change-me-shared-secret" http://127.0.0.1:8000/api/v1/internal/ping` → `{"pong":true}`
+- Open `http://localhost:5173` — Dashboard shows the stub account JSON; bottom status bar shows a live `system.heartbeat` ts updating every 5s.
+
+Stop:
+```bash
+./scripts/dev.sh down
+```
+
+## Quickstart (standalone, no Docker)
+
+For backend-only iteration:
 
 ```bash
 cd apps/backend
 python -m venv .venv
-.venv\Scripts\activate            # PowerShell: .venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1            # PowerShell
 pip install -e ".[dev]"
 alembic upgrade head
 python scripts/seed_dev_data.py
 uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --reload
 ```
 
-Verify: `curl http://127.0.0.1:8000/healthz` → `{"status":"ok","db":"ok"}`.
+Frontend:
+```bash
+cd apps/frontend
+pnpm install
+pnpm dev          # http://localhost:5173
+```
+
+MCP server:
+```bash
+cd apps/mcp-server
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+workbench-mcp     # SSE on 127.0.0.1:8765
+```
 
 ## Architecture
 
