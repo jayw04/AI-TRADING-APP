@@ -4,10 +4,13 @@ from collections.abc import Awaitable, Callable
 
 import structlog
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api.v1 import api_router
 from app.config import get_settings
+from app.db.session import get_sessionmaker
 from app.utils.logging import configure_logging, get_logger
 
 
@@ -55,8 +58,18 @@ def create_app() -> FastAPI:
         return response
 
     @app.get("/healthz")
-    async def healthz() -> dict[str, str]:
-        return {"status": "ok", "version": settings.version}
+    async def healthz() -> Response:
+        db_status = "ok"
+        try:
+            async with get_sessionmaker()() as session:
+                await session.execute(text("SELECT 1"))
+        except Exception:
+            db_status = "down"
+
+        payload = {"status": "ok" if db_status == "ok" else "degraded",
+                   "db": db_status, "version": settings.version}
+        status_code = 200 if db_status == "ok" else 503
+        return JSONResponse(payload, status_code=status_code)
 
     app.include_router(api_router)
 
