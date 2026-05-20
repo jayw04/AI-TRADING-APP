@@ -39,7 +39,7 @@ async def test_healthz_degraded_when_db_unreachable(monkeypatch: pytest.MonkeyPa
 
     # Reset caches so subsequent tests get a fresh, working engine.
     monkeypatch.delenv("WORKBENCH_DB_URL", raising=False)
-    os.environ["WORKBENCH_DB_URL"] = "sqlite+aiosqlite:///./data/workbench.test.sqlite"
+    os.environ["WORKBENCH_DB_URL"] = "sqlite+aiosqlite:///:memory:"
     get_settings.cache_clear()
     db_session.get_engine.cache_clear()
     db_session.get_sessionmaker.cache_clear()
