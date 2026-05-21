@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             asset_sync = AssetSyncService(adapter, session_factory, bus)
             account_sync = AccountSyncService(adapter, session_factory, bus)
-            position_sync = PositionSyncService(adapter, bus)
+            position_sync = PositionSyncService(adapter, session_factory, bus)
 
             scheduler = WorkbenchScheduler(asset_sync, account_sync, position_sync)
             scheduler.start()
