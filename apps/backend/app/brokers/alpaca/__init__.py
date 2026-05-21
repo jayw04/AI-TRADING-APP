@@ -17,6 +17,7 @@ from app.brokers.alpaca.errors import (
     TransientAlpacaError,
     classify,
 )
+from app.brokers.alpaca.streaming import TradeUpdatesStream
 
 __all__ = [
     "AlpacaAdapter",
@@ -24,6 +25,7 @@ __all__ = [
     "AlpacaError",
     "CredentialsError",
     "PermanentAlpacaError",
+    "TradeUpdatesStream",
     "TransientAlpacaError",
     "classify",
     "load_credentials",

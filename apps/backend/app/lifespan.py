@@ -5,11 +5,14 @@ Startup:
   2. Instantiate AlpacaAdapter and connect (fail-loud if creds are wrong).
   3. Build the three sync services.
   4. Start the WorkbenchScheduler and run an initial sync pass.
+  5. Start the TradeUpdatesStream as a background task.
 
 Shutdown (reverse order):
-  1. Stop the scheduler.
-  2. Disconnect the adapter.
-  3. Cancel the heartbeat task.
+  1. Stop the TradeUpdatesStream (before scheduler, so trailing events don't
+     race in after services have torn down their session factory).
+  2. Stop the scheduler.
+  3. Disconnect the adapter.
+  4. Cancel the heartbeat task.
 
 Startup errors in any *sync* call are logged but do not abort the lifespan,
 so the API stays reachable for diagnostics. A failure to connect to Alpaca,
@@ -26,7 +29,7 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from app.brokers.alpaca import AlpacaAdapter
+from app.brokers.alpaca import AlpacaAdapter, TradeUpdatesStream
 from app.config import get_settings
 from app.db.session import get_sessionmaker
 from app.events import get_event_bus
@@ -46,13 +49,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     heartbeat_task: asyncio.Task[None] | None = None
     adapter: AlpacaAdapter | None = None
     scheduler: WorkbenchScheduler | None = None
+    trade_stream: TradeUpdatesStream | None = None
 
     try:
         # 1. WS heartbeat (P0 §4)
         heartbeat_task = asyncio.create_task(heartbeat_loop(), name="ws-heartbeat")
 
-        # 2. Alpaca adapter + scheduler — gated by settings.alpaca_startup_enabled
-        # so tests can run without real creds and without hitting the broker.
+        # 2. Alpaca adapter + scheduler + trade-updates stream — gated by
+        # settings.alpaca_startup_enabled so tests can run without real creds
+        # and without hitting the broker.
         settings = get_settings()
         if settings.alpaca_startup_enabled:
             adapter = AlpacaAdapter()
@@ -69,12 +74,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             scheduler = WorkbenchScheduler(asset_sync, account_sync, position_sync)
             scheduler.start()
 
+            # 5. Trade Updates WebSocket (P1 Session 3)
+            trade_stream = TradeUpdatesStream(adapter.credentials, bus)
+            await trade_stream.start()
+
             # Stash for request handlers / tests
             app.state.alpaca_adapter = adapter
             app.state.asset_sync = asset_sync
             app.state.account_sync = account_sync
             app.state.position_sync = position_sync
             app.state.scheduler = scheduler
+            app.state.trade_stream = trade_stream
 
             # Initial sync pass (each call wraps its own try/except internally)
             await scheduler.run_startup_sync()
@@ -85,6 +95,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         logger.info("lifespan_shutdown_begin")
+        # Stop the stream BEFORE the scheduler so trailing trade-update events
+        # don't race in after services have torn down.
+        if trade_stream is not None:
+            try:
+                await trade_stream.stop()
+            except Exception:
+                logger.exception("trade_stream_stop_failed")
         if scheduler is not None:
             try:
                 await scheduler.shutdown()
