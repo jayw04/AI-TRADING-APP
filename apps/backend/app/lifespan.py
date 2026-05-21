@@ -33,6 +33,10 @@ from app.brokers.alpaca import AlpacaAdapter, TradeUpdatesStream
 from app.config import get_settings
 from app.db.session import get_sessionmaker
 from app.events import get_event_bus
+from app.orders import OrderRouter
+from app.orders.lifecycle import TradeUpdateConsumer
+from app.orders.positions import PositionRecomputer
+from app.risk import RiskEngine
 from app.services.account_sync import AccountSyncService
 from app.services.asset_sync import AssetSyncService
 from app.services.position_sync import PositionSyncService
@@ -50,6 +54,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     adapter: AlpacaAdapter | None = None
     scheduler: WorkbenchScheduler | None = None
     trade_stream: TradeUpdatesStream | None = None
+    trade_update_consumer: TradeUpdateConsumer | None = None
 
     try:
         # 1. WS heartbeat (P0 §4)
@@ -78,6 +83,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             trade_stream = TradeUpdatesStream(adapter.credentials, bus)
             await trade_stream.start()
 
+            # 6. Risk Engine + Order Router (P1 Session 5 Phase A)
+            risk_engine = RiskEngine(session_factory)
+            order_router = OrderRouter(adapter, risk_engine, session_factory, bus)
+
+            # 7. PositionRecomputer + TradeUpdateConsumer (P1 Session 5 Phase B)
+            # Consumer subscribes to the bus and translates alpaca.trade_update
+            # events into Fill rows + Order transitions + position recomputes.
+            position_recomputer = PositionRecomputer(session_factory, bus)
+            trade_update_consumer = TradeUpdateConsumer(
+                session_factory, bus, position_recomputer
+            )
+            await trade_update_consumer.start()
+
             # Stash for request handlers / tests
             app.state.alpaca_adapter = adapter
             app.state.asset_sync = asset_sync
@@ -85,6 +103,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.position_sync = position_sync
             app.state.scheduler = scheduler
             app.state.trade_stream = trade_stream
+            app.state.risk_engine = risk_engine
+            app.state.order_router = order_router
+            app.state.position_recomputer = position_recomputer
+            app.state.trade_update_consumer = trade_update_consumer
 
             # Initial sync pass (each call wraps its own try/except internally)
             await scheduler.run_startup_sync()
@@ -95,8 +117,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         logger.info("lifespan_shutdown_begin")
-        # Stop the stream BEFORE the scheduler so trailing trade-update events
-        # don't race in after services have torn down.
+        # Stop the consumer first so trailing trade-update events don't try to
+        # write into a session factory that's about to go away.
+        if trade_update_consumer is not None:
+            try:
+                await trade_update_consumer.stop()
+            except Exception:
+                logger.exception("trade_update_consumer_stop_failed")
+        # Stop the WS stream before the scheduler so no new events arrive
+        # while the consumer is being torn down.
         if trade_stream is not None:
             try:
                 await trade_stream.stop()

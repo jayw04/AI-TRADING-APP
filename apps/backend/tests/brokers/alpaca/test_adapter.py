@@ -72,19 +72,33 @@ def test_get_positions_returns_list(paper_creds: AlpacaCredentials) -> None:
         assert positions[0]["symbol"] == "AAPL"
 
 
-def test_submit_order_not_implemented_per_adr0002(paper_creds: AlpacaCredentials) -> None:
+def test_submit_order_refuses_without_router_token(paper_creds: AlpacaCredentials) -> None:
+    """ADR 0002 tripwire: callers other than OrderRouter cannot submit orders."""
     a = AlpacaAdapter(credentials=paper_creds)
-    with pytest.raises(NotImplementedError, match="OrderRouter"):
-        a.submit_order(symbol="AAPL", qty=1, side="buy")
+    with pytest.raises(RuntimeError, match="ADR 0002"):
+        a.submit_order(symbol="AAPL", qty=1, side="buy", type_="market", tif="day")
 
 
-def test_cancel_order_not_implemented(paper_creds: AlpacaCredentials) -> None:
+def test_submit_order_refuses_wrong_token(paper_creds: AlpacaCredentials) -> None:
     a = AlpacaAdapter(credentials=paper_creds)
-    with pytest.raises(NotImplementedError, match="Session 4"):
+    with pytest.raises(RuntimeError, match="ADR 0002"):
+        a.submit_order(
+            symbol="AAPL",
+            qty=1,
+            side="buy",
+            type_="market",
+            tif="day",
+            _router_token="not-the-real-token",
+        )
+
+
+def test_cancel_order_refuses_without_router_token(paper_creds: AlpacaCredentials) -> None:
+    a = AlpacaAdapter(credentials=paper_creds)
+    with pytest.raises(RuntimeError, match="ADR 0002"):
         a.cancel_order("fake-order-id")
 
 
-def test_replace_order_not_implemented(paper_creds: AlpacaCredentials) -> None:
+def test_replace_order_refuses_without_router_token(paper_creds: AlpacaCredentials) -> None:
     a = AlpacaAdapter(credentials=paper_creds)
-    with pytest.raises(NotImplementedError, match="Session 4"):
+    with pytest.raises(RuntimeError, match="ADR 0002"):
         a.replace_order("fake-order-id", new_qty=2)
