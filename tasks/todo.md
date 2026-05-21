@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-20 · tag at HEAD: `p0-complete` · branch: `main`
+Last updated: 2026-05-20 · branch: `feat/p1-alpaca-adapter` · tag on `main`: `p0-complete`
 
 ---
 
@@ -30,9 +30,9 @@ All ten groups landed across 12 commits on `main`. Tag `p0-complete` → `6e66ad
 
 ## ⏳ P0 follow-ups (you, when you have a minute)
 
-These don't block P1 starts, but they close the loop on the §10 exit gate.
+These don't block P1 work, but they close the loop on the §10 exit gate.
 
-- [ ] **Confirm CI green** on https://github.com/jayw04/AI-TRADING-APP/actions for commit `6e66ad9`. If anything's red, paste the failing job's log and I'll fix.
+- [ ] **Confirm CI green** on latest `main` commit at https://github.com/jayw04/AI-TRADING-APP/actions. If anything's red, paste the failing job's log and I'll fix.
 - [ ] **Set up branch protection** at https://github.com/jayw04/AI-TRADING-APP/settings/rules (or `/settings/branches`). Configure for `main`:
   - Require a pull request before merging (0 approvals OK while solo)
   - Require status checks to pass — make these required: `Python (backend)`, `Python (mcp-server)`, `Frontend`, `Build image (backend)`, `Build image (mcp-server)`, `Build image (frontend)`
@@ -40,20 +40,30 @@ These don't block P1 starts, but they close the loop on the §10 exit gate.
   - Block force pushes
   - Restrict deletions
 - [ ] **First validation PR** (P0 Checklist §8.3): a trivial change (e.g., README typo fix) opened as a PR to validate the protection + CI flow end-to-end. Merge once green, delete branch.
-- [ ] **Migrate Alpaca creds** out of `alpaca info.txt` into `.env` (the four `ALPACA_*` vars are already in `.env.example`). After migration, delete `alpaca info.txt`.
+- [x] **Migrate Alpaca creds** ~~from `alpaca info.txt` into `.env`~~ — done 2026-05-20. `.env` populated; `alpaca info.txt` deleted; never committed (history clean, no rotation needed).
 - [ ] **Implementation Plan v0.2** doc is referenced throughout the planning docs but isn't in the repo yet. Drop it into `docs/implementation/` when ready.
 
 ---
 
-## 🚧 P1 — Manual Trading MVP (next phase)
+## 🚧 P1 — Manual Trading MVP (in progress)
 
 Goal per Design Doc §13 / S1: *"Trader can place, modify, and cancel paper orders against Alpaca from the UI."*
 
-P1 is the first phase with real trading code. Once it ships, the workbench is genuinely useful (paper) rather than just a healthy shell.
+Master plan: [`docs/implementation/TradingWorkbench_P1_Checklist_v0.1.md`](../docs/implementation/TradingWorkbench_P1_Checklist_v0.1.md). Session-by-session detail lives in the four P1_Session*_v0.1.md docs alongside it.
+
+### P1 progress
+
+| Session | Scope | Status |
+|---|---|---|
+| **S1** | P0 close-out + Alpaca adapter foundation (creds, errors, read-only methods, streaming skeleton) | ✅ branch `feat/p1-alpaca-adapter` pushed; PR pending |
+| **S2** | Asset sync + account/position polling + AsyncIOScheduler + lifespan wiring | ⏳ |
+| **S3** | Trade Updates WS lifecycle | ⏳ |
+| **S4** | Trading DB schema (orders, fills, positions, risk_limits, risk_checks) | ⏳ |
+| **S5+** | Risk Engine, Order Router, REST/WS endpoints, audit, frontend, live-mode gates, tests | ⏳ — session docs not yet written |
 
 ### P1 prereqs
 
-- [ ] Detailed implementation plan for P1 (this file's scope is just a roadmap — the actual P1 should get the same checklist + sessions treatment P0 got).
+- [x] ~~Detailed implementation plan for P1~~ — see Checklist + 4 session docs in `docs/implementation/`.
 - [ ] **ADR 0002 (single order entry point)** is the load-bearing invariant for everything below. Re-read before writing the first line of order code.
 
 ### P1.A — Alpaca adapter
