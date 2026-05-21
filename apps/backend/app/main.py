@@ -1,9 +1,6 @@
-import asyncio
-import contextlib
 import time
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from collections.abc import Awaitable, Callable
 
 import structlog
 from fastapi import FastAPI, Request, Response
@@ -14,24 +11,14 @@ from sqlalchemy import text
 from app.api.v1 import api_router
 from app.config import get_settings
 from app.db.session import get_sessionmaker
+from app.lifespan import lifespan
 from app.utils.logging import configure_logging, get_logger
-from app.ws.gateway import heartbeat_loop
 from app.ws.gateway import router as ws_router
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
-
-    @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        task = asyncio.create_task(heartbeat_loop(), name="ws-heartbeat")
-        try:
-            yield
-        finally:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
 
     app = FastAPI(
         title="Trading Workbench Backend",

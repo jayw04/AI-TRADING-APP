@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     trading_mode: str = "paper"
     live_ack: str = ""
 
+    # When True (default) the lifespan connects to Alpaca and starts the
+    # WorkbenchScheduler. Tests set WORKBENCH_ALPACA_STARTUP_ENABLED=0 so they
+    # don't need real creds and don't hit the broker network.
+    alpaca_startup_enabled: bool = True
+
     # --- Alpaca credentials (not WORKBENCH_-prefixed) ---
     alpaca_paper_api_key: str = Field(default="", alias="ALPACA_PAPER_API_KEY")
     alpaca_paper_api_secret: str = Field(default="", alias="ALPACA_PAPER_API_SECRET")
