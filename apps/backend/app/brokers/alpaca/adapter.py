@@ -51,6 +51,15 @@ class AlpacaAdapter:
     def is_connected(self) -> bool:
         return self._trading is not None
 
+    @property
+    def credentials(self) -> AlpacaCredentials:
+        """Read-only access to the credentials this adapter was constructed with.
+
+        Used by TradeUpdatesStream to open its own WS connection without
+        re-resolving env vars (and to avoid drift if env changes mid-run).
+        """
+        return self._creds
+
     def connect(self) -> None:
         """Create the underlying TradingClient and verify by reading the account."""
         if self._trading is not None:
