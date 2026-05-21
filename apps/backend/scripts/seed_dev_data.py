@@ -9,12 +9,15 @@ Inserts (or no-ops if already present):
 - One Alpaca paper account.
 - 10 sample symbols.
 - system_config key='mode' = 'paper'.
+- Default global RiskLimits row for user 1 (P1 Session 4).
 """
 
 from __future__ import annotations
 
 import asyncio
 import sys
+from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 # Make the backend importable when run as `python scripts/seed_dev_data.py`
@@ -23,9 +26,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import select  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
+from app.db.enums import RiskScopeType  # noqa: E402
 from app.db.models import (  # noqa: E402
     Account,
     AccountMode,
+    RiskLimits,  # noqa: E402
     Symbol,
     SystemConfig,
     User,
@@ -112,6 +117,38 @@ async def seed() -> None:
             print("  + system_config mode=paper")
         else:
             print("  = system_config mode already present")
+
+        # Default global risk limits (P1 Session 4) — written once,
+        # never overwritten on reseed. The Risk Engine (Session 5) resolves
+        # this row at evaluate-time.
+        existing_limits = await session.scalar(
+            select(RiskLimits).where(
+                RiskLimits.user_id == user_id,
+                RiskLimits.scope_type == RiskScopeType.GLOBAL,
+            )
+        )
+        if existing_limits is None:
+            now = datetime.now(UTC)
+            session.add(
+                RiskLimits(
+                    user_id=user_id,
+                    scope_type=RiskScopeType.GLOBAL,
+                    scope_id=None,
+                    max_position_qty=Decimal("1000"),
+                    max_position_notional=Decimal("25000"),
+                    max_gross_exposure=Decimal("100000"),
+                    max_daily_loss=Decimal("2000"),
+                    max_orders_per_minute=10,
+                    allow_short=False,
+                    allowed_symbols=None,
+                    denied_symbols=None,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            print("  + risk_limits global (default caps)")
+        else:
+            print("  = risk_limits global already present")
 
     print("Seed complete.")
 
