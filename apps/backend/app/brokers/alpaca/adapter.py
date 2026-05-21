@@ -145,26 +145,114 @@ class AlpacaAdapter:
         except Exception as exc:
             raise classify(exc) from exc
 
-    # ---- mutating methods (DELIBERATELY UNIMPLEMENTED — see ADR 0002) ----
+    # ---- mutating methods (router-gated per ADR 0002) ----
 
-    def submit_order(self, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
-        """NOT IMPLEMENTED in this session. Lands in P1 Session 4 with OrderRouter.
+    def submit_order(
+        self,
+        *,
+        symbol: str,
+        qty: Any,
+        side: str,
+        type_: str,
+        tif: str,
+        limit_price: Any = None,
+        stop_price: Any = None,
+        extended_hours: bool = False,
+        client_order_id: str | None = None,
+        _router_token: str | None = None,
+    ) -> dict[str, Any]:
+        """Submit an order to Alpaca. Router-gated per ADR 0002.
 
-        Per ADR 0002, this method must only be invoked from `OrderRouter.submit()`.
-        It is deliberately left as `NotImplementedError` here to prevent any code
-        path from accidentally calling Alpaca's submit endpoint before the risk
-        engine is in place.
+        ``_router_token`` is the tripwire — only ``app.orders.router`` knows
+        the constant. CI's grep test (tests/test_adr_0002_invariant.py) also
+        fails if any code outside the router calls this method by reference.
         """
-        raise NotImplementedError(
-            "submit_order is implemented in P1 Session 4 alongside OrderRouter. "
-            "Per ADR 0002, this method may only be called from OrderRouter.submit()."
-        )
+        self._assert_router(_router_token)
+        try:
+            from alpaca.trading.enums import OrderSide as ASide
+            from alpaca.trading.enums import TimeInForce as ATIF
+            from alpaca.trading.requests import (
+                LimitOrderRequest,
+                MarketOrderRequest,
+                StopLimitOrderRequest,
+                StopOrderRequest,
+            )
 
-    def cancel_order(self, *_args: Any, **_kwargs: Any) -> None:
-        raise NotImplementedError("cancel_order lands in P1 Session 4.")
+            common = {
+                "symbol": symbol,
+                "qty": str(qty),
+                "side": ASide(side),
+                "time_in_force": ATIF(tif),
+                "extended_hours": extended_hours,
+                "client_order_id": client_order_id,
+            }
+            req: Any
+            if type_ == "market":
+                req = MarketOrderRequest(**common)
+            elif type_ == "limit":
+                req = LimitOrderRequest(limit_price=str(limit_price), **common)
+            elif type_ == "stop":
+                req = StopOrderRequest(stop_price=str(stop_price), **common)
+            elif type_ == "stop_limit":
+                req = StopLimitOrderRequest(
+                    stop_price=str(stop_price),
+                    limit_price=str(limit_price),
+                    **common,
+                )
+            else:
+                raise ValueError(f"Unsupported order type: {type_}")
 
-    def replace_order(self, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
-        raise NotImplementedError("replace_order lands in P1 Session 4.")
+            out = self._client().submit_order(req)
+            return _to_dict(out)
+        except Exception as exc:
+            raise classify(exc) from exc
+
+    def cancel_order(
+        self,
+        broker_order_id: str,
+        *,
+        _router_token: str | None = None,
+    ) -> None:
+        self._assert_router(_router_token)
+        try:
+            self._client().cancel_order_by_id(broker_order_id)
+        except Exception as exc:
+            raise classify(exc) from exc
+
+    def replace_order(
+        self,
+        broker_order_id: str,
+        *,
+        new_qty: Any = None,
+        new_limit_price: Any = None,
+        _router_token: str | None = None,
+    ) -> dict[str, Any]:
+        self._assert_router(_router_token)
+        try:
+            from alpaca.trading.requests import ReplaceOrderRequest
+
+            # alpaca-py types qty as int and limit_price as float; cast at the boundary.
+            req = ReplaceOrderRequest(
+                qty=int(new_qty) if new_qty is not None else None,
+                limit_price=float(new_limit_price)
+                if new_limit_price is not None
+                else None,
+            )
+            out = self._client().replace_order_by_id(broker_order_id, req)
+            return _to_dict(out)
+        except Exception as exc:
+            raise classify(exc) from exc
+
+    def _assert_router(self, token: str | None) -> None:
+        # Lazy import to avoid circular import at module-load time
+        # (app.orders.router imports AlpacaAdapter).
+        from app.orders.router import ROUTER_TOKEN
+
+        if token != ROUTER_TOKEN:
+            raise RuntimeError(
+                "AlpacaAdapter mutating methods may only be called via "
+                "OrderRouter (see ADR 0002). Direct calls are forbidden."
+            )
 
 
 def _to_dict(obj: Any) -> dict[str, Any]:

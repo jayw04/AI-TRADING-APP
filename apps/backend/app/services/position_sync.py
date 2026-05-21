@@ -30,6 +30,13 @@ logger = structlog.get_logger(__name__)
 
 
 class PositionSyncService:
+    # After this many consecutive polls where Alpaca reports a (account, symbol)
+    # we cannot resolve locally (e.g., unknown ticker), the service emits a
+    # `system.reconciliation_drift` event and logs WARNING. In-memory counters
+    # are intentional — a backend restart resets observations, which is what
+    # you want after a deploy.
+    _DRIFT_THRESHOLD = 3
+
     def __init__(
         self,
         adapter: AlpacaAdapter,
@@ -39,6 +46,10 @@ class PositionSyncService:
         self._adapter = adapter
         self._session_factory = session_factory
         self._bus = bus
+        # Keyed by (account_id, ticker) — unresolved tickers can't have a
+        # symbol_id (that's why they're unresolved).
+        self._drift_counters: dict[tuple[int, str], int] = {}
+        self._drift_warned: set[tuple[int, str]] = set()
 
     async def sync_once(self) -> list[dict[str, Any]]:
         """Pull positions, upsert into DB, delete stale rows, publish snapshot."""
@@ -74,6 +85,7 @@ class PositionSyncService:
 
             now = datetime.now(UTC)
             seen_symbol_ids: set[int] = set()
+            unresolved_tickers: set[str] = set()
 
             for p in normalized:
                 ticker = p["symbol"]
@@ -81,8 +93,10 @@ class PositionSyncService:
                 if symbol_id is None:
                     # Symbol not in our table — asset sync hasn't picked it up,
                     # or it's a delisted name. Skip for MVP; P4 polish can add
-                    # a "create-on-demand" fallback.
+                    # a "create-on-demand" fallback. Tracked for drift detection.
                     logger.warning("position_sync_unknown_symbol", ticker=ticker)
+                    if ticker:
+                        unresolved_tickers.add(ticker)
                     continue
                 seen_symbol_ids.add(symbol_id)
 
@@ -133,6 +147,34 @@ class PositionSyncService:
                 logger.info("position_sync_deleted_stale", count=len(stale))
 
             await session.commit()
+
+        # Drift detection: a position Alpaca reports that we couldn't resolve
+        # to a local Symbol row. Reset counters for tickers we DID see; bump
+        # for unresolved ones; warn + publish on the third consecutive miss.
+        resolved_keys = {(account.id, t) for t in tickers if t in symbol_id_by_ticker}
+        for key in resolved_keys:
+            self._drift_counters[key] = 0
+            self._drift_warned.discard(key)
+        for ticker in unresolved_tickers:
+            key = (account.id, ticker)
+            self._drift_counters[key] = self._drift_counters.get(key, 0) + 1
+            count = self._drift_counters[key]
+            if count >= self._DRIFT_THRESHOLD and key not in self._drift_warned:
+                self._drift_warned.add(key)
+                logger.warning(
+                    "reconciliation_drift_detected",
+                    account_id=key[0],
+                    ticker=key[1],
+                    consecutive_polls=count,
+                )
+                await self._bus.publish(
+                    "system.reconciliation_drift",
+                    {
+                        "account_id": key[0],
+                        "ticker": key[1],
+                        "consecutive_polls": count,
+                    },
+                )
 
         logger.info("position_sync_completed", count=len(normalized))
         await self._bus.publish(
