@@ -19,13 +19,28 @@ os.environ.setdefault("WORKBENCH_ALPACA_STARTUP_ENABLED", "0")
 @pytest_asyncio.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     from app.config import get_settings
+    from app.db import models  # noqa: F401 - register models on Base.metadata
+    from app.db.base import Base
+    from app.db.session import get_engine, get_sessionmaker
     from app.main import create_app
 
     get_settings.cache_clear()
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()
+
+    # Apply the full schema to the production engine the endpoints will reach.
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     app = create_app()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+    await engine.dispose()
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()
 
 
 @pytest_asyncio.fixture

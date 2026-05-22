@@ -162,7 +162,7 @@ class OrderRouter:
         )
         return order
 
-    async def cancel(self, order_id: int) -> Order:
+    async def cancel(self, order_id: int, *, actor_user_id: int | None = None) -> Order:  # noqa: ARG002
         async with self._session_factory() as session:
             order = (
                 await session.execute(select(Order).where(Order.id == order_id))
@@ -213,6 +213,7 @@ class OrderRouter:
         *,
         new_qty: Decimal | None = None,
         new_limit_price: Decimal | None = None,
+        actor_user_id: int | None = None,  # noqa: ARG002 - reserved for future audit
     ) -> Order:
         async with self._session_factory() as session:
             order = (
