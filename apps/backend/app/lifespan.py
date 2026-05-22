@@ -41,7 +41,7 @@ from app.services.account_sync import AccountSyncService
 from app.services.asset_sync import AssetSyncService
 from app.services.position_sync import PositionSyncService
 from app.services.scheduler import WorkbenchScheduler
-from app.ws.gateway import heartbeat_loop
+from app.ws.gateway import heartbeat_loop, start_replay_populator, stop_replay_populator
 
 logger = structlog.get_logger(__name__)
 
@@ -57,8 +57,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     trade_update_consumer: TradeUpdateConsumer | None = None
 
     try:
-        # 1. WS heartbeat (P0 §4)
+        # 1. WS heartbeat (P0 §4) + WS replay populator (P1 Session 6).
+        # The populator owns the global ReplayBuffer; per-connection forwarders
+        # in gateway.py do live forwarding without duplicating appends.
         heartbeat_task = asyncio.create_task(heartbeat_loop(), name="ws-heartbeat")
+        start_replay_populator()
 
         # 2. Alpaca adapter + scheduler + trade-updates stream — gated by
         # settings.alpaca_startup_enabled so tests can run without real creds
@@ -117,6 +120,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         logger.info("lifespan_shutdown_begin")
+        # Stop the WS replay populator before the bus subscribers go quiet —
+        # avoids the populator throwing on stopped bus.
+        try:
+            await stop_replay_populator()
+        except Exception:
+            logger.exception("replay_populator_stop_failed")
         # Stop the consumer first so trailing trade-update events don't try to
         # write into a session factory that's about to go away.
         if trade_update_consumer is not None:
