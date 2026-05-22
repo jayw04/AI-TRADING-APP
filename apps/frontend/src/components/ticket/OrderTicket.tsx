@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { accountApi } from "@/api/account";
 import { ordersApi } from "@/api/orders";
 import { quotesApi } from "@/api/quotes";
 import type {
@@ -12,6 +13,7 @@ import type {
 import { ApiError } from "@/api/client";
 import { describeReasons } from "@/lib/risk-reasons";
 import { formatMoney, formatNumber } from "@/lib/format";
+import LiveConfirmModal from "./LiveConfirmModal";
 
 interface TicketFormState {
   symbol: string;
@@ -45,12 +47,21 @@ type Result =
 export default function OrderTicket() {
   const [form, setForm] = useState<TicketFormState>(INITIAL_STATE);
   const [result, setResult] = useState<Result>({ kind: "idle" });
+  const [pendingBody, setPendingBody] = useState<OrderCreateRequest | null>(null);
   const queryClient = useQueryClient();
 
   const symbolNormalized = useMemo(
     () => form.symbol.trim().toUpperCase(),
     [form.symbol],
   );
+
+  const account = useQuery({
+    queryKey: ["account"],
+    queryFn: accountApi.get,
+    refetchInterval: 10_000,
+    retry: false,
+  });
+  const isLive = account.data?.mode === "live";
 
   const quote = useQuery({
     queryKey: ["quote", symbolNormalized],
@@ -97,29 +108,27 @@ export default function OrderTicket() {
     if (result.kind !== "idle") setResult({ kind: "idle" });
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function assembleBody(): OrderCreateRequest | null {
     const qty = form.qty.trim();
     if (!symbolNormalized) {
       setResult({ kind: "error", message: "Symbol is required" });
-      return;
+      return null;
     }
     if (!qty || Number(qty) <= 0) {
       setResult({ kind: "error", message: "Qty must be greater than zero" });
-      return;
+      return null;
     }
     const needsLimit = form.type === "limit" || form.type === "stop_limit";
     const needsStop = form.type === "stop" || form.type === "stop_limit";
     if (needsLimit && (!form.limit_price || Number(form.limit_price) <= 0)) {
       setResult({ kind: "error", message: "Limit price is required for this order type" });
-      return;
+      return null;
     }
     if (needsStop && (!form.stop_price || Number(form.stop_price) <= 0)) {
       setResult({ kind: "error", message: "Stop price is required for this order type" });
-      return;
+      return null;
     }
-
-    const body: OrderCreateRequest = {
+    return {
       symbol: symbolNormalized,
       side: form.side,
       qty,
@@ -129,6 +138,16 @@ export default function OrderTicket() {
       limit_price: needsLimit ? form.limit_price : null,
       stop_price: needsStop ? form.stop_price : null,
     };
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const body = assembleBody();
+    if (!body) return;
+    if (isLive) {
+      setPendingBody(body);
+      return;
+    }
     submitMutation.mutate(body);
   }
 
@@ -141,9 +160,7 @@ export default function OrderTicket() {
         <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
           Order Ticket
         </h3>
-        <span className="text-[11px] text-neutral-500">
-          Routes through /api/v1/orders → RiskEngine → Alpaca paper
-        </span>
+        <ModePill mode={account.data?.mode} />
       </div>
 
       <Field label="Symbol">
@@ -252,15 +269,57 @@ export default function OrderTicket() {
           form.side === "buy"
             ? "bg-emerald-600 hover:bg-emerald-500 text-white"
             : "bg-rose-600 hover:bg-rose-500 text-white"
-        } disabled:opacity-60 disabled:cursor-wait`}
+        } disabled:opacity-60 disabled:cursor-wait ${
+          isLive ? "ring-2 ring-rose-400/70 ring-offset-2 ring-offset-neutral-900" : ""
+        }`}
       >
         {submitMutation.isPending
           ? "Submitting…"
-          : `${form.side === "buy" ? "Buy" : "Sell"} ${symbolNormalized || "—"}`}
+          : `${isLive ? "[LIVE] " : ""}${form.side === "buy" ? "Buy" : "Sell"} ${symbolNormalized || "—"}`}
       </button>
 
       <ResultBanner result={result} />
+
+      {pendingBody && (
+        <LiveConfirmModal
+          symbol={pendingBody.symbol}
+          side={pendingBody.side}
+          qty={pendingBody.qty}
+          type={pendingBody.type}
+          onConfirm={() => {
+            const body = pendingBody;
+            setPendingBody(null);
+            submitMutation.mutate(body);
+          }}
+          onCancel={() => setPendingBody(null)}
+        />
+      )}
     </form>
+  );
+}
+
+function ModePill({ mode }: { mode: string | undefined }) {
+  if (mode === "live") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+        <span className="size-1.5 rounded-full bg-white animate-pulse" />
+        Live
+      </span>
+    );
+  }
+  if (mode === "paper") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-950">
+        <span className="size-1.5 rounded-full bg-amber-950" />
+        Paper
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-neutral-400">
+      <span className="size-1.5 rounded-full bg-neutral-500" />
+      Connecting
+    </span>
   );
 }
 

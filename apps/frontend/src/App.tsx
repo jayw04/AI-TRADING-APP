@@ -2,11 +2,13 @@ import { Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import StatusBar from "./components/StatusBar";
+import ModeBanner from "@/components/ui/ModeBanner";
 import { NAV_ITEMS } from "./routes";
 
 export default function App() {
   return (
     <div className="flex flex-col h-screen bg-neutral-950 text-neutral-100">
+      <ModeBanner />
       <div className="flex flex-1 min-h-0">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
