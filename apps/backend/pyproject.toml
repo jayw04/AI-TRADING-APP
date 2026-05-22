@@ -22,6 +22,13 @@ dependencies = [
     "python-multipart>=0.0.12",
     "alpaca-py>=0.30.0,<1.0.0",
     "apscheduler>=3.10.4,<4.0.0",
+    "pandas>=2.2.0,<3.0.0",
+    # pandas-ta 0.3.x has no Python 3.13 wheel; 0.4.x is a beta rewrite with the
+    # same functional surface (ta.sma/ema/rsi/macd/atr/vwap/bbands). Pinning to
+    # the latest known-good beta — the golden test in tests/indicators/ catches
+    # any regression if we bump.
+    "pandas-ta>=0.4.71b0,<0.5.0",
+    "pyarrow>=15.0.0,<20.0.0",
 ]
 
 [project.optional-dependencies]
