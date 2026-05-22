@@ -1,14 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { NAV_ITEMS } from "./routes";
 
-// Skip the API/WS network in the unit test: we're verifying the shell.
+const PAPER_ACCOUNT = {
+  account_id: 1,
+  mode: "paper",
+  status: "ACTIVE",
+  cash: "10000",
+  equity: "10000",
+  last_equity: "10000",
+  buying_power: "20000",
+  portfolio_value: "10000",
+  day_change: "0",
+  day_change_pct: "0",
+  daytrade_count: 0,
+  pattern_day_trader: false,
+  trading_blocked: false,
+  account_blocked: false,
+  updated_at: new Date().toISOString(),
+};
+
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {}))); // never resolves
-  // jsdom doesn't supply WebSocket; provide a noop ctor so StatusBar's useEffect doesn't throw.
+  // Resolve account fetches with a paper account so ModeBanner renders its
+  // amber state; resolve every other GET with a minimal payload so the
+  // dashboard / pages don't blow up.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) => {
+      if (typeof url === "string" && url.includes("/api/v1/account")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(PAPER_ACCOUNT), { status: 200 }),
+        );
+      }
+      return new Promise(() => {}); // hang every other request
+    }),
+  );
   class FakeWebSocket {
     readyState = 0;
     addEventListener() {}
@@ -43,8 +72,10 @@ describe("App shell", () => {
     }
   });
 
-  it("shows the PAPER mode banner in the header", () => {
+  it("renders the mode banner with the paper-mode copy once account loads", async () => {
     renderApp();
-    expect(screen.getByLabelText("Trading mode")).toHaveTextContent(/paper/i);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Trading mode")).toHaveTextContent(/paper/i);
+    });
   });
 });

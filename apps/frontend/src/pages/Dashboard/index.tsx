@@ -1,65 +1,89 @@
 import { useQuery } from "@tanstack/react-query";
 import { accountApi } from "@/api/account";
+import { ordersApi } from "@/api/orders";
+import { positionsApi } from "@/api/positions";
 import { ApiError } from "@/api/client";
 import {
   formatMoney,
   formatNumber,
   formatPercent,
+  formatQty,
   formatTimestamp,
   pnlClassName,
 } from "@/lib/format";
 
+const REFETCH_MS = 5_000;
+
 export default function Dashboard() {
-  const { data, isLoading, error } = useQuery({
+  const account = useQuery({
     queryKey: ["account"],
     queryFn: accountApi.get,
-    refetchInterval: 5_000,
+    refetchInterval: REFETCH_MS,
+    retry: false,
   });
+  const orders = useQuery({
+    queryKey: ["orders", "open"],
+    queryFn: () => ordersApi.list("open"),
+    refetchInterval: REFETCH_MS,
+    retry: false,
+  });
+  const positions = useQuery({
+    queryKey: ["positions"],
+    queryFn: positionsApi.list,
+    refetchInterval: REFETCH_MS,
+    retry: false,
+  });
+
+  const acc = account.data;
+  const openOrders = orders.data?.items ?? [];
+  const positionItems = positions.data?.items ?? [];
 
   return (
     <div className="grid gap-4">
       <div className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
         <h2 className="text-lg font-semibold text-neutral-100">Dashboard</h2>
         <p className="text-sm text-neutral-400 mt-1">
-          Quick view of account state. Place orders on the Opportunities page; track
-          them on Orders and Positions.
+          Account state, working orders, open positions. Place orders on the
+          Opportunities page.
         </p>
       </div>
 
-      <div className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
+      <section className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
         <h3 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide">
           Account
         </h3>
-        {isLoading && <p className="text-neutral-400 text-sm mt-2">Loading…</p>}
-        {error && (
+        {account.isLoading && (
+          <p className="text-neutral-400 text-sm mt-2">Loading…</p>
+        )}
+        {account.error && (
           <p className="text-rose-400 text-sm mt-2">
-            {error instanceof ApiError && error.status === 404
+            {account.error instanceof ApiError && account.error.status === 404
               ? "No account state yet. Wait for the next sync tick or POST /api/v1/internal/account/sync."
-              : `Backend unreachable: ${(error as Error).message}`}
+              : `Backend unreachable: ${(account.error as Error).message}`}
           </p>
         )}
-        {data && (
+        {acc && (
           <div className="grid gap-4 mt-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Equity" value={formatMoney(data.equity)} />
+            <Stat label="Equity" value={formatMoney(acc.equity)} />
             <Stat
-              label="Day change"
-              value={formatMoney(data.day_change)}
-              valueClassName={pnlClassName(data.day_change)}
-              sub={formatPercent(data.day_change_pct)}
+              label="Day P&L"
+              value={formatMoney(acc.day_change)}
+              valueClassName={pnlClassName(acc.day_change)}
+              sub={formatPercent(acc.day_change_pct)}
             />
-            <Stat label="Cash" value={formatMoney(data.cash)} />
-            <Stat label="Buying power" value={formatMoney(data.buying_power)} />
-            <Stat label="Portfolio value" value={formatMoney(data.portfolio_value)} />
-            <Stat label="Last equity" value={formatMoney(data.last_equity)} />
-            <Stat label="Day-trade count" value={formatNumber(data.daytrade_count, 0)} />
+            <Stat label="Cash" value={formatMoney(acc.cash)} />
+            <Stat label="Buying power" value={formatMoney(acc.buying_power)} />
+            <Stat label="Portfolio value" value={formatMoney(acc.portfolio_value)} />
+            <Stat label="Last equity" value={formatMoney(acc.last_equity)} />
+            <Stat label="Day-trade count" value={formatNumber(acc.daytrade_count, 0)} />
             <Stat
               label="Status"
-              value={data.status}
-              sub={data.pattern_day_trader ? "PDT" : data.mode.toUpperCase()}
+              value={acc.status}
+              sub={acc.pattern_day_trader ? "PDT" : acc.mode.toUpperCase()}
             />
             <div className="sm:col-span-2 lg:col-span-4 text-[11px] text-neutral-500">
-              Updated {formatTimestamp(data.updated_at)} ·{" "}
-              {data.trading_blocked ? (
+              Updated {formatTimestamp(acc.updated_at)} ·{" "}
+              {acc.trading_blocked ? (
                 <span className="text-rose-400">Trading blocked</span>
               ) : (
                 <span className="text-emerald-400">Trading OK</span>
@@ -67,6 +91,104 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide">
+              Working orders
+            </h3>
+            <span className="text-[11px] text-neutral-500">
+              {orders.data ? `${orders.data.count} open` : ""}
+            </span>
+          </div>
+          {orders.isLoading && (
+            <p className="text-neutral-400 text-sm mt-2">Loading…</p>
+          )}
+          {orders.error && (
+            <p className="text-rose-400 text-sm mt-2">
+              {(orders.error as Error).message}
+            </p>
+          )}
+          {orders.data && openOrders.length === 0 && (
+            <p className="text-neutral-500 text-sm mt-2">No working orders.</p>
+          )}
+          {openOrders.length > 0 && (
+            <ul className="mt-3 divide-y divide-neutral-800 text-sm">
+              {openOrders.slice(0, 8).map((o) => (
+                <li
+                  key={o.id ?? `eph-${o.created_at}-${o.symbol}`}
+                  className="flex items-center justify-between py-1.5"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={
+                        o.side === "buy" ? "text-emerald-400" : "text-rose-400"
+                      }
+                    >
+                      {o.side.toUpperCase()}
+                    </span>
+                    <span className="font-mono">{formatQty(o.qty)}</span>
+                    <span className="font-semibold text-neutral-100">
+                      {o.symbol}
+                    </span>
+                    <span className="text-[11px] uppercase text-neutral-500">
+                      {o.type.replace("_", "-")}
+                    </span>
+                  </div>
+                  <span className="text-[11px] uppercase text-neutral-400">
+                    {o.status.replace("_", " ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide">
+              Positions
+            </h3>
+            <span className="text-[11px] text-neutral-500">
+              {positions.data
+                ? `Net ${formatMoney(positions.data.net_exposure)}`
+                : ""}
+            </span>
+          </div>
+          {positions.isLoading && (
+            <p className="text-neutral-400 text-sm mt-2">Loading…</p>
+          )}
+          {positions.error && (
+            <p className="text-rose-400 text-sm mt-2">
+              {(positions.error as Error).message}
+            </p>
+          )}
+          {positions.data && positionItems.length === 0 && (
+            <p className="text-neutral-500 text-sm mt-2">No open positions.</p>
+          )}
+          {positionItems.length > 0 && (
+            <ul className="mt-3 divide-y divide-neutral-800 text-sm">
+              {positionItems.slice(0, 8).map((p) => (
+                <li key={p.id} className="flex items-center justify-between py-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-neutral-100">{p.symbol}</span>
+                    <span className="font-mono text-neutral-300">
+                      {formatQty(p.qty)}
+                    </span>
+                    <span className="text-[11px] uppercase text-neutral-500">
+                      {p.side ?? ""}
+                    </span>
+                  </div>
+                  <span className={`font-mono ${pnlClassName(p.unrealized_pl)}`}>
+                    {formatMoney(p.unrealized_pl)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );
