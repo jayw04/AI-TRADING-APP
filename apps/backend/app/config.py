@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     alpaca_live_api_key: str = Field(default="", alias="ALPACA_LIVE_API_KEY")
     alpaca_live_api_secret: str = Field(default="", alias="ALPACA_LIVE_API_SECRET")
 
+    # --- Market data cache (P2 Session 1) ---
+    # Resolved relative to apps/backend/. The Docker bind mount maps
+    # ./apps/backend/bars_cache -> /app/bars_cache so host + container agree.
+    bars_cache_root: str = "bars_cache"
+    bars_cache_max_gb: float = 5.0
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

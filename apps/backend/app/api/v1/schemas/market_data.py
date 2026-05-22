@@ -32,3 +32,24 @@ class BarsResponse(BaseModel):
     symbol: str
     timeframe: str
     bars: list[BarResponse]
+
+
+# ---- Indicators (P2 Session 1) ----
+
+
+class IndicatorSeriesPoint(BaseModel):
+    t: datetime
+    v: float | None
+
+
+class IndicatorSeries(BaseModel):
+    name: str  # e.g. "RSI14"; multi-output indicators expand to "MACD.macd" etc.
+    latest: float | None
+    sparkline: list[IndicatorSeriesPoint]
+
+
+class IndicatorsResponse(BaseModel):
+    symbol: str
+    timeframe: str
+    last_bar_ts: datetime | None
+    indicators: list[IndicatorSeries]

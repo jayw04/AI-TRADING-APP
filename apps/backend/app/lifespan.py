@@ -33,6 +33,8 @@ from app.brokers.alpaca import AlpacaAdapter, TradeUpdatesStream
 from app.config import get_settings
 from app.db.session import get_sessionmaker
 from app.events import get_event_bus
+from app.indicators import IndicatorComputer
+from app.market_data.bar_cache import BarCache
 from app.orders import OrderRouter
 from app.orders.lifecycle import TradeUpdateConsumer
 from app.orders.positions import PositionRecomputer
@@ -99,6 +101,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             await trade_update_consumer.start()
 
+            # 8. BarCache + IndicatorComputer (P2 Session 1). These do not
+            # need the adapter for fetches (they call the historical data
+            # client directly via load_credentials), but we only construct
+            # them when alpaca_startup_enabled so tests don't write parquet
+            # files into the repo root.
+            bar_cache = BarCache(
+                adapter=adapter,
+                root=settings.bars_cache_root,
+                max_gb=settings.bars_cache_max_gb,
+            )
+            indicator_computer = IndicatorComputer()
+
             # Stash for request handlers / tests
             app.state.alpaca_adapter = adapter
             app.state.asset_sync = asset_sync
@@ -110,6 +124,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.order_router = order_router
             app.state.position_recomputer = position_recomputer
             app.state.trade_update_consumer = trade_update_consumer
+            app.state.bar_cache = bar_cache
+            app.state.indicator_computer = indicator_computer
 
             # Initial sync pass (each call wraps its own try/except internally)
             await scheduler.run_startup_sync()
