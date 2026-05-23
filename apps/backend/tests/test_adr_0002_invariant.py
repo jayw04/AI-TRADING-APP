@@ -26,6 +26,12 @@ ALLOWED = {
     # Tripwire tests deliberately call the mutation methods to assert they
     # refuse without the router token; the test file is fenced off here.
     "tests/brokers/alpaca/test_adapter.py",
+    # StrategyContext tests call ctx.submit_order(...) — the regex matches
+    # the literal `.submit_order(` even though this is the *context's*
+    # pass-through to the injected order-router callable, not a direct
+    # adapter call. ADR 0002 is not violated; the context dispatches
+    # through OrderRouter.submit just like every other path.
+    "tests/strategies/test_context.py",
 }
 
 # apps/backend/
