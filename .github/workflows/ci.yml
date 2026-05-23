@@ -52,6 +52,10 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: pytest -q
 
+      - name: Strategy isolation invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_strategy_isolation.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest

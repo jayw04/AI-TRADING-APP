@@ -92,3 +92,60 @@ class RiskScopeType(StrEnum):
     ACCOUNT = "account"
     STRATEGY = "strategy"
     AGENT_SESSION = "agent_session"
+
+
+# ---- Strategies (P2 Session 2) ----
+
+
+class StrategyType(StrEnum):
+    """How a strategy is implemented.
+
+    Only ``PYTHON`` is dispatched in P2. ``PINE`` (TradingView webhook
+    receiver) lands in P4; ``AGENT`` (Claude Code agent loop) lands in P6.
+    The enum values are reserved here so we don't migrate the column twice.
+    """
+
+    PYTHON = "python"
+    PINE = "pine"
+    AGENT = "agent"
+
+
+class StrategyStatus(StrEnum):
+    """Lifecycle state of a registered strategy.
+
+    Typical transitions::
+
+        IDLE -> BACKTEST -> IDLE
+        IDLE -> PAPER    -> IDLE | HALTED | ERROR
+        IDLE -> LIVE     -> IDLE | HALTED | ERROR     (P5)
+    """
+
+    IDLE = "idle"
+    BACKTEST = "backtest"
+    PAPER = "paper"
+    LIVE = "live"
+    HALTED = "halted"
+    ERROR = "error"
+
+
+# Statuses in which the engine actively dispatches to a strategy.
+ACTIVE_STRATEGY_STATUSES = frozenset(
+    {StrategyStatus.PAPER, StrategyStatus.LIVE}
+)
+
+
+class SignalType(StrEnum):
+    """Type of a ``signals`` row.
+
+    ``ENTRY``/``EXIT``/``FLAT`` are produced by Python strategies.
+    ``AGENT_ACTION`` is reserved for B3 (P6). ``PINE_ALERT`` is reserved for
+    the TradingView webhook (P4). ``INFO`` is a free-form annotation
+    (e.g. "considered entry but RSI=29.99").
+    """
+
+    ENTRY = "entry"
+    EXIT = "exit"
+    FLAT = "flat"
+    INFO = "info"
+    AGENT_ACTION = "agent_action"
+    PINE_ALERT = "pine_alert"

@@ -150,6 +150,40 @@ async def seed() -> None:
         else:
             print("  = risk_limits global already present")
 
+        # Per-strategy risk envelope template (P2 Session 2). Session 3's
+        # reference RSI strategy points its risk_limits_id at this row.
+        # scope_id stays NULL because the strategy row doesn't exist at
+        # seed time; the row binds itself to the strategy id at register.
+        existing_strategy_limits = await session.scalar(
+            select(RiskLimits).where(
+                RiskLimits.user_id == user_id,
+                RiskLimits.scope_type == RiskScopeType.STRATEGY,
+                RiskLimits.scope_id.is_(None),
+            )
+        )
+        if existing_strategy_limits is None:
+            now = datetime.now(UTC)
+            session.add(
+                RiskLimits(
+                    user_id=user_id,
+                    scope_type=RiskScopeType.STRATEGY,
+                    scope_id=None,
+                    max_position_qty=Decimal("100"),
+                    max_position_notional=Decimal("5000"),   # tighter than global 25k
+                    max_gross_exposure=Decimal("15000"),     # tighter than global 100k
+                    max_daily_loss=Decimal("500"),           # tighter than global 2k
+                    max_orders_per_minute=5,                 # tighter than global 10
+                    allow_short=False,
+                    allowed_symbols=None,
+                    denied_symbols=None,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            print("  + risk_limits strategy (template, scope_id=NULL)")
+        else:
+            print("  = risk_limits strategy template already present")
+
     print("Seed complete.")
 
 

@@ -1,0 +1,79 @@
+"""Strategy — the registered, configurable definition of a trading strategy.
+
+A row here is one ``(name, version, type)`` triple. The same Python file can
+be registered multiple times under different parameter sets; each
+registration is a distinct ``strategies`` row.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import JSON, DateTime, ForeignKey, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
+from app.db.enums import StrategyStatus, StrategyType
+
+
+class Strategy(Base):
+    __tablename__ = "strategies"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[str] = mapped_column(String(32), nullable=False, default="0.1.0")
+
+    type: Mapped[StrategyType] = mapped_column(
+        SQLEnum(StrategyType, native_enum=False, length=16),
+        nullable=False,
+        default=StrategyType.PYTHON,
+    )
+    status: Mapped[StrategyStatus] = mapped_column(
+        SQLEnum(StrategyStatus, native_enum=False, length=16),
+        nullable=False,
+        default=StrategyStatus.IDLE,
+    )
+
+    # For PYTHON strategies: a relative path under apps/backend/strategies_user/.
+    # PINE (P4) and AGENT (P6) leave this NULL.
+    code_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+    # Per-strategy parameter overrides (merged over the strategy class's
+    # default_params).
+    params_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+
+    # Symbol universe this strategy may trade. Subset of (or equal to) the
+    # strategy class's default symbol list.
+    symbols_json: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+
+    # Cadence: cron-ish string (e.g. "*/1 * * * *") OR the literal "event"
+    # for purely event-driven strategies that only react to fills/signals.
+    schedule: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="*/1 * * * *"
+    )
+
+    # Optional FK to a risk_limits row at STRATEGY scope. When NULL, the
+    # engine falls back to the user's GLOBAL row.
+    risk_limits_id: Mapped[int | None] = mapped_column(
+        ForeignKey("risk_limits.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Last error text (when status == ERROR). Cleared on next successful run.
+    error_text: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    risk_limits = relationship("RiskLimits", foreign_keys=[risk_limits_id])
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return (
+            f"<Strategy id={self.id} name={self.name!r} v={self.version} "
+            f"type={self.type.value} status={self.status.value}>"
+        )
