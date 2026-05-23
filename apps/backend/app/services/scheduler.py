@@ -75,6 +75,17 @@ class WorkbenchScheduler:
             self._scheduler.shutdown(wait=False)
             logger.info("scheduler_stopped")
 
+    @property
+    def scheduler(self) -> AsyncIOScheduler:
+        """The underlying APScheduler instance.
+
+        Exposed so other components (e.g. ``StrategyEngine``) can register
+        cron jobs against the same scheduler instead of standing up their
+        own. One scheduler per process keeps job IDs unique and avoids two
+        threads racing on the same trigger.
+        """
+        return self._scheduler
+
     async def run_startup_sync(self) -> None:
         """Run the at-startup sync passes once, in order.
 

@@ -25,6 +25,7 @@ import asyncio
 import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 from fastapi import FastAPI
@@ -43,6 +44,7 @@ from app.services.account_sync import AccountSyncService
 from app.services.asset_sync import AssetSyncService
 from app.services.position_sync import PositionSyncService
 from app.services.scheduler import WorkbenchScheduler
+from app.strategies import StrategyEngine
 from app.ws.gateway import heartbeat_loop, start_replay_populator, stop_replay_populator
 
 logger = structlog.get_logger(__name__)
@@ -57,6 +59,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     scheduler: WorkbenchScheduler | None = None
     trade_stream: TradeUpdatesStream | None = None
     trade_update_consumer: TradeUpdateConsumer | None = None
+    strategy_engine: StrategyEngine | None = None
 
     try:
         # 1. WS heartbeat (P0 §4) + WS replay populator (P1 Session 6).
@@ -113,6 +116,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             indicator_computer = IndicatorComputer()
 
+            # 9. StrategyEngine (P2 Session 2). Shares the same
+            # AsyncIOScheduler instance as WorkbenchScheduler — two
+            # schedulers contending for the same job IDs would be a
+            # sneaky bug.
+            strategy_engine = StrategyEngine(
+                scheduler=scheduler.scheduler,
+                session_factory=session_factory,
+                bus=bus,
+                bar_cache=bar_cache,
+                indicator_computer=indicator_computer,
+                order_router=order_router,
+                strategies_root=Path("strategies_user"),
+            )
+
             # Stash for request handlers / tests
             app.state.alpaca_adapter = adapter
             app.state.asset_sync = asset_sync
@@ -126,9 +143,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.trade_update_consumer = trade_update_consumer
             app.state.bar_cache = bar_cache
             app.state.indicator_computer = indicator_computer
+            app.state.strategy_engine = strategy_engine
 
             # Initial sync pass (each call wraps its own try/except internally)
             await scheduler.run_startup_sync()
+
+            # Resume-on-boot: re-register strategies that were active before
+            # the last shutdown. Best-effort — a single broken strategy
+            # shouldn't take down boot.
+            from sqlalchemy import select
+
+            from app.db.enums import ACTIVE_STRATEGY_STATUSES
+            from app.db.models.strategy import Strategy as StrategyRow
+
+            async with session_factory() as resume_session:
+                rows_to_resume = (
+                    await resume_session.execute(
+                        select(StrategyRow).where(
+                            StrategyRow.status.in_(list(ACTIVE_STRATEGY_STATUSES))
+                        )
+                    )
+                ).scalars().all()
+            for row in rows_to_resume:
+                try:
+                    await strategy_engine.register(row.id)
+                except Exception:
+                    logger.exception(
+                        "strategy_resume_failed_on_boot", strategy_id=row.id
+                    )
         else:
             logger.info("alpaca_startup_disabled")
 
@@ -142,6 +184,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await stop_replay_populator()
         except Exception:
             logger.exception("replay_populator_stop_failed")
+        # Stop the strategy engine before the consumer so any in-flight
+        # on_fill dispatches don't race with the consumer being torn down.
+        if strategy_engine is not None:
+            try:
+                await strategy_engine.shutdown()
+            except Exception:
+                logger.exception("strategy_engine_shutdown_failed")
         # Stop the consumer first so trailing trade-update events don't try to
         # write into a session factory that's about to go away.
         if trade_update_consumer is not None:
