@@ -32,6 +32,13 @@ ALLOWED = {
     # adapter call. ADR 0002 is not violated; the context dispatches
     # through OrderRouter.submit just like every other path.
     "tests/strategies/test_context.py",
+    # Same case as test_context.py: these all call `ctx.submit_order(...)`
+    # on a StrategyContext or BacktestContext, which dispatches through
+    # OrderRouter (or, for backtests, an in-memory simulator that never
+    # reaches the adapter). No direct adapter access here.
+    "strategies_user/examples/rsi_meanreversion.py",
+    "tests/strategies/test_backtester.py",
+    "tests/strategies/test_strategy_risk_integration.py",
 }
 
 # apps/backend/
