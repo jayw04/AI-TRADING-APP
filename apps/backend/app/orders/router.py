@@ -15,7 +15,6 @@ and emits internal events so the WS gateway and audit trail stay in sync.
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -25,10 +24,10 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.brokers.alpaca import AlpacaAdapter
 from app.brokers.alpaca.errors import PermanentAlpacaError, TransientAlpacaError
 from app.db.enums import OrderSourceType, OrderStatus
-from app.db.models.audit_log import AuditLog
 from app.db.models.order import Order
 from app.db.models.risk_check import RiskCheck
 from app.db.models.symbol import Symbol
@@ -81,7 +80,7 @@ class OrderRouter:
                 await self._audit(
                     session,
                     order,
-                    "ORDER_REJECTED_BY_RISK",
+                    AuditAction.ORDER_REJECTED_BY_RISK,
                     {
                         "reasons": [r.value for r in outcome.reason_codes],
                         "risk_check_id": outcome.risk_check_id,
@@ -105,7 +104,7 @@ class OrderRouter:
             await self._audit(
                 session,
                 order,
-                "ORDER_RISK_PASSED",
+                AuditAction.ORDER_RISK_PASSED,
                 {"risk_check_id": outcome.risk_check_id},
             )
 
@@ -150,7 +149,7 @@ class OrderRouter:
             await self._audit(
                 session,
                 order,
-                "ORDER_SUBMITTED",
+                AuditAction.ORDER_SUBMITTED,
                 {"broker_order_id": order.broker_order_id},
             )
 
@@ -176,7 +175,7 @@ class OrderRouter:
                 order.updated_at = order.terminal_at
                 await session.commit()
                 await session.refresh(order)
-                await self._audit(session, order, "ORDER_CANCELED_LOCAL", {})
+                await self._audit(session, order, AuditAction.ORDER_CANCELED_LOCAL, {})
                 await self._emit(order, "order.canceled", {"local_only": True})
                 return order
 
@@ -193,7 +192,7 @@ class OrderRouter:
                 await self._audit(
                     session,
                     order,
-                    "ORDER_CANCEL_REJECTED_BY_BROKER",
+                    AuditAction.ORDER_CANCEL_REJECTED_BY_BROKER,
                     {"error": str(exc)},
                 )
             return order
@@ -203,7 +202,7 @@ class OrderRouter:
             order = (
                 await session.execute(select(Order).where(Order.id == order_id))
             ).scalars().first()
-            await self._audit(session, order, "ORDER_CANCEL_REQUESTED", {})
+            await self._audit(session, order, AuditAction.ORDER_CANCEL_REQUESTED, {})
         await self._emit(order, "order.cancel_requested", {})
         return order
 
@@ -237,7 +236,7 @@ class OrderRouter:
                 await self._audit(
                     session,
                     order,
-                    "ORDER_REPLACE_REJECTED_BY_BROKER",
+                    AuditAction.ORDER_REPLACE_REJECTED_BY_BROKER,
                     {"error": str(exc)},
                 )
             return order
@@ -249,7 +248,7 @@ class OrderRouter:
             await self._audit(
                 session,
                 order,
-                "ORDER_REPLACE_REQUESTED",
+                AuditAction.ORDER_REPLACE_REQUESTED,
                 {
                     "new_qty": str(new_qty) if new_qty is not None else None,
                     "new_limit_price": str(new_limit_price) if new_limit_price is not None else None,
@@ -329,7 +328,7 @@ class OrderRouter:
             await self._audit(
                 session,
                 order,
-                "ORDER_REJECTED_BY_BROKER",
+                AuditAction.ORDER_REJECTED_BY_BROKER,
                 {"reason": reason},
             )
         await self._emit(order, "order.rejected", {"reason": reason})
@@ -339,23 +338,23 @@ class OrderRouter:
         self,
         session: AsyncSession,
         order: Order,
-        action: str,
+        action: AuditAction | str,
         payload: dict[str, Any],
     ) -> None:
         actor_type = (
-            "user" if order.source_type == OrderSourceType.MANUAL else "system"
+            AuditActorType.USER
+            if order.source_type == OrderSourceType.MANUAL
+            else AuditActorType.SYSTEM
         )
-        session.add(
-            AuditLog(
-                user_id=order.user_id,
-                ts=datetime.now(UTC),
-                actor_type=actor_type,
-                actor_id=str(order.user_id),
-                action=action,
-                target_type="order",
-                target_id=str(order.id),
-                payload_json=json.dumps(payload, default=str),
-            )
+        AuditLogger.write(
+            session,
+            actor_type=actor_type,
+            actor_id=str(order.user_id),
+            action=action,
+            target_type="order",
+            target_id=order.id,
+            payload=payload,
+            user_id=order.user_id,
         )
         await session.commit()
 

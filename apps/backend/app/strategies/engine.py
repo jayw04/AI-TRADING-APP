@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -48,6 +47,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.db.enums import (
     ACTIVE_STRATEGY_STATUSES,
     StrategyStatus,
@@ -57,7 +57,6 @@ from app.db.enums import (
     SignalType as SignalTypeEnum,
 )
 from app.db.models.account import Account, AccountMode
-from app.db.models.audit_log import AuditLog
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.strategy_run import StrategyRun
 from app.events.bus import EventBus
@@ -224,7 +223,7 @@ class StrategyEngine:
             await self._audit(
                 session,
                 user_id=row.user_id,
-                action="STRATEGY_REGISTERED",
+                action=AuditAction.STRATEGY_REGISTERED,
                 target_id=row.id,
                 payload={"run_id": run_id, "name": cls.name, "symbols": symbols},
             )
@@ -320,7 +319,7 @@ class StrategyEngine:
             await self._audit(
                 session,
                 user_id=(row.user_id if row is not None else None),
-                action="STRATEGY_UNREGISTERED",
+                action=AuditAction.STRATEGY_UNREGISTERED,
                 target_id=strategy_id,
                 payload={"reason": reason},
             )
@@ -502,7 +501,7 @@ class StrategyEngine:
                 await self._audit(
                     session,
                     user_id=row.user_id,
-                    action="STRATEGY_ERROR",
+                    action=AuditAction.STRATEGY_ERROR,
                     target_id=strategy_id,
                     payload={"hook": hook, "error": str(exc)[:512]},
                 )
@@ -548,22 +547,23 @@ class StrategyEngine:
         session: AsyncSession,
         *,
         user_id: int | None,
-        action: str,
+        action: AuditAction | str,
         target_id: int,
         payload: dict[str, Any],
     ) -> None:
-        """Write a strategy-targeted audit row. Mirrors the OrderRouter
-        pattern (uppercase action names, JSON payload, no commit — caller
-        commits)."""
-        session.add(
-            AuditLog(
-                user_id=user_id,
-                ts=datetime.now(UTC),
-                actor_type="user" if user_id is not None else "system",
-                actor_id=str(user_id) if user_id is not None else None,
-                action=action,
-                target_type="strategy",
-                target_id=str(target_id),
-                payload_json=json.dumps(payload, default=str),
-            )
+        """Write a strategy-targeted audit row.
+
+        Thin wrapper around :class:`AuditLogger`; the caller commits.
+        """
+        AuditLogger.write(
+            session,
+            actor_type=(
+                AuditActorType.USER if user_id is not None else AuditActorType.SYSTEM
+            ),
+            actor_id=str(user_id) if user_id is not None else None,
+            action=action,
+            target_type="strategy",
+            target_id=target_id,
+            payload=payload,
+            user_id=user_id,
         )

@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -30,8 +29,8 @@ import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.db.enums import TERMINAL_ORDER_STATUSES, OrderStatus
-from app.db.models.audit_log import AuditLog
 from app.db.models.fill import Fill
 from app.db.models.order import Order
 from app.events.bus import EventBus
@@ -193,24 +192,19 @@ class TradeUpdateConsumer:
             order.terminal_at = now
         order.updated_at = now
 
-        session.add(
-            AuditLog(
-                user_id=order.user_id,
-                ts=now,
-                actor_type="system",
-                actor_id="trade_stream",
-                action="ORDER_FILL_INGESTED",
-                target_type="order",
-                target_id=str(order.id),
-                payload_json=json.dumps(
-                    {
-                        "execution_id": execution_id,
-                        "qty": str(qty),
-                        "price": str(price),
-                    },
-                    default=str,
-                ),
-            )
+        AuditLogger.write(
+            session,
+            actor_type=AuditActorType.SYSTEM,
+            actor_id="trade_stream",
+            action=AuditAction.ORDER_FILL_INGESTED,
+            target_type="order",
+            target_id=order.id,
+            payload={
+                "execution_id": execution_id,
+                "qty": str(qty),
+                "price": str(price),
+            },
+            user_id=order.user_id,
         )
         await session.commit()
 
@@ -257,17 +251,17 @@ class TradeUpdateConsumer:
                 raw.get("reject_reason") if isinstance(raw, dict) else None
             ) or event
 
-        session.add(
-            AuditLog(
-                user_id=order.user_id,
-                ts=now,
-                actor_type="system",
-                actor_id="trade_stream",
-                action=f"ORDER_{new_status.value.upper()}",
-                target_type="order",
-                target_id=str(order.id),
-                payload_json=json.dumps({"event": event}, default=str),
-            )
+        AuditLogger.write(
+            session,
+            actor_type=AuditActorType.SYSTEM,
+            actor_id="trade_stream",
+            # Constructed at runtime from OrderStatus; enum constructor
+            # raises if a new status sneaks in without an AuditAction entry.
+            action=AuditAction(f"ORDER_{new_status.value.upper()}"),
+            target_type="order",
+            target_id=order.id,
+            payload={"event": event},
+            user_id=order.user_id,
         )
         await session.commit()
         await self._bus.publish(
