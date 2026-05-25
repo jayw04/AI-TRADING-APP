@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     account,
     alerts,
+    backtest_jobs,
     indicators,
     internal,
     market_data,
@@ -24,3 +25,4 @@ api_router.include_router(users.router)
 api_router.include_router(alerts.router)
 api_router.include_router(strategies.router)
 api_router.include_router(signals.router)
+api_router.include_router(backtest_jobs.router)

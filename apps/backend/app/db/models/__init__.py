@@ -1,6 +1,7 @@
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
 from app.db.models.audit_log import AuditLog
+from app.db.models.backtest_job import BacktestJob
 from app.db.models.backtest_result import BacktestResult
 from app.db.models.fill import Fill
 from app.db.models.order import Order
@@ -19,6 +20,7 @@ __all__ = [
     "AccountMode",
     "AccountState",
     "AuditLog",
+    "BacktestJob",
     "BacktestResult",
     "Fill",
     "Order",

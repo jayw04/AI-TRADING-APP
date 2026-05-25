@@ -149,3 +149,28 @@ class SignalType(StrEnum):
     INFO = "info"
     AGENT_ACTION = "agent_action"
     PINE_ALERT = "pine_alert"
+
+
+class BacktestJobStatus(StrEnum):
+    """Lifecycle of a backtest job.
+
+    Transitions::
+
+        QUEUED  -> RUNNING   (worker picks up)
+        RUNNING -> COMPLETED (full result persisted)
+        RUNNING -> FAILED    (uncaught exception OR orphaned on worker restart)
+        RUNNING -> CANCELLED (user cancellation honored mid-bar)
+        QUEUED  -> CANCELLED (cancelled before worker started)
+    """
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+# Jobs in these states are in-flight or waiting; single-flight checks use this.
+PENDING_BACKTEST_JOB_STATUSES = frozenset(
+    {BacktestJobStatus.QUEUED, BacktestJobStatus.RUNNING}
+)

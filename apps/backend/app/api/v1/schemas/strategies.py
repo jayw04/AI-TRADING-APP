@@ -16,7 +16,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.db.enums import SignalType, StrategyStatus, StrategyType
+from app.db.enums import BacktestJobStatus, SignalType, StrategyStatus, StrategyType
 
 # ---------- Strategy ----------
 
@@ -219,3 +219,37 @@ class BacktestResultSummary(BaseModel):
 class BacktestListResponse(BaseModel):
     items: list[BacktestResultSummary]
     count: int
+
+
+# ---------- Backtest jobs (P4 §2) ----------
+
+
+class BacktestJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    strategy_id: int
+    result_id: int | None
+    status: BacktestJobStatus
+    label: str
+    percent_complete: float
+    current_ts: str | None
+    submitted_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
+    error_text: str | None
+
+
+class BacktestJobListResponse(BaseModel):
+    items: list[BacktestJobResponse]
+    count: int
+
+
+class BacktestJobSubmittedResponse(BaseModel):
+    """``POST /strategies/{id}/backtest`` returns this with HTTP 202."""
+
+    job_id: int
+    strategy_id: int
+    status: BacktestJobStatus
+    submitted_at: datetime
