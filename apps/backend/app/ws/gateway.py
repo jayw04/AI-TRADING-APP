@@ -67,6 +67,15 @@ _BUS_TOPICS: tuple[str, ...] = (
     # positions
     "positions.snapshot",
     "position.updated",
+    # strategies (P2 S4)
+    "strategy.status_changed",
+    "strategy.run_started",
+    "strategy.run_ended",
+    "strategy.error",
+    # signals (P2 S4)
+    "signal.new",
+    # backtests (P2 S4)
+    "backtest.completed",
 )
 
 
@@ -84,6 +93,12 @@ def _bus_to_ws_topic(bus_topic: str) -> str | None:
         or bus_topic == "account.snapshot"
     ):
         return "system"
+    if bus_topic.startswith("strategy."):
+        return "strategies"
+    if bus_topic == "signal.new":
+        return "signals"
+    if bus_topic.startswith("backtest."):
+        return "backtests"
     return None
 
 

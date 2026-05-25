@@ -1,0 +1,571 @@
+"""REST endpoints for ``/api/v1/strategies`` and per-strategy sub-resources.
+
+Lifecycle::
+
+    POST   /strategies                        Register a new strategy
+    GET    /strategies                        List
+    GET    /strategies/{id}                   Detail
+    PUT    /strategies/{id}                   Update (only when status=IDLE)
+    POST   /strategies/{id}/start             Engine.register; status -> PAPER
+    POST   /strategies/{id}/stop              Engine.unregister; status -> IDLE
+    POST   /strategies/{id}/backtest          Sync backtest; persists + returns
+    GET    /strategies/{id}/runs              Strategy run history
+    GET    /strategies/{id}/signals           Signals emitted by this strategy
+    GET    /strategies/{id}/backtests         Past backtest results (summary)
+    GET    /strategies/{id}/backtests/{bid}   One backtest result (full)
+"""
+
+from __future__ import annotations
+
+import contextlib
+from datetime import UTC, datetime
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.schemas.strategies import (
+    BacktestListResponse,
+    BacktestRequest,
+    BacktestResultResponse,
+    BacktestResultSummary,
+    SignalListResponse,
+    SignalResponse,
+    StrategyActionResponse,
+    StrategyCreateRequest,
+    StrategyListResponse,
+    StrategyResponse,
+    StrategyRunListResponse,
+    StrategyRunResponse,
+    StrategyUpdateRequest,
+)
+from app.audit import AuditAction, AuditActorType, AuditLogger
+from app.auth.stub import CurrentUser, get_current_user
+from app.db.enums import ACTIVE_STRATEGY_STATUSES, StrategyStatus, StrategyType
+from app.db.models.backtest_result import BacktestResult
+from app.db.models.signal import Signal
+from app.db.models.strategy import Strategy as StrategyRow
+from app.db.models.strategy_run import StrategyRun
+from app.db.models.symbol import Symbol
+from app.db.session import get_session
+from app.events import get_event_bus
+from app.strategies import (
+    BacktestConfig,
+    Backtester,
+    StrategyLoader,
+    StrategyLoadError,
+    persist_backtest_result,
+)
+
+router = APIRouter(prefix="/strategies", tags=["strategies"])
+
+
+# ---------- helpers ----------
+
+
+def _get_engine(request: Request):
+    engine = getattr(request.app.state, "strategy_engine", None)
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Strategy engine not initialized")
+    return engine
+
+
+def _get_bar_cache(request: Request):
+    bc = getattr(request.app.state, "bar_cache", None)
+    if bc is None:
+        raise HTTPException(status_code=503, detail="Bar cache not initialized")
+    return bc
+
+
+def _get_indicator_computer(request: Request):
+    ic = getattr(request.app.state, "indicator_computer", None)
+    if ic is None:
+        raise HTTPException(
+            status_code=503, detail="Indicator computer not initialized"
+        )
+    return ic
+
+
+def _strategies_root() -> Path:
+    return Path("strategies_user")
+
+
+def _strategy_to_response(row: StrategyRow) -> StrategyResponse:
+    return StrategyResponse.model_validate(row, from_attributes=True)
+
+
+async def _signal_to_response(
+    session: AsyncSession, signal: Signal
+) -> SignalResponse:
+    sym = await session.get(Symbol, signal.symbol_id)
+    return SignalResponse(
+        id=signal.id,
+        strategy_id=signal.strategy_id,
+        symbol=sym.ticker if sym else "?",
+        payload=signal.payload_json,
+        type=signal.type,
+        received_at=signal.received_at,
+        processed_at=signal.processed_at,
+    )
+
+
+# ---------- POST /strategies ----------
+
+
+@router.post("", response_model=StrategyResponse)
+async def create_strategy(
+    body: StrategyCreateRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StrategyResponse:
+    # P2 only handles PYTHON strategies. PINE/AGENT enum entries exist for
+    # later phases; reject them here so the engine never sees an unsupported
+    # type.
+    if body.type != StrategyType.PYTHON:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Strategy type {body.type.value} is reserved but not "
+                "supported until later phases"
+            ),
+        )
+    if not body.code_path:
+        raise HTTPException(
+            status_code=400, detail="code_path is required for python strategies"
+        )
+
+    # Validate the loader can resolve code_path BEFORE persisting — keeps the
+    # DB from ever holding an unloadable row.
+    try:
+        loader = StrategyLoader(_strategies_root())
+        cls = loader.load(body.code_path)
+    except StrategyLoadError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Strategy file invalid: {exc}"
+        ) from exc
+
+    symbols = body.symbols or list(cls.symbols)
+    now = datetime.now(UTC)
+    row = StrategyRow(
+        user_id=current_user.id,
+        name=body.name,
+        version=body.version,
+        type=body.type,
+        status=StrategyStatus.IDLE,
+        code_path=body.code_path,
+        params_json=body.params,
+        symbols_json=symbols,
+        schedule=body.schedule,
+        risk_limits_id=body.risk_limits_id,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(row)
+    await session.flush()
+
+    AuditLogger.write(
+        session,
+        actor_type=AuditActorType.USER,
+        actor_id=str(current_user.id),
+        action=AuditAction.STRATEGY_REGISTERED,
+        target_type="strategy",
+        target_id=row.id,
+        payload={
+            "name": body.name,
+            "version": body.version,
+            "code_path": body.code_path,
+            "symbols": symbols,
+        },
+        user_id=current_user.id,
+    )
+    await session.commit()
+    await session.refresh(row)
+    return _strategy_to_response(row)
+
+
+# ---------- GET /strategies ----------
+
+
+@router.get("", response_model=StrategyListResponse)
+async def list_strategies(
+    status: StrategyStatus | None = Query(default=None),
+    type_: StrategyType | None = Query(default=None, alias="type"),
+    limit: int = Query(default=100, ge=1, le=500),
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StrategyListResponse:
+    stmt = select(StrategyRow).where(StrategyRow.user_id == current_user.id)
+    if status is not None:
+        stmt = stmt.where(StrategyRow.status == status)
+    if type_ is not None:
+        stmt = stmt.where(StrategyRow.type == type_)
+    stmt = stmt.order_by(StrategyRow.created_at.desc()).limit(limit)
+    rows = (await session.execute(stmt)).scalars().all()
+    items = [_strategy_to_response(r) for r in rows]
+    return StrategyListResponse(items=items, count=len(items))
+
+
+# ---------- GET /strategies/{id} ----------
+
+
+@router.get("/{strategy_id}", response_model=StrategyResponse)
+async def get_strategy(
+    strategy_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StrategyResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    return _strategy_to_response(row)
+
+
+# ---------- PUT /strategies/{id} ----------
+
+
+@router.put("/{strategy_id}", response_model=StrategyResponse)
+async def update_strategy(
+    strategy_id: int,
+    body: StrategyUpdateRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StrategyResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    if row.status != StrategyStatus.IDLE:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Strategy is in status {row.status.value}; "
+                "stop it before updating."
+            ),
+        )
+
+    changed: dict = {}
+    if body.params is not None:
+        row.params_json = body.params
+        changed["params"] = body.params
+    if body.symbols is not None:
+        row.symbols_json = body.symbols
+        changed["symbols"] = body.symbols
+    if body.schedule is not None:
+        row.schedule = body.schedule
+        changed["schedule"] = body.schedule
+    if body.risk_limits_id is not None:
+        row.risk_limits_id = body.risk_limits_id
+        changed["risk_limits_id"] = body.risk_limits_id
+    if body.version is not None:
+        row.version = body.version
+        changed["version"] = body.version
+
+    row.updated_at = datetime.now(UTC)
+
+    AuditLogger.write(
+        session,
+        actor_type=AuditActorType.USER,
+        actor_id=str(current_user.id),
+        action=AuditAction.STRATEGY_UPDATED,
+        target_type="strategy",
+        target_id=row.id,
+        payload={"changed": changed},
+        user_id=current_user.id,
+    )
+    await session.commit()
+    await session.refresh(row)
+    return _strategy_to_response(row)
+
+
+# ---------- POST /strategies/{id}/start ----------
+
+
+@router.post("/{strategy_id}/start", response_model=StrategyActionResponse)
+async def start_strategy(
+    strategy_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StrategyActionResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    # Idempotent: already-active strategy returns current state without
+    # touching the engine.
+    if row.status in ACTIVE_STRATEGY_STATUSES:
+        return StrategyActionResponse(
+            strategy_id=strategy_id,
+            action="start",
+            new_status=row.status,
+            run_id=None,
+        )
+
+    engine = _get_engine(request)
+    try:
+        running = await engine.register(strategy_id)
+    except StrategyLoadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Engine register failed: {exc}"
+        ) from exc
+
+    # Re-fetch row so the response reflects what's actually in the DB
+    # (engine.register may have transitioned to ERROR mid-init).
+    await session.refresh(row)
+    return StrategyActionResponse(
+        strategy_id=strategy_id,
+        action="start",
+        new_status=row.status,
+        run_id=running.run_id,
+    )
+
+
+# ---------- POST /strategies/{id}/stop ----------
+
+
+@router.post("/{strategy_id}/stop", response_model=StrategyActionResponse)
+async def stop_strategy(
+    strategy_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StrategyActionResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    engine = _get_engine(request)
+    await engine.unregister(strategy_id, reason="user_stop")
+
+    await session.refresh(row)
+    return StrategyActionResponse(
+        strategy_id=strategy_id,
+        action="stop",
+        new_status=row.status,
+        run_id=None,
+    )
+
+
+# ---------- POST /strategies/{id}/backtest ----------
+
+
+@router.post("/{strategy_id}/backtest", response_model=BacktestResultResponse)
+async def run_backtest(
+    strategy_id: int,
+    body: BacktestRequest,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> BacktestResultResponse:
+    """Synchronous backtest. Runs in the request handler; blocks until done.
+
+    A 60-day, 1-minute, single-symbol backtest typically completes in 2–10s
+    on a developer machine. The 1-year cap protects the HTTP timeout; for
+    longer ranges, run the harness from a REPL or wait for the async
+    backtest job queue (P4 §2).
+    """
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    if row.type != StrategyType.PYTHON:
+        raise HTTPException(
+            status_code=400,
+            detail="Only python strategies are backtestable in P2",
+        )
+
+    if body.end <= body.start:
+        raise HTTPException(status_code=400, detail="end must be after start")
+    if (body.end - body.start).days > 365:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Backtest range exceeds 1 year. Run shorter ranges or use "
+                "the CLI helper."
+            ),
+        )
+
+    try:
+        loader = StrategyLoader(_strategies_root())
+        strategy_class = loader.load(row.code_path or "")
+    except StrategyLoadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    symbols = body.symbols or list(row.symbols_json) or list(strategy_class.symbols)
+    if not symbols:
+        raise HTTPException(status_code=400, detail="No symbols to backtest")
+    merged_params = {**(row.params_json or {}), **body.params}
+
+    config = BacktestConfig(
+        start=body.start,
+        end=body.end,
+        initial_equity=body.initial_equity,
+        slippage_bps=body.slippage_bps,
+        commission_per_share=body.commission_per_share,
+        timeframe=body.timeframe,
+        params=merged_params,
+    )
+
+    bar_cache = _get_bar_cache(request)
+    indicator_computer = _get_indicator_computer(request)
+    harness = Backtester(
+        bar_cache=bar_cache, indicator_computer=indicator_computer
+    )
+
+    try:
+        metrics, trades, equity = await harness.run(
+            strategy_class, symbols, config
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Backtest failed: {exc}"
+        ) from exc
+
+    result = await persist_backtest_result(
+        session,
+        strategy_id=strategy_id,
+        config=config,
+        metrics=metrics,
+        trades=trades,
+        equity=equity,
+        label=body.label,
+    )
+    AuditLogger.write(
+        session,
+        actor_type=AuditActorType.USER,
+        actor_id=str(current_user.id),
+        action=AuditAction.STRATEGY_BACKTESTED,
+        target_type="backtest_result",
+        target_id=result.id,
+        payload={
+            "strategy_id": strategy_id,
+            "range_start": body.start.isoformat(),
+            "range_end": body.end.isoformat(),
+            "trade_count": metrics.trade_count,
+            "total_return": metrics.total_return,
+        },
+        user_id=current_user.id,
+    )
+    await session.commit()
+
+    # Bus publish is best-effort; never let a publish error fail the request.
+    bus = get_event_bus()
+    with contextlib.suppress(Exception):
+        await bus.publish(
+            "backtest.completed",
+            {
+                "backtest_id": result.id,
+                "strategy_id": strategy_id,
+                "label": body.label,
+                "metrics": result.metrics_json,
+            },
+        )
+
+    return BacktestResultResponse.model_validate(result, from_attributes=True)
+
+
+# ---------- GET /strategies/{id}/runs ----------
+
+
+@router.get("/{strategy_id}/runs", response_model=StrategyRunListResponse)
+async def list_runs(
+    strategy_id: int,
+    limit: int = Query(default=50, ge=1, le=500),
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StrategyRunListResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    runs = (
+        await session.execute(
+            select(StrategyRun)
+            .where(StrategyRun.strategy_id == strategy_id)
+            .order_by(StrategyRun.started_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return StrategyRunListResponse(
+        items=[
+            StrategyRunResponse.model_validate(r, from_attributes=True)
+            for r in runs
+        ],
+        count=len(runs),
+    )
+
+
+# ---------- GET /strategies/{id}/signals ----------
+
+
+@router.get("/{strategy_id}/signals", response_model=SignalListResponse)
+async def list_strategy_signals(
+    strategy_id: int,
+    limit: int = Query(default=100, ge=1, le=500),
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> SignalListResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    signals = (
+        await session.execute(
+            select(Signal)
+            .where(Signal.strategy_id == strategy_id)
+            .order_by(Signal.received_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    items = [await _signal_to_response(session, s) for s in signals]
+    return SignalListResponse(items=items, count=len(items))
+
+
+# ---------- GET /strategies/{id}/backtests ----------
+
+
+@router.get("/{strategy_id}/backtests", response_model=BacktestListResponse)
+async def list_strategy_backtests(
+    strategy_id: int,
+    limit: int = Query(default=50, ge=1, le=500),
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> BacktestListResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    results = (
+        await session.execute(
+            select(BacktestResult)
+            .where(BacktestResult.strategy_id == strategy_id)
+            .order_by(BacktestResult.created_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return BacktestListResponse(
+        items=[
+            BacktestResultSummary.model_validate(r, from_attributes=True)
+            for r in results
+        ],
+        count=len(results),
+    )
+
+
+# ---------- GET /strategies/{id}/backtests/{backtest_id} ----------
+
+
+@router.get(
+    "/{strategy_id}/backtests/{backtest_id}",
+    response_model=BacktestResultResponse,
+)
+async def get_strategy_backtest(
+    strategy_id: int,
+    backtest_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> BacktestResultResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    result = await session.get(BacktestResult, backtest_id)
+    if result is None or result.strategy_id != strategy_id:
+        raise HTTPException(status_code=404, detail="Backtest result not found")
+    return BacktestResultResponse.model_validate(result, from_attributes=True)

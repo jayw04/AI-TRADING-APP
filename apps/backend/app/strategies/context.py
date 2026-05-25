@@ -119,6 +119,7 @@ class StrategyContext:
         bar_cache: Any,  # app.market_data.bar_cache.BarCache
         indicator_computer: Any,  # app.indicators.IndicatorComputer
         submit_order_fn: OrderRouterCallable,
+        bus: Any | None = None,  # app.events.bus.EventBus; optional for tests
     ) -> None:
         self.strategy_id = strategy_id
         self.user_id = user_id
@@ -128,6 +129,7 @@ class StrategyContext:
         self._bar_cache = bar_cache
         self._indicator_computer = indicator_computer
         self._submit_order_fn = submit_order_fn
+        self._bus = bus
 
     # ---- market data ----
 
@@ -298,4 +300,24 @@ class StrategyContext:
             session.add(sig)
             await session.commit()
             await session.refresh(sig)
-            return sig.id
+            signal_id = sig.id
+
+        # Publish AFTER the commit so any subscriber that reads back from the
+        # DB sees the row. Bus is optional (BacktestContext + unit tests pass
+        # bus=None); never let a publish failure swallow the signal id.
+        if self._bus is not None:
+            try:
+                await self._bus.publish(
+                    "signal.new",
+                    {
+                        "signal_id": signal_id,
+                        "strategy_id": self.strategy_id,
+                        "symbol": symbol,
+                        "type": type_.value,
+                        "payload": payload or {},
+                        "received_at": datetime.now(UTC).isoformat(),
+                    },
+                )
+            except Exception:
+                logger.exception("signal_publish_failed", signal_id=signal_id)
+        return signal_id

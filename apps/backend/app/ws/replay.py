@@ -25,6 +25,8 @@ REPLAY_WINDOWS: dict[str, int] = {
     "signals": 256,
     "risk": 64,
     "journal": 64,
+    "strategies": 256,
+    "backtests": 64,
 }
 
 _DEFAULT_WINDOW = 32

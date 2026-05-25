@@ -8,6 +8,8 @@ from app.api.v1 import (
     market_data,
     orders,
     positions,
+    signals,
+    strategies,
     users,
 )
 
@@ -20,3 +22,5 @@ api_router.include_router(market_data.router)
 api_router.include_router(indicators.router)
 api_router.include_router(users.router)
 api_router.include_router(alerts.router)
+api_router.include_router(strategies.router)
+api_router.include_router(signals.router)
