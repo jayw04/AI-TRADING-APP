@@ -2,139 +2,87 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-20 · branch: `feat/p1-alpaca-adapter` · tag on `main`: `p0-complete`
+Last updated: 2026-05-25 · branch: `main` · latest tag: `p4-async-backtest-backend-complete`
 
 ---
 
 ## ✅ P0 — Scaffolding (complete)
 
-All ten groups landed across 12 commits on `main`. Tag `p0-complete` → `6e66ad9`.
+Tag `p0-complete` → `6e66ad9`. (Original 10-group breakdown lives in the v0.1 of this file in git history.)
 
-| Group | Status | Commit |
+---
+
+## ✅ P1 — Manual Trading MVP (complete)
+
+Tag `p1-session4-complete` → `48ea67d`. Sessions 1–4 all merged. Trader can place/modify/cancel paper orders against Alpaca from the UI; OrderRouter is the single dispatch path (ADR 0002); risk engine + trade-update consumer + position recompute all live; full REST surface; WS topic publishing; live-mode gates.
+
+| Session | Scope | PR |
 |---|---|---|
-| 1. Repo bootstrap | ✅ | `4dbde1f` |
-| 2. FastAPI backend skeleton | ✅ | `b7e5cbf` |
-| 3. SQLAlchemy 2.x + Alembic + seed | ✅ | `cce4e03` |
-| 3.5 (reconciliation) | ✅ | `bc08792`, `1681547` |
-| 4. WebSocket gateway + event bus + ReplayBuffer placeholder | ✅ | `e57b27c` |
-| 5. MCP server (`get_system_status` tool) + backend `/internal/ping` | ✅ | `d1194de` |
-| 6. React 19 + Vite 6 + Tailwind + 9 routes + WS status bar | ✅ | `d061aab` |
-| 7. Docker Compose orchestration (`./scripts/dev.sh`) | ✅ | `54e42a3` |
-| 8. GitHub Actions CI (6 parallel jobs) | ✅ | `25a2318` |
-| 9. README polish + runbooks + ADRs (0001 stack, 0002 single order entry) | ✅ | `6e66ad9` |
-| 10. Exit gate + tag | ✅ | `p0-complete` |
-
-**Exit-gate verification (2026-05-20, local):** `docker compose up` → all 3 services healthy → `/healthz` `{status:ok,db:ok}` → MCP `get_system_status` returns `{mcp_server:ok, backend:{...}, internal_auth:ok}` → frontend HTTP 200 → WS `system.connected` + `system.heartbeat` received live → 13/13 tests pass → no committed `.env`/secrets.
+| **S1** | Alpaca read-only adapter + creds | #1 |
+| **S2** | Account/position polling + scheduler + lifespan | #2 |
+| **S3** | Trade-updates WS lifecycle | #3 |
+| **S4** | Trading DB schema | #4, #5 |
+| **S5** | RiskEngine + OrderRouter + trade-update consumer + drift detector | #6 |
+| **S5/6** | Full REST + WS topic publishing | #7 |
+| **S6 frontend** | Order ticket, orders + positions pages, typed API client | #8 |
+| **S6 frontend** | Charts page, real dashboard, live-mode UX gates | #9 |
+| **S6 tests** | Coverage gates, REST + e2e tests, runbooks, exit gate | #10 |
 
 ---
 
-## ⏳ P0 follow-ups (you, when you have a minute)
+## 🚧 P2 — Strategy MVP (in progress)
 
-These don't block P1 work, but they close the loop on the §10 exit gate.
+Goal per Design Doc §13: *"One reference systematic strategy runs end-to-end on paper, with backtest harness + deploy."*
 
-- [ ] **Confirm CI green** on latest `main` commit at https://github.com/jayw04/AI-TRADING-APP/actions. If anything's red, paste the failing job's log and I'll fix.
-- [ ] **Set up branch protection** at https://github.com/jayw04/AI-TRADING-APP/settings/rules (or `/settings/branches`). Configure for `main`:
-  - Require a pull request before merging (0 approvals OK while solo)
-  - Require status checks to pass — make these required: `Python (backend)`, `Python (mcp-server)`, `Frontend`, `Build image (backend)`, `Build image (mcp-server)`, `Build image (frontend)`
-  - Require linear history
-  - Block force pushes
-  - Restrict deletions
-- [ ] **First validation PR** (P0 Checklist §8.3): a trivial change (e.g., README typo fix) opened as a PR to validate the protection + CI flow end-to-end. Merge once green, delete branch.
-- [x] **Migrate Alpaca creds** ~~from `alpaca info.txt` into `.env`~~ — done 2026-05-20. `.env` populated; `alpaca info.txt` deleted; never committed (history clean, no rotation needed).
-- [ ] **Implementation Plan v0.2** doc is referenced throughout the planning docs but isn't in the repo yet. Drop it into `docs/implementation/` when ready.
-
----
-
-## 🚧 P1 — Manual Trading MVP (in progress)
-
-Goal per Design Doc §13 / S1: *"Trader can place, modify, and cancel paper orders against Alpaca from the UI."*
-
-Master plan: [`docs/implementation/TradingWorkbench_P1_Checklist_v0.1.md`](../docs/implementation/TradingWorkbench_P1_Checklist_v0.1.md). Session-by-session detail lives in the four P1_Session*_v0.1.md docs alongside it.
-
-### P1 progress
+Master plan: [`docs/implementation/TradingWorkbench_P2_Checklist_v0.1.md`](../docs/implementation/TradingWorkbench_P2_Checklist_v0.1.md). Session docs alongside it.
 
 | Session | Scope | Status |
 |---|---|---|
-| **S1** | P0 close-out + Alpaca adapter foundation (creds, errors, read-only methods, streaming skeleton) | ✅ branch `feat/p1-alpaca-adapter` pushed; PR pending |
-| **S2** | Asset sync + account/position polling + AsyncIOScheduler + lifespan wiring | ⏳ |
-| **S3** | Trade Updates WS lifecycle | ⏳ |
-| **S4** | Trading DB schema (orders, fills, positions, risk_limits, risk_checks) | ⏳ |
-| **S5+** | Risk Engine, Order Router, REST/WS endpoints, audit, frontend, live-mode gates, tests | ⏳ — session docs not yet written |
+| **S1** | Bar cache + IndicatorComputer | ✅ #11 |
+| **S2** | Strategies framework skeleton (schema, base/context/engine/loader, fixtures) | ✅ #12 |
+| **S3** | Reference RSI strategy + backtest harness | ✅ #13 tag `p2-session3-complete` |
+| **S4** | Strategies + signals REST surface + WS topic routing | ✅ #16 tag `p2-session4-complete` |
+| **S5** | Frontend Strategies pages (CRUD, signals view, backtest modal) | ⏳ **next** |
+| **S6** | TBD (haven't read the doc yet) | ⏳ |
 
-### P1 prereqs
-
-- [x] ~~Detailed implementation plan for P1~~ — see Checklist + 4 session docs in `docs/implementation/`.
-- [ ] **ADR 0002 (single order entry point)** is the load-bearing invariant for everything below. Re-read before writing the first line of order code.
-
-### P1.A — Alpaca adapter
-
-- [ ] `apps/backend/app/brokers/alpaca/` — thin `alpaca-py` wrapper. One module that owns *all* outbound calls to Alpaca.
-- [ ] Mode gating: paper credentials default; live credentials require an explicit `WORKBENCH_TRADING_MODE=live` env flag + on-startup risk acknowledgement.
-- [ ] Account sync: pull account info on connect, expose at `/api/v1/account` (replacing the stub).
-- [ ] Position sync: poll loop + Trade Updates WebSocket subscription. Persist to local DB.
-- [ ] Asset/symbol sync: pull Alpaca's asset universe into the `symbols` table on a daily refresh.
-- [ ] Error taxonomy: distinguish transient (retryable) from permanent (don't retry; surface to UI) Alpaca errors.
-
-### P1.B — Order pipeline (the invariant in code)
-
-- [ ] `app/orders/router.py` — `OrderRouter` class. Single point of dispatch for all orders.
-- [ ] `app/risk/engine.py` — `RiskEngine` v1: position limits, max order size, max daily loss, kill-switch. Called inline by `OrderRouter` pre-trade.
-- [ ] `app/db/models/order.py`, `app/db/models/fill.py`, `app/db/models/position.py` — schema.
-- [ ] Alembic migration for the new models.
-- [ ] `POST /api/v1/orders` — accepts an OrderIntent, dispatches to `OrderRouter`. Returns the persisted order row (with status).
-- [ ] `GET /api/v1/orders` — list with filters (open/all, by symbol, by date).
-- [ ] `DELETE /api/v1/orders/{id}` — cancel.
-- [ ] `PATCH /api/v1/orders/{id}` — modify (price, qty) via Alpaca's replace endpoint where supported.
-- [ ] Fill ingestion from Trade Updates WS → persist fills → recompute position.
-- [ ] WS event emission: `orders.*` and `fills.*` and `positions.*` topics (using the existing event bus + WS gateway).
-
-### P1.C — Audit log
-
-- [ ] `app/audit/` — typed writer with `actor_type` ∈ {user, strategy, agent}. Used by `OrderRouter` and any risk decision.
-- [ ] Every order placement, fill, and risk rejection gets a row in `audit_log`.
-- [ ] `GET /api/v1/audit` — read-only query with filters.
-
-### P1.D — Frontend (real pages)
-
-- [ ] `src/pages/Orders/` — list of working + recent orders, with row actions (cancel, modify).
-- [ ] `src/pages/Positions/` — live positions, P&L per symbol, aggregate.
-- [ ] `src/components/ticket/` — order ticket. Symbol search, side, qty, limit/market, TIF, optional bracket. Submit goes to `POST /api/v1/orders`.
-- [ ] `src/pages/Charts/` — TradingView Advanced Charts widget embedded. Per-symbol switch.
-- [ ] `src/pages/Dashboard/` — real account summary (cash, equity, day P&L) instead of the stub JSON dump.
-- [ ] Wire WS subscriptions: ticket UI listens for `orders.*`/`fills.*` for the order it just submitted; positions page subscribes to `positions.*`.
-
-### P1.E — UX gates for live trading
-
-- [ ] Mode banner stays AMBER for paper; if live mode is enabled, banner turns RED and a confirmation modal fires on every order ticket submit.
-- [ ] Live mode requires checking a "I understand this will place a real order" box per session.
-
-### P1.F — Tests + acceptance
-
-- [ ] Unit tests for `OrderRouter` (every path persists before Alpaca call; risk-rejected orders never reach Alpaca; audit row always written).
-- [ ] Mock Alpaca adapter for integration tests (don't hit real Alpaca in CI; use `pytest-httpx` style fixtures).
-- [ ] One end-to-end paper-trade test: ticket → router → risk → mocked Alpaca → fill ingestion → position update → WS push.
-- [ ] Manual smoke against Alpaca paper: place a market order on a low-priced symbol, observe fill, verify position + audit log.
-
-### P1 exit criteria (acceptance, per design doc §2.3)
-
-| # | Criterion |
-|---|---|
-| S1 | Trader can place, modify, and cancel paper orders against Alpaca from the UI. |
-| S2 | Trader can view a TradingView chart for any Alpaca-tradable symbol within the UI. |
-| S5 (partial) | Risk controls block trades that violate configured limits, with clear UI feedback. |
-| S6 (partial) | All trading actions are persisted and exportable for review. |
+### P2 known blockers
+- AAPL fixture parquets for `tests/strategies/test_backtest_reproducibility.py` and the live smoke step — Norton SSL inspection on Jay's dev machine blocks `data.alpaca.markets`. Generating from any other env (WSL, CI, a non-Norton machine) populates the three parquets and flips two skipped tests to required.
+- Live smoke step in P2 S3 / P2 S4 docs is still pending behind that same SSL blocker.
 
 ---
 
-## 🗺️ P2+ — Roadmap (from Design Doc §13)
+## ⏳ P4 — Polish & extend (partially started, out of stated order)
 
-Captured for orientation; each gets its own plan when its turn comes.
+We ran ahead of the doc order on P4 items because they unblock UI work later. Items are independently mergeable.
+
+| Item | Scope | Status |
+|---|---|---|
+| **§1** | TradingView Pine webhook receiver | ✅ #14 tag `p4-tv-webhooks-complete` |
+| **§2 Part A** | Async backtest job queue (backend) | ✅ #17 tag `p4-async-backtest-backend-complete` |
+| **§2 Part B** | Async backtest progress UI (frontend) | ⏳ blocked on P2 S5 (Strategies UI doesn't exist yet) |
+| **§3+** | Opportunities page, hot reload, source filter (doc files exist) | ⏳ |
+
+### P4 §2 ship sequence
+1. P2 S5 lands the Strategies UI scaffolding (BacktestRunModal, BacktestsTab, etc.)
+2. P4 §2 Part B layers the async progress bar + cancel button on top
+3. Final tag `p4-async-backtest-complete` after both halves merge
+
+---
+
+## 🧱 Cross-cutting work that landed alongside
+
+- **`app/audit/` module** (#15 — `feat(audit): typed AuditLogger`) — introduced `AuditLogger` + `AuditAction` + `AuditActorType` enums. P2 S4 needed them and they weren't built earlier despite the P1.C checkbox above implying they were. Refactored `OrderRouter`, `StrategyEngine`, `TradeUpdateConsumer` to use the typed helper. Cleanup, not new feature.
+- **Alembic template fix** (in #14 and re-tweaked in #17) — `script.py.mako` now produces ruff-clean imports on autogenerate; future `alembic revision --autogenerate` calls don't need a manual fixup pass.
+
+---
+
+## 🗺️ P3 / P5–P7 — Roadmap (untouched)
+
+Captured for orientation; plans land when their turn comes.
 
 | Phase | Theme | Headline outcome |
 |---|---|---|
-| **P2** | Strategy MVP | One reference systematic strategy runs end-to-end on paper, with backtest harness + deploy. |
 | **P3** | Agent MVP (B1+B2) | Claude Code agent chat panel inside the UI; advisory + propose-and-approve flows. |
-| **P4** | Polish & extend | TradingView Pine alert webhooks, watchlists, hotkeys, kill switch, reconciliation, journal v2. |
 | **P5** | Live trading toggle | Live creds, live-mode UI, hard gates, recon. |
 | **P6** | Agent autonomy (B3, gated) | Per-strategy autonomous mode with hard budgets + extra audit. Backend-side Anthropic SDK calls with MCP attached. Paper-only by default. |
 | **P7** | NL → Python strategy authoring | "Draft strategy with Claude" UI button; backend generates the strategy file. |
@@ -143,6 +91,6 @@ Captured for orientation; each gets its own plan when its turn comes.
 
 ## How to use this file
 
-- After each working session, update the top section (Last updated / tag) and tick off P0-follow-up boxes as you finish them.
-- When P1 starts, replace the P1 roadmap with the actual P1 checklist (a `docs/implementation/TradingWorkbench_P1_Checklist_v0.1.md`-style doc) and shrink this section to a one-liner pointer.
-- Don't let this file grow unbounded. Move detail into proper checklist docs as it solidifies.
+- After each working session, update the top section (Last updated / branch / latest tag) and the relevant phase table.
+- When a session lands, link the merging PR + tag in the table; don't expand the row into a checklist.
+- Frozen versioned plans live in `docs/implementation/`. This file is the index, not the spec.
