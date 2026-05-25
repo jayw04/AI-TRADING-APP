@@ -74,8 +74,13 @@ _BUS_TOPICS: tuple[str, ...] = (
     "strategy.error",
     # signals (P2 S4)
     "signal.new",
-    # backtests (P2 S4)
+    # backtests (P2 S4 + P4 §2)
+    "backtest.queued",
+    "backtest.started",
+    "backtest.progress",
     "backtest.completed",
+    "backtest.failed",
+    "backtest.cancelled",
 )
 
 

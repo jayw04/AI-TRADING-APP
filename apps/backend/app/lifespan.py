@@ -42,6 +42,7 @@ from app.orders.positions import PositionRecomputer
 from app.risk import RiskEngine
 from app.services.account_sync import AccountSyncService
 from app.services.asset_sync import AssetSyncService
+from app.services.backtest_worker import BacktestWorker
 from app.services.position_sync import PositionSyncService
 from app.services.scheduler import WorkbenchScheduler
 from app.strategies import StrategyEngine
@@ -130,6 +131,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 strategies_root=Path("strategies_user"),
             )
 
+            # 10. BacktestWorker (P4 §2). Shares the same scheduler so the
+            # 2s tick lives alongside the existing sync jobs.
+            backtest_worker = BacktestWorker(
+                scheduler=scheduler.scheduler,
+                session_factory=session_factory,
+                bar_cache=bar_cache,
+                indicator_computer=indicator_computer,
+                bus=bus,
+            )
+            await backtest_worker.start()
+
             # Stash for request handlers / tests
             app.state.alpaca_adapter = adapter
             app.state.asset_sync = asset_sync
@@ -144,6 +156,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.bar_cache = bar_cache
             app.state.indicator_computer = indicator_computer
             app.state.strategy_engine = strategy_engine
+            app.state.backtest_worker = backtest_worker
 
             # Initial sync pass (each call wraps its own try/except internally)
             await scheduler.run_startup_sync()

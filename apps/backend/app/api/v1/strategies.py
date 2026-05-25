@@ -26,6 +26,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas.strategies import (
+    BacktestJobListResponse,
+    BacktestJobResponse,
+    BacktestJobSubmittedResponse,
     BacktestListResponse,
     BacktestRequest,
     BacktestResultResponse,
@@ -42,7 +45,14 @@ from app.api.v1.schemas.strategies import (
 )
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.auth.stub import CurrentUser, get_current_user
-from app.db.enums import ACTIVE_STRATEGY_STATUSES, StrategyStatus, StrategyType
+from app.db.enums import (
+    ACTIVE_STRATEGY_STATUSES,
+    PENDING_BACKTEST_JOB_STATUSES,
+    BacktestJobStatus,
+    StrategyStatus,
+    StrategyType,
+)
+from app.db.models.backtest_job import BacktestJob
 from app.db.models.backtest_result import BacktestResult
 from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy as StrategyRow
@@ -50,13 +60,7 @@ from app.db.models.strategy_run import StrategyRun
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
 from app.events import get_event_bus
-from app.strategies import (
-    BacktestConfig,
-    Backtester,
-    StrategyLoader,
-    StrategyLoadError,
-    persist_backtest_result,
-)
+from app.strategies import StrategyLoader, StrategyLoadError
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
@@ -69,22 +73,6 @@ def _get_engine(request: Request):
     if engine is None:
         raise HTTPException(status_code=503, detail="Strategy engine not initialized")
     return engine
-
-
-def _get_bar_cache(request: Request):
-    bc = getattr(request.app.state, "bar_cache", None)
-    if bc is None:
-        raise HTTPException(status_code=503, detail="Bar cache not initialized")
-    return bc
-
-
-def _get_indicator_computer(request: Request):
-    ic = getattr(request.app.state, "indicator_computer", None)
-    if ic is None:
-        raise HTTPException(
-            status_code=503, detail="Indicator computer not initialized"
-        )
-    return ic
 
 
 def _strategies_root() -> Path:
@@ -347,23 +335,30 @@ async def stop_strategy(
     )
 
 
-# ---------- POST /strategies/{id}/backtest ----------
+# ---------- POST /strategies/{id}/backtest (async, P4 §2) ----------
 
 
-@router.post("/{strategy_id}/backtest", response_model=BacktestResultResponse)
-async def run_backtest(
+@router.post(
+    "/{strategy_id}/backtest",
+    response_model=BacktestJobSubmittedResponse,
+    status_code=202,
+)
+async def submit_backtest(
     strategy_id: int,
     body: BacktestRequest,
-    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-) -> BacktestResultResponse:
-    """Synchronous backtest. Runs in the request handler; blocks until done.
+) -> BacktestJobSubmittedResponse:
+    """Submit a backtest for asynchronous execution.
 
-    A 60-day, 1-minute, single-symbol backtest typically completes in 2–10s
-    on a developer machine. The 1-year cap protects the HTTP timeout; for
-    longer ranges, run the harness from a REPL or wait for the async
-    backtest job queue (P4 §2).
+    Returns 202 immediately with a ``job_id``. Subscribe to the
+    ``backtests`` WS topic and filter on this job_id to follow progress;
+    poll ``GET /api/v1/backtest-jobs/{job_id}`` for a fallback.
+
+    Single-flight per strategy: a second submission while a job for the
+    same strategy is QUEUED or RUNNING returns 409. The 1-year range cap
+    that bounded the old synchronous endpoint is gone — async means no
+    HTTP timeout pressure.
     """
     row = await session.get(StrategyRow, strategy_id)
     if row is None or row.user_id != current_user.id:
@@ -373,95 +368,117 @@ async def run_backtest(
             status_code=400,
             detail="Only python strategies are backtestable in P2",
         )
-
     if body.end <= body.start:
         raise HTTPException(status_code=400, detail="end must be after start")
-    if (body.end - body.start).days > 365:
+
+    # Single-flight: refuse if a pending job already exists for this strategy.
+    existing = (
+        await session.execute(
+            select(BacktestJob).where(
+                BacktestJob.strategy_id == strategy_id,
+                BacktestJob.status.in_(list(PENDING_BACKTEST_JOB_STATUSES)),
+            )
+        )
+    ).scalars().first()
+    if existing is not None:
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail=(
-                "Backtest range exceeds 1 year. Run shorter ranges or use "
-                "the CLI helper."
+                f"Backtest job {existing.id} for this strategy is still "
+                f"{existing.status.value}. Wait or cancel it first."
             ),
         )
 
-    try:
-        loader = StrategyLoader(_strategies_root())
-        strategy_class = loader.load(row.code_path or "")
-    except StrategyLoadError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    symbols = body.symbols or list(row.symbols_json) or list(strategy_class.symbols)
-    if not symbols:
-        raise HTTPException(status_code=400, detail="No symbols to backtest")
+    symbols = body.symbols or list(row.symbols_json) or []
     merged_params = {**(row.params_json or {}), **body.params}
 
-    config = BacktestConfig(
-        start=body.start,
-        end=body.end,
-        initial_equity=body.initial_equity,
-        slippage_bps=body.slippage_bps,
-        commission_per_share=body.commission_per_share,
-        timeframe=body.timeframe,
-        params=merged_params,
-    )
+    # Persist the full config so the worker can rehydrate after a restart.
+    # ``_symbols`` is an underscore-prefixed worker-internal key.
+    config_dict = {
+        "start": body.start.isoformat(),
+        "end": body.end.isoformat(),
+        "initial_equity": str(body.initial_equity),
+        "slippage_bps": body.slippage_bps,
+        "commission_per_share": body.commission_per_share,
+        "timeframe": body.timeframe,
+        "params": merged_params,
+        "_symbols": symbols,
+    }
 
-    bar_cache = _get_bar_cache(request)
-    indicator_computer = _get_indicator_computer(request)
-    harness = Backtester(
-        bar_cache=bar_cache, indicator_computer=indicator_computer
-    )
-
-    try:
-        metrics, trades, equity = await harness.run(
-            strategy_class, symbols, config
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500, detail=f"Backtest failed: {exc}"
-        ) from exc
-
-    result = await persist_backtest_result(
-        session,
+    job = BacktestJob(
+        user_id=current_user.id,
         strategy_id=strategy_id,
-        config=config,
-        metrics=metrics,
-        trades=trades,
-        equity=equity,
+        status=BacktestJobStatus.QUEUED,
+        config_json=config_dict,
         label=body.label,
+        percent_complete=0.0,
+        submitted_at=datetime.now(UTC),
     )
+    session.add(job)
+    await session.flush()
+
     AuditLogger.write(
         session,
         actor_type=AuditActorType.USER,
         actor_id=str(current_user.id),
         action=AuditAction.STRATEGY_BACKTESTED,
-        target_type="backtest_result",
-        target_id=result.id,
+        target_type="backtest_job",
+        target_id=job.id,
         payload={
             "strategy_id": strategy_id,
             "range_start": body.start.isoformat(),
             "range_end": body.end.isoformat(),
-            "trade_count": metrics.trade_count,
-            "total_return": metrics.total_return,
+            "label": body.label,
         },
         user_id=current_user.id,
     )
     await session.commit()
+    await session.refresh(job)
 
-    # Bus publish is best-effort; never let a publish error fail the request.
     bus = get_event_bus()
     with contextlib.suppress(Exception):
         await bus.publish(
-            "backtest.completed",
+            "backtest.queued",
             {
-                "backtest_id": result.id,
+                "job_id": job.id,
                 "strategy_id": strategy_id,
                 "label": body.label,
-                "metrics": result.metrics_json,
             },
         )
 
-    return BacktestResultResponse.model_validate(result, from_attributes=True)
+    return BacktestJobSubmittedResponse(
+        job_id=job.id,
+        strategy_id=strategy_id,
+        status=job.status,
+        submitted_at=job.submitted_at,
+    )
+
+
+# ---------- GET /strategies/{id}/backtest-jobs ----------
+
+
+@router.get(
+    "/{strategy_id}/backtest-jobs", response_model=BacktestJobListResponse
+)
+async def list_strategy_backtest_jobs(
+    strategy_id: int,
+    status: BacktestJobStatus | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=500),
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> BacktestJobListResponse:
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    stmt = select(BacktestJob).where(BacktestJob.strategy_id == strategy_id)
+    if status is not None:
+        stmt = stmt.where(BacktestJob.status == status)
+    stmt = stmt.order_by(BacktestJob.submitted_at.desc()).limit(limit)
+    rows = (await session.execute(stmt)).scalars().all()
+    return BacktestJobListResponse(
+        items=[BacktestJobResponse.model_validate(r, from_attributes=True) for r in rows],
+        count=len(rows),
+    )
 
 
 # ---------- GET /strategies/{id}/runs ----------

@@ -19,6 +19,7 @@ compute metrics.
 from __future__ import annotations
 
 import math
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -45,6 +46,17 @@ from .context import Bar
 logger = structlog.get_logger(__name__)
 
 
+class BacktestCancelled(Exception):
+    """Raised by the harness when ``cancel_check`` returns True between bars."""
+
+
+# Async progress callback signature. Called periodically with the current bar
+# index, total bars, and current bar timestamp.
+ProgressCallback = Callable[[int, int, datetime], Awaitable[None]]
+# Sync cancel-check callback signature. Called between bars; True bails out.
+CancelCheck = Callable[[], bool]
+
+
 class Backtester:
     """Stateless harness. Construct once with shared infrastructure; call
     :meth:`run` per backtest."""
@@ -62,8 +74,22 @@ class Backtester:
         strategy_class: type[Strategy],
         symbols: list[str],
         config: BacktestConfig,
+        *,
+        progress_cb: ProgressCallback | None = None,
+        cancel_check: CancelCheck | None = None,
     ) -> tuple[BacktestMetrics, list[BacktestTrade], list[EquityPoint]]:
-        """Run a backtest. Returns ``(metrics, trades, equity_curve)``."""
+        """Run a backtest. Returns ``(metrics, trades, equity_curve)``.
+
+        ``progress_cb`` is an optional async callable invoked periodically
+        with ``(bar_idx, total_bars, current_bar_ts)``. The harness calls
+        it at most every ``master_len // 200`` bars (≈200 calls total
+        regardless of backtest length) plus once on the final bar.
+
+        ``cancel_check`` is an optional sync callable checked between
+        bars; returning True raises :class:`BacktestCancelled`. With both
+        callbacks omitted the run is byte-identical to the P2 S3 path —
+        the reproducibility test depends on that.
+        """
         # 1. Load bars for every symbol over the requested range.
         bars_by_symbol: dict[str, pd.DataFrame] = {}
         for symbol in symbols:
@@ -108,8 +134,21 @@ class Backtester:
             logger.exception("backtest_on_init_failed", strategy=strategy_class.name)
             raise
 
+        # Progress cadence: aim for ~200 callbacks per run regardless of
+        # length. A 60-bar backtest pings on almost every bar; a 500k-bar
+        # backtest pings every ~2500 bars. Bar-index-based, not wall-clock,
+        # so we don't pay time.monotonic() in the hot loop.
+        progress_every_n = max(1, master_len // 200)
+
         # 5. Main loop.
         for idx in range(master_len):
+            # Cancellation honored between bars only — a bar already in
+            # flight will finish even if cancellation lands mid-bar. In
+            # practice strategy.on_bar is fast; if you ever ship a strategy
+            # with multi-second per-bar work, thread the check deeper.
+            if cancel_check is not None and cancel_check():
+                raise BacktestCancelled(f"cancelled at bar {idx}/{master_len}")
+
             ctx._advance_cursor(idx)
             now = ctx._current_bar_ts() or config.start
 
@@ -152,6 +191,21 @@ class Backtester:
                     raise
 
             ctx._mark_to_market(now)
+
+            # Progress callback at configured cadence; also fire on the
+            # final bar so subscribers see ~100% before backtest.completed.
+            if progress_cb is not None and (
+                idx % progress_every_n == 0 or idx == master_len - 1
+            ):
+                try:
+                    await progress_cb(idx, master_len, now)
+                except Exception:
+                    # A progress-cb error must never kill the backtest.
+                    logger.exception(
+                        "backtest_progress_cb_failed",
+                        strategy=strategy_class.name,
+                        bar=idx,
+                    )
 
         # 6. on_shutdown + force-close anything still open.
         try:
