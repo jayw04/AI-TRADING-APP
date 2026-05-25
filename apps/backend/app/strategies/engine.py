@@ -191,6 +191,7 @@ class StrategyEngine:
                 bar_cache=self._bar_cache,
                 indicator_computer=self._indicator_computer,
                 submit_order_fn=self._order_router.submit,
+                bus=self._bus,
             )
             try:
                 instance = cls(ctx=ctx, params=merged_params)
@@ -274,6 +275,15 @@ class StrategyEngine:
             "strategy.status_changed",
             {"strategy_id": strategy_id, "status": StrategyStatus.PAPER.value},
         )
+        await self._bus.publish(
+            "strategy.run_started",
+            {
+                "strategy_id": strategy_id,
+                "run_id": run_id,
+                "started_at": now.isoformat(),
+                "symbols": symbols,
+            },
+        )
         return running
 
     async def unregister(
@@ -306,12 +316,18 @@ class StrategyEngine:
                 "strategy_on_shutdown_failed", strategy_id=strategy_id
             )
 
+        closed_run_id: int | None = None
+        closed_started_at: datetime | None = None
+        closed_ended_at: datetime | None = None
         async with self._session_factory() as session:
             now = datetime.now(UTC)
             run = await session.get(StrategyRun, running.run_id)
             if run is not None and run.ended_at is None:
                 run.ended_at = now
                 run.status = StrategyStatus.IDLE
+                closed_run_id = run.id
+                closed_started_at = run.started_at
+                closed_ended_at = run.ended_at
             row = await session.get(StrategyRow, strategy_id)
             if row is not None and row.status in ACTIVE_STRATEGY_STATUSES:
                 row.status = StrategyStatus.IDLE
@@ -324,6 +340,35 @@ class StrategyEngine:
                 payload={"reason": reason},
             )
             await session.commit()
+
+        if closed_run_id is not None and closed_ended_at is not None:
+            # SQLite drops tz on round-trip even with DateTime(timezone=True);
+            # coerce both sides to aware UTC before subtracting.
+            ended_aware = (
+                closed_ended_at
+                if closed_ended_at.tzinfo is not None
+                else closed_ended_at.replace(tzinfo=UTC)
+            )
+            duration_seconds: int | None = None
+            if closed_started_at is not None:
+                started_aware = (
+                    closed_started_at
+                    if closed_started_at.tzinfo is not None
+                    else closed_started_at.replace(tzinfo=UTC)
+                )
+                duration_seconds = int(
+                    (ended_aware - started_aware).total_seconds()
+                )
+            await self._bus.publish(
+                "strategy.run_ended",
+                {
+                    "strategy_id": strategy_id,
+                    "run_id": closed_run_id,
+                    "ended_at": ended_aware.isoformat(),
+                    "duration_seconds": duration_seconds,
+                    "reason": reason,
+                },
+            )
 
         await self._bus.publish(
             "strategy.status_changed",

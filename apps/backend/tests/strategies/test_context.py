@@ -174,3 +174,61 @@ async def test_get_recent_bars_returns_empty_for_unauthorized_symbol(
     ctx, _ = _ctx(session_factory, symbols=["AAPL"])
     df = await ctx.get_recent_bars("MSFT", "1Min", n=10)
     assert df.empty
+
+
+async def test_log_signal_publishes_on_bus_after_commit(session_factory, seeded):
+    """When a bus is passed, log_signal must publish ``signal.new`` AFTER the
+    DB commit so subscribers reading back from the DB see the row."""
+    bus = MagicMock()
+    bus.publish = AsyncMock()
+
+    async def fake_submit(req):
+        return MagicMock()
+
+    ctx = StrategyContext(
+        strategy_id=99,
+        user_id=1,
+        account_id=1,
+        symbols=["AAPL"],
+        session_factory=session_factory,
+        bar_cache=MagicMock(),
+        indicator_computer=MagicMock(),
+        submit_order_fn=fake_submit,
+        bus=bus,
+    )
+    sig_id = await ctx.log_signal("AAPL", SignalType.ENTRY, payload={"rsi": 28.5})
+    assert sig_id > 0
+
+    bus.publish.assert_awaited_once()
+    topic, payload = bus.publish.await_args.args
+    assert topic == "signal.new"
+    assert payload["signal_id"] == sig_id
+    assert payload["strategy_id"] == 99
+    assert payload["symbol"] == "AAPL"
+    assert payload["type"] == "entry"
+    assert payload["payload"] == {"rsi": 28.5}
+    assert "received_at" in payload
+
+
+async def test_log_signal_swallows_bus_failure(session_factory, seeded):
+    """A publish error must NOT prevent the caller from getting the signal id —
+    the DB row is the source of truth, the bus is best-effort."""
+    bus = MagicMock()
+    bus.publish = AsyncMock(side_effect=RuntimeError("bus down"))
+
+    async def fake_submit(req):
+        return MagicMock()
+
+    ctx = StrategyContext(
+        strategy_id=99,
+        user_id=1,
+        account_id=1,
+        symbols=["AAPL"],
+        session_factory=session_factory,
+        bar_cache=MagicMock(),
+        indicator_computer=MagicMock(),
+        submit_order_fn=fake_submit,
+        bus=bus,
+    )
+    sig_id = await ctx.log_signal("AAPL", SignalType.INFO)
+    assert sig_id > 0  # row is still persisted
