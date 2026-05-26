@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import StatusBar from "./components/StatusBar";
 import ModeBanner from "@/components/ui/ModeBanner";
 import { NAV_ITEMS } from "./routes";
+import StrategyDetailPage from "./pages/Strategies/Detail";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
               {NAV_ITEMS.map((item) => (
                 <Route key={item.path} path={item.path} element={item.element} />
               ))}
+              <Route path="/strategies/:id" element={<StrategyDetailPage />} />
             </Routes>
           </main>
         </div>
