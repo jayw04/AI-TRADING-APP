@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-26 · branch: `feat/p2-tests-smoke-exit` · latest tag: `p2-session5-complete`
+Last updated: 2026-05-26 · branch: `main` · latest tag: `p4-async-backtest-complete`
 
 ---
 
@@ -59,13 +59,15 @@ We ran ahead of the doc order on P4 items because they unblock UI work later. It
 |---|---|---|
 | **§1** | TradingView Pine webhook receiver | ✅ #14 tag `p4-tv-webhooks-complete` |
 | **§2 Part A** | Async backtest job queue (backend) | ✅ #17 tag `p4-async-backtest-backend-complete` |
-| **§2 Part B** | Async backtest progress UI (frontend) | ⏳ unblocked — modal polls today; swap to WS + add cancel button |
+| **§2 Part B** | Async backtest progress UI (frontend) | ✅ #20 tag `p4-async-backtest-complete` |
 | **§3+** | Opportunities page, hot reload, source filter (doc files exist) | ⏳ |
 
-### P4 §2 ship sequence
-1. P2 S5 lands the Strategies UI scaffolding (BacktestRunModal, BacktestsTab, etc.)
-2. P4 §2 Part B layers the async progress bar + cancel button on top
-3. Final tag `p4-async-backtest-complete` after both halves merge
+### P4 §2 ship sequence — DONE 2026-05-26
+1. P2 S5 landed the Strategies UI scaffolding (PR #18).
+2. P4 §2 Part B layered the WS-driven progress bar + cancel button on top (PR #20).
+3. Tag `p4-async-backtest-complete` pushed; both halves shipped.
+
+> Side fix in PR #20: the P2 S5 frontend `BacktestJobStatus` type alias claimed `"done"` but the backend enum serializes `"completed"`. The old modal's success-path check never matched a real backtest — users saw "Running…" forever until dismissing. Type + check both corrected.
 
 ---
 
