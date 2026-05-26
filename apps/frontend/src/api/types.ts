@@ -323,7 +323,12 @@ export interface BacktestListResponse {
 
 // ===== Backtest jobs (P4 §2) =====
 
-export type BacktestJobStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+export type BacktestJobStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 export interface BacktestJob {
   id: number;

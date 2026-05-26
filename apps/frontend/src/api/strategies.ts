@@ -58,8 +58,10 @@ export const strategiesApi = {
   getBacktest: (id: number, backtestId: number) =>
     apiFetch<BacktestResult>(`/api/v1/strategies/${id}/backtests/${backtestId}`),
 
-  // Async submit: returns 202 + job_id. Caller polls backtestJobsApi.get(job_id)
-  // until status="done", then fetches the result via getBacktest(strategy_id, result_id).
+  // Async submit: returns 202 + job_id. Caller subscribes to the `backtests`
+  // WS topic for live progress (with a polling fallback via
+  // backtestJobsApi.get); on status="completed", fetches the full result via
+  // getBacktest(strategy_id, result_id).
   submitBacktest: (id: number, body: BacktestRequest) =>
     apiFetch<BacktestJobSubmittedResponse>(`/api/v1/strategies/${id}/backtest`, {
       method: "POST",
