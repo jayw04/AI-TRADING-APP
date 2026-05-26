@@ -1,0 +1,329 @@
+"""Branch-coverage backfill for ``/api/v1/strategies``.
+
+The base ``test_strategies_endpoint.py`` covers create/list/get/update/start/
+stop happy paths and ownership 404. This file targets branches the base file
+misses: omit-symbols-fallback, start-from-ERROR recovery, the read-only
+sub-resource endpoints (runs / signals / backtests), risk_limits_id update.
+Per P2 Session 6 §6.2.
+
+The new async submit_backtest endpoint is exercised in
+``test_backtest_jobs_endpoint.py``; we don't duplicate it here.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pandas as pd
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
+from app.db.enums import StrategyStatus, StrategyType
+from app.db.models.account import Account, AccountMode
+from app.db.models.backtest_result import BacktestResult
+from app.db.models.signal import Signal
+from app.db.models.strategy import Strategy as StrategyRow
+from app.db.models.strategy_run import StrategyRun
+from app.db.models.symbol import Symbol
+from app.db.models.user import User
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
+async def _seed(factory: async_sessionmaker) -> None:
+    async with factory() as session:
+        session.add(User(id=1, email="jay@test", display_name="Jay"))
+        session.add(
+            Account(
+                id=1, user_id=1, broker="alpaca", mode=AccountMode.paper, label="Paper"
+            )
+        )
+        session.add(
+            Symbol(
+                id=1,
+                ticker="AAPL",
+                exchange="NASDAQ",
+                asset_class="us_equity",
+                name="Apple",
+                active=True,
+            )
+        )
+        await session.commit()
+
+
+@pytest_asyncio.fixture
+async def client_and_factory() -> (
+    AsyncIterator[tuple[AsyncClient, async_sessionmaker]]
+):
+    from app.config import get_settings
+    from app.db import models  # noqa: F401
+    from app.db.base import Base
+    from app.db.session import get_engine, get_sessionmaker
+    from app.events.bus import get_event_bus
+    from app.main import create_app
+
+    get_settings.cache_clear()
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()
+    get_event_bus.cache_clear()
+
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = get_sessionmaker()
+    await _seed(factory)
+
+    app = create_app()
+    app.state.strategy_engine = MagicMock()
+    app.state.strategy_engine.register = AsyncMock()
+    app.state.strategy_engine.unregister = AsyncMock()
+    app.state.bar_cache = MagicMock()
+    app.state.bar_cache.get_bars = AsyncMock(
+        return_value=pd.DataFrame(columns=["t", "o", "h", "l", "c", "v"])
+    )
+    app.state.indicator_computer = MagicMock()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac, factory
+
+    await engine.dispose()
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()
+    get_event_bus.cache_clear()
+
+
+@pytest_asyncio.fixture
+async def client(client_and_factory) -> AsyncClient:
+    return client_and_factory[0]
+
+
+@pytest_asyncio.fixture
+async def factory(client_and_factory) -> async_sessionmaker:
+    return client_and_factory[1]
+
+
+async def _make_strategy(
+    factory: async_sessionmaker,
+    *,
+    status: StrategyStatus = StrategyStatus.IDLE,
+    user_id: int = 1,
+    symbols: list[str] | None = None,
+) -> int:
+    async with factory() as session:
+        row = StrategyRow(
+            user_id=user_id,
+            name="t",
+            version="0.1.0",
+            type=StrategyType.PYTHON,
+            status=status,
+            code_path="examples/rsi_meanreversion.py",
+            params_json={},
+            symbols_json=symbols if symbols is not None else ["AAPL"],
+            schedule="*/1 * * * *",
+            risk_limits_id=None,
+            created_at=_now(),
+            updated_at=_now(),
+        )
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+        return row.id
+
+
+# ---------- create: symbol fallback ----------
+
+
+async def test_create_falls_back_to_class_symbols_when_request_omits(client) -> None:
+    """If the create request has no ``symbols`` field, fall back to the
+    strategy class's declared symbols. The reference RSI strategy declares
+    ``["AAPL", "MSFT", "SPY"]`` so the persisted row should contain AAPL."""
+    resp = await client.post(
+        "/api/v1/strategies",
+        json={
+            "name": "default-symbols",
+            "code_path": "examples/rsi_meanreversion.py",
+            "type": "python",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # RsiMeanReversion declares ["AAPL","MSFT","SPY"] as the class default.
+    assert "AAPL" in body["symbols"]
+
+
+# ---------- start: recovers from ERROR ----------
+
+
+async def test_start_recovers_from_error_state(client, factory) -> None:
+    """A strategy in ERROR is eligible to restart — ACTIVE_STRATEGY_STATUSES
+    doesn't include ERROR, so engine.register fires and the row transitions
+    to PAPER."""
+    sid = await _make_strategy(factory, status=StrategyStatus.ERROR)
+
+    async def fake_register(strategy_id: int):
+        async with factory() as s:
+            r = await s.get(StrategyRow, strategy_id)
+            r.status = StrategyStatus.PAPER
+            r.error_text = None
+            await s.commit()
+        result = MagicMock()
+        result.run_id = 7
+        return result
+
+    client._transport.app.state.strategy_engine.register = fake_register
+
+    resp = await client.post(f"/api/v1/strategies/{sid}/start")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["new_status"] == "paper"
+    assert body["run_id"] == 7
+
+
+# ---------- start: engine raises StrategyLoadError -> 400 ----------
+
+
+async def test_start_returns_400_on_loader_failure(client, factory) -> None:
+    from app.strategies.loader import StrategyLoadError
+
+    sid = await _make_strategy(factory)
+
+    async def fake_register(_strategy_id: int):
+        raise StrategyLoadError("file went missing")
+
+    client._transport.app.state.strategy_engine.register = fake_register
+
+    resp = await client.post(f"/api/v1/strategies/{sid}/start")
+    assert resp.status_code == 400
+    assert "file went missing" in resp.json()["detail"]
+
+
+# ---------- update: risk_limits_id path ----------
+
+
+async def test_update_risk_limits_id_field(client, factory) -> None:
+    """Covers the PUT branch where ``body.risk_limits_id`` is set; the
+    base test covers params/symbols but not this one."""
+    sid = await _make_strategy(factory, status=StrategyStatus.IDLE)
+
+    resp = await client.put(
+        f"/api/v1/strategies/{sid}",
+        json={"risk_limits_id": 42, "version": "0.2.0"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["risk_limits_id"] == 42
+    assert body["version"] == "0.2.0"
+
+
+# ---------- sub-resources: 404 when strategy missing ----------
+
+
+async def test_list_runs_returns_404_for_unknown_strategy(client) -> None:
+    resp = await client.get("/api/v1/strategies/9999/runs")
+    assert resp.status_code == 404
+
+
+async def test_list_signals_returns_404_for_unknown_strategy(client) -> None:
+    resp = await client.get("/api/v1/strategies/9999/signals")
+    assert resp.status_code == 404
+
+
+async def test_list_backtests_returns_404_for_unknown_strategy(client) -> None:
+    resp = await client.get("/api/v1/strategies/9999/backtests")
+    assert resp.status_code == 404
+
+
+async def test_get_backtest_returns_404_when_result_does_not_belong(
+    client, factory
+) -> None:
+    """A backtest result owned by another strategy must not leak across
+    strategy ids."""
+    sid_a = await _make_strategy(factory)
+    sid_b = await _make_strategy(factory)
+
+    async with factory() as session:
+        result = BacktestResult(
+            strategy_id=sid_b,
+            label="x",
+            params_json={},
+            metrics_json={
+                "total_return": 0.0,
+                "annualized_return": 0.0,
+                "sharpe_ratio": 0.0,
+                "max_drawdown": 0.0,
+                "win_rate": 0.0,
+                "profit_factor": 0.0,
+                "trade_count": 0,
+                "avg_win": 0.0,
+                "avg_loss": 0.0,
+                "avg_trade_duration_seconds": 0.0,
+                "starting_equity": 100000.0,
+                "ending_equity": 100000.0,
+            },
+            equity_curve_json=[],
+            trades_json=[],
+            range_start=_now(),
+            range_end=_now(),
+            created_at=_now(),
+        )
+        session.add(result)
+        await session.commit()
+        await session.refresh(result)
+        rid = result.id
+
+    # Request the result via strategy A — must 404, not return strategy B's row.
+    resp = await client.get(f"/api/v1/strategies/{sid_a}/backtests/{rid}")
+    assert resp.status_code == 404
+
+
+# ---------- sub-resources: populated reads ----------
+
+
+async def test_list_runs_returns_recent_runs(client, factory) -> None:
+    sid = await _make_strategy(factory)
+    async with factory() as session:
+        session.add(
+            StrategyRun(
+                strategy_id=sid,
+                started_at=_now(),
+                ended_at=None,
+                status=StrategyStatus.PAPER,
+            )
+        )
+        await session.commit()
+
+    resp = await client.get(f"/api/v1/strategies/{sid}/runs")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 1
+
+
+async def test_list_signals_returns_recent_signals(client, factory) -> None:
+    from app.db.enums import SignalType
+
+    sid = await _make_strategy(factory)
+    async with factory() as session:
+        session.add(
+            Signal(
+                user_id=1,
+                strategy_id=sid,
+                symbol_id=1,
+                type=SignalType.ENTRY,
+                payload_json={"rsi": 28.0},
+                received_at=_now(),
+                processed_at=None,
+            )
+        )
+        await session.commit()
+
+    resp = await client.get(f"/api/v1/strategies/{sid}/signals")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 1
+    assert body["items"][0]["symbol"] == "AAPL"

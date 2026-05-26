@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-25 · branch: `main` · latest tag: `p2-session5-complete`
+Last updated: 2026-05-26 · branch: `feat/p2-tests-smoke-exit` · latest tag: `p2-session5-complete`
 
 ---
 
@@ -43,7 +43,7 @@ Master plan: [`docs/implementation/TradingWorkbench_P2_Checklist_v0.1.md`](../do
 | **S3** | Reference RSI strategy + backtest harness | ✅ #13 tag `p2-session3-complete` |
 | **S4** | Strategies + signals REST surface + WS topic routing | ✅ #16 tag `p2-session4-complete` |
 | **S5** | Frontend Strategies pages (CRUD, signals view, backtest modal) | ✅ #18 tag `p2-session5-complete` |
-| **S6** | Tests + smoke matrix + runbooks + P2 exit gate | ⏳ **next** |
+| **S6** | Tests + smoke matrix + runbooks + P2 exit gate | 🚧 PR open: coverage gates + backfill tests + runbooks + README done; smoke matrix + branch-protection promotion + `p2-complete` tag are manual steps after merge |
 
 ### P2 known blockers
 - AAPL fixture parquets for `tests/strategies/test_backtest_reproducibility.py` and the live smoke step — Norton SSL inspection on Jay's dev machine blocks `data.alpaca.markets`. Generating from any other env (WSL, CI, a non-Norton machine) populates the three parquets and flips two skipped tests to required.
@@ -75,6 +75,17 @@ We ran ahead of the doc order on P4 items because they unblock UI work later. It
 - **Alembic template fix** (in #14 and re-tweaked in #17) — `script.py.mako` now produces ruff-clean imports on autogenerate; future `alembic revision --autogenerate` calls don't need a manual fixup pass.
 
 ---
+
+## ⏳ P3 prereqs (queued after P2 closes)
+
+Goal: a Claude-powered chat panel that the trader can talk to about positions, recent trades, and current market state. **B1+B2 only** — read-only context + interactive Q&A. No autonomous trading (that's B3, deferred to P6).
+
+- [ ] Re-read Design Doc §10 (Agent integration) and Implementation Plan v0.2 §10 + §12.
+- [ ] Confirm: agent modes B1 (read-only) and B2 (interactive Q&A) are P3; B3 (Agent Strategy that submits orders) is explicitly P6.
+- [ ] Confirm: $2/day per-agent cost cap, Haiku-default per Implementation Plan §13.3.
+- [ ] Decide Anthropic API key handling: env var only for MVP, per-user in `system_config` (encrypted) in P5. (Recommend env var for MVP.)
+- [ ] Decide whether the chat panel is a new top-level page or a side panel docked into the existing layout.
+- [ ] Draft a P3 checklist analogous to P1 / P2 (sessions + acceptance criteria) — six P3 session docs already exist in `docs/implementation/`; verify they match current state before treating them as authoritative.
 
 ## 🗺️ P3 / P5–P7 — Roadmap (untouched)
 
