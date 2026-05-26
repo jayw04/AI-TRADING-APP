@@ -164,6 +164,24 @@ export type StrategyStatus = "idle" | "backtest" | "paper" | "live" | "halted" |
 
 export const ACTIVE_STRATEGY_STATUSES: ReadonlyArray<StrategyStatus> = ["paper", "live"];
 
+// P4 §7: optional UI-form schema declared on the strategy class. Lives in
+// code, not the DB — surfaced fresh on the detail endpoint. ``null`` means
+// the strategy didn't declare one; the Params tab falls back to JSON.
+export type ParamFieldType = "integer" | "number" | "string" | "boolean" | "enum";
+
+export interface ParamFieldSpec {
+  type: ParamFieldType;
+  default?: number | string | boolean;
+  description?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  max_length?: number;
+  choices?: string[]; // for enum
+}
+
+export type ParamsSchema = Record<string, ParamFieldSpec>;
+
 export interface Strategy {
   id: number;
   name: string;
@@ -176,6 +194,8 @@ export interface Strategy {
   schedule: string;
   risk_limits_id: number | null;
   error_text: string | null;
+  // P4 §7. Populated only on detail endpoint responses.
+  params_schema?: ParamsSchema | null;
   created_at: string;
   updated_at: string;
 }

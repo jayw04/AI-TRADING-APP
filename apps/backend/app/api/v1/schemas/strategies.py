@@ -91,6 +91,10 @@ class StrategyResponse(BaseModel):
     schedule: str
     risk_limits_id: int | None
     error_text: str | None
+    # P4 §7: form schema, injected from the engine on the detail endpoint
+    # only. ``None`` means "no schema declared" — frontend shows the JSON
+    # textarea fallback. Not persisted; lives on the loaded class.
+    params_schema: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 
