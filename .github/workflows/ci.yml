@@ -50,7 +50,17 @@ jobs:
 
       - name: Pytest
         working-directory: ${{ matrix.dir }}
-        run: pytest -q
+        run: pytest -q --cov=${{ matrix.src }} --cov-branch --cov-report=xml
+
+      - name: Risk engine branch-coverage gate (backend)
+        if: matrix.project == 'backend'
+        working-directory: ${{ matrix.dir }}
+        run: python scripts/check_risk_coverage.py
+
+      - name: P2 module branch-coverage gate (backend)
+        if: matrix.project == 'backend'
+        working-directory: ${{ matrix.dir }}
+        run: python scripts/check_p2_coverage.py
 
       - name: Strategy isolation invariant check (backend)
         if: matrix.project == 'backend'

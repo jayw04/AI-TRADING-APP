@@ -129,3 +129,46 @@ Before flipping `WORKBENCH_TRADING_MODE=live`, consider:
   ```
 
 Live-mode caveats are in [`live-mode.md`](live-mode.md).
+
+## Strategy-scope risk limits (P2)
+
+P2 introduced the **STRATEGY** scope. A `risk_limits` row with
+`scope_type='strategy'` applies to one or more strategies via
+`strategies.risk_limits_id`.
+
+Layering: when the Risk Engine evaluates a strategy-attributed order, it
+merges the STRATEGY-scope row over the GLOBAL row. NULL fields fall
+through to GLOBAL — set only the fields you want to override.
+
+The seed script creates one default STRATEGY-scope row with tighter caps
+than GLOBAL:
+
+| Field | GLOBAL | STRATEGY default |
+|---|---|---|
+| `max_position_notional` | $25,000 | $5,000 |
+| `max_gross_exposure` | $100,000 | $15,000 |
+| `max_daily_loss` | $2,000 | $500 |
+| `max_orders_per_minute` | 10 | 5 |
+
+To create a tighter per-strategy row:
+
+```bash
+sqlite3 apps/backend/data/workbench.sqlite "
+  INSERT INTO risk_limits (user_id, scope_type, scope_id,
+    max_position_qty, max_position_notional, max_gross_exposure,
+    max_daily_loss, max_orders_per_minute, allow_short,
+    created_at, updated_at)
+  VALUES (1, 'strategy', NULL, 50, 2000, 5000, 250, 3, 0,
+    datetime('now'), datetime('now'));
+"
+```
+
+Then attach to a strategy (must be IDLE — PUT rejects with 409 if active):
+
+```bash
+curl -X PUT http://127.0.0.1:8000/api/v1/strategies/${ID} \
+  -H "Content-Type: application/json" \
+  -d '{"risk_limits_id": 3}'
+```
+
+P3 will introduce AGENT_SESSION-scope risk limits in the same pattern.

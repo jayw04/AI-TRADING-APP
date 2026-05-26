@@ -6,9 +6,15 @@ The Trading Workbench is a local-first trading application for active equity tra
 
 ## Status
 
-**Phase P0 — Scaffolding.** No trading logic yet. Goal: `docker compose up` brings up backend (healthy), MCP server (responding), and frontend (renders empty shell). See [`docs/implementation/TradingWorkbench_P0_Checklist_v0.1.md`](docs/implementation/TradingWorkbench_P0_Checklist_v0.1.md).
+**Phase P2 — Strategy MVP nearing completion.** P0 (scaffolding) and P1
+(manual trading MVP — paper orders, risk engine, positions, charts) both
+shipped. P2 (systematic strategies + backtesting) has Sessions 1–5
+merged; this PR closes Session 6 (tests, runbooks, exit gate). P4 §1
+(TradingView webhooks) and §2 part A (async backtest jobs) shipped
+out-of-order to unblock UI work.
 
-P0 progress: Groups 1–8 complete. Groups 9–10 remaining (docs, exit gate).
+See [`tasks/todo.md`](tasks/todo.md) for the single-source-of-truth state
+index (shipped PRs per phase, next-up session, active blockers).
 
 ## Quickstart (Docker — recommended)
 
@@ -35,6 +41,31 @@ Stop:
 ```bash
 ./scripts/dev.sh down
 ```
+
+### Running a strategy (P2)
+
+The Strategies page is where systematic strategies live.
+
+1. Visit `http://localhost:5173/strategies`.
+2. Click "+ New strategy". The defaults register the reference RSI
+   mean-reversion strategy on AAPL.
+3. Click the strategy name → Backtests tab → "Run backtest". The backtest
+   runs asynchronously; the modal polls the job until done.
+4. Review metrics + equity curve + trades.
+5. Back to the strategy header → "Start (paper)". Status transitions
+   IDLE → PAPER.
+6. The Signals tab streams live signals via WebSocket; the Orders tab
+   shows strategy-attributed orders.
+7. Click Stop when done. Any open position is left for you to close
+   manually from the Positions page.
+
+> The reference strategy at
+> `apps/backend/strategies_user/examples/rsi_meanreversion.py` is a
+> **reference implementation, not a trading recommendation**. To write
+> your own, see
+> [`docs/runbook/strategy-authoring.md`](docs/runbook/strategy-authoring.md).
+> Backtesting mechanics are in
+> [`docs/runbook/backtesting.md`](docs/runbook/backtesting.md).
 
 ## Quickstart (standalone, no Docker)
 
