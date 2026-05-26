@@ -13,12 +13,12 @@ export function OrdersTab({ strategyId }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // No backend filter by source_id; pull recent and filter client-side.
-      // P4 polish: add a source_id query param.
-      const resp = await ordersApi.list("all");
-      setOrders(resp.items.filter(
-        (o) => o.source_type === "strategy" && o.source_id === String(strategyId),
-      ));
+      const resp = await ordersApi.list({
+        source_type: "strategy",
+        source_id: String(strategyId),
+        limit: 100,
+      });
+      setOrders(resp.items);
     } finally {
       setLoading(false);
     }

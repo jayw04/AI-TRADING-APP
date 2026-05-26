@@ -194,10 +194,29 @@ async def create_order(
 async def list_orders(
     status: str | None = Query(default=None, description="open | history | all"),
     symbol: str | None = Query(default=None),
+    source_type: OrderSourceType | None = Query(
+        default=None,
+        description="Filter by order source type (manual / strategy / agent / pine).",
+    ),
+    source_id: str | None = Query(
+        default=None,
+        max_length=64,
+        description=(
+            "Filter by source id. REQUIRES source_type also be set — strategy "
+            "id=42 and agent id=42 share the same numeric namespace, so "
+            "source_id alone is ambiguous."
+        ),
+    ),
     limit: int = Query(default=100, ge=1, le=500),
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> OrderListResponse:
+    if source_id is not None and source_type is None:
+        raise HTTPException(
+            status_code=400,
+            detail="source_id requires source_type to also be specified.",
+        )
+
     stmt = (
         select(Order)
         .options(selectinload(Order.fills), selectinload(Order.risk_check))
@@ -219,6 +238,11 @@ async def list_orders(
         if symbol_row is None:
             return OrderListResponse(items=[], count=0)
         stmt = stmt.where(Order.symbol_id == symbol_row.id)
+
+    if source_type is not None:
+        stmt = stmt.where(Order.source_type == source_type)
+    if source_id is not None:
+        stmt = stmt.where(Order.source_id == source_id)
 
     rows = (await session.execute(stmt)).scalars().all()
     items = [await _order_to_response(session, r) for r in rows]

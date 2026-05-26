@@ -292,6 +292,174 @@ async def test_post_orders_503_when_no_router_configured() -> None:
         get_sessionmaker.cache_clear()
 
 
+# ---------- P4 §5: source_type / source_id filter ----------
+
+
+async def _seed_order(
+    *,
+    user_id: int = 1,
+    account_id: int = 1,
+    symbol_id: int = 1,
+    source_type: OrderSourceType,
+    source_id: str | None,
+    status: OrderStatus = OrderStatus.SUBMITTED,
+    tag: str | None = None,
+) -> int:
+    """Persist one Order row through the test session factory. Returns the
+    new row's id so a test can assert against it specifically."""
+    from app.db.session import get_sessionmaker
+
+    factory = get_sessionmaker()
+    suffix = tag or f"{source_type.value}-{source_id or 'na'}"
+    async with factory() as session:
+        order = Order(
+            user_id=user_id,
+            account_id=account_id,
+            symbol_id=symbol_id,
+            broker_order_id=f"src-test-{suffix}-{_now().timestamp()}",
+            client_order_id=f"twb-src-test-{suffix}-{_now().timestamp()}",
+            side=OrderSide.BUY,
+            qty=Decimal("10"),
+            type=OrderType.MARKET,
+            tif=TimeInForce.DAY,
+            status=status,
+            source_type=source_type,
+            source_id=source_id,
+            created_at=_now(),
+            updated_at=_now(),
+        )
+        session.add(order)
+        await session.commit()
+        await session.refresh(order)
+        return order.id
+
+
+async def test_filter_by_source_type_manual(client_with_mock_router) -> None:
+    await _seed_order(source_type=OrderSourceType.MANUAL, source_id=None)
+    await _seed_order(source_type=OrderSourceType.STRATEGY, source_id="7")
+
+    resp = await client_with_mock_router.get("/api/v1/orders?source_type=manual")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 1
+    assert body["items"][0]["source_type"] == "manual"
+
+
+async def test_filter_by_source_type_and_id(client_with_mock_router) -> None:
+    await _seed_order(source_type=OrderSourceType.STRATEGY, source_id="7")
+    await _seed_order(source_type=OrderSourceType.STRATEGY, source_id="8")
+    await _seed_order(source_type=OrderSourceType.MANUAL, source_id=None)
+
+    resp = await client_with_mock_router.get(
+        "/api/v1/orders?source_type=strategy&source_id=7"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 1
+    assert body["items"][0]["source_id"] == "7"
+    assert body["items"][0]["source_type"] == "strategy"
+
+
+async def test_source_id_without_source_type_returns_400(
+    client_with_mock_router,
+) -> None:
+    resp = await client_with_mock_router.get("/api/v1/orders?source_id=42")
+    assert resp.status_code == 400
+    assert "requires source_type" in resp.json()["detail"]
+
+
+async def test_source_filter_returns_empty_when_no_match(
+    client_with_mock_router,
+) -> None:
+    await _seed_order(source_type=OrderSourceType.STRATEGY, source_id="7")
+    resp = await client_with_mock_router.get(
+        "/api/v1/orders?source_type=strategy&source_id=999"
+    )
+    assert resp.status_code == 200
+    assert resp.json()["count"] == 0
+
+
+async def test_source_type_only_returns_all_orders_of_that_type(
+    client_with_mock_router,
+) -> None:
+    await _seed_order(source_type=OrderSourceType.STRATEGY, source_id="7")
+    await _seed_order(source_type=OrderSourceType.STRATEGY, source_id="8")
+    await _seed_order(source_type=OrderSourceType.MANUAL, source_id=None)
+
+    resp = await client_with_mock_router.get("/api/v1/orders?source_type=strategy")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 2
+    assert all(item["source_type"] == "strategy" for item in body["items"])
+
+
+async def test_source_filter_combines_with_status_open(
+    client_with_mock_router,
+) -> None:
+    """Strategy filter + status=open (the existing string param) compose
+    correctly — only non-terminal orders of that source remain."""
+    open_id = await _seed_order(
+        source_type=OrderSourceType.STRATEGY,
+        source_id="7",
+        status=OrderStatus.SUBMITTED,
+        tag="open",
+    )
+    await _seed_order(
+        source_type=OrderSourceType.STRATEGY,
+        source_id="7",
+        status=OrderStatus.FILLED,
+        tag="filled",
+    )
+
+    resp = await client_with_mock_router.get(
+        "/api/v1/orders?source_type=strategy&source_id=7&status=open"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 1
+    assert body["items"][0]["id"] == open_id
+
+
+async def test_source_filter_combines_with_symbol(client_with_mock_router) -> None:
+    """Strategy orders on AAPL vs MSFT; filter by symbol drops MSFT."""
+    from app.db.session import get_sessionmaker
+
+    factory = get_sessionmaker()
+    async with factory() as session:
+        session.add(
+            Symbol(
+                id=2,
+                ticker="MSFT",
+                exchange="NASDAQ",
+                asset_class="us_equity",
+                name="Microsoft",
+                active=True,
+            )
+        )
+        await session.commit()
+    await _seed_order(
+        symbol_id=1, source_type=OrderSourceType.STRATEGY, source_id="7", tag="aapl"
+    )
+    await _seed_order(
+        symbol_id=2, source_type=OrderSourceType.STRATEGY, source_id="7", tag="msft"
+    )
+
+    resp = await client_with_mock_router.get(
+        "/api/v1/orders?source_type=strategy&source_id=7&symbol=AAPL"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 1
+    assert body["items"][0]["symbol"] == "AAPL"
+
+
+async def test_invalid_source_type_returns_422(client_with_mock_router) -> None:
+    """FastAPI's enum-coercion of OrderSourceType rejects unknown values
+    with 422 (Unprocessable Entity), not 400."""
+    resp = await client_with_mock_router.get("/api/v1/orders?source_type=garbage")
+    assert resp.status_code == 422
+
+
 # Reference list — Order.unrealized_pl read used only at top to keep
 # the IDE happy that the import wasn't dropped.
 _ = select(Order)

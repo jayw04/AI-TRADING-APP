@@ -23,7 +23,7 @@ export default function Dashboard() {
   });
   const orders = useQuery({
     queryKey: ["orders", "open"],
-    queryFn: () => ordersApi.list("open"),
+    queryFn: () => ordersApi.list({ filter: "open" }),
     refetchInterval: REFETCH_MS,
     retry: false,
   });

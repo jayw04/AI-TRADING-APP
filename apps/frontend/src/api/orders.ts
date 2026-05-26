@@ -5,15 +5,30 @@ import type {
   OrderCreateRequest,
   OrderListResponse,
   OrderModifyRequest,
+  OrderSourceType,
 } from "./types";
 
 export type OrderListFilter = "open" | "history" | "all";
 
+export interface OrderListOptions {
+  filter?: OrderListFilter;
+  symbol?: string;
+  // P4 §5: server-side scoping by source. ``source_id`` requires
+  // ``source_type`` (the backend rejects with 400 otherwise).
+  source_type?: OrderSourceType;
+  source_id?: string;
+  limit?: number;
+}
+
 export const ordersApi = {
-  list(filter: OrderListFilter = "all", symbol?: string): Promise<OrderListResponse> {
+  list(opts: OrderListOptions = {}): Promise<OrderListResponse> {
     const params = new URLSearchParams();
+    const filter = opts.filter ?? "all";
     if (filter !== "all") params.set("status", filter);
-    if (symbol) params.set("symbol", symbol);
+    if (opts.symbol) params.set("symbol", opts.symbol);
+    if (opts.source_type) params.set("source_type", opts.source_type);
+    if (opts.source_id !== undefined) params.set("source_id", opts.source_id);
+    if (opts.limit !== undefined) params.set("limit", String(opts.limit));
     const qs = params.toString();
     return apiFetch<OrderListResponse>(`/api/v1/orders${qs ? `?${qs}` : ""}`);
   },

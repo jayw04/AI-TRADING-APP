@@ -21,17 +21,18 @@ export function OverviewTab({ strategy }: Props) {
         const [r, s, o, b] = await Promise.all([
           strategiesApi.listRuns(strategy.id, 5),
           strategiesApi.listSignals(strategy.id, 10),
-          ordersApi.list("all"),
+          // P4 §5: server-side scoping replaces the pull-all-then-filter.
+          ordersApi.list({
+            source_type: "strategy",
+            source_id: String(strategy.id),
+            limit: 10,
+          }),
           strategiesApi.listBacktests(strategy.id, 1),
         ]);
         if (!mounted) return;
         setRuns(r.items);
         setSignals(s.items);
-        setOrders(
-          o.items
-            .filter((ord) => ord.source_type === "strategy" && ord.source_id === String(strategy.id))
-            .slice(0, 10),
-        );
+        setOrders(o.items);
         setLatestBacktest(b.items[0] ?? null);
       } catch {
         /* silent — overview is informational only */

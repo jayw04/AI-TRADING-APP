@@ -13,7 +13,7 @@ export default function OrdersPage() {
 
   const query = useQuery({
     queryKey: ["orders", filter],
-    queryFn: () => ordersApi.list(filter),
+    queryFn: () => ordersApi.list({ filter }),
     refetchInterval: 5_000,
   });
 
