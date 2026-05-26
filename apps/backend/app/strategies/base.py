@@ -43,6 +43,14 @@ class Strategy:
     # params_json (registered values override defaults).
     default_params: ClassVar[dict[str, Any]] = {}
 
+    # Optional UI form schema (P4 §7). When a subclass declares this, the
+    # frontend Params tab renders a typed form (integer / number / string /
+    # boolean / enum). When ``None`` the frontend falls back to a raw JSON
+    # textarea. The schema lives in code, not the DB — the engine reads
+    # ``type(running.instance).params_schema`` at response time, so a
+    # hot-reload picks up schema edits for free.
+    params_schema: ClassVar[dict[str, Any] | None] = None
+
     # ---- instance ----
 
     def __init__(self, ctx: StrategyContext, params: dict[str, Any]) -> None:

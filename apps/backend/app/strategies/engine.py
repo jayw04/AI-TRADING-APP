@@ -132,6 +132,24 @@ class StrategyEngine:
                 await task
         logger.info("strategy_engine_stopped")
 
+    # ---- introspection ----
+
+    def get_params_schema(self, strategy_id: int) -> dict[str, Any] | None:
+        """Return the in-memory ``params_schema`` for a currently-registered
+        strategy, or ``None`` if the strategy isn't registered or its class
+        didn't declare a schema (P4 §7).
+
+        Schema is read fresh off ``type(instance)`` so a future hot-reload
+        (P4 §4) sees new schemas without re-binding the engine.
+        """
+        running = self._running.get(strategy_id)
+        if running is None:
+            return None
+        schema = getattr(type(running.instance), "params_schema", None)
+        if not isinstance(schema, dict):
+            return None
+        return schema
+
     # ---- registration ----
 
     async def register(self, strategy_id: int) -> RunningStrategy:

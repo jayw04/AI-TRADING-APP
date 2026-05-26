@@ -327,3 +327,63 @@ async def test_list_signals_returns_recent_signals(client, factory) -> None:
     body = resp.json()
     assert body["count"] == 1
     assert body["items"][0]["symbol"] == "AAPL"
+
+
+# ---------- P4 §7: params_schema on the detail endpoint ----------
+
+
+async def test_detail_injects_schema_from_engine(client, factory) -> None:
+    """When the engine has a schema for the registered strategy, the
+    detail endpoint surfaces it on ``params_schema``."""
+    sid = await _make_strategy(factory)
+
+    fake_schema = {
+        "rsi_period": {
+            "type": "integer", "min": 2, "max": 100, "default": 14,
+        }
+    }
+    client._transport.app.state.strategy_engine.get_params_schema = (
+        lambda strategy_id: fake_schema if strategy_id == sid else None
+    )
+
+    resp = await client.get(f"/api/v1/strategies/{sid}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["params_schema"] is not None
+    assert body["params_schema"]["rsi_period"]["default"] == 14
+
+
+async def test_detail_returns_null_schema_when_engine_has_none(
+    client, factory
+) -> None:
+    """If the engine doesn't know about this strategy (not registered, or
+    the class doesn't declare a schema), ``params_schema`` is ``None``."""
+    sid = await _make_strategy(factory)
+    client._transport.app.state.strategy_engine.get_params_schema = (
+        lambda strategy_id: None
+    )
+
+    resp = await client.get(f"/api/v1/strategies/{sid}")
+    assert resp.status_code == 200
+    assert resp.json()["params_schema"] is None
+
+
+async def test_list_endpoint_omits_schema(client, factory) -> None:
+    """The list endpoint intentionally skips the engine call to keep the
+    list payload small. Schema is detail-endpoint only."""
+    await _make_strategy(factory)
+    called = {"n": 0}
+
+    def maybe_called(_sid: int) -> dict | None:
+        called["n"] += 1
+        return {"rsi_period": {"type": "integer", "default": 14}}
+
+    client._transport.app.state.strategy_engine.get_params_schema = maybe_called
+
+    resp = await client.get("/api/v1/strategies")
+    assert resp.status_code == 200
+    body = resp.json()
+    for item in body["items"]:
+        # Field is absent OR null — both mean "schema not surfaced."
+        assert item.get("params_schema") is None
+    assert called["n"] == 0

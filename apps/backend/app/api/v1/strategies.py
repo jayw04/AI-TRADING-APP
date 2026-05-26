@@ -200,13 +200,28 @@ async def list_strategies(
 @router.get("/{strategy_id}", response_model=StrategyResponse)
 async def get_strategy(
     strategy_id: int,
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StrategyResponse:
     row = await session.get(StrategyRow, strategy_id)
     if row is None or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Strategy not found")
-    return _strategy_to_response(row)
+
+    # P4 §7: inject the in-memory params_schema for the form-rendering
+    # frontend. The list endpoint intentionally omits this to keep its
+    # payload small; only the detail endpoint pays the cost.
+    schema: dict | None = None
+    engine = getattr(request.app.state, "strategy_engine", None)
+    if engine is not None:
+        get_schema = getattr(engine, "get_params_schema", None)
+        if callable(get_schema):
+            schema = get_schema(strategy_id)
+
+    resp = _strategy_to_response(row)
+    if schema is not None:
+        resp = resp.model_copy(update={"params_schema": schema})
+    return resp
 
 
 # ---------- PUT /strategies/{id} ----------

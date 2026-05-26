@@ -59,6 +59,69 @@ class RsiMeanReversion(Strategy):
         "max_position_qty": 50,  # hard ceiling beyond the Risk Engine
     }
 
+    params_schema: ClassVar[dict[str, Any]] = {
+        "timeframe": {
+            "type": "enum",
+            "choices": ["1Min", "5Min", "15Min", "1Hour", "1Day"],
+            "default": "1Min",
+            "description": "Bar timeframe driving on_bar dispatch.",
+        },
+        "entry_threshold": {
+            "type": "number",
+            "min": 0,
+            "max": 100,
+            "default": 30.0,
+            "description": "Enter long when RSI dips below this.",
+        },
+        "exit_threshold": {
+            "type": "number",
+            "min": 0,
+            "max": 100,
+            "default": 55.0,
+            "description": "Exit long when RSI crosses above this.",
+        },
+        "atr_multiple_for_stop": {
+            "type": "number",
+            "min": 0.1,
+            "max": 10,
+            "step": 0.1,
+            "default": 2.0,
+            "description": "ATR multiple used to size the hard stop.",
+        },
+        "atr_multiple_for_sizing": {
+            "type": "number",
+            "min": 0.1,
+            "max": 10,
+            "step": 0.1,
+            "default": 2.0,
+            "description": "ATR multiple used for risk-based position sizing.",
+        },
+        "risk_per_trade_pct": {
+            "type": "number",
+            "min": 0,
+            "max": 0.1,
+            "step": 0.001,
+            "default": 0.01,
+            "description": "Fraction of equity risked per trade (0.01 = 1%).",
+        },
+        "initial_equity_estimate": {
+            "type": "number",
+            "min": 0,
+            "default": 100000,
+            "description": (
+                "Equity estimate used for sizing before live account state "
+                "is available. Live runtime swaps in real equity."
+            ),
+        },
+        "max_position_qty": {
+            "type": "integer",
+            "min": 1,
+            "max": 10000,
+            "default": 50,
+            "description": "Hard share-count ceiling layered on top of the Risk Engine.",
+        },
+    }
+
     def __init__(self, ctx, params):
         super().__init__(ctx, params)
         # Per-symbol entry state for the backtest virtual-stop check.
