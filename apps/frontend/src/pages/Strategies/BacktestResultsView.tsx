@@ -1,11 +1,21 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { BacktestResult } from "@/api/types";
 import {
-  formatPct,
-  formatNumber,
   formatCurrency,
   formatDuration,
+  formatNumber,
+  formatPct,
 } from "@/components/strategies/formatters";
+import {
+  computeDrawdown,
+  computeTradeMarkers,
+  computeTradeStats,
+  transformEquityForChart,
+  type DrawdownPoint,
+  type EquityChartPoint,
+  type TradeMarker,
+  type YAxisMode,
+} from "./backtestHelpers";
 
 interface Props {
   result: BacktestResult;
@@ -13,9 +23,38 @@ interface Props {
 }
 
 export function BacktestResultsView({ result, onClose }: Props) {
+  const [mode, setMode] = useState<YAxisMode>("equity");
+  const startingEquity = result.metrics.starting_equity;
+
+  const equityChartData = useMemo(
+    () => transformEquityForChart(result.equity_curve, mode, startingEquity),
+    [result.equity_curve, mode, startingEquity],
+  );
+  const drawdownData = useMemo(
+    () => computeDrawdown(result.equity_curve),
+    [result.equity_curve],
+  );
+  const tradeMarkers = useMemo(
+    () =>
+      computeTradeMarkers(
+        result.trades,
+        result.equity_curve,
+        mode,
+        startingEquity,
+      ),
+    [result.trades, result.equity_curve, mode, startingEquity],
+  );
+  const tradeStats = useMemo(
+    () => computeTradeStats(result.trades),
+    [result.trades],
+  );
+
+  const referenceValue = mode === "equity" ? startingEquity : 0;
+  const valueLabel = mode === "equity" ? "Equity ($)" : "Returns (%)";
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80">
-      <div className="w-[60rem] max-h-[92vh] overflow-y-auto rounded-lg border border-gray-700 bg-gray-950 p-5">
+      <div className="w-[64rem] max-h-[92vh] overflow-y-auto rounded-lg border border-gray-700 bg-gray-950 p-5">
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-white">
@@ -27,7 +66,10 @@ export function BacktestResultsView({ result, onClose }: Props) {
               · created {new Date(result.created_at).toLocaleString()}
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+          <div className="flex items-center gap-2">
+            <ModeToggle mode={mode} onChange={setMode} />
+            <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+          </div>
         </div>
 
         <div className="mb-4 grid grid-cols-4 gap-2">
@@ -43,12 +85,53 @@ export function BacktestResultsView({ result, onClose }: Props) {
           <MetricCard label="Avg duration" value={formatDuration(result.metrics.avg_trade_duration_seconds)} />
         </div>
 
-        <div className="mb-4 rounded border border-gray-800 bg-gray-900 p-3">
-          <div className="mb-1 text-sm font-semibold text-gray-300">Equity curve</div>
+        <div className="mb-3 rounded border border-gray-800 bg-gray-900 p-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-300">{valueLabel}</span>
+            <span className="text-xs text-gray-500">
+              {tradeMarkers.filter((m) => m.kind === "entry").length} entries
+            </span>
+          </div>
           <EquityCurveChart
-            points={result.equity_curve}
-            startingEquity={result.metrics.starting_equity}
+            data={equityChartData}
+            markers={tradeMarkers}
+            referenceValue={referenceValue}
+            mode={mode}
           />
+          <div className="mt-1 flex items-center justify-end gap-3 text-xs">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> entry
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-rose-500" /> exit
+            </span>
+          </div>
+        </div>
+
+        <div className="mb-4 rounded border border-gray-800 bg-gray-900 p-3">
+          <div className="mb-1 text-sm font-semibold text-gray-300">Drawdown (%)</div>
+          <DrawdownChart data={drawdownData} />
+        </div>
+
+        <div className="mb-4 rounded border border-gray-800 bg-gray-900 p-3">
+          <div className="mb-2 text-sm font-semibold text-gray-300">Trade stats</div>
+          {tradeStats.count === 0 ? (
+            <div className="py-2 text-sm text-gray-500">No closed trades</div>
+          ) : (
+            <div className="grid grid-cols-4 gap-3 text-sm">
+              <StatPair label="Wins / Losses" value={`${tradeStats.wins} / ${tradeStats.losses}`} />
+              <StatPair label="Best trade" value={formatCurrency(tradeStats.best_pnl)} color="text-emerald-300" />
+              <StatPair label="Worst trade" value={formatCurrency(tradeStats.worst_pnl)} color="text-rose-300" />
+              <StatPair label="Median pnl" value={formatCurrency(tradeStats.median_pnl)}
+                color={tradeStats.median_pnl >= 0 ? "text-emerald-300" : "text-rose-300"} />
+              <StatPair label="Avg win" value={formatCurrency(tradeStats.avg_win_pnl)} color="text-emerald-300" />
+              <StatPair label="Avg loss" value={formatCurrency(tradeStats.avg_loss_pnl)} color="text-rose-300" />
+              <StatPair label="Avg win duration" value={formatDuration(tradeStats.avg_duration_win_sec)} />
+              <StatPair label="Avg loss duration" value={formatDuration(tradeStats.avg_duration_loss_sec)} />
+              <StatPair label="Longest win streak" value={`${tradeStats.longest_win_streak}`} />
+              <StatPair label="Longest loss streak" value={`${tradeStats.longest_loss_streak}`} />
+            </div>
+          )}
         </div>
 
         <div className="rounded border border-gray-800">
@@ -111,6 +194,27 @@ export function BacktestResultsView({ result, onClose }: Props) {
   );
 }
 
+// ---------- Sub-components ----------
+
+function ModeToggle({ mode, onChange }: { mode: YAxisMode; onChange: (m: YAxisMode) => void }) {
+  return (
+    <div className="inline-flex overflow-hidden rounded border border-gray-700 text-xs">
+      <button
+        onClick={() => onChange("equity")}
+        className={`px-3 py-1 ${mode === "equity" ? "bg-blue-700 text-white" : "bg-gray-800 text-gray-300"}`}
+      >
+        Equity ($)
+      </button>
+      <button
+        onClick={() => onChange("returns")}
+        className={`px-3 py-1 ${mode === "returns" ? "bg-blue-700 text-white" : "bg-gray-800 text-gray-300"}`}
+      >
+        Returns (%)
+      </button>
+    </div>
+  );
+}
+
 function MetricCard({ label, value, positive, negative }: {
   label: string; value: string; positive?: boolean; negative?: boolean;
 }) {
@@ -125,85 +229,142 @@ function MetricCard({ label, value, positive, negative }: {
   );
 }
 
-// ----- Equity curve (inline SVG, no recharts dep) -----
-
-interface CurveProps {
-  points: { t: string; equity: number }[];
-  startingEquity: number;
+function StatPair({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase text-gray-500">{label}</div>
+      <div className={`text-base font-semibold ${color ?? "text-white"}`}>{value}</div>
+    </div>
+  );
 }
 
-const CHART_W = 880;
-const CHART_H = 240;
+// ----- Equity curve (inline SVG, no recharts dep) -----
+
+const CHART_W = 920;
+const EQUITY_H = 240;
+const DD_H = 120;
 const PAD = { top: 16, right: 24, bottom: 28, left: 64 };
 
-function EquityCurveChart({ points, startingEquity }: CurveProps) {
-  const data = useMemo(
-    () =>
-      points.map((p) => ({
-        t: new Date(p.t).getTime(),
-        equity: p.equity,
-      })),
-    [points],
-  );
-
+function EquityCurveChart({
+  data,
+  markers,
+  referenceValue,
+  mode,
+}: {
+  data: EquityChartPoint[];
+  markers: TradeMarker[];
+  referenceValue: number;
+  mode: YAxisMode;
+}) {
   if (data.length < 2) {
     return (
       <div className="py-8 text-center text-sm text-gray-500">
-        {data.length === 0 ? "No equity points" : "Only one equity point — need ≥2 to draw a line"}
+        {data.length === 0
+          ? "No equity points"
+          : "Only one equity point — need ≥2 to draw a line"}
       </div>
     );
   }
 
   const tMin = data[0].t;
   const tMax = data[data.length - 1].t;
-  const eValues = data.map((d) => d.equity);
-  const eMin = Math.min(...eValues, startingEquity);
-  const eMax = Math.max(...eValues, startingEquity);
-  const ePad = (eMax - eMin) * 0.08 || 1;
-  const yMin = eMin - ePad;
-  const yMax = eMax + ePad;
+  const values = data.map((d) => d.value);
+  const vMin = Math.min(...values, referenceValue);
+  const vMax = Math.max(...values, referenceValue);
+  const vPad = (vMax - vMin) * 0.08 || 1;
+  const yMin = vMin - vPad;
+  const yMax = vMax + vPad;
 
   const w = CHART_W - PAD.left - PAD.right;
-  const h = CHART_H - PAD.top - PAD.bottom;
-  const xScale = (t: number) => PAD.left + ((t - tMin) / (tMax - tMin || 1)) * w;
-  const yScale = (e: number) => PAD.top + (1 - (e - yMin) / (yMax - yMin || 1)) * h;
+  const h = EQUITY_H - PAD.top - PAD.bottom;
+  const xScale = (t: number) =>
+    PAD.left + ((t - tMin) / (tMax - tMin || 1)) * w;
+  const yScale = (v: number) =>
+    PAD.top + (1 - (v - yMin) / (yMax - yMin || 1)) * h;
 
   const path = data
-    .map((d, i) => `${i === 0 ? "M" : "L"} ${xScale(d.t).toFixed(1)} ${yScale(d.equity).toFixed(1)}`)
+    .map(
+      (d, i) =>
+        `${i === 0 ? "M" : "L"} ${xScale(d.t).toFixed(1)} ${yScale(d.value).toFixed(1)}`,
+    )
     .join(" ");
 
-  // Y-axis ticks at min / starting / max
-  const yTicks = Array.from(new Set([yMin, startingEquity, yMax])).sort((a, b) => a - b);
-  // X-axis ticks: first, middle, last
+  const yTicks = Array.from(new Set([yMin, referenceValue, yMax])).sort(
+    (a, b) => a - b,
+  );
   const xTicks = [tMin, (tMin + tMax) / 2, tMax];
+
+  // Clamp markers to the visible y-range so an off-axis trade doesn't draw
+  // a stray dot. Trades exactly on tMin/tMax are kept; out-of-range are
+  // skipped.
+  const visibleMarkers = markers.filter(
+    (m) => m.t >= tMin && m.t <= tMax && m.y >= yMin && m.y <= yMax,
+  );
+
+  function formatYTick(v: number): string {
+    if (mode === "equity") return `$${(v / 1000).toFixed(1)}k`;
+    return `${v.toFixed(1)}%`;
+  }
 
   return (
     <svg
-      viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+      viewBox={`0 0 ${CHART_W} ${EQUITY_H}`}
       preserveAspectRatio="none"
-      style={{ width: "100%", height: 240 }}
+      style={{ width: "100%", height: EQUITY_H }}
       role="img"
       aria-label="Equity curve"
     >
       <line
-        x1={PAD.left} x2={CHART_W - PAD.right}
-        y1={yScale(startingEquity)} y2={yScale(startingEquity)}
-        stroke="#6b7280" strokeDasharray="4 4" strokeWidth={1}
+        x1={PAD.left}
+        x2={CHART_W - PAD.right}
+        y1={yScale(referenceValue)}
+        y2={yScale(referenceValue)}
+        stroke="#6b7280"
+        strokeDasharray="4 4"
+        strokeWidth={1}
       />
       <path d={path} fill="none" stroke="#3b82f6" strokeWidth={2} />
+
+      {visibleMarkers.map((m, i) => (
+        <circle
+          key={`mk-${i}`}
+          cx={xScale(m.t)}
+          cy={yScale(m.y)}
+          r={4}
+          fill={m.kind === "entry" ? "#10b981" : "#ef4444"}
+          stroke="#0f172a"
+          strokeWidth={1.5}
+        >
+          <title>
+            {m.kind === "entry" ? "Entry " : "Exit "}
+            {m.trade.symbol} {m.trade.side}
+            {"\n"}
+            {new Date(m.t).toLocaleString()}
+            {m.trade.pnl !== null
+              ? `\nPnL ${formatCurrency(m.trade.pnl)}`
+              : ""}
+          </title>
+        </circle>
+      ))}
 
       {yTicks.map((y, i) => (
         <g key={i}>
           <line
-            x1={PAD.left - 4} x2={PAD.left}
-            y1={yScale(y)} y2={yScale(y)}
-            stroke="#374151" strokeWidth={1}
+            x1={PAD.left - 4}
+            x2={PAD.left}
+            y1={yScale(y)}
+            y2={yScale(y)}
+            stroke="#374151"
+            strokeWidth={1}
           />
           <text
-            x={PAD.left - 8} y={yScale(y) + 4}
-            textAnchor="end" fontSize={11} fill="#9ca3af"
+            x={PAD.left - 8}
+            y={yScale(y) + 4}
+            textAnchor="end"
+            fontSize={11}
+            fill="#9ca3af"
           >
-            ${(y / 1000).toFixed(1)}k
+            {formatYTick(y)}
           </text>
         </g>
       ))}
@@ -211,14 +372,140 @@ function EquityCurveChart({ points, startingEquity }: CurveProps) {
       {xTicks.map((x, i) => (
         <g key={i}>
           <line
-            x1={xScale(x)} x2={xScale(x)}
-            y1={CHART_H - PAD.bottom} y2={CHART_H - PAD.bottom + 4}
-            stroke="#374151" strokeWidth={1}
+            x1={xScale(x)}
+            x2={xScale(x)}
+            y1={EQUITY_H - PAD.bottom}
+            y2={EQUITY_H - PAD.bottom + 4}
+            stroke="#374151"
+            strokeWidth={1}
           />
           <text
-            x={xScale(x)} y={CHART_H - PAD.bottom + 18}
-            textAnchor={i === 0 ? "start" : i === xTicks.length - 1 ? "end" : "middle"}
-            fontSize={11} fill="#9ca3af"
+            x={xScale(x)}
+            y={EQUITY_H - PAD.bottom + 18}
+            textAnchor={
+              i === 0
+                ? "start"
+                : i === xTicks.length - 1
+                  ? "end"
+                  : "middle"
+            }
+            fontSize={11}
+            fill="#9ca3af"
+          >
+            {new Date(x).toLocaleDateString()}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function DrawdownChart({ data }: { data: DrawdownPoint[] }) {
+  if (data.length < 2) {
+    return (
+      <div className="py-4 text-center text-sm text-gray-500">
+        {data.length === 0 ? "No drawdown data" : "Need ≥2 points for drawdown"}
+      </div>
+    );
+  }
+
+  const tMin = data[0].t;
+  const tMax = data[data.length - 1].t;
+  // Drawdown is always ≤ 0; force the y-domain top to 0 so the chart reads
+  // "deepest at the bottom" without wasted positive headroom.
+  const ddValues = data.map((d) => d.drawdown_pct);
+  const yMin = Math.min(...ddValues, 0);
+  const yMax = 0;
+  const yPad = Math.abs(yMin) * 0.08 || 0.001;
+
+  const w = CHART_W - PAD.left - PAD.right;
+  const h = DD_H - PAD.top - PAD.bottom;
+  const xScale = (t: number) =>
+    PAD.left + ((t - tMin) / (tMax - tMin || 1)) * w;
+  const yScale = (v: number) =>
+    PAD.top + (1 - (v - (yMin - yPad)) / (yMax - (yMin - yPad) || 1)) * h;
+
+  const linePath = data
+    .map(
+      (d, i) =>
+        `${i === 0 ? "M" : "L"} ${xScale(d.t).toFixed(1)} ${yScale(d.drawdown_pct).toFixed(1)}`,
+    )
+    .join(" ");
+  // Filled area: line path + close to y=0 baseline.
+  const areaPath = [
+    linePath,
+    `L ${xScale(tMax).toFixed(1)} ${yScale(0).toFixed(1)}`,
+    `L ${xScale(tMin).toFixed(1)} ${yScale(0).toFixed(1)}`,
+    "Z",
+  ].join(" ");
+
+  const yTicks = [yMin, yMin / 2, 0];
+  const xTicks = [tMin, (tMin + tMax) / 2, tMax];
+
+  return (
+    <svg
+      viewBox={`0 0 ${CHART_W} ${DD_H}`}
+      preserveAspectRatio="none"
+      style={{ width: "100%", height: DD_H }}
+      role="img"
+      aria-label="Drawdown"
+    >
+      <line
+        x1={PAD.left}
+        x2={CHART_W - PAD.right}
+        y1={yScale(0)}
+        y2={yScale(0)}
+        stroke="#6b7280"
+        strokeDasharray="4 4"
+        strokeWidth={1}
+      />
+      <path d={areaPath} fill="#ef4444" fillOpacity={0.25} stroke="none" />
+      <path d={linePath} fill="none" stroke="#ef4444" strokeWidth={1.5} />
+
+      {yTicks.map((y, i) => (
+        <g key={i}>
+          <line
+            x1={PAD.left - 4}
+            x2={PAD.left}
+            y1={yScale(y)}
+            y2={yScale(y)}
+            stroke="#374151"
+            strokeWidth={1}
+          />
+          <text
+            x={PAD.left - 8}
+            y={yScale(y) + 4}
+            textAnchor="end"
+            fontSize={11}
+            fill="#9ca3af"
+          >
+            {`${(y * 100).toFixed(1)}%`}
+          </text>
+        </g>
+      ))}
+
+      {xTicks.map((x, i) => (
+        <g key={i}>
+          <line
+            x1={xScale(x)}
+            x2={xScale(x)}
+            y1={DD_H - PAD.bottom}
+            y2={DD_H - PAD.bottom + 4}
+            stroke="#374151"
+            strokeWidth={1}
+          />
+          <text
+            x={xScale(x)}
+            y={DD_H - PAD.bottom + 18}
+            textAnchor={
+              i === 0
+                ? "start"
+                : i === xTicks.length - 1
+                  ? "end"
+                  : "middle"
+            }
+            fontSize={11}
+            fill="#9ca3af"
           >
             {new Date(x).toLocaleDateString()}
           </text>
