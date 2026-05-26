@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-25 · branch: `main` · latest tag: `p4-async-backtest-backend-complete`
+Last updated: 2026-05-25 · branch: `main` · latest tag: `p2-session5-complete`
 
 ---
 
@@ -42,8 +42,8 @@ Master plan: [`docs/implementation/TradingWorkbench_P2_Checklist_v0.1.md`](../do
 | **S2** | Strategies framework skeleton (schema, base/context/engine/loader, fixtures) | ✅ #12 |
 | **S3** | Reference RSI strategy + backtest harness | ✅ #13 tag `p2-session3-complete` |
 | **S4** | Strategies + signals REST surface + WS topic routing | ✅ #16 tag `p2-session4-complete` |
-| **S5** | Frontend Strategies pages (CRUD, signals view, backtest modal) | ⏳ **next** |
-| **S6** | TBD (haven't read the doc yet) | ⏳ |
+| **S5** | Frontend Strategies pages (CRUD, signals view, backtest modal) | ✅ #18 tag `p2-session5-complete` |
+| **S6** | Tests + smoke matrix + runbooks + P2 exit gate | ⏳ **next** |
 
 ### P2 known blockers
 - AAPL fixture parquets for `tests/strategies/test_backtest_reproducibility.py` and the live smoke step — Norton SSL inspection on Jay's dev machine blocks `data.alpaca.markets`. Generating from any other env (WSL, CI, a non-Norton machine) populates the three parquets and flips two skipped tests to required.
@@ -59,7 +59,7 @@ We ran ahead of the doc order on P4 items because they unblock UI work later. It
 |---|---|---|
 | **§1** | TradingView Pine webhook receiver | ✅ #14 tag `p4-tv-webhooks-complete` |
 | **§2 Part A** | Async backtest job queue (backend) | ✅ #17 tag `p4-async-backtest-backend-complete` |
-| **§2 Part B** | Async backtest progress UI (frontend) | ⏳ blocked on P2 S5 (Strategies UI doesn't exist yet) |
+| **§2 Part B** | Async backtest progress UI (frontend) | ⏳ unblocked — modal polls today; swap to WS + add cancel button |
 | **§3+** | Opportunities page, hot reload, source filter (doc files exist) | ⏳ |
 
 ### P4 §2 ship sequence
