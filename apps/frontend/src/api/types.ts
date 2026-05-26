@@ -156,3 +156,193 @@ export interface Quote {
   ts: string | null;
   source: string;
 }
+
+// ===== Strategies =====
+
+export type StrategyType = "python" | "pine" | "agent";
+export type StrategyStatus = "idle" | "backtest" | "paper" | "live" | "halted" | "error";
+
+export const ACTIVE_STRATEGY_STATUSES: ReadonlyArray<StrategyStatus> = ["paper", "live"];
+
+export interface Strategy {
+  id: number;
+  name: string;
+  version: string;
+  type: StrategyType;
+  status: StrategyStatus;
+  code_path: string | null;
+  params: Record<string, unknown>;
+  symbols: string[];
+  schedule: string;
+  risk_limits_id: number | null;
+  error_text: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StrategyListResponse {
+  items: Strategy[];
+  count: number;
+}
+
+export interface StrategyCreateRequest {
+  name: string;
+  version?: string;
+  type?: StrategyType;
+  code_path?: string;
+  params?: Record<string, unknown>;
+  symbols?: string[];
+  schedule?: string;
+  risk_limits_id?: number | null;
+}
+
+export interface StrategyUpdateRequest {
+  params?: Record<string, unknown>;
+  symbols?: string[];
+  schedule?: string;
+  risk_limits_id?: number | null;
+  version?: string;
+}
+
+export interface StrategyActionResponse {
+  strategy_id: number;
+  action: "start" | "stop";
+  new_status: StrategyStatus;
+  run_id: number | null;
+}
+
+// ===== Strategy runs =====
+
+export interface StrategyRun {
+  id: number;
+  strategy_id: number;
+  started_at: string;
+  ended_at: string | null;
+  status: StrategyStatus;
+  error_text: string | null;
+}
+
+export interface StrategyRunListResponse {
+  items: StrategyRun[];
+  count: number;
+}
+
+// ===== Signals =====
+
+export type SignalTypeT = "entry" | "exit" | "flat" | "info" | "agent_action" | "pine_alert";
+
+export interface Signal {
+  id: number;
+  strategy_id: number | null;
+  symbol: string;
+  type: SignalTypeT;
+  payload: Record<string, unknown>;
+  received_at: string;
+  processed_at: string | null;
+}
+
+export interface SignalListResponse {
+  items: Signal[];
+  count: number;
+}
+
+// ===== Backtests =====
+
+export interface BacktestRequest {
+  start: string;                            // ISO datetime
+  end: string;
+  label?: string;
+  initial_equity?: string;                  // Decimal as string
+  slippage_bps?: number;
+  commission_per_share?: number;
+  timeframe?: string;
+  params?: Record<string, unknown>;
+  symbols?: string[];
+}
+
+export interface BacktestMetricsT {
+  total_return: number;
+  annualized_return: number;
+  sharpe_ratio: number;
+  max_drawdown: number;
+  win_rate: number;
+  profit_factor: number;
+  trade_count: number;
+  avg_win: number;
+  avg_loss: number;
+  avg_trade_duration_seconds: number;
+  starting_equity: number;
+  ending_equity: number;
+}
+
+export interface BacktestTradeT {
+  symbol: string;
+  side: "long" | "short";
+  entry_ts: string;
+  entry_price: number;
+  exit_ts: string | null;
+  exit_price: number | null;
+  qty: number;
+  pnl: number | null;
+  duration_seconds: number | null;
+  exit_reason: string | null;
+}
+
+export interface EquityPointT {
+  t: string;
+  equity: number;
+}
+
+export interface BacktestResult {
+  id: number;
+  strategy_id: number;
+  label: string;
+  params: Record<string, unknown>;
+  metrics: BacktestMetricsT;
+  equity_curve: EquityPointT[];
+  trades: BacktestTradeT[];
+  range_start: string;
+  range_end: string;
+  created_at: string;
+}
+
+export interface BacktestSummary {
+  id: number;
+  strategy_id: number;
+  label: string;
+  metrics: BacktestMetricsT;
+  range_start: string;
+  range_end: string;
+  created_at: string;
+}
+
+export interface BacktestListResponse {
+  items: BacktestSummary[];
+  count: number;
+}
+
+// ===== Backtest jobs (P4 §2) =====
+
+export type BacktestJobStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+
+export interface BacktestJob {
+  id: number;
+  user_id: number;
+  strategy_id: number;
+  result_id: number | null;
+  status: BacktestJobStatus;
+  label: string;
+  percent_complete: number;
+  current_ts: string | null;
+  submitted_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  error_text: string | null;
+}
+
+export interface BacktestJobSubmittedResponse {
+  job_id: number;
+  strategy_id: number;
+  status: BacktestJobStatus;
+  submitted_at: string;
+}
