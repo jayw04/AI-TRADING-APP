@@ -91,6 +91,10 @@ class StrategyResponse(BaseModel):
     schedule: str
     risk_limits_id: int | None
     error_text: str | None
+    # P4 §4: hot-reload signaling. Flipped by the file watcher when the
+    # underlying code_path is modified on disk; cleared by POST /reload.
+    has_pending_reload: bool = False
+    pending_reload_at: datetime | None = None
     # P4 §7: form schema, injected from the engine on the detail endpoint
     # only. ``None`` means "no schema declared" — frontend shows the JSON
     # textarea fallback. Not persisted; lives on the loaded class.
@@ -109,9 +113,11 @@ class StrategyListResponse(BaseModel):
 
 class StrategyActionResponse(BaseModel):
     strategy_id: int
-    action: Literal["start", "stop"]
+    # ``reload`` (P4 §4) is "stop + re-import + start" for active strategies,
+    # or "clear the pending flag" no-op for IDLE strategies.
+    action: Literal["start", "stop", "reload"]
     new_status: StrategyStatus
-    run_id: int | None = None  # populated on start; None on stop
+    run_id: int | None = None  # populated on start/reload-of-active; None on stop
 
 
 # ---------- Strategy runs ----------

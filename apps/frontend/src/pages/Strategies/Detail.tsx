@@ -26,6 +26,7 @@ export default function StrategyDetailPage() {
   const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [error, setError] = useState<string | null>(null);
+  const [reloading, setReloading] = useState(false);
 
   const load = useCallback(async () => {
     if (Number.isNaN(sid)) return;
@@ -60,6 +61,20 @@ export default function StrategyDetailPage() {
       await strategiesApi.stop(strategy.id);
       await load();
     } catch (e) { alert(`Stop failed: ${e}`); }
+  }
+
+  async function handleReload() {
+    if (!strategy) return;
+    if (!confirm(`Reload "${strategy.name}" from disk? Running code will be replaced with the new version.`)) return;
+    setReloading(true);
+    try {
+      await strategiesApi.reload(strategy.id);
+      await load();
+    } catch (e) {
+      alert(`Reload failed: ${e}`);
+    } finally {
+      setReloading(false);
+    }
   }
 
   if (Number.isNaN(sid)) {
@@ -115,6 +130,32 @@ export default function StrategyDetailPage() {
           )}
         </div>
       </div>
+
+      {strategy.has_pending_reload && (
+        <div
+          data-testid="pending-reload-banner"
+          className="flex items-center justify-between rounded border border-amber-600 bg-amber-900/30 p-3 text-sm text-amber-100"
+        >
+          <div>
+            <div className="font-semibold">The strategy file has changed</div>
+            <div className="mt-0.5 text-xs text-amber-200">
+              The running code is still the old version. Click Reload to apply.
+              {strategy.pending_reload_at && (
+                <span className="ml-1 text-amber-300/70">
+                  (detected {new Date(strategy.pending_reload_at).toLocaleString()})
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={handleReload}
+            disabled={reloading}
+            className="rounded bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:bg-gray-700"
+          >
+            {reloading ? "Reloading…" : "Reload"}
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-1 border-b border-gray-800">
         {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (

@@ -82,6 +82,10 @@ async def client_and_factory() -> (
     app.state.strategy_engine = MagicMock()
     app.state.strategy_engine.register = AsyncMock()
     app.state.strategy_engine.unregister = AsyncMock()
+    # Default to "no schema" so the params_schema injection path doesn't try
+    # to serialize a MagicMock — individual tests override when they need
+    # a real dict.
+    app.state.strategy_engine.get_params_schema = lambda _sid: None
     app.state.bar_cache = MagicMock()
     app.state.bar_cache.get_bars = AsyncMock(
         return_value=pd.DataFrame(columns=["t", "o", "h", "l", "c", "v"])
@@ -387,3 +391,176 @@ async def test_list_endpoint_omits_schema(client, factory) -> None:
         # Field is absent OR null — both mean "schema not surfaced."
         assert item.get("params_schema") is None
     assert called["n"] == 0
+
+
+# ---------- P4 §4: POST /reload ----------
+
+
+async def test_reload_active_strategy_calls_unregister_then_register(
+    client, factory,
+) -> None:
+    """Reload of an active strategy: unregister → clear flag → register."""
+    sid = await _make_strategy(factory, status=StrategyStatus.PAPER)
+    async with factory() as session:
+        row = await session.get(StrategyRow, sid)
+        row.has_pending_reload = True
+        row.pending_reload_at = _now()
+        await session.commit()
+
+    unregister_calls: list[tuple[int, str | None]] = []
+    register_calls: list[int] = []
+
+    async def fake_unregister(strategy_id: int, *, reason: str | None = None):
+        unregister_calls.append((strategy_id, reason))
+        async with factory() as s:
+            r = await s.get(StrategyRow, strategy_id)
+            r.status = StrategyStatus.IDLE
+            await s.commit()
+
+    async def fake_register(strategy_id: int):
+        register_calls.append(strategy_id)
+        async with factory() as s:
+            r = await s.get(StrategyRow, strategy_id)
+            r.status = StrategyStatus.PAPER
+            await s.commit()
+        result = MagicMock()
+        result.run_id = 99
+        return result
+
+    client._transport.app.state.strategy_engine.unregister = fake_unregister
+    client._transport.app.state.strategy_engine.register = fake_register
+
+    resp = await client.post(f"/api/v1/strategies/{sid}/reload")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["action"] == "reload"
+    assert body["new_status"] == "paper"
+    assert body["run_id"] == 99
+
+    assert unregister_calls == [(sid, "reload")]
+    assert register_calls == [sid]
+
+    async with factory() as session:
+        r = await session.get(StrategyRow, sid)
+    assert r.has_pending_reload is False
+    assert r.pending_reload_at is None
+
+
+async def test_reload_idle_strategy_skips_engine_calls(client, factory) -> None:
+    """Reload on an IDLE strategy clears the flag without touching the engine
+    — the next /start will pick up the new code."""
+    sid = await _make_strategy(factory, status=StrategyStatus.IDLE)
+    async with factory() as session:
+        row = await session.get(StrategyRow, sid)
+        row.has_pending_reload = True
+        row.pending_reload_at = _now()
+        await session.commit()
+
+    unregister_mock = AsyncMock()
+    register_mock = AsyncMock()
+    client._transport.app.state.strategy_engine.unregister = unregister_mock
+    client._transport.app.state.strategy_engine.register = register_mock
+
+    resp = await client.post(f"/api/v1/strategies/{sid}/reload")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["action"] == "reload"
+    assert body["new_status"] == "idle"
+    assert body["run_id"] is None
+
+    unregister_mock.assert_not_awaited()
+    register_mock.assert_not_awaited()
+
+    async with factory() as session:
+        r = await session.get(StrategyRow, sid)
+    assert r.has_pending_reload is False
+
+
+async def test_reload_returns_404_for_other_user(client, factory) -> None:
+    """User #1 can't reload user #2's strategy."""
+    async with factory() as session:
+        session.add(User(id=2, email="other@test", display_name="Other"))
+        await session.commit()
+    sid = await _make_strategy(factory, user_id=2)
+
+    resp = await client.post(f"/api/v1/strategies/{sid}/reload")
+    assert resp.status_code == 404
+
+
+async def test_reload_rejects_non_python_strategy(client, factory) -> None:
+    """PINE/AGENT strategies aren't reloadable in P2/P4."""
+    from app.db.enums import StrategyType as ST
+
+    async with factory() as session:
+        row = StrategyRow(
+            user_id=1, name="pine-x", version="0.1.0",
+            type=ST.PINE, status=StrategyStatus.IDLE,
+            code_path=None,
+            params_json={}, symbols_json=["AAPL"], schedule="event",
+            risk_limits_id=None,
+            has_pending_reload=False, pending_reload_at=None,
+            created_at=_now(), updated_at=_now(),
+        )
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+        sid = row.id
+
+    resp = await client.post(f"/api/v1/strategies/{sid}/reload")
+    assert resp.status_code == 400
+
+
+async def test_strategy_response_exposes_pending_reload_fields(
+    client, factory,
+) -> None:
+    """The detail response surfaces has_pending_reload + pending_reload_at."""
+    sid = await _make_strategy(factory)
+    detected = _now()
+    async with factory() as session:
+        row = await session.get(StrategyRow, sid)
+        row.has_pending_reload = True
+        row.pending_reload_at = detected
+        await session.commit()
+
+    resp = await client.get(f"/api/v1/strategies/{sid}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["has_pending_reload"] is True
+    assert body["pending_reload_at"] is not None
+
+
+async def test_reload_clears_flag_even_if_register_fails(client, factory) -> None:
+    """The pending flag clears as part of the reload call. If re-register
+    fails (e.g. syntax error in the new file), the user fixing the file
+    produces a new pending event — leaving the flag set after a failed
+    reload would confuse the UI."""
+    from app.strategies.loader import StrategyLoadError
+
+    sid = await _make_strategy(factory, status=StrategyStatus.PAPER)
+    async with factory() as session:
+        row = await session.get(StrategyRow, sid)
+        row.has_pending_reload = True
+        row.pending_reload_at = _now()
+        await session.commit()
+
+    async def fake_unregister(strategy_id: int, *, reason: str | None = None):
+        async with factory() as s:
+            r = await s.get(StrategyRow, strategy_id)
+            r.status = StrategyStatus.IDLE
+            await s.commit()
+
+    async def failing_register(_strategy_id: int):
+        raise StrategyLoadError("SyntaxError on line 17")
+
+    client._transport.app.state.strategy_engine.unregister = fake_unregister
+    client._transport.app.state.strategy_engine.register = failing_register
+
+    resp = await client.post(f"/api/v1/strategies/{sid}/reload")
+    assert resp.status_code == 400
+    assert "SyntaxError" in resp.json()["detail"]
+
+    # Flag still clears even though re-register raised.
+    async with factory() as session:
+        r = await session.get(StrategyRow, sid)
+    assert r.has_pending_reload is False
+    assert r.pending_reload_at is None

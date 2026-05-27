@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -66,6 +66,18 @@ class Strategy(Base):
 
     # Last error text (when status == ERROR). Cleared on next successful run.
     error_text: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+
+    # P4 §4: hot-reload signaling. ``has_pending_reload`` flips True when the
+    # StrategyFileWatcher detects a modification to the underlying
+    # ``code_path``. The user clears it by calling ``POST /reload`` (which
+    # also re-imports the module). ``server_default="0"`` keeps the column
+    # populated on the SQLite upgrade for existing rows.
+    has_pending_reload: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    pending_reload_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

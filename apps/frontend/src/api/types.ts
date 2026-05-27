@@ -194,6 +194,10 @@ export interface Strategy {
   schedule: string;
   risk_limits_id: number | null;
   error_text: string | null;
+  // P4 §4: hot-reload signaling. Flipped by the backend file watcher when
+  // the underlying code_path changes; cleared by POST /reload.
+  has_pending_reload: boolean;
+  pending_reload_at: string | null;
   // P4 §7. Populated only on detail endpoint responses.
   params_schema?: ParamsSchema | null;
   created_at: string;
@@ -226,7 +230,7 @@ export interface StrategyUpdateRequest {
 
 export interface StrategyActionResponse {
   strategy_id: number;
-  action: "start" | "stop";
+  action: "start" | "stop" | "reload";
   new_status: StrategyStatus;
   run_id: number | null;
 }

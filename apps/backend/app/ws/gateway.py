@@ -72,6 +72,8 @@ _BUS_TOPICS: tuple[str, ...] = (
     "strategy.run_started",
     "strategy.run_ended",
     "strategy.error",
+    # strategies (P4 §4: hot-reload signaling)
+    "strategy.pending_reload",
     # signals (P2 S4)
     "signal.new",
     # backtests (P2 S4 + P4 §2)

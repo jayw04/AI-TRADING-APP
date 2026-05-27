@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import StrategyDetailPage from "../Detail";
 import { strategiesApi } from "@/api/strategies";
@@ -30,6 +30,8 @@ const baseStrategy = (over: Partial<Strategy> = {}): Strategy => ({
   schedule: "*/1 * * * *",
   risk_limits_id: null,
   error_text: null,
+  has_pending_reload: false,
+  pending_reload_at: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...over,
@@ -83,5 +85,45 @@ describe("StrategyDetailPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Params" }));
     const banner = await screen.findByText(/stop it before editing/i);
     expect(banner).toBeInTheDocument();
+  });
+});
+
+// ---------- P4 §4: reload banner ----------
+
+describe("StrategyDetailPage — reload banner (P4 §4)", () => {
+  it("hides the banner when has_pending_reload is false", async () => {
+    mockedStrategiesApi.get.mockResolvedValue(baseStrategy());
+    renderWithRoute();
+    await screen.findByText("rsi-test");
+    expect(screen.queryByTestId("pending-reload-banner")).not.toBeInTheDocument();
+  });
+
+  it("shows the banner when has_pending_reload is true + Reload button calls the API", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockedStrategiesApi.get.mockResolvedValueOnce(
+      baseStrategy({
+        has_pending_reload: true,
+        pending_reload_at: "2026-05-26T20:00:00Z",
+      }),
+    );
+    mockedStrategiesApi.reload.mockResolvedValue({
+      strategy_id: 1,
+      action: "reload",
+      new_status: "idle",
+      run_id: null,
+    });
+    // After reload, the next get() returns the cleared state.
+    mockedStrategiesApi.get.mockResolvedValue(baseStrategy());
+
+    renderWithRoute();
+    const banner = await screen.findByTestId("pending-reload-banner");
+    expect(banner).toBeInTheDocument();
+    expect(banner.textContent).toMatch(/strategy file has changed/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Reload$/ }));
+
+    await waitFor(() =>
+      expect(mockedStrategiesApi.reload).toHaveBeenCalledWith(1),
+    );
   });
 });
