@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-26 · branch: `main` · latest tag: `p4-backtest-charting-complete`
+Last updated: 2026-05-26 · branch: `main` · latest tag: `p4-strategy-hot-reload-complete`
 
 ---
 
@@ -63,7 +63,8 @@ We ran ahead of the doc order on P4 items because they unblock UI work later. It
 | **§5** | Backend `source_type` / `source_id` filter on orders + frontend scoped queries | ✅ #22 tag `p4-order-source-filter-complete` |
 | **§7** | Typed Params tab form derived from `Strategy.params_schema` | ✅ #23 tag `p4-param-form-complete` |
 | **§6** | Backtest charting: drawdown sub-chart + trade markers + Equity/Returns toggle + stats panel | ✅ #24 tag `p4-backtest-charting-complete` |
-| **§3, §4, §8** | Opportunities page, hot reload, WS bar dispatch (doc files exist) | ⏳ |
+| **§4** | Strategy hot-reload: file watcher + reload endpoint + UI banner | ✅ #25 tag `p4-strategy-hot-reload-complete` |
+| **§3, §8** | Opportunities page, WS bar dispatch (doc files exist) | ⏳ |
 
 ### P4 §2 ship sequence — DONE 2026-05-26
 1. P2 S5 landed the Strategies UI scaffolding (PR #18).
