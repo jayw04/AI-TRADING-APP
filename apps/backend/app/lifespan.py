@@ -45,6 +45,7 @@ from app.services.asset_sync import AssetSyncService
 from app.services.backtest_worker import BacktestWorker
 from app.services.position_sync import PositionSyncService
 from app.services.scheduler import WorkbenchScheduler
+from app.services.strategy_file_watcher import StrategyFileWatcher
 from app.strategies import StrategyEngine
 from app.ws.gateway import heartbeat_loop, start_replay_populator, stop_replay_populator
 
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     trade_stream: TradeUpdatesStream | None = None
     trade_update_consumer: TradeUpdateConsumer | None = None
     strategy_engine: StrategyEngine | None = None
+    strategy_file_watcher: StrategyFileWatcher | None = None
 
     try:
         # 1. WS heartbeat (P0 §4) + WS replay populator (P1 Session 6).
@@ -158,6 +160,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.strategy_engine = strategy_engine
             app.state.backtest_worker = backtest_worker
 
+            # P4 §4: hot-reload watcher. Independent of the engine — it only
+            # marks DB rows + publishes bus events when a .py file under
+            # strategies_user/ changes. Started here so it parallels the
+            # engine in production paths; tests with alpaca disabled get
+            # neither, and construct the watcher directly when needed.
+            strategy_file_watcher = StrategyFileWatcher(
+                root=Path("strategies_user"),
+                session_factory=session_factory,
+                bus=bus,
+            )
+            await strategy_file_watcher.start()
+            app.state.strategy_file_watcher = strategy_file_watcher
+
             # Initial sync pass (each call wraps its own try/except internally)
             await scheduler.run_startup_sync()
 
@@ -197,6 +212,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await stop_replay_populator()
         except Exception:
             logger.exception("replay_populator_stop_failed")
+        # Stop the file watcher first — it owns an inotify (or equivalent)
+        # descriptor and shouldn't be racing the engine teardown to mark
+        # rows as pending_reload.
+        if strategy_file_watcher is not None:
+            try:
+                await strategy_file_watcher.stop()
+            except Exception:
+                logger.exception("strategy_file_watcher_stop_failed")
         # Stop the strategy engine before the consumer so any in-flight
         # on_fill dispatches don't race with the consumer being torn down.
         if strategy_engine is not None:

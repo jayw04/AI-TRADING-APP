@@ -350,6 +350,92 @@ async def stop_strategy(
     )
 
 
+# ---------- POST /strategies/{id}/reload (P4 §4) ----------
+
+
+@router.post("/{strategy_id}/reload", response_model=StrategyActionResponse)
+async def reload_strategy(
+    strategy_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StrategyActionResponse:
+    """Reload a strategy: stop → re-import → start (P4 §4).
+
+    For an active strategy: ``engine.unregister`` then ``engine.register``,
+    which forces a fresh module import. For an IDLE strategy: no engine
+    calls; we just clear the pending flag (the next ``/start`` will pick
+    up the new code).
+
+    The pending-reload flag clears as part of this call regardless of
+    whether the re-register succeeds. If the new file has a syntax error
+    or import bug, the engine transitions the strategy to ERROR with
+    ``error_text``; saving the file again produces a new
+    ``strategy.pending_reload`` event.
+    """
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    if row.type != StrategyType.PYTHON:
+        raise HTTPException(
+            status_code=400,
+            detail="Only python strategies are reloadable.",
+        )
+
+    engine = _get_engine(request)
+    was_active = row.status in ACTIVE_STRATEGY_STATUSES
+
+    if was_active:
+        try:
+            await engine.unregister(strategy_id, reason="reload")
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500, detail=f"Stop during reload failed: {exc}"
+            ) from exc
+
+    # Clear the pending flag before we re-register — if re-register raises
+    # (e.g. import error), the user fixing the file will produce a new
+    # pending event. Leaving the flag set after a failed reload would
+    # confuse the UI.
+    row.has_pending_reload = False
+    row.pending_reload_at = None
+    row.updated_at = datetime.now(UTC)
+
+    AuditLogger.write(
+        session,
+        actor_type=AuditActorType.USER,
+        actor_id=str(current_user.id),
+        action=AuditAction.STRATEGY_UPDATED,
+        target_type="strategy",
+        target_id=strategy_id,
+        payload={"action": "reload", "was_active": was_active},
+        user_id=current_user.id,
+    )
+    await session.commit()
+
+    new_run_id: int | None = None
+    if was_active:
+        try:
+            running = await engine.register(strategy_id)
+            new_run_id = running.run_id
+        except StrategyLoadError as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Reload failed: {exc}"
+            ) from exc
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Reload failed: {exc}"
+            ) from exc
+
+    await session.refresh(row)
+    return StrategyActionResponse(
+        strategy_id=strategy_id,
+        action="reload",
+        new_status=row.status,
+        run_id=new_run_id,
+    )
+
+
 # ---------- POST /strategies/{id}/backtest (async, P4 §2) ----------
 
 

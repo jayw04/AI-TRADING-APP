@@ -156,6 +156,14 @@ export default function StrategiesListPage() {
                     {s.name}
                   </Link>
                   <span className="ml-2 text-xs text-gray-500">v{s.version}</span>
+                  {s.has_pending_reload && (
+                    <span
+                      data-testid={`reload-pending-${s.id}`}
+                      className="ml-2 rounded bg-amber-700 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100"
+                    >
+                      RELOAD PENDING
+                    </span>
+                  )}
                   {s.status === "error" && s.error_text && (
                     <div className="mt-1 text-xs text-rose-400">
                       {s.error_text.slice(0, 80)}{s.error_text.length > 80 ? "…" : ""}

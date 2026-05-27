@@ -27,6 +27,8 @@ const _strategy = (over: Partial<Strategy> = {}): Strategy => ({
   schedule: "*/1 * * * *",
   risk_limits_id: null,
   error_text: null,
+  has_pending_reload: false,
+  pending_reload_at: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...over,

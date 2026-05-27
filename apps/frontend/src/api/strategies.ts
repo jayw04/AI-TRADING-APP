@@ -46,6 +46,12 @@ export const strategiesApi = {
       body: JSON.stringify({}),
     }),
 
+  reload: (id: number) =>
+    apiFetch<StrategyActionResponse>(`/api/v1/strategies/${id}/reload`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
   listRuns: (id: number, limit = 50) =>
     apiFetch<StrategyRunListResponse>(`/api/v1/strategies/${id}/runs?limit=${limit}`),
 

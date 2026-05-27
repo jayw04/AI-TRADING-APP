@@ -34,6 +34,8 @@ const strategy: Strategy = {
   schedule: "*/1 * * * *",
   risk_limits_id: null,
   error_text: null,
+  has_pending_reload: false,
+  pending_reload_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };

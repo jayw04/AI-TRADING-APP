@@ -29,6 +29,10 @@ dependencies = [
     # any regression if we bump.
     "pandas-ta>=0.4.71b0,<0.5.0",
     "pyarrow>=15.0.0,<20.0.0",
+    # P4 §4: filesystem watcher for strategy hot-reload. Already pulled in
+    # transitively by uvicorn[standard]; pin here so a future uvicorn bump
+    # can't silently drop the dep the watcher service depends on.
+    "watchfiles>=0.21",
 ]
 
 [project.optional-dependencies]
