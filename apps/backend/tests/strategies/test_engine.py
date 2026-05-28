@@ -317,8 +317,9 @@ async def _register_cron_echo_strategy(session_factory) -> int:
 
 
 def _streamed_bar(symbol: str = "AAPL"):
-    from app.services.bar_stream import StreamedBar
     from decimal import Decimal
+
+    from app.services.bar_stream import StreamedBar
 
     return StreamedBar(
         symbol=symbol,

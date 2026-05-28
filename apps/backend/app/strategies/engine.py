@@ -470,10 +470,8 @@ class StrategyEngine:
         return job_id
 
     async def stop_event_fallback(self, job_id: str) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self._scheduler.remove_job(job_id)
-        except Exception:
-            pass
         logger.info("strategy_engine_event_fallback_stopped", job_id=job_id)
 
     async def _fire_all_event_strategies(self) -> None:

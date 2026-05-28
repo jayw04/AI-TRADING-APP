@@ -17,6 +17,7 @@ Lifecycle:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -108,12 +109,10 @@ class BarStreamService:
         if self._task is not None:
             try:
                 await asyncio.wait_for(self._task, timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError, Exception):
                     await self._task
-                except (asyncio.CancelledError, Exception):
-                    pass
             self._task = None
         await self._stop_fallback_job()
         await self._publish_status(False, reason="service stopped")
@@ -180,7 +179,7 @@ class BarStreamService:
                         self._stop_event.wait(), timeout=backoff
                     )
                     break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
 
     async def _connect_and_run(self) -> None:
@@ -220,7 +219,7 @@ class BarStreamService:
             )
 
         if self._bus is not None:
-            try:
+            with contextlib.suppress(Exception):
                 await self._bus.publish(
                     "bar.received",
                     {
@@ -229,8 +228,6 @@ class BarStreamService:
                         "close": str(bar.close),
                     },
                 )
-            except Exception:
-                pass
 
     async def _compute_desired_symbols(self) -> set[str]:
         """Union of symbols across active event-scheduled strategies."""
@@ -252,7 +249,7 @@ class BarStreamService:
     async def _publish_status(self, connected: bool, *, reason: str) -> None:
         if self._bus is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             await self._bus.publish(
                 "system.bar_stream_status",
                 {
@@ -261,8 +258,6 @@ class BarStreamService:
                     "subscribed_symbols": sorted(self._subscribed_symbols),
                 },
             )
-        except Exception:
-            pass
 
     async def _start_fallback_job(self) -> None:
         """Activate the engine's cron-fallback dispatcher while WS is down."""

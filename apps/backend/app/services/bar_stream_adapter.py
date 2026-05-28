@@ -13,7 +13,6 @@ from typing import Protocol
 
 from app.services.bar_stream import StreamedBar
 
-
 BarCallback = Callable[[StreamedBar], Awaitable[None]]
 
 

@@ -9,6 +9,7 @@ check the installed version and adjust here rather than pinning back.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -56,10 +57,8 @@ class AlpacaBarStreamAdapter:
                 logger.exception("alpaca_bar_stream_stop_ws_failed")
         if self._stream_task is not None:
             self._stream_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._stream_task
-            except (asyncio.CancelledError, Exception):
-                pass
             self._stream_task = None
         self._stream = None
         self._subscribed.clear()
