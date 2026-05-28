@@ -150,3 +150,91 @@ async def test_naive_datetime_is_assumed_utc(tmp_cache):
             datetime(2025, 11, 3, 14, 45),
         )
     assert not df.empty
+
+
+# ---------- P4 §8: streaming buffer + get_latest_bar ----------
+
+
+class _StreamedBarLike:
+    """Duck-typed stand-in for app.services.bar_stream.StreamedBar."""
+
+    def __init__(self, symbol, ts, open_, high, low, close, volume):
+        self.symbol = symbol
+        self.ts = ts
+        self.open = open_
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
+
+
+async def test_append_streamed_bar_lowercases_to_upper_and_grows_buffer(tmp_cache):
+    cache, _ = tmp_cache
+    bar = _StreamedBarLike(
+        symbol="aapl",
+        ts=datetime(2025, 11, 3, 14, 30, tzinfo=UTC),
+        open_=190.0, high=190.5, low=189.5, close=190.2, volume=1000,
+    )
+    await cache.append_streamed_bar("aapl", bar)
+    assert "AAPL" in cache._streaming_buffer
+    assert len(cache._streaming_buffer["AAPL"]) == 1
+    assert cache._streaming_buffer["AAPL"][0]["c"] == 190.2
+
+
+async def test_append_streamed_bar_truncates_at_cap(tmp_cache):
+    """The ring buffer caps at _max_buffer_bars; oldest entries are dropped."""
+    cache, _ = tmp_cache
+    cache._max_buffer_bars = 5
+    base = datetime(2025, 11, 3, 14, 30, tzinfo=UTC)
+    for i in range(8):
+        await cache.append_streamed_bar(
+            "AAPL",
+            _StreamedBarLike(
+                "AAPL", base + timedelta(minutes=i),
+                100 + i, 100.5 + i, 99.5 + i, 100 + i, 1000 + i,
+            ),
+        )
+    buf = cache._streaming_buffer["AAPL"]
+    assert len(buf) == 5
+    # The first 3 should have been dropped; the most-recent should be i=7.
+    assert buf[-1]["c"] == 107.0
+    assert buf[0]["c"] == 103.0
+
+
+async def test_get_latest_bar_returns_buffered(tmp_cache):
+    cache, _ = tmp_cache
+    bar = _StreamedBarLike(
+        "AAPL", datetime(2025, 11, 3, 14, 30, tzinfo=UTC),
+        190.0, 190.5, 189.5, 190.7, 1234,
+    )
+    await cache.append_streamed_bar("AAPL", bar)
+    latest = await cache.get_latest_bar("AAPL")
+    assert latest is not None
+    assert latest["c"] == 190.7
+    assert latest["v"] == 1234.0
+
+
+async def test_get_latest_bar_falls_back_to_parquet(tmp_cache):
+    """No buffered bar → get_latest_bar calls get_bars over the last 2 days."""
+    cache, _ = tmp_cache
+    now = datetime.now(UTC)
+    fake_bars = _mk_bars(now - timedelta(minutes=5), 5)
+    with patch(
+        "app.market_data.bar_cache._alpaca_fetch_bars", return_value=fake_bars
+    ):
+        latest = await cache.get_latest_bar("AAPL")
+    assert latest is not None
+    # The most recent bar from _mk_bars has index 4.
+    assert latest["c"] == pytest.approx(100.04, abs=0.001)
+
+
+async def test_get_latest_bar_returns_none_on_exception(tmp_cache, monkeypatch):
+    """If get_bars raises, get_latest_bar returns None instead of bubbling."""
+    cache, _ = tmp_cache
+
+    async def _boom(*a, **kw):
+        raise RuntimeError("parquet io failed")
+
+    monkeypatch.setattr(cache, "get_bars", _boom)
+    latest = await cache.get_latest_bar("AAPL")
+    assert latest is None

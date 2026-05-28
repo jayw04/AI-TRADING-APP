@@ -34,11 +34,11 @@ from pathlib import Path
 # "indicators/computer.py" and "app/indicators/computer.py").
 P2_MODULES: list[tuple[str, float]] = [
     ("indicators/computer.py", 0.65),
-    ("market_data/bar_cache.py", 0.70),
+    ("market_data/bar_cache.py", 0.75),
     ("strategies/base.py", 0.95),
     ("strategies/context.py", 0.60),
     ("strategies/loader.py", 0.85),
-    ("strategies/engine.py", 0.55),
+    ("strategies/engine.py", 0.65),
     ("strategies/backtest_context.py", 0.50),
     ("strategies/backtester.py", 0.60),
     ("strategies/backtest_models.py", 0.95),
