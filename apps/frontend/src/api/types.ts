@@ -375,3 +375,74 @@ export interface BacktestJobSubmittedResponse {
   status: BacktestJobStatus;
   submitted_at: string;
 }
+
+// ===== Opportunities (P4 §3) =====
+
+export interface OppSignalItem {
+  id: number;
+  strategy_id: number | null;
+  strategy_name: string | null;
+  symbol: string;
+  type: SignalTypeT;
+  received_at: string;
+  reason: string | null;
+  side: string | null;
+}
+
+export interface OppStrategyErrorItem {
+  id: number;
+  name: string;
+  version: string;
+  error_text: string;
+  error_first_seen: string | null;
+}
+
+export interface OppOpenOrderItem {
+  id: number;
+  symbol: string;
+  side: OrderSide;
+  type: OrderType;
+  tif: TimeInForce;
+  qty: string;
+  limit_price: string | null;
+  status: OrderStatus;
+  created_at: string;
+  expiry_reason: string;
+}
+
+export interface OppRiskRejectItem {
+  id: number;
+  order_id: number | null;
+  symbol: string | null;
+  decision: "pass" | "reject";
+  reason_codes: string[];
+  evaluated_at: string;
+}
+
+export interface OppFillItem {
+  id: number;
+  order_id: number;
+  symbol: string;
+  side: OrderSide;
+  qty: string;
+  price: string;
+  filled_at: string;
+  strategy_id: number | null;
+  strategy_name: string | null;
+}
+
+export interface OpportunitiesWidget<T> {
+  items: T[];
+  count: number;
+  as_of: string;
+}
+
+export interface OpportunitiesResponse {
+  live_signals: OpportunitiesWidget<OppSignalItem>;
+  pine_alerts: OpportunitiesWidget<OppSignalItem>;
+  strategy_errors: OpportunitiesWidget<OppStrategyErrorItem>;
+  open_orders_expiring: OpportunitiesWidget<OppOpenOrderItem>;
+  risk_rejections: OpportunitiesWidget<OppRiskRejectItem>;
+  recent_fills: OpportunitiesWidget<OppFillItem>;
+  as_of: string;
+}

@@ -7,6 +7,7 @@ from app.api.v1 import (
     indicators,
     internal,
     market_data,
+    opportunities,
     orders,
     positions,
     signals,
@@ -26,3 +27,4 @@ api_router.include_router(alerts.router)
 api_router.include_router(strategies.router)
 api_router.include_router(signals.router)
 api_router.include_router(backtest_jobs.router)
+api_router.include_router(opportunities.router)
