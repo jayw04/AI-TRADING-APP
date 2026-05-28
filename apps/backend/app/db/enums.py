@@ -174,3 +174,60 @@ class BacktestJobStatus(StrEnum):
 PENDING_BACKTEST_JOB_STATUSES = frozenset(
     {BacktestJobStatus.QUEUED, BacktestJobStatus.RUNNING}
 )
+
+
+# ---- Agent (P3) ----
+
+
+class AgentSessionMode(StrEnum):
+    """How a session interacts with the workbench.
+
+    B1_READONLY: agent answers questions about state but never produces
+        recommendations.
+    B2_INTERACTIVE: agent answers AND suggests actions via a structured
+        ``Suggestion:`` block. User always executes manually.
+    B3_AUTONOMOUS: reserved for P6. Runtime rejects this value in P3 —
+        same forward-compat pattern as ``StrategyType.PINE``/``AGENT``.
+    """
+
+    B1_READONLY = "b1_readonly"
+    B2_INTERACTIVE = "b2_interactive"
+    B3_AUTONOMOUS = "b3_autonomous"
+
+
+class AgentSessionStatus(StrEnum):
+    """Lifecycle state of a session.
+
+    Transitions::
+
+        ACTIVE -> ENDED    (user clicks End, or a new session supersedes)
+        ACTIVE -> CAPPED   (cost cap reached mid-conversation; read-only forever)
+        ACTIVE -> ERROR    (API error / unrecoverable failure; read-only forever)
+    """
+
+    ACTIVE = "active"
+    ENDED = "ended"
+    CAPPED = "capped"
+    ERROR = "error"
+
+
+class AgentMessageRole(StrEnum):
+    """Role of a message in an agent session.
+
+    USER         — text from the trader.
+    ASSISTANT    — text from the model.
+    TOOL_USE     — model invoked a tool; content carries (tool_name, input).
+    TOOL_RESULT  — result of a tool invocation; content carries output.
+    SYSTEM       — workbench-emitted note ("cost cap reached", "session
+                   ended"), NOT the same as the system prompt.
+    """
+
+    USER = "user"
+    ASSISTANT = "assistant"
+    TOOL_USE = "tool_use"
+    TOOL_RESULT = "tool_result"
+    SYSTEM = "system"
+
+
+# Sessions in these states are still mutable.
+ACTIVE_AGENT_STATUSES = frozenset({AgentSessionStatus.ACTIVE})

@@ -49,6 +49,25 @@ class Settings(BaseSettings):
     bars_cache_root: str = "bars_cache"
     bars_cache_max_gb: float = 5.0
 
+    # --- Agent (P3) ---
+    # Empty key disables the agent; Session 3's runtime refuses to start a
+    # session with a clear error message rather than crashing on the first
+    # API call.
+    anthropic_api_key: str = Field(
+        default="",
+        alias="ANTHROPIC_API_KEY",
+        description="Anthropic API key. Empty disables the agent.",
+    )
+    agent_default_model: str = Field(
+        default="claude-haiku-4-5-20251001",
+        alias="AGENT_DEFAULT_MODEL",
+    )
+    agent_daily_budget_usd: float = Field(
+        default=2.0,
+        alias="AGENT_DAILY_BUDGET_USD",
+        description="Per-user daily budget cap across all agent sessions.",
+    )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
