@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -68,6 +69,9 @@ from .loader import StrategyLoader, StrategyLoadError
 logger = structlog.get_logger(__name__)
 
 
+EVENT_SCHEDULE_SENTINEL = "event"
+
+
 @dataclass
 class RunningStrategy:
     """A live strategy instance the engine is dispatching to."""
@@ -78,6 +82,7 @@ class RunningStrategy:
     run_id: int  # StrategyRun row id
     symbols: list[str]
     timeframe: str  # for periodic on_bar dispatch
+    schedule: str  # cron expression or "event" — drives WS vs cron path
 
 
 class StrategyEngine:
@@ -102,6 +107,10 @@ class StrategyEngine:
         self._loader = StrategyLoader(strategies_root)
 
         self._running: dict[int, RunningStrategy] = {}
+        # Optional handle to BarStreamService (P4 §8). Wired post-construction
+        # by lifespan via set_bar_stream_service() so the service can be
+        # constructed AFTER the engine.
+        self._bar_stream_service: Any | None = None
 
         # The bus is generator-style; spawn one task per topic that runs the
         # async-for loop and dispatches to our handler. Same pattern as
@@ -279,6 +288,7 @@ class StrategyEngine:
             run_id=run_id,
             symbols=symbols,
             timeframe=merged_params.get("timeframe", "1Min"),
+            schedule=schedule,
         )
         self._running[strategy_id] = running
         logger.info(
@@ -302,6 +312,7 @@ class StrategyEngine:
                 "symbols": symbols,
             },
         )
+        await self._notify_bar_stream_changed()
         return running
 
     async def unregister(
@@ -399,6 +410,158 @@ class StrategyEngine:
         logger.info(
             "strategy_unregistered", strategy_id=strategy_id, reason=reason
         )
+        await self._notify_bar_stream_changed()
+
+    # ---- bar stream integration (P4 §8) ----
+
+    def set_bar_stream_service(self, service: Any | None) -> None:
+        """Wire the BarStreamService post-construction.
+
+        Lifespan calls this after the service is built so notifications
+        flow on subsequent register/unregister calls.
+        """
+        self._bar_stream_service = service
+
+    async def dispatch_event_bar(self, *, symbol: str, bar: Any) -> None:
+        """Called by :class:`BarStreamService` on each bar arrival.
+
+        Fires ``on_bar`` for every running strategy whose ``schedule``
+        is ``"event"`` and whose symbols include ``symbol``. Reuses the
+        same error-containment as the cron path.
+        """
+        symbol = symbol.upper()
+        for sid, running in list(self._running.items()):
+            if running.schedule != EVENT_SCHEDULE_SENTINEL:
+                continue
+            if symbol not in {s.upper() for s in running.symbols}:
+                continue
+            try:
+                event_bar = self._coerce_to_bar(symbol, running.timeframe, bar)
+                if event_bar is None:
+                    continue
+            except Exception:
+                logger.exception(
+                    "strategy_event_bar_coerce_failed",
+                    strategy_id=sid,
+                    symbol=symbol,
+                )
+                continue
+            try:
+                await running.instance.on_bar(event_bar)
+            except Exception as exc:
+                await self._handle_user_exception(sid, "on_bar", exc)
+
+    async def start_event_fallback(
+        self, *, interval_seconds: int = 60
+    ) -> str:
+        """Activate a recurring fallback that fires ``on_bar`` for every
+        event-scheduled strategy at ``interval_seconds``. Used while the
+        WS bar stream is disconnected. Returns the APScheduler job id."""
+        job_id = f"event_fallback_{int(time.time() * 1000)}"
+        self._scheduler.add_job(
+            self._fire_all_event_strategies,
+            "interval",
+            seconds=interval_seconds,
+            id=job_id,
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("strategy_engine_event_fallback_started", job_id=job_id)
+        return job_id
+
+    async def stop_event_fallback(self, job_id: str) -> None:
+        try:
+            self._scheduler.remove_job(job_id)
+        except Exception:
+            pass
+        logger.info("strategy_engine_event_fallback_stopped", job_id=job_id)
+
+    async def _fire_all_event_strategies(self) -> None:
+        """Fallback tick: dispatch every active event-scheduled strategy
+        as if a bar just arrived, using the most recent cached bar."""
+        for sid, running in list(self._running.items()):
+            if running.schedule != EVENT_SCHEDULE_SENTINEL:
+                continue
+            for symbol in running.symbols:
+                try:
+                    latest = await self._bar_cache.get_latest_bar(symbol)
+                    if latest is None:
+                        continue
+                    event_bar = self._coerce_to_bar(
+                        symbol, running.timeframe, latest
+                    )
+                    if event_bar is None:
+                        continue
+                except Exception:
+                    logger.exception(
+                        "event_fallback_get_bar_failed",
+                        strategy_id=sid,
+                        symbol=symbol,
+                    )
+                    continue
+                try:
+                    await running.instance.on_bar(event_bar)
+                except Exception as exc:
+                    await self._handle_user_exception(sid, "on_bar", exc)
+                    break
+
+    def _coerce_to_bar(
+        self,
+        symbol: str,
+        timeframe: str,
+        source: Any,
+    ) -> Bar | None:
+        """Build a :class:`Bar` from a StreamedBar, dict, or already-Bar.
+
+        Returns ``None`` if ``source`` doesn't carry usable OHLCV fields.
+        """
+        if isinstance(source, Bar):
+            return source
+        symbol = symbol.upper()
+        # StreamedBar shape (P4 §8): .ts, .open, .high, .low, .close, .volume
+        if hasattr(source, "ts") and hasattr(source, "open"):
+            try:
+                return Bar(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    t=source.ts,
+                    o=float(source.open),
+                    h=float(source.high),
+                    l=float(source.low),
+                    c=float(source.close),
+                    v=int(source.volume),
+                )
+            except Exception:
+                return None
+        # dict shape (BarCache.get_latest_bar): {t, o, h, l, c, v}
+        if isinstance(source, dict):
+            try:
+                return Bar(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    t=source["t"],
+                    o=float(source["o"]),
+                    h=float(source["h"]),
+                    l=float(source["l"]),
+                    c=float(source["c"]),
+                    v=int(source["v"]),
+                )
+            except Exception:
+                return None
+        return None
+
+    async def _notify_bar_stream_changed(self) -> None:
+        """Ask the bar stream service to recompute its subscription set.
+
+        No-op if no service has been wired (e.g. tests, alpaca-disabled).
+        """
+        svc = self._bar_stream_service
+        if svc is None:
+            return
+        try:
+            await svc.on_strategies_changed()
+        except Exception:
+            logger.exception("bar_stream_notify_failed")
 
     # ---- dispatch ----
 
@@ -594,6 +757,7 @@ class StrategyEngine:
             "strategy.error",
             {"strategy_id": strategy_id, "hook": hook, "error": str(exc)},
         )
+        await self._notify_bar_stream_changed()
 
     async def _mark_error(
         self,

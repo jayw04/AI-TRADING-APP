@@ -32,6 +32,7 @@ import time
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import structlog
@@ -71,6 +72,11 @@ class BarCache:
         self._root.mkdir(parents=True, exist_ok=True)
         self._max_bytes = int(max_gb * 1024 * 1024 * 1024)
         self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+        # In-memory ring buffer of streamed 1-minute bars per symbol, populated
+        # by BarStreamService (P4 §8). Not persisted to parquet — the historical
+        # pull that subsumes the streamed range is the persistence path.
+        self._streaming_buffer: dict[str, list[dict[str, Any]]] = {}
+        self._max_buffer_bars: int = 500
         logger.info("bar_cache_init", root=str(self._root), max_gb=max_gb)
 
     # ---------- public API ----------
@@ -125,6 +131,56 @@ class BarCache:
             self._evict_if_over_cap()
 
         return df
+
+    async def append_streamed_bar(self, symbol: str, bar: Any) -> None:
+        """Append a streamed 1-minute bar to the in-memory buffer for ``symbol``.
+
+        ``bar`` is duck-typed: must expose ``ts``, ``open``, ``high``, ``low``,
+        ``close``, ``volume`` attributes (e.g. ``StreamedBar``). Persistence to
+        parquet happens via the next historical pull, not here.
+        """
+        symbol = symbol.upper()
+        buf = self._streaming_buffer.setdefault(symbol, [])
+        buf.append(
+            {
+                "t": bar.ts,
+                "o": float(bar.open),
+                "h": float(bar.high),
+                "l": float(bar.low),
+                "c": float(bar.close),
+                "v": float(bar.volume),
+            }
+        )
+        if len(buf) > self._max_buffer_bars:
+            del buf[: len(buf) - self._max_buffer_bars]
+
+    async def get_latest_bar(self, symbol: str) -> dict[str, Any] | None:
+        """Most recent known bar for ``symbol``.
+
+        First checks the in-memory streaming buffer; falls back to the
+        parquet cache for the last 2 days at 1Min. Returns a dict shaped
+        like ``{t, o, h, l, c, v}`` or ``None``.
+        """
+        symbol = symbol.upper()
+        buf = self._streaming_buffer.get(symbol)
+        if buf:
+            return dict(buf[-1])
+        try:
+            now = datetime.now(UTC)
+            df = await self.get_bars(symbol, "1Min", now - timedelta(days=2), now)
+            if df.empty:
+                return None
+            row = df.iloc[-1]
+            return {
+                "t": row["t"],
+                "o": float(row["o"]),
+                "h": float(row["h"]),
+                "l": float(row["l"]),
+                "c": float(row["c"]),
+                "v": float(row["v"]),
+            }
+        except Exception:
+            return None
 
     # ---------- internals ----------
 

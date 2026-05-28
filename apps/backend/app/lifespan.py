@@ -43,6 +43,7 @@ from app.risk import RiskEngine
 from app.services.account_sync import AccountSyncService
 from app.services.asset_sync import AssetSyncService
 from app.services.backtest_worker import BacktestWorker
+from app.services.bar_stream import BarStreamService
 from app.services.position_sync import PositionSyncService
 from app.services.scheduler import WorkbenchScheduler
 from app.services.strategy_file_watcher import StrategyFileWatcher
@@ -63,6 +64,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     trade_update_consumer: TradeUpdateConsumer | None = None
     strategy_engine: StrategyEngine | None = None
     strategy_file_watcher: StrategyFileWatcher | None = None
+    bar_stream_service: BarStreamService | None = None
 
     try:
         # 1. WS heartbeat (P0 §4) + WS replay populator (P1 Session 6).
@@ -144,6 +146,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             await backtest_worker.start()
 
+            # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
+            # wire it back via set_bar_stream_service before any strategy
+            # registers — register() fires on_strategies_changed() which the
+            # service needs to be reachable for.
+            bar_stream_service = BarStreamService(
+                session_factory=session_factory,
+                engine=strategy_engine,
+                bar_cache=bar_cache,
+                bus=bus,
+            )
+            strategy_engine.set_bar_stream_service(bar_stream_service)
+            await bar_stream_service.start()
+
             # Stash for request handlers / tests
             app.state.alpaca_adapter = adapter
             app.state.asset_sync = asset_sync
@@ -159,6 +174,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.indicator_computer = indicator_computer
             app.state.strategy_engine = strategy_engine
             app.state.backtest_worker = backtest_worker
+            app.state.bar_stream_service = bar_stream_service
 
             # P4 §4: hot-reload watcher. Independent of the engine — it only
             # marks DB rows + publishes bus events when a .py file under
@@ -220,6 +236,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await strategy_file_watcher.stop()
             except Exception:
                 logger.exception("strategy_file_watcher_stop_failed")
+        # Stop the bar stream before the engine so an in-flight bar
+        # dispatch doesn't race with the engine going away.
+        if bar_stream_service is not None:
+            try:
+                await bar_stream_service.stop()
+            except Exception:
+                logger.exception("bar_stream_service_stop_failed")
         # Stop the strategy engine before the consumer so any in-flight
         # on_fill dispatches don't race with the consumer being torn down.
         if strategy_engine is not None:
