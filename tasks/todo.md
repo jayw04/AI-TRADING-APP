@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-28 · branch: `main` · latest tag: `p4-ws-bar-dispatch-complete`
+Last updated: 2026-05-28 · branch: `main` · latest tag: `p3-session1-complete`
 
 ---
 
@@ -83,16 +83,27 @@ We ran ahead of the doc order on P4 items because they unblock UI work later. It
 
 ---
 
-## ⏳ P3 prereqs (queued after P2 closes)
+## 🚧 P3 — Agent MVP (in progress, started ahead of P2 close)
 
-Goal: a Claude-powered chat panel that the trader can talk to about positions, recent trades, and current market state. **B1+B2 only** — read-only context + interactive Q&A. No autonomous trading (that's B3, deferred to P6).
+Goal per Design Doc §10: a Claude-powered chat panel the trader can talk to about positions, recent trades, and current market state. **B1+B2 only** — read-only context + interactive Q&A. No autonomous trading (that's B3, deferred to P6).
 
-- [ ] Re-read Design Doc §10 (Agent integration) and Implementation Plan v0.2 §10 + §12.
-- [ ] Confirm: agent modes B1 (read-only) and B2 (interactive Q&A) are P3; B3 (Agent Strategy that submits orders) is explicitly P6.
-- [ ] Confirm: $2/day per-agent cost cap, Haiku-default per Implementation Plan §13.3.
-- [ ] Decide Anthropic API key handling: env var only for MVP, per-user in `system_config` (encrypted) in P5. (Recommend env var for MVP.)
-- [ ] Decide whether the chat panel is a new top-level page or a side panel docked into the existing layout.
-- [ ] Draft a P3 checklist analogous to P1 / P2 (sessions + acceptance criteria) — six P3 session docs already exist in `docs/implementation/`; verify they match current state before treating them as authoritative.
+Session docs live under uppercase `Docs/implementation/` (still untracked; six P3 + nine P5 + the P4 checklist are pending an inventory commit).
+
+| Session | Scope | Status |
+|---|---|---|
+| **S1** | Agent schema (3 tables, 3 enums) + Alembic + pricing helper + DailyBudgetResolver + settings | ✅ #28 tag `p3-session1-complete` |
+| **S2** | MCP server read-only tool expansion | ⏳ next |
+| **S3** | Anthropic API client + tool-use loop + session lifecycle + system prompt | ⏳ |
+| **S4** | REST + WS surface | ⏳ |
+| **S5** | Frontend chat panel | ⏳ |
+| **S6** | Tests + smoke + exit gate | ⏳ |
+
+### P3 settled decisions
+- **Modes:** B1 (read-only) + B2 (interactive) ship in P3; B3 (Agent Strategy submitting orders) reserved enum value, runtime-gated in Session 3, fully implemented in P6.
+- **Cost cap:** $2/day per user across all sessions; configurable via `AGENT_DAILY_BUDGET_USD`.
+- **Default model:** Haiku 4.5 (`claude-haiku-4-5-20251001`).
+- **Anthropic key handling:** env var `ANTHROPIC_API_KEY` only for MVP; per-user encrypted in `system_config` is a P5+ enhancement. Empty key disables agent with a clear runtime error (Session 3).
+- **Chat panel placement:** decision deferred to Session 5 when the UI work starts.
 
 ## 🗺️ P3 / P5–P7 — Roadmap (untouched)
 
