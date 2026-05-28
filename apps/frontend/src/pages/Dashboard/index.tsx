@@ -3,6 +3,7 @@ import { accountApi } from "@/api/account";
 import { ordersApi } from "@/api/orders";
 import { positionsApi } from "@/api/positions";
 import { ApiError } from "@/api/client";
+import OrderTicket from "@/components/ticket/OrderTicket";
 import {
   formatMoney,
   formatNumber,
@@ -43,8 +44,9 @@ export default function Dashboard() {
       <div className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
         <h2 className="text-lg font-semibold text-neutral-100">Dashboard</h2>
         <p className="text-sm text-neutral-400 mt-1">
-          Account state, working orders, open positions. Place orders on the
-          Opportunities page.
+          Account state, working orders, open positions, and an order ticket.
+          The <span className="font-mono">Opportunities</span> page surfaces
+          cross-cutting things to look at.
         </p>
       </div>
 
@@ -190,6 +192,10 @@ export default function Dashboard() {
           )}
         </section>
       </div>
+
+      <section>
+        <OrderTicket />
+      </section>
     </div>
   );
 }
