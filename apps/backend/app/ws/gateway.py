@@ -47,6 +47,7 @@ _BUS_TOPICS: tuple[str, ...] = (
     "system.heartbeat",
     "system.symbols_synced",
     "system.reconciliation_drift",
+    "system.bar_stream_status",  # P4 §8: WS bar dispatch up/down
     "alpaca.stream_status",
     "account.snapshot",
     # orders

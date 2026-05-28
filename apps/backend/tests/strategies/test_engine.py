@@ -289,3 +289,191 @@ async def test_register_pine_strategy_is_rejected_in_p2(engine, session_factory)
 
     with pytest.raises(StrategyLoadError, match="only PYTHON is dispatched"):
         await eng.register(pine_sid)
+
+
+# ---------- P4 §8: dispatch_event_bar + start/stop_event_fallback ----------
+
+
+async def _register_cron_echo_strategy(session_factory) -> int:
+    async with session_factory() as session:
+        row = StrategyRow(
+            user_id=1,
+            name="echo-cron",
+            version="0.0.1",
+            type=StrategyType.PYTHON,
+            status=StrategyStatus.IDLE,
+            code_path="echo_strategy.py",
+            params_json={"timeframe": "1Min"},
+            symbols_json=["AAPL"],
+            schedule="*/5 * * * *",
+            risk_limits_id=None,
+            created_at=_now(),
+            updated_at=_now(),
+        )
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+        return row.id
+
+
+def _streamed_bar(symbol: str = "AAPL"):
+    from decimal import Decimal
+
+    from app.services.bar_stream import StreamedBar
+
+    return StreamedBar(
+        symbol=symbol,
+        ts=_now(),
+        open=Decimal("190"),
+        high=Decimal("191"),
+        low=Decimal("189"),
+        close=Decimal("190.5"),
+        volume=Decimal("12345"),
+    )
+
+
+async def test_dispatch_event_bar_fires_event_strategy(engine, session_factory):
+    """An event-scheduled strategy with the matching symbol receives on_bar."""
+    eng, _, _ = engine
+    sid = await _register_echo_strategy(session_factory)
+    running = await eng.register(sid)
+    instance = running.instance
+
+    await eng.dispatch_event_bar(symbol="AAPL", bar=_streamed_bar("AAPL"))
+    assert len(instance.bars_seen) == 1
+    assert instance.bars_seen[0].symbol == "AAPL"
+    assert instance.bars_seen[0].c == 190.5
+
+
+async def test_dispatch_event_bar_ignores_cron_strategy(engine, session_factory):
+    """A cron strategy on the same symbol must NOT receive the event bar."""
+    eng, _, _ = engine
+    sid = await _register_cron_echo_strategy(session_factory)
+    running = await eng.register(sid)
+    instance = running.instance
+
+    await eng.dispatch_event_bar(symbol="AAPL", bar=_streamed_bar("AAPL"))
+    assert instance.bars_seen == []
+
+
+async def test_dispatch_event_bar_ignores_unmatched_symbol(engine, session_factory):
+    """Bar for a symbol the strategy doesn't list is a no-op."""
+    eng, _, _ = engine
+    sid = await _register_echo_strategy(session_factory)
+    running = await eng.register(sid)
+    instance = running.instance
+
+    await eng.dispatch_event_bar(symbol="ZZZZ", bar=_streamed_bar("ZZZZ"))
+    assert instance.bars_seen == []
+
+
+async def test_start_and_stop_event_fallback_registers_with_scheduler(engine):
+    """The fallback API schedules / removes a job on the engine's scheduler."""
+    eng, _, _ = engine
+
+    job_id = await eng.start_event_fallback(interval_seconds=60)
+    assert job_id.startswith("event_fallback_")
+    assert eng._scheduler.get_job(job_id) is not None
+
+    await eng.stop_event_fallback(job_id)
+    assert eng._scheduler.get_job(job_id) is None
+
+
+async def test_register_notifies_bar_stream_service(engine, session_factory):
+    """register() calls on_strategies_changed() if a service is wired."""
+    eng, _, _ = engine
+    notify_calls = []
+
+    class FakeService:
+        async def on_strategies_changed(self):
+            notify_calls.append(True)
+
+    eng.set_bar_stream_service(FakeService())
+    sid = await _register_echo_strategy(session_factory)
+    await eng.register(sid)
+    assert notify_calls == [True]
+
+    await eng.unregister(sid, reason="test_done")
+    assert notify_calls == [True, True]
+
+
+async def test_coerce_to_bar_accepts_dict_and_passes_through_bar(engine):
+    """_coerce_to_bar must handle Bar, dict, StreamedBar, and reject junk."""
+    from app.strategies.context import Bar
+    eng, _, _ = engine
+
+    # Bar instance: returned as-is.
+    b = Bar(symbol="AAPL", timeframe="1Min", t=_now(),
+            o=1.0, h=1.0, l=1.0, c=1.0, v=1)
+    assert eng._coerce_to_bar("AAPL", "1Min", b) is b
+
+    # dict shape from BarCache.get_latest_bar.
+    d = {"t": _now(), "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 7}
+    out = eng._coerce_to_bar("AAPL", "1Min", d)
+    assert out is not None and out.c == 1.5 and out.v == 7
+
+    # Unrecognized shape: returns None.
+    assert eng._coerce_to_bar("AAPL", "1Min", "not a bar") is None
+
+
+async def test_dispatch_event_bar_catches_user_exception(engine, session_factory):
+    """If on_bar raises during event dispatch, the engine marks ERROR
+    and drops the strategy from _running."""
+    eng, _, _ = engine
+    sid = await _register_echo_strategy(session_factory)
+    running = await eng.register(sid)
+
+    async def boom(_bar):
+        raise RuntimeError("event-dispatch failure")
+
+    running.instance.on_bar = boom  # type: ignore[method-assign]
+
+    await eng.dispatch_event_bar(symbol="AAPL", bar=_streamed_bar("AAPL"))
+
+    async with session_factory() as session:
+        row = await session.get(StrategyRow, sid)
+        assert row.status == StrategyStatus.ERROR
+    assert sid not in eng._running
+
+
+async def test_fire_all_event_strategies_uses_bar_cache_latest(engine, session_factory):
+    """The fallback iterates event strategies, pulls the latest bar from
+    cache, and dispatches via on_bar."""
+    eng, _, _ = engine
+    # Wire bar_cache.get_latest_bar to return a dict.
+    eng._bar_cache.get_latest_bar = AsyncMock(
+        return_value={"t": _now(), "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 7}
+    )
+    sid = await _register_echo_strategy(session_factory)
+    running = await eng.register(sid)
+
+    await eng._fire_all_event_strategies()
+
+    assert len(running.instance.bars_seen) == 1
+    assert running.instance.bars_seen[0].c == 1.5
+
+
+async def test_fire_all_event_strategies_skips_when_latest_is_none(engine, session_factory):
+    """No cached bar → no dispatch (don't fabricate empty bars)."""
+    eng, _, _ = engine
+    eng._bar_cache.get_latest_bar = AsyncMock(return_value=None)
+    sid = await _register_echo_strategy(session_factory)
+    running = await eng.register(sid)
+
+    await eng._fire_all_event_strategies()
+
+    assert running.instance.bars_seen == []
+
+
+async def test_fire_all_event_strategies_skips_cron_strategies(engine, session_factory):
+    """Cron-scheduled strategies are not touched by the fallback."""
+    eng, _, _ = engine
+    eng._bar_cache.get_latest_bar = AsyncMock(
+        return_value={"t": _now(), "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 7}
+    )
+    sid = await _register_cron_echo_strategy(session_factory)
+    running = await eng.register(sid)
+
+    await eng._fire_all_event_strategies()
+
+    assert running.instance.bars_seen == []
