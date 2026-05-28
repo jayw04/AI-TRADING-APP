@@ -1,5 +1,8 @@
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
+from app.db.models.agent_message import AgentMessage
+from app.db.models.agent_session import AgentSession
+from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.db.models.audit_log import AuditLog
 from app.db.models.backtest_job import BacktestJob
 from app.db.models.backtest_result import BacktestResult
@@ -19,6 +22,9 @@ __all__ = [
     "Account",
     "AccountMode",
     "AccountState",
+    "AgentMessage",
+    "AgentSession",
+    "AgentToolInvocation",
     "AuditLog",
     "BacktestJob",
     "BacktestResult",
