@@ -34,11 +34,16 @@ class AlpacaBarStreamAdapter:
         self._subscribed: set[str] = set()
 
     async def connect(self) -> None:
+        from alpaca.data.enums import DataFeed
         from alpaca.data.live import StockDataStream
 
         creds = load_credentials()
         settings = get_settings()
-        feed = getattr(settings, "alpaca_data_feed", None) or "iex"
+        feed_name = (getattr(settings, "alpaca_data_feed", None) or "iex").lower()
+        try:
+            feed = DataFeed(feed_name)
+        except ValueError:
+            feed = DataFeed.IEX
 
         self._stream = StockDataStream(
             creds.api_key, creds.api_secret, feed=feed
