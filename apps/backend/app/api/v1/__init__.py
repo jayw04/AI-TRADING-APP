@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     account,
+    agent,
     alerts,
     backtest_jobs,
     indicators,
@@ -28,3 +29,4 @@ api_router.include_router(strategies.router)
 api_router.include_router(signals.router)
 api_router.include_router(backtest_jobs.router)
 api_router.include_router(opportunities.router)
+api_router.include_router(agent.router)

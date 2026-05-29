@@ -27,6 +27,12 @@ REPLAY_WINDOWS: dict[str, int] = {
     "journal": 64,
     "strategies": 256,
     "backtests": 64,
+    # P3 §4: agent chat panel. ~128 events covers a typical session +
+    # several follow-ups — enough for a page refresh to repopulate
+    # recent activity. The doc proposes a 60-min window; we use an
+    # event-count cap because the existing replay infrastructure is
+    # count-based, not time-based.
+    "agent": 128,
 }
 
 _DEFAULT_WINDOW = 32

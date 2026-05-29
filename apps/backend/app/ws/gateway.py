@@ -84,6 +84,12 @@ _BUS_TOPICS: tuple[str, ...] = (
     "backtest.completed",
     "backtest.failed",
     "backtest.cancelled",
+    # agent (P3 §4) — forwarded to WS topic `agent` with 128-event replay
+    "agent.session_started",
+    "agent.session_ended",
+    "agent.session_capped",
+    "agent.session_error",
+    "agent.message_appended",
 )
 
 
@@ -107,6 +113,8 @@ def _bus_to_ws_topic(bus_topic: str) -> str | None:
         return "signals"
     if bus_topic.startswith("backtest."):
         return "backtests"
+    if bus_topic.startswith("agent."):
+        return "agent"
     return None
 
 
