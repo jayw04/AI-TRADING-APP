@@ -30,6 +30,7 @@ from pathlib import Path
 import structlog
 from fastapi import FastAPI
 
+from app.agent.runtime import AgentRuntime
 from app.brokers.alpaca import AlpacaAdapter, TradeUpdatesStream
 from app.config import get_settings
 from app.db.session import get_sessionmaker
@@ -217,6 +218,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     )
         else:
             logger.info("alpaca_startup_disabled")
+
+        # P3 §3: AgentRuntime is always constructed, regardless of
+        # alpaca-startup status — it talks to Anthropic, not Alpaca.
+        # Empty ANTHROPIC_API_KEY is fine at construction time; the
+        # runtime refuses at start_session with a clear message. Stateless
+        # across sessions, so no shutdown hook needed (the per-session
+        # locks dict is dropped when the process exits).
+        agent_runtime = AgentRuntime(
+            settings=get_settings(),
+            session_factory=get_sessionmaker(),
+            bus=get_event_bus(),
+        )
+        app.state.agent_runtime = agent_runtime
 
         logger.info("lifespan_startup_complete")
         yield

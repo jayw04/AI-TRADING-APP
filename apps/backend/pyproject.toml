@@ -33,6 +33,10 @@ dependencies = [
     # transitively by uvicorn[standard]; pin here so a future uvicorn bump
     # can't silently drop the dep the watcher service depends on.
     "watchfiles>=0.21",
+    # P3 §3: Anthropic SDK for the agent runtime (app/agent/). Importing
+    # this outside that allowlisted location trips check_no_llm_in_order_path.sh
+    # (see docs/adr/0006-llm-not-in-order-path.md).
+    "anthropic>=0.40.0,<1.0.0",
 ]
 
 [project.optional-dependencies]
