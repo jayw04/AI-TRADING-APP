@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-28 · branch: `main` · latest tag: `p3-session1-complete`
+Last updated: 2026-05-29 · branch: `main` · latest tag: `p3-session2-complete`
 
 ---
 
@@ -92,8 +92,8 @@ Session docs live under uppercase `Docs/implementation/` (still untracked; six P
 | Session | Scope | Status |
 |---|---|---|
 | **S1** | Agent schema (3 tables, 3 enums) + Alembic + pricing helper + DailyBudgetResolver + settings | ✅ #28 tag `p3-session1-complete` |
-| **S2** | MCP server read-only tool expansion | ⏳ next |
-| **S3** | Anthropic API client + tool-use loop + session lifecycle + system prompt | ⏳ |
+| **S2** | MCP server read-only tool expansion: 12 new tools + tripwire + runbook (`docs/runbook/mcp-tools.md`) | ✅ #29 tag `p3-session2-complete` |
+| **S3** | Anthropic API client + tool-use loop + session lifecycle + system prompt | ⏳ next |
 | **S4** | REST + WS surface | ⏳ |
 | **S5** | Frontend chat panel | ⏳ |
 | **S6** | Tests + smoke + exit gate | ⏳ |
