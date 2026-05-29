@@ -33,6 +33,11 @@ async def test_spent_today_zero_when_no_sessions(seeded, session_factory):
 
 async def test_spent_today_sums_active_and_terminal_sessions(seeded, session_factory):
     """Capped and ended sessions still count against today's budget."""
+    # Pin "now" to noon UTC so the relative offsets below can't straddle
+    # midnight when the test runs late in the day.
+    pinned_now = datetime.now(UTC).replace(
+        hour=12, minute=0, second=0, microsecond=0
+    )
     async with session_factory() as session:
         session.add(
             AgentSession(
@@ -44,7 +49,7 @@ async def test_spent_today_sums_active_and_terminal_sessions(seeded, session_fac
                 total_output_tokens=0,
                 total_cost_usd=Decimal("0.50"),
                 daily_budget_usd=Decimal("2.0"),
-                started_at=_now(),
+                started_at=pinned_now,
             )
         )
         session.add(
@@ -57,8 +62,8 @@ async def test_spent_today_sums_active_and_terminal_sessions(seeded, session_fac
                 total_output_tokens=0,
                 total_cost_usd=Decimal("1.20"),
                 daily_budget_usd=Decimal("2.0"),
-                started_at=_now() - timedelta(hours=2),
-                ended_at=_now() - timedelta(hours=1),
+                started_at=pinned_now - timedelta(hours=2),
+                ended_at=pinned_now - timedelta(hours=1),
             )
         )
         session.add(
@@ -71,15 +76,15 @@ async def test_spent_today_sums_active_and_terminal_sessions(seeded, session_fac
                 total_output_tokens=0,
                 total_cost_usd=Decimal("0.05"),
                 daily_budget_usd=Decimal("2.0"),
-                started_at=_now() - timedelta(hours=4),
-                ended_at=_now() - timedelta(hours=3),
+                started_at=pinned_now - timedelta(hours=4),
+                ended_at=pinned_now - timedelta(hours=3),
             )
         )
         await session.commit()
 
     resolver = DailyBudgetResolver(daily_budget_usd=Decimal("2.0"))
     async with session_factory() as session:
-        spent = await resolver.spent_today(session, user_id=1)
+        spent = await resolver.spent_today(session, user_id=1, now=pinned_now)
     # 0.50 + 1.20 + 0.05 = 1.75
     assert spent == Decimal("1.7500")
 

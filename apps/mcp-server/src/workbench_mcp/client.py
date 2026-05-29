@@ -47,3 +47,166 @@ class WorkbenchBackendClient:
         )
         resp.raise_for_status()
         return resp.json()
+
+    # ---------------- read-only endpoints (P3 §2) ----------------
+
+    async def get_account(self) -> dict[str, Any]:
+        resp = await self._require_client().get("/api/v1/account")
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_positions(self) -> dict[str, Any]:
+        resp = await self._require_client().get("/api/v1/positions")
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_orders(
+        self,
+        *,
+        status: str | None = None,
+        symbol: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if status is not None:
+            params["status"] = status
+        if symbol is not None:
+            params["symbol"] = symbol
+        if limit is not None:
+            params["limit"] = limit
+        resp = await self._require_client().get("/api/v1/orders", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_strategies(
+        self,
+        *,
+        status: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if status is not None:
+            params["status"] = status
+        resp = await self._require_client().get(
+            "/api/v1/strategies", params=params
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_strategy(self, strategy_id: int) -> dict[str, Any]:
+        resp = await self._require_client().get(
+            f"/api/v1/strategies/{strategy_id}"
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_strategy_runs(
+        self,
+        strategy_id: int,
+        *,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        resp = await self._require_client().get(
+            f"/api/v1/strategies/{strategy_id}/runs", params=params
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_strategy_signals(
+        self,
+        strategy_id: int,
+        *,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        resp = await self._require_client().get(
+            f"/api/v1/strategies/{strategy_id}/signals", params=params
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_strategy_backtests(
+        self,
+        strategy_id: int,
+        *,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        resp = await self._require_client().get(
+            f"/api/v1/strategies/{strategy_id}/backtests", params=params
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_signals(
+        self,
+        *,
+        limit: int | None = None,
+        strategy_id: int | None = None,
+        symbol: str | None = None,
+        type_: str | None = None,
+        since: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        if strategy_id is not None:
+            params["strategy_id"] = strategy_id
+        if symbol is not None:
+            params["symbol"] = symbol
+        if type_ is not None:
+            params["type"] = type_
+        if since is not None:
+            params["since"] = since
+        resp = await self._require_client().get(
+            "/api/v1/signals", params=params
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_quote(self, symbol: str) -> dict[str, Any]:
+        resp = await self._require_client().get(f"/api/v1/quotes/{symbol}")
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_bars(
+        self,
+        symbol: str,
+        *,
+        timeframe: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if timeframe is not None:
+            params["timeframe"] = timeframe
+        if limit is not None:
+            params["limit"] = limit
+        resp = await self._require_client().get(
+            f"/api/v1/bars/{symbol}", params=params
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_indicators(
+        self,
+        symbol: str,
+        *,
+        names: str | None = None,
+        timeframe: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if names is not None:
+            params["names"] = names
+        if timeframe is not None:
+            params["timeframe"] = timeframe
+        resp = await self._require_client().get(
+            f"/api/v1/indicators/{symbol}", params=params
+        )
+        resp.raise_for_status()
+        return resp.json()
