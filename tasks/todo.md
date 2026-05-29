@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-29 · branch: `main` · latest tag: `p3-session3-complete`
+Last updated: 2026-05-29 · branch: `main` · latest tag: `p3-session4-complete`
 
 ---
 
@@ -94,8 +94,8 @@ Session docs live under uppercase `Docs/implementation/` (still untracked; six P
 | **S1** | Agent schema (3 tables, 3 enums) + Alembic + pricing helper + DailyBudgetResolver + settings | ✅ #28 tag `p3-session1-complete` |
 | **S2** | MCP server read-only tool expansion: 12 new tools + tripwire + runbook (`docs/runbook/mcp-tools.md`) | ✅ #29 tag `p3-session2-complete` |
 | **S3** | Agent runtime: Anthropic client + system prompt + session lifecycle + tool-use loop + bilateral cost cap. Constrained by [ADR 0006](../docs/adr/0006-llm-not-in-order-path.md); B3_AUTONOMOUS paused indefinitely. | ✅ #31 tag `p3-session3-complete` |
-| **S4** | REST + WS surface | ⏳ next |
-| **S5** | Frontend chat panel | ⏳ |
+| **S4** | REST + WS surface: 6 endpoints under `/api/v1/agent` + `agent` WS topic (5 bus events + 128-event replay) | ✅ #32 tag `p3-session4-complete` |
+| **S5** | Frontend chat panel | ⏳ next |
 | **S6** | Tests + smoke + exit gate | ⏳ |
 
 ### P3 architectural commitment
