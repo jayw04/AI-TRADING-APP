@@ -446,3 +446,77 @@ export interface OpportunitiesResponse {
   recent_fills: OpportunitiesWidget<OppFillItem>;
   as_of: string;
 }
+
+// ===== Agent (P3) =====
+// Mirrors apps/backend/app/api/v1/schemas/agent.py. B3_AUTONOMOUS is in
+// the enum for completeness but the backend rejects it at the schema
+// layer with an ADR 0006 pointer (docs/adr/0006-llm-not-in-order-path.md).
+
+export type AgentSessionMode = "b1_readonly" | "b2_interactive" | "b3_autonomous";
+export type AgentSessionStatusT = "active" | "ended" | "capped" | "error";
+export type AgentMessageRoleT =
+  | "user"
+  | "assistant"
+  | "tool_use"
+  | "tool_result"
+  | "system";
+
+export interface AgentMessageContentBlock {
+  type: string;
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+  tool_use_id?: string;
+  content?: string | unknown[];
+  [k: string]: unknown;
+}
+
+export interface AgentMessageT {
+  id: number;
+  session_id: number;
+  role: AgentMessageRoleT;
+  content: AgentMessageContentBlock[];
+  input_tokens: number | null;
+  output_tokens: number | null;
+  model: string | null;
+  ts: string;
+  parent_message_id: number | null;
+}
+
+export interface AgentSessionSummary {
+  id: number;
+  user_id: number;
+  mode: AgentSessionMode;
+  status: AgentSessionStatusT;
+  model: string;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cost_usd: string; // Decimal serialized as string
+  daily_budget_usd: string;
+  started_at: string;
+  ended_at: string | null;
+  end_reason: string | null;
+  message_count: number;
+}
+
+export interface AgentSessionDetail extends AgentSessionSummary {
+  messages: AgentMessageT[];
+}
+
+export interface AgentSessionListResponse {
+  items: AgentSessionSummary[];
+  count: number;
+}
+
+export interface AgentBudget {
+  spent_usd: string;
+  budget_usd: string;
+  remaining_usd: string;
+  pct_used: number;
+}
+
+export interface AppendMessageResponseT {
+  session_id: number;
+  user_message_id: number;
+}
