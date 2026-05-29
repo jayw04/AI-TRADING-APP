@@ -66,6 +66,10 @@ jobs:
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_strategy_isolation.sh
 
+      - name: MCP read-only invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_mcp_readonly.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest
