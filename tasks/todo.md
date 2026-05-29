@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-29 · branch: `main` · latest tag: `p3-session2-complete`
+Last updated: 2026-05-29 · branch: `main` · latest tag: `p3-session3-complete`
 
 ---
 
@@ -93,10 +93,13 @@ Session docs live under uppercase `Docs/implementation/` (still untracked; six P
 |---|---|---|
 | **S1** | Agent schema (3 tables, 3 enums) + Alembic + pricing helper + DailyBudgetResolver + settings | ✅ #28 tag `p3-session1-complete` |
 | **S2** | MCP server read-only tool expansion: 12 new tools + tripwire + runbook (`docs/runbook/mcp-tools.md`) | ✅ #29 tag `p3-session2-complete` |
-| **S3** | Anthropic API client + tool-use loop + session lifecycle + system prompt | ⏳ next |
-| **S4** | REST + WS surface | ⏳ |
+| **S3** | Agent runtime: Anthropic client + system prompt + session lifecycle + tool-use loop + bilateral cost cap. Constrained by [ADR 0006](../docs/adr/0006-llm-not-in-order-path.md); B3_AUTONOMOUS paused indefinitely. | ✅ #31 tag `p3-session3-complete` |
+| **S4** | REST + WS surface | ⏳ next |
 | **S5** | Frontend chat panel | ⏳ |
 | **S6** | Tests + smoke + exit gate | ⏳ |
+
+### P3 architectural commitment
+[ADR 0006 — LLM not in the order path](../docs/adr/0006-llm-not-in-order-path.md) (merged via #30) constrains every future agent-related PR. The CI invariant `apps/backend/scripts/check_no_llm_in_order_path.sh` enforces it: Anthropic SDK use is allowed in `app/agent/`, `app/services/morning_brief.py` (P5.5 §2, future), `app/services/strategy_review.py` (P6, future), `app/services/drift_detection.py` (P6, future) — never in `app/orders/router.py`, `app/risk/`, `app/brokers/`, or strategy execution. **B3 (autonomous order submission) is paused indefinitely** — the `AgentSessionMode.B3_AUTONOMOUS` enum value stays reserved but the runtime rejects sessions started in that mode.
 
 ### P3 settled decisions
 - **Modes:** B1 (read-only) + B2 (interactive) ship in P3; B3 (Agent Strategy submitting orders) reserved enum value, runtime-gated in Session 3, fully implemented in P6.
