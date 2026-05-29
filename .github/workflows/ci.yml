@@ -70,6 +70,10 @@ jobs:
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_mcp_readonly.sh
 
+      - name: No-LLM-in-order-path invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_no_llm_in_order_path.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest
