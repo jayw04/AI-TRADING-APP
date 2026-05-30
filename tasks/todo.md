@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-29 · branch: `main` · latest tag: `p3-session5-complete`
+Last updated: 2026-05-29 · branch: `main` · latest tag: `p3-session6-complete`
 
 ---
 
@@ -83,9 +83,9 @@ We ran ahead of the doc order on P4 items because they unblock UI work later. It
 
 ---
 
-## 🚧 P3 — Agent MVP (in progress, started ahead of P2 close)
+## ✅ P3 — Agent MVP (B1+B2) — code complete
 
-Goal per Design Doc §10: a Claude-powered chat panel the trader can talk to about positions, recent trades, and current market state. **B1+B2 only** — read-only context + interactive Q&A. No autonomous trading (that's B3, deferred to P6).
+Six sessions merged; `p3-complete` tag held pending Jay's manual smoke walkthrough (same pattern as P2's open close-out — `p3-session6-complete` ships now; `p3-complete` lands after the smoke log at `docs/runbook/p3-smoke-log.md` records a clean run).
 
 Session docs live under uppercase `Docs/implementation/` (still untracked; six P3 + nine P5 + the P4 checklist are pending an inventory commit).
 
@@ -96,28 +96,41 @@ Session docs live under uppercase `Docs/implementation/` (still untracked; six P
 | **S3** | Agent runtime: Anthropic client + system prompt + session lifecycle + tool-use loop + bilateral cost cap. Constrained by [ADR 0006](../docs/adr/0006-llm-not-in-order-path.md); B3_AUTONOMOUS paused indefinitely. | ✅ #31 tag `p3-session3-complete` |
 | **S4** | REST + WS surface: 6 endpoints under `/api/v1/agent` + `agent` WS topic (5 bus events + 128-event replay) | ✅ #32 tag `p3-session4-complete` |
 | **S5** | Frontend chat panel at `/agent`: SessionList + ChatPanel + MessageList (role-based + tool cards + suggestion extraction) + CostMeter + WS-driven re-fetches | ✅ #33 tag `p3-session5-complete` |
-| **S6** | Tests + smoke + exit gate | ⏳ next |
+| **S6** | Tests (E2E + P3 coverage gate) + runbooks (`docs/runbook/agent.md`, `docs/runbook/p3-smoke-log.md`) + README Agent subsection + exit gate prep | ✅ this PR tag `p3-session6-complete` |
+
+### P3 manual steps remaining before `p3-complete` tag
+1. Walk `docs/runbook/p3-smoke-log.md` against the live `/agent` page with `ANTHROPIC_API_KEY` configured; commit the filled log.
+2. Tag `p3-complete` after the smoke log lands clean.
+
+Step 5 of the smoke (force cost cap) makes a temporary `.env` edit — restore `AGENT_DAILY_BUDGET_USD=2.0` before signing off or the next session opens directly in CAPPED.
 
 ### P3 architectural commitment
 [ADR 0006 — LLM not in the order path](../docs/adr/0006-llm-not-in-order-path.md) (merged via #30) constrains every future agent-related PR. The CI invariant `apps/backend/scripts/check_no_llm_in_order_path.sh` enforces it: Anthropic SDK use is allowed in `app/agent/`, `app/services/morning_brief.py` (P5.5 §2, future), `app/services/strategy_review.py` (P6, future), `app/services/drift_detection.py` (P6, future) — never in `app/orders/router.py`, `app/risk/`, `app/brokers/`, or strategy execution. **B3 (autonomous order submission) is paused indefinitely** — the `AgentSessionMode.B3_AUTONOMOUS` enum value stays reserved but the runtime rejects sessions started in that mode.
 
 ### P3 settled decisions
-- **Modes:** B1 (read-only) + B2 (interactive) ship in P3; B3 (Agent Strategy submitting orders) reserved enum value, runtime-gated in Session 3, fully implemented in P6.
+- **Modes:** B1 (read-only) + B2 (interactive) ship in P3; B3 (autonomous order submission) is paused indefinitely per ADR 0006 (not just deferred — paused).
 - **Cost cap:** $2/day per user across all sessions; configurable via `AGENT_DAILY_BUDGET_USD`.
 - **Default model:** Haiku 4.5 (`claude-haiku-4-5-20251001`).
 - **Anthropic key handling:** env var `ANTHROPIC_API_KEY` only for MVP; per-user encrypted in `system_config` is a P5+ enhancement. Empty key disables agent with a clear runtime error (Session 3).
-- **Chat panel placement:** decision deferred to Session 5 when the UI work starts.
+- **Chat panel placement:** top-level page at `/agent` (settled in Session 5).
 
-## 🗺️ P3 / P5–P7 — Roadmap (untouched)
+### P3 deferred to later phases
+- **B3 autonomous trading** — paused indefinitely per ADR 0006.
+- **Per-user encrypted API keys** — P5 alongside multi-user auth.
+- **Streaming text deltas** — `stream_message` exists but unused; P4+ polish.
+- **Multi-session concurrency** — one ACTIVE session per user; multi-session UX is P4+ if it ever becomes a real ask.
+- **Tool result expand-to-modal** — replaces the 4000-char truncation; P4+ polish.
 
-Captured for orientation; plans land when their turn comes.
+## 🗺️ P5 + P5.5 + P6 + P7 — Roadmap
+
+Captured for orientation; plans land when their turn comes. P5 + P5.5 + P6 + P7 per-session docs are already drafted under uppercase `Docs/implementation/`.
 
 | Phase | Theme | Headline outcome |
 |---|---|---|
-| **P3** | Agent MVP (B1+B2) | Claude Code agent chat panel inside the UI; advisory + propose-and-approve flows. |
-| **P5** | Live trading toggle | Live creds, live-mode UI, hard gates, recon. |
-| **P6** | Agent autonomy (B3, gated) | Per-strategy autonomous mode with hard budgets + extra audit. Backend-side Anthropic SDK calls with MCP attached. Paper-only by default. |
-| **P7** | NL → Python strategy authoring | "Draft strategy with Claude" UI button; backend generates the strategy file. |
+| **P5** | Live trading toggle | Live creds, live-mode UI, hard gates, reconciliation, audit trail with hash chain. Per-user encrypted Anthropic key lands here. |
+| **P5.5** | Morning brief + trading profile + workbench-mcp polish | Scheduled advisory narration; trader profile/preferences; MCP server tightening. The `morning_brief.py` allowlist entry in ADR 0006 anticipates this work. |
+| **P6** | Strategy intelligence layer | Periodic strategy review, parameter tuning proposals, drift detection, optional NL → Python exploration. All advisory; all routed through the existing activation flow before anything goes live. Constrained by ADR 0006. |
+| **P7** | NL → Python strategy authoring (standalone if not in P6) | "Draft strategy with Claude" UI button; backend generates the strategy file. |
 
 ---
 
