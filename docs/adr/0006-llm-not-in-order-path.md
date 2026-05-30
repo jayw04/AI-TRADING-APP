@@ -3,11 +3,16 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-28 |
-| Status | Accepted |
+| Status | **Superseded by ADR 0006 v2** (`0006-llm-in-order-path-gated.md`) |
 | Phase | Post-P5 architectural decision; informs P6 scope |
 | Related | ADR 0002 (single OrderRouter entry point), ADR 0004 (circuit breaker hard halt), ADR 0005 (24-hour activation cooldown) |
 | Supersedes | — |
-| Superseded by | — |
+| Superseded by | ADR 0006 v2 — LLM in Order Path (Gated Behind Evaluation + Opt-In), 2026-05-29 |
+
+> **Note (2026-05-29):** This v1 record is retained for decision history. Its
+> "paused indefinitely" framing was revised to a *gated opt-in* by ADR 0006 v2
+> (`0006-llm-in-order-path-gated.md`). The CI invariant and default product
+> behavior are unchanged; v2 adds the evaluation harness + user opt-in path.
 
 ## Context
 
