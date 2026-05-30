@@ -15,10 +15,14 @@
 # must add themselves to the allowlist, which surfaces the decision in
 # code review.
 #
-# This invariant exists to keep Architecture 3 (Claude in the per-order
-# decision) deliberately out of scope. See docs/adr/0006-llm-not-in-order-path.md
-# for the full reasoning. Removing or weakening this invariant requires
-# a successor ADR.
+# This invariant keeps Architecture 3 (Claude in the per-order decision) out
+# of the DEFAULT product configuration. Per ADR 0006 v2
+# (docs/adr/0006-llm-in-order-path-gated.md, supersedes the v1
+# docs/adr/0006-llm-not-in-order-path.md), a gated opt-in — paper-trading
+# evaluation harness + 7-day cooldown + typed acknowledgment — may permit
+# LLM-driven decisions for a specific user and strategy; when that path ships
+# (P6) it gets its own ALLOWED_DIRS entry. The default order path stays clean.
+# Removing or weakening this invariant requires a successor ADR.
 
 set -e
 
@@ -41,6 +45,8 @@ ALLOWED_DIRS=(
     "${ROOT}/services/morning_brief.py"      # Scheduled advisory narration (P5.5 §2)
     "${ROOT}/services/strategy_review.py"    # Periodic advisory reports (P6, future)
     "${ROOT}/services/drift_detection.py"    # Periodic advisory reports (P6, future)
+    # (P6) ADR 0006 v2 evaluation harness + opt-in path add their entries here
+    #      when that gated capability ships.
 )
 
 # Build the find-prune expression dynamically. For each allowed path,
@@ -71,8 +77,8 @@ if [ -n "$VIOLATIONS" ]; then
     echo "ERROR: LLM library use detected in the order path."
     echo ""
     echo -e "$VIOLATIONS"
-    echo "The order path must not call LLM APIs. See ADR 0006:"
-    echo "  docs/adr/0006-llm-not-in-order-path.md"
+    echo "The order path must not call LLM APIs by default. See ADR 0006 v2:"
+    echo "  docs/adr/0006-llm-in-order-path-gated.md"
     echo ""
     echo "If you genuinely need LLM access in a new module, you must:"
     echo "  1. Confirm the module is advisory (user-initiated or scheduled),"
@@ -80,8 +86,8 @@ if [ -n "$VIOLATIONS" ]; then
     echo "  2. Add the module path to ALLOWED_DIRS in this script."
     echo "  3. Note in your PR description why the addition is justified."
     echo ""
-    echo "If the addition would put LLM calls in the order path, the answer"
-    echo "is no — that's Architecture 3, which is paused per ADR 0006."
+    echo "If the addition would put LLM calls in the default order path, the"
+    echo "answer is no — Architecture 3 is gated behind ADR 0006 v2's opt-in."
     exit 1
 fi
 

@@ -3,9 +3,10 @@
 The Trading Workbench ships an in-app agent powered by Claude. It
 answers questions about the user's state and (in B2 mode) proposes
 parameter changes or position adjustments via structured suggestion
-cards. **The agent never executes trades.** See
-[ADR 0006](../adr/0006-llm-not-in-order-path.md) for the architectural
-commitment behind that boundary.
+cards. **The agent never executes trades by default.** See
+[ADR 0006 v2](../adr/0006-llm-in-order-path-gated.md) for the architectural
+commitment behind that boundary — and for the gated opt-in (evaluation
+harness + typed acknowledgment + 7-day cooldown) that P6 adds.
 
 ## What the agent can and can't do
 
@@ -154,7 +155,7 @@ Get a key at [console.anthropic.com](https://console.anthropic.com/).
 | Symptom | Likely cause |
 |---|---|
 | `"ANTHROPIC_API_KEY is not configured"` on session start | Key not set in `.env`; restart backend after setting |
-| `422` on `POST /sessions` with body `{"mode":"b3_autonomous"}` | By design — B3 is paused per ADR 0006 |
+| `422` on `POST /sessions` with body `{"mode":"b3_autonomous"}` | By design — B3 is rejected by default per ADR 0006 v2 |
 | Session transitions to `ERROR` mid-conversation | Anthropic API error (rate limit, network, model unavailable). Check backend logs for `anthropic_call_failed`. |
 | Cost meter shows 0 after several calls | Mocked Anthropic? Or the model returned 0 usage. Check `agent_sessions.total_input_tokens` in DB. |
 | Suggestion card doesn't render despite agent's text | Parser didn't match the exact `Suggestion:/Why:/Confidence:` format. Strict on the confidence enum — case-insensitive `low|medium|high` only. |
@@ -163,7 +164,8 @@ Get a key at [console.anthropic.com](https://console.anthropic.com/).
 
 ## What's deferred to later phases
 
-- **B3 autonomous trading** — paused indefinitely per ADR 0006.
+- **B3 autonomous trading** — rejected by default; gated opt-in per ADR 0006 v2
+  (paper-trading evaluation + typed acknowledgment + 7-day cooldown).
 - **Per-user encrypted API keys** — P5 alongside multi-user auth.
 - **Streaming text deltas** — the runtime uses non-streaming and the
   `stream_message` surface is unused. P4+ polish if the UX warrants it.
