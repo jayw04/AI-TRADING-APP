@@ -6,12 +6,19 @@ The Trading Workbench is a local-first trading application for active equity tra
 
 ## Status
 
-**Phase P2 — Strategy MVP nearing completion.** P0 (scaffolding) and P1
-(manual trading MVP — paper orders, risk engine, positions, charts) both
-shipped. P2 (systematic strategies + backtesting) has Sessions 1–5
-merged; this PR closes Session 6 (tests, runbooks, exit gate). P4 §1
-(TradingView webhooks) and §2 part A (async backtest jobs) shipped
-out-of-order to unblock UI work.
+**Phase P3 — Agent MVP (B1+B2) closing.** P0 (scaffolding), P1 (manual
+trading MVP — paper orders, risk engine, positions, charts), P2
+(systematic strategies + backtesting), and P4 (polish: TV webhooks,
+async backtests, hot-reload, opportunities page, WS bar dispatch) all
+shipped. P3 Sessions 1–5 merged: agent schema + pricing, read-only
+MCP tool expansion, agent runtime, REST + WS surface, frontend chat
+panel. This PR closes Session 6 (tests, runbooks, exit gate).
+
+The agent operates strictly under
+[ADR 0006](docs/adr/0006-llm-not-in-order-path.md) — LLM calls are
+allowed only in the user-initiated chat and scheduled-advisory paths.
+The order routing path never imports the Anthropic SDK; a CI invariant
+(`apps/backend/scripts/check_no_llm_in_order_path.sh`) enforces it.
 
 See [`tasks/todo.md`](tasks/todo.md) for the single-source-of-truth state
 index (shipped PRs per phase, next-up session, active blockers).
@@ -66,6 +73,41 @@ The Strategies page is where systematic strategies live.
 > [`docs/runbook/strategy-authoring.md`](docs/runbook/strategy-authoring.md).
 > Backtesting mechanics are in
 > [`docs/runbook/backtesting.md`](docs/runbook/backtesting.md).
+
+### Talking to the agent (P3)
+
+The Agent page is a Claude-powered chat for the workbench. It can read
+account state, positions, strategies, signals, quotes, bars, and
+indicators via the read-only MCP tool catalog. **It never executes
+trades** — see
+[ADR 0006](docs/adr/0006-llm-not-in-order-path.md) and
+[`docs/runbook/agent.md`](docs/runbook/agent.md) for the architectural
+boundary and operational details.
+
+1. Set `ANTHROPIC_API_KEY` in `.env` (empty disables the agent). Get a
+   key at [console.anthropic.com](https://console.anthropic.com/).
+2. Optional: tune `AGENT_DEFAULT_MODEL` (default
+   `claude-haiku-4-5-20251001`) and `AGENT_DAILY_BUDGET_USD` (default
+   `2.00`).
+3. Visit `http://localhost:5173/agent`.
+4. Click "+ B2 chat" for an interactive session or "+ B1 read" for a
+   read-only one.
+5. Ask about your positions, strategies, signals, or market data. In
+   B2, the agent emits structured suggestion cards for actionable
+   recommendations — you execute them manually via the rest of the UI.
+
+The agent has a per-user daily cost cap (default `$2.00`). When the
+running total would push past the cap, the session transitions to
+CAPPED (read-only) — start a new session to continue. See
+[`docs/runbook/agent.md`](docs/runbook/agent.md) for the cap mechanics,
+session-audit SQL, troubleshooting, and the list of deferred work.
+
+The MCP catalog the agent draws from is documented in
+[`docs/runbook/mcp-tools.md`](docs/runbook/mcp-tools.md) (13 read-only
+tools: account, positions, orders, fills, strategies, signals,
+backtests, quotes, bars, indicators, system status). The same catalog
+is reachable from Claude Desktop / Claude Code via SSE — connection
+instructions are in that runbook.
 
 ## Quickstart (standalone, no Docker)
 
@@ -146,7 +188,9 @@ data/              SQLite DB lives here (gitignored)
 
 `.env` is required at the repo root. Copy `.env.example` and edit. Never commit `.env`.
 
-`ANTHROPIC_API_KEY` is for **server-side** Anthropic calls the backend makes during P6 (scheduled Agent Strategy runs) and P7 (NL → Python strategy authoring). It is **not** used by Claude Code in your IDE — Claude Code authenticates itself.
+`ANTHROPIC_API_KEY` is for **server-side** Anthropic calls the backend makes for the P3 agent chat panel (B1 read-only + B2 interactive Q&A). Future phases extend its use: P5.5 §2 (scheduled morning brief), P6 (strategy review / parameter tuning proposals / drift detection), P7 (NL → Python strategy authoring). It is **not** used by Claude Code in your IDE — Claude Code authenticates itself.
+
+The set of modules permitted to import the Anthropic SDK is an explicit allowlist enforced by `apps/backend/scripts/check_no_llm_in_order_path.sh` per ADR 0006. The order routing path is permanently off-limits.
 
 ## Repo
 
