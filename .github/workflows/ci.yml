@@ -62,6 +62,11 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: python scripts/check_p2_coverage.py
 
+      - name: P3 module branch-coverage gate (backend)
+        if: matrix.project == 'backend'
+        working-directory: ${{ matrix.dir }}
+        run: python scripts/check_p3_coverage.py
+
       - name: Strategy isolation invariant check (backend)
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_strategy_isolation.sh
