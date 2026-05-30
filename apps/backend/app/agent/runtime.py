@@ -7,9 +7,12 @@ opens its own DB session and reads the full conversation history.
 This module — alongside the rest of ``app/agent/`` — is the only place
 in the backend permitted to import the Anthropic SDK. The CI invariant
 ``check_no_llm_in_order_path.sh`` enforces this; see
-``docs/adr/0006-llm-not-in-order-path.md`` for the architectural
-reasoning. B3 (autonomous order submission) is paused indefinitely per
-that ADR; :meth:`start_session` refuses B3 with a clear message.
+``docs/adr/0006-llm-in-order-path-gated.md`` (ADR 0006 v2, supersedes v1)
+for the architectural reasoning. ``B3_AUTONOMOUS`` order submission stays
+rejected by default; LLM-driven order decisions are available only behind
+ADR 0006 v2's gated opt-in (paper-trading evaluation + typed acknowledgment
++ 7-day cooldown), never as a default mode. :meth:`start_session` refuses
+B3 with a clear message.
 
 Tool dispatch happens **server-side at Anthropic** via the MCP connector
 pointed at our workbench MCP server. The "loop" here orchestrates
