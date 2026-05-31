@@ -18,7 +18,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from sqlalchemy import select
@@ -34,6 +34,10 @@ from app.db.models.risk_check import RiskCheck
 from app.db.models.symbol import Symbol
 from app.events.bus import EventBus
 from app.risk import OrderRequest, RiskEngine, RiskOutcome
+
+if TYPE_CHECKING:
+    from app.brokers.base import BrokerAdapter
+    from app.brokers.registry import BrokerRegistry
 
 logger = structlog.get_logger(__name__)
 
@@ -59,11 +63,16 @@ class OrderRouter:
         risk_engine: RiskEngine,
         session_factory: async_sessionmaker,
         bus: EventBus,
+        broker_registry: BrokerRegistry | None = None,
     ) -> None:
-        self._adapter = adapter
+        self._adapter = adapter  # default / fallback (the connected paper adapter)
         self._risk = risk_engine
         self._session_factory = session_factory
         self._bus = bus
+        # P5 §2: when wired, resolve a per-account adapter from the registry.
+        # When None (every pre-§2 caller and unit test), behavior is identical
+        # to P5 §1 — _resolve_adapter falls back to self._adapter.
+        self._broker_registry = broker_registry
 
     async def submit(self, req: OrderRequest) -> Order:
         """Sole order-submission entry point."""
@@ -85,7 +94,11 @@ class OrderRouter:
             )
         broker_mode = account.mode if account is not None else AccountMode.paper
 
-        trading_mode = "paper" if self._adapter.is_paper else "live"
+        # P5 §2: resolve the per-account adapter (after the §1 LIVE guard, so a
+        # live account never reaches the registry). Falls back to the default
+        # adapter when no registry is wired — paper behavior is unchanged.
+        adapter = self._resolve_adapter(account)
+        trading_mode = "paper" if adapter.is_paper else "live"
         outcome = await self._risk.evaluate(
             req, trading_mode=trading_mode, broker_mode=broker_mode
         )
@@ -141,7 +154,7 @@ class OrderRouter:
 
         # ---- broker call (outside the DB transaction) ----
         try:
-            broker_response = self._adapter.submit_order(
+            broker_response = adapter.submit_order(
                 symbol=req.symbol_ticker,
                 qty=req.qty,
                 side=req.side.value,
@@ -209,9 +222,12 @@ class OrderRouter:
                 await self._audit(session, order, AuditAction.ORDER_CANCELED_LOCAL, {})
                 await self._emit(order, "order.canceled", {"local_only": True})
                 return order
+            order_account_id = order.account_id
 
+        # P5 §2: cancel through the same per-account adapter that submitted it.
+        adapter = await self._resolve_adapter_for_account_id(order_account_id)
         try:
-            self._adapter.cancel_order(order.broker_order_id, _router_token=ROUTER_TOKEN)
+            adapter.cancel_order(order.broker_order_id, _router_token=ROUTER_TOKEN)
         except PermanentAlpacaError as exc:
             logger.warning("cancel_permanent_error", order_id=order_id, error=str(exc))
             # Usually "already filled / already canceled" — trade-update stream
@@ -251,9 +267,12 @@ class OrderRouter:
             ).scalars().first()
             if order is None or not order.broker_order_id:
                 raise ValueError(f"Order {order_id} not replaceable")
+            order_account_id = order.account_id
 
+        # P5 §2: replace through the same per-account adapter.
+        adapter = await self._resolve_adapter_for_account_id(order_account_id)
         try:
-            self._adapter.replace_order(
+            adapter.replace_order(
                 order.broker_order_id,
                 new_qty=new_qty,
                 new_limit_price=new_limit_price,
@@ -301,6 +320,26 @@ class OrderRouter:
             return None
         async with self._session_factory() as session:
             return await session.get(Account, account_id)
+
+    def _resolve_adapter(self, account: Account | None) -> BrokerAdapter:
+        """Per-account adapter (P5 §2).
+
+        Falls back to the default startup adapter when no registry is wired or
+        the account isn't registered — preserving P1/P5 §1 behavior and keeping
+        every existing test (constructed with ``broker_registry=None``) green.
+        """
+        if self._broker_registry is not None and account is not None:
+            found = self._broker_registry.get(account.id)
+            if found is not None:
+                return found
+        return self._adapter
+
+    async def _resolve_adapter_for_account_id(
+        self, account_id: int | None
+    ) -> BrokerAdapter:
+        """Resolve the adapter for an order's account (cancel/replace paths)."""
+        account = await self._load_account(account_id)
+        return self._resolve_adapter(account)
 
     async def _persist_initial_order(
         self,

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +47,7 @@ async def list_accounts(
 @router.post("", response_model=AccountResponse, status_code=201)
 async def create_account(
     body: CreateAccountRequest,
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> AccountResponse:
@@ -92,4 +93,13 @@ async def create_account(
     session.add(account)
     await session.commit()
     await session.refresh(account)
+
+    # P5 §2: make the new (paper) account immediately routable — construct its
+    # adapter in the registry. Live creation 400s above (P5 §1), so refresh only
+    # ever runs for paper accounts here. Best-effort: registry may be absent in
+    # tests / alpaca-startup-disabled runs.
+    registry = getattr(request.app.state, "broker_registry", None)
+    if registry is not None:
+        await registry.refresh(account.id)
+
     return AccountResponse.model_validate(account)

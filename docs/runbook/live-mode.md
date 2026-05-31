@@ -171,3 +171,41 @@ Always switch back to paper unless you intend to leave working live orders
 open across sessions. Forgetting causes the "I thought I was in paper" class
 of accident, which is the entire reason the banner is red and the modal
 exists.
+
+
+## P5 §2 — broker registry (per-account adapter selection)
+
+As of P5 §2 the OrderRouter no longer holds a single process-wide Alpaca
+adapter. It resolves a `BrokerAdapter` **per account** via `BrokerRegistry`,
+selected by the account's `AccountMode`.
+
+### What changed
+- `app/brokers/base.py` defines the `BrokerAdapter` Protocol (the surface the
+  OrderRouter needs); the existing `AlpacaAdapter` satisfies it unchanged.
+- `app/brokers/registry.py` (`BrokerRegistry`) constructs one adapter per
+  account at boot (`load_all`), on account creation (`refresh`), and reuses the
+  connected startup paper adapter via `register`. `close_all` runs on shutdown.
+- `OrderRouter.submit/cancel/replace` resolve the adapter from the registry
+  **after** the P5 §1 LIVE guard; when no registry is wired (unit tests) they
+  fall back to the default adapter, so paper behavior is byte-identical.
+- Credentials come from `credentials_for_mode()` (env) — the single swap-point
+  for P5 §4's credential store.
+- New CI invariant `check_broker_isolation.sh`: only `app/brokers/` may import a
+  broker **trading** SDK (`alpaca.trading|broker|common`, ib_insync, schwab_api).
+  Market-data `alpaca.data.*` imports are exempt by design.
+
+### What did NOT change
+- Paper order submission produces byte-identical audit chains (the LIVE guard,
+  `_router_token` gating, persistence, and audit writes are unchanged).
+- No live order is ever submitted — no live account exists, and the §1
+  `BrokerModeError` short-circuits before the registry is consulted for a live
+  account. The live adapter is constructible (unit-tested) but unreached at
+  runtime.
+- Risk engine, strategy framework, agent, and UI are untouched.
+
+### Adding a new broker (e.g. IBKR)
+1. Implement the `BrokerAdapter` surface in `app/brokers/<broker>/`.
+2. Add its SDK under `app/brokers/` only (the isolation invariant enforces this).
+3. Extend `BrokerRegistry._construct` to route `account.broker == "<broker>"`.
+4. Add its credentials to `credentials_for_mode`.
+No OrderRouter, risk-engine, or UI changes are required.

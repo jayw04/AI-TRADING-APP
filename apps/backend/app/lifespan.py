@@ -32,6 +32,7 @@ from fastapi import FastAPI
 
 from app.agent.runtime import AgentRuntime
 from app.brokers.alpaca import AlpacaAdapter, TradeUpdatesStream
+from app.brokers.registry import BrokerRegistry
 from app.config import get_settings
 from app.db.session import get_sessionmaker
 from app.events import get_event_bus
@@ -60,6 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     heartbeat_task: asyncio.Task[None] | None = None
     adapter: AlpacaAdapter | None = None
+    broker_registry: BrokerRegistry | None = None
     scheduler: WorkbenchScheduler | None = None
     trade_stream: TradeUpdatesStream | None = None
     trade_update_consumer: TradeUpdateConsumer | None = None
@@ -97,9 +99,41 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             trade_stream = TradeUpdatesStream(adapter.credentials, bus)
             await trade_stream.start()
 
-            # 6. Risk Engine + Order Router (P1 Session 5 Phase A)
+            # 6. Risk Engine + Broker Registry + Order Router
+            #    (P1 Session 5 Phase A; registry added P5 §2)
             risk_engine = RiskEngine(session_factory)
-            order_router = OrderRouter(adapter, risk_engine, session_factory, bus)
+
+            # P5 §2: one adapter per account, selected by AccountMode. Construct
+            # is network-free; we then reuse the already-connected startup paper
+            # adapter for the user's paper account(s) so we don't open a second
+            # TradingClient. Live accounts (none exist yet) would get a paper=False
+            # adapter, but the OrderRouter's §1 BrokerModeError guard short-circuits
+            # before the registry is ever consulted for them.
+            broker_registry = BrokerRegistry(session_factory)
+            await broker_registry.load_all()
+            from sqlalchemy import select as _select
+
+            from app.db.models.account import Account as _Account
+            from app.db.models.account import AccountMode as _AccountMode
+
+            async with session_factory() as _acc_session:
+                _paper_ids = [
+                    a.id
+                    for a in (
+                        await _acc_session.execute(
+                            _select(_Account).where(
+                                _Account.mode == _AccountMode.paper
+                            )
+                        )
+                    ).scalars().all()
+                ]
+            for _aid in _paper_ids:
+                broker_registry.register(_aid, adapter)
+
+            order_router = OrderRouter(
+                adapter, risk_engine, session_factory, bus,
+                broker_registry=broker_registry,
+            )
 
             # 7. PositionRecomputer + TradeUpdateConsumer (P1 Session 5 Phase B)
             # Consumer subscribes to the bus and translates alpaca.trade_update
@@ -168,6 +202,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.scheduler = scheduler
             app.state.trade_stream = trade_stream
             app.state.risk_engine = risk_engine
+            app.state.broker_registry = broker_registry
             app.state.order_router = order_router
             app.state.position_recomputer = position_recomputer
             app.state.trade_update_consumer = trade_update_consumer
@@ -283,6 +318,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await scheduler.shutdown()
             except Exception:
                 logger.exception("scheduler_shutdown_failed")
+        # P5 §2: disconnect per-account adapters BEFORE the explicit adapter
+        # disconnect below. The startup paper adapter is shared (registered in
+        # the registry AND held as `adapter`); close_all() disconnects it, and
+        # the adapter.disconnect() that follows is an idempotent no-op.
+        if broker_registry is not None:
+            try:
+                broker_registry.close_all()
+            except Exception:
+                logger.exception("broker_registry_close_failed")
         if adapter is not None:
             try:
                 adapter.disconnect()
