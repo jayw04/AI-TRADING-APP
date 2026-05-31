@@ -3,6 +3,18 @@
 > ⚠ **Live mode places real orders against real money.** Defaults intentionally
 > favor paper. Treat every step here as production-grade.
 
+> **P5 §1 update — per-account broker_mode.** P5 is reworking live mode from the
+> process-wide `WORKBENCH_TRADING_MODE` flag (described below, still accurate for
+> the adapter the RiskEngine reads) to a per-account `accounts.mode`
+> (`paper`/`live`). As of P5 §1: a red LIVE banner shows whenever the user has
+> **any** live account; `OrderRouter.submit()` raises `BrokerModeError` for any
+> live account (HTTP 400) **before** the risk engine runs; and live account
+> creation via `POST /api/v1/accounts` is refused (the §7 activation wizard owns
+> it). **Live order submission is not yet enabled** — so the per-order
+> `LiveConfirmModal` flow in "Per-order safeguards" below is dormant until P5 §7;
+> in §1 the Order Ticket simply disables submit for a live account. See the P5 §1
+> section near the bottom of this file for the full §1 posture.
+
 ## Default state
 
 `.env.example` does not set `WORKBENCH_TRADING_MODE`; the app config default
@@ -98,13 +110,14 @@ Layered on top of the backend RiskEngine:
 
 - The ModeBanner is red and pulses gently.
 - The OrderTicket header shows a red **Live** pill.
-- The submit button picks up a `[LIVE]` prefix and a rose ring.
-- Every Submit click in live mode opens `LiveConfirmModal`, which requires
-  three independent confirmations:
-  1. Checkbox: "I understand this is a live order."
-  2. Checkbox: "I understand orders cannot be un-sent once accepted."
-  3. Type the symbol exactly.
-- There is intentionally no "remember my acknowledgement" affordance.
+- **(P5 §1)** When the selected account is live, the OrderTicket shows a red
+  "LIVE ACCOUNT" warning and the submit button is **disabled** ("Submit (live
+  disabled)") — live submission isn't enabled yet, so the ticket refuses up
+  front rather than round-tripping to a backend that will 400.
+- **(Dormant until P5 §7)** The `LiveConfirmModal` typed-confirmation flow —
+  two acknowledgement checkboxes plus typing the symbol exactly, with no
+  "remember my acknowledgement" affordance — returns when real live submission
+  ships. It is not wired into the ticket in P5 §1.
 
 ## Backend RiskEngine in live mode
 
@@ -112,6 +125,45 @@ The RiskEngine is **identical** between paper and live — the only mode-aware
 check is the explicit `MODE_MISMATCH` guard that compares the trading mode
 against `Account.mode`. Tightening for live trading happens by editing the
 risk_limits row; see [`risk-limits.md`](risk-limits.md).
+
+## P5 §1 posture (per-account broker_mode)
+
+What is live-aware as of P5 §1, independent of the `WORKBENCH_TRADING_MODE`
+flag above:
+
+- **`accounts.mode`** (`AccountMode` enum) types each account paper/live.
+  **`accounts.broker_mode_locked_at`** records when an account was activated to
+  live (set by the §7 wizard; declared now, unread in §1).
+- **`risk_limits.broker_mode`** scopes each limits row paper/live; the
+  RiskEngine resolves limits filtered by the account's mode, so a live trade
+  only matches live-scoped limits. Existing rows backfilled to `paper`. If a
+  live account has no live-scoped limits, the engine rejects with
+  `NO_LIMITS_CONFIGURED` — fail loud, never silently apply paper limits to live.
+- **OrderRouter refuses live before the risk engine** with `BrokerModeError`
+  ("Live trading is not yet enabled. See P5 §2 release notes."), structured-logged
+  as `order_router_refused_live`. The orders API maps it to HTTP 400.
+  Hash-chained audit-logging of the live path lands in P5 §8.
+- **Account creation:** `POST /api/v1/accounts` creates paper accounts (201);
+  live → 400 (deferred to the §7 wizard); duplicate `(user, broker, mode)` → 409.
+
+To exercise the §1 surfaces manually (the API refuses live creation by design),
+inject a live account row directly, refresh the browser to see the red banner +
+disabled ticket, then delete it:
+
+```bash
+apps/backend/.venv/Scripts/python.exe - <<'PY'
+import sqlite3
+c = sqlite3.connect("apps/backend/data/workbench.sqlite")
+c.execute(
+    "INSERT INTO accounts(user_id, broker, mode, label, broker_mode_locked_at, created_at)"
+    " VALUES (1, 'alpaca', 'live', 'Test Live', datetime('now'), datetime('now'))"
+)
+c.commit()
+# ...verify in the UI, then:
+c.execute("DELETE FROM accounts WHERE label='Test Live'")
+c.commit()
+PY
+```
 
 ## Returning to paper at end of session
 
