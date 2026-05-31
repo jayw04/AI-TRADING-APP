@@ -207,9 +207,13 @@ class CredentialStore:
                 select(UserCredential).where(UserCredential.revoked_at.isnot(None))
             )
         ).scalars().all()
-        to_delete = [
-            r.id for r in candidates if _ensure_aware(r.revoked_at) < cutoff
-        ]
+        to_delete: list[int] = []
+        for r in candidates:
+            revoked = _ensure_aware(r.revoked_at)
+            # The WHERE clause guarantees revoked_at is non-null; the guard
+            # keeps the type checker honest about _ensure_aware's Optional.
+            if revoked is not None and revoked < cutoff:
+                to_delete.append(r.id)
         if not to_delete:
             return 0
         await self._session.execute(
