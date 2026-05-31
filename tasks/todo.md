@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-30 · branch: `main` · latest tag: `p5-session1-complete`
+Last updated: 2026-05-30 · branch: `feat/p5-session2-broker-registry` · latest tag: `p5-session1-complete` (P5 §2 in PR)
 
 ---
 
@@ -129,6 +129,14 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 |---|---|---|
 | **S0** | Session Zero: static/pytest/live-schema baseline | ✅ `82c1d2c` |
 | **S1** | Foundations — LIVE/PAPER distinction: `accounts.broker_mode_locked_at`, `risk_limits.broker_mode` (engine resolves limits scoped by mode), OrderRouter refuses LIVE with `BrokerModeError` before the risk engine, `POST/GET /api/v1/accounts` (live create → 400), red LIVE banner for any live account, Order Ticket disabled-submit for live, `docs/runbook/live-mode.md` | ✅ #37 tag `p5-session1-complete` |
+
+| **S2** | Per-account broker registry — `BrokerAdapter` Protocol (`app/brokers/base.py`, satisfied by existing `AlpacaAdapter` unchanged), `BrokerRegistry` (one adapter per account by `AccountMode`; network-free construct; reuses connected startup paper adapter), OrderRouter resolves per-account after the §1 LIVE guard (fallback keeps paper byte-identical), `credentials_for_mode()` helper, new `check_broker_isolation.sh` CI invariant (trading SDK only; `alpaca.data.*` exempt). Session doc frozen v1.0. | 🚧 PR open: `feat/p5-session2-broker-registry` |
+
+### P5 §2 deviations from the v0.1 doc (verified against live code; full rationale in the v1.0 session doc §2.0)
+- v0.1 wanted a *literal extraction* + async/DTO `BrokerAdapter` rewrite. The Alpaca order logic was **already** extracted (`app/brokers/alpaca/adapter.py`, sync, dict-returning, tested), so v1.0 keeps it untouched and defines the Protocol to match the real surface — the only new capability is **per-account selection** (registry), which is wiring, not an interface rewrite.
+- No `app/brokers/{base,alpaca_paper,alpaca_live}.py` split and no `BrokerMode` enum — reused `AccountMode`; the single `AlpacaAdapter` serves paper or live via `paper=` credentials.
+- ADR 0002 enforced by `tests/test_adr_0002_invariant.py` + `_router_token` (no `check_adr0002.sh`); all adapter calls stay in `router.py`, so the invariant test needed no edit.
+- §2.9 live paper-smoke byte-identical diff deferred to WSL/CI (Norton blocks `data.alpaca.markets`); in-suite routing test is the stand-in.
 
 ### P5 §1 deviations from the v0.1 doc (verified against the live codebase)
 - `AccountMode{paper,live}` already existed and already typed `accounts.mode`; reused it. No `BrokerMode` enum, no string→enum migration (both already done).
