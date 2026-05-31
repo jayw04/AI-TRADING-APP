@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-30 · branch: `main` · latest tag: `p5-session2-complete`
+Last updated: 2026-05-31 · branch: `main` · latest tag: `p5-session3-complete`
 
 ---
 
@@ -131,6 +131,15 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 | **S1** | Foundations — LIVE/PAPER distinction: `accounts.broker_mode_locked_at`, `risk_limits.broker_mode` (engine resolves limits scoped by mode), OrderRouter refuses LIVE with `BrokerModeError` before the risk engine, `POST/GET /api/v1/accounts` (live create → 400), red LIVE banner for any live account, Order Ticket disabled-submit for live, `docs/runbook/live-mode.md` | ✅ #37 tag `p5-session1-complete` |
 
 | **S2** | Per-account broker registry — `BrokerAdapter` Protocol (`app/brokers/base.py`, satisfied by existing `AlpacaAdapter` unchanged), `BrokerRegistry` (one adapter per account by `AccountMode`; network-free construct; reuses connected startup paper adapter), OrderRouter resolves per-account after the §1 LIVE guard (fallback keeps paper byte-identical), `credentials_for_mode()` helper, new `check_broker_isolation.sh` CI invariant (trading SDK only; `alpaca.data.*` exempt). Session doc frozen v1.0. | ✅ #38 tag `p5-session2-complete` |
+
+| **S3** | Multi-user auth — replaces the P0 stub: `users.password_hash`(bcrypt 12)/`totp_secret`/`totp_verified_at` + new `sessions` table (SHA-256 token hash, rolling 14-day TTL, revocation); `app/auth/{passwords,tokens,totp}.py`; `stub.py` body replaced (name/exports kept); 6 `/api/v1/auth/*` endpoints + IP rate-limit (5/15min→60min cooldown); WS `/ws` requires cookie → close 4401; `scripts/create_user.py` CLI bootstrap (no web self-signup); frontend `/login`+`RequireAuth`+logout+Vite proxy; `docs/runbook/authentication.md`. | ✅ #39 tag `p5-session3-complete` |
+
+### P5 §3 deviations from the v0.1 doc (verified against live code)
+- **Test auth**: one autouse `get_current_user` dependency-override in `tests/conftest.py` + a `real_auth` opt-out marker authenticates the whole pre-auth suite as user 1 — **zero per-file edits** (every test client builder imports `create_app` lazily, so patching the factory reaches them all), instead of the doc's "edit ~30 fixtures."
+- **CLI**: Docker-free `scripts/create_user.py` (getpass, cross-platform) instead of the doc's `docker compose exec` bash script — the dev box runs without Docker.
+- **Cookie transport**: Vite proxy (`/api`,`/ws` → backend) makes the cookie same-origin; `RequireAuth` placed in `main.tsx` so `App`/`App.test` stay unchanged; `apiFetch` defaults to a relative base + `credentials:"include"`; WS bases derive from the page origin.
+- Added `email-validator` dep (required by `EmailStr`); test emails use `example.com` (`.local` is rejected by email-validator). `_aware()` UTC coercion in `stub.py` fixes SQLite naive-datetime comparisons. `.gitignore totp_*.png` (QR embeds the secret).
+- **Auth-event audit-logging deferred to P5 §8** (structured logs only here, mirrors §1's refusal-audit deferral). TOTP secret stays plaintext until **P5 §4** wraps it in Fernet. §3.10 manual smoke + live paper-order-post-auth unrun (no Docker / Norton).
 
 ### P5 §2 deviations from the v0.1 doc (verified against live code; full rationale in the v1.0 session doc §2.0)
 - v0.1 wanted a *literal extraction* + async/DTO `BrokerAdapter` rewrite. The Alpaca order logic was **already** extracted (`app/brokers/alpaca/adapter.py`, sync, dict-returning, tested), so v1.0 keeps it untouched and defines the Protocol to match the real surface — the only new capability is **per-account selection** (registry), which is wiring, not an interface rewrite.
