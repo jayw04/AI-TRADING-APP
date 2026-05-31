@@ -1,4 +1,7 @@
-const API_BASE = (import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+// P5 §3: default to a same-origin (relative) base so the session cookie flows.
+// In dev, Vite proxies /api → backend; in prod the reverse proxy is same-origin.
+// VITE_API_BASE can still point at an absolute origin for cross-origin setups.
+const API_BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(public status: number, public body: unknown) {
@@ -9,6 +12,9 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, {
+    // Send/receive the session cookie (harmless same-origin; required if a
+    // cross-origin VITE_API_BASE is configured).
+    credentials: "include",
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     ...init,
   });

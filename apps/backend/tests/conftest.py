@@ -1,6 +1,7 @@
 import os
 from collections.abc import AsyncIterator
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -14,6 +15,35 @@ os.environ.setdefault("WORKBENCH_LOG_LEVEL", "WARNING")
 # Tests don't have (and shouldn't use) real Alpaca creds, and shouldn't touch
 # the broker network. Disable the lifespan's adapter+scheduler block.
 os.environ.setdefault("WORKBENCH_ALPACA_STARTUP_ENABLED", "0")
+
+
+@pytest.fixture(autouse=True)
+def _auth_override(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """P5 §3: after the auth stub was removed, every endpoint requires a real
+    session cookie. The whole pre-auth test suite seeds ``User(id=1)`` and hits
+    endpoints directly, so we transparently authenticate as that user by
+    overriding ``get_current_user`` on every app the tests build via
+    ``create_app()`` (all test client builders import it lazily, so patching the
+    factory reaches them all). The real login / session / TOTP / rate-limit flow
+    is exercised separately by tests marked ``@pytest.mark.real_auth``, which
+    opt out of this override.
+    """
+    if request.node.get_closest_marker("real_auth"):
+        return
+
+    import app.main as main_mod
+    from app.auth.stub import CurrentUser, get_current_user
+
+    real_create_app = main_mod.create_app
+
+    def _patched_create_app():  # type: ignore[no-untyped-def]
+        app = real_create_app()
+        app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+            id=1, email="dev@workbench.local", display_name="Dev", session_id=1
+        )
+        return app
+
+    monkeypatch.setattr(main_mod, "create_app", _patched_create_app)
 
 
 @pytest_asyncio.fixture

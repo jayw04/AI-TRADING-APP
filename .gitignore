@@ -18,6 +18,10 @@ htmlcov/
 coverage.xml
 *.cover
 
+# P5 §3: TOTP enrollment QR codes written by scripts/create_user.py. These
+# embed the TOTP secret — never commit them.
+totp_*.png
+
 # Node
 node_modules/
 dist/

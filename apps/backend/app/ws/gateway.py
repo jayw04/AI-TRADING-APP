@@ -27,8 +27,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 
+from app.auth.stub import SESSION_COOKIE_NAME, SESSION_TTL, _aware
+from app.auth.tokens import hash_session_token
 from app.config import get_settings
+from app.db.models.session import Session as SessionRow
+from app.db.models.user import User
+from app.db.session import get_sessionmaker
 from app.events import get_event_bus
 from app.utils.logging import get_logger
 from app.ws.replay import get_replay_buffer
@@ -202,6 +208,47 @@ async def stop_replay_populator() -> None:
     log.info("ws.replay_populator_stopped")
 
 
+# ---- WS auth (P5 §3) ----
+
+
+async def _authenticate_ws(websocket: WebSocket) -> int | None:
+    """Validate the session cookie on a WebSocket. Returns the user_id on
+    success; on failure closes with code 4401 and returns None.
+
+    4xxx is the WebSocket convention for application-defined close codes; 4401
+    mirrors HTTP 401. The frontend WS client should treat 4401 as "re-auth".
+    """
+    cookie = websocket.cookies.get(SESSION_COOKIE_NAME)
+    if not cookie:
+        await websocket.close(code=4401, reason="Not authenticated")
+        return None
+    token_hash = hash_session_token(cookie)
+    now = datetime.now(UTC)
+    async with get_sessionmaker()() as session:
+        row = (
+            await session.execute(
+                select(SessionRow, User)
+                .join(User, SessionRow.user_id == User.id)
+                .where(SessionRow.token_hash == token_hash)
+            )
+        ).first()
+        if row is None:
+            await websocket.close(code=4401, reason="Invalid session")
+            return None
+        sess_row, user_row = row
+        if (
+            sess_row.revoked_at is not None
+            or _aware(sess_row.expires_at) <= now
+            or (now - _aware(sess_row.last_used_at)) > SESSION_TTL
+        ):
+            await websocket.close(code=4401, reason="Session expired")
+            return None
+        # Extend the session on WS connect, mirroring the HTTP dependency.
+        sess_row.last_used_at = now
+        await session.commit()
+        return user_row.id
+
+
 # ---- WS endpoint ----
 
 
@@ -211,6 +258,12 @@ async def ws_endpoint(websocket: WebSocket) -> None:
     bus = get_event_bus()
     buf = get_replay_buffer()
     await websocket.accept()
+
+    # P5 §3: every WS connection requires a valid session cookie. On failure
+    # the helper has already closed the socket with 4401.
+    user_id = await _authenticate_ws(websocket)
+    if user_id is None:
+        return
 
     # Per-connection state.
     subscriptions: set[str] = {"system"}  # heartbeat + connected events always on
