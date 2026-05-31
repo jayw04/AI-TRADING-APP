@@ -16,6 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 from app.db.enums import RiskScopeType
+from app.db.models.account import AccountMode
 
 
 class RiskLimits(Base):
@@ -28,6 +29,17 @@ class RiskLimits(Base):
 
     scope_type: Mapped[RiskScopeType] = mapped_column(
         SQLEnum(RiskScopeType, native_enum=False, length=32), nullable=False
+    )
+    # Scopes a limits row to PAPER or LIVE (P5 §1). The engine filters on this
+    # so a live trade only matches live-scoped limits, a paper trade only
+    # paper-scoped. Existing rows backfill to 'paper' via server_default;
+    # live-scoped rows are created when P5 §5/§7 ship.
+    broker_mode: Mapped[AccountMode] = mapped_column(
+        SQLEnum(AccountMode, native_enum=False, length=16),
+        nullable=False,
+        default=AccountMode.paper,
+        server_default="paper",
+        index=True,
     )
     # scope_id is INTEGER (not FK) because the referenced tables may not
     # exist yet (strategies in P2, agent_sessions in P3). NULL when GLOBAL.

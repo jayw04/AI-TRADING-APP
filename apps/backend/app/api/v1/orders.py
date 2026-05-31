@@ -36,6 +36,7 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.order import Order
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
+from app.orders.router import BrokerModeError
 from app.risk import OrderRequest
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -165,7 +166,12 @@ async def create_order(
     )
 
     order_router = _get_router(request)
-    order = await order_router.submit(req)
+    try:
+        order = await order_router.submit(req)
+    except BrokerModeError as exc:
+        # The request shape is valid; the business semantics are not (yet). A
+        # 400 communicates "meaningfully impossible right now" — see P5 §1.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # If the engine rejected before resolving a symbol, the router returned
     # an ephemeral Order (no DB row). Serialize it directly — no relationships

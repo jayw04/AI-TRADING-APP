@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-29 · branch: `main` · latest tag: `p3-session6-complete`
+Last updated: 2026-05-30 · branch: `feat/p5-session1-foundations` · latest tag: `p3-session6-complete` (P5 §1 in PR)
 
 ---
 
@@ -120,6 +120,21 @@ Step 5 of the smoke (force cost cap) makes a temporary `.env` edit — restore `
 - **Streaming text deltas** — `stream_message` exists but unused; P4+ polish.
 - **Multi-session concurrency** — one ACTIVE session per user; multi-session UX is P4+ if it ever becomes a real ask.
 - **Tool result expand-to-modal** — replaces the 4000-char truncation; P4+ polish.
+
+## 🚧 P5 — Live trading (in progress)
+
+Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWorkbench_P5_Session*_v0.1.md`). Session Zero complete (conditional GO, commit `82c1d2c`).
+
+| Session | Scope | Status |
+|---|---|---|
+| **S0** | Session Zero: static/pytest/live-schema baseline | ✅ `82c1d2c` |
+| **S1** | Foundations — LIVE/PAPER distinction: `accounts.broker_mode_locked_at`, `risk_limits.broker_mode` (engine resolves limits scoped by mode), OrderRouter refuses LIVE with `BrokerModeError` before the risk engine, `POST/GET /api/v1/accounts` (live create → 400), red LIVE banner for any live account, Order Ticket disabled-submit for live, `docs/runbook/live-mode.md` | 🚧 PR open: `feat/p5-session1-foundations` |
+
+### P5 §1 deviations from the v0.1 doc (verified against the live codebase)
+- `AccountMode{paper,live}` already existed and already typed `accounts.mode`; reused it. No `BrokerMode` enum, no string→enum migration (both already done).
+- OrderRouter lives at `app/orders/router.py`; there is no `app/risk/resolver.py` — GLOBAL limits resolve inline in `RiskEngine._load_global_limits`, where the `broker_mode` filter was added.
+- Strategy-detail red border / list badge / `StrategyResponse.account_broker_mode` deferred to P5 §7: `strategies` has no `account_id` and no strategy can be LIVE yet.
+- Refusal audit-logging deferred to P5 §8 (audit_log is a §8 concern); the refusal is structured-logged via `order_router_refused_live`.
 
 ## 🗺️ P5 + P5.5 + P6 + P7 — Roadmap
 

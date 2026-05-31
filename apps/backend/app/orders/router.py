@@ -28,6 +28,7 @@ from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.brokers.alpaca import AlpacaAdapter
 from app.brokers.alpaca.errors import PermanentAlpacaError, TransientAlpacaError
 from app.db.enums import OrderSourceType, OrderStatus
+from app.db.models.account import Account, AccountMode
 from app.db.models.order import Order
 from app.db.models.risk_check import RiskCheck
 from app.db.models.symbol import Symbol
@@ -39,6 +40,16 @@ logger = structlog.get_logger(__name__)
 # Shared token between router and adapter — guardrail against accidental bypass,
 # not a security boundary. See ADR 0002 and the CI grep test.
 ROUTER_TOKEN = "ADR_0002_ONLY_ORDERROUTER_MAY_CALL_THIS"
+
+
+class BrokerModeError(RuntimeError):
+    """Raised when an order targets a broker mode that isn't yet supported.
+
+    P5 §1: every LIVE account is refused here, before the risk engine runs.
+    Live order submission arrives in P5 §2; until then "no live trading
+    happens" is guaranteed by this runtime check, not merely by the absence of
+    a live code path. Defense in depth.
+    """
 
 
 class OrderRouter:
@@ -56,8 +67,28 @@ class OrderRouter:
 
     async def submit(self, req: OrderRequest) -> Order:
         """Sole order-submission entry point."""
+        # P5 §1 — refuse LIVE accounts *before* any other work. Running the
+        # risk engine against an order we'll reject anyway is wasted, and the
+        # engine might decline a LIVE order for the wrong reason (no live-scoped
+        # limits exist yet), sending the user chasing a phantom risk problem.
+        account = await self._load_account(req.account_id)
+        if account is not None and account.mode == AccountMode.live:
+            logger.warning(
+                "order_router_refused_live",
+                account_id=account.id,
+                user_id=req.user_id,
+                symbol=req.symbol_ticker,
+                side=req.side.value,
+            )
+            raise BrokerModeError(
+                "Live trading is not yet enabled. See P5 §2 release notes."
+            )
+        broker_mode = account.mode if account is not None else AccountMode.paper
+
         trading_mode = "paper" if self._adapter.is_paper else "live"
-        outcome = await self._risk.evaluate(req, trading_mode=trading_mode)
+        outcome = await self._risk.evaluate(
+            req, trading_mode=trading_mode, broker_mode=broker_mode
+        )
 
         # If the engine rejected without resolving a Symbol row (e.g. unknown
         # ticker), we cannot persist an Order — orders.symbol_id is NOT NULL.
@@ -258,6 +289,18 @@ class OrderRouter:
         return order
 
     # ---- internals ----
+
+    async def _load_account(self, account_id: int | None) -> Account | None:
+        """Load the target account, or None when unset/unknown.
+
+        A missing account is left for the existing downstream paths to handle
+        (the paper flow is unchanged and the engine's mode/account check still
+        runs); the LIVE guard only acts on a resolved LIVE account.
+        """
+        if account_id is None:
+            return None
+        async with self._session_factory() as session:
+            return await session.get(Account, account_id)
 
     async def _persist_initial_order(
         self,

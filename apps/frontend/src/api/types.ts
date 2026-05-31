@@ -146,6 +146,27 @@ export interface Account {
   updated_at: string;
 }
 
+// ===== Broker accounts (P5 §1) =====
+// Mirrors apps/backend/app/api/v1/schemas/accounts.py — the account *rows*
+// (with broker_mode), distinct from the `Account` AccountState snapshot above.
+
+export type BrokerModeT = "paper" | "live";
+
+export interface BrokerAccount {
+  id: number;
+  user_id: number;
+  broker: string;
+  mode: BrokerModeT;
+  label: string | null;
+  broker_mode_locked_at: string | null;
+  created_at: string;
+}
+
+export interface BrokerAccountListResponse {
+  items: BrokerAccount[];
+  count: number;
+}
+
 export interface Quote {
   symbol: string;
   bid: string | null;

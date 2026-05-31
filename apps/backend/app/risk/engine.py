@@ -23,7 +23,7 @@ from app.db.enums import (
     RiskDecision,
     RiskScopeType,
 )
-from app.db.models.account import Account
+from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
 from app.db.models.order import Order
 from app.db.models.position import Position
@@ -53,8 +53,20 @@ class RiskEngine:
     def __init__(self, session_factory: async_sessionmaker) -> None:
         self._session_factory = session_factory
 
-    async def evaluate(self, req: OrderRequest, *, trading_mode: str) -> RiskOutcome:
-        """Run the eight P1 checks. Always writes a RiskCheck row."""
+    async def evaluate(
+        self,
+        req: OrderRequest,
+        *,
+        trading_mode: str,
+        broker_mode: AccountMode = AccountMode.paper,
+    ) -> RiskOutcome:
+        """Run the eight P1 checks. Always writes a RiskCheck row.
+
+        ``broker_mode`` (P5 §1) scopes which RiskLimits rows are eligible: a
+        live trade only matches live-scoped limits, a paper trade only
+        paper-scoped. It defaults to PAPER — the conservative scope — but the
+        order path always passes the account's actual mode explicitly.
+        """
         async with self._session_factory() as session:
             # 0. Halt short-circuit.
             if await is_halted(session):
@@ -116,8 +128,11 @@ class RiskEngine:
                 )
             resolved_symbol_id = symbol.id
 
-            # 4. Load applicable risk limits (P1: GLOBAL only).
-            limits = await self._load_global_limits(session, req.user_id)
+            # 4. Load applicable risk limits (P1: GLOBAL only), scoped to the
+            # account's broker_mode (P5 §1).
+            limits = await self._load_global_limits(
+                session, req.user_id, broker_mode
+            )
             if limits is None:
                 return await self._persist_and_return(
                     session,
@@ -261,13 +276,17 @@ class RiskEngine:
     # ---- internals ----
 
     async def _load_global_limits(
-        self, session: AsyncSession, user_id: int
+        self,
+        session: AsyncSession,
+        user_id: int,
+        broker_mode: AccountMode = AccountMode.paper,
     ) -> RiskLimits | None:
         return (
             await session.execute(
                 select(RiskLimits).where(
                     RiskLimits.user_id == user_id,
                     RiskLimits.scope_type == RiskScopeType.GLOBAL,
+                    RiskLimits.broker_mode == broker_mode,
                 )
             )
         ).scalars().first()
