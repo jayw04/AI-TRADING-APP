@@ -13,7 +13,6 @@ import type {
 import { ApiError } from "@/api/client";
 import { describeReasons } from "@/lib/risk-reasons";
 import { formatMoney, formatNumber } from "@/lib/format";
-import LiveConfirmModal from "./LiveConfirmModal";
 
 interface TicketFormState {
   symbol: string;
@@ -47,7 +46,6 @@ type Result =
 export default function OrderTicket() {
   const [form, setForm] = useState<TicketFormState>(INITIAL_STATE);
   const [result, setResult] = useState<Result>({ kind: "idle" });
-  const [pendingBody, setPendingBody] = useState<OrderCreateRequest | null>(null);
   const queryClient = useQueryClient();
 
   const symbolNormalized = useMemo(
@@ -142,12 +140,12 @@ export default function OrderTicket() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // P5 §1: live submission is not yet enabled — the backend OrderRouter
+    // refuses every live account (P5 §2 wires the real adapter). The submit
+    // button is disabled in live mode; this guard is belt-and-suspenders.
+    if (isLive) return;
     const body = assembleBody();
     if (!body) return;
-    if (isLive) {
-      setPendingBody(body);
-      return;
-    }
     submitMutation.mutate(body);
   }
 
@@ -162,6 +160,19 @@ export default function OrderTicket() {
         </h3>
         <ModePill mode={account.data?.mode} />
       </div>
+
+      {isLive && (
+        <div
+          role="alert"
+          className="rounded border-2 border-rose-700 bg-rose-950/40 p-3"
+        >
+          <div className="text-sm font-bold text-rose-100">⚠ LIVE ACCOUNT</div>
+          <div className="mt-1 text-xs text-rose-200">
+            Live trading is not yet enabled in this version (P5 §2 release
+            notes). Switch to a paper account or wait for the live release.
+          </div>
+        </div>
+      )}
 
       <Field label="Symbol">
         <input
@@ -264,36 +275,23 @@ export default function OrderTicket() {
 
       <button
         type="submit"
-        disabled={submitMutation.isPending}
+        disabled={submitMutation.isPending || isLive}
         className={`rounded px-4 py-2 text-sm font-semibold transition-colors ${
-          form.side === "buy"
-            ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-            : "bg-rose-600 hover:bg-rose-500 text-white"
-        } disabled:opacity-60 disabled:cursor-wait ${
-          isLive ? "ring-2 ring-rose-400/70 ring-offset-2 ring-offset-neutral-900" : ""
-        }`}
+          isLive
+            ? "bg-neutral-700 text-neutral-300 cursor-not-allowed"
+            : form.side === "buy"
+              ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+              : "bg-rose-600 hover:bg-rose-500 text-white"
+        } disabled:opacity-60`}
       >
-        {submitMutation.isPending
-          ? "Submitting…"
-          : `${isLive ? "[LIVE] " : ""}${form.side === "buy" ? "Buy" : "Sell"} ${symbolNormalized || "—"}`}
+        {isLive
+          ? "Submit (live disabled)"
+          : submitMutation.isPending
+            ? "Submitting…"
+            : `${form.side === "buy" ? "Buy" : "Sell"} ${symbolNormalized || "—"}`}
       </button>
 
       <ResultBanner result={result} />
-
-      {pendingBody && (
-        <LiveConfirmModal
-          symbol={pendingBody.symbol}
-          side={pendingBody.side}
-          qty={pendingBody.qty}
-          type={pendingBody.type}
-          onConfirm={() => {
-            const body = pendingBody;
-            setPendingBody(null);
-            submitMutation.mutate(body);
-          }}
-          onCancel={() => setPendingBody(null)}
-        />
-      )}
     </form>
   );
 }

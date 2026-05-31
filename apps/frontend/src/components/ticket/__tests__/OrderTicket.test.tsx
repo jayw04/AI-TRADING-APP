@@ -163,7 +163,7 @@ describe("OrderTicket", () => {
     expect(alert.textContent ?? "").toMatch(/per-symbol dollar limit/i);
   });
 
-  it("in live mode, submit opens the confirm modal and does not call orders.create", async () => {
+  it("in live mode (P5 §1), the submit is disabled and orders.create is never called", async () => {
     mockedAccountApi.get.mockResolvedValue(paperAccount({ mode: "live" }) as never);
     mockedOrdersApi.create.mockResolvedValue({} as never); // should never be called
 
@@ -172,11 +172,18 @@ describe("OrderTicket", () => {
     // Wait for live pill so we know the mode query resolved.
     await screen.findAllByText(/^Live$/i);
 
-    fireEvent.change(screen.getByLabelText("Symbol"), { target: { value: "AAPL" } });
-    fireEvent.click(screen.getByRole("button", { name: /\[live\] buy aapl/i }));
+    // The live warning banner renders.
+    expect(await screen.findByText(/live account/i)).toBeInTheDocument();
+    expect(screen.getByText(/not yet enabled/i)).toBeInTheDocument();
 
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText(/confirm live order/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Symbol"), { target: { value: "AAPL" } });
+
+    const submit = screen.getByRole("button", { name: /live disabled/i });
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+
+    // No confirm modal, no submission.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(mockedOrdersApi.create).not.toHaveBeenCalled();
   });
 });

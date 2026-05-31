@@ -26,6 +26,12 @@ class Account(Base):
     )
     credentials_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
     label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Records when this account was activated to LIVE (P5 §1). Set once by the
+    # activation wizard (P5 §7); never read in P5 §1. Storage is declared now so
+    # the wizard ships without a migration — same pattern as pending_reload_at.
+    broker_mode_locked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
