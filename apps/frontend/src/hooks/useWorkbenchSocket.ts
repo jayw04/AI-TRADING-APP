@@ -1,6 +1,16 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const WS_BASE = (import.meta.env.VITE_WS_BASE ?? "ws://127.0.0.1:8000").replace(/\/$/, "");
+// P5 §3: default to the page origin (Vite/reverse proxy) so the WS handshake
+// carries the session cookie; VITE_WS_BASE overrides for cross-origin setups.
+const WS_BASE = (() => {
+  const env = import.meta.env.VITE_WS_BASE;
+  if (env) return env.replace(/\/$/, "");
+  if (typeof window !== "undefined" && window.location?.host) {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${window.location.host}`;
+  }
+  return "ws://127.0.0.1:8000";
+})();
 
 export interface WorkbenchMessage {
   topic: string;

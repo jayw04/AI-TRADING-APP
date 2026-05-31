@@ -11,6 +11,7 @@ from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.risk_check import RiskCheck
 from app.db.models.risk_limits import RiskLimits
+from app.db.models.session import Session
 from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy
 from app.db.models.strategy_run import StrategyRun
@@ -33,6 +34,7 @@ __all__ = [
     "Position",
     "RiskCheck",
     "RiskLimits",
+    "Session",
     "Signal",
     "Strategy",
     "StrategyRun",

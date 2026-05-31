@@ -16,7 +16,20 @@ export type WsEvent = { type: string; [key: string]: unknown };
 type Listener<T = WsEvent> = (event: T) => void;
 type ConnectionListener = (isOpen: boolean) => void;
 
-const WS_BASE = (import.meta.env.VITE_WS_BASE ?? "ws://127.0.0.1:8000").replace(/\/$/, "");
+// P5 §3: default to the page origin so the WS handshake goes through the same
+// origin (Vite proxy in dev, reverse proxy in prod) and carries the session
+// cookie. VITE_WS_BASE overrides for cross-origin setups.
+function defaultWsBase(): string {
+  const env = import.meta.env.VITE_WS_BASE;
+  if (env) return env.replace(/\/$/, "");
+  if (typeof window !== "undefined" && window.location?.host) {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${window.location.host}`;
+  }
+  return "ws://127.0.0.1:8000";
+}
+
+const WS_BASE = defaultWsBase();
 
 export class WorkbenchWsClient {
   private url: string;
