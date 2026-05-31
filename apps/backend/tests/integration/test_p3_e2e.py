@@ -91,6 +91,13 @@ async def _seed(factory: async_sessionmaker) -> None:
             )
         )
         await db.commit()
+    # P5 §4: the agent reads its Anthropic key from the credential store.
+    async with factory() as db:
+        from app.security import CredentialKind, CredentialStore
+
+        await CredentialStore(db).set(
+            1, CredentialKind.ANTHROPIC_API_KEY, "sk-test"
+        )
 
 
 @pytest_asyncio.fixture

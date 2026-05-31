@@ -37,7 +37,7 @@ class BrokerRegistry:
         async with self._session_factory() as session:
             rows = (await session.execute(select(Account))).scalars().all()
         for row in rows:
-            self._try_construct(row)
+            await self._try_construct(row)
 
     async def refresh(self, account_id: int) -> None:
         """(Re)construct the adapter for one account — called after creation."""
@@ -48,7 +48,7 @@ class BrokerRegistry:
         prior = self._adapters.pop(account_id, None)
         if prior is not None:
             self._safe_disconnect(prior)
-        self._try_construct(row)
+        await self._try_construct(row)
 
     def register(self, account_id: int, adapter: BrokerAdapter) -> None:
         """Insert an already-constructed (and possibly connected) adapter.
@@ -68,9 +68,9 @@ class BrokerRegistry:
 
     # ---- internal ----
 
-    def _try_construct(self, account: Account) -> None:
+    async def _try_construct(self, account: Account) -> None:
         try:
-            self._adapters[account.id] = self._construct(account)
+            self._adapters[account.id] = await self._construct(account)
             logger.info(
                 "broker_registry_adapter_loaded",
                 account_id=account.id,
@@ -86,10 +86,12 @@ class BrokerRegistry:
                 error=str(exc),
             )
 
-    def _construct(self, account: Account) -> BrokerAdapter:
+    async def _construct(self, account: Account) -> BrokerAdapter:
         if account.broker != "alpaca":
             raise ValueError(f"No adapter for broker={account.broker!r}")
-        creds = credentials_for_mode(account.mode.value)
+        creds = await credentials_for_mode(
+            account.mode.value, account.user_id, self._session_factory
+        )
         # Do NOT connect() here: connect() makes a network call (get_account).
         # Construction must be network-free so a Norton-blocked dev box or a
         # live account with placeholder creds still boots. The lifespan connects

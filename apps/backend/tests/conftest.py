@@ -15,6 +15,12 @@ os.environ.setdefault("WORKBENCH_LOG_LEVEL", "WARNING")
 # Tests don't have (and shouldn't use) real Alpaca creds, and shouldn't touch
 # the broker network. Disable the lifespan's adapter+scheduler block.
 os.environ.setdefault("WORKBENCH_ALPACA_STARTUP_ENABLED", "0")
+# P5 §4: the lifespan verifies the Fernet master key at boot and sys.exit(1)s
+# if it's missing. Tests run against a fixed throwaway key so the credential
+# store round-trips; this is NOT a real key and never touches production data.
+os.environ.setdefault(
+    "WORKBENCH_MASTER_KEY", "zZ3kP9qHs2vN8wXyB1cD4eF6gH7iJ0kL2mN3oP5qR8s="
+)
 
 
 @pytest.fixture(autouse=True)

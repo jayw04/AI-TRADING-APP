@@ -60,6 +60,7 @@ from app.db.models.agent_message import AgentMessage
 from app.db.models.agent_session import AgentSession
 from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.events.bus import EventBus
+from app.security import CredentialKind, CredentialStore
 
 logger = structlog.get_logger(__name__)
 
@@ -100,6 +101,26 @@ class AgentRuntime:
         # drives the runtime.
         self._session_locks: dict[int, asyncio.Lock] = {}
 
+    # ---------------- credentials ----------------
+
+    async def _get_anthropic_key(self, user_id: int) -> str:
+        """Read the per-user Anthropic key from the credential store (P5 §4).
+
+        No longer a process-global env var: each user supplies their own key
+        via Settings → Credentials. Raises AnthropicClientNotConfigured if the
+        user hasn't set one — same exception the env-var check raised before,
+        so the endpoint's 503 mapping is unchanged.
+        """
+        async with self._session_factory() as session:
+            store = CredentialStore(session)
+            key = await store.get(user_id, CredentialKind.ANTHROPIC_API_KEY)
+        if not key:
+            raise AnthropicClientNotConfigured(
+                f"Anthropic API key not set for user_id={user_id}. "
+                f"Set it via Settings → Credentials to enable the agent."
+            )
+        return key
+
     # ---------------- session lifecycle ----------------
 
     async def start_session(
@@ -122,11 +143,9 @@ class AgentRuntime:
                 "per ADR 0006 (docs/adr/0006-llm-not-in-order-path.md). "
                 "Use B1_READONLY or B2_INTERACTIVE."
             )
-        if not self._settings.anthropic_api_key:
-            raise AnthropicClientNotConfigured(
-                "ANTHROPIC_API_KEY is not configured. "
-                "Set it in .env to enable the agent."
-            )
+        # P5 §4: validate the user has an Anthropic key in the credential store
+        # before opening a session. Raises AnthropicClientNotConfigured if not.
+        await self._get_anthropic_key(user_id)
 
         used_model = model or self._settings.agent_default_model
         budget = Decimal(str(self._settings.agent_daily_budget_usd))
@@ -265,12 +284,20 @@ class AgentRuntime:
             ctx_summary = await gather_user_context(db, user_id)
         system_prompt = build_system_prompt(mode, ctx_summary)
 
+        # P5 §4: read the per-user Anthropic key from the credential store. A
+        # missing key routes through the same error handling as an API failure.
+        try:
+            api_key = await self._get_anthropic_key(user_id)
+        except AnthropicClientNotConfigured as exc:
+            await self._handle_session_error(session_id, str(exc))
+            return
+
         for _iteration in range(MAX_LOOP_ITERATIONS):
             messages_payload = await self._build_messages_payload(session_id)
             start = time.monotonic()
             try:
                 call = await create_message(
-                    api_key=self._settings.anthropic_api_key,
+                    api_key=api_key,
                     model=model,
                     system=system_prompt,
                     messages=messages_payload,

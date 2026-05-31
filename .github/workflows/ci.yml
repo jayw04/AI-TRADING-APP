@@ -83,6 +83,10 @@ jobs:
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_broker_isolation.sh
 
+      - name: Credential env-isolation invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_no_env_credentials.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest

@@ -20,11 +20,13 @@ sent.
 
 from __future__ import annotations
 
+import hmac
 from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.alerts.throttle import (
     is_auth_attempt_rate_limited,
@@ -40,6 +42,7 @@ from app.db.models.symbol import Symbol
 from app.db.models.user import User
 from app.db.session import get_sessionmaker
 from app.events import get_event_bus
+from app.security import CredentialKind, CredentialStore
 
 logger = structlog.get_logger(__name__)
 
@@ -55,6 +58,26 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+async def _authenticate_webhook(presented_secret: str, session: AsyncSession) -> User | None:
+    """Resolve which user a Pine webhook belongs to (P5 §4).
+
+    The Pine webhook secret moved into the encrypted credential store, so we
+    decrypt each active user's stored secret and compare in constant time.
+    O(users) decrypts per webhook — fine for the single-tenant MVP; a
+    SHA-256 lookup column is the optimization if multi-user scale grows
+    (out of scope for §4; see session doc Notes & Gotchas #7).
+    """
+    store = CredentialStore(session)
+    users = (await session.execute(select(User))).scalars().all()
+    for user in users:
+        stored = await store.get(user.id, CredentialKind.PINE_WEBHOOK_SECRET)
+        if stored is None:
+            continue
+        if hmac.compare_digest(stored, presented_secret):
+            return user
+    return None
+
+
 @router.post("/tv", response_model=TVWebhookAcceptedResponse)
 async def receive_tv_alert(
     body: TVWebhookRequest,
@@ -68,11 +91,7 @@ async def receive_tv_alert(
 
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
-        user = (
-            await session.execute(
-                select(User).where(User.pine_webhook_secret == body.secret)
-            )
-        ).scalars().first()
+        user = await _authenticate_webhook(body.secret, session)
 
         if user is None:
             record_auth_failure(client_ip=client_ip)

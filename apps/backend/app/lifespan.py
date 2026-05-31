@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -42,6 +43,7 @@ from app.orders import OrderRouter
 from app.orders.lifecycle import TradeUpdateConsumer
 from app.orders.positions import PositionRecomputer
 from app.risk import RiskEngine
+from app.security import MasterKeyMissingError, verify_master_key
 from app.services.account_sync import AccountSyncService
 from app.services.asset_sync import AssetSyncService
 from app.services.backtest_worker import BacktestWorker
@@ -70,6 +72,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     bar_stream_service: BarStreamService | None = None
 
     try:
+        # 0. Master key verification (P5 §4). Must run BEFORE the broker
+        # registry loads adapters — the async credentials_for_mode() reads the
+        # encrypted credential store, which needs the master key. Fail loud,
+        # fail fast: no "degraded mode" that silently falls back to env vars.
+        try:
+            verify_master_key()
+        except MasterKeyMissingError as exc:
+            logger.error("master_key_missing_or_invalid", error=str(exc))
+            sys.exit(1)
+
         # 1. WS heartbeat (P0 §4) + WS replay populator (P1 Session 6).
         # The populator owns the global ReplayBuffer; per-connection forwarders
         # in gateway.py do live forwarding without duplicating appends.

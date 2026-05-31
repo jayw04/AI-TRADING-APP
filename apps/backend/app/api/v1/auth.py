@@ -36,6 +36,7 @@ from app.auth.totp import (
 from app.db.models.session import Session as SessionRow
 from app.db.models.user import User
 from app.db.session import get_session
+from app.security import CredentialKind, CredentialStore
 
 logger = structlog.get_logger(__name__)
 
@@ -164,14 +165,19 @@ async def login(
         # Defensive: shouldn't be reached after the verify above.
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not user_row.totp_secret or user_row.totp_verified_at is None:
+    # P5 §4: the TOTP secret moved into the encrypted credential store; the
+    # totp_verified_at status flag stays on the users row.
+    totp_secret = await CredentialStore(session).get(
+        user_row.id, CredentialKind.TOTP_SECRET
+    )
+    if not totp_secret or user_row.totp_verified_at is None:
         raise HTTPException(
             status_code=403,
             detail="TOTP is not set up for this account. Run scripts/create_user.py "
             "or contact your admin to bootstrap TOTP.",
         )
 
-    if not verify_code(user_row.totp_secret, body.totp_code):
+    if not verify_code(totp_secret, body.totp_code):
         logger.warning("auth_login_bad_totp", ip=ip, user_id=user_row.id)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -260,7 +266,10 @@ async def totp_setup(
             detail="TOTP is already verified for this user. Use the CLI script to rotate.",
         )
     secret = generate_secret()
-    user_row.totp_secret = secret
+    # P5 §4: write the secret to the credential store, not a users column.
+    await CredentialStore(session).set(
+        user_row.id, CredentialKind.TOTP_SECRET, secret
+    )
     user_row.totp_verified_at = None
     await session.commit()
 
@@ -285,11 +294,14 @@ async def totp_verify(
     user_row = await session.get(User, current_user.id)
     if user_row is None:
         raise HTTPException(status_code=404, detail="User not found")
-    if not user_row.totp_secret:
+    totp_secret = await CredentialStore(session).get(
+        current_user.id, CredentialKind.TOTP_SECRET
+    )
+    if not totp_secret:
         raise HTTPException(status_code=400, detail="No pending TOTP setup")
     if user_row.totp_verified_at is not None:
         raise HTTPException(status_code=409, detail="TOTP already verified")
-    if not verify_code(user_row.totp_secret, body.code):
+    if not verify_code(totp_secret, body.code):
         raise HTTPException(status_code=401, detail="Invalid TOTP code")
     user_row.totp_verified_at = datetime.now(UTC)
     await session.commit()

@@ -18,6 +18,7 @@ from app.db.models.strategy_run import StrategyRun
 from app.db.models.symbol import Symbol
 from app.db.models.system_config import SystemConfig
 from app.db.models.user import User
+from app.db.models.user_credential import UserCredential
 
 __all__ = [
     "Account",
@@ -41,4 +42,5 @@ __all__ = [
     "Symbol",
     "SystemConfig",
     "User",
+    "UserCredential",
 ]

@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-31 · branch: `main` · latest tag: `p5-session3-complete`
+Last updated: 2026-05-31 · branch: `main` · latest tag: `p5-session4-complete`
 
 ---
 
@@ -133,6 +133,16 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 | **S2** | Per-account broker registry — `BrokerAdapter` Protocol (`app/brokers/base.py`, satisfied by existing `AlpacaAdapter` unchanged), `BrokerRegistry` (one adapter per account by `AccountMode`; network-free construct; reuses connected startup paper adapter), OrderRouter resolves per-account after the §1 LIVE guard (fallback keeps paper byte-identical), `credentials_for_mode()` helper, new `check_broker_isolation.sh` CI invariant (trading SDK only; `alpaca.data.*` exempt). Session doc frozen v1.0. | ✅ #38 tag `p5-session2-complete` |
 
 | **S3** | Multi-user auth — replaces the P0 stub: `users.password_hash`(bcrypt 12)/`totp_secret`/`totp_verified_at` + new `sessions` table (SHA-256 token hash, rolling 14-day TTL, revocation); `app/auth/{passwords,tokens,totp}.py`; `stub.py` body replaced (name/exports kept); 6 `/api/v1/auth/*` endpoints + IP rate-limit (5/15min→60min cooldown); WS `/ws` requires cookie → close 4401; `scripts/create_user.py` CLI bootstrap (no web self-signup); frontend `/login`+`RequireAuth`+logout+Vite proxy; `docs/runbook/authentication.md`. | ✅ #39 tag `p5-session3-complete` |
+
+| **S4** | Credential encryption — Fernet store for all per-user secrets at rest. `WORKBENCH_MASTER_KEY` (env) + `app/security/{crypto,credential_store}.py`; new `user_credentials(user_id,kind,ciphertext,…)` table + data migration (`totp_secret`/`pine_webhook_secret` columns dropped, env broker/Anthropic keys captured for user 1); `credentials_for_mode()` → async + store-backed (registry propagates `await`); agent/webhook/auth/`create_user.py` swapped to the store; `/api/v1/users/me/credentials/` (GET/PUT/DELETE, TOTP excluded) + Settings→Credentials page; eighth CI invariant `check_no_env_credentials.sh`; `docs/runbook/credentials.md`; `app/auth/future.py` deleted (S3 close-out). Session doc frozen v1.0. | ✅ #40 tag `p5-session4-complete` |
+
+### P5 §4 deviations from the v1.0 doc (verified against live code)
+- **`CredentialKind` is a `StrEnum`** (matches `AccountMode`, satisfies ruff `UP042`); `.value` used at every DB/call site.
+- **Migration acquires the master key before any DDL** — a missing key aborts with zero schema changes (eliminates the half-migrated-DB risk of Gotcha #2). Verified on a copy of the dev DB: upgrade/downgrade/upgrade round-trip + encrypt-on-move + plaintext-restore.
+- **`users.py` (Pine secret rotate/get) also swapped** to the store — the v1.0 §4.8 named only `alerts.py`, but the write side lives in `users.py`.
+- **Credentials router wired via `app/api/v1/__init__.py`** (codebase pattern), not `main.py`; **frontend uses `apiFetch` + React Query** behind the existing `main.tsx` `RequireAuth`.
+- **`load_credentials()`/`config.py` left as-is** — only `credentials_for_mode` was the §4 swap-point; the CI invariant forbids only `os.environ.get(<credential-name>)` (none exist).
+- §4.14 live-runtime smoke deferred to WSL/CI (Norton + no Docker); in-suite tests are the stand-in. Full suite **419 passed / 9 skipped**; eight invariants + ADR 0002 test green.
 
 ### P5 §3 deviations from the v0.1 doc (verified against live code)
 - **Test auth**: one autouse `get_current_user` dependency-override in `tests/conftest.py` + a `real_auth` opt-out marker authenticates the whole pre-auth suite as user 1 — **zero per-file edits** (every test client builder imports `create_app` lazily, so patching the factory reaches them all), instead of the doc's "edit ~30 fixtures."

@@ -7,6 +7,7 @@ from app.api.v1 import (
     alerts,
     auth,
     backtest_jobs,
+    credentials,
     indicators,
     internal,
     market_data,
@@ -20,6 +21,7 @@ from app.api.v1 import (
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
+api_router.include_router(credentials.router)
 api_router.include_router(account.router)
 api_router.include_router(accounts.router)
 api_router.include_router(internal.router)

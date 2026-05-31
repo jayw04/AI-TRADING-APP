@@ -38,22 +38,8 @@ def reset_throttle():
 
 async def _seed(factory: async_sessionmaker) -> None:
     async with factory() as session:
-        session.add(
-            User(
-                id=1,
-                email="jay@test",
-                display_name="Jay",
-                pine_webhook_secret="test-secret-abc123",
-            )
-        )
-        session.add(
-            User(
-                id=2,
-                email="other@test",
-                display_name="Other",
-                pine_webhook_secret="other-secret-xyz789",
-            )
-        )
+        session.add(User(id=1, email="jay@test", display_name="Jay"))
+        session.add(User(id=2, email="other@test", display_name="Other"))
         session.add(
             Symbol(
                 id=1,
@@ -99,6 +85,13 @@ async def _seed(factory: async_sessionmaker) -> None:
             )
         )
         await session.commit()
+    # P5 §4: Pine webhook secrets live in the encrypted credential store now.
+    async with factory() as session:
+        from app.security import CredentialKind, CredentialStore
+
+        store = CredentialStore(session)
+        await store.set(1, CredentialKind.PINE_WEBHOOK_SECRET, "test-secret-abc123")
+        await store.set(2, CredentialKind.PINE_WEBHOOK_SECRET, "other-secret-xyz789")
 
 
 @pytest_asyncio.fixture

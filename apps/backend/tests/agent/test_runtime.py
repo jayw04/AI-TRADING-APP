@@ -23,10 +23,25 @@ from app.db.models.agent_session import AgentSession
 from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.db.models.user import User
 from app.events.bus import EventBus
+from app.security import CredentialKind, CredentialStore
 
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+async def _seed_anthropic_key(session_factory, user_id: int = 1) -> None:
+    """P5 §4: the runtime reads the Anthropic key from the credential store
+    (per user), not from settings. Seed it so start_session/append succeed."""
+    async with session_factory() as db:
+        await CredentialStore(db).set(
+            user_id, CredentialKind.ANTHROPIC_API_KEY, "sk-test"
+        )
+
+
+async def _revoke_anthropic_key(session_factory, user_id: int = 1) -> None:
+    async with session_factory() as db:
+        await CredentialStore(db).revoke(user_id, CredentialKind.ANTHROPIC_API_KEY)
 
 
 def _settings(api_key: str = "sk-test", budget: float = 2.0) -> MagicMock:
@@ -93,6 +108,8 @@ async def seeded(session_factory):
             )
         )
         await db.commit()
+    # P5 §4: the agent reads its Anthropic key from the credential store.
+    await _seed_anthropic_key(session_factory, 1)
 
 
 # ---------- lifecycle ----------
@@ -127,8 +144,11 @@ async def test_start_session_ends_prior_active(seeded, session_factory):
 
 
 async def test_start_session_without_api_key_raises(seeded, session_factory):
+    # P5 §4: the key now lives in the credential store. Revoke it so the
+    # user has no configured key, and start_session must refuse.
+    await _revoke_anthropic_key(session_factory, 1)
     runtime = AgentRuntime(
-        _settings(api_key=""), session_factory, EventBus(), mcp_server_url=None
+        _settings(), session_factory, EventBus(), mcp_server_url=None
     )
     with pytest.raises(AnthropicClientNotConfigured):
         await runtime.start_session(user_id=1, mode=AgentSessionMode.B2_INTERACTIVE)

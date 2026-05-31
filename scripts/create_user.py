@@ -66,6 +66,7 @@ async def _run(email: str, display_name: str | None, password: str) -> None:
     from app.auth.totp import generate_secret, make_provisioning_uri, make_qr_png_bytes
     from app.db.models.user import User
     from app.db.session import get_sessionmaker
+    from app.security import CredentialKind, CredentialStore
 
     async with get_sessionmaker()() as session:
         existing = (
@@ -79,14 +80,20 @@ async def _run(email: str, display_name: str | None, password: str) -> None:
             session.add(user)
 
         user.password_hash = hash_password(password)
-        user.totp_secret = generate_secret()
         # CLI bootstrap is implicitly verified: the operator just saw the secret.
         user.totp_verified_at = datetime.now(timezone.utc)
 
         await session.commit()
         await session.refresh(user)
 
-        uri = make_provisioning_uri(user.totp_secret, account_name=user.email)
+        # P5 §4: the TOTP secret lives in the encrypted credential store, not a
+        # plaintext users column. set() rotates in place for an existing user.
+        totp_secret = generate_secret()
+        await CredentialStore(session).set(
+            user.id, CredentialKind.TOTP_SECRET, totp_secret
+        )
+
+        uri = make_provisioning_uri(totp_secret, account_name=user.email)
         out_path = Path.cwd() / f"totp_{user.id}.png"
         out_path.write_bytes(make_qr_png_bytes(uri))
 
