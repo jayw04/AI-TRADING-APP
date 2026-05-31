@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.stub import CurrentUser, get_current_user
 from app.db.models.user import User
 from app.db.session import get_session
+from app.security import CredentialKind, CredentialStore
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -48,8 +49,11 @@ async def regenerate_webhook_secret(
         raise HTTPException(status_code=404, detail="User not found")
 
     new_secret = token_urlsafe(32)  # 256-bit, ~43 url-safe chars
-    row.pine_webhook_secret = new_secret
-    await session.commit()
+    # P5 §4: the Pine secret is stored encrypted in the credential store, not
+    # in a plaintext users column. set() rotates in place, invalidating the old.
+    await CredentialStore(session).set(
+        current_user.id, CredentialKind.PINE_WEBHOOK_SECRET, new_secret
+    )
 
     return WebhookSecretResponse(
         pine_webhook_secret=new_secret,
@@ -68,7 +72,12 @@ async def get_webhook_secret(
     write-only and the secret is shown exactly once.
     """
     row = await session.get(User, current_user.id)
-    if row is None or not row.pine_webhook_secret:
+    if row is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    secret = await CredentialStore(session).get(
+        current_user.id, CredentialKind.PINE_WEBHOOK_SECRET
+    )
+    if not secret:
         raise HTTPException(
             status_code=404,
             detail=(
@@ -77,6 +86,6 @@ async def get_webhook_secret(
             ),
         )
     return WebhookSecretResponse(
-        pine_webhook_secret=row.pine_webhook_secret,
+        pine_webhook_secret=secret,
         instructions=_INSTRUCTIONS,
     )

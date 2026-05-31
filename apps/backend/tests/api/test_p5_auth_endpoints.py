@@ -61,11 +61,17 @@ async def secret() -> str:
                 email="jay@example.com",
                 display_name="Jay",
                 password_hash=hash_password("correctpw"),
-                totp_secret=totp_secret,
                 totp_verified_at=_now(),
             )
         )
         await session.commit()
+    # P5 §4: the TOTP secret lives in the encrypted credential store.
+    from app.security import CredentialKind, CredentialStore
+
+    async with get_sessionmaker()() as session:
+        await CredentialStore(session).set(
+            1, CredentialKind.TOTP_SECRET, totp_secret
+        )
     try:
         yield totp_secret
     finally:
@@ -227,7 +233,6 @@ async def test_login_no_totp_setup_returns_403(client: AsyncClient, secret: str)
                 id=2,
                 email="nototp@example.com",
                 password_hash=hash_password("pw2"),
-                totp_secret=None,
                 totp_verified_at=None,
             )
         )

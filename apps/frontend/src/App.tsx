@@ -5,6 +5,7 @@ import StatusBar from "./components/StatusBar";
 import ModeBanner from "@/components/ui/ModeBanner";
 import { NAV_ITEMS } from "./routes";
 import StrategyDetailPage from "./pages/Strategies/Detail";
+import Credentials from "./pages/Settings/Credentials";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
                 <Route key={item.path} path={item.path} element={item.element} />
               ))}
               <Route path="/strategies/:id" element={<StrategyDetailPage />} />
+              <Route path="/settings/credentials" element={<Credentials />} />
             </Routes>
           </main>
         </div>

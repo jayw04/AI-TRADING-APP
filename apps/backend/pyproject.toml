@@ -44,6 +44,10 @@ dependencies = [
     "qrcode[pil]>=7.4,<9.0",
     # EmailStr in the /auth/login schema requires email-validator.
     "email-validator>=2.0,<3.0",
+    # P5 §4: credential encryption at rest. Fernet (AES-128-CBC + HMAC-SHA256)
+    # backs app/security/crypto.py. ONLY app/security/ and alembic/versions/
+    # may import this directly (check_no_env_credentials.sh adjacent invariant).
+    "cryptography>=42.0,<46.0",
 ]
 
 [project.optional-dependencies]
@@ -99,4 +103,3 @@ markers = [
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["app/auth/future.py"]
