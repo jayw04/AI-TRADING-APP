@@ -6,7 +6,7 @@
 | Date | 2026-05-31 |
 | Phase | P5 §5 — Live-Mode Risk Gates (companion to `TradingWorkbench_P5_Session5_v0.2.md`) |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
-| Shipped as | PR **#NN** — branch `feat/p5-session5-risk-gates`; tag **`p5-session5-complete`** |
+| Shipped as | PR **#43** — branch `feat/p5-session5-risk-gates`; tag **`p5-session5-complete`** |
 | Built against | `main` at `p5-session4-complete` (`00f0b5e`) |
 | Verdict | **GO.** All §5 sections implemented and **executed** locally: schema + migration, circuit breaker, PDT analyzer, buying-power checker, RiskEngine integration, endpoints, audit + WS routing, frontend, ADR 0004, runbook. Full backend suite green; risk-engine branch gate passes; mypy/ruff clean; frontend tsc + ESLint clean. Live-runtime smoke (§5.11 trip/reset + paper baseline) deferred to WSL/CI per the standing Norton + no-Docker posture. |
 | Method | **Executed** (not static): pytest with `--cov-branch`, the migration upgrade/downgrade/upgrade round-trip against a copy of the dev DB (incl. ORM verification the seeded LIVE row is found), the risk/p2/p3 coverage gates, the 5 shell invariants + ADR 0002 test, mypy, and the frontend typecheck/lint were all run on the dev box. |
