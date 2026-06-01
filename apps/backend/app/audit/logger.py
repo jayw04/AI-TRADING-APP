@@ -71,6 +71,11 @@ class AuditAction(StrEnum):
     STRATEGY_BACKTESTED = "STRATEGY_BACKTESTED"
     STRATEGY_UNREGISTERED = "STRATEGY_UNREGISTERED"
 
+    # ---- Risk / circuit breaker (P5 §5) ----
+    CIRCUIT_BREAKER_TRIPPED = "CIRCUIT_BREAKER_TRIPPED"
+    CIRCUIT_BREAKER_RESET = "CIRCUIT_BREAKER_RESET"
+    RISK_LIMITS_UPDATED = "RISK_LIMITS_UPDATED"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.

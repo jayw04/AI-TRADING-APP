@@ -35,6 +35,7 @@ from app.auth.tokens import hash_session_token
 from app.db.models.session import Session as SessionRow
 from app.db.models.user import User
 from app.db.session import get_session
+from app.utils.time import ensure_aware
 
 logger = structlog.get_logger(__name__)
 
@@ -101,7 +102,9 @@ async def get_current_user(
 
 def _aware(dt: datetime) -> datetime:
     """SQLite round-trips timezone-aware datetimes as naive UTC. Coerce back to
-    aware UTC so comparisons against `now` (aware) never raise."""
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt
+    aware UTC so comparisons against `now` (aware) never raise.
+
+    Thin wrapper over the shared app.utils.time.ensure_aware (P5 §5 extracted
+    the canonical copy); kept here for the existing non-Optional call sites.
+    """
+    return ensure_aware(dt)  # type: ignore[return-value]  # callers pass non-None

@@ -52,6 +52,9 @@ class RiskLimits(Base):
     max_gross_exposure: Mapped[Decimal | None] = mapped_column(Numeric(20, 4), nullable=True)
     max_daily_loss: Mapped[Decimal | None] = mapped_column(Numeric(20, 4), nullable=True)
     max_orders_per_minute: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Daily order cap (P5 §5). NULL means unlimited. Defaults per mode are
+    # seeded by the §5 migration: PAPER 200, LIVE 20.
+    max_orders_per_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     allow_short: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     allowed_symbols: Mapped[list | None] = mapped_column(JSON, nullable=True)

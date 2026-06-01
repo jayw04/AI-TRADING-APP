@@ -14,6 +14,7 @@ from app.api.v1 import (
     opportunities,
     orders,
     positions,
+    risk,
     signals,
     strategies,
     users,
@@ -36,3 +37,7 @@ api_router.include_router(signals.router)
 api_router.include_router(backtest_jobs.router)
 api_router.include_router(opportunities.router)
 api_router.include_router(agent.router)
+# P5 §5: risk router routes are already absolute (/risk-limits, /accounts/{id}/
+# risk-state, ...); api_router already carries the /api/v1 prefix, so include
+# with no extra prefix (the v0.2 doc's prefix="/api/v1" would double it).
+api_router.include_router(risk.router)

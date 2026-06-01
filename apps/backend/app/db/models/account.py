@@ -32,6 +32,12 @@ class Account(Base):
     broker_mode_locked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Circuit breaker state (P5 §5). NULL means "not currently tripped." When
+    # tripped, the timestamp records when. Full history is in audit_log
+    # (CIRCUIT_BREAKER_TRIPPED / CIRCUIT_BREAKER_RESET actions).
+    circuit_breaker_tripped_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
