@@ -14,6 +14,7 @@ import structlog
 
 from app.brokers.alpaca.credentials import AlpacaCredentials, load_credentials
 from app.brokers.alpaca.errors import classify
+from app.observability import metrics as obs
 
 logger = structlog.get_logger(__name__)
 
@@ -95,6 +96,9 @@ class AlpacaAdapter:
             account = self._client().get_account()
             return _to_dict(account)
         except Exception as exc:
+            obs.broker_api_errors_total.labels(
+                adapter="alpaca", operation="get_account"
+            ).inc()
             raise classify(exc) from exc
 
     def get_positions(self) -> list[dict[str, Any]]:
@@ -103,6 +107,9 @@ class AlpacaAdapter:
             positions = self._client().get_all_positions()
             return [_to_dict(p) for p in positions]
         except Exception as exc:
+            obs.broker_api_errors_total.labels(
+                adapter="alpaca", operation="get_positions"
+            ).inc()
             raise classify(exc) from exc
 
     def list_assets(self, active_only: bool = True) -> list[dict[str, Any]]:
@@ -205,6 +212,9 @@ class AlpacaAdapter:
             out = self._client().submit_order(req)
             return _to_dict(out)
         except Exception as exc:
+            obs.broker_api_errors_total.labels(
+                adapter="alpaca", operation="submit_order"
+            ).inc()
             raise classify(exc) from exc
 
     def cancel_order(
@@ -217,6 +227,9 @@ class AlpacaAdapter:
         try:
             self._client().cancel_order_by_id(broker_order_id)
         except Exception as exc:
+            obs.broker_api_errors_total.labels(
+                adapter="alpaca", operation="cancel_order"
+            ).inc()
             raise classify(exc) from exc
 
     def replace_order(
@@ -241,6 +254,9 @@ class AlpacaAdapter:
             out = self._client().replace_order_by_id(broker_order_id, req)
             return _to_dict(out)
         except Exception as exc:
+            obs.broker_api_errors_total.labels(
+                adapter="alpaca", operation="replace_order"
+            ).inc()
             raise classify(exc) from exc
 
     def _assert_router(self, token: str | None) -> None:

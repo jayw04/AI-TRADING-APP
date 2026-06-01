@@ -32,9 +32,12 @@ async def test_healthz_degraded_when_db_unreachable(monkeypatch: pytest.MonkeyPa
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.get("/healthz")
 
+    # P5 §8.2 redefined healthz: an unreachable DB means the system cannot serve
+    # safely → status "fail" (was "degraded" in the P0 probe). Still 503, still
+    # db=="down".
     assert resp.status_code == 503
     body = resp.json()
-    assert body["status"] == "degraded"
+    assert body["status"] == "fail"
     assert body["db"] == "down"
 
     # Reset caches so subsequent tests get a fresh, working engine.

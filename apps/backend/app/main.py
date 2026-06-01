@@ -5,12 +5,11 @@ from collections.abc import Awaitable, Callable
 import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from sqlalchemy import text
 
+from app.api.healthz import router as healthz_router
+from app.api.metrics import router as metrics_router
 from app.api.v1 import api_router
 from app.config import get_settings
-from app.db.session import get_sessionmaker
 from app.lifespan import lifespan
 from app.utils.logging import configure_logging, get_logger
 from app.ws.gateway import router as ws_router
@@ -60,23 +59,10 @@ def create_app() -> FastAPI:
         response.headers["x-request-id"] = request_id
         return response
 
-    @app.get("/healthz")
-    async def healthz() -> Response:
-        db_status = "ok"
-        try:
-            async with get_sessionmaker()() as session:
-                await session.execute(text("SELECT 1"))
-        except Exception:
-            db_status = "down"
-
-        payload = {
-            "status": "ok" if db_status == "ok" else "degraded",
-            "db": db_status,
-            "version": settings.version,
-        }
-        status_code = 200 if db_status == "ok" else 503
-        return JSONResponse(payload, status_code=status_code)
-
+    # P5 §8: subsystem-aware /healthz + Prometheus /metrics, both unauthenticated
+    # and outside /api/v1 (orchestrators + scrapers expect stable root paths).
+    app.include_router(healthz_router)
+    app.include_router(metrics_router)
     app.include_router(api_router)
     app.include_router(ws_router)
 

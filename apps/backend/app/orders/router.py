@@ -79,7 +79,53 @@ class OrderRouter:
         self._broker_registry = broker_registry
 
     async def submit(self, req: OrderRequest) -> Order:
-        """Sole order-submission entry point."""
+        """Sole order-submission entry point.
+
+        P5 §8.3: a thin observability wrapper times the submission and emits the
+        order counter + histogram on every outcome (including raised transient
+        errors). The submission logic in ``_submit_inner`` is unchanged — paper
+        behavior is byte-identical; metric failures never affect the order."""
+        import time as _time
+
+        start = _time.monotonic()
+        order: Order | None = None
+        try:
+            order = await self._submit_inner(req)
+            return order
+        finally:
+            try:
+                await self._record_submission_metrics(
+                    req, order, _time.monotonic() - start
+                )
+            except Exception:  # noqa: BLE001 - metrics must never break the order
+                logger.exception("order_metrics_record_failed")
+
+    async def _record_submission_metrics(
+        self, req: OrderRequest, order: Order | None, duration: float
+    ) -> None:
+        """Emit orders_submitted_total + duration histogram + the LIVE counter.
+
+        ``order is None`` means ``_submit_inner`` raised (e.g. a transient broker
+        error that the caller may retry) — recorded as outcome="error". The
+        account mode is read with one extra indexed PK get rather than threading
+        it out of the submission logic, keeping that path untouched."""
+        from app.observability import metrics as obs
+
+        outcome = order.status.value if order is not None else "error"
+        account_mode = "paper"
+        if req.account_id is not None:
+            account = await self._load_account(req.account_id)
+            if account is not None:
+                account_mode = account.mode.value
+        obs.order_submission_duration_seconds.labels(outcome=outcome).observe(duration)
+        obs.orders_submitted_total.labels(
+            outcome=outcome, account_mode=account_mode, source=req.source_type.value
+        ).inc()
+        if account_mode == AccountMode.live.value:
+            obs.live_orders_submitted_total.labels(outcome=outcome).inc()
+
+    async def _submit_inner(self, req: OrderRequest) -> Order:
+        """Order-submission logic (unchanged across P5 §1–§7)."""
         # P5 §1 — refuse LIVE accounts *before* any other work. Running the
         # risk engine against an order we'll reject anyway is wasted, and the
         # engine might decline a LIVE order for the wrong reason (no live-scoped

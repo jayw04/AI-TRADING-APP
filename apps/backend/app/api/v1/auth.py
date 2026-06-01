@@ -36,6 +36,7 @@ from app.auth.totp import (
 from app.db.models.session import Session as SessionRow
 from app.db.models.user import User
 from app.db.session import get_session
+from app.observability import metrics as obs
 from app.security import CredentialKind, CredentialStore
 
 logger = structlog.get_logger(__name__)
@@ -67,6 +68,7 @@ def _check_login_rate_limit(ip: str) -> None:
     cooldown = _login_cooldown_until.get(ip, 0.0)
     if cooldown > now:
         retry_in = int(cooldown - now)
+        obs.auth_failures_total.labels(reason="rate_limited").inc()
         raise HTTPException(
             status_code=429,
             detail=f"Too many login attempts. Try again in {retry_in}s.",
@@ -79,6 +81,7 @@ def _check_login_rate_limit(ip: str) -> None:
     _login_attempts[ip] = fresh
     if len(fresh) > LOGIN_RATE_LIMIT_MAX:
         _login_cooldown_until[ip] = now + LOGIN_COOLDOWN_SECONDS
+        obs.auth_failures_total.labels(reason="rate_limited").inc()
         raise HTTPException(
             status_code=429,
             detail=f"Too many login attempts. Cooldown {int(LOGIN_COOLDOWN_SECONDS)}s.",
@@ -159,6 +162,7 @@ async def login(
     )
     if not verify_password(body.password, user_hash):
         logger.warning("auth_login_bad_password", ip=ip, email=email)
+        obs.auth_failures_total.labels(reason="bad_password").inc()
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if user_row is None:
@@ -171,6 +175,7 @@ async def login(
         user_row.id, CredentialKind.TOTP_SECRET
     )
     if not totp_secret or user_row.totp_verified_at is None:
+        obs.auth_failures_total.labels(reason="no_totp_enrolled").inc()
         raise HTTPException(
             status_code=403,
             detail="TOTP is not set up for this account. Run scripts/create_user.py "
@@ -179,6 +184,7 @@ async def login(
 
     if not verify_code(totp_secret, body.totp_code):
         logger.warning("auth_login_bad_totp", ip=ip, user_id=user_row.id)
+        obs.auth_failures_total.labels(reason="bad_totp").inc()
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # All checks pass — mint a session.

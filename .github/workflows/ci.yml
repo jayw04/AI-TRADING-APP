@@ -87,6 +87,10 @@ jobs:
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_no_env_credentials.sh
 
+      - name: Audit immutability invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_audit_immutability.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest
