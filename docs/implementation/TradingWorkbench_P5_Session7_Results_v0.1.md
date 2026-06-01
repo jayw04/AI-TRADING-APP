@@ -6,7 +6,7 @@
 | Date | 2026-06-01 |
 | Phase | P5 §7 — Activation Wizard & Live Path Open (companion to `TradingWorkbench_P5_Session7_v0.2.md`) |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
-| Shipped as | PR **#NN** — branch `feat/p5-session7-activation`; tag **`p5-session7-complete`** |
+| Shipped as | PR **#45** — branch `feat/p5-session7-activation`; tag **`p5-session7-complete`** |
 | Built against | `main` at `p5-session6-complete` (`9f589e5`) |
 | Verdict | **GO.** The live order path is open. The §1 blanket `BrokerModeError` is lifted and replaced by a per-source conditional guard; the activation lifecycle (IDLE/PAPER → PENDING_LIVE → 24h → LIVE → IDLE), six prerequisites, TOTP-gated initiation + LIVE account creation, the 24h completion scheduler, and the deactivate/liquidate path are all implemented and **executed**. Full backend suite green (548 passed / 9 skipped); risk gate + p2/p3 + mypy + ruff + 5 shell invariants + ADR 0002 + audit-immutability all green; frontend tsc + ESLint + 77 vitest green. **Live runtime smoke (real money) deferred to WSL/CI** per Norton + no-Docker — and per the standing rule that §8 hardening lands before any real strategy is activated. |
 | Method | **Executed** (not static): pytest with `--cov-branch`, the migration round-trip on a copy of the dev DB, the three coverage gates, the 5 shell invariants + ADR 0002 + audit-immutability tests, mypy, ruff, and the frontend typecheck/lint/vitest were all run on the dev box. |
