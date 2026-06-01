@@ -57,6 +57,39 @@ from app.ws.gateway import heartbeat_loop, start_replay_populator, stop_replay_p
 logger = structlog.get_logger(__name__)
 
 
+async def run_daily_backup() -> None:
+    """Run scripts/backup_db.sh (P5 §8.5) — daily SQLite backup.
+
+    The script path defaults to ``<repo-root>/scripts/backup_db.sh`` (resolved
+    relative to this file) and is overridable via ``WORKBENCH_BACKUP_SCRIPT``
+    for non-standard deployments. Failures are logged, never raised — a missed
+    backup must not take down the scheduler."""
+    import os
+
+    default_script = Path(__file__).resolve().parents[3] / "scripts" / "backup_db.sh"
+    script = os.environ.get("WORKBENCH_BACKUP_SCRIPT", str(default_script))
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "bash",
+            script,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            logger.error(
+                "daily_backup_failed",
+                returncode=proc.returncode,
+                stderr=stderr.decode(errors="replace").strip(),
+            )
+        else:
+            logger.info(
+                "daily_backup_complete", detail=stdout.decode(errors="replace").strip()
+            )
+    except Exception:
+        logger.exception("daily_backup_exception")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("lifespan_startup_begin")
@@ -217,6 +250,38 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 kwargs={"session_factory": session_factory, "bus": bus},
             )
             logger.info("activation_completion_scheduled")
+
+            # 10c. Metrics snapshot job (P5 §8.3). Every 30s, sample the
+            # DB-derived gauges (active strategies by status, cooldown / breaker
+            # / pending-live counts, audit-log row count, credential staleness).
+            from app.jobs.metrics_snapshot import run_metrics_snapshot
+
+            scheduler.scheduler.add_job(
+                run_metrics_snapshot,
+                trigger="interval",
+                seconds=30,
+                id="metrics_snapshot",
+                max_instances=1,
+                coalesce=True,
+                kwargs={"session_factory": session_factory},
+            )
+            logger.info("metrics_snapshot_scheduled")
+
+            # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
+            # timezone (America/New_York). 30-day retention is enforced inside
+            # the script. max_instances=1 + coalesce so a slow/long backup can't
+            # stack up behind itself.
+            from apscheduler.triggers.cron import CronTrigger
+
+            scheduler.scheduler.add_job(
+                run_daily_backup,
+                CronTrigger(hour=2, minute=0),
+                id="daily_backup",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+            )
+            logger.info("daily_backup_scheduled")
 
             # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
             # wire it back via set_bar_stream_service before any strategy

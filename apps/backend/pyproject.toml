@@ -48,6 +48,8 @@ dependencies = [
     # backs app/security/crypto.py. ONLY app/security/ and alembic/versions/
     # may import this directly (check_no_env_credentials.sh adjacent invariant).
     "cryptography>=42.0,<46.0",
+    # P5 §8: Prometheus /metrics exposition (app/observability/metrics.py).
+    "prometheus-client>=0.20,<1.0",
 ]
 
 [project.optional-dependencies]

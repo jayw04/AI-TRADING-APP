@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-06-01 · branch: `main` · latest tag: `p5-session7-complete`
+Last updated: 2026-06-01 · branch: `main` · latest tag: `p5-complete` (P5 closed) · next: P6
 
 ---
 
@@ -149,6 +149,15 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 - **Liquidation uses MANUAL + auto `confirmation_text=symbol`** (not STRATEGY) → works for LIVE+HALTED, bypasses the §7 status guard + §6 cooldown, still full-risk-gated + audited.
 - **Live-path tests router-level** (`app.state.order_router` is None under the `client` fixture); one API test covers LIVE-account-TOTP. **TOTP re-verified on initiate** (14-day cookie ≫ 30s code; session-hijack defense). Audit UPPER; reason codes typed.
 - Suite **548 passed / 9 skipped**; risk 0.904/p2/p3/mypy/ruff/5-shell-invariants/ADR-0002/audit-immutability green; frontend tsc/eslint/77 vitest green. **Live runtime smoke deferred** (Norton + no-Docker; and §8 hardening lands before any real activation).
+
+| **S8** | **Production Hardening — closes P5.** Immutable hash-chained audit log: `audit_log.row_hash`/`prev_hash` (migration `f2a7c1d9e4b6`, per-user SHA-256 chain via a `before_insert` mapper event; `id` excluded), `audit_log_no_update`/`no_delete` triggers via `after_create` DDL (so create_all in tests + migration in prod both install them), `verify_audit_integrity.py`, `check_audit_immutability.sh` (6th shell invariant). Subsystem `/healthz` (database/master_key/broker_registry/scheduler/circuit_breakers_clear; fail→503, degraded/ok→200; legacy `db` key kept; off-when-alpaca-disabled→`disabled`). Prometheus `/metrics`: 12 metrics + 30s `metrics_snapshot` job; order counter+histogram via a `submit`→`_submit_inner` wrapper (logic byte-identical), auth-failure + broker-error counters. structlog `redact_processor` (5 credential families). `scripts/backup_db.sh` (.backup, 30d retention) + `restore_db.sh` + daily 02:00 job. `docs/runbook/{deployment,on-call}.md`. 20 new tests. Session doc v0.2. | ✅ #NN tags `p5-session8-complete` + `p5-complete` |
+
+### P5 §8 deviations from the v0.2 doc (verified against live code)
+- **`AuditLogger.write` is async-ORM, not sync raw-SQL**; columns are `ts`/`payload_json` (NOT `created_at`/`payload`), `target_id` stringified, plus an `ip` column. Hash module/integration rebuilt to this shape.
+- **Hash chain via `before_insert` mapper event** (keeps `write()` a plain `session.add`, zero call-site churn; sets row_hash pre-INSERT so the trigger never fires). **`id` excluded from the hash** (post-INSERT autoincrement; `prev_hash` already detects reorder/delete) → no `MAX(id)+1` dance. **Chain links in COMMIT order** (every call site commits one row; batched same-flush writes would be unchained — no code path does that).
+- **Triggers via `after_create` DDL** (tests use `create_all`, NOT migrations) with `IF NOT EXISTS`; doc's §8.1.5 wipe-fixture unnecessary (fresh in-memory DB per test). **No pre-existing audit-immutability pytest** (doc was wrong; `-k immutab` matched the ADR-0002 test) → §8.1 tests net-new.
+- **`/healthz` already existed** (basic inline); replaced by router, preserving legacy `db` key + treating alpaca-disabled subsystems as `disabled`; existing db-down test updated `degraded`→`fail`. **Order metrics via wrapper** (ADR-0002 path untouched). **`prometheus_client` was absent** → added to pyproject. **Dev DB is `delete` journal mode** (not WAL; immaterial — SQLite is single-writer).
+- Suite **568 passed / 9 skipped**; risk 0.904/p2/p3/mypy(142)/ruff/**6**-shell-invariants/ADR-0002 green; migration backfill+round-trip+integrity verified on isolated DB; backup script smoke-tested. **`p5-complete` tagged on the in-suite stand-in** (Jay's call); **§8.9/§8.10 live Docker smoke deferred** (Norton + no-Docker). No frontend changes (last green at §7). **P5 CLOSED.**
 
 ### P5 §6 deviations from the v0.2 doc (verified against live code)
 - **POST /orders hardcodes the paper account** (no account_id, extra=forbid) → manual LIVE orders UNREACHABLE via the API until §7; §6 logic lives in the OrderRouter and is **tested at the router level** (the doc's HTTP §6.8 tests are impossible).
