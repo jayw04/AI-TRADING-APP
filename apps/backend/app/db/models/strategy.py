@@ -79,6 +79,14 @@ class Strategy(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # P5 §6: short-term automatic pause after a failed order submission. When
+    # set and > now(), this strategy cannot submit orders. Distinct from
+    # status=HALTED (indefinite, manual restart only) and status=ERROR
+    # (engine-side crash). Cooldown is a self-clearing time-based block.
+    cooldown_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

@@ -26,6 +26,10 @@ class OrderRequest:
     source_type: OrderSourceType = OrderSourceType.MANUAL
     source_id: str | None = None
     client_order_id: str | None = None
+    # P5 §6: typed-ticker confirmation. Required by the OrderRouter when
+    # source_type == MANUAL and the account is LIVE; ignored otherwise. Must
+    # equal the symbol after normalization (uppercase, stripped).
+    confirmation_text: str | None = None
 
 
 @dataclass(frozen=True)

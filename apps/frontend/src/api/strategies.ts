@@ -73,6 +73,21 @@ export const strategiesApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  // P5 §6: per-strategy cooldown after failed order submissions.
+  cooldownStatus: (id: number) =>
+    apiFetch<{
+      strategy_id: number;
+      in_cooldown: boolean;
+      cooldown_until: string | null;
+      seconds_remaining: number;
+    }>(`/api/v1/strategies/${id}/cooldown`),
+
+  clearCooldown: (id: number) =>
+    apiFetch<{ ok: boolean }>(`/api/v1/strategies/${id}/cooldown/clear`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
 };
 
 export const backtestJobsApi = {

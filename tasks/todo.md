@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-31 · branch: `main` · latest tag: `p5-session5-complete`
+Last updated: 2026-05-31 · branch: `main` · latest tag: `p5-session6-complete`
 
 ---
 
@@ -137,6 +137,16 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 | **S4** | Credential encryption — Fernet store for all per-user secrets at rest. `WORKBENCH_MASTER_KEY` (env) + `app/security/{crypto,credential_store}.py`; new `user_credentials(user_id,kind,ciphertext,…)` table + data migration (`totp_secret`/`pine_webhook_secret` columns dropped, env broker/Anthropic keys captured for user 1); `credentials_for_mode()` → async + store-backed (registry propagates `await`); agent/webhook/auth/`create_user.py` swapped to the store; `/api/v1/users/me/credentials/` (GET/PUT/DELETE, TOTP excluded) + Settings→Credentials page; eighth CI invariant `check_no_env_credentials.sh`; `docs/runbook/credentials.md`; `app/auth/future.py` deleted (S3 close-out). Session doc frozen v1.0. | ✅ #40 tag `p5-session4-complete` |
 
 | **S5** | Live-mode risk gates — account-scoped circuit breaker (hard halt, ADR 0004), per-day order cap, PDT warning, pre-trade buying power (LIVE-only, dormant until §7). New `accounts.circuit_breaker_tripped_at` + `risk_limits.max_orders_per_day`; migration seeds a LIVE GLOBAL risk_limits row + backfills PAPER cap=200. `app/risk/{circuit_breaker,pdt_analyzer,buying_power}.py` + RiskEngine integration; `/api/v1/risk-limits` (list/update) + `/accounts/{id}/risk-state` + `/risk/reset-circuit-breaker` (typed-label); 3 audit actions; `system.circuit_breaker` WS; RiskStateBanner + Settings→RiskLimits UI; shared `app/utils/time.ensure_aware`; ADR 0004 + `docs/runbook/risk-gates.md`. Session doc frozen v0.2. | ✅ #43 tag `p5-session5-complete` |
+
+| **S6** | Live order safety — two friction layers wired in the OrderRouter (ADR-0002 choke point), dormant until §7. Typed-ticker confirmation for MANUAL+LIVE (server-enforced, case-insensitive/whitespace-stripped; CONFIRMATION_REQUIRED/MISMATCH); 60s per-strategy cooldown after failed STRATEGY submissions (each failure resets; self-clears; STRATEGY_COOLDOWN). New `strategies.cooldown_until`; `StrategyCooldownService`; `confirmation_text` on OrderRequest/OrderCreateRequest; LIVE_ORDER_SUBMITTED audit on every reachable live attempt; GET/POST `/strategies/{id}/cooldown[/clear]`; 2 audit actions; LiveOrderConfirmModal (ready, not wired — ticket disables live) + CooldownIndicator on strategy detail; `docs/runbook/live-order-safety.md`. Session doc frozen v0.2. | ✅ #NN tag `p5-session6-complete` |
+
+### P5 §6 deviations from the v0.2 doc (verified against live code)
+- **POST /orders hardcodes the paper account** (no account_id, extra=forbid) → manual LIVE orders UNREACHABLE via the API until §7; §6 logic lives in the OrderRouter and is **tested at the router level** (the doc's HTTP §6.8 tests are impossible).
+- Real router: `submit(req: OrderRequest)->Order`, rejections carry `rejection_reason` (not `reason_code`), risk is `evaluate()`; no `_reject`/`_record_*` helpers. Added `_confirmation_reject_reason`/`_strategy_id_from_source`/`_ephemeral_rejected_order_with_reason`/`_maybe_set_cooldown`/`_audit_live_submission`.
+- **Confirmation runs BEFORE the §1 BrokerModeError** (which RAISES→400); the two existing §1 live-refusal tests updated to pass matching `confirmation_text`.
+- `strategy_id` derived from `source_id` (str(strategy_id)); audit values UPPER (`LIVE_ORDER_SUBMITTED`/`STRATEGY_COOLDOWN_CLEARED`); §6 reason codes typed in `ReasonCode`.
+- `LiveOrderConfirmModal` ships ready but NOT wired (ticket disables live submit — §7 wires); `CooldownIndicator` uses plain useEffect (detail page has no QueryClientProvider).
+- Paper byte-identical preserved (existing order/risk suite green). §6.9 live smoke deferred. Suite 512 passed; mypy/ruff/8-invariants/ADR-0002 green; frontend 77 vitest green.
 
 ### P5 §5 deviations from the v0.2 doc (verified against live code; confirmed with Jay)
 - **strategies has no `account_id`** (deferred to §7) → breaker HALTs strategies via `user_id`+status↔mode (PAPER-status→paper acct, LIVE→live).

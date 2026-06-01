@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,6 +61,7 @@ from app.db.models.strategy_run import StrategyRun
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
 from app.events import get_event_bus
+from app.services.strategy_cooldown import StrategyCooldownService
 from app.strategies import StrategyLoader, StrategyLoadError
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
@@ -687,3 +689,48 @@ async def get_strategy_backtest(
     if result is None or result.strategy_id != strategy_id:
         raise HTTPException(status_code=404, detail="Backtest result not found")
     return BacktestResultResponse.model_validate(result, from_attributes=True)
+
+
+# ---------- P5 §6: per-strategy cooldown ----------
+
+
+class CooldownStatusResponse(BaseModel):
+    strategy_id: int
+    in_cooldown: bool
+    cooldown_until: datetime | None
+    seconds_remaining: int
+
+
+@router.get("/{strategy_id}/cooldown", response_model=CooldownStatusResponse)
+async def strategy_cooldown_status(
+    strategy_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> CooldownStatusResponse:
+    strategy = await session.get(StrategyRow, strategy_id)
+    if strategy is None or strategy.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    status = await StrategyCooldownService(session).status(strategy_id)
+    return CooldownStatusResponse(
+        strategy_id=status.strategy_id,
+        in_cooldown=status.in_cooldown,
+        cooldown_until=status.cooldown_until,
+        seconds_remaining=status.seconds_remaining,
+    )
+
+
+@router.post("/{strategy_id}/cooldown/clear")
+async def clear_strategy_cooldown(
+    strategy_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, object]:
+    try:
+        await StrategyCooldownService(session).clear_cooldown(
+            strategy_id, user_id=current_user.id
+        )
+    except PermissionError:
+        raise HTTPException(status_code=404, detail="Strategy not found") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"ok": True, "strategy_id": strategy_id}

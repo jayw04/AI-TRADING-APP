@@ -85,7 +85,10 @@ async def _seed(session) -> None:
     await session.commit()
 
 
-def _req(account_id: int) -> OrderRequest:
+def _req(account_id: int, confirmation_text: str | None = None) -> OrderRequest:
+    # P5 §6: a MANUAL+LIVE order now hits the typed-ticker confirmation gate
+    # before the §1 BrokerModeError guard. The live-refusal tests pass a matching
+    # confirmation so confirmation passes and the BrokerModeError path is reached.
     return OrderRequest(
         user_id=1,
         account_id=account_id,
@@ -95,6 +98,7 @@ def _req(account_id: int) -> OrderRequest:
         type=OrderType.MARKET,
         tif=TimeInForce.DAY,
         source_type=OrderSourceType.MANUAL,
+        confirmation_text=confirmation_text,
     )
 
 
@@ -119,7 +123,7 @@ async def test_live_account_refused_with_clear_error(session_factory):
     router = OrderRouter(_StubAdapter(), engine, session_factory, _StubBus())
 
     with pytest.raises(BrokerModeError) as exc_info:
-        await router.submit(_req(account_id=2))
+        await router.submit(_req(account_id=2, confirmation_text="AAPL"))
     assert "Live trading is not yet enabled" in str(exc_info.value)
     assert "P5 §2" in str(exc_info.value)
 
@@ -133,5 +137,5 @@ async def test_live_refusal_happens_before_risk_check(session_factory):
     router = OrderRouter(_StubAdapter(), spy, session_factory, _StubBus())
 
     with pytest.raises(BrokerModeError):
-        await router.submit(_req(account_id=2))
+        await router.submit(_req(account_id=2, confirmation_text="AAPL"))
     assert spy.called is False
