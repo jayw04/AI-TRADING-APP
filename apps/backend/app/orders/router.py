@@ -27,15 +27,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.brokers.alpaca import AlpacaAdapter
 from app.brokers.alpaca.errors import PermanentAlpacaError, TransientAlpacaError
-from app.db.enums import OrderSourceType, OrderStatus
+from app.db.enums import OrderSourceType, OrderStatus, StrategyStatus
 from app.db.models.account import Account, AccountMode
 from app.db.models.order import Order
 from app.db.models.risk_check import RiskCheck
+from app.db.models.strategy import Strategy
 from app.db.models.symbol import Symbol
 from app.events.bus import EventBus
 from app.risk import OrderRequest, RiskEngine, RiskOutcome
 from app.risk.reason_codes import ReasonCode
 from app.services.strategy_cooldown import StrategyCooldownService
+from app.utils.time import ensure_aware
 
 if TYPE_CHECKING:
     from app.brokers.base import BrokerAdapter
@@ -125,26 +127,23 @@ class OrderRouter:
                         req, ReasonCode.STRATEGY_COOLDOWN.value
                     )
 
-        # P5 §1 — refuse LIVE accounts *before* any other work. Running the
-        # risk engine against an order we'll reject anyway is wasted, and the
-        # engine might decline a LIVE order for the wrong reason (no live-scoped
-        # limits exist yet), sending the user chasing a phantom risk problem.
+        # P5 §7 — LIVE order path open (replaces the §1 BrokerModeError raise).
+        # By here, the §6 MANUAL+LIVE confirmation gate has already passed.
+        # Remaining conditional checks for LIVE accounts, in order:
+        #   (a) AGENT-sourced LIVE orders are refused (P6 territory).
+        #   (b) STRATEGY-sourced LIVE orders require strategy.status == LIVE
+        #       (PENDING_LIVE and other statuses are refused with typed codes).
+        #   (c) MANUAL+LIVE is permitted (confirmation already enforced) → falls
+        #       through to the risk engine.
         if account is not None and account.mode == AccountMode.live:
-            # P5 §6: record the live attempt before refusing (§7 lifts this guard).
-            await self._audit_live_submission(
-                req, account, status="rejected",
-                reason_code="BROKER_MODE_NOT_ENABLED", order_id=None,
-            )
-            logger.warning(
-                "order_router_refused_live",
-                account_id=account.id,
-                user_id=req.user_id,
-                symbol=req.symbol_ticker,
-                side=req.side.value,
-            )
-            raise BrokerModeError(
-                "Live trading is not yet enabled. See P5 §2 release notes."
-            )
+            live_reject = await self._live_guard_reject_reason(req)
+            if live_reject is not None:
+                order = _ephemeral_rejected_order_with_reason(req, live_reject)
+                await self._audit_live_submission(
+                    req, account, status="rejected", reason_code=live_reject,
+                    order_id=None,
+                )
+                return order
         broker_mode = account.mode if account is not None else AccountMode.paper
 
         # P5 §2: resolve the per-account adapter (after the §1 LIVE guard, so a
@@ -164,6 +163,7 @@ class OrderRouter:
         if not outcome.passed and outcome.resolved_symbol_id is None:
             order = _ephemeral_rejected_order(req, outcome)
             await self._maybe_set_cooldown(req, order)
+            await self._audit_live_for_order(req, account, order)
             return order
 
         async with self._session_factory() as session:
@@ -196,6 +196,8 @@ class OrderRouter:
                 # P5 §6: a STRATEGY-sourced submission that failed risk enters
                 # the 60s cooldown.
                 await self._maybe_set_cooldown(req, order)
+                # P5 §7: audit LIVE risk rejections (now reachable for live).
+                await self._audit_live_for_order(req, account, order)
                 return order
 
             # Risk passed. Mark pending_submit and attempt broker submission.
@@ -228,6 +230,8 @@ class OrderRouter:
             order = await self._mark_broker_rejected(order.id, str(exc))
             # P5 §6: broker permanently rejected a STRATEGY submission → cooldown.
             await self._maybe_set_cooldown(req, order)
+            # P5 §7: audit LIVE broker rejections.
+            await self._audit_live_for_order(req, account, order)
             return order
         except TransientAlpacaError:
             # Leave the order in PENDING_SUBMIT; caller may retry. We do NOT
@@ -259,6 +263,8 @@ class OrderRouter:
             )
 
         await self._emit(order, "order.submitted", {})
+        # P5 §7: audit successful LIVE submissions (now reachable for live).
+        await self._audit_live_for_order(req, account, order)
         logger.info(
             "order_submitted",
             order_id=order.id,
@@ -537,6 +543,57 @@ class OrderRouter:
                 duration_seconds=60,
                 reason=order.rejection_reason or "submission_failed",
             )
+
+    async def _live_guard_reject_reason(self, req: OrderRequest) -> str | None:
+        """P5 §7 LIVE-path guard. Returns a ReasonCode value if the order must be
+        rejected for a LIVE account, else None (permitted → falls through to risk).
+
+        - AGENT (agent_proposal/agent_strategy) → AGENT_LIVE_DISABLED (P6).
+        - STRATEGY → requires a resolvable strategy whose status == LIVE
+          (PENDING_LIVE → STRATEGY_PENDING_LIVE; anything else → STRATEGY_NOT_LIVE;
+          missing id → STRATEGY_ID_REQUIRED; not found → STRATEGY_NOT_FOUND).
+        - MANUAL → permitted (the §6 confirmation gate already enforced).
+        """
+        if req.source_type in (
+            OrderSourceType.AGENT_PROPOSAL,
+            OrderSourceType.AGENT_STRATEGY,
+        ):
+            return ReasonCode.AGENT_LIVE_DISABLED.value
+
+        if req.source_type == OrderSourceType.STRATEGY:
+            strategy_id = _strategy_id_from_source(req.source_id)
+            if strategy_id is None:
+                return ReasonCode.STRATEGY_ID_REQUIRED.value
+            async with self._session_factory() as session:
+                strategy = await session.get(Strategy, strategy_id)
+            if strategy is None:
+                return ReasonCode.STRATEGY_NOT_FOUND.value
+            if strategy.status == StrategyStatus.PENDING_LIVE:
+                initiated = ensure_aware(strategy.live_activation_initiated_at)
+                logger.info(
+                    "order_rejected_strategy_pending_live",
+                    strategy_id=strategy_id,
+                    initiated_at=initiated.isoformat() if initiated else None,
+                )
+                return ReasonCode.STRATEGY_PENDING_LIVE.value
+            if strategy.status != StrategyStatus.LIVE:
+                return ReasonCode.STRATEGY_NOT_LIVE.value
+
+        return None
+
+    async def _audit_live_for_order(
+        self, req: OrderRequest, account: Account | None, order: Order
+    ) -> None:
+        """Audit a finalized LIVE order outcome (risk reject / broker reject /
+        success). No-op for paper (the inner helper guards on mode)."""
+        if account is None:
+            return
+        await self._audit_live_submission(
+            req, account,
+            status=order.status.value,
+            reason_code=order.rejection_reason,
+            order_id=order.id,
+        )
 
     async def _audit_live_submission(
         self,

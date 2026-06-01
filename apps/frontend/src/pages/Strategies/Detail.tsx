@@ -10,6 +10,9 @@ import { OrdersTab } from "./tabs/OrdersTab";
 import { BacktestsTab } from "./tabs/BacktestsTab";
 import { ParamsTab } from "./tabs/ParamsTab";
 import { CooldownIndicator } from "@/components/strategies/CooldownIndicator";
+import { ActivationWizard } from "@/components/activation/ActivationWizard";
+import { ActivationCountdown } from "@/components/activation/ActivationCountdown";
+import { DeactivationModal } from "@/components/activation/DeactivationModal";
 
 type Tab = "overview" | "signals" | "orders" | "backtests" | "params";
 
@@ -28,6 +31,8 @@ export default function StrategyDetailPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [error, setError] = useState<string | null>(null);
   const [reloading, setReloading] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (Number.isNaN(sid)) return;
@@ -116,7 +121,20 @@ export default function StrategyDetailPage() {
             </div>
           )}
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          {/* P5 §7: live activation / deactivation controls. */}
+          {(strategy.status === "idle" || strategy.status === "paper") && (
+            <button onClick={() => setWizardOpen(true)}
+                    className="rounded border border-red-700 px-3 py-1.5 text-sm font-semibold text-red-100 hover:bg-red-900/30">
+              Activate for live…
+            </button>
+          )}
+          {(strategy.status === "live" || strategy.status === "halted") && (
+            <button onClick={() => setDeactivateOpen(true)}
+                    className="rounded bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-600">
+              Deactivate
+            </button>
+          )}
           {ACTIVE_STRATEGY_STATUSES.includes(strategy.status) ? (
             <button onClick={handleStop}
                     className="rounded bg-red-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700">
@@ -132,7 +150,34 @@ export default function StrategyDetailPage() {
         </div>
       </div>
 
+      {strategy.status === "pending_live" && (
+        <ActivationCountdown strategyId={strategy.id} />
+      )}
       <CooldownIndicator strategyId={strategy.id} />
+
+      {wizardOpen && (
+        <ActivationWizard
+          strategyId={strategy.id}
+          strategyName={strategy.name}
+          symbols={strategy.symbols}
+          onClose={() => setWizardOpen(false)}
+          onActivated={() => {
+            setWizardOpen(false);
+            window.location.reload();
+          }}
+        />
+      )}
+      {deactivateOpen && (
+        <DeactivationModal
+          strategyId={strategy.id}
+          strategyName={strategy.name}
+          onClose={() => setDeactivateOpen(false)}
+          onDeactivated={() => {
+            setDeactivateOpen(false);
+            window.location.reload();
+          }}
+        />
+      )}
 
       {strategy.has_pending_reload && (
         <div

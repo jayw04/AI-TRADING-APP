@@ -10,6 +10,7 @@ import pytest
 from app.db.enums import (
     OrderSide,
     OrderSourceType,
+    OrderStatus,
     OrderType,
     RiskScopeType,
     TimeInForce,
@@ -18,7 +19,7 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
-from app.orders.router import BrokerModeError, OrderRouter
+from app.orders.router import OrderRouter
 from app.risk.engine import RiskEngine
 from app.risk.types import OrderRequest
 
@@ -85,10 +86,11 @@ async def _seed(session) -> None:
     await session.commit()
 
 
-def _req(account_id: int, confirmation_text: str | None = None) -> OrderRequest:
-    # P5 §6: a MANUAL+LIVE order now hits the typed-ticker confirmation gate
-    # before the §1 BrokerModeError guard. The live-refusal tests pass a matching
-    # confirmation so confirmation passes and the BrokerModeError path is reached.
+def _req(
+    account_id: int,
+    confirmation_text: str | None = None,
+    source_type: OrderSourceType = OrderSourceType.MANUAL,
+) -> OrderRequest:
     return OrderRequest(
         user_id=1,
         account_id=account_id,
@@ -97,7 +99,7 @@ def _req(account_id: int, confirmation_text: str | None = None) -> OrderRequest:
         qty=Decimal("10"),
         type=OrderType.MARKET,
         tif=TimeInForce.DAY,
-        source_type=OrderSourceType.MANUAL,
+        source_type=source_type,
         confirmation_text=confirmation_text,
     )
 
@@ -116,26 +118,32 @@ async def test_paper_account_routes_normally(session_factory):
 
 
 @pytest.mark.asyncio
-async def test_live_account_refused_with_clear_error(session_factory):
+async def test_live_agent_order_refused(session_factory):
+    """P5 §7 lifted the §1 BrokerModeError raise. AGENT-sourced LIVE orders are
+    still refused — now as a typed REJECTED Order (AGENT_LIVE_DISABLED), not a
+    raised exception."""
     async with session_factory() as session:
         await _seed(session)
     engine = RiskEngine(session_factory)
     router = OrderRouter(_StubAdapter(), engine, session_factory, _StubBus())
 
-    with pytest.raises(BrokerModeError) as exc_info:
-        await router.submit(_req(account_id=2, confirmation_text="AAPL"))
-    assert "Live trading is not yet enabled" in str(exc_info.value)
-    assert "P5 §2" in str(exc_info.value)
+    order = await router.submit(
+        _req(account_id=2, source_type=OrderSourceType.AGENT_PROPOSAL)
+    )
+    assert order.status == OrderStatus.REJECTED
+    assert order.rejection_reason == "AGENT_LIVE_DISABLED"
 
 
 @pytest.mark.asyncio
-async def test_live_refusal_happens_before_risk_check(session_factory):
-    """The LIVE refusal must short-circuit before the risk engine runs."""
+async def test_live_agent_refusal_happens_before_risk_check(session_factory):
+    """The §7 live-guard refusal short-circuits before the risk engine runs."""
     async with session_factory() as session:
         await _seed(session)
     spy = _SpyEngine()
     router = OrderRouter(_StubAdapter(), spy, session_factory, _StubBus())
 
-    with pytest.raises(BrokerModeError):
-        await router.submit(_req(account_id=2, confirmation_text="AAPL"))
+    order = await router.submit(
+        _req(account_id=2, source_type=OrderSourceType.AGENT_PROPOSAL)
+    )
+    assert order.status == OrderStatus.REJECTED
     assert spy.called is False

@@ -12,9 +12,15 @@ import type {
  */
 export const accountsApi = {
   list: () => apiFetch<BrokerAccountListResponse>("/api/v1/accounts"),
-  create: (broker: string, mode: BrokerModeT, label: string) =>
+  // P5 §7: LIVE creation requires a TOTP code (re-verified server-side).
+  create: (broker: string, mode: BrokerModeT, label: string, totpCode?: string) =>
     apiFetch<BrokerAccount>("/api/v1/accounts", {
       method: "POST",
-      body: JSON.stringify({ broker, mode, label }),
+      body: JSON.stringify({
+        broker,
+        mode,
+        label,
+        ...(totpCode ? { totp_code: totpCode } : {}),
+      }),
     }),
 };

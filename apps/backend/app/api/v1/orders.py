@@ -137,18 +137,26 @@ async def create_order(
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> OrderResponse:
-    # Resolve the user's paper account (single-account MVP).
-    account = (
-        await session.execute(
-            select(Account).where(
-                Account.user_id == current_user.id,
-                Account.broker == "alpaca",
-                Account.mode == AccountMode.paper,
+    # P5 §7: resolve the target account. An explicit account_id (e.g. the user's
+    # LIVE account) must belong to the user; without one, default to the user's
+    # paper account (pre-§7 behavior). The router + risk gates enforce the LIVE
+    # rules (confirmation, strategy status, risk, cooldown).
+    if body.account_id is not None:
+        account = await session.get(Account, body.account_id)
+        if account is None or account.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Account not found")
+    else:
+        account = (
+            await session.execute(
+                select(Account).where(
+                    Account.user_id == current_user.id,
+                    Account.broker == "alpaca",
+                    Account.mode == AccountMode.paper,
+                )
             )
-        )
-    ).scalars().first()
-    if account is None:
-        raise HTTPException(status_code=503, detail="No paper account configured")
+        ).scalars().first()
+        if account is None:
+            raise HTTPException(status_code=503, detail="No paper account configured")
 
     req = OrderRequest(
         user_id=current_user.id,
@@ -161,7 +169,8 @@ async def create_order(
         limit_price=body.limit_price,
         stop_price=body.stop_price,
         extended_hours=body.extended_hours,
-        source_type=OrderSourceType.MANUAL,
+        source_type=body.source,
+        source_id=str(body.strategy_id) if body.strategy_id is not None else None,
         client_order_id=body.client_order_id,
         confirmation_text=body.confirmation_text,
     )

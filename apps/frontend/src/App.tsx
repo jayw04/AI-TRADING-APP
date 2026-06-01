@@ -7,6 +7,7 @@ import { NAV_ITEMS } from "./routes";
 import StrategyDetailPage from "./pages/Strategies/Detail";
 import Credentials from "./pages/Settings/Credentials";
 import RiskLimits from "./pages/Settings/RiskLimits";
+import Accounts from "./pages/Settings/Accounts";
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
               <Route path="/strategies/:id" element={<StrategyDetailPage />} />
               <Route path="/settings/credentials" element={<Credentials />} />
               <Route path="/settings/risk-limits" element={<RiskLimits />} />
+              <Route path="/settings/accounts" element={<Accounts />} />
             </Routes>
           </main>
         </div>

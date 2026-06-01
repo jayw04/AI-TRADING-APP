@@ -95,15 +95,16 @@ async def test_create_paper_account(client_factory):
 
 
 @pytest.mark.asyncio
-async def test_create_live_account_rejected(client_factory):
-    """P5 §1: live account creation goes through the activation wizard (§7)."""
+async def test_create_live_account_requires_totp(client_factory):
+    """P5 §7: live account creation is permitted but requires a TOTP code.
+    Without one, the request is rejected with 400."""
     client = await client_factory(_seed_user)
     r = await client.post(
         "/api/v1/accounts",
         json={"broker": "alpaca", "mode": "live", "label": "My Live"},
     )
     assert r.status_code == 400
-    assert "activation wizard" in r.json()["detail"]
+    assert "totp_code" in r.json()["detail"]
 
 
 @pytest.mark.asyncio

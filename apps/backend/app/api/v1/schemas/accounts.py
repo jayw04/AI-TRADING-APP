@@ -38,3 +38,7 @@ class CreateAccountRequest(BaseModel):
     broker: str = Field(min_length=1, max_length=32)
     mode: AccountMode = AccountMode.paper
     label: str = Field(min_length=1, max_length=64)
+    # P5 §7: required when mode=live. Re-verified server-side against the user's
+    # stored TOTP secret — layered defense against "session cookie creates a
+    # live account." Ignored for paper.
+    totp_code: str | None = Field(default=None, min_length=6, max_length=8)
