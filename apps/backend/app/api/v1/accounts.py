@@ -19,9 +19,11 @@ from app.api.v1.schemas.accounts import (
     AccountResponse,
     CreateAccountRequest,
 )
+from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.auth.stub import CurrentUser, get_current_user
 from app.db.models.account import Account, AccountMode
 from app.db.session import get_session
+from app.security import CredentialKind, CredentialStore
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -51,16 +53,21 @@ async def create_account(
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> AccountResponse:
-    # P5 §1 allows paper accounts only via the API. Live creation goes through
-    # the activation wizard (P5 §7), which is not yet shipped.
+    # P5 §7: LIVE account creation is permitted, gated by a fresh TOTP code
+    # (re-verified server-side). Layered defense against "someone with the
+    # session cookie creates a live account and submits an order."
     if body.mode == AccountMode.live:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Live account creation is not yet enabled. "
-                "Use the activation wizard (P5 §7)."
-            ),
-        )
+        if not body.totp_code:
+            raise HTTPException(
+                status_code=400,
+                detail="totp_code is required for LIVE account creation.",
+            )
+        from app.auth.totp import verify_code
+
+        store = CredentialStore(session)
+        totp_secret = await store.get(current_user.id, CredentialKind.TOTP_SECRET)
+        if totp_secret is None or not verify_code(totp_secret, body.totp_code):
+            raise HTTPException(status_code=401, detail="Invalid TOTP code.")
 
     # One account per (user, broker, mode) — mirrors the DB UniqueConstraint
     # (uq_accounts_user_broker_mode) and returns a clean 409 instead of an
@@ -94,7 +101,22 @@ async def create_account(
     await session.commit()
     await session.refresh(account)
 
-    # P5 §2: make the new (paper) account immediately routable — construct its
+    # P5 §7: audit LIVE account creation (immutable record of "a live account
+    # was opened, by whom, when").
+    if account.mode == AccountMode.live:
+        AuditLogger.write(
+            session,
+            actor_type=AuditActorType.USER,
+            actor_id=str(current_user.id),
+            action=AuditAction.LIVE_ACCOUNT_CREATED,
+            target_type="account",
+            target_id=account.id,
+            payload={"broker": account.broker, "label": account.label},
+            user_id=current_user.id,
+        )
+        await session.commit()
+
+    # P5 §2: make the new account immediately routable — construct its
     # adapter in the registry. Live creation 400s above (P5 §1), so refresh only
     # ever runs for paper accounts here. Best-effort: registry may be absent in
     # tests / alpaca-startup-disabled runs.

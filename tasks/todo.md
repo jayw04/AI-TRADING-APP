@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-31 · branch: `main` · latest tag: `p5-session6-complete`
+Last updated: 2026-06-01 · branch: `main` · latest tag: `p5-session7-complete`
 
 ---
 
@@ -139,6 +139,16 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 | **S5** | Live-mode risk gates — account-scoped circuit breaker (hard halt, ADR 0004), per-day order cap, PDT warning, pre-trade buying power (LIVE-only, dormant until §7). New `accounts.circuit_breaker_tripped_at` + `risk_limits.max_orders_per_day`; migration seeds a LIVE GLOBAL risk_limits row + backfills PAPER cap=200. `app/risk/{circuit_breaker,pdt_analyzer,buying_power}.py` + RiskEngine integration; `/api/v1/risk-limits` (list/update) + `/accounts/{id}/risk-state` + `/risk/reset-circuit-breaker` (typed-label); 3 audit actions; `system.circuit_breaker` WS; RiskStateBanner + Settings→RiskLimits UI; shared `app/utils/time.ensure_aware`; ADR 0004 + `docs/runbook/risk-gates.md`. Session doc frozen v0.2. | ✅ #43 tag `p5-session5-complete` |
 
 | **S6** | Live order safety — two friction layers wired in the OrderRouter (ADR-0002 choke point), dormant until §7. Typed-ticker confirmation for MANUAL+LIVE (server-enforced, case-insensitive/whitespace-stripped; CONFIRMATION_REQUIRED/MISMATCH); 60s per-strategy cooldown after failed STRATEGY submissions (each failure resets; self-clears; STRATEGY_COOLDOWN). New `strategies.cooldown_until`; `StrategyCooldownService`; `confirmation_text` on OrderRequest/OrderCreateRequest; LIVE_ORDER_SUBMITTED audit on every reachable live attempt; GET/POST `/strategies/{id}/cooldown[/clear]`; 2 audit actions; LiveOrderConfirmModal (ready, not wired — ticket disables live) + CooldownIndicator on strategy detail; `docs/runbook/live-order-safety.md`. Session doc frozen v0.2. | ✅ #44 tag `p5-session6-complete` |
+
+| **S7** | **Activation Wizard & Live Path Open** — lifts §1's blanket `BrokerModeError`. New `StrategyStatus.PENDING_LIVE` (excluded from `ACTIVE_STRATEGY_STATUSES`) + `strategies.live_activation_initiated_at` (migration `e1f6b4c9a8d3`). `ActivationService`: 6 prerequisites (live account, live creds, TOTP enrolled, recent `BacktestResult` ≤7d, LIVE risk_limits, breaker clear), `initiate` (typed name + TOTP + prereqs → PENDING_LIVE), frictionless `cancel`, idempotent `complete_pending` (24h, ADR 0005), `deactivate` (optional liquidation via MANUAL closing orders). OrderRouter guard lifted → `_live_guard_reject_reason`: MANUAL ok; STRATEGY ok iff status LIVE; AGENT→AGENT_LIVE_DISABLED; returns typed REJECTED (no raise); LIVE_ORDER_SUBMITTED on every reachable path. LIVE account creation TOTP-gated; POST /orders extended (optional account_id/source/strategy_id). 4 activation endpoints; APScheduler `activation_completion` job (60s, idempotent); 5 audit actions + 5 reason codes; ActivationWizard/Countdown/DeactivationModal + Settings→Accounts; ADR 0005 + `docs/runbook/activation.md`. Session doc v0.2. | ✅ #45 tag `p5-session7-complete` |
+
+### P5 §7 deviations from the v0.2 doc (verified against live code)
+- **No `backtests` table** → "recent backtest" prereq checks for a `BacktestResult` row ≤7d (engagement, not quality). **Strategies have no `account_id`** → live account resolved by `user_id`+mode (`_resolve_strategy_account`).
+- **`OrderStatus` has no `ACCEPTED`; no `OrderSubmissionResult`/`BrokerPosition`** → router returns `Order`; guard returns ephemeral REJECTED via `_ephemeral_rejected_order_with_reason`.
+- **Lifted guard REJECTS, not raises** → §1/§2/§6 BrokerModeError tests repurposed: AGENT+LIVE→REJECTED/AGENT_LIVE_DISABLED; STRATEGY+PAPER-status→STRATEGY_NOT_LIVE.
+- **Liquidation uses MANUAL + auto `confirmation_text=symbol`** (not STRATEGY) → works for LIVE+HALTED, bypasses the §7 status guard + §6 cooldown, still full-risk-gated + audited.
+- **Live-path tests router-level** (`app.state.order_router` is None under the `client` fixture); one API test covers LIVE-account-TOTP. **TOTP re-verified on initiate** (14-day cookie ≫ 30s code; session-hijack defense). Audit UPPER; reason codes typed.
+- Suite **548 passed / 9 skipped**; risk 0.904/p2/p3/mypy/ruff/5-shell-invariants/ADR-0002/audit-immutability green; frontend tsc/eslint/77 vitest green. **Live runtime smoke deferred** (Norton + no-Docker; and §8 hardening lands before any real activation).
 
 ### P5 §6 deviations from the v0.2 doc (verified against live code)
 - **POST /orders hardcodes the paper account** (no account_id, extra=forbid) → manual LIVE orders UNREACHABLE via the API until §7; §6 logic lives in the OrderRouter and is **tested at the router level** (the doc's HTTP §6.8 tests are impossible).

@@ -87,6 +87,14 @@ class Strategy(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # P5 §7: when the activation wizard completed (status → PENDING_LIVE). The
+    # scheduler flips PENDING_LIVE → LIVE 24h after this timestamp (ADR 0005).
+    # Retained after the LIVE transition for forensic "when did this go live"
+    # queries.
+    live_activation_initiated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

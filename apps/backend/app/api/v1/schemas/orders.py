@@ -31,10 +31,17 @@ class OrderCreateRequest(BaseModel):
     client_order_id: str | None = None
     # P5 §6: typed-ticker confirmation for manual LIVE orders. Optional at the
     # schema level (paper orders ignore it); the OrderRouter enforces the
-    # "required + must match symbol" rule for MANUAL + LIVE. (Today the orders
-    # endpoint only targets the paper account, so this is forward-prep for the
-    # §7 wizard that opens LIVE order submission.)
+    # "required + must match symbol" rule for MANUAL + LIVE.
     confirmation_text: str | None = Field(default=None, max_length=32)
+    # P5 §7: target a specific account (e.g. the user's LIVE account). When
+    # omitted, the endpoint defaults to the user's paper account (pre-§7
+    # behavior). The router + risk gates enforce the LIVE rules.
+    account_id: int | None = None
+    # P5 §7: order source + strategy attribution. MANUAL by default. STRATEGY
+    # orders carry strategy_id (threaded to source_id for the router's cooldown
+    # + LIVE-status gate).
+    source: OrderSourceType = OrderSourceType.MANUAL
+    strategy_id: int | None = None
 
     @field_validator("symbol")
     @classmethod

@@ -201,6 +201,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             await backtest_worker.start()
 
+            # 10b. Activation completion job (P5 §7). Every 60s, flip
+            # PENDING_LIVE → LIVE for strategies whose 24h cooldown (ADR 0005)
+            # has elapsed. Idempotent across restarts. max_instances=1 +
+            # coalesce so a slow pass doesn't pile up.
+            from app.jobs.activation_completion import run_activation_completion
+
+            scheduler.scheduler.add_job(
+                run_activation_completion,
+                trigger="interval",
+                seconds=60,
+                id="activation_completion",
+                max_instances=1,
+                coalesce=True,
+                kwargs={"session_factory": session_factory, "bus": bus},
+            )
+            logger.info("activation_completion_scheduled")
+
             # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
             # wire it back via set_bar_stream_service before any strategy
             # registers — register() fires on_strategies_changed() which the

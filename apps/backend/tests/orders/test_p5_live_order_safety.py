@@ -30,7 +30,7 @@ from app.db.models.risk_limits import RiskLimits
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
-from app.orders.router import BrokerModeError, OrderRouter
+from app.orders.router import OrderRouter
 from app.risk.engine import RiskEngine
 from app.risk.types import OrderRequest
 
@@ -108,21 +108,22 @@ async def test_manual_live_wrong_confirmation_rejected(seeded):
     assert order.rejection_reason == "CONFIRMATION_MISMATCH"
 
 
-async def test_manual_live_correct_confirmation_reaches_broker_mode_guard(seeded):
-    # Confirmation passes → falls through to the §1 BrokerModeError (live not
-    # enabled yet). The point: confirmation didn't reject it.
-    with pytest.raises(BrokerModeError):
-        await _router(seeded).submit(_req(account_id=2, confirmation_text="AAPL"))
+async def test_manual_live_correct_confirmation_passes_to_risk(seeded):
+    # P5 §7 lifted the §1 raise: a correct confirmation now passes the
+    # confirmation gate and falls through to the risk engine (which rejects here
+    # for downstream reasons). The point: confirmation didn't reject it.
+    order = await _router(seeded).submit(_req(account_id=2, confirmation_text="AAPL"))
+    assert order.rejection_reason not in ("CONFIRMATION_REQUIRED", "CONFIRMATION_MISMATCH")
 
 
 async def test_confirmation_case_insensitive(seeded):
-    with pytest.raises(BrokerModeError):
-        await _router(seeded).submit(_req(account_id=2, confirmation_text="aapl"))
+    order = await _router(seeded).submit(_req(account_id=2, confirmation_text="aapl"))
+    assert order.rejection_reason != "CONFIRMATION_MISMATCH"
 
 
 async def test_confirmation_whitespace_stripped(seeded):
-    with pytest.raises(BrokerModeError):
-        await _router(seeded).submit(_req(account_id=2, confirmation_text="  AAPL  "))
+    order = await _router(seeded).submit(_req(account_id=2, confirmation_text="  AAPL  "))
+    assert order.rejection_reason != "CONFIRMATION_MISMATCH"
 
 
 async def test_manual_paper_needs_no_confirmation(seeded):
@@ -134,11 +135,14 @@ async def test_manual_paper_needs_no_confirmation(seeded):
 
 
 async def test_strategy_live_needs_no_confirmation(seeded):
-    # STRATEGY source skips confirmation → falls through to BrokerModeError.
-    with pytest.raises(BrokerModeError):
-        await _router(seeded).submit(
-            _req(account_id=2, source_type=OrderSourceType.STRATEGY, source_id="10")
-        )
+    # STRATEGY source skips the confirmation gate. Strategy 10 is PAPER status,
+    # so the §7 live-guard rejects it with STRATEGY_NOT_LIVE — not a confirmation
+    # code (the point: confirmation isn't required for STRATEGY source).
+    order = await _router(seeded).submit(
+        _req(account_id=2, source_type=OrderSourceType.STRATEGY, source_id="10")
+    )
+    assert order.rejection_reason not in ("CONFIRMATION_REQUIRED", "CONFIRMATION_MISMATCH")
+    assert order.rejection_reason == "STRATEGY_NOT_LIVE"
 
 
 # ---- LIVE_ORDER_SUBMITTED audit ----
@@ -157,16 +161,19 @@ async def test_live_attempt_audits(seeded):
     assert payload["reason_code"] == "CONFIRMATION_MISMATCH"
 
 
-async def test_broker_mode_refusal_audits(seeded):
-    with pytest.raises(BrokerModeError):
-        await _router(seeded).submit(_req(account_id=2, confirmation_text="AAPL"))
+async def test_live_attempt_audits_on_downstream_rejection(seeded):
+    # P5 §7: a manual+LIVE attempt that passes confirmation but is rejected
+    # downstream (risk) still produces a LIVE_ORDER_SUBMITTED audit.
+    await _router(seeded).submit(_req(account_id=2, confirmation_text="AAPL"))
     async with seeded() as session:
         audits = (await session.execute(
             select(AuditLog).where(AuditLog.action == "LIVE_ORDER_SUBMITTED")
         )).scalars().all()
     assert len(audits) == 1
     import json
-    assert json.loads(audits[0].payload_json)["reason_code"] == "BROKER_MODE_NOT_ENABLED"
+    payload = json.loads(audits[0].payload_json)
+    assert payload["outcome"] == "rejected"
+    assert payload["reason_code"] not in ("CONFIRMATION_REQUIRED", "CONFIRMATION_MISMATCH")
 
 
 async def test_paper_order_does_not_audit_live(seeded):

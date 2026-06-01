@@ -123,12 +123,17 @@ class StrategyStatus(StrEnum):
     IDLE = "idle"
     BACKTEST = "backtest"
     PAPER = "paper"
+    # P5 §7: the 24-hour holding state between activation-wizard completion and
+    # live order flow (ADR 0005). Cannot submit orders; the scheduler flips it
+    # to LIVE after the cooldown elapses, or the user cancels back to IDLE.
+    PENDING_LIVE = "pending_live"
     LIVE = "live"
     HALTED = "halted"
     ERROR = "error"
 
 
 # Statuses in which the engine actively dispatches to a strategy.
+# PENDING_LIVE is deliberately excluded — it cannot submit orders.
 ACTIVE_STRATEGY_STATUSES = frozenset(
     {StrategyStatus.PAPER, StrategyStatus.LIVE}
 )

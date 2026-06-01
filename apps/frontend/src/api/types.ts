@@ -181,7 +181,14 @@ export interface Quote {
 // ===== Strategies =====
 
 export type StrategyType = "python" | "pine" | "agent";
-export type StrategyStatus = "idle" | "backtest" | "paper" | "live" | "halted" | "error";
+export type StrategyStatus =
+  | "idle"
+  | "backtest"
+  | "paper"
+  | "pending_live"
+  | "live"
+  | "halted"
+  | "error";
 
 export const ACTIVE_STRATEGY_STATUSES: ReadonlyArray<StrategyStatus> = ["paper", "live"];
 

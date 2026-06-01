@@ -20,6 +20,7 @@ from app.brokers.registry import BrokerRegistry
 from app.db.enums import (
     OrderSide,
     OrderSourceType,
+    OrderStatus,
     OrderType,
     RiskScopeType,
     TimeInForce,
@@ -28,7 +29,7 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
-from app.orders.router import BrokerModeError, OrderRouter
+from app.orders.router import OrderRouter
 from app.risk.engine import RiskEngine
 from app.risk.types import OrderRequest
 
@@ -102,9 +103,11 @@ async def _seed(session) -> None:
     await session.commit()
 
 
-def _req(account_id: int, confirmation_text: str | None = None) -> OrderRequest:
-    # P5 §6: MANUAL+LIVE now passes the typed-ticker confirmation gate before
-    # the §1 BrokerModeError guard; the live test supplies a matching ticker.
+def _req(
+    account_id: int,
+    confirmation_text: str | None = None,
+    source_type: OrderSourceType = OrderSourceType.MANUAL,
+) -> OrderRequest:
     return OrderRequest(
         user_id=1,
         account_id=account_id,
@@ -113,7 +116,7 @@ def _req(account_id: int, confirmation_text: str | None = None) -> OrderRequest:
         qty=Decimal("10"),
         type=OrderType.MARKET,
         tif=TimeInForce.DAY,
-        source_type=OrderSourceType.MANUAL,
+        source_type=source_type,
         confirmation_text=confirmation_text,
     )
 
@@ -157,7 +160,9 @@ async def test_falls_back_to_default_adapter_when_unregistered(session_factory):
 
 
 @pytest.mark.asyncio
-async def test_live_account_refused_before_registry_lookup(session_factory):
+async def test_live_agent_order_refused_before_registry_lookup(session_factory):
+    """P5 §7: the live-guard refusal (here AGENT_LIVE_DISABLED) short-circuits
+    before the per-account registry lookup and the broker call."""
     async with session_factory() as session:
         await _seed(session)
     fallback = _StubAdapter("fallback")
@@ -167,7 +172,11 @@ async def test_live_account_refused_before_registry_lookup(session_factory):
     router = OrderRouter(fallback, engine, session_factory, _StubBus(),
                          broker_registry=exploding)
 
-    with pytest.raises(BrokerModeError):
-        await router.submit(_req(account_id=2, confirmation_text="AAPL"))
+    order = await router.submit(
+        _req(account_id=2, confirmation_text="AAPL",
+             source_type=OrderSourceType.AGENT_PROPOSAL)
+    )
+    assert order.status == OrderStatus.REJECTED
+    assert order.rejection_reason == "AGENT_LIVE_DISABLED"
     assert exploding.get_calls == 0       # registry never consulted
     assert len(fallback.submitted) == 0   # no broker call

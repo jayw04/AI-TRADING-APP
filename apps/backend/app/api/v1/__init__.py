@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     account,
     accounts,
+    activation,
     agent,
     alerts,
     auth,
@@ -41,3 +42,6 @@ api_router.include_router(agent.router)
 # risk-state, ...); api_router already carries the /api/v1 prefix, so include
 # with no extra prefix (the v0.2 doc's prefix="/api/v1" would double it).
 api_router.include_router(risk.router)
+# P5 §7: activation lifecycle (prefix=/strategies, same as strategies router;
+# distinct sub-paths /{id}/activation, /activate, /activate/cancel, /deactivate).
+api_router.include_router(activation.router)
