@@ -6,7 +6,7 @@
 | Date | 2026-06-01 |
 | Phase | P5 §8 — Production Hardening (companion to `TradingWorkbench_P5_Session8_v0.2.md`); **final P5 session** |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
-| Shipped as | PR **#NN** — branch `feat/p5-session8-production-hardening`; tags **`p5-session8-complete`** + **`p5-complete`** |
+| Shipped as | PR **#46** — branch `feat/p5-session8-production-hardening`; tags **`p5-session8-complete`** + **`p5-complete`** |
 | Built against | `main` at `p5-session7-complete` (`6a3a10e`) |
 | Verdict | **GO — P5 is closed.** Immutable hash-chained audit log (DB triggers + per-user SHA-256 chain + integrity verifier + CI invariant), subsystem-aware `/healthz`, Prometheus `/metrics` (12 metrics + 30s snapshot job), structured-log credential redaction, daily SQLite backup + restore, and the deployment + on-call runbooks are all implemented and **executed**. Backend **568 passed / 9 skipped**; risk 0.904 / p2 / p3 gates; mypy clean (142); ruff clean; **6 shell invariants** (incl. the new `check_audit_immutability`) + ADR 0002 green. Migration `f2a7c1d9e4b6` backfill + down/up round-trip + integrity verify all clean on an isolated DB. **§8.9 manual smoke + §8.10 live cross-session verification deferred** (Norton + no Docker); the in-suite equivalents stand in. |
 | Method | **Executed** (not static): full pytest, the migration backfill/round-trip on a stamped isolated DB, `verify_audit_integrity.py` against migrated data, `backup_db.sh` against a dev-DB copy, the 6 shell invariants + ADR 0002, mypy, ruff. `prometheus_client` installed from PyPI (not Norton-blocked) and added to `pyproject.toml`. |
