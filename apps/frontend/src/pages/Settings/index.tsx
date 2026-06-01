@@ -26,6 +26,17 @@ export default function Settings() {
           </div>
         </Link>
         <Link
+          to="/settings/trading-profile"
+          className="block rounded-lg border border-neutral-800 bg-neutral-900 p-4 hover:border-neutral-700"
+        >
+          <div className="text-sm font-medium text-neutral-100">Trading Profile</div>
+          <div className="mt-1 text-xs text-neutral-400">
+            Your watchlist, bias criteria and thresholds, and session/risk
+            preferences. Soft judgment that informs the morning brief and agent —
+            not enforcement. Edits are audit-logged.
+          </div>
+        </Link>
+        <Link
           to="/settings/accounts"
           className="block rounded-lg border border-neutral-800 bg-neutral-900 p-4 hover:border-neutral-700"
         >

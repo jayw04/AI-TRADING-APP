@@ -18,6 +18,7 @@ from app.api.v1 import (
     risk,
     signals,
     strategies,
+    trading_profile,
     users,
 )
 
@@ -32,6 +33,9 @@ api_router.include_router(positions.router)
 api_router.include_router(market_data.router)
 api_router.include_router(indicators.router)
 api_router.include_router(users.router)
+# P5.5 §1: trading-profile router prefixes /users/me; the /api/v1 prefix is
+# already on api_router, so include with no extra prefix.
+api_router.include_router(trading_profile.router)
 api_router.include_router(alerts.router)
 api_router.include_router(strategies.router)
 api_router.include_router(signals.router)
