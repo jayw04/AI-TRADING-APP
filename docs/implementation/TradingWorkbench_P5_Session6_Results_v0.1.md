@@ -6,7 +6,7 @@
 | Date | 2026-05-31 |
 | Phase | P5 §6 — Live Order Safety (companion to `TradingWorkbench_P5_Session6_v0.2.md`) |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
-| Shipped as | PR **#NN** — branch `feat/p5-session6-live-safety`; tag **`p5-session6-complete`** |
+| Shipped as | PR **#44** — branch `feat/p5-session6-live-safety`; tag **`p5-session6-complete`** |
 | Built against | `main` at `p5-session5-complete` (`49e7ab7`) |
 | Verdict | **GO.** Both friction layers (typed-ticker confirmation + per-strategy cooldown) + the LIVE_ORDER_SUBMITTED audit are implemented and **executed**: schema + migration, cooldown service, OrderRouter integration, endpoints, frontend components, runbook. Full backend suite green; risk gate + p2/p3 + mypy + ruff + 8 invariants + ADR 0002 all green; frontend tsc + ESLint + 77 vitest green. Live trip/reset runtime smoke (§6.9) deferred to WSL/CI per Norton + no-Docker. |
 | Method | **Executed** (not static): pytest with `--cov-branch`, the migration round-trip on a copy of the dev DB, the coverage gates, the 5 shell invariants + ADR 0002 test, mypy, ruff, and the frontend typecheck/lint/vitest were all run on the dev box. |
