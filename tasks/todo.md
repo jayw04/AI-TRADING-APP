@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-05-31 · branch: `main` · latest tag: `p5-session4-complete`
+Last updated: 2026-05-31 · branch: `main` · latest tag: `p5-session5-complete`
 
 ---
 
@@ -135,6 +135,17 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 | **S3** | Multi-user auth — replaces the P0 stub: `users.password_hash`(bcrypt 12)/`totp_secret`/`totp_verified_at` + new `sessions` table (SHA-256 token hash, rolling 14-day TTL, revocation); `app/auth/{passwords,tokens,totp}.py`; `stub.py` body replaced (name/exports kept); 6 `/api/v1/auth/*` endpoints + IP rate-limit (5/15min→60min cooldown); WS `/ws` requires cookie → close 4401; `scripts/create_user.py` CLI bootstrap (no web self-signup); frontend `/login`+`RequireAuth`+logout+Vite proxy; `docs/runbook/authentication.md`. | ✅ #39 tag `p5-session3-complete` |
 
 | **S4** | Credential encryption — Fernet store for all per-user secrets at rest. `WORKBENCH_MASTER_KEY` (env) + `app/security/{crypto,credential_store}.py`; new `user_credentials(user_id,kind,ciphertext,…)` table + data migration (`totp_secret`/`pine_webhook_secret` columns dropped, env broker/Anthropic keys captured for user 1); `credentials_for_mode()` → async + store-backed (registry propagates `await`); agent/webhook/auth/`create_user.py` swapped to the store; `/api/v1/users/me/credentials/` (GET/PUT/DELETE, TOTP excluded) + Settings→Credentials page; eighth CI invariant `check_no_env_credentials.sh`; `docs/runbook/credentials.md`; `app/auth/future.py` deleted (S3 close-out). Session doc frozen v1.0. | ✅ #40 tag `p5-session4-complete` |
+
+| **S5** | Live-mode risk gates — account-scoped circuit breaker (hard halt, ADR 0004), per-day order cap, PDT warning, pre-trade buying power (LIVE-only, dormant until §7). New `accounts.circuit_breaker_tripped_at` + `risk_limits.max_orders_per_day`; migration seeds a LIVE GLOBAL risk_limits row + backfills PAPER cap=200. `app/risk/{circuit_breaker,pdt_analyzer,buying_power}.py` + RiskEngine integration; `/api/v1/risk-limits` (list/update) + `/accounts/{id}/risk-state` + `/risk/reset-circuit-breaker` (typed-label); 3 audit actions; `system.circuit_breaker` WS; RiskStateBanner + Settings→RiskLimits UI; shared `app/utils/time.ensure_aware`; ADR 0004 + `docs/runbook/risk-gates.md`. Session doc frozen v0.2. | ✅ #43 tag `p5-session5-complete` |
+
+### P5 §5 deviations from the v0.2 doc (verified against live code; confirmed with Jay)
+- **strategies has no `account_id`** (deferred to §7) → breaker HALTs strategies via `user_id`+status↔mode (PAPER-status→paper acct, LIVE→live).
+- **`Fill` has no `signed_direction`** → realized PnL joins `Fill→Order`, signs by `Order.side`; **unrealized PnL** summed from local `positions.unrealized_pl` (no broker call — engine stays DB-bound).
+- **`SQLEnum` persists the enum NAME** (`'GLOBAL'`/`'PAPER'`/`'BUY'`) → migration raw-SQL seed uses `scope_type='GLOBAL'` (lowercase would orphan the LIVE row); all ORM compares use enum members, never `.value`.
+- **`AuditLogger` is in `app.audit`, `.write()` is sync** (not `app.db.enums`, not awaited).
+- **`StrategyStatus.HALTED` already existed**; **existing global daily-loss halt** (`app/risk/halt.py` step 9) is **kept** — the account breaker composes with it (per risk-engine skill; ADR 0004 notes consolidation as future work).
+- Endpoints wired via `app/api/v1/__init__.py` (no double prefix); buying-power gate dormant in §5 (router `BrokerModeError` short-circuits LIVE before the engine; `bar_cache` wired in §7).
+- §5.11 live trip/reset + paper-baseline smoke deferred to WSL/CI. Suite green; new risk modules ≥0.96 branch.
 
 ### P5 §4 deviations from the v1.0 doc (verified against live code)
 - **`CredentialKind` is a `StrEnum`** (matches `AccountMode`, satisfies ruff `UP042`); `.value` used at every DB/call site.

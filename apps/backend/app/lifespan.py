@@ -111,10 +111,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             trade_stream = TradeUpdatesStream(adapter.credentials, bus)
             await trade_stream.start()
 
-            # 6. Risk Engine + Broker Registry + Order Router
-            #    (P1 Session 5 Phase A; registry added P5 §2)
-            risk_engine = RiskEngine(session_factory)
-
+            # 6. Broker Registry + Risk Engine + Order Router
+            #    (P1 Session 5 Phase A; registry added P5 §2; risk engine gets
+            #    the registry + bus in P5 §5 for the new account-level gates).
+            #
             # P5 §2: one adapter per account, selected by AccountMode. Construct
             # is network-free; we then reuse the already-connected startup paper
             # adapter for the user's paper account(s) so we don't open a second
@@ -141,6 +141,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 ]
             for _aid in _paper_ids:
                 broker_registry.register(_aid, adapter)
+
+            # P5 §5: the engine now also runs the circuit breaker (publishes on
+            # the bus when it trips) and the LIVE-only buying-power gate (uses
+            # the registry; dormant until §7). bar_cache is wired in §7 when
+            # live MARKET orders need a price estimate.
+            risk_engine = RiskEngine(
+                session_factory, broker_registry=broker_registry, bus=bus
+            )
 
             order_router = OrderRouter(
                 adapter, risk_engine, session_factory, bus,

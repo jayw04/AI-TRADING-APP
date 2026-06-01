@@ -54,6 +54,7 @@ _BUS_TOPICS: tuple[str, ...] = (
     "system.symbols_synced",
     "system.reconciliation_drift",
     "system.bar_stream_status",  # P4 §8: WS bar dispatch up/down
+    "system.circuit_breaker",  # P5 §5: account circuit breaker trip/reset
     "alpaca.stream_status",
     "account.snapshot",
     # orders

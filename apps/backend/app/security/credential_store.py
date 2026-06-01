@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.user_credential import UserCredential
 from app.security.crypto import decrypt, encrypt
+from app.utils.time import ensure_aware as _ensure_aware
 
 logger = structlog.get_logger(__name__)
 
@@ -56,18 +57,8 @@ class CredentialNotFoundError(RuntimeError):
 
 REVOKED_RETENTION = timedelta(days=7)
 
-
-def _ensure_aware(dt: datetime | None) -> datetime | None:
-    """Coerce a possibly-naive datetime to aware-UTC.
-
-    SQLite returns datetimes without tzinfo even when they were stored
-    with timezone. Same approach as app/auth/stub.py::_aware (Session 3).
-    """
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt
+# _ensure_aware is the shared app.utils.time.ensure_aware (P5 §5 extracted the
+# canonical copy; imported as _ensure_aware above to keep the call sites below).
 
 
 class CredentialMetadata:
