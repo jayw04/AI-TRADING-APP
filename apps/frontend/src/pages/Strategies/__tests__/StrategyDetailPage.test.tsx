@@ -43,6 +43,13 @@ beforeEach(() => {
   mockedStrategiesApi.listRuns.mockResolvedValue({ items: [], count: 0 });
   mockedStrategiesApi.listSignals.mockResolvedValue({ items: [], count: 0 });
   mockedStrategiesApi.listBacktests.mockResolvedValue({ items: [], count: 0 });
+  // P5 §6: the CooldownIndicator on the detail page polls cooldown status.
+  mockedStrategiesApi.cooldownStatus.mockResolvedValue({
+    strategy_id: 1,
+    in_cooldown: false,
+    cooldown_until: null,
+    seconds_remaining: 0,
+  });
   mockedSignalsApi.list.mockResolvedValue({ items: [], count: 0 });
   mockedOrdersApi.list.mockResolvedValue({ items: [], count: 0 });
 });

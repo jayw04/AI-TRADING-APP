@@ -163,6 +163,7 @@ async def create_order(
         extended_hours=body.extended_hours,
         source_type=OrderSourceType.MANUAL,
         client_order_id=body.client_order_id,
+        confirmation_text=body.confirmation_text,
     )
 
     order_router = _get_router(request)

@@ -76,6 +76,12 @@ class AuditAction(StrEnum):
     CIRCUIT_BREAKER_RESET = "CIRCUIT_BREAKER_RESET"
     RISK_LIMITS_UPDATED = "RISK_LIMITS_UPDATED"
 
+    # ---- Live order safety (P5 §6) ----
+    # Recorded for every LIVE order submission attempt, regardless of outcome.
+    # Paper submissions are NOT audited here (the orders table is their trail).
+    LIVE_ORDER_SUBMITTED = "LIVE_ORDER_SUBMITTED"
+    STRATEGY_COOLDOWN_CLEARED = "STRATEGY_COOLDOWN_CLEARED"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.

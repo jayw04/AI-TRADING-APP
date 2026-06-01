@@ -102,7 +102,9 @@ async def _seed(session) -> None:
     await session.commit()
 
 
-def _req(account_id: int) -> OrderRequest:
+def _req(account_id: int, confirmation_text: str | None = None) -> OrderRequest:
+    # P5 §6: MANUAL+LIVE now passes the typed-ticker confirmation gate before
+    # the §1 BrokerModeError guard; the live test supplies a matching ticker.
     return OrderRequest(
         user_id=1,
         account_id=account_id,
@@ -112,6 +114,7 @@ def _req(account_id: int) -> OrderRequest:
         type=OrderType.MARKET,
         tif=TimeInForce.DAY,
         source_type=OrderSourceType.MANUAL,
+        confirmation_text=confirmation_text,
     )
 
 
@@ -165,6 +168,6 @@ async def test_live_account_refused_before_registry_lookup(session_factory):
                          broker_registry=exploding)
 
     with pytest.raises(BrokerModeError):
-        await router.submit(_req(account_id=2))
+        await router.submit(_req(account_id=2, confirmation_text="AAPL"))
     assert exploding.get_calls == 0       # registry never consulted
     assert len(fallback.submitted) == 0   # no broker call

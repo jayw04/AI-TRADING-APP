@@ -34,6 +34,8 @@ from app.db.models.risk_check import RiskCheck
 from app.db.models.symbol import Symbol
 from app.events.bus import EventBus
 from app.risk import OrderRequest, RiskEngine, RiskOutcome
+from app.risk.reason_codes import ReasonCode
+from app.services.strategy_cooldown import StrategyCooldownService
 
 if TYPE_CHECKING:
     from app.brokers.base import BrokerAdapter
@@ -81,7 +83,58 @@ class OrderRouter:
         # engine might decline a LIVE order for the wrong reason (no live-scoped
         # limits exist yet), sending the user chasing a phantom risk problem.
         account = await self._load_account(req.account_id)
+
+        # P5 §6: typed-ticker confirmation — MANUAL orders on a LIVE account
+        # require confirmation_text matching the symbol. Checked BEFORE the §1
+        # LIVE guard so a missing/wrong confirmation is a clean rejection (not a
+        # BrokerModeError). Every LIVE attempt is audited (LIVE_ORDER_SUBMITTED).
+        if (
+            account is not None
+            and account.mode == AccountMode.live
+            and req.source_type == OrderSourceType.MANUAL
+        ):
+            conf_reason = _confirmation_reject_reason(req)
+            if conf_reason is not None:
+                order = _ephemeral_rejected_order_with_reason(req, conf_reason)
+                await self._audit_live_submission(
+                    req, account, status="rejected", reason_code=conf_reason,
+                    order_id=None,
+                )
+                return order
+
+        # P5 §6: per-strategy cooldown — STRATEGY orders for a strategy in
+        # cooldown are rejected before the (expensive) risk engine. Per-strategy:
+        # other strategies and all manual orders are unaffected. Cooldown
+        # rejections are NOT audited (a spinning strategy would flood the log);
+        # the logger.warning is the operational signal.
+        if req.source_type == OrderSourceType.STRATEGY and req.source_id:
+            cooldown_strategy_id = _strategy_id_from_source(req.source_id)
+            if cooldown_strategy_id is not None:
+                async with self._session_factory() as session:
+                    in_cd, until = await StrategyCooldownService(
+                        session
+                    ).is_in_cooldown(cooldown_strategy_id)
+                if in_cd:
+                    logger.warning(
+                        "order_rejected_cooldown",
+                        strategy_id=cooldown_strategy_id,
+                        account_id=req.account_id,
+                        cooldown_until=until.isoformat() if until else None,
+                    )
+                    return _ephemeral_rejected_order_with_reason(
+                        req, ReasonCode.STRATEGY_COOLDOWN.value
+                    )
+
+        # P5 §1 — refuse LIVE accounts *before* any other work. Running the
+        # risk engine against an order we'll reject anyway is wasted, and the
+        # engine might decline a LIVE order for the wrong reason (no live-scoped
+        # limits exist yet), sending the user chasing a phantom risk problem.
         if account is not None and account.mode == AccountMode.live:
+            # P5 §6: record the live attempt before refusing (§7 lifts this guard).
+            await self._audit_live_submission(
+                req, account, status="rejected",
+                reason_code="BROKER_MODE_NOT_ENABLED", order_id=None,
+            )
             logger.warning(
                 "order_router_refused_live",
                 account_id=account.id,
@@ -109,7 +162,9 @@ class OrderRouter:
         # return an ephemeral rejected Order so the API caller's response
         # shape stays consistent.
         if not outcome.passed and outcome.resolved_symbol_id is None:
-            return _ephemeral_rejected_order(req, outcome)
+            order = _ephemeral_rejected_order(req, outcome)
+            await self._maybe_set_cooldown(req, order)
+            return order
 
         async with self._session_factory() as session:
             order = await self._persist_initial_order(session, req, outcome)
@@ -138,6 +193,9 @@ class OrderRouter:
                     order_id=order.id,
                     reasons=[r.value for r in outcome.reason_codes],
                 )
+                # P5 §6: a STRATEGY-sourced submission that failed risk enters
+                # the 60s cooldown.
+                await self._maybe_set_cooldown(req, order)
                 return order
 
             # Risk passed. Mark pending_submit and attempt broker submission.
@@ -167,7 +225,10 @@ class OrderRouter:
                 _router_token=ROUTER_TOKEN,
             )
         except PermanentAlpacaError as exc:
-            return await self._mark_broker_rejected(order.id, str(exc))
+            order = await self._mark_broker_rejected(order.id, str(exc))
+            # P5 §6: broker permanently rejected a STRATEGY submission → cooldown.
+            await self._maybe_set_cooldown(req, order)
+            return order
         except TransientAlpacaError:
             # Leave the order in PENDING_SUBMIT; caller may retry. We do NOT
             # mark it rejected — that would be wrong if Alpaca eventually
@@ -456,6 +517,129 @@ class OrderRouter:
 
     async def _emit_simple(self, order_id: int, topic: str) -> None:
         await self._bus.publish(topic, {"order_id": order_id})
+
+    # ---- P5 §6: live order safety helpers ----
+
+    async def _maybe_set_cooldown(self, req: OrderRequest, order: Order) -> None:
+        """Set the 60s cooldown when a STRATEGY-sourced order failed to submit
+        (router-level failures land as REJECTED). Each failure resets the window.
+        No-op for manual orders and for successful/pending submissions."""
+        if req.source_type != OrderSourceType.STRATEGY:
+            return
+        strategy_id = _strategy_id_from_source(req.source_id)
+        if strategy_id is None:
+            return
+        if order.status != OrderStatus.REJECTED:
+            return
+        async with self._session_factory() as session:
+            await StrategyCooldownService(session).set_cooldown(
+                strategy_id,
+                duration_seconds=60,
+                reason=order.rejection_reason or "submission_failed",
+            )
+
+    async def _audit_live_submission(
+        self,
+        req: OrderRequest,
+        account: Account,
+        *,
+        status: str,
+        reason_code: str | None,
+        order_id: int | None,
+    ) -> None:
+        """Write a LIVE_ORDER_SUBMITTED audit row for a LIVE order attempt,
+        regardless of outcome. Paper attempts are never audited here (the orders
+        table is their trail). Prices serialize as strings to preserve Decimal
+        precision."""
+        if account.mode != AccountMode.live:
+            return
+        actor_type = (
+            AuditActorType.USER
+            if req.source_type == OrderSourceType.MANUAL
+            else AuditActorType.SYSTEM
+        )
+        async with self._session_factory() as session:
+            AuditLogger.write(
+                session,
+                actor_type=actor_type,
+                actor_id=str(req.user_id),
+                action=AuditAction.LIVE_ORDER_SUBMITTED,
+                target_type="order",
+                target_id=order_id if order_id is not None else 0,
+                payload={
+                    "symbol": req.symbol_ticker,
+                    "side": req.side.value,
+                    "qty": str(req.qty),
+                    "type": req.type.value,
+                    "limit_price": (
+                        str(req.limit_price) if req.limit_price is not None else None
+                    ),
+                    "stop_price": (
+                        str(req.stop_price) if req.stop_price is not None else None
+                    ),
+                    "source": req.source_type.value,
+                    "strategy_id": _strategy_id_from_source(req.source_id),
+                    "outcome": status,
+                    "reason_code": reason_code,
+                    "account_id": account.id,
+                },
+                user_id=req.user_id,
+            )
+            await session.commit()
+
+
+def _confirmation_reject_reason(req: OrderRequest) -> str | None:
+    """For a MANUAL+LIVE order, return the rejection reason code if the typed
+    confirmation is missing or doesn't match the symbol, else None.
+
+    Match is case-insensitive and whitespace-stripped on both sides
+    ('aapl' / '  AAPL  ' both match 'AAPL'; 'AAPL.US' does not match 'AAPL')."""
+    if not req.confirmation_text:
+        return ReasonCode.CONFIRMATION_REQUIRED.value
+    if req.confirmation_text.strip().upper() != req.symbol_ticker.strip().upper():
+        return ReasonCode.CONFIRMATION_MISMATCH.value
+    return None
+
+
+def _strategy_id_from_source(source_id: str | None) -> int | None:
+    """Strategy orders carry source_id = str(strategy_id) (see
+    StrategyContext.submit_order). Parse it back to an int; None if absent or
+    non-numeric."""
+    if not source_id:
+        return None
+    try:
+        return int(source_id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _ephemeral_rejected_order_with_reason(req: OrderRequest, reason_code: str) -> Order:
+    """Build a non-persisted REJECTED Order carrying a single P5 §6 reason code
+    (CONFIRMATION_* / STRATEGY_COOLDOWN). Pre-risk rejections never resolved a
+    symbol, so symbol_id is the ephemeral sentinel 0 (never written to the DB)."""
+    now = datetime.now(UTC)
+    return Order(
+        user_id=req.user_id,
+        account_id=req.account_id,
+        symbol_id=0,  # ephemeral — never reaches the DB
+        broker_order_id=None,
+        client_order_id=req.client_order_id,
+        side=req.side,
+        qty=req.qty,
+        type=req.type,
+        limit_price=req.limit_price,
+        stop_price=req.stop_price,
+        tif=req.tif,
+        extended_hours=req.extended_hours,
+        status=OrderStatus.REJECTED,
+        rejection_reason=reason_code,
+        source_type=req.source_type,
+        source_id=req.source_id,
+        risk_check_id=None,
+        created_at=now,
+        terminal_at=now,
+        updated_at=now,
+    )
 
 
 def _ephemeral_rejected_order(req: OrderRequest, outcome: RiskOutcome) -> Order:

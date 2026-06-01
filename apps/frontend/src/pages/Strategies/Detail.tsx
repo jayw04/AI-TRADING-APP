@@ -9,6 +9,7 @@ import { SignalsTab } from "./tabs/SignalsTab";
 import { OrdersTab } from "./tabs/OrdersTab";
 import { BacktestsTab } from "./tabs/BacktestsTab";
 import { ParamsTab } from "./tabs/ParamsTab";
+import { CooldownIndicator } from "@/components/strategies/CooldownIndicator";
 
 type Tab = "overview" | "signals" | "orders" | "backtests" | "params";
 
@@ -130,6 +131,8 @@ export default function StrategyDetailPage() {
           )}
         </div>
       </div>
+
+      <CooldownIndicator strategyId={strategy.id} />
 
       {strategy.has_pending_reload && (
         <div

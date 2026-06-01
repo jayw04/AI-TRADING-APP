@@ -29,6 +29,12 @@ class OrderCreateRequest(BaseModel):
     tif: TimeInForce = TimeInForce.DAY
     extended_hours: bool = False
     client_order_id: str | None = None
+    # P5 §6: typed-ticker confirmation for manual LIVE orders. Optional at the
+    # schema level (paper orders ignore it); the OrderRouter enforces the
+    # "required + must match symbol" rule for MANUAL + LIVE. (Today the orders
+    # endpoint only targets the paper account, so this is forward-prep for the
+    # §7 wizard that opens LIVE order submission.)
+    confirmation_text: str | None = Field(default=None, max_length=32)
 
     @field_validator("symbol")
     @classmethod
