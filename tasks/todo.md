@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-06-02 · branch: `main` · latest tag: **`p5.5-complete`** (`878b9f8`) — **P5.5 CLOSED** on the in-suite stand-in (Jay's call via AskUserQuestion, same basis as `p5-complete`): all 12 invariants + both full suites + merge-commit CI green; live §3.13 cross-session smoke (docker compose up / SSE handshake / Claude-Code tool calls / paper smoke) **deferred** to a non-Norton env · **next: P6**
+Last updated: 2026-06-02 · branch: `main` · latest tag: **`p6-session1a-complete`** (`b95395a`) — **P6 STARTED.** §1a agent infrastructure merged via **PR #50** (squash `b95395a`): `apps/agent/` skeleton, `strategy_proposals` table + `agent_envelope_json`, `GET /api/v1/agent/cost-envelope` (hard pre-call cap), `CredentialKind.AGENT_API_KEY` + generalized bearer auth, 3 audit actions, **13th CI invariant** `check_agent_no_db_access.sh`, migration `a3d9f1c4b7e2`. All 10 PR CI checks green (incl. new `Python (agent)` + `Build image (agent)`). No order-path code touched. **Deferred** (Norton + no Docker): real LLM call (no caller until §1b), `docker compose` run, migration on the real dev DB (verified on a copy) · **next: P6 §1b** (agent invocation path + MCP read tools + frontend) · prior tag `p5.5-complete` (`878b9f8`)
 
 ---
 
@@ -235,6 +235,24 @@ Master plan: `Docs/implementation/TradingWorkbench_P5.5_ImplementationPlan_v0.1.
 - **Router object is `api_router`** (not `api_v1_router`); included with no extra prefix. **Frontend `apiFetch` body must be `JSON.stringify(...)`**; routes register in `App.tsx`, nav link in `Settings/index.tsx`.
 - **`user_id unique=True, index=True` → one unique index** `ix_trading_profiles_user_id` (no separate UNIQUE constraint); the migration mirrors `create_all`. **No `tests/migrations/` harness** → migration verified by a manual up/down/up round-trip on a DB copy + ORM read (repo norm). `TradingProfile` re-exported in `models/__init__.py` (drives `create_all`).
 - 19 backend (11 service + 8 API) + 5 frontend vitest. Suite green; mypy(145)/ruff/6-shell-invariants/ADR-0002/3-coverage-gates green; frontend tsc+eslint+82 vitest green. **Squash `5919a66`**; pre-merge CI all 6 jobs green. Jay authorized the merge ~16 min before the ≥1h walk-away cleared (informed override, CI green). §1.8 live curl smoke + migration-vs-real-prod-DB deferred (Norton). Results: `TradingWorkbench_P5_5_Session1_Results_v0.1.md`.
+
+## 🚧 P6 — Strategy intelligence layer (in progress)
+
+Goal: advisory agent that reviews strategies, proposes parameter changes, and (later) drafts strategies — all routed through the existing activation flow before anything goes live; constrained by ADR 0006 v2 (B3_AUTONOMOUS paused). The 8 architectural questions are settled in `Docs/implementation/TradingWorkbench_P6_Architectural_Decisions_v0_1.md` (Decisions 1–8). Per-session docs drift against the prior session's Results (Rec #10).
+
+| Session | Scope | Status |
+|---|---|---|
+| **S1a** | **Agent infrastructure (skeleton + schema + cost envelope).** New `apps/agent/` packaged consumer service (config + budget client + LLM-call wrapper; reads via workbench-mcp, writes via backend HTTP, **never touches the DB**; `python -m agent` is a stub until §1b). `strategy_proposals` table + `ProposalState` (composite-unique per `(strategy_id, generated_at→minute)` via a `strftime` functional index). `trading_profiles.agent_envelope_json` (Decision 4) wired through the service dataclass + trading-profile API. **`GET /api/v1/agent/cost-envelope`** (Decision 6 hard pre-call cap, default $2.00, `AGENT_BUDGET_REJECTED` audit row; renamed from `/agent/budget` — P3 owns that). `CredentialKind.AGENT_API_KEY` + generalized bearer auth (`AGENT_API_KEY` then `WORKBENCH_MCP_KEY`; MCP path byte-identical). 3 audit actions. **13th CI invariant** `check_agent_no_db_access.sh`; `apps/agent` added to the python-checks + build-image matrices. Migration `a3d9f1c4b7e2` (down-rev `b3f8c2d1e9a7`). Session doc + Results: `TradingWorkbench_P6_Session1a_v0_1.md` / `..._Session1a_Results_v0.1.md`. | ✅ #50 tag `p6-session1a-complete` |
+
+### P6 §1a deviations from the v0.1 doc (verified against live code)
+- **Audit columns are `ts`/`payload_json`** (not `created_at`/`payload`); `AuditLogger.write` is a sync staticmethod. **`cost_cents` is fractional cents** (USD×100, stringified Decimal, e.g. `"0.0800"`) → summed as `Decimal` and rounded UP once; the doc's per-row `int(Decimal(...))` truncation would have zeroed every sub-cent cost.
+- **24h spend query built with SQLAlchemy Core** (mapped `AuditLog.ts` + `func.json_extract`), not raw `text()` — a raw `ts >= :iso_string` compares SQLite's stored `"YYYY-MM-DD HH:MM:SS.ffffff"` against an isoformat `"...T...+00:00"` lexicographically and silently excludes every row.
+- **Functional unique index uses `sa.text("strftime('%Y-%m-%d %H:%M', generated_at)")`** — passing the bare string `"generated_at"` to `func.strftime` would index a constant. Verified empirically (create_all + migrated-copy SQL).
+- **Route collision:** P3's `agent` router already owns `GET /agent/budget` (chat-session USD budget) → renamed the P6 endpoint to `/agent/cost-envelope`.
+- **`TradingProfileService` returns a dataclass** → extended the dataclass + `_to_data` + `_new_row` + `PROFILE_FIELDS` + the trading-profile API request/response (doc only named `PROFILE_FIELDS`). **`AuditActorType.AGENT`** used for the rejection row.
+- **CI mypy caught a real type error** the local run missed (local venv lacks `anthropic` → `ignore_missing_imports` masked it): `messages.create(messages=list[dict])` vs `Iterable[MessageParam]` → targeted `# type: ignore[arg-type]` (fix commit `3824831`). **Lesson:** the agent's mypy needs `anthropic` installed to be meaningful; trust CI's `Python (agent)` job.
+- 15 backend (9 cost-envelope + 6 schema) + 12 agent unit tests. **Squash `b95395a`; all 10 PR CI jobs green** (incl. new `Python (agent)` + `Build image (agent)`). Merged on Jay's explicit "PR and tag" (informed override of the ≥1h walk-away, CI green). **Deferred** (Norton + no Docker): real Anthropic call (no caller until §1b), `docker compose` run, migration on the real dev DB (verified on a copy). Credentials list is now **9** kinds (`test_p5_credentials_endpoint` updated 8→9).
+- **Next: P6 §1b** — agent invocation path + MCP read tools for proposal context + frontend (envelope editor + proposals UI). Draft `TradingWorkbench_P6_Session1b_v0.1.md` against the §1a Results doc (NOT speculatively).
 
 ## 🗺️ P5 + P5.5 + P6 + P7 — Roadmap
 
