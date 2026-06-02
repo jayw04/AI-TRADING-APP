@@ -12,6 +12,7 @@ from app.api.v1 import (
     indicators,
     internal,
     market_data,
+    morning_brief,
     opportunities,
     orders,
     positions,
@@ -36,6 +37,8 @@ api_router.include_router(users.router)
 # P5.5 §1: trading-profile router prefixes /users/me; the /api/v1 prefix is
 # already on api_router, so include with no extra prefix.
 api_router.include_router(trading_profile.router)
+# P5.5 §2: morning brief (prefix=/morning-brief). No extra prefix here.
+api_router.include_router(morning_brief.router)
 api_router.include_router(alerts.router)
 api_router.include_router(strategies.router)
 api_router.include_router(signals.router)

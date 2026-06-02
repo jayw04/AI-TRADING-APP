@@ -4,6 +4,7 @@ import { ordersApi } from "@/api/orders";
 import { positionsApi } from "@/api/positions";
 import { ApiError } from "@/api/client";
 import OrderTicket from "@/components/ticket/OrderTicket";
+import MorningBriefCard from "@/components/morning-brief/MorningBriefCard";
 import {
   formatMoney,
   formatNumber,
@@ -49,6 +50,8 @@ export default function Dashboard() {
           cross-cutting things to look at.
         </p>
       </div>
+
+      <MorningBriefCard />
 
       <section className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
         <h3 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide">

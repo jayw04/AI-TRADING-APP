@@ -7,6 +7,7 @@ from app.db.models.audit_log import AuditLog
 from app.db.models.backtest_job import BacktestJob
 from app.db.models.backtest_result import BacktestResult
 from app.db.models.fill import Fill
+from app.db.models.morning_brief import MorningBrief
 from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.risk_check import RiskCheck
@@ -32,6 +33,7 @@ __all__ = [
     "BacktestJob",
     "BacktestResult",
     "Fill",
+    "MorningBrief",
     "Order",
     "Position",
     "RiskCheck",
