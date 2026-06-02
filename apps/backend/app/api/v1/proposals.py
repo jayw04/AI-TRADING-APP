@@ -33,7 +33,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.auth.stub import CurrentUser, get_current_user
-from app.db.enums import StrategyStatus
+from app.db.enums import OrderSourceType, StrategyStatus
+from app.db.models.order import Order
 from app.db.models.strategy import Strategy
 from app.db.models.strategy_proposal import ProposalState, StrategyProposal
 from app.db.session import get_session
@@ -127,6 +128,59 @@ async def _invoke_agent(agent_url: str, proposal_id: int) -> dict[str, Any]:
 
 
 # ----- Endpoints -----
+
+
+@strategies_router.get("/{strategy_id}/history")
+async def strategy_history(
+    strategy_id: int,
+    limit: int = 30,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Read-only context for proposal generation (P6 §1b): a strategy snapshot
+    plus a lightweight recent-orders summary. Detailed performance metrics
+    (Sharpe / return / drawdown) are Decision 8 / Session 2.
+
+    Lives here (not in strategies.py) so the §1b addition doesn't perturb the
+    P2 branch-coverage gate on api/v1/strategies.py — see §1b validation note.
+    """
+    if limit < 1 or limit > 90:
+        limit = max(1, min(limit, 90))
+    row = await session.get(Strategy, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    orders = (
+        await session.execute(
+            select(Order)
+            .where(
+                Order.source_type == OrderSourceType.STRATEGY,
+                Order.source_id == str(strategy_id),
+            )
+            .order_by(Order.id.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+
+    return {
+        "snapshot": {
+            "id": row.id,
+            "name": row.name,
+            "version": row.version,
+            "type": row.type.value,
+            "status": row.status.value,
+            "params": row.params_json or {},
+            "symbols": row.symbols_json or [],
+        },
+        "performance": {
+            "recent_orders_considered": len(orders),
+            "recent_order_statuses": [o.status.value for o in orders],
+            "note": (
+                "Detailed performance metrics (Sharpe / return / drawdown) "
+                "arrive in P6 Session 2 (Decision 8 backtest eval)."
+            ),
+        },
+    }
 
 
 @strategies_router.post("/{strategy_id}/propose", response_model=ProposalResponse)

@@ -64,6 +64,39 @@ async def test_history_nonexistent_strategy_404(client):
     assert r.status_code == 404
 
 
+# A few deterministic strategies.py read-path tests — they give the P2
+# branch-coverage gate solid headroom above its 0.10 floor for this module
+# (the flaky end-to-end test's coverage contribution is nondeterministic, so we
+# don't rely on it). These exercise pure DB read paths; no engine needed.
+
+
+async def test_get_strategy_detail(client):
+    r = await client.get(f"{BASE}/strategies/1")
+    assert r.status_code == 200
+    assert r.json()["id"] == 1
+
+
+async def test_get_strategy_nonexistent_404(client):
+    r = await client.get(f"{BASE}/strategies/9999")
+    assert r.status_code == 404
+
+
+async def test_get_other_user_strategy_404(client):
+    r = await client.get(f"{BASE}/strategies/2")
+    assert r.status_code == 404
+
+
+async def test_list_strategies_status_filter(client):
+    r = await client.get(f"{BASE}/strategies?status=idle")
+    assert r.status_code == 200
+    assert all(s["status"] == "idle" for s in r.json()["items"])
+
+
+async def test_list_strategies_type_filter(client):
+    r = await client.get(f"{BASE}/strategies?type=python")
+    assert r.status_code == 200
+
+
 async def test_history_includes_recent_strategy_orders(client):
     now = datetime.now(UTC)
     async with get_sessionmaker()() as s:
