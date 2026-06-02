@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent"
+version = "0.1.0"
+description = "Trading Workbench P6 stateless proposal-generation agent"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Jay Wang" }]
+dependencies = [
+    "httpx>=0.27",
+    "anthropic>=0.40",
+    "structlog>=24.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5",
+    "pytest-httpx>=0.30",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+[project.scripts]
+agent = "agent.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"

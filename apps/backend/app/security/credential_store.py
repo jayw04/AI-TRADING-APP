@@ -52,6 +52,11 @@ class CredentialKind(StrEnum):
     # P5.5 §3: bearer token the workbench-mcp server presents to the backend.
     # Resolved to the owning user by app/auth/stub.py::_resolve_from_mcp_token.
     WORKBENCH_MCP_KEY = "workbench_mcp_key"
+    # P6 §1a: bearer token the agent service (apps/agent/) presents to the
+    # backend HTTP API (e.g. GET /api/v1/agent/budget). Per Decision 2 the agent
+    # uses this as a first-class bearer credential. Resolved by
+    # app/auth/stub.py::_resolve_from_bearer_token.
+    AGENT_API_KEY = "agent_api_key"
 
 
 class CredentialNotFoundError(RuntimeError):
