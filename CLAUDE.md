@@ -32,7 +32,7 @@ When adding a new action that is "consequential" in the everyday sense, audit-lo
 
 ### No LLM in the order path by default (ADR 0006 v2)
 
-The order path — `OrderRouter`, the risk engine, broker adapters, strategy execution code — must not import or call `anthropic` (the Anthropic SDK) in default product configurations. LLM calls live in `app/agent/`, `app/services/morning_brief.py`, and future `app/services/strategy_review.py` and `app/services/drift_detection.py`. CI invariant `check_no_llm_in_order_path.sh` enforces the allowlist.
+The order path — `OrderRouter`, the risk engine, broker adapters, strategy execution code — must not import or call `anthropic` (the Anthropic SDK) in default product configurations. LLM calls live in `app/llm/`, `app/services/morning_brief.py`, and future `app/services/strategy_review.py` and `app/services/drift_detection.py`. CI invariant `check_no_llm_in_order_path.sh` enforces the allowlist.
 
 A user opt-in mechanism (per ADR 0006 v2 and ADR 0007) permits LLM calls in the order path for a specific user and a specific strategy, gated by a `LLM_OPT_IN_ALLOWED` database flag, a 7-day activation cooldown, and a typed user acknowledgment. This is the *only* way LLM calls reach the order path. There are no other exceptions.
 

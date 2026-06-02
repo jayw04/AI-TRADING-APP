@@ -1,7 +1,7 @@
 """P5.5 §3 — workbench-mcp bearer-token auth on get_current_user.
 
 These opt out of the conftest autouse auth override (``@pytest.mark.real_auth``)
-so the real ``get_current_user`` + ``_resolve_from_mcp_token`` run.
+so the real ``get_current_user`` + ``_resolve_from_bearer_token`` run.
 """
 
 from __future__ import annotations

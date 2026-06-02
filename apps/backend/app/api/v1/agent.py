@@ -21,9 +21,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.anthropic_client import AnthropicClientNotConfigured
-from app.agent.pricing import DailyBudgetResolver
-from app.agent.runtime import AgentRuntime, AgentRuntimeError
 from app.api.v1.schemas.agent import (
     AppendMessageRequest,
     AppendMessageResponse,
@@ -41,6 +38,9 @@ from app.db.enums import ACTIVE_AGENT_STATUSES, AgentMessageRole, AgentSessionSt
 from app.db.models.agent_message import AgentMessage
 from app.db.models.agent_session import AgentSession
 from app.db.session import get_session
+from app.llm.anthropic_client import AnthropicClientNotConfigured
+from app.llm.pricing import DailyBudgetResolver
+from app.llm.runtime import AgentRuntime, AgentRuntimeError
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 

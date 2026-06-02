@@ -28,7 +28,6 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.agent.anthropic_client import AnthropicCall
 from app.db.enums import AgentMessageRole, AgentSessionStatus
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
@@ -36,6 +35,7 @@ from app.db.models.agent_message import AgentMessage
 from app.db.models.agent_session import AgentSession
 from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.db.models.user import User
+from app.llm.anthropic_client import AnthropicCall
 
 
 def _now() -> datetime:
@@ -111,12 +111,12 @@ async def wired_app() -> AsyncIterator[
     fixture level — each test patches it with the response shape it
     wants for that scenario.
     """
-    from app.agent.runtime import AgentRuntime
     from app.config import get_settings
     from app.db import models  # noqa: F401 — populate Base.metadata
     from app.db.base import Base
     from app.db.session import get_engine, get_sessionmaker
     from app.events.bus import EventBus, get_event_bus
+    from app.llm.runtime import AgentRuntime
     from app.main import create_app
 
     get_settings.cache_clear()
@@ -170,7 +170,7 @@ async def test_full_agent_conversation_e2e(wired_app) -> None:
         ]
     )
 
-    with patch("app.agent.runtime.create_message", new=AsyncMock(return_value=call)):
+    with patch("app.llm.runtime.create_message", new=AsyncMock(return_value=call)):
         r_start = await client.post(
             "/api/v1/agent/sessions", json={"mode": "b2_interactive"}
         )
@@ -251,7 +251,7 @@ async def test_full_e2e_cap_path_returns_409(wired_app) -> None:
     )
 
     with patch(
-        "app.agent.runtime.create_message", new=AsyncMock(return_value=call)
+        "app.llm.runtime.create_message", new=AsyncMock(return_value=call)
     ):
         r_start = await client.post(
             "/api/v1/agent/sessions", json={"mode": "b2_interactive"}

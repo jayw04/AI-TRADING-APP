@@ -41,7 +41,7 @@ PATTERNS=(
 # IMPORTANT: keep this list MINIMAL. Adding to it requires an ADR
 # or at minimum a comment explaining why this directory needs LLM access.
 ALLOWED_DIRS=(
-    "${ROOT}/agent"                          # B1/B2 user-initiated chat (P3)
+    "${ROOT}/llm"                            # B1/B2 chat + LLM helpers (P3; renamed from app/agent in cleanup-1)
     "${ROOT}/services/morning_brief.py"      # Scheduled advisory narration (P5.5 §2)
     "${ROOT}/services/strategy_review.py"    # Periodic advisory reports (P6, future)
     "${ROOT}/services/drift_detection.py"    # Periodic advisory reports (P6, future)

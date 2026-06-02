@@ -1,7 +1,7 @@
 """Thin wrapper around the Anthropic AsyncAnthropic client.
 
 This module is the *only* location in the backend permitted to import the
-Anthropic SDK, alongside the rest of ``app/agent/``. The CI invariant
+Anthropic SDK, alongside the rest of ``app/llm/``. The CI invariant
 ``check_no_llm_in_order_path.sh`` enforces this — see
 ``docs/adr/0006-llm-not-in-order-path.md`` for the architectural reasoning.
 

@@ -30,10 +30,10 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.anthropic_client import create_message
-from app.agent.pricing import estimate_cost
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.db.models.morning_brief import MorningBrief
+from app.llm.anthropic_client import create_message
+from app.llm.pricing import estimate_cost
 from app.security.credential_store import CredentialKind, CredentialStore
 from app.services.trading_profile import TradingProfileService
 from app.utils.time import today_eastern
@@ -41,7 +41,7 @@ from app.utils.time import today_eastern
 logger = structlog.get_logger(__name__)
 
 # Haiku 4.5 — fast + cheap; the brief synthesizes observations, it doesn't need
-# Opus reasoning. In the pricing table (app/agent/pricing.py).
+# Opus reasoning. In the pricing table (app/llm/pricing.py).
 _BRIEF_MODEL = "claude-haiku-4-5-20251001"
 
 # Daily bars for swing-bias labeling. 400 calendar days gives EMA50/SMA200

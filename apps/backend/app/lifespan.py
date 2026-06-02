@@ -32,13 +32,13 @@ from pathlib import Path
 import structlog
 from fastapi import FastAPI
 
-from app.agent.runtime import AgentRuntime
 from app.brokers.alpaca import AlpacaAdapter, TradeUpdatesStream
 from app.brokers.registry import BrokerRegistry
 from app.config import get_settings
 from app.db.session import get_sessionmaker
 from app.events import get_event_bus
 from app.indicators import IndicatorComputer
+from app.llm.runtime import AgentRuntime
 from app.market_data.bar_cache import BarCache
 from app.orders import OrderRouter
 from app.orders.lifecycle import TradeUpdateConsumer
