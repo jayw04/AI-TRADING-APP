@@ -24,6 +24,9 @@ jobs:
           - project: mcp-server
             dir: apps/mcp-server
             src: src
+          - project: mcp-workbench
+            dir: apps/mcp-workbench
+            src: src
     steps:
       - uses: actions/checkout@v4
 
@@ -91,6 +94,10 @@ jobs:
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_audit_immutability.sh
 
+      - name: Workbench-MCP read-only invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_workbench_mcp_readonly.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest
@@ -139,6 +146,9 @@ jobs:
           - service: mcp-server
             context: apps/mcp-server
             dockerfile: apps/mcp-server/Dockerfile
+          - service: workbench-mcp
+            context: apps/mcp-workbench
+            dockerfile: apps/mcp-workbench/Dockerfile
           - service: frontend
             context: apps/frontend
             dockerfile: apps/frontend/Dockerfile.dev

@@ -6,6 +6,7 @@ from app.api.v1 import (
     activation,
     agent,
     alerts,
+    audit,
     auth,
     backtest_jobs,
     credentials,
@@ -26,6 +27,9 @@ from app.api.v1 import (
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
 api_router.include_router(credentials.router)
+# P5.5 §3: read-only audit feed (scoped to the current user). Powers the
+# workbench-mcp audit tool + the CLAUDE.md cost/overnight decision-tree rows.
+api_router.include_router(audit.router)
 api_router.include_router(account.router)
 api_router.include_router(accounts.router)
 api_router.include_router(internal.router)
