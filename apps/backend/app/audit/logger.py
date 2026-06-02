@@ -94,6 +94,12 @@ class AuditAction(StrEnum):
     # changed JSON sections; replay all entries for a user to reconstruct.
     TRADING_PROFILE_UPDATED = "TRADING_PROFILE_UPDATED"
 
+    # ---- Morning brief (P5.5 §2) ----
+    # One row per generated brief (scheduled or manual). Payload carries brief
+    # metadata + the LLM cost record (model/tokens/cents) when the optional
+    # Haiku narration ran — the platform's first sustained LLM cost surface.
+    MORNING_BRIEF_GENERATED = "MORNING_BRIEF_GENERATED"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.

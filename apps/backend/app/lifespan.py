@@ -283,6 +283,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("daily_backup_scheduled")
 
+            # 10e. Morning brief (P5.5 §2). Mon-fri 09:00 in the scheduler's
+            # timezone (America/New_York) — 30 min before the equity open, so the
+            # user has reading time. Needs the bar cache + indicator computer
+            # built above; broker-independent otherwise. Idempotent per (user,
+            # date). max_instances=1 + coalesce so a slow pass can't stack.
+            from app.jobs.morning_brief_generation import run_morning_brief_generation
+
+            scheduler.scheduler.add_job(
+                run_morning_brief_generation,
+                CronTrigger(day_of_week="mon-fri", hour=9, minute=0),
+                id="morning_brief_generation",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={
+                    "session_factory": session_factory,
+                    "bar_cache": bar_cache,
+                    "indicator_computer": indicator_computer,
+                },
+            )
+            logger.info("morning_brief_scheduled")
+
             # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
             # wire it back via set_bar_stream_service before any strategy
             # registers — register() fires on_strategies_changed() which the

@@ -3,7 +3,7 @@
 Supported indicators (P2 core set)::
 
     SMA20, SMA50, SMA200
-    EMA9, EMA21
+    EMA9, EMA20, EMA21, EMA50
     RSI14
     MACD            → three series: 'macd', 'signal', 'hist'
     ATR14
@@ -36,7 +36,9 @@ CORE_INDICATORS: list[str] = [
     "SMA50",
     "SMA200",
     "EMA9",
+    "EMA20",
     "EMA21",
+    "EMA50",
     "RSI14",
     "MACD",
     "ATR14",
@@ -125,7 +127,9 @@ _INDICATOR_DISPATCH: dict[str, Callable[[pd.DataFrame], Any]] = {
     "SMA50": lambda b: _sma(b, 50),
     "SMA200": lambda b: _sma(b, 200),
     "EMA9": lambda b: _ema(b, 9),
+    "EMA20": lambda b: _ema(b, 20),
     "EMA21": lambda b: _ema(b, 21),
+    "EMA50": lambda b: _ema(b, 50),
     "RSI14": _rsi,
     "MACD": _macd,
     "ATR14": _atr,
