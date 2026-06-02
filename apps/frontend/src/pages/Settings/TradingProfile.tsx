@@ -11,7 +11,8 @@ type Section =
   | "bias_criteria"
   | "bias_thresholds"
   | "session_preferences"
-  | "risk_preferences";
+  | "risk_preferences"
+  | "agent_envelope";
 
 const SECTIONS: Section[] = [
   "watchlist",
@@ -19,6 +20,7 @@ const SECTIONS: Section[] = [
   "bias_thresholds",
   "session_preferences",
   "risk_preferences",
+  "agent_envelope",
 ];
 
 type Draft = Record<Section, Record<string, unknown>>;
@@ -30,7 +32,15 @@ function toDraft(p: Profile): Draft {
     bias_thresholds: p.bias_thresholds ?? {},
     session_preferences: p.session_preferences ?? {},
     risk_preferences: p.risk_preferences ?? {},
+    agent_envelope: p.agent_envelope ?? {},
   };
+}
+
+function linesToList(v: string): string[] {
+  return v.split(/\n/).map((s) => s.trim()).filter(Boolean);
+}
+function listToLines(v: unknown): string {
+  return Array.isArray(v) ? v.join("\n") : "";
 }
 
 // Send only the sections that actually changed (the backend audit-logs a diff;
@@ -206,6 +216,7 @@ export default function TradingProfile() {
   const bear = (bt.bearish as Record<string, unknown>) ?? {};
   const sp = draft.session_preferences;
   const rp = draft.risk_preferences;
+  const ae = draft.agent_envelope;
 
   const setThreshold = (side: "bullish" | "bearish", key: string, value: unknown) => {
     const cur = (bt[side] as Record<string, unknown>) ?? {};
@@ -391,6 +402,44 @@ export default function TradingProfile() {
               label="Prefer paper validation before going live"
               value={rp.prefer_paper_validation}
               onChange={(v) => setField("risk_preferences", "prefer_paper_validation", v)}
+            />
+          </Card>
+
+          <Card
+            title="Agent Envelope"
+            help="How the P6 agent should behave when proposing strategy changes. Hard prohibitions, a free-form prompt note, and an optional per-day cost cap. Structured preferences can be edited via 'Edit as JSON'."
+          >
+            <label className="block text-xs text-neutral-400">
+              Prohibitions (one per line)
+              <textarea
+                rows={3}
+                value={listToLines(ae.prohibitions)}
+                onChange={(e) =>
+                  setField("agent_envelope", "prohibitions", linesToList(e.target.value))
+                }
+                placeholder={"never propose options\nnever increase position size"}
+                className="mt-1 w-full rounded bg-neutral-800 px-2 py-1 text-sm text-white"
+              />
+            </label>
+            <label className="block text-xs text-neutral-400">
+              Prompt augmentations (free-form note added to the agent's prompt)
+              <textarea
+                rows={2}
+                value={typeof ae.prompt_augmentations === "string" ? (ae.prompt_augmentations as string) : ""}
+                onChange={(e) => setField("agent_envelope", "prompt_augmentations", e.target.value)}
+                placeholder="weight earnings season heavily for tech names"
+                className="mt-1 w-full rounded bg-neutral-800 px-2 py-1 text-sm text-white"
+              />
+            </label>
+            <NumberField
+              label="Cost envelope (cents per day; blank = default 200 = $2.00)"
+              value={ae.cost_envelope_cents}
+              onChange={(v) => setField("agent_envelope", "cost_envelope_cents", v)}
+            />
+            <CheckField
+              label="Hide low-confidence proposals in the Proposals list"
+              value={ae.hide_low_confidence_proposals}
+              onChange={(v) => setField("agent_envelope", "hide_low_confidence_proposals", v)}
             />
           </Card>
         </div>

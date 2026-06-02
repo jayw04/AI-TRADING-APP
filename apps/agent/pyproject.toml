@@ -13,6 +13,9 @@ dependencies = [
     "httpx>=0.27",
     "anthropic>=0.40",
     "structlog>=24.4",
+    "fastapi>=0.110",       # P6 §1b: control-plane HTTP endpoint
+    "uvicorn>=0.30",        # P6 §1b: ASGI server
+    "mcp>=1.0",             # P6 §1b: agent reads workbench state as an MCP client
 ]
 
 [project.optional-dependencies]

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -93,6 +94,12 @@ async def run_daily_backup() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("lifespan_startup_begin")
+
+    # P6 §1b: the URL of the agent control-plane service. The proposals
+    # endpoint synchronously invokes POST {agent_url}/generate-proposal. Set
+    # unconditionally (outside the alpaca block) so it's present in every boot;
+    # in docker-compose the backend service sets AGENT_URL=http://agent:8767.
+    app.state.agent_url = os.environ.get("AGENT_URL", "http://127.0.0.1:8767")
 
     heartbeat_task: asyncio.Task[None] | None = None
     adapter: AlpacaAdapter | None = None

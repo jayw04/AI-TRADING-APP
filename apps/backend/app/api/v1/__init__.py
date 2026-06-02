@@ -18,6 +18,7 @@ from app.api.v1 import (
     opportunities,
     orders,
     positions,
+    proposals,
     risk,
     signals,
     strategies,
@@ -60,3 +61,8 @@ api_router.include_router(risk.router)
 # P5 §7: activation lifecycle (prefix=/strategies, same as strategies router;
 # distinct sub-paths /{id}/activation, /activate, /activate/cancel, /deactivate).
 api_router.include_router(activation.router)
+# P6 §1b: strategy proposals. Two routers — /strategies/{id}/propose hangs
+# under /strategies (alongside strategies + activation); the rest under
+# /proposals. No extra prefix (api_router carries /api/v1).
+api_router.include_router(proposals.strategies_router)
+api_router.include_router(proposals.proposals_router)

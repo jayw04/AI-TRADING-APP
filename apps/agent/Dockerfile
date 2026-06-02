@@ -33,5 +33,7 @@ COPY --from=builder /install /usr/local
 
 COPY src ./src
 
-# §1a stub: 1b replaces this with the proposal-generation entrypoint.
-CMD ["python", "-m", "agent"]
+# P6 §1b: the agent now runs a FastAPI control-plane on 8767. The backend's
+# POST /api/v1/strategies/{id}/propose invokes POST :8767/generate-proposal.
+EXPOSE 8767
+CMD ["uvicorn", "agent.server:app", "--host", "0.0.0.0", "--port", "8767"]

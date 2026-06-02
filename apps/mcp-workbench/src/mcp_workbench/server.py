@@ -109,6 +109,52 @@ async def workbench_audit_recent(limit: int = 50) -> dict[str, Any]:
     return await _get("/api/v1/audit", params={"limit": min(limit, 200)})
 
 
+# -------------------- P6 §1b proposal-context tools (read-only) --------------------
+
+
+async def workbench_strategy_history(strategy_id: int, limit: int = 30) -> dict[str, Any]:
+    """A strategy snapshot (name, version, status, params, symbols) plus a
+    lightweight recent-orders summary — the context the agent reads before
+    proposing a parameter change. Default 30, max 90."""
+    return await _get(
+        f"/api/v1/strategies/{strategy_id}/history",
+        params={"limit": min(limit, 90)},
+    )
+
+
+async def workbench_recent_proposals_for_strategy(
+    strategy_id: int, limit: int = 5
+) -> dict[str, Any]:
+    """The last N proposals for a strategy (newest first). The agent reads this
+    to avoid repeating prior suggestions. Default 5, max 30."""
+    return await _get(
+        "/api/v1/proposals",
+        params={"strategy_id": strategy_id, "limit": min(limit, 30)},
+    )
+
+
+async def workbench_strategy_recent_orders(
+    strategy_id: int, limit: int = 20
+) -> dict[str, Any]:
+    """Recent orders submitted by one strategy (execution context for proposal
+    generation). Filters orders by source_type=strategy + source_id. Default 20,
+    max 100."""
+    return await _get(
+        "/api/v1/orders",
+        params={
+            "source_type": "strategy",
+            "source_id": str(strategy_id),
+            "limit": min(limit, 100),
+        },
+    )
+
+
+async def workbench_get_proposal(proposal_id: int) -> dict[str, Any]:
+    """One proposal in full: payload, evidence bundle, evaluation results (if
+    any), lifecycle state. For follow-up questions about a specific proposal."""
+    return await _get(f"/api/v1/proposals/{proposal_id}")
+
+
 _TOOLS: list[Callable[..., Any]] = [
     workbench_status,
     workbench_morning_brief_today,
@@ -122,6 +168,11 @@ _TOOLS: list[Callable[..., Any]] = [
     workbench_strategy_activation_status,
     workbench_recent_briefs,
     workbench_audit_recent,
+    # P6 §1b proposal-context tools.
+    workbench_strategy_history,
+    workbench_recent_proposals_for_strategy,
+    workbench_strategy_recent_orders,
+    workbench_get_proposal,
 ]
 
 

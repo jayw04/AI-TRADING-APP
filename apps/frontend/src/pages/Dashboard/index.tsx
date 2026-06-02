@@ -5,6 +5,7 @@ import { positionsApi } from "@/api/positions";
 import { ApiError } from "@/api/client";
 import OrderTicket from "@/components/ticket/OrderTicket";
 import MorningBriefCard from "@/components/morning-brief/MorningBriefCard";
+import RecentProposalsCard from "@/components/proposals/RecentProposalsCard";
 import {
   formatMoney,
   formatNumber,
@@ -52,6 +53,8 @@ export default function Dashboard() {
       </div>
 
       <MorningBriefCard />
+
+      <RecentProposalsCard />
 
       <section className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
         <h3 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide">

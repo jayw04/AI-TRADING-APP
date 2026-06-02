@@ -24,6 +24,7 @@ function emptyProfile(over: Partial<Profile> = {}): Profile {
     bias_thresholds: {},
     session_preferences: {},
     risk_preferences: {},
+    agent_envelope: {},
     ...over,
   };
 }
@@ -50,7 +51,7 @@ beforeEach(() => {
 });
 
 describe("TradingProfile settings page", () => {
-  it("renders all five sections", async () => {
+  it("renders all six sections including the agent envelope", async () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getByText("Watchlist")).toBeInTheDocument();
@@ -58,6 +59,22 @@ describe("TradingProfile settings page", () => {
       expect(screen.getByText("Bias Thresholds")).toBeInTheDocument();
       expect(screen.getByText("Session Preferences")).toBeInTheDocument();
       expect(screen.getByText("Risk Preferences")).toBeInTheDocument();
+      expect(screen.getByText("Agent Envelope")).toBeInTheDocument();
+    });
+  });
+
+  it("envelope save sends agent_envelope with parsed prohibitions", async () => {
+    renderPage();
+    const prohibitions = await screen.findByLabelText(/Prohibitions/i);
+    fireEvent.change(prohibitions, {
+      target: { value: "never propose options\nnever increase size" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(mocked.update).toHaveBeenCalledTimes(1));
+    expect(mocked.update).toHaveBeenCalledWith({
+      agent_envelope: {
+        prohibitions: ["never propose options", "never increase size"],
+      },
     });
   });
 
