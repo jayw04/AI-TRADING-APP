@@ -11,10 +11,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import TradingProfile from "../TradingProfile";
 import { tradingProfileApi } from "@/api/tradingProfile";
 import type { TradingProfile as Profile } from "@/api/tradingProfile";
+import { credentialsApi } from "@/api/credentials";
 
 vi.mock("@/api/tradingProfile");
+vi.mock("@/api/credentials");
 
 const mocked = vi.mocked(tradingProfileApi, true);
+const mockedCreds = vi.mocked(credentialsApi, true);
 
 function emptyProfile(over: Partial<Profile> = {}): Profile {
   return {
@@ -48,6 +51,12 @@ beforeEach(() => {
   mocked.update.mockImplementation((changes) =>
     Promise.resolve(emptyProfile(changes as Partial<Profile>)),
   );
+  mockedCreds.list.mockResolvedValue([
+    {
+      kind: "agent_api_key", has_value: true,
+      created_at: null, updated_at: null, last_used_at: null, revoked_at: null,
+    },
+  ]);
 });
 
 describe("TradingProfile settings page", () => {

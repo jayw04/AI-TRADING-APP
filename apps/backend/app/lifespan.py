@@ -312,6 +312,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("morning_brief_scheduled")
 
+            # 10f. Proposal cadence (P6 §2a). Opt-in per user via
+            # agent_envelope_json.proposal_cadence; registers one cron job per
+            # user with cadence != off. Same scheduler instance as the morning
+            # brief; jobs re-register on each startup.
+            from app.services.proposal_cadence import register_all_cadence_jobs
+
+            await register_all_cadence_jobs(scheduler.scheduler, session_factory)
+            logger.info("proposal_cadence_jobs_registered")
+
             # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
             # wire it back via set_bar_stream_service before any strategy
             # registers — register() fires on_strategies_changed() which the

@@ -69,8 +69,11 @@ class ProposalListResponse(BaseModel):
 
 
 class ProposeRequest(BaseModel):
-    """Empty for now — generation pulls all context via MCP. Future hints go
-    here without breaking clients."""
+    """P6 §2a: optional ``trigger`` distinguishes cadence-driven from user-driven
+    proposals. Recorded in the DRAFT-creation audit row's ``payload.trigger``.
+    Backward-compatible — an empty body / unset trigger is treated as "manual"."""
+
+    trigger: str | None = None  # "manual" | "cadence" | None (treated as manual)
 
 
 class PatchProposalRequest(BaseModel):
@@ -224,14 +227,19 @@ async def propose(
             ),
         ) from exc
 
+    # P6 §2a: a cadence-driven propose (cron, via the user's AGENT_API_KEY) is
+    # attributed to actor_type=AGENT; a user-clicked propose is USER. The
+    # bearer caller IS the user either way, so user_id is unchanged.
+    trigger = body.trigger or "manual"
+    is_cadence = trigger == "cadence"
     AuditLogger.write(
         session,
-        actor_type=AuditActorType.USER,
-        actor_id=str(current_user.id),
+        actor_type=AuditActorType.AGENT if is_cadence else AuditActorType.USER,
+        actor_id="cron_scheduler" if is_cadence else str(current_user.id),
         action=AuditAction.STRATEGY_PROPOSAL_TRANSITIONED,
         target_type="strategy_proposal",
         target_id=row.id,
-        payload={"from": None, "to": "DRAFT", "strategy_id": strategy_id},
+        payload={"from": None, "to": "DRAFT", "strategy_id": strategy_id, "trigger": trigger},
         user_id=current_user.id,
     )
     await session.commit()

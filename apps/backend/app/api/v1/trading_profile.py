@@ -9,13 +9,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.stub import CurrentUser, get_current_user
-from app.db.session import get_session
+from app.db.session import get_session, get_sessionmaker
+from app.services.proposal_cadence import reconcile_cadence_for_user
 from app.services.trading_profile import TradingProfileData, TradingProfileService
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/users/me", tags=["trading_profile"])
 
@@ -70,15 +74,13 @@ async def get_my_trading_profile(
 @router.put("/trading-profile", response_model=TradingProfileResponse)
 async def update_my_trading_profile(
     body: UpdateTradingProfileRequest,
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> TradingProfileResponse:
     # Translate request field names (watchlist) -> column names (watchlist_json).
-    changes = {
-        f"{k}_json": v
-        for k, v in body.model_dump(exclude_unset=True).items()
-        if v is not None
-    }
+    dumped = body.model_dump(exclude_unset=True)
+    changes = {f"{k}_json": v for k, v in dumped.items() if v is not None}
 
     svc = TradingProfileService(session)
 
@@ -95,5 +97,18 @@ async def update_my_trading_profile(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # P6 §2a: if the agent envelope changed, the proposal cadence may have
+    # changed — reconcile the user's cron job. The scheduler only exists in
+    # alpaca-enabled boots (absent in tests / data-only); no-op when absent.
+    if "agent_envelope" in dumped:
+        scheduler = getattr(request.app.state, "scheduler", None)
+        if scheduler is not None:
+            try:
+                await reconcile_cadence_for_user(
+                    scheduler.scheduler, get_sessionmaker(), current_user.id
+                )
+            except Exception:
+                logger.exception("cadence_reconcile_failed", user_id=current_user.id)
 
     return _to_response(profile)
