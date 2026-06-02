@@ -27,6 +27,9 @@ jobs:
           - project: mcp-workbench
             dir: apps/mcp-workbench
             src: src
+          - project: agent
+            dir: apps/agent
+            src: src
     steps:
       - uses: actions/checkout@v4
 
@@ -98,6 +101,10 @@ jobs:
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_workbench_mcp_readonly.sh
 
+      - name: Agent no-DB-access invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_agent_no_db_access.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest
@@ -149,6 +156,9 @@ jobs:
           - service: workbench-mcp
             context: apps/mcp-workbench
             dockerfile: apps/mcp-workbench/Dockerfile
+          - service: agent
+            context: apps/agent
+            dockerfile: apps/agent/Dockerfile
           - service: frontend
             context: apps/frontend
             dockerfile: apps/frontend/Dockerfile.dev

@@ -100,6 +100,19 @@ class AuditAction(StrEnum):
     # Haiku narration ran — the platform's first sustained LLM cost surface.
     MORNING_BRIEF_GENERATED = "MORNING_BRIEF_GENERATED"
 
+    # ---- Agent autonomy (P6 §1a) ----
+    # A strategy_proposal moved between lifecycle states (Decision 3). Payload
+    # carries an old/new diff (§1 shape), so replaying reconstructs the path
+    # DRAFT → REVIEWING → ACCEPTED/REJECTED → APPLIED.
+    STRATEGY_PROPOSAL_TRANSITIONED = "STRATEGY_PROPOSAL_TRANSITIONED"
+    # The agent's LLM call failed (timeout/refusal/parse/schema). The proposal
+    # is dropped, not retried (Decision 7); payload carries error_type + context.
+    AGENT_LLM_CALL_FAILED = "AGENT_LLM_CALL_FAILED"
+    # A pre-call budget check rejected an agent LLM invocation (Decision 6 hard
+    # cap). Payload carries the rejected estimate, the running 24h spend, and the
+    # envelope.
+    AGENT_BUDGET_REJECTED = "AGENT_BUDGET_REJECTED"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.

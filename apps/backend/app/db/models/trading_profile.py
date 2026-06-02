@@ -73,6 +73,19 @@ class TradingProfile(Base):
         JSON, nullable=False, default=dict
     )
 
+    # P6 §1a (Decision 4): the agent's behavioral envelope. Sixth JSON section,
+    # the single canonical home for agent behavioral constraints. All sub-keys
+    # optional; read with defensive .get() everywhere. Initial sub-keys:
+    #   prohibitions: list[str]            — hard "never propose X"
+    #   preferences: dict[str, Any]        — soft "prefer X over Y" weights
+    #   prompt_augmentations: str          — text merged into the prompt template
+    #   cost_envelope_cents: int           — per-day spend cap (default 200=$2.00)
+    #   eval_metric_weights: dict[str, Any]  — backtest-metric weights (Decision 8)
+    #   hide_low_confidence_proposals: bool  — UI hint
+    agent_envelope_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

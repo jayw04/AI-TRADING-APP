@@ -63,12 +63,13 @@ async def get_current_user(
     authorization: str | None = Header(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> CurrentUser:
-    # P5.5 §3: the workbench-mcp server authenticates with a bearer token
-    # (the per-user WORKBENCH_MCP_KEY credential) instead of a cookie. Only
-    # consulted when there's no cookie — the web app always sends the cookie,
-    # so this never shadows the session path.
+    # P5.5 §3 / P6 §1a: non-cookie clients authenticate with a per-user bearer
+    # token instead of a cookie — the workbench-mcp server (WORKBENCH_MCP_KEY)
+    # and the agent service (AGENT_API_KEY). Only consulted when there's no
+    # cookie — the web app always sends the cookie, so this never shadows the
+    # session path.
     if not workbench_session and authorization and authorization.startswith("Bearer "):
-        return await _resolve_from_mcp_token(session, authorization[7:].strip())
+        return await _resolve_from_bearer_token(session, authorization[7:].strip())
 
     if not workbench_session:
         raise HTTPException(
@@ -121,20 +122,24 @@ def _aware(dt: datetime) -> datetime:
     return ensure_aware(dt)  # type: ignore[return-value]  # callers pass non-None
 
 
-async def _resolve_from_mcp_token(session: AsyncSession, token: str) -> CurrentUser:
-    """Match a bearer token against any user's active WORKBENCH_MCP_KEY (P5.5 §3).
+# Bearer-credential kinds, in resolution order. Per Decision 2, AGENT_API_KEY is
+# a first-class bearer credential the agent uses for the backend HTTP API; the
+# WORKBENCH_MCP_KEY (P5.5 §3) is the workbench-mcp server's. Both resolve to the
+# owning user — a bearer-accepting endpoint doesn't care which kind it was.
+_BEARER_KINDS = (CredentialKind.AGENT_API_KEY, CredentialKind.WORKBENCH_MCP_KEY)
 
-    Constant-time comparison against each stored key (decrypted via the §4
-    credential store). The credential lifecycle — rotation, revocation, audit —
-    is the same machinery as every other CredentialKind.
-    """
-    if not token:
-        raise HTTPException(status_code=401, detail="Invalid bearer token")
 
+async def _match_bearer_token(
+    session: AsyncSession, token: str, kind: CredentialKind
+) -> CurrentUser | None:
+    """Constant-time match of ``token`` against every active credential of
+    ``kind``; returns the owning user or None. Decrypts via the §4 credential
+    store, so rotation/revocation/audit are the same machinery as every other
+    CredentialKind."""
     rows = (
         await session.execute(
             select(UserCredential).where(
-                UserCredential.kind == CredentialKind.WORKBENCH_MCP_KEY.value,
+                UserCredential.kind == kind.value,
                 UserCredential.revoked_at.is_(None),
             )
         )
@@ -142,10 +147,33 @@ async def _resolve_from_mcp_token(session: AsyncSession, token: str) -> CurrentU
 
     store = CredentialStore(session)
     for row in rows:
-        stored = await store.get(row.user_id, CredentialKind.WORKBENCH_MCP_KEY)
+        stored = await store.get(row.user_id, kind)
         if stored and hmac.compare_digest(stored, token):
             user = await session.get(User, row.user_id)
             if user is not None:
                 return CurrentUser(id=user.id, email=user.email)
+    return None
 
+
+async def _resolve_from_bearer_token(session: AsyncSession, token: str) -> CurrentUser:
+    """Resolve a bearer token against the known bearer-credential kinds in order
+    (P5.5 §3 + P6 §1a). 401 if it matches none."""
+    if not token:
+        raise HTTPException(status_code=401, detail="Invalid bearer token")
+    for kind in _BEARER_KINDS:
+        user = await _match_bearer_token(session, token, kind)
+        if user is not None:
+            return user
+    raise HTTPException(status_code=401, detail="Invalid bearer token")
+
+
+async def _resolve_from_mcp_token(session: AsyncSession, token: str) -> CurrentUser:
+    """Back-compat shim (P5.5 §3): resolve a token against WORKBENCH_MCP_KEY only.
+    Kept so existing callers/tests that name this helper still work; new code
+    uses ``_resolve_from_bearer_token``."""
+    if not token:
+        raise HTTPException(status_code=401, detail="Invalid bearer token")
+    user = await _match_bearer_token(session, token, CredentialKind.WORKBENCH_MCP_KEY)
+    if user is not None:
+        return user
     raise HTTPException(status_code=401, detail="Invalid bearer token")

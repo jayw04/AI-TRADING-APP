@@ -29,8 +29,10 @@ async def test_list_initially_all_not_set(client):
     r = await client.get(f"{BASE}/")
     assert r.status_code == 200
     items = r.json()
-    # All eight kinds represented; none set yet. (P5.5 §3 added WORKBENCH_MCP_KEY.)
-    assert len(items) == 8
+    # All nine kinds represented; none set yet. (P5.5 §3 added WORKBENCH_MCP_KEY;
+    # P6 §1a added AGENT_API_KEY.)
+    assert len(items) == 9
+    assert any(item["kind"] == "agent_api_key" for item in items)
     assert all(item["has_value"] is False for item in items)
     # Metadata never includes plaintext.
     for item in items:

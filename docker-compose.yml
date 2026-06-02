@@ -80,6 +80,27 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # P6 §1a: the proposal-generation agent. A CONSUMER, not a server — reads via
+  # workbench-mcp (SSE) and writes via the backend HTTP API; no ports, no
+  # container_name (let compose auto-name to avoid collisions). In §1a the
+  # container builds and the module loads; the invocation loop is §1b.
+  agent:
+    build:
+      context: ./apps/agent
+    env_file:
+      - .env
+    environment:
+      BACKEND_API_BASE: http://backend:8000
+      WORKBENCH_MCP_BASE: http://workbench-mcp:8766
+      AGENT_API_KEY: ${AGENT_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+      workbench-mcp:
+        condition: service_started
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./apps/frontend

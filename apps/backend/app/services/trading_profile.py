@@ -38,6 +38,8 @@ PROFILE_FIELDS = (
     "bias_thresholds_json",
     "session_preferences_json",
     "risk_preferences_json",
+    # P6 §1a (Decision 4): the agent behavioral envelope.
+    "agent_envelope_json",
 )
 
 
@@ -49,6 +51,8 @@ class TradingProfileData:
     bias_thresholds: dict[str, Any]
     session_preferences: dict[str, Any]
     risk_preferences: dict[str, Any]
+    # P6 §1a (Decision 4): read by the agent budget endpoint + the agent itself.
+    agent_envelope: dict[str, Any]
     created_at: datetime
     updated_at: datetime
 
@@ -154,6 +158,7 @@ class TradingProfileService:
             bias_thresholds_json={},
             session_preferences_json={},
             risk_preferences_json={},
+            agent_envelope_json={},
             created_at=now,
             updated_at=now,
         )
@@ -167,6 +172,7 @@ class TradingProfileService:
             bias_thresholds=row.bias_thresholds_json,
             session_preferences=row.session_preferences_json,
             risk_preferences=row.risk_preferences_json,
+            agent_envelope=row.agent_envelope_json,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

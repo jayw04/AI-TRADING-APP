@@ -27,6 +27,9 @@ class TradingProfileResponse(BaseModel):
     bias_thresholds: dict[str, Any]
     session_preferences: dict[str, Any]
     risk_preferences: dict[str, Any]
+    # P6 §1a (Decision 4): agent behavioral envelope. The Settings *form* for it
+    # is 1b; the API field ships in 1a so the budget envelope is settable.
+    agent_envelope: dict[str, Any]
 
 
 class UpdateTradingProfileRequest(BaseModel):
@@ -37,6 +40,7 @@ class UpdateTradingProfileRequest(BaseModel):
     bias_thresholds: dict[str, Any] | None = None
     session_preferences: dict[str, Any] | None = None
     risk_preferences: dict[str, Any] | None = None
+    agent_envelope: dict[str, Any] | None = None
 
 
 def _to_response(profile: TradingProfileData) -> TradingProfileResponse:
@@ -49,6 +53,7 @@ def _to_response(profile: TradingProfileData) -> TradingProfileResponse:
         bias_thresholds=profile.bias_thresholds,
         session_preferences=profile.session_preferences,
         risk_preferences=profile.risk_preferences,
+        agent_envelope=profile.agent_envelope,
     )
 
 
