@@ -7,6 +7,7 @@ import Positions from "./pages/Positions";
 import Strategies from "./pages/Strategies";
 import Journal from "./pages/Journal";
 import Agent from "./pages/Agent";
+import Proposals from "./pages/Proposals";
 import Settings from "./pages/Settings";
 
 export interface NavItem {
@@ -24,5 +25,6 @@ export const NAV_ITEMS: NavItem[] = [
   { path: "/strategies", label: "Strategies", element: <Strategies /> },
   { path: "/journal", label: "Journal", element: <Journal /> },
   { path: "/agent", label: "Agent", element: <Agent /> },
+  { path: "/proposals", label: "Proposals", element: <Proposals /> },
   { path: "/settings", label: "Settings", element: <Settings /> },
 ];

@@ -50,11 +50,13 @@ from app.db.enums import (
     ACTIVE_STRATEGY_STATUSES,
     PENDING_BACKTEST_JOB_STATUSES,
     BacktestJobStatus,
+    OrderSourceType,
     StrategyStatus,
     StrategyType,
 )
 from app.db.models.backtest_job import BacktestJob
 from app.db.models.backtest_result import BacktestResult
+from app.db.models.order import Order
 from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.strategy_run import StrategyRun
@@ -280,6 +282,57 @@ async def update_strategy(
     await session.commit()
     await session.refresh(row)
     return _strategy_to_response(row)
+
+
+# ---------- GET /strategies/{id}/history ----------
+
+
+@router.get("/{strategy_id}/history")
+async def strategy_history(
+    strategy_id: int,
+    limit: int = Query(default=30, ge=1, le=90),
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Read-only context for proposal generation (P6 §1b): a strategy snapshot
+    plus a lightweight recent-orders summary. Detailed performance metrics
+    (Sharpe / return / drawdown) are Decision 8 / Session 2 — this endpoint
+    deliberately returns only what §1b needs."""
+    row = await session.get(StrategyRow, strategy_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    orders = (
+        await session.execute(
+            select(Order)
+            .where(
+                Order.source_type == OrderSourceType.STRATEGY,
+                Order.source_id == str(strategy_id),
+            )
+            .order_by(Order.id.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+
+    return {
+        "snapshot": {
+            "id": row.id,
+            "name": row.name,
+            "version": row.version,
+            "type": row.type.value,
+            "status": row.status.value,
+            "params": row.params_json or {},
+            "symbols": row.symbols_json or [],
+        },
+        "performance": {
+            "recent_orders_considered": len(orders),
+            "recent_order_statuses": [o.status.value for o in orders],
+            "note": (
+                "Detailed performance metrics (Sharpe / return / drawdown) "
+                "arrive in P6 Session 2 (Decision 8 backtest eval)."
+            ),
+        },
+    }
 
 
 # ---------- POST /strategies/{id}/start ----------

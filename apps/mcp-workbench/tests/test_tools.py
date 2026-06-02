@@ -58,6 +58,11 @@ async def test_morning_brief_generate_is_a_post(httpx_mock):
         (lambda: server.workbench_strategy_activation_status(9), "/api/v1/strategies/9/activation", "GET"),
         (lambda: server.workbench_recent_briefs(), "/api/v1/morning-brief/recent", "GET"),
         (lambda: server.workbench_audit_recent(), "/api/v1/audit", "GET"),
+        # P6 §1b proposal-context tools.
+        (lambda: server.workbench_strategy_history(42), "/api/v1/strategies/42/history", "GET"),
+        (lambda: server.workbench_recent_proposals_for_strategy(42), "/api/v1/proposals", "GET"),
+        (lambda: server.workbench_strategy_recent_orders(42), "/api/v1/orders", "GET"),
+        (lambda: server.workbench_get_proposal(7), "/api/v1/proposals/7", "GET"),
     ],
 )
 async def test_tools_pass_through(httpx_mock, call, path, method):
@@ -95,7 +100,24 @@ def test_server_has_no_db_imports():
     assert "app.db" not in src
 
 
-def test_build_server_registers_twelve_tools():
+def test_build_server_registers_sixteen_tools():
     srv = server.build_server()
-    assert len(server._TOOLS) == 12
+    assert len(server._TOOLS) == 16  # 12 from P5.5 §3 + 4 from P6 §1b
     assert srv.name == "Trading Workbench State"
+
+
+async def test_strategy_recent_orders_passes_source_type_and_id(httpx_mock):
+    httpx_mock.add_response(json={})
+    await server.workbench_strategy_recent_orders(42, limit=5)
+    req = httpx_mock.get_request()
+    assert req.url.path == "/api/v1/orders"
+    assert req.url.params["source_type"] == "strategy"
+    assert req.url.params["source_id"] == "42"
+
+
+async def test_recent_proposals_passes_strategy_id(httpx_mock):
+    httpx_mock.add_response(json={})
+    await server.workbench_recent_proposals_for_strategy(42, limit=3)
+    req = httpx_mock.get_request()
+    assert req.url.path == "/api/v1/proposals"
+    assert req.url.params["strategy_id"] == "42"

@@ -55,6 +55,7 @@ async def call_with_budget(
     messages: list[dict],
     max_tokens: int,
     estimated_input_tokens: int,
+    system: str | None = None,
 ) -> LLMCallResult:
     """The single point through which the agent makes LLM calls."""
     estimated_cost = estimate_cost_cents(model, estimated_input_tokens, max_tokens)
@@ -67,14 +68,18 @@ async def call_with_budget(
 
     client = AsyncAnthropic(api_key=anthropic_api_key)
 
+    create_kwargs: dict = {
+        "model": model,
+        "max_tokens": max_tokens,
+        # messages is caller-supplied MessageParam-shaped dicts; the loose
+        # list[dict] type is intentional at this boundary.
+        "messages": messages,
+    }
+    if system is not None:
+        create_kwargs["system"] = system
+
     try:
-        resp = await client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            # messages is caller-supplied MessageParam-shaped dicts; the loose
-            # list[dict] type is intentional at this boundary.
-            messages=messages,  # type: ignore[arg-type]
-        )
+        resp = await client.messages.create(**create_kwargs)
     except TimeoutError as exc:
         raise LLMCallFailed("timeout", str(exc), model) from exc
     except Exception as exc:

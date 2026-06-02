@@ -10,6 +10,8 @@ export interface TradingProfile {
   bias_thresholds: Record<string, unknown>;
   session_preferences: Record<string, unknown>;
   risk_preferences: Record<string, unknown>;
+  // P6 §1b: the agent behavioral envelope (Decision 4).
+  agent_envelope: Record<string, unknown>;
 }
 
 // PUT accepts any subset of the five sections; omitted sections are untouched.
