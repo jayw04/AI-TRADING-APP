@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-06-01 · branch: `main` · latest tag: `p5-complete` (P5 closed) · next: P6
+Last updated: 2026-06-02 · branch: `main` · latest tag: `p5.5-session1-complete` (`5919a66`) · next: P5.5 §2 (Morning Brief)
 
 ---
 
@@ -202,6 +202,23 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 - OrderRouter lives at `app/orders/router.py`; there is no `app/risk/resolver.py` — GLOBAL limits resolve inline in `RiskEngine._load_global_limits`, where the `broker_mode` filter was added.
 - Strategy-detail red border / list badge / `StrategyResponse.account_broker_mode` deferred to P5 §7: `strategies` has no `account_id` and no strategy can be LIVE yet.
 - Refusal audit-logging deferred to P5 §8 (audit_log is a §8 concern); the refusal is structured-logged via `order_router_refused_live`.
+
+## 🚧 P5.5 — Trader preferences / Morning brief / Workbench MCP (in progress)
+
+Master plan: `Docs/implementation/TradingWorkbench_P5.5_ImplementationPlan_v0.1.md`. Per-session docs drift against the prior session's Results doc (Retrospective Rec #10): §1 = `TradingWorkbench_P5_5_Session1_v0_2.md`; §2 drift = `TradingWorkbench_P5_5_Session2_v0_2.md`.
+
+| Session | Scope | Status |
+|---|---|---|
+| **S1** | **Trading profile foundation.** `trading_profiles` table (1/user, 5 JSON sections: watchlist, bias_criteria, bias_thresholds, session_preferences, risk_preferences) + migration `9d2e7b3a1f5c` (backfills an empty profile per user). `TradingProfileService` (async get/update, single-commit audited old/new diff, race-safe `get()` via IntegrityError→re-select). `GET/PUT /api/v1/users/me/trading-profile` mounted via `app/api/v1/__init__.py`. `AuditAction.TRADING_PROFILE_UPDATED`. Settings→Trading Profile page (5-section form + JSON power-user mode). No reader yet — §2 (morning brief) is first. Session doc v0.2. | ✅ #47 tag `p5.5-session1-complete` |
+| **S2** | Morning brief — scheduled per-user advisory. Drift doc `TradingWorkbench_P5_5_Session2_v0_2.md` ready (8 carried-forward corrections + 7 new §2 surfaces + 3 blocking open Qs: LLM cost-audit, indicator-source reuse, positions-defer). | ⏳ next |
+| **S3** | Workbench-MCP (read-only) + CLAUDE.md decision tree + `check_workbench_mcp_readonly.sh`. | ⏳ |
+
+### P5.5 §1 deviations from the v0.2 doc (verified against live code)
+- **Audit imports from `app.audit`** (re-exports `AuditAction`/`AuditActorType`/`AuditLogger`), NOT `app.db.enums`; `write()` sync, caller commits. `AuditAction` is `StrEnum`, value==name UPPER → `TRADING_PROFILE_UPDATED`; stored action string is the UPPER name.
+- **v0.2 correction #3 mis-described §5**: the live `risk.py` actually TWO-commits (mutate→commit→audit→commit). Both are valid for the §8 hash chain (one audit row per commit); the service uses single-commit.
+- **Router object is `api_router`** (not `api_v1_router`); included with no extra prefix. **Frontend `apiFetch` body must be `JSON.stringify(...)`**; routes register in `App.tsx`, nav link in `Settings/index.tsx`.
+- **`user_id unique=True, index=True` → one unique index** `ix_trading_profiles_user_id` (no separate UNIQUE constraint); the migration mirrors `create_all`. **No `tests/migrations/` harness** → migration verified by a manual up/down/up round-trip on a DB copy + ORM read (repo norm). `TradingProfile` re-exported in `models/__init__.py` (drives `create_all`).
+- 19 backend (11 service + 8 API) + 5 frontend vitest. Suite green; mypy(145)/ruff/6-shell-invariants/ADR-0002/3-coverage-gates green; frontend tsc+eslint+82 vitest green. **Squash `5919a66`**; pre-merge CI all 6 jobs green. Jay authorized the merge ~16 min before the ≥1h walk-away cleared (informed override, CI green). §1.8 live curl smoke + migration-vs-real-prod-DB deferred (Norton). Results: `TradingWorkbench_P5_5_Session1_Results_v0.1.md`.
 
 ## 🗺️ P5 + P5.5 + P6 + P7 — Roadmap
 
