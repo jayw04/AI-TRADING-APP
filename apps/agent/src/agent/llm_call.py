@@ -71,7 +71,9 @@ async def call_with_budget(
         resp = await client.messages.create(
             model=model,
             max_tokens=max_tokens,
-            messages=messages,
+            # messages is caller-supplied MessageParam-shaped dicts; the loose
+            # list[dict] type is intentional at this boundary.
+            messages=messages,  # type: ignore[arg-type]
         )
     except TimeoutError as exc:
         raise LLMCallFailed("timeout", str(exc), model) from exc
