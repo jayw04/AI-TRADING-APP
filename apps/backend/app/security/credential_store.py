@@ -49,6 +49,9 @@ class CredentialKind(StrEnum):
     ANTHROPIC_API_KEY = "anthropic_api_key"
     PINE_WEBHOOK_SECRET = "pine_webhook_secret"
     TOTP_SECRET = "totp_secret"
+    # P5.5 §3: bearer token the workbench-mcp server presents to the backend.
+    # Resolved to the owning user by app/auth/stub.py::_resolve_from_mcp_token.
+    WORKBENCH_MCP_KEY = "workbench_mcp_key"
 
 
 class CredentialNotFoundError(RuntimeError):

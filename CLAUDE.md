@@ -147,7 +147,7 @@ If the developer confirms the request is intentional, the next step is usually a
 - **Local Docker stack**: `docker compose` brings up backend, MCP server, frontend; `./scripts/dev.sh` is the convenience launcher.
 - **Backend**: Python 3.12 + FastAPI + SQLAlchemy 2.x async + Alembic + SQLite (WAL mode). Tooling: `uv`, `ruff`, `pytest`.
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind + React Query + Zustand. Tooling: `pnpm`.
-- **Two MCP servers**: chart-data MCP at `127.0.0.1:8765` (read-only, P3), workbench-MCP at `127.0.0.1:8766` (read-only, P5.5 §3 forthcoming).
+- **Two MCP servers**: chart-data MCP at `127.0.0.1:8765` (read-only, P3), workbench-MCP at `127.0.0.1:8766` (read-only, P5.5 §3 — `apps/mcp-workbench/`; SSE; per-user `WORKBENCH_MCP_KEY` bearer auth; agent guide in `apps/mcp-workbench/CLAUDE.md`).
 - **Networking note**: Norton SSL inspection on the developer's machine blocks `data.alpaca.markets`. Live smoke and parquet fixtures require running on a non-Norton environment (WSL, CI, or another machine).
 
 ---
