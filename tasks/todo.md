@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-06-02 · branch: `main` · latest tag: `p5.5-session1-complete` (`5919a66`) · next: P5.5 §2 (Morning Brief)
+Last updated: 2026-06-02 · branch: `main` · latest tag: `p5.5-session2-complete` (`224efc6`) · next: P5.5 §3 (Workbench MCP + CLAUDE.md)
 
 ---
 
@@ -210,8 +210,15 @@ Master plan: `Docs/implementation/TradingWorkbench_P5.5_ImplementationPlan_v0.1.
 | Session | Scope | Status |
 |---|---|---|
 | **S1** | **Trading profile foundation.** `trading_profiles` table (1/user, 5 JSON sections: watchlist, bias_criteria, bias_thresholds, session_preferences, risk_preferences) + migration `9d2e7b3a1f5c` (backfills an empty profile per user). `TradingProfileService` (async get/update, single-commit audited old/new diff, race-safe `get()` via IntegrityError→re-select). `GET/PUT /api/v1/users/me/trading-profile` mounted via `app/api/v1/__init__.py`. `AuditAction.TRADING_PROFILE_UPDATED`. Settings→Trading Profile page (5-section form + JSON power-user mode). No reader yet — §2 (morning brief) is first. Session doc v0.2. | ✅ #47 tag `p5.5-session1-complete` |
-| **S2** | Morning brief — scheduled per-user advisory. Drift doc `TradingWorkbench_P5_5_Session2_v0_2.md` ready (8 carried-forward corrections + 7 new §2 surfaces + 3 blocking open Qs: LLM cost-audit, indicator-source reuse, positions-defer). | ⏳ next |
-| **S3** | Workbench-MCP (read-only) + CLAUDE.md decision tree + `check_workbench_mcp_readonly.sh`. | ⏳ |
+| **S2** | **Morning brief.** `morning_briefs` table (1/user/day, UPSERT) + migration `b3f8c2d1e9a7` (down-rev `9d2e7b3a1f5c`). `MorningBriefService` (bias labeling off the EXISTING `BarCache.get_bars`+`IndicatorComputer.compute` path; single-commit audited save). Optional Haiku 4.5 narration reusing `app/agent/{anthropic_client,pricing}`, key-gated + failure-degrading, **cost (model/tokens/cents) in the `MORNING_BRIEF_GENERATED` audit payload**. Scheduled `run_morning_brief_generation` in `lifespan.py` (mon-fri 09:00 ET, idempotent per (user,date), verified-users-only). 4 endpoints `/api/v1/morning-brief/*`. `today_eastern()` (ZoneInfo) added to `app/utils/time.py`. **EMA20/EMA50 added to `IndicatorComputer`** (so bias_thresholds `20>50` maps to real EMAs). Dashboard `MorningBriefCard`. Session doc v0.2. | ✅ #48 tag `p5.5-session2-complete` |
+| **S3** | Workbench-MCP (read-only) + CLAUDE.md decision tree + `check_workbench_mcp_readonly.sh`. | ⏳ next |
+
+### P5.5 §2 deviations from the v0.2 doc (verified against live code)
+- **Bar cache is `BarCache.get_bars(symbol, timeframe, start, end) → DataFrame[t,o,h,l,c,v]`** (async), NOT the doc's `get_recent_bars(symbol, limit)` with close/high/low/volume; bias computed via the existing `IndicatorComputer.compute(...)` path (same as `/api/v1/indicators`), no pandas_ta inline.
+- **EMA20/EMA50 added to `IndicatorComputer`** (CORE_INDICATORS + dispatch) — the computer previously had only EMA9/EMA21 + SMA20/50/200, so a user's `ema_relationship: "20>50"` had no real EMAs to compare. +2 indicator tests; `check_p2_coverage` stays green. Benefits charts too.
+- **LLM narration reuses `app/agent/anthropic_client.create_message` + `app/agent/pricing.estimate_cost`** (no second SDK wrapper); cost recorded in the `MORNING_BRIEF_GENERATED` audit payload (CLAUDE.md "Audit-logging the AI"). `morning_brief.py` was **already** on the no-LLM allowlist → zero CI change.
+- **Scheduler:** coroutine-fn + `kwargs={session_factory, bar_cache, indicator_computer}` (NOT lambda), inside the alpaca-enabled block; `get_sessionmaker()` (no `app.state.session_factory`). **`today_eastern()` uses `ZoneInfo`** (DST-correct), not the doc's fixed −5h. **Positions deferred** (indicator-only, broker-independent job). Decisions (EMA-extend / cost-in-payload / positions-defer) confirmed with Jay via AskUserQuestion.
+- Full suite green under `--cov` (mypy 149/ruff/6-shell-invariants/ADR-0002/3-coverage-gates); frontend tsc+eslint+**87 vitest**; 29 backend + 5 frontend new tests; migration round-trip on a DB copy. **Squash `224efc6`; merge-commit CI confirm pending.** Jay merged ~54 min into the ≥1h walk-away (informed override, CI green). **Live + Haiku narration smoke deferred** (Norton). **Pre-existing flake:** `test_full_pipeline_paper_buy` (async order pipeline) intermittently fails only under non-CI `-p no:cacheprovider` ordering — not a §2 regression; flagged for a separate order-independence fix.
 
 ### P5.5 §1 deviations from the v0.2 doc (verified against live code)
 - **Audit imports from `app.audit`** (re-exports `AuditAction`/`AuditActorType`/`AuditLogger`), NOT `app.db.enums`; `write()` sync, caller commits. `AuditAction` is `StrEnum`, value==name UPPER → `TRADING_PROFILE_UPDATED`; stored action string is the UPPER name.
