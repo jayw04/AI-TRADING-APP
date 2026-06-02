@@ -5,6 +5,16 @@ import type {
   TradingProfile as Profile,
   TradingProfileUpdate,
 } from "@/api/tradingProfile";
+import { credentialsApi } from "@/api/credentials";
+
+// P6 §2a: opt-in scheduled proposal generation.
+const CADENCE_OPTIONS: { value: string; label: string }[] = [
+  { value: "off", label: "Off (no scheduled generation)" },
+  { value: "weekday_market_open", label: "Weekdays 9:30 AM ET (market open)" },
+  { value: "daily", label: "Daily 9:30 AM ET" },
+  { value: "weekly", label: "Mondays 9:30 AM ET" },
+  { value: "monthly_first", label: "First of month 9:30 AM ET" },
+];
 
 type Section =
   | "watchlist"
@@ -163,6 +173,14 @@ export default function TradingProfile() {
     queryKey: ["trading-profile"],
     queryFn: tradingProfileApi.get,
   });
+  // P6 §2a: cadence needs an Agent API Key to invoke the propose endpoint.
+  const credentials = useQuery({
+    queryKey: ["credentials"],
+    queryFn: credentialsApi.list,
+  });
+  const hasAgentApiKey = (credentials.data ?? []).some(
+    (c) => c.kind === "agent_api_key" && c.has_value,
+  );
 
   const original = useMemo<Draft | null>(
     () => (query.data ? toDraft(query.data) : null),
@@ -441,6 +459,30 @@ export default function TradingProfile() {
               value={ae.hide_low_confidence_proposals}
               onChange={(v) => setField("agent_envelope", "hide_low_confidence_proposals", v)}
             />
+            <label className="block text-xs text-neutral-400">
+              Proposal cadence
+              <select
+                value={typeof ae.proposal_cadence === "string" ? (ae.proposal_cadence as string) : "off"}
+                onChange={(e) => setField("agent_envelope", "proposal_cadence", e.target.value)}
+                className="mt-1 w-full rounded bg-neutral-800 px-2 py-1 text-sm text-white"
+              >
+                {CADENCE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-neutral-500">
+                Scheduled proposal generation. Each fire uses your cost envelope
+                budget.
+              </span>
+              {!hasAgentApiKey && (
+                <span className="mt-1 block text-amber-400">
+                  ⚠ You haven't set an Agent API Key — scheduled cadence won't fire.
+                  Add one under Settings → Credentials.
+                </span>
+              )}
+            </label>
           </Card>
         </div>
       )}

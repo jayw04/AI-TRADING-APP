@@ -112,6 +112,12 @@ class AuditAction(StrEnum):
     # cap). Payload carries the rejected estimate, the running 24h spend, and the
     # envelope.
     AGENT_BUDGET_REJECTED = "AGENT_BUDGET_REJECTED"
+    # P6 §2a: a scheduled (opt-in) proposal-cadence cron fired for a user. One
+    # row per strategy per fire (or one for no_api_key). Payload carries
+    # {strategy_id, cadence, outcome, estimated_cost_cents, details, proposal_id}.
+    # Distinct from AGENT_BUDGET_REJECTED (user-driven reject) so "what did my
+    # cron do?" is a single-action query.
+    AGENT_CADENCE_FIRED = "AGENT_CADENCE_FIRED"
 
 
 class AuditLogger:
