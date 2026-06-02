@@ -17,6 +17,7 @@ from app.db.models.strategy import Strategy
 from app.db.models.strategy_run import StrategyRun
 from app.db.models.symbol import Symbol
 from app.db.models.system_config import SystemConfig
+from app.db.models.trading_profile import TradingProfile
 from app.db.models.user import User
 from app.db.models.user_credential import UserCredential
 
@@ -41,6 +42,7 @@ __all__ = [
     "StrategyRun",
     "Symbol",
     "SystemConfig",
+    "TradingProfile",
     "User",
     "UserCredential",
 ]

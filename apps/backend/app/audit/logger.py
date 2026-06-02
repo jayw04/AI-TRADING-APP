@@ -89,6 +89,11 @@ class AuditAction(StrEnum):
     STRATEGY_DEACTIVATED = "STRATEGY_DEACTIVATED"
     LIVE_ACCOUNT_CREATED = "LIVE_ACCOUNT_CREATED"
 
+    # ---- Trader preferences (P5.5 §1) ----
+    # Soft-preferences profile edit. Payload carries an old/new diff of the
+    # changed JSON sections; replay all entries for a user to reconstruct.
+    TRADING_PROFILE_UPDATED = "TRADING_PROFILE_UPDATED"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.
