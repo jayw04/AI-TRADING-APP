@@ -33,9 +33,9 @@ export default function RecentProposalsCard() {
         <p className="mt-2 text-sm text-neutral-500">
           No proposals yet. Generate one from the{" "}
           <Link to="/proposals" className="text-blue-400 hover:underline">
-            Proposals
-          </Link>{" "}
-          page.
+            Proposals page
+          </Link>
+          .
         </p>
       ) : (
         <ul className="mt-3 space-y-2">
