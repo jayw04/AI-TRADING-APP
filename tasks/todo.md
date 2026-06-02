@@ -2,7 +2,7 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-06-02 · branch: `main` · latest tag: `p5.5-session3-complete` (`aa4928c`) · P5.5 code-complete (all 3 sessions merged); **`p5.5-complete` HELD** pending the §3.13 cross-session verification on a live stack (Norton/Docker-deferred) · next after that: P6
+Last updated: 2026-06-02 · branch: `main` · latest tag: **`p5.5-complete`** (`878b9f8`) — **P5.5 CLOSED** on the in-suite stand-in (Jay's call via AskUserQuestion, same basis as `p5-complete`): all 12 invariants + both full suites + merge-commit CI green; live §3.13 cross-session smoke (docker compose up / SSE handshake / Claude-Code tool calls / paper smoke) **deferred** to a non-Norton env · **next: P6**
 
 ---
 
@@ -203,7 +203,9 @@ Master plan: per-session docs under uppercase `Docs/implementation/` (`TradingWo
 - Strategy-detail red border / list badge / `StrategyResponse.account_broker_mode` deferred to P5 §7: `strategies` has no `account_id` and no strategy can be LIVE yet.
 - Refusal audit-logging deferred to P5 §8 (audit_log is a §8 concern); the refusal is structured-logged via `order_router_refused_live`.
 
-## 🚧 P5.5 — Trader preferences / Morning brief / Workbench MCP (in progress)
+## ✅ P5.5 — Trader preferences / Morning brief / Workbench MCP (complete)
+
+Tag **`p5.5-complete`** → `878b9f8` (in-suite stand-in; live §3.13 cross-session smoke deferred — Norton/Docker). All three sessions merged: §1 #47, §2 #48, §3 #49.
 
 Master plan: `Docs/implementation/TradingWorkbench_P5.5_ImplementationPlan_v0.1.md`. Per-session docs drift against the prior session's Results doc (Retrospective Rec #10): §1 = `TradingWorkbench_P5_5_Session1_v0_2.md`; §2 drift = `TradingWorkbench_P5_5_Session2_v0_2.md`.
 
