@@ -18,10 +18,8 @@ compute metrics.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from decimal import Decimal
 from typing import Any
 
 import pandas as pd
@@ -30,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.backtest_result import BacktestResult
 
+from . import metrics
 from .backtest_context import BacktestContext
 from .backtest_models import (
     BacktestConfig,
@@ -260,13 +259,14 @@ class Backtester:
         else:
             annualized_return = 0.0
 
-        sharpe = self._sharpe(ctx.equity_curve)
-        max_dd = self._max_drawdown(ctx.equity_curve)
+        sharpe = metrics.sharpe_ratio(ctx.equity_curve)
+        max_dd = metrics.max_drawdown(ctx.equity_curve)
 
         closed_trades = [t for t in ctx.trades if t.pnl is not None]
         wins = [t for t in closed_trades if (t.pnl or 0) > 0]
         losses = [t for t in closed_trades if (t.pnl or 0) < 0]
-        win_rate = (len(wins) / len(closed_trades)) if closed_trades else 0.0
+        # P6b §1a-drift: use the shared metrics.win_rate (identical formula).
+        win_rate = metrics.win_rate([t.pnl for t in closed_trades if t.pnl is not None])
         gross_profit = sum(t.pnl or 0 for t in wins)
         gross_loss = abs(sum(t.pnl or 0 for t in losses))
         if gross_loss > 0:
@@ -300,52 +300,10 @@ class Backtester:
             ending_equity=ending,
         )
 
-    @staticmethod
-    def _sharpe(equity_curve: list[tuple[datetime, Decimal]]) -> float:
-        """Annualized Sharpe from daily returns (rf=0). Intra-day returns
-        would produce 60×√252 nonsense for a 1-minute strategy, so we bucket
-        equity by ``ts.date()`` and use the last value of each day.
-        """
-        if len(equity_curve) < 2:
-            return 0.0
-        by_day: dict[str, float] = {}
-        for ts, eq in equity_curve:
-            key = ts.date().isoformat()
-            by_day[key] = float(eq)
-        if len(by_day) < 2:
-            return 0.0
-        sorted_eq = [by_day[k] for k in sorted(by_day.keys())]
-        returns: list[float] = []
-        for i in range(1, len(sorted_eq)):
-            prev = sorted_eq[i - 1]
-            if prev <= 0:
-                continue
-            returns.append((sorted_eq[i] - prev) / prev)
-        if not returns:
-            return 0.0
-        mean = sum(returns) / len(returns)
-        variance = sum((r - mean) ** 2 for r in returns) / max(1, len(returns) - 1)
-        stdev = math.sqrt(variance)
-        if stdev == 0:
-            return 0.0
-        return (mean / stdev) * math.sqrt(252.0)
-
-    @staticmethod
-    def _max_drawdown(equity_curve: list[tuple[datetime, Decimal]]) -> float:
-        """Max drawdown as a negative fraction (e.g. -0.123 for a 12.3% dd)."""
-        if not equity_curve:
-            return 0.0
-        peak = float(equity_curve[0][1])
-        max_dd = 0.0
-        for _, eq in equity_curve:
-            v = float(eq)
-            if v > peak:
-                peak = v
-            if peak > 0:
-                dd = (v - peak) / peak
-                if dd < max_dd:
-                    max_dd = dd
-        return max_dd
+    # P6b §1a-drift: `_sharpe` / `_max_drawdown` were extracted verbatim into
+    # `app/strategies/metrics.py` so drift detection shares the identical
+    # formulas. `_compute_metrics` above now calls `metrics.sharpe_ratio` /
+    # `metrics.max_drawdown` / `metrics.win_rate`.
 
 
 async def persist_backtest_result(
