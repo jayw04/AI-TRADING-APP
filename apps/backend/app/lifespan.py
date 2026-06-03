@@ -334,6 +334,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("proposal_evaluation_reconcile_registered")
 
+            # 10h. Proposal human-review sampling (P6 §2b-review). Singleton
+            # weekly cron (Mon 09:00 ET) that samples 10% of the past week's
+            # terminal-state proposals for qualitative human review (Decision 8
+            # supplement). Same scheduler instance; de-dups against already
+            # sampled, merge-writes the human_review sub-key.
+            from app.services.proposal_review_sampling import (
+                register_proposal_review_sampling_job,
+            )
+
+            register_proposal_review_sampling_job(
+                scheduler.scheduler, session_factory
+            )
+            logger.info("proposal_review_sampling_registered")
+
             # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
             # wire it back via set_bar_stream_service before any strategy
             # registers — register() fires on_strategies_changed() which the

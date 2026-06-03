@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
 import { proposalsApi, type Proposal, type ProposalState } from "@/api/proposals";
@@ -173,6 +174,13 @@ export default function Proposals() {
       proposalsApi.list(filter === "ALL" ? {} : { state: filter }),
   });
 
+  const awaiting = useQuery({
+    queryKey: ["proposals", "awaiting_review"],
+    queryFn: () => proposalsApi.listAwaitingReview(),
+    retry: false,
+  });
+  const awaitingCount = awaiting.data?.items.length ?? 0;
+
   const generate = useMutation({
     mutationFn: (sid: number) => proposalsApi.propose(sid),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["proposals"] }),
@@ -184,7 +192,17 @@ export default function Proposals() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-lg font-semibold text-neutral-100">Strategy Proposals</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-neutral-100">Strategy Proposals</h1>
+        {awaitingCount > 0 && (
+          <Link
+            to="/proposals/review"
+            className="rounded bg-amber-900/50 px-2 py-1 text-xs font-medium text-amber-300 hover:bg-amber-900/70"
+          >
+            {awaitingCount} awaiting review
+          </Link>
+        )}
+      </div>
       <p className="mt-1 text-xs text-neutral-400">
         The agent suggests parameter adjustments for your strategies. You review,
         accept, and explicitly apply — nothing changes a strategy until you do.
