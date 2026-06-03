@@ -52,6 +52,18 @@ async def run_morning_brief_generation(
                 brief = await svc.generate(user_id, trigger="scheduled")
                 await svc.save(brief)
                 generated += 1
+
+                # P6b §1a-drift: detect strategy drift on the morning-brief
+                # cadence (Q3) and audit each finding. Own try so a drift
+                # failure never fails the brief.
+                try:
+                    from app.services.drift_detection import (
+                        run_drift_detection_for_user,
+                    )
+
+                    await run_drift_detection_for_user(session, user_id)
+                except Exception:
+                    logger.exception("drift_detection_pass_failed", user_id=user_id)
         except Exception:
             logger.exception("morning_brief_generation_failed", user_id=user_id)
             failed += 1

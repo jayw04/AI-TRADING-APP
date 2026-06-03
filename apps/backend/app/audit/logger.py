@@ -118,6 +118,12 @@ class AuditAction(StrEnum):
     # Distinct from AGENT_BUDGET_REJECTED (user-driven reject) so "what did my
     # cron do?" is a single-action query.
     AGENT_CADENCE_FIRED = "AGENT_CADENCE_FIRED"
+    # P6b §1a-drift: a live strategy's recent behavior diverged from its
+    # backtest baseline beyond the user's drift_thresholds. One row per drifted
+    # strategy per detection run (written only when drift fires, on the
+    # morning-brief cadence). Advisory — surfaces the divergence; takes no
+    # action. Payload carries the breached metric(s) + live/baseline values.
+    STRATEGY_DRIFT_DETECTED = "STRATEGY_DRIFT_DETECTED"
     # P6 §2b-review: the user submitted a thumbs-up/down review for a proposal
     # that the weekly 10%-sampling cron queued (Decision 8 human-review
     # supplement). Payload carries {proposal_id, rating, reason}. The sampling
