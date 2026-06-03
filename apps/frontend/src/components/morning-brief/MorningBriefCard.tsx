@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { morningBriefApi } from "@/api/morningBrief";
 import type { MorningBrief, SymbolObservation } from "@/api/morningBrief";
+import { driftApi } from "@/api/drift";
 
 const BIAS_ORDER = ["bullish", "bearish", "neutral"] as const;
 
@@ -85,6 +87,15 @@ export default function MorningBriefCard() {
       queryClient.invalidateQueries({ queryKey: ["morning-brief"] }),
   });
 
+  // P6b §1b-drift: recent drift findings across the user's strategies — one
+  // call (no per-strategy fan-out). Renders only when findings exist.
+  const drift = useQuery({
+    queryKey: ["drift-findings"],
+    queryFn: () => driftApi.findings(10),
+    retry: false,
+  });
+  const driftItems = drift.data?.items ?? [];
+
   const brief = today.data ?? null;
 
   // Map symbol -> prior bias from yesterday's brief (recent[1]).
@@ -125,6 +136,30 @@ export default function MorningBriefCard() {
           </button>
         </div>
       </div>
+
+      {driftItems.length > 0 && (
+        <div className="mt-3 rounded border border-amber-800 bg-amber-950/20 p-3">
+          <div className="text-[10px] uppercase tracking-wider text-amber-300">
+            Strategy drift detected ({driftItems.length})
+          </div>
+          <p className="mt-0.5 text-[11px] text-amber-300/70">
+            Live behavior diverges from backtest baseline.
+          </p>
+          <ul className="mt-1 space-y-1">
+            {driftItems.map((f) => (
+              <li key={f.audit_id} className="text-[11px] text-amber-200">
+                <Link
+                  to={`/strategies/${f.strategy_id}`}
+                  className="font-semibold hover:underline"
+                >
+                  Strategy #{f.strategy_id}
+                </Link>{" "}
+                — {f.breached.join(", ")} diverged from backtest
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {today.isLoading && (
         <p className="mt-2 text-sm text-neutral-400">Loading…</p>
