@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/api/client";
 import { proposalsApi, type Proposal, type ProposalState } from "@/api/proposals";
 import { tradingProfileApi } from "@/api/tradingProfile";
+import { EvalBadge, EvalPanel } from "@/components/proposals/EvalPanel";
 
 const STATE_FILTERS: Array<{ label: string; value: ProposalState | "ALL" }> = [
   { label: "All", value: "ALL" },
@@ -89,6 +90,8 @@ function ProposalDetail({ proposal }: { proposal: Proposal }) {
           </tbody>
         </table>
       )}
+
+      <EvalPanel ev={proposal.evaluation_results} />
 
       <details className="mt-2">
         <summary className="cursor-pointer text-neutral-500">Evidence bundle</summary>
@@ -248,6 +251,7 @@ export default function Proposals() {
               <div className="flex items-center gap-2">
                 <StateBadge state={p.state} />
                 <ConfidenceBadge confidence={p.proposal_payload.confidence} />
+                <EvalBadge ev={p.evaluation_results} />
                 <span className="text-sm text-neutral-200">
                   {p.proposal_payload.summary ?? `Proposal #${p.id}`}
                 </span>

@@ -21,12 +21,12 @@ three audit actions cover this surface.
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,6 +91,19 @@ class ApplyProposalResponse(BaseModel):
     proposal_id: int
     state: str  # "APPLIED"
     applied_changes: list[dict[str, Any]]
+
+
+class ProposalEvalSummaryResponse(BaseModel):
+    strategy_id: int
+    window_days: int
+    n_proposals: int
+    n_eval_complete: int
+    n_eval_pending: int
+    n_eval_skipped: int
+    n_eval_failed: int
+    n_above_baseline: int
+    n_below_baseline: int
+    recent_metrics_summary: dict[str, Any] | None
 
 
 # ----- Helpers -----
@@ -184,6 +197,76 @@ async def strategy_history(
             ),
         },
     }
+
+
+@strategies_router.get(
+    "/{strategy_id}/proposal-eval-summary",
+    response_model=ProposalEvalSummaryResponse,
+)
+async def proposal_eval_summary(
+    strategy_id: int,
+    window: int = Query(default=30, ge=1, le=365),
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ProposalEvalSummaryResponse:
+    """Aggregate proposal-eval data for a strategy over the last N days
+    (P6 §2b-backtest / Decision 8). Lives on strategies_router (not
+    strategies.py) per the §1b coverage-gate lesson."""
+    strategy = await session.get(Strategy, strategy_id)
+    if strategy is None or strategy.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    cutoff = datetime.now(UTC) - timedelta(days=window)
+    rows = (
+        await session.execute(
+            select(StrategyProposal)
+            .where(
+                StrategyProposal.strategy_id == strategy_id,
+                StrategyProposal.user_id == current_user.id,
+                StrategyProposal.generated_at >= cutoff,
+            )
+            .order_by(StrategyProposal.generated_at.desc())
+        )
+    ).scalars().all()
+
+    n_complete = n_pending = n_skipped = n_failed = n_above = n_below = 0
+    latest_complete: dict[str, Any] | None = None
+    for r in rows:
+        eval_state = r.evaluation_results_json or {}
+        status = eval_state.get("status")
+        if status == "complete":
+            n_complete += 1
+            verdict = eval_state.get("verdict")
+            if verdict == "above_baseline":
+                n_above += 1
+            elif verdict == "below_baseline":
+                n_below += 1
+            if latest_complete is None:  # rows are desc → first complete is latest
+                latest_complete = {
+                    "proposal_id": r.id,
+                    "generated_at": r.generated_at.isoformat(),
+                    "verdict": verdict,
+                    "delta_metrics": eval_state.get("delta_metrics", {}),
+                }
+        elif status in ("pending", "running"):
+            n_pending += 1
+        elif status == "skipped":
+            n_skipped += 1
+        elif status == "failed":
+            n_failed += 1
+
+    return ProposalEvalSummaryResponse(
+        strategy_id=strategy_id,
+        window_days=window,
+        n_proposals=len(rows),
+        n_eval_complete=n_complete,
+        n_eval_pending=n_pending,
+        n_eval_skipped=n_skipped,
+        n_eval_failed=n_failed,
+        n_above_baseline=n_above,
+        n_below_baseline=n_below,
+        recent_metrics_summary=latest_complete,
+    )
 
 
 @strategies_router.post("/{strategy_id}/propose", response_model=ProposalResponse)
@@ -323,6 +406,27 @@ async def patch_proposal(
         actor_id = "proposal_generation"
         audit_payload["llm"] = body.llm_usage
         audit_payload["confidence"] = body.proposal_payload.get("confidence")
+
+        # P6 §2b-backtest: enqueue the backtest eval (baseline + variant jobs)
+        # atomically with the transition. Eval is judgment fuel, not a gate — if
+        # the enqueue itself fails, the proposal still transitions to REVIEWING
+        # with eval status=failed; the user can still ACCEPT/REJECT.
+        from app.services.proposal_evaluation import enqueue_eval_for_proposal
+
+        try:
+            eval_fragment = await enqueue_eval_for_proposal(session, proposal_id=row.id)
+        except Exception as exc:  # noqa: BLE001 - non-fatal for the transition
+            logger.warning(
+                "eval_enqueue_failed_proceeding_with_transition",
+                proposal_id=row.id,
+                error=str(exc),
+            )
+            eval_fragment = {
+                "status": "failed",
+                "failure_reason": f"enqueue_failed: {str(exc)[:200]}",
+            }
+        row.evaluation_results_json = eval_fragment
+        audit_payload["eval_status"] = eval_fragment.get("status")
     elif target == "ACCEPTED" and body.review_notes:
         audit_payload["review_notes"] = body.review_notes
     elif target == "REJECTED" and body.rejection_reason:

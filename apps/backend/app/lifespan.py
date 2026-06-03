@@ -321,6 +321,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await register_all_cadence_jobs(scheduler.scheduler, session_factory)
             logger.info("proposal_cadence_jobs_registered")
 
+            # 10g. Proposal backtest-eval reconcile (P6 §2b-backtest). Singleton
+            # cron (every minute) that detects completed baseline/variant
+            # backtests (via BacktestJob.result_id) and writes the verdict into
+            # the proposal's evaluation_results_json.
+            from app.services.proposal_evaluation import (
+                register_proposal_evaluation_reconcile_job,
+            )
+
+            register_proposal_evaluation_reconcile_job(
+                scheduler.scheduler, session_factory
+            )
+            logger.info("proposal_evaluation_reconcile_registered")
+
             # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
             # wire it back via set_bar_stream_service before any strategy
             # registers — register() fires on_strategies_changed() which the

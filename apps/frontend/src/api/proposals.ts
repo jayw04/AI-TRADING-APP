@@ -14,6 +14,28 @@ export interface ProposalChange {
   reason?: string;
 }
 
+export type EvalStatus =
+  | "pending"
+  | "running"
+  | "complete"
+  | "skipped"
+  | "failed";
+
+export interface EvaluationResults {
+  status?: EvalStatus;
+  skipped_reason?: string;
+  failure_reason?: string;
+  started_at?: string;
+  completed_at?: string;
+  window_days?: number;
+  baseline_job_id?: number;
+  variant_job_id?: number;
+  baseline_metrics?: Record<string, number>;
+  variant_metrics?: Record<string, number>;
+  delta_metrics?: Record<string, number>;
+  verdict?: "above_baseline" | "below_baseline";
+}
+
 export interface Proposal {
   id: number;
   strategy_id: number;
@@ -27,9 +49,22 @@ export interface Proposal {
     rationale?: string;
   };
   evidence_bundle: Record<string, unknown>;
-  evaluation_results: Record<string, unknown>;
+  evaluation_results: EvaluationResults;
   generated_at: string;
   transitioned_at: string;
+}
+
+export interface ProposalEvalSummary {
+  strategy_id: number;
+  window_days: number;
+  n_proposals: number;
+  n_eval_complete: number;
+  n_eval_pending: number;
+  n_eval_skipped: number;
+  n_eval_failed: number;
+  n_above_baseline: number;
+  n_below_baseline: number;
+  recent_metrics_summary: Record<string, unknown> | null;
 }
 
 function qs(params: Record<string, unknown>): string {
@@ -74,5 +109,10 @@ export const proposalsApi = {
     apiFetch<{ proposal_id: number; state: string; applied_changes: ProposalChange[] }>(
       `/api/v1/proposals/${proposalId}/apply`,
       { method: "POST", body: JSON.stringify({}) },
+    ),
+
+  evalSummary: (strategyId: number, windowDays = 30) =>
+    apiFetch<ProposalEvalSummary>(
+      `/api/v1/strategies/${strategyId}/proposal-eval-summary?window=${windowDays}`,
     ),
 };

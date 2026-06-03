@@ -155,6 +155,20 @@ async def workbench_get_proposal(proposal_id: int) -> dict[str, Any]:
     return await _get(f"/api/v1/proposals/{proposal_id}")
 
 
+async def workbench_proposal_eval_summary(
+    strategy_id: int, window: int = 30
+) -> dict[str, Any]:
+    """Aggregate proposal backtest-eval data for a strategy over the last N days
+    (P6 §2b): counts by eval state (complete/pending/skipped/failed), counts by
+    verdict (above_baseline/below_baseline), and the latest complete eval's delta
+    metrics. Use for 'how is the agent doing for this strategy / are my proposals
+    working?'. Default 30, max 365."""
+    return await _get(
+        f"/api/v1/strategies/{strategy_id}/proposal-eval-summary",
+        params={"window": min(window, 365)},
+    )
+
+
 _TOOLS: list[Callable[..., Any]] = [
     workbench_status,
     workbench_morning_brief_today,
@@ -173,6 +187,8 @@ _TOOLS: list[Callable[..., Any]] = [
     workbench_recent_proposals_for_strategy,
     workbench_strategy_recent_orders,
     workbench_get_proposal,
+    # P6 §2b proposal-eval summary.
+    workbench_proposal_eval_summary,
 ]
 
 
