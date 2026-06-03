@@ -17,6 +17,13 @@ export default function RecentProposalsCard() {
     retry: false,
   });
 
+  const awaiting = useQuery({
+    queryKey: ["proposals", "awaiting_review"],
+    queryFn: () => proposalsApi.listAwaitingReview(),
+    retry: false,
+  });
+  const awaitingCount = awaiting.data?.items.length ?? 0;
+
   const items = list.data?.items ?? [];
 
   return (
@@ -25,9 +32,19 @@ export default function RecentProposalsCard() {
         <h3 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide">
           Recent Proposals
         </h3>
-        <Link to="/proposals" className="text-xs text-blue-400 hover:underline">
-          View all
-        </Link>
+        <div className="flex items-center gap-2">
+          {awaitingCount > 0 && (
+            <Link
+              to="/proposals/review"
+              className="rounded bg-amber-900/50 px-1.5 py-0.5 text-xs font-medium text-amber-300 hover:bg-amber-900/70"
+            >
+              {awaitingCount} awaiting review
+            </Link>
+          )}
+          <Link to="/proposals" className="text-xs text-blue-400 hover:underline">
+            View all
+          </Link>
+        </div>
       </div>
       {items.length === 0 ? (
         <p className="mt-2 text-sm text-neutral-500">

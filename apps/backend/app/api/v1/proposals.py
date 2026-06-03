@@ -28,7 +28,7 @@ import httpx
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
@@ -104,6 +104,20 @@ class ProposalEvalSummaryResponse(BaseModel):
     n_above_baseline: int
     n_below_baseline: int
     recent_metrics_summary: dict[str, Any] | None
+    # P6 §2b-review: human-review aggregates (additive — defaults keep the
+    # response shape backward-compatible for existing callers + the MCP tool).
+    n_reviewed: int = 0
+    n_thumbs_up: int = 0
+    n_thumbs_down: int = 0
+
+
+class ReviewRequest(BaseModel):
+    """P6 §2b-review: a thumbs-up/down review of a sampled proposal. ``reason``
+    is always optional (even on thumbs_down — don't make rejection harder than
+    acceptance)."""
+
+    rating: str  # "thumbs_up" | "thumbs_down"
+    reason: str | None = None
 
 
 # ----- Helpers -----
@@ -230,10 +244,22 @@ async def proposal_eval_summary(
     ).scalars().all()
 
     n_complete = n_pending = n_skipped = n_failed = n_above = n_below = 0
+    n_reviewed = n_thumbs_up = n_thumbs_down = 0
     latest_complete: dict[str, Any] | None = None
     for r in rows:
         eval_state = r.evaluation_results_json or {}
         status = eval_state.get("status")
+
+        # P6 §2b-review: human-review aggregates (independent of eval status —
+        # a skipped/failed eval can still be human-reviewed).
+        rating = (eval_state.get("human_review") or {}).get("rating")
+        if rating == "thumbs_up":
+            n_reviewed += 1
+            n_thumbs_up += 1
+        elif rating == "thumbs_down":
+            n_reviewed += 1
+            n_thumbs_down += 1
+
         if status == "complete":
             n_complete += 1
             verdict = eval_state.get("verdict")
@@ -266,6 +292,9 @@ async def proposal_eval_summary(
         n_above_baseline=n_above,
         n_below_baseline=n_below,
         recent_metrics_summary=latest_complete,
+        n_reviewed=n_reviewed,
+        n_thumbs_up=n_thumbs_up,
+        n_thumbs_down=n_thumbs_down,
     )
 
 
@@ -455,6 +484,7 @@ async def patch_proposal(
 async def list_proposals(
     strategy_id: int | None = None,
     state: str | None = None,
+    awaiting_review: bool = False,
     limit: int = 20,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -470,6 +500,22 @@ async def list_proposals(
             q = q.where(StrategyProposal.state == ProposalState[state.upper()])
         except KeyError as exc:
             raise HTTPException(status_code=400, detail=f"Invalid state: {state}") from exc
+    if awaiting_review:
+        # P6 §2b-review: sampled but not yet rated. Both predicates via
+        # func.json_extract (SQLAlchemy Core, the §1a/§2b-backtest pattern).
+        # json_extract(...".rating") IS NULL is True when the path is absent
+        # OR holds JSON null — both mean "not rated yet".
+        q = q.where(
+            func.json_extract(
+                StrategyProposal.evaluation_results_json,
+                "$.human_review.sampled_at",
+            ).isnot(None)
+        ).where(
+            func.json_extract(
+                StrategyProposal.evaluation_results_json,
+                "$.human_review.rating",
+            ).is_(None)
+        )
     q = q.order_by(StrategyProposal.generated_at.desc()).limit(limit)
 
     rows = (await session.execute(q)).scalars().all()
@@ -554,3 +600,74 @@ async def apply_proposal(
     return ApplyProposalResponse(
         proposal_id=proposal_id, state="APPLIED", applied_changes=applied_changes
     )
+
+
+@proposals_router.post("/{proposal_id}/review", response_model=ProposalResponse)
+async def submit_review(
+    proposal_id: int,
+    body: ReviewRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ProposalResponse:
+    """P6 §2b-review: record a thumbs-up/down review for a proposal the weekly
+    sampling cron queued. Validates "sampled AND not yet rated", merge-writes
+    the human_review sub-key (preserving the §2b-backtest eval sub-tree), and
+    writes a PROPOSAL_REVIEW_RECORDED audit row. The sampling sweep is silent;
+    this user action is the meaningful, audited event."""
+    if body.rating not in ("thumbs_up", "thumbs_down"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"rating must be 'thumbs_up' or 'thumbs_down' (got {body.rating!r})",
+        )
+
+    row = await session.get(StrategyProposal, proposal_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    eval_state = dict(row.evaluation_results_json or {})
+    human_review = eval_state.get("human_review")
+    if human_review is None:
+        raise HTTPException(
+            status_code=400, detail="Proposal has not been sampled for review"
+        )
+    if human_review.get("rating") is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Proposal already reviewed at {human_review.get('reviewed_at')} "
+                f"with rating {human_review.get('rating')}"
+            ),
+        )
+
+    # MERGE-WRITE — reassign the column (SQLAlchemy JSON dirty detection is
+    # reassignment-based). NON-NEGOTIABLE: never overwrite evaluation_results_json
+    # wholesale; preserve status/baseline_metrics/variant_metrics/verdict.
+    now = datetime.now(UTC)
+    row.evaluation_results_json = {
+        **eval_state,
+        "human_review": {
+            **human_review,
+            "reviewed_at": now.isoformat(),
+            "rating": body.rating,
+            "reason": body.reason,
+        },
+    }
+    row.updated_at = now
+
+    AuditLogger.write(
+        session,
+        actor_type=AuditActorType.USER,
+        actor_id=str(current_user.id),
+        action=AuditAction.PROPOSAL_REVIEW_RECORDED,
+        target_type="strategy_proposal",
+        target_id=row.id,
+        payload={
+            "proposal_id": row.id,
+            "rating": body.rating,
+            "reason": body.reason,
+        },
+        user_id=current_user.id,
+    )
+    await session.commit()
+    await session.refresh(row)
+    return _to_response(row)

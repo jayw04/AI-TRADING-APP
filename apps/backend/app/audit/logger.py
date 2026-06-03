@@ -118,6 +118,12 @@ class AuditAction(StrEnum):
     # Distinct from AGENT_BUDGET_REJECTED (user-driven reject) so "what did my
     # cron do?" is a single-action query.
     AGENT_CADENCE_FIRED = "AGENT_CADENCE_FIRED"
+    # P6 §2b-review: the user submitted a thumbs-up/down review for a proposal
+    # that the weekly 10%-sampling cron queued (Decision 8 human-review
+    # supplement). Payload carries {proposal_id, rating, reason}. The sampling
+    # sweep itself is silent (routine maintenance); only the user's review is
+    # the meaningful, audit-worthy event.
+    PROPOSAL_REVIEW_RECORDED = "PROPOSAL_REVIEW_RECORDED"
 
 
 class AuditLogger:

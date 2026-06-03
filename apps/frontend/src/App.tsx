@@ -5,6 +5,7 @@ import StatusBar from "./components/StatusBar";
 import ModeBanner from "@/components/ui/ModeBanner";
 import { NAV_ITEMS } from "./routes";
 import StrategyDetailPage from "./pages/Strategies/Detail";
+import ReviewQueue from "./pages/Proposals/ReviewQueue";
 import Credentials from "./pages/Settings/Credentials";
 import RiskLimits from "./pages/Settings/RiskLimits";
 import Accounts from "./pages/Settings/Accounts";
@@ -24,6 +25,7 @@ export default function App() {
                 <Route key={item.path} path={item.path} element={item.element} />
               ))}
               <Route path="/strategies/:id" element={<StrategyDetailPage />} />
+              <Route path="/proposals/review" element={<ReviewQueue />} />
               <Route path="/settings/credentials" element={<Credentials />} />
               <Route path="/settings/risk-limits" element={<RiskLimits />} />
               <Route path="/settings/trading-profile" element={<TradingProfile />} />
