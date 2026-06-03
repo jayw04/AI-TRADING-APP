@@ -100,10 +100,18 @@ def test_server_has_no_db_imports():
     assert "app.db" not in src
 
 
-def test_build_server_registers_seventeen_tools():
+def test_build_server_registers_eighteen_tools():
     srv = server.build_server()
-    assert len(server._TOOLS) == 17  # 12 (P5.5 §3) + 4 (P6 §1b) + 1 (P6 §2b)
+    assert len(server._TOOLS) == 18  # 12 (P5.5 §3) + 4 (P6 §1b) + 1 (P6 §2b) + 1 (P6b §1b drift)
     assert srv.name == "Trading Workbench State"
+
+
+async def test_drift_findings_tool_calls_endpoint(httpx_mock):
+    httpx_mock.add_response(json={})
+    await server.workbench_drift_findings(42, lookback_days=30)
+    req = httpx_mock.get_request()
+    assert req.url.path == "/api/v1/strategies/42/drift-status"
+    assert req.url.params["lookback_days"] == "30"
 
 
 async def test_proposal_eval_summary_tool_calls_endpoint(httpx_mock):

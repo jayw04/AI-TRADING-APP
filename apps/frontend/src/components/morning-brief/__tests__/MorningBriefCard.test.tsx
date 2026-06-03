@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import MorningBriefCard from "../MorningBriefCard";
 import { morningBriefApi } from "@/api/morningBrief";
 import type { MorningBrief } from "@/api/morningBrief";
+import { driftApi } from "@/api/drift";
 
 vi.mock("@/api/morningBrief");
+vi.mock("@/api/drift");
 
 const mocked = vi.mocked(morningBriefApi, true);
+const mockedDrift = vi.mocked(driftApi, true);
 
 function brief(over: Partial<MorningBrief> = {}): MorningBrief {
   return {
@@ -29,7 +33,9 @@ function renderCard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MorningBriefCard />
+      <MemoryRouter>
+        <MorningBriefCard />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -39,6 +45,7 @@ beforeEach(() => {
   mocked.today.mockResolvedValue(brief());
   mocked.recent.mockResolvedValue([brief(), brief({ symbols: [{ symbol: "AAPL", bias: "neutral", key_level: null, watch_for: "", indicators: {} }] })]);
   mocked.generate.mockResolvedValue(brief());
+  mockedDrift.findings.mockResolvedValue({ items: [] });
 });
 
 describe("MorningBriefCard", () => {
@@ -73,5 +80,25 @@ describe("MorningBriefCard", () => {
     mocked.today.mockResolvedValue(null);
     renderCard();
     expect(await screen.findByText(/No brief yet for today/i)).toBeInTheDocument();
+  });
+
+  it("renders the drift section when findings exist", async () => {
+    mockedDrift.findings.mockResolvedValue({
+      items: [
+        {
+          strategy_id: 7, detected_at: "2026-06-03T00:00:00Z", breached: ["win_rate"],
+          win_rate: {}, avg_return_per_trade: {}, trade_count: 25, audit_id: 1,
+        },
+      ],
+    });
+    renderCard();
+    expect(await screen.findByText(/Strategy drift detected/i)).toBeInTheDocument();
+    expect(screen.getByText(/Strategy #7/)).toBeInTheDocument();
+  });
+
+  it("renders no drift section when there are no findings", async () => {
+    renderCard();
+    await screen.findByText("1 bullish");
+    expect(screen.queryByText(/Strategy drift detected/i)).not.toBeInTheDocument();
   });
 });

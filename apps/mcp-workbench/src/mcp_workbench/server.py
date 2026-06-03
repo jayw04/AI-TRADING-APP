@@ -169,6 +169,21 @@ async def workbench_proposal_eval_summary(
     )
 
 
+async def workbench_drift_findings(
+    strategy_id: int, lookback_days: int = 30
+) -> dict[str, Any]:
+    """Drift status for a strategy (P6b §1b): whether its recent live behavior
+    diverged from its backtest baseline (win_rate / avg_return_per_trade beyond
+    the user's thresholds) within the lookback window. Returns
+    {status: 'drift_detected' | 'no_recent_drift', ..., payload: {...}}. Use when
+    proposing a change to a strategy (drift is evidence) or answering 'is strategy
+    X behaving as backtested?'. Default lookback 30 days (longitudinal)."""
+    return await _get(
+        f"/api/v1/strategies/{strategy_id}/drift-status",
+        params={"lookback_days": lookback_days},
+    )
+
+
 _TOOLS: list[Callable[..., Any]] = [
     workbench_status,
     workbench_morning_brief_today,
@@ -189,6 +204,8 @@ _TOOLS: list[Callable[..., Any]] = [
     workbench_get_proposal,
     # P6 §2b proposal-eval summary.
     workbench_proposal_eval_summary,
+    # P6b §1b drift status.
+    workbench_drift_findings,
 ]
 
 

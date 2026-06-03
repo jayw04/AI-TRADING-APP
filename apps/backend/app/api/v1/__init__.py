@@ -11,6 +11,7 @@ from app.api.v1 import (
     auth,
     backtest_jobs,
     credentials,
+    drift,
     indicators,
     internal,
     market_data,
@@ -66,3 +67,6 @@ api_router.include_router(activation.router)
 # /proposals. No extra prefix (api_router carries /api/v1).
 api_router.include_router(proposals.strategies_router)
 api_router.include_router(proposals.proposals_router)
+# P6b §1b-drift: user-level drift findings list (/drift-findings). Per-strategy
+# drift-check/drift-status live on proposals.strategies_router above.
+api_router.include_router(drift.router)

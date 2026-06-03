@@ -20,6 +20,7 @@ three audit actions cover this surface.
 """
 from __future__ import annotations
 
+import json
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -34,10 +35,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.auth.stub import CurrentUser, get_current_user
 from app.db.enums import OrderSourceType, StrategyStatus
+from app.db.models.audit_log import AuditLog
 from app.db.models.order import Order
 from app.db.models.strategy import Strategy
 from app.db.models.strategy_proposal import ProposalState, StrategyProposal
 from app.db.session import get_session
+from app.services.drift_detection import (
+    DriftFinding,
+    DriftSkip,
+    DriftWithin,
+    run_drift_detection_for_strategy,
+    write_drift_audit,
+)
+from app.services.trading_profile import TradingProfileService
 
 logger = structlog.get_logger(__name__)
 
@@ -600,6 +610,111 @@ async def apply_proposal(
     return ApplyProposalResponse(
         proposal_id=proposal_id, state="APPLIED", applied_changes=applied_changes
     )
+
+
+# ----- P6b §1b-drift: on-demand check + per-strategy status -----
+
+
+def _drift_metrics_dict(m: Any) -> dict[str, Any]:
+    return {
+        "trade_count": m.trade_count,
+        "win_rate": m.win_rate,
+        "avg_return_per_trade": m.avg_return_per_trade,
+    }
+
+
+def _drift_result_to_response(result: Any) -> dict[str, Any]:
+    """Serialize the sealed §1a DriftResult union to a JSON-safe dict. Three
+    explicit branches — the result types are fixed by §1a-drift."""
+    if isinstance(result, DriftFinding):
+        return {
+            "kind": "drift_detected",
+            "strategy_id": result.strategy_id,
+            "live_metrics": _drift_metrics_dict(result.live_metrics),
+            "baseline_metrics": _drift_metrics_dict(result.baseline_metrics),
+            "win_rate_delta_pp": result.win_rate_delta_pp,
+            "avg_return_delta_pct": result.avg_return_delta_pct,
+            "breached": result.breached,
+            "detected_at": result.detected_at.isoformat(),
+        }
+    if isinstance(result, DriftWithin):
+        return {
+            "kind": "within_thresholds",
+            "strategy_id": result.strategy_id,
+            "live_metrics": _drift_metrics_dict(result.live_metrics),
+            "baseline_metrics": _drift_metrics_dict(result.baseline_metrics),
+            "win_rate_delta_pp": result.win_rate_delta_pp,
+            "avg_return_delta_pct": result.avg_return_delta_pct,
+        }
+    if isinstance(result, DriftSkip):
+        return {"kind": "skip", "strategy_id": result.strategy_id, "reason": result.reason}
+    raise ValueError(  # pragma: no cover - sealed union
+        f"Unknown DriftResult subtype: {type(result).__name__}"
+    )
+
+
+@strategies_router.post("/{strategy_id}/drift-check", response_model=dict)
+async def drift_check(
+    strategy_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """On-demand drift re-evaluation for one strategy (P6b §1b, Q3(d) "check
+    now"). Runs §1a detection; audits a finding (one row per txn, the hash-chain
+    contract); read-mostly otherwise."""
+    strategy = await session.get(Strategy, strategy_id)
+    if strategy is None or strategy.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    profile = await TradingProfileService(session).get(current_user.id)
+    result = await run_drift_detection_for_strategy(
+        session, strategy, profile.agent_envelope or {}
+    )
+    if isinstance(result, DriftFinding):
+        write_drift_audit(session, result, user_id=current_user.id)
+        await session.commit()
+    return _drift_result_to_response(result)
+
+
+@strategies_router.get("/{strategy_id}/drift-status", response_model=dict)
+async def drift_status(
+    strategy_id: int,
+    lookback_days: int = Query(default=7, ge=1, le=365),
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Most recent STRATEGY_DRIFT_DETECTED for the strategy within the window,
+    or no_recent_drift (P6b §1b). Read-only — no detection, no audit write."""
+    strategy = await session.get(Strategy, strategy_id)
+    if strategy is None or strategy.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
+    row = (
+        await session.execute(
+            select(AuditLog)
+            .where(AuditLog.user_id == current_user.id)
+            .where(AuditLog.action == "STRATEGY_DRIFT_DETECTED")
+            .where(AuditLog.target_id == str(strategy_id))  # target_id is a STR column
+            .where(AuditLog.ts >= cutoff)
+            .order_by(AuditLog.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if row is None:
+        return {
+            "status": "no_recent_drift",
+            "strategy_id": strategy_id,
+            "lookback_days": lookback_days,
+        }
+    return {
+        "status": "drift_detected",
+        "strategy_id": strategy_id,
+        "lookback_days": lookback_days,
+        "detected_at": row.ts.isoformat(),
+        "payload": json.loads(row.payload_json or "{}"),
+    }
 
 
 @proposals_router.post("/{proposal_id}/review", response_model=ProposalResponse)
