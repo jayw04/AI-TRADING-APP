@@ -165,15 +165,3 @@ async def _resolve_from_bearer_token(session: AsyncSession, token: str) -> Curre
         if user is not None:
             return user
     raise HTTPException(status_code=401, detail="Invalid bearer token")
-
-
-async def _resolve_from_mcp_token(session: AsyncSession, token: str) -> CurrentUser:
-    """Back-compat shim (P5.5 §3): resolve a token against WORKBENCH_MCP_KEY only.
-    Kept so existing callers/tests that name this helper still work; new code
-    uses ``_resolve_from_bearer_token``."""
-    if not token:
-        raise HTTPException(status_code=401, detail="Invalid bearer token")
-    user = await _match_bearer_token(session, token, CredentialKind.WORKBENCH_MCP_KEY)
-    if user is not None:
-        return user
-    raise HTTPException(status_code=401, detail="Invalid bearer token")

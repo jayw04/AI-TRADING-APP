@@ -50,7 +50,7 @@ class CredentialKind(StrEnum):
     PINE_WEBHOOK_SECRET = "pine_webhook_secret"
     TOTP_SECRET = "totp_secret"
     # P5.5 §3: bearer token the workbench-mcp server presents to the backend.
-    # Resolved to the owning user by app/auth/stub.py::_resolve_from_mcp_token.
+    # Resolved to the owning user by app/auth/stub.py::_resolve_from_bearer_token.
     WORKBENCH_MCP_KEY = "workbench_mcp_key"
     # P6 §1a: bearer token the agent service (apps/agent/) presents to the
     # backend HTTP API (e.g. GET /api/v1/agent/budget). Per Decision 2 the agent

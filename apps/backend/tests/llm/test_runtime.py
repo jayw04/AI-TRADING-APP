@@ -9,8 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlalchemy import select
 
-from app.agent.anthropic_client import AnthropicCall, AnthropicClientNotConfigured
-from app.agent.runtime import AgentRuntime, AgentRuntimeError
 from app.db.enums import (
     AgentMessageRole,
     AgentSessionMode,
@@ -23,6 +21,8 @@ from app.db.models.agent_session import AgentSession
 from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.db.models.user import User
 from app.events.bus import EventBus
+from app.llm.anthropic_client import AnthropicCall, AnthropicClientNotConfigured
+from app.llm.runtime import AgentRuntime, AgentRuntimeError
 from app.security import CredentialKind, CredentialStore
 
 
@@ -186,7 +186,7 @@ async def test_append_message_text_only_response(seeded, session_factory):
     sid = await runtime.start_session(user_id=1, mode=AgentSessionMode.B2_INTERACTIVE)
 
     with patch(
-        "app.agent.runtime.create_message",
+        "app.llm.runtime.create_message",
         new=AsyncMock(return_value=_mock_call("Your cash is $50k.")),
     ):
         await runtime.append_user_message(session_id=sid, text="what's my cash?")
@@ -224,7 +224,7 @@ async def test_append_message_tool_use_records_invocation(seeded, session_factor
         ],
     )
     with patch(
-        "app.agent.runtime.create_message",
+        "app.llm.runtime.create_message",
         new=AsyncMock(return_value=call_with_tool),
     ):
         await runtime.append_user_message(
@@ -261,7 +261,7 @@ async def test_pre_call_cap_transitions_to_capped(seeded, session_factory):
     sid = await runtime.start_session(user_id=1, mode=AgentSessionMode.B2_INTERACTIVE)
 
     with patch(
-        "app.agent.runtime.create_message",
+        "app.llm.runtime.create_message",
         new=AsyncMock(return_value=_mock_call("first response")),
     ):
         await runtime.append_user_message(session_id=sid, text="first")
@@ -273,7 +273,7 @@ async def test_pre_call_cap_transitions_to_capped(seeded, session_factory):
     assert row.total_cost_usd == Decimal("0.0036")
 
     second_mock = AsyncMock(return_value=_mock_call("second"))
-    with patch("app.agent.runtime.create_message", new=second_mock):
+    with patch("app.llm.runtime.create_message", new=second_mock):
         await runtime.append_user_message(session_id=sid, text="second")
     assert second_mock.call_count == 0
 
@@ -290,7 +290,7 @@ async def test_anthropic_exception_transitions_to_error(seeded, session_factory)
     sid = await runtime.start_session(user_id=1, mode=AgentSessionMode.B2_INTERACTIVE)
 
     with patch(
-        "app.agent.runtime.create_message",
+        "app.llm.runtime.create_message",
         new=AsyncMock(side_effect=Exception("API down")),
     ):
         await runtime.append_user_message(session_id=sid, text="hi")
@@ -308,7 +308,7 @@ async def test_session_totals_updated_after_call(seeded, session_factory):
     sid = await runtime.start_session(user_id=1, mode=AgentSessionMode.B2_INTERACTIVE)
 
     with patch(
-        "app.agent.runtime.create_message",
+        "app.llm.runtime.create_message",
         new=AsyncMock(return_value=_mock_call("hi", in_tok=1500, out_tok=300)),
     ):
         await runtime.append_user_message(session_id=sid, text="hello")
@@ -339,7 +339,7 @@ async def test_tool_loop_stops_when_text_present(seeded, session_factory):
         ],
     )
     mock_create = AsyncMock(return_value=call_with_text_and_tool)
-    with patch("app.agent.runtime.create_message", new=mock_create):
+    with patch("app.llm.runtime.create_message", new=mock_create):
         await runtime.append_user_message(session_id=sid, text="hello")
 
     # Loop should have exited after the first call (text was present).

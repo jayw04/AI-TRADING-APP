@@ -81,7 +81,7 @@ The cap is bilateral:
   and may transition to `CAPPED` if the running total now exceeds
   the budget, even if the pre-call gate passed.
 
-See `apps/backend/app/agent/pricing.py` for the rate table and
+See `apps/backend/app/llm/pricing.py` for the rate table and
 `DailyBudgetResolver`. The per-model rates are placeholders until
 verified against [anthropic.com/pricing](https://www.anthropic.com/pricing)
 at deploy time.

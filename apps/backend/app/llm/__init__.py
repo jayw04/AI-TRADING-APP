@@ -9,7 +9,7 @@ P3 ships:
   - Frontend chat panel (Session 5)
 """
 
-from app.agent.pricing import (
+from app.llm.pricing import (
     PRICING_TABLE,
     UNKNOWN_MODEL_PRICING,
     DailyBudgetResolver,

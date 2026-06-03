@@ -4,7 +4,7 @@ One instance per backend process, owned by the FastAPI lifespan. The
 runtime is stateless across sessions; each :meth:`append_user_message`
 opens its own DB session and reads the full conversation history.
 
-This module — alongside the rest of ``app/agent/`` — is the only place
+This module — alongside the rest of ``app/llm/`` — is the only place
 in the backend permitted to import the Anthropic SDK. The CI invariant
 ``check_no_llm_in_order_path.sh`` enforces this; see
 ``docs/adr/0006-llm-in-order-path-gated.md`` (ADR 0006 v2, supersedes v1)
@@ -42,13 +42,6 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agent.anthropic_client import (
-    AnthropicCall,
-    AnthropicClientNotConfigured,
-    create_message,
-)
-from app.agent.pricing import DailyBudgetResolver, estimate_cost
-from app.agent.system_prompt import build_system_prompt, gather_user_context
 from app.config import Settings
 from app.db.enums import (
     ACTIVE_AGENT_STATUSES,
@@ -60,6 +53,13 @@ from app.db.models.agent_message import AgentMessage
 from app.db.models.agent_session import AgentSession
 from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.events.bus import EventBus
+from app.llm.anthropic_client import (
+    AnthropicCall,
+    AnthropicClientNotConfigured,
+    create_message,
+)
+from app.llm.pricing import DailyBudgetResolver, estimate_cost
+from app.llm.system_prompt import build_system_prompt, gather_user_context
 from app.security import CredentialKind, CredentialStore
 
 logger = structlog.get_logger(__name__)

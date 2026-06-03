@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from app.agent.pricing import (
+from app.llm.pricing import (
     PRICING_TABLE,
     UNKNOWN_MODEL_PRICING,
     estimate_cost,

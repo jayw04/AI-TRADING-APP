@@ -30,18 +30,21 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 # (path suffix, minimum branch-rate)
+# NOTE: the LLM helper modules moved app/agent/ → app/llm/ in P6 cleanup-1;
+# suffixes match coverage.xml filenames (llm/*.py). api/v1/agent.py (the P3
+# chat router) was NOT renamed.
 P3_MODULES: list[tuple[str, float]] = [
-    ("agent/pricing.py", 0.95),
-    ("agent/system_prompt.py", 0.85),
+    ("llm/pricing.py", 0.95),
+    ("llm/system_prompt.py", 0.85),
     # State-machine module — branch coverage on a session-lifecycle ×
     # cap-state × tool-loop matrix tops out around 0.55 with reasonable
     # unit-test investment. Higher coverage requires injecting failures
     # at every Anthropic call site, which is rapidly diminishing returns.
-    ("agent/runtime.py", 0.50),
+    ("llm/runtime.py", 0.50),
     # Mostly SDK shape-matching code. The interesting paths (Anthropic
     # API errors, MCP-connector edge cases) are exercised at the runtime
     # layer or in the e2e integration test.
-    ("agent/anthropic_client.py", 0.30),
+    ("llm/anthropic_client.py", 0.30),
     # Endpoint module — branches are dominated by HTTPException raises
     # the doc explicitly excludes from per-branch testing. Matches the
     # ``api/v1/strategies.py = 0.10`` precedent in check_p2_coverage.py.

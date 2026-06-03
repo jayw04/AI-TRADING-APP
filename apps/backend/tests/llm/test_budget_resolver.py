@@ -7,10 +7,10 @@ from decimal import Decimal
 
 import pytest
 
-from app.agent.pricing import DailyBudgetResolver
 from app.db.enums import AgentSessionMode, AgentSessionStatus
 from app.db.models.agent_session import AgentSession
 from app.db.models.user import User
+from app.llm.pricing import DailyBudgetResolver
 
 
 def _now() -> datetime:

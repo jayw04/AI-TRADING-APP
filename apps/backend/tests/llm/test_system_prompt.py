@@ -7,15 +7,15 @@ from decimal import Decimal
 
 import pytest
 
-from app.agent.system_prompt import (
-    UserContextSummary,
-    build_system_prompt,
-    gather_user_context,
-)
 from app.db.enums import AgentSessionMode
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
 from app.db.models.user import User
+from app.llm.system_prompt import (
+    UserContextSummary,
+    build_system_prompt,
+    gather_user_context,
+)
 
 
 def _now() -> datetime:
