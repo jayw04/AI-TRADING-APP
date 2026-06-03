@@ -100,10 +100,18 @@ def test_server_has_no_db_imports():
     assert "app.db" not in src
 
 
-def test_build_server_registers_sixteen_tools():
+def test_build_server_registers_seventeen_tools():
     srv = server.build_server()
-    assert len(server._TOOLS) == 16  # 12 from P5.5 §3 + 4 from P6 §1b
+    assert len(server._TOOLS) == 17  # 12 (P5.5 §3) + 4 (P6 §1b) + 1 (P6 §2b)
     assert srv.name == "Trading Workbench State"
+
+
+async def test_proposal_eval_summary_tool_calls_endpoint(httpx_mock):
+    httpx_mock.add_response(json={})
+    await server.workbench_proposal_eval_summary(42, window=30)
+    req = httpx_mock.get_request()
+    assert req.url.path == "/api/v1/strategies/42/proposal-eval-summary"
+    assert req.url.params["window"] == "30"
 
 
 async def test_strategy_recent_orders_passes_source_type_and_id(httpx_mock):
