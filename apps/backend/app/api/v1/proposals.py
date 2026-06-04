@@ -47,7 +47,13 @@ from app.services.drift_detection import (
     run_drift_detection_for_strategy,
     write_drift_audit,
 )
-from app.services.paper_variant import PaperVariantService
+from app.services.paper_variant import (
+    PaperVariantService,
+    VariantComparison,
+    VariantSideMetrics,
+    compare_variant_to_parent,
+    find_in_flight_variant,
+)
 from app.services.trading_profile import TradingProfileService
 
 logger = structlog.get_logger(__name__)
@@ -409,6 +415,7 @@ async def _delete_proposal(session: AsyncSession, proposal_id: int) -> None:
 async def patch_proposal(
     proposal_id: int,
     body: PatchProposalRequest,
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> ProposalResponse:
@@ -488,7 +495,48 @@ async def patch_proposal(
     )
     await session.commit()
     await session.refresh(row)
+
+    # P6b §2b-variant D5: auto-spawn a paper variant on ACCEPT when the user's
+    # envelope opts in. Best-effort, AFTER the transition commits — never fail
+    # the transition because auto-spawn raced (one row per transaction holds).
+    if target == "ACCEPTED":
+        await _maybe_auto_validate_proposal(request, session, row, current_user.id)
+        await session.refresh(row)
+
     return _to_response(row)
+
+
+async def _maybe_auto_validate_proposal(
+    request: Request,
+    session: AsyncSession,
+    proposal: StrategyProposal,
+    user_id: int,
+) -> None:
+    """P6b §2b-variant D5: if ``agent_envelope_json.auto_validate_proposals`` is
+    enabled and the parent is LIVE with no in-flight variant, spawn the paper
+    variant. Best-effort — ``spawn`` self-guards (raises plain ValueError on
+    parent_not_live / variant_already_in_flight / proposal_not_accepted), which
+    we swallow so a raced/ineligible auto-spawn never fails the ACCEPT."""
+    profile = await TradingProfileService(session).get(user_id)
+    envelope = profile.agent_envelope or {}
+    if not envelope.get("auto_validate_proposals", False):
+        return
+
+    engine = getattr(request.app.state, "strategy_engine", None)
+    try:
+        await PaperVariantService(session, engine).spawn(
+            proposal_id=proposal.id, user_id=user_id
+        )
+    except ValueError as exc:
+        logger.info(
+            "auto_validate_proposals_skipped",
+            proposal_id=proposal.id, reason=str(exc),
+        )
+    except Exception as exc:  # noqa: BLE001 - best-effort; never fail the ACCEPT
+        logger.warning(
+            "auto_validate_proposals_failed",
+            proposal_id=proposal.id, error=str(exc),
+        )
 
 
 @proposals_router.get("", response_model=ProposalListResponse)
@@ -548,6 +596,7 @@ async def get_proposal(
 @proposals_router.post("/{proposal_id}/apply", response_model=ApplyProposalResponse)
 async def apply_proposal(
     proposal_id: int,
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> ApplyProposalResponse:
@@ -574,6 +623,18 @@ async def apply_proposal(
                 "stop it before applying a proposal."
             ),
         )
+
+    # P6b §2b-variant D8 (ii): terminate any in-flight variant on the parent
+    # BEFORE applying (terminate-then-apply ordering; no-op when none). Mostly
+    # defensive — apply requires the parent IDLE, so the deactivation D8 hook
+    # has usually already cleared the variant; this catches a variant spawned
+    # against an IDLE parent out-of-band. Commits internally (§2a contract).
+    engine = getattr(request.app.state, "strategy_engine", None)
+    await PaperVariantService(session, engine).terminate_for_parent(
+        parent_strategy_id=strategy.id,
+        reason="parent_proposal_applied",
+        user_id=current_user.id,
+    )
 
     # Merge parameter changes into params_json. The change list is the safety
     # boundary — same surface PUT /strategies/{id} already exposes (params_json
@@ -847,3 +908,66 @@ async def submit_review(
     await session.commit()
     await session.refresh(row)
     return _to_response(row)
+
+
+# ----- P6b §2b-variant: variant-vs-live comparison (read-only) -----
+
+
+def _variant_side_metrics_dict(m: VariantSideMetrics) -> dict[str, Any]:
+    return {
+        "trade_count": m.trade_count,
+        "win_rate": m.win_rate,
+        "avg_return_per_trade": m.avg_return_per_trade,
+        "sharpe_ratio": m.sharpe_ratio,
+        "max_drawdown": m.max_drawdown,
+    }
+
+
+def _variant_comparison_dict(comp: VariantComparison) -> dict[str, Any]:
+    return {
+        "parent_strategy_id": comp.parent_strategy_id,
+        "variant_strategy_id": comp.variant_strategy_id,
+        "window_start": comp.window_start.isoformat(),
+        "window_end": comp.window_end.isoformat(),
+        "live_metrics": _variant_side_metrics_dict(comp.live_metrics),
+        "variant_metrics": _variant_side_metrics_dict(comp.variant_metrics),
+        "deltas": comp.deltas,
+        "live_trade_count": comp.live_trade_count,
+        "variant_trade_count": comp.variant_trade_count,
+    }
+
+
+@strategies_router.get("/{strategy_id}/variant-comparison", response_model=dict)
+async def variant_comparison(
+    strategy_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Variant-vs-live comparison for the in-flight paper variant of
+    ``strategy_id`` (the parent). Read-only — no detection, no audit write.
+    Returns ``{"status": "no_active_variant", ...}`` when the strategy has no
+    in-flight variant."""
+    parent = await session.get(Strategy, strategy_id)
+    if parent is None or parent.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    variant = await find_in_flight_variant(session, strategy_id)
+    if variant is None:
+        return {"status": "no_active_variant", "strategy_id": strategy_id}
+
+    # bar_cache lives in app.state only when the alpaca block is configured;
+    # getattr-guard it (None → equity curves degenerate gracefully — Norton/dev).
+    bar_cache = getattr(request.app.state, "bar_cache", None)
+    comparison = await compare_variant_to_parent(
+        session, variant.id, bar_cache=bar_cache
+    )
+    if comparison is None:  # pragma: no cover - variant vanished mid-request
+        return {"status": "no_active_variant", "strategy_id": strategy_id}
+
+    return {
+        "status": "variant_active",
+        "strategy_id": strategy_id,
+        "variant_strategy_id": variant.id,
+        "comparison": _variant_comparison_dict(comparison),
+    }

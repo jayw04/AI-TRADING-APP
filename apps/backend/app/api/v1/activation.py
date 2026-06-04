@@ -11,6 +11,7 @@ from app.auth.stub import CurrentUser, get_current_user
 from app.db.models.strategy import Strategy
 from app.db.session import get_session
 from app.services.activation import ActivationError, ActivationService
+from app.services.paper_variant import PaperVariantService
 
 router = APIRouter(prefix="/strategies", tags=["activation"])
 
@@ -133,4 +134,15 @@ async def deactivate_strategy(
         raise HTTPException(status_code=404, detail="Strategy not found") from None
     except ActivationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # P6b §2b-variant D8 (i): the parent just left LIVE/HALTED → IDLE. Terminate
+    # its in-flight paper variant (no-op if none). The endpoint owns the engine
+    # handle (ActivationService doesn't), so the variant's running job is
+    # properly unregistered, not just flipped IDLE. Commits internally.
+    engine = getattr(request.app.state, "strategy_engine", None)
+    await PaperVariantService(session, engine).terminate_for_parent(
+        parent_strategy_id=strategy_id,
+        reason="parent_deactivated",
+        user_id=current_user.id,
+    )
     return result
