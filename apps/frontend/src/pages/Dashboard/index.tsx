@@ -6,6 +6,7 @@ import { ApiError } from "@/api/client";
 import OrderTicket from "@/components/ticket/OrderTicket";
 import MorningBriefCard from "@/components/morning-brief/MorningBriefCard";
 import RecentProposalsCard from "@/components/proposals/RecentProposalsCard";
+import { VariantsCard } from "@/components/strategies/VariantsCard";
 import {
   formatMoney,
   formatNumber,
@@ -51,6 +52,8 @@ export default function Dashboard() {
           cross-cutting things to look at.
         </p>
       </div>
+
+      <VariantsCard />
 
       <MorningBriefCard />
 

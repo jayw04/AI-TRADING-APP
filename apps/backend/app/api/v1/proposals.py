@@ -923,10 +923,21 @@ def _variant_side_metrics_dict(m: VariantSideMetrics) -> dict[str, Any]:
     }
 
 
-def _variant_comparison_dict(comp: VariantComparison) -> dict[str, Any]:
+def _equity_curve_dicts(curve: list[Any]) -> list[dict[str, Any]]:
+    """Serialize an equity curve [(ts, Decimal)] to chart-ready points."""
+    return [{"ts": ts.isoformat(), "equity": float(eq)} for ts, eq in curve]
+
+
+def _variant_comparison_dict(
+    comp: VariantComparison, *, spawn_proposal_id: int | None
+) -> dict[str, Any]:
     return {
         "parent_strategy_id": comp.parent_strategy_id,
         "variant_strategy_id": comp.variant_strategy_id,
+        # P6b §2c: the spawn proposal id (for the Stop-validation button) +
+        # the equity-curve series (for the strategy-detail chart). Additive —
+        # existing clients (the §2b MCP tool) ignore the new keys.
+        "spawn_proposal_id": spawn_proposal_id,
         "window_start": comp.window_start.isoformat(),
         "window_end": comp.window_end.isoformat(),
         "live_metrics": _variant_side_metrics_dict(comp.live_metrics),
@@ -934,7 +945,27 @@ def _variant_comparison_dict(comp: VariantComparison) -> dict[str, Any]:
         "deltas": comp.deltas,
         "live_trade_count": comp.live_trade_count,
         "variant_trade_count": comp.variant_trade_count,
+        "live_equity_curve": _equity_curve_dicts(comp.live_equity_curve),
+        "variant_equity_curve": _equity_curve_dicts(comp.variant_equity_curve),
     }
+
+
+async def _spawn_proposal_id_for_parent(
+    session: AsyncSession, parent_strategy_id: int
+) -> int | None:
+    """The proposal that spawned the in-flight variant. Spawn moves the proposal
+    to EVALUATING and records ``evaluation_results_json.paper_variant`` — there
+    is exactly one EVALUATING proposal per parent while a variant is in flight
+    (no Strategy.spawn_proposal_id column exists). Used by the Stop button."""
+    row = (
+        await session.execute(
+            select(StrategyProposal)
+            .where(StrategyProposal.strategy_id == parent_strategy_id)
+            .where(StrategyProposal.state == ProposalState.EVALUATING)
+            .order_by(StrategyProposal.id.desc())
+        )
+    ).scalars().first()
+    return row.id if row else None
 
 
 @strategies_router.get("/{strategy_id}/variant-comparison", response_model=dict)
@@ -965,9 +996,12 @@ async def variant_comparison(
     if comparison is None:  # pragma: no cover - variant vanished mid-request
         return {"status": "no_active_variant", "strategy_id": strategy_id}
 
+    spawn_proposal_id = await _spawn_proposal_id_for_parent(session, strategy_id)
     return {
         "status": "variant_active",
         "strategy_id": strategy_id,
         "variant_strategy_id": variant.id,
-        "comparison": _variant_comparison_dict(comparison),
+        "comparison": _variant_comparison_dict(
+            comparison, spawn_proposal_id=spawn_proposal_id
+        ),
     }

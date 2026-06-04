@@ -25,6 +25,7 @@ from app.api.v1 import (
     strategies,
     trading_profile,
     users,
+    variants,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -70,3 +71,6 @@ api_router.include_router(proposals.proposals_router)
 # P6b §1b-drift: user-level drift findings list (/drift-findings). Per-strategy
 # drift-check/drift-status live on proposals.strategies_router above.
 api_router.include_router(drift.router)
+# P6b §2c-variant: user-level in-flight paper-variant list (/variants) for the
+# Dashboard widget. Per-strategy variant-comparison lives on strategies_router.
+api_router.include_router(variants.router)

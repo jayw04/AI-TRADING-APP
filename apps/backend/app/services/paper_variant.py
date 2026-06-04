@@ -16,7 +16,7 @@ spawn and terminate each write their two audit rows in SEPARATE commits.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -277,7 +277,9 @@ class VariantSideMetrics:
 @dataclass(frozen=True)
 class VariantComparison:
     """Apples-to-apples variant-vs-live comparison. Both sides share the same
-    capital_base and the same window ``[variant.created_at, now]``."""
+    capital_base and the same window ``[variant.created_at, now]``. The equity
+    curves (P6b §2c) are the same series the metrics were computed from —
+    carried so the UI can chart them without recomputing."""
 
     parent_strategy_id: int
     variant_strategy_id: int
@@ -288,6 +290,8 @@ class VariantComparison:
     deltas: dict[str, float | None]
     live_trade_count: int
     variant_trade_count: int
+    live_equity_curve: list[tuple[datetime, Decimal]] = field(default_factory=list)
+    variant_equity_curve: list[tuple[datetime, Decimal]] = field(default_factory=list)
 
 
 async def find_in_flight_variant(
@@ -408,4 +412,6 @@ async def compare_variant_to_parent(
         deltas=deltas,
         live_trade_count=len(parent_trips),
         variant_trade_count=len(variant_trips),
+        live_equity_curve=parent_curve,
+        variant_equity_curve=variant_curve,
     )
