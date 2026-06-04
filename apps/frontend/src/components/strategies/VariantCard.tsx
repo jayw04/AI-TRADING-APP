@@ -74,13 +74,33 @@ export function VariantCard({ strategy }: Props) {
 
   async function onStop(proposalId: number) {
     if (!window.confirm("Stop validation and terminate the paper variant?")) return;
+    await runMutation(() => variantsApi.stopValidation(proposalId), "Failed to stop validation");
+  }
+
+  async function onPromote(proposalId: number) {
+    if (!window.confirm("Promote this proposal? The 24-hour activation cooldown begins now."))
+      return;
+    await runMutation(() => variantsApi.promote(proposalId), "Failed to promote");
+  }
+
+  async function onReject(proposalId: number) {
+    if (!window.confirm("Reject this evidence? The proposal becomes terminal.")) return;
+    await runMutation(() => variantsApi.rejectPromotion(proposalId), "Failed to reject");
+  }
+
+  async function onCancel(proposalId: number) {
+    if (!window.confirm("Cancel the promotion? The proposal becomes terminal.")) return;
+    await runMutation(() => variantsApi.rejectPromotion(proposalId), "Failed to cancel");
+  }
+
+  async function runMutation(fn: () => Promise<unknown>, failMsg: string) {
     setPending(true);
     setError(null);
     try {
-      await variantsApi.stopValidation(proposalId);
+      await fn();
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to stop validation");
+      setError(e instanceof Error ? e.message : failMsg);
     } finally {
       setPending(false);
     }
@@ -90,6 +110,15 @@ export function VariantCard({ strategy }: Props) {
     resp?.status === "variant_active" && resp.comparison
       ? resp.comparison
       : null;
+  const state = active?.proposal_state ?? null;
+
+  // Post-promotion lockout (parent_last_promoted_at is present in both branches).
+  const lastPromotedAt =
+    resp?.parent_last_promoted_at ?? active?.parent_last_promoted_at ?? null;
+  const lockoutExpires = lastPromotedAt
+    ? new Date(new Date(lastPromotedAt).getTime() + 30 * 24 * 60 * 60 * 1000)
+    : null;
+  const inLockout = lockoutExpires != null && lockoutExpires.getTime() > Date.now();
 
   return (
     <div className="rounded border border-neutral-800 bg-neutral-950 p-3">
@@ -104,24 +133,123 @@ export function VariantCard({ strategy }: Props) {
       )}
 
       {!loading &&
-        (active ? (
-          <ActiveValidation
+        (active && state === "EVIDENCE_READY" ? (
+          <EvidenceReady
             comparison={active}
             pending={pending}
-            onStop={onStop}
+            onPromote={onPromote}
+            onReject={onReject}
           />
-        ) : eligible && strategy.status === "live" ? (
+        ) : active && state === "PROMOTING" ? (
+          <Promoting comparison={active} pending={pending} onCancel={onCancel} />
+        ) : active ? (
+          <ActiveValidation comparison={active} pending={pending} onStop={onStop} />
+        ) : eligible && strategy.status === "live" && !inLockout ? (
           <EligibleProposal
             proposal={eligible}
             pending={pending}
             onValidate={onValidate}
           />
+        ) : inLockout && lockoutExpires ? (
+          <div className="mt-2 text-[11px] text-amber-200/90">
+            In 30-day post-promotion lockout until{" "}
+            {lockoutExpires.toLocaleDateString()}. A new validation cycle can
+            start after that date.
+          </div>
         ) : (
           <div className="mt-2 text-[11px] text-neutral-400">
             No active validation. Accept a proposal on this live strategy to
             validate it on a paper variant.
           </div>
         ))}
+    </div>
+  );
+}
+
+function EvidenceReady({
+  comparison,
+  pending,
+  onPromote,
+  onReject,
+}: {
+  comparison: VariantComparison;
+  pending: boolean;
+  onPromote: (proposalId: number) => void;
+  onReject: (proposalId: number) => void;
+}) {
+  const pid = comparison.spawn_proposal_id;
+  const gate = comparison.evidence_bundle?.gate_results;
+  const criteria = gate
+    ? [gate.duration, gate.sharpe_margin, gate.absolute_return, gate.drawdown_divergence]
+    : [];
+  return (
+    <div className="mt-2 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="rounded bg-emerald-900/50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-200">
+          Evidence ready
+        </span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => pid != null && onPromote(pid)}
+            disabled={pending || pid == null}
+            className="rounded border border-emerald-700 px-2 py-1 text-[10px] text-emerald-200 hover:bg-emerald-900/40 disabled:opacity-50"
+          >
+            {pending ? "Promoting…" : "Promote"}
+          </button>
+          <button
+            type="button"
+            onClick={() => pid != null && onReject(pid)}
+            disabled={pending || pid == null}
+            className="rounded border border-neutral-700 px-2 py-1 text-[10px] text-neutral-200 hover:bg-neutral-800 disabled:opacity-50"
+          >
+            Reject
+          </button>
+        </div>
+      </div>
+      {criteria.length > 0 && (
+        <ul className="space-y-0.5 text-[11px]">
+          {criteria.map((c) => (
+            <li key={c.name} className={c.passed ? "text-emerald-300" : "text-rose-300"}>
+              {c.passed ? "✓" : "✗"} {c.name.replace(/_/g, " ")}
+            </li>
+          ))}
+        </ul>
+      )}
+      <MetricsTable comparison={comparison} />
+    </div>
+  );
+}
+
+function Promoting({
+  comparison,
+  pending,
+  onCancel,
+}: {
+  comparison: VariantComparison;
+  pending: boolean;
+  onCancel: (proposalId: number) => void;
+}) {
+  const pid = comparison.spawn_proposal_id;
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="rounded bg-sky-900/50 px-1.5 py-0.5 text-[11px] font-semibold text-sky-200">
+          Promotion in progress
+        </span>
+        <button
+          type="button"
+          onClick={() => pid != null && onCancel(pid)}
+          disabled={pending || pid == null}
+          className="rounded border border-neutral-700 px-2 py-1 text-[10px] text-neutral-200 hover:bg-neutral-800 disabled:opacity-50"
+        >
+          {pending ? "Cancelling…" : "Cancel"}
+        </button>
+      </div>
+      <div className="text-[11px] text-neutral-400">
+        New parameters go live after the 24-hour activation cooldown. Cancel any
+        time during the cooldown — it's frictionless.
+      </div>
     </div>
   );
 }

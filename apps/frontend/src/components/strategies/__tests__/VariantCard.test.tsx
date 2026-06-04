@@ -169,4 +169,64 @@ describe("VariantCard", () => {
       expect(mockedVariants.stopValidation).toHaveBeenCalledWith(7),
     );
   });
+
+  const bundle = {
+    captured_at: "2026-06-14T00:00:00Z",
+    all_criteria_passed: true,
+    gate_results: {
+      duration: { name: "duration", passed: true, details: {} },
+      sharpe_margin: { name: "sharpe_margin", passed: true, details: {} },
+      absolute_return: { name: "absolute_return", passed: true, details: {} },
+      drawdown_divergence: { name: "drawdown_divergence", passed: false, details: {} },
+    },
+  };
+
+  it("renders EVIDENCE_READY with Promote + Reject and promote calls the API", async () => {
+    mockedVariants.comparison.mockResolvedValue({
+      status: "variant_active",
+      strategy_id: 1,
+      variant_strategy_id: 2,
+      comparison: {
+        ...comparison(),
+        proposal_state: "EVIDENCE_READY",
+        evidence_bundle: bundle,
+        eligible_for_promotion: true,
+      },
+    });
+    mockedVariants.promote.mockResolvedValue(undefined);
+    render(<VariantCard strategy={strategy()} />);
+    expect(await screen.findByText("Evidence ready")).toBeInTheDocument();
+    expect(screen.getByText("Reject")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Promote"));
+    await waitFor(() => expect(mockedVariants.promote).toHaveBeenCalledWith(7));
+  });
+
+  it("renders PROMOTING with a Cancel button that calls reject-promotion", async () => {
+    mockedVariants.comparison.mockResolvedValue({
+      status: "variant_active",
+      strategy_id: 1,
+      variant_strategy_id: 2,
+      comparison: { ...comparison(), proposal_state: "PROMOTING" },
+    });
+    mockedVariants.rejectPromotion.mockResolvedValue(undefined);
+    render(<VariantCard strategy={strategy()} />);
+    expect(await screen.findByText(/Promotion in progress/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Cancel"));
+    await waitFor(() =>
+      expect(mockedVariants.rejectPromotion).toHaveBeenCalledWith(7),
+    );
+  });
+
+  it("renders the lockout-aware empty state when the parent was recently promoted", async () => {
+    const recent = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    mockedVariants.comparison.mockResolvedValue({
+      status: "no_active_variant",
+      strategy_id: 1,
+      parent_last_promoted_at: recent,
+    });
+    render(<VariantCard strategy={strategy()} />);
+    expect(
+      await screen.findByText(/post-promotion lockout/i),
+    ).toBeInTheDocument();
+  });
 });
