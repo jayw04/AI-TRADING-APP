@@ -292,6 +292,9 @@ class VariantComparison:
     variant_trade_count: int
     live_equity_curve: list[tuple[datetime, Decimal]] = field(default_factory=list)
     variant_equity_curve: list[tuple[datetime, Decimal]] = field(default_factory=list)
+    # P6b §3a: the shared capital base both curves are anchored at. The promotion
+    # gate's absolute-return criterion is `final_equity - capital_base > 0`.
+    capital_base: Decimal = DEFAULT_CAPITAL_BASE
 
 
 async def find_in_flight_variant(
@@ -414,4 +417,5 @@ async def compare_variant_to_parent(
         variant_trade_count=len(variant_trips),
         live_equity_curve=parent_curve,
         variant_equity_curve=variant_curve,
+        capital_base=capital_base,
     )

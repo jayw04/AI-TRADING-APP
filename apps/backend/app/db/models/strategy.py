@@ -103,6 +103,13 @@ class Strategy(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # P6b §3a-gate (ADR 0007): when this strategy was last promoted from a paper
+    # variant. Defined here; §3b's promotion endpoint sets it and the 30-day
+    # post-promotion lockout reads it. NULL = never promoted.
+    last_promoted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

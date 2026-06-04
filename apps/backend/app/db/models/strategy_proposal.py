@@ -49,6 +49,13 @@ class ProposalState(StrEnum):
     EVALUATING = "EVALUATING"
     REJECTED = "REJECTED"
     APPLIED = "APPLIED"
+    # P6b §3a-gate (ADR 0007): the 4-criterion promotion gate passed at least
+    # once → the evidence bundle is ready for the user's promote decision
+    # (sticky; doesn't roll back). §3b adds PROMOTING (24h cooldown in progress)
+    # → PROMOTED (variant live). All fit the length=16 column.
+    EVIDENCE_READY = "EVIDENCE_READY"
+    PROMOTING = "PROMOTING"
+    PROMOTED = "PROMOTED"
 
 
 class StrategyProposal(Base):
