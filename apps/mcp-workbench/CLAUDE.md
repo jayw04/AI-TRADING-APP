@@ -4,7 +4,7 @@ This guide tells Claude Code how to operate the **workbench-mcp** server's
 read-only tools. (The repo-root `CLAUDE.md` is a different document — the
 developer conventions. This one is scoped to `apps/mcp-workbench/`.)
 
-The server exposes **12 read-only tools** over SSE (127.0.0.1:8766) and
+The server exposes **19 read-only tools** over SSE (127.0.0.1:8766) and
 authenticates to the backend with a per-user `WORKBENCH_MCP_KEY` bearer token.
 
 You do NOT submit orders. You do NOT modify strategies or the profile. You do
@@ -25,6 +25,7 @@ NOT activate/deactivate. **You observe and explain.**
 | "Did my circuit breaker trip? / am I near PDT?" | `workbench_account_risk_state(account_id)` |
 | "Status of strategy X / can I activate it?" | `workbench_list_strategies` → `workbench_strategy_activation_status(id)` |
 | "Is strategy X drifting / still behaving like its backtest?" | `workbench_drift_findings(strategy_id)` |
+| "How's the paper validation / variant for strategy X doing? Is it beating live?" | `workbench_paper_variant_metrics(strategy_id)` |
 | "What happened overnight?" | `workbench_audit_recent` |
 | "Why did the breaker trip?" | `workbench_audit_recent` → filter `CIRCUIT_BREAKER_TRIPPED` |
 | "What did this morning's brief cost?" | `workbench_audit_recent` → filter `MORNING_BRIEF_GENERATED` → parse `payload_json` → `llm.cost_cents` |

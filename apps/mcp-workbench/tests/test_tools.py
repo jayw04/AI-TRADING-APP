@@ -100,10 +100,19 @@ def test_server_has_no_db_imports():
     assert "app.db" not in src
 
 
-def test_build_server_registers_eighteen_tools():
+def test_build_server_registers_nineteen_tools():
     srv = server.build_server()
-    assert len(server._TOOLS) == 18  # 12 (P5.5 §3) + 4 (P6 §1b) + 1 (P6 §2b) + 1 (P6b §1b drift)
+    # 12 (P5.5 §3) + 4 (P6 §1b) + 1 (P6 §2b) + 1 (P6b §1b drift) + 1 (P6b §2b variant)
+    assert len(server._TOOLS) == 19
     assert srv.name == "Trading Workbench State"
+
+
+async def test_paper_variant_metrics_tool_calls_endpoint(httpx_mock):
+    httpx_mock.add_response(json={})
+    await server.workbench_paper_variant_metrics(42)
+    req = httpx_mock.get_request()
+    assert req.method == "GET"
+    assert req.url.path == "/api/v1/strategies/42/variant-comparison"
 
 
 async def test_drift_findings_tool_calls_endpoint(httpx_mock):

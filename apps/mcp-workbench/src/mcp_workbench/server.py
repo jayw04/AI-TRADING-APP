@@ -184,6 +184,19 @@ async def workbench_drift_findings(
     )
 
 
+async def workbench_paper_variant_metrics(strategy_id: int) -> dict[str, Any]:
+    """Variant-vs-live comparison for a strategy's in-flight paper variant
+    (P6b §2b). Keys by the PARENT strategy_id: if an ACCEPTED proposal is being
+    validated forward on paper (ADR 0007), returns
+    {status: 'variant_active', comparison: {live_metrics, variant_metrics,
+    deltas, ...}} — both sides over the same window and capital base
+    (trade_count, win_rate, avg_return_per_trade, sharpe_ratio, max_drawdown).
+    Returns {status: 'no_active_variant'} when nothing is being validated. Use
+    as proposal-grounding evidence ('is the variant beating live?') or to answer
+    'how's the paper validation going for strategy X?'."""
+    return await _get(f"/api/v1/strategies/{strategy_id}/variant-comparison")
+
+
 _TOOLS: list[Callable[..., Any]] = [
     workbench_status,
     workbench_morning_brief_today,
@@ -206,6 +219,8 @@ _TOOLS: list[Callable[..., Any]] = [
     workbench_proposal_eval_summary,
     # P6b §1b drift status.
     workbench_drift_findings,
+    # P6b §2b paper-variant comparison.
+    workbench_paper_variant_metrics,
 ]
 
 

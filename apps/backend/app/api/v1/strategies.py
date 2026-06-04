@@ -61,6 +61,7 @@ from app.db.models.strategy_run import StrategyRun
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
 from app.events import get_event_bus
+from app.services.paper_variant import PaperVariantService
 from app.services.strategy_cooldown import StrategyCooldownService
 from app.strategies import StrategyLoader, StrategyLoadError
 
@@ -344,8 +345,19 @@ async def stop_strategy(
     if row is None or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
+    old_status = row.status
     engine = _get_engine(request)
     await engine.unregister(strategy_id, reason="user_stop")
+
+    # P6b §2b-variant D8 (i): when a parent leaves ACTIVE_STRATEGY_STATUSES,
+    # terminate its in-flight paper variant (no-op if none). The variant runs on
+    # assumptions the parent just invalidated by stopping. Commits internally.
+    if old_status in ACTIVE_STRATEGY_STATUSES:
+        await PaperVariantService(session, engine).terminate_for_parent(
+            parent_strategy_id=strategy_id,
+            reason="parent_deactivated",
+            user_id=current_user.id,
+        )
 
     await session.refresh(row)
     return StrategyActionResponse(
