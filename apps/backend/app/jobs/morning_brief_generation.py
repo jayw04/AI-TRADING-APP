@@ -64,6 +64,22 @@ async def run_morning_brief_generation(
                     await run_drift_detection_for_user(session, user_id)
                 except Exception:
                     logger.exception("drift_detection_pass_failed", user_id=user_id)
+
+                # P6b §3a-gate: evaluate the 4-criterion promotion gate for the
+                # user's in-flight variants (ADR 0007), refresh evidence bundles,
+                # and transition EVALUATING → EVIDENCE_READY on first pass. Own
+                # try (sibling to drift) so a gate failure never fails the brief.
+                # bar_cache is needed for the variant equity-curve reconstruction.
+                try:
+                    from app.services.promotion_gate import (
+                        run_promotion_gate_for_user,
+                    )
+
+                    await run_promotion_gate_for_user(
+                        session, user_id, bar_cache=bar_cache
+                    )
+                except Exception:
+                    logger.exception("promotion_gate_pass_failed", user_id=user_id)
         except Exception:
             logger.exception("morning_brief_generation_failed", user_id=user_id)
             failed += 1

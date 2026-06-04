@@ -138,6 +138,10 @@ class AuditAction(StrEnum):
     # parent params changed / 90-day expiry). Payload carries {reason,
     # parent_strategy_id}.
     PAPER_VARIANT_TERMINATED = "PAPER_VARIANT_TERMINATED"
+    # P6b §3a-gate (ADR 0007): defined here; WRITTEN by §3b's promotion endpoint
+    # when a paper variant is promoted live after the 24h cooldown. §3a's gate
+    # only writes STRATEGY_PROPOSAL_TRANSITIONED (EVALUATING → EVIDENCE_READY).
+    STRATEGY_PROMOTED = "STRATEGY_PROMOTED"
 
 
 class AuditLogger:
