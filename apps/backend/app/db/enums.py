@@ -130,12 +130,24 @@ class StrategyStatus(StrEnum):
     LIVE = "live"
     HALTED = "halted"
     ERROR = "error"
+    # P6b §2a: a cloned proposal-validation variant. Runs forward on paper in
+    # parallel with its LIVE parent (ADR 0007). Engine-runnable but deliberately
+    # NOT user-facing-active (excluded from ACTIVE_STRATEGY_STATUSES so
+    # _is_active / proposal-cadence / morning-brief skip it).
+    PAPER_VARIANT = "paper_variant"
 
 
 # Statuses in which the engine actively dispatches to a strategy.
 # PENDING_LIVE is deliberately excluded — it cannot submit orders.
 ACTIVE_STRATEGY_STATUSES = frozenset(
     {StrategyStatus.PAPER, StrategyStatus.LIVE}
+)
+
+# P6b §2a: statuses the engine RUNS + resumes-on-boot. Superset of
+# ACTIVE_STRATEGY_STATUSES with PAPER_VARIANT — so variants run/resume but stay
+# out of every user-facing "active" surface.
+ENGINE_RUNNABLE_STATUSES = ACTIVE_STRATEGY_STATUSES | frozenset(
+    {StrategyStatus.PAPER_VARIANT}
 )
 
 

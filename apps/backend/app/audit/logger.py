@@ -130,6 +130,14 @@ class AuditAction(StrEnum):
     # sweep itself is silent (routine maintenance); only the user's review is
     # the meaningful, audit-worthy event.
     PROPOSAL_REVIEW_RECORDED = "PROPOSAL_REVIEW_RECORDED"
+    # P6b §2a: a paper-variant strategy clone was spawned to validate a
+    # proposal's params forward on paper (ADR 0007). Payload carries
+    # {proposal_id, parent_strategy_id, variant_strategy_id}.
+    PAPER_VARIANT_SPAWNED = "PAPER_VARIANT_SPAWNED"
+    # P6b §2a: a running paper-variant was terminated (user stop / superseded /
+    # parent params changed / 90-day expiry). Payload carries {reason,
+    # parent_strategy_id}.
+    PAPER_VARIANT_TERMINATED = "PAPER_VARIANT_TERMINATED"
 
 
 class AuditLogger:

@@ -348,6 +348,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("proposal_review_sampling_registered")
 
+            # 10i. Paper-variant expiry (P6b §2a). 6-hourly sweep that
+            # force-terminates PAPER_VARIANT clones older than 90 days (D6 safety
+            # net for orphaned variants). Needs the engine to unregister them.
+            from app.services.paper_variant import register_paper_variant_expiry_job
+
+            register_paper_variant_expiry_job(
+                scheduler.scheduler, session_factory, strategy_engine
+            )
+            logger.info("paper_variant_expiry_registered")
+
             # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
             # wire it back via set_bar_stream_service before any strategy
             # registers — register() fires on_strategies_changed() which the
@@ -400,14 +410,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # shouldn't take down boot.
             from sqlalchemy import select
 
-            from app.db.enums import ACTIVE_STRATEGY_STATUSES
+            from app.db.enums import ENGINE_RUNNABLE_STATUSES
             from app.db.models.strategy import Strategy as StrategyRow
 
             async with session_factory() as resume_session:
+                # P6b §2a: ENGINE_RUNNABLE_STATUSES (⊃ ACTIVE) so PAPER_VARIANT
+                # clones resume after a restart, like any running strategy.
                 rows_to_resume = (
                     await resume_session.execute(
                         select(StrategyRow).where(
-                            StrategyRow.status.in_(list(ACTIVE_STRATEGY_STATUSES))
+                            StrategyRow.status.in_(list(ENGINE_RUNNABLE_STATUSES))
                         )
                     )
                 ).scalars().all()

@@ -29,6 +29,14 @@ class Strategy(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     version: Mapped[str] = mapped_column(String(32), nullable=False, default="0.1.0")
 
+    # P6b §2a: when set, this row is a paper-variant clone of the referenced
+    # parent strategy (status=PAPER_VARIANT), spawned to validate a proposal's
+    # params forward on paper (ADR 0007). NULL for normal user strategies — the
+    # discriminator that hides variants from user-facing strategy lists.
+    parent_strategy_id: Mapped[int | None] = mapped_column(
+        ForeignKey("strategies.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     type: Mapped[StrategyType] = mapped_column(
         SQLEnum(StrategyType, native_enum=False, length=16),
         nullable=False,

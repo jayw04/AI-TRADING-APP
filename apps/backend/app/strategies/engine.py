@@ -50,7 +50,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.db.enums import (
-    ACTIVE_STRATEGY_STATUSES,
+    ENGINE_RUNNABLE_STATUSES,
     StrategyStatus,
     StrategyType,
 )
@@ -235,17 +235,24 @@ class StrategyEngine:
                 raise
 
             now = datetime.now(UTC)
+            # P6b §2a: a clone (parent_strategy_id set) runs as PAPER_VARIANT so
+            # it's engine-runnable but excluded from user-facing "active" surfaces.
+            run_status = (
+                StrategyStatus.PAPER_VARIANT
+                if row.parent_strategy_id is not None
+                else StrategyStatus.PAPER
+            )
             run = StrategyRun(
                 strategy_id=row.id,
                 started_at=now,
-                status=StrategyStatus.PAPER,
+                status=run_status,
             )
             session.add(run)
             await session.commit()
             await session.refresh(run)
             run_id = run.id
 
-            row.status = StrategyStatus.PAPER
+            row.status = run_status
             row.error_text = None
             row.updated_at = now
             await self._audit(
@@ -358,7 +365,9 @@ class StrategyEngine:
                 closed_started_at = run.started_at
                 closed_ended_at = run.ended_at
             row = await session.get(StrategyRow, strategy_id)
-            if row is not None and row.status in ACTIVE_STRATEGY_STATUSES:
+            # P6b §2a: also reset PAPER_VARIANT → IDLE so a terminated variant
+            # isn't re-run on boot (ENGINE_RUNNABLE_STATUSES ⊃ ACTIVE).
+            if row is not None and row.status in ENGINE_RUNNABLE_STATUSES:
                 row.status = StrategyStatus.IDLE
                 row.updated_at = now
             await self._audit(
