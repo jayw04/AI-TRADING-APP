@@ -11,6 +11,7 @@ import { BacktestsTab } from "./tabs/BacktestsTab";
 import { ParamsTab } from "./tabs/ParamsTab";
 import { CooldownIndicator } from "@/components/strategies/CooldownIndicator";
 import { DriftCard } from "@/components/strategies/DriftCard";
+import { VariantCard } from "@/components/strategies/VariantCard";
 import { ActivationWizard } from "@/components/activation/ActivationWizard";
 import { ActivationCountdown } from "@/components/activation/ActivationCountdown";
 import { DeactivationModal } from "@/components/activation/DeactivationModal";
@@ -157,6 +158,9 @@ export default function StrategyDetailPage() {
       <CooldownIndicator strategyId={strategy.id} />
       {ACTIVE_STRATEGY_STATUSES.includes(strategy.status) && (
         <DriftCard strategyId={strategy.id} />
+      )}
+      {ACTIVE_STRATEGY_STATUSES.includes(strategy.status) && (
+        <VariantCard strategy={strategy} />
       )}
 
       {wizardOpen && (
