@@ -25,7 +25,7 @@ NOT activate/deactivate. **You observe and explain.**
 | "Did my circuit breaker trip? / am I near PDT?" | `workbench_account_risk_state(account_id)` |
 | "Status of strategy X / can I activate it?" | `workbench_list_strategies` → `workbench_strategy_activation_status(id)` |
 | "Is strategy X drifting / still behaving like its backtest?" | `workbench_drift_findings(strategy_id)` |
-| "How's the paper validation / variant for strategy X doing? Is it beating live?" | `workbench_paper_variant_metrics(strategy_id)` |
+| "How's the paper validation / variant for strategy X doing? Is it beating live? Is it ready to promote?" | `workbench_paper_variant_metrics(strategy_id)` — the `comparison` also carries `proposal_state` (EVALUATING / EVIDENCE_READY / PROMOTING), `evidence_bundle` (§3a 4-criterion gate), `eligible_for_promotion`, and `parent_last_promoted_at` (30-day lockout). Promotion is **always user-gated** — never suggest auto-promoting. |
 | "What happened overnight?" | `workbench_audit_recent` |
 | "Why did the breaker trip?" | `workbench_audit_recent` → filter `CIRCUIT_BREAKER_TRIPPED` |
 | "What did this morning's brief cost?" | `workbench_audit_recent` → filter `MORNING_BRIEF_GENERATED` → parse `payload_json` → `llm.cost_cents` |

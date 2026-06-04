@@ -24,6 +24,31 @@ export interface EquityCurvePoint {
   equity: number;
 }
 
+// P6b §3a evidence bundle (minimal shape the promote UI reads).
+export interface GateCriterion {
+  name: string;
+  passed: boolean;
+  details: Record<string, unknown>;
+}
+
+export interface EvidenceBundle {
+  captured_at: string;
+  all_criteria_passed: boolean;
+  gate_results: {
+    duration: GateCriterion;
+    sharpe_margin: GateCriterion;
+    absolute_return: GateCriterion;
+    drawdown_divergence: GateCriterion;
+  };
+}
+
+// Lifecycle states the variant card sub-renders on (P6b §3b).
+export type ProposalLifecycleState =
+  | "EVALUATING"
+  | "EVIDENCE_READY"
+  | "PROMOTING"
+  | "PROMOTED";
+
 export interface VariantComparison {
   parent_strategy_id: number;
   variant_strategy_id: number;
@@ -37,6 +62,11 @@ export interface VariantComparison {
   variant_trade_count: number;
   live_equity_curve: EquityCurvePoint[];
   variant_equity_curve: EquityCurvePoint[];
+  // P6b §3b additive fields.
+  proposal_state?: ProposalLifecycleState | null;
+  evidence_bundle?: EvidenceBundle | null;
+  eligible_for_promotion?: boolean;
+  parent_last_promoted_at?: string | null;
 }
 
 export interface VariantComparisonResponse {
@@ -44,6 +74,8 @@ export interface VariantComparisonResponse {
   strategy_id: number;
   variant_strategy_id?: number;
   comparison?: VariantComparison;
+  // Always present so the card can render the post-promotion lockout state.
+  parent_last_promoted_at?: string | null;
 }
 
 export interface InFlightVariant {
@@ -76,6 +108,21 @@ export const variantsApi = {
   // Terminate the in-flight variant (§2a endpoint).
   stopValidation: (proposalId: number) =>
     apiFetch<unknown>(`/api/v1/proposals/${proposalId}/stop-validation`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  // P6b §3b: user-gated promotion (EVIDENCE_READY → PROMOTING, 24h cooldown).
+  promote: (proposalId: number) =>
+    apiFetch<unknown>(`/api/v1/proposals/${proposalId}/promote`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  // P6b §3b: reject evidence (EVIDENCE_READY) or cancel cooldown (PROMOTING) →
+  // REJECTED terminal. Same endpoint serves both UX moments.
+  rejectPromotion: (proposalId: number) =>
+    apiFetch<unknown>(`/api/v1/proposals/${proposalId}/reject-promotion`, {
       method: "POST",
       body: JSON.stringify({}),
     }),

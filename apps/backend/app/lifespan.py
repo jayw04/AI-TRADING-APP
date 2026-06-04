@@ -358,6 +358,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("paper_variant_expiry_registered")
 
+            # 10g. Promotion cooldown completion (P6b §3b, ADR 0007). Every 15
+            # min, flip PROMOTING → PROMOTED for proposals whose 24h cooldown has
+            # elapsed (params merge + last_promoted_at + variant terminate). Needs
+            # the engine to unregister the promoted variant.
+            from app.jobs.promotion_completion import run_promotion_completion
+
+            scheduler.scheduler.add_job(
+                run_promotion_completion,
+                trigger="interval",
+                minutes=15,
+                id="promotion_completion",
+                max_instances=1,
+                coalesce=True,
+                kwargs={
+                    "session_factory": session_factory,
+                    "engine": strategy_engine,
+                },
+            )
+            logger.info("promotion_completion_scheduled")
+
             # 11. BarStreamService (P4 §8). Built AFTER the engine so we can
             # wire it back via set_bar_stream_service before any strategy
             # registers — register() fires on_strategies_changed() which the

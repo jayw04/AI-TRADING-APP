@@ -20,6 +20,7 @@ three audit actions cover this surface.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from datetime import UTC, datetime, timedelta
@@ -40,6 +41,7 @@ from app.db.models.order import Order
 from app.db.models.strategy import Strategy
 from app.db.models.strategy_proposal import ProposalState, StrategyProposal
 from app.db.session import get_session
+from app.services.activation import ACTIVATION_COOLDOWN_HOURS
 from app.services.drift_detection import (
     DriftFinding,
     DriftSkip,
@@ -53,6 +55,11 @@ from app.services.paper_variant import (
     VariantSideMetrics,
     compare_variant_to_parent,
     find_in_flight_variant,
+)
+from app.services.promotion import (
+    PROMOTION_LOCKOUT_DAYS,
+    in_lockout,
+    lockout_expires_at,
 )
 from app.services.trading_profile import TradingProfileService
 
@@ -522,6 +529,17 @@ async def _maybe_auto_validate_proposal(
     if not envelope.get("auto_validate_proposals", False):
         return
 
+    # P6b §3b: don't start a new evaluation cycle during post-promotion lockout
+    # (ADR 0007). Silent skip — the ACCEPT still succeeds; only the auto-spawn is
+    # held back. The manual /validate returns a 409 instead.
+    parent = await session.get(Strategy, proposal.strategy_id)
+    if parent is not None and in_lockout(parent, datetime.now(UTC)):
+        logger.info(
+            "auto_validate_skipped_lockout",
+            proposal_id=proposal.id, strategy_id=parent.id,
+        )
+        return
+
     engine = getattr(request.app.state, "strategy_engine", None)
     try:
         await PaperVariantService(session, engine).spawn(
@@ -792,6 +810,21 @@ async def validate_on_paper(
     """P6b §2a: spawn the paper variant for an ACCEPTED proposal on a LIVE
     strategy — validate the proposed params forward on paper (ADR 0007). The
     proposal moves ACCEPTED → EVALUATING."""
+    # P6b §3b: a strategy in 30-day post-promotion lockout can't start a new
+    # evaluation cycle (ADR 0007). Look up the parent via the proposal to gate.
+    proposal = await session.get(StrategyProposal, proposal_id)
+    if proposal is not None and proposal.user_id == current_user.id:
+        parent = await session.get(Strategy, proposal.strategy_id)
+        if parent is not None and in_lockout(parent, datetime.now(UTC)):
+            expires = lockout_expires_at(parent)
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Strategy in {PROMOTION_LOCKOUT_DAYS}-day post-promotion "
+                    f"lockout until {expires.isoformat() if expires else ''}"
+                ),
+            )
+
     engine = getattr(request.app.state, "strategy_engine", None)
     try:
         await PaperVariantService(session, engine).spawn(
@@ -910,6 +943,155 @@ async def submit_review(
     return _to_response(row)
 
 
+# ----- P6b §3b-promote: promote / reject-promotion (ADR 0007) -----
+
+
+def _bundle_hash(bundle: dict[str, Any]) -> str:
+    """SHA-256 of the canonicalized evidence bundle — embedded in the promote
+    audit row so a future auditor can verify the bundle the user acted on
+    (ADR 0007: 'the full evidence bundle at the moment of approval is preserved')."""
+    canonical = json.dumps(bundle, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+@proposals_router.post("/{proposal_id}/promote", response_model=dict)
+async def promote_proposal(
+    proposal_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """P6b §3b (ADR 0007): user-gated promotion. EVIDENCE_READY → PROMOTING,
+    starting the standard P5 §7 24h cooldown. The paper variant keeps running
+    through the cooldown (the live params don't change until the cron applies
+    them at PROMOTED); the variant is terminated then, not now. Promotion is
+    ALWAYS user-gated — there is no auto-promote."""
+    proposal = await session.get(StrategyProposal, proposal_id)
+    if proposal is None or proposal.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if proposal.state != ProposalState.EVIDENCE_READY:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Proposal must be EVIDENCE_READY to promote (current: {proposal.state.value})",
+        )
+
+    parent = await session.get(Strategy, proposal.strategy_id)
+    if parent is None:
+        raise HTTPException(status_code=404, detail="Parent strategy not found")
+    if parent.status != StrategyStatus.LIVE:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Parent strategy must be LIVE to promote (current: {parent.status.value})",
+        )
+
+    now = datetime.now(UTC)
+    if in_lockout(parent, now):
+        expires = lockout_expires_at(parent)
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Strategy in {PROMOTION_LOCKOUT_DAYS}-day post-promotion lockout "
+                f"until {expires.isoformat() if expires else ''}"
+            ),
+        )
+
+    bundle = (proposal.evaluation_results_json or {}).get("evidence_bundle")
+    if bundle is None:  # EVIDENCE_READY without a bundle is inconsistent state.
+        raise HTTPException(
+            status_code=409,
+            detail="Proposal lacks an evidence bundle (re-evaluate via the morning brief)",
+        )
+
+    cooldown_expires = now + timedelta(hours=ACTIVATION_COOLDOWN_HOURS)
+    proposal.state = ProposalState.PROMOTING
+    proposal.transitioned_at = now  # the PROMOTING-entry anchor for the cron
+    proposal.updated_at = now
+    AuditLogger.write(
+        session,
+        actor_type=AuditActorType.USER,
+        actor_id=str(current_user.id),
+        action=AuditAction.STRATEGY_PROPOSAL_TRANSITIONED,
+        target_type="strategy_proposal",
+        target_id=proposal.id,
+        payload={
+            "proposal_id": proposal.id,
+            "from": "EVIDENCE_READY",
+            "to": "PROMOTING",
+            "trigger": "user_promoted",
+            "evidence_bundle_hash": _bundle_hash(bundle),
+            "cooldown_expires_at": cooldown_expires.isoformat(),
+        },
+        user_id=current_user.id,
+    )
+    await session.commit()
+    return {
+        "status": "promoting",
+        "proposal_id": proposal.id,
+        "promoting_at": now.isoformat(),
+        "cooldown_expires_at": cooldown_expires.isoformat(),
+    }
+
+
+@proposals_router.post("/{proposal_id}/reject-promotion", response_model=dict)
+async def reject_promotion(
+    proposal_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """P6b §3b: user rejection — one endpoint serving 'Reject evidence' (from
+    EVIDENCE_READY) and 'Cancel cooldown' (from PROMOTING, frictionless per ADR
+    0007). Both → REJECTED (terminal) and terminate the paper variant. Terminate
+    FIRST (its own commit) then the transition (one audit row per commit)."""
+    proposal = await session.get(StrategyProposal, proposal_id)
+    if proposal is None or proposal.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if proposal.state not in (ProposalState.EVIDENCE_READY, ProposalState.PROMOTING):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Proposal must be EVIDENCE_READY or PROMOTING to reject "
+                f"(current: {proposal.state.value})"
+            ),
+        )
+
+    from_state = proposal.state.value
+    # Terminate the in-flight variant first (commits internally; no-op if gone).
+    engine = getattr(request.app.state, "strategy_engine", None)
+    await PaperVariantService(session, engine).terminate_for_parent(
+        parent_strategy_id=proposal.strategy_id,
+        reason=(
+            "evidence_rejected" if from_state == "EVIDENCE_READY"
+            else "promotion_cancelled"
+        ),
+        user_id=current_user.id,
+    )
+
+    now = datetime.now(UTC)
+    proposal.state = ProposalState.REJECTED
+    proposal.transitioned_at = now
+    proposal.updated_at = now
+    AuditLogger.write(
+        session,
+        actor_type=AuditActorType.USER,
+        actor_id=str(current_user.id),
+        action=AuditAction.STRATEGY_PROPOSAL_TRANSITIONED,
+        target_type="strategy_proposal",
+        target_id=proposal.id,
+        payload={
+            "proposal_id": proposal.id,
+            "from": from_state,
+            "to": "REJECTED",
+            "trigger": (
+                "user_rejected_evidence" if from_state == "EVIDENCE_READY"
+                else "user_cancelled_promotion"
+            ),
+        },
+        user_id=current_user.id,
+    )
+    await session.commit()
+    return {"status": "rejected", "proposal_id": proposal.id, "from_state": from_state}
+
+
 # ----- P6b §2b-variant: variant-vs-live comparison (read-only) -----
 
 
@@ -950,22 +1132,31 @@ def _variant_comparison_dict(
     }
 
 
-async def _spawn_proposal_id_for_parent(
+async def _active_validation_proposal_for_parent(
     session: AsyncSession, parent_strategy_id: int
-) -> int | None:
-    """The proposal that spawned the in-flight variant. Spawn moves the proposal
-    to EVALUATING and records ``evaluation_results_json.paper_variant`` — there
-    is exactly one EVALUATING proposal per parent while a variant is in flight
-    (no Strategy.spawn_proposal_id column exists). Used by the Stop button."""
-    row = (
+) -> StrategyProposal | None:
+    """The parent's proposal currently in an active-validation/promotion state
+    (EVALUATING | EVIDENCE_READY | PROMOTING). Broadened from §2c's EVALUATING-
+    only lookup (P6b §3b correction A2) so the promote UI + MCP additive fields
+    resolve the proposal through the whole lifecycle, not just EVALUATING. At
+    most one in-flight per parent (the §2a concurrency guard). Source of
+    ``spawn_proposal_id`` for the Stop/Promote/Reject buttons."""
+    return (
         await session.execute(
             select(StrategyProposal)
             .where(StrategyProposal.strategy_id == parent_strategy_id)
-            .where(StrategyProposal.state == ProposalState.EVALUATING)
+            .where(
+                StrategyProposal.state.in_(
+                    [
+                        ProposalState.EVALUATING,
+                        ProposalState.EVIDENCE_READY,
+                        ProposalState.PROMOTING,
+                    ]
+                )
+            )
             .order_by(StrategyProposal.id.desc())
         )
     ).scalars().first()
-    return row.id if row else None
 
 
 @strategies_router.get("/{strategy_id}/variant-comparison", response_model=dict)
@@ -978,14 +1169,24 @@ async def variant_comparison(
     """Variant-vs-live comparison for the in-flight paper variant of
     ``strategy_id`` (the parent). Read-only — no detection, no audit write.
     Returns ``{"status": "no_active_variant", ...}`` when the strategy has no
-    in-flight variant."""
+    in-flight variant (always carries ``parent_last_promoted_at`` so the UI can
+    render the post-promotion lockout state)."""
     parent = await session.get(Strategy, strategy_id)
     if parent is None or parent.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
+    now = datetime.now(UTC)
+    parent_last_promoted_at = (
+        parent.last_promoted_at.isoformat() if parent.last_promoted_at else None
+    )
+
     variant = await find_in_flight_variant(session, strategy_id)
     if variant is None:
-        return {"status": "no_active_variant", "strategy_id": strategy_id}
+        return {
+            "status": "no_active_variant",
+            "strategy_id": strategy_id,
+            "parent_last_promoted_at": parent_last_promoted_at,
+        }
 
     # bar_cache lives in app.state only when the alpaca block is configured;
     # getattr-guard it (None → equity curves degenerate gracefully — Norton/dev).
@@ -994,14 +1195,32 @@ async def variant_comparison(
         session, variant.id, bar_cache=bar_cache
     )
     if comparison is None:  # pragma: no cover - variant vanished mid-request
-        return {"status": "no_active_variant", "strategy_id": strategy_id}
+        return {
+            "status": "no_active_variant",
+            "strategy_id": strategy_id,
+            "parent_last_promoted_at": parent_last_promoted_at,
+        }
 
-    spawn_proposal_id = await _spawn_proposal_id_for_parent(session, strategy_id)
+    proposal = await _active_validation_proposal_for_parent(session, strategy_id)
+    comp_dict = _variant_comparison_dict(
+        comparison, spawn_proposal_id=proposal.id if proposal else None
+    )
+    # P6b §3b additive fields (for the promote UI + MCP tool).
+    comp_dict["proposal_state"] = proposal.state.value if proposal else None
+    comp_dict["evidence_bundle"] = (
+        (proposal.evaluation_results_json or {}).get("evidence_bundle")
+        if proposal
+        else None
+    )
+    comp_dict["eligible_for_promotion"] = bool(
+        proposal
+        and proposal.state == ProposalState.EVIDENCE_READY
+        and not in_lockout(parent, now)
+    )
+    comp_dict["parent_last_promoted_at"] = parent_last_promoted_at
     return {
         "status": "variant_active",
         "strategy_id": strategy_id,
         "variant_strategy_id": variant.id,
-        "comparison": _variant_comparison_dict(
-            comparison, spawn_proposal_id=spawn_proposal_id
-        ),
+        "comparison": comp_dict,
     }
