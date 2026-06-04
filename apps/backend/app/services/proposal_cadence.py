@@ -190,7 +190,11 @@ async def run_proposal_cadence(
             s.id
             for s in (
                 await session.execute(
-                    select(Strategy).where(Strategy.user_id == user_id)
+                    # P6b §2a: exclude paper-variant clones — the cadence proposes
+                    # against the user's own strategies, not validation variants.
+                    select(Strategy)
+                    .where(Strategy.user_id == user_id)
+                    .where(Strategy.parent_strategy_id.is_(None))
                 )
             ).scalars().all()
         ]

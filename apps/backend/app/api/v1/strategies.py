@@ -185,7 +185,11 @@ async def list_strategies(
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StrategyListResponse:
-    stmt = select(StrategyRow).where(StrategyRow.user_id == current_user.id)
+    stmt = select(StrategyRow).where(
+        StrategyRow.user_id == current_user.id,
+        # P6b §2a: hide paper-variant clones from the user's strategy list.
+        StrategyRow.parent_strategy_id.is_(None),
+    )
     if status is not None:
         stmt = stmt.where(StrategyRow.status == status)
     if type_ is not None:

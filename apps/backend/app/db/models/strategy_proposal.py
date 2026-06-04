@@ -43,6 +43,10 @@ class ProposalState(StrEnum):
     DRAFT = "DRAFT"
     REVIEWING = "REVIEWING"
     ACCEPTED = "ACCEPTED"
+    # P6b §2a: paper-variant validation in flight (ADR 0007). ACCEPTED →
+    # EVALUATING on spawn; → REJECTED on stop/supersede/expiry. §3 adds the
+    # EVIDENCE_READY → PROMOTING → PROMOTED promotion path.
+    EVALUATING = "EVALUATING"
     REJECTED = "REJECTED"
     APPLIED = "APPLIED"
 

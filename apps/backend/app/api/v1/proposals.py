@@ -47,6 +47,7 @@ from app.services.drift_detection import (
     run_drift_detection_for_strategy,
     write_drift_audit,
 )
+from app.services.paper_variant import PaperVariantService
 from app.services.trading_profile import TradingProfileService
 
 logger = structlog.get_logger(__name__)
@@ -715,6 +716,66 @@ async def drift_status(
         "detected_at": row.ts.isoformat(),
         "payload": json.loads(row.payload_json or "{}"),
     }
+
+
+# ----- P6b §2a-variant: paper-variant spawn / stop -----
+
+
+@proposals_router.post("/{proposal_id}/validate", response_model=ProposalResponse)
+async def validate_on_paper(
+    proposal_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ProposalResponse:
+    """P6b §2a: spawn the paper variant for an ACCEPTED proposal on a LIVE
+    strategy — validate the proposed params forward on paper (ADR 0007). The
+    proposal moves ACCEPTED → EVALUATING."""
+    engine = getattr(request.app.state, "strategy_engine", None)
+    try:
+        await PaperVariantService(session, engine).spawn(
+            proposal_id=proposal_id, user_id=current_user.id
+        )
+    except ValueError as exc:
+        msg = str(exc)
+        if msg in ("proposal_not_found", "parent_not_found"):
+            raise HTTPException(status_code=404, detail=msg) from exc
+        code = 409 if msg == "variant_already_in_flight" else 400
+        raise HTTPException(status_code=code, detail=msg) from exc
+    row = await session.get(StrategyProposal, proposal_id)
+    if row is None:  # pragma: no cover - just spawned
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return _to_response(row)
+
+
+@proposals_router.post(
+    "/{proposal_id}/stop-validation", response_model=ProposalResponse
+)
+async def stop_validation(
+    proposal_id: int,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ProposalResponse:
+    """P6b §2a: stop a running paper-variant evaluation (EVALUATING → REJECTED)."""
+    row = await session.get(StrategyProposal, proposal_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if row.state != ProposalState.EVALUATING:
+        raise HTTPException(status_code=400, detail="Proposal is not evaluating")
+    variant_id = (
+        (row.evaluation_results_json or {}).get("paper_variant", {}).get(
+            "variant_strategy_id"
+        )
+    )
+    if variant_id is None:
+        raise HTTPException(status_code=400, detail="No paper variant on this proposal")
+    engine = getattr(request.app.state, "strategy_engine", None)
+    await PaperVariantService(session, engine).terminate(
+        variant_strategy_id=variant_id, reason="user_stopped", user_id=current_user.id
+    )
+    await session.refresh(row)
+    return _to_response(row)
 
 
 @proposals_router.post("/{proposal_id}/review", response_model=ProposalResponse)
