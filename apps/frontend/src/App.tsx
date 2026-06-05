@@ -10,6 +10,7 @@ import Credentials from "./pages/Settings/Credentials";
 import RiskLimits from "./pages/Settings/RiskLimits";
 import Accounts from "./pages/Settings/Accounts";
 import TradingProfile from "./pages/Settings/TradingProfile";
+import LiveTrading from "./pages/Settings/LiveTrading";
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/settings/risk-limits" element={<RiskLimits />} />
               <Route path="/settings/trading-profile" element={<TradingProfile />} />
               <Route path="/settings/accounts" element={<Accounts />} />
+              <Route path="/settings/live-trading" element={<LiveTrading />} />
             </Routes>
           </main>
         </div>

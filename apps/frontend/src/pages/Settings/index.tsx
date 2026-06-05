@@ -46,6 +46,16 @@ export default function Settings() {
             trading path.
           </div>
         </Link>
+        <Link
+          to="/settings/live-trading"
+          className="block rounded-lg border border-neutral-800 bg-neutral-900 p-4 hover:border-neutral-700"
+        >
+          <div className="text-sm font-medium text-neutral-100">Live Trading</div>
+          <div className="mt-1 text-xs text-neutral-400">
+            The global live auto-dispatch master switch (default OFF). Lets LIVE
+            strategies place real-money orders automatically. TOTP-gated; audit-logged.
+          </div>
+        </Link>
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ from app.api.v1 import (
     eval_harness,
     indicators,
     internal,
+    live_autodispatch,
     market_data,
     morning_brief,
     opportunities,
@@ -77,3 +78,5 @@ api_router.include_router(drift.router)
 api_router.include_router(variants.router)
 # P6b §4 (ADR 0006 v2): eval-harness start/stop/read. Off the P2 gate.
 api_router.include_router(eval_harness.router)
+# P6b §4.5 (ADR 0015): global live-auto-dispatch master switch (/system/...).
+api_router.include_router(live_autodispatch.router)

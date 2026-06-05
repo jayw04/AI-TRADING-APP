@@ -254,7 +254,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 id="activation_completion",
                 max_instances=1,
                 coalesce=True,
-                kwargs={"session_factory": session_factory, "bus": bus},
+                kwargs={
+                    "session_factory": session_factory,
+                    "bus": bus,
+                    "engine": strategy_engine,  # P6b §4.5: register on LIVE
+                },
             )
             logger.info("activation_completion_scheduled")
 

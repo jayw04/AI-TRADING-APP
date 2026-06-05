@@ -186,18 +186,30 @@ class StrategyEngine:
                     "only PYTHON is dispatched in P2"
                 )
 
+            # P6b §4.5 (ADR 0015): resolve the dispatch account by STATUS — a
+            # LIVE strategy auto-dispatches to the live account; PAPER and
+            # PAPER_VARIANT keep the paper path (byte-identical). A LIVE strategy
+            # with no live account cannot dispatch → ERROR (not a silent paper
+            # fallback, which would place orders on the wrong account).
+            account_mode = (
+                AccountMode.live
+                if row.status == StrategyStatus.LIVE
+                else AccountMode.paper
+            )
             account = (
                 await session.execute(
                     select(Account).where(
                         Account.user_id == row.user_id,
                         Account.broker == "alpaca",
-                        Account.mode == AccountMode.paper,
+                        Account.mode == account_mode,
                     )
                 )
             ).scalars().first()
             if account is None:
+                await self._mark_error(session, row, f"no_{account_mode.value}_account")
+                await session.commit()
                 raise StrategyLoadError(
-                    f"no paper account for user_id={row.user_id}"
+                    f"no {account_mode.value} account for user_id={row.user_id}"
                 )
 
             try:
@@ -240,6 +252,22 @@ class StrategyEngine:
                         session_factory=self._session_factory,
                     )
 
+            # P6b §4.5 (ADR 0015): a LIVE strategy auto-dispatches to the live
+            # account, gated by the global master switch (default OFF). The wrap
+            # suppresses automatic orders while the switch is off; it is checked
+            # per order so an off-flip halts instantly. The §5 LLM gate will nest
+            # inside this (master switch outermost).
+            if row.status == StrategyStatus.LIVE:
+                from app.services.live_autodispatch import (
+                    make_live_autodispatch_submit_fn,
+                )
+
+                submit_order_fn = make_live_autodispatch_submit_fn(
+                    strategy_id=row.id,
+                    real_submit=submit_order_fn,
+                    session_factory=self._session_factory,
+                )
+
             ctx = StrategyContext(
                 strategy_id=row.id,
                 user_id=row.user_id,
@@ -266,13 +294,17 @@ class StrategyEngine:
                 raise
 
             now = datetime.now(UTC)
+            # P6b §4.5 (ADR 0015): a LIVE strategy stays LIVE through registration
+            # so it dispatches against the live account (pre-§4.5 this forced
+            # PAPER, which is why live auto-dispatch never worked).
             # P6b §2a: a clone (parent_strategy_id set) runs as PAPER_VARIANT so
             # it's engine-runnable but excluded from user-facing "active" surfaces.
-            run_status = (
-                StrategyStatus.PAPER_VARIANT
-                if row.parent_strategy_id is not None
-                else StrategyStatus.PAPER
-            )
+            if row.status == StrategyStatus.LIVE:
+                run_status = StrategyStatus.LIVE
+            elif row.parent_strategy_id is not None:
+                run_status = StrategyStatus.PAPER_VARIANT
+            else:
+                run_status = StrategyStatus.PAPER
             run = StrategyRun(
                 strategy_id=row.id,
                 started_at=now,
@@ -339,7 +371,7 @@ class StrategyEngine:
 
         await self._bus.publish(
             "strategy.status_changed",
-            {"strategy_id": strategy_id, "status": StrategyStatus.PAPER.value},
+            {"strategy_id": strategy_id, "status": run_status.value},
         )
         await self._bus.publish(
             "strategy.run_started",
