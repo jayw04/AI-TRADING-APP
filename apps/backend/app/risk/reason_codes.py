@@ -31,3 +31,6 @@ class ReasonCode(StrEnum):
     STRATEGY_NOT_FOUND = "STRATEGY_NOT_FOUND"
     STRATEGY_PENDING_LIVE = "STRATEGY_PENDING_LIVE"
     STRATEGY_NOT_LIVE = "STRATEGY_NOT_LIVE"
+    # P6b §4.5 (ADR 0015): the global live-auto-dispatch master switch is off, so
+    # a LIVE strategy's automatic order is suppressed before the broker.
+    LIVE_AUTODISPATCH_DISABLED = "LIVE_AUTODISPATCH_DISABLED"

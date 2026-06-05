@@ -148,6 +148,11 @@ class AuditAction(StrEnum):
     # NOT the hash chain (volume).
     EVAL_HARNESS_STARTED = "EVAL_HARNESS_STARTED"
 
+    # P6b §4.5 (ADR 0015): operator flip of the global live-auto-dispatch master
+    # switch. Suppressed live orders (switch off) are logged, not audited (a
+    # spinning live strategy would flood the chain — cf. STRATEGY_COOLDOWN).
+    LIVE_AUTODISPATCH_ENABLED_CHANGED = "LIVE_AUTODISPATCH_ENABLED_CHANGED"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.

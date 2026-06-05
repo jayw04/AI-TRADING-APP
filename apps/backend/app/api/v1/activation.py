@@ -77,6 +77,7 @@ async def activation_status(
 async def activate_strategy(
     strategy_id: int,
     body: ActivateRequest,
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> ActivationStatusResponse:
@@ -92,6 +93,13 @@ async def activate_strategy(
         raise HTTPException(status_code=404, detail="Strategy not found") from None
     except ActivationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # P6b §4.5 (ADR 0015): PENDING_LIVE ∉ ENGINE_RUNNABLE_STATUSES — stop a
+    # paper-running instance from dispatching during the 24h cooldown. The
+    # completion job re-registers it against the LIVE account when it transitions.
+    engine = getattr(request.app.state, "strategy_engine", None)
+    if engine is not None:
+        await engine.unregister(strategy_id, reason="activation_initiated")
     return _to_response(result)
 
 
