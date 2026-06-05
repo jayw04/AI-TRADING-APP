@@ -252,19 +252,35 @@ class StrategyEngine:
                         session_factory=self._session_factory,
                     )
 
-            # P6b §4.5 (ADR 0015): a LIVE strategy auto-dispatches to the live
-            # account, gated by the global master switch (default OFF). The wrap
-            # suppresses automatic orders while the switch is off; it is checked
-            # per order so an off-flip halts instantly. The §5 LLM gate will nest
-            # inside this (master switch outermost).
+            # P6b §4.5/§5: a LIVE strategy's live submit is composed of (innermost
+            # first) OrderRouter.submit → [§5 LLM act/skip gate, only if opted in]
+            # → [§4.5 master-switch suppressor, OUTERMOST]. Master switch outermost
+            # means an off switch returns before the LLM is ever consulted (no call,
+            # no cost). ADR 0002 stays intact — both wraps still call OrderRouter.submit.
             if row.status == StrategyStatus.LIVE:
+                inner = submit_order_fn
+                # P6b §5 (ADR 0006 v2 §5): opted-in LIVE strategy → LLM gate.
+                from app.services.llm_live_gate.gate import (
+                    find_active_opt_in,
+                    make_live_llm_submit_fn,
+                )
+
+                opt_in = await find_active_opt_in(session, row.id)
+                if opt_in is not None:
+                    inner = make_live_llm_submit_fn(
+                        strategy_id=row.id,
+                        user_id=row.user_id,
+                        real_submit=inner,
+                        session_factory=self._session_factory,
+                    )
+                # P6b §4.5 (ADR 0015): master-switch suppressor, outermost.
                 from app.services.live_autodispatch import (
                     make_live_autodispatch_submit_fn,
                 )
 
                 submit_order_fn = make_live_autodispatch_submit_fn(
                     strategy_id=row.id,
-                    real_submit=submit_order_fn,
+                    real_submit=inner,
                     session_factory=self._session_factory,
                 )
 

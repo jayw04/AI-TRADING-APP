@@ -109,6 +109,10 @@ jobs:
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_eval_harness_paper_only.sh
 
+      - name: LLM-opt-in bypass-gating invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_llm_optin_bypass_gated.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest

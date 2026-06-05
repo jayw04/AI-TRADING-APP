@@ -153,6 +153,17 @@ class AuditAction(StrEnum):
     # spinning live strategy would flood the chain — cf. STRATEGY_COOLDOWN).
     LIVE_AUTODISPATCH_ENABLED_CHANGED = "LIVE_AUTODISPATCH_ENABLED_CHANGED"
 
+    # P6b §5 (ADR 0006 v2 §5): LLM-driven LIVE trading opt-in. Initiated (7-day
+    # cooldown starts) / Activated (cooldown elapsed, LLM gate live) / opted out.
+    # LLM_LIVE_DECISION audits EVERY live LLM act/skip with the full prompt +
+    # response + deterministic baseline + outcome (ADR line 79 — forensic) and is
+    # the source the per-user daily budget sums; the live volume is low (one
+    # opted-in strategy) so the hash chain is the single record.
+    LLM_OPT_IN_INITIATED = "LLM_OPT_IN_INITIATED"
+    LLM_OPT_IN_ACTIVATED = "LLM_OPT_IN_ACTIVATED"
+    LLM_OPT_OUT = "LLM_OPT_OUT"
+    LLM_LIVE_DECISION = "LLM_LIVE_DECISION"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.

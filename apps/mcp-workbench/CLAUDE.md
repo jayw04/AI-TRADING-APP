@@ -4,7 +4,7 @@ This guide tells Claude Code how to operate the **workbench-mcp** server's
 read-only tools. (The repo-root `CLAUDE.md` is a different document — the
 developer conventions. This one is scoped to `apps/mcp-workbench/`.)
 
-The server exposes **20 read-only tools** over SSE (127.0.0.1:8766) and
+The server exposes **21 read-only tools** over SSE (127.0.0.1:8766) and
 authenticates to the backend with a per-user `WORKBENCH_MCP_KEY` bearer token.
 
 You do NOT submit orders. You do NOT modify strategies or the profile. You do
@@ -27,6 +27,7 @@ NOT activate/deactivate. **You observe and explain.**
 | "Is strategy X drifting / still behaving like its backtest?" | `workbench_drift_findings(strategy_id)` |
 | "How's the paper validation / variant for strategy X doing? Is it beating live? Is it ready to promote?" | `workbench_paper_variant_metrics(strategy_id)` — the `comparison` also carries `proposal_state` (EVALUATING / EVIDENCE_READY / PROMOTING), `evidence_bundle` (§3a 4-criterion gate), `eligible_for_promotion`, and `parent_last_promoted_at` (30-day lockout). Promotion is **always user-gated** — never suggest auto-promoting. |
 | "Is the LLM beating the deterministic strategy on X? Is X ready to opt in to LLM-driven trading?" | `workbench_eval_harness_metrics(strategy_id)` — Mode A (deterministic) vs Mode B (LLM-gated) paper comparison + the 50-trades-AND-30-days `eligibility` verdict. LLM-driven LIVE trading is **always user-gated** (ADR 0006 v2) — never suggest auto-enabling it. |
+| "Has X opted in to LLM-driven live trading? When does it activate? How much has the live LLM gate spent today?" | `workbench_llm_opt_in_status(strategy_id)` — `none` / `pending` (7-day cooldown running, `seconds_remaining`) / `active` (LLM-gating live, `spend_today_cents` / `daily_cap_cents`) + the §4 `eligibility`. Opting in is **always user-gated** (typed ack + TOTP + 7-day cooldown, ADR 0006 v2 §5) — never suggest auto-enabling it. |
 | "What happened overnight?" | `workbench_audit_recent` |
 | "Why did the breaker trip?" | `workbench_audit_recent` → filter `CIRCUIT_BREAKER_TRIPPED` |
 | "What did this morning's brief cost?" | `workbench_audit_recent` → filter `MORNING_BRIEF_GENERATED` → parse `payload_json` → `llm.cost_cents` |

@@ -46,7 +46,7 @@ ALLOWED_DIRS=(
     "${ROOT}/services/strategy_review.py"    # Periodic advisory reports (P6, future)
     "${ROOT}/services/drift_detection.py"    # Periodic advisory reports (P6, future)
     "${ROOT}/services/eval_harness"          # P6b §4 Mode-B paper eval gate (ADR 0006 v2 §2)
-    # (P6b §5) ADR 0006 v2 LLM_OPT_IN_ALLOWED live-bypass adds its entry here.
+    "${ROOT}/services/llm_live_gate"         # P6b §5 LLM_OPT_IN_ALLOWED live bypass (ADR 0006 v2 §5)
 )
 
 # Build the find-prune expression dynamically. For each allowed path,
