@@ -8,6 +8,7 @@ from app.db.models.backtest_job import BacktestJob
 from app.db.models.backtest_result import BacktestResult
 from app.db.models.eval_harness import EvalHarness, EvalHarnessDecision
 from app.db.models.fill import Fill
+from app.db.models.llm_opt_in import LLMOptIn
 from app.db.models.morning_brief import MorningBrief
 from app.db.models.order import Order
 from app.db.models.position import Position
@@ -36,6 +37,7 @@ __all__ = [
     "BacktestResult",
     "EvalHarness",
     "EvalHarnessDecision",
+    "LLMOptIn",
     "Fill",
     "MorningBrief",
     "Order",

@@ -196,6 +196,19 @@ async def workbench_eval_harness_metrics(strategy_id: int) -> dict[str, Any]:
     return await _get(f"/api/v1/strategies/{strategy_id}/eval-harness")
 
 
+async def workbench_llm_opt_in_status(strategy_id: int) -> dict[str, Any]:
+    """LLM-driven LIVE trading opt-in status for a strategy (P6b §5, ADR 0006 v2
+    §5). Returns {status: 'none'|'pending'|'active', seconds_remaining?,
+    daily_cap_cents?, spend_today_cents?, eligibility: {eligible, b_trade_count,
+    window_days, …}}. 'pending' = the 7-day activation cooldown is running;
+    'active' = the strategy's LIVE orders are LLM-gated. Use to answer 'has the
+    user opted strategy X in to LLM-driven trading / when does it activate / how
+    much has the live LLM gate spent today?'. Opting in to LLM-driven LIVE trading
+    is ALWAYS user-gated (typed acknowledgment + TOTP + 7-day cooldown) — never
+    suggest auto-enabling it."""
+    return await _get(f"/api/v1/strategies/{strategy_id}/llm-opt-in")
+
+
 async def workbench_paper_variant_metrics(strategy_id: int) -> dict[str, Any]:
     """Variant-vs-live comparison for a strategy's in-flight paper variant
     (P6b §2b). Keys by the PARENT strategy_id: if an ACCEPTED proposal is being
@@ -235,6 +248,8 @@ _TOOLS: list[Callable[..., Any]] = [
     workbench_paper_variant_metrics,
     # P6b §4 LLM eval-harness comparison.
     workbench_eval_harness_metrics,
+    # P6b §5 LLM-driven live opt-in status.
+    workbench_llm_opt_in_status,
 ]
 
 

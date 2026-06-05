@@ -34,3 +34,7 @@ class ReasonCode(StrEnum):
     # P6b §4.5 (ADR 0015): the global live-auto-dispatch master switch is off, so
     # a LIVE strategy's automatic order is suppressed before the broker.
     LIVE_AUTODISPATCH_DISABLED = "LIVE_AUTODISPATCH_DISABLED"
+    # P6b §5 (ADR 0006 v2 §5): an opted-in strategy's LLM gate declined to fire
+    # this order (act/skip → skip). The deterministic strategy wanted it; the LLM
+    # suppressed it.
+    LLM_SKIPPED = "LLM_SKIPPED"

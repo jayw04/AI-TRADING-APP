@@ -100,11 +100,11 @@ def test_server_has_no_db_imports():
     assert "app.db" not in src
 
 
-def test_build_server_registers_twenty_tools():
+def test_build_server_registers_twenty_one_tools():
     srv = server.build_server()
     # 12 (P5.5 §3) + 4 (P6 §1b) + 1 (P6 §2b) + 1 (P6b §1b drift) + 1 (P6b §2b
-    # variant) + 1 (P6b §4 eval-harness)
-    assert len(server._TOOLS) == 20
+    # variant) + 1 (P6b §4 eval-harness) + 1 (P6b §5 llm-opt-in)
+    assert len(server._TOOLS) == 21
     assert srv.name == "Trading Workbench State"
 
 
@@ -122,6 +122,14 @@ async def test_eval_harness_metrics_tool_calls_endpoint(httpx_mock):
     req = httpx_mock.get_request()
     assert req.method == "GET"
     assert req.url.path == "/api/v1/strategies/42/eval-harness"
+
+
+async def test_llm_opt_in_status_tool_calls_endpoint(httpx_mock):
+    httpx_mock.add_response(json={})
+    await server.workbench_llm_opt_in_status(42)
+    req = httpx_mock.get_request()
+    assert req.method == "GET"
+    assert req.url.path == "/api/v1/strategies/42/llm-opt-in"
 
 
 async def test_drift_findings_tool_calls_endpoint(httpx_mock):

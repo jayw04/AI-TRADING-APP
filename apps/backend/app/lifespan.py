@@ -262,6 +262,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("activation_completion_scheduled")
 
+            # P6b §5 (ADR 0006 v2 §5): LLM-opt-in 7-day cooldown completion.
+            # 15-min interval; re-registers the strategy so the LLM gate applies.
+            from app.jobs.llm_opt_in_completion import run_llm_opt_in_completion
+
+            scheduler.scheduler.add_job(
+                run_llm_opt_in_completion,
+                trigger="interval",
+                minutes=15,
+                id="llm_opt_in_completion",
+                max_instances=1,
+                coalesce=True,
+                kwargs={"session_factory": session_factory, "engine": strategy_engine},
+            )
+            logger.info("llm_opt_in_completion_scheduled")
+
             # 10c. Metrics snapshot job (P5 §8.3). Every 30s, sample the
             # DB-derived gauges (active strategies by status, cooldown / breaker
             # / pending-live counts, audit-log row count, credential staleness).
