@@ -45,7 +45,7 @@ logger = structlog.get_logger(__name__)
 
 GATE_MODEL = "claude-haiku-4-5-20251001"  # same tier as §4's paper gate
 LLM_OPT_IN_COOLDOWN_DAYS = 7
-DEFAULT_LIVE_DAILY_CAP_CENTS = 500  # $5/day per user (owner 2026-06-05; ADR says $10)
+DEFAULT_LIVE_DAILY_CAP_CENTS = 500  # $5/day per user (ADR 0006 v2 line 100, rev. 2026-06-05)
 
 SubmitFn = Callable[[OrderRequest], Awaitable[Any]]
 
