@@ -105,6 +105,10 @@ jobs:
         if: matrix.project == 'backend'
         run: bash apps/backend/scripts/check_agent_no_db_access.sh
 
+      - name: Eval-harness paper-only invariant check (backend)
+        if: matrix.project == 'backend'
+        run: bash apps/backend/scripts/check_eval_harness_paper_only.sh
+
   frontend-checks:
     name: Frontend
     runs-on: ubuntu-latest

@@ -6,6 +6,7 @@ from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.db.models.audit_log import AuditLog
 from app.db.models.backtest_job import BacktestJob
 from app.db.models.backtest_result import BacktestResult
+from app.db.models.eval_harness import EvalHarness, EvalHarnessDecision
 from app.db.models.fill import Fill
 from app.db.models.morning_brief import MorningBrief
 from app.db.models.order import Order
@@ -33,6 +34,8 @@ __all__ = [
     "AuditLog",
     "BacktestJob",
     "BacktestResult",
+    "EvalHarness",
+    "EvalHarnessDecision",
     "Fill",
     "MorningBrief",
     "Order",

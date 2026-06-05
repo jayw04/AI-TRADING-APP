@@ -184,6 +184,18 @@ async def workbench_drift_findings(
     )
 
 
+async def workbench_eval_harness_metrics(strategy_id: int) -> dict[str, Any]:
+    """LLM eval-harness comparison for a strategy (P6b §4, ADR 0006 v2). If an
+    eval is running, returns {status, comparison: {mode_a, mode_b, deltas,
+    decision_metrics}, eligibility: {eligible, b_trade_count, window_days, …}} —
+    Mode A (deterministic) vs Mode B (LLM-gated), both on paper. Returns
+    {status: 'no_active_harness'} when nothing is being evaluated. Use to answer
+    'is the LLM beating the deterministic strategy?' / 'is strategy X ready to
+    opt in to LLM-driven trading?'. Promotion to LLM-driven LIVE is ALWAYS
+    user-gated — never suggest auto-enabling it."""
+    return await _get(f"/api/v1/strategies/{strategy_id}/eval-harness")
+
+
 async def workbench_paper_variant_metrics(strategy_id: int) -> dict[str, Any]:
     """Variant-vs-live comparison for a strategy's in-flight paper variant
     (P6b §2b). Keys by the PARENT strategy_id: if an ACCEPTED proposal is being
@@ -221,6 +233,8 @@ _TOOLS: list[Callable[..., Any]] = [
     workbench_drift_findings,
     # P6b §2b paper-variant comparison.
     workbench_paper_variant_metrics,
+    # P6b §4 LLM eval-harness comparison.
+    workbench_eval_harness_metrics,
 ]
 
 

@@ -48,9 +48,9 @@ The platform runs on the user's machine. The two external dependencies — Alpac
 
 Moving a strategy from idle to live requires a 24-hour cooldown for deterministic strategies, 7 days for LLM-driven variants. Cancellation during the cooldown is frictionless; activation is the expensive direction. Do not add code paths that bypass cooldowns "for testing" — testing happens against the cooldown system, not around it.
 
-### The eleven CI invariants are load-bearing
+### The twelve CI invariants are load-bearing
 
-Listed in roughly order of merge: ADR 0002 single-router, strategy isolation, risk coverage ≥95%, P2 module coverage, P3 module coverage, MCP read-only, broker isolation, no env credentials, audit immutability, workbench-MCP read-only, no-LLM-in-order-path. Each enforces a property that cannot be re-introduced without breaking trust the platform has spent years earning. Disabling an invariant requires an ADR.
+Listed in roughly order of merge: ADR 0002 single-router, strategy isolation, risk coverage ≥95%, P2 module coverage, P3 module coverage, MCP read-only, broker isolation, no env credentials, audit immutability, workbench-MCP read-only, no-LLM-in-order-path, eval-harness-paper-only (P6b §4 — the LLM eval harness never routes orders to a live account, ADR 0006 v2). Each enforces a property that cannot be re-introduced without breaking trust the platform has spent years earning. Disabling an invariant requires an ADR.
 
 ---
 

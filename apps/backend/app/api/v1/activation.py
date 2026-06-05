@@ -145,4 +145,11 @@ async def deactivate_strategy(
         reason="parent_deactivated",
         user_id=current_user.id,
     )
+    # P6b §4: deactivation also invalidates an eval harness (clock reset).
+    from app.services.eval_harness.service import terminate_harness_for_parent
+
+    await terminate_harness_for_parent(
+        session, parent_strategy_id=strategy_id, engine=engine,
+        reason="parent_deactivated",
+    )
     return result
