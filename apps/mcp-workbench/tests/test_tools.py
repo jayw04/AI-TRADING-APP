@@ -100,10 +100,11 @@ def test_server_has_no_db_imports():
     assert "app.db" not in src
 
 
-def test_build_server_registers_nineteen_tools():
+def test_build_server_registers_twenty_tools():
     srv = server.build_server()
-    # 12 (P5.5 §3) + 4 (P6 §1b) + 1 (P6 §2b) + 1 (P6b §1b drift) + 1 (P6b §2b variant)
-    assert len(server._TOOLS) == 19
+    # 12 (P5.5 §3) + 4 (P6 §1b) + 1 (P6 §2b) + 1 (P6b §1b drift) + 1 (P6b §2b
+    # variant) + 1 (P6b §4 eval-harness)
+    assert len(server._TOOLS) == 20
     assert srv.name == "Trading Workbench State"
 
 
@@ -113,6 +114,14 @@ async def test_paper_variant_metrics_tool_calls_endpoint(httpx_mock):
     req = httpx_mock.get_request()
     assert req.method == "GET"
     assert req.url.path == "/api/v1/strategies/42/variant-comparison"
+
+
+async def test_eval_harness_metrics_tool_calls_endpoint(httpx_mock):
+    httpx_mock.add_response(json={})
+    await server.workbench_eval_harness_metrics(42)
+    req = httpx_mock.get_request()
+    assert req.method == "GET"
+    assert req.url.path == "/api/v1/strategies/42/eval-harness"
 
 
 async def test_drift_findings_tool_calls_endpoint(httpx_mock):

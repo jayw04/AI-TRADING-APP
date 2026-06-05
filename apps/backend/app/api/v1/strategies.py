@@ -358,6 +358,15 @@ async def stop_strategy(
             reason="parent_deactivated",
             user_id=current_user.id,
         )
+        # P6b §4: leaving LIVE invalidates an eval harness (clock resets, ADR
+        # 0006 v2 §64). Params change only while IDLE, so this also covers the
+        # modify-reset case (modifying requires stopping first).
+        from app.services.eval_harness.service import terminate_harness_for_parent
+
+        await terminate_harness_for_parent(
+            session, parent_strategy_id=strategy_id, engine=engine,
+            reason="parent_deactivated",
+        )
 
     await session.refresh(row)
     return StrategyActionResponse(

@@ -62,6 +62,9 @@ class PaperVariantService:
                 select(Strategy)
                 .where(Strategy.parent_strategy_id == parent_strategy_id)
                 .where(Strategy.status == StrategyStatus.PAPER_VARIANT)
+                # Exclude §4 eval-harness Mode-A clones (also PAPER_VARIANT, but
+                # tagged with a harness_role) — they are not §2 paper variants.
+                .where(Strategy.harness_role.is_(None))
             )
         ).scalars().first()
 
@@ -81,6 +84,20 @@ class PaperVariantService:
             raise ValueError("parent_not_live")
         if await self._in_flight_variant_for(parent.id) is not None:  # D7
             raise ValueError("variant_already_in_flight")
+        # P6b §4 mutual exclusion (Q2): a strategy can't be under §2 param-
+        # validation and §4 LLM-eval at once. Query the model directly (no
+        # eval_harness service import → no cycle).
+        from app.db.models.eval_harness import HARNESS_TERMINATED, EvalHarness
+
+        active_harness = (
+            await self._session.execute(
+                select(EvalHarness)
+                .where(EvalHarness.parent_strategy_id == parent.id)
+                .where(EvalHarness.state != HARNESS_TERMINATED)
+            )
+        ).scalars().first()
+        if active_harness is not None:
+            raise ValueError("eval_harness_active")
 
         changes = (proposal.proposal_payload_json or {}).get("changes") or []
         variant_params = _apply_changes(dict(parent.params_json or {}), changes)
@@ -226,6 +243,9 @@ async def run_paper_variant_expiry(*, session_factory, engine=None) -> dict[str,
                 select(Strategy)
                 .where(Strategy.status == StrategyStatus.PAPER_VARIANT)
                 .where(Strategy.created_at < cutoff)
+                # §4 eval-harness Mode-A clones are also PAPER_VARIANT but are
+                # owned by the harness lifecycle, not this §2 sweep — skip them.
+                .where(Strategy.harness_role.is_(None))
             )
         ).scalars().all()
         svc = PaperVariantService(session, engine)
@@ -309,6 +329,9 @@ async def find_in_flight_variant(
             select(Strategy)
             .where(Strategy.parent_strategy_id == parent_strategy_id)
             .where(Strategy.status == StrategyStatus.PAPER_VARIANT)
+            # Exclude §4 eval-harness Mode-A clones (also PAPER_VARIANT, but
+            # tagged with a harness_role) — they are not §2 paper variants.
+            .where(Strategy.harness_role.is_(None))
         )
     ).scalars().first()
 

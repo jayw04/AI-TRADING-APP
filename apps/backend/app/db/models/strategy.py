@@ -110,6 +110,11 @@ class Strategy(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # P6b §4 (ADR 0006 v2): distinguishes eval-harness-spawned clones from §2
+    # paper-variants. "mode_a" = the running, LLM-wrapped clone; "mode_b" = the
+    # IDLE source_id bucket for B's orders. NULL = a normal strategy / §2 variant.
+    harness_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

@@ -142,6 +142,11 @@ class AuditAction(StrEnum):
     # when a paper variant is promoted live after the 24h cooldown. §3a's gate
     # only writes STRATEGY_PROPOSAL_TRANSITIONED (EVALUATING → EVIDENCE_READY).
     STRATEGY_PROMOTED = "STRATEGY_PROMOTED"
+    # P6b §4 (ADR 0006 v2): an LLM eval harness was started for a strategy (Mode
+    # A + Mode B spawned). Stop/terminate is a state change on the harness row
+    # (no separate action). Per-signal decisions live in eval_harness_decisions,
+    # NOT the hash chain (volume).
+    EVAL_HARNESS_STARTED = "EVAL_HARNESS_STARTED"
 
 
 class AuditLogger:

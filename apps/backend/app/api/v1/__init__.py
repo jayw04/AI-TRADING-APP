@@ -12,6 +12,7 @@ from app.api.v1 import (
     backtest_jobs,
     credentials,
     drift,
+    eval_harness,
     indicators,
     internal,
     market_data,
@@ -74,3 +75,5 @@ api_router.include_router(drift.router)
 # P6b §2c-variant: user-level in-flight paper-variant list (/variants) for the
 # Dashboard widget. Per-strategy variant-comparison lives on strategies_router.
 api_router.include_router(variants.router)
+# P6b §4 (ADR 0006 v2): eval-harness start/stop/read. Off the P2 gate.
+api_router.include_router(eval_harness.router)

@@ -209,6 +209,37 @@ class StrategyEngine:
 
             symbols = list(row.symbols_json) or list(cls.symbols)
             merged_params = {**cls.default_params, **(row.params_json or {})}
+
+            # P6b §4 (ADR 0006 v2): a Mode-A eval-harness clone runs the
+            # deterministic strategy but its order submission is WRAPPED — each
+            # intent also drives an LLM act/skip decision for Mode B. The wrapper
+            # still calls OrderRouter.submit (ADR 0002); the Anthropic import
+            # lives only in the allowlisted eval_harness module.
+            submit_order_fn: Any = self._order_router.submit
+            if row.harness_role == "mode_a":
+                from app.db.models.eval_harness import (
+                    HARNESS_TERMINATED,
+                    EvalHarness,
+                )
+                from app.services.eval_harness.gate import make_harness_submit_fn
+
+                harness = (
+                    await session.execute(
+                        select(EvalHarness)
+                        .where(EvalHarness.mode_a_strategy_id == row.id)
+                        .where(EvalHarness.state != HARNESS_TERMINATED)
+                    )
+                ).scalars().first()
+                if harness is not None:
+                    submit_order_fn = make_harness_submit_fn(
+                        harness_id=harness.id,
+                        mode_a_id=row.id,
+                        mode_b_id=harness.mode_b_strategy_id,
+                        user_id=row.user_id,
+                        real_submit=self._order_router.submit,
+                        session_factory=self._session_factory,
+                    )
+
             ctx = StrategyContext(
                 strategy_id=row.id,
                 user_id=row.user_id,
@@ -217,7 +248,7 @@ class StrategyEngine:
                 session_factory=self._session_factory,
                 bar_cache=self._bar_cache,
                 indicator_computer=self._indicator_computer,
-                submit_order_fn=self._order_router.submit,
+                submit_order_fn=submit_order_fn,
                 bus=self._bus,
             )
             try:
