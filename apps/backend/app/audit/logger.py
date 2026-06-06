@@ -164,6 +164,12 @@ class AuditAction(StrEnum):
     LLM_OPT_OUT = "LLM_OPT_OUT"
     LLM_LIVE_DECISION = "LLM_LIVE_DECISION"
 
+    # P7 §2 (NL → Python authoring): one row per strategy-generation request, with
+    # the full prompt context + the generated code/assumptions/explanation + cost
+    # (forensic capture of every AI authoring call). The per-user authoring budget
+    # sums cost_usd from these rows.
+    STRATEGY_GENERATED = "STRATEGY_GENERATED"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.
