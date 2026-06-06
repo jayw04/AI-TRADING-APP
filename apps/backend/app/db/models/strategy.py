@@ -115,6 +115,14 @@ class Strategy(Base):
     # IDLE source_id bucket for B's orders. NULL = a normal strategy / §2 variant.
     harness_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
+    # P7 §4: how this strategy was authored — "manual" (hand-written / registered
+    # by code_path), "nl_generation" (single-shot AI, P7a), "nl_refinement" (P7b),
+    # or "template" (P8). Default "manual"; the authored-save endpoint sets
+    # "nl_generation".
+    authoring_method: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="manual"
+    )
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

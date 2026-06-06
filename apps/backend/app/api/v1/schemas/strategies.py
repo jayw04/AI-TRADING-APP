@@ -99,6 +99,9 @@ class StrategyResponse(BaseModel):
     # only. ``None`` means "no schema declared" — frontend shows the JSON
     # textarea fallback. Not persisted; lives on the loaded class.
     params_schema: dict[str, Any] | None = None
+    # P7 §4: how the strategy was authored (manual / nl_generation / nl_refinement
+    # / template). Default "manual" for existing + hand-registered strategies.
+    authoring_method: str = "manual"
     created_at: datetime
     updated_at: datetime
 
