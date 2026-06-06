@@ -26,6 +26,7 @@ from app.api.v1 import (
     risk,
     signals,
     strategies,
+    strategy_authoring,
     trading_profile,
     users,
     variants,
@@ -83,3 +84,5 @@ api_router.include_router(eval_harness.router)
 api_router.include_router(live_autodispatch.router)
 # P6b §5 (ADR 0006 v2 §5): LLM-driven live trading opt-in (/strategies/{id}/llm-*).
 api_router.include_router(llm_opt_in.router)
+# P7 §2: NL → Python strategy generation (POST /strategies/author).
+api_router.include_router(strategy_authoring.router)

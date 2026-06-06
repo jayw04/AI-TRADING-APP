@@ -162,8 +162,17 @@ async def create_message(
     messages: list[dict[str, Any]],
     mcp_server_url: str | None = None,
     max_tokens: int = 4096,
+    tools: list[dict[str, Any]] | None = None,
+    tool_choice: dict[str, Any] | None = None,
 ) -> AnthropicCall:
-    """One non-streaming Anthropic API call. Returns an :class:`AnthropicCall`."""
+    """One non-streaming Anthropic API call. Returns an :class:`AnthropicCall`.
+
+    ``tools`` + ``tool_choice`` (P7 §2) enable structured output via tool-use:
+    pass a tool schema and ``{"type": "tool", "name": ...}`` to force the model
+    to return a parseable ``tool_use`` block (see ``AnthropicCall.content_blocks``).
+    Both default to ``None`` and are only sent when provided, so existing callers
+    are unaffected.
+    """
     client = get_anthropic_client(api_key)
     kwargs: dict[str, Any] = {
         "model": model,
@@ -172,6 +181,10 @@ async def create_message(
         "messages": messages,
         **_mcp_servers_kwarg(mcp_server_url),
     }
+    if tools is not None:
+        kwargs["tools"] = tools
+    if tool_choice is not None:
+        kwargs["tool_choice"] = tool_choice
     response = await client.messages.create(**kwargs)
     return AnthropicCall(raw_response=response)
 
