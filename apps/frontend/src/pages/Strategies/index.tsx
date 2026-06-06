@@ -107,6 +107,12 @@ export default function StrategiesListPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-white">Strategies</h1>
         <div className="flex items-center gap-2">
+          <Link
+            to="/strategies/author"
+            className="rounded bg-purple-700 px-3 py-1 text-sm font-semibold text-white hover:bg-purple-600"
+          >
+            ✨ Author with AI
+          </Link>
           <button
             onClick={() => setShowNew(true)}
             className="rounded bg-blue-700 px-3 py-1 text-sm font-semibold text-white hover:bg-blue-600"
