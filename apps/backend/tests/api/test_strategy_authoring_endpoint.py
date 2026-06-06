@@ -50,6 +50,11 @@ async def test_author_success(client):
     assert body["assumptions"] == ["a"]
     assert body["cost_usd"] > 0
     assert body["model"] == "claude-sonnet-4-6"
+    # P7 §3: the response carries a backtest outcome. The test app has no
+    # bar_cache wired (alpaca startup disabled) → "unavailable", but the key is
+    # present and shaped.
+    assert "backtest" in body
+    assert body["backtest"]["status"] == "unavailable"
 
 
 async def test_author_budget_429(client):

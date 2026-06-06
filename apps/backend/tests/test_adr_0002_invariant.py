@@ -44,6 +44,9 @@ ALLOWED = {
     # It is prompt content, not a call site — generated strategies dispatch
     # through OrderRouter like any other strategy. No ADR 0002 violation.
     "app/services/strategy_authoring/prompts.py",
+    # P7 §3: the auto-backtest test builds generated-strategy SOURCE STRINGS that
+    # contain `self.ctx.submit_order(...)` — string literals, not call sites.
+    "tests/services/test_strategy_authoring_backtest.py",
 }
 
 # apps/backend/
