@@ -39,6 +39,11 @@ ALLOWED = {
     "strategies_user/examples/rsi_meanreversion.py",
     "tests/strategies/test_backtester.py",
     "tests/strategies/test_strategy_risk_integration.py",
+    # P7 §1: the strategy-generation prompt embeds the platform Strategy
+    # interface as EXAMPLE TEXT, which includes `self.ctx.submit_order(...)`.
+    # It is prompt content, not a call site — generated strategies dispatch
+    # through OrderRouter like any other strategy. No ADR 0002 violation.
+    "app/services/strategy_authoring/prompts.py",
 }
 
 # apps/backend/
