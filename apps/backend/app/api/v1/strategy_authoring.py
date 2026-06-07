@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
@@ -312,6 +312,7 @@ async def get_authoring_history(
     return {
         "strategy_id": strategy_id,
         "authoring_method": strategy.authoring_method,
+        "out_of_sync": await _is_out_of_sync(session, strategy),
         "revisions": [
             {
                 "seq": r.seq,
@@ -326,4 +327,56 @@ async def get_authoring_history(
             }
             for r in rows
         ],
+    }
+
+
+async def _is_out_of_sync(session: AsyncSession, strategy: StrategyRow) -> bool:
+    """True if the on-disk code has diverged from the last authoring revision
+    (P7 §7, Decision 5). Conservative: any ambiguity → False (never cry wolf)."""
+    if strategy.authoring_method == "manual" or not strategy.code_path:
+        return False
+    last = (
+        await session.execute(
+            select(StrategyRevision)
+            .where(StrategyRevision.strategy_id == strategy.id)
+            .order_by(StrategyRevision.seq.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    if last is None:
+        return False
+    path = _strategies_root() / strategy.code_path
+    if not path.exists():
+        return False
+    try:
+        on_disk = path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return on_disk.strip() != (last.code or "").strip()
+
+
+@router.get("/strategies/{strategy_id}/authoring-status", response_model=dict)
+async def get_authoring_status(
+    strategy_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Lightweight authoring status for the strategy detail page (P7 §7):
+    authoring method, revision count, and whether the on-disk code was manually
+    edited since it was AI-authored."""
+    strategy = await session.get(StrategyRow, strategy_id)
+    if strategy is None or strategy.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    count = (
+        await session.execute(
+            select(func.count())
+            .select_from(StrategyRevision)
+            .where(StrategyRevision.strategy_id == strategy_id)
+        )
+    ).scalar_one()
+    return {
+        "strategy_id": strategy_id,
+        "authoring_method": strategy.authoring_method,
+        "revision_count": int(count),
+        "out_of_sync": await _is_out_of_sync(session, strategy),
     }

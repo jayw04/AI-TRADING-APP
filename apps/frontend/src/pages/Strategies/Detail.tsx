@@ -13,6 +13,7 @@ import { CooldownIndicator } from "@/components/strategies/CooldownIndicator";
 import { DriftCard } from "@/components/strategies/DriftCard";
 import { VariantCard } from "@/components/strategies/VariantCard";
 import { LLMOptInCard } from "@/components/strategies/LLMOptInCard";
+import { AuthoringNotice } from "@/components/strategies/AuthoringNotice";
 import { ActivationWizard } from "@/components/activation/ActivationWizard";
 import { ActivationCountdown } from "@/components/activation/ActivationCountdown";
 import { DeactivationModal } from "@/components/activation/DeactivationModal";
@@ -166,6 +167,7 @@ export default function StrategyDetailPage() {
       {ACTIVE_STRATEGY_STATUSES.includes(strategy.status) && (
         <LLMOptInCard strategy={strategy} />
       )}
+      <AuthoringNotice strategyId={strategy.id} />
 
       {wizardOpen && (
         <ActivationWizard

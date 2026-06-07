@@ -38,6 +38,13 @@ export interface SavedStrategy {
   authoring_method: string;
 }
 
+export interface AuthoringStatus {
+  strategy_id: number;
+  authoring_method: string;
+  revision_count: number;
+  out_of_sync: boolean;
+}
+
 export interface RevisionInput {
   kind: "generation" | "refinement";
   user_message: string;
@@ -66,4 +73,7 @@ export const strategyAuthoringApi = {
       method: "POST",
       body: JSON.stringify({ code, name, history }),
     }),
+
+  status: (strategyId: number) =>
+    apiFetch<AuthoringStatus>(`/api/v1/strategies/${strategyId}/authoring-status`),
 };
