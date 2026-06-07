@@ -27,6 +27,7 @@ export interface AuthorResult {
   model: string;
   prompt_version: string;
   backtest: AuthorBacktest;
+  auto_fixed: boolean;
 }
 
 export interface SavedStrategy {
@@ -52,6 +53,12 @@ export const strategyAuthoringApi = {
     apiFetch<AuthorResult>(`/api/v1/strategies/author`, {
       method: "POST",
       body: JSON.stringify({ description }),
+    }),
+
+  refine: (prior_code: string, request: string) =>
+    apiFetch<AuthorResult>(`/api/v1/strategies/author/refine`, {
+      method: "POST",
+      body: JSON.stringify({ prior_code, request }),
     }),
 
   saveAuthored: (code: string, name: string, history: RevisionInput[] = []) =>

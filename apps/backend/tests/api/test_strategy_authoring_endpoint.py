@@ -55,6 +55,19 @@ async def test_author_success(client):
     # present and shaped.
     assert "backtest" in body
     assert body["backtest"]["status"] == "unavailable"
+    assert body["auto_fixed"] is False  # P7 §6: no bar_cache → no backtest → no autofix
+
+
+async def test_refine_returns_revised(client):
+    r = await client.post(
+        f"{BASE}/strategies/author/refine",
+        json={"prior_code": "class Old:\n    pass\n", "request": "tighten the stop"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert "class S" in body["code"]
+    assert "backtest" in body
+    assert "auto_fixed" in body
 
 
 async def test_author_budget_429(client):

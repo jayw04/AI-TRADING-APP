@@ -25,11 +25,15 @@ from app.llm.anthropic_client import create_message
 from app.llm.pricing import DailyBudgetResolver, estimate_cost
 from app.security import CredentialKind, CredentialStore
 from app.services.strategy_authoring.prompts import (
+    DEBUG_SYSTEM,
     GENERATION_MODEL,
     GENERATION_PROMPT_VERSION,
     GENERATION_SYSTEM,
+    REVISION_SYSTEM,
     STRATEGY_OUTPUT_TOOL,
+    build_debug_user_message,
     build_generation_user_message,
+    build_revision_user_message,
 )
 
 logger = structlog.get_logger(__name__)
@@ -103,11 +107,18 @@ def _parse_emit_strategy(call: Any) -> tuple[str, list[str], str]:
     raise GenerationError("model did not emit the emit_strategy tool")
 
 
-async def generate_strategy(
-    session: AsyncSession, *, user_id: int, description: str
+async def _call_authoring_model(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    system: str,
+    user_message: str,
+    audit_extra: dict[str, Any],
 ) -> GenerationResult:
-    """Generate a strategy from a description. Raises BudgetExceededError /
-    NoApiKeyError / GenerationError on the respective failures."""
+    """The shared authoring call — budget-gate → key → Sonnet tool-use → parse →
+    cost → audit. generate / refine / debug differ only in the system prompt, the
+    user message, and the audit ``kind``. Raises BudgetExceededError /
+    NoApiKeyError / GenerationError."""
     settings = get_settings()
     budget_usd = Decimal(str(settings.agent_daily_budget_usd))
     now = datetime.now(UTC)
@@ -132,8 +143,8 @@ async def generate_strategy(
     call = await create_message(
         api_key=api_key,
         model=GENERATION_MODEL,
-        system=GENERATION_SYSTEM,
-        messages=[{"role": "user", "content": build_generation_user_message(description)}],
+        system=system,
+        messages=[{"role": "user", "content": user_message}],
         tools=[STRATEGY_OUTPUT_TOOL],
         tool_choice={"type": "tool", "name": "emit_strategy"},
         max_tokens=4096,
@@ -149,22 +160,55 @@ async def generate_strategy(
         target_type="strategy_authoring",
         target_id=None,
         payload={
-            "description": description,
             "prompt_version": GENERATION_PROMPT_VERSION,
             "model": GENERATION_MODEL,
             "cost_usd": float(cost_usd),
             "assumptions": assumptions,
             "explanation": explanation,
             "code": code,
+            **audit_extra,
         },
         user_id=user_id,
     )
     await session.commit()
     logger.info(
-        "strategy_generated", user_id=user_id, cost_usd=str(cost_usd),
-        code_chars=len(code),
+        "strategy_authoring_call", user_id=user_id, kind=audit_extra.get("kind"),
+        cost_usd=str(cost_usd), code_chars=len(code),
     )
     return GenerationResult(
         code=code, assumptions=assumptions, explanation=explanation,
         cost_usd=cost_usd, prompt_version=GENERATION_PROMPT_VERSION, model=GENERATION_MODEL,
+    )
+
+
+async def generate_strategy(
+    session: AsyncSession, *, user_id: int, description: str
+) -> GenerationResult:
+    """Single-shot generation from a plain-English description (P7a)."""
+    return await _call_authoring_model(
+        session, user_id=user_id, system=GENERATION_SYSTEM,
+        user_message=build_generation_user_message(description),
+        audit_extra={"kind": "generation", "description": description},
+    )
+
+
+async def refine_strategy(
+    session: AsyncSession, *, user_id: int, prior_code: str, request: str
+) -> GenerationResult:
+    """Revise an existing strategy in response to a change request (P7b §6)."""
+    return await _call_authoring_model(
+        session, user_id=user_id, system=REVISION_SYSTEM,
+        user_message=build_revision_user_message(prior_code, request),
+        audit_extra={"kind": "refinement", "request": request},
+    )
+
+
+async def debug_strategy(
+    session: AsyncSession, *, user_id: int, prior_code: str, error: str
+) -> GenerationResult:
+    """Fix a strategy that failed its backtest (P7b §6 auto-debug)."""
+    return await _call_authoring_model(
+        session, user_id=user_id, system=DEBUG_SYSTEM,
+        user_message=build_debug_user_message(prior_code, error),
+        audit_extra={"kind": "debug", "error": error},
     )
