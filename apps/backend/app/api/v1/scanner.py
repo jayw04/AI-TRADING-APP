@@ -19,6 +19,7 @@ from app.api.v1.schemas.scanner import (
     ScannerRunResponse,
     ScannerRunSummary,
     ScannerSkipItem,
+    ScannerVocabulary,
 )
 from app.audit.logger import AuditAction, AuditActorType, AuditLogger
 from app.auth.stub import CurrentUser, get_current_user
@@ -28,8 +29,36 @@ from app.db.session import get_session
 from app.indicators.computer import IndicatorComputer
 from app.market_data.discovery import get_discovery_feeds
 from app.services.scanner import CriteriaError, run_scan, validate_criteria
+from app.services.scanner.criteria import FIELD_NAMES, INDICATOR_NAMES
 
 router = APIRouter(prefix="/scanner", tags=["scanner"])
+
+
+def _validate_body(body: ScannerDefinitionCreate) -> None:
+    if body.universe.kind not in UNIVERSE_KINDS:
+        raise HTTPException(
+            status_code=400, detail=f"unknown universe kind: {body.universe.kind}"
+        )
+    if body.universe.kind == UNIVERSE_SYMBOLS and not body.universe.symbols:
+        raise HTTPException(
+            status_code=400, detail="universe kind 'symbols' requires a symbol list"
+        )
+    try:
+        validate_criteria(body.criteria)
+    except CriteriaError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"invalid criterion: {exc}"
+        ) from exc
+
+
+@router.get("/vocabulary", response_model=ScannerVocabulary)
+async def get_vocabulary(
+    _user: CurrentUser = Depends(get_current_user),
+) -> ScannerVocabulary:
+    """The supported criterion names — drift-proof (derived from CORE_INDICATORS)."""
+    return ScannerVocabulary(
+        indicators=sorted(INDICATOR_NAMES), fields=sorted(FIELD_NAMES)
+    )
 
 
 def _def_to_response(d: ScannerDefinition) -> ScannerDefinitionResponse:
@@ -96,19 +125,7 @@ async def create_definition(
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> ScannerDefinitionResponse:
-    if body.universe.kind not in UNIVERSE_KINDS:
-        raise HTTPException(
-            status_code=400, detail=f"unknown universe kind: {body.universe.kind}"
-        )
-    if body.universe.kind == UNIVERSE_SYMBOLS and not body.universe.symbols:
-        raise HTTPException(
-            status_code=400, detail="universe kind 'symbols' requires a symbol list"
-        )
-    try:
-        validate_criteria(body.criteria)
-    except CriteriaError as exc:
-        raise HTTPException(status_code=400, detail=f"invalid criterion: {exc}") from exc
-
+    _validate_body(body)
     now = datetime.now(UTC)
     d = ScannerDefinition(
         user_id=user.id,
@@ -125,6 +142,31 @@ async def create_definition(
         updated_at=now,
     )
     session.add(d)
+    await session.commit()
+    await session.refresh(d)
+    return _def_to_response(d)
+
+
+@router.put(
+    "/definitions/{definition_id}", response_model=ScannerDefinitionResponse
+)
+async def update_definition(
+    definition_id: int,
+    body: ScannerDefinitionCreate,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ScannerDefinitionResponse:
+    """Edit a saved definition in place (preserves its run history)."""
+    d = await _owned_definition(session, definition_id, user.id)
+    _validate_body(body)
+    d.name = body.name
+    d.criteria = body.criteria
+    d.universe_kind = body.universe.kind
+    d.universe_symbols_json = (
+        [s.upper() for s in body.universe.symbols] if body.universe.symbols else None
+    )
+    d.timeframe = body.timeframe
+    d.updated_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(d)
     return _def_to_response(d)

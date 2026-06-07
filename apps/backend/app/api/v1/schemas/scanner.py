@@ -30,6 +30,11 @@ class ScannerDefinitionResponse(BaseModel):
     updated_at: datetime
 
 
+class ScannerVocabulary(BaseModel):
+    indicators: list[str]  # supported bare indicator names (drift-proof)
+    fields: list[str]  # bar fields (open/high/low/close/volume/price)
+
+
 class ScannerMatchItem(BaseModel):
     symbol: str
     values: dict[str, float]
