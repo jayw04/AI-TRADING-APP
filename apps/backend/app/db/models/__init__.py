@@ -18,6 +18,7 @@ from app.db.models.session import Session
 from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy
 from app.db.models.strategy_proposal import ProposalState, StrategyProposal
+from app.db.models.strategy_revision import StrategyRevision
 from app.db.models.strategy_run import StrategyRun
 from app.db.models.symbol import Symbol
 from app.db.models.system_config import SystemConfig
@@ -49,6 +50,7 @@ __all__ = [
     "Signal",
     "Strategy",
     "StrategyProposal",
+    "StrategyRevision",
     "StrategyRun",
     "Symbol",
     "SystemConfig",

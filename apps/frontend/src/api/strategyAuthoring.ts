@@ -37,6 +37,16 @@ export interface SavedStrategy {
   authoring_method: string;
 }
 
+export interface RevisionInput {
+  kind: "generation" | "refinement";
+  user_message: string;
+  assumptions: string[];
+  explanation: string;
+  code: string;
+  backtest: AuthorBacktest | null;
+  cost_usd: number | null;
+}
+
 export const strategyAuthoringApi = {
   author: (description: string) =>
     apiFetch<AuthorResult>(`/api/v1/strategies/author`, {
@@ -44,9 +54,9 @@ export const strategyAuthoringApi = {
       body: JSON.stringify({ description }),
     }),
 
-  saveAuthored: (code: string, name: string) =>
+  saveAuthored: (code: string, name: string, history: RevisionInput[] = []) =>
     apiFetch<SavedStrategy>(`/api/v1/strategies/author/save`, {
       method: "POST",
-      body: JSON.stringify({ code, name }),
+      body: JSON.stringify({ code, name, history }),
     }),
 };

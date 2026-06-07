@@ -8,17 +8,20 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.auth.stub import CurrentUser, get_current_user
 from app.db.enums import StrategyStatus, StrategyType
 from app.db.models.strategy import Strategy as StrategyRow
+from app.db.models.strategy_revision import REVISION_GENERATION, StrategyRevision
 from app.db.session import get_session
 from app.services.strategy_authoring.backtest import backtest_generated_code
 from app.services.strategy_authoring.code_safety import UnsafeCodeError, validate_generated_code
@@ -91,11 +94,29 @@ async def author_strategy(
     }
 
 
+class RevisionInput(BaseModel):
+    """One turn of the authoring conversation (client-held, sent on save)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str = Field(default=REVISION_GENERATION, max_length=16)
+    user_message: str = Field(default="", max_length=8000)
+    assumptions: list[str] = Field(default_factory=list)
+    explanation: str = Field(default="", max_length=8000)
+    code: str = Field(min_length=1, max_length=40000)
+    backtest: dict[str, Any] | None = None
+    cost_usd: float | None = None
+
+
 class SaveAuthoredRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     code: str = Field(min_length=1, max_length=40000)
     name: str = Field(min_length=1, max_length=128)
+    # P7 §5: the authoring conversation (generation + any P7b refinements). Persisted
+    # read-only as the saved strategy's history. Empty → a single generation turn
+    # from the saved code is recorded so every authored strategy has its history.
+    history: list[RevisionInput] = Field(default_factory=list, max_length=100)
 
 
 @router.post("/strategies/author/save", response_model=dict)
@@ -152,6 +173,26 @@ async def save_authored_strategy(
         )
         session.add(row)
         await session.flush()
+
+        # P7 §5: persist the authoring conversation, read-only, linked to the
+        # strategy. Empty history → one generation turn from the saved code.
+        turns = body.history or [RevisionInput(code=body.code)]
+        for seq, turn in enumerate(turns):
+            session.add(
+                StrategyRevision(
+                    strategy_id=row.id,
+                    seq=seq,
+                    kind=turn.kind,
+                    user_message=turn.user_message,
+                    assumptions_json=list(turn.assumptions),
+                    explanation=turn.explanation,
+                    code=turn.code,
+                    backtest_json=turn.backtest,
+                    cost_usd=Decimal(str(turn.cost_usd)) if turn.cost_usd is not None else None,
+                    created_at=now,
+                )
+            )
+
         AuditLogger.write(
             session,
             actor_type=AuditActorType.USER,
@@ -174,4 +215,43 @@ async def save_authored_strategy(
         "status": row.status.value,
         "code_path": row.code_path,
         "authoring_method": row.authoring_method,
+    }
+
+
+@router.get("/strategies/{strategy_id}/authoring-history", response_model=dict)
+async def get_authoring_history(
+    strategy_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """The read-only AI-authoring conversation for a strategy (P7 §5). Empty for
+    manually-authored strategies. §6's refinement chat renders this."""
+    strategy = await session.get(StrategyRow, strategy_id)
+    if strategy is None or strategy.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    rows = (
+        await session.execute(
+            select(StrategyRevision)
+            .where(StrategyRevision.strategy_id == strategy_id)
+            .order_by(StrategyRevision.seq.asc())
+        )
+    ).scalars().all()
+    return {
+        "strategy_id": strategy_id,
+        "authoring_method": strategy.authoring_method,
+        "revisions": [
+            {
+                "seq": r.seq,
+                "kind": r.kind,
+                "user_message": r.user_message,
+                "assumptions": r.assumptions_json,
+                "explanation": r.explanation,
+                "code": r.code,
+                "backtest": r.backtest_json,
+                "cost_usd": float(r.cost_usd) if r.cost_usd is not None else None,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in rows
+        ],
     }
