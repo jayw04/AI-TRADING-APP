@@ -1,6 +1,7 @@
 import type { RouteObject } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Opportunities from "./pages/Opportunities";
+import Discovery from "./pages/Discovery";
 import Charts from "./pages/Charts";
 import Orders from "./pages/Orders";
 import Positions from "./pages/Positions";
@@ -19,6 +20,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { path: "/", label: "Dashboard", element: <Dashboard /> },
   { path: "/opportunities", label: "Opportunities", element: <Opportunities /> },
+  { path: "/discovery", label: "Discovery", element: <Discovery /> },
   { path: "/charts", label: "Charts", element: <Charts /> },
   { path: "/orders", label: "Orders", element: <Orders /> },
   { path: "/positions", label: "Positions", element: <Positions /> },

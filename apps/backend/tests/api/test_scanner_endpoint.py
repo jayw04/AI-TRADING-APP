@@ -139,6 +139,39 @@ async def test_run_without_bar_cache_503(scanner_app) -> None:
     assert r.status_code == 503
 
 
+async def test_update_definition_preserves_id(scanner_app) -> None:
+    client, _, _ = scanner_app
+    did = (await client.post("/api/v1/scanner/definitions", json=_create_body())).json()["id"]
+    body = _create_body()
+    body["name"] = "renamed"
+    body["criteria"] = "close > 200"
+    r = await client.put(f"/api/v1/scanner/definitions/{did}", json=body)
+    assert r.status_code == 200
+    assert r.json()["id"] == did  # same row → run history preserved
+    assert r.json()["name"] == "renamed"
+    assert r.json()["criteria"] == "close > 200"
+
+
+async def test_update_invalid_criterion_400(scanner_app) -> None:
+    client, _, _ = scanner_app
+    did = (await client.post("/api/v1/scanner/definitions", json=_create_body())).json()["id"]
+    body = _create_body()
+    body["criteria"] = "close[0] > 1"  # Subscript → rejected
+    r = await client.put(f"/api/v1/scanner/definitions/{did}", json=body)
+    assert r.status_code == 400
+
+
+async def test_vocabulary(scanner_app) -> None:
+    client, _, _ = scanner_app
+    r = await client.get("/api/v1/scanner/vocabulary")
+    assert r.status_code == 200
+    body = r.json()
+    assert "RSI14" in body["indicators"]
+    assert "macd" in body["indicators"]
+    assert "close" in body["fields"]
+    assert "price" in body["fields"]
+
+
 async def test_other_users_definition_404(scanner_app) -> None:
     client, _, factory = scanner_app
     from app.db.models.scanner_definition import ScannerDefinition
