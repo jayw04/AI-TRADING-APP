@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import {
   strategyAuthoringApi,
+  PRESETS,
   type AuthorResult,
+  type AuthoringBudget,
 } from "@/api/strategyAuthoring";
 
 interface Turn {
@@ -29,8 +31,21 @@ export default function AuthorWithAI() {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [budget, setBudget] = useState<AuthoringBudget | null>(null);
 
   const current = turns.length ? turns[turns.length - 1] : null;
+  const sessionCost = turns.reduce((sum, t) => sum + (t.result.cost_usd || 0), 0);
+
+  const refreshBudget = useCallback(() => {
+    strategyAuthoringApi
+      .budget()
+      .then(setBudget)
+      .catch(() => setBudget(null));
+  }, []);
+
+  useEffect(() => {
+    refreshBudget();
+  }, [refreshBudget]);
 
   function describeError(e: unknown): string {
     if (e instanceof ApiError && e.status === 429)
@@ -47,6 +62,7 @@ export default function AuthorWithAI() {
       const desc = description.trim();
       const result = await strategyAuthoringApi.author(desc);
       setTurns([{ kind: "generation", userMessage: desc, result }]);
+      refreshBudget();
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -63,6 +79,7 @@ export default function AuthorWithAI() {
       const result = await strategyAuthoringApi.refine(current.result.code, req);
       setTurns((t) => [...t, { kind: "refinement", userMessage: req, result }]);
       setChange("");
+      refreshBudget();
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -110,7 +127,21 @@ export default function AuthorWithAI() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4">
-      <h1 className="text-xl font-semibold text-white">Author with AI</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-white">Author with AI</h1>
+        {budget && (
+          <div className="text-xs text-neutral-400">
+            Today: <span className="font-mono text-neutral-200">${budget.spent_today_usd.toFixed(2)}</span>
+            {" / "}<span className="font-mono">${budget.daily_cap_usd.toFixed(2)}</span>
+            {sessionCost > 0 && (
+              <>
+                {" · this session "}
+                <span className="font-mono text-neutral-200">${sessionCost.toFixed(2)}</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
       <p className="text-xs text-neutral-400">
         Describe a strategy in plain English, then refine it in conversation. The AI
         writes the Python, backtests it, and lists what it assumed. Saving registers it
@@ -120,6 +151,18 @@ export default function AuthorWithAI() {
 
       {turns.length === 0 && (
         <>
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => setDescription(p.description)}
+                className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-800"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}

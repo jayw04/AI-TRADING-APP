@@ -13,7 +13,17 @@ vi.mock("react-router-dom", async (orig) => {
   const actual = await orig<typeof import("react-router-dom")>();
   return { ...actual, useNavigate: () => navigate };
 });
-vi.mock("@/api/strategyAuthoring");
+// Preserve PRESETS (and types); mock only the api object.
+vi.mock("@/api/strategyAuthoring", async (orig) => {
+  const actual = await orig<typeof import("@/api/strategyAuthoring")>();
+  return {
+    ...actual,
+    strategyAuthoringApi: {
+      author: vi.fn(), refine: vi.fn(), saveAuthored: vi.fn(),
+      status: vi.fn(), budget: vi.fn(),
+    },
+  };
+});
 
 const mocked = vi.mocked(strategyAuthoringApi, true);
 
@@ -52,7 +62,20 @@ function renderPage() {
 }
 
 describe("AuthorWithAI", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocked.budget.mockResolvedValue({
+      daily_cap_usd: 2.0, spent_today_usd: 0.4, remaining_usd: 1.6,
+    });
+  });
+
+  it("shows the budget header and presets pre-fill the description", async () => {
+    renderPage();
+    expect(await screen.findByText(/0\.40/)).toBeTruthy(); // spent / cap
+    fireEvent.click(screen.getByRole("button", { name: /RSI mean reversion/i }));
+    expect((screen.getByPlaceholderText(/Buy SPY when/i) as HTMLTextAreaElement).value)
+      .toMatch(/RSI\(14\)/);
+  });
 
   it("generates and shows code + backtest + assumptions", async () => {
     mocked.author.mockResolvedValue(RESULT);

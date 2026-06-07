@@ -107,6 +107,20 @@ def _parse_emit_strategy(call: Any) -> tuple[str, list[str], str]:
     raise GenerationError("model did not emit the emit_strategy tool")
 
 
+async def authoring_budget(
+    session: AsyncSession, *, user_id: int, now: datetime | None = None
+) -> dict[str, Decimal]:
+    """The user's daily authoring budget headroom (P7 §8). Reuses the agent daily
+    cap; ``spent_today`` is agent-session spend + P7 generation spend."""
+    cap = Decimal(str(get_settings().agent_daily_budget_usd))
+    now = now or datetime.now(UTC)
+    spent = await DailyBudgetResolver(cap).spent_today(
+        session, user_id=user_id, now=now
+    ) + await _authoring_spent_today_usd(session, user_id, now)
+    remaining = cap - spent if cap > spent else Decimal("0")
+    return {"daily_cap_usd": cap, "spent_today_usd": spent, "remaining_usd": remaining}
+
+
 async def _call_authoring_model(
     session: AsyncSession,
     *,

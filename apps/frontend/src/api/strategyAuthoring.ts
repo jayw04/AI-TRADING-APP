@@ -45,6 +45,12 @@ export interface AuthoringStatus {
   out_of_sync: boolean;
 }
 
+export interface AuthoringBudget {
+  daily_cap_usd: number;
+  spent_today_usd: number;
+  remaining_usd: number;
+}
+
 export interface RevisionInput {
   kind: "generation" | "refinement";
   user_message: string;
@@ -76,4 +82,24 @@ export const strategyAuthoringApi = {
 
   status: (strategyId: number) =>
     apiFetch<AuthoringStatus>(`/api/v1/strategies/${strategyId}/authoring-status`),
+
+  budget: () => apiFetch<AuthoringBudget>(`/api/v1/strategies/author/budget`),
 };
+
+export const PRESETS: { label: string; description: string }[] = [
+  {
+    label: "Moving-average crossover",
+    description:
+      "Buy when the 20-period EMA crosses above the 50-period EMA; exit when it crosses back below or a 2x ATR stop is hit.",
+  },
+  {
+    label: "RSI mean reversion",
+    description:
+      "Buy when RSI(14) drops below 30; exit when it rises above 55. Risk 1% of equity per trade with a 2x ATR stop.",
+  },
+  {
+    label: "Breakout",
+    description:
+      "Buy when price closes above the highest high of the last 20 bars; exit on a close below the 10-bar low or a 2x ATR stop.",
+  },
+];
