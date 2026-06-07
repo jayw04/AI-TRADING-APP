@@ -31,6 +31,7 @@ from app.services.strategy_authoring.service import (
     GenerationError,
     GenerationResult,
     NoApiKeyError,
+    authoring_budget,
     debug_strategy,
     generate_strategy,
     refine_strategy,
@@ -114,6 +115,17 @@ def _author_response(
             "error": outcome.error,
         },
     }
+
+
+@router.get("/strategies/author/budget", response_model=dict)
+async def get_author_budget(
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """The user's daily authoring budget headroom (P7 §8) — the Author page header
+    shows spent/cap so the trader sees how close they are before the 429."""
+    b = await authoring_budget(session, user_id=current_user.id)
+    return {k: float(v) for k, v in b.items()}
 
 
 @router.post("/strategies/author", response_model=dict)
