@@ -15,6 +15,7 @@ import {
 export default function AuthorWithAI() {
   const navigate = useNavigate();
   const [description, setDescription] = useState("");
+  const [generatedFrom, setGeneratedFrom] = useState("");
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<AuthorResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,9 @@ export default function AuthorWithAI() {
     setError(null);
     setResult(null);
     try {
-      setResult(await strategyAuthoringApi.author(description.trim()));
+      const desc = description.trim();
+      setResult(await strategyAuthoringApi.author(desc));
+      setGeneratedFrom(desc);
     } catch (e) {
       if (e instanceof ApiError && e.status === 429) {
         setError("Daily AI budget reached — try again later or raise the cap.");
@@ -46,7 +49,20 @@ export default function AuthorWithAI() {
     setSaving(true);
     setSaveError(null);
     try {
-      const saved = await strategyAuthoringApi.saveAuthored(result.code, name.trim());
+      // P7 §5: persist the authoring conversation (single-shot = one turn; §6
+      // appends refinement turns) as the saved strategy's read-only history.
+      const history = [
+        {
+          kind: "generation" as const,
+          user_message: generatedFrom,
+          assumptions: result.assumptions,
+          explanation: result.explanation,
+          code: result.code,
+          backtest: result.backtest,
+          cost_usd: result.cost_usd,
+        },
+      ];
+      const saved = await strategyAuthoringApi.saveAuthored(result.code, name.trim(), history);
       navigate(`/strategies/${saved.id}`);
     } catch (e) {
       setSaveError(

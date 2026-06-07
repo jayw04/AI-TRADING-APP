@@ -74,7 +74,13 @@ describe("AuthorWithAI", () => {
     fireEvent.change(screen.getByPlaceholderText(/strategy name/i), { target: { value: "My Strat" } });
     fireEvent.click(screen.getByRole("button", { name: /Save strategy/i }));
     await waitFor(() =>
-      expect(mocked.saveAuthored).toHaveBeenCalledWith(RESULT.code, "My Strat"),
+      expect(mocked.saveAuthored).toHaveBeenCalledWith(
+        RESULT.code,
+        "My Strat",
+        expect.arrayContaining([
+          expect.objectContaining({ kind: "generation", user_message: "x", code: RESULT.code }),
+        ]),
+      ),
     );
     expect(navigate).toHaveBeenCalledWith("/strategies/7");
   });
