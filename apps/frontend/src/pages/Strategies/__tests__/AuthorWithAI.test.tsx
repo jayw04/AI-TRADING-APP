@@ -24,6 +24,7 @@ const RESULT: AuthorResult = {
   cost_usd: 0.0321,
   model: "claude-sonnet-4-6",
   prompt_version: "v1",
+  auto_fixed: false,
   backtest: {
     status: "ok",
     trade_count: 12,
@@ -34,6 +35,12 @@ const RESULT: AuthorResult = {
       trade_count: 12, starting_equity: 100000, ending_equity: 115000,
     },
   },
+};
+
+const REFINED: AuthorResult = {
+  ...RESULT,
+  code: "class Refined(Strategy):\n    pass",
+  explanation: "Now with a tighter stop.",
 };
 
 function renderPage() {
@@ -83,6 +90,23 @@ describe("AuthorWithAI", () => {
       ),
     );
     expect(navigate).toHaveBeenCalledWith("/strategies/7");
+  });
+
+  it("refines and appends a turn", async () => {
+    mocked.author.mockResolvedValue(RESULT);
+    mocked.refine.mockResolvedValue(REFINED);
+    renderPage();
+    fireEvent.change(screen.getByPlaceholderText(/Buy SPY when/i), { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Generate$/i }));
+    await screen.findByText(/class Gen/);
+    fireEvent.change(screen.getByPlaceholderText(/Request a change/i), {
+      target: { value: "tighter stop" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Refine$/i }));
+    await waitFor(() =>
+      expect(mocked.refine).toHaveBeenCalledWith(RESULT.code, "tighter stop"),
+    );
+    expect(await screen.findByText(/class Refined/)).toBeTruthy();
   });
 
   it("surfaces a budget (429) error", async () => {

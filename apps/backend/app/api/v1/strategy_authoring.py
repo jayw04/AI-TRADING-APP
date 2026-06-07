@@ -23,13 +23,17 @@ from app.db.enums import StrategyStatus, StrategyType
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.strategy_revision import REVISION_GENERATION, StrategyRevision
 from app.db.session import get_session
-from app.services.strategy_authoring.backtest import backtest_generated_code
+from app.services.strategy_authoring.backtest import BacktestOutcome, backtest_generated_code
 from app.services.strategy_authoring.code_safety import UnsafeCodeError, validate_generated_code
 from app.services.strategy_authoring.service import (
+    AuthoringError,
     BudgetExceededError,
     GenerationError,
+    GenerationResult,
     NoApiKeyError,
+    debug_strategy,
     generate_strategy,
+    refine_strategy,
 )
 from app.strategies import StrategyLoader, StrategyLoadError
 
@@ -50,34 +54,51 @@ class AuthorRequest(BaseModel):
     description: str = Field(min_length=1, max_length=4000)
 
 
-@router.post("/strategies/author", response_model=dict)
-async def author_strategy(
-    body: AuthorRequest,
-    request: Request,
-    current_user: CurrentUser = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
-    """Generate a strategy from a description, then backtest it (Direction
-    Decision 2 — never present code without a backtest). Generate-and-return; the
-    trader saves it via the normal create-strategy flow (§4)."""
-    try:
-        result = await generate_strategy(
-            session, user_id=current_user.id, description=body.description
-        )
-    except BudgetExceededError as exc:
-        raise HTTPException(status_code=429, detail=str(exc)) from exc
-    except NoApiKeyError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except GenerationError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+class RefineRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
-    # P7 §3: auto-backtest the generated code. A backtest failure is returned with
-    # the code (the trader sees it), not raised.
+    prior_code: str = Field(min_length=1, max_length=40000)
+    request: str = Field(min_length=1, max_length=4000)
+
+
+def _author_error_status(exc: Exception) -> int:
+    if isinstance(exc, BudgetExceededError):
+        return 429
+    if isinstance(exc, NoApiKeyError):
+        return 400
+    return 502  # GenerationError
+
+
+async def _backtest_with_autofix(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    result: GenerationResult,
+    bar_cache: Any,
+    indicator_computer: Any,
+) -> tuple[GenerationResult, BacktestOutcome, bool]:
+    """Backtest the result; on a HARD failure (syntax/runtime — not no_trades),
+    call DEBUG_SYSTEM once and re-backtest. Returns (result, outcome, auto_fixed)."""
     outcome = await backtest_generated_code(
-        code=result.code,
-        bar_cache=getattr(request.app.state, "bar_cache", None),
-        indicator_computer=getattr(request.app.state, "indicator_computer", None),
+        code=result.code, bar_cache=bar_cache, indicator_computer=indicator_computer
     )
+    if outcome.status not in ("syntax_error", "runtime_error"):
+        return result, outcome, False
+    try:
+        fixed = await debug_strategy(
+            session, user_id=user_id, prior_code=result.code, error=outcome.error or ""
+        )
+    except AuthoringError:
+        return result, outcome, False  # debug unavailable (budget/key) → keep original
+    fixed_outcome = await backtest_generated_code(
+        code=fixed.code, bar_cache=bar_cache, indicator_computer=indicator_computer
+    )
+    return fixed, fixed_outcome, True
+
+
+def _author_response(
+    result: GenerationResult, outcome: BacktestOutcome, auto_fixed: bool
+) -> dict[str, Any]:
     return {
         "code": result.code,
         "assumptions": result.assumptions,
@@ -85,6 +106,7 @@ async def author_strategy(
         "cost_usd": float(result.cost_usd),
         "prompt_version": result.prompt_version,
         "model": result.model,
+        "auto_fixed": auto_fixed,
         "backtest": {
             "status": outcome.status,
             "metrics": outcome.metrics,
@@ -92,6 +114,56 @@ async def author_strategy(
             "error": outcome.error,
         },
     }
+
+
+@router.post("/strategies/author", response_model=dict)
+async def author_strategy(
+    body: AuthorRequest,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Generate a strategy from a description, then backtest it (Direction Decision
+    2). On a hard backtest failure, auto-debug once. Generate-and-return; the
+    trader saves it via the §4 flow."""
+    try:
+        result = await generate_strategy(
+            session, user_id=current_user.id, description=body.description
+        )
+    except (BudgetExceededError, NoApiKeyError, GenerationError) as exc:
+        raise HTTPException(status_code=_author_error_status(exc), detail=str(exc)) from exc
+
+    result, outcome, auto_fixed = await _backtest_with_autofix(
+        session, user_id=current_user.id, result=result,
+        bar_cache=getattr(request.app.state, "bar_cache", None),
+        indicator_computer=getattr(request.app.state, "indicator_computer", None),
+    )
+    return _author_response(result, outcome, auto_fixed)
+
+
+@router.post("/strategies/author/refine", response_model=dict)
+async def refine_strategy_endpoint(
+    body: RefineRequest,
+    request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Revise an existing strategy from a change request (P7b §6), then backtest +
+    auto-debug. Stateless — the client sends the prior code each turn."""
+    try:
+        result = await refine_strategy(
+            session, user_id=current_user.id,
+            prior_code=body.prior_code, request=body.request,
+        )
+    except (BudgetExceededError, NoApiKeyError, GenerationError) as exc:
+        raise HTTPException(status_code=_author_error_status(exc), detail=str(exc)) from exc
+
+    result, outcome, auto_fixed = await _backtest_with_autofix(
+        session, user_id=current_user.id, result=result,
+        bar_cache=getattr(request.app.state, "bar_cache", None),
+        indicator_computer=getattr(request.app.state, "indicator_computer", None),
+    )
+    return _author_response(result, outcome, auto_fixed)
 
 
 class RevisionInput(BaseModel):
