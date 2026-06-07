@@ -170,6 +170,12 @@ class AuditAction(StrEnum):
     # sums cost_usd from these rows.
     STRATEGY_GENERATED = "STRATEGY_GENERATED"
 
+    # P8 §2 (Discovery scanner): one row per scan run, capturing the criterion +
+    # universe + matched symbols so "why did this symbol appear" is
+    # reconstructible from the criterion alone (P8 Decision 1). Read-only scan;
+    # no orders, no state change beyond the scanner_runs row.
+    SCANNER_RUN = "SCANNER_RUN"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.
