@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { rangeInsightApi, type RangeInsight } from "@/api/rangeInsight";
+import { strategyTemplatesApi } from "@/api/strategyTemplates";
 
 /**
  * P8 §6 — Range Insight panel (Charts right rail). Descriptive daily-range
@@ -37,10 +39,26 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export default function RangeInsightPanel({ symbol }: { symbol: string }) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(true);
   const [data, setData] = useState<RangeInsight | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+
+  async function handleApply() {
+    setApplying(true);
+    setApplyError(null);
+    try {
+      const result = await strategyTemplatesApi.applyRange(symbol);
+      navigate(`/strategies/${result.id}`);
+    } catch {
+      setApplyError("Could not apply the template.");
+    } finally {
+      setApplying(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -155,7 +173,23 @@ export default function RangeInsightPanel({ symbol }: { symbol: string }) {
         )}
 
         {data && !error && (
-          <p className="border-t border-neutral-800 pt-2 text-[10px] leading-snug text-neutral-500">
+          <div className="space-y-1 border-t border-neutral-800 pt-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={applying}
+              className="w-full rounded bg-blue-700 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-600 disabled:bg-neutral-700"
+            >
+              {applying ? "Applying…" : "Apply range template"}
+            </button>
+            {applyError && (
+              <div className="text-[11px] text-rose-300">{applyError}</div>
+            )}
+          </div>
+        )}
+
+        {data && !error && (
+          <p className="text-[10px] leading-snug text-neutral-500">
             {data.disclaimer}
           </p>
         )}

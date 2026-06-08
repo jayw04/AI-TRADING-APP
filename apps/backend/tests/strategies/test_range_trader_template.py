@@ -1,0 +1,110 @@
+"""P8 §7 — the range-trading template: schema parity + fade-the-range on_bar."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock
+
+from app.strategies.context import Bar
+from strategies_user.templates.range_trader import RangeTrader
+
+# 14:00 ET (mid-session) / 09:32 ET (open window) / 15:57 ET (close window), in UTC.
+MID = datetime(2026, 6, 10, 18, 0, tzinfo=UTC)
+OPEN_WINDOW = datetime(2026, 6, 10, 13, 32, tzinfo=UTC)
+CLOSE_WINDOW = datetime(2026, 6, 10, 19, 57, tzinfo=UTC)
+
+
+def _bar(ts: datetime, c: float, symbol: str = "AAPL") -> Bar:
+    return Bar(symbol=symbol, timeframe="5Min", t=ts, o=c, h=c + 0.1, l=c - 0.1, c=c, v=1000)
+
+
+def _ctx(position_qty: Decimal | None = None):
+    ctx = MagicMock()
+    if position_qty is not None:
+        pos = MagicMock()
+        pos.side = "long"
+        pos.qty = position_qty
+        ctx.get_position_for = AsyncMock(return_value=pos)
+    else:
+        ctx.get_position_for = AsyncMock(return_value=None)
+    ctx.submit_order = AsyncMock(return_value=MagicMock(rejection_reason=None))
+    ctx.log_signal = AsyncMock(return_value=1)
+    return ctx
+
+
+def _params(**over):
+    return {
+        **RangeTrader.default_params,
+        "entry_price": 100.0,
+        "exit_price": 110.0,
+        "stop_price": 95.0,
+        **over,
+    }
+
+
+def test_schema_matches_default_params() -> None:
+    assert set(RangeTrader.params_schema) == set(RangeTrader.default_params)
+
+
+async def test_entry_buys_at_support() -> None:
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0))  # price <= entry 100
+    ctx.submit_order.assert_called_once()
+    req = ctx.submit_order.call_args.args[0]
+    assert req.side.value == "buy"
+    assert req.qty > 0  # risk 1000 / (100-95) = 200, capped at 100
+
+
+async def test_exit_sells_at_resistance() -> None:
+    ctx = _ctx(position_qty=Decimal("10"))
+    strat = RangeTrader(ctx=ctx, params=_params())
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=110.0))  # price >= exit 110
+    req = ctx.submit_order.call_args.args[0]
+    assert req.side.value == "sell"
+
+
+async def test_stop_loss_sells_below_stop() -> None:
+    ctx = _ctx(position_qty=Decimal("10"))
+    strat = RangeTrader(ctx=ctx, params=_params())
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=94.0))  # price <= stop 95
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "sell"
+
+
+async def test_no_entry_in_open_window() -> None:
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())
+    await strat.on_init()
+    await strat.on_bar(_bar(OPEN_WINDOW, c=100.0))  # within first 5 min → no trade
+    ctx.submit_order.assert_not_called()
+
+
+async def test_force_exit_in_close_window() -> None:
+    ctx = _ctx(position_qty=Decimal("10"))
+    strat = RangeTrader(ctx=ctx, params=_params())
+    await strat.on_init()
+    await strat.on_bar(_bar(CLOSE_WINDOW, c=105.0))  # last 5 min → force exit
+    req = ctx.submit_order.call_args.args[0]
+    assert req.side.value == "sell"
+
+
+async def test_inert_when_levels_unset() -> None:
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=RangeTrader.default_params)  # levels 0
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=50.0))
+    ctx.submit_order.assert_not_called()
+
+
+async def test_daily_trade_cap() -> None:
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(max_trades_per_day=1))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0))
+    await strat.on_bar(_bar(MID, c=100.0))  # still flat (mock), but cap hit
+    assert ctx.submit_order.call_count == 1
