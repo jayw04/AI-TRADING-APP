@@ -4,6 +4,7 @@ import type { OpportunitiesResponse } from "@/api/types";
 import { useWorkbenchSocket } from "@/hooks/useWorkbenchSocket";
 import { LiveSignalsWidget } from "./widgets/LiveSignalsWidget";
 import { PineAlertsWidget } from "./widgets/PineAlertsWidget";
+import { DiscoveryMatchesWidget } from "./widgets/DiscoveryMatchesWidget";
 import { StrategyErrorsWidget } from "./widgets/StrategyErrorsWidget";
 import { OpenOrdersExpiringWidget } from "./widgets/OpenOrdersExpiringWidget";
 import { RiskRejectionsWidget } from "./widgets/RiskRejectionsWidget";
@@ -85,6 +86,11 @@ export default function OpportunitiesPage() {
           items={data?.pine_alerts.items ?? []}
           count={data?.pine_alerts.count ?? 0}
           asOf={data?.pine_alerts.as_of ?? ""}
+        />
+        <DiscoveryMatchesWidget
+          items={data?.discovery_matches.items ?? []}
+          count={data?.discovery_matches.count ?? 0}
+          asOf={data?.discovery_matches.as_of ?? ""}
         />
         <StrategyErrorsWidget
           items={data?.strategy_errors.items ?? []}

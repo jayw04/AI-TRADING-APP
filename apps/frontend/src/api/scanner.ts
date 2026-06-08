@@ -17,6 +17,7 @@ export interface ScannerDefinition {
   universe_kind: UniverseKind;
   universe_symbols: string[] | null;
   timeframe: string;
+  scheduled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +27,7 @@ export interface ScannerDefinitionInput {
   criteria: string;
   universe: UniverseSpec;
   timeframe?: string;
+  scheduled?: boolean;
 }
 
 export interface ScannerMatchItem {

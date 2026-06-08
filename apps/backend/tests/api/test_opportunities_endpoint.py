@@ -508,3 +508,60 @@ async def test_other_user_signals_not_visible(client_and_factory) -> None:
     body = resp.json()
     assert body["live_signals"]["count"] == 0
     assert body["pine_alerts"]["count"] == 0
+
+
+async def test_discovery_matches_shows_latest_scheduled_run(client_and_factory) -> None:
+    """P8 §4 — only the latest SCHEDULED scan run today feeds the widget;
+    a manual run does not surface."""
+    from app.db.models.scanner_definition import ScannerDefinition
+    from app.db.models.scanner_run import (
+        RUN_OK,
+        TRIGGER_MANUAL,
+        TRIGGER_SCHEDULED,
+        ScannerRun,
+    )
+
+    client, factory = client_and_factory
+    async with factory() as session:
+        d = ScannerDefinition(
+            user_id=1,
+            name="Oversold",
+            criteria="RSI14 < 35",
+            universe_kind="symbols",
+            universe_symbols_json=["AAPL"],
+            timeframe="1Day",
+            scheduled=True,
+            created_at=_now(),
+            updated_at=_now(),
+        )
+        session.add(d)
+        await session.flush()
+
+        def _run(trigger: str, symbol: str) -> ScannerRun:
+            return ScannerRun(
+                scanner_definition_id=d.id,
+                user_id=1,
+                run_at=_now(),
+                status=RUN_OK,
+                trigger=trigger,
+                criteria_snapshot=d.criteria,
+                universe_kind="symbols",
+                timeframe="1Day",
+                universe_size=1,
+                evaluated_count=1,
+                matched_count=1,
+                skipped_count=0,
+                matched_json=[{"symbol": symbol, "values": {"RSI14": 30.1}}],
+                skipped_json=[],
+            )
+
+        session.add(_run(TRIGGER_SCHEDULED, "AAPL"))
+        session.add(_run(TRIGGER_MANUAL, "ZZZZ"))  # must NOT appear
+        await session.commit()
+
+    body = (await client.get("/api/v1/opportunities")).json()
+    w = body["discovery_matches"]
+    assert w["count"] == 1
+    assert [i["symbol"] for i in w["items"]] == ["AAPL"]
+    assert w["items"][0]["scan_name"] == "Oversold"
+    assert w["items"][0]["values"]["RSI14"] == 30.1

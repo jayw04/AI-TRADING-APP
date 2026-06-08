@@ -16,6 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas.opportunities import (
+    OppDiscoveryMatchesWidget,
+    OppDiscoveryMatchItem,
     OppFillItem,
     OppLiveSignalsWidget,
     OppOpenOrderItem,
@@ -43,10 +45,13 @@ from app.db.models.audit_log import AuditLog
 from app.db.models.fill import Fill
 from app.db.models.order import Order
 from app.db.models.risk_check import RiskCheck
+from app.db.models.scanner_definition import ScannerDefinition
+from app.db.models.scanner_run import TRIGGER_SCHEDULED, ScannerRun
 from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
+from app.utils.time import EASTERN
 
 router = APIRouter(prefix="/opportunities", tags=["opportunities"])
 
@@ -55,6 +60,7 @@ SIGNALS_WINDOW = timedelta(minutes=30)
 PINE_ALERTS_WINDOW = timedelta(minutes=30)
 RISK_REJECTS_WINDOW = timedelta(minutes=60)
 FILLS_WINDOW = timedelta(minutes=15)
+DISCOVERY_MATCHES_MAX = 50
 
 SIGNALS_MAX = 25
 PINE_ALERTS_MAX = 25
@@ -89,10 +95,16 @@ async def get_opportunities(
     )
     risk_rejections = await _fetch_risk_rejections(session, user_id=current_user.id, now=now)
     recent_fills = await _fetch_recent_fills(session, user_id=current_user.id, now=now)
+    discovery_matches = await _fetch_discovery_matches(
+        session, user_id=current_user.id, now=now
+    )
 
     return OpportunitiesResponse(
         live_signals=OppLiveSignalsWidget(items=live_signals, count=len(live_signals), as_of=now),
         pine_alerts=OppPineAlertsWidget(items=pine_alerts, count=len(pine_alerts), as_of=now),
+        discovery_matches=OppDiscoveryMatchesWidget(
+            items=discovery_matches, count=len(discovery_matches), as_of=now
+        ),
         strategy_errors=OppStrategyErrorsWidget(
             items=strategy_errors, count=len(strategy_errors), as_of=now
         ),
@@ -107,6 +119,50 @@ async def get_opportunities(
         recent_fills=OppRecentFillsWidget(items=recent_fills, count=len(recent_fills), as_of=now),
         as_of=now,
     )
+
+
+async def _fetch_discovery_matches(
+    session: AsyncSession, *, user_id: int, now: datetime
+) -> list[OppDiscoveryMatchItem]:
+    """Matches from the user's most recent SCHEDULED scan run today (P8 §4).
+    On-demand runs (from the Discovery page) do not surface here."""
+    today_start = (
+        now.astimezone(EASTERN)
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .astimezone(UTC)
+    )
+    row = (
+        await session.execute(
+            select(ScannerRun, ScannerDefinition.name)
+            .join(
+                ScannerDefinition,
+                ScannerRun.scanner_definition_id == ScannerDefinition.id,
+            )
+            .where(
+                ScannerRun.user_id == user_id,
+                ScannerRun.trigger == TRIGGER_SCHEDULED,
+                ScannerRun.run_at >= today_start,
+            )
+            .order_by(ScannerRun.run_at.desc())
+            .limit(1)
+        )
+    ).first()
+    if row is None:
+        return []
+    run, scan_name = row
+    return [
+        OppDiscoveryMatchItem(
+            symbol=m.get("symbol", ""),
+            scan_name=scan_name,
+            definition_id=run.scanner_definition_id,
+            run_id=run.id,
+            values={
+                k: float(v) for k, v in (m.get("values") or {}).items()
+            },
+            run_at=run.run_at,
+        )
+        for m in (run.matched_json or [])[:DISCOVERY_MATCHES_MAX]
+    ]
 
 
 async def _fetch_live_signals(

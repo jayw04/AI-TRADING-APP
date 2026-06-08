@@ -17,6 +17,7 @@ class ScannerDefinitionCreate(BaseModel):
     criteria: str = Field(min_length=1)
     universe: UniverseSpec
     timeframe: str = "1Day"
+    scheduled: bool = False
 
 
 class ScannerDefinitionResponse(BaseModel):
@@ -26,6 +27,7 @@ class ScannerDefinitionResponse(BaseModel):
     universe_kind: str
     universe_symbols: list[str] | None
     timeframe: str
+    scheduled: bool
     created_at: datetime
     updated_at: datetime
 

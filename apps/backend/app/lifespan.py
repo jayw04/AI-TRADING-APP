@@ -331,6 +331,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("morning_brief_scheduled")
 
+            # 10e-bis. Scheduled Discovery scans (P8 §4). A 15-min tick that runs
+            # each user's `scheduled` scans once their configured
+            # discovery_scan_time (trading_profile, default 7:30 ET) has passed
+            # today — idempotent per (user, date). The tick-and-check pattern
+            # (not a fixed CronTrigger) honors the per-user configurable time and
+            # survives the server being down at the exact minute. Reuses the bar
+            # cache + indicator computer built above.
+            from app.jobs.scheduled_scans import run_scheduled_scans
+
+            scheduler.scheduler.add_job(
+                run_scheduled_scans,
+                trigger="interval",
+                minutes=15,
+                id="scheduled_scans",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={
+                    "session_factory": session_factory,
+                    "bar_cache": bar_cache,
+                    "indicator_computer": indicator_computer,
+                },
+            )
+            logger.info("scheduled_scans_scheduled")
+
             # 10f. Proposal cadence (P6 §2a). Opt-in per user via
             # agent_envelope_json.proposal_cadence; registers one cron job per
             # user with cadence != off. Same scheduler instance as the morning

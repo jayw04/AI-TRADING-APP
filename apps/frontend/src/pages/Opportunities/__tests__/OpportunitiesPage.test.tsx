@@ -24,6 +24,7 @@ function emptyResponse(): OpportunitiesResponse {
   return {
     live_signals: { items: [], count: 0, as_of: now },
     pine_alerts: { items: [], count: 0, as_of: now },
+    discovery_matches: { items: [], count: 0, as_of: now },
     strategy_errors: { items: [], count: 0, as_of: now },
     open_orders_expiring: { items: [], count: 0, as_of: now },
     risk_rejections: { items: [], count: 0, as_of: now },

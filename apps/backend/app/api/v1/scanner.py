@@ -21,15 +21,15 @@ from app.api.v1.schemas.scanner import (
     ScannerSkipItem,
     ScannerVocabulary,
 )
-from app.audit.logger import AuditAction, AuditActorType, AuditLogger
 from app.auth.stub import CurrentUser, get_current_user
 from app.db.models.scanner_definition import UNIVERSE_KINDS, UNIVERSE_SYMBOLS, ScannerDefinition
-from app.db.models.scanner_run import RUN_OK, ScannerRun
+from app.db.models.scanner_run import TRIGGER_MANUAL, ScannerRun
 from app.db.session import get_session
 from app.indicators.computer import IndicatorComputer
 from app.market_data.discovery import get_discovery_feeds
-from app.services.scanner import CriteriaError, run_scan, validate_criteria
+from app.services.scanner import CriteriaError, validate_criteria
 from app.services.scanner.criteria import FIELD_NAMES, INDICATOR_NAMES
+from app.services.scanner.service import run_and_record
 
 router = APIRouter(prefix="/scanner", tags=["scanner"])
 
@@ -69,6 +69,7 @@ def _def_to_response(d: ScannerDefinition) -> ScannerDefinitionResponse:
         universe_kind=d.universe_kind,
         universe_symbols=d.universe_symbols_json,
         timeframe=d.timeframe,
+        scheduled=d.scheduled,
         created_at=d.created_at,
         updated_at=d.updated_at,
     )
@@ -138,6 +139,7 @@ async def create_definition(
             else None
         ),
         timeframe=body.timeframe,
+        scheduled=body.scheduled,
         created_at=now,
         updated_at=now,
     )
@@ -166,6 +168,7 @@ async def update_definition(
         [s.upper() for s in body.universe.symbols] if body.universe.symbols else None
     )
     d.timeframe = body.timeframe
+    d.scheduled = body.scheduled
     d.updated_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(d)
@@ -226,57 +229,14 @@ async def run_definition(
             status_code=503, detail="scanner unavailable (bar cache not wired)"
         )
 
-    now = datetime.now(UTC)
-    result = await run_scan(
+    run = await run_and_record(
         session,
-        criteria=d.criteria,
-        universe_kind=d.universe_kind,
-        universe_symbols=d.universe_symbols_json,
-        timeframe=d.timeframe,
-        user_id=user.id,
+        definition=d,
         bar_cache=bar_cache,
         indicator_computer=IndicatorComputer(),
         discovery_feeds_fn=get_discovery_feeds,
-        now=now,
-    )
-
-    matched_json = [{"symbol": m.symbol, "values": m.values} for m in result.matched]
-    skipped_json = [{"symbol": s.symbol, "reason": s.reason} for s in result.skipped]
-    run = ScannerRun(
-        scanner_definition_id=d.id,
-        user_id=user.id,
-        run_at=now,
-        status=RUN_OK,
-        criteria_snapshot=d.criteria,
-        universe_kind=d.universe_kind,
-        timeframe=d.timeframe,
-        universe_size=result.universe_size,
-        evaluated_count=result.evaluated,
-        matched_count=len(result.matched),
-        skipped_count=len(result.skipped),
-        matched_json=matched_json,
-        skipped_json=skipped_json,
-        error=None,
-    )
-    session.add(run)
-
-    AuditLogger.write(
-        session,
-        actor_type=AuditActorType.USER,
-        actor_id=str(user.id),
-        action=AuditAction.SCANNER_RUN,
-        target_type="scanner_definition",
-        target_id=d.id,
-        user_id=user.id,
-        payload={
-            "criteria": d.criteria,
-            "universe_kind": d.universe_kind,
-            "timeframe": d.timeframe,
-            "universe_size": result.universe_size,
-            "matched_count": len(result.matched),
-            "skipped_count": len(result.skipped),
-            "matched_symbols": [m.symbol for m in result.matched],
-        },
+        now=datetime.now(UTC),
+        trigger=TRIGGER_MANUAL,
     )
     await session.commit()
     await session.refresh(run)

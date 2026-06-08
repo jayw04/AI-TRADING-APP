@@ -459,6 +459,16 @@ export interface OppFillItem {
   strategy_name: string | null;
 }
 
+// P8 §4 — matches from the latest pre-market scheduled scan.
+export interface OppDiscoveryMatchItem {
+  symbol: string;
+  scan_name: string;
+  definition_id: number;
+  run_id: number;
+  values: Record<string, number>;
+  run_at: string;
+}
+
 export interface OpportunitiesWidget<T> {
   items: T[];
   count: number;
@@ -468,6 +478,7 @@ export interface OpportunitiesWidget<T> {
 export interface OpportunitiesResponse {
   live_signals: OpportunitiesWidget<OppSignalItem>;
   pine_alerts: OpportunitiesWidget<OppSignalItem>;
+  discovery_matches: OpportunitiesWidget<OppDiscoveryMatchItem>;
   strategy_errors: OpportunitiesWidget<OppStrategyErrorItem>;
   open_orders_expiring: OpportunitiesWidget<OppOpenOrderItem>;
   risk_rejections: OpportunitiesWidget<OppRiskRejectItem>;
