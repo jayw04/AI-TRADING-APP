@@ -6,11 +6,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import RangeInsightPanel from "../RangeInsightPanel";
 import { rangeInsightApi, type RangeInsight } from "@/api/rangeInsight";
+import { strategyTemplatesApi } from "@/api/strategyTemplates";
 
+const navigate = vi.fn();
+vi.mock("react-router-dom", async (orig) => {
+  const actual = await orig<typeof import("react-router-dom")>();
+  return { ...actual, useNavigate: () => navigate };
+});
 vi.mock("@/api/rangeInsight", () => ({
   rangeInsightApi: { get: vi.fn() },
 }));
+vi.mock("@/api/strategyTemplates", () => ({
+  strategyTemplatesApi: { applyRange: vi.fn() },
+}));
 const mocked = vi.mocked(rangeInsightApi, true);
+const mockedTmpl = vi.mocked(strategyTemplatesApi, true);
 
 const OK: RangeInsight = {
   symbol: "AAPL",
@@ -71,6 +81,23 @@ describe("RangeInsightPanel", () => {
     mocked.get.mockRejectedValue(new ApiError(503, null));
     render(<RangeInsightPanel symbol="AAPL" />);
     expect(await screen.findByText(/Market data is unavailable/i)).toBeTruthy();
+  });
+
+  it("applies the range template and navigates to the new strategy", async () => {
+    mocked.get.mockResolvedValue(OK);
+    mockedTmpl.applyRange.mockResolvedValue({
+      id: 42,
+      name: "Range Trader AAPL",
+      status: "idle",
+      code_path: "templates/range_trader.py",
+      authoring_method: "template",
+      symbol: "AAPL",
+      prefilled_from_range_insight: true,
+    });
+    render(<RangeInsightPanel symbol="AAPL" />);
+    fireEvent.click(await screen.findByRole("button", { name: /Apply range template/i }));
+    await waitFor(() => expect(mockedTmpl.applyRange).toHaveBeenCalledWith("AAPL"));
+    expect(navigate).toHaveBeenCalledWith("/strategies/42");
   });
 
   it("collapses and reopens", async () => {

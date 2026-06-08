@@ -37,6 +37,10 @@ ALLOWED = {
     # OrderRouter (or, for backtests, an in-memory simulator that never
     # reaches the adapter). No direct adapter access here.
     "strategies_user/examples/rsi_meanreversion.py",
+    # P8 §7: the range-trading template calls `self.ctx.submit_order(...)` —
+    # the sanctioned context path (dispatches through OrderRouter), same as the
+    # rsi example. Not a direct adapter call.
+    "strategies_user/templates/range_trader.py",
     "tests/strategies/test_backtester.py",
     "tests/strategies/test_strategy_risk_integration.py",
     # P7 §1: the strategy-generation prompt embeds the platform Strategy
