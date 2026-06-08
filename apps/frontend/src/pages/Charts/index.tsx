@@ -1,5 +1,6 @@
 import { useState } from "react";
 import TVChart from "@/components/chart/TVChart";
+import RangeInsightPanel from "@/components/charts/RangeInsightPanel";
 
 type Interval = "1" | "5" | "15" | "60" | "D";
 
@@ -91,8 +92,11 @@ export default function ChartsPage() {
           Showing <span className="text-neutral-100 font-mono">{symbol}</span>
         </span>
       </div>
-      <div className="flex-1 min-h-0 rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden">
-        <TVChart symbol={symbol} interval={interval} />
+      <div className="flex flex-1 min-h-0 gap-3">
+        <div className="flex-1 min-h-0 rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden">
+          <TVChart symbol={symbol} interval={interval} />
+        </div>
+        <RangeInsightPanel symbol={symbol} />
       </div>
     </div>
   );
