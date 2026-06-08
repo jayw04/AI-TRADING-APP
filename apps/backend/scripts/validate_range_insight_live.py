@@ -22,9 +22,14 @@ import asyncio
 import sys
 import tempfile
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
-from app.market_data.bar_cache import BarCache
-from app.services.range_insight import (
+# Make ``app`` importable whether launched from apps/backend, the repo root, or
+# via a full path (sys.path[0] is the script dir, not apps/backend).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from app.market_data.bar_cache import BarCache  # noqa: E402
+from app.services.range_insight import (  # noqa: E402
     MIN_BARS,
     WINDOW,
     range_insight_from_bars,
@@ -124,7 +129,7 @@ async def _validate(symbols: list[str]) -> int:
         if failed:
             any_failed = True
 
-    print("\n" + ("RESULT: FAIL (see above)" if any_failed else "RESULT: PASS — all hard checks green"))
+    print("\n" + ("RESULT: FAIL (see above)" if any_failed else "RESULT: PASS - all hard checks green"))
     return 1 if any_failed else 0
 
 
