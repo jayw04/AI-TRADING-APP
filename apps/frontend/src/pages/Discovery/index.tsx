@@ -49,6 +49,7 @@ export default function Discovery() {
   const [criteria, setCriteria] = useState("");
   const [universeKind, setUniverseKind] = useState<UniverseKind>("discovery_feeds");
   const [symbolsText, setSymbolsText] = useState("");
+  const [scheduled, setScheduled] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
@@ -74,6 +75,7 @@ export default function Discovery() {
     setCriteria("");
     setUniverseKind("discovery_feeds");
     setSymbolsText("");
+    setScheduled(false);
     setFormError(null);
     setRunError(null);
     setNotice(null);
@@ -87,6 +89,7 @@ export default function Discovery() {
     setCriteria(d.criteria);
     setUniverseKind(d.universe_kind);
     setSymbolsText((d.universe_symbols ?? []).join(", "));
+    setScheduled(d.scheduled);
     setFormError(null);
     setRunError(null);
     setNotice(null);
@@ -102,6 +105,7 @@ export default function Discovery() {
         kind: universeKind,
         symbols: universeKind === "symbols" ? parseSymbols(symbolsText) : null,
       },
+      scheduled,
     };
   }
 
@@ -304,6 +308,16 @@ export default function Discovery() {
                 />
               )}
             </div>
+
+            <label className="flex items-center gap-2 text-xs text-neutral-400">
+              <input
+                type="checkbox"
+                checked={scheduled}
+                onChange={(e) => setScheduled(e.target.checked)}
+              />
+              Run automatically pre-market (default 7:30 ET — set the time in
+              Trading Profile). Scheduled matches appear in Opportunities.
+            </label>
 
             {formError && (
               <div className="rounded border border-red-700 bg-red-950/40 p-2 text-xs text-red-200">

@@ -161,6 +161,18 @@ async def test_update_invalid_criterion_400(scanner_app) -> None:
     assert r.status_code == 400
 
 
+async def test_create_with_scheduled_flag(scanner_app) -> None:
+    client, _, _ = scanner_app
+    body = _create_body()
+    body["scheduled"] = True
+    r = await client.post("/api/v1/scanner/definitions", json=body)
+    assert r.status_code == 201
+    assert r.json()["scheduled"] is True
+    # default is False
+    r2 = await client.post("/api/v1/scanner/definitions", json=_create_body())
+    assert r2.json()["scheduled"] is False
+
+
 async def test_vocabulary(scanner_app) -> None:
     client, _, _ = scanner_app
     r = await client.get("/api/v1/scanner/vocabulary")

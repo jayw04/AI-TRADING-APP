@@ -11,6 +11,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -48,6 +49,10 @@ class ScannerDefinition(Base):
     )
     timeframe: Mapped[str] = mapped_column(
         String(8), nullable=False, default="1Day"
+    )
+    # Opt-in to the pre-market scheduled-scan cron (P8 §4).
+    scheduled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

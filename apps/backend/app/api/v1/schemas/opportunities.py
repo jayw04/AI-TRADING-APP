@@ -137,9 +137,26 @@ class OppRecentFillsWidget(BaseModel):
     as_of: datetime
 
 
+# P8 §4 — matches from the latest pre-market SCHEDULED scan.
+class OppDiscoveryMatchItem(BaseModel):
+    symbol: str
+    scan_name: str
+    definition_id: int
+    run_id: int
+    values: dict[str, float]
+    run_at: datetime
+
+
+class OppDiscoveryMatchesWidget(BaseModel):
+    items: list[OppDiscoveryMatchItem]
+    count: int
+    as_of: datetime
+
+
 class OpportunitiesResponse(BaseModel):
     live_signals: OppLiveSignalsWidget
     pine_alerts: OppPineAlertsWidget
+    discovery_matches: OppDiscoveryMatchesWidget
     strategy_errors: OppStrategyErrorsWidget
     open_orders_expiring: OppOpenOrdersExpiringWidget
     risk_rejections: OppRiskRejectionsWidget

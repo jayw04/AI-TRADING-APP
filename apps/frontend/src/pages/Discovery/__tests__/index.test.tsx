@@ -39,6 +39,7 @@ const DEF: ScannerDefinition = {
   universe_kind: "symbols",
   universe_symbols: ["AAPL", "MSFT"],
   timeframe: "1Day",
+  scheduled: false,
   created_at: "2026-06-07T00:00:00Z",
   updated_at: "2026-06-07T00:00:00Z",
 };
@@ -110,6 +111,26 @@ describe("Discovery", () => {
     await waitFor(() =>
       expect(mockedScanner.create).toHaveBeenCalledWith(
         expect.objectContaining({ name: "New", criteria: "close > 100" }),
+      ),
+    );
+  });
+
+  it("includes the scheduled flag when the checkbox is toggled", async () => {
+    mockedScanner.create.mockResolvedValue({ ...DEF, id: 3, scheduled: true });
+    renderPage();
+    await screen.findByText("Oversold");
+    fireEvent.click(screen.getByRole("button", { name: /New scan/i }));
+    fireEvent.change(screen.getByPlaceholderText(/scan name/i), {
+      target: { value: "Sched" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/RSI14 < 35/i), {
+      target: { value: "close > 1" },
+    });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Create scan/i }));
+    await waitFor(() =>
+      expect(mockedScanner.create).toHaveBeenCalledWith(
+        expect.objectContaining({ scheduled: true }),
       ),
     );
   });

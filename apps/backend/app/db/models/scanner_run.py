@@ -27,6 +27,10 @@ from app.db.base import Base
 RUN_OK = "ok"
 RUN_ERROR = "error"
 
+# How the run was triggered. Only scheduled runs feed the Opportunities view.
+TRIGGER_MANUAL = "manual"
+TRIGGER_SCHEDULED = "scheduled"
+
 
 class ScannerRun(Base):
     __tablename__ = "scanner_runs"
@@ -46,6 +50,9 @@ class ScannerRun(Base):
         DateTime(timezone=True), nullable=False
     )
     status: Mapped[str] = mapped_column(String(16), nullable=False)
+    trigger: Mapped[str] = mapped_column(
+        String(12), nullable=False, default=TRIGGER_MANUAL
+    )
     criteria_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     universe_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
