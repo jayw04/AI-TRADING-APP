@@ -1,5 +1,7 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import type { OppDiscoveryMatchItem } from "@/api/types";
+import { strategyTemplatesApi } from "@/api/strategyTemplates";
 import { Widget, EmptyState } from "./Widget";
 
 interface Props {
@@ -9,6 +11,19 @@ interface Props {
 }
 
 export function DiscoveryMatchesWidget({ items, count, asOf }: Props) {
+  const navigate = useNavigate();
+  const [applying, setApplying] = useState<string | null>(null);
+
+  async function apply(symbol: string) {
+    setApplying(symbol);
+    try {
+      const result = await strategyTemplatesApi.applyRange(symbol);
+      navigate(`/strategies/${result.id}`);
+    } catch {
+      setApplying(null);
+    }
+  }
+
   return (
     <Widget
       title="Discovery matches"
@@ -40,9 +55,20 @@ export function DiscoveryMatchesWidget({ items, count, asOf }: Props) {
                   </span>
                 )}
               </div>
-              <Link to="/discovery" className="text-xs text-sky-400 hover:underline">
-                View
-              </Link>
+              <div className="flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => apply(m.symbol)}
+                  disabled={applying === m.symbol}
+                  title="Apply the range-trading template to this symbol"
+                  className="text-blue-300 hover:underline disabled:opacity-50"
+                >
+                  {applying === m.symbol ? "applying…" : "apply"}
+                </button>
+                <Link to="/discovery" className="text-sky-400 hover:underline">
+                  View
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
