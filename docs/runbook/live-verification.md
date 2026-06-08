@@ -157,7 +157,7 @@ docker compose exec backend python scripts/validate_range_insight_live.py AAPL M
 - It prints, per symbol, the ATR / typical moves / support-resistance / 80% bands / classification computed from **real** daily bars + a PASS/FAIL battery (ATR>0, support<resistance, bands ordered, ER∈[0,1], …). Exit code is non-zero on any hard failure.
 - **§6/§7 spot-check (browser, optional):** open a symbol in Charts → the Range Insight panel shows the same numbers; click "Apply range template" → the new IDLE strategy's `params_json` has `entry_price`/`exit_price`/`stop_price` derived from those real-bar values.
 - **Done when:** the script returns `RESULT: PASS` for a basket of real symbols (and a thin symbol degrades to `insufficient_data`, not an error). Record the output here.
-- Result: ____________
+- **Result: ✅ PASS (2026-06-08, Norton SSL scanning off).** `validate_range_insight_live.py AAPL MSFT NVDA SPY` → all four fetched ~135 real daily bars, `status=ok`, `bars_used=20`, all 15 hard checks green. Sample: NVDA ATR20 $8.62 (4.2%), S/R $204.35/$236.54, high-band $209.86–$217.51, range_bound (ER 0.11); SPY ATR20 $7.12 (1.0%), S/R $731.57/$760.40, range_bound (ER 0.00). `RESULT: PASS`, exit 0. Degradation path confirmed: unknown ticker `ZZZZ` → `insufficient_data` gracefully (no crash). Run via the host backend venv (`apps/backend/.venv/Scripts/python.exe`) — Docker not required; the daemon was wedged that day. The earlier failure was `CERTIFICATE_VERIFY_FAILED` (Norton SSL MITM) until SSL scanning was disabled.
 
 ---
 
@@ -170,7 +170,7 @@ docker compose exec backend python scripts/validate_range_insight_live.py AAPL M
 - [ ] 4 P6b §4.5 real-money order confirmed + switch returned OFF
 - [ ] 5 P6b §5 opt-in → active + live Haiku decision audited (week-long)
 - [ ] 6 P8 §4 cron fired once at time + idempotent (day-spanning)
-- [ ] 7 P8 §5/§6/§7 validation script `RESULT: PASS`
+- [x] 7 P8 §5/§6/§7 validation script `RESULT: PASS` (2026-06-08, real bars)
 
 > When all single-session items (1,2,3,4,7) are green and the two long-running
 > items (5,6) are scheduled/observed, the live-verification backlog is closed.
