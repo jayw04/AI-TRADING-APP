@@ -12,6 +12,7 @@ import {
   type ScannerRun,
 } from "@/api/scanner";
 import { tradingProfileApi } from "@/api/tradingProfile";
+import { strategyTemplatesApi } from "@/api/strategyTemplates";
 
 vi.mock("@/api/scanner", () => ({
   scannerApi: {
@@ -28,9 +29,13 @@ vi.mock("@/api/scanner", () => ({
 vi.mock("@/api/tradingProfile", () => ({
   tradingProfileApi: { get: vi.fn(), update: vi.fn() },
 }));
+vi.mock("@/api/strategyTemplates", () => ({
+  strategyTemplatesApi: { applyRange: vi.fn() },
+}));
 
 const mockedScanner = vi.mocked(scannerApi, true);
 const mockedProfile = vi.mocked(tradingProfileApi, true);
+const mockedTmpl = vi.mocked(strategyTemplatesApi, true);
 
 const DEF: ScannerDefinition = {
   id: 1,
@@ -178,5 +183,31 @@ describe("Discovery", () => {
         watchlist: { swing_candidates: ["AAPL"] },
       }),
     );
+  });
+
+  it("applies the range template to a scan match and stays on the page", async () => {
+    mockedScanner.run.mockResolvedValue(RUN);
+    mockedTmpl.applyRange.mockResolvedValue({
+      id: 7,
+      name: "Range Trader AAPL",
+      status: "idle",
+      code_path: "templates/range_trader.py",
+      authoring_method: "template",
+      symbol: "AAPL",
+      prefilled_from_range_insight: true,
+    });
+
+    renderPage();
+    fireEvent.click(await screen.findByText("Oversold"));
+    fireEvent.click(await screen.findByRole("button", { name: /Run scan/i }));
+    await screen.findByText("AAPL");
+
+    fireEvent.click(screen.getByRole("button", { name: /apply template/i }));
+    await waitFor(() =>
+      expect(mockedTmpl.applyRange).toHaveBeenCalledWith("AAPL"),
+    );
+    // stays on the page; a "view" link to the new strategy appears
+    const view = await screen.findByRole("link", { name: /view/i });
+    expect(view.getAttribute("href")).toBe("/strategies/7");
   });
 });

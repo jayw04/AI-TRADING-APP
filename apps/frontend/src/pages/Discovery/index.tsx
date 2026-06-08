@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import {
   scannerApi,
@@ -10,6 +11,12 @@ import {
   type UniverseKind,
 } from "@/api/scanner";
 import { tradingProfileApi } from "@/api/tradingProfile";
+import { strategyTemplatesApi } from "@/api/strategyTemplates";
+
+type ApplyState =
+  | { status: "applying" }
+  | { status: "done"; id: number }
+  | { status: "error" };
 
 /**
  * P8 §3 — Discovery view. Author a boolean criterion over supported indicator
@@ -59,6 +66,7 @@ export default function Discovery() {
 
   const [latestRun, setLatestRun] = useState<ScannerRun | null>(null);
   const [runs, setRuns] = useState<ScannerRunSummary[]>([]);
+  const [applied, setApplied] = useState<Record<string, ApplyState>>({});
 
   const refreshDefinitions = useCallback(() => {
     scannerApi.list().then(setDefinitions).catch(() => setDefinitions([]));
@@ -151,6 +159,7 @@ export default function Discovery() {
     try {
       const run = await scannerApi.run(selectedId);
       setLatestRun(run);
+      setApplied({});
       scannerApi.listRuns(selectedId).then(setRuns).catch(() => undefined);
     } catch (e) {
       setRunError(
@@ -160,6 +169,16 @@ export default function Discovery() {
       );
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function applyTemplate(symbol: string) {
+    setApplied((s) => ({ ...s, [symbol]: { status: "applying" } }));
+    try {
+      const result = await strategyTemplatesApi.applyRange(symbol);
+      setApplied((s) => ({ ...s, [symbol]: { status: "done", id: result.id } }));
+    } catch {
+      setApplied((s) => ({ ...s, [symbol]: { status: "error" } }));
     }
   }
 
@@ -401,12 +420,36 @@ export default function Discovery() {
                             </td>
                           ))}
                           <td className="px-3 py-1.5 text-right">
-                            <button
-                              onClick={() => addToWatchlist(m.symbol)}
-                              className="rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-300 hover:bg-neutral-700"
-                            >
-                              + watchlist
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => addToWatchlist(m.symbol)}
+                                className="rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-300 hover:bg-neutral-700"
+                              >
+                                + watchlist
+                              </button>
+                              {applied[m.symbol]?.status === "done" ? (
+                                <Link
+                                  to={`/strategies/${(applied[m.symbol] as { id: number }).id}`}
+                                  className="rounded bg-emerald-900/60 px-2 py-0.5 text-xs text-emerald-200"
+                                >
+                                  ✓ view
+                                </Link>
+                              ) : (
+                                <button
+                                  onClick={() => applyTemplate(m.symbol)}
+                                  disabled={applied[m.symbol]?.status === "applying"}
+                                  title="Apply the range-trading template to this symbol"
+                                  className="rounded bg-blue-900/60 px-2 py-0.5 text-xs text-blue-200 hover:bg-blue-800/60 disabled:opacity-50"
+                                >
+                                  {applied[m.symbol]?.status === "applying"
+                                    ? "applying…"
+                                    : "apply template"}
+                                </button>
+                              )}
+                            </div>
+                            {applied[m.symbol]?.status === "error" && (
+                              <div className="text-[10px] text-rose-300">apply failed</div>
+                            )}
                           </td>
                         </tr>
                       ))}
