@@ -24,6 +24,7 @@ from app.api.v1 import (
     orders,
     positions,
     proposals,
+    range_insight,
     risk,
     scanner,
     signals,
@@ -60,6 +61,7 @@ api_router.include_router(backtest_jobs.router)
 api_router.include_router(opportunities.router)
 api_router.include_router(discovery.router)
 api_router.include_router(scanner.router)
+api_router.include_router(range_insight.router)
 api_router.include_router(agent.router)
 # P6 §1a: agent cost-envelope check (prefix=/agent, route /budget). Distinct
 # sub-path from the P3 agent chat router above; coexists under the same prefix.
