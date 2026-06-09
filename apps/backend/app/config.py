@@ -67,6 +67,18 @@ class Settings(BaseSettings):
         alias="AGENT_DAILY_BUDGET_USD",
         description="Per-user daily budget cap across all agent sessions.",
     )
+    # Server-side MCP connector URL passed to Anthropic so the model can call
+    # workbench tools. Default points at the chart-data MCP. NOTE: Anthropic
+    # dispatches this URL from its own servers, so `127.0.0.1` only works when
+    # the backend is reachable from the public internet (a tunnel). Set
+    # AGENT_MCP_SERVER_URL="" to disable the connector (pure-chat agent) when
+    # running locally without a tunnel — otherwise Anthropic 400s every turn
+    # with "Connection error while communicating with MCP server".
+    agent_mcp_server_url: str = Field(
+        default="http://127.0.0.1:8765",
+        alias="AGENT_MCP_SERVER_URL",
+        description="MCP connector URL for the agent; empty disables it.",
+    )
 
 
 @lru_cache(maxsize=1)
