@@ -503,10 +503,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # runtime refuses at start_session with a clear message. Stateless
         # across sessions, so no shutdown hook needed (the per-session
         # locks dict is dropped when the process exits).
+        _agent_settings = get_settings()
         agent_runtime = AgentRuntime(
-            settings=get_settings(),
+            settings=_agent_settings,
             session_factory=get_sessionmaker(),
             bus=get_event_bus(),
+            # Empty AGENT_MCP_SERVER_URL disables the server-side MCP connector
+            # (pure-chat agent) — required locally without a public tunnel, since
+            # Anthropic dispatches the URL from its own servers and 400s if it
+            # can't reach 127.0.0.1. See app/config.py:agent_mcp_server_url.
+            mcp_server_url=_agent_settings.agent_mcp_server_url or None,
         )
         app.state.agent_runtime = agent_runtime
 

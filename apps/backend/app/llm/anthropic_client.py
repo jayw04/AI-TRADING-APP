@@ -134,12 +134,24 @@ class AnthropicCall:
         return out
 
 
+# The MCP connector (``mcp_servers``) is a *beta* feature: it is only accepted
+# by ``client.beta.messages.create`` / ``.stream`` with this beta flag, never by
+# the stable ``client.messages.create``. Passing ``mcp_servers`` to the stable
+# endpoint raises ``TypeError: ... unexpected keyword argument 'mcp_servers'``.
+# Verified against anthropic SDK 0.107.1 (the SDK also exposes the newer
+# ``mcp-client-2025-11-20``; this one matches the ``{type:url}`` connector shape
+# we build below).
+MCP_CONNECTOR_BETA = "mcp-client-2025-04-04"
+
+
 def _mcp_servers_kwarg(mcp_server_url: str | None) -> dict[str, Any]:
     """Build the ``mcp_servers`` kwarg block, or empty dict if no URL.
 
-    The Anthropic MCP-connector request shape evolves; verify against
-    current SDK docs at ship time. Centralized here so one update fixes
-    every call site.
+    When this returns a non-empty dict the call MUST go through the
+    ``client.beta.messages.*`` surface with ``betas=[MCP_CONNECTOR_BETA]``
+    (see ``create_message`` / ``stream_message``); the stable endpoint
+    rejects ``mcp_servers``. Centralized here so one update fixes every
+    call site.
     """
     if not mcp_server_url:
         return {}
@@ -174,18 +186,25 @@ async def create_message(
     are unaffected.
     """
     client = get_anthropic_client(api_key)
+    mcp_kwargs = _mcp_servers_kwarg(mcp_server_url)
     kwargs: dict[str, Any] = {
         "model": model,
         "max_tokens": max_tokens,
         "system": system,
         "messages": messages,
-        **_mcp_servers_kwarg(mcp_server_url),
+        **mcp_kwargs,
     }
     if tools is not None:
         kwargs["tools"] = tools
     if tool_choice is not None:
         kwargs["tool_choice"] = tool_choice
-    response = await client.messages.create(**kwargs)
+    if mcp_kwargs:
+        # ``mcp_servers`` is beta-only — must go through the beta surface.
+        response = await client.beta.messages.create(
+            betas=[MCP_CONNECTOR_BETA], **kwargs
+        )
+    else:
+        response = await client.messages.create(**kwargs)
     return AnthropicCall(raw_response=response)
 
 
@@ -205,13 +224,20 @@ async def stream_message(
     doesn't wire this up (see module docstring); reserved for Session 4/5.
     """
     client = get_anthropic_client(api_key)
+    mcp_kwargs = _mcp_servers_kwarg(mcp_server_url)
     kwargs: dict[str, Any] = {
         "model": model,
         "max_tokens": max_tokens,
         "system": system,
         "messages": messages,
-        **_mcp_servers_kwarg(mcp_server_url),
+        **mcp_kwargs,
     }
-    async with client.messages.stream(**kwargs) as stream:
+    # ``mcp_servers`` is beta-only — route streaming through the beta surface too.
+    stream_ctx = (
+        client.beta.messages.stream(betas=[MCP_CONNECTOR_BETA], **kwargs)
+        if mcp_kwargs
+        else client.messages.stream(**kwargs)
+    )
+    async with stream_ctx as stream:
         async for event in stream:
             yield {"type": getattr(event, "type", "unknown"), "raw": event}
