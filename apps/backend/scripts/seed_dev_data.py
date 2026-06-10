@@ -10,6 +10,10 @@ Inserts (or no-ops if already present):
 - 10 sample symbols.
 - system_config key='mode' = 'paper'.
 - Default global RiskLimits row for user 1 (P1 Session 4).
+
+NOTE: this seeds the user *row* but NOT login credentials (password / TOTP).
+After seeding a fresh DB, run `python scripts/create_user.py` to set the
+password and TOTP secret, or browser login will refuse (totp_verified_at NULL).
 """
 
 from __future__ import annotations
@@ -185,6 +189,10 @@ async def seed() -> None:
             print("  = risk_limits strategy template already present")
 
     print("Seed complete.")
+    print(
+        "Next: run `python scripts/create_user.py` to set the login "
+        "password + TOTP for this user (login refuses until then)."
+    )
 
 
 if __name__ == "__main__":
