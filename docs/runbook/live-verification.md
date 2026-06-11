@@ -43,6 +43,21 @@
 
 Walk **`docs/runbook/p3-smoke-log.md`** end to end against `http://localhost:5173/agent` with the live Anthropic key. It is 6 steps (fact-find, multi-tool, suggestion, refused-trade, **force-cost-cap**, B1-no-suggestions).
 
+> **⚠ Tool-dispatch blocker — root cause found (2026-06-10).** The 2026-06-09 run
+> verified chat / suggestion / refusal / cost-cap / B1, but **not** MCP `tool_use`
+> (steps 1–2 tool cards). Previously believed to be "Anthropic can't reach
+> localhost:8765." A cloudflared tunnel test on 2026-06-10 **disproved that**:
+> Anthropic's servers *did* reach the MCP over the tunnel (seen in the tunnel
+> access log), but the request still 400s with *"Connection error while
+> communicating with MCP server"* — Anthropic opens `/sse`, then **cancels the
+> stream**. Root cause: the chart-MCP runs FastMCP's **legacy SSE transport**
+> (`server.run(transport="sse")`), which Anthropic's `mcp-client-2025-04-04`
+> url-connector cannot complete a handshake with (it expects **Streamable HTTP**).
+> **`p3-complete` is therefore blocked on a transport change** — switch the
+> chart-MCP to Streamable HTTP (`transport="streamable-http"`, served at `/mcp`)
+> + point `AGENT_MCP_SERVER_URL` at the public `/mcp` URL — **not** on a tunnel
+> alone. Tracked as a separate PR + ADR. Re-walk steps 1–2 once that lands.
+
 - **⚠ Step 5 gotcha:** it appends `AGENT_DAILY_BUDGET_USD=0.005` to `.env` + restarts. **Restore `AGENT_DAILY_BUDGET_USD=2.0` (or delete the line) + restart before signing off**, or the next session opens directly in `CAPPED`. The smoke log has the cleanup check:
   ```bash
   grep -c "AGENT_DAILY_BUDGET_USD=0.005" .env   # MUST be 0
@@ -64,7 +79,16 @@ Walk **`docs/runbook/p3-smoke-log.md`** end to end against `http://localhost:517
 
 Strictly **tag-and-verify** now (§2/§2b already shipped; Rec #10's "don't speculate against §2" no longer applies).
 
-- **Live SSE handshake + real Anthropic call** via the `/agent` chat (see `docs/runbook/agent.md` for the streaming details). Confirm a B2 turn streams tokens over SSE and an `agent_sessions` row records a real `total_cost_usd > 0`:
+> **⚠ Criterion correction (2026-06-10):** the "streams tokens over SSE" wording
+> below is **inaccurate for the P3 agent path**. The P3 `/agent` UI sends messages
+> via a plain blocking `POST /api/v1/agent/sessions/{id}/messages` (`apiFetch` in
+> `frontend/src/api/agent.ts`) — there is **no browser SSE / EventSource / WebSocket**.
+> The streaming `app.llm.stream_message` surface exists only server-side. So the
+> real, substantive criterion is simply: **a real agent turn records an
+> `agent_sessions` row with `total_cost_usd > 0`** through that endpoint. An API-driven
+> turn is byte-identical to what the browser does.
+
+- **Real Anthropic turn via the agent endpoint.** Confirm a B2 turn records a real `total_cost_usd > 0`:
   ```bash
   docker compose exec backend sqlite3 /app/data/workbench.sqlite \
     "SELECT id, mode, status, total_cost_usd FROM agent_sessions ORDER BY id DESC LIMIT 3;"
@@ -73,7 +97,9 @@ Strictly **tag-and-verify** now (§2/§2b already shipped; Rec #10's "don't spec
   ```bash
   git tag p6-session1-complete && git push origin p6-session1-complete
   ```
-- Result: ____________
+- **Anthropic-call half — ✅ verified standalone (2026-06-08, Norton SSL scanning off).** `apps/backend/scripts/validate_live_anthropic_call.py` (run from the host backend venv, no stack) drove the runtime's actual `app.llm.create_message` path **and** the `app.llm.stream_message` SSE-backing surface against the live key (`claude-haiku-4-5-20251001`, key len 108). Both made real calls (34 in / 25 out tokens, coherent stop-loss answer), the stream yielded text deltas + saw `message_stop`, and the real `app.llm.pricing.estimate_cost` path returned a non-zero `$0.0001` — i.e. a real session's `total_cost_usd` would be > 0. All 9 hard checks green, `RESULT: PASS`.
+- **✅ RESOLVED — agent-turn + cost half VERIFIED LIVE (2026-06-10), tag pushed.** Drove a real B2 turn through the **production endpoint the UI uses** (`POST /api/v1/agent/sessions` → `.../messages`, authenticated via the API): session **#9**, model `claude-haiku-4-5-20251001`, coherent reply, and **`total_cost_usd = $0.0004 > 0`** recorded on the `agent_sessions` row (confirmed via `GET /api/v1/agent/sessions/9`). Today's budget moved from $0.0000 accordingly. Because the P3 agent path is a blocking POST (no browser SSE — see the correction note above), this API turn **is** the UI path; no separate browser-SSE step exists to observe. Combined with the Anthropic-call half above, `p6-session1-complete` is satisfied → **tag pushed.**
+- Result (agent-turn + cost half): ✅ PASS (2026-06-10) — session #9, $0.0004, real Haiku turn recorded.
 
 ---
 
@@ -165,7 +191,7 @@ docker compose exec backend python scripts/validate_range_insight_live.py AAPL M
 
 - [ ] §0 pre-flight green (egress + creds + stack)
 - [ ] 1 P3 → `p3-complete` pushed (+ budget restored, `grep -c …=0.005 .env` == 0)
-- [ ] 2 P6 §1b.12 → `p6-session1-complete` pushed
+- [x] 2 P6 §1b.12 → `p6-session1-complete` pushed (2026-06-10; agent-turn+cost via the production endpoint, session #9 $0.0004; "browser SSE" criterion corrected — P3 agent is a blocking POST)
 - [ ] 3 P6 §2-variant equity chart from real bars+fills
 - [ ] 4 P6b §4.5 real-money order confirmed + switch returned OFF
 - [ ] 5 P6b §5 opt-in → active + live Haiku decision audited (week-long)
