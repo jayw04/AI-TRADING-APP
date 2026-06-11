@@ -34,6 +34,8 @@ export const CREDENTIAL_KINDS: { kind: string; label: string }[] = [
   { kind: "alpaca_live_secret", label: "Alpaca Live — API Secret" },
   { kind: "anthropic_api_key", label: "Anthropic — API Key" },
   { kind: "pine_webhook_secret", label: "TradingView Pine — Webhook Secret" },
+  // P5.5 §3: bearer token the workbench-mcp server presents to the backend.
+  { kind: "workbench_mcp_key", label: "Workbench MCP — Bearer Key" },
   // P6 §1a: bearer token the agent service presents to the backend HTTP API.
   { kind: "agent_api_key", label: "Agent — API Key" },
 ];

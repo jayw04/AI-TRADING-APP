@@ -144,6 +144,14 @@ export default function Credentials() {
         never shown after you save them — rotate to replace, revoke to remove.
         Your TOTP secret is managed in the login/2FA flow, not here.
       </p>
+      <p className="mt-2 text-xs text-amber-300/80">
+        Note: the <span className="font-mono">Workbench MCP — Bearer Key</span>{" "}
+        also lives in the <span className="font-mono">WORKBENCH_MCP_KEY</span>{" "}
+        env var that the workbench-mcp container reads. If you rotate it here,
+        update <span className="font-mono">.env</span> to the same value and
+        recreate the container, or the MCP server will keep sending the old token
+        and get 401s.
+      </p>
 
       {isLoading && (
         <div className="mt-6 text-sm text-neutral-400">Loading…</div>

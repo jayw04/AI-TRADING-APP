@@ -20,10 +20,19 @@ class WorkbenchBackendClient:
         settings = get_settings()
         self._base_url = (base_url or settings.backend_url).rstrip("/")
         self._timeout = timeout if timeout is not None else settings.request_timeout_s
+        self._key = settings.mcp_key
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> WorkbenchBackendClient:
-        self._client = httpx.AsyncClient(base_url=self._base_url, timeout=self._timeout)
+        # The user-scoped read endpoints require a bearer token the backend
+        # resolves to the owning user; set it as a default header so every call
+        # carries it. /internal/ping uses the X-Workbench-Auth shared secret it
+        # passes explicitly and ignores this header. Empty key -> no header (the
+        # endpoints then 401, surfaced as a tool error rather than a silent miss).
+        headers = {"Authorization": f"Bearer {self._key}"} if self._key else {}
+        self._client = httpx.AsyncClient(
+            base_url=self._base_url, headers=headers, timeout=self._timeout
+        )
         return self
 
     async def __aexit__(self, *_exc: object) -> None:

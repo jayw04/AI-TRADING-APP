@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-06-10 |
-| Status | Draft |
+| Date | 2026-06-10 (accepted 2026-06-11 after live verification) |
+| Status | Accepted |
 | Phase | P3 (agent tool dispatch); cross-phase for any non-localhost agent deployment |
 | Supersedes | — |
 | Related | 0002 (single OrderRouter — the MCP is read-only and never submits orders), 0006 v2 (LLM gating — the agent is the only LLM consumer of this MCP), 0010 (agent separate process, MCP reads / API writes — draft) |
@@ -46,6 +46,12 @@ Trade-off accepted: this change cannot be fully verified until the new transport
 - **Positive**: removes the transport blocker on P3 tool dispatch; aligns the chart-MCP with the transport Anthropic's connector and the broader MCP ecosystem expect; unblocks the eventual public/non-localhost agent deployment.
 - **Negative**: the chart-MCP no longer serves the SSE endpoint on 8765. Any *future* client written against `GET /sse` on 8765 would have to use the streamable-HTTP client instead (today there is none). The change ships **unverified against live Anthropic** until the tunnel re-test, so it carries a "should work, not yet proven end-to-end" caveat until `p3-complete` is tagged.
 - **Neutral**: the served URL path moves from `/sse` to `/mcp`; the bare `:8765` default gains a path segment. Tool semantics, auth posture (none today — see triggers), and read-only behavior are unchanged.
+
+## Verification (2026-06-11)
+
+Re-tested through a cloudflared tunnel during a stable Norton-off window, per the procedure in the implementation notes. With the chart-MCP rebuilt on `streamable-http` (serving `/mcp`), `AGENT_MCP_SERVER_URL` pointed at `https://<tunnel>/mcp`, and the backend recreated, a B2 turn (session #10, `claude-haiku-4-5`) produced a real **`mcp_tool_use` → `mcp_tool_result`** round-trip: Anthropic's connector dispatched `get_account_state` to the chart-MCP and a structured result returned. This satisfies the verification criterion in the implementation notes (tool-dispatch blocks instead of the prior `400`), so the transport decision is **Accepted**.
+
+The round-trip also surfaced a **separate, pre-existing bug** unrelated to the transport: the chart-MCP's user-scoped read tools called the backend without any auth the backend recognizes (`get_account` et al. sent no bearer; the `X-Workbench-Auth` shared secret is honored only by `/internal/ping`), so the dispatched tool returned `401`. That gap was masked until this transport fix let tools dispatch at all. It is fixed separately by reusing the `WORKBENCH_MCP_KEY` bearer token for the chart-MCP's backend reads (see `docs/runbook/credentials.md` §2a); `p3-complete` is tagged only after a tool returns real data end-to-end.
 
 ## Alternatives considered (not chosen)
 
