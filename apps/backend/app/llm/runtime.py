@@ -88,7 +88,7 @@ class AgentRuntime:
         settings: Settings,
         session_factory: async_sessionmaker[AsyncSession],
         bus: EventBus,
-        mcp_server_url: str | None = "http://127.0.0.1:8765",
+        mcp_server_url: str | None = "http://127.0.0.1:8765/mcp",  # /mcp per ADR 0016
     ) -> None:
         self._settings = settings
         self._session_factory = session_factory

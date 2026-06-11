@@ -213,7 +213,11 @@ def main() -> None:
         backend_url=settings.backend_url,
     )
     server = build_server()
-    server.run(transport="sse")
+    # Streamable HTTP (served at /mcp), not the legacy SSE transport. Anthropic's
+    # server-side MCP connector (mcp-client-2025-04-04) speaks Streamable HTTP and
+    # cannot complete a handshake against SSE. See ADR 0016. The sole consumer of
+    # this MCP is that connector; apps/agent uses the workbench-MCP on 8766 (SSE).
+    server.run(transport="streamable-http")
 
 
 if __name__ == "__main__":

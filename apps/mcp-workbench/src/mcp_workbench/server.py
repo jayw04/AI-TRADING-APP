@@ -1,7 +1,9 @@
 """workbench-mcp FastMCP server — 12 read-only tools over the backend HTTP API.
 
-Transport: SSE on host:port (default 127.0.0.1:8766), matching P3's chart MCP
-(which runs ``server.run(transport="sse")`` on 8765). Each tool is a thin
+Transport: SSE on host:port (default 127.0.0.1:8766). Its sole consumer is the
+``apps/agent`` process via the Python MCP SDK's ``sse_client``. (The P3 chart MCP
+on 8765 moved to Streamable HTTP per ADR 0016 — its consumer is Anthropic's
+server-side connector; this workbench MCP stays on SSE.) Each tool is a thin
 adapter — one HTTP call, no business logic. The ONE non-GET call
 (``workbench_morning_brief_generate`` → POST .../morning-brief/generate) is
 idempotent per (user, date) and is the sole entry in the
