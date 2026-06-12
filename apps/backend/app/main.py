@@ -12,12 +12,17 @@ from app.api.v1 import api_router
 from app.config import get_settings
 from app.lifespan import lifespan
 from app.utils.logging import configure_logging, get_logger
+from app.utils.tls_trust import enable_os_trust_store
 from app.ws.gateway import router as ws_router
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
+    # ADR 0017: verify outbound TLS against the OS trust store before any HTTPS
+    # (broker connect, market data, Anthropic) so a TLS-inspecting proxy doesn't
+    # break Alpaca/Anthropic. Earliest safe point — no connections made at import.
+    enable_os_trust_store()
 
     app = FastAPI(
         title="Trading Workbench Backend",

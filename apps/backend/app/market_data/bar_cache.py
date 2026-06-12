@@ -370,6 +370,13 @@ def _alpaca_fetch_bars(
     from alpaca.data.requests import StockBarsRequest
     from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
+    from app.utils.tls_trust import enable_os_trust_store
+
+    # ADR 0017: also enable here (not just app startup) so standalone callers of
+    # this function — backtest fetch scripts, fixture generation — verify against
+    # the OS trust store too. Idempotent: a no-op once injected.
+    enable_os_trust_store()
+
     creds = load_credentials()
     client = StockHistoricalDataClient(
         api_key=creds.api_key, secret_key=creds.api_secret
