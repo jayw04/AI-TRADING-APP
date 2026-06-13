@@ -43,20 +43,22 @@
 
 Walk **`docs/runbook/p3-smoke-log.md`** end to end against `http://localhost:5173/agent` with the live Anthropic key. It is 6 steps (fact-find, multi-tool, suggestion, refused-trade, **force-cost-cap**, B1-no-suggestions).
 
-> **⚠ Tool-dispatch blocker — root cause found (2026-06-10).** The 2026-06-09 run
-> verified chat / suggestion / refusal / cost-cap / B1, but **not** MCP `tool_use`
-> (steps 1–2 tool cards). Previously believed to be "Anthropic can't reach
-> localhost:8765." A cloudflared tunnel test on 2026-06-10 **disproved that**:
-> Anthropic's servers *did* reach the MCP over the tunnel (seen in the tunnel
-> access log), but the request still 400s with *"Connection error while
-> communicating with MCP server"* — Anthropic opens `/sse`, then **cancels the
-> stream**. Root cause: the chart-MCP runs FastMCP's **legacy SSE transport**
-> (`server.run(transport="sse")`), which Anthropic's `mcp-client-2025-04-04`
-> url-connector cannot complete a handshake with (it expects **Streamable HTTP**).
-> **`p3-complete` is therefore blocked on a transport change** — switch the
-> chart-MCP to Streamable HTTP (`transport="streamable-http"`, served at `/mcp`)
-> + point `AGENT_MCP_SERVER_URL` at the public `/mcp` URL — **not** on a tunnel
-> alone. Tracked as a separate PR + ADR. Re-walk steps 1–2 once that lands.
+> **✅ RESOLVED (2026-06-11) — `p3-complete` TAGGED at `83a55de`.** The transport
+> mismatch that blocked MCP `tool_use` was fixed: the chart-MCP moved to
+> **Streamable HTTP** at `/mcp` (ADR 0016, PR #89, merged `ba99565`), and a
+> follow-on fix let the chart-MCP authenticate its backend reads with the
+> `WORKBENCH_MCP_KEY` bearer (PR #90, merged `83a55de`). The full chain was then
+> verified live — Anthropic connector → chart-MCP (Streamable HTTP) → backend
+> (bearer) → real Alpaca → model — see the Result line below. The 2026-06-09 walk
+> further down remains the record for the non-tool steps (3–6).
+>
+> *Historical (2026-06-10) root-cause note, kept for context:* the tunnel test
+> disproved the earlier "Anthropic can't reach localhost:8765" theory — Anthropic
+> *did* reach the MCP over a cloudflared tunnel but still 400'd
+> *"Connection error while communicating with MCP server"* (opened `/sse`, then
+> cancelled the stream), because FastMCP's legacy SSE transport can't complete a
+> handshake with Anthropic's `mcp-client-2025-04-04` url-connector (it expects
+> Streamable HTTP). That diagnosis drove the ADR-0016 fix above.
 
 - **⚠ Step 5 gotcha:** it appends `AGENT_DAILY_BUDGET_USD=0.005` to `.env` + restarts. **Restore `AGENT_DAILY_BUDGET_USD=2.0` (or delete the line) + restart before signing off**, or the next session opens directly in `CAPPED`. The smoke log has the cleanup check:
   ```bash
@@ -71,7 +73,7 @@ Walk **`docs/runbook/p3-smoke-log.md`** end to end against `http://localhost:517
   ```bash
   git tag p3-complete && git push origin p3-complete
   ```
-- Result: ____________
+- Result (2026-06-11): ✅ **PASS — `p3-complete` pushed at `83a55de`.** Live MCP `tool_use` dispatch verified through the production agent path (HTTP API — byte-identical to the `/agent` UI, which is a blocking POST, per §2's criterion correction): **session #14**, `claude-haiku-4-5`, `mcp_tool_use get_account_state` → `mcp_tool_result` returned **real paper-account data** (cash $9,690.53 / equity $9,983.78 / BP $39,583.22), not a 401 — confirming both the ADR-0016 transport fix and the #90 bearer-auth fix. Driven via local-only `apps/backend/scripts/p3_tool_dispatch_live.py` (hardcoded dev creds, not committed). Post-tag cleanup done: cloudflared tunnel torn down + `AGENT_MCP_SERVER_URL` reset to empty (pure-chat) + backend recreated. Steps 3–6 (suggestion / refused-trade / cost-cap / B1) were verified in the 2026-06-09 browser walk recorded in `p3-smoke-log.md`.
 
 ---
 
@@ -112,7 +114,7 @@ Strictly **tag-and-verify** now (§2/§2b already shipped; Rec #10's "don't spec
     "SELECT id, harness_role, status FROM strategies WHERE status='paper_variant';"
   ```
 - **Done when:** the paper order is byte-identical to the baseline + the equity chart renders from real bars+fills (browser). Record in this file (no separate tag — closes the §2-variant live caveat).
-- Result: ____________
+- Result (2026-06-11): **PAPER-ORDER SMOKE ✅ PASS** (first half). Manual MARKET BUY 1 AAPL via `POST /api/v1/orders` → `OrderRouter.submit` → risk check `pass` (`OK`) → Alpaca paper broker → **real `broker_order_id=dfc51bb9-baa3-4149-8fe6-8fed9addcbf5`**, order id=6, `status=submitted`; canceled clean afterward (`status=canceled`, 0 fills — market was closed, no position acquired). Path is byte-identical to the baseline manual-order flow. (Driven via local-only `apps/backend/scripts/paper_order_smoke_live.py`, hardcoded dev creds, not committed.) **VARIANT EQUITY-CHART HALF ⏳ DEFERRED** — needs a **LIVE parent** (`PaperVariantService.spawn()` raises `parent_not_live`) which requires the **24h activation cooldown** (ADR 0005), plus a paper variant accumulating ≥1 fill during market hours. The dev DB is a cold start (one IDLE strategy "Range Trader NVDA", no proposals/variants), so this half spans ≥2 sessions: backtest → paper-validate → activate (24h) → LIVE → ACCEPTED proposal → spawn variant → fill → open `/strategies/{id}` Variant card → confirm real-bars+fills curve.
 
 ---
 
@@ -190,7 +192,7 @@ docker compose exec backend python scripts/validate_range_insight_live.py AAPL M
 ## Sign-off
 
 - [ ] §0 pre-flight green (egress + creds + stack)
-- [ ] 1 P3 → `p3-complete` pushed (+ budget restored, `grep -c …=0.005 .env` == 0)
+- [x] 1 P3 → `p3-complete` pushed (2026-06-11 @ `83a55de`; tool dispatch verified via the API/verifier — real account data, session #14; ADR 0016 transport #89 + bearer #90 both merged; budget restored, `.env` `=0.005` count 0)
 - [x] 2 P6 §1b.12 → `p6-session1-complete` pushed (2026-06-10; agent-turn+cost via the production endpoint, session #9 $0.0004; "browser SSE" criterion corrected — P3 agent is a blocking POST)
 - [ ] 3 P6 §2-variant equity chart from real bars+fills
 - [ ] 4 P6b §4.5 real-money order confirmed + switch returned OFF
