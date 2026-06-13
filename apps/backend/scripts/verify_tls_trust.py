@@ -31,9 +31,12 @@ def served_issuer() -> str:
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-    with socket.create_connection((HOST, 443), timeout=15) as s:
-        with ctx.wrap_socket(s, server_hostname=HOST) as ss:
-            der = ss.getpeercert(binary_form=True)
+    with (
+        socket.create_connection((HOST, 443), timeout=15) as s,
+        ctx.wrap_socket(s, server_hostname=HOST) as ss,
+    ):
+        der = ss.getpeercert(binary_form=True)
+    assert der is not None, f"no peer certificate served by {HOST}"
     from cryptography import x509
 
     return x509.load_der_x509_certificate(der).issuer.rfc4514_string()
