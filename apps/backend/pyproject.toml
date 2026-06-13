@@ -50,6 +50,11 @@ dependencies = [
     "cryptography>=42.0,<46.0",
     # P5 §8: Prometheus /metrics exposition (app/observability/metrics.py).
     "prometheus-client>=0.20,<1.0",
+    # ADR 0017: route outbound TLS verification through the OS trust store so a
+    # TLS-inspecting proxy (e.g. Norton on the dev's Windows box) whose root is
+    # in the OS store but not in certifi doesn't break Alpaca/Anthropic HTTPS.
+    # Pure-Python, stdlib-only deps. See app/utils/tls_trust.py.
+    "truststore>=0.9,<1.0",
 ]
 
 [project.optional-dependencies]
