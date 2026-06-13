@@ -216,3 +216,11 @@ the next session will land directly in CAPPED at the first turn.
 > *chat / suggestion / refusal / cost-cap / B1-vs-B2* behaviors but **not** live
 > tool dispatch. Hold `p3-complete` until the tool path is verified through a
 > tunnel (or treat tool dispatch as a separately-tracked live item).
+>
+> **✅ Resolved (2026-06-11) — `p3-complete` TAGGED at `83a55de`.** The "blocked
+> on localhost" theory was disproved (Anthropic *did* reach the MCP over a
+> tunnel); the real cause was a transport mismatch, fixed by moving the chart-MCP
+> to Streamable HTTP (ADR 0016, PR #89) plus a `WORKBENCH_MCP_KEY` bearer-auth fix
+> (PR #90). Live `tool_use` dispatch was then verified via the production HTTP API
+> path (session #14, `get_account_state` → real paper-account data), so the hold
+> above is lifted. Full record in `live-verification.md` §1.
