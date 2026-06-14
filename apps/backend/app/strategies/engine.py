@@ -97,6 +97,7 @@ class StrategyEngine:
         indicator_computer: Any,  # IndicatorComputer (P2 Session 1)
         order_router: Any,  # OrderRouter (P1)
         strategies_root: Path,
+        factor_accessor: Any | None = None,  # FactorAccessor (P9 §2); None = disabled
     ) -> None:
         self._scheduler = scheduler
         self._session_factory = session_factory
@@ -105,6 +106,9 @@ class StrategyEngine:
         self._indicator_computer = indicator_computer
         self._order_router = order_router
         self._loader = StrategyLoader(strategies_root)
+        # P9 §2: read-only PIT factor accessor handed to every StrategyContext.
+        # None = factor data not provisioned; ctx.factors raises FactorDataUnavailable.
+        self._factor_accessor = factor_accessor
 
         self._running: dict[int, RunningStrategy] = {}
         # Optional handle to BarStreamService (P4 §8). Wired post-construction
@@ -294,6 +298,7 @@ class StrategyEngine:
                 indicator_computer=self._indicator_computer,
                 submit_order_fn=submit_order_fn,
                 bus=self._bus,
+                factor_accessor=self._factor_accessor,
             )
             try:
                 instance = cls(ctx=ctx, params=merged_params)

@@ -106,6 +106,10 @@ class StrategyContext:
       (Session 1).
     - ``submit_order_fn``: bound to ``OrderRouter.submit`` with
       ``source_type=STRATEGY`` and ``source_id=str(strategy_id)``.
+    - ``factor_accessor`` (P9 §2): optional read-only, point-in-time factor
+      accessor (``app.factor_data.accessor.FactorAccessor``). Reachable via the
+      ``factors`` property; ``None`` means factor data is not provisioned and any
+      access raises ``FactorDataUnavailable``.
     """
 
     def __init__(
@@ -120,6 +124,7 @@ class StrategyContext:
         indicator_computer: Any,  # app.indicators.IndicatorComputer
         submit_order_fn: OrderRouterCallable,
         bus: Any | None = None,  # app.events.bus.EventBus; optional for tests
+        factor_accessor: Any | None = None,  # app.factor_data.accessor.FactorAccessor
     ) -> None:
         self.strategy_id = strategy_id
         self.user_id = user_id
@@ -130,6 +135,26 @@ class StrategyContext:
         self._indicator_computer = indicator_computer
         self._submit_order_fn = submit_order_fn
         self._bus = bus
+        self._factor_accessor = factor_accessor
+
+    # ---- factor data (P9 §2) ----
+
+    @property
+    def factors(self) -> Any:
+        """The sandboxed read-only :class:`FactorAccessor` for PIT factor scores.
+
+        Raises ``FactorDataUnavailable`` if factor data was not provisioned for
+        this run (no store). The accessor cannot reach the order path, the broker,
+        a DB session, or the network — it is the deliberate factor extension point
+        (P9 §2; mirrors how this context wraps ``BarCache`` for prices)."""
+        if self._factor_accessor is None:
+            from app.factor_data.accessor import FactorDataUnavailable
+
+            raise FactorDataUnavailable(
+                "factor data is not provisioned for this run. Ingest the Sharadar "
+                "spine first — see docs/runbook/factor-data.md."
+            )
+        return self._factor_accessor
 
     # ---- market data ----
 

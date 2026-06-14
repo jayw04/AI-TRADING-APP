@@ -216,6 +216,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             indicator_computer = IndicatorComputer()
 
+            # 8b. Factor accessor (P9 §2). Read-only PIT factor data for
+            # strategies. Provisioned only if the DuckDB factor store has been
+            # ingested; otherwise disabled (ctx.factors raises
+            # FactorDataUnavailable) — degrade, don't crash the engine. A locked
+            # store (mid-ingest) also degrades to disabled rather than failing boot.
+            from app.factor_data.accessor import FactorAccessor
+            from app.factor_data.config import resolve_store_path
+            from app.factor_data.store import FactorDataStore
+
+            factor_store_path = resolve_store_path()
+            try:
+                if factor_store_path.exists():
+                    factor_accessor: FactorAccessor = FactorAccessor(
+                        FactorDataStore(read_only=True)
+                    )
+                    logger.info("factor_accessor_provisioned", path=str(factor_store_path))
+                else:
+                    factor_accessor = FactorAccessor(None)
+                    logger.info("factor_accessor_disabled_no_store", path=str(factor_store_path))
+            except Exception as exc:  # noqa: BLE001 — factor data must never block boot
+                factor_accessor = FactorAccessor(None)
+                logger.warning("factor_accessor_unavailable", error=str(exc))
+
             # 9. StrategyEngine (P2 Session 2). Shares the same
             # AsyncIOScheduler instance as WorkbenchScheduler — two
             # schedulers contending for the same job IDs would be a
@@ -228,6 +251,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 indicator_computer=indicator_computer,
                 order_router=order_router,
                 strategies_root=Path("strategies_user"),
+                factor_accessor=factor_accessor,
             )
 
             # 10. BacktestWorker (P4 §2). Shares the same scheduler so the
