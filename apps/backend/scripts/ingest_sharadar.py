@@ -79,7 +79,14 @@ def main(argv: list[str] | None = None) -> int:
         help="skip SEP/ACTIONS for tickers already present in sep (resume across rate-limit days)",
     )
     ap.add_argument("--db", help="override store path (default: WORKBENCH_FACTOR_DATA_DB_PATH)")
+    ap.add_argument(
+        "--from",
+        dest="from_date",
+        help="date.gte filter for SEP/ACTIONS (YYYY-MM-DD) — bound the pull so a broad "
+        "ticker list stays within the 1M-rows/day cap (e.g. a paper-universe ingest).",
+    )
     args = ap.parse_args(argv)
+    sep_filters: dict[str, str] = {"date.gte": args.from_date} if args.from_date else {}
 
     datasets = [d.strip() for d in args.datasets.split(",") if d.strip()]
     bad = set(datasets) - set(ALL_DATASETS)
@@ -121,9 +128,9 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"[{i}/{total}] {tk}: skip (already in sep)")
                     continue
                 if "sep" in datasets:
-                    _run(store, f"sep:{tk}", lambda tk=tk: store.ingest_sep(provider.fetch_table("SEP", ticker=tk)), quiet=True)
+                    _run(store, f"sep:{tk}", lambda tk=tk: store.ingest_sep(provider.fetch_table("SEP", ticker=tk, **sep_filters)), quiet=True)
                 if "actions" in datasets:
-                    _run(store, f"actions:{tk}", lambda tk=tk: store.ingest_actions(provider.fetch_table("ACTIONS", ticker=tk)), quiet=True)
+                    _run(store, f"actions:{tk}", lambda tk=tk: store.ingest_actions(provider.fetch_table("ACTIONS", ticker=tk, **sep_filters)), quiet=True)
                 print(f"[{i}/{total}] {tk}: done")
 
         print("\n--- store row counts ---")
