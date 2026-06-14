@@ -41,6 +41,10 @@ ALLOWED = {
     # the sanctioned context path (dispatches through OrderRouter), same as the
     # rsi example. Not a direct adapter call.
     "strategies_user/templates/range_trader.py",
+    # P9 §4: the momentum-portfolio template calls `self.ctx.submit_order(...)`
+    # to trade the weekly rebalance diff — the same sanctioned context path
+    # (dispatches through OrderRouter + the risk engine), not a direct adapter call.
+    "strategies_user/templates/momentum_portfolio.py",
     "tests/strategies/test_backtester.py",
     "tests/strategies/test_strategy_risk_integration.py",
     # P7 §1: the strategy-generation prompt embeds the platform Strategy

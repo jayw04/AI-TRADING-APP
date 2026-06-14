@@ -59,6 +59,36 @@ def test_simulate_marks_daily_and_freezes_delisted_to_cash(tmp_path) -> None:
         store.close()
 
 
+def test_simulate_delisting_realizes_decline(tmp_path) -> None:
+    """★ The other sign of final-price→cash: a name that DECLINES into its last
+    print realizes the negative return, then freezes as cash (Finding 9 — the
+    bankruptcy/decline direction, not just the acquisition gap-up)."""
+    days = [d.date() for d in pd.bdate_range("2020-01-06", periods=5)]
+    rows = []
+    for d in days:
+        rows.append(dict(ticker="AAA", date=d.strftime("%Y-%m-%d"), open=100, high=100,
+                         low=100, close=100, volume=1_000_000, closeadj=100.0,
+                         closeunadj=100.0, lastupdated="2026-01-01"))
+    drop_px = {days[0]: 100.0, days[1]: 90.0, days[2]: 81.0}  # declines, delists after day 3
+    for d, px in drop_px.items():
+        rows.append(dict(ticker="DROP", date=d.strftime("%Y-%m-%d"), open=px, high=px,
+                         low=px, close=px, volume=1_000_000, closeadj=px,
+                         closeunadj=px, lastupdated="2026-01-01"))
+    s = FactorDataStore(db_path=str(tmp_path / "drop.duckdb"))
+    s.ingest_sep(pd.DataFrame(rows))
+    try:
+        curve, holdings = _simulate(
+            s, [days[0]], days, lambda d: {"AAA": 0.5, "DROP": 0.5},
+            initial_equity=100.0, turnover_cost_bps=0.0,
+        )
+        equities = [round(e, 4) for _, e in curve]
+        # day1: 50 + 45 = 95; day2: 50 + 40.5 = 90.5; day3,4: DROP frozen at 40.5
+        assert equities == [95.0, 90.5, 90.5, 90.5]
+        assert holdings[0].realized_return == pytest.approx(-0.095)  # negative — realized the decline
+    finally:
+        s.close()
+
+
 def test_simulate_turnover_cost_charged(tmp_path) -> None:
     store, days = _two_name_store(tmp_path)
     try:
