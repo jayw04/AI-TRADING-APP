@@ -56,10 +56,11 @@ membership universe throughout §1 (§2 below, §4.4, §4.6). See
 - Tests use **synthetic** data (no committed binary fixture) — raw vendor
   re-export is disallowed (ADR 0018 §6).
 
-**Follow-up (not done in this session):** P9 **Direction v0.2** and **ADR 0018**
-still say "S&P 500" / "weekly rebalance over the index." Those should get a short
-reconciling note (the universe is now a PIT liquidity top-N). Flagged for the
-owner; not rewritten unilaterally.
+**Follow-up:** **ADR 0018** is reconciled (2026-06-14, owner-authorized — see its
+Implementation-notes universe-scope note + the new re-evaluation trigger). P9
+**Direction v0.2** still says "S&P 500 / weekly rebalance over the index" and
+should get the same short reconciling note (the universe is now a PIT liquidity
+top-N) — left for the owner; not rewritten unilaterally.
 
 ---
 
