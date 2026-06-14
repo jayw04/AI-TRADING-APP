@@ -6,12 +6,43 @@
 | Date | 2026-06-13 |
 | Phase | **P9** — follows P8 (Discovery + Range Insight) |
 | Status | Direction-set. Section 7 decisions locked; §0/§1 per-session docs may now be drafted. |
-| v1 decisions | DuckDB PIT store · S&P 500 universe · weekly rebalance · **price-momentum** first factor (one factor end-to-end) · paper-only · accept ~5y FMP (fundamentals deferred) |
+| v1 decisions | DuckDB PIT store · ~~S&P 500 universe~~ **PIT liquidity top-N universe** (reconciled 2026-06-14 — see Reconciliation note below) · weekly rebalance · **price-momentum** first factor (one factor end-to-end) · paper-only · accept ~5y FMP (fundamentals deferred) |
 | Predecessor | P8 — Discovery view + Range Insight (tag `p8-q4-scan-apply-template-complete`; P8 closed) |
 | Successor | TBD |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
 | Governing ADRs | **0018** (FMP + Sharadar PIT factor data — Accepted 2026-06-13), 0014 (backtests = primary eval ground truth), 0002 (single OrderRouter), 0005 (24h activation cooldown), 0006 v2 (no LLM in order path), 0017 (OS trust store for outbound TLS) |
 | Inputs | Owner data-coverage analysis (`data/Data available 1.jpg`, `data/Data available 2.jpg`); MTG strategy-spec template (`Docs/Strategies/Trading+Plan+Clean.pdf`) |
+
+---
+
+## Reconciliation — universe definition (2026-06-14, owner-authorized, during P9 §1)
+
+> This note supersedes the **"S&P 500 universe"** language in this document
+> (the v1-decisions row above, §1's universe bullet, and Section-7 decision #2).
+> Read it as the current universe definition wherever this doc says "S&P 500."
+
+§1's "pin the membership recipe against real data first" step found that the
+`SHARADAR/SP500` constituents datatable **on this subscription is a 28-name
+sample** (the Dow blue-chips), **not** the ~500-name index — it is the free
+sample of the constituents product, which is not subscribed. `SEP` (prices) and
+`TICKERS` (21,853 names, with `firstpricedate`/`lastpricedate` lifetime bounds +
+`isdelisted`) **are** full and survivorship-free; `DAILY` (point-in-time market
+cap) is unsubscribed (0 rows).
+
+**Owner decision:** the v1 universe is a **point-in-time liquidity universe** —
+`universe_asof(as_of, n=500, lookback_days=63)` = the top-N US names by trailing
+dollar volume that were tradeable as of the rebalance date
+(`firstpricedate ≤ as_of ≤ lastpricedate`), built from `SEP` + `TICKERS` alone.
+It keeps every property this Direction relied on — **survivorship-free,
+point-in-time, price-only, weekly-rebalanceable, momentum-ready** — only the
+*membership rule* changed (liquidity rank instead of index membership). Weekly
+rebalance, price-momentum-first, and paper-only are unchanged.
+
+Recorded in **ADR 0018** (Implementation-notes universe-scope reconciliation +
+re-evaluation trigger) and the **§1 doc §0 banner**; implemented in
+`app/factor_data/universe.py`; operability in `docs/runbook/factor-data.md` §2.
+Restoring a literal S&P 500 universe would require purchasing the full Sharadar
+constituents product (ADR 0018 re-evaluation trigger).
 
 ---
 

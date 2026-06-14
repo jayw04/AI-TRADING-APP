@@ -56,11 +56,10 @@ membership universe throughout §1 (§2 below, §4.4, §4.6). See
 - Tests use **synthetic** data (no committed binary fixture) — raw vendor
   re-export is disallowed (ADR 0018 §6).
 
-**Follow-up:** **ADR 0018** is reconciled (2026-06-14, owner-authorized — see its
-Implementation-notes universe-scope note + the new re-evaluation trigger). P9
-**Direction v0.2** still says "S&P 500 / weekly rebalance over the index" and
-should get the same short reconciling note (the universe is now a PIT liquidity
-top-N) — left for the owner; not rewritten unilaterally.
+**Follow-up — done (2026-06-14, owner-authorized):** both **ADR 0018**
+(Implementation-notes universe-scope note + new re-evaluation trigger) and P9
+**Direction v0.2** (Reconciliation banner + struck v1-decisions row) now record
+the universe as a PIT liquidity top-N. No open reconciliation items remain.
 
 ---
 
