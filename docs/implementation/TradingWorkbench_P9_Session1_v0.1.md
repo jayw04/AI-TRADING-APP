@@ -48,8 +48,8 @@ touching a load-bearing path that backtests and Range Insight depend on.
 - **`universe_asof(date) -> list[str]`** (`app/factor_data/universe.py`) — survivorship-free,
   PIT S&P 500 membership from the change-log.
 - **Survivorship-free price access** — `get_prices(ticker, start, end, adjusted=True)`.
-- An **ingestion entrypoint** (`apps/backend/scripts/ingest_sharadar.py`) — idempotent, with
-  checkpoint/resume **iff** the §0 ingest-time finding warrants it (§4.3).
+- An **ingestion entrypoint** (`apps/backend/scripts/ingest_sharadar.py`) — idempotent,
+  single-shot (§0 measured the full pull at ~5 min — no checkpointing; §4.3).
 - **Tests** — the survivorship-free + `universe_asof` assertions are the load-bearing ones
   (§4.6), plus schema + idempotent-re-ingest + reproducibility.
 - A short **runbook** note (`docs/runbook/factor-data.md`) — how to (re)ingest, where the store
@@ -57,13 +57,14 @@ touching a load-bearing path that backtests and Range Insight depend on.
 
 ## 3. Prerequisites
 
-- **§0 returned GO**, with its §6 Results filled — specifically these §1 inputs:
-  - the **S&P 500 membership construction recipe** + the **change-log earliest date** (bounds
-    `universe_asof`);
-  - the exact **`SEP` / `TICKERS` / `ACTIONS` / `SP500` schemas** (column names/types);
-  - the **rate limit + estimated full-ingest time** (decides whether §4.3 checkpointing is
-    required or optional);
-  - the **REST-vs-SDK** decision.
+- **§0 returned GO** (2026-06-13, PR #99) — its filled §6 supplies the §1 inputs, already
+  resolved:
+  - **S&P 500 membership:** `SHARADAR/SP500` change-log, `action ∈ {added, current, historical}`
+    (§1 pins the interval recipe — §4.4); **change-log floor `1957-03-04`** → no clamp for 1998.
+  - **schemas** confirmed for `SEP` / `TICKERS` / `ACTIONS` / `SP500` (§4.2 DDL matches).
+  - **ingest ~5 min, rate limit 1M/day → single-shot, no checkpointing** (§4.3).
+  - **dependency: REST via `httpx` + `pandas`** (no vendor SDK).
+  - *(FMP carry-forward, §5+ only: legacy `/api/v3` is 403-gated; use the `/stable` API.)*
 - `NASDAQ_DATA_LINK_API_KEY` in `.env` (loaded as a `Settings` env-alias per ADR 0018 §5).
 - ADR-0017 OS-trust-store path on `main` (merged `d5a9596`) — so ingestion reaches Nasdaq Data
   Link under Norton.
@@ -130,48 +131,56 @@ CREATE TABLE IF NOT EXISTS actions (
 
 -- S&P 500 membership change-log → the source of universe_asof
 CREATE TABLE IF NOT EXISTS sp500 (
-  date   DATE NOT NULL, action VARCHAR NOT NULL,  -- 'added' | 'removed'
+  date   DATE NOT NULL, action VARCHAR NOT NULL,  -- §0: action ∈ {added, current, historical}
   ticker VARCHAR NOT NULL, name VARCHAR
 );
 
--- ingest bookkeeping (idempotency + checkpoint/resume)
+-- ingest bookkeeping (idempotency; §0 confirmed single-shot ingest — no checkpoint cursor)
 CREATE TABLE IF NOT EXISTS ingest_runs (
   dataset VARCHAR, started_at TIMESTAMP, finished_at TIMESTAMP,
-  rows    BIGINT, cursor VARCHAR, status VARCHAR   -- 'running'|'ok'|'failed'
+  rows    BIGINT, status VARCHAR   -- 'running'|'ok'|'failed'
 );
 ```
 
-### 4.3 Ingestion (idempotent, optionally checkpointed)
+### 4.3 Ingestion (idempotent, single-shot)
 
 - `SharadarProvider.fetch_table(name, **filters)` pages the datatables endpoint via
   `qopts.cursor_id` until exhausted, returning a `DataFrame`. Key as a query param; **never
-  logged** (ADR 0018 §5).
+  logged** (ADR 0018 §5). (§0 confirmed REST via `httpx` + `pandas` is sufficient — no SDK.)
 - `FactorDataStore.ingest_sep(...)` / `ingest_tickers()` / `ingest_actions()` /
   `ingest_sp500()` upsert into the tables above. **Idempotent**: re-running ingestion converges
   to the same state (DuckDB `INSERT ... ON CONFLICT` / `DELETE`+`INSERT` per table; `sep` keyed
   by `(ticker,date)`).
-- **Checkpoint/resume is conditional on the §0 finding.** If §0's estimated full-`SEP` ingest
-  time is short (minutes), a single-shot ingest is fine. If it is long (the ~500 names × 1998+
-  pull is non-trivial), `ingest_runs.cursor` persists progress so an interrupted run resumes
-  rather than restarts. **Do not build checkpointing speculatively** — let §0's number decide,
-  and record which path was taken in this doc's notes on execution.
+- **Single-shot — no checkpointing (§0-resolved).** §0 measured the full S&P 500 `SEP` pull at
+  **~5 min** (AAPL full history 7,155 rows in 0.6s × ~500 names; Sharadar rate limit 1M/day). A
+  single-shot idempotent ingest is fine and `ingest_runs` is bookkeeping only. The
+  checkpoint/resume path is **not** built — it was conditional on a long-ingest §0 finding that
+  did not materialize.
 
 ### 4.4 `universe_asof(date)`
 
 ```python
 def universe_asof(store: FactorDataStore, as_of: date) -> list[str]:
-    """S&P 500 constituents as of `as_of`, reconstructed from the change-log.
+    """S&P 500 constituents as of `as_of`, reconstructed from the SHARADAR/SP500
+    change-log.
 
-    Membership = every ticker whose most-recent sp500 event on/before `as_of`
-    is 'added'. Bounded below by the change-log floor (§0 finding):
-    `as_of` earlier than the floor raises UniverseUnavailable, NOT a silently
-    wrong universe.
+    §0 found the change-log uses action ∈ {added, current, historical} — NOT a
+    simple added/removed pair. FIRST IMPLEMENTATION STEP of §1: pin the exact
+    membership-interval semantics against two known index changes (a name added
+    then later removed) — i.e. how a *removal date* is represented (a 'historical'
+    status row, an end-date, or a later removal event). Build the interval logic
+    from that, not from an assumed add/remove model.
+
+    Bounded below by the change-log floor — §0 measured it at 1957-03-04, so the
+    guard never triggers for a 1998+ window; it is retained defensively and raises
+    UniverseUnavailable below the floor rather than returning a wrong universe.
     """
 ```
 
-- The floor guard is **load-bearing**: per the §0 review, a change-log that starts in (say)
-  2008 cannot reconstruct a 1998 universe. §1 raises rather than returns a wrong set; §3's
-  backtest start is then clamped to the floor (a §3 decision, recorded in §0/§1 results).
+- The floor guard is retained as defense, but **§0 resolved the risk**: the change-log floor is
+  **1957-03-04**, ~40y before the 1998 price history, so no backtest-start clamp is needed. The
+  guard still raises `UniverseUnavailable` below the floor rather than returning a wrong set. The
+  load-bearing §1 unknown is now the **action-semantics recipe** above, not the floor.
 
 ### 4.5 Survivorship-free price access
 
@@ -249,16 +258,18 @@ audit.)
    0017; the app does this at startup, a standalone script must do it itself).
 2. **Survivorship-free is the hinge.** The delisted-name test (§4.6 ★) is the difference between
    an honest momentum backtest and a misleading one. Do not skip or weaken it.
-3. **Membership floor is real.** `universe_asof` below the change-log floor must **raise**, not
-   guess. A silently-wrong pre-floor universe is exactly the bias P9 exists to avoid.
+3. **Membership *semantics*, not the floor, are the §1 risk.** §0 confirmed the change-log floor
+   is `1957-03-04` (no clamp for 1998) — but also that `action ∈ {added, current, historical}`,
+   not `{added, removed}`. §1's first task is to pin the membership-interval recipe from the real
+   semantics (§4.4); the floor guard stays defensive (raises below the floor, never guesses).
 4. **Idempotent ingest, keyed correctly.** `sep` PK is `(ticker, date)`; re-ingest must
    converge. Verify with the idempotent-ingest test, not by eyeballing counts.
 5. **Store location + gitignore.** `data/factor_data.duckdb` lives under the already-ignored
    `data/`. Never commit the store or raw vendor pulls (size + licensing, ADR 0018 §6).
 6. **Key hygiene.** `NASDAQ_DATA_LINK_API_KEY` is printed as a *length* only, never a value, and
    never written to logs/audit (ADR 0018 §5).
-7. **Don't pre-build checkpointing.** Let §0's ingest-time number decide (§4.3); record the
-   choice here on execution.
+7. **Checkpointing not built — §0 resolved it.** §0 measured the full ingest at ~5 min, so §1 is
+   single-shot idempotent (§4.3); the cursor/resume path is intentionally absent.
 8. **§0's filled §6 is this session's spec for schemas + the membership recipe.** If §1 finds a
    column/recipe mismatch against §0, that is a §0 record error to reconcile, not a thing to
    paper over in code.
