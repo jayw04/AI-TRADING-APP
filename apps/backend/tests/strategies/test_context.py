@@ -18,6 +18,7 @@ from app.db.enums import (
     TimeInForce,
 )
 from app.db.models.account import Account, AccountMode
+from app.db.models.account_state import AccountState
 from app.db.models.position import Position
 from app.db.models.signal import Signal
 from app.db.models.symbol import Symbol
@@ -232,3 +233,25 @@ async def test_log_signal_swallows_bus_failure(session_factory, seeded):
     )
     sig_id = await ctx.log_signal("AAPL", SignalType.INFO)
     assert sig_id > 0  # row is still persisted
+
+
+# ---- P9 §4: live account equity accessor ----
+
+async def test_get_account_equity_returns_snapshot(session_factory, seeded):
+    async with session_factory() as session:
+        session.add(
+            AccountState(
+                account_id=1, cash=Decimal("9000"), equity=Decimal("10500.50"),
+                last_equity=Decimal("10000"), buying_power=Decimal("38000"),
+                portfolio_value=Decimal("10500.50"), status="ACTIVE",
+                updated_at=datetime(2026, 6, 14, tzinfo=UTC),
+            )
+        )
+        await session.commit()
+    ctx, _ = _ctx(session_factory)
+    assert await ctx.get_account_equity() == Decimal("10500.50")
+
+
+async def test_get_account_equity_none_without_snapshot(session_factory, seeded):
+    ctx, _ = _ctx(session_factory)  # no AccountState row seeded
+    assert await ctx.get_account_equity() is None

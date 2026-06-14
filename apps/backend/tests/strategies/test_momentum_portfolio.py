@@ -1,4 +1,9 @@
-"""P9 §4 — momentum-portfolio template: schema parity, weekly rebalance, diff, bail-out."""
+"""P9 §4 — momentum-portfolio template (v0.2, review-hardened).
+
+Covers schema parity, weekly rebalance + failure-retry, selection/diff, the
+bail-out taxonomy, the market-regime filter, live-equity sizing, the turnover
+threshold, rank hysteresis, and the rejection policy — all against a synthetic
+StrategyContext (no engine, no DB)."""
 
 from __future__ import annotations
 
@@ -15,10 +20,9 @@ from app.factor_data.universe import UniverseUnavailable
 from app.strategies.context import Bar
 from strategies_user.templates.momentum_portfolio import MomentumPortfolio
 
-# Two timestamps in the same ISO week, and one in the next week.
 WK1_A = datetime(2026, 6, 8, 14, 0, tzinfo=UTC)   # Mon
-WK1_B = datetime(2026, 6, 8, 14, 1, tzinfo=UTC)   # same tick, same week
-WK2 = datetime(2026, 6, 15, 14, 0, tzinfo=UTC)    # next Mon, next ISO week
+WK1_B = datetime(2026, 6, 8, 14, 1, tzinfo=UTC)   # same ISO week
+WK2 = datetime(2026, 6, 15, 14, 0, tzinfo=UTC)    # next ISO week
 
 
 def _bar(ts: datetime, symbol: str = "AAA") -> Bar:
@@ -26,9 +30,7 @@ def _bar(ts: datetime, symbol: str = "AAA") -> Bar:
 
 
 def _scores(order: list[tuple[str, float]]) -> pd.DataFrame:
-    """A momentum_scores-shaped frame: indexed by ticker, 'score' col, desc."""
-    idx = [t for t, _ in order]
-    df = pd.DataFrame({"score": [s for _, s in order]}, index=idx)
+    df = pd.DataFrame({"score": [s for _, s in order]}, index=[t for t, _ in order])
     df.index.name = "ticker"
     return df
 
@@ -40,22 +42,42 @@ def _pos(qty: int):
     return p
 
 
-def _ctx(symbols: list[str], scores: pd.DataFrame, holdings: dict[str, int] | None = None,
-         price: float = 100.0):
+def _params(**over):
+    """Defaults with the regime filter OFF and sizing knobs neutralized, so a test
+    can isolate one behavior. Override per test."""
+    return {
+        **MomentumPortfolio.default_params,
+        "use_market_regime_filter": False,
+        "cash_buffer_pct": 0.0,
+        "max_position_pct": 1.0,
+        "min_score": None,
+        "rebalance_buffer_rank_pct": 0.0,
+        "min_trade_pct": 0.0,
+        **over,
+    }
+
+
+def _ctx(symbols, scores, holdings=None, price=100.0, equity=None, spy_bars=None):
     holdings = holdings or {}
     ctx = MagicMock()
     ctx.symbols = symbols
     ctx.factors = MagicMock()
     ctx.factors.momentum_scores = MagicMock(return_value=scores)
     ctx.get_position_for = AsyncMock(side_effect=lambda s: _pos(holdings[s]) if s in holdings else None)
-    ctx.get_recent_bars = AsyncMock(return_value=pd.DataFrame({"c": [price]}))
+
+    def _bars(sym, tf, n):
+        if spy_bars is not None and sym == "SPY":
+            return spy_bars
+        return pd.DataFrame({"c": [price]})
+
+    ctx.get_recent_bars = AsyncMock(side_effect=_bars)
+    ctx.get_account_equity = AsyncMock(return_value=equity)
     ctx.submit_order = AsyncMock(return_value=MagicMock(rejection_reason=None))
     ctx.log_signal = AsyncMock(return_value=1)
     return ctx
 
 
 def _orders(ctx) -> dict[str, tuple[str, Decimal]]:
-    """{symbol: (side, qty)} from recorded submit_order calls."""
     out = {}
     for call in ctx.submit_order.call_args_list:
         req = call.args[0]
@@ -63,14 +85,19 @@ def _orders(ctx) -> dict[str, tuple[str, Decimal]]:
     return out
 
 
+def _strat(ctx, **over):
+    return MomentumPortfolio(ctx=ctx, params=_params(**over))
+
+
+# ---- schema / cadence ----------------------------------------------------------
+
 def test_schema_matches_default_params() -> None:
     assert set(MomentumPortfolio.params_schema) == set(MomentumPortfolio.default_params)
 
 
 async def test_rebalances_once_per_iso_week() -> None:
-    scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
-    ctx = _ctx(["AAA", "BBB"], scores)
-    strat = MomentumPortfolio(ctx=ctx, params={**MomentumPortfolio.default_params})
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]))
+    strat = _strat(ctx)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     await strat.on_bar(_bar(WK1_B))  # same week → no second rebalance
@@ -79,31 +106,41 @@ async def test_rebalances_once_per_iso_week() -> None:
     assert ctx.factors.momentum_scores.call_count == 2
 
 
-async def test_selection_diff_buys_targets_sells_leavers() -> None:
-    # 5 candidates; top_quantile 0.4 → ceil(5*0.4)=2 → target {AAA, BBB}.
-    scores = _scores([("AAA", 2.0), ("BBB", 1.0), ("CCC", 0.0), ("DDD", -1.0), ("EEE", -2.0)])
-    ctx = _ctx(["AAA", "BBB", "CCC", "DDD", "EEE"], scores,
-               holdings={"CCC": 10, "AAA": 5}, price=100.0)
-    params = {**MomentumPortfolio.default_params, "top_quantile": 0.4, "max_names": 10,
-              "initial_equity_estimate": 100_000}
-    strat = MomentumPortfolio(ctx=ctx, params=params)
+async def test_unexpected_failure_does_not_mark_week_and_retries() -> None:
+    """★ The week is marked DONE only on a completed rebalance; an unexpected
+    exception logs and retries on the next tick (same week)."""
+    ctx = _ctx(["AAA"], _scores([("AAA", 1.0)]))
+    ctx.factors.momentum_scores = MagicMock(side_effect=ValueError("boom"))  # not a _HOLD_ON
+    strat = _strat(ctx)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
+    await strat.on_bar(_bar(WK1_B))  # same week, but prior attempt failed → retries
+    assert ctx.factors.momentum_scores.call_count == 2
+    assert any("rebalance_failed" in str(c.kwargs.get("payload", {}))
+               for c in ctx.log_signal.call_args_list)
 
+
+# ---- selection / diff ----------------------------------------------------------
+
+async def test_selection_diff_buys_targets_sells_leavers() -> None:
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0), ("CCC", 0.0), ("DDD", -1.0), ("EEE", -2.0)])
+    ctx = _ctx(["AAA", "BBB", "CCC", "DDD", "EEE"], scores,
+               holdings={"CCC": 10, "AAA": 5}, price=100.0, equity=100_000)
+    strat = _strat(ctx, top_quantile=0.4, max_names=10)  # ceil(5*0.4)=2 → {AAA,BBB}
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
     orders = _orders(ctx)
-    # equity 100k / k=2 = 50k per name; price 100 → target_qty 500
-    assert orders["CCC"] == ("sell", Decimal(10))     # held, dropped out → sold flat
-    assert orders["AAA"] == ("buy", Decimal(495))     # 500 target - 5 held
-    assert orders["BBB"] == ("buy", Decimal(500))     # new entry
-    assert "DDD" not in orders and "EEE" not in orders  # not selected, not held
+    # equity 100k / k=2 = 50k per name; price 100 → 500 target
+    assert orders["CCC"] == ("sell", Decimal(10))   # dropped out → flat
+    assert orders["AAA"] == ("buy", Decimal(495))   # 500 - 5 held
+    assert orders["BBB"] == ("buy", Decimal(500))
+    assert "DDD" not in orders and "EEE" not in orders
 
 
 async def test_names_outside_universe_never_traded() -> None:
-    # scores include ZZZ which is NOT in ctx.symbols → must never be ordered.
     scores = _scores([("ZZZ", 9.0), ("AAA", 2.0), ("BBB", 1.0)])
-    ctx = _ctx(["AAA", "BBB"], scores)
-    params = {**MomentumPortfolio.default_params, "top_quantile": 1.0, "max_names": 10}
-    strat = MomentumPortfolio(ctx=ctx, params=params)
+    ctx = _ctx(["AAA", "BBB"], scores, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, max_names=10)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     assert "ZZZ" not in _orders(ctx)
@@ -111,58 +148,145 @@ async def test_names_outside_universe_never_traded() -> None:
 
 async def test_min_score_floor_excludes_low_names() -> None:
     scores = _scores([("AAA", 2.0), ("BBB", -0.5)])
-    ctx = _ctx(["AAA", "BBB"], scores)
-    params = {**MomentumPortfolio.default_params, "top_quantile": 1.0, "max_names": 10,
-              "min_score": 0.0}
-    strat = MomentumPortfolio(ctx=ctx, params=params)
+    ctx = _ctx(["AAA", "BBB"], scores, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, max_names=10, min_score=0.0)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     orders = _orders(ctx)
     assert "AAA" in orders and "BBB" not in orders  # BBB below the 0.0 floor
 
 
+async def test_default_min_score_is_zero() -> None:
+    assert MomentumPortfolio.default_params["min_score"] == 0.0
+
+
+# ---- bail-out taxonomy + rejection policy --------------------------------------
+
 @pytest.mark.parametrize(
     "exc",
     [FactorDataUnavailable("no store"), FactorUnavailable("thin"), UniverseUnavailable("floor")],
 )
 async def test_holds_on_any_no_data_exception(exc) -> None:
-    """★ Bail-out taxonomy: every 'no factor data this week' signal → HOLD, not
-    crash (Finding 1). Thin cross-section (FactorUnavailable) is the likeliest."""
     ctx = _ctx(["AAA"], _scores([("AAA", 1.0)]))
     ctx.factors.momentum_scores = MagicMock(side_effect=exc)
-    strat = MomentumPortfolio(ctx=ctx, params={**MomentumPortfolio.default_params})
+    strat = _strat(ctx)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))  # must not raise
-    ctx.submit_order.assert_not_called()  # held, traded nothing
+    ctx.submit_order.assert_not_called()
     assert any("factor_unavailable_hold" in str(c.kwargs.get("payload", {}))
                for c in ctx.log_signal.call_args_list)
+    assert strat._last_rebalance_week is not None  # deliberate hold = week handled
 
 
 async def test_rejected_sell_does_not_block_buys() -> None:
-    """A risk-engine rejection on one order is log-and-continue: the rest of the
-    rebalance still submits (Finding 6). Sells are submitted before buys."""
     scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
-    ctx = _ctx(["AAA", "BBB", "CCC"], scores, holdings={"CCC": 10}, price=100.0)
+    ctx = _ctx(["AAA", "BBB", "CCC"], scores, holdings={"CCC": 10}, price=100.0, equity=100_000)
 
-    def _result(req):  # reject CCC's sell; accept everything else
+    def _result(req):
         return MagicMock(rejection_reason="risk_blocked" if req.symbol_ticker == "CCC" else None)
 
     ctx.submit_order = AsyncMock(side_effect=_result)
-    params = {**MomentumPortfolio.default_params, "top_quantile": 1.0, "max_names": 10}
-    strat = MomentumPortfolio(ctx=ctx, params=params)
+    strat = _strat(ctx, top_quantile=1.0, max_names=10)
     await strat.on_init()
-    await strat.on_bar(_bar(WK1_A))  # must not raise despite the rejection
+    await strat.on_bar(_bar(WK1_A))
     orders = _orders(ctx)
-    assert orders["CCC"][0] == "sell"          # the (rejected) sell was attempted first
-    assert orders["AAA"][0] == "buy" and orders["BBB"][0] == "buy"  # buys still submitted
+    assert orders["CCC"][0] == "sell"
+    assert orders["AAA"][0] == "buy" and orders["BBB"][0] == "buy"
 
 
 async def test_skips_target_with_no_price() -> None:
-    scores = _scores([("AAA", 2.0)])
-    ctx = _ctx(["AAA"], scores)
-    ctx.get_recent_bars = AsyncMock(return_value=pd.DataFrame({"c": []}))  # empty → no price
-    params = {**MomentumPortfolio.default_params, "top_quantile": 1.0}
-    strat = MomentumPortfolio(ctx=ctx, params=params)
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), equity=100_000)
+    ctx.get_recent_bars = AsyncMock(return_value=pd.DataFrame({"c": []}))
+    strat = _strat(ctx, top_quantile=1.0)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
-    ctx.submit_order.assert_not_called()  # couldn't size → skipped, no order
+    ctx.submit_order.assert_not_called()
+
+
+# ---- live equity / sizing knobs ------------------------------------------------
+
+async def test_live_equity_preferred_over_estimate() -> None:
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=100.0, equity=50_000)
+    strat = _strat(ctx, top_quantile=1.0, initial_equity_estimate=100_000)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    # live equity 50k (not the 100k estimate) → 50k/1/100 = 500 shares
+    assert _orders(ctx)["AAA"] == ("buy", Decimal(500))
+
+
+async def test_falls_back_to_estimate_when_no_live_equity() -> None:
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=100.0, equity=None)
+    strat = _strat(ctx, top_quantile=1.0, initial_equity_estimate=100_000)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["AAA"] == ("buy", Decimal(1000))  # 100k estimate / 100
+
+
+async def test_cash_buffer_and_max_position_cap() -> None:
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=100.0, equity=100_000)
+    # 10% cash buffer → 90k investable; max_position 10% → cap 9k → 90 shares
+    strat = _strat(ctx, top_quantile=1.0, cash_buffer_pct=0.10, max_position_pct=0.10)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["AAA"] == ("buy", Decimal(90))
+
+
+async def test_turnover_threshold_skips_small_adjustment() -> None:
+    # target_qty 1000 (100k/100), held 995 → delta 5 → 5*100=500 < 100k*0.03 → skip
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), holdings={"AAA": 995}, price=100.0, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, min_trade_pct=0.03)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    ctx.submit_order.assert_not_called()  # adjustment too small → no churn
+
+
+# ---- rank hysteresis -----------------------------------------------------------
+
+async def test_hysteresis_keeps_boundary_held_name() -> None:
+    # core = top 20% of 5 = 1 name (AAA); buffer 0.2 → zone = top 40% = {AAA,BBB}.
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0), ("CCC", 0.5), ("DDD", 0.2), ("EEE", 0.1)])
+    ctx = _ctx(["AAA", "BBB", "CCC", "DDD", "EEE"], scores, holdings={"BBB": 10}, equity=100_000)
+    strat = _strat(ctx, top_quantile=0.2, rebalance_buffer_rank_pct=0.2, max_names=10)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    orders = _orders(ctx)
+    # BBB held + within buffer zone → kept (not sold to flat)
+    assert not (orders.get("BBB", ("", 0))[0] == "sell" and orders["BBB"][1] == Decimal(10))
+
+
+# ---- market-regime filter ------------------------------------------------------
+
+def _spy(values: list[float]) -> pd.DataFrame:
+    return pd.DataFrame({"c": values})
+
+
+async def test_regime_bearish_goes_to_cash() -> None:
+    spy = _spy([100.0] * 150 + [80.0] * 50)  # last 80 < mean 95 → bearish
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), holdings={"AAA": 10},
+               equity=100_000, spy_bars=spy)
+    strat = _strat(ctx, use_market_regime_filter=True, top_quantile=1.0)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("sell", Decimal(10))  # risk-off → exit to cash
+    assert all(side == "sell" for side, _ in orders.values())  # no buys
+
+
+async def test_regime_bullish_trades_normally() -> None:
+    spy = _spy([80.0] * 150 + [120.0] * 50)  # last 120 > mean 90 → bullish
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), equity=100_000, spy_bars=spy)
+    strat = _strat(ctx, use_market_regime_filter=True, top_quantile=1.0)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["AAA"][0] == "buy"  # bull → trades
+
+
+async def test_regime_unavailable_fails_open() -> None:
+    # SPY not in symbols → get_recent_bars returns 1 row < threshold → fail open (trade)
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), equity=100_000)  # no SPY, no spy_bars
+    strat = _strat(ctx, use_market_regime_filter=True, top_quantile=1.0)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["AAA"][0] == "buy"  # filter unavailable → fail open, still trades
+    assert any("regime_filter_unavailable_failopen" in str(c.kwargs.get("payload", {}))
+               for c in ctx.log_signal.call_args_list)

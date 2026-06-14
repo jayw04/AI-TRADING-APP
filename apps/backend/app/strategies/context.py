@@ -23,6 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.enums import OrderSourceType, SignalType
+from app.db.models.account_state import AccountState
 from app.db.models.position import Position
 from app.db.models.signal import Signal
 from app.db.models.symbol import Symbol
@@ -253,6 +254,23 @@ class StrategyContext:
                     )
                 )
             ).scalars().first()
+
+    async def get_account_equity(self) -> Decimal | None:
+        """Live account equity from the cached broker snapshot, or ``None`` if no
+        snapshot exists yet.
+
+        Reads ``accounts_state`` (the per-account Alpaca snapshot kept fresh by
+        ``AccountSyncService``) scoped to this strategy's account. Read-only — for
+        position sizing; it never touches the order path or the broker directly. A
+        ``None`` return means a caller should fall back to a configured estimate
+        rather than assume an equity."""
+        async with self._session_factory() as session:
+            row = (
+                await session.execute(
+                    select(AccountState).where(AccountState.account_id == self.account_id)
+                )
+            ).scalars().first()
+            return row.equity if row is not None else None
 
     # ---- order submission ----
 
