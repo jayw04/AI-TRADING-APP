@@ -63,6 +63,15 @@ the universe as a PIT liquidity top-N. No open reconciliation items remain.
 
 ---
 
+> **⚠ The body below (§1–§8) is the original S&P-500-universe draft and is
+> SUPERSEDED by §0 above — read §0 as authoritative.** The shipped code
+> (`app/factor_data/universe.py`, merged in #100) implements the **PIT liquidity
+> top-N** universe, not S&P 500 membership; the `sp500` table and `ingest_sp500()`
+> in §4.2, the change-log `universe_asof` docstring in §4.4, and the "~500 / S&P
+> 500" language in §4.6/§5 below describe the abandoned design. Do not code from
+> the body without reconciling against §0 + `docs/runbook/factor-data.md`.
+> (P9 §3/§4 review, Finding 3.)
+
 ## 1. Why this session exists
 
 The v1 factor is **price momentum**, which needs exactly one thing the platform does not have:

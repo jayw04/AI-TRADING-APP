@@ -66,10 +66,17 @@ The momentum book expressed through the MTG strategy-spec lens
 2. **Rebalance cadence = weekly, Monday ~09:00 ET (owner choice).**
    `schedule = "0 14 * * 1"` (14:00 UTC). Rebalance at the week's start near the US
    open — a clean, liquid moment.
-3. **Book size = top-50 liquidity candidates → ~10 held (owner choice).** `symbols`
-   at registration = top-50 liquidity universe; hold the top quintile (~10) equal
-   weight. Legible book + manageable order count, still a real cross-section.
-   Configurable via params (`top_quantile`, `max_names`).
+3. **Book size = top-200 liquidity candidates → ~10 held (owner choice, revised
+   2026-06-14 per review Finding 2).** `symbols` at registration = top-**200**
+   liquidity universe; hold the top ~10 (`max_names=10`) equal weight. The earlier
+   top-50 choice was revised: top-50-by-dollar-volume is effectively mega-caps,
+   where the momentum premium is historically *weakest*; top-200 keeps the book
+   legible (~10 names) while selecting from the broader segment where the §3 edge
+   actually lives. **Standardization scope:** the strategy calls
+   `momentum_scores(n=len(ctx.symbols))` so z-scores are standardized over the
+   registered candidate universe (the names actually tradeable), and the §3
+   edge-evidence backtest is re-run at the **deployment config (n≈200)** — not only
+   the n=500 default (§4.3).
 4. **Position sizing = equal target notional `equity/k`, whole shares, market
    orders.** Fractional shares deferred (keeps the paper book legible and avoids an
    Alpaca fractional-order path in v1).
@@ -118,31 +125,51 @@ async def on_bar(self, bar: Bar) -> None:
 ```
 
 `_rebalance`:
-1. `scores = self.ctx.factors.momentum_scores()` (PIT; §2). On
-   `FactorDataUnavailable` → **hold** (log + return; the bail-out rule).
+1. `scores = self.ctx.factors.momentum_scores(n=len(self.ctx.symbols))` (PIT; §2).
+   Passing `n` = the registered universe size standardizes z-scores over the
+   **tradeable candidate universe** (not the accessor's broad `n=500` default), so
+   the quintile cut and the z-scores share one cross-section (review Finding 2).
+   On any of `FactorDataUnavailable` / `FactorUnavailable` / `UniverseUnavailable`
+   → **hold** (log + return; the bail-out rule — see §8 note 3).
 2. `eligible = scores[scores.index.isin(self.ctx.symbols)]` — only the tradeable
-   candidate universe (StrategyContext enforces the allowed-list anyway).
+   candidate universe (mostly a no-op now that scores are standardized over it).
 3. `target = ` top `ceil(len(eligible) * top_quantile)` capped at `max_names`,
    `min_score` floor applied → equal target weight `1/k`.
-4. `current = await self.ctx.get_positions()`.
-5. **Diff → orders** through `ctx.submit_order` (every order, ADR 0002):
+4. `current = ` per-symbol `ctx.get_position_for(sym)` over the candidate set
+   (keyed by ticker; `get_positions()` keys by `symbol_id`).
+5. **Diff → orders** through `ctx.submit_order` (every order, ADR 0002),
+   **all SELLs before any BUYs** so exited capital is freed first (review Finding 6):
    - names in `current` but not `target` → **SELL** to flat;
    - names in `target` → **BUY/adjust** toward `equity/k` notional (whole shares).
+   - **Rejection policy:** log-and-continue per name (a risk-engine rejection on
+     one order never aborts the rest of the rebalance).
 6. `ctx.log_signal(...)` the rebalance decision per name (audit trail).
 
-Equity estimate for sizing: from `default_params`/account snapshot, same pattern
-as `range_trader.py` (it keeps an `_equity_estimate`).
+Equity for sizing: a static `_equity_estimate` param in v1 (same pattern as
+`range_trader.py`). **Known limitation (review Finding 7):** a rebalancing book
+should size from *live* account equity; `StrategyContext` does not expose account
+equity/buying-power today, so v1 uses the estimate. Adding a `ctx` equity accessor
+is a follow-up (`# VERIFY-CAPABILITY-EXISTS` before relying on one).
 
 ### 4.3 Backtest evidence (ADR 0014)
 
 The factor's edge is evidenced by **§3's standalone cross-sectional backtest**
-(the honest, survivorship-free ground truth) — that is the artifact that justifies
-running this book. The framework's per-strategy `Backtester` (bar-driven,
-single-name, Alpaca bars) is **not** the right tool for a weekly cross-sectional
-book and is **not** retrofitted here; §4 references §3's report as the edge
-evidence. (If the activation flow's "recent backtest" prerequisite must be
-satisfied for a PAPER activation, that is confirmed during the §5 verification
-step, not worked around in code.)
+(the honest, survivorship-free ground truth), **re-run at this strategy's
+deployment configuration** (n≈200 → ~10 held; review Finding 2) — not only the §3
+default `n=500` book. The n=500 run stays the broad-cross-section reference; the
+deployment-config run is the artifact that justifies *this* book. If the
+deployment-config edge is materially weaker than the n=500 reference (expected,
+given mega-cap momentum decay), that is a decision input surfaced *before* paper
+activation. The framework's per-strategy `Backtester` (bar-driven, single-name,
+Alpaca bars) is **not** the right tool for a cross-sectional book and is **not**
+retrofitted here.
+
+**Activation prerequisite (review Finding 8 — resolved):** the "recent backtest
+within 7 days" prerequisite in `ActivationService.check_prerequisites` gates
+**LIVE** activation only (`initiate → PENDING_LIVE`). **PAPER** registration does
+**not** require it, so §4's paper drive is unblocked. (A future LIVE promotion —
+out of P9 scope — would need either a framework `Backtester` run or an accepted
+external-reference path; decide then.)
 
 ### 4.4 Tests (the load-bearing ones first)
 
@@ -152,11 +179,16 @@ step, not worked around in code.)
   returns a known cross-section and `get_positions()` a known book, assert the
   exact SELL/BUY order set (leavers sold, joiners bought, sized to `equity/k`,
   whole shares), all via `ctx.submit_order`.
-- **★ Isolation/bail-out**: `FactorDataUnavailable` → no orders, strategy holds;
-  names outside `ctx.symbols` are never ordered; no `app.brokers`/`app.orders`
-  import in the strategy file.
+- **★ Bail-out taxonomy**: `momentum_scores()` raising **each** of
+  `FactorDataUnavailable` / `FactorUnavailable` / `UniverseUnavailable` → no orders,
+  strategy holds, one hold signal logged (review Finding 1).
+- **★ Isolation**: names outside `ctx.symbols` are never ordered; no
+  `app.brokers`/`app.orders` import in the strategy file.
+- **Rejection log-and-continue**: a rejected SELL does not block the BUY batch
+  (review Finding 6).
 - **Params**: `params_schema` matches `default_params` (the drift gotcha in
-  CLAUDE.md — code params ⇿ schema).
+  CLAUDE.md — code params ⇿ schema). `min_score` is a **nullable** number
+  (default `None` = no floor) so the typed form round-trips (review Finding 10).
 - Unit tests use a **fake/synthetic `StrategyContext`** (record submitted orders),
   not the live engine — fast and deterministic. Reuse the §2 synthetic factor
   store for `ctx.factors`.
@@ -167,7 +199,7 @@ step, not worked around in code.)
 verification (its own step, like the §2-variant live work):
 
 1. Ingest a broad pool so the universe/quintiles are real (`docs/runbook/factor-data.md` §4).
-2. Register `momentum-portfolio` with `symbols` = top-50 liquidity, on the paper account.
+2. Register `momentum-portfolio` with `symbols` = top-200 liquidity, on the paper account.
 3. Activate to **PAPER**; on the next weekly cron tick (or a manual trigger),
    observe a rebalance: `momentum_scores` → top-10 → real `OrderRouter.submit`
    paper orders → fills → positions reflect the equal-weight book.
@@ -202,11 +234,28 @@ verification is gated on Jay + market hours, not a walk-away timer.
 2. **Intersect scores with `ctx.symbols`.** `momentum_scores()` spans the full
    `universe_asof`; the strategy can only trade its declared allowed-list — select
    the top quintile *within* it, or orders for unlisted names silently no-op.
-3. **Hold on `FactorDataUnavailable`.** No store / thin cross-section → do not
-   trade blind; hold the current book and log. This is the MTG "Bail-Out" row.
+3. **Hold on ANY "no factor data" exception (review Finding 1).** Catch
+   `FactorDataUnavailable` **and** `FactorUnavailable` (thin cross-section — the
+   *likeliest* trigger) **and** `UniverseUnavailable` (below floor) — not just the
+   no-store case. Catching only one (or a bare `except Exception` that swallows
+   real bugs) is the trap; the strategy catches the explicit three. This is the
+   MTG "Bail-Out" row.
 4. **params_schema ⇿ default_params in sync** (CLAUDE.md proven-costly list) — the
-   typed form derives from the schema; drift breaks the UI.
+   typed form derives from the schema; drift breaks the UI. `min_score` is a
+   nullable number (`None` = no floor) so the empty form value round-trips.
 5. **Every order through `ctx.submit_order`.** No broker/DB/network in the strategy
    — ADR 0002 + strategy isolation. The risk engine evaluates each rebalance order.
-6. **The paper drive is market-hours + Jay-gated.** Don't claim §4 "runs in paper"
+6. **Restart safety (review Finding 5).** The in-memory `_last_rebalance_week`
+   resets on restart, so the next tick rebalances — but because step 5 trades the
+   **diff against actual positions**, a redundant rebalance is a near-no-op (only
+   drift trims), not a full sell/buy churn. The diff also makes the rebalance
+   idempotent under replay.
+7. **Sells before buys; live-equity is a known gap (Findings 6, 7).** Submit all
+   sells before any buys (free capital first), log-and-continue on a rejection.
+   Sizing uses a static equity estimate in v1 — a rebalancing book ideally reads
+   live equity (no `ctx` accessor for it yet).
+8. **Fixed-UTC cron drifts across DST (review Finding 10).** `"0 14 * * 1"` is
+   09:00 ET in winter but **10:00 EDT** in summer. Fine for "rebalance near the
+   open," but the offset to the 09:30 ET open is not stable year-round.
+9. **The paper drive is market-hours + Jay-gated.** Don't claim §4 "runs in paper"
    from unit tests alone; the live paper rebalance is the §5 verification step.
