@@ -89,6 +89,11 @@ Genuine gaps, **out of scope for P9**: news/social sentiment, options flow, intr
   `OrderRouter.submit`, the risk engine, and (for live) the activation/cooldown gates.
 - **Provider abstraction.** Alpaca's hardcoded fetch is refactored behind a typed source
   interface; `BarCache.get_bars` keeps its contract. Live execution + quotes stay Alpaca.
+  `# VERIFY-CAPABILITY-EXISTS` — this is a non-trivial refactor of a load-bearing path that
+  backtests, Range Insight, and the P6 §2-variant equity-curve reconstruction all depend on.
+  The §1/§2 plan must first confirm the **exact current `BarCache.get_bars` signature and
+  every caller** before refactoring behind an interface (the assumed-signature class of error,
+  cf. the §4 `call_with_budget` fabrication).
 - **Strategy access is sandboxed and explicit.** Strategies reach data only through
   `StrategyContext` (which today wraps `BarCache`). P9 adds a **factor/fundamental
   accessor** to the context — a deliberate, reviewable extension point; strategies still
@@ -122,6 +127,11 @@ drafted from here.
 - **§3 — Survivorship-free weekly factor backtest.** Cross-sectional backtest path:
   `universe_asof` → momentum scores → portfolio construction → **weekly** rebalance →
   returns *including delisted names*; baseline comparison + reproducibility test (ADR 0014).
+  **Named decision for §3's v0.1:** the **delisting-return mechanism** — the return a name
+  realizes on its last day when it delists/acquires mid-holding-period (e.g. final price → cash,
+  or an applied delisting return). "Returns incl. delistings" is the honesty hinge on the
+  *backtest* side; the exact mechanism must be decided in §3's plan, not discovered during
+  implementation.
 - **§4 — First factor strategy (MTG template), paper-only.** The momentum book expressed
   through the MTG strategy-spec template, taken through backtest → paper via the standard
   lifecycle. **No live** in P9 (Section 6).

@@ -50,9 +50,12 @@ No product code, no new runtime dependency is committed in §0 (the script uses 
 ## 3. Prerequisites
 
 - `FMP_API_KEY` and `NASDAQ_DATA_LINK_API_KEY` present in `.env` (confirmed 2026-06-13).
-- ADR-0017 OS-trust-store path available (merged to `main`, `d5a9596`) so calls succeed
-  under Norton inspection from the host venv — proven on 2026-06-13 by the AAPL fixture gen.
-- P9 Direction v0.2 accepted (PR #97) — §0 verifies the data that direction assumes.
+- ADR-0017 OS-trust-store path **merged to `main` (`d5a9596`)** — genuinely available, so calls
+  succeed under Norton inspection from the host venv (proven 2026-06-13 by the AAPL fixture gen).
+- P9 Direction v0.2 + ADR 0018 **drafted** (PR #97, **open — under review, not yet accepted**).
+  §0 verifies the data that direction *assumes*; do **not** treat the open PR or the Draft ADR
+  as a completed prerequisite. If §0 is run before #97 merges, that is fine — §0 is the
+  evidence that *informs* acceptance. (Contrast ADR-0017 above, which is actually merged.)
 - Host backend venv (`apps/backend/.venv`) — the script runs there, not in Docker.
 
 ## 4. Detailed verification work
@@ -88,6 +91,13 @@ Datatables REST base: `https://data.nasdaq.com/api/v3/datatables/SHARADAR/<TABLE
   reconstructable), and cross-check coverage against TICKERS. **Record the exact construction
   recipe** §1 will implement. If the change-log is *not* full, record the fallback (e.g. a
   maintained membership list) — this is a §1-blocking finding.
+  - **★ Earliest change-log date vs the backtest window (data-quality trap).** "Full" is not
+    enough — record the **earliest date the SP500 change-log reaches**. If the change-log
+    floor (say ~2008) post-dates the SEP price history (1998), the pre-floor universe is
+    **unreconstructable**, and a momentum backtest to 1998 would silently fall back to a wrong
+    (likely survivorship-biased) universe. If the floor post-dates the intended window, that is
+    a scope finding: either **start the momentum backtest at the change-log floor**, or
+    document the universe-construction limitation explicitly. Record floor date + decision.
 - **Full-vs-sample confirmation.** Empirically confirm SEP / TICKERS / ACTIONS return **full**
   (not 10-row sample) data; note that SF1 / DAILY / METRICS are sample-only (not used in v1).
 - Record: per-table row counts, date ranges, pagination behavior, and the **rate limit**
@@ -104,8 +114,10 @@ build anything on it. REST base: `https://financialmodelingprep.com/api/v3/<endp
 - **Ratios:** `ratios/AAPL?limit=20` — confirm presence.
 - **Earnings surprises:** `earnings-surprises/AAPL` — confirm presence (PEAD factor input).
 - **Macro:** confirm a treasury/economic endpoint is accessible on the tier (record which).
-- Record: the **rate limit** and any endpoints that 401/403 on the Starter tier (so §5+
-  plans around them).
+- Record: the **rate limit** and any endpoints that 401/403 on the Starter tier. Capture this
+  as a **structured §6 finding** — the *specific* gated endpoint names, not prose — so that
+  when §5+ plans the fundamental layer it knows exactly which endpoints need a tier bump
+  rather than discovering gated endpoints mid-build.
 
 ### 4.3 TLS + credential posture
 
@@ -114,7 +126,18 @@ build anything on it. REST base: `https://financialmodelingprep.com/api/v3/<endp
 - Confirm the keys load as `Settings` env-aliases (ADR 0018 §5) and are **never logged** —
   the script prints key *lengths*, never values.
 
-### 4.4 Verification script shape
+### 4.4 Licensing (hard §0 finding)
+
+Licensing is a **recorded §0 finding**, not a deferred "tracked" note. Sharadar / Nasdaq Data
+Link and FMP both carry redistribution + derived-data clauses that can constrain even local
+computation depending on tier. For the single-user local deployment this is almost certainly
+fine — but record the answer now, cheaply, before the ADR-0018 multi-user trigger ever fires.
+Record explicitly **both**:
+- whether **raw vendor tables** may be re-exposed (API / MCP) — expected **no** (ADR 0018 §6);
+- whether **derived factor scores** (surfaced in Discovery filters, or a strategy others could
+  see) may be exposed — the subtler question a hosted deployment would hit.
+
+### 4.5 Verification script shape
 
 ```text
 apps/backend/scripts/verify_factor_data_access.py   (host venv; no stack)
@@ -143,7 +166,10 @@ Run: `PYTHONPATH=apps/backend apps/backend/.venv/Scripts/python.exe apps/backend
    fallback).
 5. ACTIONS returns corporate actions.
 6. FMP authenticates and returns fundamentals (depth recorded), even though unused in v1.
-7. Rate limits are documented and adequate for an S&P 500 batch ingest.
+7. Rate limits are not just "adequate" but **quantified**: record the **estimated total time
+   to ingest the full S&P 500 SEP history (1998+) at the observed rate**. This number decides
+   whether §1 is a 5-minute job or a 5-hour job — i.e. whether §1 must build
+   checkpointing / resumability from the start.
 
 **NO-GO** triggers (any one) → stop, record the gap, revise the Direction doc before §1:
 - SEP/TICKERS are sample-only (not full) → no survivorship-free spine.
@@ -160,9 +186,14 @@ Run: `PYTHONPATH=apps/backend apps/backend/.venv/Scripts/python.exe apps/backend
 - Sharadar TICKERS: ______ — PASS/FAIL
 - Sharadar ACTIONS: ______ — PASS/FAIL
 - S&P 500 PIT membership recipe: ______ — PASS/FAIL
+- **S&P 500 change-log earliest date: ______ ; covers backtest window (1998+)? ______ ;
+  decision if not: ______**
 - FMP fundamentals depth: ______ years — PASS/FAIL
 - FMP macro/earnings reachable: ______ — PASS/FAIL
+- **FMP Starter gated endpoints (specific names): ______**
 - Rate limits (Sharadar / FMP): ______ / ______
+- **Estimated full S&P 500 SEP ingest time at observed rate: ______ → §1 checkpointing needed? ______**
+- **Licensing — raw-table re-export permitted? ______ ; derived-score exposure permitted? ______**
 - TLS under Norton (OS trust store): ______ — PASS/FAIL
 - Dependency decision (REST vs SDK): ______
 - **RESULT: GO / NO-GO** — ______
@@ -204,3 +235,8 @@ surface). The PR is the script + this doc's filled Results.
    secrets — these are not on that list, so be deliberate).
 6. **Depth split is expected, not a failure.** FMP returning ~5y is the documented Starter
    behavior, not a NO-GO — record it; price factors backtest from Sharadar to 1998.
+7. **§6 Results is a permanent artifact, not a throwaway.** This is the first phase whose
+   correctness — not just availability — cannot be unit-tested: survivorship-freeness is an
+   empirical property of the *vendor's data*, not of our code. When the first momentum
+   backtest prints a suspiciously good Sharpe, the first question will be "is the universe
+   actually survivorship-free / PIT" — and the filled §6 is the answer of record. Keep it.
