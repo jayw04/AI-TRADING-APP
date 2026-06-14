@@ -59,7 +59,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.2.0"  # §4 review hardening
+    version: ClassVar[str] = "0.3.0"  # §4 review hardening (rounds 1 + 2)
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
@@ -211,7 +211,10 @@ class MomentumPortfolio(Strategy):
         additionally KEEPS a currently-held name if it is still within
         (top_quantile + rebalance_buffer_rank_pct) of the cut, to damp churn from
         names hovering at the boundary."""
-        allowed = {s.upper() for s in self.ctx.symbols}
+        # Exclude the market proxy (SPY) — it may be registered ONLY so the regime
+        # filter can read it; it must never be selected as a portfolio holding.
+        market_sym = str(self.params.get("market_filter_symbol", "SPY")).upper()
+        allowed = {s.upper() for s in self.ctx.symbols if s.upper() != market_sym}
         eligible = scores[scores.index.isin(allowed)]
         floor = self.params.get("min_score")
         if floor is not None and floor != "":
@@ -236,9 +239,15 @@ class MomentumPortfolio(Strategy):
         return [t for t in ranked if t in chosen][:cap]
 
     async def _current_holdings(self) -> dict[str, Decimal]:
-        """Long quantities currently held, keyed by ticker, over the candidate set."""
+        """Long quantities currently held, keyed by ticker, over the candidate set.
+
+        The market proxy is excluded — the strategy never manages a SPY position
+        (it may exist only for the regime filter, or be held by another path)."""
         held: dict[str, Decimal] = {}
+        market_sym = str(self.params.get("market_filter_symbol", "SPY")).upper()
         for sym in self.ctx.symbols:
+            if sym.upper() == market_sym:
+                continue
             pos = await self.ctx.get_position_for(sym)
             qty = getattr(pos, "qty", None) if pos is not None else None
             if qty is not None and Decimal(qty) > 0 and getattr(pos, "side", "long") == "long":
@@ -248,7 +257,10 @@ class MomentumPortfolio(Strategy):
     async def _investable_equity(self) -> Decimal:
         """Live account equity (cache snapshot) minus the cash buffer; falls back to
         the configured estimate when no snapshot exists."""
-        live = await self.ctx.get_account_equity()
+        try:
+            live = await self.ctx.get_account_equity()
+        except Exception:  # noqa: BLE001 — any equity-read failure → fall back to the estimate, never block sizing
+            live = None
         equity = Decimal(str(live)) if live is not None else self._equity_estimate
         buffer = Decimal(str(self.params.get("cash_buffer_pct", 0.02)))
         return equity * (Decimal(1) - buffer)
@@ -258,16 +270,19 @@ class MomentumPortfolio(Strategy):
         is unavailable (→ fail open: trade). The proxy must be in `ctx.symbols`."""
         sym = str(self.params.get("market_filter_symbol", "SPY"))
         days = int(self.params.get("market_ma_days", 200))
-        bars = await self.ctx.get_recent_bars(sym, "1Day", n=days)
-        if bars is None or bars.empty or len(bars) < max(20, days // 2):
+        # Fetch days+1 bars: the MA is over the `days` COMPLETED bars (iloc[:-1]),
+        # compared against the latest bar (iloc[-1]) — so the current/forming bar
+        # never contaminates its own MA.
+        bars = await self.ctx.get_recent_bars(sym, "1Day", n=days + 1)
+        if bars is None or bars.empty or len(bars) < days + 1:
             await self.ctx.log_signal(
                 sym, SignalType.EXIT,
                 payload={"reason": "regime_filter_unavailable_failopen",
-                         "have_bars": 0 if bars is None else int(len(bars)), "need": days},
+                         "have_bars": 0 if bars is None else int(len(bars)), "need": days + 1},
             )
             return None
-        ma = float(bars["c"].mean())
-        last = float(bars["c"].iloc[-1])
+        ma = float(bars["c"].iloc[:-1].mean())  # the `days` completed bars
+        last = float(bars["c"].iloc[-1])        # the latest bar
         return last < ma
 
     async def _price(self, symbol: str) -> float | None:
@@ -299,7 +314,9 @@ class MomentumPortfolio(Strategy):
         sig = SignalType.ENTRY if side == OrderSide.BUY else SignalType.EXIT
         log_payload: dict[str, Any] = {"reason": reason, **(payload or {})}
         rejection = getattr(result, "rejection_reason", None)
-        if rejection:
+        if result is None:
+            log_payload["submit_returned_none"] = True  # router gave no order back — surface it
+        elif rejection:
             log_payload["rejected"] = rejection
         await self.ctx.log_signal(symbol, sig, payload=log_payload)
         return result is not None and not rejection
