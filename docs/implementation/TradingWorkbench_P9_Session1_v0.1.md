@@ -17,6 +17,52 @@
 
 ---
 
+## 0. Reconciliation (2026-06-14, during build) — universe definition changed
+
+§1's "FIRST pin the membership recipe against real data" step (§4.4) did its job
+and surfaced a data-coverage finding that invalidates the **S&P 500** premise:
+
+- The `SHARADAR/SP500` constituents datatable **in this subscription returns only
+  28 names** (the Dow blue-chips: AAPL, AXP, BA, CAT, CSCO, CVX, DD, GE, GS, HD,
+  IBM, INTC, JNJ, JPM, KO, MCD, MMM, MRK, MSFT, NKE, PFE, PG, TRV, TSLA, UNH, VZ,
+  WMT, XOM). It is the free **sample** of the constituents product, not the full
+  ~500-name index. (Its structure *was* pinned: `added` = original add date,
+  `historical` = quarter-end membership snapshots, `current` = today — but only
+  for those 28 names, so it can't define an S&P 500 universe.)
+- `SEP` (prices) and `TICKERS` (21,853 names, with `firstpricedate` /
+  `lastpricedate` lifetime bounds + `isdelisted`) **are** full and
+  survivorship-free. `DAILY` (point-in-time market cap) returns 0 rows — not
+  subscribed.
+- §0's GO checked SP500 *accessibility*, not *completeness* — the gap §1's
+  pin-the-recipe step is designed to catch (per §8 note 8, a §0 record gap to
+  reconcile, recorded here).
+
+**Owner decision (2026-06-14):** v1 universe = a **point-in-time liquidity
+universe** from `SEP` + `TICKERS` — top-`n` by trailing dollar volume, tradeable
+as of the rebalance date (`firstpricedate <= as_of <= lastpricedate`). Price-only,
+point-in-time, survivorship-free, no extra subscription. This replaces the S&P 500
+membership universe throughout §1 (§2 below, §4.4, §4.6). See
+`docs/runbook/factor-data.md` §2.
+
+**Knock-on changes from this decision:**
+- `universe_asof` is built on dollar-volume ranking + lifetime-bound eligibility,
+  not the SP500 change-log. The `UniverseUnavailable` floor guard is retained
+  (now keyed to the SEP price-history floor, not the change-log floor).
+- The `sp500` table is **dropped** from the schema (§4.2) — a 28-name sample
+  table would be misleading; it is not ingested.
+- Ingestion is **resumable** (`--skip-existing`), superseding §0's "single-shot,
+  no checkpointing" (which assumed the 500-name pull). The liquidity candidate
+  pool is larger than 500 and the vendor caps at ~1M rows/day.
+- Tests use **synthetic** data (no committed binary fixture) — raw vendor
+  re-export is disallowed (ADR 0018 §6).
+
+**Follow-up (not done in this session):** P9 **Direction v0.2** and **ADR 0018**
+still say "S&P 500" / "weekly rebalance over the index." Those should get a short
+reconciling note (the universe is now a PIT liquidity top-N). Flagged for the
+owner; not rewritten unilaterally.
+
+---
+
 ## 1. Why this session exists
 
 The v1 factor is **price momentum**, which needs exactly one thing the platform does not have:

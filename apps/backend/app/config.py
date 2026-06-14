@@ -82,6 +82,22 @@ class Settings(BaseSettings):
         description="MCP connector URL for the agent; empty disables it.",
     )
 
+    # --- Factor data (P9 §1) ---
+    # Nasdaq Data Link key for the Sharadar SEP/TICKERS/ACTIONS datatables, used
+    # only by the read-only app/factor_data/ subsystem (ADR 0018). Adopted as a
+    # Settings env-alias (NOT the encrypted CredentialStore) — see ADR 0018 §5;
+    # printed as a length only, never logged. Empty disables ingestion.
+    nasdaq_data_link_api_key: str = Field(
+        default="",
+        alias="NASDAQ_DATA_LINK_API_KEY",
+        description="Nasdaq Data Link / Sharadar API key. Empty disables factor-data ingestion.",
+    )
+    # Local DuckDB point-in-time factor-data store. Resolved relative to
+    # apps/backend/ (matches db_url / bars_cache_root). Lives under the
+    # already-gitignored data/. Never commit the store or raw vendor pulls
+    # (size + licensing, ADR 0018 §6).
+    factor_data_db_path: str = "data/factor_data.duckdb"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -55,6 +55,11 @@ dependencies = [
     # in the OS store but not in certifi doesn't break Alpaca/Anthropic HTTPS.
     # Pure-Python, stdlib-only deps. See app/utils/tls_trust.py.
     "truststore>=0.9,<1.0",
+    # P9 §1: local point-in-time factor-data store (app/factor_data/). DuckDB is
+    # an embedded analytical engine — the survivorship-free Sharadar SEP/TICKERS
+    # spine lives in data/factor_data.duckdb (gitignored). Read-only data path:
+    # it never imports the order path/risk engine (ADR 0018).
+    "duckdb>=1.1",
 ]
 
 [project.optional-dependencies]
