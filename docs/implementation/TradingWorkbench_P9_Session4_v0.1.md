@@ -17,6 +17,43 @@
 
 ---
 
+## 0b. v0.2 — review hardening (2026-06-14, owner-directed)
+
+After the v0.1 build, the owner's strategy review drove a `momentum-portfolio`
+v0.2 (the version on `main`). Changes (all in `momentum_portfolio.py`, with a new
+read-only `StrategyContext.get_account_equity()` accessor):
+
+1. **Rebalance week marked only on success.** `on_bar` runs `_rebalance()` then sets
+   `_last_rebalance_week`; an unexpected exception logs `rebalance_failed` and does
+   **not** mark the week, so the next tick retries (a deliberate factor-data HOLD
+   still counts as handled and marks the week).
+2. **Live equity sizing.** Sizes from `ctx.get_account_equity()` (the
+   `accounts_state` broker snapshot), falling back to `initial_equity_estimate`
+   only when no snapshot exists. (Resolves v0.1 Finding 7. The new accessor is
+   read-only — `accounts_state` scoped to the strategy's account, no broker/network.)
+3. **Turnover control.** `min_trade_pct` (default 3%) skips adjustments to existing
+   positions below that fraction of target notional; `rebalance_buffer_rank_pct`
+   (default 5%) keeps a held name that is still within `(top_quantile + buffer)` of
+   the cut (rank hysteresis) — both damp churn from boundary names.
+4. **`min_score` defaults to 0.0** — avoid buying negative-momentum names by default.
+5. **Market-regime filter.** When `use_market_regime_filter` (default on) and the
+   market proxy (`market_filter_symbol`, default SPY) closed below its
+   `market_ma_days` (200) MA, the book goes **risk-off to cash** (sell to flat). It
+   **fails open** (trades, logs `regime_filter_unavailable_failopen`) if the SPY
+   series is unavailable — so a data gap can't silently halt the book. **NB:** the
+   proxy must be in the registered `symbols` for the filter to read it.
+6. **Daily pricing.** `pricing_timeframe` defaults to `1Day` (a Monday-open intraday
+   bar is incomplete).
+7. **Defensive sort + cash buffer + position cap.** Scores are `sort_values`'d
+   before the cut; `cash_buffer_pct` (2%) is held back; `max_position_pct` (10%) caps
+   any single name.
+
+20 unit tests cover each (incl. the failure-retry, regime bull/bear/fail-open,
+live-vs-estimate, turnover, and hysteresis paths). The §3–§8 body below describes
+the v0.1 shape; where it differs, v0.2 above is authoritative.
+
+---
+
 ## 1. Why this session exists
 
 §1–§3 proved the data, the signal, and the edge in a standalone backtest. §4 is
