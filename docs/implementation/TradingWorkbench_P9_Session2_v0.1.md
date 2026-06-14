@@ -132,7 +132,7 @@ def compute_momentum(
     lookback_days: int = 105,
     skip_days: int = 21,
 ) -> float | None:
-    """12-1 momentum: cumulative adjusted-close return over the `lookback_days`
+    """6-1 month momentum (lookback_days=105, skip_days=21): cumulative adjusted-close return over the `lookback_days`
     trading-day window ending `skip_days` trading days before `as_of`.
 
     Uses only rows with date <= as_of (NO look-ahead). Returns None if there are

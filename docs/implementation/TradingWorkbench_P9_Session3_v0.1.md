@@ -57,7 +57,7 @@ existing metric formulas (`app/strategies/metrics.py`: `sharpe_ratio`,
   is meaningful (ADR 0014).
 - **A `MomentumBacktestReport`** dataclass — daily equity curve, per-rebalance
   holdings + realized returns, and summary metrics (total return, CAGR, annualized
-  Shardpe, max drawdown) for both the factor book and the baseline.
+  Sharpe, max drawdown) for both the factor book and the baseline.
 - **Tests** — survivorship (a delisted winner is held and realizes its mechanism
   return, not dropped) and reproducibility are load-bearing (§4.5), plus
   rebalance-date math, daily mark-to-market, baseline, and a tiny end-to-end run.
@@ -196,13 +196,24 @@ print("book   total/CAGR/Sharpe/MDD:", round(r.metrics.total_return,3), round(r.
 print("base   total/CAGR/Sharpe/MDD:", round(r.baseline_metrics.total_return,3),
       round(r.baseline_metrics.cagr,3), round(r.baseline_metrics.sharpe,2),
       round(r.baseline_metrics.max_drawdown,3))
+
+# Deployment-config run (matches §4: narrow candidate universe, ~10-name book).
+# This is the edge evidence for the book §4 actually trades (review Finding 2),
+# reported ALONGSIDE the n=500 reference above — not instead of it.
+r2 = run_momentum_backtest(FactorDataStore(read_only=True),
+                           date(2015,1,1), date(2020,12,31),
+                           n=200, top_quantile=0.20)        # ~ §4 deployment (hold ~10 via the book cap)
+print("deploy total/CAGR/Sharpe/MDD:", round(r2.metrics.total_return,3),
+      round(r2.metrics.cagr,3), round(r2.metrics.sharpe,2),
+      round(r2.metrics.max_drawdown,3))
 PY
 ```
 
 **Pass:** a daily equity curve and summary metrics for both the momentum book and
 the baseline, deterministic across runs, with delisted names contributing their
-realized returns (not dropped). No order-path assertion applies — §3 submits no
-orders.
+realized returns (not dropped); **and** the deployment-config (n=200) curve is
+produced next to the n=500 reference, so §4's edge evidence matches what §4 trades
+(review Finding 2). No order-path assertion applies — §3 submits no orders.
 
 ## 6. Walk-away discipline
 

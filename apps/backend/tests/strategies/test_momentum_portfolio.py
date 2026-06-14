@@ -7,8 +7,11 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import pandas as pd
+import pytest
 
 from app.factor_data.accessor import FactorDataUnavailable
+from app.factor_data.factors.engine import FactorUnavailable
+from app.factor_data.universe import UniverseUnavailable
 from app.strategies.context import Bar
 from strategies_user.templates.momentum_portfolio import MomentumPortfolio
 
@@ -118,16 +121,40 @@ async def test_min_score_floor_excludes_low_names() -> None:
     assert "AAA" in orders and "BBB" not in orders  # BBB below the 0.0 floor
 
 
-async def test_factor_unavailable_holds_no_orders() -> None:
+@pytest.mark.parametrize(
+    "exc",
+    [FactorDataUnavailable("no store"), FactorUnavailable("thin"), UniverseUnavailable("floor")],
+)
+async def test_holds_on_any_no_data_exception(exc) -> None:
+    """★ Bail-out taxonomy: every 'no factor data this week' signal → HOLD, not
+    crash (Finding 1). Thin cross-section (FactorUnavailable) is the likeliest."""
     ctx = _ctx(["AAA"], _scores([("AAA", 1.0)]))
-    ctx.factors.momentum_scores = MagicMock(side_effect=FactorDataUnavailable("no store"))
+    ctx.factors.momentum_scores = MagicMock(side_effect=exc)
     strat = MomentumPortfolio(ctx=ctx, params={**MomentumPortfolio.default_params})
     await strat.on_init()
-    await strat.on_bar(_bar(WK1_A))
+    await strat.on_bar(_bar(WK1_A))  # must not raise
     ctx.submit_order.assert_not_called()  # held, traded nothing
-    # logged the bail-out
-    assert any("factor_unavailable" in str(c.kwargs.get("payload", {}))
+    assert any("factor_unavailable_hold" in str(c.kwargs.get("payload", {}))
                for c in ctx.log_signal.call_args_list)
+
+
+async def test_rejected_sell_does_not_block_buys() -> None:
+    """A risk-engine rejection on one order is log-and-continue: the rest of the
+    rebalance still submits (Finding 6). Sells are submitted before buys."""
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
+    ctx = _ctx(["AAA", "BBB", "CCC"], scores, holdings={"CCC": 10}, price=100.0)
+
+    def _result(req):  # reject CCC's sell; accept everything else
+        return MagicMock(rejection_reason="risk_blocked" if req.symbol_ticker == "CCC" else None)
+
+    ctx.submit_order = AsyncMock(side_effect=_result)
+    params = {**MomentumPortfolio.default_params, "top_quantile": 1.0, "max_names": 10}
+    strat = MomentumPortfolio(ctx=ctx, params=params)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))  # must not raise despite the rejection
+    orders = _orders(ctx)
+    assert orders["CCC"][0] == "sell"          # the (rejected) sell was attempted first
+    assert orders["AAA"][0] == "buy" and orders["BBB"][0] == "buy"  # buys still submitted
 
 
 async def test_skips_target_with_no_price() -> None:

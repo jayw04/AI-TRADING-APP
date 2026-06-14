@@ -30,14 +30,22 @@ from decimal import Decimal
 from typing import Any, ClassVar
 
 from app.db.enums import OrderSide, OrderSourceType, OrderType, SignalType, TimeInForce
+from app.factor_data.accessor import FactorDataUnavailable
+from app.factor_data.factors.engine import FactorUnavailable
+from app.factor_data.universe import UniverseUnavailable
 from app.risk import OrderRequest
 from app.strategies import Strategy
+
+# The three "no factor data this week" signals (accessor not provisioned, thin
+# cross-section, below the price floor) — any of them means HOLD the book, not
+# crash the rebalance tick (P9 §3/§4 review, Finding 1).
+_HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
     version: ClassVar[str] = "0.1.0"
-    symbols: ClassVar[list[str]] = []  # set at registration = top-N liquidity candidates
+    symbols: ClassVar[list[str]] = []  # set at registration = top-200 liquidity candidates (§4 §3.3)
     schedule: ClassVar[str] = "0 14 * * 1"  # weekly, Mon 14:00 UTC ≈ 09:00 ET (§4 §3.2)
 
     default_params: ClassVar[dict[str, Any]] = {
@@ -64,8 +72,9 @@ class MomentumPortfolio(Strategy):
         },
         "min_score": {
             "type": "number",
-            "default": 0.0,
-            "description": "Optional z-score floor; names below it are not held (0 = no floor).",
+            "nullable": True,
+            "default": None,
+            "description": "Optional z-score floor; names below it are not held. Empty/None = no floor.",
         },
         "pricing_timeframe": {
             "type": "enum",
@@ -100,8 +109,12 @@ class MomentumPortfolio(Strategy):
     async def _rebalance(self) -> None:
         """Compute the target top-quintile book and trade the diff toward it."""
         try:
-            scores = self.ctx.factors.momentum_scores()
-        except Exception as exc:  # FactorDataUnavailable / FactorUnavailable → HOLD
+            # Standardize z-scores over the registered candidate universe (not the
+            # accessor's broad n=500 default), so the quintile cut and the z-scores
+            # share one cross-section (P9 §3/§4 review, Finding 2).
+            n = len(self.ctx.symbols) or None
+            scores = self.ctx.factors.momentum_scores(n=n) if n else self.ctx.factors.momentum_scores()
+        except _HOLD_ON as exc:  # not provisioned / thin / below floor → HOLD (Finding 1)
             # Bail-out row of the MTG spec: never trade blind. Hold the book.
             await self.ctx.log_signal(
                 self.ctx.symbols[0] if self.ctx.symbols else "PORTFOLIO",
