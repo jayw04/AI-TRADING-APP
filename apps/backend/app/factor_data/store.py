@@ -189,6 +189,15 @@ class FactorDataStore:
         assert row is not None  # an aggregate query always returns one row
         return (row[0], row[1])
 
+    def trading_days(self, start: date, end: date) -> list[date]:
+        """Distinct `sep` trading dates in [start, end], ascending — the union
+        trading calendar across all names (drives the backtest's day loop)."""
+        rows = self.con.execute(
+            "SELECT DISTINCT date FROM sep WHERE date BETWEEN ? AND ? ORDER BY date",
+            [start, end],
+        ).fetchall()
+        return [r[0] for r in rows]
+
     def get_prices(
         self, ticker: str, start: date, end: date, *, adjusted: bool = True
     ) -> pd.DataFrame:
