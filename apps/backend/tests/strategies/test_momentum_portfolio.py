@@ -160,6 +160,19 @@ async def test_default_min_score_is_zero() -> None:
     assert MomentumPortfolio.default_params["min_score"] == 0.0
 
 
+async def test_market_symbol_never_selected_as_holding() -> None:
+    """SPY may be registered only for the regime filter — it must never be bought
+    as a portfolio holding even with a top score."""
+    scores = _scores([("SPY", 9.0), ("AAA", 2.0), ("BBB", 1.0)])
+    ctx = _ctx(["AAA", "BBB", "SPY"], scores, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, max_names=10, market_filter_symbol="SPY")
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    orders = _orders(ctx)
+    assert "SPY" not in orders  # excluded from targets
+    assert "AAA" in orders and "BBB" in orders
+
+
 # ---- bail-out taxonomy + rejection policy --------------------------------------
 
 @pytest.mark.parametrize(
@@ -261,7 +274,8 @@ def _spy(values: list[float]) -> pd.DataFrame:
 
 
 async def test_regime_bearish_goes_to_cash() -> None:
-    spy = _spy([100.0] * 150 + [80.0] * 50)  # last 80 < mean 95 → bearish
+    # 201 bars (days+1); MA over the first 200 ≈ 95.1, latest bar 80 < MA → bearish
+    spy = _spy([100.0] * 151 + [80.0] * 50)
     ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), holdings={"AAA": 10},
                equity=100_000, spy_bars=spy)
     strat = _strat(ctx, use_market_regime_filter=True, top_quantile=1.0)
@@ -273,7 +287,8 @@ async def test_regime_bearish_goes_to_cash() -> None:
 
 
 async def test_regime_bullish_trades_normally() -> None:
-    spy = _spy([80.0] * 150 + [120.0] * 50)  # last 120 > mean 90 → bullish
+    # 201 bars; MA over the first 200 ≈ 89.8, latest bar 120 > MA → bullish
+    spy = _spy([80.0] * 151 + [120.0] * 50)
     ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), equity=100_000, spy_bars=spy)
     strat = _strat(ctx, use_market_regime_filter=True, top_quantile=1.0)
     await strat.on_init()
