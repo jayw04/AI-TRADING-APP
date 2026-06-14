@@ -1,4 +1,4 @@
-# P9 Direction Document v0.1 — Point-in-Time Data Backbone + Multi-Factor Equity Model
+# P9 Direction Document v0.2 — Point-in-Time Data Backbone + Multi-Factor Equity Model
 
 | Field | Value |
 |---|---|
@@ -10,7 +10,7 @@
 | Predecessor | P8 — Discovery view + Range Insight (tag `p8-q4-scan-apply-template-complete`; P8 closed) |
 | Successor | TBD |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
-| Governing ADRs | **0018** (FMP + Sharadar PIT factor data — new, Draft), 0014 (backtests = primary eval ground truth), 0002 (single OrderRouter), 0005 (24h activation cooldown), 0006 v2 (no LLM in order path), 0017 (OS trust store for outbound TLS) |
+| Governing ADRs | **0018** (FMP + Sharadar PIT factor data — Accepted 2026-06-13), 0014 (backtests = primary eval ground truth), 0002 (single OrderRouter), 0005 (24h activation cooldown), 0006 v2 (no LLM in order path), 0017 (OS trust store for outbound TLS) |
 | Inputs | Owner data-coverage analysis (`data/Data available 1.jpg`, `data/Data available 2.jpg`); MTG strategy-spec template (`Docs/Strategies/Trading+Plan+Clean.pdf`) |
 
 ---

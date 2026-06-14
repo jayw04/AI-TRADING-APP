@@ -52,10 +52,8 @@ No product code, no new runtime dependency is committed in §0 (the script uses 
 - `FMP_API_KEY` and `NASDAQ_DATA_LINK_API_KEY` present in `.env` (confirmed 2026-06-13).
 - ADR-0017 OS-trust-store path **merged to `main` (`d5a9596`)** — genuinely available, so calls
   succeed under Norton inspection from the host venv (proven 2026-06-13 by the AAPL fixture gen).
-- P9 Direction v0.2 + ADR 0018 **drafted** (PR #97, **open — under review, not yet accepted**).
-  §0 verifies the data that direction *assumes*; do **not** treat the open PR or the Draft ADR
-  as a completed prerequisite. If §0 is run before #97 merges, that is fine — §0 is the
-  evidence that *informs* acceptance. (Contrast ADR-0017 above, which is actually merged.)
+- P9 Direction v0.2 + ADR 0018 **Accepted 2026-06-13 (merged in PR #97)** — §0 verifies the
+  data that direction assumes; its filled §6 is the evidence of record behind that acceptance.
 - Host backend venv (`apps/backend/.venv`) — the script runs there, not in Docker.
 
 ## 4. Detailed verification work

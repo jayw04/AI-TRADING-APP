@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-13 |
-| Status | Draft |
+| Status | Accepted (2026-06-13, owner — credential-storage decision §5 confirmed: vendor keys as `Settings` env-aliases) |
 | Phase | P9 (point-in-time data backbone + multi-factor equity model) |
 | Supersedes | — |
 | Related | 0002 (single OrderRouter — these are read-only data, never the order path), 0003 (Fernet credential encryption — the credential-storage question below), 0014 (backtests as primary eval ground truth — survivorship-free PIT data is what makes those backtests honest), 0017 (OS trust store for outbound TLS — the new vendors ride that path) |
