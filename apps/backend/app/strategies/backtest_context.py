@@ -102,6 +102,7 @@ class BacktestContext:
         slippage_bps: float,
         commission_per_share: float,
         indicator_computer: Any,
+        factor_accessor: Any | None = None,  # FactorAccessor (P9 §2); parity with live ctx
     ) -> None:
         self.strategy_id = -1
         self.user_id = -1
@@ -115,6 +116,7 @@ class BacktestContext:
         self._slippage_bps = slippage_bps
         self._commission_per_share = commission_per_share
         self._indicator_computer = indicator_computer
+        self._factor_accessor = factor_accessor
 
         self.cash: Decimal = initial_equity
         self.positions: dict[str, _SimPosition] = {}
@@ -122,6 +124,20 @@ class BacktestContext:
         self.trades: list[BacktestTrade] = []
         self.signals: list[dict[str, Any]] = []
         self.equity_curve: list[tuple[datetime, Decimal]] = []
+
+    @property
+    def factors(self) -> Any:
+        """The sandboxed read-only :class:`FactorAccessor` (P9 §2). Mirrors
+        ``StrategyContext.factors`` so the same strategy code runs in backtest and
+        live. Raises ``FactorDataUnavailable`` if no accessor was provisioned."""
+        if self._factor_accessor is None:
+            from app.factor_data.accessor import FactorDataUnavailable
+
+            raise FactorDataUnavailable(
+                "factor data is not provisioned for this backtest. Pass a "
+                "FactorAccessor to BacktestContext / the Backtester."
+            )
+        return self._factor_accessor
 
     # ---------- harness-only methods ----------
 
