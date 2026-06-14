@@ -136,6 +136,39 @@ names = self.ctx.factors.universe()             # PIT tradeable universe
   momentum (a tiny cross-section is noise) — ingest a broad pool (§4) for the full
   ~500-name universe.
 
+## 5c. Running a backtest (P9 §3)
+
+`app/factor_data/backtest.py` runs the §2 momentum factor as a **weekly,
+survivorship-free, cross-sectional** backtest over the §1 spine (standalone — it
+does not touch the single-name `Backtester`):
+
+```bash
+PYTHONPATH=apps/backend apps/backend/.venv/Scripts/python.exe - <<'PY'
+from datetime import date
+from app.factor_data.store import FactorDataStore
+from app.factor_data.backtest import run_momentum_backtest
+r = run_momentum_backtest(FactorDataStore(read_only=True), date(2015,1,1), date(2020,12,31))
+print("rebalances:", len(r.rebalances), "skipped(thin):", len(r.skipped_rebalances))
+print("book total/CAGR/Sharpe/MDD:", r.metrics)
+print("base total/CAGR/Sharpe/MDD:", r.baseline_metrics)
+PY
+```
+
+- **Construction (owner-locked):** weekly rebalance on the last trading day of each
+  ISO week; equal-weight **long the top quintile** by momentum `score`; weights
+  apply from the next trading day (no same-bar look-ahead).
+- **Delisting = final price → cash:** a held name earns daily returns to its last
+  trading day, then its sleeve freezes as cash until the next rebalance — survivorship
+  carries through to the *holding* side, not just the universe.
+- **Baseline:** an equal-weight-universe book runs alongside (`r.baseline_metrics`)
+  so the momentum book's excess return is meaningful (ADR 0014).
+- **Daily mark-to-market:** the equity curve is daily, so Sharpe (×√252) and max
+  drawdown (reused from `app/strategies/metrics.py`) are correct.
+- **Thin early dates** (cross-section < 20 names) are skipped and listed in
+  `r.skipped_rebalances` — not silently dropped. Ingest a broad pool (§4) so the
+  universe and quintiles are non-trivial; a tiny store yields a thin/degenerate run.
+- Read-only, no orders, no DB/UI — the report is an in-memory object (§3 scope).
+
 ## 6. Key hygiene
 
 `NASDAQ_DATA_LINK_API_KEY` is read via `get_settings().nasdaq_data_link_api_key`
