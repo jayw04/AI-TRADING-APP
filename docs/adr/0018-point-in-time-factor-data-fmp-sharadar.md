@@ -132,8 +132,23 @@ The question: should the platform adopt these two vendors, and on what terms?
   fundamental/macro layer, in a local **DuckDB** store (resolved in the P9
   Direction doc, 2026-06-13 — columnar engine chosen for cross-sectional factor
   scans; local-first, zero server). v1 ingests the Sharadar price/universe spine
-  (`SEP`/`TICKERS`/`ACTIONS`) scoped to the S&P 500; the FMP fundamental/macro
-  layer and SF3 are added in later sessions.
+  (`SEP`/`TICKERS`/`ACTIONS`); the FMP fundamental/macro layer and SF3 are added
+  in later sessions.
+  - **Universe scope — reconciled 2026-06-14 (P9 §1, owner decision).** The
+    original "scoped to the S&P 500" intent could **not** be met: the
+    `SHARADAR/SP500` constituents datatable on this subscription is a 28-name
+    *sample* (the Dow blue-chips), not the ~500-name index — the same sample-only
+    limitation already noted for `SF1` under "Alternatives considered." (`SEP` and
+    `TICKERS` *are* full and survivorship-free; `DAILY` point-in-time market cap is
+    unsubscribed.) The v1 universe is therefore a **point-in-time liquidity
+    top-N**: the top-N US names by trailing dollar volume that were tradeable as of
+    the rebalance date (`firstpricedate ≤ as_of ≤ lastpricedate`), built from
+    `SEP` + `TICKERS` alone. It remains survivorship-free, point-in-time, and
+    price-only — only the *definition* of the universe changed, not the PIT or
+    survivorship discipline this ADR exists to protect. See
+    `app/factor_data/universe.py`, `docs/runbook/factor-data.md` §2, and the §1 doc
+    §0 reconciliation banner. (The P9 Direction doc's "S&P 500 / weekly rebalance"
+    language is reconciled the same way.)
 - **TLS**: provider HTTP clients inherit the ADR-0017 OS-trust-store path; no
   per-client cert handling.
 - **CI invariants**: the existing `check_no_env_credentials.sh` NAMES list is **not**
@@ -191,3 +206,9 @@ The question: should the platform adopt these two vendors, and on what terms?
   dependency decision (a new ADR), not a quiet expansion of this one.
 - **Vendor terms change** (depth, price, redistribution rights, rate limits) in a
   way that breaks the depth-split design or the licensing posture.
+- **A literal published-index universe becomes required.** The v1 universe is a
+  PIT liquidity top-N because the `SHARADAR/SP500` constituents product is
+  sample-only on this subscription (reconciled 2026-06-14). If a true S&P 500 (or
+  other published index) membership universe is needed, that is a vendor-coverage
+  purchase plus a universe-definition change — record it here rather than quietly
+  swapping the universe.
