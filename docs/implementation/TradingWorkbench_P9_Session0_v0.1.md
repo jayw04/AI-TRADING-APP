@@ -176,25 +176,50 @@ Run: `PYTHONPATH=apps/backend apps/backend/.venv/Scripts/python.exe apps/backend
   (fallback: widen to a TICKERS-derived universe, or maintain a membership list — a Direction
   revision).
 
-## 6. Results (filled on execution)
+## 6. Results — executed 2026-06-13 (`verify_factor_data_access.py`, host venv, Norton active)
 
-> Session Zero produces a record. Fill this in when the script runs; do not fabricate.
+> Run record. `RESULT: GO` (0 hard failures). Key lengths only: FMP=32, NASDAQ_DATA_LINK=20.
 
-- Sharadar SEP: ______ (rows, date range, delisted-name check) — PASS/FAIL
-- Sharadar TICKERS: ______ — PASS/FAIL
-- Sharadar ACTIONS: ______ — PASS/FAIL
-- S&P 500 PIT membership recipe: ______ — PASS/FAIL
-- **S&P 500 change-log earliest date: ______ ; covers backtest window (1998+)? ______ ;
-  decision if not: ______**
-- FMP fundamentals depth: ______ years — PASS/FAIL
-- FMP macro/earnings reachable: ______ — PASS/FAIL
-- **FMP Starter gated endpoints (specific names): ______**
-- Rate limits (Sharadar / FMP): ______ / ______
-- **Estimated full S&P 500 SEP ingest time at observed rate: ______ → §1 checkpointing needed? ______**
-- **Licensing — raw-table re-export permitted? ______ ; derived-score exposure permitted? ______**
-- TLS under Norton (OS trust store): ______ — PASS/FAIL
-- Dependency decision (REST vs SDK): ______
-- **RESULT: GO / NO-GO** — ______
+- **Sharadar SEP: ✅ PASS.** AAPL 614 rows recent + **252 rows in 1998 (min `1998-01-02`)**;
+  `closeadj` present. **★ Survivorship-free PROVEN:** delisted `CBNJ2`
+  (`isdelisted`, `lastpricedate=1998-07-31`) returns **147 rows of SEP history ending
+  `1998-07-31`** — not "unknown ticker".
+- **Sharadar TICKERS: ✅ PASS.** 10,000 rows/page; columns include
+  `ticker, isdelisted, firstpricedate, lastpricedate`. Delisted names present (auto-discovered).
+- **Sharadar ACTIONS: ✅ PASS.** AAPL 62 rows; `action ∈ {acquisitionof, dividend, initiated, split}`.
+- **S&P 500 PIT membership recipe: ✅ PASS (with a §1 schema note).** Source = `SHARADAR/SP500`
+  change-log, **3,111 rows**. **Observed `action` values = `{added, current, historical}`** — *not*
+  the `{added, removed}` my §1 draft assumed. **§1 `universe_asof` must derive membership from
+  these actual semantics** (`added` = entry event w/ date; `current`/`historical` = present-vs-past
+  status) and confirm how a *removal date* is represented — a §1 detail, recorded here so §1 plans
+  against the real schema, not the assumed one.
+- **S&P 500 change-log earliest date: `1957-03-04`** ; covers backtest window (1998+)? **YES, by
+  ~40y** ; decision if not: **n/a — no clamp needed**. (The floor trap the review flagged does
+  not bite.)
+- **FMP fundamentals depth: ⚠ legacy `/api/v3` is gated (HTTP 403).** The new **`/stable` API
+  returns HTTP 200** (`/stable/income-statement?symbol=AAPL` → data). So FMP *authenticates and
+  works* — **§5+ must use `/stable`, not `/api/v3`.** Exact depth (~5y Starter) to be measured in
+  §5 against `/stable`. (Soft — FMP is deferred; does not gate §1.)
+- **FMP macro/earnings reachable:** via legacy `/api/v3` + `/api/v4` → **403**; via `/stable` →
+  expected reachable (probe confirmed `/stable` works). Re-verify specific `/stable` endpoints in §5.
+- **FMP gated endpoints (legacy, specific):** `/api/v3/income-statement`, `/api/v3/ratios`,
+  `/api/v3/earnings-surprises`, `/api/v4/treasury` — **all 403**. Migration target: `/stable/*`.
+- **Rate limits: Sharadar `x-ratelimit-limit=1,000,000/day` (999,350 remaining)** — non-binding;
+  FMP not captured (legacy 403s).
+- **Estimated full S&P 500 SEP ingest: ~5 min for 500 names** (AAPL full history = 7,155 rows in
+  0.6s × ~500). **→ §1 checkpointing NOT needed — single-shot ingest is fine.**
+- **Licensing — ⏳ PENDING (terms review, not an API check).** Not resolvable by the script; an
+  action item before any *exposure* of vendor-derived data. Working assumption per ADR 0018 §6:
+  **raw-table re-export = NO**; **derived-score exposure = TBD** (confirm against the Sharadar/FMP
+  terms before a factor surface ships). Does not block §1 (local compute only).
+- **TLS under Norton (OS trust store): ✅ PASS.** Every Sharadar call succeeded with Norton
+  inspection active — the ADR-0017 `truststore` path reaches `data.nasdaq.com` +
+  `financialmodelingprep.com`, no `CERTIFICATE_VERIFY_FAILED`.
+- **Dependency decision: REST via `httpx` + `pandas` (no vendor SDK).** Datatables cursor
+  pagination (`qopts.cursor_id`) worked cleanly; no `nasdaq-data-link`/`fmpsdk` needed.
+- **RESULT: ✅ GO** — 0 hard failures. Two recorded carry-forwards for later sessions (neither
+  blocks §1): **(a)** §5+ uses FMP `/stable`; **(b)** §1 `universe_asof` derives from the actual
+  `SP500` action semantics (`added/current/historical`) + a licensing terms-review action item.
 
 ## 7. Walk-away discipline
 
