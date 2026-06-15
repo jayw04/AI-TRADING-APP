@@ -53,6 +53,7 @@ def _params(**over):
         "min_score": None,
         "rebalance_buffer_rank_pct": 0.0,
         "min_trade_pct": 0.0,
+        "order_pacing_seconds": 0.0,  # no real sleeps in tests
         **over,
     }
 
@@ -106,18 +107,22 @@ async def test_rebalances_once_per_iso_week() -> None:
     assert ctx.factors.momentum_scores.call_count == 2
 
 
-async def test_unexpected_failure_does_not_mark_week_and_retries() -> None:
-    """★ The week is marked DONE only on a completed rebalance; an unexpected
-    exception logs and retries on the next tick (same week)."""
+async def test_unexpected_failure_marks_week_and_does_not_retry_same_week() -> None:
+    """★ The week is marked at the START of the attempt, so a rebalance that raises
+    is NOT retried on the next per-symbol tick in the same week — preventing the
+    submission storm (the engine fires on_bar ~200×/tick). It logs rebalance_failed
+    and waits for next week."""
     ctx = _ctx(["AAA"], _scores([("AAA", 1.0)]))
     ctx.factors.momentum_scores = MagicMock(side_effect=ValueError("boom"))  # not a _HOLD_ON
     strat = _strat(ctx)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
-    await strat.on_bar(_bar(WK1_B))  # same week, but prior attempt failed → retries
-    assert ctx.factors.momentum_scores.call_count == 2
+    await strat.on_bar(_bar(WK1_B))  # same week → NO retry (marked on attempt)
+    assert ctx.factors.momentum_scores.call_count == 1
     assert any("rebalance_failed" in str(c.kwargs.get("payload", {}))
                for c in ctx.log_signal.call_args_list)
+    await strat.on_bar(_bar(WK2))    # next week → attempts again
+    assert ctx.factors.momentum_scores.call_count == 2
 
 
 # ---- selection / diff ----------------------------------------------------------
@@ -305,3 +310,36 @@ async def test_regime_unavailable_fails_open() -> None:
     assert _orders(ctx)["AAA"][0] == "buy"  # filter unavailable → fail open, still trades
     assert any("regime_filter_unavailable_failopen" in str(c.kwargs.get("payload", {}))
                for c in ctx.log_signal.call_args_list)
+
+
+# ---- order pacing --------------------------------------------------------------
+
+async def test_order_pacing_sleeps_between_submits(monkeypatch) -> None:
+    """With order_pacing_seconds > 0, each submission is followed by a sleep so a
+    multi-name burst spreads under the per-strategy order-rate cap."""
+    import strategies_user.templates.momentum_portfolio as mod
+
+    slept: list[float] = []
+
+    async def _fake_sleep(s: float) -> None:
+        slept.append(s)
+
+    monkeypatch.setattr(mod.asyncio, "sleep", _fake_sleep)
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]),
+               price=100.0, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, max_names=10, order_pacing_seconds=0.5)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert slept == [0.5, 0.5]  # one paced sleep per submitted order (2 buys)
+
+
+async def test_order_pacing_zero_no_sleep(monkeypatch) -> None:
+    import strategies_user.templates.momentum_portfolio as mod
+
+    slept: list[float] = []
+    monkeypatch.setattr(mod.asyncio, "sleep", lambda s: slept.append(s))
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=100.0, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, order_pacing_seconds=0.0)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert slept == []  # pacing disabled → no sleeps
