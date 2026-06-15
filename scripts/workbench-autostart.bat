@@ -50,6 +50,11 @@ if "!CODE!"=="200" (
   echo [%date% %time%] healthz HTTP 200: >> "%LOG%"
   type "logs\healthz.json" >> "%LOG%"
   echo. >> "%LOG%"
+  REM At-a-glance strategy status (no auth — reads the DB inside the container).
+  set "STATUS=momentum-portfolio: STATUS UNKNOWN"
+  for /f "delims=" %%S in ('type "scripts\strategy_status.py" ^| docker compose exec -T backend python - 2^>nul') do set "STATUS=%%S"
+  echo [%date% %time%] !STATUS! >> "%LOG%"
+  echo !STATUS!
   exit /b 0
 )
 set /a tries+=1
