@@ -2,13 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 |
+| Document version | v0.2 (2026-06-15 refresh: sector caps shipped, deploy/validation captured) |
 | Date | 2026-06-15 |
 | Strategy | `momentum-portfolio` (code `apps/backend/strategies_user/templates/momentum_portfolio.py`) |
-| Code version | **v0.4.0** (⚠ the registered DB row `strategies.version` still reads `0.3.0` — cosmetic; the code file is what runs) |
+| Code version | **v0.5.0** — v0.4.0 (cron/dispatch/storm/pacing/vol-scaling) is merged & live; **v0.5.0 (sector caps, default off) is in PR #118, pending merge**. ⚠ the registered DB row `strategies.version` still reads `0.3.0` (cosmetic — the code file is what runs) |
 | Live instance | strategy **id=2**, status **PAPER**, run_id=6, account **BFY6** (Alpaca paper, ~$10k) |
 | Schedule | `0 14 * * mon` — weekly, Monday 14:00 UTC (≈10:00 ET, ~30 min after the 09:30 open) |
-| Repository HEAD | `31ddfd6` (all of #111–#116 merged) |
+| Repository HEAD | `31ddfd6` (#111–#116 + #112 merged & deployed). Open PRs: **#117** (this doc), **#118** (sector caps) |
 | Related docs | P9 §1–§4 session docs; `TradingWorkbench_P10_PortfolioRisk_Roadmap_v0.1.md`; ADR 0014 (backtests = ground truth), 0004 (circuit breaker), 0002 (single OrderRouter), 0018 (Sharadar data) |
 
 ---
@@ -40,7 +40,7 @@ A deterministic, long-only, **weekly cross-sectional price-momentum portfolio**.
 | `timeframe` | 1Day | **engine dispatch** bar timeframe (fires `on_bar`) |
 | `initial_equity_estimate` | 10000 | fallback only; live equity preferred |
 
-**Inherited from defaults (not stored):** `market_ma_days`=200, `min_trade_pct`=0.03, `rebalance_buffer_rank_pct`=0.05, `order_pacing_seconds`=1.0, `use_vol_scaling`=**false**, `vol_target_annual`=0.15, `vol_ewma_span`=20.
+**Inherited from defaults (not stored):** `market_ma_days`=200, `min_trade_pct`=0.03, `rebalance_buffer_rank_pct`=0.05, `order_pacing_seconds`=1.0, `use_vol_scaling`=**false**, `vol_target_annual`=0.15, `vol_ewma_span`=20, `max_sector_pct`=**None** (sector cap disabled; #118).
 
 **Current holdings (BFY6):** AAOI ×10, MU ×1, INTC ×15, BE ×7 (the live momentum book) + ADC ×6, MTDR ×9 (pre-existing, **outside** the universe → the strategy ignores them).
 
@@ -50,7 +50,7 @@ A deterministic, long-only, **weekly cross-sectional price-momentum portfolio**.
 
 1. Engine fires `on_bar` per symbol on the cron tick (`StrategyEngine._dispatch_bar_tick`, fetching a `timeframe` bar).
 2. `on_bar` marks the ISO week **at the start of the attempt** (≤1 rebalance/week; prevents the per-symbol-dispatch storm) and runs `_rebalance` once.
-3. `_rebalance`: ① market-regime gate (SPY<200dMA → all-cash, fails open if SPY series missing) → ② momentum scores over the registered universe → ③ select top-quintile targets with rank hysteresis (SPY excluded) → ④ diff vs current holdings, sell leavers/trim then buy toward `investable_equity / k`.
+3. `_rebalance`: ① market-regime gate (SPY<200dMA → all-cash, fails open if SPY series missing) → ② momentum scores over the registered universe → ③ select top-quintile targets with rank hysteresis (SPY excluded), then an **optional per-sector cap** (`max_sector_pct`, off by default) that drops over-concentrated names and backfills from other sectors → ④ diff vs current holdings, sell leavers/trim then buy toward `investable_equity / k`.
 4. Sizing: live account equity (`ctx.get_account_equity`, fallback to estimate) × (1 − cash_buffer) × `gross_scale` (vol-scaling, currently 1.0 = off), per-name = min(equity/k, equity·max_position_pct), whole shares.
 5. Each order: `OrderRequest(source_type=STRATEGY)` → `ctx.submit_order` → OrderRouter + risk gates → Alpaca paper; submissions paced `order_pacing_seconds` apart.
 6. Bail-outs: factor data unavailable → HOLD (logged); unexpected exception → log `rebalance_failed`, retry next **week** (not next tick).
@@ -84,16 +84,19 @@ Registered + activated to PAPER on the BFY6 ~$10k account; 201-symbol universe; 
 ### Live validation (2026-06-15, post-fix)
 A clean manual rebalance bought **BE ×7 (FILLED, source=STRATEGY, no rejection)** — the *exact order* the buggy breaker rejected that morning — with **no daily-loss trip and no storm**. Proves the full path STRATEGY → OrderRouter → risk engine → Alpaca fill end-to-end, and completes the book to its 4-name target. Reverted to the weekly-Monday schedule. (The earlier 2026-06-15 backtest evidence for vol-scaling: max drawdown −38.8% → −15.9%, Sharpe 1.23 → 1.29 over the available window.)
 
+### Sector caps built → v0.5.0 (PR #118, default off)
+P10 §3 / review #7. Persists Sharadar `sector`/`industry` on the tickers table (additive idempotent migration); adds `FactorAccessor.sectors()` (read-only sandbox surface) and a `max_sector_pct` strategy param that caps names per sector and **backfills** from other sectors (diversify without shrinking), failing open if sector data is unavailable. **Default off** — no live behavior change until a deliberate, backtested enable. Tested (store/accessor/strategy); ruff + mypy clean; suites green. ⚠ Not yet *usable* on the live book — see limitations #2 / next-steps.
+
 ---
 
 ## 5. Known limitations
 
 1. **$10k + whole shares under-deploys.** Momentum clusters in pricey semis (e.g. SNDK ~$1980); names priced above the per-name budget floor to 0 shares → ~67% deployed across ~4 names. **Fractional shares** is the clean fix (deferred).
-2. **Sector/correlation concentration.** The book skews semis/AI ("one AI-beta trade"); no sector cap yet (P10 §3, gated on sector classification data).
+2. **Sector/correlation concentration.** The book skews semis/AI ("one AI-beta trade"). The sector cap is now **built** (PR #118, default off) but **not yet usable on the live book**: the live tickers store has no sector data until a TICKERS re-ingest runs (after #118's schema deploys), and enabling `max_sector_pct` should follow a backtest.
 3. **Vol-scaling is OFF** by default — implemented but needs a broader-history backtest before enabling on the live book.
 4. **Factor store is date-bounded** (~2024-06 onward for most names) → backtests cover a short, momentum-friendly window; broaden SEP history before drawing perf conclusions or promoting toward LIVE.
 5. **Order-rate headroom.** The per-strategy cap is 5 orders/min (rolling); `order_pacing_seconds`=1.0 doesn't beat a rolling-minute cap for bursts >5 orders. Fine for the current 5-name book; raise the cap (or pacing) if the book grows. The once-per-week-attempt guard makes any rate rejection graceful (no storm; retry next week).
-6. **Cosmetic:** the registered `strategies.version` row reads `0.3.0` while the code is `0.4.0` (the code file is authoritative).
+6. **Cosmetic:** the registered `strategies.version` row reads `0.3.0` while the code is `0.4.0` live (`0.5.0` once #118 merges) — the code file is authoritative.
 7. **Pre-existing positions** ADC/MTDR sit in the paper account but are outside the universe and untouched by the strategy.
 
 ---
@@ -102,14 +105,15 @@ A clean manual rebalance bought **BE ×7 (FILLED, source=STRATEGY, no rejection)
 
 **Immediate / monitoring**
 - **Watch the Monday 2026-06-22 14:00 UTC cron rebalance** — the first fully-unattended scheduled fire on the fixed system. Expect a no-op or light adjustment unless the momentum ranking shifts. Confirm: fires Monday, no breaker trip, audit `source_type=STRATEGY`.
-- (Optional cleanup) align the DB row `version` to `0.4.0`; rebuild the backend image to bake #112's `backtest.py` change (only matters for running backtests, not the live book).
+- **Merge the open PRs** when reviewed: **#117** (this status doc), **#118** (sector caps).
+- (Optional cleanup) align the DB row `version`; rebuild the backend image to bake #112's `backtest.py` change (only matters for running backtests, not the live book).
 
 **P10 portfolio-risk roadmap** (see `TradingWorkbench_P10_PortfolioRisk_Roadmap_v0.1.md`)
-- **Priority 1 — enable vol-scaling** on the live book once a broader-history backtest supports it (already implemented, default off).
-- **Priority 2 — daily exposure overlay** (keep weekly selection): needs a framework decision on dual cron cadence — own session doc + likely a small ADR.
-- **Priority 3 — sector caps**: gated on ingesting sector classification (Sharadar TICKERS sector field, or the P9 §5 FMP layer).
-- **Priority 4 — exposure smoothing** on top of #1/#2.
-- **Data-dep ADRs**: VIX/breadth (for richer regime/vol inputs); sector data source.
+- **Priority 1 — enable vol-scaling** on the live book once a broader-history backtest supports it (implemented, default off).
+- **Priority 2 — daily exposure overlay** (keep weekly selection): needs a framework decision on dual cron cadence — own session doc + likely a small ADR. (Not started.)
+- **Priority 3 — sector caps: BUILT (PR #118, default off).** To make it usable: (1) merge #118 + deploy the store-schema change, (2) **re-ingest TICKERS to populate `sector`**, (3) set `max_sector_pct` (e.g. 0.40) and validate via backtest, (4) enable on the live book.
+- **Priority 4 — exposure smoothing** on top of #1/#2. (Not started.)
+- **Data-dep ADRs**: VIX/breadth (for richer regime/vol inputs) — sector source is resolved (Sharadar TICKERS, via #118).
 
 **Capacity & realism**
 - **Fractional shares** for full deployment on a ~$10k account (the biggest single under-deployment fix).
