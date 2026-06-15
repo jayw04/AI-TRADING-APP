@@ -3,10 +3,12 @@ setlocal enabledelayedexpansion
 REM ============================================================================
 REM workbench-autostart.bat - unattended "ensure the stack is UP + healthy".
 REM
-REM For Windows Task Scheduler (run daily before the Mon 10:00 ET weekly
-REM rebalance). Idempotent + non-interactive + NO --build (fast): brings the
-REM stack up if down, then polls /healthz. Distinct from start-workbench.bat
-REM (Jay's interactive `up --build` launcher).
+REM For Windows Task Scheduler (triggered AT LOGON, so it comes up with Docker
+REM Desktop - well before the Mon 14:00 UTC weekly rebalance). Idempotent +
+REM non-interactive + NO --build (fast): brings the stack up if down, then polls
+REM /healthz. Distinct from start-workbench.bat (Jay's interactive `up --build`
+REM launcher). On a logon trigger Docker Desktop's engine may still be starting,
+REM so this waits for the daemon (below) instead of giving up on the first probe.
 REM
 REM It does NOT (re)activate any strategy. An activated PAPER strategy
 REM AUTO-RESUMES on every backend boot (lifespan resume-on-boot), so the
@@ -28,11 +30,20 @@ set "LOG=%cd%\logs\workbench-launch.log"
 echo. >> "%LOG%"
 echo [%date% %time%] === autostart === >> "%LOG%"
 
+REM Wait for the Docker engine to be ready - Docker Desktop may still be
+REM starting up right after logon. Poll up to ~120s before giving up.
+set /a dtries=0
+:waitdocker
 docker info >nul 2>&1
-if errorlevel 1 (
-  echo [%date% %time%] ERROR: Docker daemon not running ^(start Docker Desktop^) >> "%LOG%"
+if not errorlevel 1 goto dockerok
+set /a dtries+=1
+if !dtries! geq 24 (
+  echo [%date% %time%] ERROR: Docker daemon not ready after ~120s ^(start Docker Desktop^) >> "%LOG%"
   exit /b 1
 )
+timeout /t 5 /nobreak >nul
+goto waitdocker
+:dockerok
 
 echo [%date% %time%] docker compose up -d >> "%LOG%"
 docker compose up -d >> "%LOG%" 2>&1
