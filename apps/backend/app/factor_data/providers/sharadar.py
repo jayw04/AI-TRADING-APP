@@ -14,6 +14,7 @@ Discipline (ADR 0018):
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import httpx
@@ -31,6 +32,14 @@ NDL_BASE = "https://data.nasdaq.com/api/v3/datatables/SHARADAR"
 # Nasdaq returns up to 10k rows/page; a safety bound on pages so a runaway
 # cursor can't loop forever. A full SEP per-ticker pull is a handful of pages.
 _MAX_PAGES = 1000
+
+# Transient-failure retry: a long broad-universe ingest issues thousands of
+# back-to-back HTTPS GETs, and a single connection reset (WinError 10054 /
+# httpx.ReadError — e.g. Norton SSL inspection or a server-side drop) would
+# otherwise kill the whole run. Retry transient transport errors and 429/5xx
+# with exponential backoff; 4xx (auth/bad request) fail fast.
+_MAX_RETRIES = 4
+_RETRY_BACKOFF_BASE = 1.0  # seconds → 1, 2, 4, 8
 
 
 class SharadarConfigError(RuntimeError):
@@ -66,6 +75,34 @@ class SharadarProvider:
     def close(self) -> None:
         self._client.close()
 
+    def _get_with_retry(
+        self, url: str, params: dict[str, Any], *, table: str
+    ) -> httpx.Response:
+        """GET with bounded exponential-backoff retry on transient failures.
+
+        Retries transport errors (connection reset / read timeout, e.g.
+        ``httpx.ReadError`` from Norton SSL inspection) and 429/5xx responses;
+        any other 4xx (auth/bad request) fails fast. Raises the last error after
+        ``_MAX_RETRIES`` attempts."""
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                resp = self._client.get(url, params=params)
+                resp.raise_for_status()
+                return resp
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if not (status == 429 or 500 <= status < 600) or attempt >= _MAX_RETRIES:
+                    raise
+            except httpx.TransportError:  # ReadError / ConnectError / RemoteProtocolError / …
+                if attempt >= _MAX_RETRIES:
+                    raise
+            sleep_s = _RETRY_BACKOFF_BASE * (2**attempt)
+            logger.warning(
+                "sharadar_fetch_retry", table=table, attempt=attempt + 1, sleep_s=sleep_s
+            )
+            time.sleep(sleep_s)
+        raise RuntimeError("unreachable: retry loop exhausted")  # pragma: no cover
+
     def fetch_table(self, name: str, **filters: object) -> pd.DataFrame:
         """Fetch a full SHARADAR datatable, following cursor pagination.
 
@@ -84,8 +121,7 @@ class SharadarProvider:
             params["api_key"] = self._api_key
             if cursor:
                 params["qopts.cursor_id"] = cursor
-            resp = self._client.get(f"{NDL_BASE}/{name}.json", params=params)
-            resp.raise_for_status()
+            resp = self._get_with_retry(f"{NDL_BASE}/{name}.json", params, table=name)
             payload = resp.json()
             datatable = payload["datatable"]
             cols = [c["name"] for c in datatable["columns"]]
