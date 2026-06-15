@@ -169,6 +169,48 @@ PY
   universe and quintiles are non-trivial; a tiny store yields a thin/degenerate run.
 - Read-only, no orders, no DB/UI — the report is an in-memory object (§3 scope).
 
+## 5d. Paper-activation drive (P9 §4) — register + activate the momentum book
+
+The momentum-portfolio strategy runs through the engine on PAPER. Driving it live
+needs **market hours** + the running stack; the steps:
+
+1. **Prep (any time, no stack):** ingest the candidate universe and build the
+   symbol list.
+   ```bash
+   # broad pool → SEP (date-bounded so it stays under the 1M-rows/day cap)
+   PYTHONPATH=apps/backend apps/backend/.venv/Scripts/python.exe \
+       apps/backend/scripts/ingest_sharadar.py \
+       --tickers-file apps/backend/data/paper_universe_pool.txt \
+       --datasets sep --from 2024-06-01 --skip-existing
+   # write the top-200 liquidity universe + SPY → data/paper_symbols.txt
+   #   (universe_asof(latest, n=200) + "SPY"; SPY is for the regime filter,
+   #    read from Alpaca at runtime — it is NOT in Sharadar SEP)
+   ```
+2. **Bring the stack up** (market hours; ⚠ use PowerShell for Docker — git-bash
+   `docker` hangs; ⚠ confirm Norton/Alpaca egress is clear or the cold-boot broker
+   connect crash-loops). The backend must connect to the intended paper account
+   (the `ALPACA_PAPER_API_KEY` in `.env`) and `AccountSyncService` must populate
+   `accounts_state` (else live-equity sizing falls back to the estimate).
+3. **Register + activate** (creates the strategy IDLE → starts it → PAPER + cron):
+   ```bash
+   PYTHONPATH=apps/backend apps/backend/.venv/Scripts/python.exe \
+       apps/backend/scripts/paper_activate_momentum.py \
+       --email <email> --password '<pw>' --totp <6-digit> \
+       --symbols-file apps/backend/data/paper_symbols.txt
+   #   --dry-run first to preview the payload (no login/mutation)
+   ```
+   Sizing params are dry-run-locked for a ~$10k account: `max_names=5`,
+   `max_position_pct=0.20`, `top_quantile=0.20`, `min_score=0.0`, regime filter on.
+4. **Trigger:** the weekly cron `0 14 * * 1` (Mon 14:00 UTC ≈ 10:00 ET) fires the
+   rebalance automatically — activate before then and it runs on its own. To fire
+   sooner for the validation, re-create with `--schedule '*/5 * * * *'` (the
+   rebalance-once-per-ISO-week guard means one rebalance then no-ops; revert to the
+   weekly cron after — each tick fetches bars for all symbols).
+5. **Verify:** the paper book holds ~4–5 equal-weight top-momentum names (a $10k
+   whole-share book underdeploys ~67% — pricey names round to 0 shares; fractional
+   shares would be the fix), every order shows `source_type=STRATEGY` in the audit
+   log, and the risk engine evaluated each (ADR 0002). No live account is touched.
+
 ## 6. Key hygiene
 
 `NASDAQ_DATA_LINK_API_KEY` is read via `get_settings().nasdaq_data_link_api_key`
