@@ -19,6 +19,17 @@ MTG strategy-spec lens (Docs/Strategies/Trading+Plan+Clean.pdf):
   Stop Loss      none per-name (diversification + weekly turnover + risk engine)
   Bail-Out       no factor data → HOLD; bearish market regime (price < SPY 200d
                   MA) → risk-off to CASH; risk engine caps/breaker are the halt
+  Risk Overlay   optional portfolio-level EWMA-vol targeting (off by default):
+                  scales gross exposure DOWN when the market proxy's realized vol
+                  exceeds vol_target_annual (no leverage; fails open)
+
+Portfolio-level EWMA-vol targeting (v0.4.0, review Priority 1 — DEFAULT OFF):
+  - when ``use_vol_scaling`` is on, gross exposure is multiplied by a scale in
+    [0, 1] = min(1, vol_target_annual / realized_annual_vol), where the realized
+    vol is the EWMA of the market proxy's (SPY) daily returns. High-vol regimes
+    de-risk the book; the cap at 1.0 means no leverage. It fails OPEN (scale 1.0,
+    logged) if the proxy series is unavailable, like the regime filter. Off by
+    default so the deployed book's behavior is unchanged until a backtested opt-in.
 
 Hardening (per the §4 strategy review):
   - the ISO week is marked at the START of a rebalance ATTEMPT, so the book
@@ -64,7 +75,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.4.0"  # daily dispatch + once-per-week-attempt guard + order pacing
+    version: ClassVar[str] = "0.4.0"  # daily dispatch + once-per-week guard + pacing + EWMA-vol targeting
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
@@ -93,6 +104,9 @@ class MomentumPortfolio(Strategy):
         # Delay between rebalance order submissions, to spread a burst under the
         # per-strategy order-rate cap (rolling max_orders_per_minute). 0 = no pacing.
         "order_pacing_seconds": 1.0,
+        "use_vol_scaling": False,  # portfolio EWMA-vol targeting (review Priority 1) — opt-in
+        "vol_target_annual": 0.15,  # target annualized portfolio vol when vol-scaling is on
+        "vol_ewma_span": 20,  # EWMA span (trading days) for the market-proxy vol estimate
     }
 
     params_schema: ClassVar[dict[str, Any]] = {
@@ -124,6 +138,12 @@ class MomentumPortfolio(Strategy):
                       "default": "1Day", "description": "Engine dispatch bar timeframe that fires the weekly on_bar tick."},
         "order_pacing_seconds": {"type": "number", "min": 0, "max": 60, "default": 1.0,
                                  "description": "Delay between rebalance order submissions (spreads the burst under the order-rate cap)."},
+        "use_vol_scaling": {"type": "boolean", "default": False,
+                            "description": "Scale gross exposure to a target volatility using the market proxy's EWMA vol."},
+        "vol_target_annual": {"type": "number", "min": 0, "max": 2, "default": 0.15,
+                              "description": "Target annualized portfolio volatility when vol-scaling is enabled."},
+        "vol_ewma_span": {"type": "integer", "min": 2, "default": 20,
+                          "description": "EWMA span (trading days) for the market-proxy volatility estimate."},
     }
 
     async def on_init(self) -> None:
@@ -287,7 +307,12 @@ class MomentumPortfolio(Strategy):
             live = None
         equity = Decimal(str(live)) if live is not None else self._equity_estimate
         buffer = Decimal(str(self.params.get("cash_buffer_pct", 0.02)))
-        return equity * (Decimal(1) - buffer)
+        base = equity * (Decimal(1) - buffer)
+        # Portfolio-level vol targeting (review Priority 1): scale gross exposure
+        # down in high-vol regimes. min(1.0, ...) caps at full investment (no
+        # leverage); 1.0 when disabled or the proxy series is unavailable.
+        scale = await self._gross_scale()
+        return base * Decimal(str(scale))
 
     async def _market_below_ma(self) -> bool | None:
         """True/False if the market proxy is below/above its MA; None if the series
@@ -308,6 +333,40 @@ class MomentumPortfolio(Strategy):
         ma = float(bars["c"].iloc[:-1].mean())  # the `days` completed bars
         last = float(bars["c"].iloc[-1])        # the latest bar
         return last < ma
+
+    async def _gross_scale(self) -> float:
+        """Portfolio gross-exposure multiplier in [0, 1] from EWMA-vol targeting.
+
+        Returns min(1.0, vol_target_annual / realized_annual_vol), where the
+        realized vol is the EWMA (span ``vol_ewma_span``) of the market proxy's
+        daily returns annualized by √252. So a high-vol regime scales the book
+        down; the cap at 1.0 means the overlay never adds leverage. Returns 1.0
+        when disabled, and FAILS OPEN (1.0, logged) if the proxy series is
+        unavailable — consistent with the regime filter (review-praised design)."""
+        if not self.params.get("use_vol_scaling", False):
+            return 1.0
+        sym = str(self.params.get("market_filter_symbol", "SPY"))
+        span = int(self.params.get("vol_ewma_span", 20))
+        target = float(self.params.get("vol_target_annual", 0.15))
+        # Fetch enough daily closes to warm the EWMA (≈3 spans of returns).
+        bars = await self.ctx.get_recent_bars(sym, "1Day", n=span * 3 + 1)
+        if bars is None or bars.empty or len(bars) < span + 1:
+            await self.ctx.log_signal(
+                sym, SignalType.EXIT,
+                payload={"reason": "vol_scaling_unavailable_failopen",
+                         "have_bars": 0 if bars is None else int(len(bars)), "need": span + 1},
+            )
+            return 1.0
+        rets = bars["c"].astype(float).pct_change().dropna()
+        if rets.empty:
+            return 1.0
+        ewma_var = float(rets.ewm(span=span).var().iloc[-1])
+        if not (ewma_var > 0):  # zero / NaN variance → can't scale → full exposure
+            return 1.0
+        realized_annual = math.sqrt(ewma_var) * math.sqrt(252.0)
+        if realized_annual <= 0:
+            return 1.0
+        return min(1.0, target / realized_annual)
 
     async def _price(self, symbol: str) -> float | None:
         """Latest close for sizing, from the pricing timeframe; None if unavailable."""
