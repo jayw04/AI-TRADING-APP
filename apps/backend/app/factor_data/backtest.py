@@ -22,6 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 
+import pandas as pd
 import structlog
 
 from app.factor_data.factors.engine import (
@@ -49,6 +50,8 @@ class BacktestRunConfig:
     turnover_cost_bps: float
     delisting: str
     initial_equity: float
+    vol_target_annual: float | None = None  # None = no vol-target overlay run
+    vol_ewma_span: int = 20
 
 
 @dataclass(frozen=True)
@@ -76,6 +79,11 @@ class MomentumBacktestReport:
     metrics: BacktestSummary
     baseline_metrics: BacktestSummary
     skipped_rebalances: list[date] = field(default_factory=list)
+    # Populated only when run_momentum_backtest is given vol_target_annual: the
+    # book curve after a daily EWMA-vol-target gross-exposure overlay (review
+    # Priority 1), plus its summary metrics — for a before/after comparison.
+    vol_scaled_curve: list[tuple[date, float]] = field(default_factory=list)
+    vol_scaled_metrics: BacktestSummary | None = None
 
 
 # A selection function: given a rebalance date, return {ticker: target_weight}.
@@ -112,6 +120,38 @@ def _summary(curve: list[tuple[date, float]], initial_equity: float) -> Backtest
         sharpe=metrics.sharpe_ratio(dt_curve),
         max_drawdown=metrics.max_drawdown(dt_curve),
     )
+
+
+def _vol_target_overlay(
+    curve: list[tuple[date, float]],
+    *,
+    vol_target_annual: float,
+    span: int,
+    initial_equity: float,
+) -> list[tuple[date, float]]:
+    """Apply a daily EWMA-vol-target gross-exposure overlay to a daily equity curve.
+
+    Mirrors ``MomentumPortfolio._gross_scale`` at the portfolio-return level: each
+    day's return is scaled by min(1, target_daily / sigma_t), where sigma_t is the
+    EWMA vol of returns STRICTLY BEFORE t (shift(1) → no look-ahead) and
+    target_daily = vol_target_annual / √252. The cap at 1.0 means no leverage; the
+    un-invested fraction earns nothing. Warm-up days (sigma not yet estimable) get
+    scale 1.0 = fail open, matching the strategy. Returns a fresh (date, equity)
+    curve anchored at ``initial_equity``."""
+    if not curve or vol_target_annual <= 0:
+        return list(curve)
+    eq_full = [initial_equity] + [e for _, e in curve]
+    rets = pd.Series(eq_full, dtype=float).pct_change().dropna().reset_index(drop=True)
+    sigma_prev = rets.ewm(span=span).std().shift(1)  # vol from returns before t
+    target_daily = vol_target_annual / math.sqrt(252.0)
+    scale = (target_daily / sigma_prev).clip(upper=1.0).fillna(1.0)
+    scaled_rets = (scale * rets).fillna(0.0)
+    out: list[tuple[date, float]] = []
+    eq = initial_equity
+    for (d, _), sr in zip(curve, scaled_rets, strict=False):
+        eq *= 1.0 + float(sr)
+        out.append((d, eq))
+    return out
 
 
 def _simulate(
@@ -196,6 +236,8 @@ def run_momentum_backtest(
     delisting: str = "last_price_to_cash",
     min_names: int = DEFAULT_MIN_NAMES,
     initial_equity: float = 100_000.0,
+    vol_target_annual: float | None = None,
+    vol_ewma_span: int = 20,
 ) -> MomentumBacktestReport:
     """Weekly long-only top-quintile momentum backtest, survivorship-free.
 
@@ -214,6 +256,7 @@ def run_momentum_backtest(
         start=start, end=end, n=n, lookback_days=lookback_days, skip_days=skip_days,
         top_quantile=top_quantile, turnover_cost_bps=turnover_cost_bps,
         delisting=delisting, initial_equity=initial_equity,
+        vol_target_annual=vol_target_annual, vol_ewma_span=vol_ewma_span,
     )
 
     all_days = store.trading_days(start, end)
@@ -267,6 +310,15 @@ def run_momentum_backtest(
         initial_equity=initial_equity, turnover_cost_bps=turnover_cost_bps,
     )
 
+    vol_scaled_curve: list[tuple[date, float]] = []
+    vol_scaled_metrics: BacktestSummary | None = None
+    if vol_target_annual is not None and book_curve:
+        vol_scaled_curve = _vol_target_overlay(
+            book_curve, vol_target_annual=vol_target_annual,
+            span=vol_ewma_span, initial_equity=initial_equity,
+        )
+        vol_scaled_metrics = _summary(vol_scaled_curve, initial_equity)
+
     return MomentumBacktestReport(
         config=config,
         rebalances=rebalances,
@@ -276,4 +328,6 @@ def run_momentum_backtest(
         metrics=_summary(book_curve, initial_equity),
         baseline_metrics=_summary(base_curve, initial_equity),
         skipped_rebalances=skipped,
+        vol_scaled_curve=vol_scaled_curve,
+        vol_scaled_metrics=vol_scaled_metrics,
     )

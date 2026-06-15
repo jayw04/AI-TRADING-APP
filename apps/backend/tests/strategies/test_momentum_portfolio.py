@@ -343,3 +343,56 @@ async def test_order_pacing_zero_no_sleep(monkeypatch) -> None:
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     assert slept == []  # pacing disabled → no sleeps
+
+
+# ---- portfolio EWMA-vol targeting (v0.4.0, review Priority 1) -------------------
+
+def _spy_high_vol(n: int = 61, daily: float = 0.04) -> pd.DataFrame:
+    """A SPY proxy series with high daily vol (alternating ±daily) → annualized
+    vol well above a 0.15 target → vol-scaling cuts gross exposure."""
+    px = [100.0]
+    for i in range(n - 1):
+        px.append(px[-1] * (1 + daily if i % 2 == 0 else 1 - daily))
+    return pd.DataFrame({"c": px})
+
+
+async def test_vol_scaling_off_by_default_leaves_sizing_unchanged() -> None:
+    # High-vol SPY present, but use_vol_scaling stays False (the default) → full
+    # exposure, identical to v0.3.0: 100k / 1 / 100 = 1000 shares.
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), price=100.0, equity=100_000,
+               spy_bars=_spy_high_vol())
+    strat = _strat(ctx, top_quantile=1.0)  # use_vol_scaling defaults False
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["AAA"] == ("buy", Decimal(1000))
+
+
+async def test_vol_scaling_reduces_exposure_in_high_vol() -> None:
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), price=100.0, equity=100_000,
+               spy_bars=_spy_high_vol())
+    strat = _strat(ctx, top_quantile=1.0, use_vol_scaling=True, vol_target_annual=0.15)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    qty = _orders(ctx)["AAA"][1]
+    assert Decimal(0) < qty < Decimal(1000)  # gross scaled down, but still trading
+
+
+async def test_vol_scaling_caps_at_full_in_low_vol() -> None:
+    # Flat SPY → zero realized vol → scale capped at 1.0 → full exposure.
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), price=100.0, equity=100_000,
+               spy_bars=pd.DataFrame({"c": [100.0] * 61}))
+    strat = _strat(ctx, top_quantile=1.0, use_vol_scaling=True, vol_target_annual=0.15)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["AAA"] == ("buy", Decimal(1000))
+
+
+async def test_vol_scaling_fails_open_when_proxy_unavailable() -> None:
+    # No SPY series → too few bars → fail open (full exposure), loudly logged.
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=100.0, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, use_vol_scaling=True, vol_target_annual=0.15)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["AAA"] == ("buy", Decimal(1000))
+    assert any("vol_scaling_unavailable_failopen" in str(c.kwargs.get("payload", {}))
+               for c in ctx.log_signal.call_args_list)

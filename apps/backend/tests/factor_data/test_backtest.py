@@ -10,6 +10,7 @@ import pytest
 from app.factor_data.backtest import (
     _iso_week_last_trading_days,
     _simulate,
+    _vol_target_overlay,
     run_momentum_backtest,
 )
 from app.factor_data.store import FactorDataStore
@@ -195,3 +196,49 @@ def test_backtest_empty_window_returns_empty(bt_store: FactorDataStore) -> None:
     r = run_momentum_backtest(bt_store, date(2030, 1, 1), date(2030, 12, 31))
     assert r.equity_curve == []
     assert r.metrics.total_return == 0.0
+
+
+# ---- vol-target overlay (review Priority 1) ------------------------------------
+
+def test_vol_target_overlay_dampens_high_vol() -> None:
+    """★ The overlay shrinks day-over-day swings of a high-vol curve once the EWMA
+    warms up (a low target vs. big ±swings → small gross exposure)."""
+    days = [d.date() for d in pd.bdate_range("2020-01-06", periods=60)]
+    eq, curve = 100.0, []
+    for i, d in enumerate(days):
+        eq *= 1.08 if i % 2 == 0 else 0.93  # violent alternating returns
+        curve.append((d, eq))
+    scaled = _vol_target_overlay(curve, vol_target_annual=0.05, span=10, initial_equity=100.0)
+    assert len(scaled) == len(curve)
+
+    def _abs_rets(c: list[tuple[date, float]]) -> list[float]:
+        v = [e for _, e in c]
+        return [abs(v[i] / v[i - 1] - 1.0) for i in range(1, len(v))]
+
+    half = len(curve) // 2  # compare the post-warm-up tail
+    assert sum(_abs_rets(scaled)[half:]) < sum(_abs_rets(curve)[half:])
+
+
+def test_vol_target_overlay_no_lookahead() -> None:
+    """The scale for day t uses returns strictly before t, so the overlay on a
+    prefix equals the prefix of the overlay on the full curve."""
+    days = [d.date() for d in pd.bdate_range("2020-01-06", periods=40)]
+    eq, curve = 100.0, []
+    for i, d in enumerate(days):
+        eq *= 1.05 if i % 3 else 0.97
+        curve.append((d, eq))
+    full = _vol_target_overlay(curve, vol_target_annual=0.10, span=10, initial_equity=100.0)
+    prefix = _vol_target_overlay(curve[:25], vol_target_annual=0.10, span=10, initial_equity=100.0)
+    assert [round(e, 8) for _, e in prefix] == [round(e, 8) for _, e in full[:25]]
+
+
+def test_backtest_vol_overlay_optional_and_additive(bt_store: FactorDataStore) -> None:
+    base = run_momentum_backtest(bt_store, _START, _END, top_quantile=0.2)
+    assert base.vol_scaled_curve == [] and base.vol_scaled_metrics is None
+
+    scaled = run_momentum_backtest(bt_store, _START, _END, top_quantile=0.2,
+                                   vol_target_annual=0.10, vol_ewma_span=20)
+    assert len(scaled.vol_scaled_curve) == len(scaled.equity_curve) > 0
+    assert scaled.vol_scaled_metrics is not None
+    # the overlay is purely additive — the core book curve is byte-identical.
+    assert scaled.equity_curve == base.equity_curve
