@@ -187,8 +187,16 @@ needs **market hours** + the running stack; the steps:
    #    read from Alpaca at runtime — it is NOT in Sharadar SEP)
    ```
 2. **Bring the stack up** (market hours; ⚠ use PowerShell for Docker — git-bash
-   `docker` hangs; ⚠ confirm Norton/Alpaca egress is clear or the cold-boot broker
-   connect crash-loops). The backend must connect to the intended paper account
+   `docker` hangs). **Norton can stay ON** — ADR 0017's `truststore` (injected at
+   `app/main.py` startup, before the broker connect) routes TLS through the OS trust
+   store, which trusts Norton's inspection root; proven under Norton (host-venv
+   probe + ingest). *Caveat:* that root lives in the **Windows** store, but the
+   **Docker (Linux) backend** reads the container's CA store — so IF Norton
+   intercepts the container's WSL2 traffic, the cold-boot Alpaca connect can still
+   fail (`CERTIFICATE_VERIFY_FAILED`). Don't disable Norton preemptively: bring the
+   stack up, check `/healthz`; only toggle Norton (or run the backend host-venv,
+   where truststore uses the Windows root) if the broker subsystem actually fails.
+   The backend must connect to the intended paper account
    (the `ALPACA_PAPER_API_KEY` in `.env`) and `AccountSyncService` must populate
    `accounts_state` (else live-equity sizing falls back to the estimate).
 3. **Register + activate** (creates the strategy IDLE → starts it → PAPER + cron):
