@@ -154,3 +154,42 @@ async def test_register_rejects_when_no_paper_account(engine, session_factory):
 
     with pytest.raises(StrategyLoadError, match="no paper account"):
         await eng.register(sid)
+
+
+# ---- crontab day-of-week normalization (the off-by-one fix) -------------------
+
+@pytest.mark.parametrize(
+    "crontab,expected",
+    [
+        ("0 14 * * 1", "0 14 * * mon"),       # the bug: cron 1=Mon, APScheduler 1=Tue
+        ("0 14 * * 0", "0 14 * * sun"),       # cron 0=Sun
+        ("0 14 * * 7", "0 14 * * sun"),       # cron 7=Sun (APScheduler rejects bare 7)
+        ("0 14 * * 1-5", "0 14 * * mon-fri"), # range endpoints
+        ("0 14 * * 1,3,5", "0 14 * * mon,wed,fri"),  # comma list
+        ("0 14 * * mon", "0 14 * * mon"),     # already a name → unchanged
+        ("0 14 * * *", "0 14 * * *"),         # wildcard → unchanged
+        ("0 14 * * */2", "0 14 * * */2"),     # step → passed through untouched
+        ("30 9 15 * *", "30 9 15 * *"),       # day-of-MONTH 15 must NOT be touched
+        ("event", "event"),                   # non-5-field → unchanged
+    ],
+)
+def test_normalize_crontab_dow(crontab, expected):
+    from app.strategies.engine import _normalize_crontab_dow
+
+    assert _normalize_crontab_dow(crontab) == expected
+
+
+def test_normalized_weekly_cron_fires_on_monday():
+    """★ The load-bearing assertion: '0 14 * * 1' must schedule a MONDAY fire, not
+    Tuesday (the pre-fix behavior that made momentum-portfolio miss its rebalance)."""
+    from apscheduler.triggers.cron import CronTrigger
+
+    from app.strategies.engine import _normalize_crontab_dow
+
+    base = datetime(2026, 6, 15, 11, 0, tzinfo=UTC)  # a Monday, pre-14:00
+    trigger = CronTrigger.from_crontab(
+        _normalize_crontab_dow("0 14 * * 1"), timezone=UTC
+    )
+    nxt = trigger.get_next_fire_time(None, base)
+    assert nxt.weekday() == 0  # Monday
+    assert (nxt.hour, nxt.minute) == (14, 0)
