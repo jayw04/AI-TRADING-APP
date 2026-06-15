@@ -396,3 +396,47 @@ async def test_vol_scaling_fails_open_when_proxy_unavailable() -> None:
     assert _orders(ctx)["AAA"] == ("buy", Decimal(1000))
     assert any("vol_scaling_unavailable_failopen" in str(c.kwargs.get("payload", {}))
                for c in ctx.log_signal.call_args_list)
+
+
+# ---- sector caps (P10 §3) ------------------------------------------------------
+
+def test_sector_cap_disabled_by_default() -> None:
+    assert MomentumPortfolio.default_params["max_sector_pct"] is None
+
+
+async def test_sector_cap_diversifies_and_backfills() -> None:
+    """max_sector_pct caps names per sector and backfills the freed slot from the
+    next-best name in another sector (diversify without shrinking the book)."""
+    scores = _scores([("AAA", 5.0), ("BBB", 4.0), ("CCC", 3.0), ("DDD", 2.0), ("EEE", 1.0)])
+    ctx = _ctx(["AAA", "BBB", "CCC", "DDD", "EEE"], scores, price=100.0, equity=100_000)
+    ctx.factors.sectors = MagicMock(return_value={
+        "AAA": "Tech", "BBB": "Tech", "CCC": "Tech", "DDD": "Energy", "EEE": "Energy",
+    })
+    # top-4 by score = AAA,BBB,CCC,DDD (3 Tech, 1 Energy). max_per = floor(0.5*4)=2
+    # → drop CCC (3rd Tech), backfill EEE (Energy) → {AAA,BBB,DDD,EEE}.
+    strat = _strat(ctx, top_quantile=1.0, max_names=4, max_sector_pct=0.5)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    bought = {s for s, (side, _) in _orders(ctx).items() if side == "buy"}
+    assert bought == {"AAA", "BBB", "DDD", "EEE"}
+
+
+async def test_sector_cap_fails_open_when_sectors_unavailable() -> None:
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
+    ctx = _ctx(["AAA", "BBB"], scores, price=100.0, equity=100_000)
+    ctx.factors.sectors = MagicMock(side_effect=RuntimeError("no sector data"))
+    strat = _strat(ctx, top_quantile=1.0, max_names=4, max_sector_pct=0.5)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    orders = _orders(ctx)
+    assert "AAA" in orders and "BBB" in orders  # fail open → both traded, no cap
+
+
+async def test_sector_cap_unset_does_not_query_sectors() -> None:
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
+    ctx = _ctx(["AAA", "BBB"], scores, price=100.0, equity=100_000)
+    ctx.factors.sectors = MagicMock(return_value={})
+    strat = _strat(ctx, top_quantile=1.0, max_names=4)  # max_sector_pct defaults None
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    ctx.factors.sectors.assert_not_called()  # disabled → never looks up sectors

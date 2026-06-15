@@ -31,7 +31,7 @@ _SEP_COLS = [
     "volume", "closeadj", "closeunadj", "lastupdated",
 ]
 _TICKERS_COLS = [
-    "ticker", "name", "exchange", "category", "isdelisted",
+    "ticker", "name", "exchange", "category", "sector", "industry", "isdelisted",
     "firstpricedate", "lastpricedate", "lastupdated",
 ]
 _ACTIONS_COLS = ["date", "action", "ticker", "name", "value", "contraticker"]
@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS sep (
 CREATE TABLE IF NOT EXISTS tickers (
   ticker         VARCHAR PRIMARY KEY,
   name           VARCHAR, exchange VARCHAR, category VARCHAR,
+  sector         VARCHAR, industry VARCHAR,   -- Sharadar classification (P10 §3 sector caps)
   isdelisted     BOOLEAN,
   firstpricedate DATE, lastpricedate DATE,
   lastupdated    DATE
@@ -90,6 +91,11 @@ class FactorDataStore:
         self.con = duckdb.connect(str(self.path), read_only=read_only)
         if not read_only:
             self.con.execute(_SCHEMA)
+            # Additive migration for pre-sector stores (P10 §3): idempotent, so an
+            # already-current schema is a no-op. Read-only opens skip it and rely
+            # on get_sectors() degrading when the column is absent.
+            for col in ("sector", "industry"):
+                self.con.execute(f"ALTER TABLE tickers ADD COLUMN IF NOT EXISTS {col} VARCHAR")
         logger.info("factor_data_store_open", path=str(self.path), read_only=read_only)
 
     def __enter__(self) -> FactorDataStore:
@@ -130,7 +136,7 @@ class FactorDataStore:
         self.con.execute(
             """
             INSERT OR REPLACE INTO tickers
-            SELECT ticker, name, exchange, category,
+            SELECT ticker, name, exchange, category, sector, industry,
                    TRY_CAST(isdelisted AS BOOLEAN),
                    TRY_CAST(firstpricedate AS DATE), TRY_CAST(lastpricedate AS DATE),
                    TRY_CAST(lastupdated AS DATE)
@@ -197,6 +203,25 @@ class FactorDataStore:
             [start, end],
         ).fetchall()
         return [r[0] for r in rows]
+
+    def get_sectors(self, tickers: list[str]) -> dict[str, str | None]:
+        """Map each requested ticker → its Sharadar `sector` (None if unknown).
+
+        Defensive: a pre-sector store (no `sector` column yet, before the TICKERS
+        re-ingest) yields all-None rather than raising, so the strategy's sector
+        cap fails open. Every requested ticker is present in the result."""
+        if not tickers:
+            return {}
+        cols = {r[1] for r in self.con.execute("PRAGMA table_info(tickers)").fetchall()}
+        if "sector" not in cols:
+            return {t: None for t in tickers}
+        placeholders = ",".join(["?"] * len(tickers))
+        rows = self.con.execute(
+            f"SELECT ticker, sector FROM tickers WHERE ticker IN ({placeholders})",
+            tickers,
+        ).fetchall()
+        found = {r[0]: r[1] for r in rows}
+        return {t: found.get(t) for t in tickers}
 
     def get_prices(
         self, ticker: str, start: date, end: date, *, adjusted: bool = True

@@ -75,3 +75,10 @@ class FactorAccessor:
         """Point-in-time tradeable universe as of `as_of` (default: latest store date)."""
         store = self._require_store()
         return universe_asof(store, self._resolve_as_of(as_of), n=n)
+
+    def sectors(self, tickers: list[str]) -> dict[str, str | None]:
+        """Sharadar sector per ticker (None if unknown) — for sector-aware
+        selection (P10 §3). Reference data, so no PIT clamp; a store without the
+        sector column yields all-None so callers can fail open."""
+        store = self._require_store()
+        return store.get_sectors(tickers)

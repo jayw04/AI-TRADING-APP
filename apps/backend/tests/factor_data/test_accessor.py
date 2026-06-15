@@ -20,6 +20,16 @@ def test_accessor_none_store_raises_everywhere() -> None:
         acc.momentum_for("MOM01")
     with pytest.raises(FactorDataUnavailable):
         acc.universe()
+    with pytest.raises(FactorDataUnavailable):
+        acc.sectors(["MOM01"])
+
+
+def test_accessor_sectors_delegates_to_store(momentum_store: FactorDataStore) -> None:
+    """sectors() returns a dict keyed by every requested ticker (the synthetic
+    fixture has no sector data → all None, but the mapping is complete)."""
+    acc = FactorAccessor(momentum_store)
+    got = acc.sectors(["MOM00", "MOM24"])
+    assert set(got) == {"MOM00", "MOM24"}
 
 
 def test_accessor_momentum_scores(momentum_store: FactorDataStore) -> None:
@@ -54,7 +64,7 @@ def test_accessor_surface_is_read_only(momentum_store: FactorDataStore) -> None:
     methods — only the three read methods. This is the sandbox boundary."""
     acc = FactorAccessor(momentum_store)
     public = {a for a in dir(acc) if not a.startswith("_")}
-    assert public == {"momentum_scores", "momentum_for", "universe"}
+    assert public == {"momentum_scores", "momentum_for", "universe", "sectors"}
     # no ingest/connection handle leaks through a public attribute
     for forbidden in ("con", "store", "ingest_sep", "ingest_tickers", "path"):
         assert not hasattr(acc, forbidden)

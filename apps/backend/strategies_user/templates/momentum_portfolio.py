@@ -11,7 +11,9 @@ MTG strategy-spec lens (Docs/Strategies/Trading+Plan+Clean.pdf):
   Type           long-only momentum book
   Holding Period ~1 week (held until the next weekly rebalance)
   Stock Selection top quintile by 6-1 month momentum z-score (≥ min_score floor),
-                  within a fixed top-N liquidity candidate universe (`symbols`)
+                  within a fixed top-N liquidity candidate universe (`symbols`);
+                  optional per-sector cap (max_sector_pct, off by default) damps
+                  single-sector concentration by capping names/sector + backfilling
   Entry/Exit     weekly rebalance — enter the target quintile, exit names that
                   fall out of it (with a rank-hysteresis buffer to damp churn)
   Position Sizing equal target notional = investable_equity / k, capped at
@@ -75,7 +77,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.4.0"  # daily dispatch + once-per-week guard + pacing + EWMA-vol targeting
+    version: ClassVar[str] = "0.5.0"  # + optional per-sector cap (P10 §3, default off)
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
@@ -95,6 +97,7 @@ class MomentumPortfolio(Strategy):
         "market_filter_symbol": "SPY",  # must be in `symbols` for the filter to work
         "market_ma_days": 200,  # MA window for the regime filter
         "max_position_pct": 0.10,  # hard cap on any one name's weight
+        "max_sector_pct": None,  # cap per-sector book weight (None = disabled; P10 §3, opt-in)
         "cash_buffer_pct": 0.02,  # keep this fraction in cash (deploy the rest)
         "initial_equity_estimate": 100_000,  # FALLBACK only when live equity is unavailable
         # Engine dispatch timeframe: StrategyEngine._dispatch_bar_tick fetches a bar
@@ -130,6 +133,8 @@ class MomentumPortfolio(Strategy):
                            "description": "Moving-average window (trading days) for the regime filter."},
         "max_position_pct": {"type": "number", "min": 0, "max": 1, "default": 0.10,
                              "description": "Hard cap on any single position as a fraction of equity."},
+        "max_sector_pct": {"type": "number", "min": 0, "max": 1, "nullable": True, "default": None,
+                           "description": "Cap on any one sector's share of the book (≈names, equal-weight). Empty/None = no sector cap."},
         "cash_buffer_pct": {"type": "number", "min": 0, "max": 1, "default": 0.02,
                             "description": "Fraction of equity held back as cash."},
         "initial_equity_estimate": {"type": "number", "min": 0, "default": 100_000,
@@ -280,7 +285,49 @@ class MomentumPortfolio(Strategy):
         keep_held = [h for h in held if h in buffer_zone and h not in core]
         chosen = set(core) | set(keep_held)
         # Order by score, cap at max_names.
-        return [t for t in ranked if t in chosen][:cap]
+        final = [t for t in ranked if t in chosen][:cap]
+        return self._apply_sector_cap(final, ranked, cap)
+
+    def _apply_sector_cap(self, final: list[str], ranked: list[str], cap: int) -> list[str]:
+        """Enforce a per-sector cap on the selected book (review #7, P10 §3).
+
+        Keeps at most ``floor(max_sector_pct * max_names)`` names per Sharadar
+        sector (≥1), preferring the highest-scored, then BACKFILLS the slots freed
+        by dropped over-concentrated names with the next-best names from other
+        sectors — so the book diversifies without shrinking. Disabled when
+        ``max_sector_pct`` is unset/≥1; FAILS OPEN (returns ``final`` unchanged) if
+        sector data is unavailable, so a data gap can't silently halt selection."""
+        max_pct = self.params.get("max_sector_pct")
+        if not max_pct or float(max_pct) >= 1.0 or not final:
+            return final
+        try:
+            sectors = self.ctx.factors.sectors(ranked)
+        except Exception:  # noqa: BLE001 — no sector data → fail open (no cap applied)
+            return final
+
+        max_per = max(1, int(math.floor(float(max_pct) * cap)))
+        target_n = len(final)
+        book: list[str] = []
+        sec_count: dict[Any, int] = {}
+
+        def _try_add(t: str) -> None:
+            sec = sectors.get(t)  # None (unknown sector) is never capped
+            if sec is not None and sec_count.get(sec, 0) >= max_per:
+                return
+            book.append(t)
+            sec_count[sec] = sec_count.get(sec, 0) + 1
+
+        for t in final:  # keep original picks that fit the cap (best-first preserved)
+            if len(book) >= target_n:
+                break
+            _try_add(t)
+        if len(book) < target_n:  # backfill freed slots from the broader ranked list
+            for t in ranked:
+                if len(book) >= target_n:
+                    break
+                if t not in book:
+                    _try_add(t)
+        return book
 
     async def _current_holdings(self) -> dict[str, Decimal]:
         """Long quantities currently held, keyed by ticker, over the candidate set.
