@@ -118,3 +118,27 @@ def test_price_date_bounds_empty_store(tmp_path) -> None:
         assert s.price_date_bounds() == (None, None)
     finally:
         s.close()
+
+
+def test_get_sectors_maps_known_and_unknown(tmp_path) -> None:
+    """P10 §3: get_sectors maps each requested ticker to its sector; unknown
+    tickers → None; empty input → {}."""
+    import pandas as pd
+
+    s = FactorDataStore(db_path=str(tmp_path / "sec.duckdb"))
+    try:
+        tk = pd.DataFrame([
+            dict(ticker="AAA", name="A Inc", exchange="NYSE", category="Domestic Common Stock",
+                 sector="Technology", industry="Semiconductors", isdelisted="N",
+                 firstpricedate="2020-01-01", lastpricedate="2026-01-01", lastupdated="2026-01-01"),
+            dict(ticker="BBB", name="B Inc", exchange="NYSE", category="Domestic Common Stock",
+                 sector="Energy", industry="Oil & Gas", isdelisted="N",
+                 firstpricedate="2020-01-01", lastpricedate="2026-01-01", lastupdated="2026-01-01"),
+        ])
+        s.ingest_tickers(tk)
+        assert s.get_sectors(["AAA", "BBB", "ZZZ"]) == {
+            "AAA": "Technology", "BBB": "Energy", "ZZZ": None,
+        }
+        assert s.get_sectors([]) == {}
+    finally:
+        s.close()
