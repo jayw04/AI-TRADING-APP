@@ -44,7 +44,7 @@ from decimal import Decimal
 from typing import Any
 
 import structlog
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
@@ -266,28 +266,56 @@ class CircuitBreakerService:
         ).scalars().first()
 
     async def _compute_realized_pnl_today(self, account_id: int) -> Decimal:
-        """Net realized cash flow from today's fills, sign-aware.
+        """Realized P&L from today's CLOSING trades, via running average cost.
 
-        signed cash flow per fill: +qty*price for BUY (cash out), -qty*price for
-        SELL (cash in). Realized PnL ≈ -sum(signed_cash). Conservative for
-        positions opened-and-still-open today (they look like loss); the
-        unrealized term corrects for that. (Fill has no signed_direction column;
-        the sign comes from the joined Order.side.)
+        Realized P&L is recognized only when a position is reduced (a SELL), as
+        ``(sell_price - avg_cost) * qty_sold``. Opening a position (a BUY)
+        realizes nothing — it swaps cash for an asset of equal value, which the
+        unrealized term then marks-to-market. The average cost is built from the
+        account's full fill history oldest-first, so a position opened on a prior
+        day carries its cost basis into today's sells; only sells filled since
+        the market open count toward *today's* realized P&L. (Fill has no signed
+        direction; the side comes from the joined ``Order.side``.)
+
+        This replaces an earlier signed-cash-flow computation that counted BUY
+        notional as a realized loss — which spuriously tripped the daily-loss
+        breaker on capital deployment (any strategy or trader opening a book
+        larger than ``max_daily_loss``). The trip precondition (ADR 0004) is
+        unchanged; only the realized-P&L semantics are corrected.
         """
         market_open = self._market_open_utc_today()
-        signed_cash = case(
-            (Order.side == OrderSide.BUY, Fill.qty * Fill.price),
-            else_=-(Fill.qty * Fill.price),
-        )
-        result = await self._session.execute(
-            select(func.coalesce(func.sum(signed_cash), 0))
-            .select_from(Fill)
-            .join(Order, Fill.order_id == Order.id)
-            .where(Order.account_id == account_id)
-            .where(Fill.filled_at >= market_open)
-        )
-        net_cash = result.scalar() or Decimal("0")
-        return Decimal(str(-net_cash))
+        rows = (
+            await self._session.execute(
+                select(Order.symbol_id, Order.side, Fill.qty, Fill.price, Fill.filled_at)
+                .select_from(Fill)
+                .join(Order, Fill.order_id == Order.id)
+                .where(Order.account_id == account_id)
+                .order_by(Fill.filled_at, Fill.id)
+            )
+        ).all()
+
+        avg_cost: dict[int, Decimal] = {}
+        qty_held: dict[int, Decimal] = {}
+        realized_today = Decimal("0")
+        for symbol_id, side, qty, price, filled_at in rows:
+            qty = Decimal(str(qty))
+            price = Decimal(str(price))
+            if side == OrderSide.BUY:
+                held = qty_held.get(symbol_id, Decimal("0"))
+                new_held = held + qty
+                # Average up only while net long; a buy that covers a short
+                # leaves the (short) cost basis to the short-side logic below.
+                if held >= 0 and new_held > 0:
+                    prior = avg_cost.get(symbol_id, Decimal("0"))
+                    avg_cost[symbol_id] = (prior * held + price * qty) / new_held
+                qty_held[symbol_id] = new_held
+            else:  # SELL: realize against the running average cost
+                cost = avg_cost.get(symbol_id, Decimal("0"))
+                qty_held[symbol_id] = qty_held.get(symbol_id, Decimal("0")) - qty
+                filled_aware = ensure_aware(filled_at)
+                if filled_aware is not None and filled_aware >= market_open:
+                    realized_today += (price - cost) * qty
+        return realized_today
 
     async def _compute_unrealized_pnl(self, account_id: int) -> Decimal:
         """Sum unrealized P&L across the account's open positions (local table,

@@ -18,8 +18,17 @@ ADR 0004 (the circuit-breaker hard-halt decision).
 ## Circuit breaker
 
 **Trip condition:** `realized_pnl_today + unrealized_pnl_now ≤ -max_daily_loss`,
-where realized PnL is the signed sum of today's fills (sign from `Order.side`)
-and unrealized PnL is the sum of `positions.unrealized_pl` for the account.
+where realized PnL is recognized only on **closing trades** — for each of
+today's SELL fills, `(sell_price − avg_cost) × qty`, with `avg_cost` built from
+the account's full fill history (so a position opened on a prior day carries its
+cost basis into today's sells). A BUY realizes nothing; opening a position swaps
+cash for an asset that the unrealized term then marks. Unrealized PnL is the sum
+of `positions.unrealized_pl` for the account.
+
+> ⚠ Until 2026-06-15 the realized term was the *signed cash flow* of today's
+> fills, which counted BUY notional as a realized loss — so opening a book
+> larger than `max_daily_loss` tripped the breaker on capital deployment, not on
+> loss. Corrected to the close-based calc above (`_compute_realized_pnl_today`).
 
 This is **in addition to** the older *global* daily-loss halt
 (`app/risk/halt.py`, keyed on `AccountState.day_change`), which still trips a
