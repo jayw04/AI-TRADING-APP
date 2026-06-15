@@ -440,3 +440,42 @@ async def test_sector_cap_unset_does_not_query_sectors() -> None:
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     ctx.factors.sectors.assert_not_called()  # disabled → never looks up sectors
+
+
+# ---- fractional shares (P10 §7) ------------------------------------------------
+
+def test_fractional_shares_disabled_by_default() -> None:
+    assert MomentumPortfolio.default_params["fractional_shares"] is False
+
+
+async def test_fractional_shares_buys_sub_one_share() -> None:
+    """With fractional on, a name priced ABOVE the per-name budget gets a
+    fractional qty instead of flooring to 0 (the ~67%-deployment fix)."""
+    # equity 100, 1 name → per_name 100; price 200 → 0.5 shares fractional.
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=200.0, equity=100)
+    strat = _strat(ctx, top_quantile=1.0, max_names=1, fractional_shares=True)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["AAA"] == ("buy", Decimal("0.500000"))
+
+
+async def test_whole_shares_floor_sub_one_to_zero() -> None:
+    """Default (whole shares): the same below-one-share target floors to 0 → no
+    order (this is exactly the under-deployment fractional mode fixes)."""
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=200.0, equity=100)
+    strat = _strat(ctx, top_quantile=1.0, max_names=1)  # fractional defaults False
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    ctx.submit_order.assert_not_called()
+
+
+async def test_fractional_shares_deploys_more_than_whole() -> None:
+    """Fractional target qty exceeds the whole-share floor for a pricey name."""
+    # per_name = 20000 (100k/5 = 20k), price 271.78 → 73.59 frac vs 73 whole.
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=271.78, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, max_names=5, max_position_pct=0.20,
+                   fractional_shares=True)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    qty = _orders(ctx)["AAA"][1]
+    assert qty > Decimal(73) and qty < Decimal(74)  # fractional, not floored to 73
