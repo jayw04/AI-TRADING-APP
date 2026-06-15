@@ -62,3 +62,5 @@ Thumbs.db
 # Logs
 *.log
 logs/
+certs/
+docker-compose.override.yml
