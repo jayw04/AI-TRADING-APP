@@ -71,6 +71,43 @@ logger = structlog.get_logger(__name__)
 
 EVENT_SCHEDULE_SENTINEL = "event"
 
+# Standard crontab day-of-week is 0/7=Sunday, 1=Monday … 6=Saturday. APScheduler's
+# CronTrigger numbers day_of_week 0=Monday … 6=Sunday and `from_crontab` does NOT
+# remap — so a numeric dow like "1" is read as Tuesday, silently shifting every
+# weekly strategy by a day. We translate numeric dow tokens to unambiguous day
+# NAMES (which APScheduler interprets identically to cron) before scheduling.
+_CRON_DOW_NAMES = {0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"}
+
+
+def _normalize_crontab_dow(expr: str) -> str:
+    """Rewrite numeric day-of-week tokens in a 5-field crontab to day names so
+    ``CronTrigger.from_crontab`` honors standard cron semantics (0/7=Sun, 1=Mon).
+
+    Handles single values, comma lists, and ranges (``1``, ``1,3,5``, ``1-5``).
+    Fields other than day-of-week are untouched, and a dow field containing a
+    wildcard or step (``*``, ``*/2``) is passed through unchanged (no day-name
+    ambiguity to resolve there). A non-5-field expression is returned as-is so
+    ``from_crontab`` raises on it exactly as before.
+    """
+    parts = expr.split()
+    if len(parts) != 5:
+        return expr
+    dow = parts[4]
+    if "*" in dow or "/" in dow:
+        return expr
+
+    def _token(tok: str) -> str:
+        names: list[str] = []
+        for n in tok.split("-"):  # single value or range endpoints
+            if n.isdigit() and 0 <= int(n) <= 7:
+                names.append(_CRON_DOW_NAMES[int(n)])
+            else:
+                return tok  # not a clean numeric token → leave it for from_crontab
+        return "-".join(names)
+
+    parts[4] = ",".join(_token(item) for item in dow.split(","))
+    return " ".join(parts)
+
 
 @dataclass
 class RunningStrategy:
@@ -354,7 +391,7 @@ class StrategyEngine:
         if schedule != "event":
             job_id = f"strategy:{strategy_id}:on_bar"
             try:
-                cron = CronTrigger.from_crontab(schedule)
+                cron = CronTrigger.from_crontab(_normalize_crontab_dow(schedule))
             except Exception:
                 logger.warning(
                     "strategy_schedule_invalid_falling_back",
