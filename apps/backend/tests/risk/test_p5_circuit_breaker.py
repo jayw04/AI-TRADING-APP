@@ -4,7 +4,7 @@ Adapted to the live schema: strategies have no account_id (mapped via
 user_id + status↔mode); Fill has no signed_direction (realized PnL joins
 Order.side); unrealized PnL is read from the local positions table.
 """
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -183,6 +183,93 @@ async def test_check_trips_on_realized_loss(seeded):
         assert realized == Decimal("-100")  # lost $100
         with pytest.raises(CircuitBreakerError):
             await cb.check(1)
+
+
+async def test_realized_pnl_zero_on_buys_only(seeded):
+    """★ Regression: opening a book must NOT count as realized loss. A BUY with
+    notional far above max_daily_loss (1000 > 500) realizes 0 and never trips —
+    the old signed-cash-flow calc booked -1000 and halted on capital deployment."""
+    async with seeded() as session:
+        buy = Order(
+            user_id=1, account_id=1, symbol_id=1, side=OrderSide.BUY,
+            type=OrderType.MARKET, qty=Decimal("10"), tif=TimeInForce.DAY,
+            status=OrderStatus.FILLED, source_type=OrderSourceType.MANUAL,
+            created_at=_now(), updated_at=_now(),
+        )
+        session.add(buy)
+        await session.flush()
+        session.add(Fill(order_id=buy.id, qty=Decimal("10"), price=Decimal("100"),
+                         filled_at=_now()))
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        assert await cb._compute_realized_pnl_today(1) == Decimal("0")
+        await cb.check(1)  # must NOT raise
+    async with seeded() as session:
+        account = await session.get(Account, 1)
+    assert account.circuit_breaker_tripped_at is None
+
+
+async def test_realized_pnl_uses_prior_day_cost_basis(seeded):
+    """A position OPENED on a prior day and SOLD today realizes today's loss
+    against the prior-day cost basis; the prior buy itself counts toward neither
+    today's realized P&L nor (it is closed) the unrealized term."""
+    prior = _now() - timedelta(days=2)
+    async with seeded() as session:
+        rl = await session.get(RiskLimits, 1)
+        rl.max_daily_loss = Decimal("50")
+        buy = Order(
+            user_id=1, account_id=1, symbol_id=1, side=OrderSide.BUY,
+            type=OrderType.MARKET, qty=Decimal("10"), tif=TimeInForce.DAY,
+            status=OrderStatus.FILLED, source_type=OrderSourceType.MANUAL,
+            created_at=prior, updated_at=prior,
+        )
+        sell = Order(
+            user_id=1, account_id=1, symbol_id=1, side=OrderSide.SELL,
+            type=OrderType.MARKET, qty=Decimal("10"), tif=TimeInForce.DAY,
+            status=OrderStatus.FILLED, source_type=OrderSourceType.MANUAL,
+            created_at=_now(), updated_at=_now(),
+        )
+        session.add_all([buy, sell])
+        await session.flush()
+        session.add_all([
+            Fill(order_id=buy.id, qty=Decimal("10"), price=Decimal("100"), filled_at=prior),
+            Fill(order_id=sell.id, qty=Decimal("10"), price=Decimal("90"), filled_at=_now()),
+        ])
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        assert await cb._compute_realized_pnl_today(1) == Decimal("-100")
+        with pytest.raises(CircuitBreakerError):
+            await cb.check(1)
+
+
+async def test_realized_pnl_partial_sell_gain(seeded):
+    """A partial sell realizes only the sold qty against average cost:
+    BUY 10@100, SELL 4@110 → +40 realized (open 6 remain, unrealized)."""
+    async with seeded() as session:
+        buy = Order(
+            user_id=1, account_id=1, symbol_id=1, side=OrderSide.BUY,
+            type=OrderType.MARKET, qty=Decimal("10"), tif=TimeInForce.DAY,
+            status=OrderStatus.FILLED, source_type=OrderSourceType.MANUAL,
+            created_at=_now(), updated_at=_now(),
+        )
+        sell = Order(
+            user_id=1, account_id=1, symbol_id=1, side=OrderSide.SELL,
+            type=OrderType.MARKET, qty=Decimal("4"), tif=TimeInForce.DAY,
+            status=OrderStatus.FILLED, source_type=OrderSourceType.MANUAL,
+            created_at=_now(), updated_at=_now(),
+        )
+        session.add_all([buy, sell])
+        await session.flush()
+        session.add_all([
+            Fill(order_id=buy.id, qty=Decimal("10"), price=Decimal("100"), filled_at=_now()),
+            Fill(order_id=sell.id, qty=Decimal("4"), price=Decimal("110"), filled_at=_now()),
+        ])
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        assert await cb._compute_realized_pnl_today(1) == Decimal("40")
 
 
 async def test_reset_clears_tripped_state(seeded):
