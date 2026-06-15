@@ -21,8 +21,12 @@ MTG strategy-spec lens (Docs/Strategies/Trading+Plan+Clean.pdf):
                   MA) → risk-off to CASH; risk engine caps/breaker are the halt
 
 Hardening (per the §4 strategy review):
-  - rebalance week is marked DONE only after a rebalance completes (a crash
-    retries next tick, not next week);
+  - the ISO week is marked at the START of a rebalance ATTEMPT, so the book
+    rebalances at most once per week. The engine dispatches on_bar once per
+    registered SYMBOL per cron tick (~200×), so marking after success would let a
+    failing rebalance re-run on the next symbol in the same tick — a submission
+    storm (observed live 2026-06-15). A failed attempt logs and waits for next
+    week's tick rather than retrying within the same one;
   - sizing uses LIVE account equity (ctx.get_account_equity), falling back to a
     configured estimate only when no snapshot exists;
   - a turnover threshold (min_trade_pct) + rank-hysteresis buffer suppress churn;
@@ -40,6 +44,7 @@ no-ops the rest — the framework has no portfolio/rebalance hook (§4 §3.1).
 
 from __future__ import annotations
 
+import asyncio
 import math
 from decimal import Decimal
 from typing import Any, ClassVar
@@ -59,11 +64,14 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.3.0"  # §4 review hardening (rounds 1 + 2)
+    version: ClassVar[str] = "0.4.0"  # daily dispatch + once-per-week-attempt guard + order pacing
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
-    schedule: ClassVar[str] = "0 14 * * 1"  # weekly, Mon 14:00 UTC ≈ 09:00 ET (§4 §3.2)
+    # Weekly, Mon 14:00 UTC ≈ 09:00 ET. Use the day NAME, not "1": APScheduler's
+    # CronTrigger numbers dow 0=Mon (cron is 1=Mon), so "0 14 * * 1" fires TUESDAY.
+    # The engine also normalizes numeric dow now, but the name is unambiguous.
+    schedule: ClassVar[str] = "0 14 * * mon"
 
     default_params: ClassVar[dict[str, Any]] = {
         "top_quantile": 0.20,  # hold the top 20% by momentum score…
@@ -78,6 +86,13 @@ class MomentumPortfolio(Strategy):
         "max_position_pct": 0.10,  # hard cap on any one name's weight
         "cash_buffer_pct": 0.02,  # keep this fraction in cash (deploy the rest)
         "initial_equity_estimate": 100_000,  # FALLBACK only when live equity is unavailable
+        # Engine dispatch timeframe: StrategyEngine._dispatch_bar_tick fetches a bar
+        # of THIS timeframe per symbol to fire on_bar. Daily matches the book's
+        # daily sizing/regime data (the engine default is "1Min", which is wrong here).
+        "timeframe": "1Day",
+        # Delay between rebalance order submissions, to spread a burst under the
+        # per-strategy order-rate cap (rolling max_orders_per_minute). 0 = no pacing.
+        "order_pacing_seconds": 1.0,
     }
 
     params_schema: ClassVar[dict[str, Any]] = {
@@ -105,26 +120,35 @@ class MomentumPortfolio(Strategy):
                             "description": "Fraction of equity held back as cash."},
         "initial_equity_estimate": {"type": "number", "min": 0, "default": 100_000,
                                     "description": "Fallback equity estimate when no live account snapshot exists."},
+        "timeframe": {"type": "enum", "choices": ["5Min", "15Min", "1Hour", "1Day"],
+                      "default": "1Day", "description": "Engine dispatch bar timeframe that fires the weekly on_bar tick."},
+        "order_pacing_seconds": {"type": "number", "min": 0, "max": 60, "default": 1.0,
+                                 "description": "Delay between rebalance order submissions (spreads the burst under the order-rate cap)."},
     }
 
     async def on_init(self) -> None:
         self._equity_estimate = Decimal(str(self.params.get("initial_equity_estimate", 100_000)))
-        # (ISO year, ISO week) of the last SUCCESSFUL rebalance — guards once/week.
+        # (ISO year, ISO week) of the last ATTEMPTED rebalance — guards once/week.
         self._last_rebalance_week: tuple[int, int] | None = None
 
     async def on_bar(self, bar: Any) -> None:
         wk = bar.t.isocalendar()[:2]  # (iso_year, iso_week)
         if wk == self._last_rebalance_week:
-            return  # already rebalanced this week; ignore the per-symbol tick calls
+            return  # already attempted this week; ignore the per-symbol tick calls
+        # ★ Mark the week BEFORE rebalancing. The engine dispatches on_bar PER SYMBOL
+        # (once for each of the ~200 registered symbols) on every cron tick, so a
+        # rebalance that raises would otherwise re-run on the *next symbol in the
+        # same tick* — up to 200× — flooding the OrderRouter (this caused a live
+        # cooldown storm 2026-06-15). Marking first guarantees at most one attempt
+        # per ISO week; a failure logs and waits for next week's tick, not next symbol.
+        self._last_rebalance_week = wk
         try:
             await self._rebalance()
-        except Exception as exc:  # noqa: BLE001 — an unexpected failure must retry, not skip the week
+        except Exception as exc:  # noqa: BLE001 — contain user-path failures; retry is next week
             await self.ctx.log_signal(
                 "PORTFOLIO", SignalType.EXIT,
                 payload={"reason": "rebalance_failed", "error": str(exc)[:160]},
             )
-            return  # do NOT mark the week → the next tick retries
-        self._last_rebalance_week = wk  # mark DONE only on a completed rebalance (incl. deliberate holds)
 
     # ---- rebalance ----
 
@@ -319,4 +343,9 @@ class MomentumPortfolio(Strategy):
         elif rejection:
             log_payload["rejected"] = rejection
         await self.ctx.log_signal(symbol, sig, payload=log_payload)
+        # Pace submissions so a multi-name rebalance burst stays under the
+        # per-strategy rolling order-rate cap (a 0 value disables pacing).
+        pacing = float(self.params.get("order_pacing_seconds", 0.0) or 0.0)
+        if pacing > 0:
+            await asyncio.sleep(pacing)
         return result is not None and not rejection
