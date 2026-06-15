@@ -6,14 +6,20 @@ FROM python:${PYTHON_VERSION} AS builder
 
 WORKDIR /build
 
+# Optional extra pip args — e.g. `--trusted-host pypi.org --trusted-host
+# files.pythonhosted.org` to build behind a TLS-inspecting proxy (Norton) whose
+# root the build container doesn't trust. Empty by default → no effect on CI /
+# clean networks; set locally via docker-compose.override.yml build args.
+ARG PIP_EXTRA_ARGS=""
+
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 COPY pyproject.toml ./
 COPY app ./app
 
-RUN pip install --upgrade pip \
- && pip install --prefix=/install .
+RUN pip install ${PIP_EXTRA_ARGS} --upgrade pip \
+ && pip install ${PIP_EXTRA_ARGS} --prefix=/install .
 
 
 FROM python:${PYTHON_VERSION} AS runtime

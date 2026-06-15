@@ -219,6 +219,39 @@ needs **market hours** + the running stack; the steps:
    shares would be the fix), every order shows `source_type=STRATEGY` in the audit
    log, and the risk engine evaluated each (ADR 0002). No live account is touched.
 
+## 5e. Running the Docker stack under Norton (gotchas hit 2026-06-14)
+
+Bringing the stack up for the paper drive surfaced three real blockers — all now
+handled. If you rebuild on a fresh box, expect these:
+
+1. **`WORKBENCH_MASTER_KEY` must be in `.env`.** The backend `sys.exit(1)`s at boot
+   without it. If it's regenerated, every existing `user_credentials` row (encrypted
+   under the old key) is orphaned — and the backend reads **broker creds from the
+   store** (`app/brokers/alpaca/credentials.py`, P5 §4), so it can't connect to
+   Alpaca. Re-provision under the new key with `scripts/rebootstrap_credentials.py`
+   (alpaca/anthropic/mcp from `.env`) **and** `scripts/create_user.py` for password +
+   TOTP. ⚠ `create_user.py --rotate-totp` chokes if the old TOTP row is undecryptable
+   — delete that row first (`DELETE FROM user_credentials WHERE kind='totp_secret'`),
+   then run plain `create_user.py` to generate a fresh one.
+2. **Norton MITM breaks the container's TLS — both runtime and build.** ADR-0017
+   truststore fixes *host-venv* TLS (Norton root is in the Windows store), but the
+   **Linux container** reads its own CA store, which lacks Norton's root → Alpaca/
+   PyPI cert verification fails. Durable fix (Norton stays on), both local + gitignored:
+   - **Runtime:** `docker-compose.override.yml` mounts a CA bundle
+     (`certs/ca-bundle.pem` = certifi + the `Norton Web/Mail Shield Root` exported
+     from the Windows store) and sets `SSL_CERT_FILE`/`REQUESTS_CA_BUNDLE` +
+     `WORKBENCH_TLS_USE_OS_TRUST=0` (so requests/httpx use the bundle, not the OS store).
+   - **Build:** `Dockerfile` takes `ARG PIP_EXTRA_ARGS` (default empty → CI-safe); the
+     override passes `--trusted-host pypi.org files.pythonhosted.org` so `pip` builds
+     under Norton. Rebuild after code changes: `docker compose build backend`.
+   - Rebuild `certs/ca-bundle.pem` if Norton's root rotates.
+3. **Factor store location.** Ingest writes to `apps/backend/data/factor_data.duckdb`
+   (backend-root-relative), but the container mounts repo-root `./data` → `/app/data`,
+   so it reads **`data/factor_data.duckdb` at the repo root**. After any re-ingest,
+   copy it up: `cp apps/backend/data/factor_data.duckdb data/factor_data.duckdb`
+   (else `ctx.factors` is disabled in the container). The lifespan logs
+   `factor_accessor_provisioned` when it finds it.
+
 ## 6. Key hygiene
 
 `NASDAQ_DATA_LINK_API_KEY` is read via `get_settings().nasdaq_data_link_api_key`
