@@ -151,6 +151,44 @@ class CircuitBreakerService:
                 f"All strategies on this account are now HALTED."
             )
 
+    async def evaluate(self, account_id: int) -> bool:
+        """Continuous-monitor evaluation: TRIP the breaker if the account's net
+        daily P&L has breached the limit, **without raising** (unlike ``check()``,
+        which gates an order submission). Returns True if the account is tripped
+        after this call (already-tripped or newly-tripped), else False.
+
+        This is the path for the periodic breaker-monitor job (P10 §6): the
+        order-time ``check()`` can't catch a drawdown that deepens while no orders
+        are submitted (e.g. overnight), so a recurring job calls ``evaluate()`` for
+        every account with open positions. Shares ``trip()`` and the P&L helpers
+        with ``check()`` so the two paths stay consistent."""
+        account = await self._session.get(Account, account_id)
+        if account is None:
+            return False
+        if ensure_aware(account.circuit_breaker_tripped_at) is not None:
+            return True  # already tripped — nothing to do
+        limits = await self._get_active_limits(account)
+        if limits is None or limits.max_daily_loss is None:
+            return False  # no daily-loss limit configured
+        max_loss = Decimal(str(limits.max_daily_loss))
+        realized = await self._compute_realized_pnl_today(account_id)
+        unrealized = await self._compute_unrealized_pnl(account_id)
+        net_pnl = realized + unrealized
+        if net_pnl <= -max_loss:
+            await self.trip(
+                account_id=account_id,
+                reason="daily_loss_exceeded",
+                payload={
+                    "realized_pnl_today": str(realized),
+                    "unrealized_pnl_now": str(unrealized),
+                    "net_pnl": str(net_pnl),
+                    "max_daily_loss": str(max_loss),
+                    "source": "monitor",  # detected by the periodic job, not an order
+                },
+            )
+            return True
+        return False
+
     async def trip(self, *, account_id: int, reason: str, payload: dict[str, Any]) -> None:
         """Atomically set the trip timestamp, HALT active strategies for this
         account's mode, audit-log, then publish. Idempotent."""

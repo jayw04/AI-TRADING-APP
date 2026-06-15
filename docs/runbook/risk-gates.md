@@ -54,10 +54,13 @@ server re-checks). The reset re-enables order submission BUT does NOT
 auto-restart HALTED strategies — start each one manually
 (`audit_log action=CIRCUIT_BREAKER_RESET`).
 
-**Known limitation:** the breaker checks only on order submission. A held
-position that drifts deep while no orders are being submitted will not trip
-until the next order attempt. P5+ polish: a one-minute APScheduler job calling
-`CircuitBreakerService.check()` for every account with open positions.
+**Continuous monitor (P10 §6):** besides the order-time check, a 60-second
+lifespan job (`app/jobs/breaker_monitor.py` → `breaker_monitor`) calls
+`CircuitBreakerService.evaluate()` for every account holding an open position, so
+a drawdown that deepens with no order flow (e.g. overnight) trips + HALTs without
+waiting for the next order. `evaluate()` is the non-raising sibling of `check()`
+(skips already-tripped / no-limit accounts); trips are audited identically with
+`payload.source="monitor"`. (Previously a known limitation — order-time check only.)
 
 ## Per-day order cap
 

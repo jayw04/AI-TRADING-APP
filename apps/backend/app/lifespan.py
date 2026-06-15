@@ -317,6 +317,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("metrics_snapshot_scheduled")
 
+            # 10c-bis. Continuous circuit-breaker monitor (P10 §6 / review v2 #5).
+            # A 60s tick that trips the daily-loss breaker for any account with
+            # open positions whose net P&L has breached the limit — catching an
+            # overnight/idle drawdown the order-time check() can't see. evaluate()
+            # skips already-tripped / no-limit accounts; best-effort (never raises
+            # into the scheduler). max_instances=1 + coalesce so a slow pass can't stack.
+            from app.jobs.breaker_monitor import run_breaker_monitor
+
+            scheduler.scheduler.add_job(
+                run_breaker_monitor,
+                trigger="interval",
+                seconds=60,
+                id="breaker_monitor",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"session_factory": session_factory, "bus": bus},
+            )
+            logger.info("breaker_monitor_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't
