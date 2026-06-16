@@ -79,3 +79,40 @@ def test_http_error_propagates(monkeypatch) -> None:
     _install_mock(monkeypatch, handler)
     with SharadarProvider(api_key="testkey") as p, pytest.raises(httpx.HTTPStatusError):
         p.fetch_table("SEP", ticker="AAA")
+
+
+def test_fetch_table_retries_transient_then_succeeds(monkeypatch) -> None:
+    """A transient transport error (e.g. connection reset) is retried, not fatal."""
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)  # no real backoff
+    calls = {"n": 0}
+    cols = [{"name": "ticker"}, {"name": "date"}]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.ReadError("forcibly closed", request=request)
+        return httpx.Response(200, json={
+            "datatable": {"columns": cols, "data": [["AAA", "2020-01-01"]]},
+            "meta": {"next_cursor_id": None},
+        })
+
+    _install_mock(monkeypatch, handler)
+    with SharadarProvider(api_key="testkey") as p:
+        df = p.fetch_table("SEP", ticker="AAA")
+    assert calls["n"] == 2  # retried once after the reset
+    assert len(df) == 1
+
+
+def test_fetch_table_4xx_fails_fast(monkeypatch) -> None:
+    """A non-transient 4xx (auth/bad request) is NOT retried."""
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(403, json={"error": "forbidden"})
+
+    _install_mock(monkeypatch, handler)
+    with SharadarProvider(api_key="testkey") as p, pytest.raises(httpx.HTTPStatusError):
+        p.fetch_table("SEP", ticker="AAA")
+    assert calls["n"] == 1  # no retry on 4xx
