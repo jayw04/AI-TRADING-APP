@@ -44,6 +44,7 @@ from pathlib import Path
 # Make the backend importable when run as `python scripts/create_user.py`
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from pydantic import EmailStr, TypeAdapter, ValidationError  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
 from app.auth.passwords import hash_password  # noqa: E402
@@ -64,6 +65,28 @@ PASSWORD_ENV_VAR = "WORKBENCH_DEV_USER_PASSWORD"
 def _generate_password() -> str:
     """A strong URL-safe random password (stays under bcrypt's 72-byte cap)."""
     return secrets.token_urlsafe(18)
+
+
+_EMAIL_ADAPTER = TypeAdapter(EmailStr)
+
+
+def _validate_email(email: str) -> str:
+    """Reject an email the /auth/login route would later refuse.
+
+    The login request body is validated with Pydantic ``EmailStr`` (e.g. a
+    domain with no dot like ``range@local`` is invalid). Without this check
+    create_user would happily create an account that then **cannot log in** —
+    the 422 surfaces in the UI as a confusing "Invalid credentials". Validating
+    here with the same ``EmailStr`` fails fast with a clear message instead."""
+    try:
+        return _EMAIL_ADAPTER.validate_python(email)
+    except ValidationError as exc:
+        reason = exc.errors()[0].get("msg", "invalid email") if exc.errors() else "invalid email"
+        raise ValueError(
+            f"invalid --email {email!r}: {reason.rstrip('.')}. Use a full address "
+            f"with a valid domain, e.g. name@example.com (the login page "
+            f"validates the same way)."
+        ) from exc
 
 
 def _parse_args() -> argparse.Namespace:
@@ -103,7 +126,14 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Generate a fresh TOTP secret even if one is already verified.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    # Fail fast on an email the login route would later reject — see
+    # _validate_email. parser.error() prints usage and exits non-zero.
+    try:
+        _validate_email(args.email)
+    except ValueError as exc:
+        parser.error(str(exc))
+    return args
 
 
 async def create_user(args: argparse.Namespace) -> None:
