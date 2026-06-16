@@ -33,6 +33,7 @@ from app.auth.totp import (
     make_qr_data_url,
     verify_code,
 )
+from app.config import get_settings
 from app.db.models.session import Session as SessionRow
 from app.db.models.user import User
 from app.db.session import get_session
@@ -109,7 +110,9 @@ class LoginRequest(BaseModel):
 
     email: EmailStr
     password: str = Field(min_length=1, max_length=256)
-    totp_code: str = Field(min_length=6, max_length=8)
+    # Optional so a password-only login works when WORKBENCH_LOGIN_TOTP_REQUIRED
+    # is false. When the flag is true (default), login() rejects a missing code.
+    totp_code: str | None = Field(default=None, min_length=6, max_length=8)
 
 
 class LoginResponse(BaseModel):
@@ -138,6 +141,20 @@ class TotpVerifyRequest(BaseModel):
 
 
 # ---------------- /auth/login ----------------
+
+
+# ---------------- /auth/login-config (unauthenticated) ----------------
+
+
+class LoginConfigResponse(BaseModel):
+    totp_required: bool
+
+
+@router.get("/login-config", response_model=LoginConfigResponse)
+async def login_config() -> LoginConfigResponse:
+    """Public, pre-auth: tells the login page whether to show the TOTP field.
+    Single source of truth is the backend setting; no secrets exposed."""
+    return LoginConfigResponse(totp_required=get_settings().login_totp_required)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -169,23 +186,28 @@ async def login(
         # Defensive: shouldn't be reached after the verify above.
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # P5 §4: the TOTP secret moved into the encrypted credential store; the
-    # totp_verified_at status flag stays on the users row.
-    totp_secret = await CredentialStore(session).get(
-        user_row.id, CredentialKind.TOTP_SECRET
-    )
-    if not totp_secret or user_row.totp_verified_at is None:
-        obs.auth_failures_total.labels(reason="no_totp_enrolled").inc()
-        raise HTTPException(
-            status_code=403,
-            detail="TOTP is not set up for this account. Run scripts/create_user.py "
-            "or contact your admin to bootstrap TOTP.",
+    # Login TOTP gate (WORKBENCH_LOGIN_TOTP_REQUIRED, default True). When
+    # disabled, password is the only login factor — a single-user localhost
+    # convenience. Step-up TOTP on consequential actions (LIVE account creation,
+    # activation, LLM opt-in, live auto-dispatch) is unaffected by this flag.
+    if get_settings().login_totp_required:
+        # P5 §4: the TOTP secret moved into the encrypted credential store; the
+        # totp_verified_at status flag stays on the users row.
+        totp_secret = await CredentialStore(session).get(
+            user_row.id, CredentialKind.TOTP_SECRET
         )
+        if not totp_secret or user_row.totp_verified_at is None:
+            obs.auth_failures_total.labels(reason="no_totp_enrolled").inc()
+            raise HTTPException(
+                status_code=403,
+                detail="TOTP is not set up for this account. Run scripts/create_user.py "
+                "or contact your admin to bootstrap TOTP.",
+            )
 
-    if not verify_code(totp_secret, body.totp_code):
-        logger.warning("auth_login_bad_totp", ip=ip, user_id=user_row.id)
-        obs.auth_failures_total.labels(reason="bad_totp").inc()
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        if not body.totp_code or not verify_code(totp_secret, body.totp_code):
+            logger.warning("auth_login_bad_totp", ip=ip, user_id=user_row.id)
+            obs.auth_failures_total.labels(reason="bad_totp").inc()
+            raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # All checks pass — mint a session.
     plaintext_token = generate_session_token()

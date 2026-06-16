@@ -132,6 +132,56 @@ async def test_login_unknown_email_returns_401(client: AsyncClient, secret: str)
     assert r.status_code == 401
 
 
+# ---- WORKBENCH_LOGIN_TOTP_REQUIRED gate (login-only) ----
+
+
+async def test_login_config_defaults_to_totp_required(client: AsyncClient, secret: str):
+    r = await client.get("/api/v1/auth/login-config")
+    assert r.status_code == 200
+    assert r.json()["totp_required"] is True
+
+
+async def test_login_without_totp_when_flag_disabled(
+    client: AsyncClient, secret: str, monkeypatch: pytest.MonkeyPatch
+):
+    """With WORKBENCH_LOGIN_TOTP_REQUIRED=false, password alone logs in and the
+    config endpoint advertises it (so the UI hides the field)."""
+    from app.config import get_settings
+
+    monkeypatch.setenv("WORKBENCH_LOGIN_TOTP_REQUIRED", "false")
+    get_settings.cache_clear()
+    try:
+        cfg = await client.get("/api/v1/auth/login-config")
+        assert cfg.json()["totp_required"] is False
+
+        r = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "jay@example.com", "password": "correctpw"},  # no totp_code
+        )
+        assert r.status_code == 200
+        assert r.cookies.get("workbench_session") is not None
+    finally:
+        get_settings.cache_clear()  # don't leak the cached flag to other tests
+
+
+async def test_password_still_enforced_when_totp_disabled(
+    client: AsyncClient, secret: str, monkeypatch: pytest.MonkeyPatch
+):
+    """Disabling TOTP must not weaken the password check."""
+    from app.config import get_settings
+
+    monkeypatch.setenv("WORKBENCH_LOGIN_TOTP_REQUIRED", "false")
+    get_settings.cache_clear()
+    try:
+        r = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "jay@example.com", "password": "wrongpw"},
+        )
+        assert r.status_code == 401
+    finally:
+        get_settings.cache_clear()
+
+
 async def test_login_rate_limit_kicks_in(client: AsyncClient, secret: str):
     """5 bad attempts → the 6th is 429 even with correct credentials."""
     for _ in range(5):
