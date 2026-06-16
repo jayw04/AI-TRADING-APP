@@ -52,6 +52,35 @@ def _auth_override(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(main_mod, "create_app", _patched_create_app)
 
 
+@pytest.fixture(autouse=True)
+def _market_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """§9A: the StrategyEngine (and, once it lands, the RiskEngine) consult the
+    market-session model on every dispatch / order. Pin tests to a REGULAR
+    (open) session so the suite isn't wall-clock dependent — otherwise a
+    dispatch/order test flips behavior (skipped tick, MARKET_SESSION_CLOSED)
+    whenever CI runs overnight, on a weekend, or pre-market.
+
+    Patches ``MarketSession.classify`` at the class level so *every* consumer
+    (``MarketSession()`` in the StrategyEngine, ``default_market_session()`` in
+    the RiskEngine) sees an open market for a **no-argument** "classify now"
+    call. Calls with an EXPLICIT instant pass through untouched, so the session
+    unit tests (which always pass an instant) and any test that injects its own
+    session keep the real classification.
+    """
+    from datetime import UTC, datetime
+
+    from app.market.session import MarketSession
+
+    # A Wednesday, 11:00 ET (15:00 UTC) — squarely inside regular hours.
+    open_instant = datetime(2026, 6, 17, 15, 0, tzinfo=UTC)
+    real_classify = MarketSession.classify
+
+    def _classify(self, instant=None):  # type: ignore[no-untyped-def]
+        return real_classify(self, open_instant if instant is None else instant)
+
+    monkeypatch.setattr(MarketSession, "classify", _classify)
+
+
 @pytest_asyncio.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     from app.config import get_settings

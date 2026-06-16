@@ -61,6 +61,7 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.strategy_run import StrategyRun
 from app.events.bus import EventBus
+from app.market.session import MarketSession
 
 from .base import Strategy
 from .context import Bar, FillEvent, SignalEvent, StrategyContext
@@ -146,6 +147,10 @@ class StrategyEngine:
         # P9 §2: read-only PIT factor accessor handed to every StrategyContext.
         # None = factor data not provisioned; ctx.factors raises FactorDataUnavailable.
         self._factor_accessor = factor_accessor
+        # §9A market-session gate — consulted before every on_bar dispatch so a
+        # strategy never acts outside its permitted session (RTH-only unless it
+        # sets allow_extended_hours). Shares a per-day schedule cache.
+        self._market_session = MarketSession()
 
         self._running: dict[int, RunningStrategy] = {}
         # Optional handle to BarStreamService (P4 §8). Wired post-construction
@@ -565,6 +570,8 @@ class StrategyEngine:
                 continue
             if symbol not in {s.upper() for s in running.symbols}:
                 continue
+            if not self._dispatch_allowed(running):
+                continue
             try:
                 event_bar = self._coerce_to_bar(symbol, running.timeframe, bar)
                 if event_bar is None:
@@ -693,11 +700,32 @@ class StrategyEngine:
 
     # ---- dispatch ----
 
+    def _dispatch_allowed(self, running: RunningStrategy) -> bool:
+        """§9A market-session gate: may this strategy act in the current
+        session? REGULAR always; pre/after only when its params opt in via
+        ``allow_extended_hours``; CLOSED never. Out-of-session ticks are
+        skipped (logged, not an error) so open/close guards are enforceable."""
+        allow_extended = bool(
+            running.instance.params.get("allow_extended_hours", False)
+        )
+        info = self._market_session.classify()
+        if info.dispatchable(allow_extended=allow_extended):
+            return True
+        logger.info(
+            "strategy_dispatch_skipped_out_of_session",
+            strategy_id=running.strategy_id,
+            session=info.session.value,
+            allow_extended=allow_extended,
+        )
+        return False
+
     async def _dispatch_bar_tick(self, *, strategy_id: int) -> None:
         """APScheduler-invoked: fetch the latest bar for each of this
         strategy's symbols and call ``on_bar``."""
         running = self._running.get(strategy_id)
         if running is None:
+            return
+        if not self._dispatch_allowed(running):
             return
 
         for symbol in running.symbols:

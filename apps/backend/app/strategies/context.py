@@ -157,6 +157,20 @@ class StrategyContext:
             )
         return self._factor_accessor
 
+    # ---- market session (§9A) ----
+
+    @property
+    def session(self) -> Any:
+        """The current market session (:class:`app.market.session.SessionInfo`):
+        current session + the day's open/close. Use this instead of
+        ``datetime.now()`` to compute open/close offsets against an authoritative
+        clock. The engine already gates dispatch on this (a strategy is only
+        called in a permitted session); ``ctx.session`` lets a strategy refine
+        its own timing within the session."""
+        from app.market.session import default_market_session
+
+        return default_market_session().classify()
+
     # ---- market data ----
 
     async def get_recent_bars(
