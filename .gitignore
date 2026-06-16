@@ -47,6 +47,9 @@ secrets/
 *.sqlite-wal
 data/
 bars_cache/
+# Fetched market-data parquets cached by scripts/backtest_range_trader_sweep.py
+scripts/.sweep_cache/
+apps/backend/scripts/.sweep_cache/
 
 # Editor / OS
 .DS_Store
