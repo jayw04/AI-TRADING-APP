@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.2 (2026-06-15 refresh: sector caps shipped, deploy/validation captured) |
+| Document version | v0.3 (2026-06-15: +§5A–§5E from status review — failure modes, turnover, benchmark, fail-open rationale, LIVE criteria) |
 | Date | 2026-06-15 |
 | Strategy | `momentum-portfolio` (code `apps/backend/strategies_user/templates/momentum_portfolio.py`) |
 | Code version | **v0.5.0** — v0.4.0 (cron/dispatch/storm/pacing/vol-scaling) is merged & live; **v0.5.0 (sector caps, default off) is in PR #118, pending merge**. ⚠ the registered DB row `strategies.version` still reads `0.3.0` (cosmetic — the code file is what runs) |
@@ -98,6 +98,70 @@ P10 §3 / review #7. Persists Sharadar `sector`/`industry` on the tickers table 
 5. **Order-rate headroom.** The per-strategy cap is 5 orders/min (rolling); `order_pacing_seconds`=1.0 doesn't beat a rolling-minute cap for bursts >5 orders. Fine for the current 5-name book; raise the cap (or pacing) if the book grows. The once-per-week-attempt guard makes any rate rejection graceful (no storm; retry next week).
 6. **Cosmetic:** the registered `strategies.version` row reads `0.3.0` while the code is `0.4.0` live (`0.5.0` once #118 merges) — the code file is authoritative.
 7. **Pre-existing positions** ADC/MTDR sit in the paper account but are outside the universe and untouched by the strategy.
+
+---
+
+## 5A. Expected failure modes
+
+The single most important operational table: what the strategy does when a dependency fails. Every row is a **deliberate** choice; the bias is *fail toward inaction*, not toward an unintended trade.
+
+| Failure | Behavior | Why |
+|---|---|---|
+| Factor data unavailable (whole universe) | **HOLD** — no rebalance this window; logged `rebalance_failed`, retry next **week** | A momentum decision without scores is a guess; doing nothing preserves the current book. |
+| SPY (regime proxy) series unavailable | **Fail open** — skip the regime gate, run the deterministic momentum selection | A transient data gap should not silently flatten the book to cash (see §5C). |
+| A single name's price missing at sizing | That name is **skipped** (0 shares); the rest of the book rebalances | One bad symbol shouldn't abort the whole rebalance. |
+| Order rejected by risk engine (caps/notional) | **Logged, continue** — the remaining orders still submit; no retry storm | Risk gates are non-bypassable; a partial rebalance is the correct outcome. |
+| Order-rate cap hit (>5/min) | **Graceful partial** — excess orders rejected this minute; once-per-week-attempt guard prevents re-storm | The book converges next attempt; no order storm (the #116 fix). |
+| Broker disconnect / Alpaca outage | **No orders submitted**; submissions fail and are logged | Fail closed on execution — never assume a fill. |
+| Strategy raises an unexpected exception | **Rebalance aborted for the current schedule window** (week marked on attempt) | Isolation: a strategy crash cannot wedge the engine or re-fire 200×. |
+| Circuit breaker tripped (daily-loss/manual) | **HALTED** — no further orders until reset | The breaker is the last-resort halt (ADR 0004). |
+
+---
+
+## 5B. Turnover & holding period
+
+Momentum systems can silently overtrade; these are the metrics to watch (rank hysteresis + `min_trade_pct` are the throttles).
+
+| Metric | Current estimate | Notes |
+|---|---|---|
+| Avg weekly turnover | **~10–25%** of book (estimate) | Damped by `rebalance_buffer_rank_pct`=0.05 (hysteresis) and `min_trade_pct`=0.03 (no sub-3% trims). Needs measurement over ≥8 live weeks. |
+| Annualized turnover | **~5–13×** (derived from weekly) | Confirm against actual fills, not the model. |
+| Average holding period | **~4–10 weeks** (estimate) | A name held while it stays in the top quintile; hysteresis lengthens this. |
+
+> ⚠ These are *modeled* estimates. Replace with **measured** turnover from the audit-logged fills once ≥8 scheduled rebalances have run — overtrading is the failure mode this table exists to catch.
+
+---
+
+## 5C. Benchmark
+
+Performance statements are meaningless without a benchmark. For this strategy:
+
+- **Primary benchmark: SPY total return** (the strategy already holds SPY as its regime proxy, and a long-only US-equity book is naturally measured against the S&P 500).
+- **Secondary (style-aware): equal-weight large-cap** (e.g. RSP / equal-weight Russell 1000) — fairer for an equal-weight book that is not cap-weighted.
+- Report **excess return vs SPY**, not just absolute, in all future performance discussions; drawdown and Sharpe are reported alongside SPY's over the same window.
+
+---
+
+## 5D. Why "fail open" on the regime filter (rationale)
+
+The market-regime gate (SPY < 200d MA → all-cash) **fails open**: if the SPY series is unavailable, the gate is skipped and the deterministic momentum selection runs normally.
+
+**Rationale:** silent strategy disablement from a *transient data outage* is operationally worse than continuing deterministic baseline trading. A data gap is not a market signal — flattening the entire book to cash because a price feed hiccupped would be an unintended, hard-to-diagnose action driven by infrastructure, not by the strategy's thesis. The risk engine and circuit breaker remain in force regardless, so "fail open" here never means "unbounded risk" — it means "don't let a feed glitch masquerade as a sell signal." (Contrast with execution failures, which **fail closed** — see §5A.)
+
+---
+
+## 5E. Minimum LIVE promotion criteria
+
+Promotion from PAPER to LIVE is the expensive direction (ADR 0005 cooldown + ADR 0014 backtest ground truth). The bar — **all** must hold:
+
+- [ ] **≥ 6 months** of paper runtime on the fixed system (post-#114/#116).
+- [ ] A **broader-history backtest** (unbiased SEP, survivorship-free) supporting the live config — not just the 2024→ momentum-friendly window (limitation §5.4).
+- [ ] **No unresolved reconciliation issues** between the DB, the audit log, and the Alpaca account.
+- [ ] **Max drawdown within the expected envelope** (vs the backtested/vol-scaling envelope).
+- [ ] **No uncontrolled order storms** across the full paper period (the #116 guard holds).
+- [ ] **Successful broker reconnect/recovery** demonstrated at least once (disconnect → resume without duplicate or dropped orders).
+- [ ] **Stable factor ingestion** (no silent gaps) over the paper period.
+- [ ] The 24-h activation cooldown (ADR 0005) honored at promotion.
 
 ---
 

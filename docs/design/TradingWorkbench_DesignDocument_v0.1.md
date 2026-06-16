@@ -4,8 +4,8 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 — Draft for Review |
-| Date | 2026-05-19 |
+| Document version | v0.2 — adds §9A Market Session Model (design-review response) |
+| Date | 2026-06-15 |
 | Author | Jay Wang (with Claude) |
 | Status | Draft — pending review & open-question resolution |
 | Successor doc | *Detailed Implementation Plan v0.1* (to be created after this doc is approved) |
@@ -323,6 +323,57 @@ class Strategy:
 ### 9.4 Strategy authoring with Claude Code
 
 Jay writes a description in natural language → Claude Code (Mode A, dev-time) scaffolds the strategy module, including tests and a backtest harness. Same pattern Jay already uses in ComplyGen Lab.
+
+---
+
+## 9A. Market Session Model
+
+> *Added v0.2 in response to the design review (the largest missing architectural topic) and the Range Trader paper-activation Finding 9. The trading path has no session-awareness today; this section defines the target model and the gap.*
+
+A trading system must have an explicit model of **when the market is open** and what each strategy is allowed to do in each session. Without it, an interval-scheduled strategy (e.g. `*/5 * * * *`) fires around the clock, intraday "open/close" guards are meaningless, and orders can be sent into illiquid or closed sessions.
+
+### 9A.1 Current state (honest assessment)
+
+Session-awareness is **partial and display-only**:
+
+- `pandas_market_calendars` is a dependency but is used **only in `app/services/equity_curve.py`** (analytics/plotting), **not** in the order or dispatch path.
+- `OrderRouter.submit()` carries an `extended_hours` field, but it is a **passthrough flag set by the caller** — the risk engine does **not** check whether the market is open, and there is no Alpaca `get_clock` consultation anywhere in `app/brokers/`.
+- The `StrategyEngine` dispatches purely on the cron/interval schedule with **no RTH gate** — a `*/5 * * * *` strategy would attempt `on_bar` 24/7.
+
+**Consequence:** an intraday strategy's `no_trade_open_minutes` / `hard_exit_before_close_minutes` guards rely on the strategy *self-policing* against wall-clock time, with no engine-level enforcement. This is acceptable for the current weekly momentum book (it fires once on a Monday well inside RTH) but is a correctness gap for any intraday strategy — exactly the Range Trader case.
+
+### 9A.2 Target model
+
+A single source of session truth, consulted by the engine before dispatch and available to strategies via `ctx`:
+
+| Session | Definition | Default strategy behavior |
+|---|---|---|
+| **Regular (RTH)** | 09:30–16:00 ET on a trading day | normal `on_bar` dispatch + order submission |
+| **Pre-market** | 04:00–09:30 ET | **no dispatch** unless a strategy explicitly opts in (`allow_extended_hours`) |
+| **After-hours** | 16:00–20:00 ET | as pre-market |
+| **Closed** | overnight / weekends | no dispatch; no order submission |
+| **Holiday** | full-day exchange holiday | no dispatch |
+| **Half-day** | early-close session (e.g. day after Thanksgiving) | RTH rules with the early close as the "close" for end-of-day guards |
+
+Session source: `pandas_market_calendars` (XNYS schedule) for the *calendar* (trading days, half-days, holidays), cross-checked against the Alpaca `get_clock` / `get_calendar` endpoints for the *authoritative open/close* at runtime (broker is the final word on a surprise close). The calendar gives advance scheduling; the clock gives the live gate.
+
+### 9A.3 Where the gate lives
+
+- **Engine dispatch gate (primary):** `StrategyEngine` consults a `MarketSession` service before firing `on_bar`. If the session is not one the strategy is allowed to act in, the tick is skipped (logged, not an error). This makes the open/close guards real.
+- **Risk-engine session check (defense in depth):** a session check in `OrderRouter.submit()` that fails closed — reject an order whose account/strategy is not permitted to trade in the current session. Like every risk check, it is additive and centralized (composes with the existing checks; ADR 0002 / risk-engine conventions). New typed rejection reason: `MARKET_SESSION_CLOSED`.
+- **Strategy-visible:** `ctx.session` exposes the current session + next open/close so strategies can compute their own open/close offsets against an authoritative clock rather than `datetime.now()`.
+
+### 9A.4 Implementation scope (code task — not in this doc)
+
+This section is the *design*; the build is a separate, gated work item:
+
+1. `app/market/session.py` — `MarketSession` service wrapping `pandas_market_calendars` (XNYS) + an Alpaca-clock cross-check, with a small cache (calendar is stable intraday; the clock is polled).
+2. Wire the **engine dispatch gate** (skip-and-log out-of-session ticks) — the highest-leverage single change; it makes intraday open/close guards enforceable.
+3. Add the **`MARKET_SESSION_CLOSED`** risk check (fail-closed) + tests at the risk-engine ≥95% bar; update `RejectionReason` enum, frontend i18n, audit allowlist, and `docs/runbook/risk-checks.md`.
+4. Expose `ctx.session`.
+5. **Conservative default:** strategies are **RTH-only** unless they explicitly opt into extended hours — matching the platform's "conservative defaults" posture.
+
+This is a **prerequisite for activating any intraday strategy** (Range Trader); the weekly momentum book is unaffected by its absence but benefits from the defense-in-depth check.
 
 ---
 
