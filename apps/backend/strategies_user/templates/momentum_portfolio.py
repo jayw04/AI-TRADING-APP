@@ -17,7 +17,8 @@ MTG strategy-spec lens (Docs/Strategies/Trading+Plan+Clean.pdf):
   Entry/Exit     weekly rebalance — enter the target quintile, exit names that
                   fall out of it (with a rank-hysteresis buffer to damp churn)
   Position Sizing equal target notional = investable_equity / k, capped at
-                  max_position_pct, whole shares, market orders
+                  max_position_pct, market orders; whole shares by default, or
+                  fractional (fractional_shares, opt-in) to deploy ~fully
   Stop Loss      none per-name (diversification + weekly turnover + risk engine)
   Bail-Out       no factor data → HOLD; bearish market regime (price < SPY 200d
                   MA) → risk-off to CASH; risk engine caps/breaker are the halt
@@ -77,7 +78,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.5.0"  # + optional per-sector cap (P10 §3, default off)
+    version: ClassVar[str] = "0.6.0"  # + optional fractional-share sizing (P10 §7, default off)
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
@@ -98,6 +99,7 @@ class MomentumPortfolio(Strategy):
         "market_ma_days": 200,  # MA window for the regime filter
         "max_position_pct": 0.10,  # hard cap on any one name's weight
         "max_sector_pct": None,  # cap per-sector book weight (None = disabled; P10 §3, opt-in)
+        "fractional_shares": False,  # size fractional qty (deploys ~fully on a small acct; P10 §7, opt-in)
         "cash_buffer_pct": 0.02,  # keep this fraction in cash (deploy the rest)
         "initial_equity_estimate": 100_000,  # FALLBACK only when live equity is unavailable
         # Engine dispatch timeframe: StrategyEngine._dispatch_bar_tick fetches a bar
@@ -133,6 +135,8 @@ class MomentumPortfolio(Strategy):
                            "description": "Moving-average window (trading days) for the regime filter."},
         "max_position_pct": {"type": "number", "min": 0, "max": 1, "default": 0.10,
                              "description": "Hard cap on any single position as a fraction of equity."},
+        "fractional_shares": {"type": "boolean", "default": False,
+                              "description": "Size fractional share quantities (deploys ~fully vs whole-share rounding). Alpaca fractional MARKET/DAY only."},
         "max_sector_pct": {"type": "number", "min": 0, "max": 1, "nullable": True, "default": None,
                            "description": "Cap on any one sector's share of the book (≈names, equal-weight). Empty/None = no sector cap."},
         "cash_buffer_pct": {"type": "number", "min": 0, "max": 1, "default": 0.02,
@@ -228,30 +232,39 @@ class MomentumPortfolio(Strategy):
         min_trade = Decimal(str(self.params.get("min_trade_pct", 0.03)))
 
         # First pass sells (trims) so they precede buys; collect buys, submit after.
-        buys: list[tuple[str, Decimal, float, int]] = []
+        fractional = bool(self.params.get("fractional_shares", False))
+        buys: list[tuple[str, Decimal, float, Decimal]] = []
         for sym in target:
             price = await self._price(sym)
             if price is None or price <= 0:
                 await self.ctx.log_signal(sym, SignalType.ENTRY, payload={"reason": f"{reason}_skip_no_price"})
                 continue
-            target_qty = int(math.floor(float(per_name) / price))
-            cur = int(held.get(sym, Decimal(0)))
+            price_d = Decimal(str(price))
+            # Fractional sizing deploys ~fully — no whole-share floor that zeroes out
+            # names priced above the per-name budget (the ~67%-deployment problem on a
+            # small account). Alpaca fills fractional MARKET/DAY orders on fractionable
+            # names; a non-fractionable name simply rejects (logged, like any rejection).
+            if fractional:
+                target_qty = (per_name / price_d).quantize(Decimal("0.000001"))
+            else:
+                target_qty = Decimal(math.floor(per_name / price_d))
+            cur = held.get(sym, Decimal(0))  # Decimal — never int-cast (fractional holdings)
             delta = target_qty - cur
             if delta == 0:
                 continue
             # Turnover threshold: skip adjustments to EXISTING positions that are
             # smaller than min_trade_pct of the target notional (new entries pass).
-            if cur > 0 and abs(delta) * price < float(per_name) * float(min_trade):
+            if cur > 0 and abs(delta) * price_d < per_name * min_trade:
                 continue
             if delta < 0:
-                await self._submit(sym, OrderSide.SELL, Decimal(-delta), reason=f"{reason}_trim",
-                                   payload={"price": price, "target_qty": target_qty})
+                await self._submit(sym, OrderSide.SELL, -delta, reason=f"{reason}_trim",
+                                   payload={"price": price, "target_qty": str(target_qty)})
             else:
-                buys.append((sym, Decimal(delta), price, target_qty))
+                buys.append((sym, delta, price, target_qty))
 
         for sym, qty, price, target_qty in buys:
             await self._submit(sym, OrderSide.BUY, qty, reason=f"{reason}_entry",
-                               payload={"price": price, "target_qty": target_qty})
+                               payload={"price": price, "target_qty": str(target_qty)})
 
     def _select_targets(self, scores: Any, held: dict[str, Decimal]) -> list[str]:
         """Top-quintile tickers within the candidate universe, with rank hysteresis.
