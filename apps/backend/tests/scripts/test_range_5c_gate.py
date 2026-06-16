@@ -21,6 +21,18 @@ GateMetrics = _mod.GateMetrics
 GateThresholds = _mod.GateThresholds
 
 
+def test_runner_backtest_config_kwargs_are_valid_fields():
+    """Regression: the CLI runner (_run_window / evidence) is network-bound so
+    isn't unit-run; this guards the BacktestConfig contract it depends on, which
+    previously broke (`starting_equity` was not a field; `initial_equity` is)."""
+    from app.strategies.backtest_models import BacktestConfig
+
+    fields = set(BacktestConfig.__dataclass_fields__)
+    assert {"start", "end", "timeframe", "initial_equity", "slippage_bps", "params"} <= fields
+    # evidence reads the seed field default without constructing the config
+    assert BacktestConfig.__dataclass_fields__["seed"].default is not None
+
+
 def _good_is(**over) -> GateMetrics:
     base = dict(profit_factor=1.6, win_rate=0.52, trade_count=55,
                 avg_win=130.0, avg_loss=-100.0, max_drawdown=-0.05,

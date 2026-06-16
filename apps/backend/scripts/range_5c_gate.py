@@ -321,7 +321,7 @@ def _run_window(symbol, levels, start, end, slippage_bps):  # type: ignore[no-un
     harness = Backtester(bar_cache=bar_cache, indicator_computer=IndicatorComputer())
     config = BacktestConfig(
         start=bars["t"].iloc[0].to_pydatetime(), end=bars["t"].iloc[-1].to_pydatetime(),
-        timeframe="5Min", starting_equity=Decimal("100000"), slippage_bps=slippage_bps,
+        timeframe="5Min", initial_equity=Decimal("100000"), slippage_bps=slippage_bps,
         params={"entry_price": levels[0], "exit_price": levels[1], "stop_price": levels[2],
                 "timeframe": "5Min"},
     )
@@ -387,7 +387,7 @@ def main() -> int:
             "gate_version": GATE_VERSION,
             "strategy_version": RangeTrader.version,
             "git_commit": _git_commit(),
-            "random_seed": BacktestConfig().seed,
+            "random_seed": BacktestConfig.__dataclass_fields__["seed"].default,
             "symbol": symbol,
             "levels": {"entry": args.entry, "exit": args.exit_, "stop": args.stop},
             "is_window": args.is_win, "oos_window": args.oos,
