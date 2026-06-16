@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.3 (2026-06-15: +§5A–§5E from status review — failure modes, turnover, benchmark, fail-open rationale, LIVE criteria) |
+| Document version | v0.4 (2026-06-15: +§5F–§5J from review comments — order lifecycle, source-of-truth, timestamp invariants, run schema, execution invariants) |
 | Date | 2026-06-15 |
 | Strategy | `momentum-portfolio` (code `apps/backend/strategies_user/templates/momentum_portfolio.py`) |
 | Code version | **v0.5.0** — v0.4.0 (cron/dispatch/storm/pacing/vol-scaling) is merged & live; **v0.5.0 (sector caps, default off) is in PR #118, pending merge**. ⚠ the registered DB row `strategies.version` still reads `0.3.0` (cosmetic — the code file is what runs) |
@@ -162,6 +162,82 @@ Promotion from PAPER to LIVE is the expensive direction (ADR 0005 cooldown + ADR
 - [ ] **Successful broker reconnect/recovery** demonstrated at least once (disconnect → resume without duplicate or dropped orders).
 - [ ] **Stable factor ingestion** (no silent gaps) over the paper period.
 - [ ] The 24-h activation cooldown (ADR 0005) honored at promotion.
+
+---
+
+## 5F. Order lifecycle state model
+
+> Review comments §1C. The canonical `OrderStatus` enum (`app/db/enums.py`) — every order, manual or strategy, moves through these states.
+
+```
+PENDING_RISK ──▶ PENDING_SUBMIT ──▶ SUBMITTED ──▶ PARTIALLY_FILLED ──▶ FILLED
+     │                  │               │                 │
+     └─▶ REJECTED       └─▶ REJECTED    ├─▶ CANCELED       └─▶ (more fills) ─▶ FILLED
+        (risk gate)        (broker)     ├─▶ EXPIRED
+                                        └─▶ REPLACED
+```
+
+- **`PENDING_RISK`** — created, awaiting the risk engine. A risk rejection → **`REJECTED`** (terminal, with a typed `RejectionReason`).
+- **`PENDING_SUBMIT`** — risk-approved, handed to the broker adapter. A permanent broker error → **`REJECTED`**; a transient error leaves it `PENDING_SUBMIT` for retry (never silently marked rejected).
+- **`SUBMITTED`** — accepted by Alpaca; live on the book.
+- **`PARTIALLY_FILLED` → `FILLED`** — fills accumulate via the trade-updates stream.
+- **`CANCELED` / `EXPIRED` / `REPLACED`** — terminal broker outcomes (DAY orders expire at the close).
+
+**Invariant:** terminal states (`FILLED`, `REJECTED`, `CANCELED`, `EXPIRED`) never transition further; `terminal_at` is stamped once. (The reviewer's `NEW`/`RECONCILED` are not separate DB states — creation is `PENDING_RISK`; reconciliation updates an existing row from broker truth, see §5G.)
+
+---
+
+## 5G. Position & accounting source-of-truth
+
+> Review comments §1B. The authoritative computation chain, to prevent drift bugs.
+
+- **Positions are broker-authoritative intraday.** Alpaca is the source of truth for held quantity and cash.
+- **The local `positions` table is derived state** — reconstructed from fills and periodically reconciled against the broker by `PositionSyncService` (`app/services/position_sync.py`). On boot and on reconnect, the DB is corrected to match Alpaca.
+- **The audit log is authoritative for *decisions and actions*** (what the strategy/router decided and did), not for current holdings.
+- Sizing reads **live account equity** (`ctx.get_account_equity`), not the DB snapshot, falling back to the estimate only if the broker is unreachable.
+
+**Rule of thumb:** *holdings* → broker; *decisions* → audit log; *DB* → fast derived cache reconciled to the broker.
+
+---
+
+## 5H. Timestamp & session conventions
+
+> Review comments §1D. Formalized to prevent timezone confusion.
+
+- **All persisted timestamps are UTC** (models use `DateTime(timezone=True)`; the order path stamps `datetime.now(UTC)`).
+- **Market-session logic uses `America/New_York`** (RTH, the Monday cron's ≈10:00 ET fire, end-of-day guards). Session determination source is the Market Session Model (design doc §9A): `pandas_market_calendars` (XNYS) + the Alpaca clock.
+- **ISO week** (`%G-W%V`) keys the once-per-week rebalance guard.
+- **The UI converts UTC → the user's local timezone** for display; storage is never local-time.
+
+---
+
+## 5I. Strategy run-state schema
+
+> Review comments §1A. The run-state table exists today; the canonical fields:
+
+```
+strategy_runs (app/db/models/strategy_run.py)
+- id            run identifier (the run_id surfaced in this doc, e.g. run_id=6)
+- strategy_id   FK → strategies
+- started_at    UTC
+- ended_at      UTC | null (null while active)
+- status        StrategyStatus (PAPER/LIVE/HALTED/…)
+- error_text    str | null (failure detail when a run aborts)
+```
+
+Reviewer-proposed fields **not yet columns** (deferred enhancements, not blockers): `trigger_type`, `rebalance_week`, `rebalance_reason`, `exception_class` (currently folded into `error_text`). A **`portfolio_snapshots`** accounting table (ts, gross/net exposure, cash, equity, realized/unrealized PnL, leverage, drawdown, vol_scale) does **not** exist yet — it's a deferred analytics structure (tracked in the P10 roadmap); today the breaker computes those quantities on demand (§5J / circuit-breaker).
+
+---
+
+## 5J. Strategy execution invariants
+
+> Review comments §1E. The guarantees the engine enforces around a rebalance.
+
+- **At most one active rebalance per strategy per window** — the ISO-week guard marks the week on *attempt* (the #116 storm fix), so the ~200×/tick dispatch cannot launch concurrent rebalances.
+- **No concurrent `_rebalance()`** — dispatch is serialized per strategy; a tick that arrives mid-rebalance is a no-op for that week.
+- **Order submission is idempotent per rebalance window** — re-running a marked week does not re-submit.
+- **Strategy exceptions cannot terminate the engine** — a raised exception aborts only that strategy's current window (logged `rebalance_failed`); isolation is a CI invariant (`check_strategy_isolation.sh`).
+- **Failed orders never auto-retry blindly** — a rejection is logged and the window ends; recovery is the next scheduled window or an operator manual rebalance (never an automatic resubmit loop).
 
 ---
 
