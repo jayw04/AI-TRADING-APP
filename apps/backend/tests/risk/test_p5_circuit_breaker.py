@@ -342,3 +342,72 @@ async def test_trip_is_idempotent(seeded):
         )
         after = (await session.get(Account, 1)).circuit_breaker_tripped_at
     assert after == first
+
+
+# ---- evaluate() — continuous-monitor path (P10 §6, trips without raising) -------
+
+async def test_evaluate_trips_on_breach_without_raising(seeded):
+    async with seeded() as session:
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1,
+            unrealized_pl=Decimal("-600"), updated_at=_now(),
+        ))
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        tripped = await cb.evaluate(1)  # must NOT raise (unlike check())
+        assert tripped is True
+    async with seeded() as session:
+        account = await session.get(Account, 1)
+    assert account.circuit_breaker_tripped_at is not None
+
+
+async def test_evaluate_noop_within_limit(seeded):
+    async with seeded() as session:
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1,
+            unrealized_pl=Decimal("-100"), updated_at=_now(),  # within the 500 limit
+        ))
+        await session.commit()
+    async with seeded() as session:
+        assert await CircuitBreakerService(session=session).evaluate(1) is False
+    async with seeded() as session:
+        account = await session.get(Account, 1)
+    assert account.circuit_breaker_tripped_at is None
+
+
+async def test_evaluate_true_when_already_tripped(seeded):
+    async with seeded() as session:
+        await CircuitBreakerService(session=session).trip(
+            account_id=1, reason="test", payload={}
+        )
+    async with seeded() as session:
+        assert await CircuitBreakerService(session=session).evaluate(1) is True
+
+
+async def test_evaluate_noop_when_no_limit(seeded):
+    async with seeded() as session:
+        rl = await session.get(RiskLimits, 1)
+        rl.max_daily_loss = None
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1,
+            unrealized_pl=Decimal("-9999"), updated_at=_now(),
+        ))
+        await session.commit()
+    async with seeded() as session:
+        assert await CircuitBreakerService(session=session).evaluate(1) is False
+
+
+async def test_breaker_monitor_job_trips_account_with_open_position(seeded):
+    from app.jobs.breaker_monitor import run_breaker_monitor
+
+    async with seeded() as session:
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1, qty=Decimal("10"),
+            unrealized_pl=Decimal("-600"), updated_at=_now(),
+        ))
+        await session.commit()
+    await run_breaker_monitor(seeded)  # `seeded` is the session_factory
+    async with seeded() as session:
+        account = await session.get(Account, 1)
+    assert account.circuit_breaker_tripped_at is not None
