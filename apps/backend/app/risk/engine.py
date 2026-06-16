@@ -3,9 +3,12 @@
 Per ADR 0002, every order submission passes through `evaluate()` before it
 can reach Alpaca. Purely async-DB-bound; no broker calls.
 
-Eight checks, evaluated in order. First failure short-circuits and writes a
-RiskCheck row with ``decision='reject'``. A passing evaluation also writes a
-RiskCheck row (``decision='pass'``) — the audit trail is symmetric.
+Checks are evaluated in order, cheapest/most-global first. Two global
+trading-permission gates lead (the operator/daily-loss halt and the §9A
+market-session gate), followed by the per-order checks. First failure
+short-circuits and writes a RiskCheck row with ``decision='reject'``. A passing
+evaluation also writes a RiskCheck row (``decision='pass'``) — the audit trail
+is symmetric.
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ from app.db.models.position import Position
 from app.db.models.risk_check import RiskCheck
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.symbol import Symbol
+from app.market.session import MarketSession, default_market_session
 from app.risk.buying_power import BuyingPowerChecker
 from app.risk.circuit_breaker import CircuitBreakerError, CircuitBreakerService
 from app.risk.halt import is_halted, set_halted
@@ -60,6 +64,7 @@ class RiskEngine:
         broker_registry: Any = None,
         bar_cache: Any = None,
         bus: Any = None,
+        market_session: MarketSession | None = None,
     ) -> None:
         self._session_factory = session_factory
         # P5 §5: optional collaborators for the new account-level gates. All
@@ -70,6 +75,11 @@ class RiskEngine:
         self._broker_registry = broker_registry
         self._bar_cache = bar_cache
         self._bus = bus
+        # §9A.3: market-session gate collaborator. None → the process-wide
+        # default (shared schedule cache). Resolved lazily in evaluate() so a
+        # test patching ``default_market_session`` is honored regardless of when
+        # the engine was constructed; gate tests inject a stub explicitly.
+        self._market_session = market_session
 
     async def evaluate(
         self,
@@ -92,6 +102,31 @@ class RiskEngine:
                     session,
                     decision=RiskDecision.REJECT,
                     reasons=[ReasonCode.HALT_REACHED],
+                )
+
+            # 0.5 §9A.3 market-session gate (defense in depth). The
+            # StrategyEngine already skips out-of-session ticks; this is the
+            # centralized fail-closed backstop for EVERY order (manual,
+            # strategy, agent) per ADR 0002. REGULAR always trades; PRE/AFTER
+            # only when the order opts into extended_hours; CLOSED
+            # (overnight/weekend/holiday) never. A classification failure
+            # rejects too — fail toward not trading. Grouped here with the halt
+            # check: both are global "may we trade at all right now" gates,
+            # independent of the order's specifics. Composes with — never
+            # replaces — the per-order checks below.
+            market_session = self._market_session or default_market_session()
+            try:
+                session_ok = market_session.classify().dispatchable(
+                    allow_extended=req.extended_hours
+                )
+            except Exception:
+                logger.warning("market_session_classify_failed", exc_info=True)
+                session_ok = False
+            if not session_ok:
+                return await self._persist_and_return(
+                    session,
+                    decision=RiskDecision.REJECT,
+                    reasons=[ReasonCode.MARKET_SESSION_CLOSED],
                 )
 
             # 1. Sanity / shape.

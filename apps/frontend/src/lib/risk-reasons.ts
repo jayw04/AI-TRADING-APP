@@ -18,6 +18,8 @@ export const RISK_REASON_DESCRIPTIONS: Record<string, string> = {
   RATE_LIMIT: "Too many orders sent in the last minute.",
   INVALID_INPUT: "Order has an invalid field (qty / limit / stop price).",
   NO_LIMITS_CONFIGURED: "No risk limits are configured for this account.",
+  MARKET_SESSION_CLOSED:
+    "Market is closed for this order (outside regular hours, or extended-hours trading not enabled).",
 };
 
 export function describeReason(code: string): string {
