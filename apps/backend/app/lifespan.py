@@ -155,32 +155,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             #    (P1 Session 5 Phase A; registry added P5 §2; risk engine gets
             #    the registry + bus in P5 §5 for the new account-level gates).
             #
-            # P5 §2: one adapter per account, selected by AccountMode. Construct
-            # is network-free; we then reuse the already-connected startup paper
-            # adapter for the user's paper account(s) so we don't open a second
-            # TradingClient. Live accounts (none exist yet) would get a paper=False
-            # adapter, but the OrderRouter's §1 BrokerModeError guard short-circuits
-            # before the registry is ever consulted for them.
+            # P5 §2: one adapter per account, selected by AccountMode. load_all()
+            # builds a per-user adapter for each account from that user's own
+            # encrypted credentials (network-free). adopt_startup_adapter() then
+            # reuses the already-connected startup paper adapter ONLY for the
+            # account whose creds match it, and connects each OTHER paper
+            # account's own per-user adapter (§5a — Range Trader activation).
+            # This ensures a second paper account (e.g. ALPACA_PAPER_1 under a
+            # different user) trades its OWN Alpaca account, not the startup one.
+            # Live accounts (none exist yet) get a paper=False adapter from
+            # load_all(), but the OrderRouter's §1 BrokerModeError guard
+            # short-circuits before the registry is consulted for them.
             broker_registry = BrokerRegistry(session_factory)
             await broker_registry.load_all()
-            from sqlalchemy import select as _select
-
-            from app.db.models.account import Account as _Account
-            from app.db.models.account import AccountMode as _AccountMode
-
-            async with session_factory() as _acc_session:
-                _paper_ids = [
-                    a.id
-                    for a in (
-                        await _acc_session.execute(
-                            _select(_Account).where(
-                                _Account.mode == _AccountMode.paper
-                            )
-                        )
-                    ).scalars().all()
-                ]
-            for _aid in _paper_ids:
-                broker_registry.register(_aid, adapter)
+            await broker_registry.adopt_startup_adapter(adapter)
 
             # P5 §5: the engine now also runs the circuit breaker (publishes on
             # the bus when it trips) and the LIVE-only buying-power gate (uses
