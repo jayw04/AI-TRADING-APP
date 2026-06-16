@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "@/api/auth";
 import { ApiError } from "@/api/client";
@@ -13,13 +13,23 @@ export default function LoginPage() {
   const [totp, setTotp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Default to requiring TOTP until the backend says otherwise — fail safe
+  // (show the field) if the config fetch fails.
+  const [totpRequired, setTotpRequired] = useState(true);
+
+  useEffect(() => {
+    authApi
+      .loginConfig()
+      .then((cfg) => setTotpRequired(cfg.totp_required))
+      .catch(() => setTotpRequired(true));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      await authApi.login(email, password, totp);
+      await authApi.login(email, password, totpRequired ? totp : undefined);
       navigate(redirectTo, { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
@@ -77,23 +87,25 @@ export default function LoginPage() {
           />
         </div>
 
-        <div>
-          <label className="block text-xs text-neutral-400" htmlFor="login-totp">
-            TOTP code
-          </label>
-          <input
-            id="login-totp"
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={totp}
-            onChange={(e) => setTotp(e.target.value.replace(/\D/g, ""))}
-            required
-            maxLength={8}
-            autoComplete="one-time-code"
-            className="mt-1 w-full rounded bg-neutral-800 px-2 py-1 font-mono text-sm text-white"
-          />
-        </div>
+        {totpRequired && (
+          <div>
+            <label className="block text-xs text-neutral-400" htmlFor="login-totp">
+              TOTP code
+            </label>
+            <input
+              id="login-totp"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={totp}
+              onChange={(e) => setTotp(e.target.value.replace(/\D/g, ""))}
+              required
+              maxLength={8}
+              autoComplete="one-time-code"
+              className="mt-1 w-full rounded bg-neutral-800 px-2 py-1 font-mono text-sm text-white"
+            />
+          </div>
+        )}
 
         {error && (
           <div className="rounded border border-red-700 bg-red-950/40 p-2 text-xs text-red-200">

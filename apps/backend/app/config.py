@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     # don't need real creds and don't hit the broker network.
     alpaca_startup_enabled: bool = True
 
+    # When True (default — conservative) /auth/login requires a valid TOTP code
+    # in addition to the password. Set WORKBENCH_LOGIN_TOTP_REQUIRED=false to
+    # log in with password only (single-user localhost convenience). This gates
+    # the LOGIN step only; step-up TOTP on consequential actions (LIVE account
+    # creation, strategy activation, LLM opt-in, live auto-dispatch) is always
+    # enforced and is NOT affected by this flag.
+    login_totp_required: bool = True
+
     # --- Alpaca credentials (not WORKBENCH_-prefixed) ---
     alpaca_paper_api_key: str = Field(default="", alias="ALPACA_PAPER_API_KEY")
     alpaca_paper_api_secret: str = Field(default="", alias="ALPACA_PAPER_API_SECRET")

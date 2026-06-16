@@ -1,8 +1,9 @@
 # Authentication
 
 The workbench requires authentication for all API endpoints (except the public
-`/api/v1/auth/login` endpoint) and all WebSocket connections. This shipped in
-P5 §3 and replaced the P0 stub (which returned a fixed `user_id=1`).
+`/api/v1/auth/login` and `/api/v1/auth/login-config` endpoints) and all WebSocket
+connections. This shipped in P5 §3 and replaced the P0 stub (which returned a
+fixed `user_id=1`).
 
 ## Auth model
 
@@ -103,6 +104,20 @@ gateway closes the socket with application close code **4401** (mirrors HTTP
 - Backup/recovery codes for TOTP — use the CLI script to regenerate.
 - OAuth / SSO / SAML / magic links.
 - Per-user roles or permissions — every user has full access to their own data.
+
+## Login TOTP toggle (`WORKBENCH_LOGIN_TOTP_REQUIRED`)
+
+Default **`true`** (conservative): `/auth/login` requires a valid TOTP code in
+addition to the password. Set `WORKBENCH_LOGIN_TOTP_REQUIRED=false` in `.env` and
+restart the backend to log in with **password only** — a single-user localhost
+convenience. The login page reads `GET /api/v1/auth/login-config` (public,
+pre-auth) and hides the TOTP field when it's off.
+
+**Scope: login only.** Step-up TOTP on consequential actions is **always**
+enforced regardless of this flag — LIVE account creation, strategy activation,
+LLM opt-in, and live auto-dispatch each verify a fresh code independently. Turn
+this off only on a trusted, single-user, localhost-bound machine; leave it on
+(or set it back on) for anything exposed beyond `127.0.0.1`.
 
 ## Security notes
 

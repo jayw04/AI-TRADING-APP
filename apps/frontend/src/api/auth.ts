@@ -13,12 +13,22 @@ export interface MeResponse {
   session_id: number | null;
 }
 
+export interface LoginConfig {
+  totp_required: boolean;
+}
+
 export const authApi = {
-  login: (email: string, password: string, totp_code: string) =>
+  // totp_code is omitted from the body when not provided so a password-only
+  // login works when the backend has WORKBENCH_LOGIN_TOTP_REQUIRED=false.
+  login: (email: string, password: string, totp_code?: string) =>
     apiFetch<LoginResponse>("/api/v1/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password, totp_code }),
+      body: JSON.stringify(
+        totp_code ? { email, password, totp_code } : { email, password },
+      ),
     }),
+
+  loginConfig: () => apiFetch<LoginConfig>("/api/v1/auth/login-config"),
 
   logout: () =>
     apiFetch<{ ok: boolean }>("/api/v1/auth/logout", {
