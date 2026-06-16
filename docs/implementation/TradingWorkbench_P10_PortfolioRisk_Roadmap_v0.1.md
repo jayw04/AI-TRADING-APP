@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.2 (2026-06-15: folded in the owner's deeper "Review v2" — see that section below, which now drives priorities) |
+| Document version | v0.3 (2026-06-15: +§9 deferred data models & methodology — overlay action invariant, PIT survivorship spec, execution-cost baseline, from review comments §2) |
 | Date | 2026-06-15 |
 | Phase | P10 — Portfolio-Level Risk Engineering |
 | Predecessor | P9 §4 `momentum-portfolio` (now v0.5.0); paper-active id=2 |
@@ -208,6 +208,57 @@ No data-dep ADR is required for Priorities 1, 2, or 4 (all use already-available
 **Problem:** the broad-history ingest fixed history *depth* (28.5 yr) but the candidate pool is *today's* active mega/large names — so a historical `universe_asof` (e.g. 2008) can't include names that were large then but have since delisted (survivorship bias in historical backtests). SEP is survivorship-free *per ticker*; the *pool selection* is not.
 
 **Build:** derive a point-in-time, survivorship-unbiased candidate pool (e.g. top-N by trailing dollar-volume from the full `TICKERS` set per as-of date, including delisted names) and ingest their SEP history. This is the prerequisite for trustworthy GFC/2011/2015-era backtests and any LIVE alpha claim. Larger ingest; sequence after the overlays are validated on the (biased-but-informative) current pool.
+
+---
+
+## §9 — Deferred data models & methodology (review comments §2)
+
+The second-pass review asked for these to be *defined now* even though they're deferred — pre-committing the shapes prevents schema churn later. None are built yet; this is the agreed target.
+
+### §9.1 Future data models (placeholders, not yet tables)
+
+```
+portfolio_snapshots                 factor_exposures              correlation_snapshots
+- ts                                - ts                          - ts
+- account_id                        - strategy_id                 - symbol_a
+- gross_exposure / net_exposure     - factor_name                 - symbol_b
+- cash / equity                     - exposure_value              - correlation
+- unrealized_pnl / realized_pnl                                   - window
+- leverage / drawdown_pct
+- vol_scale
+```
+
+- `portfolio_snapshots` is the accounting time-series the breaker, overlays, reconciliation, and walk-forward analytics will all read instead of recomputing on demand. (Today the breaker computes gross/PnL on the fly — see momentum status §5J.)
+- `factor_exposures` / `correlation_snapshots` back the correlation/sector/factor overlays. Defining them now fixes the keys the overlay engine will join on.
+
+### §9.2 Overlay-engine action semantics (formal invariant)
+
+The overlay engine, when built, has exactly one job and a hard boundary:
+
+> **The overlay engine only modifies *target gross exposure* (and per-bucket caps). It never selects symbols, never emits orders, and never overrides the alpha engine's name choices.** Selection ownership stays with the alpha (momentum) engine; the overlay scales/【caps】 the book the alpha produced.
+
+Concretely: alpha emits target weights → overlay applies a risk multiplier / gross target / sector cap → the (unchanged) selection is sized to the adjusted gross → orders route through the OrderRouter as today. This makes the vol-scale (§1) and sector-cap (§3) overlays instances of one pattern, and keeps the audit trail clean (selection vs. sizing are separable).
+
+### §9.3 Survivorship-bias PIT methodology (short spec)
+
+The point-in-time methodology the §8 unbiased-pool work must follow:
+
+- **Delistings:** a delisted name's final price is realized to cash on its last trading day; it is *not* dropped from history (SEP is survivorship-free per ticker).
+- **Bankruptcies:** treated as a delisting to ~0; the loss is realized, not silently removed.
+- **Mergers/acquisitions:** position closed at the deal price on the effective date; no forward-fill past it.
+- **Ticker reuse:** symbols are mapped by Sharadar's permanent ticker identity, not the string — a reused ticker is a *different* entity, never chained across the gap.
+- **As-of selection:** the candidate pool for date *D* is built only from names tradeable *at D* (including those later delisted) — never from today's survivors.
+
+### §9.4 Backtest execution-cost assumptions (baseline)
+
+So results aren't over-read, every current backtest assumes:
+
+- **zero commissions** (Alpaca is commission-free for US equities),
+- **market-order execution at the bar price** (no limit modeling),
+- **no market-impact model**,
+- **no borrow/short costs** (the book is long-only).
+
+These are *optimistic* — real fills include spread/slippage. Treat backtested Sharpe/return as an upper bound; a configurable bps slippage+commission model is the first realism upgrade (out of scope here).
 
 ---
 

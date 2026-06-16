@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.3 (plan — review findings #2–#10 folded in; lifespan blocker pinned) |
+| Document version | v0.4 (plan — +§5g execution/state semantics from review comments §3; §3B/§3D/§3E now implemented in #126) |
 | Date | 2026-06-15 |
 | Strategy | `range-trader` (`apps/backend/strategies_user/templates/range_trader.py`, v0.1.0 — **verify deployed version, §5.0**) |
 | Account | **Dedicated paper account `ALPACA_PAPER_1`** (creds in `.env`), owned by a **second user** — fully isolated from momentum-portfolio's BFY6 account (separate user, account, credentials, **and circuit breaker**). |
@@ -153,6 +153,25 @@ The verification window completes only when it has actually exercised the strate
 - the **end-of-day forced flatten** fires in the last `hard_exit_before_close_minutes`;
 - `max_trades_per_day` caps entries;
 - orders show `source_type=STRATEGY` in the audit log and pass the risk engine.
+
+---
+
+## 5g. Execution & state semantics (review comments §3)
+
+Five points the second-pass review asked to formalize. Several are now **implemented** in the range-trader safeguards (PR #126).
+
+**(§3A) Market-hours source-of-truth.** Session determination is the platform Market Session Model (design doc **§9A**): `pandas_market_calendars` (XNYS calendar — holidays, early closes) cross-checked against the **Alpaca clock** (authoritative live open/close), with all session math in `America/New_York` (DST-correct). Until §9A.4's engine gate ships, the strategy's own `no_trade_open_minutes` / `hard_exit_before_close_minutes` guards are the interim RTH protection — which is exactly why §9A is a prerequisite for activation.
+
+**(§3B) Duplicate-order protection.** ✅ Implemented (#126). A per-symbol **in-flight flag** (`_pending` = "entry"/"exit") ensures a single 5-min bar generates at most one entry decision and that a duplicate/redelivered bar cannot double-submit before the prior fill lands. The flag is cleared on fill (`on_fill`) and reconciled against actual position state every bar; DAY orders expire at the close so the flag resets each session. **Invariant:** *at most one entry per bar; redelivered bars never double-enter.*
+
+**(§3C) Breaker realized/unrealized PnL definition.** The daily-loss breaker trips on **`realized_pnl_today + unrealized_pnl_now ≤ −max_daily_loss`** (`app/risk/circuit_breaker.py`):
+- **Realized** = closes only (sells joined Fill→Order, signed by side; the #114 fix — buys no longer count as loss).
+- **Unrealized** = summed from the local `positions` table (kept fresh by `PositionSyncService`), marked at the latest price.
+- **Snapshot cadence:** evaluated on every order submission *and* continuously by the breaker monitor (#120, 60s). This matters more for range-trader than momentum because an intraday book carries unrealized swings within the day.
+
+**(§3D) Stop-order execution semantics.** The stop is a **synthetic local stop → market sell**: the strategy evaluates `price ≤ stop_price` on each 5-min bar and, when breached, submits a **market SELL** through the risk engine (not a broker-native stop order). Implications to accept: (i) **no overnight/gap protection** between bars or after the close — the EOD force-flat (`hard_exit_before_close_minutes`) is the overnight guard; (ii) fills at the next available price, so a fast gap-down can fill below `stop_price`. A broker-native stop-market is a possible future enhancement, out of scope here.
+
+**(§3E) `range_broken` reset rule.** ✅ Implemented (#126). Once the stop fires (or price is already at/below the stop level), `_stopped_today = True` halts **all further entries for the rest of that ET day** — the range is considered broken. **Reset:** at the **next ET trading-session open** (the per-ET-day rollover in `on_bar` clears `_stopped_today`, `_trades_today`, and stale `_pending`). No mid-session re-arming.
 
 ---
 
