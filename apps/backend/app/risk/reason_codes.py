@@ -38,3 +38,9 @@ class ReasonCode(StrEnum):
     # this order (act/skip → skip). The deterministic strategy wanted it; the LLM
     # suppressed it.
     LLM_SKIPPED = "LLM_SKIPPED"
+    # §9A.3 (design doc): defense-in-depth market-session gate. The order's
+    # account/strategy is not permitted to trade in the current session — the
+    # market is CLOSED (overnight/weekend/holiday), or it is pre/after-market
+    # and the order did not opt into extended hours. Fails closed: an
+    # unknown/unclassifiable session also rejects with this code.
+    MARKET_SESSION_CLOSED = "MARKET_SESSION_CLOSED"

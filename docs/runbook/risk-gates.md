@@ -6,6 +6,7 @@ ADR 0004 (the circuit-breaker hard-halt decision).
 
 | Gate | When checked | What happens on failure |
 |---|---|---|
+| Market session (§9A) | Every order submission | Order rejected (`MARKET_SESSION_CLOSED`) |
 | Circuit breaker | Every order submission | Order rejected (`CIRCUIT_BREAKER`); account's active strategies HALTED |
 | Per-day order cap | Every order submission | Order rejected (`MAX_ORDERS_PER_DAY`) |
 | Pre-trade buying power (LIVE only) | Every LIVE order submission | Order rejected (`INSUFFICIENT_BUYING_POWER`) |
@@ -14,6 +15,38 @@ ADR 0004 (the circuit-breaker hard-halt decision).
 > The buying-power gate is **dormant until P5 §7**: the OrderRouter refuses
 > LIVE accounts with `BrokerModeError` before the risk engine runs, so no
 > live order reaches the gate yet.
+
+## Market-session gate (§9A)
+
+A fail-closed, defense-in-depth check that an order is allowed to trade in the
+**current market session**. It is the centralized backstop behind the
+`StrategyEngine` dispatch gate (which already skips out-of-session strategy
+ticks): even a manual or agent order, or a strategy tick that slipped through,
+is re-checked here. Evaluated first alongside the halt short-circuit — both are
+global "may we trade at all right now?" gates, independent of the order's
+specifics.
+
+| Session (ET) | Behavior |
+|---|---|
+| Regular 09:30–16:00 | Always allowed |
+| Pre-market 04:00–09:30 | Rejected **unless** the order set `extended_hours=true` |
+| After-hours 16:00–20:00 | Rejected **unless** the order set `extended_hours=true` |
+| Closed (overnight / weekend / holiday) | **Always** rejected |
+
+Session truth comes from `app/market/session.py` (`MarketSession`), which prefers
+the `pandas_market_calendars` XNYS schedule and falls back to a curated NYSE
+holiday/half-day list when that package isn't installed (the dev box — Norton SSL
+blocks the install). A classification error **fails closed** (rejected with
+`MARKET_SESSION_CLOSED`), logged as `market_session_classify_failed`.
+
+**Operator response when it fires:**
+- During known market hours: check the backend log for
+  `market_session_calendar_fallback` (running on the curated list, not mcal) and
+  `market_session_classify_failed`. A spurious rejection mid-RTH points at a
+  calendar gap or a clock/timezone problem, not at the order.
+- Outside RTH: expected. An intraday strategy must set `allow_extended_hours`
+  (which flows to the order's `extended_hours`) to act pre/after-market;
+  otherwise it is correctly held to regular hours (conservative default, §9A.4).
 
 ## Circuit breaker
 
