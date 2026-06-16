@@ -12,7 +12,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.brokers.registry import BrokerRegistry
+from app.brokers.alpaca import AlpacaAdapter
+from app.brokers.alpaca.credentials import AlpacaCredentials
+from app.brokers.registry import BrokerRegistry, _adapter_api_key
 from app.db.models.account import Account, AccountMode
 from app.db.models.user import User
 from app.security import CredentialKind, CredentialStore
@@ -20,6 +22,50 @@ from app.security import CredentialKind, CredentialStore
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _startup_adapter(api_key: str = "startup-bfy6-key") -> AlpacaAdapter:
+    """A stand-in for the connected env (BFY6) startup adapter. Construction is
+    network-free; we never call connect() in these tests."""
+    return AlpacaAdapter(
+        credentials=AlpacaCredentials(api_key=api_key, api_secret="s", paper=True)
+    )
+
+
+class _ConnectSpy:
+    """Records which adapters adopt_startup_adapter() connected, without a
+    network call. Optionally raises to simulate a connect failure."""
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self.connected: list[object] = []
+        self._fail = fail
+
+    async def __call__(self, adapter) -> None:
+        self.connected.append(adapter)
+        if self._fail:
+            raise RuntimeError("connect blew up")
+
+
+async def _seed_user_account_creds(
+    session_factory, *, user_id: int, account_id: int, api_key: str
+) -> None:
+    async with session_factory() as s:
+        s.add(User(id=user_id, email=f"u{user_id}@t.test", display_name=f"U{user_id}"))
+        await s.flush()
+        s.add(
+            Account(
+                id=account_id,
+                user_id=user_id,
+                broker="alpaca",
+                mode=AccountMode.paper,
+                label=f"p{account_id}",
+            )
+        )
+        await s.commit()
+    async with session_factory() as s:
+        store = CredentialStore(s)
+        await store.set(user_id, CredentialKind.ALPACA_PAPER_KEY, api_key)
+        await store.set(user_id, CredentialKind.ALPACA_PAPER_SECRET, "secret")
 
 
 async def _seed_paper_creds(session_factory, user_id: int) -> None:
@@ -168,3 +214,83 @@ async def test_register_and_close_all(session_factory):
     reg.close_all()
     assert closed["n"] == 1
     assert reg.get(42) is None
+
+
+# ---- §5a: adopt_startup_adapter (the Range Trader isolation fix) ----
+
+
+@pytest.mark.asyncio
+async def test_adopt_reuses_startup_for_matching_account_and_connects_others(
+    session_factory,
+):
+    """The blocker fix: with two paper accounts owned by two users, the startup
+    (BFY6) account reuses the connected startup adapter, while the SECOND
+    account (ALPACA_PAPER_1) gets its OWN per-user adapter connected — NOT the
+    startup adapter. This is the regression that made a second paper account
+    silently trade BFY6.
+    """
+    startup = _startup_adapter("startup-bfy6-key")
+    # acct 1 = startup user (same key as the startup adapter); acct 2 = a second
+    # user with a distinct ALPACA_PAPER_1 key.
+    await _seed_user_account_creds(
+        session_factory, user_id=1, account_id=1, api_key="startup-bfy6-key"
+    )
+    await _seed_user_account_creds(
+        session_factory, user_id=2, account_id=2, api_key="alpaca-paper-1-key"
+    )
+
+    reg = BrokerRegistry(session_factory)
+    await reg.load_all()
+    spy = _ConnectSpy()
+    await reg.adopt_startup_adapter(startup, connect=spy)
+
+    # acct 1: reused the already-connected startup adapter (no new connect).
+    assert reg.get(1) is startup
+    # acct 2: its OWN adapter, carrying ALPACA_PAPER_1's key — not BFY6's.
+    acct2 = reg.get(2)
+    assert acct2 is not startup
+    assert _adapter_api_key(acct2) == "alpaca-paper-1-key"
+    # Only the second account's adapter was connected; the startup one was not.
+    assert acct2 in spy.connected
+    assert startup not in spy.connected
+
+
+@pytest.mark.asyncio
+async def test_adopt_falls_back_to_startup_when_no_creds(session_factory):
+    """An account with no constructable per-user adapter (missing store creds)
+    falls back to the startup adapter so the startup account still works."""
+    startup = _startup_adapter("startup-bfy6-key")
+    async with session_factory() as s:
+        await _seed_paper(s)  # account 1, user 1, but NO creds seeded
+    reg = BrokerRegistry(session_factory)
+    await reg.load_all()
+    assert reg.get(1) is None  # load_all couldn't build it
+
+    spy = _ConnectSpy()
+    await reg.adopt_startup_adapter(startup, connect=spy)
+    assert reg.get(1) is startup
+    assert spy.connected == []  # fallback path never connects
+
+
+@pytest.mark.asyncio
+async def test_adopt_survives_per_user_connect_failure(session_factory):
+    """A second account whose connect() fails must not crash boot; its
+    (unconnected) per-user adapter stays registered to surface a clean error at
+    order time rather than at startup — and it is NOT replaced by the startup
+    adapter."""
+    startup = _startup_adapter("startup-bfy6-key")
+    await _seed_user_account_creds(
+        session_factory, user_id=1, account_id=1, api_key="startup-bfy6-key"
+    )
+    await _seed_user_account_creds(
+        session_factory, user_id=2, account_id=2, api_key="alpaca-paper-1-key"
+    )
+    reg = BrokerRegistry(session_factory)
+    await reg.load_all()
+    constructed2 = reg.get(2)
+
+    spy = _ConnectSpy(fail=True)
+    await reg.adopt_startup_adapter(startup, connect=spy)  # must not raise
+
+    assert reg.get(2) is constructed2  # still its own adapter, not the startup
+    assert _adapter_api_key(reg.get(2)) == "alpaca-paper-1-key"
