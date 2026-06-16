@@ -14,6 +14,16 @@ Logic (fade the range):
     before 16:00 ET.
   - At most ``max_trades_per_day`` entries per ET day.
 
+Safeguards:
+  - Stop-out halt: once the hard stop fires (or price is at/below the stop
+    level), the range is treated as broken — no further entries that ET day.
+  - In-flight order guard: a per-symbol pending flag prevents duplicate
+    entry/exit submissions across consecutive bars before the fill lands;
+    reconciled against actual position state every bar and cleared on fill.
+  - Level-ordering validation: entries require ``stop < entry < exit`` for
+    whichever levels are set. Invalid combinations make the strategy inert
+    for entries (exits/stops still protect an existing position).
+
 The price levels are PARAMETERS. They are 0 (unset) by default — a freshly
 applied strategy with no Range Insight is inert until the trader sets them.
 Orders route through ``self.ctx.submit_order`` only (ADR 0002).
@@ -128,6 +138,14 @@ class RangeTrader(Strategy):
         )
         self._trade_day: str | None = None
         self._trades_today = 0
+        # Fix #1: once stopped out (or price breaks the stop level), no more
+        # entries for the rest of the ET day — the range is considered broken.
+        self._stopped_today = False
+        # Fix #2: per-symbol in-flight order flag ("entry" | "exit") to prevent
+        # duplicate submissions across bars before the fill lands.
+        self._pending: dict[str, str] = {}
+        # Fix #4: log invalid-level inertness at most once per day.
+        self._invalid_logged_day: str | None = None
 
     async def on_bar(self, bar: Any) -> None:
         p = self.params
@@ -135,6 +153,7 @@ class RangeTrader(Strategy):
         exit_ = float(p.get("exit_price") or 0)
         stop = float(p.get("stop_price") or 0)
         price = float(bar.c)
+        symbol = bar.symbol
 
         bar_et = bar.t.astimezone(_us_eastern())
         tod = bar_et.time()
@@ -142,29 +161,52 @@ class RangeTrader(Strategy):
         if self._trade_day != day_key:
             self._trade_day = day_key
             self._trades_today = 0
+            self._stopped_today = False
+            # DAY orders expired at the prior close; stale flags would
+            # otherwise block the new session.
+            self._pending.pop(symbol, None)
 
-        position = await self.ctx.get_position_for(bar.symbol)
+        position = await self.ctx.get_position_for(symbol)
         in_long = (
             position is not None
             and getattr(position, "side", None) == "long"
             and position.qty > 0
         )
 
+        # ---- reconcile pending flag against actual position state ----
+        # Belt-and-braces alongside on_fill: if the position already reflects
+        # the in-flight order, the fill landed and the flag is stale.
+        pend = self._pending.get(symbol)
+        if (pend == "exit" and not in_long) or (pend == "entry" and in_long):
+            self._pending.pop(symbol, None)
+            pend = None
+
         # ---- hard exit near the close ----
         close_cutoff = _shift(SESSION_CLOSE, -int(p.get("hard_exit_before_close_minutes", 5)))
         if tod >= close_cutoff:
-            if in_long:
-                await self._submit(bar.symbol, OrderSide.SELL, position.qty, reason="time_exit")
+            # short-circuit: only submit when not already exiting (combined to
+            # avoid a nested if; the submit's side effect runs only if accepted).
+            if in_long and pend != "exit" and await self._submit(
+                symbol, OrderSide.SELL, position.qty, reason="time_exit"
+            ):
+                self._pending[symbol] = "exit"
             return
 
         # ---- stop loss ----
         if in_long and stop > 0 and price <= stop:
-            await self._submit(bar.symbol, OrderSide.SELL, position.qty, reason="stop_loss")
+            self._stopped_today = True  # range broken — halt entries for the day
+            if pend != "exit" and await self._submit(
+                symbol, OrderSide.SELL, position.qty, reason="stop_loss"
+            ):
+                self._pending[symbol] = "exit"
             return
 
         # ---- exit at resistance ----
         if in_long and exit_ > 0 and price >= exit_:
-            await self._submit(bar.symbol, OrderSide.SELL, position.qty, reason="range_exit")
+            if pend != "exit" and await self._submit(
+                symbol, OrderSide.SELL, position.qty, reason="range_exit"
+            ):
+                self._pending[symbol] = "exit"
             return
 
         # ---- no-trade window after the open ----
@@ -173,37 +215,86 @@ class RangeTrader(Strategy):
             return
 
         # ---- entry near support (fade the range) ----
-        if not in_long and entry > 0 and price <= entry:
-            if self._trades_today >= int(p.get("max_trades_per_day", 4)):
-                return
-            qty = self._size_position(entry=entry, stop=stop)
-            if qty > 0:
+        if in_long or pend is not None:
+            return
+        if entry <= 0 or price > entry:
+            return
+        if not _levels_ok(entry=entry, exit_=exit_, stop=stop):
+            await self._log_invalid_levels(symbol, day_key, entry=entry, exit_=exit_, stop=stop)
+            return
+        if self._stopped_today:
+            return  # stopped out earlier today — do not re-enter a broken range
+        if stop > 0 and price <= stop:
+            self._stopped_today = True  # price already through the stop: range broken
+            return
+        if self._trades_today >= int(p.get("max_trades_per_day", 4)):
+            return
+        qty = self._size_position(entry=entry, stop=stop)
+        if qty > 0:
+            accepted = await self._submit(
+                symbol,
+                OrderSide.BUY,
+                Decimal(qty),
+                reason="range_entry",
+                payload={"price": price, "entry": entry},
+            )
+            if accepted:
+                # Count only accepted orders so risk-layer rejections don't
+                # consume daily slots.
                 self._trades_today += 1
-                await self._submit(
-                    bar.symbol,
-                    OrderSide.BUY,
-                    Decimal(qty),
-                    reason="range_entry",
-                    payload={"price": price, "entry": entry},
-                )
+                self._pending[symbol] = "entry"
 
     async def on_fill(self, fill: Any) -> None:
-        # Reset the daily counter cannot happen here; entry tracking is implicit
-        # via position state. No-op kept for interface completeness.
-        return
+        # Fix #2: clear the in-flight flag once the order fills. The on_bar
+        # reconciliation covers any fills this misses. FillEvent.symbol is the
+        # framework's confirmed attribute (app/strategies/context.py).
+        sym = getattr(fill, "symbol", None)
+        if sym:
+            self._pending.pop(sym, None)
 
     # ---- helpers ----
 
     def _size_position(self, *, entry: float, stop: float) -> int:
         """Risk-based sizing: ``risk_per_trade_pct × equity / per-share-risk``,
-        capped at ``max_position_qty``. Per-share risk = entry − stop, falling
-        back to 2% of price when no stop is set (never divides by zero)."""
-        risk = float(self._equity_estimate) * float(self.params["risk_per_trade_pct"])
-        dist = entry - stop if (stop > 0 and entry > stop) else entry * 0.02
+        capped at ``max_position_qty``. Per-share risk = entry − stop. The 2%
+        fallback applies only when NO stop is set; an inverted stop
+        (``stop >= entry``) is a misconfiguration and sizes to zero rather
+        than being silently masked (fix #4)."""
+        risk = float(self._equity_estimate) * float(
+            self.params.get("risk_per_trade_pct", 0.01)
+        )
+        if stop > 0:
+            if entry <= stop:
+                return 0  # inverted levels — refuse to trade
+            dist = entry - stop
+        else:
+            dist = entry * 0.02
         if dist <= 0:
             return 0
         raw = risk / dist
-        return int(min(raw, float(self.params["max_position_qty"])))
+        return int(min(raw, float(self.params.get("max_position_qty", 100))))
+
+    async def _log_invalid_levels(
+        self, symbol: str, day_key: str, *, entry: float, exit_: float, stop: float
+    ) -> None:
+        """Surface invalid level ordering once per ET day instead of failing
+        silently (fix #4)."""
+        if self._invalid_logged_day == day_key:
+            return
+        self._invalid_logged_day = day_key
+        # Logged as INFO (not ENTRY) — this is a skipped-entry diagnostic, not a
+        # trade signal, so it must not inflate entry-signal counts.
+        await self.ctx.log_signal(
+            symbol,
+            SignalType.INFO,
+            payload={
+                "reason": "entry_skipped_invalid_levels",
+                "skipped": True,
+                "entry": entry,
+                "exit": exit_,
+                "stop": stop,
+            },
+        )
 
     async def _submit(
         self,
@@ -213,9 +304,11 @@ class RangeTrader(Strategy):
         *,
         reason: str,
         payload: dict[str, Any] | None = None,
-    ) -> None:
+    ) -> bool:
+        """Submit via the risk layer. Returns True only when the order was
+        accepted, so callers can gate pending flags and the daily counter."""
         if qty <= 0:
-            return
+            return False
         req = OrderRequest(
             user_id=0,  # context fills these
             account_id=0,
@@ -234,6 +327,18 @@ class RangeTrader(Strategy):
         if rejection:
             log_payload["rejected"] = rejection
         await self.ctx.log_signal(symbol, sig_type, payload=log_payload)
+        return result is not None and not rejection
+
+
+def _levels_ok(*, entry: float, exit_: float, stop: float) -> bool:
+    """Validate ordering of whichever levels are set: ``stop < entry < exit``.
+    Unset (0) levels are skipped. Used to gate ENTRIES only — exits and stops
+    still protect an existing position regardless (fix #4)."""
+    if entry > 0 and exit_ > 0 and exit_ <= entry:
+        return False
+    if entry > 0 and stop > 0 and stop >= entry:
+        return False
+    return not (exit_ > 0 and stop > 0 and stop >= exit_)
 
 
 def _us_eastern():  # type: ignore[no-untyped-def]
