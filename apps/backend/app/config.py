@@ -100,6 +100,17 @@ class Settings(BaseSettings):
         alias="NASDAQ_DATA_LINK_API_KEY",
         description="Nasdaq Data Link / Sharadar API key. Empty disables factor-data ingestion.",
     )
+    # FMP (Financial Modeling Prep) key for the read-only fundamentals layer
+    # (income/balance/cash-flow/ratios/key-metrics + delisted universe), used only
+    # by app/factor_data/ (ADR 0018). Same Settings env-alias posture as the
+    # Sharadar key (NOT the encrypted CredentialStore); printed as a length only,
+    # never logged. Empty disables FMP ingestion. The provider targets FMP's
+    # /stable API (the legacy /api/v3 + /v4 endpoints were retired 2026-08-31).
+    fmp_api_key: str = Field(
+        default="",
+        alias="FMP_API_KEY",
+        description="Financial Modeling Prep API key. Empty disables FMP fundamentals ingestion.",
+    )
     # Local DuckDB point-in-time factor-data store. Resolved relative to
     # apps/backend/ (matches db_url / bars_cache_root). Lives under the
     # already-gitignored data/. Never commit the store or raw vendor pulls
