@@ -1,5 +1,13 @@
 # Factor research — 2016-01-04..2026-06-16 (200 names, IS/OOS split 2023-01-01)
 
+## Dataset & universe version
+
+- **git commit**: `871a60e`
+- **SEP snapshot**: 1997-12-31..2026-06-16, 1254 distinct tickers
+- **fundamentals rows**: 5762
+- **universe**: top-200 by trailing dollar volume (PIT, survivorship-free; derived from SEP)
+- **latest ingests**: fmp_fundamentals:JCI=2026-06-17 14:20:13.309631; fmp_fundamentals:AMT=2026-06-17 14:20:13.001461; fmp_fundamentals:TEAM=2026-06-17 14:20:12.700913; fmp_fundamentals:FTNT=2026-06-17 14:20:12.397316
+
 | factor | win | mean IC | IC-IR | t | IC>0 | LS Sharpe | LS ann.ret |
 |---|---|---|---|---|---|---|---|
 | mom_12_1 | IS | 0.020 | 0.09 | 0.77 | 0.53 | 0.26 | 0.05 |
@@ -26,6 +34,25 @@
 | roic | OOS | -0.031 | -0.17 | -1.12 | 0.41 | -1.79 | -0.62 |
 | debt_to_equity | IS | 0.015 | 0.12 | 1.13 | 0.58 | 0.35 | 0.04 |
 | debt_to_equity | OOS | 0.001 | 0.01 | 0.07 | 0.49 | 0.87 | 0.17 |
+
+## Factor stability — rolling 12-month IC
+
+% of trailing-12m windows with positive mean IC, and the most recent value. A stable edge stays positive; a vanished one decays toward/through zero.
+
+| factor | rolling-12m IC >0 | min | max | last |
+|---|---|---|---|---|
+| mom_12_1 | 70% | -0.085 | 0.102 | 0.102 |
+| mom_6_1 | 56% | -0.079 | 0.105 | 0.066 |
+| mom_12 | 71% | -0.077 | 0.123 | 0.123 |
+| lowvol_6m | 29% | -0.200 | 0.191 | -0.117 |
+| reversal_1m | 46% | -0.165 | 0.096 | -0.102 |
+| earnings_yield | 28% | -0.136 | 0.110 | -0.010 |
+| fcf_yield | 29% | -0.116 | 0.136 | -0.049 |
+| sales_yield | 44% | -0.133 | 0.131 | 0.056 |
+| roe | 52% | -0.112 | 0.097 | -0.046 |
+| gross_profitability | 66% | -0.113 | 0.130 | -0.065 |
+| roic | 61% | -0.120 | 0.125 | -0.025 |
+| debt_to_equity | 68% | -0.058 | 0.076 | -0.007 |
 
 ## Long-short return correlation
 

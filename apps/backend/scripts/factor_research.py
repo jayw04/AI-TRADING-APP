@@ -238,6 +238,69 @@ def _load_fundamentals(tickers: list[str]) -> pd.DataFrame:
         store.close()
 
 
+def rolling_ic_stability(
+    close: pd.DataFrame, *, extra_matrices: dict[str, pd.DataFrame] | None = None,
+    window_m: int = 12,
+) -> dict[str, dict[str, float] | None]:
+    """Per-factor **rolling 12-month IC** stability (reviewer ask): is the edge
+    stable, or did it appear/disappear? For each factor, the trailing-`window_m`
+    mean of the monthly IC series; reported as % of windows positive, min, max, and
+    the most recent value. ``None`` for a factor without enough history."""
+    close = close.sort_index()
+    fmats = {**_factor_matrices(close), **(extra_matrices or {})}
+    rebal = _month_end_dates(close.index)
+    px = close.reindex(rebal)
+    fwd1 = px.shift(-1) / px - 1.0
+    out: dict[str, dict[str, float] | None] = {}
+    for fname, fmat in fmats.items():
+        fr = fmat.reindex(rebal)
+        ics = pd.Series(
+            [spearman_ic(fr.loc[dt], fwd1.loc[dt]) for dt in rebal], index=rebal, dtype=float
+        )
+        roll = ics.rolling(window_m, min_periods=window_m).mean().dropna()
+        out[fname] = None if roll.empty else {
+            "pct_positive": float((roll > 0).mean()),
+            "min": float(roll.min()), "max": float(roll.max()), "last": float(roll.iloc[-1]),
+        }
+    return out
+
+
+def _dataset_version(n: int) -> list[str]:
+    """A dataset + universe version block (reviewer's 'biggest missing data
+    elements'): SEP/fundamentals snapshot, ingestion timestamps, universe rule —
+    so a study is reproducible and reruns are comparable."""
+    import subprocess
+
+    from app.factor_data.store import FactorDataStore
+    store = FactorDataStore(read_only=True)
+    try:
+        floor, latest = store.price_date_bounds()
+        sep_n = store.con.execute("SELECT COUNT(DISTINCT ticker) FROM sep").fetchone()[0]
+        fund_n = store.row_count("fundamentals") if "fundamentals" in {
+            r[0] for r in store.con.execute("SHOW TABLES").fetchall()} else 0
+        runs = store.con.execute(
+            "SELECT dataset, MAX(finished_at) FROM ingest_runs GROUP BY dataset "
+            "ORDER BY 2 DESC LIMIT 4"
+        ).fetchall()
+    finally:
+        store.close()
+    try:
+        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                                capture_output=True, text=True, timeout=5).stdout.strip() or "n/a"
+    except Exception:  # noqa: BLE001
+        commit = "n/a"
+    ingest = "; ".join(f"{ds}={ts}" for ds, ts in runs) or "(none recorded)"
+    return [
+        "## Dataset & universe version\n",
+        f"- **git commit**: `{commit}`",
+        f"- **SEP snapshot**: {floor}..{latest}, {sep_n} distinct tickers",
+        f"- **fundamentals rows**: {fund_n}",
+        f"- **universe**: top-{n} by trailing dollar volume (PIT, survivorship-free; "
+        "derived from SEP)",
+        f"- **latest ingests**: {ingest}\n",
+    ]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Factor research engine (IS/OOS IC + long-short).")
     ap.add_argument("--n", type=int, default=200, help="universe size (top-N by dollar volume).")
@@ -278,6 +341,11 @@ def main() -> int:
     print("\nLong-short return correlation (diversification):")
     print(corr.round(2).to_string())
 
+    stability = rolling_ic_stability(close, extra_matrices=extra)
+    print("\nRolling 12m IC stability (pct>0 / last):")
+    for fn, s in stability.items():
+        print(f"  {fn:18}" + ("n/a" if s is None else f"{s['pct_positive']:.0%} pos, last {s['last']:.3f}"))
+
     if args.report_dir:
         import json
         d = Path(args.report_dir)
@@ -285,12 +353,23 @@ def main() -> int:
         (d / "factor_rankings.json").write_text(
             json.dumps([asdict(r) for r in results], indent=2, default=str), encoding="utf-8")
         lines = [f"# Factor research — {close.index.min().date()}..{close.index.max().date()} "
-                 f"({close.shape[1]} names, IS/OOS split {args.split})\n",
-                 "| factor | win | mean IC | IC-IR | t | IC>0 | LS Sharpe | LS ann.ret |",
-                 "|---|---|---|---|---|---|---|---|"]
+                 f"({close.shape[1]} names, IS/OOS split {args.split})\n"]
+        lines += _dataset_version(args.n)
+        lines += ["| factor | win | mean IC | IC-IR | t | IC>0 | LS Sharpe | LS ann.ret |",
+                  "|---|---|---|---|---|---|---|---|"]
         for r in results:
             lines.append(f"| {r.factor} | {r.window} | {fmt(r.mean_ic,3)} | {fmt(r.ic_ir)} | {fmt(r.ic_tstat)} "
                          f"| {fmt(r.ic_hit)} | {fmt(r.ls_sharpe)} | {fmt(r.ls_ann_return)} |")
+        lines += ["\n## Factor stability — rolling 12-month IC\n",
+                  "% of trailing-12m windows with positive mean IC, and the most recent value. "
+                  "A stable edge stays positive; a vanished one decays toward/through zero.\n",
+                  "| factor | rolling-12m IC >0 | min | max | last |",
+                  "|---|---|---|---|---|"]
+        for fn, s in stability.items():
+            if s is None:
+                lines.append(f"| {fn} | n/a | n/a | n/a | n/a |")
+            else:
+                lines.append(f"| {fn} | {s['pct_positive']:.0%} | {s['min']:.3f} | {s['max']:.3f} | {s['last']:.3f} |")
         lines += ["\n## Long-short return correlation\n", "```", corr.round(2).to_string(), "```"]
         (d / "factor_report.md").write_text("\n".join(lines), encoding="utf-8")
         print(f"\nWrote {d/'factor_report.md'} and factor_rankings.json")
