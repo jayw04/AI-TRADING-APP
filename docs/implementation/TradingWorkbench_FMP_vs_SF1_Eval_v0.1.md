@@ -7,6 +7,45 @@ returns just a 2-row SF1 sample (verified 2026-06-16) — so this is a **data
 purchase decision, not code**. Owner leaned "evaluate the budget option (FMP)
 first"; this is that evaluation, with the Sharadar SF1 comparison.
 
+---
+
+## ⚑ UPDATE 2026-06-17 — verified live; no purchase needed
+
+Probed the **existing** `FMP_API_KEY` (already in `.env`) directly. Findings flip
+the conclusion below: **the data block is effectively already solved — we likely
+do not need to buy anything.**
+
+- The legacy `/api/v3` + `/api/v4` endpoints are **retired for us** (HTTP 403,
+  "Legacy Endpoint … only available for legacy users prior Aug 31 2025"). The key
+  is on FMP's **new `/stable` API** — the adapter must target `/stable`.
+- On `/stable`, the existing subscription returns **HTTP 200 with live data** for
+  everything Value/Quality needs:
+  - `income-statement` **annual *and* quarterly**, **40 years back to 1986** —
+    revenue, EBITDA, net income, operating income, shares out, each carrying
+    **`filingDate` + `acceptedDate`** (point-in-time ready).
+  - `balance-sheet-statement` — totalDebt, equity, assets, cash.
+  - `cash-flow-statement` — freeCashFlow, operating CF, capex.
+  - `ratios` (40y) and `key-metrics` — margins, **enterprise value**.
+  - `delisted-companies` — survivorship.
+- Quarterly access alone means the tier is **above Starter** (Starter is
+  annual-only). So ADR 0018's "FMP ~5y Starter depth" caveat is **obsolete** — the
+  real entitlement is ~40y of quarterly+annual fundamentals.
+
+**Implication:** R2 turns from "buy data" into "**build the FMP `/stable`
+adapter + value/quality factors**" — already sanctioned by **ADR 0018** (FMP is an
+accepted read-only factor-data dependency; its impl notes call for adding
+`fmp_api_key` to `Settings`). The Sharadar-SF1 comparison below is retained for
+the record but is **moot unless** we later want SF1's turnkey PIT/survivorship
+rigor as a cross-check.
+
+**One quality caveat still to confirm:** the `/stable` statements carry filing/
+accepted dates (good for lagging), but the *values* may be restated. For OOS
+rigor, check for a `/stable` as-reported variant or lag strictly on `acceptedDate`
+and accept restated values (workable with care). Also confirm the tier's rate
+limit before a full universe ingest.
+
+---
+
 ## What our pipeline actually needs
 
 For honest, §5c/OOS-grade factor research the fundamentals source must give:
