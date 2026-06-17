@@ -1,5 +1,26 @@
 # Range Trader — Paper-Activation Plan
 
+> ## ⛔ ARCHIVED — RESEARCHED & REJECTED (2026-06-16)
+>
+> **Status: REJECTED. Do not activate.** **Reason: no robust out-of-sample edge.**
+>
+> The §5c backtest gate did its job. After fixing the trade-count constraint
+> (intraday-oscillation screen + VWAP±σ dynamic levels + same-day re-entry took
+> the book from ~20 INCONCLUSIVE trades to 63–98), **every configuration that
+> cleared the in-sample bar collapsed out-of-sample** — best case PLTR
+> partial-exit **IS PF 1.37 → OOS PF 0.92** (deep-entry IS 1.24 → OOS 0.85).
+> That is the curve-fit signature the OOS criterion exists to catch.
+>
+> Full evidence: **`TradingWorkbench_RangeTrader_5c_TestResults_v0.1.md`** (v0.3).
+>
+> **Kept as reusable infrastructure** (merged): the §5c gate + bar-count drift
+> metric, the intraday-oscillation screener, the VWAP±σ variant
+> (`range_trader_vwap.py`), and the OOS/robustness/evidence pipeline. The
+> provisioned `range@local.dev` / `ALPACA_PAPER_1` paper account stays unused.
+> Effort redirected to the momentum portfolio / portfolio-risk roadmap.
+>
+> *The plan below is retained as the historical research record.*
+
 | Field | Value |
 |---|---|
 | Document version | v0.4 (plan — +§5g execution/state semantics from review comments §3; §3B/§3D/§3E now implemented in #126) |
