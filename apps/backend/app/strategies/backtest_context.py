@@ -37,6 +37,7 @@ class _SimPosition:
     avg_entry_price: Decimal
     entry_ts: datetime
     side: str  # 'long' | 'short'
+    entry_bar_index: int = 0  # master-symbol cursor at entry → bars-held metric
 
 
 @dataclass
@@ -223,6 +224,7 @@ class BacktestContext:
                     avg_entry_price=fill_price,
                     entry_ts=ts,
                     side="long",
+                    entry_bar_index=self._cursor,
                 )
             elif current.side == "long":
                 total_qty = current.qty + qty
@@ -244,6 +246,7 @@ class BacktestContext:
                     avg_entry_price=fill_price,
                     entry_ts=ts,
                     side="short",
+                    entry_bar_index=self._cursor,
                 )
             elif current.side == "long":
                 self._close_or_reduce(
@@ -283,6 +286,7 @@ class BacktestContext:
                 qty=float(closing_qty),
                 pnl=pnl,
                 duration_seconds=int((exit_ts - position.entry_ts).total_seconds()),
+                bar_count_held=max(0, self._cursor - position.entry_bar_index),
                 exit_reason=exit_reason,
             )
         )
