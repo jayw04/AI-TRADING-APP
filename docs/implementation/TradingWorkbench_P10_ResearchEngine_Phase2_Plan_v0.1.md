@@ -2,61 +2,65 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v0.2** (revised per reviewer feedback) |
+| Document version | **v1.0** (frozen for execution) |
 | Date | 2026-06-17 |
 | Phase | P10 — Phase 2 (Research Engine as a top-level subsystem) |
 | Predecessor | Phase 1 complete: momentum 12m (#143), risk overlays (#150), crash study (#151), evidence hardening (#154); capstone v1.1 (#149) |
 | Repository | github.com/jayw04/AI-TRADING-APP |
-| Scope | Promote the research *scripts* into a first-class, reproducible, versioned **Research Engine subsystem** — registries, orchestrator, lifecycle-aware promotion gate, dashboard, comparison tools, continuous revalidation. |
+| Scope | Promote the research *scripts* into a first-class, reproducible, versioned **Research Engine subsystem** — five registries + dependency graph, orchestrator, lifecycle-aware promotion gate with a confidence score, continuous revalidation, comparison tools, and (last) a dashboard. |
 | Estimated wall time | ~5 sessions, 5–7h each |
-| Out of scope | New strategies; live trading; **portfolio-construction research (→ Phase 3A)**; factor-library expansion (→ Phase 3B); broaden-universe re-test (→ Phase 4); options/futures (Phase 5) |
+| Out of scope | New strategies; live trading; **portfolio research (→ Phase 3A)**; factor expansion (→ Phase 3B); broaden-universe (→ Phase 4); options/futures (Phase 5). Also deferred (reviewer: stop expanding Phase 2): experiment tags, baseline-comparison fields, resource metrics, lineage visualization, research-KPI dashboard pages, meta-research. |
 
-> **v0.2 changes (reviewer feedback):** added the **research lifecycle** spine; expanded
-> one registry into **four** (experiment + strategy + dataset + feature); added
-> **Research Dashboard**, **compare_experiments**, **promotion workflow**, and
-> **continuous revalidation**; promotion gate now emits **lifecycle states**;
-> experiment table gains seed/host/versions/`parent_experiment_id` and split
-> summary/detail metrics; **portfolio research moved to Phase 3A**; and the headline
-> architectural decision — **elevate the Research Engine to a top-level subsystem**.
+> **v1.0 — FROZEN. Three review rounds folded in; design is mature → build it.** The
+> reviewer scored the design 10/10 and said the highest value now is to build it and
+> validate with 5–10 real experiments, letting practice drive Phase 3 — not to keep
+> expanding the design. This v1.0 adds only the reviewer's **five starred** items
+> (Artifact Registry, dependency graph, research-vs-deployment state split,
+> confidence score, transition-reason audit trail) and freezes scope there.
 
-## 0. Architectural decision — Research Engine as a top-level subsystem
+## 0. Architecture — Research Engine as a top-level subsystem
 
-Per the reviewer: stop treating research as supporting code under `factor_data`;
-give it equal status to the trading side.
+Five independent subsystems (reviewer's ordering):
 
 ```
-TradingWorkbench
-├── Trading Engine     (executes ideas — OrderRouter, strategies)
-├── Risk Engine        (gates every order)
-├── Portfolio Engine   (construction/sizing)
-├── Research Engine    (creates & validates ideas)   ← Phase 2 builds this
-└── Data Engine        (PIT stores, providers)
+Data Engine → Research Engine → Portfolio Engine → Risk Engine → Trading Engine
 ```
 
-The Research Engine (likely `app/research/`) owns: the four **registries**, the
-**promotion gate**, **evidence packages**, the **research dashboard**, **continuous
-revalidation**, and **comparison tools**. It stays strictly read-only and off the
-order path (ADR 0018); the trading engine executes what the research engine
-validates. *(A short ADR will record this subsystem boundary before §1.)*
-
-## 1. The research lifecycle (the organizing spine)
-
-Phase 2 makes this full lifecycle explicit and tracked, not just Idea→Research→Gate→Evidence:
+The Research Engine creates & validates ideas; the trading side executes what it
+validates. It stays strictly read-only and off the order path (ADR 0018). Package
+layout (own sub-packages, not one module):
 
 ```
-Idea → Hypothesis → Experiment → Result → Promotion → Paper → Live → Monitoring → Retirement → Archive
+app/research/
+├── registry/     # the 5 registries + dependency graph + transition log
+├── engine/       # the orchestrator (chains existing stages)
+├── promotion/    # lifecycle-aware gate + confidence score
+├── artifacts/    # artifact capture/versioning
+├── comparison/   # compare_experiments
+├── monitor/      # continuous revalidation + alerts
+├── dashboard/    # built LAST
+└── runbooks/
 ```
+*(A short ADR records this subsystem boundary — §5.)*
 
-Every artifact (experiment, strategy) carries a **lifecycle state**, and the
-promotion gate + continuous revalidation move artifacts between states.
+## 1. The research lifecycle — two orthogonal axes
+
+Per the reviewer, **research state and deployment state are different concepts** and
+are tracked separately:
+
+```
+Research state:    RESEARCH → VALIDATED → REJECTED → ARCHIVED
+Deployment state:  NONE → PAPER → CANARY → LIVE → RETIRED
+```
+A strategy can be `VALIDATED` (research) while still `PAPER` (deployment) — the split
+makes that representable. Every transition on either axis records a **reason**.
 
 ## Why this phase exists
 
-The *process* (reject weak ideas, confirm robust ones, OOS-gate everything) is the
-asset — but it lives in hand-run scripts with ad-hoc `research/*.md` outputs, no
-record of which code+data+config produced a result, and no way to query or compare
-across experiments. Phase 2 makes research reproducible, queryable, and
-lifecycle-aware so every future idea goes through the same rigorous pipeline.
+The *process* is the asset, but it lives in hand-run scripts with ad-hoc outputs, no
+record of which code+data+config produced a result, and no way to query/compare
+across experiments or trace what depends on what. Phase 2 makes research
+reproducible, queryable, traceable, and lifecycle-aware.
 
 ## What already exists (the ~80%)
 
@@ -65,112 +69,114 @@ lifecycle-aware so every future idea goes through the same rigorous pipeline.
 | Universe | `factor_data/universe.py` (PIT top-N, survivorship-free) |
 | Factor engine | `factors/{engine,momentum,fundamental,cross_section}.py` |
 | Backtester | `factor_data/backtest.py` (+vol/drawdown overlays); single-name `Backtester` |
-| IS/OOS validator | `scripts/factor_research.py` (IC, long-short, decay, rolling IC, IS/OOS) |
+| IS/OOS validator | `scripts/factor_research.py` (IC, long-short, decay, rolling IC, IS/OOS, dataset/universe version #154) |
 | Robustness | `scripts/range_5c_gate.py`, overlay/window sweeps |
-| Promotion gate | §5c gate (range-trader-specific; already emits GO/GO-WARNING/NO-GO/INCONCLUSIVE) |
-| Evidence | `research/*.md` + findings docs; dataset/universe version block (#154) |
+| Promotion gate | §5c gate (range-trader-specific; already GO/GO-WARNING/NO-GO/INCONCLUSIVE) |
+| Evidence | `research/*.md` + findings docs |
 
-## The 20% (integration) — Phase 2 sessions
+## Sessions (reviewer's build order: registries → orchestrator → gate → revalidation → dashboard)
 
-### §1 — The four registries (the reproducibility backbone) · ~6–8h
-A local DuckDB schema every study/strategy reads & writes.
+### §1 — Five registries + dependency graph + transition log · ~7–9h
+A dedicated `research.duckdb`. The **FK chain IS the dependency graph**: strategy →
+features → dataset → experiment → artifact.
 
 ```sql
--- EXPERIMENT: one row per run (reviewer additions folded in)
-CREATE TABLE experiments (
-  experiment_id   VARCHAR PRIMARY KEY,        -- ulid
-  parent_experiment_id VARCHAR,               -- research genealogy / DAG
-  created_at      TIMESTAMP, duration_ms BIGINT,
-  kind            VARCHAR,                     -- factor_ic | book_backtest | overlay | ...
-  strategy_id     VARCHAR,                     -- FK → strategies (not a free-form name)
-  dataset_id      VARCHAR,                     -- FK → datasets
-  feature_ids     JSON,                        -- FK list → features
-  git_commit      VARCHAR, host VARCHAR, python_version VARCHAR,
-  package_versions JSON, seed BIGINT,          -- full reproducibility
-  params_json     JSON, is_window VARCHAR, oos_window VARCHAR,
-  cost_model      VARCHAR, pit_mode VARCHAR, survivorship_mode VARCHAR,
-  metrics_summary JSON,                        -- Sharpe/CAGR/MaxDD/turnover (queryable)
-  metrics_detail  JSON,                        -- daily_returns/IC_series/rolling_IC/sector_weights
-  state           VARCHAR, owner VARCHAR, notes VARCHAR
-);
-
--- STRATEGY: the things that get promoted/retired
 CREATE TABLE strategies_registry (
   strategy_id VARCHAR PRIMARY KEY, name VARCHAR, category VARCHAR,
-  state VARCHAR,                               -- lifecycle state (see §3)
+  research_state VARCHAR, deployment_state VARCHAR,    -- the two axes (§1)
   paper_since TIMESTAMP, live_since TIMESTAMP, retired_at TIMESTAMP,
-  current_version VARCHAR, current_commit VARCHAR, owner VARCHAR, notes VARCHAR
-);
+  current_version VARCHAR, current_commit VARCHAR, owner VARCHAR, notes VARCHAR);
 
--- DATASET: so "SEP updated → results changed" is explainable
-CREATE TABLE datasets (
-  dataset_id VARCHAR PRIMARY KEY, provider VARCHAR, version VARCHAR,
-  created_at TIMESTAMP, coverage VARCHAR, row_count BIGINT,
-  checksum VARCHAR, source_hash VARCHAR
-);
-
--- FEATURE: factors as versioned, described entities (not buried in scripts)
 CREATE TABLE features (
   feature_id VARCHAR PRIMARY KEY, description VARCHAR, formula VARCHAR,
-  parameters JSON, introduced_in VARCHAR, deprecated_in VARCHAR
-);
+  parameters JSON, introduced_in VARCHAR, deprecated_in VARCHAR);
+
+CREATE TABLE datasets (
+  dataset_id VARCHAR PRIMARY KEY, provider VARCHAR, version VARCHAR, created_at TIMESTAMP,
+  coverage VARCHAR, row_count BIGINT, checksum VARCHAR, source_hash VARCHAR);
+
+CREATE TABLE experiments (
+  experiment_id VARCHAR PRIMARY KEY, parent_experiment_id VARCHAR,   -- DAG/genealogy
+  created_at TIMESTAMP, duration_ms BIGINT, kind VARCHAR,
+  strategy_id VARCHAR, dataset_id VARCHAR, feature_ids JSON,         -- dependency edges
+  git_commit VARCHAR, host VARCHAR, python_version VARCHAR, package_versions JSON, seed BIGINT,
+  params_json JSON, is_window VARCHAR, oos_window VARCHAR,
+  cost_model VARCHAR, pit_mode VARCHAR, survivorship_mode VARCHAR,
+  metrics_summary JSON, metrics_detail JSON, confidence_score INT,   -- 0–100 (§3)
+  research_state VARCHAR, owner VARCHAR, notes VARCHAR);
+
+-- ⭐ Artifact Registry: every report/json/chart/evidence file, versioned
+CREATE TABLE artifacts (
+  artifact_id VARCHAR PRIMARY KEY, experiment_id VARCHAR,
+  type VARCHAR, path VARCHAR, checksum VARCHAR, created_at TIMESTAMP, description VARCHAR);
+
+-- ⭐ Transition log: the "why" audit trail for every state change
+CREATE TABLE transitions (
+  transition_id VARCHAR PRIMARY KEY, entity_type VARCHAR, entity_id VARCHAR,
+  axis VARCHAR,                                  -- 'research' | 'deployment'
+  from_state VARCHAR, to_state VARCHAR, reason VARCHAR, at TIMESTAMP, actor VARCHAR);
 ```
-Deliverables: schema + typed `record_*`/`get_*` APIs; `factor_research` + the
-backtest drivers write experiment rows referencing strategy/dataset/feature ids.
-Tests: round-trip, FK integrity, idempotency, the #154 `_dataset_version` feeding `datasets`.
+Deliverables: schema + typed `record_*`/`get_*` APIs + a `dependencies(entity)`
+query (walks the FK graph); `factor_research`/backtest drivers write experiment +
+artifact rows referencing strategy/dataset/feature ids; #154 `_dataset_version`
+feeds `datasets`. Tests: round-trip, FK/graph integrity, idempotency, a
+transition writes a reason.
 
-### §2 — ResearchEngine orchestrator + evidence package + dashboard · ~6–8h
-One entrypoint takes a config and runs Universe → Features → Factor → Backtest →
-IS/OOS → Robustness → Gate → Evidence + registry rows (reuse, don't rebuild).
-Auto-generates a **research dashboard** (`research/dashboard.md`): latest
-experiments (GO/NO-GO/pending), active vs retired strategies — the research
-homepage. Caches by `experiment_id` so an unchanged config reruns instantly.
-Deliverables: `app/research/engine.py` + CLI; evidence-package + dashboard writers.
+### §2 — ResearchEngine orchestrator + evidence + artifact capture · ~6–8h
+One entrypoint: config → Universe → Features → Factor → Backtest → IS/OOS →
+Robustness → Gate → evidence package + **registry & artifact rows** (reuse, don't
+rebuild). Caches by `experiment_id`. **No dashboard yet** (built last). Deliverables:
+`app/research/engine/` + CLI; evidence writer that registers each output as an artifact.
 
-### §3 — Lifecycle-aware promotion gate + workflow · ~5–7h
-Generalize §5c into `promotion_gate(metrics, profile)` emitting **lifecycle states**
-instead of bare GO/NO-GO:
-```
-RESEARCH → GO → GO_WARNING → PAPER → LIVE_READY → LIVE → RETIRED
-```
-Per-kind threshold profiles (reuse §5c's frozen criteria as the `book_backtest`
-profile). Document the **promotion workflow** — Research → GO → Paper → Paper
-Validation → Promotion Review → Live Candidate → Live → Monitoring — with the
-gate/owner action at each stage. Deliverables: generalized gate + profiles +
-`docs/runbook/promotion-workflow.md`. Tests: existing §5c cases pass through unchanged.
+### §3 — Lifecycle gate + confidence score · ~6–8h
+Generalize §5c into `promotion_gate(metrics, profile)` that:
+- transitions **research_state** (RESEARCH→VALIDATED/REJECTED) and proposes
+  **deployment_state** moves, writing a `transitions` row **with a reason** each time;
+- computes a **⭐ confidence score 0–100** from OOS stability + trade count +
+  robustness + rolling IC (surfaced in dashboards/decisions);
+- uses per-`kind` threshold profiles (reuse §5c's frozen criteria as `book_backtest`).
+Deliverables: gate + score + `docs/runbook/promotion-workflow.md` (Research → GO →
+Paper → Paper Validation → Promotion Review → Live Candidate → Live → Monitoring).
+Tests: existing §5c cases pass unchanged; score is deterministic; transitions logged.
 
-### §4 — Comparison tools + continuous revalidation · ~6–8h
-- **`compare_experiments.py`** — A/B/C table (Sharpe/CAGR/MaxDD/turnover/IC, winner per metric) from the registry.
-- **Continuous revalidation** (the reviewer's "largest missing capability"): a scheduled monthly job re-runs IC + rolling Sharpe/turnover/drawdown for LIVE/PAPER strategies; if a metric breaches its threshold it writes a **Research Alert** (and can transition the strategy toward RETIRED). Closes the loop on edge decay.
-Deliverables: comparison CLI; revalidation job (reuse the existing scheduler) + alert surface. Tests: comparison math; a synthetic decayed-edge → alert.
+### §4 — Continuous revalidation + comparison · ~6–8h
+- **Continuous revalidation** (the loop-closer): a scheduled monthly job re-runs
+  IC + rolling Sharpe/turnover/drawdown for PAPER/LIVE strategies; a threshold
+  breach writes a **Research Alert** + a `transitions` proposal toward RETIRED
+  (owner-reviewed, never auto-retire). Reuses the existing scheduler; read-only.
+- **`compare_experiments`** — A/B/C table (Sharpe/CAGR/MaxDD/turnover/IC, winner per
+  metric) from the registry.
 
-### §5 — ADR + subsystem move + docs · ~4–6h
-Write the ADR for the Research Engine subsystem boundary (§0); move/alias the
-research code under `app/research/`; wire the dashboard + registries into the dev
-docs. Deliverables: ADR, the subsystem package, updated `tasks/todo.md` + runbook.
+### §5 — Dashboard (last) + ADR + subsystem move · ~5–7h
+Now that the data model is stable, generate `research/dashboard.md` (latest
+experiments by state, active vs retired strategies, confidence scores, the
+experiment DAG). Write the subsystem-boundary ADR; move/alias research code under
+`app/research/`; update `tasks/todo.md` + runbooks.
 
-## Follow-on phases (reviewer's reordering)
+## Follow-on phases (reviewer's ordering)
 
-- **Phase 3A — Portfolio research** (moved out of Phase 2): weighting (equal / inverse-vol / risk-parity), name count, cadence, reconstitution delay, position buffering, rank hysteresis, **+ transaction_cost and rebalance_delay sweeps** — "construction usually adds more value than another factor."
-- **Phase 3B — Factor expansion:** Growth, Profitability, Capital allocation, Risk, Liquidity → 20–40 candidates (plug into the feature registry).
-- **Phase 4 — Broaden universe** (top-200 → top-1000, small/mid/international) and re-run everything through the same pipeline (gated on the as-reported + delisted-coverage upgrades, per the FMP PIT doc).
+- **Phase 3A — Portfolio research:** weighting / count / cadence / reconstitution delay / buffering / hysteresis **+ transaction_cost + rebalance_delay** sweeps ("construction often adds more value than another factor").
+- **Phase 3B — Factor expansion:** Growth / Profitability / Capital allocation / Risk / Liquidity → 20–40 candidates (plug into the feature registry). *Also Phase 3:* the deferred niceties (experiment tags, baseline-comparison fields, resource metrics, lineage visualization, research-KPI pages) and **meta-research** ("research about research": which factor families/universes/parameter ranges survive OOS).
+- **Phase 4 — Broaden universe** (top-200 → top-1000, small/mid/international); re-run everything (gated on the as-reported + delisted-coverage upgrades, per the FMP PIT doc).
 - **Phase 5 — Options/futures/ETFs/international** (only after the equity platform is mature).
 
 ## Scope boundaries (non-negotiable)
 
-- **Read-only, off the order path** (ADR 0018) — the engine validates; the trading engine executes.
+- **Read-only, off the order path** (ADR 0018) — validate, don't execute.
 - **No new external dependencies**; local-first DuckDB; OS-trust-store TLS.
-- **Reuse, don't rebuild** — the value is integration; don't re-implement the backtester/factor engine.
+- **Reuse, don't rebuild** — the value is integration.
+- **Freeze the design here.** Build §1–§5, validate with 5–10 real experiments, then let practical experience drive Phase 3 — do not expand the Phase-2 design further.
 
-## Open questions (resolve before §1)
+## Decisions (locked for v1.0)
 
-1. Registry storage: extend `factor_data.duckdb` vs a dedicated `research.duckdb`. Lean: dedicated store, since the Research Engine is now its own subsystem.
-2. Promotion-gate threshold profiles per `kind` — §5c is the `book_backtest` profile; what are `factor_ic` thresholds?
-3. Generalization discipline — build the minimum that serves the next 2–3 real experiments, not a speculative framework.
+1. **Registry storage:** a dedicated `research.duckdb` (the Research Engine is its own subsystem), not an extension of `factor_data.duckdb`.
+2. **Gate threshold profiles:** §5c's frozen criteria are the `book_backtest` profile; `factor_ic` thresholds are set in §3 against the existing momentum/value/quality results (momentum = the positive reference, value/quality = the negative reference).
+3. **Generalization discipline:** build the minimum that serves the next 2–3 real experiments; no speculative framework.
 
 ## Notes & gotchas
 
-1. `Date.now()`/randomness are fine in scripts (unlike workflow scripts); stamp `created_at`/`seed`/`git_commit` at run time — and **store the seed** (reviewer: very useful for reproducibility).
-2. The book backtest is slow (~7 min/segment); the orchestrator must cache by `experiment_id`.
-3. Keep evidence + dashboard as committed `.md`/`.json` in `research/`; gitignored data stays out.
-4. Continuous revalidation reuses the existing scheduler (the breaker-monitor job pattern); it must stay read-only — an alert, never an auto-trade or auto-retire without owner review.
+1. `Date.now()`/randomness are fine in scripts; **store the seed** (reviewer: very useful) + git_commit + package_versions at run time.
+2. The book backtest is slow (~7 min/segment); cache by `experiment_id`.
+3. Artifacts: register the file + checksum; keep committed `.md`/`.json` in `research/`, gitignored data out.
+4. Continuous revalidation reuses the breaker-monitor scheduler pattern; it must stay read-only — an **alert**, never an auto-trade or auto-retire without owner review.
+5. The dependency graph is just the FK chain (strategy→features→dataset→experiment→artifact) + a walk query; don't build a graph DB.
