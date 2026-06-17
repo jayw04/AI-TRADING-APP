@@ -39,6 +39,16 @@ def test_accessor_momentum_scores(momentum_store: FactorDataStore) -> None:
     assert acc.momentum_for("MOM24", _AS_OF) > acc.momentum_for("MOM00", _AS_OF)
 
 
+def test_accessor_momentum_window_is_passed_through(momentum_store: FactorDataStore) -> None:
+    """The lookback/skip window reaches the engine — a shorter lookback yields a
+    different (here: identically-ranked but distinctly-valued) cross-section, so the
+    arg is not silently dropped."""
+    acc = FactorAccessor(momentum_store)
+    wide = acc.momentum_scores(_AS_OF, lookback_days=105, skip_days=21)
+    narrow = acc.momentum_scores(_AS_OF, lookback_days=42, skip_days=0)
+    assert not wide["momentum"].equals(narrow["momentum"])
+
+
 def test_as_of_default_is_latest_store_date(momentum_store: FactorDataStore) -> None:
     acc = FactorAccessor(momentum_store)
     _, latest = momentum_store.price_date_bounds()
