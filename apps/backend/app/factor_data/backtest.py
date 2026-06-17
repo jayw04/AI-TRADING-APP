@@ -154,6 +154,52 @@ def _vol_target_overlay(
     return out
 
 
+# Default drawdown bands (R3): scale gross exposure down as the book's drawdown
+# from its running peak deepens. (drawdown_threshold, exposure_scale), most severe
+# last. A book at −12% DD trades at 0.66×; −17% at 0.50×; −22% at 0.33×.
+DEFAULT_DD_BANDS: tuple[tuple[float, float], ...] = (
+    (-0.10, 0.66), (-0.15, 0.50), (-0.20, 0.33),
+)
+
+
+def _scale_for_drawdown(dd: float, bands: tuple[tuple[float, float], ...]) -> float:
+    """Exposure scale for a (non-positive) drawdown `dd`, from the deepest band it
+    breaches. Above the shallowest threshold → full exposure (1.0)."""
+    scale = 1.0
+    for level, s in bands:  # bands ordered shallow→deep; the last breached wins
+        if dd <= level:
+            scale = s
+    return scale
+
+
+def _drawdown_overlay(
+    curve: list[tuple[date, float]],
+    *,
+    bands: tuple[tuple[float, float], ...] = DEFAULT_DD_BANDS,
+    initial_equity: float,
+) -> list[tuple[date, float]]:
+    """Apply a drawdown-control gross-exposure overlay to a daily equity curve.
+
+    Each day's return is scaled by the exposure implied by the book's drawdown
+    **as of the prior close** (peak tracked on the OVERLAY's own equity, so it is
+    self-consistent and uses no look-ahead). Deeper drawdowns de-risk further; the
+    un-invested fraction earns nothing and exposure caps at 1.0 (no leverage).
+    Path-dependent (the scale depends on the overlay's running peak), so it is a
+    loop rather than a vectorized op. Returns a fresh (date, equity) curve."""
+    if not curve:
+        return list(curve)
+    eq_full = [initial_equity] + [e for _, e in curve]
+    rets = pd.Series(eq_full, dtype=float).pct_change().dropna().reset_index(drop=True)
+    out: list[tuple[date, float]] = []
+    eq = peak = initial_equity
+    for (d, _), ret in zip(curve, rets, strict=False):
+        scale = _scale_for_drawdown(eq / peak - 1.0, bands)  # drawdown BEFORE today
+        eq *= 1.0 + scale * float(ret)
+        peak = max(peak, eq)
+        out.append((d, eq))
+    return out
+
+
 def _simulate(
     store: FactorDataStore,
     rebalances: list[date],
