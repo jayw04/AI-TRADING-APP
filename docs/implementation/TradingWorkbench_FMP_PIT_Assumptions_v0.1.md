@@ -112,6 +112,27 @@ fundamentals side even though the price spine is clean.
   The caveats become binding only for a **positive** result on a broadened
   universe; address §3 (as-reported) and §5 (delisted coverage) before trusting one.
 
+## 6b. Data confidence levels
+
+A quick-read confidence grade per source, so a research report's reliability is
+legible at a glance (A = trust as-is; B = usable, known minor caveat; C = use with
+care, a material residual bias until the §3/§5 upgrades land).
+
+| Source | Confidence | Why |
+|---|---|---|
+| Prices (Sharadar SEP) | **A** | survivorship-free, adjusted, deep history; the spine |
+| Momentum / price factors | **A** | derived from SEP only; no fundamentals dependency |
+| Annual fundamentals (FMP FY) | **B** | full coverage + `acceptedDate` PIT lag; restated-values caveat (§3) |
+| Quarterly fundamentals (FMP) | **B** | available, same restated caveat; not yet used in studies |
+| Restated metrics (key-metrics / ratios) | **C** | standard endpoints = restated; mild look-ahead until as-reported (§3) |
+| Delisted-name fundamentals | **C** | coverage unverified; universe ≈ survivors (§5) |
+| Benchmarks SPY/QQQ (FMP EOD) | **A** | index ETFs, well-covered; correlation/beta only |
+| Sector (FMP profile) | **B** | current sector classification, not point-in-time (sectors rarely change, but it's today's label) |
+
+Rule of thumb: an **A/B**-only study is trustworthy as-is; any result leaning on a
+**C** source needs the §3 (as-reported) and/or §5 (delisted coverage) upgrade
+before it is acted on.
+
 ## 7. Checklist before trusting a new fundamentals study
 
 1. Confirm `acceptedDate` PIT lag is in force (`get_fundamentals(..., as_of=)`).
