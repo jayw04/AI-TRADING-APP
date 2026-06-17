@@ -116,6 +116,11 @@ class Settings(BaseSettings):
     # already-gitignored data/. Never commit the store or raw vendor pulls
     # (size + licensing, ADR 0018 §6).
     factor_data_db_path: str = "data/factor_data.duckdb"
+    # Local DuckDB store for the Research Engine subsystem (P10 Phase 2): the
+    # experiment/strategy/dataset/feature/artifact registries + transition log.
+    # Separate from the factor-data store — the Research Engine is its own
+    # subsystem (read-only-derived; never committed). Backend-relative.
+    research_db_path: str = "data/research.duckdb"
 
 
 @lru_cache(maxsize=1)
