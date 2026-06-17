@@ -36,7 +36,7 @@ def test_runner_backtest_config_kwargs_are_valid_fields():
 def _good_is(**over) -> GateMetrics:
     base = dict(profit_factor=1.6, win_rate=0.52, trade_count=55,
                 avg_win=130.0, avg_loss=-100.0, max_drawdown=-0.05,
-                p95_hold_seconds=3600.0)
+                p95_bars_held=60.0)
     base.update(over)
     return GateMetrics(**base)
 
@@ -108,16 +108,23 @@ def test_stuck_position_no_go():
     assert v.verdict == "NO-GO"
 
 
-def test_hold_time_drift_no_go():
-    v = evaluate_gate(_good_is(p95_hold_seconds=30000.0), _good_oos(), all_trades_closed=True)
+def test_bars_held_drift_no_go():
+    # 200 bars (~2.6 sessions) > 117 cap → genuine multi-day hold → NO-GO
+    v = evaluate_gate(_good_is(p95_bars_held=200.0), _good_oos(), all_trades_closed=True)
     assert v.verdict == "NO-GO"
-    assert any(name.startswith("hold time") for name in _failed(v))
+    assert any(name.startswith("bars held") for name in _failed(v))
 
 
-def test_hold_time_absent_skips_check():
-    v = evaluate_gate(_good_is(p95_hold_seconds=None), _good_oos(), all_trades_closed=True)
+def test_bars_held_eod_fill_next_open_passes():
+    # ~1 session + the next-open fill bar (79 bars) is an intraday exit, not drift
+    v = evaluate_gate(_good_is(p95_bars_held=79.0), _good_oos(), all_trades_closed=True)
     assert v.verdict == "GO"
-    assert not any(name.startswith("hold time") for name, _, _ in v.checks)
+
+
+def test_bars_held_absent_skips_check():
+    v = evaluate_gate(_good_is(p95_bars_held=None), _good_oos(), all_trades_closed=True)
+    assert v.verdict == "GO"
+    assert not any(name.startswith("bars held") for name, _, _ in v.checks)
 
 
 def test_robustness_pf_collapse_no_go():

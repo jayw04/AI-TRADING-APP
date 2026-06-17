@@ -41,8 +41,13 @@ class BacktestTrade:
     exit_price: float | None
     qty: float
     pnl: float | None
-    duration_seconds: int | None
+    duration_seconds: int | None  # wall-clock; includes non-trading gaps
     exit_reason: str | None  # 'exit_signal' | 'stop' | 'eod' | 'backtest_end'
+    # Bars the position was open (master-symbol bars between entry and exit).
+    # Skips overnight/weekend gaps, so it's the right "intraday vs swing" metric
+    # where wall-clock duration over-counts (an EOD exit that fills next-open is
+    # ~1 session of bars, not ~17h).
+    bar_count_held: int | None = None
 
 
 @dataclass

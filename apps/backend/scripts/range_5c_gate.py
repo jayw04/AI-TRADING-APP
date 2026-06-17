@@ -20,14 +20,17 @@ the gate. Offline use / unit tests exercise ``evaluate_gate`` directly.
         --is 2026-04-01 2026-05-08 --oos 2026-05-09 2026-06-05 \
         --robustness --json evidence/KO_5c.json
 
-Verdict is one of GO / NO-GO / INCONCLUSIVE. Exits 0 on GO, 1 on NO-GO, 2 on
+Verdict is one of GO / GO-WARNING / NO-GO / INCONCLUSIVE. Exits 0 on GO and
+GO-WARNING (eligible; GO-WARNING needs Owner signoff), 1 on NO-GO, 2 on
 INCONCLUSIVE (insufficient trades) so it can gate an activation pipeline.
 
-v0.2 (review response — comments.md): cost-model documented in the pre-reg doc;
-added expectancy >= 0.15R, OOS PF >= max(1.0, 0.8 x IS), >=50-trade bar with a
-30-49 WARNING and a <30 INCONCLUSIVE verdict, hold-time drift check, an optional
-robustness (+/-0.5% level perturbation) check, and a persisted gate-evaluation /
-evidence JSON.
+v0.2 (review response): cost model, expectancy >= 0.15R, OOS PF >= max(1.0,
+0.8 x IS), >=50-trade bar with 30-49 GO-WARNING and <30 INCONCLUSIVE, robustness
+(+/-0.5%), evidence JSON.
+v0.3: the intraday-drift check uses **bars held** (BacktestTrade.bar_count_held),
+not wall-clock duration — bars skip overnight/weekend gaps, so an EOD exit that
+fills at the next session's open is ~1 session (passes) while a true multi-day
+hold is ~2+ sessions (flagged). Wall-clock over-counts across session boundaries.
 """
 
 from __future__ import annotations
@@ -41,8 +44,9 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-GATE_VERSION = "0.2"
+GATE_VERSION = "0.3"
 RTH_SESSION_SECONDS = int(6.5 * 3600)  # 23400 — one regular session
+RTH_BARS_PER_SESSION = 78  # 6.5h / 5min — one regular session of 5-min bars
 
 
 @dataclass(frozen=True)
@@ -58,7 +62,12 @@ class GateThresholds:
     min_expectancy_r: float = 0.15    # avg profit per unit of risk
     oos_pf_ratio: float = 0.8         # OOS PF >= ratio x IS PF (anti curve-fit)
     oos_pf_floor: float = 1.0         # ...and OOS PF must be profitable outright
-    max_hold_seconds: int = RTH_SESSION_SECONDS  # intraday must not drift to swing
+    # Intraday-drift check (bars, not wall-clock): a position must be flat by ~1
+    # session. Bars skip overnight/weekend gaps, so an EOD exit that fills at the
+    # next session's open is ~1 session of bars (passes), while a genuine
+    # multi-day hold is ~2+ sessions (flagged). The buffer above one session
+    # absorbs that next-open fill bar. (Wall-clock duration over-counts here.)
+    max_bars_held: int = int(1.5 * RTH_BARS_PER_SESSION)  # 117 bars (~1.5 sessions)
     min_data_coverage: float = 0.97   # received/expected RTH bars; 5-min intraday
                                       # needs tighter coverage than daily (review #3)
     robustness_min_ratio: float = 0.8  # perturbed PF >= ratio x base PF (if run)
@@ -87,7 +96,8 @@ class GateMetrics:
     avg_win: float
     avg_loss: float          # as reported by the harness (sign-carrying)
     max_drawdown: float      # negative fraction, e.g. -0.06
-    p95_hold_seconds: float | None = None  # 95th-pctile hold time (drift check)
+    p95_bars_held: float | None = None     # 95th-pctile bars-held (drift check)
+    p95_hold_seconds: float | None = None  # wall-clock (reported only; over-counts gaps)
     data_coverage: float | None = None     # received/expected RTH bars in the window
 
 
@@ -170,11 +180,12 @@ def evaluate_gate(
          "no stuck position" if all_trades_closed else "a position was left open"),
     ]
 
-    if is_m.p95_hold_seconds is not None:
+    if is_m.p95_bars_held is not None:
         checks.append((
-            "hold time (p95) <= 1 session",
-            is_m.p95_hold_seconds <= t.max_hold_seconds,
-            f"{is_m.p95_hold_seconds / 3600:.1f}h vs <= {t.max_hold_seconds / 3600:.1f}h",
+            "bars held (p95) <= max",
+            is_m.p95_bars_held <= t.max_bars_held,
+            f"{is_m.p95_bars_held:.0f} bars (~{is_m.p95_bars_held / RTH_BARS_PER_SESSION:.1f} "
+            f"sessions) vs <= {t.max_bars_held}",
         ))
 
     if is_m.data_coverage is not None:
@@ -263,10 +274,12 @@ def _percentile(values: list[float], pct: float) -> float | None:
 
 def _to_gate_metrics(m, trades, data_coverage=None) -> GateMetrics:  # type: ignore[no-untyped-def]
     durations = [t.duration_seconds for t in trades if getattr(t, "duration_seconds", None)]
+    bars = [t.bar_count_held for t in trades if getattr(t, "bar_count_held", None) is not None]
     return GateMetrics(
         profit_factor=float(m.profit_factor), win_rate=float(m.win_rate),
         trade_count=int(m.trade_count), avg_win=float(m.avg_win),
         avg_loss=float(m.avg_loss), max_drawdown=float(m.max_drawdown),
+        p95_bars_held=_percentile(bars, 95) if bars else None,
         p95_hold_seconds=_percentile(durations, 95) if durations else None,
         data_coverage=data_coverage,
     )
@@ -402,8 +415,8 @@ def main() -> int:
         print(f"Evidence written -> {args.json}")
 
     print("Record the verdict + metrics/params/windows as activation evidence "
-          "(Finding 4). NO-GO/INCONCLUSIVE → re-select levels/symbol or widen window. "
-          "GO-WARNING → eligible but requires Owner signoff.")
+          "(Finding 4). NO-GO/INCONCLUSIVE -> re-select levels/symbol or widen window. "
+          "GO-WARNING -> eligible but requires Owner signoff.")
     return {"GO": 0, "GO-WARNING": 0, "NO-GO": 1, "INCONCLUSIVE": 2}[verdict.verdict]
 
 
