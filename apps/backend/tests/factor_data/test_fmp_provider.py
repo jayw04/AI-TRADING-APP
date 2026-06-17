@@ -48,6 +48,24 @@ def test_fetch_returns_dataframe_and_sends_key_on_stable_base(monkeypatch) -> No
     assert url.params.get("limit") == "40"
 
 
+def test_historical_prices_hits_eod_endpoint_with_date_range(monkeypatch) -> None:
+    seen: list[httpx.URL] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url)
+        return httpx.Response(200, json=[{"symbol": "SPY", "date": "2016-01-04", "close": 201.0}])
+
+    _install_mock(monkeypatch, handler)
+    with FMPProvider(api_key="k") as p:
+        df = p.historical_prices("SPY", from_date="2016-01-01", to_date="2016-12-31")
+    assert df.iloc[0]["close"] == 201.0
+    url = seen[0]
+    assert str(url).startswith("https://financialmodelingprep.com/stable/historical-price-eod/full")
+    assert url.params.get("symbol") == "SPY"
+    assert url.params.get("from") == "2016-01-01"
+    assert url.params.get("to") == "2016-12-31"
+
+
 def test_empty_array_yields_empty_dataframe(monkeypatch) -> None:
     _install_mock(monkeypatch, lambda req: httpx.Response(200, json=[]))
     with FMPProvider(api_key="k") as p:

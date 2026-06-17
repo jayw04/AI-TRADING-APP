@@ -162,3 +162,12 @@ class FMPProvider:
         """The delisted-companies list (survivorship-bias mitigation): symbol,
         company, exchange, ipoDate, delistedDate."""
         return self.fetch("delisted-companies", limit=limit, page=page)
+
+    def historical_prices(
+        self, symbol: str, *, from_date: str | None = None, to_date: str | None = None
+    ) -> pd.DataFrame:
+        """Daily EOD OHLCV for `symbol` (date, open/high/low/close, volume). Used to
+        pull benchmarks (SPY/QQQ) not in the Sharadar SEP store — e.g. for the
+        momentum-crash study's market correlation."""
+        return self.fetch("historical-price-eod/full", symbol=symbol,
+                           **{"from": from_date, "to": to_date})
