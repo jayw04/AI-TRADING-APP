@@ -26,7 +26,8 @@ MTG strategy-spec lens (Docs/Strategies/Trading+Plan+Clean.pdf):
                   scales gross exposure DOWN when the market proxy's realized vol
                   exceeds vol_target_annual (no leverage; fails open)
 
-Portfolio-level EWMA-vol targeting (v0.4.0, review Priority 1 — DEFAULT OFF):
+Portfolio-level EWMA-vol targeting (v0.4.0, review Priority 1 — DEFAULT ON since
+v0.8.0/R3: backtested to roughly halve max drawdown at flat Sharpe):
   - when ``use_vol_scaling`` is on, gross exposure is multiplied by a scale in
     [0, 1] = min(1, vol_target_annual / realized_annual_vol), where the realized
     vol is the EWMA of the market proxy's (SPY) daily returns. High-vol regimes
@@ -78,7 +79,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.7.0"  # + parametrized momentum window, default 12m (R1; 6-1→12m upgrade)
+    version: ClassVar[str] = "0.8.0"  # + vol-targeting ON by default (R3; halves drawdown). Window 12m (R1).
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
@@ -103,7 +104,13 @@ class MomentumPortfolio(Strategy):
         "market_filter_symbol": "SPY",  # must be in `symbols` for the filter to work
         "market_ma_days": 200,  # MA window for the regime filter
         "max_position_pct": 0.10,  # hard cap on any one name's weight
-        "max_sector_pct": None,  # cap per-sector book weight (None = disabled; P10 §3, opt-in)
+        # Per-sector book cap (None = disabled). The crash study shows momentum is
+        # tech-concentrated at troughs (24-56%), so a ~0.25 cap is the intended R3
+        # mitigation — but enabling it is GATED on sector data in the factor store
+        # (tickers.sector is currently empty → _apply_sector_cap fails open, a no-op).
+        # Ingest sector data (Sharadar TICKERS w/ sector, or backfill from FMP profile)
+        # BEFORE setting this, or it silently does nothing. Left None until then.
+        "max_sector_pct": None,
         "fractional_shares": False,  # size fractional qty (deploys ~fully on a small acct; P10 §7, opt-in)
         "cash_buffer_pct": 0.02,  # keep this fraction in cash (deploy the rest)
         "initial_equity_estimate": 100_000,  # FALLBACK only when live equity is unavailable
@@ -114,7 +121,12 @@ class MomentumPortfolio(Strategy):
         # Delay between rebalance order submissions, to spread a burst under the
         # per-strategy order-rate cap (rolling max_orders_per_minute). 0 = no pacing.
         "order_pacing_seconds": 1.0,
-        "use_vol_scaling": False,  # portfolio EWMA-vol targeting (review Priority 1) — opt-in
+        # Portfolio EWMA-vol targeting — DEFAULT ON (R3). The crash study + overlay
+        # backtest (research/momentum_overlays_findings.md, momentum_crash_findings.md)
+        # show it roughly HALVES max drawdown (-33%→-19%) at flat Sharpe; survivability
+        # is the binding pre-live risk for this high-beta book. Fails open (scale 1.0)
+        # if the market-proxy series is unavailable, so it can't silently halt the book.
+        "use_vol_scaling": True,
         "vol_target_annual": 0.15,  # target annualized portfolio vol when vol-scaling is on
         "vol_ewma_span": 20,  # EWMA span (trading days) for the market-proxy vol estimate
     }
@@ -156,8 +168,8 @@ class MomentumPortfolio(Strategy):
                       "default": "1Day", "description": "Engine dispatch bar timeframe that fires the weekly on_bar tick."},
         "order_pacing_seconds": {"type": "number", "min": 0, "max": 60, "default": 1.0,
                                  "description": "Delay between rebalance order submissions (spreads the burst under the order-rate cap)."},
-        "use_vol_scaling": {"type": "boolean", "default": False,
-                            "description": "Scale gross exposure to a target volatility using the market proxy's EWMA vol."},
+        "use_vol_scaling": {"type": "boolean", "default": True,
+                            "description": "Scale gross exposure to a target volatility using the market proxy's EWMA vol (R3 — halves drawdown)."},
         "vol_target_annual": {"type": "number", "min": 0, "max": 2, "default": 0.15,
                               "description": "Target annualized portfolio volatility when vol-scaling is enabled."},
         "vol_ewma_span": {"type": "integer", "min": 2, "default": 20,

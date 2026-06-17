@@ -380,12 +380,22 @@ def _spy_high_vol(n: int = 61, daily: float = 0.04) -> pd.DataFrame:
     return pd.DataFrame({"c": px})
 
 
-async def test_vol_scaling_off_by_default_leaves_sizing_unchanged() -> None:
-    # High-vol SPY present, but use_vol_scaling stays False (the default) → full
-    # exposure, identical to v0.3.0: 100k / 1 / 100 = 1000 shares.
+async def test_vol_scaling_on_by_default_reduces_exposure_in_high_vol() -> None:
+    # R3 (v0.8.0): vol-targeting is ON by default → high-vol SPY scales the book
+    # DOWN (below the full 100k/1/100 = 1000 shares).
     ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), price=100.0, equity=100_000,
                spy_bars=_spy_high_vol())
-    strat = _strat(ctx, top_quantile=1.0)  # use_vol_scaling defaults False
+    strat = _strat(ctx, top_quantile=1.0)  # use_vol_scaling now defaults True
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert Decimal(0) < _orders(ctx)["AAA"][1] < Decimal(1000)
+
+
+async def test_vol_scaling_explicit_off_uses_full_exposure() -> None:
+    # Opting OUT restores full exposure even with high-vol SPY present.
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), price=100.0, equity=100_000,
+               spy_bars=_spy_high_vol())
+    strat = _strat(ctx, top_quantile=1.0, use_vol_scaling=False)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     assert _orders(ctx)["AAA"] == ("buy", Decimal(1000))
