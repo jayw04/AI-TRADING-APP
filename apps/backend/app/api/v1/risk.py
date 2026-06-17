@@ -64,6 +64,8 @@ class CircuitBreakerStatusResponse(BaseModel):
     tripped_at: datetime | None
     realized_pnl_today: Decimal
     unrealized_pnl_now: Decimal
+    daily_pnl: Decimal  # the trip basis: today's P&L from a start-of-day baseline (ADR 0004 v2)
+    daily_pnl_basis: str  # "equity_baseline" | "cumulative_fallback"
     max_daily_loss: Decimal
     headroom: Decimal
 
@@ -169,6 +171,8 @@ async def account_risk_state(
             tripped_at=cb_status.tripped_at,
             realized_pnl_today=cb_status.realized_pnl_today,
             unrealized_pnl_now=cb_status.unrealized_pnl_now,
+            daily_pnl=cb_status.daily_pnl,
+            daily_pnl_basis=cb_status.daily_pnl_basis,
             max_daily_loss=cb_status.max_daily_loss,
             headroom=cb_status.headroom,
         ),

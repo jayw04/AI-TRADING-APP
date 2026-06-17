@@ -20,6 +20,7 @@ from app.db.enums import (
     TimeInForce,
 )
 from app.db.models.account import Account, AccountMode
+from app.db.models.account_state import AccountState
 from app.db.models.fill import Fill
 from app.db.models.order import Order
 from app.db.models.position import Position
@@ -342,6 +343,115 @@ async def test_trip_is_idempotent(seeded):
         )
         after = (await session.get(Account, 1)).circuit_breaker_tripped_at
     assert after == first
+
+
+# ---- start-of-day baseline (ADR 0004 v2) ----------------------------------------
+
+
+def _account_state(**over) -> AccountState:
+    """An AccountState row; equity/last_equity default to a flat $10k day."""
+    fields = dict(
+        account_id=1, cash=Decimal("0"), equity=Decimal("10000"),
+        last_equity=Decimal("10000"), buying_power=Decimal("0"),
+        portfolio_value=Decimal("10000"), daytrade_count=0,
+        day_change=Decimal("0"), day_change_pct=Decimal("0"),
+        status="ACTIVE", updated_at=_now(), raw_payload={},
+    )
+    fields.update(over)
+    return AccountState(**fields)
+
+
+async def test_daily_pnl_ignores_carried_over_unrealized_loss(seeded):
+    """★ The headline fix: a position carrying a prior-day unrealized loss beyond
+    the limit must NOT trip when *today's* P&L (start-of-day equity baseline) is
+    flat. Old behaviour (realized + TOTAL unrealized) tripped here."""
+    async with seeded() as session:
+        # Flat day (equity == last_equity) but a -600 carried-over open loss.
+        session.add(_account_state(equity=Decimal("10000"), last_equity=Decimal("10000")))
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1,
+            unrealized_pl=Decimal("-600"), updated_at=_now(),
+        ))
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        await cb.check(1)  # must NOT raise — today's P&L is 0
+    async with seeded() as session:
+        account = await session.get(Account, 1)
+    assert account.circuit_breaker_tripped_at is None
+
+
+async def test_daily_pnl_trips_on_intraday_equity_drop(seeded):
+    """A real intraday loss (equity below start-of-day by more than the limit)
+    trips on the equity baseline."""
+    async with seeded() as session:
+        session.add(_account_state(equity=Decimal("9400"), last_equity=Decimal("10000")))
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        status = await cb.status(1)
+        assert status.daily_pnl == Decimal("-600")
+        assert status.daily_pnl_basis == "equity_baseline"
+        with pytest.raises(CircuitBreakerError):
+            await cb.check(1)
+    async with seeded() as session:
+        account = await session.get(Account, 1)
+    assert account.circuit_breaker_tripped_at is not None
+
+
+async def test_daily_pnl_falls_back_to_cumulative_without_account_state(seeded):
+    """Fail-closed: with no AccountState baseline, fall back to realized + total
+    unrealized — the stricter measure — so an absent baseline never weakens the
+    gate. A -600 open loss still trips."""
+    async with seeded() as session:
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1,
+            unrealized_pl=Decimal("-600"), updated_at=_now(),
+        ))
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        status = await cb.status(1)
+        assert status.daily_pnl == Decimal("-600")
+        assert status.daily_pnl_basis == "cumulative_fallback"
+        with pytest.raises(CircuitBreakerError):
+            await cb.check(1)
+
+
+async def test_daily_pnl_unpopulated_state_falls_back(seeded):
+    """An AccountState row that exists but is not yet populated (last_equity == 0)
+    is not a usable baseline → fail-closed to the cumulative measure."""
+    async with seeded() as session:
+        session.add(_account_state(equity=Decimal("0"), last_equity=Decimal("0")))
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1,
+            unrealized_pl=Decimal("-600"), updated_at=_now(),
+        ))
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        status = await cb.status(1)
+        assert status.daily_pnl_basis == "cumulative_fallback"
+        with pytest.raises(CircuitBreakerError):
+            await cb.check(1)
+
+
+async def test_daily_pnl_equity_gain_does_not_trip(seeded):
+    """An up day (equity above start-of-day) never trips, even with a tiny carried
+    open loss in the positions table."""
+    async with seeded() as session:
+        session.add(_account_state(equity=Decimal("10500"), last_equity=Decimal("10000")))
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1,
+            unrealized_pl=Decimal("-100"), updated_at=_now(),
+        ))
+        await session.commit()
+    async with seeded() as session:
+        cb = CircuitBreakerService(session=session)
+        status = await cb.status(1)
+        assert status.daily_pnl == Decimal("500")
+        assert status.headroom == status.max_daily_loss  # no loss → full headroom
+        await cb.check(1)  # must NOT raise
 
 
 # ---- evaluate() — continuous-monitor path (P10 §6, trips without raising) -------

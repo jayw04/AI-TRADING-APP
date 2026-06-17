@@ -50,6 +50,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.db.enums import OrderSide, RiskScopeType, StrategyStatus
 from app.db.models.account import Account, AccountMode
+from app.db.models.account_state import AccountState
 from app.db.models.fill import Fill
 from app.db.models.order import Order
 from app.db.models.position import Position
@@ -67,6 +68,8 @@ class CircuitBreakerStatus:
     tripped_at: datetime | None
     realized_pnl_today: Decimal
     unrealized_pnl_now: Decimal
+    daily_pnl: Decimal  # the trip basis: today's P&L from a start-of-day baseline (ADR 0004 v2)
+    daily_pnl_basis: str  # "equity_baseline" | "cumulative_fallback"
     max_daily_loss: Decimal
     headroom: Decimal
 
@@ -96,13 +99,15 @@ class CircuitBreakerService:
         limits = await self._get_active_limits(account)
         realized = await self._compute_realized_pnl_today(account_id)
         unrealized = await self._compute_unrealized_pnl(account_id)
+        daily_pnl, basis = await self._compute_daily_pnl(
+            account_id, realized=realized, unrealized=unrealized
+        )
         max_loss = (
             Decimal(str(limits.max_daily_loss))
             if limits and limits.max_daily_loss is not None
             else Decimal("0")
         )
-        net = realized + unrealized
-        headroom = max_loss - abs(net) if net < 0 else max_loss
+        headroom = max_loss - abs(daily_pnl) if daily_pnl < 0 else max_loss
         tripped_at = ensure_aware(account.circuit_breaker_tripped_at)
         return CircuitBreakerStatus(
             account_id=account_id,
@@ -110,6 +115,8 @@ class CircuitBreakerService:
             tripped_at=tripped_at,
             realized_pnl_today=realized,
             unrealized_pnl_now=unrealized,
+            daily_pnl=daily_pnl,
+            daily_pnl_basis=basis,
             max_daily_loss=max_loss,
             headroom=headroom,
         )
@@ -134,20 +141,23 @@ class CircuitBreakerService:
         max_loss = Decimal(str(limits.max_daily_loss))
         realized = await self._compute_realized_pnl_today(account_id)
         unrealized = await self._compute_unrealized_pnl(account_id)
-        net_pnl = realized + unrealized
-        if net_pnl <= -max_loss:
+        daily_pnl, basis = await self._compute_daily_pnl(
+            account_id, realized=realized, unrealized=unrealized
+        )
+        if daily_pnl <= -max_loss:
             await self.trip(
                 account_id=account_id,
                 reason="daily_loss_exceeded",
                 payload={
                     "realized_pnl_today": str(realized),
                     "unrealized_pnl_now": str(unrealized),
-                    "net_pnl": str(net_pnl),
+                    "daily_pnl": str(daily_pnl),
+                    "daily_pnl_basis": basis,
                     "max_daily_loss": str(max_loss),
                 },
             )
             raise CircuitBreakerError(
-                f"Daily loss limit reached (net PnL {net_pnl} ≤ -{max_loss}). "
+                f"Daily loss limit reached (today's PnL {daily_pnl} ≤ -{max_loss}). "
                 f"All strategies on this account are now HALTED."
             )
 
@@ -173,15 +183,18 @@ class CircuitBreakerService:
         max_loss = Decimal(str(limits.max_daily_loss))
         realized = await self._compute_realized_pnl_today(account_id)
         unrealized = await self._compute_unrealized_pnl(account_id)
-        net_pnl = realized + unrealized
-        if net_pnl <= -max_loss:
+        daily_pnl, basis = await self._compute_daily_pnl(
+            account_id, realized=realized, unrealized=unrealized
+        )
+        if daily_pnl <= -max_loss:
             await self.trip(
                 account_id=account_id,
                 reason="daily_loss_exceeded",
                 payload={
                     "realized_pnl_today": str(realized),
                     "unrealized_pnl_now": str(unrealized),
-                    "net_pnl": str(net_pnl),
+                    "daily_pnl": str(daily_pnl),
+                    "daily_pnl_basis": basis,
                     "max_daily_loss": str(max_loss),
                     "source": "monitor",  # detected by the periodic job, not an order
                 },
@@ -302,6 +315,37 @@ class CircuitBreakerService:
                 )
             )
         ).scalars().first()
+
+    async def _compute_daily_pnl(
+        self, account_id: int, *, realized: Decimal, unrealized: Decimal
+    ) -> tuple[Decimal, str]:
+        """Today's P&L for the daily-loss breaker, measured from a START-OF-DAY
+        baseline (ADR 0004 v2). Returns ``(daily_pnl, basis)``.
+
+        Preferred basis ``"equity_baseline"``: the broker-synced start-of-day
+        equity, ``equity - last_equity`` (== ``AccountState.day_change``). This is
+        the SAME measure the global daily-loss halt already uses (``app/risk/halt.py``,
+        RiskEngine), so the two daily-loss gates now agree. It excludes capital
+        merely deployed today (a BUY swaps cash for an asset of equal value) and
+        losses carried over from prior days — both of which the old
+        ``realized + total-unrealized`` measure wrongly counted against *today's*
+        limit, spuriously halting a book that was merely open and slightly down.
+
+        Fail-closed fallback ``"cumulative_fallback"``: when no usable AccountState
+        baseline exists (no row yet, or ``last_equity`` not populated — e.g. a
+        broker sync hasn't run), fall back to ``realized + unrealized`` (the
+        passed-in cumulative measure). That is the STRICTER number — it can only
+        trip the breaker EARLIER, never later — so an absent baseline never weakens
+        the gate (risk engine fails closed).
+        """
+        state = (
+            await self._session.execute(
+                select(AccountState).where(AccountState.account_id == account_id)
+            )
+        ).scalars().first()
+        if state is not None and state.last_equity is not None and Decimal(str(state.last_equity)) > 0:
+            return Decimal(str(state.equity)) - Decimal(str(state.last_equity)), "equity_baseline"
+        return realized + unrealized, "cumulative_fallback"
 
     async def _compute_realized_pnl_today(self, account_id: int) -> Decimal:
         """Realized P&L from today's CLOSING trades, via running average cost.

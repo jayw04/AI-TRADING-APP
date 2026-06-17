@@ -3,10 +3,20 @@
 | Field | Value |
 |---|---|
 | Date | 2026-05-31 |
-| Status | Accepted |
+| Status | **Superseded by ADR 0004 v2** (`0004-daily-loss-from-start-of-day-baseline.md`) |
 | Phase | P5 §5 |
 | Supersedes | — |
-| Superseded by | — |
+| Superseded by | ADR 0004 v2 — Daily-Loss Circuit Breaker Measured From a Start-of-Day Baseline, 2026-06-17 |
+
+> **Note (2026-06-17):** This v1 record is retained for decision history. The
+> hard-halt mechanism, account-scoping, strategy HALT, and manual-reset decisions
+> below are unchanged. What v2 revises is the **measure** of daily P&L: v1's
+> `realized_pnl_today + unrealized_pnl_now` (total open P&L, no start-of-day
+> baseline) spuriously halted on capital deployment and on carried-over open
+> losses. v2 measures today's P&L from a start-of-day equity baseline
+> (`equity - last_equity`), with a fail-closed fallback to v1's cumulative
+> measure. The "Implementation notes" P&L line below (realized signed by
+> `Order.side`) was already corrected by PR #114 and is fully restated in v2.
 
 ## Context
 
