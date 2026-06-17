@@ -10,7 +10,7 @@ MTG strategy-spec lens (Docs/Strategies/Trading+Plan+Clean.pdf):
   Style          systematic, cross-sectional equity factor
   Type           long-only momentum book
   Holding Period ~1 week (held until the next weekly rebalance)
-  Stock Selection top quintile by 6-1 month momentum z-score (≥ min_score floor),
+  Stock Selection top quintile by 12-month momentum z-score (≥ min_score floor),
                   within a fixed top-N liquidity candidate universe (`symbols`);
                   optional per-sector cap (max_sector_pct, off by default) damps
                   single-sector concentration by capping names/sector + backfilling
@@ -78,7 +78,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.6.0"  # + optional fractional-share sizing (P10 §7, default off)
+    version: ClassVar[str] = "0.7.0"  # + parametrized momentum window, default 12m (R1; 6-1→12m upgrade)
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
@@ -88,6 +88,11 @@ class MomentumPortfolio(Strategy):
     schedule: ClassVar[str] = "0 14 * * mon"
 
     default_params: ClassVar[dict[str, Any]] = {
+        # Momentum window (R1, evidence: research/momentum_12m_backtest.md). Default
+        # 252/0 = 12-month total return, the OOS-dominant variant (Sharpe 1.85 vs
+        # 6-1's 1.40, lower drawdown AND lower turnover). 105/21 = the old 6-1.
+        "momentum_lookback_days": 252,
+        "momentum_skip_days": 0,
         "top_quantile": 0.20,  # hold the top 20% by momentum score…
         "max_names": 10,  # …capped at this many names
         "min_score": 0.0,  # z-score floor — default 0 avoids buying negative momentum
@@ -115,6 +120,10 @@ class MomentumPortfolio(Strategy):
     }
 
     params_schema: ClassVar[dict[str, Any]] = {
+        "momentum_lookback_days": {"type": "integer", "min": 1, "default": 252,
+                                   "description": "Momentum lookback (trading days). 252 = 12-month; 105 = the old 6-1 window."},
+        "momentum_skip_days": {"type": "integer", "min": 0, "default": 0,
+                               "description": "Trading days skipped before the lookback (short-term reversal guard). 0 = 12m; 21 = the old 6-1 skip."},
         "top_quantile": {"type": "number", "min": 0, "max": 1, "default": 0.20,
                          "description": "Hold the top fraction of the universe by momentum score."},
         "max_names": {"type": "integer", "min": 1, "default": 10,
@@ -194,7 +203,12 @@ class MomentumPortfolio(Strategy):
         #    the tradeable candidate set, not the accessor's broad n=500 default).
         try:
             n = len(self.ctx.symbols) or None
-            scores = self.ctx.factors.momentum_scores(n=n) if n else self.ctx.factors.momentum_scores()
+            mom_kw = {
+                "lookback_days": int(self.params.get("momentum_lookback_days", 252)),
+                "skip_days": int(self.params.get("momentum_skip_days", 0)),
+            }
+            scores = (self.ctx.factors.momentum_scores(n=n, **mom_kw) if n
+                      else self.ctx.factors.momentum_scores(**mom_kw))
         except _HOLD_ON as exc:  # not provisioned / thin / below floor → HOLD (the bail-out row)
             await self.ctx.log_signal(
                 self.ctx.symbols[0] if self.ctx.symbols else "PORTFOLIO",

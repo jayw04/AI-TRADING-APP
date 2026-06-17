@@ -107,6 +107,30 @@ async def test_rebalances_once_per_iso_week() -> None:
     assert ctx.factors.momentum_scores.call_count == 2
 
 
+async def test_momentum_window_defaults_to_12m() -> None:
+    """R1: the book defaults to the 12-month window (252/0), the OOS-dominant
+    variant — see research/momentum_12m_backtest.md."""
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]))
+    strat = _strat(ctx)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    _, kwargs = ctx.factors.momentum_scores.call_args
+    assert kwargs["lookback_days"] == 252
+    assert kwargs["skip_days"] == 0
+
+
+async def test_momentum_window_is_parametrized() -> None:
+    """The window is configurable — e.g. the old 6-1 (105/21) — and passed through
+    to the accessor verbatim."""
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]))
+    strat = _strat(ctx, momentum_lookback_days=105, momentum_skip_days=21)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    _, kwargs = ctx.factors.momentum_scores.call_args
+    assert kwargs["lookback_days"] == 105
+    assert kwargs["skip_days"] == 21
+
+
 async def test_unexpected_failure_marks_week_and_does_not_retry_same_week() -> None:
     """★ The week is marked at the START of the attempt, so a rebalance that raises
     is NOT retried on the next per-symbol tick in the same week — preventing the

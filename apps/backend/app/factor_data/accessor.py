@@ -24,7 +24,11 @@ from datetime import date
 import pandas as pd
 
 from app.factor_data.factors.engine import momentum_scores
-from app.factor_data.factors.momentum import compute_momentum
+from app.factor_data.factors.momentum import (
+    DEFAULT_LOOKBACK_DAYS,
+    DEFAULT_SKIP_DAYS,
+    compute_momentum,
+)
 from app.factor_data.store import FactorDataStore
 from app.factor_data.universe import universe_asof
 
@@ -57,10 +61,21 @@ class FactorAccessor:
             return latest
         return as_of
 
-    def momentum_scores(self, as_of: date | None = None, *, n: int = 500) -> pd.DataFrame:
-        """Cross-sectional momentum scores as of `as_of` (default: latest store date)."""
+    def momentum_scores(
+        self, as_of: date | None = None, *, n: int = 500,
+        lookback_days: int = DEFAULT_LOOKBACK_DAYS, skip_days: int = DEFAULT_SKIP_DAYS,
+    ) -> pd.DataFrame:
+        """Cross-sectional momentum scores as of `as_of` (default: latest store date).
+
+        `lookback_days` / `skip_days` select the momentum window (default 105/21 =
+        6-1; a strategy can request e.g. 252/0 = 12-month). The window only changes
+        which trailing return is ranked — the PIT/read-only guarantees are unchanged.
+        """
         store = self._require_store()
-        return momentum_scores(store, self._resolve_as_of(as_of), n=n)
+        return momentum_scores(
+            store, self._resolve_as_of(as_of), n=n,
+            lookback_days=lookback_days, skip_days=skip_days,
+        )
 
     def momentum_for(self, ticker: str, as_of: date | None = None) -> float | None:
         """Single-name momentum as of `as_of`; `None` if history is insufficient."""
