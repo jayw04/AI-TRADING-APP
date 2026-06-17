@@ -13,6 +13,7 @@
     "book_sharpe": 0.9287263544267925,
     "book_max_drawdown": -0.3570835869976452,
     "book_ann_turnover": 8.590753415142046,
+    "book_avg_hold_weeks": 5.9864185110663986,
     "base_cagr": 0.17759365812875605,
     "base_sharpe": 0.8466227382539373,
     "base_max_drawdown": -0.358045933619498
@@ -31,6 +32,7 @@
     "book_sharpe": 1.3957399974301843,
     "book_max_drawdown": -0.38774848974204945,
     "book_ann_turnover": 8.764043734133168,
+    "book_avg_hold_weeks": 5.866666666666666,
     "base_cagr": 0.3367776906981601,
     "base_sharpe": 1.6377423550659411,
     "base_max_drawdown": -0.22229563809296066
@@ -49,6 +51,7 @@
     "book_sharpe": 0.9154928027769142,
     "book_max_drawdown": -0.3302814787313576,
     "book_ann_turnover": 5.6307458970566,
+    "book_avg_hold_weeks": 9.055740432612312,
     "base_cagr": 0.16684219523498744,
     "base_sharpe": 0.7922049375436161,
     "base_max_drawdown": -0.35804593361949805
@@ -67,6 +70,7 @@
     "book_sharpe": 1.8500405433529166,
     "book_max_drawdown": -0.32091148573085343,
     "book_ann_turnover": 5.573760821956437,
+    "book_avg_hold_weeks": 9.114709851551957,
     "base_cagr": 0.3367776906981601,
     "base_sharpe": 1.6377423550659411,
     "base_max_drawdown": -0.22229563809296066
@@ -85,6 +89,7 @@
     "book_sharpe": 0.9018322749669103,
     "book_max_drawdown": -0.355236625168145,
     "book_ann_turnover": 5.795584058001788,
+    "book_avg_hold_weeks": 8.806634304207119,
     "base_cagr": 0.16684219523498744,
     "base_sharpe": 0.7922049375436161,
     "base_max_drawdown": -0.35804593361949805
@@ -103,6 +108,7 @@
     "book_sharpe": 1.6584170076937865,
     "book_max_drawdown": -0.36114543977463975,
     "book_ann_turnover": 5.500137510406843,
+    "book_avg_hold_weeks": 9.239398084815322,
     "base_cagr": 0.3367776906981601,
     "base_sharpe": 1.6377423550659411,
     "base_max_drawdown": -0.22229563809296066

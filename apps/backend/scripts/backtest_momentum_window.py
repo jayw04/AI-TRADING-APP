@@ -70,6 +70,7 @@ class Segment:
     book_sharpe: float
     book_max_drawdown: float
     book_ann_turnover: float  # annualized one-way name turnover
+    book_avg_hold_weeks: float  # avg position holding period (rebalance periods)
     base_cagr: float
     base_sharpe: float
     base_max_drawdown: float
@@ -105,6 +106,24 @@ def _annualized_turnover(holdings: list) -> float:
     return mean_one_way * rebals_per_year
 
 
+def _avg_holding_period_weeks(holdings: list) -> float:
+    """Average position holding period, in rebalance periods (weeks, since the book
+    rebalances weekly). Measured as the mean length of each name's consecutive-
+    rebalance runs — a complement to turnover (lower turnover ↔ longer holds)."""
+    if not holdings:
+        return 0.0
+    runs: list[int] = []
+    open_run: dict[str, int] = {}
+    for h in holdings:
+        cur = set(h.tickers)
+        for t in cur:
+            open_run[t] = open_run.get(t, 0) + 1
+        for t in [t for t in open_run if t not in cur]:  # closed this rebalance
+            runs.append(open_run.pop(t))
+    runs.extend(open_run.values())  # still-open runs at the end
+    return sum(runs) / len(runs) if runs else 0.0
+
+
 def _run_segment(store, label, lookback, skip, span, start, end, *, n, top_quantile,
                  turnover_cost_bps, initial_equity) -> Segment:
     from app.factor_data.backtest import run_momentum_backtest
@@ -121,6 +140,7 @@ def _run_segment(store, label, lookback, skip, span, start, end, *, n, top_quant
         book_total_return=rep.metrics.total_return, book_cagr=rep.metrics.cagr,
         book_sharpe=rep.metrics.sharpe, book_max_drawdown=rep.metrics.max_drawdown,
         book_ann_turnover=_annualized_turnover(rep.holdings),
+        book_avg_hold_weeks=_avg_holding_period_weeks(rep.holdings),
         base_cagr=rep.baseline_metrics.cagr, base_sharpe=rep.baseline_metrics.sharpe,
         base_max_drawdown=rep.baseline_metrics.max_drawdown,
     )
@@ -168,13 +188,13 @@ def main() -> int:
     print(f"Store {floor}..{latest}. IS [{is_start}..{is_end}] / OOS [{split}..{oos_end}], "
           f"n={args.n}, top_quantile={args.top_quantile}, turnover={args.turnover_cost_bps}bps\n")
     hdr = (f"{'window':16}{'span':5}{'rebal':>6}{'skip':>5}{'tot.ret':>9}"
-           f"{'CAGR':>8}{'Sharpe':>8}{'maxDD':>8}{'turnov':>8}{'base.CAGR':>10}{'base.Shrp':>10}")
+           f"{'CAGR':>8}{'Sharpe':>8}{'maxDD':>8}{'turnov':>8}{'hold.wk':>8}{'base.Shrp':>10}")
     print(hdr)
     for sg in segments:
         print(f"{sg.window:16}{sg.span:5}{sg.rebalances:>6}{sg.skipped:>5}"
               f"{sg.book_total_return:>9.2%}{sg.book_cagr:>8.2%}{sg.book_sharpe:>8.2f}"
-              f"{sg.book_max_drawdown:>8.2%}{sg.book_ann_turnover:>8.2f}"
-              f"{sg.base_cagr:>10.2%}{sg.base_sharpe:>10.2f}")
+              f"{sg.book_max_drawdown:>8.2%}{sg.book_ann_turnover:>8.2f}{sg.book_avg_hold_weeks:>8.1f}"
+              f"{sg.base_sharpe:>10.2f}")
 
     if args.report_dir:
         import json
@@ -195,15 +215,16 @@ def main() -> int:
             "name caps / vol-scaling are NOT applied (orthogonal to the window choice; "
             "equal across rows). Universe = today's top-N liquid names → absolute CAGRs "
             "are inflated by winner bias; the **cross-window OOS ranking** is the robust "
-            "takeaway. `turnov` = annualized one-way name turnover.\n",
-            "| window | span | rebal | skip | tot.ret | CAGR | Sharpe | maxDD | turnover | base CAGR | base Sharpe |",
-            "|---|---|---|---|---|---|---|---|---|---|---|",
+            "takeaway. `turnover` = annualized one-way name turnover; `hold(wk)` = avg "
+            "position holding period in rebalance periods (weeks).\n",
+            "| window | span | rebal | skip | tot.ret | CAGR | Sharpe | maxDD | turnover | hold(wk) | base CAGR | base Sharpe |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for sg in segments:
             lines.append(
                 f"| {sg.window} | {sg.span} | {sg.rebalances} | {sg.skipped} | "
                 f"{sg.book_total_return:.2%} | {sg.book_cagr:.2%} | {sg.book_sharpe:.2f} | "
-                f"{sg.book_max_drawdown:.2%} | {sg.book_ann_turnover:.2f} | "
+                f"{sg.book_max_drawdown:.2%} | {sg.book_ann_turnover:.2f} | {sg.book_avg_hold_weeks:.1f} | "
                 f"{sg.base_cagr:.2%} | {sg.base_sharpe:.2f} |"
             )
         (d / "momentum_12m_backtest.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
