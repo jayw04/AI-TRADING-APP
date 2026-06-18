@@ -23,6 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
+import numpy as np
 import pandas as pd
 import structlog
 
@@ -319,6 +320,52 @@ def _simulate(
     return curve, holdings
 
 
+class _CachedPriceStore:
+    """Read-through price cache over a ``FactorDataStore`` for one backtest run.
+
+    ``compute_momentum_batch`` re-reads each universe name's *entire* price history
+    (``floor..as_of``) on every weekly rebalance, and ``_simulate`` / ``_trailing_vol``
+    re-query overlapping windows. Across ~1000 rebalances that is hundreds of
+    thousands of redundant scans of the same rows out of the multi-GB store — the
+    dominant cost of a full-history run.
+
+    This wrapper loads each name's full history once (per ``adjusted`` flag) and
+    serves every ``get_prices(ticker, start, end)`` as an in-memory date-slice. The
+    slice is byte-identical to the underlying windowed query — same rows, same order
+    (both are ``ORDER BY date`` and the slice preserves it) — so backtest numbers are
+    unchanged; only the I/O is removed. Only ``get_prices`` is intercepted; every
+    other attribute delegates to the real store, leaving the PIT/read-only
+    guarantees intact. One instance per ``run_momentum_backtest`` call (no shared
+    state); the store is read-only so cached frames never go stale.
+    """
+
+    def __init__(self, store: FactorDataStore) -> None:
+        self._store = store
+        self._floor, self._ceil = store.price_date_bounds()
+        self._full: dict[tuple[str, bool], pd.DataFrame] = {}
+
+    def __getattr__(self, name: str) -> object:
+        # Everything except get_prices (and our own _-prefixed state) delegates.
+        return getattr(self._store, name)
+
+    def get_prices(
+        self, ticker: str, start: date, end: date, *, adjusted: bool = True
+    ) -> pd.DataFrame:
+        if self._floor is None or self._ceil is None:  # empty store → no caching
+            return self._store.get_prices(ticker, start, end, adjusted=adjusted)
+        key = (ticker, adjusted)
+        full = self._full.get(key)
+        if full is None:
+            full = self._store.get_prices(ticker, self._floor, self._ceil, adjusted=adjusted)
+            self._full[key] = full
+        # full is ORDER BY date, so [start, end] is a contiguous slice located by binary
+        # search — O(log n) + a view-copy, vs an O(n) boolean mask. Same rows, same order.
+        dates = full["date"].to_numpy()
+        lo = int(np.searchsorted(dates, pd.Timestamp(start).to_datetime64(), side="left"))
+        hi = int(np.searchsorted(dates, pd.Timestamp(end).to_datetime64(), side="right"))
+        return full.iloc[lo:hi].reset_index(drop=True)
+
+
 def run_momentum_backtest(
     store: FactorDataStore,
     start: date,
@@ -364,6 +411,11 @@ def run_momentum_backtest(
     if len(all_days) < 2:
         empty = BacktestSummary(0.0, 0.0, 0.0, 0.0)
         return MomentumBacktestReport(config, [], [], [], [], empty, empty)
+
+    # Serve every downstream price read (momentum scoring, weighting, simulation)
+    # from a per-run in-memory cache. Byte-identical to direct store reads; removes
+    # the redundant re-scans that dominate a full-history run. See _CachedPriceStore.
+    store = _CachedPriceStore(store)  # type: ignore[assignment]
 
     rebalances_all = _iso_week_last_trading_days(all_days)
 
