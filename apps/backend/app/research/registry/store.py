@@ -70,6 +70,11 @@ CREATE TABLE IF NOT EXISTS transitions (
   transition_id VARCHAR PRIMARY KEY, entity_type VARCHAR, entity_id VARCHAR,
   axis VARCHAR, from_state VARCHAR, to_state VARCHAR, reason VARCHAR, transitioned_at TIMESTAMP, actor VARCHAR
 );
+CREATE TABLE IF NOT EXISTS alerts (
+  alert_id VARCHAR PRIMARY KEY, strategy_id VARCHAR, experiment_id VARCHAR,
+  kind VARCHAR, metric VARCHAR, value DOUBLE, threshold DOUBLE,
+  message VARCHAR, recommended_action VARCHAR, status VARCHAR DEFAULT 'OPEN', created_at TIMESTAMP
+);
 """
 
 
@@ -179,6 +184,21 @@ class ArtifactRecord:
 
 
 @dataclass
+class AlertRecord:
+    alert_id: str = ""
+    strategy_id: str | None = None
+    experiment_id: str | None = None
+    kind: str = ""                       # e.g. 'edge_decay'
+    metric: str = ""
+    value: float | None = None
+    threshold: float | None = None
+    message: str = ""
+    recommended_action: str | None = None  # e.g. 'RETIRE_REVIEW' (owner decides — never auto)
+    status: str = "OPEN"
+    created_at: datetime | None = None
+
+
+@dataclass
 class TransitionRecord:
     transition_id: str
     entity_type: str
@@ -273,6 +293,17 @@ class ResearchStore:
         )
         return rec.artifact_id
 
+    def record_alert(self, rec: AlertRecord) -> str:
+        rec.alert_id = rec.alert_id or _new_id("alert")
+        rec.created_at = rec.created_at or _now()
+        self.con.execute(
+            "INSERT OR REPLACE INTO alerts VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            [rec.alert_id, rec.strategy_id, rec.experiment_id, rec.kind, rec.metric,
+             rec.value, rec.threshold, rec.message, rec.recommended_action, rec.status,
+             rec.created_at],
+        )
+        return rec.alert_id
+
     # ---- get ----
 
     def get_strategy(self, strategy_id: str) -> StrategyRecord | None:
@@ -318,8 +349,32 @@ class ResearchStore:
         ).fetchall()
         return [r[0] for r in rows]
 
+    def list_strategies(self, *, deployment_state: str | None = None) -> list[StrategyRecord]:
+        clause = " WHERE deployment_state = ?" if deployment_state else ""
+        params = [deployment_state] if deployment_state else []
+        rows = self.con.execute(f"SELECT * FROM strategies{clause}", params).fetchall()
+        return [StrategyRecord(*r) for r in rows]
+
+    def list_alerts(self, *, status: str | None = None, strategy_id: str | None = None) -> list[AlertRecord]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if strategy_id:
+            clauses.append("strategy_id = ?")
+            params.append(strategy_id)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = self.con.execute(
+            f"SELECT alert_id, strategy_id, experiment_id, kind, metric, value, threshold, "
+            f"message, recommended_action, status, created_at FROM alerts{where} "
+            f"ORDER BY created_at DESC", params
+        ).fetchall()
+        return [AlertRecord(*r) for r in rows]
+
     def row_count(self, table: str) -> int:
-        if table not in {"strategies", "features", "datasets", "experiments", "artifacts", "transitions"}:
+        if table not in {"strategies", "features", "datasets", "experiments",
+                         "artifacts", "transitions", "alerts"}:
             raise ValueError(f"unknown table: {table}")
         row = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
         assert row is not None
