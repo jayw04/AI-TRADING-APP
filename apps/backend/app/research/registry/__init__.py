@@ -3,9 +3,12 @@
 from app.research.registry.store import (
     AlertRecord,
     ArtifactRecord,
+    BenchmarkRecord,
+    CostModelRecord,
     DatasetRecord,
     ExperimentRecord,
     FeatureRecord,
+    PortfolioModelRecord,
     ResearchStore,
     StrategyRecord,
     TransitionRecord,
@@ -20,4 +23,7 @@ __all__ = [
     "ArtifactRecord",
     "TransitionRecord",
     "AlertRecord",
+    "PortfolioModelRecord",
+    "BenchmarkRecord",
+    "CostModelRecord",
 ]

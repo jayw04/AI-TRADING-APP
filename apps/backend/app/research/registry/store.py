@@ -75,6 +75,21 @@ CREATE TABLE IF NOT EXISTS alerts (
   kind VARCHAR, metric VARCHAR, value DOUBLE, threshold DOUBLE,
   message VARCHAR, recommended_action VARCHAR, status VARCHAR DEFAULT 'OPEN', created_at TIMESTAMP
 );
+-- Phase 3 §3.0: first-class identities for portfolio configs, benchmarks, cost models.
+CREATE TABLE IF NOT EXISTS portfolio_models (
+  portfolio_id VARCHAR PRIMARY KEY, strategy_id VARCHAR, construction_method VARCHAR,
+  weighting VARCHAR, rebalance VARCHAR, buffer VARCHAR, risk_model VARCHAR,
+  turnover_model VARCHAR, capacity_model VARCHAR, params VARCHAR,
+  status VARCHAR DEFAULT 'RESEARCH', created_at TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS benchmarks (
+  benchmark_id VARCHAR PRIMARY KEY, definition VARCHAR, source VARCHAR,
+  rebalance VARCHAR, description VARCHAR, created_at TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS cost_models (
+  cost_model_id VARCHAR PRIMARY KEY, commission DOUBLE, slippage DOUBLE, spread DOUBLE,
+  borrow_cost DOUBLE, market_impact VARCHAR, description VARCHAR, created_at TIMESTAMP
+);
 """
 
 
@@ -199,6 +214,44 @@ class AlertRecord:
 
 
 @dataclass
+class PortfolioModelRecord:
+    portfolio_id: str = ""
+    strategy_id: str | None = None
+    construction_method: str = ""
+    weighting: str | None = None          # equal | inverse_vol | risk_parity | ...
+    rebalance: str | None = None          # weekly | monthly | ...
+    buffer: str | None = None             # rank-hysteresis / position buffer descriptor
+    risk_model: str | None = None
+    turnover_model: str | None = None
+    capacity_model: str | None = None
+    params: dict[str, Any] = field(default_factory=dict)
+    status: str = "RESEARCH"
+    created_at: datetime | None = None
+
+
+@dataclass
+class BenchmarkRecord:
+    benchmark_id: str = ""
+    definition: str = ""                   # e.g. 'SPY' | 'equal_weight_universe'
+    source: str | None = None
+    rebalance: str | None = None
+    description: str | None = None
+    created_at: datetime | None = None
+
+
+@dataclass
+class CostModelRecord:
+    cost_model_id: str = ""
+    commission: float | None = None
+    slippage: float | None = None
+    spread: float | None = None
+    borrow_cost: float | None = None
+    market_impact: str | None = None       # model descriptor (e.g. 'sqrt_adv')
+    description: str | None = None
+    created_at: datetime | None = None
+
+
+@dataclass
 class TransitionRecord:
     transition_id: str
     entity_type: str
@@ -304,7 +357,59 @@ class ResearchStore:
         )
         return rec.alert_id
 
+    def record_portfolio_model(self, rec: PortfolioModelRecord) -> str:
+        rec.portfolio_id = rec.portfolio_id or _new_id("pf")
+        rec.created_at = rec.created_at or _now()
+        self.con.execute(
+            "INSERT OR REPLACE INTO portfolio_models VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [rec.portfolio_id, rec.strategy_id, rec.construction_method, rec.weighting,
+             rec.rebalance, rec.buffer, rec.risk_model, rec.turnover_model,
+             rec.capacity_model, _dumps(rec.params), rec.status, rec.created_at],
+        )
+        return rec.portfolio_id
+
+    def record_benchmark(self, rec: BenchmarkRecord) -> str:
+        rec.benchmark_id = rec.benchmark_id or _new_id("bm")
+        rec.created_at = rec.created_at or _now()
+        self.con.execute(
+            "INSERT OR REPLACE INTO benchmarks VALUES (?,?,?,?,?,?)",
+            [rec.benchmark_id, rec.definition, rec.source, rec.rebalance,
+             rec.description, rec.created_at],
+        )
+        return rec.benchmark_id
+
+    def record_cost_model(self, rec: CostModelRecord) -> str:
+        rec.cost_model_id = rec.cost_model_id or _new_id("cost")
+        rec.created_at = rec.created_at or _now()
+        self.con.execute(
+            "INSERT OR REPLACE INTO cost_models VALUES (?,?,?,?,?,?,?,?)",
+            [rec.cost_model_id, rec.commission, rec.slippage, rec.spread,
+             rec.borrow_cost, rec.market_impact, rec.description, rec.created_at],
+        )
+        return rec.cost_model_id
+
     # ---- get ----
+
+    def get_portfolio_model(self, portfolio_id: str) -> PortfolioModelRecord | None:
+        r = self.con.execute(
+            "SELECT * FROM portfolio_models WHERE portfolio_id = ?", [portfolio_id]
+        ).fetchone()
+        if r is None:
+            return None
+        d = list(r)
+        return PortfolioModelRecord(
+            portfolio_id=d[0], strategy_id=d[1], construction_method=d[2], weighting=d[3],
+            rebalance=d[4], buffer=d[5], risk_model=d[6], turnover_model=d[7],
+            capacity_model=d[8], params=_loads(d[9]) or {}, status=d[10], created_at=d[11],
+        )
+
+    def get_benchmark(self, benchmark_id: str) -> BenchmarkRecord | None:
+        r = self.con.execute("SELECT * FROM benchmarks WHERE benchmark_id = ?", [benchmark_id]).fetchone()
+        return BenchmarkRecord(*r) if r is not None else None
+
+    def get_cost_model(self, cost_model_id: str) -> CostModelRecord | None:
+        r = self.con.execute("SELECT * FROM cost_models WHERE cost_model_id = ?", [cost_model_id]).fetchone()
+        return CostModelRecord(*r) if r is not None else None
 
     def get_strategy(self, strategy_id: str) -> StrategyRecord | None:
         r = self.con.execute("SELECT * FROM strategies WHERE strategy_id = ?", [strategy_id]).fetchone()
@@ -386,9 +491,24 @@ class ResearchStore:
         rows = self.con.execute(f"SELECT {column}, COUNT(*) FROM {table} GROUP BY {column}").fetchall()
         return {r[0]: int(r[1]) for r in rows}
 
+    def list_portfolio_models(self, *, strategy_id: str | None = None) -> list[PortfolioModelRecord]:
+        clause = " WHERE strategy_id = ?" if strategy_id else ""
+        params = [strategy_id] if strategy_id else []
+        ids = [r[0] for r in self.con.execute(
+            f"SELECT portfolio_id FROM portfolio_models{clause}", params).fetchall()]
+        return [m for pid in ids if (m := self.get_portfolio_model(pid)) is not None]
+
+    def list_benchmarks(self) -> list[BenchmarkRecord]:
+        rows = self.con.execute("SELECT * FROM benchmarks").fetchall()
+        return [BenchmarkRecord(*r) for r in rows]
+
+    def list_cost_models(self) -> list[CostModelRecord]:
+        rows = self.con.execute("SELECT * FROM cost_models").fetchall()
+        return [CostModelRecord(*r) for r in rows]
+
     def row_count(self, table: str) -> int:
-        if table not in {"strategies", "features", "datasets", "experiments",
-                         "artifacts", "transitions", "alerts"}:
+        if table not in {"strategies", "features", "datasets", "experiments", "artifacts",
+                         "transitions", "alerts", "portfolio_models", "benchmarks", "cost_models"}:
             raise ValueError(f"unknown table: {table}")
         row = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
         assert row is not None
