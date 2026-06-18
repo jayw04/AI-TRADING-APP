@@ -1,6 +1,7 @@
 """Registry layer: DuckDB-backed registries + dependency graph + transition log."""
 
 from app.research.registry.store import (
+    AlertRecord,
     ArtifactRecord,
     DatasetRecord,
     ExperimentRecord,
@@ -18,4 +19,5 @@ __all__ = [
     "ExperimentRecord",
     "ArtifactRecord",
     "TransitionRecord",
+    "AlertRecord",
 ]
