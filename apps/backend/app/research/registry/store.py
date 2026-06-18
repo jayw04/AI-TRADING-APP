@@ -296,6 +296,13 @@ class ResearchStore:
             confidence_score=d[21], research_state=d[22], owner=d[23], notes=d[24],
         )
 
+    def set_experiment_confidence(self, experiment_id: str, score: int) -> None:
+        """Set an experiment's confidence score (0–100), written by the promotion gate."""
+        self.con.execute(
+            "UPDATE experiments SET confidence_score = ? WHERE experiment_id = ?",
+            [score, experiment_id],
+        )
+
     def list_experiments(self, *, kind: str | None = None, strategy_id: str | None = None) -> list[str]:
         clauses: list[str] = []
         params: list[Any] = []
