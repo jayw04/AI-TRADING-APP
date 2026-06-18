@@ -159,9 +159,9 @@ def run_study(close: pd.DataFrame, *, split: pd.Timestamp,
     ls_series: dict[str, pd.Series] = {}
     for fname, fmat in fmats.items():
         fr = fmat.reindex(rebal)  # factor at each rebalance date
-        per_ic = {h: [] for h in horizons}
-        ls_by_date = {}
-        windows = {"IS": [], "OOS": [], "IS_ls": [], "OOS_ls": []}
+        per_ic: dict[int, list] = {h: [] for h in horizons}
+        ls_by_date: dict = {}
+        windows: dict[str, list] = {"IS": [], "OOS": [], "IS_ls": [], "OOS_ls": []}
         for dt in rebal:
             f_row = fr.loc[dt]
             ic1 = spearman_ic(f_row, fwd[1].loc[dt])
