@@ -55,6 +55,14 @@ class ExperimentConfig:
     pit_mode: str = "accepted_date"        # see FMP PIT-assumptions doc
     survivorship_mode: str = "sep_universe"
     seed: int | None = None
+    # Phase 3A §4.1: registry FKs. Stored as provenance on the experiment row; NOT
+    # hashed into the fingerprint (the referenced records' *content* is folded into
+    # ``params`` for content-addressing — §0 Q2). Random ids here would break
+    # reproducibility, so identity stays content-based while these stay informational.
+    portfolio_id: str | None = None
+    benchmark_id: str | None = None
+    cost_model_id: str | None = None
+    risk_model_id: str | None = None
 
 
 @dataclass
@@ -158,6 +166,8 @@ def run_experiment(
         pit_mode=config.pit_mode, survivorship_mode=config.survivorship_mode,
         metrics_summary=result.metrics_summary, metrics_detail=result.metrics_detail,
         confidence_score=result.confidence_score, notes=config.name,
+        portfolio_id=config.portfolio_id, benchmark_id=config.benchmark_id,
+        cost_model_id=config.cost_model_id, risk_model_id=config.risk_model_id,
     ))
 
     out_dir = Path(report_dir) if report_dir is not None else None

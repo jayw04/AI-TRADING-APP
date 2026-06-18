@@ -34,6 +34,7 @@ class Criterion:
     passed: Callable[[Metrics], bool]
     detail: Callable[[Metrics], str]
     weight: float = 1.0
+    component: str = "overall"           # Phase 3A §4.7: scorecard component group
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,22 @@ class GateProfile:
     evidence_key: str | None = None      # e.g. 'trade_count' — gates INCONCLUSIVE/strength
     evidence_floor: float = 0.0          # < floor → INCONCLUSIVE (can't pass or fail)
     evidence_strong: float = 0.0         # >= strong → GO, else GO_WARNING
+    min_confidence: float = 0.0          # Phase 3A §4.7a: confidence floor below which
+                                         # the verdict is NO-GO even if every criterion
+                                         # passes (default 0 = inert for existing profiles)
+
+
+@dataclass(frozen=True)
+class ComponentScore:
+    """Per-component scorecard slice (Phase 3A §4.7) — makes the confidence score
+    transparent (e.g. statistical 24/30, drawdown 18/20)."""
+    component: str
+    passed_weight: float
+    total_weight: float
+
+    @property
+    def fraction(self) -> float:
+        return self.passed_weight / self.total_weight if self.total_weight else 0.0
 
 
 @dataclass
@@ -52,6 +69,7 @@ class GateResult:
     confidence_score: int                 # 0–100
     checks: list[tuple[str, bool, str]] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
+    component_scores: list[ComponentScore] = field(default_factory=list)
 
 
 # ---- criterion builders (flat-dict predicates; missing key → fails closed) ----
@@ -62,25 +80,27 @@ def _num(m: Metrics, key: str) -> float | None:
     return float(v) if isinstance(v, (int, float)) else None
 
 
-def ge(key: str, thr: float, *, weight: float = 1.0, label: str | None = None) -> Criterion:
+def ge(key: str, thr: float, *, weight: float = 1.0, label: str | None = None,
+       component: str = "overall") -> Criterion:
     def passed(m: Metrics) -> bool:
         v = _num(m, key)
         return v is not None and v >= thr
     return Criterion(label or f"{key} >= {thr}", passed,
-                     lambda m: f"{m.get(key)} vs >= {thr}", weight)
+                     lambda m: f"{m.get(key)} vs >= {thr}", weight, component)
 
 
-def le(key: str, thr: float, *, weight: float = 1.0, label: str | None = None) -> Criterion:
+def le(key: str, thr: float, *, weight: float = 1.0, label: str | None = None,
+       component: str = "overall") -> Criterion:
     def passed(m: Metrics) -> bool:
         v = _num(m, key)
         return v is not None and v <= thr
     return Criterion(label or f"{key} <= {thr}", passed,
-                     lambda m: f"{m.get(key)} vs <= {thr}", weight)
+                     lambda m: f"{m.get(key)} vs <= {thr}", weight, component)
 
 
 def predicate(label: str, fn: Callable[[Metrics], bool], detail: Callable[[Metrics], str],
-              *, weight: float = 1.0) -> Criterion:
-    return Criterion(label, fn, detail, weight)
+              *, weight: float = 1.0, component: str = "overall") -> Criterion:
+    return Criterion(label, fn, detail, weight, component)
 
 
 # ---- built-in profiles ----
@@ -147,18 +167,44 @@ def evaluate(metrics: Metrics, profile: GateProfile) -> GateResult:
     passed_w = sum(c.weight for c, (_, ok, _) in zip(profile.criteria, checks, strict=True) if ok)
     confidence = round(100 * passed_w / total_w)
 
+    # Per-component breakdown (Phase 3A §4.7) — transparent scorecard.
+    comp_total: dict[str, float] = {}
+    comp_passed: dict[str, float] = {}
+    for c, (_, ok, _) in zip(profile.criteria, checks, strict=True):
+        comp_total[c.component] = comp_total.get(c.component, 0.0) + c.weight
+        if ok:
+            comp_passed[c.component] = comp_passed.get(c.component, 0.0) + c.weight
+    component_scores = [
+        ComponentScore(comp, comp_passed.get(comp, 0.0), tot) for comp, tot in comp_total.items()
+    ]
+
+    def _result(verdict: str, state: str, reasons: list[str]) -> GateResult:
+        return GateResult(verdict, state, confidence, checks, reasons, component_scores)
+
     evidence = _num(metrics, profile.evidence_key) if profile.evidence_key else None
     reasons: list[str] = []
     if profile.evidence_key and (evidence is None or evidence < profile.evidence_floor):
         reasons.append(
             f"{profile.evidence_key}={evidence} < floor {profile.evidence_floor} → not enough evidence"
         )
-        return GateResult("INCONCLUSIVE", "RESEARCH", confidence, checks, reasons)
+        return _result("INCONCLUSIVE", "RESEARCH", reasons)
+
+    # §4.7a confidence floor — a "deployable-research" bar above the bare weighted
+    # average. Surfaced as a reason whenever it bites, whether the NO-GO is driven by
+    # a criterion failure (which dragged confidence below the floor) or — in profiles
+    # where criteria are advisory — by the floor alone on an otherwise all-pass run.
+    below_floor = confidence < profile.min_confidence
 
     failed = [label for label, ok, _ in checks if not ok]
     if failed:
         reasons.append("failed: " + ", ".join(failed))
-        return GateResult("NO-GO", "REJECTED", confidence, checks, reasons)
+        if below_floor:
+            reasons.append(f"confidence {confidence} < min_confidence {profile.min_confidence}")
+        return _result("NO-GO", "REJECTED", reasons)
+
+    if below_floor:
+        reasons.append(f"confidence {confidence} < min_confidence {profile.min_confidence}")
+        return _result("NO-GO", "REJECTED", reasons)
 
     strong = evidence is None or evidence >= profile.evidence_strong
     verdict = "GO" if strong else "GO_WARNING"
@@ -167,7 +213,7 @@ def evaluate(metrics: Metrics, profile: GateProfile) -> GateResult:
             f"{profile.evidence_key}={evidence} in [{profile.evidence_floor},"
             f"{profile.evidence_strong}) → owner signoff (thin sample)"
         )
-    return GateResult(verdict, "VALIDATED", confidence, checks, reasons)
+    return _result(verdict, "VALIDATED", reasons)
 
 
 def gate_experiment(

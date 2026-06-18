@@ -10,6 +10,7 @@ from app.research.registry.store import (
     FeatureRecord,
     PortfolioModelRecord,
     ResearchStore,
+    RiskModelRecord,
     StrategyRecord,
     TransitionRecord,
 )
@@ -26,4 +27,5 @@ __all__ = [
     "PortfolioModelRecord",
     "BenchmarkRecord",
     "CostModelRecord",
+    "RiskModelRecord",
 ]

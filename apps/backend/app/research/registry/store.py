@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS experiments (
   params VARCHAR, is_window VARCHAR, oos_window VARCHAR,
   cost_model VARCHAR, pit_mode VARCHAR, survivorship_mode VARCHAR,
   metrics_summary VARCHAR, metrics_detail VARCHAR, confidence_score INTEGER,
-  research_state VARCHAR DEFAULT 'RESEARCH', owner VARCHAR, notes VARCHAR
+  research_state VARCHAR DEFAULT 'RESEARCH', owner VARCHAR, notes VARCHAR,
+  portfolio_id VARCHAR, benchmark_id VARCHAR, cost_model_id VARCHAR, risk_model_id VARCHAR
 );
 CREATE TABLE IF NOT EXISTS artifacts (
   artifact_id VARCHAR PRIMARY KEY, experiment_id VARCHAR,
@@ -90,7 +91,21 @@ CREATE TABLE IF NOT EXISTS cost_models (
   cost_model_id VARCHAR PRIMARY KEY, commission DOUBLE, slippage DOUBLE, spread DOUBLE,
   borrow_cost DOUBLE, market_impact VARCHAR, description VARCHAR, created_at TIMESTAMP
 );
+-- Phase 3A §4.2: risk models as first-class identities (keeps alpha/risk research
+-- separable). Experiments reference risk_model_id instead of embedding risk settings.
+CREATE TABLE IF NOT EXISTS risk_models (
+  risk_model_id VARCHAR PRIMARY KEY, kind VARCHAR,
+  vol_target_annual DOUBLE, vol_ewma_span INTEGER,
+  max_sector_pct DOUBLE, max_position_pct DOUBLE, drawdown_trigger DOUBLE,
+  params VARCHAR, description VARCHAR, created_at TIMESTAMP
+);
 """
+
+# Phase 3A §4.1: experiment → registry FK columns, added additively (existing stores
+# get them via _ensure_experiment_fk_columns; fresh stores via the schema below).
+_EXPERIMENT_FK_COLUMNS: tuple[str, ...] = (
+    "portfolio_id", "benchmark_id", "cost_model_id", "risk_model_id",
+)
 
 
 def _now() -> datetime:
@@ -185,6 +200,12 @@ class ExperimentRecord:
     research_state: str = "RESEARCH"
     owner: str | None = None
     notes: str | None = None
+    # Phase 3A §4.1: registry FKs (provenance — NOT part of the fingerprint; the
+    # referenced records' *content* is folded into params for content-addressing).
+    portfolio_id: str | None = None
+    benchmark_id: str | None = None
+    cost_model_id: str | None = None
+    risk_model_id: str | None = None
 
 
 @dataclass
@@ -252,6 +273,20 @@ class CostModelRecord:
 
 
 @dataclass
+class RiskModelRecord:
+    risk_model_id: str = ""
+    kind: str = "none"                     # none | vol_target | sector_cap | max_position | drawdown_overlay
+    vol_target_annual: float | None = None
+    vol_ewma_span: int | None = None
+    max_sector_pct: float | None = None
+    max_position_pct: float | None = None
+    drawdown_trigger: float | None = None
+    params: dict[str, Any] = field(default_factory=dict)
+    description: str | None = None
+    created_at: datetime | None = None
+
+
+@dataclass
 class TransitionRecord:
     transition_id: str
     entity_type: str
@@ -277,7 +312,23 @@ class ResearchStore:
         self.con = duckdb.connect(str(path), read_only=read_only)
         if not read_only:
             self.con.execute(_SCHEMA)
+            self._ensure_experiment_fk_columns()
         logger.info("research_store_open", path=str(path), read_only=read_only)
+
+    def _ensure_experiment_fk_columns(self) -> None:
+        """Additively add the Phase 3A FK columns to a pre-existing experiments table.
+        ``CREATE TABLE IF NOT EXISTS`` does not alter an already-created table, so a
+        store written before Phase 3A needs the columns appended. ALTER appends at the
+        end — same order as the fresh-schema definition, so the positional INSERT /
+        index-based read in record_experiment/get_experiment stay valid."""
+        existing = {
+            r[0] for r in self.con.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'experiments'"
+            ).fetchall()
+        }
+        for col in _EXPERIMENT_FK_COLUMNS:
+            if col not in existing:
+                self.con.execute(f"ALTER TABLE experiments ADD COLUMN {col} VARCHAR")
 
     def __enter__(self) -> ResearchStore:
         return self
@@ -326,13 +377,15 @@ class ResearchStore:
         rec.experiment_id = rec.experiment_id or _new_id("exp")
         rec.created_at = rec.created_at or _now()
         self.con.execute(
-            "INSERT OR REPLACE INTO experiments VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO experiments VALUES "
+            "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [rec.experiment_id, rec.parent_experiment_id, rec.created_at, rec.duration_ms, rec.kind,
              rec.strategy_id, rec.dataset_id, _dumps(rec.feature_ids), rec.git_commit, rec.host,
              rec.python_version, _dumps(rec.package_versions), rec.seed, _dumps(rec.params),
              rec.is_window, rec.oos_window, rec.cost_model, rec.pit_mode, rec.survivorship_mode,
              _dumps(rec.metrics_summary), _dumps(rec.metrics_detail), rec.confidence_score,
-             rec.research_state, rec.owner, rec.notes],
+             rec.research_state, rec.owner, rec.notes,
+             rec.portfolio_id, rec.benchmark_id, rec.cost_model_id, rec.risk_model_id],
         )
         return rec.experiment_id
 
@@ -388,6 +441,17 @@ class ResearchStore:
         )
         return rec.cost_model_id
 
+    def record_risk_model(self, rec: RiskModelRecord) -> str:
+        rec.risk_model_id = rec.risk_model_id or _new_id("rm")
+        rec.created_at = rec.created_at or _now()
+        self.con.execute(
+            "INSERT OR REPLACE INTO risk_models VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [rec.risk_model_id, rec.kind, rec.vol_target_annual, rec.vol_ewma_span,
+             rec.max_sector_pct, rec.max_position_pct, rec.drawdown_trigger,
+             _dumps(rec.params), rec.description, rec.created_at],
+        )
+        return rec.risk_model_id
+
     # ---- get ----
 
     def get_portfolio_model(self, portfolio_id: str) -> PortfolioModelRecord | None:
@@ -411,6 +475,17 @@ class ResearchStore:
         r = self.con.execute("SELECT * FROM cost_models WHERE cost_model_id = ?", [cost_model_id]).fetchone()
         return CostModelRecord(*r) if r is not None else None
 
+    def get_risk_model(self, risk_model_id: str) -> RiskModelRecord | None:
+        r = self.con.execute("SELECT * FROM risk_models WHERE risk_model_id = ?", [risk_model_id]).fetchone()
+        if r is None:
+            return None
+        d = list(r)
+        return RiskModelRecord(
+            risk_model_id=d[0], kind=d[1], vol_target_annual=d[2], vol_ewma_span=d[3],
+            max_sector_pct=d[4], max_position_pct=d[5], drawdown_trigger=d[6],
+            params=_loads(d[7]) or {}, description=d[8], created_at=d[9],
+        )
+
     def get_strategy(self, strategy_id: str) -> StrategyRecord | None:
         r = self.con.execute("SELECT * FROM strategies WHERE strategy_id = ?", [strategy_id]).fetchone()
         if r is None:
@@ -430,6 +505,7 @@ class ResearchStore:
             cost_model=d[16], pit_mode=d[17], survivorship_mode=d[18],
             metrics_summary=_loads(d[19]) or {}, metrics_detail=_loads(d[20]) or {},
             confidence_score=d[21], research_state=d[22], owner=d[23], notes=d[24],
+            portfolio_id=d[25], benchmark_id=d[26], cost_model_id=d[27], risk_model_id=d[28],
         )
 
     def set_experiment_confidence(self, experiment_id: str, score: int) -> None:
@@ -506,9 +582,14 @@ class ResearchStore:
         rows = self.con.execute("SELECT * FROM cost_models").fetchall()
         return [CostModelRecord(*r) for r in rows]
 
+    def list_risk_models(self) -> list[RiskModelRecord]:
+        ids = [r[0] for r in self.con.execute("SELECT risk_model_id FROM risk_models").fetchall()]
+        return [m for rid in ids if (m := self.get_risk_model(rid)) is not None]
+
     def row_count(self, table: str) -> int:
         if table not in {"strategies", "features", "datasets", "experiments", "artifacts",
-                         "transitions", "alerts", "portfolio_models", "benchmarks", "cost_models"}:
+                         "transitions", "alerts", "portfolio_models", "benchmarks", "cost_models",
+                         "risk_models"}:
             raise ValueError(f"unknown table: {table}")
         row = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
         assert row is not None
