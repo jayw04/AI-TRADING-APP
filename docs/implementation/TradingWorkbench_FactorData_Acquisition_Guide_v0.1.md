@@ -2,13 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.2 — revised. **Supersedes the v0.1 premise that "SF1 is the blocker."** |
+| Document version | **v1.0 — frozen.** Supersedes the v0.1 premise that "SF1 is the blocker." |
 | Date | 2026-06-18 |
-| Purpose | Where factor data comes from **today** (prices + fundamentals), what that data has already told us, and when — if ever — to buy the Sharadar SF1 fundamentals bundle. |
+| Purpose | Where factor data comes from **today** (prices + fundamentals), what that data has already told us, how it's refreshed/validated, and when — if ever — to buy the Sharadar SF1 fundamentals bundle. |
 | Audience | The owner (a business + setup decision), and any future-self reconstructing the data architecture. |
-| Related | ADR 0018 (PIT factor data: FMP + Sharadar); `TradingWorkbench_FMP_vs_SF1_Eval_v0.1.md`; `TradingWorkbench_Strategy_Research_Report_v1.0.md` §5.4 (Value/Quality result); `app/factor_data/providers/fmp.py`, `scripts/ingest_fmp.py`, `app/factor_data/factors/fundamental.py` |
+| Related | ADR 0018 (PIT factor data: FMP + Sharadar); `TradingWorkbench_FMP_vs_SF1_Eval_v0.1.md`; `TradingWorkbench_Strategy_Research_Report_v1.0.md` §5.4 (Value/Quality result); `app/factor_data/store.py`, `app/factor_data/providers/fmp.py`, `scripts/ingest_fmp.py`, `app/factor_data/factors/fundamental.py` |
 
-> **What changed since v0.1.** v0.1 (2026-06-16) framed Sharadar **SF1** as the data blocker for Value/Quality research and recommended buying the "Core US Fundamentals" bundle. That premise is **obsolete**: the existing **FMP** key already supplies point-in-time fundamentals, the Value/Quality study has since **run to completion**, and the conclusion was *not* "we can't test" — it was "**those factors don't improve our current universe.**" This revision documents the real, shipped architecture and reframes SF1 as an **optional future upgrade**, not a prerequisite.
+> **Change history.** v0.1 (2026-06-16) framed Sharadar **SF1** as the data blocker for Value/Quality research and recommended buying the "Core US Fundamentals" bundle. That premise was **obsolete**: the existing **FMP** key already supplies point-in-time fundamentals, the Value/Quality study has since **run to completion**, and the conclusion was *not* "we can't test" — it was "**those factors don't improve our current universe.**" v0.2 documented the real, shipped architecture and reframed SF1 as an **optional future upgrade**. **v1.0 (this version)** adds the dataset-confidence table, the full data-lineage, and an operational-notes section (refresh + validation), and is **frozen** — change it only when the architecture changes.
 
 ---
 
@@ -40,17 +40,38 @@
  Sharadar TICKERS + ACTIONS  →  store: tickers, actions  (PIT universe, sector/industry, splits)
 ```
 
+**Full lineage — where it flows next** (the guide links into the research platform; ADR 0019):
+
+```
+ provider  →  store (DuckDB)  →  factors  →  research  →  portfolio construction
+ (SEP/FMP)    (sep/fundamentals  (momentum,   (scripts/      (P10 §3 — weighting,
+              /tickers/actions)   value, qual) factor_research benchmarks, gate)
+                                                + research engine)
+```
+
 **Store tables** (`app/factor_data/store.py`; DuckDB at `apps/backend/data/factor_data.duckdb`, plus the full-history `factor_data_full.duckdb`):
 
-| Table | Source | Holds | Feeds |
-|---|---|---|---|
-| `sep` | Sharadar SEP | daily OHLCV, `closeadj`/`closeunadj` | momentum (price factors) |
-| `fundamentals` | **FMP** `/stable` | revenue, gross profit, EBITDA, net income, FCF, debt, equity, assets, shares, EV — with `filing_date` + **`accepted_date`** | value + quality factors |
-| `tickers` | Sharadar TICKERS | universe metadata + `sector`/`industry` | PIT universe, sector caps |
-| `actions` | Sharadar ACTIONS | splits / dividends / delistings | corporate-action handling |
-| `ingest_runs` | — | ingest bookkeeping (idempotency) | — |
+| Table | Source | Primary key | Holds | Feeds |
+|---|---|---|---|---|
+| `sep` | Sharadar SEP | `(ticker, date)` | daily OHLCV, `closeadj`/`closeunadj` | momentum (price factors) |
+| `fundamentals` | **FMP** `/stable` | `(ticker, period, period_end)` | revenue, gross profit, EBITDA, net income, FCF, debt, equity, assets, shares, EV — with `filing_date` + **`accepted_date`** | value + quality factors |
+| `tickers` | Sharadar TICKERS | `(ticker)` | universe metadata + `sector`/`industry` | PIT universe, sector caps |
+| `actions` | Sharadar ACTIONS | — (replace-per-ticker) | splits / dividends / delistings | corporate-action handling |
+| `ingest_runs` | — | — | ingest bookkeeping (status, rows) | operability |
 
 **Point-in-time discipline (the correctness invariant).** Fundamental factors join on **`accepted_date <= as_of`** — the SEC acceptance timestamp, i.e. the date the statement was actually knowable — so no factor can read a filing before it existed. Prices use trading-day row offsets on or before `as_of`. This is what keeps the survivorship-free / no-look-ahead guarantee (ADR 0018).
+
+### Dataset confidence
+
+A reader's-eye view of how much weight to put on each source (subjective grades, not a vendor SLA):
+
+| Dataset | Source | Confidence | In production? | Notes |
+|---|---|---|---|---|
+| Prices (`sep`) | Sharadar SEP | **A** | Yes | survivorship-free, split/div-adjusted, long history; the momentum edge rests on it |
+| Fundamentals (`fundamentals`) | FMP `/stable` | **A−** | Yes | ~40y quarterly+annual with `acceptedDate`; coverage 197/200 of the liquid universe; restatement handling is the main caveat |
+| Universe/metadata (`tickers`, `actions`) | Sharadar | **A** | Yes | sector/industry + corporate actions drive PIT eligibility |
+| Fundamentals (`sf1`) | Sharadar SF1 | **A+** *(if owned)* | **No** | sample-only on our key; the institutional-grade upgrade (§4) |
+| Options / alt-data | — | N/A | No | out of scope (factor-equities program) |
 
 ---
 
@@ -141,7 +162,32 @@ cd apps/backend
 
 ---
 
-## 7. References
+## 7. Operational notes — refresh & validation
+
+> **Honesty note:** refresh is **manual today** (run the ingest scripts); there is no scheduler/cron wired for factor data. The cadence below is the **recommended policy**, not an automated guarantee. The "enforced today" items, by contrast, are real (DuckDB constraints + ingest logic in `store.py`).
+
+**Refresh — recommended cadence (run manually for now):**
+
+| Dataset | Recommended cadence | Command | Rationale |
+|---|---|---|---|
+| Prices (`sep`) | per trading day (or before a study) | `scripts/ingest_sharadar.py` | momentum reads the latest close |
+| Fundamentals (`fundamentals`) | weekly (statements only arrive quarterly) | `scripts/ingest_fmp.py` | weekly polling far exceeds the quarterly filing rate |
+| Universe/metadata (`tickers`, `actions`) | monthly | `scripts/ingest_sharadar.py` | listings/sector/corporate-actions drift slowly |
+
+Each run is recorded in `ingest_runs` (`dataset, started_at, finished_at, rows, status`) for auditability.
+
+**Validation — what's enforced today (real):**
+
+- **No duplicate keys.** `sep`, `tickers`, `fundamentals` are written with `INSERT OR REPLACE` keyed by their PRIMARY KEY, so re-ingesting **converges** (idempotent upsert) rather than duplicating; `actions` is replace-per-ticker.
+- **Key fields non-null.** PKs are `NOT NULL` (`sep.ticker/date`, `fundamentals.ticker/period_end`), so a row with no ticker or period can't land.
+- **PIT integrity.** Fundamental factors only read rows with `accepted_date <= as_of`; rows lacking `accepted_date` are excluded from as-of joins (no silent look-ahead).
+- **Run accounting.** `ingest_runs` row count + `status` ('running'|'ok'|'failed') per dataset.
+
+**Validation — recommended (not yet automated):** coverage thresholds (e.g. alert if < N% of the universe has fundamentals), stale-provider detection (alert if `lastupdated` falls behind), and a post-ingest sanity report. These are worth building if/when ingestion becomes scheduled rather than operator-driven.
+
+---
+
+## 8. References
 
 - **ADR 0018** — `docs/adr/0018-point-in-time-factor-data-fmp-sharadar.md` — sanctions FMP + Sharadar as read-only external data dependencies with PIT discipline; never touch the order path.
 - **FMP vs SF1 evaluation** — `docs/implementation/TradingWorkbench_FMP_vs_SF1_Eval_v0.1.md` — "the data block is effectively already solved; no purchase needed"; FMP `/stable` returns ~40y quarterly+annual with `acceptedDate`.
@@ -150,9 +196,10 @@ cd apps/backend
 
 ---
 
-## 8. Out of scope for this guide
+## 9. Out of scope for this guide
 
 - **Building the multi-factor book** — deferred per §3; it is a research decision gated on a broader universe / regime, not a data-acquisition task.
 - **Adding a new external data vendor** (Polygon, etc.) — would require its own ADR (ADR 0018 governs the current two: FMP + Sharadar).
 - **Options / alternative-data acquisition** — out of the factor-research scope; the program direction is factor equities, not options.
 - **The momentum upgrade and risk overlays** — those are price-only research items tracked in the Research Report, independent of fundamentals.
+- **Automated ingestion scheduling** — the refresh cadence in §7 is recommended policy; wiring a scheduler is future operational work, not part of this guide.
