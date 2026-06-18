@@ -9,8 +9,19 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+      - 'docs/**'
   pull_request:
     branches: [main]
+    # Skip CI entirely when a change touches ONLY docs (a run is skipped only if
+    # EVERY changed path matches, so mixed code+docs PRs still run). For a one-off
+    # doc commit you can also put [skip ci] in the message — GitHub honours it natively.
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+      - 'docs/**'
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +33,9 @@ jobs:
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
+    # Don't spend CI on a PR that's still a draft — frontend-checks (needs: changes)
+    # skips with it, and build-images is push-only, so a draft PR runs zero jobs.
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     # dorny/paths-filter lists a PR's changed files via the API, which needs
     # pull-requests:read (the default token only grants contents:read).
     permissions:
@@ -41,6 +55,8 @@ jobs:
   python-checks:
     name: Python (${{ matrix.project }})
     runs-on: ubuntu-latest
+    # Skip on draft PRs (still runs on every push to main and on ready PRs).
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false
       matrix:
