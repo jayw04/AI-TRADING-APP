@@ -372,6 +372,20 @@ class ResearchStore:
         ).fetchall()
         return [AlertRecord(*r) for r in rows]
 
+    _COUNT_BY_ALLOWED = frozenset({
+        ("experiments", "research_state"), ("experiments", "kind"),
+        ("strategies", "deployment_state"), ("strategies", "research_state"),
+        ("alerts", "status"),
+    })
+
+    def count_by(self, table: str, column: str) -> dict[str, int]:
+        """Grouped row counts, e.g. count_by('experiments','research_state'). Only a
+        fixed (table, column) allowlist is permitted (no arbitrary SQL)."""
+        if (table, column) not in self._COUNT_BY_ALLOWED:
+            raise ValueError(f"count_by not allowed for ({table}, {column})")
+        rows = self.con.execute(f"SELECT {column}, COUNT(*) FROM {table} GROUP BY {column}").fetchall()
+        return {r[0]: int(r[1]) for r in rows}
+
     def row_count(self, table: str) -> int:
         if table not in {"strategies", "features", "datasets", "experiments",
                          "artifacts", "transitions", "alerts"}:
