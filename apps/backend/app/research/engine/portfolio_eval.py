@@ -9,8 +9,9 @@ run time.
 
 This module *computes nothing about the market* — it only reshapes an already-run
 backtest and reads prices/sectors the store already holds (ADR 0019 read-only; off the
-order path). Capacity metrics use SEP volume we already have (basic collection now to
-avoid re-running later — §4.5); the full capacity *model* is §3B.
+order path). Capacity metrics use SEP volume we already have; the capacity *model* (§3B —
+participation distribution + AUM ceiling, robust to the survivorship-free delisting tail)
+lives in ``_capacity`` below.
 """
 
 from __future__ import annotations
@@ -32,6 +33,11 @@ from app.strategies import metrics
 _ROLL_WINDOW = 63          # ~3 trading months for rolling Sharpe / vol
 _ADV_LOOKBACK_DAYS = 20    # trailing window for average dollar volume (capacity)
 _TOP_HOLDINGS = 10         # how many names per period in top_holdings_by_period
+# §3B capacity model: a single trade is "comfortably tradeable" at <= this share of a
+# name's average daily dollar volume — the standard institutional liquidity rule of thumb
+# (a trade of 10% ADV clears in ~a day without dominating the tape). The capacity *ceiling*
+# is the AUM at which the strategy's marginal (95th-percentile) trade reaches this share.
+_TARGET_PARTICIPATION = 0.10
 
 
 class PortfolioHealthError(RuntimeError):
@@ -222,16 +228,48 @@ def _adv_dollar(store: FactorDataStore, ticker: str, d: date, lookback: int = _A
     return mean_dv if mean_dv > 0 else None
 
 
+def _percentile(xs: Sequence[float], q: float) -> float:
+    """Linear-interpolated ``q``-quantile (q in [0,1]) of ``xs``. Deterministic;
+    0.0 on empty. Used for the capacity distribution (median / p95 / capacity floor)."""
+    if not xs:
+        return 0.0
+    s = sorted(xs)
+    if len(s) == 1:
+        return s[0]
+    pos = q * (len(s) - 1)
+    lo = math.floor(pos)
+    hi = math.ceil(pos)
+    if lo == hi:
+        return s[lo]
+    return s[lo] * (hi - pos) + s[hi] * (pos - lo)
+
+
 def _capacity(
     store: FactorDataStore, report: MomentumBacktestReport, turnover_annual: float
 ) -> dict[str, float]:
-    """Basic capacity metrics (§4.5): position sizes, ADV participation, rebalance
-    notional. Uses the equity at each rebalance × target weight as the traded notional;
-    participation = traded notional / trailing ADV-dollar."""
+    """Capacity model (§3B). For every traded name at every rebalance, participation =
+    traded$ / trailing-ADV$ (traded$ = |Δweight| × equity-at-rebalance).
+
+    The survivorship-free universe carries delisting tails whose ADV collapses toward
+    zero, so a plain mean of participation is meaningless — a handful of effectively
+    untradeable names blow it up (the 3A ``avg 1132%`` artefact). Instead we:
+
+    - flag **untradeable** trades (participation > 100% of a day's volume at this book
+      size, or no ADV) and report their fraction separately rather than averaging them in;
+    - report a robust **distribution** (notional-weighted mean, median, p95) over the
+      tradeable trades — the gate's "ADV participation ≤ 2%" now measures what it intended;
+    - translate to a capacity **ceiling**: ``capacity_aum`` is the AUM at which the
+      95th-percentile trade would reach ``_TARGET_PARTICIPATION`` of ADV. Participation
+      scales linearly with AUM, so per trade the ceiling is ``target × ADV$ / |Δweight|``,
+      independent of the backtest's own equity path; the tightest 5% of trades set it.
+    """
     initial = report.config.initial_equity
     position_notionals: list[float] = []
-    participations: list[float] = []
     rebalance_notionals: list[float] = []
+    parts: list[tuple[float, float]] = []  # (participation_at_book, traded$) — tradeable only
+    cap_aums: list[float] = []             # per-trade AUM ceiling at the target participation
+    traded_count = 0
+    untradeable = 0
     prev: dict[str, float] = {}
     for h in report.holdings:
         eq = _equity_asof(report.equity_curve, h.rebalance_date, initial)
@@ -243,15 +281,31 @@ def _capacity(
                 continue
             traded = dw * eq
             traded_notional += traded
+            traded_count += 1
             adv = _adv_dollar(store, tk, h.rebalance_date)
-            if adv is not None and adv > 0:
-                participations.append(traded / adv)
+            if adv is None or adv <= 0 or (traded / adv) > 1.0:
+                untradeable += 1  # no/near-zero liquidity at this size — would be screened out
+                continue
+            parts.append((traded / adv, traded))
+            cap_aums.append(_TARGET_PARTICIPATION * adv / dw)
         position_notionals.extend(w * eq for w in h.weights.values())
         rebalance_notionals.append(traded_notional)
         prev = h.weights
+
+    notional_sum = sum(t for _, t in parts)
+    notional_weighted = (sum(p * t for p, t in parts) / notional_sum) if notional_sum > 0 else 0.0
+    participations = [p for p, _ in parts]
     return {
         "avg_position_size": statistics.fmean(position_notionals) if position_notionals else 0.0,
-        "avg_adv_participation": statistics.fmean(participations) if participations else 0.0,
+        # §3B: notional-weighted participation over TRADEABLE trades — the economically
+        # meaningful 'average' (was a raw mean the 3A run blew up to ~1132%). Lower better.
+        "avg_adv_participation": notional_weighted,
+        "adv_participation_median": _percentile(participations, 0.50),
+        "adv_participation_p95": _percentile(participations, 0.95),
+        # AUM at which 95% of trades stay ≤ target participation. Higher = more capacity.
+        "capacity_aum": _percentile(cap_aums, 0.05) if cap_aums else 0.0,
+        # share of trades that are untradeable at this book size (delisting-tail surface).
+        "untradeable_trade_fraction": (untradeable / traded_count) if traded_count else 0.0,
         "avg_daily_turnover": turnover_annual / 252.0,
         "max_rebalance_notional": max(rebalance_notionals) if rebalance_notionals else 0.0,
     }

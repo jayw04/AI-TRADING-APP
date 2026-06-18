@@ -19,6 +19,9 @@ from app.research.registry import ResearchStore
 _LOWER_BETTER = frozenset({
     "turnover", "ann_turnover", "turnover_annual", "max_drawdown_abs", "duration_ms",
     "ulcer_index", "avg_adv_participation", "max_weight_change", "recovery_days",
+    # §3B capacity model: tighter participation / fewer untradeable trades win;
+    # capacity_aum is NOT here — more capacity (higher AUM ceiling) is better.
+    "adv_participation_median", "adv_participation_p95", "untradeable_trade_fraction",
 })
 
 
