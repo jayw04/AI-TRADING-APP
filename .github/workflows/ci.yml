@@ -1,19 +1,62 @@
 name: CI
 
+# Usage-conscious triggers (P10): correctness gates run on PRs to main; the
+# expensive Docker image builds run only AFTER merge to main (Dockerfiles rarely
+# break and are still verified before they can reach a release). Feature-branch
+# pushes never trigger this workflow directly — only via their PR — so a branch
+# push does not start a run on its own. `concurrency` cancels superseded runs so
+# rapid force-pushes to a PR collapse to a single run.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+      - 'docs/**'
   pull_request:
     branches: [main]
+    # Skip CI entirely when a change touches ONLY docs (a run is skipped only if
+    # EVERY changed path matches, so mixed code+docs PRs still run). For a one-off
+    # doc commit you can also put [skip ci] in the message — GitHub honours it natively.
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+      - 'docs/**'
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Cheap (~10s) change detector so jobs whose inputs did not change can be skipped.
+  # The backend invariant/coverage gates are NEVER gated on paths — they always run.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    # Don't spend CI on a PR that's still a draft — frontend-checks (needs: changes)
+    # skips with it, and build-images is push-only, so a draft PR runs zero jobs.
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    # dorny/paths-filter lists a PR's changed files via the API, which needs
+    # pull-requests:read (the default token only grants contents:read).
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'apps/frontend/**'
+
   python-checks:
     name: Python (${{ matrix.project }})
     runs-on: ubuntu-latest
+    # Skip on draft PRs (still runs on every push to main and on ready PRs).
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false
       matrix:
@@ -115,6 +158,9 @@ jobs:
 
   frontend-checks:
     name: Frontend
+    needs: changes
+    # Skip on PRs that don't touch the frontend; always run on push to main.
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -150,6 +196,9 @@ jobs:
 
   build-images:
     name: Build image (${{ matrix.service }})
+    # Docker builds are the most expensive jobs; run them only after merge to main
+    # (the push trigger above is branches:[main] only), never on every PR push.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
