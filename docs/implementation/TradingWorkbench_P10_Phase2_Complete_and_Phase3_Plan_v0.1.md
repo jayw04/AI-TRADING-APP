@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 (for review) |
+| Document version | v1.0 (final — folds in review; execution started) |
 | Date | 2026-06-17 |
 | Phase | P10 — closing Phase 2, opening Phase 3 |
 | Repository | github.com/jayw04/AI-TRADING-APP |
@@ -55,46 +55,78 @@ Phase 3 priorities. Phase 3 work below is ordered per the reviewer's guidance
   confidence scores, dependency graph, and the dashboard behave on real data — and
   surface what the engine is missing in practice (which should drive 3A/3B scope).
 
-### Phase 3A — Portfolio-construction research (highest value)
-Make construction a first-class, sweepable research axis (it "often adds more value
-than another factor"):
+### §3.0 — Foundational registries (build first; reviewer ⭐⭐⭐⭐⭐)
+Phase 3 generates many portfolio configs, benchmarks, and cost assumptions — they
+deserve first-class identities, not JSON embedded in experiments. Extend the
+registry layer with three registries (mirroring the §1 pattern):
+- **`portfolio_models`** — portfolio_id, strategy_id, construction_method, weighting,
+  rebalance, buffer, risk_model, turnover_model, capacity_model, created_at, status.
+- **`benchmarks`** — benchmark_id, definition, source, rebalance, description
+  (SPY/QQQ/equal-weight/prior-version, versioned).
+- **`cost_models`** — model_id, commission, slippage, spread, borrow_cost,
+  market_impact (experiments reference `cost_model_id`).
+Experiments then reference `portfolio_id` / `benchmark_id` / `cost_model_id`.
+**(Execution started here — see §3.0 implementation note at the end.)**
+
+### Phase 3A — Portfolio **Construction** Research (highest value)
+*Science, not engineering* — the goal is "discover which construction methods are
+**robust**," not "add more knobs." Each portfolio model (from the registry) is run
+through the §5c-style gate, IS/OOS, recorded as an experiment:
 - weighting (equal / inverse-vol / risk-parity), name count, rebalance cadence,
   reconstitution delay, position buffering, rank hysteresis,
-- **+ transaction-cost and rebalance-delay sweeps** (reviewer: these matter as much
-  as weighting),
-- run through the §5c-style gate, IS/OOS, recorded as experiments.
+- **+ transaction-cost (cost_model) and rebalance-delay sweeps**,
+- **+ regime-specific robustness (reviewer ⭐⭐⭐⭐):** evaluate each model across
+  **bull / bear / sideways / high-vol / low-vol / rate-rising / rate-falling**
+  regimes — "does it survive across regimes?" is worth more than another factor.
 
-### Phase 3B — Factor-library expansion
-Grow from ~7 factors to 20–40 candidates, each a versioned **feature** in the
-registry, each gated IS/OOS:
-- **Growth** (revenue, EPS, FCF growth), **Profitability** (operating/gross margin,
-  asset turnover, cash conversion), **Capital allocation** (buyback/dividend yield,
-  net issuance, capex intensity), **Risk** (beta, vol, downside vol, skew),
-  **Liquidity/market-structure** (gap frequency, ATR percentile, relative volume,
-  VWAP deviation).
+### Phase 3B — Analytics (deepen the evidence)
+- **Alpha attribution** — decompose the edge by **selection / sizing / timing /
+  risk-overlay** (and by sector / market-cap / holding): did momentum or vol-target
+  create the improvement? was it 3 mega-caps or diversified?
+- **Turnover attribution** — added / dropped / resized positions per rebalance.
+- **Drawdown attribution** — drawdown → sector → stock → factor contribution.
+- **Capacity analysis** — participation rate / ADV% / fill% / turnover (not just
+  account size); where does the edge saturate?
+- **Meta-research** ("research about research") — **edge persistence, parameter
+  stability, regime sensitivity, feature importance** across the experiment history.
 
-### Phase 3C — Analytics (deepen the evidence)
-- **Alpha attribution** — decompose returns by sector / market-cap / factor /
-  individual holdings (was it NVDA/MSFT/META = 70% of alpha, or diversified?).
-- **Capacity analysis** — $100K → $100M (momentum saturates).
-- **Meta-research** ("research about research") — which factor families / universes
-  / parameter ranges historically survive OOS.
+### Phase 3.5 — Paper Validation (reviewer ⭐⭐⭐⭐; the bridge to live)
+A clean gate between research and live: research-passed → **paper account → ~90
+days → revalidation → promotion**. Formalizes the deployment-axis transition
+(PAPER → LIVE_READY) with paper evidence, using the §4 revalidation + gate.
 
-### Deferred niceties (fold in opportunistically, not a phase)
-Experiment **tags**, **baseline-comparison** fields on experiments, **resource
-metrics** (runtime/memory/rows), experiment **lineage visualization** + research
-**KPI** dashboard pages. (All explicitly deferred in the Phase-2 review — add when a
-real experiment shows the need.)
+### Factor-library expansion (parallel track within Phase 3/4)
+Grow ~7 → 20–40 versioned **features** (Growth / Profitability / Capital-allocation
+/ Risk / Liquidity), each gated IS/OOS. Run against cohorts in Phase 4.
 
-### Phase 4 (later) — broaden the universe
-Top-200 → top-1000 (small/mid/international); re-run Value/Quality/Growth/multi-
-factor through the same pipeline. **Gated on** the FMP **as-reported** ingest +
-**delisted-name fundamental coverage** verification (per the FMP PIT-assumptions
-doc) before any *positive* result is trusted.
+### Cross-cutting: Research Scorecard (reviewer ⭐⭐⭐⭐)
+Every completed experiment gets a scorecard — statistical quality, OOS stability,
+turnover, capacity, robustness, regime stability, confidence → an **overall 0–100**
+research score (extends the §3 confidence score; surfaced on the dashboard). Easier
+to read than many individual metrics.
+
+### Deferred niceties (opportunistic, not a phase)
+Experiment **tags**, **baseline-comparison** fields, **resource metrics**
+(runtime/memory/rows), experiment **lineage viz** + research **KPI** dashboard
+pages + a **research-timeline** page (RangeTrader rejected → Momentum validated →
+…). Add when a real experiment shows the need.
+
+### Phase 4 (later) — broaden the universe by **cohort**
+Not just top-200 → top-1000: define **size cohorts** (mega / large / mid / small /
+micro) and compare Momentum / Quality / Growth **across cohorts** (richer than a
+single bigger universe). **Gated on** the FMP **as-reported** ingest +
+**delisted-name fundamental coverage** verification (FMP PIT-assumptions doc) before
+any *positive* result is trusted.
 
 ### Phase 5 (much later)
 Options / futures / ETFs / international — only after the equity platform is mature
 (a platform project, not a strategy project).
+
+### Recommended phase order (reviewer's final)
+Phase 2 (done) → **§3.0 registries** → **3A Portfolio Construction Research** →
+**3B Analytics** → **3.5 Paper Validation** → **Phase 4 broaden (cohorts)** →
+Phase 5 options. Factor expansion + the scorecard run as parallel tracks. Each
+stage builds on validated evidence from the previous one.
 
 ---
 
@@ -109,4 +141,17 @@ Options / futures / ETFs / international — only after the equity platform is m
    because the store's `tickers.sector` is empty — the crash study showed 24–56%
    tech concentration at troughs).
 3. Wire **continuous revalidation** to the scheduler (monthly) once strategy
-   run-configs are persisted (the core `revalidate()` is built and tested).
+   run-configs are persisted (the core `revalidate()` is built and tested). Add a
+   **quarterly full research replay** (recompute all factors / IC / rankings /
+   evidence on newest data) to detect silent drift.
+
+---
+
+## §3.0 implementation note (execution started — no further design review)
+
+Per the review ("stop expanding, start executing"), Phase 3 execution begins with
+the foundational registries (§3.0): `portfolio_models`, `benchmarks`, `cost_models`
+added to `ResearchStore` (typed records + `record_*`/`get_*`/`list_*` + experiment
+FK references), following the §1 pattern. These unblock 3A (portfolio construction
+research references portfolio/benchmark/cost-model ids). Subsequent steps proceed in
+the recommended order without additional upfront design rounds.
