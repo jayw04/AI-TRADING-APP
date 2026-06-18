@@ -3,6 +3,7 @@
 from app.research.promotion.gate import (
     BOOK_BACKTEST_PROFILE,
     FACTOR_IC_PROFILE,
+    PORTFOLIO_BACKTEST_PROFILE,
     PROFILES,
     ComponentScore,
     Criterion,
@@ -28,4 +29,5 @@ __all__ = [
     "PROFILES",
     "BOOK_BACKTEST_PROFILE",
     "FACTOR_IC_PROFILE",
+    "PORTFOLIO_BACKTEST_PROFILE",
 ]

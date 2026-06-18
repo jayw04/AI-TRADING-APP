@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import date
 
 from app.research.engine.orchestrator import ExperimentConfig, ResearchArtifact, RunnerResult
 
@@ -41,3 +42,50 @@ def factor_ic_runner(config: ExperimentConfig) -> RunnerResult:
         metrics_summary=summary, metrics_detail=detail,
         artifacts=[ResearchArtifact("factor_rankings", "factor_rankings.json", rankings)],
     )
+
+
+def portfolio_construction_runner(config: ExperimentConfig) -> RunnerResult:
+    """Run one portfolio-construction backtest (a weighting method × overlay on the
+    frozen momentum signal) and package the standard evidence bundle + scorecard
+    metrics (Phase 3A §4.5). Reuses ``run_momentum_backtest`` — computes nothing here.
+
+    ``config.params`` keys (all optional except the window):
+      ``store_path`` (factor store; default store), ``start``/``end`` (ISO dates),
+      ``n``, ``top_quantile``, ``lookback_days``, ``skip_days``, ``turnover_cost_bps``,
+      ``initial_equity``, ``weighting`` (equal_weight|inverse_vol|risk_parity_diagonal),
+      ``vol_lookback_days``, ``vol_target_annual`` (overlay; from the risk model),
+      ``is_oos_split`` (ISO date for the IS/OOS Sharpe ratio),
+      ``sector_completeness_min`` (health-check threshold, default 0 = off).
+    """
+    from app.factor_data.backtest import run_momentum_backtest
+    from app.factor_data.store import FactorDataStore
+    from app.research.engine.portfolio_eval import shape_portfolio_result
+
+    p = config.params
+    if "start" not in p or "end" not in p:
+        raise ValueError("portfolio_construction_runner requires params 'start' and 'end'")
+
+    # Only forward keys that are present, so run_momentum_backtest's own conservative
+    # defaults apply for anything the caller omits.
+    casts = {
+        "n": int, "top_quantile": float, "lookback_days": int, "skip_days": int,
+        "turnover_cost_bps": float, "initial_equity": float, "weighting": str,
+        "vol_lookback_days": int, "vol_target_annual": float,
+    }
+    kwargs = {k: cast(p[k]) for k, cast in casts.items() if p.get(k) is not None}
+
+    store_path = p.get("store_path")
+    store = FactorDataStore(db_path=store_path, read_only=True) if store_path \
+        else FactorDataStore(read_only=True)
+    try:
+        report = run_momentum_backtest(
+            store, date.fromisoformat(str(p["start"])), date.fromisoformat(str(p["end"])),
+            **kwargs,
+        )
+        split = date.fromisoformat(str(p["is_oos_split"])) if p.get("is_oos_split") else None
+        return shape_portfolio_result(
+            report, store, is_oos_split=split,
+            sector_completeness_min=float(p.get("sector_completeness_min", 0.0)),
+        )
+    finally:
+        store.close()

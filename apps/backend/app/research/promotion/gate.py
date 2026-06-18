@@ -148,9 +148,46 @@ FACTOR_IC_PROFILE = GateProfile(
     ],
 )
 
+# portfolio_backtest — Phase 3A §4.7a FROZEN GO/NO-GO thresholds (pre-registered
+# before the study runs — §5c discipline). Risk-adjusted + downside only; raw return is
+# deliberately NOT a criterion. Component-tagged for the transparent scorecard (§4.7).
+# min_confidence=70 is a deployable-research bar above the bare weighted average; a
+# method scoring <70 is NO-GO even if individual criteria pass. evidence = n_rebalances
+# (floor 52 ≈ 1yr weekly → INCONCLUSIVE below; strong 156 ≈ 3yr → GO vs GO_WARNING).
+#
+# ⚠ A GO here means research-VALIDATED, NOT deployable. It transitions only the
+# experiment's research_state → VALIDATED; it does not touch any deployment_state,
+# the live paper book (id=2), or authorize trading. Deployment stays an owner decision
+# via the promotion-workflow runbook (ADR 0019). (§4.7 do-not-promote reminder.)
+PORTFOLIO_BACKTEST_PROFILE = GateProfile(
+    name="portfolio_backtest",
+    evidence_key="n_rebalances", evidence_floor=52, evidence_strong=156,
+    min_confidence=70,
+    criteria=[
+        ge("sharpe", 0.5, label="book Sharpe >= 0.5", weight=2.0, component="statistical"),
+        ge("sortino", 0.7, label="Sortino >= 0.7", weight=1.0, component="statistical"),
+        ge("excess_sharpe", 0.0, label="excess Sharpe >= 0 (vs benchmark)",
+           weight=1.0, component="statistical"),
+        ge("oos_is_sharpe_ratio", 0.8, label="OOS Sharpe >= 0.8x IS Sharpe",
+           weight=2.0, component="oos_stability"),
+        ge("rolling_sharpe_positive_frac", 0.55, label="rolling Sharpe positive >= 55%",
+           weight=1.0, component="oos_stability"),
+        ge("excess_max_dd", 0.0, label="max DD <= benchmark maxDD (excess_max_dd >= 0)",
+           weight=2.0, component="drawdown"),
+        ge("calmar", 0.5, label="Calmar >= 0.5", weight=1.0, component="drawdown"),
+        le("turnover_annual", 4.0, label="annual turnover <= 400%",
+           weight=1.0, component="turnover"),
+        le("max_weight_change", 0.25, label="single-name weight stability <= 0.25",
+           weight=1.0, component="turnover"),
+        le("avg_adv_participation", 0.02, label="ADV participation <= 2%",
+           weight=1.0, component="capacity"),
+    ],
+)
+
 PROFILES: dict[str, GateProfile] = {
     "book_backtest": BOOK_BACKTEST_PROFILE,
     "factor_ic": FACTOR_IC_PROFILE,
+    "portfolio_backtest": PORTFOLIO_BACKTEST_PROFILE,
 }
 
 
