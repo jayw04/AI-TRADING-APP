@@ -1,99 +1,158 @@
-# Factor Data Acquisition Guide — unlocking Value & Quality (SF1)
+# Factor Data Acquisition Guide — current architecture (FMP) and the SF1 upgrade path
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 — for the owner (a business + setup decision) |
-| Date | 2026-06-16 |
-| Purpose | Exactly what data to acquire (and how) to unlock the Value/Quality + multi-factor research the report recommends, with verification and code implications. |
-| Related | `TradingWorkbench_Strategy_Research_Report_v1.0.md` (§4 data blocker); `factor_research.py` |
+| Document version | v0.2 — revised. **Supersedes the v0.1 premise that "SF1 is the blocker."** |
+| Date | 2026-06-18 |
+| Purpose | Where factor data comes from **today** (prices + fundamentals), what that data has already told us, and when — if ever — to buy the Sharadar SF1 fundamentals bundle. |
+| Audience | The owner (a business + setup decision), and any future-self reconstructing the data architecture. |
+| Related | ADR 0018 (PIT factor data: FMP + Sharadar); `TradingWorkbench_FMP_vs_SF1_Eval_v0.1.md`; `TradingWorkbench_Strategy_Research_Report_v1.0.md` §5.4 (Value/Quality result); `app/factor_data/providers/fmp.py`, `scripts/ingest_fmp.py`, `app/factor_data/factors/fundamental.py` |
+
+> **What changed since v0.1.** v0.1 (2026-06-16) framed Sharadar **SF1** as the data blocker for Value/Quality research and recommended buying the "Core US Fundamentals" bundle. That premise is **obsolete**: the existing **FMP** key already supplies point-in-time fundamentals, the Value/Quality study has since **run to completion**, and the conclusion was *not* "we can't test" — it was "**those factors don't improve our current universe.**" This revision documents the real, shipped architecture and reframes SF1 as an **optional future upgrade**, not a prerequisite.
 
 ---
 
-## 1. What's missing, and the proof
+## 1. TL;DR
 
-The factor engine works; the **data subscription** is the gate. We use **Nasdaq Data Link** with the **Sharadar** publisher. Today's entitlement covers **SEP (daily prices)** — that's why momentum (price-based) studied fine — but **NOT the fundamentals table SF1**.
+- **The data block is solved — nothing needs to be bought.** Prices come from Sharadar **SEP**; fundamentals come from **FMP** (Financial Modeling Prep) on its `/stable` API, using a key we **already own**. Both are read-only, point-in-time, and sanctioned by **ADR 0018**.
+- **Value & Quality were already tested** (Research Report §5.4, v1.1). On the top-200-liquid universe, IS 2016–22 / OOS 2023–26, **every value/quality factor is negative or flat out-of-sample; only momentum survives.** This is a *universe + regime* result (mega-caps in a growth/momentum regime), **not** "value is dead." The multi-factor book is therefore **deferred, not built**.
+- **Sharadar SF1 is sample-only on our current Nasdaq key** (2 annual rows for AAPL) and is **not used** — there is no `sf1` table in the store. We don't need it, because FMP covers the same Value/Quality inputs.
+- **SF1 becomes worth buying only at a later stage** (broad multi-factor research, institutional deployment, external investors). See the decision table in §4.
 
-Evidence (probed 2026-06-16, current key):
+---
+
+## 2. Current data architecture
 
 ```
-AAPL SF1 (no filter)  -> 2 rows, dimension=MRY, datekeys 2022-09-24 .. 2023-09-30
-AAPL SF1 dimension=ARQ -> 0 rows
+ PRICES                                  FUNDAMENTALS
+ ──────                                  ────────────
+ Sharadar SEP                            FMP  (/stable API, existing key)
+   │  daily OHLCV (adj/unadj)              │  income / balance / cash-flow / ratios / key-metrics
+   ▼  scripts/ingest_sharadar.py           ▼  scripts/ingest_fmp.py
+ store: sep                              store: fundamentals  (PIT: accepted_date)
+   │                                       │
+   ▼                                       ▼
+ momentum factor  (PRODUCTION)           value + quality factors  (TESTED → no OOS edge yet)
+   app/factor_data/factors/momentum.py     app/factor_data/factors/fundamental.py
+
+ UNIVERSE / METADATA
+ ───────────────────
+ Sharadar TICKERS + ACTIONS  →  store: tickers, actions  (PIT universe, sector/industry, splits)
 ```
 
-Two annual rows ending 2023 is a **sample**, not a subscription. A point-in-time Value/Quality study needs years of quarterly fundamentals across the universe → **blocked by data, not code.**
+**Store tables** (`app/factor_data/store.py`; DuckDB at `apps/backend/data/factor_data.duckdb`, plus the full-history `factor_data_full.duckdb`):
 
-## 2. What to acquire (recommended: stay on Sharadar)
-
-Sharadar splits its catalog into bundles. We have the **prices** bundle; we need the **fundamentals** bundle:
-
-| Sharadar table | Bundle | Have? | Gives |
+| Table | Source | Holds | Feeds |
 |---|---|---|---|
-| **SEP** | Equity Prices | ✅ | daily OHLCV (prices → momentum) |
-| **SF1** | **Core US Fundamentals** | ❌ | financial statements + derived: revenue, EBITDA, net income, FCF, **ROIC, ROE**, gross profit, debt, shares, **enterprise value** → **Quality** + raw Value |
-| **DAILY** | **Core US Fundamentals** | ❌ | daily-updated valuation ratios: marketcap, ev, **pe, pb, ps, evebit, evebitda**, divyield → **Value** (ready-made, no computation) |
-| TICKERS / ACTIONS | both | ✅ | metadata, corporate actions |
+| `sep` | Sharadar SEP | daily OHLCV, `closeadj`/`closeunadj` | momentum (price factors) |
+| `fundamentals` | **FMP** `/stable` | revenue, gross profit, EBITDA, net income, FCF, debt, equity, assets, shares, EV — with `filing_date` + **`accepted_date`** | value + quality factors |
+| `tickers` | Sharadar TICKERS | universe metadata + `sector`/`industry` | PIT universe, sector caps |
+| `actions` | Sharadar ACTIONS | splits / dividends / delistings | corporate-action handling |
+| `ingest_runs` | — | ingest bookkeeping (idempotency) | — |
 
-**Target product: "Sharadar Core US Fundamentals"** (provides SF1 **and** DAILY). SF1 covers Quality; DAILY gives clean daily valuation ratios for Value with minimal computation and built-in point-in-time correctness.
+**Point-in-time discipline (the correctness invariant).** Fundamental factors join on **`accepted_date <= as_of`** — the SEC acceptance timestamp, i.e. the date the statement was actually knowable — so no factor can read a filing before it existed. Prices use trading-day row offsets on or before `as_of`. This is what keeps the survivorship-free / no-look-ahead guarantee (ADR 0018).
 
-**Why stay on Sharadar:** our provider **already fetches SF1** (the probe returned the full SF1 schema — `assets, bvps, roic, ev, …`). So no fetch-layer rewrite; just the subscription + a small ingest/accessor build (§5). Sharadar is also **survivorship-free** and **point-in-time** via the `datekey` field (the as-of date the data was knowable) — exactly what we need to avoid look-ahead.
+---
 
-## 3. How to subscribe (Nasdaq Data Link)
+## 3. What the data has already told us
 
-1. **Sign in** with the account tied to the current API key: `https://data.nasdaq.com/`  → Account.
-2. **Check current entitlements:** `https://data.nasdaq.com/account/subscriptions` (a.k.a. "My Data Products"). You'll likely see a Sharadar **prices/SEP** product but **not** Core US Fundamentals — that matches our probe.
-3. **Open the product page:** Sharadar Core US Fundamentals — `https://data.nasdaq.com/databases/SF1`. (Catalog: `https://data.nasdaq.com/publishers/SHARADAR`.)
-4. **Subscribe.** Sharadar offers a lower-cost **personal/non-commercial** tier and a higher **commercial** tier — *confirm current pricing on the product page* (it changes; I'm not quoting a number to avoid staleness). For our research use, personal/non-commercial is typically the right tier — verify the license matches paper/research use.
-5. Same API key is used; no new key needed.
+The Value/Quality factor code is **implemented** (`app/factor_data/factors/fundamental.py`): Value = `earnings_yield`, `fcf_yield`, `sales_yield`; Quality = `roe`, `gross_profitability`, `roic`, `debt_to_equity`. It was run against FMP fundamentals (197/200 names, 5,762 annual statements) via `scripts/factor_research.py --with-fundamentals`.
 
-## 4. Verify (before paying, and after)
+**Result (Research Report §5.4, v1.1 — top-200 liquid names, IS 2016–22 / OOS 2023–26):**
 
-**Before (sanity — should still show the 2-row sample):**
+| Factor | OOS IC | OOS LS-Sharpe | Verdict |
+|---|---|---|---|
+| `mom_12` | +0.060 | **+1.33** | ✅ the edge |
+| `debt_to_equity` | +0.001 | +0.87 | flat / noise |
+| `gross_profitability` | −0.017 | −1.47 | ❌ IS t≈1.9 → collapses OOS |
+| `roic` | −0.031 | −1.79 | ❌ negative |
+| `roe` | −0.038 | −1.82 | ❌ negative |
+| `earnings_yield` | −0.041 | −1.78 | ❌ negative |
+| `fcf_yield` | −0.053 | −1.92 | ❌ negative |
+
+**Why** (not "value is dead"): top-200-by-liquidity = mega-caps; 2023–26 was an extreme growth/momentum regime where cheap/defensive lost. The value/quality factors are highly inter-correlated (0.8–0.97), correlated with low-vol (also negative OOS), and **negatively correlated with momentum on this universe** — they are momentum's opposite here, not a diversifier. So: **do not blend them into the momentum book; the multi-factor book is deferred** until a broader universe / different regime justifies a re-test.
+
+Momentum (the 12-month variant) is the production edge and the basis for the P10 portfolio-construction research.
+
+---
+
+## 4. The SF1 question — optional upgrade, not a blocker
+
+Sharadar **SF1** (Core US Fundamentals) is **sample-only** on our current Nasdaq Data Link key — probing it returns ~2 annual rows for AAPL, not a subscription. We **do not ingest it** and there is **no `sf1` table**. That is fine, because FMP already provides everything Value/Quality needs (quarterly + annual, ~40y back to 1986, PIT timestamps). The `TradingWorkbench_FMP_vs_SF1_Eval_v0.1.md` evaluation reached the same conclusion: **no purchase needed today.**
+
+SF1's advantages over FMP are about *institutional confidence*, not *capability*: a single survivorship-free vendor with rigorously reconciled point-in-time `datekey`s and uniform coverage. Those matter at a later maturity stage, not for current research.
+
+### When should we upgrade to SF1?
+
+| Situation | Buy SF1? | Why |
+|---|---|---|
+| Current momentum book | **No** | Price-only; SF1 irrelevant. |
+| Current portfolio-construction research (P10 §3) | **No** | Uses prices + the existing FMP fundamentals; no gap. |
+| Broader multi-factor research (more names, deeper history, higher PIT confidence) | **Maybe** | If FMP coverage/restatement handling becomes the limiting factor, SF1's uniform PIT history is worth pricing. |
+| Institutional deployment | **Yes** | A single audited, survivorship-free vendor simplifies the data-lineage story. |
+| External investors / audited track record | **Yes** | Reproducible PIT provenance from one reconciled source. |
+
+---
+
+## 5. If/when you upgrade — the (small) code work
+
+The pipeline is already fundamentals-shaped (FMP), so adding SF1 later is **additive and bounded**, not a rewrite:
+
+1. **Subscribe** to Sharadar "Core US Fundamentals" (SF1 + DAILY) on the same Nasdaq key — confirm current pricing and that the license matches research/paper use on the product page (`https://data.nasdaq.com/databases/SF1`).
+2. **Store:** add an `sf1` table (PK `ticker, dimension, datekey`) and optionally `daily` — mirror the existing `sep`/`fundamentals` ingest pattern in `store.py`.
+3. **Ingest:** extend `scripts/ingest_sharadar.py` to pull SF1 (dimensions ARQ + MRQ) and DAILY, bounded by `--from` for the rate cap.
+4. **Accessor:** a PIT `get_fundamentals(ticker, as_of)` join on `datekey <= as_of` — the same discipline the FMP path already uses with `accepted_date`.
+5. **Factors:** the value/quality factors in `fundamental.py` already exist; point them at the SF1-backed source and **re-run the IS/OOS study on the broader universe** the upgrade enables. The interesting question is whether value/quality earn their keep *off the mega-cap universe* — that is the actual reason to buy SF1, not "to test at all."
+
+Estimate: ~1–2 days once the data is live (the factor engine and study harness are reusable).
+
+---
+
+## 6. Verify the current path (no purchase required)
+
+**Fundamentals are already in the store** — confirm with a read-only query:
+
 ```bash
 cd apps/backend
-PYTHONPATH=. .venv/Scripts/python.exe -c "
-import truststore; truststore.inject_into_ssl()
-from dotenv import load_dotenv; load_dotenv('../../.env')
-from app.factor_data.providers.sharadar import SharadarProvider
-with SharadarProvider() as p:
-    df = p.fetch_table('SF1', ticker='AAPL')
-    print(len(df), 'rows; dims', sorted(df['dimension'].unique()) if len(df) else [])
+.venv/Scripts/python.exe -c "
+import duckdb
+con = duckdb.connect('data/factor_data.duckdb', read_only=True)
+n, ntk = con.execute('SELECT count(*), count(DISTINCT ticker) FROM fundamentals').fetchone()
+print(f'{n} fundamental rows across {ntk} tickers')
+print('PIT column present:', 'accepted_date' in [c[0] for c in con.execute('DESCRIBE fundamentals').fetchall()])
 "
 ```
-Today this prints `2 rows; dims ['MRY']`.
+Expected today: `5762 fundamental rows across 197 tickers` and `PIT column present: True`.
 
-**After upgrade — expect hundreds of rows across dimensions (ARQ/MRQ quarterly back many years):**
-```python
-import nasdaqdatalink  # pip name: nasdaq-data-link
-nasdaqdatalink.ApiConfig.api_key = "<key>"
-df = nasdaqdatalink.get_table("SHARADAR/SF1", ticker="AAPL", paginate=True)
-print(len(df), df["datekey"].min(), df["datekey"].max())   # want hundreds, back to ~2016+
+**Re-run the factor study with fundamentals** (regenerates `research/factor_report.md`):
+
+```bash
+cd apps/backend
+.venv/Scripts/python.exe scripts/factor_research.py --with-fundamentals --n 200 --split 2023-01-01
 ```
-Success = many rows with quarterly `datekey`s spanning years; failure = still ~2 rows.
+Expected: momentum positive OOS; value/quality factors negative or flat OOS (the §5.4 result).
 
-## 5. What it unlocks + the (small) code work
+**Re-ingest / extend FMP fundamentals** (if adding names or refreshing):
 
-Once SF1/DAILY data flows, the build is bounded (the fetch already works):
+```bash
+cd apps/backend
+.venv/Scripts/python.exe scripts/ingest_fmp.py --tickers AAPL,MSFT --period annual
+```
 
-1. **Store:** add an `sf1` table (PK `ticker, dimension, datekey`) + a `daily` table — mirror the existing `sep` ingest pattern in `store.py`.
-2. **Ingest:** extend `scripts/ingest_sharadar.py` to pull `SF1` (dimensions ARQ + MRQ) and `DAILY`, bounded by `--from` for the rate cap, per-ticker for the universe.
-3. **Accessor:** `get_fundamentals(ticker, as_of)` doing a **point-in-time** join (`datekey <= as_of` — never read a statement before it was filed). This is the key correctness step.
-4. **Factors:** add to `factor_research.py` — Value (EV/EBIT, FCF yield, earnings yield from DAILY/SF1), Quality (ROIC, ROE, gross profitability, D/E from SF1). They plug into the existing engine as `(panel, as_of) → Series`.
-5. **Re-run** the IS/OOS study → answer "does Quality + Value improve Momentum on our universe?" → if yes, build the composite multi-factor book.
+---
 
-Estimate: ~1–2 days once the data is live.
+## 7. References
 
-## 6. Alternatives (if not Sharadar)
+- **ADR 0018** — `docs/adr/0018-point-in-time-factor-data-fmp-sharadar.md` — sanctions FMP + Sharadar as read-only external data dependencies with PIT discipline; never touch the order path.
+- **FMP vs SF1 evaluation** — `docs/implementation/TradingWorkbench_FMP_vs_SF1_Eval_v0.1.md` — "the data block is effectively already solved; no purchase needed"; FMP `/stable` returns ~40y quarterly+annual with `acceptedDate`.
+- **Value/Quality result** — `docs/implementation/TradingWorkbench_Strategy_Research_Report_v1.0.md` §5.4 (v1.1) — no robust OOS edge on the current universe; multi-factor book deferred.
+- **Code** — provider `app/factor_data/providers/fmp.py`; ingest `scripts/ingest_fmp.py`; factors `app/factor_data/factors/fundamental.py`; store schema `app/factor_data/store.py`; study `scripts/factor_research.py`.
 
-| Source | Pros | Cons |
-|---|---|---|
-| **FMP** (Financial Modeling Prep) | cheap; income/balance/cashflow + ratios (ROE, ROIC); also has options chains | **new provider needed** (our pipeline is Sharadar-shaped); PIT/restatement handling is on us; coverage/quality varies |
-| **Polygon.io** | API-first, good docs, solid US coverage | new provider; reworks the ingestion layer |
+---
 
-Both require building a **new provider + PIT layer** (more code than the Sharadar upgrade, which reuses everything). FMP is the budget option and you already have an FMP key — worth pricing against Sharadar, but I'd stay on Sharadar for minimal code + survivorship-free PIT, unless cost is decisive.
+## 8. Out of scope for this guide
 
-## 7. Recommendation
-
-1. **Verify** current SF1 entitlement (the probe above — already confirms it's a sample).
-2. **Price** the Sharadar **Core US Fundamentals** subscription (personal tier) on the product page.
-3. If the cost is acceptable, **subscribe**, then run the after-upgrade verification and start Value/Quality research (the engine + ~1–2 day ingest build is ready).
-4. **In parallel — no data needed:** the report's Priority 1 (**Momentum 6-1 → 12-month upgrade**) and Priority 2 (**risk overlays**). These don't depend on SF1 and are the highest-confidence near-term wins.
+- **Building the multi-factor book** — deferred per §3; it is a research decision gated on a broader universe / regime, not a data-acquisition task.
+- **Adding a new external data vendor** (Polygon, etc.) — would require its own ADR (ADR 0018 governs the current two: FMP + Sharadar).
+- **Options / alternative-data acquisition** — out of the factor-research scope; the program direction is factor equities, not options.
+- **The momentum upgrade and risk overlays** — those are price-only research items tracked in the Research Report, independent of fundamentals.
