@@ -252,6 +252,42 @@ handled. If you rebuild on a fresh box, expect these:
    (else `ctx.factors` is disabled in the container). The lifespan logs
    `factor_accessor_provisioned` when it finds it.
 
+## 5f. Portfolio construction research study (P10 Phase 3A §4.8)
+
+`scripts/research_portfolio_study.py` runs the **first construction comparison study**:
+the frozen momentum signal under each weighting method × {no overlay, vol-target 15%},
+each recorded as a content-addressed Research-Engine experiment, gated by the
+pre-registered `portfolio_backtest` scorecard, then compared cross-method **and per
+regime** into one decision report.
+
+```bash
+cd apps/backend
+.venv/Scripts/python.exe scripts/research_portfolio_study.py \
+    --store data/factor_data_full.duckdb \
+    --start 2007-01-01 --end 2026-06-12 --n 200 --top-quantile 0.20
+```
+
+- **Methods (§0 Q4):** `equal_weight` (default, byte-for-byte the §5c book), `inverse_vol`
+  (1/σ on a trailing 63-day realized-vol window, no look-ahead), and
+  `risk_parity_diagonal` — which **is** inverse-vol in v1 (diagonal covariance, Gotcha
+  5). So the study is *materially* a two-method comparison; the report says so plainly.
+- **Run the full-history store** (`factor_data_full.duckdb`, ~28.5 yr) and read
+  **ΔmaxDD across methods relatively** — the deep-history pool is survivorship-biased,
+  so cross-method deltas are the trustworthy signal, not absolute returns (§0 Q6).
+- **Evidence bundle:** every experiment emits the same artifact set (equity / drawdown /
+  rolling Sharpe·vol·turnover / sector-weights-over-time / top-holdings / rebalance-log).
+  Per §4.9, the **comparison report (markdown) is committed**; the bulky curves are
+  gitignored under `research/portfolio_study/` and regenerable from the experiment.
+- **Gate = `portfolio_backtest`** with the FROZEN §4.7a thresholds (min confidence 70,
+  max turnover 400%, maxDD ≤ benchmark, ≥ 52 rebalances, ADV participation ≤ 2%). Raw
+  return is deliberately not a criterion.
+- **⚠ A GO is research-VALIDATED, NOT deployable.** It transitions only the experiment's
+  `research_state`; it never touches a `deployment_state`, the live paper book (id=2), or
+  routes an order. Deployment stays owner-gated (ADR 0019, `promotion-workflow.md`).
+- After it runs, all six registries hold real rows and the experiments carry the four
+  FKs (`portfolio_id`/`benchmark_id`/`cost_model_id`/`risk_model_id`) + component scores
+  — the §3.0 registries are no longer inert. View with `scripts/research_dashboard.py`.
+
 ## 6. Key hygiene
 
 `NASDAQ_DATA_LINK_API_KEY` is read via `get_settings().nasdaq_data_link_api_key`

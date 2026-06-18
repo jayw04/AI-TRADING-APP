@@ -9,6 +9,8 @@ from app.research.engine.orchestrator import (
     fingerprint,
     run_experiment,
 )
+from app.research.engine.portfolio_eval import build_evidence_bundle, shape_portfolio_result
+from app.research.engine.runners import factor_ic_runner, portfolio_construction_runner
 
 __all__ = [
     "ExperimentConfig",
@@ -17,4 +19,8 @@ __all__ = [
     "RunnerResult",
     "fingerprint",
     "run_experiment",
+    "factor_ic_runner",
+    "portfolio_construction_runner",
+    "build_evidence_bundle",
+    "shape_portfolio_result",
 ]

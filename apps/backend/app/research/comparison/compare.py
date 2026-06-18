@@ -14,8 +14,12 @@ from typing import Any
 from app.research.registry import ResearchStore
 
 # Lower-is-better metrics; everything else (Sharpe, CAGR, IC, confidence,
-# max_drawdown-as-negative-fraction) is higher-is-better.
-_LOWER_BETTER = frozenset({"turnover", "ann_turnover", "max_drawdown_abs", "duration_ms"})
+# max_drawdown-as-negative-fraction) is higher-is-better. (Phase 3A adds the portfolio
+# turnover/capacity keys — less turnover / smaller ADV footprint / shallower swings win.)
+_LOWER_BETTER = frozenset({
+    "turnover", "ann_turnover", "turnover_annual", "max_drawdown_abs", "duration_ms",
+    "ulcer_index", "avg_adv_participation", "max_weight_change", "recovery_days",
+})
 
 
 @dataclass
