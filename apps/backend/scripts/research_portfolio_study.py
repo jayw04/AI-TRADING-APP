@@ -62,10 +62,12 @@ def _dataset_from_store(store_path: str | None):
 
 
 def _record_benchmarks(rstore) -> dict[str, str]:
-    """Versioned benchmark rows by class (§4.8 step 2; SPY deferred — §0 Q5). The
-    registry has no version column, so the version rides in the definition/description
-    text and (via the experiment's benchmark spec) in the content fingerprint, so a
-    methodology change can't silently alter historical comparisons."""
+    """Versioned benchmark rows by class (§4.8 step 2). The registry has no version
+    column, so the version rides in the definition/description text and (via the
+    experiment's benchmark spec) in the content fingerprint, so a methodology change
+    can't silently alter historical comparisons. §3B-3 adds the Market/SPY class —
+    loaded from the committed fixture (scripts/build_spy_fixture.py), Alpaca/IEX depth
+    ~2016+, so its metrics are reported over the book∩SPY overlap."""
     from app.research.registry import BenchmarkRecord
     classes = {
         "factor": BenchmarkRecord(definition="equal_weight_universe", source="sep",
@@ -77,6 +79,8 @@ def _record_benchmarks(rstore) -> dict[str, str]:
         "portfolio": BenchmarkRecord(definition="previous_best_experiment", source="research",
                                      rebalance="weekly",
                                      description="class=Portfolio (prior best book)"),
+        "market": BenchmarkRecord(definition="SPY", source="fixture", rebalance="daily",
+                                  description="class=Market version=v1 (SPY fixture, ~2016+; §3B-3)"),
     }
     return {k: rstore.record_benchmark(v) for k, v in classes.items()}
 
