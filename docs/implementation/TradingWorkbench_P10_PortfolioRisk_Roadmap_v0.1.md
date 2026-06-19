@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.5 (2026-06-19: **frozen as an architectural baseline.** v0.4 git-verified status refresh — §6 #120, §7 #121, §3C #172, §8 survivorship all DONE/effectively-done, only §2/§4/§5 open; v0.5 adds dependency graph, promotion criteria, rollback, architecture-maturity + dependency-rules tables, and ADR lineage. Future changes via new incremental ADRs, not rewrites.) |
+| Document version | v0.6 (2026-06-19: **P10 portfolio-risk CODE-COMPLETE** — §2 daily overlay (#173), §4 exposure smoothing (#174), and §5 regime data/overlay (breadth #175, VIX ingest #176, regime wiring #177) all merged; every roadmap section now on `main`. v0.5 froze the baseline + added the dependency graph, promotion criteria, rollback, architecture-maturity / dependency-rules tables, and ADR lineage.) |
 | Date | 2026-06-19 |
 | Phase | P10 — Portfolio-Level Risk Engineering |
 | Predecessor | P9 §4 `momentum-portfolio` (now v0.5.0+); paper-active id=2 |
 | Repository | github.com/jayw04/AI-TRADING-APP |
 | Scope | Turn the `momentum-portfolio` book from a pure cross-sectional alpha sleeve into a risk-managed portfolio: vol targeting, sector caps, daily exposure overlay, exposure smoothing — *without* adding alpha signals or sacrificing the current simplicity. |
 | Source | Owner's two reviews of `momentum_portfolio.py` (`strategy-review/review comment.md`, 2026-06-15): v1 (10 weaknesses) and **v2 (8 critical issues, re-prioritized)**. |
-| Status | **As of 2026-06-19 (git-verified): §1 vol targeting + walk-forward, §3 strategy sector caps (#118), §6 continuous breaker monitor (#120), §7 fractional shares (#121), §3C research-engine weigher sector cap (#172), and §8 survivorship pool are DONE or effectively done.** Only §2 (daily overlay engine), §4 (exposure smoothing), and §5 (VIX/breadth data) remain genuinely open. See the "Verified status" box below. |
+| Status | ✅ **CODE-COMPLETE as of 2026-06-19 (git-verified): every section (§1–§8, §3C) is merged to `main`.** §1 vol targeting + walk-forward, §2 daily overlay (#173), §3 strategy sector caps (#118), §3C research-weigher cap (#172), §4 exposure smoothing (#174), §5 regime overlay (breadth #175 / VIX ingest #176 / wiring #177), §6 continuous breaker (#120), §7 fractional shares (#121), §8 survivorship pool. **Remaining work is owner-gated, not code:** run the ADR-0022 §7 promotion backtest before *enabling* the regime overlay (default-off; same posture as §1 vol-scaling). See the "Verified status" box. |
 
 ---
 
@@ -25,23 +25,23 @@ The body below is preserved as the original reasoning, but several items it mark
 | §6 — continuous breaker monitor | ✅ done | PR #120 — `app/jobs/breaker_monitor.py` + `CircuitBreakerService.evaluate()` + 60s lifespan job |
 | §7 — fractional shares | ✅ done (default off) | PR #121 |
 | §8 — survivorship-unbiased pool | ✅ **effectively done** | broad SEP ingest already present: 38.99M rows / 14,150 tickers / **8,322 delisted** / history to 1997; GFC-2008 rankable pool 6,083 names @ 99.7% coverage, 66% delisted. `universe_asof` is survivorship-free by construction. |
-| **§2 — daily overlay engine** | ❌ **OPEN** | no overlay-engine code exists; needs a session doc + framework ADR first |
-| **§4 — exposure smoothing** | ❌ **OPEN** | smallest open item |
-| **§5 — VIX / breadth data** | ❌ **OPEN** | needs a data-dependency ADR |
+| **§2 — daily overlay engine** | ✅ **done (default off)** | PR #173 — `app/strategies/overlay/` + optional `daily_overlay_schedule` engine cadence + ADR 0020 |
+| **§4 — exposure smoothing** | ✅ **done (default off)** | PR #174 — optional `gross_smooth_span` EWMA damping in `overlay.desired_gross` |
+| **§5 — regime data (breadth + VIX)** | ✅ **done (default off)** | ADR 0022 + PR #175 (breadth `regime.market_breadth`), #176 (`^VIX` ingest + `vix_percentile`), #177 (wiring into `desired_gross`) |
 
-**Net:** the only remaining portfolio-risk work is **§2, §4, §5**. §8's original premise ("today's ~1,252 survivors, survivorship-biased") is obsolete — and the "survivorship-biased" caveat stamped on the §3A/§3B study and walk-forward reports is now over-conservative for this store. (TICKERS-as-ingested carries no size/liquidity column, but delisted names' SEP is already present, so the pool is rankable and unbiased.)
+**Net:** **P10 portfolio-risk is code-complete — every section is on `main`.** The regime overlay (§5) and the daily/smoothing overlays (§2/§4) ship **default-off**; the only remaining work is **owner-gated, not code** — run the ADR-0022 §7 promotion backtest (survivorship-free + IS/OOS + walk-forward + paper) before *enabling* `use_daily_overlay` / `use_breadth_overlay` / `use_vix_overlay`, and populate breadth/`^VIX` in the live container store at that point. §8's original premise ("today's ~1,252 survivors, survivorship-biased") is obsolete — the "survivorship-biased" caveat on the §3A/§3B study and walk-forward reports is now over-conservative for this store (delisted names' SEP is present, so the pool is rankable and unbiased).
 
-### Dependency graph of the open items
+### Dependency graph (all shipped — kept for the record)
 
 ```
-§2 daily overlay engine  ──▶  §4 exposure smoothing  ──▶  §5 VIX/breadth signals
-(scalar gross, default off)   (damp the gross series)      (richer inputs to the scale;
-                                                            needs a data-dep ADR)
+§2 daily overlay engine  ──▶  §4 exposure smoothing  ──▶  §5 regime signals (breadth + VIX)
+✅ #173 (default off)          ✅ #174 (damp the gross)     ✅ #175/#176/#177 (default off)
 ```
 
-Each is a **separate PR** (do NOT combine overlay + smoothing + signals): §4 layers a
-damping function on §2's raw gross series; §5 swaps/extends the scale's *inputs* once a
-data-dependency ADR lands. §2 is the prerequisite for both.
+Each shipped as a **separate PR** (not combined): §4 layers a damping function on §2's raw
+gross series; §5 folds breadth + the VIX percentile into the scale (data-dependency settled
+by ADR 0022). §2 was the prerequisite for both. All default-off pending the ADR-0022 §7
+promotion backtest.
 
 ### Promotion criteria (every P10 feature, mirroring strategy promotion)
 
@@ -66,7 +66,7 @@ unwind, no schema rollback.
 | Data (PIT factor store) | Production |
 | Research Engine | Production |
 | Portfolio (construction, sector caps) | Production |
-| Overlay (gross-exposure) | Planned (§2 — ADR 0020) |
+| Overlay (gross-exposure: vol-target + smoothing + regime) | Built, default-off (§2/§4/§5 — ADR 0020/0022; pending §7 backtest to enable) |
 | Execution (routing via OrderRouter) | Integrated (no standalone engine yet) |
 | Risk (gates + circuit breaker + continuous monitor) | Production |
 | AI assistance | Experimental / gated |
