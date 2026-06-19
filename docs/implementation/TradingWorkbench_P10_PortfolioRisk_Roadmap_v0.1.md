@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.6 (2026-06-19: **P10 portfolio-risk CODE-COMPLETE** — §2 daily overlay (#173), §4 exposure smoothing (#174), and §5 regime data/overlay (breadth #175, VIX ingest #176, regime wiring #177) all merged; every roadmap section now on `main`. v0.5 froze the baseline + added the dependency graph, promotion criteria, rollback, architecture-maturity / dependency-rules tables, and ADR lineage.) |
+| Document version | v0.6.1 (2026-06-19: + Implemented-vs-Proven-vs-Enabled status table recording the **§5 regime-overlay promotion backtest = NO-GO** (stays default-off); + dependency-rules "must NOT write" column; + partial-fill operational note → ADR 0021. Factual status update to the frozen baseline, not an expansion.) — v0.6: **P10 portfolio-risk CODE-COMPLETE** — §2 daily overlay (#173), §4 exposure smoothing (#174), and §5 regime data/overlay (breadth #175, VIX ingest #176, regime wiring #177) all merged; every roadmap section now on `main`. v0.5 froze the baseline + added the dependency graph, promotion criteria, rollback, architecture-maturity / dependency-rules tables, and ADR lineage.) |
 | Date | 2026-06-19 |
 | Phase | P10 — Portfolio-Level Risk Engineering |
 | Predecessor | P9 §4 `momentum-portfolio` (now v0.5.0+); paper-active id=2 |
@@ -71,18 +71,40 @@ unwind, no schema rollback.
 | Risk (gates + circuit breaker + continuous monitor) | Production |
 | AI assistance | Experimental / gated |
 
+### Implemented vs Proven vs Enabled (validation status)
+
+"Implemented" (code on `main`) is distinct from "Proven" (cleared its promotion
+backtest) and from "Enabled" (running on a book). **All overlays ship default-off.**
+
+| Overlay | Implemented | Proven (ADR-0014/0022 §7) | Enabled |
+|---|---|---|---|
+| §1 vol-target | ✅ | ✅ walk-forward across regimes (a drawdown tool, not a Sharpe booster) | owner-gated |
+| §2 daily overlay | ✅ | ⏳ pending backtest | off |
+| §4 exposure smoothing | ✅ | ⏳ pending backtest | off |
+| §5 regime (breadth + VIX) | ✅ | ❌ **NO-GO** — promotion backtest (weekly + daily-VIX passes, 2026-06-19) shows a drawdown tool with a **Sharpe cost** (worse in 3/5 regime windows, drawdown worse in 1/5); §1 already captures most crisis-window drawdown protection. | off |
+
+The §5 "no" is **recorded, not hidden** — the wiring stays in place, dormant (like the
+rejected value/quality factors; an honest negative result is itself a deliverable).
+Re-evaluating it would need new evidence (e.g. deeper `^VIX` history), not threshold
+tuning (which would overfit).
+
+**Partial fills (operational note):** an overlay re-size that only partially fills leaves
+gross between states; it self-heals on the next overlay cycle and is observable via the
+audit fingerprint (`gross_before`/`gross_after`). Formalized in **ADR 0021** (operational
+recovery contract) — not a roadmap concern.
+
 ### Dependency rules (anti-erosion)
 
 Owning a responsibility is half the contract; the other half is what a layer **may not
 know**. These rules prevent architectural erosion as the layers grow:
 
-| Component | Must NOT depend on |
-|---|---|
-| Research Engine | the broker / order path (ADR 0019, 0002) |
-| Overlay | the factor ranking / alpha scores (it only scales gross — ADR 0020) |
-| Risk Engine | alpha logic / strategy internals |
-| Execution / OrderRouter | the factor model |
-| Broker adapters | strategy or overlay logic |
+| Component | Must NOT depend on | Must NOT write / produce |
+|---|---|---|
+| Research Engine | the broker / order path (ADR 0019, 0002) | orders (read-only; alerts, never trades) |
+| Overlay | the factor ranking / alpha scores (it only scales gross — ADR 0020) | rankings / names (only a scalar gross) |
+| Risk Engine | alpha logic / strategy internals | signals / alpha |
+| Execution / OrderRouter | the factor model | alpha / selection |
+| Broker adapters | strategy or overlay logic | strategy / portfolio state |
 
 ### ADR lineage for this work
 
