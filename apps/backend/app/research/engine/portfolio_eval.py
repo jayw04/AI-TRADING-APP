@@ -472,6 +472,7 @@ def shape_portfolio_result(
     *,
     is_oos_split: date | None = None,
     sector_completeness_min: float = 0.0,
+    benchmark_curve: list[tuple[date, float]] | None = None,
 ) -> RunnerResult:
     """Reshape a ``MomentumBacktestReport`` into the standard portfolio RunnerResult:
     flat ``metrics_summary`` (scorecard input), rich ``metrics_detail`` (regimes,
@@ -512,6 +513,13 @@ def shape_portfolio_result(
         from app.research.engine.attribution import attribution_summary
         attribution = attribution_summary(report, store)
 
+    # §3B-3 SPY/Market benchmark (reporting only — excess/beta/alpha vs the market over the
+    # book∩SPY overlap; the frozen gate's excess_sharpe still uses the equal-weight baseline).
+    spy: dict[str, Any] = {}
+    if benchmark_curve:
+        from app.research.engine.benchmark import benchmark_metrics
+        spy = benchmark_metrics(report.equity_curve, benchmark_curve)
+
     summary: dict[str, Any] = {
         "sharpe": m.sharpe, "sortino": sortino, "calmar": calmar, "ulcer_index": ulcer,
         "cagr": m.cagr, "total_return": m.total_return, "max_drawdown": m.max_drawdown,
@@ -521,7 +529,7 @@ def shape_portfolio_result(
         "excess_sharpe": excess_sharpe, "excess_max_dd": excess_max_dd,
         "turnover_annual": turnover_annual, "n_rebalances": len(report.holdings),
         "oos_is_sharpe_ratio": oos_is_ratio, "rolling_sharpe_positive_frac": pos_frac,
-        **stability, **capacity, **attribution,
+        **stability, **capacity, **attribution, **spy,
     }
 
     detail: dict[str, Any] = {
@@ -543,6 +551,7 @@ def shape_portfolio_result(
         "stability": stability,
         "capacity": capacity,
         "attribution": attribution,
+        "benchmark_spy": spy,
         "regimes": regimes,
         "turnover_series": [[d.isoformat(), round(t, 6)] for d, t in _turnover_series(report.holdings)],
     }

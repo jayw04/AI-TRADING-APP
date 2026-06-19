@@ -59,11 +59,16 @@ def portfolio_construction_runner(config: ExperimentConfig) -> RunnerResult:
     """
     from app.factor_data.backtest import run_momentum_backtest
     from app.factor_data.store import FactorDataStore
+    from app.research.engine.benchmark import load_spy_curve
     from app.research.engine.portfolio_eval import shape_portfolio_result
 
     p = config.params
     if "start" not in p or "end" not in p:
         raise ValueError("portfolio_construction_runner requires params 'start' and 'end'")
+
+    # §3B-3: the committed SPY fixture (Market benchmark). Best-effort — absent fixture →
+    # empty curve → SPY metrics omitted, never fabricated. ``benchmark_fixture`` overrides.
+    benchmark_curve = load_spy_curve(p.get("benchmark_fixture")) or None
 
     # Only forward keys that are present, so run_momentum_backtest's own conservative
     # defaults apply for anything the caller omits.
@@ -86,6 +91,7 @@ def portfolio_construction_runner(config: ExperimentConfig) -> RunnerResult:
         return shape_portfolio_result(
             report, store, is_oos_split=split,
             sector_completeness_min=float(p.get("sector_completeness_min", 0.0)),
+            benchmark_curve=benchmark_curve,
         )
     finally:
         store.close()

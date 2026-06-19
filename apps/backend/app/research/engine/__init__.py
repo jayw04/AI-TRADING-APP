@@ -7,6 +7,7 @@ from app.research.engine.attribution import (
     return_attribution,
     turnover_attribution,
 )
+from app.research.engine.benchmark import benchmark_metrics, load_spy_curve
 from app.research.engine.orchestrator import (
     ExperimentConfig,
     ResearchArtifact,
@@ -33,4 +34,6 @@ __all__ = [
     "turnover_attribution",
     "drawdown_attribution",
     "build_attribution_artifacts",
+    "benchmark_metrics",
+    "load_spy_curve",
 ]
