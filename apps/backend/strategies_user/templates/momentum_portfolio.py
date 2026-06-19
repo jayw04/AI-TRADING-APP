@@ -130,6 +130,12 @@ class MomentumPortfolio(Strategy):
         # overlay's gross target so a single vol spike doesn't whipsaw it. None = off
         # (raw §2 gross). Stateless — recomputed from the proxy each tick.
         "overlay_gross_smooth_span": None,
+        # P10 §5 regime overlay (opt-in / default off; ADR 0022). When on, the daily
+        # overlay folds market-regime signals into the gross target: breadth (fraction
+        # of the universe above its MA) and/or the trailing VIX percentile. Each only
+        # scales gross DOWN; thresholds are backtest-tuned (ADR 0022 §7) before enabling.
+        "use_breadth_overlay": False,
+        "use_vix_overlay": False,
     }
 
     params_schema: ClassVar[dict[str, Any]] = {
@@ -183,6 +189,10 @@ class MomentumPortfolio(Strategy):
                               "description": "Skip a daily overlay re-size when the gross change is below this fraction (execution hygiene)."},
         "overlay_gross_smooth_span": {"type": "integer", "min": 2, "nullable": True, "default": None,
                                       "description": "EWMA span (trading days) to smooth the daily overlay's gross target (P10 §4). Empty/None = no smoothing."},
+        "use_breadth_overlay": {"type": "boolean", "default": False,
+                                "description": "Fold market breadth (fraction of the universe above its MA) into the daily overlay's gross target (P10 §5). Only scales gross down."},
+        "use_vix_overlay": {"type": "boolean", "default": False,
+                            "description": "Fold the trailing VIX percentile into the daily overlay's gross target (P10 §5). Only scales gross down; needs ^VIX ingested."},
     }
 
     async def on_init(self) -> None:
@@ -550,8 +560,10 @@ class MomentumPortfolio(Strategy):
     async def _overlay_target_gross(self) -> float:
         """The overlay's desired gross via the shared overlay layer (ADR 0020): the
         EWMA-vol target computed from the market proxy's daily returns, optionally
-        §4-smoothed (``overlay_gross_smooth_span``). Fails open to 1.0 when the proxy
-        series is unavailable."""
+        §4-smoothed (``overlay_gross_smooth_span``) and §5 regime-modulated by breadth
+        / VIX percentile (``use_breadth_overlay`` / ``use_vix_overlay``, ADR 0022). Each
+        regime signal only scales gross down and fails open (None → no contribution).
+        Fails open to 1.0 when the proxy series is unavailable."""
         sym = str(self.params.get("market_filter_symbol", "SPY"))
         span = int(self.params.get("vol_ewma_span", 20))
         target = float(self.params.get("vol_target_annual", 0.15))
@@ -564,9 +576,23 @@ class MomentumPortfolio(Strategy):
         if bars is None or bars.empty:
             return 1.0
         rets = bars["c"].astype(float).pct_change().dropna().tolist()
+
+        # §5 regime signals (opt-in, default off). Read via the read-only factor
+        # accessor; each fails open to None (which the overlay ignores) on missing data.
+        breadth: float | None = None
+        vix_pct: float | None = None
+        if self.params.get("use_breadth_overlay") or self.params.get("use_vix_overlay"):
+            try:
+                if self.params.get("use_breadth_overlay"):
+                    breadth = self.ctx.factors.market_breadth()
+                if self.params.get("use_vix_overlay"):
+                    vix_pct = self.ctx.factors.vix_percentile()
+            except Exception:  # noqa: BLE001 — any regime-read failure → fail open (no cut)
+                breadth = vix_pct = None
+
         return overlay_desired_gross(
             market_returns=rets, vol_target_annual=target, vol_ewma_span=span,
-            gross_smooth_span=smooth,
+            gross_smooth_span=smooth, breadth=breadth, vix_percentile=vix_pct,
         )
 
     async def _investable_base(self) -> Decimal:

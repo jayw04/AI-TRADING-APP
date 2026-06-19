@@ -602,6 +602,57 @@ async def test_overlay_idempotent_resize_then_noop() -> None:
     ctx.submit_order.assert_not_called()
 
 
+# ---- P10 §5 regime overlay plumbing (breadth / VIX) ----------------------------
+
+def test_regime_overlay_disabled_by_default() -> None:
+    assert MomentumPortfolio.default_params["use_breadth_overlay"] is False
+    assert MomentumPortfolio.default_params["use_vix_overlay"] is False
+
+
+def _calm_spy_ctx():
+    """A ctx with a flat SPY series (calm → vol-target gross caps at 1.0), so the
+    regime factor alone determines _overlay_target_gross."""
+    flat = pd.DataFrame({"c": [100.0] * 70})
+    return _ctx(["AAA", "SPY"], _scores([("AAA", 1.0)]), price=100.0, equity=10_000, spy_bars=flat)
+
+
+async def test_overlay_target_gross_off_ignores_regime() -> None:
+    """Regime params off → factors never read → gross stays the vol target (1.0)."""
+    ctx = _calm_spy_ctx()
+    ctx.factors.market_breadth = MagicMock(return_value=0.20)  # would de-risk IF read
+    strat = _strat(ctx, use_daily_overlay=True)  # both regime flags default False
+    await strat.on_init()
+    assert await strat._overlay_target_gross() == pytest.approx(1.0)
+    ctx.factors.market_breadth.assert_not_called()
+
+
+async def test_overlay_target_gross_applies_breadth() -> None:
+    """use_breadth_overlay on + low breadth (≤floor) → gross fully de-risked."""
+    ctx = _calm_spy_ctx()
+    ctx.factors.market_breadth = MagicMock(return_value=0.20)
+    strat = _strat(ctx, use_daily_overlay=True, use_breadth_overlay=True)
+    await strat.on_init()
+    assert await strat._overlay_target_gross() == 0.0
+
+
+async def test_overlay_target_gross_applies_vix() -> None:
+    """use_vix_overlay on + high VIX percentile (≥stress) → gross fully de-risked."""
+    ctx = _calm_spy_ctx()
+    ctx.factors.vix_percentile = MagicMock(return_value=0.95)
+    strat = _strat(ctx, use_daily_overlay=True, use_vix_overlay=True)
+    await strat.on_init()
+    assert await strat._overlay_target_gross() == 0.0
+
+
+async def test_overlay_target_gross_regime_fails_open() -> None:
+    """A regime-read error → fail open (no cut), never crash the tick."""
+    ctx = _calm_spy_ctx()
+    ctx.factors.market_breadth = MagicMock(side_effect=RuntimeError("store gone"))
+    strat = _strat(ctx, use_daily_overlay=True, use_breadth_overlay=True)
+    await strat.on_init()
+    assert await strat._overlay_target_gross() == pytest.approx(1.0)
+
+
 async def test_fractional_shares_deploys_more_than_whole() -> None:
     """Fractional target qty exceeds the whole-share floor for a pricey name."""
     # per_name = 20000 (100k/5 = 20k), price 271.78 → 73.59 frac vs 73 whole.

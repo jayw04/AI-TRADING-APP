@@ -19,6 +19,27 @@ import pandas as pd
 # the backtest overlay (`backtest._vol_target_overlay`) so live and backtest agree.
 _TRADING_DAYS = 252.0
 
+# Default regime-signal ramp thresholds (P10 §5, ADR 0022). Conservative starting
+# points; the ADR-0022 §7 promotion backtest tunes them before the regime overlay is
+# enabled on a book. Breadth ramps UP (healthy tape → factor 1.0); VIX percentile ramps
+# DOWN (stress → factor 0.0).
+_BREADTH_FLOOR = 0.30   # breadth ≤ this → regime factor 0 (narrow market, fully de-risk)
+_BREADTH_FULL = 0.60    # breadth ≥ this → regime factor 1 (broad participation, no cut)
+_VIX_CALM_PCT = 0.50    # VIX percentile ≤ this → factor 1 (calm)
+_VIX_STRESS_PCT = 0.90  # VIX percentile ≥ this → factor 0 (stress)
+
+
+def _ramp_up(x: float, lo: float, hi: float) -> float:
+    """0 at/below ``lo``, 1 at/above ``hi``, linear between (hi > lo)."""
+    if hi <= lo:
+        return 1.0 if x >= hi else 0.0
+    return min(1.0, max(0.0, (x - lo) / (hi - lo)))
+
+
+def _ramp_down(x: float, lo: float, hi: float) -> float:
+    """1 at/below ``lo``, 0 at/above ``hi``, linear between (hi > lo)."""
+    return 1.0 - _ramp_up(x, lo, hi)
+
 
 def desired_gross(
     *,
@@ -26,6 +47,12 @@ def desired_gross(
     vol_target_annual: float,
     vol_ewma_span: int,
     gross_smooth_span: int | None = None,
+    breadth: float | None = None,
+    vix_percentile: float | None = None,
+    breadth_floor: float = _BREADTH_FLOOR,
+    breadth_full: float = _BREADTH_FULL,
+    vix_calm_pct: float = _VIX_CALM_PCT,
+    vix_stress_pct: float = _VIX_STRESS_PCT,
 ) -> float:
     """Target gross-exposure multiplier in ``[0, 1]`` for a vol-target overlay.
 
@@ -43,6 +70,14 @@ def desired_gross(
     smoothing is **stateless** — it is recomputed from ``market_returns`` each call, so
     it preserves ADR 0020's stateless / restart-safe property (no stored prior gross).
     ``None`` (the default) returns the raw latest gross, byte-identical to §2.
+
+    **Regime signals (P10 §5, ADR 0022, optional).** ``breadth`` (fraction of the
+    universe above its MA, ramps UP: healthy tape → no cut) and ``vix_percentile``
+    (trailing VIX percentile, ramps DOWN: stress → cut) fold in as a multiplicative
+    factor in ``[0, 1]`` — the WORST signal governs (``min``), and the factor only ever
+    scales gross *down*. Each is optional: a ``None`` signal (overlay off, or fail-open
+    from the source) simply doesn't contribute, so the default leaves the vol-target
+    gross unchanged. (The ramp thresholds are backtest-tuned per ADR 0022 §7.)
 
     **Fails OPEN — returns 1.0 (no scaling)** when: the target is non-positive; there
     are fewer than two finite returns to estimate σ; or σ is non-finite / ≤ 0 (those
@@ -71,4 +106,15 @@ def desired_gross(
     val = float(gross.iloc[-1])
     if not math.isfinite(val):
         return 1.0
-    return min(1.0, max(0.0, val))
+
+    # P10 §5 (ADR 0022): fold in regime signals as a multiplicative factor in [0, 1].
+    # Each is OPTIONAL — a None signal (off, or fail-open from the source) doesn't
+    # contribute. The WORST signal governs (min), so any one stress signal de-risks;
+    # the factor only ever scales gross DOWN (never adds, never leverages).
+    regime = 1.0
+    if breadth is not None and math.isfinite(breadth):
+        regime = min(regime, _ramp_up(breadth, breadth_floor, breadth_full))
+    if vix_percentile is not None and math.isfinite(vix_percentile):
+        regime = min(regime, _ramp_down(vix_percentile, vix_calm_pct, vix_stress_pct))
+
+    return min(1.0, max(0.0, val * regime))
