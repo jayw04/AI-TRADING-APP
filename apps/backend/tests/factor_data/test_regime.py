@@ -13,7 +13,7 @@ from datetime import date
 
 import pandas as pd
 
-from app.factor_data.regime import market_breadth
+from app.factor_data.regime import market_breadth, vix_percentile
 from app.factor_data.store import FactorDataStore
 
 _MA = 20  # small MA window so the synthetic history can be short
@@ -100,5 +100,96 @@ def test_breadth_deterministic(tmp_path) -> None:
         a = market_breadth(s, asof, n=25, ma_days=_MA)
         b = market_breadth(s, asof, n=25, ma_days=_MA)
         assert a == b == 13 / 25
+    finally:
+        s.close()
+
+
+# ---- VIX percentile (P10 §5, ADR 0022) -----------------------------------------
+
+_VLB = 20  # small VIX lookback so test series stay short
+
+
+def _vix_store(tmp_path, closes: list[float], *, tag: str = "v", symbol: str = "^VIX"):
+    """A store with an ^VIX series of the given daily closes. Returns (store, as_of)."""
+    bdays = pd.bdate_range("2020-01-02", periods=len(closes))
+    df = pd.DataFrame({
+        "symbol": symbol,
+        "date": [d.strftime("%Y-%m-%d") for d in bdays],
+        "close": closes,
+        "lastupdated": "2026-01-01",
+    })
+    s = FactorDataStore(db_path=str(tmp_path / f"{tag}.duckdb"))
+    s.ingest_index_prices(df)
+    return s, bdays[-1].date()
+
+
+def test_index_prices_roundtrip(tmp_path) -> None:
+    """ingest_index_prices → get_index_series returns the closes ascending by date."""
+    s, asof = _vix_store(tmp_path, [10.0, 11.0, 12.0], tag="rt")
+    try:
+        df = s.get_index_series("^VIX", date(2020, 1, 1), asof)
+        assert list(df["close"]) == [10.0, 11.0, 12.0]
+        assert s.row_count("index_prices") == 3
+    finally:
+        s.close()
+
+
+def test_vix_percentile_latest_high_is_one(tmp_path) -> None:
+    """Latest close is a fresh high → the whole prior window is below → percentile 1.0."""
+    s, asof = _vix_store(tmp_path, [float(x) for x in range(1, 26)], tag="hi")
+    try:
+        assert vix_percentile(s, asof, lookback_days=_VLB) == 1.0
+    finally:
+        s.close()
+
+
+def test_vix_percentile_latest_low_is_zero(tmp_path) -> None:
+    """Latest close is the minimum → nothing below it → percentile 0.0."""
+    s, asof = _vix_store(tmp_path, [float(x) for x in range(25, 0, -1)], tag="lo")
+    try:
+        assert vix_percentile(s, asof, lookback_days=_VLB) == 0.0
+    finally:
+        s.close()
+
+
+def test_vix_percentile_mid(tmp_path) -> None:
+    """Window 1..20, latest 10.5 → 10 of 20 prior closes below → 0.5."""
+    s, asof = _vix_store(tmp_path, [float(x) for x in range(1, 21)] + [10.5], tag="mid")
+    try:
+        assert vix_percentile(s, asof, lookback_days=_VLB) == 0.5
+    finally:
+        s.close()
+
+
+def test_vix_percentile_none_when_short(tmp_path) -> None:
+    """Fewer than lookback_days+1 closes → None (fail open; e.g. pre-FMP-depth dates)."""
+    s, asof = _vix_store(tmp_path, [10.0] * 10, tag="short")
+    try:
+        assert vix_percentile(s, asof, lookback_days=_VLB) is None
+    finally:
+        s.close()
+
+
+def test_vix_percentile_none_when_absent(tmp_path) -> None:
+    """No series for the symbol → None (fail open)."""
+    s, asof = _vix_store(tmp_path, [float(x) for x in range(1, 26)], tag="absent")
+    try:
+        assert vix_percentile(s, asof, symbol="^NOPE", lookback_days=_VLB) is None
+    finally:
+        s.close()
+
+
+def test_vix_percentile_is_point_in_time(tmp_path) -> None:
+    """A future spike must not leak: flat 10s through as_of, big spikes AFTER it →
+    evaluated at the pre-spike date, percentile sees only the flat history (0.0)."""
+    closes = [10.0] * 21 + [100.0, 100.0, 100.0, 100.0]
+    bdays = pd.bdate_range("2020-01-02", periods=len(closes))
+    df = pd.DataFrame({"symbol": "^VIX", "date": [d.strftime("%Y-%m-%d") for d in bdays],
+                       "close": closes, "lastupdated": "2026-01-01"})
+    s = FactorDataStore(db_path=str(tmp_path / "pit.duckdb"))
+    s.ingest_index_prices(df)
+    try:
+        asof = bdays[20].date()  # the last flat day, before the spikes
+        assert vix_percentile(s, asof, lookback_days=_VLB) == 0.0
     finally:
         s.close()
