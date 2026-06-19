@@ -27,6 +27,8 @@ _EVIDENCE_TYPES = {
     "equity_curve", "drawdown_curve", "rolling_sharpe", "rolling_vol",
     "rolling_turnover", "sector_weights_over_time", "top_holdings_by_period",
     "rebalance_log",
+    # §3B attribution artifacts (added when a store is supplied)
+    "return_attribution", "turnover_attribution", "drawdown_attribution",
 }
 
 

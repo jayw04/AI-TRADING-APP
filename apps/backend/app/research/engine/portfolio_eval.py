@@ -402,10 +402,10 @@ def build_evidence_bundle(
     report: MomentumBacktestReport, *, store: FactorDataStore | None = None
 ) -> list[ResearchArtifact]:
     """The standard evidence bundle (§4.5 reviewer #10): the SAME artifact set for
-    every portfolio experiment so experiments are comparable. ``store`` is optional and
-    only needed for ``sector_weights_over_time``. Reusable by any future portfolio
-    runner."""
-    return [
+    every portfolio experiment so experiments are comparable. ``store`` is optional;
+    ``sector_weights_over_time`` and the §3B attribution artifacts need it (skipped when
+    absent). Reusable by any future portfolio runner."""
+    bundle = [
         ResearchArtifact("equity_curve", "equity_curve.json", _curve_json(report.equity_curve)),
         ResearchArtifact("drawdown_curve", "drawdown_curve.json",
                          _curve_json(_drawdown_curve(report.equity_curve))),
@@ -422,6 +422,10 @@ def build_evidence_bundle(
         ResearchArtifact("rebalance_log", "rebalance_log.json",
                          json.dumps(_rebalance_log(report))),
     ]
+    if store is not None:  # §3B: who drove return / turnover / the worst drawdown
+        from app.research.engine.attribution import build_attribution_artifacts
+        bundle.extend(build_attribution_artifacts(report, store))
+    return bundle
 
 
 # ---- health checks (§4.5 reviewer #11) ------------------------------------------
@@ -502,6 +506,12 @@ def shape_portfolio_result(
 
     regimes = _regime_returns(report)
 
+    # §3B attribution (reporting only — who drove return/turnover/drawdown; never gated).
+    attribution: dict[str, Any] = {}
+    if store is not None:
+        from app.research.engine.attribution import attribution_summary
+        attribution = attribution_summary(report, store)
+
     summary: dict[str, Any] = {
         "sharpe": m.sharpe, "sortino": sortino, "calmar": calmar, "ulcer_index": ulcer,
         "cagr": m.cagr, "total_return": m.total_return, "max_drawdown": m.max_drawdown,
@@ -511,7 +521,7 @@ def shape_portfolio_result(
         "excess_sharpe": excess_sharpe, "excess_max_dd": excess_max_dd,
         "turnover_annual": turnover_annual, "n_rebalances": len(report.holdings),
         "oos_is_sharpe_ratio": oos_is_ratio, "rolling_sharpe_positive_frac": pos_frac,
-        **stability, **capacity,
+        **stability, **capacity, **attribution,
     }
 
     detail: dict[str, Any] = {
@@ -532,6 +542,7 @@ def shape_portfolio_result(
                    "is_sharpe": is_sharpe, "oos_sharpe": oos_sharpe, "ratio": oos_is_ratio},
         "stability": stability,
         "capacity": capacity,
+        "attribution": attribution,
         "regimes": regimes,
         "turnover_series": [[d.isoformat(), round(t, 6)] for d, t in _turnover_series(report.holdings)],
     }
