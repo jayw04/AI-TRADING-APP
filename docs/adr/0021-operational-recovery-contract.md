@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-19 |
-| Status | Draft |
-| Phase | P10 (cross-cutting; first exercised by §2 overlay) |
+| Status | Accepted (2026-06-19, owner) — the foundation/§1 milestone of **P11 Operations & Reliability** |
+| Phase | P10 (drafted; first exercised by the §2 overlay) → **P11 implements + enforces it** (Direction v1.0) |
 | Supersedes | — |
-| Related | 0002 (single OrderRouter — recovery never bypasses it), 0004 (circuit breaker — the canonical fail-safe), 0015 (live auto-dispatch), 0020 (daily overlay — the first recurring automated re-sizer), 0019 (Research Engine — off the order path, excluded) |
+| Related | 0002 (single OrderRouter — recovery never bypasses it), 0004 (circuit breaker — the canonical fail-safe), 0015 (live auto-dispatch), 0020 (daily overlay — the first recurring automated re-sizer), 0022 (regime data — the §5 overlay is another recurring actor), 0019 (Research Engine — off the order path, excluded) |
 
 ## Context
 
@@ -97,6 +97,13 @@ LLM decisions auditable (ADR 0006 v2) applied to automated risk actions.
 - **Phasing:** §2 (overlay) implements properties 1, 2, 3, 5, 6 at ship; property 4
   (active reconciliation) and a generalized recovery surface are a **follow-on** (see
   Consequences / Re-evaluation).
+- **Status at acceptance (2026-06-19):** the §2 overlay + §6 breaker monitor already
+  satisfy 1/2/3/5/6 — single-flight scheduling (`max_instances=1`/`coalesce`), fail-open,
+  restart-safe-by-live-state, the overlay audit fingerprint + Prometheus metrics. Property
+  4 (active reconciliation) and a generalized replay/recovery surface are **P11's work**
+  (Direction v1.0) — accepting this ADR makes the contract binding; P11 is where it goes
+  from *described* to fully *enforced + measured*, closing the "describes more than it
+  enforces" gap noted under Consequences.
 - **CI:** no new invariant; the contract is reviewed per action. Existing
   `check_adr0002.sh` already guarantees automated actions don't bypass the router.
 
