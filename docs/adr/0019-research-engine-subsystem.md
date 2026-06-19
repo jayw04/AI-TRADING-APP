@@ -47,6 +47,14 @@ Data Engine → Research Engine → Portfolio Engine → Risk Engine → Trading
    (RESEARCH/VALIDATED/REJECTED/ARCHIVED) and `deployment_state`
    (NONE/PAPER/CANARY/LIVE/RETIRED); the gate drives research_state automatically,
    deployment_state is owner-driven, and every transition records a reason.
+5. **The Research Engine is deterministic and reproducible.** Given identical data,
+   code version, configuration, and random seed, it must reproduce identical experiment
+   results — which is what the content-addressed experiment identity and provenance
+   (git commit / host / seed) exist to guarantee.
+
+*(Point 5 added 2026-06-19 as a clarification — making an already-implied property
+explicit — before this ADR is treated as a frozen architectural baseline. No decision
+change.)*
 
 ## Rationale
 
