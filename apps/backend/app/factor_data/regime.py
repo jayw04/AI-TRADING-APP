@@ -28,6 +28,11 @@ from app.factor_data.universe import (
 # conventional "is the name in an uptrend" line and matches the strategy's regime filter.
 DEFAULT_MA_DAYS = 200
 
+# VIX is consumed as a trailing PERCENTILE, never raw (ADR 0022): a level of 20 means
+# different things across regimes, but its percentile is comparable. 252 ≈ one year.
+DEFAULT_VIX_SYMBOL = "^VIX"
+DEFAULT_VIX_LOOKBACK_DAYS = 252
+
 
 def market_breadth(
     store: FactorDataStore,
@@ -85,3 +90,42 @@ def market_breadth(
     if valid < min_names:
         return None  # too thin a cross-section → fail open
     return above / valid
+
+
+def vix_percentile(
+    store: FactorDataStore,
+    as_of: date,
+    *,
+    symbol: str = DEFAULT_VIX_SYMBOL,
+    lookback_days: int = DEFAULT_VIX_LOOKBACK_DAYS,
+) -> float | None:
+    """Trailing percentile rank of the latest VIX close within its prior
+    ``lookback_days`` window, in ``[0, 1]`` (P10 §5, ADR 0022 — VIX is consumed as a
+    percentile, never raw).
+
+    The fraction of the prior ``lookback_days`` closes that sit **below** the latest
+    close (≤ ``as_of``). ~1.0 = VIX at the high end of its recent range (stress, risk
+    off); ~0.0 = calm. Sourced from the local ``index_prices`` store (ingested from FMP
+    via ``scripts/ingest_vix.py``).
+
+    **Returns ``None`` (the caller fails open — ADR 0020/0022)** when the series is
+    absent or has fewer than ``lookback_days`` + 1 closes ending at/by ``as_of`` — e.g.
+    deep-history backtest dates the ~5y FMP VIX depth doesn't reach (breadth carries
+    those). **Point-in-time & deterministic:** uses only closes ≤ ``as_of``.
+    """
+    start = as_of - timedelta(days=int(lookback_days * 2) + 30)
+    df = store.get_index_series(symbol, start, as_of)
+    if df.empty:
+        return None
+    closes = [
+        float(c)
+        for dt, c in zip(df["date"], df["close"], strict=False)
+        if c is not None and dt.date() <= as_of
+    ]
+    closes = closes[-(lookback_days + 1):]
+    if len(closes) < lookback_days + 1:
+        return None  # not enough history (e.g. pre-FMP-VIX-depth) → fail open
+    latest = closes[-1]
+    window = closes[:-1]  # the prior lookback_days closes
+    below = sum(1 for v in window if v < latest)
+    return below / len(window)

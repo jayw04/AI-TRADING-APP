@@ -41,6 +41,7 @@ _FUNDAMENTALS_COLS = [
     "free_cash_flow", "total_debt", "total_equity", "total_assets",
     "shares_diluted", "enterprise_value", "lastupdated",
 ]
+_INDEX_COLS = ["symbol", "date", "close", "lastupdated"]
 
 _SCHEMA = """
 -- survivorship-free daily prices (incl. delisted names)
@@ -101,6 +102,17 @@ CREATE TABLE IF NOT EXISTS fundamentals (
   enterprise_value DOUBLE,
   lastupdated      TIMESTAMP,
   PRIMARY KEY (ticker, period, period_end)
+);
+
+-- index / regime daily series (e.g. ^VIX) sourced from FMP (P10 §5, ADR 0022).
+-- Generic by `symbol` so future index series ride the same table. Point-in-time
+-- by `date`; idempotent upsert keyed by (symbol, date).
+CREATE TABLE IF NOT EXISTS index_prices (
+  symbol      VARCHAR NOT NULL,
+  date        DATE    NOT NULL,
+  close       DOUBLE,
+  lastupdated TIMESTAMP,
+  PRIMARY KEY (symbol, date)
 );
 """
 
@@ -228,6 +240,24 @@ class FactorDataStore:
         self.con.unregister("incoming")
         return len(df)
 
+    def ingest_index_prices(self, df: pd.DataFrame) -> int:
+        """Upsert an index/regime daily series (e.g. ``^VIX``; P10 §5, ADR 0022).
+        Keyed by (symbol, date) → re-ingesting the same dates converges. ``df`` is
+        reindexed to ``_INDEX_COLS`` (missing → NULL)."""
+        df = df.reindex(columns=_INDEX_COLS)
+        self.con.register("incoming", df)
+        self.con.execute(
+            """
+            INSERT OR REPLACE INTO index_prices
+            SELECT symbol, TRY_CAST(date AS DATE), TRY_CAST(close AS DOUBLE),
+                   TRY_CAST(lastupdated AS TIMESTAMP)
+            FROM incoming
+            WHERE symbol IS NOT NULL AND date IS NOT NULL
+            """
+        )
+        self.con.unregister("incoming")
+        return len(df)
+
     def record_ingest_run(
         self, dataset: str, started_at: datetime, finished_at: datetime,
         rows: int, status: str,
@@ -240,7 +270,7 @@ class FactorDataStore:
     # ---- queries ------------------------------------------------------------
 
     def row_count(self, table: str) -> int:
-        if table not in {"sep", "tickers", "actions", "ingest_runs", "fundamentals"}:
+        if table not in {"sep", "tickers", "actions", "ingest_runs", "fundamentals", "index_prices"}:
             raise ValueError(f"unknown table: {table}")
         row = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
         assert row is not None
@@ -301,6 +331,19 @@ class FactorDataStore:
             ORDER BY date
             """,
             [ticker, start, end],
+        ).df()
+
+    def get_index_series(self, symbol: str, start: date, end: date) -> pd.DataFrame:
+        """Daily closes for an index/regime series (e.g. ``^VIX``) in ``[start, end]``,
+        ascending by date (P10 §5, ADR 0022). Columns ``[date, close]``; empty frame
+        (not an error) if the symbol/window has no rows."""
+        return self.con.execute(
+            """
+            SELECT date, close FROM index_prices
+            WHERE symbol = ? AND date BETWEEN ? AND ?
+            ORDER BY date
+            """,
+            [symbol, start, end],
         ).df()
 
     def get_fundamentals(
