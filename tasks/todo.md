@@ -2,7 +2,15 @@
 
 > Single source of truth for "what's done, what's next" across sessions. Update at the end of each working session. For frozen versioned plans, see `docs/implementation/` and `docs/design/`.
 
-Last updated: 2026-06-17 · branch: `main` · HEAD `7532007`. **★ RESUME HERE ★** Phase **P10 (portfolio risk + factor research)** active; see `docs/implementation/TradingWorkbench_P10_PortfolioRisk_Roadmap_v0.1.md`, the capstone `..._Strategy_Research_Report_v1.0.md`, and the data guide `..._FactorData_Acquisition_Guide_v0.1.md`.
+Last updated: 2026-06-19 · branch: `main` · HEAD `8435cfe`. **★ RESUME HERE ★** **P10 (Portfolio-Level Risk Engineering) is CODE-COMPLETE** — every section (§1–§8, §3C) merged to `main`; all overlays ship **default-off**. See the roadmap `docs/implementation/TradingWorkbench_P10_PortfolioRisk_Roadmap_v0.1.md` (now **v0.6.1**, with an Implemented-vs-Proven-vs-Enabled table). The §5 regime overlay is built but its promotion backtest is **NO-GO → stays off**. Next direction (not started, owner's call): an **Operations & Reliability** track (reconciliation / replay / observability), seeded by **ADR 0021** (Draft).
+
+**DONE (2026-06-18 → 06-19) — P10 portfolio-risk completion:**
+- **§2 daily gross-exposure overlay — PR #173.** Separate stateless overlay layer (`app/strategies/overlay/`) computing a scalar `desired_gross`; optional second engine cadence (`daily_overlay_schedule`) re-sizes the held book without re-selecting; **ADR 0020** (Accepted, frozen). Default off.
+- **§3C research-weigher sector cap — PR #172.** `_apply_sector_cap` in `app/factor_data/backtest.py` (iterative water-filling; distinct from the §3 strategy name-cap). Default off.
+- **§4 exposure smoothing — PR #174.** Optional `gross_smooth_span` EWMA damping of the overlay gross. Default off.
+- **§5 regime data + overlay — ADR 0022 (Accepted) + PRs #175/#176/#177.** Breadth (`regime.market_breadth`, derived, no vendor), `^VIX` ingest + `vix_percentile` (FMP `/stable`, populated to the research store), and wiring into `desired_gross` (default off). **Promotion backtest (weekly + daily-VIX) = NO-GO** — a drawdown tool with a Sharpe cost; §1 already captures most crisis-window drawdown. Stays default-off (an honest no, like value/quality).
+- **§6/§7/§8 verified already shipped** (#120 continuous breaker monitor / #121 fractional shares / broad survivorship-free SEP ingest) — the roadmap's "pending" markings were stale; corrected.
+- **ADR 0021 (Operational Recovery Contract, Draft)** — recommended next ADR (operational, not architectural). **Roadmap → v0.6.1.** Docs: Product & Architecture Overview v0.2, P6b Session 5 opt-in v0.2.
 
 **DONE (2026-06-16 → 06-17):**
 - **Range Trader — RESEARCHED & REJECTED** (no robust OOS edge; every IS-passing config collapsed OOS). Archived **PR #141**. Infra kept (§5c gate, oscillation screener, VWAP±σ variant).
@@ -10,10 +18,11 @@ Last updated: 2026-06-17 · branch: `main` · HEAD `7532007`. **★ RESUME HERE 
 - **R1 — momentum book 6-1 → 12-month — PR #143 MERGED.** Window now a strategy param (`momentum_lookback_days`/`momentum_skip_days`), default 12m (252/0). Book-level evidence `research/momentum_12m_backtest.md`: OOS 12m Sharpe 1.85 vs 6-1's 1.40, lower DD + lower turnover; IS ~tied (not curve-fit). Deployed paper book inherits 12m on its next Monday rebalance (engine merges default_params over stored params).
 - **Daily-loss breaker start-of-day baseline — PR #144 (DRAFT, CI green; awaiting owner sign-off).** Trips on today's P&L (`equity − last_equity`, == AccountState.day_change) with fail-closed cumulative fallback, not on total open P&L. **ADR 0004 v2** supersedes v1. ⚠ core code → needs backend RESTART to deploy (not hot-reloaded).
 
-**NEXT (P10, owner-gated):**
-- **R3 risk overlays** (vol targeting / regime / drawdown) + **momentum-crash study** — NO new data; highest-confidence production-readiness work.
-- **R2 fundamentals data** — evaluating **FMP (budget option)** vs Sharadar SF1: cost + coverage + ingestion-adapter scope (decision: FMP eval first). SF1 is genuinely data-blocked (current key returns a 2-row sample), not code-blocked. Unlocks Value/Quality → multi-factor book.
-- Merge + deploy #144; confirm momentum-portfolio breaker headroom before the 06-22 rebalance.
+**NEXT (owner-gated — P10 is code-complete; these are deliberate decisions, not unfinished code):**
+- **Enable decisions (default-off overlays):** §1 vol-targeting / §2 daily overlay / §4 smoothing each need their promotion backtest before enabling on the live book; **§5 regime overlay = NO-GO, leave off** (re-evaluate only with new evidence, e.g. deeper `^VIX` history — not threshold tuning). Populate breadth/`^VIX` in the *live* store only when enabling.
+- **Operations & Reliability track (next phase, not started):** reconciliation / replay / observability (dashboards, KPIs, event tracing) — formalize **ADR 0021** (Draft → Accepted) first. This is the reviewer-endorsed next direction now that the architecture is complete.
+- **R2 fundamentals — DONE** (superseded): FMP is the production fundamentals source (`fundamentals` table, ingested); Value/Quality tested and rejected OOS on the mega-cap universe (no multi-factor book). **R3 risk overlays — DONE** = the §1–§5 overlay work above.
+- *(Carried from 06-17, verify still relevant:)* #144 daily-loss breaker baseline (ADR 0004 v2) merge/deploy + breaker headroom before a rebalance.
 
 ---
 
