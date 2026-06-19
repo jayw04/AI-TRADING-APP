@@ -120,3 +120,57 @@ def test_smoothing_deterministic_and_in_unit_interval() -> None:
     b = desired_gross(market_returns=list(rets), vol_target_annual=_TARGET,
                       vol_ewma_span=_SPAN, gross_smooth_span=10)
     assert a == b and math.isfinite(a) and 0.0 <= a <= 1.0
+
+
+# ---- P10 §5 regime modulation (breadth / VIX percentile) -----------------------
+
+# A calm market → vol-target gross caps at 1.0, so the result == the regime factor,
+# which lets us assert the regime math directly.
+_CALM = _const_vol_returns(0.001)
+
+
+def test_regime_none_leaves_gross_unchanged() -> None:
+    """Default (no regime signals) → byte-identical to the vol-target gross."""
+    base = desired_gross(market_returns=_CALM, vol_target_annual=_TARGET, vol_ewma_span=_SPAN)
+    withn = desired_gross(market_returns=_CALM, vol_target_annual=_TARGET, vol_ewma_span=_SPAN,
+                          breadth=None, vix_percentile=None)
+    assert base == withn == 1.0
+
+
+def test_breadth_ramps_gross_down() -> None:
+    """Breadth ≤ floor → factor 0; mid → linear; ≥ full → no cut (defaults 0.3/0.6)."""
+    g = lambda b: desired_gross(market_returns=_CALM, vol_target_annual=_TARGET,  # noqa: E731
+                                vol_ewma_span=_SPAN, breadth=b)
+    assert g(0.20) == 0.0                 # narrow market → fully de-risk
+    assert g(0.45) == pytest.approx(0.5)  # halfway up the 0.3→0.6 ramp
+    assert g(0.70) == pytest.approx(1.0)  # broad participation → no cut
+
+
+def test_vix_percentile_ramps_gross_down() -> None:
+    """VIX percentile ≤ calm → no cut; mid → linear; ≥ stress → factor 0 (0.5/0.9)."""
+    g = lambda v: desired_gross(market_returns=_CALM, vol_target_annual=_TARGET,  # noqa: E731
+                                vol_ewma_span=_SPAN, vix_percentile=v)
+    assert g(0.40) == pytest.approx(1.0)  # calm
+    assert g(0.70) == pytest.approx(0.5)  # halfway up the 0.5→0.9 ramp
+    assert g(0.95) == 0.0                 # stress → fully de-risk
+
+
+def test_worst_regime_signal_governs() -> None:
+    """min() — a broad tape (breadth factor 1) can't rescue a VIX stress (factor 0)."""
+    g = desired_gross(market_returns=_CALM, vol_target_annual=_TARGET, vol_ewma_span=_SPAN,
+                      breadth=0.70, vix_percentile=0.95)
+    assert g == 0.0
+
+
+def test_regime_only_scales_down_never_up() -> None:
+    """A healthy regime leaves the (already-capped) gross at 1.0 — never above."""
+    g = desired_gross(market_returns=_CALM, vol_target_annual=_TARGET, vol_ewma_span=_SPAN,
+                      breadth=0.95, vix_percentile=0.05)
+    assert g == 1.0
+
+
+def test_regime_ignores_nonfinite_signal() -> None:
+    """A NaN signal (defensive) is ignored — fail open, no cut."""
+    g = desired_gross(market_returns=_CALM, vol_target_annual=_TARGET, vol_ewma_span=_SPAN,
+                      breadth=float("nan"))
+    assert g == 1.0
