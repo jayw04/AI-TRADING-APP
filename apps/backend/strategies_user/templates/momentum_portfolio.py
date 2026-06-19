@@ -68,6 +68,7 @@ from app.db.enums import OrderSide, OrderSourceType, OrderType, SignalType, Time
 from app.factor_data.accessor import FactorDataUnavailable
 from app.factor_data.factors.engine import FactorUnavailable
 from app.factor_data.universe import UniverseUnavailable
+from app.observability.metrics import overlay_actions_total, overlay_gross
 from app.risk import OrderRequest
 from app.strategies import Strategy
 from app.strategies.overlay import desired_gross as overlay_desired_gross
@@ -471,11 +472,13 @@ class MomentumPortfolio(Strategy):
         restart. A sub-``overlay_drift_pct`` change is skipped (execution hygiene)."""
         if not self.params.get("use_daily_overlay", False):
             return  # opt-in; the engine also gates registration, this is defence in depth
+        sid = str(self.ctx.strategy_id)
         event_id = f"ovl_{uuid.uuid4().hex[:12]}"
         desired = await self._overlay_target_gross()  # [0,1]; 1.0 on bad data (fail open)
 
         held = await self._current_holdings()
         if not held:
+            overlay_actions_total.labels(strategy_id=sid, outcome="skip_flat").inc()
             return  # overlay never SELECTS — nothing to re-size when flat
 
         base = await self._investable_base()
@@ -490,6 +493,7 @@ class MomentumPortfolio(Strategy):
                 # than re-size on partial information (next tick re-converges).
                 await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
                     "overlay_event_id": event_id, "reason": "skip_no_price", "symbol": sym})
+                overlay_actions_total.labels(strategy_id=sid, outcome="skip_no_price").inc()
                 return
             prices[sym] = Decimal(str(p))
             invested += qty * prices[sym]
@@ -508,6 +512,8 @@ class MomentumPortfolio(Strategy):
         if abs(desired - current_gross) < float(self.params.get("overlay_drift_pct", 0.01)):
             await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
                 **fingerprint, "gross_after": round(current_gross, 4), "reason": "skip_drift"})
+            overlay_gross.labels(strategy_id=sid).set(current_gross)
+            overlay_actions_total.labels(strategy_id=sid, outcome="skip_drift").inc()
             return
 
         # EXECUTE — scale every held sleeve by the same ratio (gross changes, intra-book
@@ -527,9 +533,13 @@ class MomentumPortfolio(Strategy):
                                payload={"overlay_event_id": event_id, "price": float(prices[sym]),
                                         "target_qty": str(target_qty)})
 
-        # AUDIT — the run fingerprint (gross_after == the target we re-sized toward).
+        # AUDIT — the run fingerprint (gross_after == the target we re-sized toward) +
+        # metrics: the gross gauge (current; avg/min derived in PromQL) and an outcome
+        # counter (executions vs skips, per ADR 0021 observability).
         await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
             **fingerprint, "gross_after": round(desired, 4), "reason": "scaled"})
+        overlay_gross.labels(strategy_id=sid).set(desired)
+        overlay_actions_total.labels(strategy_id=sid, outcome="scaled").inc()
 
     async def _overlay_target_gross(self) -> float:
         """The overlay's desired gross via the shared overlay layer (ADR 0020): the

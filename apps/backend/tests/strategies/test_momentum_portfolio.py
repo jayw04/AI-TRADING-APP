@@ -61,6 +61,7 @@ def _params(**over):
 def _ctx(symbols, scores, holdings=None, price=100.0, equity=None, spy_bars=None):
     holdings = holdings or {}
     ctx = MagicMock()
+    ctx.strategy_id = 1
     ctx.symbols = symbols
     ctx.factors = MagicMock()
     ctx.factors.momentum_scores = MagicMock(return_value=scores)
@@ -564,6 +565,28 @@ async def test_overlay_never_touches_unheld_names() -> None:
     await strat.on_overlay_tick()
     orders = _orders(ctx)
     assert set(orders) == {"AAA"}  # BBB (unheld) never traded
+
+
+async def test_overlay_sets_gross_gauge_and_counter() -> None:
+    """A scaled tick exports the gross gauge (= target; current/avg/min are PromQL
+    over it) and increments the 'scaled' outcome counter."""
+    from prometheus_client import REGISTRY
+
+    from app.observability.metrics import overlay_actions_total
+
+    before = REGISTRY.get_sample_value(
+        "workbench_overlay_actions_total", {"strategy_id": "1", "outcome": "scaled"}
+    ) or 0.0
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()
+
+    gross = REGISTRY.get_sample_value("workbench_overlay_gross", {"strategy_id": "1"})
+    assert gross == pytest.approx(0.10)
+    after = REGISTRY.get_sample_value(
+        "workbench_overlay_actions_total", {"strategy_id": "1", "outcome": "scaled"}
+    )
+    assert after == pytest.approx(before + 1.0)
+    _ = overlay_actions_total  # imported for clarity; assertion reads via REGISTRY
 
 
 async def test_overlay_idempotent_resize_then_noop() -> None:
