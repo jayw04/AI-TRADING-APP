@@ -81,3 +81,42 @@ def test_output_always_in_unit_interval() -> None:
         g = desired_gross(market_returns=_const_vol_returns(sigma),
                           vol_target_annual=_TARGET, vol_ewma_span=_SPAN)
         assert math.isfinite(g) and 0.0 <= g <= 1.0
+
+
+# ---- P10 §4 exposure smoothing -------------------------------------------------
+
+def _calm_then_spike(n_calm: int = 60, n_spike: int = 8) -> list[float]:
+    """Calm (±0.1%) for n_calm days, then a fresh vol spike (±5%) at the END — the
+    case smoothing is for: a single recent jump shouldn't whipsaw the gross target."""
+    return _const_vol_returns(0.001, n_calm) + _const_vol_returns(0.05, n_spike)
+
+
+def test_smoothing_damps_a_fresh_spike() -> None:
+    """After a fresh spike, the raw gross drops hard; the §4-smoothed gross drops
+    LESS (it averages in the recent calmer grosses) — so it sits above the raw."""
+    rets = _calm_then_spike()
+    raw = desired_gross(market_returns=rets, vol_target_annual=_TARGET, vol_ewma_span=_SPAN)
+    smoothed = desired_gross(market_returns=rets, vol_target_annual=_TARGET,
+                             vol_ewma_span=_SPAN, gross_smooth_span=10)
+    assert raw < 1.0                      # the spike did pull gross down
+    assert smoothed > raw                 # smoothing tempers the drop
+    assert 0.0 <= smoothed <= 1.0
+
+
+def test_smoothing_default_and_span_one_are_raw() -> None:
+    """gross_smooth_span None (default) or ≤1 → no smoothing, byte-identical to §2."""
+    rets = _calm_then_spike()
+    raw = desired_gross(market_returns=rets, vol_target_annual=_TARGET, vol_ewma_span=_SPAN)
+    assert desired_gross(market_returns=rets, vol_target_annual=_TARGET,
+                         vol_ewma_span=_SPAN, gross_smooth_span=None) == raw
+    assert desired_gross(market_returns=rets, vol_target_annual=_TARGET,
+                         vol_ewma_span=_SPAN, gross_smooth_span=1) == raw
+
+
+def test_smoothing_deterministic_and_in_unit_interval() -> None:
+    rets = _calm_then_spike()
+    a = desired_gross(market_returns=rets, vol_target_annual=_TARGET,
+                      vol_ewma_span=_SPAN, gross_smooth_span=10)
+    b = desired_gross(market_returns=list(rets), vol_target_annual=_TARGET,
+                      vol_ewma_span=_SPAN, gross_smooth_span=10)
+    assert a == b and math.isfinite(a) and 0.0 <= a <= 1.0

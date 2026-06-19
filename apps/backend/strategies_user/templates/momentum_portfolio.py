@@ -126,6 +126,10 @@ class MomentumPortfolio(Strategy):
         "use_daily_overlay": False,
         "daily_overlay_schedule": "0 15 * * mon-fri",  # ~10:00 ET weekdays; day names (dow-safe)
         "overlay_drift_pct": 0.01,  # skip a re-size when |Δgross| is below this (execution hygiene)
+        # P10 §4 exposure smoothing (opt-in): EWMA span (trading days) to damp the daily
+        # overlay's gross target so a single vol spike doesn't whipsaw it. None = off
+        # (raw §2 gross). Stateless — recomputed from the proxy each tick.
+        "overlay_gross_smooth_span": None,
     }
 
     params_schema: ClassVar[dict[str, Any]] = {
@@ -177,6 +181,8 @@ class MomentumPortfolio(Strategy):
                                    "description": "Cron cadence for the daily overlay tick (use day names to avoid the dow off-by-one)."},
         "overlay_drift_pct": {"type": "number", "min": 0, "max": 1, "default": 0.01,
                               "description": "Skip a daily overlay re-size when the gross change is below this fraction (execution hygiene)."},
+        "overlay_gross_smooth_span": {"type": "integer", "min": 2, "nullable": True, "default": None,
+                                      "description": "EWMA span (trading days) to smooth the daily overlay's gross target (P10 §4). Empty/None = no smoothing."},
     }
 
     async def on_init(self) -> None:
@@ -543,17 +549,24 @@ class MomentumPortfolio(Strategy):
 
     async def _overlay_target_gross(self) -> float:
         """The overlay's desired gross via the shared overlay layer (ADR 0020): the
-        EWMA-vol target computed from the market proxy's daily returns. Fails open to
-        1.0 when the proxy series is unavailable."""
+        EWMA-vol target computed from the market proxy's daily returns, optionally
+        §4-smoothed (``overlay_gross_smooth_span``). Fails open to 1.0 when the proxy
+        series is unavailable."""
         sym = str(self.params.get("market_filter_symbol", "SPY"))
         span = int(self.params.get("vol_ewma_span", 20))
         target = float(self.params.get("vol_target_annual", 0.15))
-        bars = await self.ctx.get_recent_bars(sym, "1Day", n=span * 3 + 1)
+        smooth_raw = self.params.get("overlay_gross_smooth_span")
+        smooth = int(smooth_raw) if smooth_raw else None  # None/""/0 → no smoothing
+        # Fetch enough closes to warm BOTH the vol EWMA and (if set) the gross-smoothing
+        # EWMA, so the smoothed target isn't dominated by the warm-up.
+        warm = max(span, smooth or 0)
+        bars = await self.ctx.get_recent_bars(sym, "1Day", n=warm * 3 + 1)
         if bars is None or bars.empty:
             return 1.0
         rets = bars["c"].astype(float).pct_change().dropna().tolist()
         return overlay_desired_gross(
-            market_returns=rets, vol_target_annual=target, vol_ewma_span=span
+            market_returns=rets, vol_target_annual=target, vol_ewma_span=span,
+            gross_smooth_span=smooth,
         )
 
     async def _investable_base(self) -> Decimal:
