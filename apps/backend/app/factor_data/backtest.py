@@ -68,6 +68,7 @@ class BacktestRunConfig:
     vol_ewma_span: int = 20
     weighting: str = "equal_weight"          # Phase 3A §4.4: equal_weight | inverse_vol | risk_parity_diagonal
     vol_lookback_days: int = DEFAULT_VOL_LOOKBACK_DAYS
+    max_sector_pct: float | None = None      # Phase 3A §3C: per-sector book-weight cap (None = disabled)
 
 
 @dataclass(frozen=True)
@@ -203,6 +204,79 @@ def _trailing_vol(
     return sigma if math.isfinite(sigma) and sigma > 0 else None
 
 
+def _apply_sector_cap(
+    store: FactorDataStore,
+    weights: dict[str, float],
+    *,
+    max_sector_pct: float,
+) -> dict[str, float]:
+    """Cap each known sector's aggregate book weight at ``max_sector_pct`` (Phase 3A
+    §3C). Returns a re-normalized long-only, fully-invested (Σ=1) weight vector.
+
+    Algorithm — iterative water-filling that *freezes* a sector once it is clamped:
+    on each pass, every known sector whose aggregate weight exceeds the cap is scaled
+    down to the cap (preserving intra-sector proportions), the freed weight is
+    redistributed pro-rata across the names not yet in a frozen sector, and the pass
+    repeats. Because each pass freezes at least one more sector, it terminates in at
+    most ``#distinct sectors`` passes; redistribution that pushes an under-cap sector
+    over is caught and frozen on the next pass.
+
+    **Unknown-sector names are EXEMPT** — ``get_sectors`` → ``None`` makes a name its
+    own uncapped bucket (never frozen, always an eligible receiver), matching
+    ``get_sectors``' fail-open contract; unrelated names are never falsely lumped
+    together.
+
+    **FAILS OPEN** (returns ``weights`` unchanged, logged) when capping is disabled
+    (``max_sector_pct`` is None / ≥ 1), no sectors are readable, or the cap is
+    mathematically infeasible (every receiver is exhausted before Σ can return to 1 —
+    e.g. cap 0.20 with only 3 distinct sectors and no exempt names). Failing open
+    preserves the fully-invested ``gross=1`` invariant the backtest assumes rather
+    than silently holding cash or producing a degenerate book."""
+    if max_sector_pct is None or max_sector_pct >= 1.0 or not weights:
+        return weights
+    sectors = store.get_sectors(list(weights))
+    distinct = {s for s in sectors.values() if s is not None}
+    if not distinct:  # pre-sector store / all unknown → nothing to cap (fail open)
+        return weights
+
+    w = dict(weights)
+    frozen: set[str] = set()  # sector names clamped at the cap
+    eps = 1e-12
+    for _ in range(len(distinct) + 1):
+        sector_w: dict[str, float] = {}
+        for t, wt in w.items():
+            s = sectors[t]
+            if s is not None:
+                sector_w[s] = sector_w.get(s, 0.0) + wt
+        over = [s for s, sw in sector_w.items() if s not in frozen and sw > max_sector_pct + eps]
+        if not over:
+            break
+        freed = 0.0
+        for s in over:
+            scale = max_sector_pct / sector_w[s]
+            for t in [t for t in w if sectors[t] == s]:
+                freed += w[t] * (1.0 - scale)
+                w[t] *= scale
+            frozen.add(s)
+        receivers = [t for t in w if sectors[t] not in frozen]
+        recv_total = sum(w[t] for t in receivers)
+        if not receivers or recv_total <= eps:  # infeasible → fail open
+            logger.warning("sector_cap_infeasible", max_sector_pct=max_sector_pct,
+                           n_sectors=len(distinct), n_names=len(weights))
+            return weights
+        for t in receivers:
+            w[t] += freed * w[t] / recv_total
+    else:  # did not converge within the freeze bound → fail open rather than ship a bad book
+        logger.warning("sector_cap_no_converge", max_sector_pct=max_sector_pct,
+                       n_sectors=len(distinct))
+        return weights
+
+    total = sum(w.values())  # clean float drift so assert_valid_weights' Σ=1 holds
+    if total <= 0:
+        return weights
+    return {t: wt / total for t, wt in w.items()}
+
+
 def _weigh(
     store: FactorDataStore,
     chosen: list[str],
@@ -210,6 +284,7 @@ def _weigh(
     *,
     method: str,
     vol_lookback_days: int,
+    max_sector_pct: float | None = None,
 ) -> dict[str, float]:
     """Assign target weights to ``chosen`` at rebalance ``d`` under ``method``.
 
@@ -220,6 +295,11 @@ def _weigh(
       cross-sectional median σ so we never divide by zero.
     - ``risk_parity_diagonal`` → equal risk contribution under a diagonal covariance,
       which **is** inverse-vol in v1 (Gotcha 5) — a named seam, not a duplicate.
+
+    When ``max_sector_pct`` is set (Phase 3A §3C), the raw method weights are passed
+    through ``_apply_sector_cap`` before validation; it is a no-op (and fails open)
+    when the cap is disabled, sectors are unknown, or the cap is infeasible — so the
+    default ``None`` leaves every legacy book byte-identical.
 
     Every returned vector is checked by ``assert_valid_weights`` (Phase 3A §4.3) so an
     invariant violation fails the experiment loudly instead of producing a silently
@@ -247,6 +327,7 @@ def _weigh(
             weights = {t: iv / total for t, iv in inv.items()}
     else:
         raise ValueError(f"unsupported weighting method: {method!r}")
+    weights = _apply_sector_cap(store, weights, max_sector_pct=max_sector_pct)
     assert_valid_weights(weights, cash=0.0, target_gross=1.0, long_only=True)
     return weights
 
@@ -383,6 +464,7 @@ def run_momentum_backtest(
     vol_ewma_span: int = 20,
     weighting: str = "equal_weight",
     vol_lookback_days: int = DEFAULT_VOL_LOOKBACK_DAYS,
+    max_sector_pct: float | None = None,
 ) -> MomentumBacktestReport:
     """Weekly long-only top-quintile momentum backtest, survivorship-free.
 
@@ -398,6 +480,8 @@ def run_momentum_backtest(
         raise ValueError("top_quantile must be in (0, 1]")
     if weighting not in WEIGHTING_METHODS:
         raise ValueError(f"unsupported weighting: {weighting!r} (one of {WEIGHTING_METHODS})")
+    if max_sector_pct is not None and not (0.0 < max_sector_pct <= 1.0):
+        raise ValueError("max_sector_pct must be in (0, 1] or None")
 
     config = BacktestRunConfig(
         start=start, end=end, n=n, lookback_days=lookback_days, skip_days=skip_days,
@@ -405,6 +489,7 @@ def run_momentum_backtest(
         delisting=delisting, initial_equity=initial_equity,
         vol_target_annual=vol_target_annual, vol_ewma_span=vol_ewma_span,
         weighting=weighting, vol_lookback_days=vol_lookback_days,
+        max_sector_pct=max_sector_pct,
     )
 
     all_days = store.trading_days(start, end)
@@ -446,7 +531,8 @@ def run_momentum_backtest(
         ranked = scores_by_date[d]
         k = max(1, math.ceil(len(ranked) * top_quantile))
         chosen = ranked[:k]
-        return _weigh(store, chosen, d, method=weighting, vol_lookback_days=vol_lookback_days)
+        return _weigh(store, chosen, d, method=weighting, vol_lookback_days=vol_lookback_days,
+                      max_sector_pct=max_sector_pct)
 
     def baseline_select(d: date) -> dict[str, float]:
         names = universe_by_date[d]
