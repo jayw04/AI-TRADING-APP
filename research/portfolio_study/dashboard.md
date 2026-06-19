@@ -4,7 +4,7 @@ _Auto-generated from the research registry (read-only)._
 
 ## KPIs
 
-- experiments: **9** (VALIDATED 0 / REJECTED 6 / RESEARCH 3) — GO rate 0%
+- experiments: **16** (VALIDATED 0 / REJECTED 12 / RESEARCH 4) — GO rate 0%
 - strategies by deployment: PAPER 0 · CANARY 0 · LIVE 0 · RETIRED 0
 - open research alerts: **0**
 
@@ -12,6 +12,13 @@ _Auto-generated from the research registry (read-only)._
 
 | experiment | kind | state | confidence | created |
 |---|---|---|---|---|
+| `exp_20b82389141d1f30` | portfolio_comparison | RESEARCH | n/a | 2026-06-18 21:08:27.119438 |
+| `exp_91a9689aa991ee93` | portfolio_construction | REJECTED | 62 | 2026-06-18 21:08:26.760798 |
+| `exp_6e1f84c6acf193f4` | portfolio_construction | REJECTED | 62 | 2026-06-18 21:00:04.548657 |
+| `exp_533380ce4afb202f` | portfolio_construction | REJECTED | 62 | 2026-06-18 20:52:15.234648 |
+| `exp_d33de20a44fe03a3` | portfolio_construction | REJECTED | 62 | 2026-06-18 20:45:25.541298 |
+| `exp_86cc6a384b925e1e` | portfolio_construction | REJECTED | 69 | 2026-06-18 20:33:41.429761 |
+| `exp_a9055d55bf7ea3fc` | portfolio_construction | REJECTED | 69 | 2026-06-18 20:27:50.747948 |
 | `exp_bf1aeda82a4912d4` | portfolio_comparison | RESEARCH | n/a | 2026-06-18 16:09:18.946810 |
 | `exp_f860ed89adc45393` | portfolio_construction | REJECTED | 54 | 2026-06-18 16:09:18.063158 |
 | `exp_dc7cbed96738401b` | portfolio_construction | REJECTED | 54 | 2026-06-18 16:00:33.180686 |
