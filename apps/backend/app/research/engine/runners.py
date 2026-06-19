@@ -54,6 +54,7 @@ def portfolio_construction_runner(config: ExperimentConfig) -> RunnerResult:
       ``n``, ``top_quantile``, ``lookback_days``, ``skip_days``, ``turnover_cost_bps``,
       ``initial_equity``, ``weighting`` (equal_weight|inverse_vol|risk_parity_diagonal),
       ``vol_lookback_days``, ``vol_target_annual`` (overlay; from the risk model),
+      ``max_sector_pct`` (§3C per-sector book-weight cap; from the risk model, None = off),
       ``is_oos_split`` (ISO date for the IS/OOS Sharpe ratio),
       ``sector_completeness_min`` (health-check threshold, default 0 = off).
     """
@@ -76,6 +77,7 @@ def portfolio_construction_runner(config: ExperimentConfig) -> RunnerResult:
         "n": int, "top_quantile": float, "lookback_days": int, "skip_days": int,
         "turnover_cost_bps": float, "initial_equity": float, "weighting": str,
         "vol_lookback_days": int, "vol_target_annual": float,
+        "max_sector_pct": float,  # §3C sector-cap (from the risk model; None = disabled)
     }
     kwargs = {k: cast(p[k]) for k, cast in casts.items() if p.get(k) is not None}
 
