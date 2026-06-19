@@ -99,7 +99,7 @@ async def engine(session_factory, seeded):
     scheduler.shutdown(wait=False)
 
 
-async def _register_echo_strategy(session_factory) -> int:
+async def _register_echo_strategy(session_factory, params: dict | None = None) -> int:
     """Insert an echo_strategy row pointing at the fixture file.
 
     schedule='event' keeps the test deterministic — no cron firing.
@@ -112,7 +112,7 @@ async def _register_echo_strategy(session_factory) -> int:
             type=StrategyType.PYTHON,
             status=StrategyStatus.IDLE,
             code_path="echo_strategy.py",
-            params_json={"timeframe": "1Min"},
+            params_json=params if params is not None else {"timeframe": "1Min"},
             symbols_json=["AAPL"],
             schedule="event",
             risk_limits_id=None,
@@ -151,6 +151,78 @@ async def test_register_is_idempotent(engine, session_factory):
     first = await eng.register(sid)
     second = await eng.register(sid)
     assert first is second
+
+
+# ---- P10 §2: optional daily overlay cadence (ADR 0020) -------------------------
+
+_OVERLAY_PARAMS = {
+    "timeframe": "1Min",
+    "use_daily_overlay": True,
+    "daily_overlay_schedule": "0 15 * * mon-fri",  # day names → no dow off-by-one
+}
+
+
+async def test_overlay_job_registered_when_opted_in(engine, session_factory):
+    """use_daily_overlay + a cadence → a SECOND APScheduler job is registered
+    alongside on_bar, tracked on the RunningStrategy."""
+    eng, _bus, _router = engine
+    sid = await _register_echo_strategy(session_factory, params=_OVERLAY_PARAMS)
+    running = await eng.register(sid)
+    assert running.overlay_job_id == f"strategy:{sid}:overlay"
+    assert eng._scheduler.get_job(running.overlay_job_id) is not None
+
+
+async def test_no_overlay_job_by_default(engine, session_factory):
+    """Default (no use_daily_overlay) → no overlay job, inert (opt-in/default-off)."""
+    eng, _bus, _router = engine
+    sid = await _register_echo_strategy(session_factory)  # default params
+    running = await eng.register(sid)
+    assert running.overlay_job_id is None
+
+
+async def test_overlay_not_registered_without_cadence(engine, session_factory):
+    """use_daily_overlay truthy but no cadence → no job (nothing to schedule)."""
+    eng, _bus, _router = engine
+    sid = await _register_echo_strategy(
+        session_factory, params={"timeframe": "1Min", "use_daily_overlay": True}
+    )
+    running = await eng.register(sid)
+    assert running.overlay_job_id is None
+
+
+async def test_dispatch_overlay_tick_calls_hook(engine, session_factory):
+    """The overlay tick invokes on_overlay_tick with the same error-contained path."""
+    eng, _bus, _router = engine
+    sid = await _register_echo_strategy(session_factory, params=_OVERLAY_PARAMS)
+    running = await eng.register(sid)
+    running.instance.on_overlay_tick = AsyncMock()
+    await eng._dispatch_overlay_tick(strategy_id=sid)
+    running.instance.on_overlay_tick.assert_awaited_once()
+
+
+async def test_overlay_tick_exception_marks_error(engine, session_factory):
+    """A raising overlay tick is contained — strategy → ERROR, dropped from running,
+    not a scheduler crash (ADR 0021 fail-safe; mirrors the on_bar path)."""
+    eng, _bus, _router = engine
+    sid = await _register_echo_strategy(session_factory, params=_OVERLAY_PARAMS)
+    running = await eng.register(sid)
+    running.instance.on_overlay_tick = AsyncMock(side_effect=RuntimeError("boom"))
+    await eng._dispatch_overlay_tick(strategy_id=sid)
+    assert sid not in eng._running
+    async with session_factory() as session:
+        row = await session.get(StrategyRow, sid)
+        assert row.status == StrategyStatus.ERROR
+
+
+async def test_unregister_removes_overlay_job(engine, session_factory):
+    """Unregister cancels BOTH the on_bar and overlay jobs (no orphaned schedule)."""
+    eng, _bus, _router = engine
+    sid = await _register_echo_strategy(session_factory, params=_OVERLAY_PARAMS)
+    running = await eng.register(sid)
+    overlay_job_id = running.overlay_job_id
+    assert eng._scheduler.get_job(overlay_job_id) is not None
+    await eng.unregister(sid, reason="test_done")
+    assert eng._scheduler.get_job(overlay_job_id) is None
 
 
 async def test_unregister_calls_on_shutdown_and_closes_run(engine, session_factory):

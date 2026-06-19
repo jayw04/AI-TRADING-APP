@@ -61,6 +61,7 @@ def _params(**over):
 def _ctx(symbols, scores, holdings=None, price=100.0, equity=None, spy_bars=None):
     holdings = holdings or {}
     ctx = MagicMock()
+    ctx.strategy_id = 1
     ctx.symbols = symbols
     ctx.factors = MagicMock()
     ctx.factors.momentum_scores = MagicMock(return_value=scores)
@@ -490,6 +491,114 @@ async def test_whole_shares_floor_sub_one_to_zero() -> None:
     strat = _strat(ctx, top_quantile=1.0, max_names=1)  # fractional defaults False
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
+    ctx.submit_order.assert_not_called()
+
+
+# ---- daily gross-exposure overlay (P10 §2, ADR 0020) ---------------------------
+
+def test_daily_overlay_disabled_by_default() -> None:
+    assert MomentumPortfolio.default_params["use_daily_overlay"] is False
+
+
+async def _overlay_strat(holdings, *, equity=10_000, price=100.0, target_gross=0.10, **over):
+    """A strategy holding ``holdings`` with the overlay on; the vol math is stubbed via
+    _overlay_target_gross so these tests isolate the RE-SIZE logic (the desired_gross
+    math is unit-tested in test_overlay.py). base=equity (cash_buffer 0) → with all
+    names at ``price``, current_gross = invested/equity."""
+    from unittest.mock import AsyncMock as _AM
+    ctx = _ctx(["AAA", "BBB", "SPY"], _scores([("AAA", 2.0), ("BBB", 1.0)]),
+               holdings=holdings, price=price, equity=equity)
+    strat = _strat(ctx, use_daily_overlay=True, **over)
+    await strat.on_init()
+    strat._overlay_target_gross = _AM(return_value=target_gross)  # type: ignore[method-assign]
+    return strat, ctx
+
+
+async def test_overlay_disabled_noops() -> None:
+    """use_daily_overlay False → on_overlay_tick is inert (no orders, no vol read)."""
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), holdings={"AAA": 10},
+               price=100.0, equity=10_000)
+    strat = _strat(ctx)  # use_daily_overlay defaults False
+    await strat.on_init()
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
+async def test_overlay_noop_when_flat() -> None:
+    """No holdings → the overlay never SELECTS, so it cannot re-enter — pure no-op."""
+    strat, ctx = await _overlay_strat({})  # no positions
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
+async def test_overlay_scales_down_in_high_vol() -> None:
+    """current_gross 0.20 (2×10×100 / 10k), target 0.10 → ratio 0.5 → each held name
+    trimmed from 10 → 5 (SELL 5), composition preserved (equal names, equal trims)."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("sell", Decimal(5))
+    assert orders["BBB"] == ("sell", Decimal(5))
+
+
+async def test_overlay_scales_up_toward_target() -> None:
+    """target 0.40 vs current 0.20 → ratio 2.0 → each held name 10 → 20 (BUY 10).
+    Adds to EXISTING names only — never a new symbol."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.40)
+    await strat.on_overlay_tick()
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("buy", Decimal(10))
+    assert orders["BBB"] == ("buy", Decimal(10))
+
+
+async def test_overlay_drift_gate_skips() -> None:
+    """target within overlay_drift_pct of current gross → skip (no churn)."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.205)  # cur 0.20
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
+async def test_overlay_never_touches_unheld_names() -> None:
+    """Only held names are re-sized; a high-scored but UNHELD name is never bought
+    (the overlay does not select)."""
+    strat, ctx = await _overlay_strat({"AAA": 10}, target_gross=0.05)  # only AAA held
+    await strat.on_overlay_tick()
+    orders = _orders(ctx)
+    assert set(orders) == {"AAA"}  # BBB (unheld) never traded
+
+
+async def test_overlay_sets_gross_gauge_and_counter() -> None:
+    """A scaled tick exports the gross gauge (= target; current/avg/min are PromQL
+    over it) and increments the 'scaled' outcome counter."""
+    from prometheus_client import REGISTRY
+
+    from app.observability.metrics import overlay_actions_total
+
+    before = REGISTRY.get_sample_value(
+        "workbench_overlay_actions_total", {"strategy_id": "1", "outcome": "scaled"}
+    ) or 0.0
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()
+
+    gross = REGISTRY.get_sample_value("workbench_overlay_gross", {"strategy_id": "1"})
+    assert gross == pytest.approx(0.10)
+    after = REGISTRY.get_sample_value(
+        "workbench_overlay_actions_total", {"strategy_id": "1", "outcome": "scaled"}
+    )
+    assert after == pytest.approx(before + 1.0)
+    _ = overlay_actions_total  # imported for clarity; assertion reads via REGISTRY
+
+
+async def test_overlay_idempotent_resize_then_noop() -> None:
+    """Restart-safe idempotency: after a re-size brings the book to target, a second
+    tick at the same target finds the book already there → no further orders. Modelled
+    by updating holdings to the re-sized qty and re-running."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()  # trims 10 → 5
+    # Book is now at the target (5 each → gross 0.10); a re-fire must no-op.
+    ctx.get_position_for = AsyncMock(side_effect=lambda s: _pos(5) if s in ("AAA", "BBB") else None)
+    ctx.submit_order.reset_mock()
+    await strat.on_overlay_tick()
     ctx.submit_order.assert_not_called()
 
 

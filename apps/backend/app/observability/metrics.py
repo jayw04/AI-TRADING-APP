@@ -89,6 +89,23 @@ audit_log_rows_total = Gauge(
     "Total rows in audit_log (a sanity check on growth)",
 )
 
+# P10 §2 daily gross-exposure overlay (ADR 0020). Set inline by the strategy's
+# overlay tick (NOT snapshotted) — gauges remember their last value, so this is the
+# book's gross after the most recent tick. The reviewer's "current / average /
+# minimum gross" are all derived from this one time series in PromQL: current =
+# the gauge, average = avg_over_time(...[1d]), minimum = min_over_time(...[1d]).
+overlay_gross = Gauge(
+    "workbench_overlay_gross",
+    "Book gross-exposure target after the latest daily overlay tick, by strategy",
+    labelnames=["strategy_id"],
+)
+
+overlay_actions_total = Counter(
+    "workbench_overlay_actions_total",
+    "Daily overlay ticks by outcome (scaled / skip_drift / skip_no_price / skip_flat)",
+    labelnames=["strategy_id", "outcome"],
+)
+
 # --- Histograms --------------------------------------------------------------
 
 order_submission_duration_seconds = Histogram(

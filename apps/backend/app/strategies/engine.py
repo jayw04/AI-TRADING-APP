@@ -121,6 +121,7 @@ class RunningStrategy:
     symbols: list[str]
     timeframe: str  # for periodic on_bar dispatch
     schedule: str  # cron expression or "event" — drives WS vs cron path
+    overlay_job_id: str | None = None  # P10 §2: APScheduler id for the daily overlay tick (None = no overlay)
 
 
 class StrategyEngine:
@@ -414,6 +415,41 @@ class StrategyEngine:
                 coalesce=True,
             )
 
+        # P10 §2 (ADR 0020): optional SECOND cadence for a daily gross-exposure overlay,
+        # independent of the on_bar schedule. Opt-in / default-off: the overlay job is
+        # registered only when ``use_daily_overlay`` is truthy AND a cadence is set
+        # (param ``daily_overlay_schedule`` overrides the class default). single-flight
+        # (max_instances=1 + coalesce) so a slow/duplicate fire can't stack — the
+        # idempotency half of ADR 0021's recurring-action contract.
+        overlay_job_id: str | None = None
+        overlay_schedule = (
+            merged_params.get("daily_overlay_schedule")
+            or getattr(cls, "daily_overlay_schedule", None)
+        )
+        if merged_params.get("use_daily_overlay") and overlay_schedule:
+            overlay_job_id = f"strategy:{strategy_id}:overlay"
+            try:
+                overlay_cron = CronTrigger.from_crontab(
+                    _normalize_crontab_dow(str(overlay_schedule))
+                )
+            except Exception:
+                logger.warning(
+                    "strategy_overlay_schedule_invalid_skipping",
+                    strategy_id=strategy_id,
+                    daily_overlay_schedule=overlay_schedule,
+                )
+                overlay_job_id = None
+            if overlay_job_id is not None:
+                self._scheduler.add_job(
+                    self._dispatch_overlay_tick,
+                    overlay_cron,
+                    kwargs={"strategy_id": strategy_id},
+                    id=overlay_job_id,
+                    replace_existing=True,
+                    max_instances=1,
+                    coalesce=True,
+                )
+
         running = RunningStrategy(
             strategy_id=strategy_id,
             instance=instance,
@@ -422,6 +458,7 @@ class StrategyEngine:
             symbols=symbols,
             timeframe=merged_params.get("timeframe", "1Min"),
             schedule=schedule,
+            overlay_job_id=overlay_job_id,
         )
         self._running[strategy_id] = running
         logger.info(
@@ -463,12 +500,14 @@ class StrategyEngine:
         if running is None:
             return
 
-        if running.job_id:
+        for jid in (running.job_id, running.overlay_job_id):
+            if not jid:
+                continue
             try:
-                self._scheduler.remove_job(running.job_id)
+                self._scheduler.remove_job(jid)
             except Exception:
                 logger.exception(
-                    "strategy_remove_job_failed", strategy_id=strategy_id
+                    "strategy_remove_job_failed", strategy_id=strategy_id, job_id=jid
                 )
 
         try:
@@ -760,6 +799,22 @@ class StrategyEngine:
                 await self._handle_user_exception(strategy_id, "on_bar", exc)
                 return  # stop dispatching to a broken strategy this tick
 
+    async def _dispatch_overlay_tick(self, *, strategy_id: int) -> None:
+        """APScheduler-invoked at the daily overlay cadence (P10 §2, ADR 0020): call
+        the strategy's ``on_overlay_tick`` so it re-sizes gross exposure of its held
+        book. Same market-session gate and error containment as ``_dispatch_bar_tick``
+        — a broken overlay tick marks the strategy ERROR rather than crashing the
+        scheduler."""
+        running = self._running.get(strategy_id)
+        if running is None:
+            return
+        if not self._dispatch_allowed(running):
+            return
+        try:
+            await running.instance.on_overlay_tick()
+        except Exception as exc:
+            await self._handle_user_exception(strategy_id, "on_overlay_tick", exc)
+
     async def _consume_topic(
         self,
         topic: str,
@@ -906,9 +961,11 @@ class StrategyEngine:
                 await session.commit()
         # Drop without invoking on_shutdown (the strategy is unhealthy).
         running = self._running.pop(strategy_id, None)
-        if running is not None and running.job_id:
-            with contextlib.suppress(Exception):
-                self._scheduler.remove_job(running.job_id)
+        if running is not None:
+            for jid in (running.job_id, running.overlay_job_id):
+                if jid:
+                    with contextlib.suppress(Exception):
+                        self._scheduler.remove_job(jid)
         await self._bus.publish(
             "strategy.error",
             {"strategy_id": strategy_id, "hook": hook, "error": str(exc)},
