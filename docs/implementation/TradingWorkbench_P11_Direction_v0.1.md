@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 (direction draft — sequence proposed, open questions listed; sessions not yet drafted) |
+| Document version | v0.2 (2026-06-19: + objective sentence & 4-goal scope filter, the Implemented→Enabled→Healthy→Verified state model, an architecture-freeze guardrail, and the Operational Readiness Report as the phase's final deliverable — from the v0.1 review. Detailed operational artifacts deferred to per-session docs to keep this a direction, not a grab-bag.) |
 | Date | 2026-06-19 |
 | Phase | **P11** — Operations & Reliability (follows P10 Portfolio-Level Risk Engineering) |
 | Status | Direction-set. Foundation = ADR 0021 (Draft → accept first). Per-session docs may be drafted once the §1 scope is confirmed. |
@@ -13,6 +13,21 @@
 | Inputs | The P10 roadmap-v0.6 review's closing verdict (*"architecture is no longer the limiting factor… demonstrate the platform behaves predictably and safely over time"*); ADR 0021's six contract properties; the §2/§6 Prometheus metrics already shipped; the §5 partial-fill / NO-GO findings |
 
 ---
+
+## 0. Objective (the north star + the scope filter)
+
+> **The objective of P11 is to make every automated action in Trading Workbench
+> observable, reproducible, recoverable, and auditable — so operational reliability can
+> be measured with the same rigor as investment performance.**
+
+Those four words are the **scope filter**: every proposed P11 task must advance at least
+one of them — **Observable · Reproducible · Recoverable · Auditable**. If it doesn't, it
+belongs in another phase. (This guards against the real risk of P11 drifting into a grab
+bag of unrelated operational tweaks.)
+
+**Architecture freeze (guardrail):** P11 adds **no architectural expansion — only
+operational hardening** of what P10 already built. New subsystems/strategies/data
+dependencies are out of scope by construction (each would be its own ADR + phase).
 
 ## 1. Why P11 exists
 
@@ -42,8 +57,14 @@ backtest-gated decision) or finding new alpha.
 - **Observability** — a coherent operational KPI set on top of the §2/§6 metrics
   (scheduler success rate, fail-open frequency, duplicate-execution count, replay
   consistency), with targets, a dashboard, and alert thresholds.
-- **Operational state** — a queryable record of *what is actually enabled/running today*
-  (distinct from "implemented"), and a feature registry (version · ADR · flag · state).
+- **Operational state** — a queryable record of *what is actually enabled/running today*,
+  and a feature registry (version · ADR · flag · state). Four **distinct** states per
+  feature (extends P10's Implemented/Proven/Enabled):
+  **Implemented** (code on `main`) → **Enabled** (running on a book) → **Healthy**
+  (running *correctly*) → **Verified** (cleared its promotion backtest). They are
+  independent — e.g. the overlays are Implemented=yes / Enabled=no / Healthy=N/A /
+  Verified=no (§5 = NO-GO). **"Healthy"** is defined concretely: *no stale jobs, no failed
+  reconciliations, no replay failures, no duplicate executions, no unresolved alerts.*
 - **Reconciliation** — a periodic broker-vs-local position/order reconcile that **alerts
   on discrepancy and never silently auto-corrects** (ADR 0021 property 4); first concrete
   consumer = the overlay partial-fill gap.
@@ -62,6 +83,9 @@ backtest-gated decision) or finding new alpha.
   (each would be its own ADR).
 - A standalone Execution Engine — extract only if a second consumer needs shared order
   diffing/batching/retry (ADR 0020/0021 trigger), not pre-emptively.
+- *(Forward pointer, not now):* a future **P12 — Institutional Platform** (multi-account /
+  portfolio hierarchy / permissions / HA / scaling) is the natural successor, but it is an
+  architectural expansion and therefore explicitly outside P11's freeze.
 
 ## 3. Foundation — ADR 0021 first
 
@@ -88,6 +112,19 @@ each session maps to making one or more of them enforced + measured.
 (Ordering favors the cheapest, highest-leverage first; §3/§5 are the heavier, risk-adjacent
 builds.)
 
+**Detailed operational artifacts are deferred to the per-session docs** (kept out of this
+direction to avoid the grab-bag). The relevant session will specify, as needed: operational
+**SLOs** (scheduler ≥99.9% · replay 100% · duplicate-exec 0 · reconcile latency <5min ·
+fail-open detection 100%) → §2; an **operational data model** (`automation_runs` /
+`reconciliation_runs` / `replay_runs` / `alerts` / `system_health` / `scheduler_history` —
+also open-question #1) → §1/§3; an **ops-architecture + dashboard** layout → §1/§2; a
+**recurring-actor lifecycle** (Scheduled→Started→Completed→Verified→Archived) → §2; **replay
+depth** (Inputs→Decision→Orders→Broker result→Final state) → §4; **incident severities**
+(P1 duplicate order · P2 broker mismatch · P3 replay failure · P4 delayed scheduler) and a
+**production-readiness checklist** (code·tests·metrics·replay·runbook·alert·dashboard) →
+§5; and **reliability-testing classes** (chaos / restart / recovery / replay / failover) →
+§5. Each must trace to one of the four objective goals (§0) or it doesn't belong in P11.
+
 ## 5. Governing principles (inherited, non-negotiable)
 
 - **Read-only / off the order path** for monitors and reconciliation (ADR 0002/0019);
@@ -109,6 +146,22 @@ not when returns improve:
 - restart and partial-fill scenarios self-heal, validated by a followed runbook.
 
 Returns/enabling decisions remain separate and backtest-gated (P10's posture).
+
+**Final deliverable — the Operational Readiness Report.** P11 closes with a one-page report
+attesting each capability is operationally proven, not just coded:
+
+| Category | Status |
+|---|---|
+| Replay | PASS / FAIL |
+| Recovery (restart + partial-fill) | PASS / FAIL |
+| Reconciliation | PASS / FAIL |
+| Alerts | PASS / FAIL |
+| Scheduler reliability | PASS / FAIL |
+| Audit integrity | PASS / FAIL |
+
+All-PASS over a sustained paper window is the bar for declaring the platform
+operationally trustworthy (a much stronger basis for any future live deployment than more
+strategies or alpha).
 
 ## 7. Open questions (resolve before drafting §1)
 
