@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.2 (2026-06-19: + objective sentence & 4-goal scope filter, the Implemented→Enabled→Healthy→Verified state model, an architecture-freeze guardrail, and the Operational Readiness Report as the phase's final deliverable — from the v0.1 review. Detailed operational artifacts deferred to per-session docs to keep this a direction, not a grab-bag.) |
+| Document version | **v1.0 — FROZEN phase charter** (2026-06-19). v0.2 added the objective/4-goal filter, the Implemented→Enabled→Healthy→Verified state model, the architecture-freeze guardrail, and the Operational Readiness Report. v1.0 (final review) adds: an explicit "automated action" definition + operational-boundary + reliability-pyramid diagrams (§0), the Research/Engineering/Operations→evidence/software/**trust** framing (§1), a non-goals summary + replay decision-not-outcome clarification (§2), the "Operations never changes investment decisions" principle (§5), and a quantitative **Definition of Done** with exit gates (§6). Frozen — next is ADR-0021 acceptance + per-session docs, not more direction edits. |
 | Date | 2026-06-19 |
 | Phase | **P11** — Operations & Reliability (follows P10 Portfolio-Level Risk Engineering) |
-| Status | Direction-set. Foundation = ADR 0021 (Draft → accept first). Per-session docs may be drafted once the §1 scope is confirmed. |
+| Status | **FROZEN charter** (reviewed 3 rounds → final). Next: accept **ADR 0021** (§1 milestone), then draft per-session docs — not more direction edits. |
 | Predecessor | **P10** — code-complete (every §1–§8/§3C on `main`; all overlays default-off; §5 regime overlay backtest = NO-GO). Roadmap `..._P10_PortfolioRisk_Roadmap_v0.1.md` (v0.6.1). |
 | Successor | TBD |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
@@ -29,6 +29,31 @@ bag of unrelated operational tweaks.)
 operational hardening** of what P10 already built. New subsystems/strategies/data
 dependencies are out of scope by construction (each would be its own ADR + phase).
 
+**What "automated action" means (scope of this phase):** a recurring, system-initiated
+action — **scheduled rebalance · overlay re-size · breaker evaluation · reconciliation ·
+replay verification**. It does **not** include research backtests or manually-run scripts
+(human-initiated, off the order path).
+
+**The operational boundary.** P11 governs the zone from strategy output to the broker;
+**research stays outside it**:
+
+```
+Research (evidence)  ──┐
+                       ▼
+   Strategy output ─▶ Automation ─▶ Execution ─▶ Broker ─▶ Reconciliation/Audit/Replay
+                       └──────────────── P11's operational zone ───────────────┘
+```
+
+**Reliability pyramid** — each layer rests on the one below; P11 builds upward:
+
+```
+            Monitoring        (KPIs, dashboards, alerts)
+          ▲ Replay            (reconstruct any decision)
+        ▲ Recovery            (restart- + partial-fill-safe)
+      ▲ Audit                 (immutable, fingerprinted)
+    ▲ Automation              (idempotent, fail-safe actors)
+```
+
 ## 1. Why P11 exists
 
 P10 completed the **architecture**: a single OrderRouter, non-bypassable risk gates, an
@@ -51,6 +76,10 @@ This phase is about **operating the existing system**, not adding capability. It
 deliberately *not* about enabling the default-off overlays (that is a separate,
 backtest-gated decision) or finding new alpha.
 
+The project's three maturity layers make the progression explicit: **Research produces
+evidence · Engineering produces software · Operations produces *trust*.** P11 is the
+operations layer — its output is trust that the platform behaves predictably and safely.
+
 ## 2. Scope
 
 **In scope** (the ADR-0021 properties, made real + measured):
@@ -70,12 +99,15 @@ backtest-gated decision) or finding new alpha.
   consumer = the overlay partial-fill gap.
 - **Replay** — reconstruct any automated decision from its audit fingerprint (overlay
   `overlay_event_id` + inputs; breaker trip payload), proving forensic replayability.
+  Replay validates **the decision, not the outcome** — the broker may legitimately fill
+  differently; replay proves the *automation behaved correctly* given its inputs.
 - **Recovery hardening** — restart-recovery and partial-fill self-heal, with tests and a
   runbook that is *followed* to validate it.
 - **Runbooks + an event-timeline** (market close → data refresh → breadth/VIX → overlay →
   desired gross → orders → audit) so operational sequencing is explicit.
 
-**Out of scope / non-goals:**
+**Out of scope / non-goals.** In one line: P11 is **NOT** about better returns, more
+alpha, new factors, more AI, or architecture redesign.
 - **Enabling the default-off overlays** (§1 vol-target / §2 / §4 / §5) — each is its own
   backtest-gated owner decision; §5 is already a NO-GO. P11 makes operation *safe*, not
   *broader*.
@@ -83,9 +115,10 @@ backtest-gated decision) or finding new alpha.
   (each would be its own ADR).
 - A standalone Execution Engine — extract only if a second consumer needs shared order
   diffing/batching/retry (ADR 0020/0021 trigger), not pre-emptively.
-- *(Forward pointer, not now):* a future **P12 — Institutional Platform** (multi-account /
-  portfolio hierarchy / permissions / HA / scaling) is the natural successor, but it is an
-  architectural expansion and therefore explicitly outside P11's freeze.
+- *(Forward pointer, not now):* a future **P12 — Institutionalization** (multi-account /
+  portfolio hierarchy / permissions / deployment / HA / scaling / administration) is the
+  natural successor — a different concern from operations — but it is an architectural
+  expansion and therefore explicitly outside P11's freeze.
 
 ## 3. Foundation — ADR 0021 first
 
@@ -135,6 +168,9 @@ depth** (Inputs→Decision→Orders→Broker result→Final state) → §4; **in
   a false action can be ruinous.
 - **Conservative defaults**, and every consequential automated action audit-logged with a
   replayable fingerprint.
+- **Operations never changes investment decisions.** It ensures the decisions the alpha /
+  portfolio layers make are *executed safely and observably* — it does not alter what to
+  trade (the Research↔Operations boundary, §0).
 
 ## 6. Success criteria — reliability, not returns
 
@@ -162,6 +198,29 @@ attesting each capability is operationally proven, not just coded:
 All-PASS over a sustained paper window is the bar for declaring the platform
 operationally trustworthy (a much stronger basis for any future live deployment than more
 strategies or alpha).
+
+### Definition of Done (phase exit criteria)
+
+**P11 is complete when:**
+- every recurring automation is **monitored** (emits its KPIs);
+- every automated decision is **replayable** from its fingerprint;
+- every recovery procedure (restart, partial-fill) is **tested** and has a **runbook**;
+- every failure mode has a runbook + an alert;
+- the **Operational Readiness Report is all-PASS**, sustained over **≥30 consecutive paper
+  days with no unresolved P1/P2 incidents**;
+- and the exit-gate metrics below hold over that window:
+
+| Exit metric | Gate |
+|---|---|
+| Replay success | 100% |
+| Scheduler success | > 99.9% |
+| Duplicate executions | 0 |
+| Recovery tests (restart + partial-fill) | PASS |
+| Reconciliation accuracy | 100% |
+| Fail-open detection | 100% |
+
+These are **exit gates** (phase-completion), distinct from the per-session SLO dashboards
+(§2 implementation). Quantitative, so "done" is unambiguous.
 
 ## 7. Open questions (resolve before drafting §1)
 
