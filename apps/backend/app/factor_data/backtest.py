@@ -208,7 +208,7 @@ def _apply_sector_cap(
     store: FactorDataStore,
     weights: dict[str, float],
     *,
-    max_sector_pct: float,
+    max_sector_pct: float | None,
 ) -> dict[str, float]:
     """Cap each known sector's aggregate book weight at ``max_sector_pct`` (Phase 3A
     §3C). Returns a re-normalized long-only, fully-invested (Σ=1) weight vector.
