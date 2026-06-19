@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import uuid
 from decimal import Decimal
 from typing import Any, ClassVar
 
@@ -69,6 +70,7 @@ from app.factor_data.factors.engine import FactorUnavailable
 from app.factor_data.universe import UniverseUnavailable
 from app.risk import OrderRequest
 from app.strategies import Strategy
+from app.strategies.overlay import desired_gross as overlay_desired_gross
 
 # The three "no factor data this week" signals (accessor not provisioned, thin
 # cross-section, below the price floor) — any of them means HOLD the book, not
@@ -78,7 +80,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.7.0"  # + parametrized momentum window, default 12m (R1; 6-1→12m upgrade)
+    version: ClassVar[str] = "0.8.0"  # + P10 §2 daily gross-exposure overlay (ADR 0020, default off)
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
@@ -117,6 +119,12 @@ class MomentumPortfolio(Strategy):
         "use_vol_scaling": False,  # portfolio EWMA-vol targeting (review Priority 1) — opt-in
         "vol_target_annual": 0.15,  # target annualized portfolio vol when vol-scaling is on
         "vol_ewma_span": 20,  # EWMA span (trading days) for the market-proxy vol estimate
+        # P10 §2 daily gross-exposure overlay (ADR 0020) — opt-in / default off. When on,
+        # a daily tick re-sizes the HELD book toward the vol-target gross WITHOUT
+        # re-selecting names (uses vol_target_annual / vol_ewma_span, like vol-scaling).
+        "use_daily_overlay": False,
+        "daily_overlay_schedule": "0 15 * * mon-fri",  # ~10:00 ET weekdays; day names (dow-safe)
+        "overlay_drift_pct": 0.01,  # skip a re-size when |Δgross| is below this (execution hygiene)
     }
 
     params_schema: ClassVar[dict[str, Any]] = {
@@ -162,6 +170,12 @@ class MomentumPortfolio(Strategy):
                               "description": "Target annualized portfolio volatility when vol-scaling is enabled."},
         "vol_ewma_span": {"type": "integer", "min": 2, "default": 20,
                           "description": "EWMA span (trading days) for the market-proxy volatility estimate."},
+        "use_daily_overlay": {"type": "boolean", "default": False,
+                              "description": "Enable a daily gross-exposure overlay that re-sizes the held book toward the vol target between weekly rebalances (ADR 0020). Never re-selects names."},
+        "daily_overlay_schedule": {"type": "string", "default": "0 15 * * mon-fri",
+                                   "description": "Cron cadence for the daily overlay tick (use day names to avoid the dow off-by-one)."},
+        "overlay_drift_pct": {"type": "number", "min": 0, "max": 1, "default": 0.01,
+                              "description": "Skip a daily overlay re-size when the gross change is below this fraction (execution hygiene)."},
     }
 
     async def on_init(self) -> None:
@@ -441,6 +455,109 @@ class MomentumPortfolio(Strategy):
         if realized_annual <= 0:
             return 1.0
         return min(1.0, target / realized_annual)
+
+    # ---- P10 §2 daily gross-exposure overlay (ADR 0020) ----
+
+    async def on_overlay_tick(self) -> None:
+        """Daily overlay: re-size the HELD book toward the vol-target gross WITHOUT
+        re-selecting names (ADR 0020). Compute → validate → execute → audit.
+
+        The overlay only ever scales the existing book's gross exposure; it never
+        selects/ranks names (so when flat it no-ops — it cannot re-enter), never
+        leverages (the target is in [0, 1]), and fails OPEN (no scaling) on missing
+        data. Idempotency is **restart-safe by construction**: the target is compared
+        to the book's *live* gross (computed from current positions), so a re-fire on
+        an already-applied book finds Δ≈0 and no-ops — no stored flag to lose on
+        restart. A sub-``overlay_drift_pct`` change is skipped (execution hygiene)."""
+        if not self.params.get("use_daily_overlay", False):
+            return  # opt-in; the engine also gates registration, this is defence in depth
+        event_id = f"ovl_{uuid.uuid4().hex[:12]}"
+        desired = await self._overlay_target_gross()  # [0,1]; 1.0 on bad data (fail open)
+
+        held = await self._current_holdings()
+        if not held:
+            return  # overlay never SELECTS — nothing to re-size when flat
+
+        base = await self._investable_base()
+        if base <= 0:
+            return
+        prices: dict[str, Decimal] = {}
+        invested = Decimal(0)
+        for sym, qty in held.items():
+            p = await self._price(sym)
+            if p is None or p <= 0:
+                # Missing a price for a held name → fail safe: skip this tick rather
+                # than re-size on partial information (next tick re-converges).
+                await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                    "overlay_event_id": event_id, "reason": "skip_no_price", "symbol": sym})
+                return
+            prices[sym] = Decimal(str(p))
+            invested += qty * prices[sym]
+        if invested <= 0:
+            return
+        current_gross = float(invested / base)
+
+        fingerprint: dict[str, Any] = {
+            "overlay_event_id": event_id,
+            "overlay_version": "1.0",
+            "strategy_version": self.version,
+            "gross_before": round(current_gross, 4),
+            "gross_target": round(desired, 4),
+        }
+        # VALIDATE — idempotent / drift gate (restart-safe: compares to live book gross).
+        if abs(desired - current_gross) < float(self.params.get("overlay_drift_pct", 0.01)):
+            await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                **fingerprint, "gross_after": round(current_gross, 4), "reason": "skip_drift"})
+            return
+
+        # EXECUTE — scale every held sleeve by the same ratio (gross changes, intra-book
+        # weights preserved — the overlay must not change composition).
+        ratio = Decimal(str(desired)) / Decimal(str(current_gross))
+        fractional = bool(self.params.get("fractional_shares", False))
+        for sym, qty in held.items():
+            if fractional:
+                target_qty = (qty * ratio).quantize(Decimal("0.000001"))
+            else:
+                target_qty = Decimal(math.floor(qty * ratio))
+            delta = target_qty - qty
+            if delta == 0:
+                continue
+            side = OrderSide.BUY if delta > 0 else OrderSide.SELL
+            await self._submit(sym, side, abs(delta), reason="overlay_resize",
+                               payload={"overlay_event_id": event_id, "price": float(prices[sym]),
+                                        "target_qty": str(target_qty)})
+
+        # AUDIT — the run fingerprint (gross_after == the target we re-sized toward).
+        await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+            **fingerprint, "gross_after": round(desired, 4), "reason": "scaled"})
+
+    async def _overlay_target_gross(self) -> float:
+        """The overlay's desired gross via the shared overlay layer (ADR 0020): the
+        EWMA-vol target computed from the market proxy's daily returns. Fails open to
+        1.0 when the proxy series is unavailable."""
+        sym = str(self.params.get("market_filter_symbol", "SPY"))
+        span = int(self.params.get("vol_ewma_span", 20))
+        target = float(self.params.get("vol_target_annual", 0.15))
+        bars = await self.ctx.get_recent_bars(sym, "1Day", n=span * 3 + 1)
+        if bars is None or bars.empty:
+            return 1.0
+        rets = bars["c"].astype(float).pct_change().dropna().tolist()
+        return overlay_desired_gross(
+            market_returns=rets, vol_target_annual=target, vol_ewma_span=span
+        )
+
+    async def _investable_base(self) -> Decimal:
+        """Equity minus the cash buffer, WITHOUT the gross scale — the denominator the
+        overlay measures current gross against (so current_gross reflects how much of
+        the investable base is actually deployed). Mirrors ``_investable_equity`` minus
+        its ``_gross_scale`` factor."""
+        try:
+            live = await self.ctx.get_account_equity()
+        except Exception:  # noqa: BLE001 — equity-read failure → fall back to the estimate
+            live = None
+        equity = Decimal(str(live)) if live is not None else self._equity_estimate
+        buffer = Decimal(str(self.params.get("cash_buffer_pct", 0.02)))
+        return equity * (Decimal(1) - buffer)
 
     async def _price(self, symbol: str) -> float | None:
         """Latest close for sizing, from the pricing timeframe; None if unavailable."""
