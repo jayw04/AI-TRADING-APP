@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 (draft — one open question to confirm before coding; see Open questions) |
+| Document version | **v1.0 — frozen for execution** (2026-06-19; the derive-vs-persist open question resolved → DERIVE, no new schema) |
 | Date | 2026-06-19 |
 | Phase | **P11** — Operations & Reliability |
 | Session | §1 of 5 (foundation; ADR 0021 acceptance milestone already done) |
@@ -58,14 +58,13 @@ order path — pure read-only observability.
   `use_vix_overlay`, `max_sector_pct`) — all shipped in P10. The §6 breaker monitor
   registers a `breaker_monitor` interval job in `lifespan`.
 
-## Open questions (resolve before starting)
+## Open questions — RESOLVED (2026-06-19)
 
-1. **Operational-state store — derive vs. persist.** *Recommendation: DERIVE (no new
-   table) for §1.* State is read live from strategy params + registered jobs + the static
-   registry; this matches the Direction's "avoid new schema if the data exists" and keeps
-   §1 the smallest slice. A persisted **`system_health` / `*_runs` operational data model**
-   (Direction §4 deferred list) is introduced in §2/§3 when history/KPIs need it — not now.
-   *(Confirm this before coding; it's the one load-bearing §1 decision.)*
+1. **Operational-state store — derive vs. persist → DERIVE (no new schema).** State is
+   read live from strategy params + registered jobs + the static registry. This matches
+   the Direction's "avoid new schema if the data exists" and keeps §1 the smallest slice.
+   A persisted **`system_health` / `*_runs` operational data model** (Direction §4 deferred
+   list) is introduced in §2/§3 when history/KPIs need it — not now. Doc frozen at v1.0.
 
 ## Detailed work
 

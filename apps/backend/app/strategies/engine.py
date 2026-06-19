@@ -206,6 +206,22 @@ class StrategyEngine:
             return None
         return schema
 
+    def running_strategies(self) -> list[RunningStrategy]:
+        """Read-only snapshot of the currently-dispatching strategies (P11 §1 ops state).
+
+        Each :class:`RunningStrategy` carries the live merged ``instance.params`` and the
+        APScheduler ``job_id``/``overlay_job_id`` — the truth of *what is running on a book
+        right now*, which the operational-state resolver reads to derive Enabled/Healthy."""
+        return list(self._running.values())
+
+    def scheduler_has_job(self, job_id: str) -> bool:
+        """Whether an APScheduler job is currently registered (P11 §1 — detects infra
+        actors like the §6 ``breaker_monitor``, which run on this same scheduler)."""
+        try:
+            return self._scheduler.get_job(job_id) is not None
+        except Exception:
+            return False
+
     # ---- registration ----
 
     async def register(self, strategy_id: int) -> RunningStrategy:
