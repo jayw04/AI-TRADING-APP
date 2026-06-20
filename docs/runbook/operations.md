@@ -30,7 +30,7 @@ inventory and each feature's promotion verdict; use the API for live enabled/hea
 |---|---|
 | **Implemented** | Code is on `main` (always true for a registered feature). |
 | **Enabled** | A strategy *running on a book* has the feature's flag on (flag features), or the infra job is registered (e.g. `breaker_monitor`). |
-| **Healthy** *(basic, §1)* | The enabling actor is actually being dispatched (its scheduler job is registered). `n_a` when not enabled, `degraded` if enabled but no job. **Full KPI/freshness health is §2.** |
+| **Healthy** *(measured, §2)* | From the scheduler last-success/last-error gauges per the feature's backing job(s): `ok` (fresh success) / `degraded` (most recent run errored/missed) / `stale` (no success within ~2× cadence) / `unknown` (no data yet, or within the 60s startup grace) / `n_a` (not enabled). `unknown` ≠ `degraded` — a fresh process doesn't false-alarm. The `/ops/state` envelope carries `health_algorithm_version` + `health_calculated_at`. |
 | **Verified** | The promotion-backtest verdict — `validated` / `pending` / `no_go` / `n_a`. A research decision, curated in the registry (synced with the P10 roadmap's Implemented-vs-Proven table). |
 
 ## Operator notes
@@ -46,9 +46,40 @@ inventory and each feature's promotion verdict; use the API for live enabled/hea
 - **`enabled=false` for everything** when querying via the standalone CLI is expected — the
   CLI shows the static registry; only the API endpoint sees the live engine.
 
-## What §1 does NOT cover (later P11 sessions)
+## KPIs, SLOs & alerts (§2)
 
-- Full operational **KPIs** (scheduler success %, fail-open rate, duplicate-exec count,
-  last-run freshness) + a dashboard → **§2**.
+Metrics are on the Prometheus backbone (`GET /metrics`); the committed dashboard is
+`docs/observability/grafana-operations.json` (import into a Grafana scraping `/metrics`).
+KPIs are split **Platform** (the platform itself works) vs **Actor** (a given automation
+works), each with an owner, SLO, and alert severity:
+
+**Platform KPIs**
+
+| KPI | Owner | Metric | SLO | Alert |
+|---|---|---|---|---|
+| Scheduler success | Scheduler | `scheduler_job_events_total` (executed ÷ all) | > 99.9% | WARNING |
+| Job freshness | per-job | `time() - *_last_success_timestamp` | < 2× cadence | WARNING |
+| Metrics endpoint | Observability | `/metrics` scrape | reachable | WARNING |
+
+**Actor KPIs**
+
+| KPI | Owner | Metric | SLO | Alert |
+|---|---|---|---|---|
+| Breaker-monitor success | Risk | `automation_runs_total{actor="breaker_monitor"}` | 100% | CRITICAL |
+| Overlay outcomes | Overlay | `overlay_actions_total` | — (default off) | INFO |
+| Fail-open frequency | Overlay | `overlay_actions_total{outcome="fail_open"}` | < 0.1% | WARNING |
+| Duplicate executions | (invariant; `skip_idempotent` evidence) | — | 0 | CRITICAL |
+| Replay consistency | Replay | (§4) | 100% | CRITICAL — *§4* |
+
+Operator response: a **CRITICAL** (duplicate execution, breaker-monitor failing, replay
+inconsistency) is a stop-and-investigate; a **WARNING** (scheduler dip, staleness,
+elevated fail-open) is a look-soon. The breaker monitor swallows internal errors, so its
+*outcome* (`automation_runs_total`), not just its scheduler execution, is the health
+signal.
+
+## What §2 does NOT cover (later P11 sessions)
+
 - Broker/local **reconciliation** → **§3**; **replay** → **§4**; restart/partial-fill
-  **recovery** runbooks → **§5**.
+  **recovery** runbooks → **§5**. The replay-consistency KPI row above is reserved until §4.
+- A **persisted operational data model** (`automation_runs`/`*_runs`/`system_health`
+  tables) — KPI history lives in Prometheus; durable run records arrive in §3/§4.

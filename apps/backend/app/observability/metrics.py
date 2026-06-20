@@ -106,6 +106,30 @@ overlay_actions_total = Counter(
     labelnames=["strategy_id", "outcome"],
 )
 
+# P11 §2 (ADR 0021) — operational-reliability KPIs. The scheduler-event metrics are set by
+# the WorkbenchScheduler's APScheduler listener (every recurring job, uniformly); the
+# last-success/last-error gauges drive the point-in-time health in /ops/state.
+scheduler_job_events_total = Counter(
+    "workbench_scheduler_job_events_total",
+    "APScheduler job lifecycle events, by job and event",
+    labelnames=["job_id", "event"],  # event: executed | error | missed
+)
+scheduler_job_last_success_timestamp = Gauge(
+    "workbench_scheduler_job_last_success_timestamp",
+    "Unix timestamp of the last successful execution, by job",
+    labelnames=["job_id"],
+)
+scheduler_job_last_error_timestamp = Gauge(
+    "workbench_scheduler_job_last_error_timestamp",
+    "Unix timestamp of the last errored/missed execution, by job",
+    labelnames=["job_id"],
+)
+automation_runs_total = Counter(
+    "workbench_automation_runs_total",
+    "Automated-actor runs by actor and outcome (e.g. breaker_monitor ok/error)",
+    labelnames=["actor", "outcome"],
+)
+
 # --- Histograms --------------------------------------------------------------
 
 order_submission_duration_seconds = Histogram(
