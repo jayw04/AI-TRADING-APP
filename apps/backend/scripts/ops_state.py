@@ -17,12 +17,12 @@ from app.ops.feature_registry import FEATURES
 
 
 def main() -> int:
-    hdr = f"{'key':20s} {'kind':10s} {'flag':28s} {'verified':10s} {'ADR':14s}"
+    hdr = f"{'key':20s} {'category':14s} {'kind':10s} {'flag':28s} {'verified':10s} {'ADR':14s}"
     print("Operational feature registry (static). Live enabled/healthy: GET /api/v1/ops/state")
     print(hdr)
     print("-" * len(hdr))
     for f in FEATURES:
-        print(f"{f.key:20s} {f.kind:10s} {str(f.enable_flag or '(infra)'):28s} "
+        print(f"{f.key:20s} {f.category:14s} {f.kind:10s} {str(f.enable_flag or '(infra)'):28s} "
               f"{f.verified:10s} {f.governing_adr:14s}")
     return 0
 

@@ -9,6 +9,7 @@ infra job-id reference a real infra feature.
 from __future__ import annotations
 
 from app.ops.feature_registry import (
+    CATEGORY_VALUES,
     FEATURES,
     INFRA_JOB_IDS,
     VERIFIED_VALUES,
@@ -24,6 +25,11 @@ def test_keys_unique() -> None:
 def test_verified_values_legal() -> None:
     for f in FEATURES:
         assert f.verified in VERIFIED_VALUES, f"{f.key}: {f.verified!r}"
+
+
+def test_category_values_legal() -> None:
+    for f in FEATURES:
+        assert f.category in CATEGORY_VALUES, f"{f.key}: {f.category!r}"
 
 
 def test_flag_features_map_to_real_strategy_params() -> None:
