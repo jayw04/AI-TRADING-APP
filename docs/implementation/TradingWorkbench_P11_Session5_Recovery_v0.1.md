@@ -7,7 +7,7 @@
 | Phase | **P11** — Operations & Reliability (**final session**) |
 | Session | §5 of 5 (Recovery hardening + phase closeout) |
 | Predecessor | P11 §4 — Decision Replay (read-only verifier); merged `bb6d6b0` / PR #181, tag `p11-session4-complete` |
-| Successor | **Phase close** — the Operational Readiness Report + a sustained ≥30-day paper window gate. Next phase is no longer *operations* but the **Institutional Platform** layer (deployment · multi-account · permissions · HA · scaling · administration — review's "Looking Beyond P11"); each is its own ADR/phase, out of scope here. |
+| Successor | **Phase close** — the Operational Readiness Report + a sustained ≥30-day paper window gate. Next is **P12 — Evidence & Validation** (prove the edge), then **P13 Productization**, then **P14 Institutional Scale** (the reviewer's refined roadmap; Institutional Scale is no longer the *immediate* next step). Each is its own ADR/phase, out of scope here. |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
 | Scope | Turn ADR 0021's last two phased properties — **3 (restart-recoverable)** and **6 (self-healing on partial application)** — from *asserted by construction* into *explicitly tested + runbooked*. Add the **reliability-test classes**, the **incident-severity ladder**, the **production-readiness checklist**, a **tested recovery runbook**, and the phase-closing **Operational Readiness Report**. **No new subsystem, no new persistence** — reuses `replay_runs` / `reconciliation_runs` / ops-state / the feature registry / the scheduler (ADR 0021: "no new subsystem yet"). |
 | Estimated wall time | 6–9 hours (reliability test suite + any hardening fixes the tests surface + runbook + severity ladder + readiness checklist + the Readiness Report) |
