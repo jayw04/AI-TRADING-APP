@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v1.0 — executed** (2026-06-20). Companion to the generated artifacts under `docs/implementation/evidence/p12_s2_volscale/`, `…/p12_s2_sectorcap/`, and `…/p12_s2_grid/`. |
+| Document version | **v1.1 — executed + grid folded** (2026-06-20). Depth (vol/cap walk-forward) + breadth (sensitivity grid) both complete. Companion to the artifacts under `docs/implementation/evidence/p12_s2_volscale/`, `…/p12_s2_sectorcap/`, `…/p12_s2_grid/`. |
 | Date | 2026-06-20 |
 | Phase | **P12** — Validation & Results |
 | Session | §2 of 4 (Harden the live strategy — measure the lift) |
@@ -74,9 +74,12 @@ Off; More Research** (re-test on the broad universe, or paired with vol-scaling 
 | Version | Change | Status |
 |---|---|---|
 | 1.0 | Momentum (6-1, weekly top-quintile, equal-weight) | **Validated** (§1) |
-| **1.1** | **+ Vol-scaling (15% target, 20d EWMA)** | **Validated — Enable (recommended)** (§2) |
-| 1.1-alt | + Sector caps (30%) | Off — More Research (§2) |
-| 1.2 | Combined (vol + caps) | Candidate — pending the grid interaction run |
+| **1.1** | **+ Vol-scaling (target 10–20%, default 15%)** | **Validated — Enable (recommended)** (§2) |
+| 1.1-alt | + Sector caps (20–40%) | Off — Reject/More Research (§2) |
+| ~~1.2~~ | ~~Combined (vol + caps)~~ | **No candidate** — caps redundant on top of vol-scaling (grid) |
+
+(The vol target is a **risk dial within v1.1**, not a separate version: 10% max-protection →
+20% max-Sharpe; 15% balanced. The owner sets it by risk appetite.)
 
 ## Registries
 
@@ -97,16 +100,37 @@ holds in crashes; `EXP-20260620-212614`). Sector caps → **Pending / More Resea
 | Momentum (v1.0) | **High** (−76% DD) |
 | Momentum + Vol-scaling (v1.1) | **Medium** (−47% DD, Sharpe-neutral) |
 | Momentum + Sector caps | Medium-High (−73% DD) |
-| Combined (v1.2) | Medium-Low (pending grid) |
+| Combined (vol + caps) | ≈ vol-scaling alone (caps add nothing — no separate config) |
+| Momentum + Vol-scaling @ 10% | Low-Medium (−34% DD, max protection) |
 
-## Pending — sensitivity grid (breadth, running)
+## Sensitivity grid (breadth — `EXP-20260620-220518-grid`)
 
-The `harden_grid.py` run sweeps vol targets 10–20% + sector caps 20–40% + the **combined** (vol+cap)
-interaction, headline-only, scored by the same decision matrix (artifact:
-`docs/implementation/evidence/p12_s2_grid/`). It tests whether 15% is the robust pick (vs 12%/18%)
-and whether the combined config — which the smoke hinted gives the best Sharpe + Calmar — clears as
-a **v1.2 candidate**. It does **not** change the §2 verdict (vol-scaling enables); it refines the
-target choice and the v1.2 question. A short **sensitivity addendum** will be appended when it lands.
+The `harden_grid.py` sweep (full 1997–2026, n=200, headline) confirms and sharpens the verdict
+(`docs/implementation/evidence/p12_s2_grid/`):
+
+| Config | CAGR | Sharpe | maxDD | avgDD | DD red. | Decision |
+|---|---|---|---|---|---|---|
+| 1.0 baseline | +10.7% | 0.48 | −76.4% | −37.6% | — | — |
+| vol 10% | +4.8% | 0.49 | −34.2% | −9.0% | +55% | **Enable** |
+| vol 12% | +5.6% | 0.50 | −39.8% | −10.7% | +48% | **Enable** |
+| vol 15% | +6.9% | 0.51 | −47.2% | −13.1% | +38% | **Enable** |
+| vol 18% | +7.9% | 0.52 | −53.8% | −15.4% | +30% | **Enable** |
+| vol 20% | +8.5% | 0.52 | −57.1% | −16.7% | +25% | **Enable** |
+| cap 20–40% | ~+9.6% | 0.45–0.47 | −71 to −75% | ~−31 to −36% | +2 to +8% | More Research |
+| **A+B: vol 15% + cap 30%** | +6.5% | 0.49 | −47.4% | −13.2% | +38% | Enable (≈ vol-alone) |
+
+Three findings:
+
+1. **Vol-scaling is robust, not a knife-edge — it is a risk-appetite *dial*.** *Every* target 10–20%
+   clears the gate, tracing a clean monotonic frontier: tighter target → more drawdown protection
+   and less return (10% = −34% DD / +4.8% CAGR), looser → more return and best Sharpe (20% = −57% DD
+   / +8.5% CAGR / Sharpe 0.52). **15% is a balanced middle**; the owner can dial protection vs return
+   without leaving the "Enable" region. (Best Sharpe/Calmar = 20%; lowest DD = 10%.)
+2. **Sector caps fail at every level** (DD reduction +2–8%, never near 20%; Sharpe slightly negative)
+   — **Reject/More Research** stands across 20–40%.
+3. **The combined config adds nothing.** vol 15% + cap 30% ≈ vol 15% alone (maxDD −47.4% vs −47.2%,
+   Sharpe 0.49 vs **0.51**) — the cap is **redundant on top of vol-scaling, and slightly worse**.
+   **There is no meaningful v1.2 combined candidate:** vol-scaling alone (v1.1) does all the work.
 
 ## Limitations & research debt (carried)
 
