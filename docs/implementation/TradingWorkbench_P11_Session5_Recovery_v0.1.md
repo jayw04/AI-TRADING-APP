@@ -28,13 +28,14 @@ ADR 0021 named six properties every automated actor must satisfy and flagged som
 evidence), §3 (property 4, reconciliation), §4 (property 5, replay). **Two remain stated
 more than they are proven:**
 
-- **Property 3 — restart-recoverable.** All state lives in durable stores; on restart the
-  scheduler re-registers its jobs and each actor resumes **without duplicate side effects.**
-  The mechanism exists (lifespan resume-on-boot re-registers `ENGINE_RUNNABLE_STATUSES`
-  strategies; jobs re-register each boot; `max_instances=1`/`coalesce`; the rebalance
-  marks-on-attempt; fills are keyed by Alpaca `execution_id`). What's missing is a **test
-  that proves a restart mid-cycle does not double-act**, and a **runbook** an operator can
-  follow.
+- **Property 3 — restart-recoverable.** On restart the scheduler re-registers its jobs and
+  each actor resumes **without duplicate side effects.** The mechanism exists (lifespan
+  resume-on-boot re-registers `ENGINE_RUNNABLE_STATUSES` strategies via idempotent
+  `register()`; jobs re-register each boot; `max_instances=1`/`coalesce`; the weekly cron
+  fires only Mondays; fills are keyed by Alpaca `execution_id`). What's missing is a **test
+  that proves a restart does not double-act** — and the honest *grounding* of which mechanism
+  provides that (the §A finding: the rebalance's in-memory guard is intra-tick, the cron is the
+  cross-restart guard) — plus a **runbook** an operator can follow.
 - **Property 6 — self-healing on partial application.** An action that partially applies
   (a re-size where only some orders fill) must **converge on a later tick**, never assume
   completion; the gap must be observable. §3 already *detects* the gap (the intent domain:
@@ -112,11 +113,12 @@ guarantees:
 
 ## What this session ships
 
-1. **Restart-recovery test suite** — proves property 3: a backend restart mid-cycle
-   re-registers strategies + jobs from durable state and **does not double-act** (no
-   duplicate rebalance, no duplicate overlay re-size, no duplicate breaker action). Exercises
-   the idempotency guards (`max_instances=1`/`coalesce`, mark-on-attempt, `execution_id`
-   fill keying) under a simulated restart.
+1. **Restart-recovery test suite** — proves property 3: resume-on-boot re-registers every
+   `ENGINE_RUNNABLE_STATUSES` strategy **idempotently** (no double-register, no second run),
+   the stateless actors do not double-act (overlay compares to live book gross; fills idempotent
+   on `execution_id`), and the weekly-rebalance guard's scope is pinned **and documented honestly**
+   (in-memory, cron-schedule-protected across restart — see §A). Exercises the real guards
+   (`register` idempotency, `max_instances=1`/`coalesce`, `execution_id` fill keying).
 2. **Partial-fill self-heal test suite** — proves property 6: a re-size whose orders only
    partially fill leaves an observable intended-vs-achieved gap (§3 intent domain) and the
    **next cycle converges** the book toward target rather than assuming completion or
@@ -160,9 +162,10 @@ guarantees:
 - **P11 §1–§4 merged**: the feature registry + ops-state (§1), `automation_runs_total` +
   measured health (§2), `reconciliation_runs` + the **intent domain** (§3, the partial-fill
   *detector* §5's convergence test builds on), `replay_runs` + the replay verifier (§4).
-- The existing restart machinery: lifespan resume-on-boot (`ENGINE_RUNNABLE_STATUSES`),
-  per-boot job re-registration, single-flight scheduling, the rebalance mark-on-attempt
-  guard, and `fills.execution_id` idempotency.
+- The existing restart machinery: lifespan resume-on-boot (`ENGINE_RUNNABLE_STATUSES`,
+  idempotent `strategy_engine.register()`), per-boot job re-registration, single-flight
+  scheduling, the cron schedule (the real cross-restart weekly-rebalance guard; the in-memory
+  `_last_rebalance_week` is intra-tick only — see §A), and `fills.execution_id` idempotency.
 - ADR 0021 **accepted** (it is — 2026-06-19); ADR 0002 (single router), ADR 0004 (breaker).
 
 ## ADR 0021 property coverage at end of P11 (the closeout map)
@@ -213,15 +216,36 @@ The Definition of Done requires **no unresolved P1/P2** over the ≥30-day paper
 
 ### §A — Restart-recovery tests (property 3)
 
-- **No-double-act across restart.** Drive an actor to mid-cycle, simulate a restart
-  (re-run the resume-on-boot path against the durable state), assert: strategies re-register
-  from `ENGINE_RUNNABLE_STATUSES`; jobs re-register single-flight; **the same period's work
-  does not re-execute** (the weekly rebalance mark-on-attempt holds; the overlay's
-  already-applied guard holds; no duplicate `order` rows).
-- **Resume is best-effort.** One broken strategy on boot logs `strategy_resume_failed_on_boot`
-  and does not abort the others or the boot (existing behavior — pinned by test).
-- **Fill idempotency.** A fill re-delivered after restart (same Alpaca `execution_id`) does
-  not create a duplicate `fills` row (existing unique key — pinned by test).
+> **Honest grounding (a finding the pre-build code survey surfaced).** Restart-safety here
+> rests on **three different mechanisms, not one durable "attempted" flag** — and the doc must
+> say which is which:
+> 1. **Resume-on-boot re-registers idempotently.** `strategy_engine.register()` is idempotent
+>    (a second call returns the same `RunningStrategy`, opens no second run), so re-registering
+>    every `ENGINE_RUNNABLE_STATUSES` strategy on boot cannot double-register.
+> 2. **The weekly-rebalance guard is *in-memory* (`_last_rebalance_week`) and RESETS on
+>    restart.** It prevents the intra-tick 200×-per-symbol storm *within a process* — it is
+>    **not** a durable cross-restart guard. What actually prevents a double weekly rebalance
+>    across a restart is the **cron schedule** (fires only Mon 14:00); a mid-week restart never
+>    reaches the tick. The only double-fire window is a restart *exactly at* the cron tick
+>    combined with APScheduler misfire/coalesce — and even then it is a single fire.
+> 3. **The stateless actors are the genuinely restart-safe ones:** the overlay re-size compares
+>    `desired` gross to the **live book** gross and skips when Δ < drift (no stored "applied"
+>    flag), and fills are idempotent on `execution_id`.
+
+Tests assert each mechanism for what it really is:
+- **Resume idempotency.** Seed N `ENGINE_RUNNABLE_STATUSES` strategies → run the resume-on-boot
+  helper → all re-register; run it **twice** → no second `StrategyRun`, no duplicate dispatch
+  (idempotent `register`).
+- **Resume is best-effort.** One strategy whose `register()` raises logs
+  `strategy_resume_failed_on_boot`, increments `recovery_failures_total`, and does **not** abort
+  the others or boot.
+- **Weekly-rebalance guard scope.** Pin that `_last_rebalance_week` blocks a same-tick re-run
+  **and** document (test comment + runbook) that it is in-memory — cross-restart safety is the
+  cron schedule, not this flag. (If a real incident shows the tick-time-restart window matters,
+  a durable last-rebalanced-week flag is the named follow-on — ADR 0021 re-evaluation trigger,
+  not §5 scope.)
+- **Fill idempotency.** A fill re-delivered after restart (same `execution_id`) does not create
+  a duplicate `fills` row (existing `_handle_fill` guard — pinned by test).
 
 ### §B — Partial-fill self-heal tests (property 6)
 
@@ -308,8 +332,10 @@ bounded explicitly (a restart-resume pass; a convergence cycle that closed a non
 ## Manual smoke
 
 1. **Restart no-double-act:** with a strategy ACTIVE mid-week, restart the backend → it
-   resumes (`strategy_registered`), the weekly rebalance does **not** re-fire (mark-on-attempt
-   held), no duplicate `order` rows, `/ops/state` healthy.
+   resumes (`strategy_registered`), `recovery_attempts_total{actor="resume_on_boot"}` +
+   `recovery_success_total` increment, the weekly rebalance does **not** re-fire (the cron next
+   fires Monday — *not* because of a durable mark; see §A), no duplicate `order` rows,
+   `/ops/state` healthy.
 2. **Partial-fill convergence:** simulate a re-size partial fill → §3 reports the intent gap;
    the next cycle reduces it; a clean state is a no-op. **No orders outside `OrderRouter`.**
 3. **Readiness Report:** run the §2–§4 KPIs over a paper window → fill the report; confirm
@@ -338,22 +364,21 @@ coverage on changed risk-adjacent code.
   *enabled*; enabling stays a separate backtest-gated owner decision (§5 overlay = NO-GO).
 - **No order/risk-engine change, no new external dependency.**
 
-## Open questions — to confirm before execution
+## Open questions — RESOLVED (2026-06-20)
 
-1. **Restart simulation depth** — re-invoke the resume-on-boot code path against a seeded
-   durable state (cheaper, deterministic, no container churn), vs. an integration test that
-   actually restarts the backend container? *Lean: the code-path re-invocation for CI
-   determinism, + one documented manual container-restart smoke in the runbook.*
-2. **Partial-fill modeling** — drive convergence through the real overlay/rebalance logic
-   with a stub broker that fills a configurable fraction, vs. a synthetic gap injected at the
-   intent layer? *Lean: stub-broker fractional fill, so the convergence is proven through the
-   real diff/turnover code, not a synthetic shortcut.*
-3. **`p11-session5-complete` vs `p11-complete`** — tag §5 when code/tests/docs land, and tag
-   the phase only after the ≥30-day all-PASS paper window? *Lean: yes — two tags; the report
-   is drafted at §5 and attested at phase close so "done" stays evidence-backed, not asserted.*
-4. **Chaos scope** — broker-adapter fault injection only, or also data-source (factor store)
-   outage? *Lean: broker-adapter for §5 (the order-inducing seam); data-source fail-open is
-   already covered by the regime-filter fail-open tests.*
+1. **Restart simulation depth → re-invoke the resume-on-boot code path against a seeded
+   durable state** (deterministic, no container churn) **+ one documented manual
+   container-restart smoke in the runbook.** The CI test exercises the real resume logic;
+   the runbook covers the full-process case a unit test can't.
+2. **Partial-fill modeling → a stub broker that fills a configurable fraction**, so
+   convergence is proven through the **real** diff/turnover code, not a synthetic gap injected
+   at the intent layer.
+3. **Two tags → yes.** `p11-session5-complete` when code/tests/docs land; `p11-complete` only
+   after the ≥30-day all-PASS paper window. The Readiness Report is drafted at §5 and attested
+   at phase close so "done" stays evidence-backed.
+4. **Chaos scope → broker-adapter fault injection only** (the order-inducing seam).
+   Data-source (factor store) fail-open is already covered by the regime-filter fail-open
+   tests; not duplicated here.
 
 ## Notes & gotchas
 
