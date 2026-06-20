@@ -1,0 +1,267 @@
+{
+  "experiment_id": "EXP-20260620-193645",
+  "strategy_version": "1.0 - Momentum (6-1, weekly top-quintile, equal-weight)",
+  "evidence_version": {
+    "dataset_version": "C:\\LLM-RAG-APP\\ai-trading-app\\apps\\backend\\data\\factor_data_full.duckdb@9e1108db7b41293a",
+    "code_version": "a85724a",
+    "factor_version": "momentum-6-1",
+    "walk_forward_version": "200x7",
+    "report_version": "v0.1"
+  },
+  "repro": {
+    "python": "3.13.14",
+    "duckdb": "1.5.3",
+    "git_sha": "a85724a",
+    "dataset_sha": "9e1108db7b41293a",
+    "seed": 17,
+    "host": "Jay-Work",
+    "generated_at": "2026-06-20T19:36:45.597555+00:00",
+    "duration_s": 5953.12
+  },
+  "config": {
+    "start": "1997-12-31",
+    "end": "2026-06-12",
+    "n": 200,
+    "universe": "live200",
+    "top_quantile": 0.2,
+    "base_cost_bps": 10.0,
+    "bootstrap": 2000,
+    "block": 21
+  },
+  "dataset_health": {
+    "store_bounds": [
+      "1997-12-31",
+      "2026-06-15"
+    ],
+    "window": [
+      "1997-12-31",
+      "2026-06-12"
+    ],
+    "n_sep_rows": 38991296,
+    "n_tickers": 14150,
+    "n_delisted": 15563,
+    "covers_window": true,
+    "flags": [],
+    "ok": true
+  },
+  "book": {
+    "total_return": 16.257804495737336,
+    "cagr": 0.10734251131703831,
+    "ann_volatility": 0.3114064064772135,
+    "sharpe": 0.4844267508501887,
+    "sortino": 0.459493731594159,
+    "max_drawdown": -0.7639996302083669,
+    "calmar": 0.14050073726837095
+  },
+  "confidence": {
+    "sharpe": {
+      "point": 0.4844267508501887,
+      "ci_low": 0.13026698482485746,
+      "ci_high": 0.848676550632806,
+      "p_value": 0.003,
+      "n_resamples": 2000,
+      "block": 21
+    },
+    "ann_return": {
+      "point": 0.15085359368368967,
+      "ci_low": 0.04122939195780286,
+      "ci_high": 0.26074508960990045,
+      "p_value": 0.003,
+      "n_resamples": 2000,
+      "block": 21
+    }
+  },
+  "benchmarks": {
+    "equal_weight": {
+      "total_return": 7.031740360748346,
+      "cagr": 0.07743391710907677,
+      "ann_volatility": 0.24333250938688056,
+      "max_drawdown": -0.6921230566103791,
+      "sharpe": 0.4288373309871371
+    },
+    "cash": {
+      "total_return": 0.0,
+      "cagr": 0.0,
+      "ann_volatility": 0.0,
+      "max_drawdown": 0.0,
+      "sharpe": 0.0
+    },
+    "spy": {
+      "total_return": 2.6700971847465316,
+      "cagr": 0.13271135693518454,
+      "ann_volatility": 0.1765598942530929,
+      "max_drawdown": -0.3418065736580752,
+      "sharpe": 0.7959132674689146
+    },
+    "spy_relative": {
+      "spy_overlap_start": "2016-01-04",
+      "spy_overlap_end": "2026-06-11",
+      "spy_overlap_days": 2625,
+      "spy_total_return": 2.6700971847465316,
+      "spy_excess_return": 3.09558216107864,
+      "spy_beta": 1.222506425034426,
+      "spy_alpha_annual": 0.058072796040421766,
+      "spy_tracking_error": 0.21688810009727216,
+      "spy_information_ratio": 0.4119212372992541,
+      "spy_correlation": 0.7112186934575071
+    }
+  },
+  "spy_note": "equal-weight is the primary benchmark (full history); SPY best-effort",
+  "cost_sweep": [
+    {
+      "bps": 5.0,
+      "cagr": 0.11427900603031493,
+      "sharpe": 0.5011816278182728,
+      "max_drawdown": -0.7605142758579553,
+      "total_return": 19.546726935249747
+    },
+    {
+      "bps": 10.0,
+      "cagr": 0.10848053326271012,
+      "sharpe": 0.48442675085018805,
+      "max_drawdown": -0.763999630208367,
+      "total_return": 16.76016375555551
+    },
+    {
+      "bps": 20.0,
+      "cagr": 0.09697207939609132,
+      "sharpe": 0.45091013930874546,
+      "max_drawdown": -0.7708201907659621,
+      "total_return": 12.268898764600488
+    },
+    {
+      "bps": 50.0,
+      "cagr": 0.06314413090126147,
+      "sharpe": 0.35032263742441416,
+      "max_drawdown": -0.818005859222136,
+      "total_return": 4.531370640206665
+    }
+  ],
+  "walk_forward": {
+    "windows": [
+      {
+        "window": "GFC + 2009 reversal",
+        "rebalances": 157,
+        "cagr": -0.1479702223738978,
+        "sharpe": -0.2501555833944435,
+        "max_drawdown": -0.6562350049036503
+      },
+      {
+        "window": "2010-2013 (2011 shock)",
+        "rebalances": 157,
+        "cagr": 0.17104677837639404,
+        "sharpe": 0.8916512382652791,
+        "max_drawdown": -0.2107008744589895
+      },
+      {
+        "window": "2013-2016 (incl 2015)",
+        "rebalances": 157,
+        "cagr": 0.06013578077237747,
+        "sharpe": 0.41142688447185666,
+        "max_drawdown": -0.2337304853655767
+      },
+      {
+        "window": "2016-2019 (calm)",
+        "rebalances": 157,
+        "cagr": 0.1410909293079301,
+        "sharpe": 0.8775626858039319,
+        "max_drawdown": -0.2411333432059669
+      },
+      {
+        "window": "2019-2022 (COVID)",
+        "rebalances": 157,
+        "cagr": 0.13161977697053495,
+        "sharpe": 0.5142463385660239,
+        "max_drawdown": -0.48641874250845235
+      },
+      {
+        "window": "2022-2024 (rate shock)",
+        "rebalances": 105,
+        "cagr": 0.22139449094107966,
+        "sharpe": 1.043171010446956,
+        "max_drawdown": -0.2243192007300847
+      },
+      {
+        "window": "2024-2026 (AI momentum)",
+        "rebalances": 102,
+        "cagr": 0.39147464193153314,
+        "sharpe": 1.0144782490033146,
+        "max_drawdown": -0.3848253542720429
+      }
+    ],
+    "stability": "moderately stable"
+  },
+  "outliers": {
+    "best_rebalances": [
+      {
+        "date": "2000-05-26",
+        "ret": 0.3169262355381386
+      },
+      {
+        "date": "2021-03-05",
+        "ret": 0.21620837748036315
+      },
+      {
+        "date": "2000-12-01",
+        "ret": 0.20497237224401244
+      },
+      {
+        "date": "2000-04-20",
+        "ret": 0.18576380440010198
+      },
+      {
+        "date": "2020-10-30",
+        "ret": 0.15355389441113898
+      }
+    ],
+    "worst_rebalances": [
+      {
+        "date": "2000-04-07",
+        "ret": -0.4046273557378819
+      },
+      {
+        "date": "2000-03-24",
+        "ret": -0.19679387953684058
+      },
+      {
+        "date": "2008-09-26",
+        "ret": -0.18761435553970984
+      },
+      {
+        "date": "2001-09-10",
+        "ret": -0.1836588630444952
+      },
+      {
+        "date": "2000-03-10",
+        "ret": -0.17188585894007347
+      }
+    ],
+    "worst_month": {
+      "period": "2000-11",
+      "ret": -0.30918825784016934
+    },
+    "worst_year": {
+      "period": "2008",
+      "ret": -0.5108961667919023
+    },
+    "largest_drawdown": -0.7639996302083669
+  },
+  "research_debt": [
+    {
+      "item": "Full-history SPY series (SPY not in SEP store)",
+      "status": "Outstanding"
+    },
+    {
+      "item": "Capacity / market-impact study",
+      "status": "Outstanding"
+    },
+    {
+      "item": "Dividend-adjustment validation",
+      "status": "Outstanding"
+    },
+    {
+      "item": "Liquidity model",
+      "status": "Outstanding"
+    }
+  ]
+}
