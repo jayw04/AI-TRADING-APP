@@ -169,6 +169,31 @@ CAPABILITY: dict[str, str] = {
 }
 
 
+class RegistryInconsistencyError(RuntimeError):
+    """REPLAY_REGISTRY and CAPABILITY disagree — a programming error (someone shipped one half of a
+    verifier), never a runtime-data condition. Raised at startup so the inconsistency can never reach
+    a replay pass that would silently miscount coverage."""
+
+
+def validate_registry() -> None:
+    """Fail fast iff the registry and the capability catalog drift: every ``supported`` capability
+    MUST have a registered ``ReplayVerifier`` and every registered verifier MUST be catalogued
+    ``supported`` (and expose a matching ``capability`` attribute). Called at app startup (lifespan);
+    a drift here is a bug to fix at boot, not to discover mid-pass."""
+    supported = {dt for dt, cap in CAPABILITY.items() if cap == "supported"}
+    registered = set(REPLAY_REGISTRY)
+    missing_verifier = supported - registered          # supported but no verifier wired
+    uncatalogued = registered - supported              # verifier wired but not catalogued supported
+    mislabeled = {dt for dt, v in REPLAY_REGISTRY.items() if v.capability != "supported"}
+    if missing_verifier or uncatalogued or mislabeled:
+        raise RegistryInconsistencyError(
+            "replay registry drift: "
+            f"supported_without_verifier={sorted(missing_verifier)}, "
+            f"registered_not_supported={sorted(uncatalogued)}, "
+            f"verifier_capability_not_supported={sorted(mislabeled)}"
+        )
+
+
 def coverage_ratio() -> float:
     """Replayable (SUPPORTED) decision types / total catalogued."""
     supported = sum(1 for c in CAPABILITY.values() if c == "supported")

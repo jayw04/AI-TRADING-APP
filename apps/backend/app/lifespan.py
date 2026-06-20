@@ -359,7 +359,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # + coalesce so a slow pass can't stack.
             from apscheduler.triggers.cron import CronTrigger as _ReplayCron
 
-            from app.services.replay import run_daily_replay
+            from app.services.replay import run_daily_replay, validate_registry
+
+            # Boot-time consistency check: every SUPPORTED capability has a wired
+            # verifier (and vice versa). A drift is a programming error — fail fast
+            # here rather than silently miscount coverage at 03:30.
+            validate_registry()
 
             scheduler.scheduler.add_job(
                 run_daily_replay,

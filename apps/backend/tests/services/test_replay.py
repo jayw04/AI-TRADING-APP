@@ -25,10 +25,12 @@ from app.services.replay import (
     REPLAY_REGISTRY,
     BreakerTripVerifier,
     ReconciliationDiscrepancyVerifier,
+    RegistryInconsistencyError,
     Verdict,
     coverage_ratio,
     replay_audit_row,
     run_replay,
+    validate_registry,
 )
 
 
@@ -233,6 +235,29 @@ def test_registry_keys_are_real_audit_actions() -> None:
     valid = {a.value for a in AuditAction}
     for key in REPLAY_REGISTRY:
         assert key in valid, f"REPLAY_REGISTRY key {key} is not an AuditAction"
+
+
+def test_validate_registry_passes_on_shipped_state() -> None:
+    # The shipped registry + catalog must be internally consistent (called at boot).
+    validate_registry()
+
+
+def test_validate_registry_detects_supported_without_verifier(monkeypatch) -> None:
+    # A capability marked supported but with no wired verifier must fail fast.
+    patched = dict(CAPABILITY)
+    patched["SOME_NEW_DECISION"] = "supported"
+    monkeypatch.setattr(rp, "CAPABILITY", patched)
+    with pytest.raises(RegistryInconsistencyError, match="supported_without_verifier"):
+        validate_registry()
+
+
+def test_validate_registry_detects_uncatalogued_verifier(monkeypatch) -> None:
+    # A wired verifier not catalogued supported must fail fast.
+    patched = dict(REPLAY_REGISTRY)
+    patched["ROGUE_ACTION"] = BreakerTripVerifier()
+    monkeypatch.setattr(rp, "REPLAY_REGISTRY", patched)
+    with pytest.raises(RegistryInconsistencyError, match="registered_not_supported"):
+        validate_registry()
 
 
 def test_replay_never_touches_order_path() -> None:
