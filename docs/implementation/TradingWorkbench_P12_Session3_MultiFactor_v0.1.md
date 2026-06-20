@@ -142,28 +142,23 @@ part of §3's read-only research.
   the honest scope is bounded by ~5-yr fundamentals (the gate's "different regime" is only partly met).
 - **Does not touch the order path / risk engine.**
 
-## Open questions — CONFIRM BEFORE EXECUTION
+## Open questions — RESOLVED (2026-06-20)
 
-1. **★ The data path (load-bearing).** A genuine broad value/quality re-test needs broader + deeper
-   fundamentals than the current FMP (~5-yr, ~200 names). Options:
-   - **(a) FMP broader ingest, now** — ingest FMP fundamentals for the top-500/1000 and re-test on
-     that universe over ~5 yr. *Pro:* no new cost, doable now. *Con:* still ~5-yr / limited-regime, so
-     a flat/negative result is **not decisive** ("not enough history" stays a caveat).
-   - **(b) Subscribe to Sharadar SF1 (deep, broad, survivorship-free fundamentals)** — the *correct*
-     data for a decisive multi-decade broad re-test. *Pro:* makes the verdict real. *Con:* a paid
-     subscription + a new-vendor ADR + ingest time (owner action).
-   - **(c) Build the machinery now, defer the broad re-test** — ship the composite engine +
-     factor-agnostic backtest (the reusable infrastructure, valuable regardless), validate it on the
-     existing top-200 fundamentals, and record the broad re-test as research debt pending the data
-     decision. *Pro:* unblocks §3's code deliverable + the harness; honest about the data limit. *Con:*
-     defers the alpha question itself.
-   - *Lean: **(c) now**, with **(a)** as the immediate research extension if quick, and **(b)** flagged
-     as the owner data decision that makes the verdict decisive.*
-2. **Composite weighting.** Equal-weight z-scores, or IC/Sharpe-weighted? *Lean: equal-weight as the
-   honest default (no in-sample optimization); report an IC-weighted variant as sensitivity.*
-3. **Missing-factor handling.** A name with momentum but no fundamentals: mean-impute (z=0) or drop?
-   *Lean: drop for the pure value/quality study; mean-impute for the composite so momentum-only names
-   aren't excluded — report both.*
+1. **★ The data path → owner-confirmed sequence: (c) → (a) → (b).**
+   - **Step 1 (mandatory, now): build the reusable infrastructure** — the composite-factor engine +
+     factor-agnostic backtest — and validate on the existing top-200 fundamentals. This is the durable
+     deliverable, independent of any data verdict.
+   - **Step 2 (worthwhile, exploratory): an FMP-based broader re-test** — extend FMP fundamentals to a
+     broader universe and re-run value/quality + the multi-factor book over the ~5-yr FMP window,
+     **clearly labelled exploratory / non-decisive** (one regime, fundamentals not survivorship-free).
+   - **Step 3 (deferred): the final value/quality verdict** waits for **SF1 (or an equivalent deep,
+     broad, survivorship-free fundamentals source)** — a paid subscription + new-vendor ADR (owner
+     action), recorded as **research debt**. *"Maximize engineering progress without overclaiming
+     research conclusions."*
+2. **Composite weighting → equal-weight z-scores** (no in-sample optimization); an IC-weighted variant
+   reported as sensitivity only.
+3. **Missing-factor handling → drop** for the pure value/quality study; **mean-impute (z=0)** for the
+   composite so momentum-only names aren't excluded — report both.
 
 ## Notes & gotchas
 

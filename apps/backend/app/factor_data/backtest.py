@@ -465,6 +465,7 @@ def run_momentum_backtest(
     weighting: str = "equal_weight",
     vol_lookback_days: int = DEFAULT_VOL_LOOKBACK_DAYS,
     max_sector_pct: float | None = None,
+    score_fn: Callable[[FactorDataStore, date], pd.DataFrame] | None = None,
 ) -> MomentumBacktestReport:
     """Weekly long-only top-quintile momentum backtest, survivorship-free.
 
@@ -511,8 +512,13 @@ def run_momentum_backtest(
     skipped: list[date] = []
     for d in rebalances_all:
         try:
-            df = momentum_scores(store, d, n=n, lookback_days=lookback_days,
-                                 skip_days=skip_days, min_names=min_names)
+            # P12 §3: factor-agnostic selection. Default = momentum (byte-identical to before);
+            # a caller passing score_fn (e.g. a composite multi-factor score) backtests any factor.
+            if score_fn is not None:
+                df = score_fn(store, d)
+            else:
+                df = momentum_scores(store, d, n=n, lookback_days=lookback_days,
+                                     skip_days=skip_days, min_names=min_names)
             scores_by_date[d] = list(df.index)
             universe_by_date[d] = universe_asof(store, d, n=n)
             rebalances.append(d)
