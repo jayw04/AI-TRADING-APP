@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v0.1 — draft for confirmation** (2026-06-20). Open questions (§7) to resolve before drafting per-session docs. The phase **number "P12" is the owner's to confirm/rename** — this charter does not pivot the roadmap unilaterally (CLAUDE.md). |
+| Document version | **v0.2 — draft + review fold** (2026-06-20). v0.1 was the first charter; v0.2 folds the doc review (`comments.md`, rated 10/10): a **Research methodology & governance** section (§4 — research invariants, statistical confidence, study lifecycle, Research Registry, evidence template, evidence versioning, Decision Register, negative findings, research KPIs), the **5 open questions resolved** with the reviewer's answers, the flagship **Strategy Evidence Book** as the phase deliverable, and the **roadmap reframe** (P13 Productization between P12 and Institutional Scale). The phase **number "P12" remains owner-confirmable** — this charter does not pivot the roadmap unilaterally (CLAUDE.md). |
 | Date | 2026-06-20 |
 | Phase | **P12 (proposed)** — Validation & Results (follows P11 Operations & Reliability) |
 | Status | **Draft charter.** Next: owner confirms the sequence + the §7 open questions → then draft the §1 per-session doc (Edge evidence package, owner-selected first). |
 | Predecessor | **P11** — Operations & Reliability — code-complete (§1–§5 merged + tagged `p11-session{1..5}-complete`). `p11-complete` is *pending* the ≥30-day Operational Readiness window (tracked here as the background track). |
-| Successor | TBD — explicitly **not** the Institutional Platform layer (multi-account/HA/permissions); that is a separate pivot, each piece its own ADR, and arguably counter to the product's "local-first, individual trader" identity. |
+| Successor | **P13 — Productization** (reviewer's reframe): once P12 proves the edge, the next step is turning the validated strategy into a polished product — *before* P14 Institutional Scale (HA/multi-account/admin). Roadmap: **P10 Portfolio Architecture → P11 Operational Trust → P12 Evidence & Validation → P13 Productization → P14 Institutional Scale.** Each beyond P12 is its own ADR/phase; numbers owner-confirmable. |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
 | Governing ADRs | **0014** (backtests = primary eval ground-truth), 0019 (Research Engine — read-only/alerts), 0002/0004 (router/breaker unchanged), 0021 (operational contract — the trust substrate that makes results *verifiable*). No new architectural invariant is expected this phase. |
 | Inputs | The owner's directive (*"prove this app is great and will have some great results first"*); the factor-research findings ([[factor-research-program]] — momentum is the OOS edge; low-vol/reversal negative); the 28.5-yr / 39M-row survivorship-free store + the walk-forward harness already built; the live momentum-portfolio paper book (strategy id=2). |
@@ -95,7 +95,86 @@ tied to an artifact, never an assertion:
 What it will **not** claim: that a few weeks of paper P&L proves anything, or that a
 survivorship-biased / look-ahead-tainted backtest is evidence. Honesty *is* the credibility.
 
-## 4. Governing principles (inherited)
+## 4. Research methodology, registry & governance (the scientific rigor)
+
+P12's credibility rests on *method*, not on any single number. This section is the standing
+discipline every study inherits (folded from the doc review). It mirrors the P11 pattern of
+registries + invariants + a standard artifact shape — applied to research instead of operations.
+
+### Research invariants (non-negotiable — the research analogue of the recovery invariants)
+
+1. **Never optimize on test data** — parameters are fit on train, never on the OOS window.
+2. **Always preserve out-of-sample** — a held-out / walk-forward OOS segment is sacrosanct.
+3. **Never cherry-pick periods** — report all regimes, not the flattering ones.
+4. **Never suppress a negative study** — a rejected hypothesis is recorded, not deleted (§Negative findings).
+5. **Every reported number is reproducible** — it traces to a versioned run (§Evidence versioning).
+
+### Statistical confidence (the "could this happen by chance?" answer)
+
+Headline edge claims carry a significance read, not just a point estimate: **confidence intervals
++ bootstrap of the return/Sharpe distribution + a p-value where appropriate + the distribution of
+outcomes** (not only the mean). Investors will ask whether a result is luck; P12 answers it
+quantitatively. (A Sharpe with no CI is a number, not evidence.)
+
+### Study lifecycle — research is separated from production
+
+Every factor/overlay moves through an explicit gate sequence; **`Research → Enabled` directly is
+forbidden**:
+
+```
+Research ─▶ Validated (OOS clears the gate) ─▶ Production Candidate ─▶ Enabled (owner decision)
+```
+
+### Research Registry (single source of truth for "what's proven")
+
+The standing table of studies and their lifecycle state — the research analogue of the
+replay/feature/capability registries:
+
+| Study | Status | Evidence |
+|---|---|---|
+| Momentum (6-1) | **Validated** | factor study; walk-forward (OOS edge) |
+| Vol-scaling overlay | Pending (§2) | walk-forward = drawdown tool, not Sharpe booster |
+| Sector caps | Pending (§2) | — |
+| Quality factor | Research (§3) | — |
+| Value factor | Research (§3) | — |
+| Low-volatility | **Rejected** | negative OOS ([[factor-research-program]]) |
+| Short-term reversal | **Rejected** | negative OOS |
+
+### Evidence Package Template (every study has the same shape)
+
+```
+Objective ─▶ Dataset ─▶ Methodology ─▶ Results ─▶ Limitations ─▶ Decision ─▶ Recommendation
+```
+
+Consistency makes studies comparable and reviewable; an evidence doc that skips *Limitations* or
+*Decision* is incomplete.
+
+### Evidence versioning (reproducible forever)
+
+Every report header pins the five coordinates that reproduce it: **dataset version · code version
+· factor version · walk-forward version · report version.** (The operational analogue of §4
+replay's `algorithm_version`/`registry_version` triple.)
+
+### Decision Register (governance trail)
+
+Every study ends with a one-row register entry — the auditable "why is this on/off":
+
+| Study | Decision | Reason | Study # | Evidence |
+|---|---|---|---|---|
+| *(e.g.)* Vol-scaling | Enabled / Off | improved maxDD 18% / Sharpe cost too high | §2 | run id |
+
+### Negative findings (institutional knowledge)
+
+A standing **Negative Results** section across the phase — rejected and marginal studies are kept,
+with the reason. (Low-vol → rejected; short-term reversal → rejected; sector caps → TBD.) Knowing
+what does *not* work is as valuable as what does, and prevents re-running dead ends.
+
+### Research KPIs (P12's measurable success, alongside P11's operational KPIs)
+
+Validated-factor count · OOS Sharpe · walk-forward stability · turnover · max-drawdown · capacity.
+These make "P12 succeeded" measurable, not a vibe.
+
+## 5. Governing principles (inherited)
 
 - **Backtests are the primary eval ground-truth** (ADR 0014); paper/live is confirmation of
   *plumbing*, not the alpha proof.
@@ -109,7 +188,7 @@ survivorship-biased / look-ahead-tainted backtest is evidence. Honesty *is* the 
 - **Operations never changes investment decisions** (P11 §5 / Direction): measuring does not alter
   what to trade.
 
-## 5. Success criteria — evidence, not optimism
+## 6. Success criteria — evidence, not optimism
 
 P12 succeeds when:
 - a **reproducible edge-evidence report** exists for the live strategy, OOS + survivorship-free,
@@ -120,34 +199,45 @@ P12 succeeds when:
 - `p11-complete` is signed off the ≥30-day all-PASS reliability window (§4);
 - and every headline result is **traceable to a run id / audit chain** — verifiable on demand.
 
-## 6. Definition of Done (phase exit)
+## 7. Definition of Done (phase exit)
 
 **P12 is complete when** the owner can, for the live strategy, point to: (a) an OOS
-survivorship-free performance report; (b) an evidence-based on/off decision for each built
-improvement; (c) ≥1 validated additional factor; (d) a signed `p11-complete` reliability
-attestation; and (e) a one-line provenance (run id / audit) for every headline number. Returns
-themselves are **not** a gate — *defensible, verifiable evidence* is.
+survivorship-free performance report **with statistical-confidence analysis** (CIs/bootstrap/
+p-value); (b) an evidence-based on/off decision for each built improvement, in the **Decision
+Register**; (c) ≥1 validated additional factor in the **Research Registry**; (d) a signed
+`p11-complete` reliability attestation; (e) a one-line provenance (versioned run id / audit) for
+every headline number; and (f) the phase's flagship deliverable — the **Strategy Evidence Book**.
+Returns themselves are **not** a gate — *defensible, verifiable evidence* is.
 
-## 7. Open questions (resolve before drafting the §1 per-session doc)
+**Flagship deliverable — the Strategy Evidence Book.** P12 concludes with one comprehensive
+document combining **operational proof (P11)** with **investment proof (P12)** — the artifact
+shown to investors / partners / advisors / future team members:
 
-1. **Benchmark & metrics set** — SPY total-return as the single benchmark, or also an
-   equal-weight-universe baseline (ADR 0014 already defines the EW baseline)? Which headline
-   metrics (Sharpe, Sortino, maxDD, Calmar, turnover, hit-rate)? *Lean: SPY + EW baseline; the
-   full set, with maxDD and Sharpe as headline.*
-2. **Walk-forward spec** — reuse the existing `walk_forward_vol_scaling.py` harness generalized,
-   n and window count (the n=200×7 full run was ~1–2h; n=80/5-window was used before)? *Lean:
-   generalize the harness; n=80/5-window for iteration, one n≈200 confirmation run for the report.*
-3. **Report artifact form** — a `docs/implementation/..._Results_v0.1.md` study doc, a committed
-   notebook, or a generated report from a script? *Lean: a script that emits the numbers +
-   a study-doc that interprets them (script = reproducible, doc = the honest read).*
-4. **Capacity/cost realism** — what fill/slippage/commission model for the headline run (the
-   backtest uses flat 10bps/rebalance today)? *Lean: keep 10bps for the baseline, add a
-   sensitivity row at higher cost so capacity caveats are explicit.*
-5. **Universe for the report** — the survivorship-free 14k-name pool, or the live top-200 paper
-   universe? *Lean: report the live-universe result as the headline (it's what trades) + the
-   broad-universe result as the robustness check.*
+```
+Executive Summary ─▶ Research Results ─▶ Backtests ─▶ Walk-Forward ─▶ Risk
+                  ─▶ Live Paper ─▶ Operational Proof ─▶ Final Conclusion
+```
 
-## 8. What this phase is NOT
+This is what makes the platform's case uncommon: a single body of evidence attesting *both*
+operational reliability and investment methodology, every claim traceable to a run/audit.
+
+## 8. Open questions — RESOLVED (2026-06-20)
+
+1. **Benchmark & metrics → three benchmarks: SPY total-return + equal-weight universe (ADR 0014)
+   + cash (0%).** Headline metrics: Sharpe + max-drawdown; full set also reports Sortino, Calmar,
+   turnover, hit-rate. (Reviewer added the cash baseline for a comprehensive comparison.)
+2. **Walk-forward spec → generalize the existing `walk_forward_vol_scaling.py` harness;
+   n=80 / 5 windows for development iteration, n≈200 / 7 windows (full production config) for the
+   final report.** Fast iteration, rigorous final validation.
+3. **Report artifact → script → JSON → Markdown.** A script emits raw metrics to JSON (exactly
+   reproducible); a Markdown study doc interprets them (the honest read). Notebooks only for
+   exploratory research, never the headline artifact.
+4. **Transaction costs → publish a sensitivity sweep: 5 · 10 · 20 · 50 bps** (not a single 10bps
+   point), so readers see robustness and the capacity story is explicit.
+5. **Universe → report both.** Headline = live top-200 (what actually trades — mirrors
+   deployment); supporting appendix = full survivorship-free universe (broader robustness).
+
+## 9. What this phase is NOT
 
 - **Not** the Institutional Platform layer (multi-account/permissions/HA/scaling) — a separate
   pivot, each piece its own ADR, deferred and arguably off-thesis.
@@ -157,7 +247,7 @@ themselves are **not** a gate — *defensible, verifiable evidence* is.
 - **Not** a live-capital decision — P12 produces the *evidence* a live decision would rest on; the
   decision itself is a separate, owner-gated step.
 
-## 9. Notes & gotchas
+## 10. Notes & gotchas
 
 1. **Paper ≠ proof of edge.** The single most important discipline of this phase — repeated here
    because it is the easiest mistake to make under "show me results" pressure.
