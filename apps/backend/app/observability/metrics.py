@@ -130,6 +130,18 @@ automation_runs_total = Counter(
     labelnames=["actor", "outcome"],
 )
 
+# P11 §3 (ADR 0021) — reconciliation (broker ⇄ local), alert-only.
+reconciliation_discrepancies_total = Counter(
+    "workbench_reconciliation_discrepancies_total",
+    "Reconciliation discrepancies by domain and severity",
+    labelnames=["domain", "severity"],  # domain: position|intent ; severity: low|medium|high|critical
+)
+reconciliation_duration_seconds = Histogram(
+    "workbench_reconciliation_duration_seconds",
+    "Reconciliation pass wall-clock duration",
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
+)
+
 # --- Histograms --------------------------------------------------------------
 
 order_submission_duration_seconds = Histogram(

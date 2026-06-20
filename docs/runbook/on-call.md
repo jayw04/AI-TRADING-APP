@@ -75,6 +75,38 @@ because the broker is flaky? Check
 - Limit too tight → raise it at Settings → Risk Limits → LIVE (audit-logged).
 - Broker flakiness inflating the count → fix the adapter/network first.
 
+## "Reconciliation reports a discrepancy" (broker ⇄ local drift)
+
+**Symptom:** `workbench_reconciliation_discrepancies_total` increments, or a
+`RECONCILIATION_DISCREPANCY` audit row appears. The 300s reconciliation pass
+(P11 §3, ADR 0021) does an INDEPENDENT broker `get_positions()` fetch per account
+and diffs it against the local `positions` table. It is **alert-only** — it never
+submits a corrective order; it only surfaces the drift for you to judge.
+
+**Check:** read the audit payload (`domain`, `kind`, `severity`, `symbol`,
+`local`, `broker`) and the latest `reconciliation_runs` row for the account:
+
+    SELECT ran_at, result, n_checked, n_discrepancies, detail_json
+    FROM reconciliation_runs WHERE account_id = $ID ORDER BY id DESC LIMIT 5;
+
+`kind` tells you the shape:
+- `qty_mismatch` — both sides hold the symbol, quantities differ.
+- `missing_local` — broker holds a position local does not (a fill we missed, or
+  a stalled `PositionSync`).
+- `missing_broker` — local holds a position the broker does not (a closed/expired
+  position we didn't clear, or a sync that deleted late).
+
+**Fix:**
+- First suspect a **stalled PositionSync**, not a real trade: check the sync job
+  and `workbench_broker_api_errors_total{operation="get_positions"}`. A healthy
+  re-sync usually clears a transient `qty_mismatch`/`missing_*`.
+- If the drift persists after a clean sync, treat it as a real position the books
+  disagree on: inspect recent fills/orders for the symbol, reconcile against the
+  Alpaca dashboard, and correct manually (a manual order through the OrderRouter —
+  reconciliation will not do this for you).
+- A `result` of `unavailable` means the broker was unreachable that pass (no
+  conclusion drawn) — not a discrepancy. Recurring `unavailable` → broker/network.
+
 ## "Strategy in cooldown, I want to retry NOW"
 
 **Fix:** Strategy detail → CooldownIndicator → "Clear now" (audit-logged), or

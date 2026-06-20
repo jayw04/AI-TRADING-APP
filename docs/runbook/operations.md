@@ -29,7 +29,7 @@ inventory and each feature's promotion verdict; use the API for live enabled/hea
 | State | Meaning |
 |---|---|
 | **Implemented** | Code is on `main` (always true for a registered feature). |
-| **Enabled** | A strategy *running on a book* has the feature's flag on (flag features), or the infra job is registered (e.g. `breaker_monitor`). |
+| **Enabled** | A strategy *running on a book* has the feature's flag on (flag features), or the infra job is registered (e.g. `breaker_monitor`, `reconciliation`). |
 | **Healthy** *(measured, §2)* | From the scheduler last-success/last-error gauges per the feature's backing job(s): `ok` (fresh success) / `degraded` (most recent run errored/missed) / `stale` (no success within ~2× cadence) / `unknown` (no data yet, or within the 60s startup grace) / `n_a` (not enabled). `unknown` ≠ `degraded` — a fresh process doesn't false-alarm. The `/ops/state` envelope carries `health_algorithm_version` + `health_calculated_at`. |
 | **Verified** | The promotion-backtest verdict — `validated` / `pending` / `no_go` / `n_a`. A research decision, curated in the registry (synced with the P10 roadmap's Implemented-vs-Proven table). |
 
@@ -66,6 +66,8 @@ works), each with an owner, SLO, and alert severity:
 | KPI | Owner | Metric | SLO | Alert |
 |---|---|---|---|---|
 | Breaker-monitor success | Risk | `automation_runs_total{actor="breaker_monitor"}` | 100% | CRITICAL |
+| Reconciliation drift | Ops | `reconciliation_discrepancies_total` (broker ⇄ local, §3) | 0 | WARNING |
+| Reconciliation success | Ops | `automation_runs_total{actor="reconciliation"}` (pass/fail vs unavailable/error) | runs each pass | WARNING |
 | Overlay outcomes | Overlay | `overlay_actions_total` | — (default off) | INFO |
 | Fail-open frequency | Overlay | `overlay_actions_total{outcome="fail_open"}` | < 0.1% | WARNING |
 | Duplicate executions | (invariant; `skip_idempotent` evidence) | — | 0 | CRITICAL |
@@ -77,9 +79,21 @@ elevated fail-open) is a look-soon. The breaker monitor swallows internal errors
 *outcome* (`automation_runs_total`), not just its scheduler execution, is the health
 signal.
 
-## What §2 does NOT cover (later P11 sessions)
+## Reconciliation (§3)
 
-- Broker/local **reconciliation** → **§3**; **replay** → **§4**; restart/partial-fill
-  **recovery** runbooks → **§5**. The replay-consistency KPI row above is reserved until §4.
-- A **persisted operational data model** (`automation_runs`/`*_runs`/`system_health`
-  tables) — KPI history lives in Prometheus; durable run records arrive in §3/§4.
+The `reconciliation` infra job (300s) does an INDEPENDENT broker `get_positions()` fetch
+per account with open positions and diffs it against the local `positions` table — so it
+also catches a *stalled* PositionSync (a two-stored-snapshot diff would not). It is
+**alert-only** (ADR 0021 property 4): every discrepancy is recorded (a
+`RECONCILIATION_DISCREPANCY` audit row + `reconciliation_discrepancies_total`), and every
+pass persists a `reconciliation_runs` row (`pass`/`fail`/`unavailable`/`error`,
+`n_checked`, `n_discrepancies`, `duration_ms`). It never submits a corrective order — the
+operator judges and corrects (see on-call: *"Reconciliation reports a discrepancy"*). The
+**intent** domain (target ⇄ achieved) is deferred: the overlay fingerprint is not yet
+persisted to a durable store and the overlays are off, so there is nothing to reconcile.
+
+## What this track does NOT cover yet (later P11 sessions)
+
+- **Replay** → **§4**; restart/partial-fill **recovery** runbooks → **§5**. The
+  replay-consistency KPI row above is reserved until §4.
+- The intent reconciliation domain (above) — needs durable overlay-target persistence.
