@@ -103,6 +103,11 @@ def main() -> int:
     ap.add_argument("--bootstrap", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=17)
     ap.add_argument("--block", type=int, default=21, help="bootstrap block length (trading days)")
+    ap.add_argument("--vol-target", type=float, default=None,
+                    help="P12 §2: annual vol target for the gross-exposure overlay (None = off)")
+    ap.add_argument("--vol-span", type=int, default=20, help="EWMA span for the vol overlay")
+    ap.add_argument("--max-sector-pct", type=float, default=None,
+                    help="P12 §2: per-sector book-weight cap (None = off)")
     ap.add_argument("--experiment-id", default=None)
     ap.add_argument("--report-dir", default=None)
     args = ap.parse_args()
@@ -114,6 +119,14 @@ def main() -> int:
     generated_at = datetime.now(UTC).isoformat()
     exp_id = args.experiment_id or f"EXP-{datetime.now(UTC):%Y%m%d-%H%M%S}"
 
+    # P12 §2: overlay kwargs threaded into every backtest call (default off = the §1 baseline).
+    overlay_kwargs: dict[str, Any] = {}
+    if args.vol_target is not None:
+        overlay_kwargs["vol_target_annual"] = args.vol_target
+        overlay_kwargs["vol_ewma_span"] = args.vol_span
+    if args.max_sector_pct is not None:
+        overlay_kwargs["max_sector_pct"] = args.max_sector_pct
+
     store = FactorDataStore(db_path=args.store, read_only=True)
     try:
         # --- dataset-health gate (before any backtest) ---
@@ -124,12 +137,31 @@ def main() -> int:
         # --- headline book run (base cost) ---
         rep = run_momentum_backtest(
             store, start, end, n=args.n, top_quantile=args.top_quantile,
-            turnover_cost_bps=args.base_cost,
+            turnover_cost_bps=args.base_cost, **overlay_kwargs,
         )
         book_curve = rep.equity_curve
         ew_curve = rep.baseline_curve
         book = _curve_stats(book_curve)
         book_rets = ev.daily_returns(book_curve)
+
+        # --- P12 §2 overlay comparison (lift vs the unscaled book) ---
+        overlay: dict[str, Any] = {"mode": "none"}
+        if args.vol_target is not None and rep.vol_scaled_curve and rep.vol_scaled_metrics is not None:
+            vs = _curve_stats(rep.vol_scaled_curve)
+            b_dd, v_dd = abs(book["max_drawdown"]), abs(vs["max_drawdown"])
+            overlay = {
+                "mode": "vol_scaling", "vol_target": args.vol_target, "vol_span": args.vol_span,
+                "baseline": book, "vol_scaled": vs,
+                "delta": {
+                    "cagr": vs["cagr"] - book["cagr"],
+                    "sharpe": vs["sharpe"] - book["sharpe"],
+                    "maxdd_rel_reduction": (b_dd - v_dd) / b_dd if b_dd else 0.0,  # +ve = DD reduced
+                },
+            }
+        elif args.max_sector_pct is not None:
+            overlay = {"mode": "sector_cap", "max_sector_pct": args.max_sector_pct,
+                       "capped_book": book,
+                       "note": "compare to the §1 baseline (same window/seed/n)"}
 
         # --- statistical confidence (bootstrap CIs + p-value) ---
         ci_sharpe = ev.block_bootstrap_ci(
@@ -162,21 +194,29 @@ def main() -> int:
         cost_sweep: list[dict[str, Any]] = []
         for c in costs:
             r = run_momentum_backtest(
-                store, start, end, n=args.n, top_quantile=args.top_quantile, turnover_cost_bps=c
+                store, start, end, n=args.n, top_quantile=args.top_quantile,
+                turnover_cost_bps=c, **overlay_kwargs,
             )
             m = r.metrics
             cost_sweep.append({"bps": c, "cagr": m.cagr, "sharpe": m.sharpe,
                                "max_drawdown": m.max_drawdown, "total_return": m.total_return})
 
-        # --- walk-forward across regimes ---
+        # --- walk-forward across regimes (with vol-scaled per window in overlay mode) ---
         wf: list[dict[str, Any]] = []
         for label, ws, we in REGIME_WINDOWS[:wf_w]:
             if we < start or ws > end:
                 continue
             r = run_momentum_backtest(store, max(ws, start), min(we, end), n=wf_n,
-                                      top_quantile=args.top_quantile, turnover_cost_bps=args.base_cost)
+                                      top_quantile=args.top_quantile, turnover_cost_bps=args.base_cost,
+                                      **overlay_kwargs)
             m = r.metrics
-            wf.append({"window": label, "rebalances": len(r.rebalances), "cagr": m.cagr,
+            row: dict[str, Any] = {}
+            if args.vol_target is not None and r.vol_scaled_metrics is not None:
+                vm = r.vol_scaled_metrics
+                b_dd, v_dd = abs(m.max_drawdown), abs(vm.max_drawdown)
+                row = {"vs_sharpe": vm.sharpe, "vs_max_drawdown": vm.max_drawdown,
+                       "maxdd_rel_reduction": (b_dd - v_dd) / b_dd if b_dd else 0.0}
+            wf.append({"window": label, "rebalances": len(r.rebalances), "cagr": m.cagr, **row,
                        "sharpe": m.sharpe, "max_drawdown": m.max_drawdown})
         stability = ev.stability_label([float(w["sharpe"]) for w in wf])
 
@@ -200,9 +240,17 @@ def main() -> int:
             f"{health['n_sep_rows']}|{health['store_bounds']}|{health['n_tickers']}".encode()
         ).hexdigest()[:16]
 
+        if args.vol_target is not None:
+            strategy_version = f"1.1 - Momentum + Vol-scaling (target {args.vol_target:.0%})"
+        elif args.max_sector_pct is not None:
+            strategy_version = f"1.1 - Momentum + Sector caps ({args.max_sector_pct:.0%})"
+        else:
+            strategy_version = "1.0 - Momentum (6-1, weekly top-quintile, equal-weight)"
+
         result: dict[str, Any] = {
             "experiment_id": exp_id,
-            "strategy_version": "1.0 - Momentum (6-1, weekly top-quintile, equal-weight)",
+            "strategy_version": strategy_version,
+            "overlay": overlay,
             "evidence_version": {
                 "dataset_version": f"{store.path}@{dataset_sha}",
                 "code_version": _git_sha(),
@@ -253,6 +301,16 @@ def main() -> int:
           f"maxDD {book['max_drawdown']:.1%}")
     print(f"  vs EW: CAGR {benchmarks['equal_weight']['cagr']:+.2%}  "
           f"Sharpe {benchmarks['equal_weight']['sharpe']:.2f}")
+    if overlay["mode"] == "vol_scaling":
+        d_ = overlay["delta"]
+        print(f"  vol-scaled (target {overlay['vol_target']:.0%}): "
+              f"Sharpe {overlay['vol_scaled']['sharpe']:.2f} (d{d_['sharpe']:+.2f})  "
+              f"maxDD {overlay['vol_scaled']['max_drawdown']:.1%} "
+              f"(DD reduced {d_['maxdd_rel_reduction']:+.0%})  CAGR d{d_['cagr']:+.2%}")
+    elif overlay["mode"] == "sector_cap":
+        print(f"  sector-capped ({overlay['max_sector_pct']:.0%}): "
+              f"Sharpe {book['sharpe']:.2f}  maxDD {book['max_drawdown']:.1%} "
+              f"(compare to §1 baseline)")
     print(f"  walk-forward stability: {stability}  ({len(wf)} windows)")
     print(f"  dataset-health ok={health['ok']}  duration {result['repro']['duration_s']}s")
 
@@ -264,6 +322,38 @@ def main() -> int:
         (d / "edge_evidence.md").write_text(_render_md(result), encoding="utf-8")
         print(f"  wrote {d / 'edge_evidence.json'} + edge_evidence.md")
     return 0
+
+
+def _overlay_md(r: dict[str, Any]) -> list[str]:
+    """P12 §2 overlay (vol-scaling / sector-cap) lift section; empty in §1 baseline mode."""
+    o = r.get("overlay", {"mode": "none"})
+    if o["mode"] == "vol_scaling":
+        vs, d = o["vol_scaled"], o["delta"]
+        return [
+            f"### P12 §2 — Vol-scaling lift (target {o['vol_target']:.0%}, EWMA {o['vol_span']}d)",
+            "",
+            "| Metric | Baseline | Vol-scaled | Delta |",
+            "|---|---|---|---|",
+            f"| CAGR | {o['baseline']['cagr']:+.2%} | {vs['cagr']:+.2%} | {d['cagr']:+.2%} |",
+            f"| Sharpe | {o['baseline']['sharpe']:.2f} | {vs['sharpe']:.2f} | {d['sharpe']:+.2f} |",
+            f"| Max drawdown | {o['baseline']['max_drawdown']:.1%} | {vs['max_drawdown']:.1%} | "
+            f"**{d['maxdd_rel_reduction']:+.0%} reduction** |",
+            f"| Calmar | {o['baseline']['calmar']:.2f} | {vs['calmar']:.2f} | — |",
+            "",
+            "_Gate: enable iff maxDD reduced >=20% (rel) AND Sharpe down <=0.05, holding in crash "
+            "regimes (see walk-forward `vs_*` columns)._",
+            "",
+        ]
+    if o["mode"] == "sector_cap":
+        cb = o["capped_book"]
+        return [
+            f"### P12 §2 — Sector-cap book (cap {o['max_sector_pct']:.0%})",
+            "",
+            f"- Capped book: CAGR {cb['cagr']:+.2%} · Sharpe {cb['sharpe']:.2f} · "
+            f"maxDD {cb['max_drawdown']:.1%}. {o['note']}.",
+            "",
+        ]
+    return []
 
 
 def _render_md(r: dict[str, Any]) -> str:
@@ -308,6 +398,7 @@ def _render_md(r: dict[str, Any]) -> str:
         f"p={ci['sharpe']['p_value']:.3f}); ann. return p={ci['ann_return']['p_value']:.3f}. "
         f"_{r['spy_note']}_",
         "",
+        *_overlay_md(r),
         "### Cost sensitivity",
         "",
         "| bps | CAGR | Sharpe | maxDD |",

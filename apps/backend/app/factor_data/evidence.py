@@ -104,6 +104,69 @@ def calmar(cagr_value: float, max_dd: float) -> float:
     return cagr_value / abs(max_dd) if max_dd != 0.0 else 0.0
 
 
+def avg_drawdown(curve: Curve) -> float:
+    """Mean drawdown-from-peak across all days (negative). Often more telling than max DD."""
+    peak = float("-inf")
+    dds: list[float] = []
+    for _, v in curve:
+        peak = max(peak, v)
+        if peak > 0:
+            dds.append(v / peak - 1.0)
+    return _mean(dds)
+
+
+def time_underwater(curve: Curve) -> float:
+    """Fraction of days the curve sits below a prior peak (0..1)."""
+    peak = float("-inf")
+    under = 0
+    total = 0
+    for _, v in curve:
+        peak = max(peak, v)
+        total += 1
+        if v < peak:
+            under += 1
+    return under / total if total else 0.0
+
+
+def max_recovery_days(curve: Curve) -> int:
+    """Longest stretch (in curve steps) from a peak until a new high is reclaimed."""
+    peak = float("-inf")
+    worst = 0
+    since_peak = 0
+    for _, v in curve:
+        if v >= peak:
+            peak = v
+            since_peak = 0
+        else:
+            since_peak += 1
+            worst = max(worst, since_peak)
+    return worst
+
+
+def worst_rolling_return(curve: Curve, window: int = TRADING_DAYS) -> float:
+    """Worst trailing-``window`` (default ~12m) return over the curve (negative)."""
+    vals = [v for _, v in curve]
+    if len(vals) <= window:
+        return total_return(curve)
+    worst = 0.0
+    for i in range(window, len(vals)):
+        if vals[i - window] > 0:
+            worst = min(worst, vals[i] / vals[i - window] - 1.0)
+    return worst
+
+
+def drawdown_profile(curve: Curve) -> dict[str, float]:
+    """The full drawdown picture (review fold): max + average DD, time underwater,
+    recovery length, worst rolling 12m — 'often matter more than the maximum'."""
+    return {
+        "max_drawdown": max_drawdown(curve),
+        "avg_drawdown": avg_drawdown(curve),
+        "time_underwater": time_underwater(curve),
+        "max_recovery_steps": max_recovery_days(curve),
+        "worst_rolling_12m": worst_rolling_return(curve, TRADING_DAYS),
+    }
+
+
 def benchmark_characteristics(curve: Curve) -> dict[str, float]:
     """Stand-alone characteristics of a benchmark/book curve, so a comparison has context."""
     r = daily_returns(curve)
