@@ -114,10 +114,34 @@ SUPPORTED fraction, so "consistency 100% over the N% we can replay" is visible, 
 > replay always yields the same verdict — recompute functions are pure (no clock/IO). A new
 > `algorithm_version` is a new verifier; old `replay_runs` remain reproducible.
 
-## What this track does NOT cover yet (later P11 sessions)
+## Recovery (§5)
 
-- Restart/partial-fill **recovery** runbooks → **§5** (which reuses `replay_runs` /
-  `reconciliation_runs` / operational health — it invents no new persistence model).
+Recovery is **proven, not rebuilt** (ADR 0021 properties 3 + 6) — the procedures live in
+`docs/runbook/recovery.md` (the tested recovery runbook). The recovery paths are instrumented:
+
+- `recovery_attempts_total{recovery_type}` · `recovery_success_total` · `recovery_failures_total`
+  · `recovery_duration_seconds` — emitted by resume-on-boot (`resume_on_boot`) and overlay
+  convergence (`overlay_convergence`). `success ÷ (success + failures)` is the clean-recovery
+  ratio.
+- **Restart-recoverable:** resume-on-boot re-registers every `ENGINE_RUNNABLE_STATUSES` strategy
+  via the **idempotent** `register()` — a restart opens no second run. The weekly-rebalance
+  `_last_rebalance_week` guard is **in-memory** (intra-tick storm guard, resets on restart); the
+  *cross-restart* weekly guard is the **cron schedule** (fires only Mondays). Stateless actors
+  (overlay re-size vs live book gross; fills idempotent on `execution_id`) are restart-safe.
+- **Self-healing on partial application:** a re-size that partially fills converges on the
+  actor's **next scheduled tick** (compared against the live book, never compounding); the §3
+  intent domain observes the gap. Recovery never adds an order path and never auto-corrects.
+
+The **incident-severity ladder** (P1 duplicate order · P2 broker mismatch · P3 replay failure ·
+P4 delayed scheduler) and the **production-readiness checklist** live in `recovery.md`; the
+**Operational Readiness Report** (`TradingWorkbench_P11_OperationalReadinessReport_v0.1.md`) is
+the phase-exit attestation.
+
+## What this track does NOT cover yet (follow-ons)
+
 - The **durable-fingerprint follow-on** — a dedicated ADR-tracked task that persists the overlay
   fingerprint (+ point-in-time risk-check inputs), unblocking *both* overlay replay (§4) and the
   §3 intent reconciliation domain. Until then those decisions are `unreplayable`.
+- A **durable last-rebalanced-week flag** (vs today's in-memory `_last_rebalance_week`) — only if
+  a real tick-time-restart incident shows the cron schedule is insufficient (ADR 0021
+  re-evaluation trigger), not §5 scope.

@@ -162,6 +162,31 @@ replay_duration_seconds = Histogram(
     buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
 )
 
+# P11 §5 (ADR 0021) — recovery (restart-resume + partial-fill convergence). Additive
+# observability of the existing recovery paths; no new subsystem/persistence. A recovery
+# "event" is bounded: one resume-on-boot pass, or one convergence tick that closed a gap.
+recovery_attempts_total = Counter(
+    "workbench_recovery_attempts_total",
+    "Recovery actions attempted, by recovery type",
+    labelnames=["recovery_type"],  # resume_on_boot | overlay_convergence
+)
+recovery_success_total = Counter(
+    "workbench_recovery_success_total",
+    "Recovery actions that completed successfully, by recovery type",
+    labelnames=["recovery_type"],
+)
+recovery_failures_total = Counter(
+    "workbench_recovery_failures_total",
+    "Recovery actions that failed, by recovery type",
+    labelnames=["recovery_type"],
+)
+recovery_duration_seconds = Histogram(
+    "workbench_recovery_duration_seconds",
+    "Recovery action wall-clock duration, by recovery type",
+    labelnames=["recovery_type"],
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+)
+
 # --- Histograms --------------------------------------------------------------
 
 order_submission_duration_seconds = Histogram(
