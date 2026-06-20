@@ -1,0 +1,180 @@
+# Trading Workbench — P12 §3: Advance the alpha (multi-factor book)
+
+| Field | Value |
+|---|---|
+| Document version | **v0.1 — draft for confirmation** (2026-06-20). Drafted against the existing factor infra + the prior value/quality rejection + the §1/§2 harness. **One load-bearing open question (the data path, §"Open questions") must be confirmed before execution.** |
+| Date | 2026-06-20 |
+| Phase | **P12** — Validation & Results |
+| Session | §3 of 4 (Advance the alpha — multi-factor book) |
+| Predecessor | P12 §2 (tag `p12-session2-complete`); momentum v1.1 |
+| Successor | P12 §4 — Operational-proof window (background) / phase close (Strategy Evidence Book) |
+| Repository | `github.com/jayw04/AI-TRADING-APP` |
+| Scope | Build the **missing multi-factor machinery** (a composite-factor scoring engine + a factor-agnostic backtest), **re-test value/quality on the broadest universe the data supports** (the prior rejection's named gate), and decide — on OOS evidence — whether a momentum + value/quality **multi-factor book** beats momentum alone. Read-only research; **does not change the live strategy** (owner-gated). |
+| Estimated wall time | 8–12 hours (composite engine + backtest generalization + fundamentals breadth ingest + the multi-factor study + tests + results doc) — **plus** any FMP ingest wall-time |
+| Tag on completion | `p12-session3-complete` |
+| Out of scope | See "What this session does NOT do" |
+
+---
+
+## Why this session exists
+
+§1 validated momentum; §2 fixed its drawdown (→ v1.1). §3 asks the **diversification** question:
+*is there a second, lowly-correlated source of edge* — value/quality — that improves the book, or
+does momentum stand alone? The honest prior answer (Factor Data Acquisition Guide §3) is **"not on
+the mega-cap universe"**: on the top-200 liquid names, OOS 2023–26, every value/quality factor was
+negative or flat (LS-Sharpe −1.9 to +0.9) while momentum was +1.33 — and they were *negatively*
+correlated with momentum (momentum's opposite, not a diversifier). That was explicitly flagged as a
+**universe + regime** result, with the named re-test gate: *do value/quality earn their keep **off
+the mega-cap universe**?*
+
+§3 answers that — but first it must build the machinery that doesn't exist yet (a composite
+multi-factor score + a factor-agnostic backtest), and it must confront a **real data constraint**
+(below) that bounds how decisive the answer can be.
+
+## ⚠ The load-bearing constraint (read before everything else)
+
+**Fundamentals depth/breadth is the binding limit, not the code.**
+
+- Value/quality need **fundamentals**. The only ingested source is **FMP `/stable`**: ~**5 years**
+  of statements, and currently ingested for ~**197 of the top-200** names. Prices (momentum) are
+  28.5 yr / 14,150 names survivorship-free; **fundamentals are not.**
+- **Sharadar SF1** (deep, broad, survivorship-free fundamentals) is **sample-only** on the current
+  key — *not subscribed*.
+- Therefore a *broad + long* value/quality re-test (the ideal gate) is **not fully achievable on
+  today's data**. The realistically-testable re-test is **broader-universe but still ~5-yr / one-
+  regime** (extend FMP ingest to the top-500/1000), which only *partially* satisfies the
+  "different regime" intent.
+
+This constraint is the subject of the **single open question** below; it changes §3's scope and may
+need owner action (a data subscription), so it is confirmed **before** execution.
+
+## What this session ships
+
+1. **Composite multi-factor engine** (`app/factor_data/factors/composite.py`) — load N factor
+   matrices (momentum + value/quality), standardize each cross-section (the existing `zscore`),
+   blend (equal-weight z-scores to start; IC/Sharpe-weighting as an option), rank the composite.
+   Pure + tested; the genuinely-missing piece.
+2. **Factor-agnostic backtest** — generalize `run_momentum_backtest`'s selection from the hard-wired
+   `momentum_scores` call to a pluggable **`select_fn(date) -> {ticker: weight}`** (additive,
+   backward-compatible; momentum stays the default). This lets the §1 harness backtest *any* factor
+   or composite — the reusable win.
+3. **Value/quality re-test on the broader universe** — extend FMP fundamentals ingest to the
+   broader universe (per the open question), then re-run the IS/OOS factor study (IC, LS-Sharpe,
+   decay, momentum-correlation) on it — does the mega-cap rejection hold off mega-caps?
+4. **Multi-factor backtest** — run the composite book through the §1 evidence harness vs the
+   momentum-only baseline (CAGR/Sharpe/maxDD + bootstrap CI + walk-forward): does it *beat* v1.1, or
+   is momentum alone still the answer?
+5. **The §3 results doc** — Evidence Package Template + executive scorecard + the **decision** (build
+   the multi-factor book / keep momentum-only, with confidence), Research/Decision Register rows, the
+   strategy-evolution row (→ v2.0 *only if* it clears), and the data-gated **research-debt** entry.
+6. **Tests** for the composite engine + the generalized selection.
+
+## Prerequisites
+
+- **§1/§2 complete**; the evidence harness (`edge_evidence.py` + `evidence.py`) and momentum baseline.
+- The factor infra: `factors/fundamental.py` (7 value/quality factors, PIT via `accepted_date`),
+  `factors/cross_section.py` (winsorize/zscore/rank), `factors/engine.py` (`momentum_scores`),
+  `store.get_fundamentals` (PIT), `scripts/ingest_fmp.py`.
+- The FMP key (for any broader ingest); the survivorship-free price store.
+- The prior result: Factor Data Acquisition Guide §3 (the mega-cap rejection table).
+
+## Detailed work
+
+### §A — Composite multi-factor engine (`factors/composite.py`)
+
+```python
+def composite_scores(store, as_of, *, factors: list[str], weights: dict[str, float] | None = None,
+                     n: int = 500, min_names: int = 20) -> pd.DataFrame:
+    """Per factor: build the cross-section, winsorize+zscore (existing cross_section). Blend the
+    z-scores (equal-weight default; `weights` to override) into a composite `score`; rank. Names
+    missing a factor are handled explicitly (mean-impute z=0 or drop — decided + tested). Pure +
+    deterministic; raises FactorUnavailable below min_names."""
+```
+
+### §B — Factor-agnostic backtest (generalize selection)
+
+Extract the hard-wired momentum selection (`backtest.py` ~line 514) behind a pluggable
+`select_fn: Callable[[date], dict[str, float]] | None = None` (default = momentum, so every existing
+caller and the §1/§2 runs are unchanged). The §1 harness gains a `--factors mom,value,quality` path
+that backtests the composite.
+
+### §C — Value/quality re-test (broader universe)
+
+Per the open question: extend FMP fundamentals ingest to the broader universe, then re-run the
+IS/OOS study (the existing `scripts/factor_research.py` already computes per-factor IC/LS/decay +
+inter-factor correlation) on that universe. **Honest output:** does value/quality show positive OOS
+edge *off* the mega-cap universe, and is it lowly/negatively correlated with momentum (a diversifier
+vs an opposite)?
+
+### §D — Multi-factor backtest + decision
+
+Backtest the composite (momentum + whatever value/quality cleared) through the §1 harness vs the
+momentum-only v1.1 baseline. **Decision gate:** build the multi-factor book **only if** it improves
+risk-adjusted return OOS (Sharpe or Calmar) *beyond noise* (bootstrap CI) — otherwise record the
+honest **"momentum stands alone (still)"** negative finding and keep v1.1.
+
+### §E — Results doc + registries + tests
+
+The §3 results doc (scorecard, the re-test table, the composite backtest, the decision + confidence,
+Research/Decision Registers, evolution row → **v2.0 only if it clears**), the research-debt entry for
+the fundamentals-data gate, and tests for the composite engine + generalized selection.
+
+## Manual smoke
+
+1. `composite_scores(store, as_of, factors=["momentum","earnings_yield"])` on a fixture → a ranked
+   composite with the expected blend; missing-factor handling deterministic.
+2. `run_momentum_backtest(..., select_fn=<composite>)` over a short window → a report; the default
+   (no `select_fn`) reproduces the §1 momentum numbers byte-for-byte.
+
+## Walk-away discipline
+
+**≥ 1 hour** for the research (read-only). ⚠ Acting on a "build the multi-factor book" recommendation
+by changing the live strategy is a **separate, owner-gated** strategy change (it would be v2.0), not
+part of §3's read-only research.
+
+## What this session does NOT do
+
+- **Does not change the live strategy.** §3 produces evidence + a recommendation; a multi-factor v2.0
+  going live is a separate gated decision.
+- **Does not subscribe to / assume SF1 or any new data vendor** — that is the open-question /
+  owner-action item, and a new vendor is an ADR.
+- **Does not claim a decisive long-history broad value/quality verdict** the FMP data can't support —
+  the honest scope is bounded by ~5-yr fundamentals (the gate's "different regime" is only partly met).
+- **Does not touch the order path / risk engine.**
+
+## Open questions — CONFIRM BEFORE EXECUTION
+
+1. **★ The data path (load-bearing).** A genuine broad value/quality re-test needs broader + deeper
+   fundamentals than the current FMP (~5-yr, ~200 names). Options:
+   - **(a) FMP broader ingest, now** — ingest FMP fundamentals for the top-500/1000 and re-test on
+     that universe over ~5 yr. *Pro:* no new cost, doable now. *Con:* still ~5-yr / limited-regime, so
+     a flat/negative result is **not decisive** ("not enough history" stays a caveat).
+   - **(b) Subscribe to Sharadar SF1 (deep, broad, survivorship-free fundamentals)** — the *correct*
+     data for a decisive multi-decade broad re-test. *Pro:* makes the verdict real. *Con:* a paid
+     subscription + a new-vendor ADR + ingest time (owner action).
+   - **(c) Build the machinery now, defer the broad re-test** — ship the composite engine +
+     factor-agnostic backtest (the reusable infrastructure, valuable regardless), validate it on the
+     existing top-200 fundamentals, and record the broad re-test as research debt pending the data
+     decision. *Pro:* unblocks §3's code deliverable + the harness; honest about the data limit. *Con:*
+     defers the alpha question itself.
+   - *Lean: **(c) now**, with **(a)** as the immediate research extension if quick, and **(b)** flagged
+     as the owner data decision that makes the verdict decisive.*
+2. **Composite weighting.** Equal-weight z-scores, or IC/Sharpe-weighted? *Lean: equal-weight as the
+   honest default (no in-sample optimization); report an IC-weighted variant as sensitivity.*
+3. **Missing-factor handling.** A name with momentum but no fundamentals: mean-impute (z=0) or drop?
+   *Lean: drop for the pure value/quality study; mean-impute for the composite so momentum-only names
+   aren't excluded — report both.*
+
+## Notes & gotchas
+
+1. **The machinery is the durable asset.** The composite engine + factor-agnostic backtest outlive
+   any single factor verdict and are reused by every future factor study — build them well (mirrors
+   the §1 "harness is the asset" note).
+2. **The honest prior is a universe+regime result, not "value is dead"** — §3 must hold that nuance:
+   the test is whether value/quality diversify momentum *off mega-caps*, and the answer may still be
+   no (a legitimate negative finding to record, not a failure).
+3. **Fundamentals are not survivorship-free at depth** (FMP ~5-yr) — any value/quality backtest over
+   a long window would silently bias; keep the value/quality study within the fundamentals' real
+   coverage window and say so.
+4. **Reproducible + governed** — same seed → same CIs; §3 runs carry experiment ids + repro metadata
+   + a Research Registry row, like §1/§2.
