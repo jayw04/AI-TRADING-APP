@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v1.0 — frozen for execution** (2026-06-20; 4 OQs confirmed + review folded: registry-driven verifiers (Protocol + `REPLAY_REGISTRY`), a capability registry distinguishing `SUPPORTED`/`UNSUPPORTED`/`UNREPLAYABLE`, the MATCH/MISMATCH/SKIPPED/ERROR verdict model, a determinism-invariant box, a `replay_coverage` metric alongside consistency, a pipeline diagram, the one-bad-record→ERROR error policy, `registry_version` on runs, `REPLAY_MISMATCH`=CRITICAL, "verification service not simulation"). Trimmed (out): `audit_schema_version`/`decision_version` columns (forward-looking, add on schema evolution) and a `rows_per_second` metric (dashboard-derivable). |
+| Document version | **v1.1 — frozen + post-ship review fold** (2026-06-20). v1.0 was the frozen-for-execution plan (registry-driven verifiers, the `SUPPORTED`/`UNSUPPORTED`/`UNREPLAYABLE` capability registry, the MATCH/MISMATCH/SKIPPED/ERROR verdict model, the determinism-invariant box, `replay_coverage` alongside consistency, the pipeline diagram, the one-bad-record→ERROR error policy, `registry_version` on runs, `REPLAY_MISMATCH`=CRITICAL, "verification service not simulation"). **§4 shipped in PR #181 (`bb6d6b0`).** v1.1 folds the post-ship doc review (`comments.md`), all additive: an explicit **Replay Contract** (guarantees vs non-guarantees), an operational **lifecycle** state machine (distinct from the data pipeline), a **version-compatibility** statement, a **health** definition, an **ownership** boundary, an operator **error-class** taxonomy, and the long-term **architectural rule**. The review's one code item — **startup registry validation** (`validate_registry()`) — also shipped in #181. Trimmed (still out): `audit_schema_version`/`decision_version` columns (forward-looking) and a `rows_per_second` metric (dashboard-derivable). |
 | Date | 2026-06-20 |
 | Phase | **P11** — Operations & Reliability |
 | Session | §4 of 5 (Replay) |
@@ -54,6 +54,26 @@ This is the session that flips §2's **reserved** replay-consistency KPI row (ta
 > `replay_runs` row reproducible after future code evolves: a new algorithm version is a new
 > verifier; old runs replay identically under their recorded version.
 
+### The Replay Contract (guarantees vs non-guarantees)
+
+Stating both halves makes the boundary unambiguous — replay's value is as much in what it
+refuses to claim as in what it asserts.
+
+**Replay guarantees:**
+- **Determinism** — identical inputs (fingerprint + `algorithm_version` + audit schema) →
+  identical verdict.
+- **Read-only execution** — no state mutated beyond its own `replay_runs` row + any
+  `REPLAY_MISMATCH` audit entry.
+- **No broker interaction · no order submission** — never the order path.
+- **Deterministic recomputation** — pure verifier functions (no clock, I/O, randomness).
+
+**Replay explicitly does NOT guarantee:**
+- **Market / price reproducibility** — it does not reconstruct what the market did.
+- **Broker-fill / execution reproducibility** — the broker may legitimately have filled
+  differently, later, or partially; that is an execution fact, not a decision error.
+
+> The decision is replayable; the *outcome* is not — and is not meant to be.
+
 ### Pipeline
 
 ```
@@ -75,6 +95,35 @@ This is the session that flips §2's **reserved** replay-consistency KPI row (ta
         ▼
    replay_runs row         (window · n_checked/matched/mismatched/skipped/error · versions · duration)
 ```
+
+### Replay lifecycle (operational state machine)
+
+Distinct from the data pipeline above: the pipeline is *how a row becomes a verdict*; the
+lifecycle is *what state a replay pass is in* (for `/ops/state` + dashboards).
+
+```
+Scheduled ─▶ Collect (select audit rows in window) ─▶ Verify (recompute each)
+          ─▶ Persist (replay_runs row) ─▶ Publish (metrics + REPLAY_MISMATCH audit)
+          ─▶ Complete
+```
+
+A pass that throws in the daily job is logged and ends **Failed** (engine fault) — separate
+from a *clean pass that found a mismatch* (Completed, `n_mismatched > 0`).
+
+### Version compatibility
+
+A `replay_runs` row is reproducible under one coordinate triple:
+
+```
+replay_runs row  →  algorithm_version (recompute contract)
+                 →  registry_version  (the verifier set)
+                 →  audit schema      (the fingerprint shape it read)
+```
+
+A change to recompute logic is a **new `algorithm_version`** (and usually a new verifier);
+adding/removing a verifier bumps `registry_version`. Old rows stay interpretable because
+their pins say exactly which contract produced them — future migrations compare triples
+rather than guessing.
 
 ### What "replayable today" actually means (grounding, not aspiration)
 
@@ -262,6 +311,13 @@ A 24h cron (lifespan) runs `run_replay(since=now-24h)` and emits `replay_consist
 **coverage** KPI row is added (informational — honestly communicates "consistency 100% over the
 N% of decision types we can replay today").
 
+**Startup registry validation (review fold, shipped in #181).** `validate_registry()` runs at
+boot (lifespan, before the `replay` job is scheduled): every `supported` capability must have a
+wired verifier and every wired verifier must be catalogued `supported` (matching `capability`
+attribute), else `RegistryInconsistencyError` fails fast. A drift here is a programming error (a
+half-shipped verifier), caught at boot rather than silently miscounting coverage at the daily
+pass — a stronger guarantee than the registry-integrity *test* alone (gotcha #5).
+
 ### E. Metrics + audit
 
 - `replay_verifications_total{decision_type, verdict}` Counter.
@@ -270,6 +326,46 @@ N% of decision types we can replay today").
 - `replay_duration_seconds` Histogram (mirrors §3 buckets). (Rows/sec is dashboard-derivable from
   `replay_duration_seconds` + `n_checked` — not a stored metric.)
 - `AuditAction.REPLAY_MISMATCH` (audit-log skill: enum + on-call scenario + tests). CRITICAL.
+
+## Operational semantics (health · ownership · error classes)
+
+**Operational event flow** (where a verdict goes — the architecture, not just the data pipeline):
+
+```
+Audit fingerprint ─▶ Registry ─▶ Verifier ─▶ Verdict ─▶ Metrics ─▶ /ops/state ─▶ Dashboard
+                                                       └▶ REPLAY_MISMATCH audit (on mismatch)
+```
+
+**Replay health** — `/ops/state` reports the `replay` feature **healthy** iff:
+
+- last-pass `replay_consistency_ratio == 1.0` (no mismatch), **and**
+- last-pass `n_error == 0` (the engine itself verified cleanly), **and**
+- the `replay` scheduler job is healthy (§2 listener).
+
+`replay_coverage_ratio < 1.0` is **not** unhealthy — it is the honest current scope.
+
+**Replay ownership** (crisp boundary):
+
+- **Replay owns:** *verification* — proving a recorded decision follows from its recorded inputs.
+- **Replay does NOT own:** *remediation* (fix the producing code path), *reconciliation* (§3 —
+  broker⇄local reality), or *execution* (the order path). One subsystem, one job.
+
+**Error classes** (a `verdict="error"` is the engine failing on a row, never an unjustified
+decision — documented, not separately metered):
+
+| Class | Cause | Operator action |
+|---|---|---|
+| malformed payload | fingerprint JSON missing/garbled a field | fix the producer's fingerprint |
+| schema mismatch | audit schema changed under a fixed verifier | bump `algorithm_version` / verifier |
+| verifier exception | a bug in the recompute function | fix the verifier + regression test |
+
+**Architectural rule** (the review's "one thing missing"):
+
+> **Replay is the final consumer of the audit fingerprint.** Every new automated decision added
+> to the platform must eventually define **either** a replay verifier **or** an explicit
+> justification for why replay does not apply (recorded as an `UNREPLAYABLE`/`UNSUPPORTED`
+> capability entry). This keeps "is this decision provable?" a first-class question for every
+> future actor — not an afterthought.
 
 ## Manual smoke
 
