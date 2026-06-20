@@ -59,6 +59,15 @@ def test_benchmark_characteristics_keys() -> None:
     assert set(chars) == {"total_return", "cagr", "ann_volatility", "max_drawdown", "sharpe"}
 
 
+def test_drawdown_profile() -> None:
+    curve = _curve([100.0, 120.0, 60.0, 60.0, 130.0])  # peak 120 -> 60, recovers to new high at step 4
+    prof = ev.drawdown_profile(curve)
+    assert prof["max_drawdown"] == pytest.approx(-0.5)
+    assert prof["avg_drawdown"] < 0.0
+    assert 0.0 < prof["time_underwater"] < 1.0   # underwater days 60,60 of 5
+    assert prof["max_recovery_steps"] == 2        # 2 steps below peak before new high
+
+
 # ---- bootstrap -----------------------------------------------------------------
 
 def _noisy(mean: float, n: int = 120) -> list[float]:

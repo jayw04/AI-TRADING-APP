@@ -14,6 +14,37 @@
 
 ---
 
+## Executive scorecard (one glance)
+
+| Category | Result |
+|---|---|
+| **Edge** | ✅ PASS (+3pp CAGR vs equal-weight) |
+| **Statistical confidence** | ✅ HIGH (Sharpe 0.48, 95% CI [0.13, 0.85], p=0.003) |
+| **Cost robustness** | ✅ PASS (Sharpe 0.45 even at 20bps) |
+| **Walk-forward stability** | 🟡 MODERATE (6/7 regimes positive; GFC negative) |
+| **Drawdown** | ❌ FAIL (−76.4% — excessive) |
+| **Recommendation** | ➡️ Continue to §2 (vol-scaling to fix the drawdown) |
+
+**Key findings:** ✅ Real edge · ✅ Statistically significant · ✅ Cost-robust · ❌ Excessive
+drawdown · ✅ Strong candidate for vol-scaling.
+
+**Research confidence (by topic):**
+
+| Topic | Confidence |
+|---|---|
+| Edge exists | **High** |
+| Drawdown estimate | **High** |
+| Cost robustness | **Medium-High** |
+| Capacity | **Unknown** (research debt) |
+
+**Why the drawdown (failure explanation):** momentum crash → sharp market reversal punishes the
+high-beta, recently-winning names the book concentrates in → those concentrated winners reverse
+together → deep drawdown. This is *structural* to long-only momentum, which is exactly why it
+motivates §2 (gross-exposure vol-scaling de-risks into the reversal).
+
+**Forward hypothesis (→ §2):** vol-scaling ⟶ cut drawdown ⟶ while preserving Sharpe (a drawdown
+tool, not a return chase). §2 tests this against an explicit gate.
+
 ## Objective
 
 Does the live momentum book carry a **real, out-of-sample, survivorship-free edge** vs
