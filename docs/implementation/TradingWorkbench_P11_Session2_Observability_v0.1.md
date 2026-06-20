@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 (draft — two decisions recommended below; confirm before v1.0) |
+| Document version | **v1.0 — frozen for execution** (2026-06-19; 2 decisions confirmed + §1/§2 review folded: platform-vs-actor KPIs, a KPI registry w/ owner+severity, the `unknown` health state + startup grace, versioned health calc, a `category` registry field, an architecture diagram) |
 | Date | 2026-06-19 |
 | Phase | **P11** — Operations & Reliability |
 | Session | §2 of 5 (Observability) |
@@ -52,8 +52,14 @@ job, and the overlay's `overlay_actions_total`/`overlay_gross`. §2 adds the mis
    panels for scheduler success %, per-actor outcomes, fail-open rate, last-run freshness.
 6. **SLO + alert thresholds** — documented in the runbook (`operations.md`): the exit-gate
    SLOs from the Direction DoD, each mapped to a metric + alert threshold.
-7. **Tests** (listener increments the right counters; health = stale/degraded/ok under
-   seeded metric values; endpoint exposes KPI fields) + **runbook** update.
+7. **Operational semantics** (§1/§2 review folds, the consistency through-line): a
+   `category` field on the feature registry (Research / Portfolio / Risk / Operations /
+   Infrastructure — a small §1-registry enhancement done here, §1 itself stays frozen); the
+   KPI registry (owner · SLO · severity, platform-vs-actor); the `unknown` health state +
+   startup grace; and a versioned, timestamped health calc.
+8. **Tests** (listener increments the right counters; health = stale/degraded/unknown/ok
+   under seeded metric values; endpoint exposes the KPI + version fields) + **runbook**
+   update.
 
 ## Prerequisites
 
@@ -64,19 +70,32 @@ job, and the overlay's `overlay_actions_total`/`overlay_gross`. §2 adds the mis
 - `WorkbenchScheduler` (`app/services/scheduler.py`) owns the `AsyncIOScheduler`
   (`start()` registers jobs); the §6 `breaker_monitor` + overlay/rebalance jobs run on it.
 
-## Open questions — recommendations (confirm before v1.0)
+## Decisions (confirmed 2026-06-19)
 
 1. **Dashboard surface (Direction OQ#2) → Prometheus backbone + committed Grafana JSON +
    enriched `/ops/state`.** Metrics already live in Prometheus; the dashboard is *config*
    (a committed Grafana JSON), and the `/ops/state` endpoint carries headline KPIs for the
-   no-Grafana/in-app operator. *Recommend; no in-app charting UI in §2 (that's a frontend
-   effort, out of scope).*
+   no-Grafana/in-app operator. **No in-app charting UI in §2** (a frontend effort, out of
+   scope).
 2. **KPI history / persisted ops data model → use Prometheus time-series in §2; NO new DB
    tables.** "Scheduler success over 30d", "fail-open frequency" are Prometheus
    rate()/over_time queries — no schema needed. The persisted **operational data model**
    (`automation_runs`/`reconciliation_runs`/`replay_runs`/`system_health`, Direction §4
    deferred) arrives in **§3/§4** when reconciliation/replay need durable *run records*.
    Keeps §2 schema-free, consistent with §1.
+
+## P11 architecture (the §2 spine)
+
+§2 completes the read path from registry to operator:
+
+```
+Feature registry ─▶ Resolver ─▶ Metrics (Prometheus) ─▶ Health ─▶ Dashboard (Grafana) + /ops/state
+   (§1, static)      (§1)          (§2, live)            (§2)        (§2)
+```
+
+Each layer is read-only and rests on the one before it (the Direction's reliability
+pyramid). §3–§5 (reconciliation / replay / recovery) hang off the same Metrics + Health
+layers — they reuse this spine rather than introduce new concepts.
 
 ## Detailed work
 
@@ -124,37 +143,74 @@ dashboard) — the SLO is > 99.9%.
 `skip_idempotent` outcome firing — not a separate metric; the §1/§5 idempotency tests
 assert it.
 
+**Registry `category` field (review §1.1).** Add `category` to `OperationalFeature`
+(Research / Portfolio / Risk / Operations / Infrastructure) for filtering + clean
+dashboard grouping. This is a one-field, backward-compatible §1-registry enhancement done
+here (§1 stays frozen); the registry-integrity test pins `category` to the allowed set.
+*(Deferred per the review's scale logic: a `lifecycle` field, registry hash/fingerprint,
+and a `registry.yaml` migration — premature at 7 features; revisit when something is
+deprecated or the registry grows past ~30 entries.)*
+
 ### §C — Measured health (`app/ops/state.py`)
 
-Replace §1's basic health with a metrics-derived health per feature/actor:
+Replace §1's basic health with a metrics-derived health per feature/actor. **Health states:
+`ok` / `degraded` / `stale` / `unknown` / `n_a`** — `unknown` is distinct from `degraded`
+(review §2.4): "no data yet" (metrics/registry unavailable, or within the startup grace
+window) is *not* unhealthy. A **startup grace period** (`OPS_HEALTH_GRACE_S`, default 60s,
+measured from process start) returns `unknown` rather than flapping `degraded` on a fresh
+process / after a metrics reset.
 
 ```python
 def _actor_health(actor: str, cadence_s: float) -> str:
+    if _uptime_s() < OPS_HEALTH_GRACE_S:        # startup grace → not yet evaluable
+        return "unknown"
     last = REGISTRY.get_sample_value("workbench_scheduler_job_last_success_timestamp",
                                      {"job_id": _job_for(actor)})
-    if last is None: return "degraded"          # never succeeded
+    if last is None: return "unknown"            # metric absent → unknown, NOT degraded
     if now - last > 2 * cadence_s: return "stale"
     if _recent_errors(actor) > 0: return "degraded"
     return "ok"
 ```
 
-Reads the in-process Prometheus registry (no new dependency). Still read-only; degrades to
-the §1 basic check if metrics are absent (tests).
+Reads the in-process Prometheus registry (no new dependency). Still read-only.
 
-### §D — Dashboard + SLOs
+**Versioned + timestamped health (review §2.3/§2.7).** The `/ops/state` response gains
+`health_algorithm_version` (e.g. `"1.0"` — bump when thresholds change, so a status is
+traceable to the algorithm that produced it) and `health_calculated_at` (ISO ts) at the
+envelope level, alongside the per-feature KPI fields (`last_success_age_s`,
+`recent_failures`, `fail_open_count`).
 
-- **`docs/observability/grafana-operations.json`** — committed Grafana dashboard (panels:
-  scheduler success %, per-actor outcome rates, fail-open rate, last-run age). Config, not
-  code; importable into any Grafana pointed at `/metrics`.
-- **SLO / alert table** in `operations.md`:
+### §D — Dashboard + KPI registry (platform vs actor)
 
-  | KPI | Metric | SLO / alert |
-  |---|---|---|
-  | Scheduler success | `scheduler_job_events_total` | > 99.9% (alert below) |
-  | Fail-open frequency | `automation_runs_total{outcome="fail_open"}` | < 0.1% of runs |
-  | Duplicate executions | (invariant; `skip_idempotent` evidence) | 0 |
-  | Job freshness | `*_last_success_timestamp` | < 2× cadence |
-  | Replay consistency | (§4) | 100% — *populated when §4 ships* |
+- **`docs/observability/grafana-operations.json`** — committed Grafana dashboard with a
+  top-level `dashboard_version` (e.g. `"1.0"`, review §2.6). Panels grouped **Platform**
+  (top) and **Actor** (below). Config, not code; importable into any Grafana on `/metrics`.
+- **KPI registry** (review §2.2 / §1.5) in `operations.md` — every KPI has an **owner**,
+  **SLO**, and **alert severity** (review §2.5: INFO / WARNING / CRITICAL), split into
+  **Platform KPIs** (the platform itself works) vs **Actor KPIs** (a given automation
+  works) — review §2.1, so dashboards/ownership stay clean:
+
+  **Platform KPIs**
+
+  | KPI | Owner | Metric | SLO | Alert |
+  |---|---|---|---|---|
+  | Scheduler success | Scheduler | `scheduler_job_events_total` | > 99.9% | WARNING |
+  | Metrics endpoint up | Observability | `/metrics` scrape | reachable | WARNING |
+  | Dashboard available | Observability | Grafana up | reachable | INFO |
+  | Replay availability | Replay (§4) | (§4) | 100% | CRITICAL — *§4* |
+
+  **Actor KPIs**
+
+  | KPI | Owner | Metric | SLO | Alert |
+  |---|---|---|---|---|
+  | Overlay success | Overlay | `automation_runs_total{actor="overlay"}` | — (default off) | INFO |
+  | Breaker-monitor success | Risk | `automation_runs_total{actor="breaker_monitor"}` | 100% | CRITICAL |
+  | Rebalance success | Trading | `automation_runs_total{actor="rebalance"}` | 100% | WARNING |
+  | Fail-open frequency | Overlay | `automation_runs_total{outcome="fail_open"}` | < 0.1% | WARNING |
+  | Duplicate executions | (invariant; `skip_idempotent` evidence) | — | 0 | CRITICAL |
+  | Job freshness | per-actor | `*_last_success_timestamp` | < 2× cadence | WARNING |
+
+  (Replay consistency lands in **§4**; its row is reserved here.)
 
 ### §E — Tests + runbook
 
@@ -162,9 +218,13 @@ the §1 basic check if metrics are absent (tests).
   executed/error/missed events → the right `scheduler_job_events_total` increments + the
   last-success gauge set on executed.
 - **`tests/ops/test_operational_state.py`** (extend) — seed metric values → health
-  resolves `stale` (old last-success) / `degraded` (recent error) / `ok`; endpoint exposes
-  the KPI fields.
-- **Runbook** — the SLO table + each alert's operator response.
+  resolves `stale` (old last-success) / `degraded` (recent error) / `ok` / `unknown`
+  (metric absent or within startup grace); endpoint exposes the KPI + `health_algorithm_version`
+  + `health_calculated_at` fields.
+- **`tests/ops/test_feature_registry.py`** (extend) — `category` ∈ the allowed set for
+  every feature (drift guard, alongside the existing flag/verified guards).
+- **Runbook** — the platform/actor KPI registry (owner · SLO · severity) + each alert's
+  operator response.
 
 ## Manual smoke
 
