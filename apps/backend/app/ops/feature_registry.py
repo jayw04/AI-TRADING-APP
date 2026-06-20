@@ -37,6 +37,7 @@ class OperationalFeature:
 # registered. Maps feature.key → APScheduler job id (P11 §1).
 INFRA_JOB_IDS: dict[str, str] = {
     "breaker_monitor": "breaker_monitor",
+    "reconciliation": "reconciliation",
 }
 
 
@@ -70,4 +71,9 @@ FEATURES: tuple[OperationalFeature, ...] = (
         "breaker_monitor", "Continuous breaker monitor (§6)", "monitor", "ADR 0021/0004",
         None, "validated", "60s lifespan job; infra, no per-strategy flag",
         category="risk"),
+    OperationalFeature(
+        "reconciliation", "Broker⇄local reconciliation (§3)", "monitor", "ADR 0021",
+        None, "validated",
+        "300s lifespan job; alert-only (no order path); infra, no per-strategy flag",
+        category="operations"),
 )

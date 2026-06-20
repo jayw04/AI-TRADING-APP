@@ -325,6 +325,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("breaker_monitor_scheduled")
 
+            # 10c-bis. Broker⇄local reconciliation (P11 §3, ADR 0021). 300s
+            # interval. INDEPENDENT fresh broker fetch per account (so it also
+            # catches a stalled PositionSync), diffs vs the local positions
+            # table, and ALERTS on a discrepancy (audit + metric + a
+            # reconciliation_runs row). Read-only + alert-only — never the order
+            # path. Resolves each account's own adapter via the registry.
+            # max_instances=1 + coalesce so a slow pass can't stack.
+            from app.services.reconciliation import run_reconciliation_pass
+
+            scheduler.scheduler.add_job(
+                run_reconciliation_pass,
+                trigger="interval",
+                seconds=300,
+                id="reconciliation",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={
+                    "session_factory": session_factory,
+                    "resolve_broker": broker_registry.get,
+                },
+            )
+            logger.info("reconciliation_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't
