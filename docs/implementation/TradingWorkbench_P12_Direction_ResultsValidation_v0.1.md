@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v0.2 — draft + review fold** (2026-06-20). v0.1 was the first charter; v0.2 folds the doc review (`comments.md`, rated 10/10): a **Research methodology & governance** section (§4 — research invariants, statistical confidence, study lifecycle, Research Registry, evidence template, evidence versioning, Decision Register, negative findings, research KPIs), the **5 open questions resolved** with the reviewer's answers, the flagship **Strategy Evidence Book** as the phase deliverable, and the **roadmap reframe** (P13 Productization between P12 and Institutional Scale). The phase **number "P12" remains owner-confirmable** — this charter does not pivot the roadmap unilaterally (CLAUDE.md). |
+| Document version | **v0.3 — research-platform elevation** (2026-06-20). v0.2 folded the first review (§4 methodology, OQs, Strategy Evidence Book, P13 reframe). **v0.3 folds the second review (`comments.md`)** — the recognition that P12 is really building a **repeatable quantitative research *platform*, not a one-off validation pass**. Additive governance only (the review explicitly warns off new operational/architectural features): **strategy versioning** (distinct from factor/report), the full **research pipeline** lifecycle, the **four research assets**, **experiment IDs** + **reproducibility metadata**, a **dataset-health gate**, a **research-debt register**, a **research quality score** + decision confidence, a **Go/No-Go gate** + **P13 entry/handoff** package, and **P15 Continuous Research** on the roadmap. Phase **number "P12" remains owner-confirmable** (CLAUDE.md). |
 | Date | 2026-06-20 |
 | Phase | **P12 (proposed)** — Validation & Results (follows P11 Operations & Reliability) |
 | Status | **Draft charter.** Next: owner confirms the sequence + the §7 open questions → then draft the §1 per-session doc (Edge evidence package, owner-selected first). |
 | Predecessor | **P11** — Operations & Reliability — code-complete (§1–§5 merged + tagged `p11-session{1..5}-complete`). `p11-complete` is *pending* the ≥30-day Operational Readiness window (tracked here as the background track). |
-| Successor | **P13 — Productization** (reviewer's reframe): once P12 proves the edge, the next step is turning the validated strategy into a polished product — *before* P14 Institutional Scale (HA/multi-account/admin). Roadmap: **P10 Portfolio Architecture → P11 Operational Trust → P12 Evidence & Validation → P13 Productization → P14 Institutional Scale.** Each beyond P12 is its own ADR/phase; numbers owner-confirmable. |
+| Successor | **P13 — Productization** (gated by a P12→P13 **Go/No-Go review**, §7). Roadmap: **P10 Portfolio Architecture → P11 Operational Trust → P12 Research & Validation → P13 Productization → P14 Institutional Scale → P15 Continuous Research.** The arc's implication (reviewer): the platform is becoming an *institutional-grade quantitative research platform that also executes trades* — a stronger long-term vision than a trading app. Each phase beyond P12 is its own ADR/phase; numbers owner-confirmable. |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
 | Governing ADRs | **0014** (backtests = primary eval ground-truth), 0019 (Research Engine — read-only/alerts), 0002/0004 (router/breaker unchanged), 0021 (operational contract — the trust substrate that makes results *verifiable*). No new architectural invariant is expected this phase. |
 | Inputs | The owner's directive (*"prove this app is great and will have some great results first"*); the factor-research findings ([[factor-research-program]] — momentum is the OOS edge; low-vol/reversal negative); the 28.5-yr / 39M-row survivorship-free store + the walk-forward harness already built; the live momentum-portfolio paper book (strategy id=2). |
@@ -116,9 +116,62 @@ Headline edge claims carry a significance read, not just a point estimate: **con
 outcomes** (not only the mean). Investors will ask whether a result is luck; P12 answers it
 quantitatively. (A Sharpe with no CI is a number, not evidence.)
 
+### The research pipeline (the platform's standard lifecycle)
+
+P12 is not a one-off validation pass — it establishes the **repeatable research pipeline** every
+strategy/factor flows through, the research analogue of P11's operational lifecycle:
+
+```
+Idea ─▶ Research ─▶ Evidence ─▶ Validation ─▶ Production Candidate ─▶ Production ─▶ Monitoring
+```
+
+`Research → Production` directly is **forbidden** — Validation (OOS clears the gate) and the owner's
+Production-Candidate decision are mandatory stops. Monitoring (P11's KPIs) closes the loop and can
+re-open Research (factor decay → re-validate). This is what makes the platform *"an institutional
+research platform that also executes trades."*
+
+### Strategy versioning (distinct from factor / report versioning)
+
+A **strategy version** identifies the *whole book configuration* under test — separate from the
+factor version and the report version (reviewer ⭐⭐⭐⭐⭐). Every evidence report names exactly which
+strategy version it evaluates:
+
+```
+1.0  Momentum            ─▶  1.1  Momentum + Vol-scaling  ─▶  1.2  Momentum + Quality
+                                                          ─▶  2.0  Multi-factor
+```
+
+§1 measures **1.0**; §2 produces **1.1**; §3 builds toward **2.0**. (Major = new factor set; minor
+= an overlay/param change.)
+
+### Four research assets (experimentation vs governance, kept separate)
+
+| Asset | Purpose |
+|---|---|
+| **Dataset** | input (the survivorship-free store + its health report) |
+| **Research code** | analysis (the harness, factors, walk-forward) |
+| **Evidence** | results (JSON + the study report) |
+| **Decision** | governance (Research Registry + Decision Register rows) |
+
+A clean separation: experimentation produces Dataset/Code/Evidence; governance consumes them into
+Decisions. Code/data can churn; decisions are durable and auditable.
+
+### Experiment IDs + reproducibility metadata (the "Docker metadata" of research)
+
+Every execution mints an **`EXP-YYYY-NNNN`** id that links its code, data, report, decision, and any
+notebook. Every study auto-records **reproducibility metadata**: Python/DuckDB versions · git SHA ·
+dataset SHA · seed · execution time · host · generated-at. A study you cannot reproduce is not
+evidence (research invariant 5).
+
+### Dataset-health gate (answer "can we trust the data?" automatically)
+
+**Before** every experiment, a dataset-health report runs: date coverage + gaps · row count ·
+missing-price % · delisted % · split/dividend-adjustment sanity · PIT validation · survivorship
+validation. A red flag is surfaced (fail-closed), so no report silently sits on bad data.
+
 ### Study lifecycle — research is separated from production
 
-Every factor/overlay moves through an explicit gate sequence; **`Research → Enabled` directly is
+Every factor/overlay moves through the pipeline's gate sequence; **`Research → Enabled` directly is
 forbidden**:
 
 ```
@@ -174,6 +227,33 @@ what does *not* work is as valuable as what does, and prevents re-running dead e
 Validated-factor count · OOS Sharpe · walk-forward stability · turnover · max-drawdown · capacity.
 These make "P12 succeeded" measurable, not a vibe.
 
+### Research-debt register (keep methodology honest)
+
+The research analogue of technical debt — a standing register of *unresolved methodological
+limitations*, so gaps stay visible instead of being quietly assumed away:
+
+| Item | Status |
+|---|---|
+| Full-history SPY series (SPY not in the SEP store) | Outstanding |
+| Capacity / market-impact study | Outstanding |
+| Dividend-adjustment validation | Outstanding |
+| Liquidity model | Outstanding |
+
+Each study may add or retire entries; an Outstanding item must be disclosed in any report it affects.
+
+### Research quality score + decision confidence
+
+Each study self-rates (★1–5) on **Data · Methodology · Reproducibility · Statistical power ·
+Documentation**, and each Decision Register row carries a **confidence** (High / Medium / Low). A
+five-star result with Low confidence (e.g. thin OOS) reads very differently from a High one — the
+score makes that legible at a glance.
+
+### Research dashboard (future — the research `/ops/state`)
+
+Eventually every completed study feeds one at-a-glance board (Momentum=Validated Sharpe 1.4x ·
+Quality=Research · Vol-scaling=Enabled · …) — the research analogue of P11's `/ops/state`. Noted as
+direction; **not built in P12** (avoid new operational surfaces — reviewer's own caution).
+
 ## 5. Governing principles (inherited)
 
 - **Backtests are the primary eval ground-truth** (ADR 0014); paper/live is confirmation of
@@ -220,6 +300,23 @@ Executive Summary ─▶ Research Results ─▶ Backtests ─▶ Walk-Forward �
 
 This is what makes the platform's case uncommon: a single body of evidence attesting *both*
 operational reliability and investment methodology, every claim traceable to a run/audit.
+
+### The P12 → P13 Go/No-Go gate (the phase handoff)
+
+P12 does not flow silently into P13 — it ends at an explicit **Go/No-Go review** whose output is the
+**P13 Entry Report**, answering one question: *is this strategy ready for productization?* The gate
+checklist (all must pass for "Go"):
+
+- ☐ Evidence complete (the Strategy Evidence Book)
+- ☐ OOS validated (walk-forward, not in-sample)
+- ☐ Statistical confidence established (CIs / p-value)
+- ☐ Research Registry + Decision Register up to date
+- ☐ Operational proof signed (`p11-complete` window all-PASS)
+- ☐ Research-debt register reviewed (no blocking Outstanding item)
+- ☐ Owner decision approved
+
+A **No-Go** is a legitimate, valuable outcome — it sends specific items back to Research with a
+reason, rather than productizing an unproven edge. Only a **Go** opens P13.
 
 ## 8. Open questions — RESOLVED (2026-06-20)
 
