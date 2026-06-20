@@ -602,6 +602,28 @@ async def test_overlay_idempotent_resize_then_noop() -> None:
     ctx.submit_order.assert_not_called()
 
 
+async def test_overlay_partial_fill_converges_next_tick() -> None:
+    """P11 §5 (ADR 0021 property 6): a re-size that only PARTIALLY fills leaves the book
+    between states; the next tick converges it the rest of the way toward target, never
+    compounding or oscillating. Self-heal = the actor's own next scheduled tick, computed
+    against the LIVE book (no stored 'applied' flag — restart-safe by construction)."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()  # wants to trim 10 → 5 each
+    # Partial fill: the SELLs only partly execute → book settles at 7 each (gross 0.14),
+    # still above the 0.10 target.
+    ctx.get_position_for = AsyncMock(side_effect=lambda s: _pos(7) if s in ("AAA", "BBB") else None)
+    ctx.submit_order.reset_mock()
+    await strat.on_overlay_tick()  # converges the remaining gap: 7 → 5 (SELL 2 each)
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("sell", Decimal(2))
+    assert orders["BBB"] == ("sell", Decimal(2))
+    # Fully applied now → a further tick is a no-op (gap closed, never compounded).
+    ctx.get_position_for = AsyncMock(side_effect=lambda s: _pos(5) if s in ("AAA", "BBB") else None)
+    ctx.submit_order.reset_mock()
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
 # ---- P10 §5 regime overlay plumbing (breadth / VIX) ----------------------------
 
 def test_regime_overlay_disabled_by_default() -> None:

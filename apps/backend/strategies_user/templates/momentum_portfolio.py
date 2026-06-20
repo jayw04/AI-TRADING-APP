@@ -68,7 +68,12 @@ from app.db.enums import OrderSide, OrderSourceType, OrderType, SignalType, Time
 from app.factor_data.accessor import FactorDataUnavailable
 from app.factor_data.factors.engine import FactorUnavailable
 from app.factor_data.universe import UniverseUnavailable
-from app.observability.metrics import overlay_actions_total, overlay_gross
+from app.observability.metrics import (
+    overlay_actions_total,
+    overlay_gross,
+    recovery_attempts_total,
+    recovery_success_total,
+)
 from app.risk import OrderRequest
 from app.strategies import Strategy
 from app.strategies.overlay import desired_gross as overlay_desired_gross
@@ -533,7 +538,11 @@ class MomentumPortfolio(Strategy):
             return
 
         # EXECUTE — scale every held sleeve by the same ratio (gross changes, intra-book
-        # weights preserved — the overlay must not change composition).
+        # weights preserved — the overlay must not change composition). This re-size is the
+        # property-6 self-heal: a partially-applied book converges toward target here (P11 §5).
+        # attempts now, success after the audit — an exception in between propagates to the
+        # engine (marking the run errored) and is the recovery-failure signal (attempt w/o success).
+        recovery_attempts_total.labels(recovery_type="overlay_convergence").inc()
         ratio = Decimal(str(desired)) / Decimal(str(current_gross))
         fractional = bool(self.params.get("fractional_shares", False))
         for sym, qty in held.items():
@@ -556,6 +565,7 @@ class MomentumPortfolio(Strategy):
             **fingerprint, "gross_after": round(desired, 4), "reason": "scaled"})
         overlay_gross.labels(strategy_id=sid).set(desired)
         overlay_actions_total.labels(strategy_id=sid, outcome="scaled").inc()
+        recovery_success_total.labels(recovery_type="overlay_convergence").inc()
 
     async def _overlay_target_gross(self) -> float:
         """The overlay's desired gross via the shared overlay layer (ADR 0020): the

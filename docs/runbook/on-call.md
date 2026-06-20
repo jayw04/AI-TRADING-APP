@@ -141,6 +141,44 @@ submits a corrective order; it only surfaces the drift for you to judge.
 - A `result` of `unavailable` means the broker was unreachable that pass (no
   conclusion drawn) — not a discrepancy. Recurring `unavailable` → broker/network.
 
+## "Duplicate order / an actor double-acted" (P11 §5, **P1 — immediate**)
+
+**Symptom:** two `order` rows for the same intent in one period (a doubled rebalance or
+overlay re-size), or `recovery_failures_total` spikes after a restart. ADR 0021 property 1
+(idempotency) is the guard; a duplicate means a guard did not hold.
+
+**Check:**
+- Was there a **restart at a cron tick**? Resume-on-boot is idempotent (`register()` returns
+  the existing run), so a restart alone never double-registers — but the weekly-rebalance
+  `_last_rebalance_week` guard is **in-memory** and resets on restart. A restart *exactly at*
+  the Monday 14:00 tick is the only window APScheduler could re-fire the rebalance.
+- Read the duplicate `order` rows' `source_type` / timestamps and the `automation_runs_total`
+  for the actor; check `recovery_attempts_total{recovery_type="resume_on_boot"}`.
+
+**Fix:**
+- **Halt the actor first** (deactivate the strategy → IDLE; this does not stop already-filled
+  orders). Reconcile (§3) and replay (§4) the period to confirm the duplicate is real, not a
+  re-delivered fill (fills are idempotent on `execution_id`).
+- If it was a tick-time-restart double-rebalance: the cross-restart guard today is the cron
+  schedule, not a durable mark — if this recurs, the named follow-on is a **durable
+  last-rebalanced-week flag** (ADR 0021 re-evaluation trigger). File it; do not hand-patch the
+  in-memory guard under incident pressure.
+- Never "undo" via a compensating automated order — close manually through the OrderRouter.
+
+## "Scheduler tick was delayed or missed" (P11 §5, **P4 — monitor only**)
+
+**Symptom:** `workbench_scheduler_job_last_success_timestamp{job_id=…}` is stale, scheduler
+success dips below 99.9% (§2), or `/ops/state` shows a job `degraded`.
+
+**Check:** was the host/Docker down (laptop asleep, Docker Desktop not started)? Resume-on-boot
+re-registers all jobs on the next boot — a missed weekly tick simply runs at the next scheduled
+time; the actor converges next cycle (it never "catches up" by firing twice — single-flight +
+`coalesce`).
+
+**Fix:** bring the stack up (see `deployment.md` / the autostart task). Confirm the job
+re-registered (`scheduler_job_events_total{event="executed"}` advances). No manual catch-up
+fire is needed or wanted — a delayed tick is fail-safe (less action), not an incident to force.
+
 ## "Strategy in cooldown, I want to retry NOW"
 
 **Fix:** Strategy detail → CooldownIndicator → "Clear now" (audit-logged), or

@@ -153,6 +153,29 @@ async def test_register_is_idempotent(engine, session_factory):
     assert first is second
 
 
+async def test_resume_on_boot_no_double_act(engine, session_factory):
+    """P11 §5 (ADR 0021 property 3): resume-on-boot re-registers a running strategy
+    idempotently — simulating a restart (re-invoking the resume path against durable
+    state) opens NO second StrategyRun and does not double-register. The restart-recovery
+    proof against the real engine."""
+    from app.services.recovery import resume_strategies_on_boot
+
+    eng, _bus, _router = engine
+    sid = await _register_echo_strategy(session_factory)
+    await eng.register(sid)  # IDLE -> PAPER, opens run #1 (now ENGINE_RUNNABLE)
+
+    summary = await resume_strategies_on_boot(session_factory, eng)  # the "restart"
+    assert summary.attempted == 1 and summary.resumed == 1 and summary.failed == 0
+
+    async with session_factory() as session:
+        runs = (
+            await session.execute(
+                select(StrategyRun).where(StrategyRun.strategy_id == sid)
+            )
+        ).scalars().all()
+        assert len(runs) == 1  # NO second run — idempotent resume, no double-act
+
+
 # ---- P10 §2: optional daily overlay cadence (ADR 0020) -------------------------
 
 _OVERLAY_PARAMS = {

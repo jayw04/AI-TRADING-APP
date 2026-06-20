@@ -553,31 +553,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # Initial sync pass (each call wraps its own try/except internally)
             await scheduler.run_startup_sync()
 
-            # Resume-on-boot: re-register strategies that were active before
-            # the last shutdown. Best-effort — a single broken strategy
-            # shouldn't take down boot.
-            from sqlalchemy import select
+            # Resume-on-boot (P11 §5, ADR 0021 property 3): re-register strategies
+            # that were active before the last shutdown. Extracted into the recovery
+            # service so it is testable + instrumented (recovery_* metrics). Idempotent
+            # (engine.register is a no-op if already registered) and best-effort — a
+            # single broken strategy shouldn't take down boot. P6b §2a:
+            # ENGINE_RUNNABLE_STATUSES (⊃ ACTIVE) so PAPER_VARIANT clones resume too.
+            from app.services.recovery import resume_strategies_on_boot
 
-            from app.db.enums import ENGINE_RUNNABLE_STATUSES
-            from app.db.models.strategy import Strategy as StrategyRow
-
-            async with session_factory() as resume_session:
-                # P6b §2a: ENGINE_RUNNABLE_STATUSES (⊃ ACTIVE) so PAPER_VARIANT
-                # clones resume after a restart, like any running strategy.
-                rows_to_resume = (
-                    await resume_session.execute(
-                        select(StrategyRow).where(
-                            StrategyRow.status.in_(list(ENGINE_RUNNABLE_STATUSES))
-                        )
-                    )
-                ).scalars().all()
-            for row in rows_to_resume:
-                try:
-                    await strategy_engine.register(row.id)
-                except Exception:
-                    logger.exception(
-                        "strategy_resume_failed_on_boot", strategy_id=row.id
-                    )
+            await resume_strategies_on_boot(session_factory, strategy_engine)
         else:
             logger.info("alpaca_startup_disabled")
 
