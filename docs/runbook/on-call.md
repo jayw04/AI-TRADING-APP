@@ -75,6 +75,40 @@ because the broker is flaky? Check
 - Limit too tight → raise it at Settings → Risk Limits → LIVE (audit-logged).
 - Broker flakiness inflating the count → fix the adapter/network first.
 
+## "Replay reports a mismatch" (`REPLAY_MISMATCH`) — **CRITICAL**
+
+**Symptom:** `workbench_replay_verifications_total{verdict="mismatch"}` increments, a
+`REPLAY_MISMATCH` audit row appears, or `replay_decisions.py` exits non-zero. Replay (P11 §4,
+ADR 0021) reconstructs an automated decision from its audit fingerprint and recomputes the
+decision rule from the *recorded inputs*. A **mismatch means the recorded decision is not
+justified by its recorded evidence** — a logic regression, a fingerprint missing a load-bearing
+input, or an input computed inconsistently. Replay is read-only — it verifies, never corrects.
+
+**Check:** read the `REPLAY_MISMATCH` audit payload (`audit_log_id`, `decision_type`,
+`recorded`, `recomputed`, `note`) — it points at the original decision's audit row. Re-run the
+verifier on it for the full picture:
+
+    python scripts/replay_decisions.py --audit-id <audit_log_id>
+
+By `decision_type`:
+- `CIRCUIT_BREAKER_TRIPPED` — the recorded trip's `net_pnl` (= `realized_pnl_today +
+  unrealized_pnl_now`) either does not reproduce, or does not satisfy `net_pnl ≤ −max_daily_loss`.
+  This is the *spurious-trip* class (see "Circuit breaker keeps tripping"): the breaker tripped on
+  an input that doesn't justify it — suspect a start-of-day equity-baseline bug.
+- `RECONCILIATION_DISCREPANCY` — the recorded discrepancy `kind` does not match the
+  classification recomputed from the recorded `local`/`broker` quantities (a §3 classification bug).
+
+**Fix:**
+- First confirm it is not a **replay engine** fault: a `verdict="error"` (not `mismatch`) means a
+  malformed payload, not an unjustified decision — fix the verifier/payload, not the decision.
+- A real `mismatch` is **stop-and-investigate**: the automation that produced the original
+  decision has a bug (or its fingerprint is incomplete). Find the producing code path
+  (`decision_type` → the trip in `circuit_breaker.py` / the diff in `reconciliation.py`), fix it,
+  and add a regression test. Do **not** edit the audit log — it is the evidence.
+- `replay_coverage_ratio` < 1.0 is expected, not an alert: it honestly reports the fraction of
+  decision types replay can verify today (overlay + risk-check are `unreplayable` pending durable
+  fingerprints).
+
 ## "Reconciliation reports a discrepancy" (broker ⇄ local drift)
 
 **Symptom:** `workbench_reconciliation_discrepancies_total` increments, or a

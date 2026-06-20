@@ -349,6 +349,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("reconciliation_scheduled")
 
+            # 10c-ter. Decision replay verifier (P11 §4, ADR 0021). Daily (03:30
+            # in the scheduler's timezone). Replays the last 24h of automated
+            # decisions from their audit fingerprints, re-verifying each decision
+            # against its recorded inputs, and feeds the replay-consistency +
+            # coverage KPIs. READ-ONLY verification — never the order path; a
+            # mismatch is audit-logged (REPLAY_MISMATCH) + alerted, not corrected.
+            # Not per-minute (rescanning the whole log adds no safety). max_instances=1
+            # + coalesce so a slow pass can't stack.
+            from apscheduler.triggers.cron import CronTrigger as _ReplayCron
+
+            from app.services.replay import run_daily_replay
+
+            scheduler.scheduler.add_job(
+                run_daily_replay,
+                _ReplayCron(hour=3, minute=30),
+                id="replay",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"session_factory": session_factory},
+            )
+            logger.info("replay_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't

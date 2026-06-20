@@ -142,6 +142,26 @@ reconciliation_duration_seconds = Histogram(
     buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
 )
 
+# P11 §4 (ADR 0021) — replay (re-verify automated decisions from their audit fingerprint).
+replay_verifications_total = Counter(
+    "workbench_replay_verifications_total",
+    "Replay verifications by decision type and verdict",
+    labelnames=["decision_type", "verdict"],  # verdict: match|mismatch|skipped|error
+)
+replay_consistency_ratio = Gauge(
+    "workbench_replay_consistency_ratio",
+    "Last replay pass: matched / (matched + mismatched) over replayable decisions",
+)
+replay_coverage_ratio = Gauge(
+    "workbench_replay_coverage_ratio",
+    "Replayable (SUPPORTED) decision types / total catalogued decision types",
+)
+replay_duration_seconds = Histogram(
+    "workbench_replay_duration_seconds",
+    "Replay pass wall-clock duration",
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
+)
+
 # --- Histograms --------------------------------------------------------------
 
 order_submission_duration_seconds = Histogram(

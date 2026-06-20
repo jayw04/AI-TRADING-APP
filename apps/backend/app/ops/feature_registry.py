@@ -38,6 +38,7 @@ class OperationalFeature:
 INFRA_JOB_IDS: dict[str, str] = {
     "breaker_monitor": "breaker_monitor",
     "reconciliation": "reconciliation",
+    "replay": "replay",
 }
 
 
@@ -75,5 +76,10 @@ FEATURES: tuple[OperationalFeature, ...] = (
         "reconciliation", "Broker⇄local reconciliation (§3)", "monitor", "ADR 0021",
         None, "validated",
         "300s lifespan job; alert-only (no order path); infra, no per-strategy flag",
+        category="operations"),
+    OperationalFeature(
+        "replay", "Decision replay verifier (§4)", "monitor", "ADR 0021",
+        None, "validated",
+        "daily lifespan job; read-only re-verification of decisions; infra, no per-strategy flag",
         category="operations"),
 )
