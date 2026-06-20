@@ -71,7 +71,8 @@ works), each with an owner, SLO, and alert severity:
 | Overlay outcomes | Overlay | `overlay_actions_total` | — (default off) | INFO |
 | Fail-open frequency | Overlay | `overlay_actions_total{outcome="fail_open"}` | < 0.1% | WARNING |
 | Duplicate executions | (invariant; `skip_idempotent` evidence) | — | 0 | CRITICAL |
-| Replay consistency | Replay | (§4) | 100% | CRITICAL — *§4* |
+| Replay consistency | Replay | `replay_consistency_ratio` (matched ÷ replayable, §4) | 100% | CRITICAL |
+| Replay coverage | Replay | `replay_coverage_ratio` (SUPPORTED ÷ catalogued decision types, §4) | informational | INFO |
 
 Operator response: a **CRITICAL** (duplicate execution, breaker-monitor failing, replay
 inconsistency) is a stop-and-investigate; a **WARNING** (scheduler dip, staleness,
@@ -92,8 +93,31 @@ operator judges and corrects (see on-call: *"Reconciliation reports a discrepanc
 **intent** domain (target ⇄ achieved) is deferred: the overlay fingerprint is not yet
 persisted to a durable store and the overlays are off, so there is nothing to reconcile.
 
+## Replay (§4)
+
+The `replay` infra job (daily, 03:30 ET) reconstructs each automated decision in the last 24h
+from its **durable audit fingerprint** and recomputes the decision rule from the *recorded
+inputs*, asserting it reproduces — validating **the decision, not the broker outcome** (ADR
+0021). Read-only: a mismatch is recorded (`REPLAY_MISMATCH` audit row + metric) and alerted,
+never corrected. On-demand verification is `scripts/replay_decisions.py` (exits non-zero on any
+mismatch — CI/ops usable). Every pass persists a `replay_runs` row (`n_matched`/`n_mismatched`/
+`n_skipped`/`n_error`, `duration_ms`, `algorithm_version` + `registry_version`).
+
+A registry-driven verifier set (`REPLAY_REGISTRY`) makes it a verification, not a simulation,
+service. Each decision type has a capability: **SUPPORTED** (a verifier exists — circuit-breaker
+trips, reconciliation discrepancies), **UNREPLAYABLE** (the fingerprint is missing required
+inputs — the overlay decision and risk-check rejection, pending the durable-fingerprint
+follow-on), or **UNSUPPORTED** (not built). `replay_coverage_ratio` honestly reports the
+SUPPORTED fraction, so "consistency 100% over the N% we can replay" is visible, not hidden.
+
+> **Determinism invariant:** given the same fingerprint, `algorithm_version`, and audit schema,
+> replay always yields the same verdict — recompute functions are pure (no clock/IO). A new
+> `algorithm_version` is a new verifier; old `replay_runs` remain reproducible.
+
 ## What this track does NOT cover yet (later P11 sessions)
 
-- **Replay** → **§4**; restart/partial-fill **recovery** runbooks → **§5**. The
-  replay-consistency KPI row above is reserved until §4.
-- The intent reconciliation domain (above) — needs durable overlay-target persistence.
+- Restart/partial-fill **recovery** runbooks → **§5** (which reuses `replay_runs` /
+  `reconciliation_runs` / operational health — it invents no new persistence model).
+- The **durable-fingerprint follow-on** — a dedicated ADR-tracked task that persists the overlay
+  fingerprint (+ point-in-time risk-check inputs), unblocking *both* overlay replay (§4) and the
+  §3 intent reconciliation domain. Until then those decisions are `unreplayable`.

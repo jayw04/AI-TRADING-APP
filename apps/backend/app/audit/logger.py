@@ -82,6 +82,13 @@ class AuditAction(StrEnum):
     # order (ADR 0021 property 4). See docs/runbook/on-call.md.
     RECONCILIATION_DISCREPANCY = "RECONCILIATION_DISCREPANCY"
 
+    # ---- Operations & Reliability (P11 §4) ----
+    # Recorded when replay finds a logged automated decision does NOT reproduce from its
+    # recorded inputs (the recorded decision is not justified by its recorded evidence).
+    # Read-only verification — never triggers any order (ADR 0021). CRITICAL severity.
+    # See docs/runbook/on-call.md.
+    REPLAY_MISMATCH = "REPLAY_MISMATCH"
+
     # ---- Live order safety (P5 §6) ----
     # Recorded for every LIVE order submission attempt, regardless of outcome.
     # Paper submissions are NOT audited here (the orders table is their trail).
