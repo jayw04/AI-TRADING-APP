@@ -127,7 +127,7 @@ class WorkbenchScheduler:
         except Exception:
             logger.exception("startup_asset_sync_failed")
         try:
-            await self._account_sync.sync_once()
+            await self._account_sync.sync_all()  # every account at boot (P13.5)
         except Exception:
             logger.exception("startup_account_sync_failed")
         try:
@@ -141,7 +141,7 @@ class WorkbenchScheduler:
         self._account_ticks = (self._account_ticks + 1) % _OFFHOURS_THROTTLE
         if not is_regular_session() and self._account_ticks != 0:
             return
-        await self._account_sync.sync_once()
+        await self._account_sync.sync_all()  # every account (P13.5 multi-account)
 
     async def _position_tick(self) -> None:
         self._position_ticks = (self._position_ticks + 1) % _OFFHOURS_THROTTLE
