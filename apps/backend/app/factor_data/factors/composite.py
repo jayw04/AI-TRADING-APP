@@ -77,6 +77,43 @@ def _fundamental_raw(store: FactorDataStore, as_of: date, tickers: list[str],
     return out
 
 
+def factor_zscores(
+    store: FactorDataStore,
+    as_of: date,
+    *,
+    factors: list[str],
+    n: int = 500,
+    min_names: int = 20,
+    lookback_days: int = DEFAULT_LOOKBACK_DAYS,
+    skip_days: int = DEFAULT_SKIP_DAYS,
+) -> pd.DataFrame:
+    """Per-factor standardized cross-section: a ``tickers × factors`` z-score matrix (NaN where a
+    name lacks a factor). The intermediate that ``composite_scores`` blends — also the input to the
+    factor-correlation matrix (P12 §3 Deliverable B). PIT + deterministic."""
+    if not factors:
+        raise ValueError("factor_zscores needs at least one factor")
+    bad = [f for f in factors if f != MOMENTUM and f not in FUNDAMENTAL_FACTORS]
+    if bad:
+        raise ValueError(f"unknown factor(s): {bad}")
+    tickers = universe_asof(store, as_of, n=n)
+    if len(tickers) < min_names:
+        raise FactorUnavailable(f"universe too thin at {as_of}: {len(tickers)} < {min_names}")
+
+    raw: dict[str, dict[str, float]] = {}
+    if MOMENTUM in factors:
+        raw[MOMENTUM] = _momentum_raw(store, as_of, tickers,
+                                      lookback_days=lookback_days, skip_days=skip_days)
+    fund = [f for f in factors if f in FUNDAMENTAL_FACTORS]
+    if fund:
+        raw.update(_fundamental_raw(store, as_of, tickers, fund))
+
+    zs: dict[str, pd.Series] = {}
+    for fac in factors:
+        s = pd.Series(raw.get(fac, {}), dtype="float64").reindex(tickers)
+        zs[fac] = zscore(winsorize(s))
+    return pd.DataFrame(zs)
+
+
 def composite_scores(
     store: FactorDataStore,
     as_of: date,
@@ -96,32 +133,11 @@ def composite_scores(
     with z=0; ``"drop"`` keeps only names with every factor present. Raises ``FactorUnavailable``
     if fewer than ``min_names`` names survive.
     """
-    if not factors:
-        raise ValueError("composite_scores needs at least one factor")
-    bad = [f for f in factors if f != MOMENTUM and f not in FUNDAMENTAL_FACTORS]
-    if bad:
-        raise ValueError(f"unknown factor(s): {bad}")
     if missing not in ("impute", "drop"):
         raise ValueError("missing must be 'impute' or 'drop'")
 
-    tickers = universe_asof(store, as_of, n=n)
-    if len(tickers) < min_names:
-        raise FactorUnavailable(f"universe too thin at {as_of}: {len(tickers)} < {min_names}")
-
-    raw: dict[str, dict[str, float]] = {}
-    if MOMENTUM in factors:
-        raw[MOMENTUM] = _momentum_raw(store, as_of, tickers,
-                                      lookback_days=lookback_days, skip_days=skip_days)
-    fund = [f for f in factors if f in FUNDAMENTAL_FACTORS]
-    if fund:
-        raw.update(_fundamental_raw(store, as_of, tickers, fund))
-
-    # z-score each factor over the universe cross-section
-    zs: dict[str, pd.Series] = {}
-    for fac in factors:
-        s = pd.Series(raw.get(fac, {}), dtype="float64").reindex(tickers)
-        zs[fac] = zscore(winsorize(s))
-    zmat = pd.DataFrame(zs)
+    zmat = factor_zscores(store, as_of, factors=factors, n=n, min_names=min_names,
+                          lookback_days=lookback_days, skip_days=skip_days)
     zmat = zmat.fillna(0.0) if missing == "impute" else zmat.dropna(how="any")
 
     w = weights or {f: 1.0 / len(factors) for f in factors}

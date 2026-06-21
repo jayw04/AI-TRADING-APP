@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from app.factor_data.backtest import run_momentum_backtest
-from app.factor_data.factors.composite import composite_scores
+from app.factor_data.factors.composite import composite_scores, factor_zscores
 from app.factor_data.factors.engine import FactorUnavailable, momentum_scores
 from app.factor_data.store import FactorDataStore
 
@@ -82,6 +82,14 @@ def test_composite_roe_ranks_by_fundamentals(fund_store) -> None:
     # roe = net_income / total_equity (100): AAA(0.5) > BBB(0.3) > CCC(0.2) > DDD(0.1).
     comp = composite_scores(fund_store, date(2021, 6, 1), factors=["roe"], n=4, min_names=3)
     assert list(comp.index) == ["AAA", "BBB", "CCC", "DDD"]
+
+
+def test_factor_zscores_matrix_shape(fund_store) -> None:
+    # tickers × factors z-score matrix (the correlation-matrix input).
+    z = factor_zscores(fund_store, date(2021, 6, 1), factors=["momentum", "roe"], n=4, min_names=3)
+    assert list(z.columns) == ["momentum", "roe"]
+    assert not z["roe"].isna().all()  # roe present from fundamentals
+    assert z["roe"].idxmax() == "AAA"  # highest roe
 
 
 # ---- factor-agnostic backtest --------------------------------------------------
