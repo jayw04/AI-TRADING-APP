@@ -65,9 +65,9 @@ primary point-in-time fundamental source, and on what terms?
 - **Why SF1 specifically, and why now.** The research program's next decisive question — does a
   multi-factor book beat momentum out-of-sample — is unanswerable on FMP's ~5y / mega-cap / biased
   fundamentals. SF1 is the dataset ADR 0018 already identified as the right one but couldn't use
-  (sample-only). It is survivorship-free, point-in-time, ~20+ years, ~thousands of names — exactly the
-  shape ADR 0014 demands for an honest verdict. Acquiring it now (long procurement lead time) lets the
-  Factor Lab build in parallel with product work (P13).
+  (sample-only). It is survivorship-free, point-in-time, ~10 years (2016+, per Verified access),
+  thousands of names — much closer to the shape ADR 0014 demands than FMP, though shorter than the
+  20-year aspiration. Acquiring it now lets the Factor Lab build in parallel with product work (P13).
 
 - **Why make it primary over FMP.** Two PIT fundamental sources with different depth/coverage invite
   silent inconsistency (which source backed a given factor on a given date?). Designating SF1 the
