@@ -9,7 +9,10 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.brokers.registry import BrokerRegistry
 
 import structlog
 from sqlalchemy import select
@@ -30,30 +33,71 @@ class AccountSyncService:
         adapter: AlpacaAdapter,
         session_factory: async_sessionmaker,
         bus: EventBus,
+        broker_registry: BrokerRegistry | None = None,
     ) -> None:
         self._adapter = adapter
         self._session_factory = session_factory
         self._bus = bus
+        # P13.5: when present, sync_all() resolves EACH account's own per-user adapter
+        # from the registry (built from that user's encrypted creds), so every paper
+        # account's balance is synced — not just the first/startup one.
+        self._broker_registry = broker_registry
 
     async def sync_once(self) -> dict[str, Any]:
-        """Pull the latest account snapshot, upsert AccountState, publish event."""
+        """Pull the *primary* paper account's snapshot and upsert its AccountState.
+
+        Back-compat single-account path (the first paper account via the startup adapter);
+        ``sync_all`` covers every account via the broker registry."""
         raw = await asyncio.to_thread(self._adapter.get_account)
         payload = _normalize_account(raw)
-
         async with self._session_factory() as session:
-            # For MVP single-user, the *first* paper Alpaca account is the target.
-            # Multi-account support comes later when accounts.broker_account_id lands.
             account = await self._resolve_account(session)
-            if account is None:
-                logger.warning("account_sync_no_account_row")
-                return payload
+        if account is None:
+            logger.warning("account_sync_no_account_row")
+            return payload
+        await self._upsert_and_publish(account.id, raw, payload)
+        return payload
 
+    async def sync_all(self) -> dict[str, list[int]]:
+        """Sync EVERY broker account from its own per-user adapter (P13.5 multi-account).
+
+        Each account's adapter comes from the broker registry (constructed per-user from that
+        user's encrypted credentials and connected at boot). Falls back to the single-account
+        ``sync_once`` when no registry is wired (tests / minimal boots). One account's failure
+        is logged and skipped — it never aborts the others."""
+        if self._broker_registry is None:
+            await self.sync_once()
+            return {"synced": [], "skipped": [], "errors": []}
+        async with self._session_factory() as session:
+            accounts = (
+                await session.execute(select(Account).where(Account.broker == "alpaca"))
+            ).scalars().all()
+        synced: list[int] = []
+        skipped: list[int] = []
+        errors: list[int] = []
+        for account in accounts:
+            adapter = self._broker_registry.get(account.id)
+            if adapter is None:
+                skipped.append(account.id)  # no per-user adapter (missing creds)
+                continue
+            try:
+                raw = await asyncio.to_thread(adapter.get_account)
+                await self._upsert_and_publish(account.id, raw, _normalize_account(raw))
+                synced.append(account.id)
+            except Exception as exc:  # one account must not kill the sweep
+                logger.warning("account_sync_account_failed", account_id=account.id, error=str(exc))
+                errors.append(account.id)
+        logger.info("account_sync_all_completed", synced=synced, skipped=skipped, errors=errors)
+        return {"synced": synced, "skipped": skipped, "errors": errors}
+
+    async def _upsert_and_publish(
+        self, account_id: int, raw: dict[str, Any], payload: dict[str, Any]
+    ) -> None:
+        """Upsert one account's AccountState row and publish its snapshot event."""
+        async with self._session_factory() as session:
             now = datetime.now(UTC)
             stmt = sqlite_insert(AccountState).values(
-                account_id=account.id,
-                **payload,
-                updated_at=now,
-                raw_payload=raw,
+                account_id=account_id, **payload, updated_at=now, raw_payload=raw,
             )
             stmt = stmt.on_conflict_do_update(
                 index_elements=["account_id"],
@@ -76,20 +120,13 @@ class AccountSyncService:
             )
             await session.execute(stmt)
             await session.commit()
-
-        logger.info(
-            "account_sync_completed",
-            status=payload["status"],
-            equity=str(payload["equity"]),
-        )
+        logger.info("account_sync_completed", account_id=account_id,
+                    status=payload["status"], equity=str(payload["equity"]))
         await self._bus.publish(
             "account.snapshot",
-            {
-                "account_id": account.id,
-                **{k: str(v) if isinstance(v, Decimal) else v for k, v in payload.items()},
-            },
+            {"account_id": account_id,
+             **{k: str(v) if isinstance(v, Decimal) else v for k, v in payload.items()}},
         )
-        return payload
 
     async def _resolve_account(self, session: AsyncSession) -> Account | None:
         mode = AccountMode.paper if self._adapter.is_paper else AccountMode.live

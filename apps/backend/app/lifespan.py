@@ -140,8 +140,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session_factory = get_sessionmaker()
             bus = get_event_bus()
 
+            # Broker registry constructed early so AccountSyncService can sync EVERY
+            # account via its own per-user adapter (P13.5 multi-account). load_all() +
+            # adopt_startup_adapter() below populate + connect the adapters before the
+            # scheduler's first sync_all tick.
+            broker_registry = BrokerRegistry(session_factory)
+
             asset_sync = AssetSyncService(adapter, session_factory, bus)
-            account_sync = AccountSyncService(adapter, session_factory, bus)
+            account_sync = AccountSyncService(
+                adapter, session_factory, bus, broker_registry=broker_registry
+            )
             position_sync = PositionSyncService(adapter, session_factory, bus)
 
             scheduler = WorkbenchScheduler(asset_sync, account_sync, position_sync)
@@ -166,7 +174,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # Live accounts (none exist yet) get a paper=False adapter from
             # load_all(), but the OrderRouter's §1 BrokerModeError guard
             # short-circuits before the registry is consulted for them.
-            broker_registry = BrokerRegistry(session_factory)
             await broker_registry.load_all()
             await broker_registry.adopt_startup_adapter(adapter)
 
