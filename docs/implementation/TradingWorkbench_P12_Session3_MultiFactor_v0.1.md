@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v0.1 — draft for confirmation** (2026-06-20). Drafted against the existing factor infra + the prior value/quality rejection + the §1/§2 harness. **One load-bearing open question (the data path, §"Open questions") must be confirmed before execution.** |
+| Document version | **v0.2 — draft + review fold** (2026-06-20). Data path owner-confirmed (build infra → FMP exploratory → SF1 verdict). v0.2 folds the doc review (`comments.md`): the session split into **three distinct deliverables** (A engineering / B exploratory study / C recommendation), explicit **research states** (Validated/Rejected/Inconclusive/Deferred), a formal **research-debt table**, a **success matrix**, the **research-lifecycle diagram**, the crisp **scientific question**, "re-test"→**exploratory validation**, a **no-optimizer** guardrail, and a required **factor-correlation matrix** output. |
 | Date | 2026-06-20 |
 | Phase | **P12** — Validation & Results |
 | Session | §3 of 4 (Advance the alpha — multi-factor book) |
@@ -31,6 +31,39 @@ the mega-cap universe**?*
 multi-factor score + a factor-agnostic backtest), and it must confront a **real data constraint**
 (below) that bounds how decisive the answer can be.
 
+### Why this matters (no feature creep)
+
+> **The objective is not to maximize factor count.** It is to determine whether an *independent
+> return premium* exists that **improves the existing momentum strategy**. A factor that is real but
+> redundant with momentum (or that only works pre-cost) does not make the cut. The session's primary
+> asset is the **reusable research infrastructure** — it pays off on every future factor study even
+> if value/quality stay inconclusive.
+
+### The scientific question (the hypothesis)
+
+> *Do value and/or quality provide a **statistically significant, out-of-sample, low-correlation**
+> return **independent of momentum**, after realistic transaction costs?*
+
+The honest expected answer on the data we have is *probably not decisively, yet* — which is why §3
+separates engineering success from research success.
+
+### Research lifecycle (P12's spine — where §3 sits)
+
+```
+Idea → Infrastructure → Exploration → Validation → Evidence → Decision → Production → Monitoring
+                ▲             ▲                          ▲
+             §3 (A)        §3 (B, FMP)            §3 (C) / SF1 (later)
+```
+
+### Engineering success ≠ research success (do not conflate)
+
+| Engineering success (this session delivers) | Research success (data-gated) |
+|---|---|
+| ✅ Composite multi-factor engine | ❓ Value — independent premium? |
+| ✅ Factor-agnostic backtest | ❓ Quality — independent premium? |
+| ✅ Tests + Research Registry rows | ❓ Composite — beats momentum-only OOS? |
+| **Always completable** | **May be Inconclusive on FMP data — that's a valid outcome** |
+
 ## ⚠ The load-bearing constraint (read before everything else)
 
 **Fundamentals depth/breadth is the binding limit, not the code.**
@@ -48,26 +81,36 @@ multi-factor score + a factor-agnostic backtest), and it must confront a **real 
 This constraint is the subject of the **single open question** below; it changes §3's scope and may
 need owner action (a data subscription), so it is confirmed **before** execution.
 
-## What this session ships
+## What this session ships — three distinct deliverables
 
-1. **Composite multi-factor engine** (`app/factor_data/factors/composite.py`) — load N factor
-   matrices (momentum + value/quality), standardize each cross-section (the existing `zscore`),
-   blend (equal-weight z-scores to start; IC/Sharpe-weighting as an option), rank the composite.
-   Pure + tested; the genuinely-missing piece.
-2. **Factor-agnostic backtest** — generalize `run_momentum_backtest`'s selection from the hard-wired
-   `momentum_scores` call to a pluggable **`select_fn(date) -> {ticker: weight}`** (additive,
-   backward-compatible; momentum stays the default). This lets the §1 harness backtest *any* factor
-   or composite — the reusable win.
-3. **Value/quality re-test on the broader universe** — extend FMP fundamentals ingest to the
-   broader universe (per the open question), then re-run the IS/OOS factor study (IC, LS-Sharpe,
-   decay, momentum-correlation) on it — does the mega-cap rejection hold off mega-caps?
-4. **Multi-factor backtest** — run the composite book through the §1 evidence harness vs the
-   momentum-only baseline (CAGR/Sharpe/maxDD + bootstrap CI + walk-forward): does it *beat* v1.1, or
-   is momentum alone still the answer?
-5. **The §3 results doc** — Evidence Package Template + executive scorecard + the **decision** (build
-   the multi-factor book / keep momentum-only, with confidence), Research/Decision Register rows, the
-   strategy-evolution row (→ v2.0 *only if* it clears), and the data-gated **research-debt** entry.
-6. **Tests** for the composite engine + the generalized selection.
+The review's key reframe: §3 is **three different products**, not one — kept separate so software
+completion is never mistaken for research completion.
+
+### Deliverable A — Research infrastructure (always completable; owner-mandatory)
+
+1. **Composite multi-factor engine** (`composite.py`) — winsorize+`zscore` each factor, blend
+   (**equal-weight**; missing-factor impute/drop), rank. ✅ **built** (`composite_scores`).
+2. **Factor-agnostic backtest** — `run_momentum_backtest` gains a pluggable `score_fn` (default =
+   momentum, byte-identical to §1/§2) so the §1 harness backtests *any* factor/composite. ✅ **built**.
+3. **Tests + Research Registry rows** for the machinery. ✅ **8 tests, ruff/mypy clean**.
+
+### Deliverable B — Exploratory validation (FMP — *current evidence, NOT a verdict*)
+
+4. **Exploratory validation of value/quality on the broader universe** — extend FMP fundamentals,
+   re-run the IS/OOS study (IC, LS-Sharpe, decay) **+ a factor-correlation matrix** (momentum ×
+   value × quality × composite — *the reason §3 exists*) + a composite-vs-momentum backtest through
+   the §1 harness. **Labelled exploratory** (~5-yr FMP, one regime, fundamentals not survivorship-
+   free) → *current evidence*, not a verdict.
+   - **No-optimizer guardrail:** only **equal-weight** + an **IC-weighted sensitivity** variant — no
+     optimizer / parameter search (that is where research bias begins).
+
+### Deliverable C — Research recommendation (governed by the success matrix)
+
+5. **The §3 results doc** — Evidence Package Template + the engineering/research scorecard + the
+   factor-correlation matrix + the **success-matrix decision** (below) with an explicit **research
+   state** (Validated / Rejected / **Inconclusive** / Deferred) + **confidence**, Research/Decision
+   Register rows, a v2.0 evolution row *only if* it decisively clears, and the formal **research-debt
+   table**.
 
 ## Prerequisites
 
@@ -98,26 +141,45 @@ Extract the hard-wired momentum selection (`backtest.py` ~line 514) behind a plu
 caller and the §1/§2 runs are unchanged). The §1 harness gains a `--factors mom,value,quality` path
 that backtests the composite.
 
-### §C — Value/quality re-test (broader universe)
+### §C — Exploratory validation (broader universe, FMP)
 
-Per the open question: extend FMP fundamentals ingest to the broader universe, then re-run the
-IS/OOS study (the existing `scripts/factor_research.py` already computes per-factor IC/LS/decay +
-inter-factor correlation) on that universe. **Honest output:** does value/quality show positive OOS
-edge *off* the mega-cap universe, and is it lowly/negatively correlated with momentum (a diversifier
-vs an opposite)?
+Extend FMP fundamentals ingest to the broader universe, then re-run the IS/OOS study (the existing
+`scripts/factor_research.py` already computes per-factor IC/LS/decay + inter-factor correlation) on
+that universe. **Required output: the factor-correlation matrix** (momentum × value × quality ×
+composite) — does value/quality *diversify* momentum (low/negative correlation that helps) or is it
+just momentum's *opposite* (negative + no help)? **Honest framing:** current evidence, not a verdict.
 
-### §D — Multi-factor backtest + decision
+### §D — Composite backtest + the success matrix
 
-Backtest the composite (momentum + whatever value/quality cleared) through the §1 harness vs the
-momentum-only v1.1 baseline. **Decision gate:** build the multi-factor book **only if** it improves
-risk-adjusted return OOS (Sharpe or Calmar) *beyond noise* (bootstrap CI) — otherwise record the
-honest **"momentum stands alone (still)"** negative finding and keep v1.1.
+Backtest the composite through the §1 harness vs the momentum-only v1.1 baseline. Map the outcome to
+a governance action (not a single pass/fail):
+
+| Outcome (OOS, beyond bootstrap noise, post-cost) | Research state | Action |
+|---|---|---|
+| Strong, significant improvement | **Validated** | Candidate **v2.0** (owner-gated live decision) |
+| Small / marginal improvement | **Inconclusive** | Further research; keep v1.1 |
+| No improvement / redundant with momentum | **Rejected** (on this data) | **Momentum stands alone** — keep v1.1 |
+| Promising but data-limited (the likely FMP outcome) | **Deferred** | **Acquire SF1** for a decisive verdict |
+
+The honest prior (mega-cap) predicts **Rejected/Inconclusive on FMP**, with **Deferred → SF1** as the
+real path to a verdict. A negative finding here is a *result*, recorded — not a failure.
 
 ### §E — Results doc + registries + tests
 
-The §3 results doc (scorecard, the re-test table, the composite backtest, the decision + confidence,
-Research/Decision Registers, evolution row → **v2.0 only if it clears**), the research-debt entry for
-the fundamentals-data gate, and tests for the composite engine + generalized selection.
+The §3 results doc (scorecard, the exploratory-validation table, the correlation matrix, the composite
+backtest, the success-matrix decision + research state + confidence, Research/Decision Registers,
+evolution row → **v2.0 only if it decisively clears**), and tests for the composite engine + generalized
+selection.
+
+**Research-debt table (formalized, not scattered bullets):**
+
+| Item | Blocking the verdict? | Priority |
+|---|---|---|
+| **SF1 (deep, broad, survivorship-free fundamentals)** | **Yes** — the decisive value/quality verdict | **High** |
+| Capacity / market-impact study | No | Medium |
+| Liquidity model | No | Medium |
+| Dividend-adjustment validation | No | Low |
+| Full-history SPY series | No | Low |
 
 ## Manual smoke
 
