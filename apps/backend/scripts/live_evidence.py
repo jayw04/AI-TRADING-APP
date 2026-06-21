@@ -11,9 +11,8 @@ to be run weekly/monthly as the book accumulates history.
     apps/backend/.venv/Scripts/python.exe apps/backend/scripts/live_evidence.py \
         --db data/workbench.sqlite --strategy-id 2 --report-dir docs/implementation/evidence/p12_5_live
 
-⚠ Known gap (flagged in the report): `accounts_state` is a point-in-time snapshot — there is no
-persisted equity-curve history, so time-series performance (realized vol / drawdown over time)
-awaits an equity-snapshot persistence job (the named next step of P12.5).
+The live equity curve comes from the `equity_snapshots` time series (the `equity_snapshot` daily
+job persists one point per account near market close); realized vol/drawdown/return accrue daily.
 """
 
 from __future__ import annotations
@@ -22,9 +21,31 @@ import argparse
 import json
 import sqlite3
 import subprocess
-from datetime import UTC, datetime
+import sys
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.factor_data import evidence as ev  # noqa: E402  (reuse the §1 curve metrics)
+
+
+def _equity_curve(con: sqlite3.Connection) -> list[tuple[date, float]]:
+    """Daily live equity curve from the equity_snapshots time series (last point per calendar
+    day). Empty if the table doesn't exist yet (pre-first-snapshot)."""
+    try:
+        rows = con.execute(
+            "SELECT date(ts) AS d, equity FROM equity_snapshots ORDER BY ts"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []  # table not created yet (migration pending on next backend restart)
+    by_day: dict[str, float] = {}
+    for d, eq in rows:
+        by_day[d] = float(eq)  # last snapshot of the day wins
+    return [(date.fromisoformat(d), v) for d, v in sorted(by_day.items())]
 
 
 def _git_sha() -> str:
@@ -71,8 +92,24 @@ def build(db: str, strategy_id: int) -> dict[str, Any]:
         params = json.loads(strat[0]["params_json"]) if strat and strat[0].get("params_json") else {}
 
         first_trade = trades[0]["created_at"] if trades else None
+        curve = _equity_curve(con)
     finally:
         con.close()
+
+    # live performance from the persisted equity curve (P12.5)
+    if len(curve) >= 2:
+        rets = ev.daily_returns(curve)
+        performance = {
+            "n_days": len(curve), "start": str(curve[0][0]), "end": str(curve[-1][0]),
+            "start_equity": curve[0][1], "end_equity": curve[-1][1],
+            "total_return": round(ev.total_return(curve), 4),
+            "ann_volatility": round(ev.ann_volatility(rets), 4),
+            "max_drawdown": round(ev.max_drawdown(curve), 4),
+            "sharpe": round(ev.sharpe(rets), 2),
+            "status": "live curve",
+        }
+    else:
+        performance = {"n_days": len(curve), "status": "accruing (need >=2 daily snapshots)"}
 
     equity = float(account.get("equity") or 0.0)
     gross = sum(float(p["market_value"] or 0) for p in positions)
@@ -108,12 +145,30 @@ def build(db: str, strategy_id: int) -> dict[str, Any]:
         "book": {"equity": equity, "gross_exposure_value": round(gross, 2),
                  "gross_exposure_pct": round(gross / equity, 4) if equity else None,
                  "unrealized_pl": round(unrealized, 2), "n_positions": len(positions)},
+        "performance": performance,
         "trades": trades, "n_trades": len(trades), "first_trade": first_trade,
         "positions": positions,
         "operational_safety": safety,
         "verifiability": verifiability,
         "audit_breakdown": audit,
     }
+
+
+def _perf_md(p: dict[str, Any]) -> list[str]:
+    """Live performance section from the persisted equity curve (P12.5)."""
+    if p.get("status") != "live curve":
+        return ["## Performance (live equity curve)", "",
+                f"_Accruing — {p.get('n_days', 0)} daily snapshot(s) so far; the curve needs >=2 days. "
+                "The equity-snapshot job persists one point per account near each market close._", ""]
+    return [
+        "## Performance (live equity curve)", "",
+        f"- **{p['n_days']} trading days** ({p['start']} -> {p['end']}); equity "
+        f"${p['start_equity']:,.0f} -> ${p['end_equity']:,.0f}.",
+        f"- Total return **{p['total_return']:+.2%}** · ann. vol {p['ann_volatility']:.1%} · "
+        f"max drawdown **{p['max_drawdown']:.1%}** · Sharpe {p['sharpe']:.2f}.",
+        "_Live realized metrics (short window = indicative, not a track record yet; accrues daily)._",
+        "",
+    ]
 
 
 def _render(r: dict[str, Any]) -> str:
@@ -125,13 +180,14 @@ def _render(r: dict[str, Any]) -> str:
         f"_Generated {r['generated_at']} · git {r['git_sha']} · live paper book (read-only)_",
         "",
         "> **Production-validation snapshot (P12.5).** The live complement to the §1–§3 backtest "
-        "evidence. Honest note: the book is early (since first rebalance) and there is no persisted "
-        "equity-curve history yet — time-series performance awaits an equity-snapshot job (below).",
+        "evidence — realized trades + a persisting equity curve + the operational/safety/verifiability "
+        "trail. The book is still early, so live performance is *indicative*, accruing daily.",
         "",
         "## Strategy",
         f"- **{s['name']} {s['version']}** — status **{s['status']}**; "
         f"config **{s['config']}** (vol-scaling {'ON @ ' + format(s['vol_target_annual'], '.0%') if s['vol_scaling_on'] else 'off'}).",
         "",
+        *(_perf_md(r["performance"])),
         "## Book (current)",
         f"- Equity **${b['equity']:,.2f}** · cash ${float(a.get('cash') or 0):,.2f} · "
         f"gross exposure **{(b['gross_exposure_pct'] or 0):.0%}** (${b['gross_exposure_value']:,.0f}) · "
@@ -165,11 +221,11 @@ def _render(r: dict[str, Any]) -> str:
         f"**{v['reconciliation_discrepancies']}** → **clean** (every automated decision replays and "
         f"reconciles). Audit chain: {v['audit_actions_total']} consequential actions logged, hash-chained.",
         "",
-        "## Gaps / next steps (P12.5)",
-        "- **No persisted equity-curve history** — `accounts_state` is point-in-time. The named next "
-        "step is a small equity-snapshot persistence job so weekly/monthly *time-series* performance "
-        "(realized vol, drawdown, turnover) can be reported. This script reports everything else today.",
-        "- Run this weekly/monthly; the trade log + operational trail accumulate into the live track record.",
+        "## Notes (P12.5)",
+        "- **Equity-curve history is now persisted** (the `equity_snapshot` daily job appends one point "
+        "per account near market close) — the Performance section above accrues into a real live curve.",
+        "- Run this weekly/monthly; the equity curve + trade log + operational trail accumulate into the "
+        "live track record. Turnover/slippage attribution is a later increment.",
     ]
     return "\n".join(lines) + "\n"
 

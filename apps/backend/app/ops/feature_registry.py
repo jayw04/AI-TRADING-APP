@@ -39,6 +39,7 @@ INFRA_JOB_IDS: dict[str, str] = {
     "breaker_monitor": "breaker_monitor",
     "reconciliation": "reconciliation",
     "replay": "replay",
+    "equity_snapshot": "equity_snapshot",
 }
 
 
@@ -81,5 +82,10 @@ FEATURES: tuple[OperationalFeature, ...] = (
         "replay", "Decision replay verifier (§4)", "monitor", "ADR 0021",
         None, "validated",
         "daily lifespan job; read-only re-verification of decisions; infra, no per-strategy flag",
+        category="operations"),
+    OperationalFeature(
+        "equity_snapshot", "Equity-snapshot persistence (P12.5)", "monitor", "P12.5",
+        None, "validated",
+        "daily 16:10 ET lifespan job; appends equity time series for the live curve; no order path",
         category="operations"),
 )

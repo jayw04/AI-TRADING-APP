@@ -377,6 +377,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("replay_scheduled")
 
+            # 10c-quater. Equity-snapshot persistence (P12.5 Production Validation).
+            # Appends one equity point per account near market close (16:10 in the
+            # scheduler's timezone, America/New_York) so the live book's equity curve
+            # accrues for the production-validation report. Read-only beyond its own
+            # append; no order path. Best-effort; single-flight + coalesce.
+            from app.services.equity_snapshot import run_daily_equity_snapshot
+
+            scheduler.scheduler.add_job(
+                run_daily_equity_snapshot,
+                _ReplayCron(hour=16, minute=10),
+                id="equity_snapshot",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"session_factory": session_factory},
+            )
+            logger.info("equity_snapshot_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't
