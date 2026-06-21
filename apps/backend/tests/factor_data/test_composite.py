@@ -12,7 +12,6 @@ from app.factor_data.factors.composite import composite_scores, factor_zscores
 from app.factor_data.factors.engine import FactorUnavailable, momentum_scores
 from app.factor_data.store import FactorDataStore
 
-
 # ---- composite: momentum path (reuse the 25-name momentum fixture) -------------
 
 def test_composite_momentum_only_matches_momentum_order(momentum_store) -> None:
