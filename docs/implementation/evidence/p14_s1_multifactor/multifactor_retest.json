@@ -1,0 +1,124 @@
+{
+  "experiment_id": "EXP-20260621-155951-sf1mf",
+  "git_sha": "f13cad5",
+  "data": "SF1 survivorship-free PIT, 2016+ (ADR 0023)",
+  "window": [
+    "2017-01-01",
+    "2026-03-31"
+  ],
+  "n": 200,
+  "windows": 5,
+  "dataset_health_ok": true,
+  "factors": {
+    "value": [
+      "sf1_earnings_yield",
+      "sf1_fcf_yield",
+      "sf1_sales_yield",
+      "sf1_book_yield"
+    ],
+    "quality": [
+      "sf1_roe",
+      "sf1_roic",
+      "sf1_gross_profitability",
+      "sf1_low_leverage"
+    ]
+  },
+  "correlation_matrix": {
+    "momentum": {
+      "momentum": 1.0,
+      "value": -0.091,
+      "quality": -0.005,
+      "multifactor": 0.189
+    },
+    "value": {
+      "momentum": -0.091,
+      "value": 1.0,
+      "quality": 0.027,
+      "multifactor": 0.758
+    },
+    "quality": {
+      "momentum": -0.005,
+      "value": 0.027,
+      "quality": 1.0,
+      "multifactor": 0.606
+    },
+    "multifactor": {
+      "momentum": 0.189,
+      "value": 0.758,
+      "quality": 0.606,
+      "multifactor": 1.0
+    }
+  },
+  "n_correlation_samples": 111,
+  "momentum_value_corr": -0.091,
+  "momentum_quality_corr": -0.005,
+  "momentum_book": {
+    "cagr": 0.16202191184297687,
+    "sharpe": 0.638469560852372,
+    "max_drawdown": -0.514434055740201,
+    "calmar": 0.314951761134572
+  },
+  "multifactor_book": {
+    "cagr": 0.13427596780561468,
+    "sharpe": 0.6789284453978199,
+    "max_drawdown": -0.404323648215543,
+    "calmar": 0.332100208331205
+  },
+  "delta_sharpe": 0.04,
+  "paired_delta_sharpe_ci": {
+    "delta": 0.04,
+    "ci_low": -0.345,
+    "ci_high": 0.477
+  },
+  "walk_forward": [
+    {
+      "window": [
+        "2017-01-01",
+        "2018-11-07"
+      ],
+      "momentum_sharpe": 0.9,
+      "multifactor_sharpe": 0.72,
+      "delta_sharpe": -0.186
+    },
+    {
+      "window": [
+        "2018-11-07",
+        "2020-09-12"
+      ],
+      "momentum_sharpe": 0.7,
+      "multifactor_sharpe": 0.44,
+      "delta_sharpe": -0.261
+    },
+    {
+      "window": [
+        "2020-09-12",
+        "2022-07-19"
+      ],
+      "momentum_sharpe": 0.16,
+      "multifactor_sharpe": 0.6,
+      "delta_sharpe": 0.437
+    },
+    {
+      "window": [
+        "2022-07-19",
+        "2024-05-24"
+      ],
+      "momentum_sharpe": 1.11,
+      "multifactor_sharpe": 1.15,
+      "delta_sharpe": 0.045
+    },
+    {
+      "window": [
+        "2024-05-24",
+        "2026-03-31"
+      ],
+      "momentum_sharpe": 0.65,
+      "multifactor_sharpe": 0.85,
+      "delta_sharpe": 0.203
+    }
+  ],
+  "n_windows_multifactor_wins": "3/5",
+  "research_state": "Inconclusive",
+  "action": "keep v1.1; dSharpe CI spans 0",
+  "duration_s": 500.14
+}
