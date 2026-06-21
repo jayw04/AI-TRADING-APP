@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v0.2 (2026-06-21)** — **owner review folded (`comments.md`).** v0.1 was the first draft from the *"Tasks to work on"* notes. v0.2 folds the owner's decision: all three strategy options **approved in a structured sequence (3 → 2 → 4)**; new **P13.5 Platform Validation** milestone; new **Track D — Platform Capability Validation**; **Factor-Lab-first** roadmap reorder; **4-phase / 12-week** execution order; vol variants reframed as customer-facing **Risk Profiles**. §8 is now the resolved decision, not open questions. Phase numbers owner-confirmable per CLAUDE.md. |
+| Document version | **v0.3 (2026-06-21)** — **2nd owner review folded (`comments.md`, post-P14/P13.5).** v0.1 = first draft; v0.2 folded the strategy-expansion decision (3→2→4) + P13.5/Track-D/Factor-Lab-first. **v0.3 reframes the strategy direction (§9):** the *Evidence Engineering Platform* thesis is **confirmed + elevated to the moat** ("the platform validated AND declined a strategy"); future strategies become **diverse investment *philosophies*, not momentum variants**, via a **three-tier framework** + **two parallel tracks** (Platform / Research); **SF1 = done → supporting infra (don't buy more)**; 6–12-month priorities set. §8 (the P13.5 decision) is retained as executed history. |
 | Date | 2026-06-21 |
 | Phase | **P13 (proposed)** — Product Readiness / Commercialization (follows P12 Validation & Results) |
-| Status | **Direction CONFIRMED** (owner, `comments.md` 2026-06-21) — §8 resolved. Next: execute **Phase 1** — draft **ADR 0023 (Sharadar SF1 Integration)** + ship the **Monthly Evidence Report** and **Production Confidence Score** as P12.5 increments. |
+| Status | **Phase 1 SHIPPED + direction refined.** SF1 acquired (ADR 0023) → bulk ingest → Factor Lab → multi-factor re-test (INCONCLUSIVE → keep v1.1); Monthly Report + Confidence Score + KPI Scorecard shipped; 3 Risk Profiles LIVE on PAPER. **Next per §9:** build the live evidence record + the **Range Trader research program** (→ Strategy #2) + **Sector Rotation** + **Low Volatility**. |
 | Predecessor | **P12** — Validation & Results — functionally complete (§1–§3 merged + tagged; both flagship deliverables on `main`). **P12.5** — Production Validation — live; the evidence track now accrues automatically. |
 | Successor | **P13.5 — Platform Validation** (validate the platform itself: 3 live risk profiles + 90–180d evidence + benchmarks) → **P14 — Factor Lab** (gated on SF1) → **P15 — Research Marketplace**. Roadmap arc: **P10 Portfolio Architecture → P11 Operational Trust → P12 Research & Validation → P12.5 Production Validation → P13 Productization → P13.5 Platform Validation → P14 Factor Lab (SF1) → P15 Research Marketplace.** |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
@@ -195,7 +195,66 @@ Momentum→Value→Quality ordering.)
 **Monthly Evidence Report** + (3) **Production Confidence Score** as P12.5 increments on
 `live_evidence.py`.
 
-## 9. Notes & gotchas
+## 9. Strategy & roadmap reframe (2nd owner review — `comments.md`, post-P14/P13.5)
+
+After P14 (multi-factor re-test) + P13.5 (Risk Profiles live), the owner's strategic read crystallized.
+
+### 9.1 The thesis is the moat
+TradingWorkbench is an **Evidence Engineering Platform**; strategies merely *prove* it. The defensible
+IP is that **the platform validated AND declined a strategy** (P14 kept v1.1 on an honest,
+non-significant multi-factor result). *"Most software can validate; very few can reject."* Keep this
+front-and-center in the whitepaper, Platform Capability Report, and patent.
+
+### 9.2 Add strategies — as diverse *philosophies*, not variants
+"More strategies? Yes, but not immediately" — and **NOT another momentum/value/quality variant** (those
+barely move confidence). Build strategies that demonstrate **multiple investment philosophies**:
+momentum chooses *what*, sector rotation chooses *where*, mean-reversion is a different alpha class.
+
+| Tier | Meaning | Strategies | Action |
+|---|---|---|---|
+| **A** | Validated → first commercial offering | Momentum **Balanced / Conservative / Growth** | ✅ live on PAPER; accrue the evidence record |
+| **B** | Research candidates (build, need evidence) | **Sector Rotation** (favorite — complements momentum) · **Low Volatility** (institutional; reuses vol infra) · **Trend Following** (institutional pedigree) · **Range / Mean Reversion** | OOS → walk-forward → bootstrap → evidence package → governance, THEN paper |
+| **C** | Wait — P14 already answered | Value · Quality · Dividend · Growth · AI-generated factors · alt-data | deprioritize |
+
+⚠ **Range Trader = Strategy #2** (demonstrates multiple alpha classes — momentum/trend ↔
+range/mean-reversion; powerful marketing), but **DO NOT paper-trade it yet** — it must clear the full
+research gate first (the same discipline P14 applied to multi-factor).
+
+### 9.3 Two parallel tracks (supersedes the §3 phased A→D order)
+- **Platform Track (never stops):** Evidence Engine · Governance · Operations · AI · Reporting ·
+  Patent · Product · Commercialization.
+- **Research Track:** Momentum ✅ → Risk Profiles ✅ → **Range (in progress)** → **Sector Rotation
+  (next)** → **Low Vol (next)** → **Trend Following (next)** → Factor Lab (continuous).
+
+New strategy roadmap: *Better Momentum → Risk Profiles → Range → Sector Rotation → Low Vol → Trend
+Following → Factor Lab* — the platform demonstrates **multiple investment philosophies**, far stronger
+commercially than multiple momentum variants. Full detail in the **Strategy Development Roadmap**
+(`TradingWorkbench_StrategyRoadmap_v0.1.md`).
+
+### 9.4 SF1 — purpose achieved; now supporting infrastructure
+The owner's SF1 stance **changed**: a month ago "buy more"; **today "no."** The current investment has
+already (1) resolved value/quality on survivorship-free data, (2) validated the factor-research infra,
+(3) strengthened the evidence-based-"no" thesis. SF1 is now **supporting infrastructure, not the
+primary driver** — don't buy more unless a *specific* new factor study needs deeper coverage. (This
+deprioritizes ADR 0023's "deeper-history tier" as a near-term item; it stays a documented re-eval
+trigger, not a plan.)
+
+### 9.5 Recommended priorities (next 6–12 months)
+1. **Continue live paper trading** the 3 momentum profiles → a **3–6 month evidence record** (highest).
+2. **Complete the Range Trader research program** (OOS / walk-forward / bootstrap / evidence package /
+   governance) → if it passes, promote to paper (Strategy #2).
+3. **Develop Sector Rotation** — broadens beyond stock selection; a different investment philosophy.
+4. **Develop Low Volatility** — institutionally recognized; leverages the existing vol infrastructure.
+5. **Continue productization** — web/evidence dashboards, strategy-comparison + customer reporting,
+   whitepaper, patent filing, public website.
+
+> **Final framing (owner):** TradingWorkbench is *not* a quant trading application — it is an **Evidence
+> Engineering platform with a validated operational foundation, a proven research methodology, and its
+> first production-quality strategy family.** The next stage is proving the platform can reliably
+> **discover, validate, reject, and operate diverse strategy classes** under a common governance
+> framework — the shift from *proving one strategy* to *proving the platform* is the commercial + IP win.
+
+## 10. Notes & gotchas
 
 1. This doc is a **charter**, not a session plan — do not write code against it. The first executable
    artifact is a per-session doc once §8 is resolved.
