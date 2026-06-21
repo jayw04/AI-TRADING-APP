@@ -127,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         print(f"[dry-run] {len(symbols)} symbols (incl. SPY={'SPY' in symbols})")
         print("[dry-run] POST /api/v1/strategies body:")
-        print(json.dumps({**create_body, "symbols": symbols[:8] + ["…"]}, indent=2))
+        print(json.dumps({**create_body, "symbols": symbols[:8] + ["..."]}, indent=2))
         print(f"[dry-run] params: {json.dumps(params)}")
         if args.risk_profile:
             print(f"[dry-run] risk profile: {args.risk_profile} "
@@ -164,13 +164,13 @@ def main(argv: list[str] | None = None) -> int:
         body = r.json()
         print(f"started: status={body.get('new_status')} run_id={body.get('run_id')}")
         if body.get("new_status") != "paper":
-            print(f"⚠ expected status 'paper', got {body.get('new_status')} — check engine logs",
+            print(f"WARN expected status 'paper', got {body.get('new_status')} - check engine logs",
                   file=sys.stderr)
             return 1
 
-    print(f"\n✅ momentum-portfolio is ACTIVE on PAPER (strategy id={sid}).")
+    print(f"\nOK: {name} is ACTIVE on PAPER (strategy id={sid}).")
     print(f"   The weekly cron '{args.schedule}' fires the rebalance automatically")
-    print("   (Mon 14:00 UTC ≈ 10:00 ET — i.e. ~30 min after the 09:30 open).")
+    print("   (Mon 14:00 UTC ~ 10:00 ET, i.e. ~30 min after the 09:30 open).")
     print("   To fire SOONER for the validation, re-create with a frequent schedule,")
     print("   e.g. --schedule '*/5 * * * *' (the rebalance-once-per-ISO-week guard means")
     print("   it rebalances ONCE then no-ops; NB each tick fetches bars for all symbols,")
