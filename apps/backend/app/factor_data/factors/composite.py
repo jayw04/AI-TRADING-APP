@@ -32,6 +32,7 @@ from app.factor_data.factors.momentum import (
     DEFAULT_SKIP_DAYS,
     compute_momentum_batch,
 )
+from app.factor_data.factors.sf1 import SF1_FACTORS, sf1_factor_raw
 from app.factor_data.store import FactorDataStore
 from app.factor_data.universe import universe_asof
 
@@ -92,7 +93,8 @@ def factor_zscores(
     factor-correlation matrix (P12 §3 Deliverable B). PIT + deterministic."""
     if not factors:
         raise ValueError("factor_zscores needs at least one factor")
-    bad = [f for f in factors if f != MOMENTUM and f not in FUNDAMENTAL_FACTORS]
+    known = {MOMENTUM, *FUNDAMENTAL_FACTORS, *SF1_FACTORS}
+    bad = [f for f in factors if f not in known]
     if bad:
         raise ValueError(f"unknown factor(s): {bad}")
     tickers = universe_asof(store, as_of, n=n)
@@ -106,6 +108,9 @@ def factor_zscores(
     fund = [f for f in factors if f in FUNDAMENTAL_FACTORS]
     if fund:
         raw.update(_fundamental_raw(store, as_of, tickers, fund))
+    sf1 = [f for f in factors if f in SF1_FACTORS]
+    if sf1:
+        raw.update(sf1_factor_raw(store, as_of, tickers, sf1))
 
     zs: dict[str, pd.Series] = {}
     for fac in factors:

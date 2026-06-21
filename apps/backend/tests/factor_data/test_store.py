@@ -205,3 +205,21 @@ def test_ingest_sf1_idempotent_and_reindex_robust(tmp_path) -> None:
         assert ps[0] is None
     finally:
         s.close()
+
+
+def test_get_sf1_asof_is_point_in_time(tmp_path) -> None:
+    s = FactorDataStore(db_path=str(tmp_path / "sf1asof.duckdb"))
+    try:
+        s.ingest_sf1(_sf1_frame())  # AAPL ART, datekeys 2026-01-30 (pe 32.3) and 2026-05-01 (pe 33.6)
+        # as of 2026-03-01 only the Jan filing is knowable (the May one is in the future)
+        early = s.get_sf1_asof(["AAPL"], date(2026, 3, 1))
+        assert list(early.index) == ["AAPL"]
+        assert early.loc["AAPL", "pe"] == 32.3
+        # as of 2026-06-01 the latest-known is the May filing
+        assert s.get_sf1_asof(["AAPL"], date(2026, 6, 1)).loc["AAPL", "pe"] == 33.6
+        # before any filing → empty; unknown ticker → absent (not error); empty input → empty
+        assert s.get_sf1_asof(["AAPL"], date(2026, 1, 1)).empty
+        assert "ZZZ" not in s.get_sf1_asof(["AAPL", "ZZZ"], date(2026, 6, 1)).index
+        assert s.get_sf1_asof([], date(2026, 6, 1)).empty
+    finally:
+        s.close()
