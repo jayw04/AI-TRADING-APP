@@ -42,6 +42,20 @@ _FUNDAMENTALS_COLS = [
     "shares_diluted", "enterprise_value", "lastupdated",
 ]
 _INDEX_COLS = ["symbol", "date", "close", "lastupdated"]
+# Curated Sharadar SF1 projection (ADR 0023) — keys/PIT + the value/quality/profitability/growth
+# fields the Factor Lab needs. The full SF1 has 112 columns; we store this subset (reindex → NULL
+# for any absent), keeping the store lean while covering the standard factor families.
+_SF1_COLS = [
+    "ticker", "dimension", "calendardate", "datekey", "reportperiod", "lastupdated",
+    # value
+    "marketcap", "ev", "pe", "pb", "ps", "evebit", "evebitda", "fcf", "fcfps", "bvps", "divyield",
+    # quality / profitability
+    "roe", "roa", "roic", "ros", "grossmargin", "netmargin", "ebitdamargin", "currentratio", "de",
+    "payoutratio", "assetturnover",
+    # raw fundamentals (growth + composite)
+    "revenue", "netinc", "gp", "ebit", "ebitda", "ncfo", "assets", "equity", "debt",
+    "eps", "epsdil", "shareswa", "price",
+]
 
 _SCHEMA = """
 -- survivorship-free daily prices (incl. delisted names)
@@ -102,6 +116,29 @@ CREATE TABLE IF NOT EXISTS fundamentals (
   enterprise_value DOUBLE,
   lastupdated      TIMESTAMP,
   PRIMARY KEY (ticker, period, period_end)
+);
+
+-- point-in-time fundamentals (Sharadar SF1, ADR 0023) — the PRIMARY fundamental spine.
+-- One row per (ticker, dimension, calendardate, datekey). `dimension` is the SF1 view
+-- (ARQ/ART/ARY = as-reported quarterly/TTM/annual; MRQ/MRT/MRY = most-recent-reported).
+-- `datekey` = the date the figures became KNOWABLE → factors as-of-join on datekey <= as_of
+-- (no look-ahead). Survivorship-free: delisted names keep their history (ADR 0018/0023).
+CREATE TABLE IF NOT EXISTS sf1_fundamentals (
+  ticker       VARCHAR NOT NULL,
+  dimension    VARCHAR NOT NULL,
+  calendardate DATE    NOT NULL,
+  datekey      DATE    NOT NULL,   -- PIT knowable-on date
+  reportperiod DATE,
+  lastupdated  DATE,
+  marketcap DOUBLE, ev DOUBLE, pe DOUBLE, pb DOUBLE, ps DOUBLE,
+  evebit DOUBLE, evebitda DOUBLE, fcf DOUBLE, fcfps DOUBLE, bvps DOUBLE, divyield DOUBLE,
+  roe DOUBLE, roa DOUBLE, roic DOUBLE, ros DOUBLE,
+  grossmargin DOUBLE, netmargin DOUBLE, ebitdamargin DOUBLE, currentratio DOUBLE, de DOUBLE,
+  payoutratio DOUBLE, assetturnover DOUBLE,
+  revenue DOUBLE, netinc DOUBLE, gp DOUBLE, ebit DOUBLE, ebitda DOUBLE, ncfo DOUBLE,
+  assets DOUBLE, equity DOUBLE, debt DOUBLE,
+  eps DOUBLE, epsdil DOUBLE, shareswa DOUBLE, price DOUBLE,
+  PRIMARY KEY (ticker, dimension, calendardate, datekey)
 );
 
 -- index / regime daily series (e.g. ^VIX) sourced from FMP (P10 §5, ADR 0022).
@@ -240,6 +277,33 @@ class FactorDataStore:
         self.con.unregister("incoming")
         return len(df)
 
+    def ingest_sf1(self, df: pd.DataFrame) -> int:
+        """Upsert Sharadar SF1 point-in-time fundamentals (ADR 0023). Keyed by
+        (ticker, dimension, calendardate, datekey) → re-ingesting the same slice (or a
+        restatement, which carries a new datekey) converges. ``df`` is reindexed to
+        ``_SF1_COLS`` (missing → NULL), so it is robust to vendor column changes."""
+        df = df.reindex(columns=_SF1_COLS)
+        num_cols = [c for c in _SF1_COLS
+                    if c not in ("ticker", "dimension", "calendardate", "datekey",
+                                 "reportperiod", "lastupdated")]
+        select = (
+            "ticker, dimension, TRY_CAST(calendardate AS DATE), TRY_CAST(datekey AS DATE), "
+            "TRY_CAST(reportperiod AS DATE), TRY_CAST(lastupdated AS DATE), "
+            + ", ".join(f"TRY_CAST({c} AS DOUBLE)" for c in num_cols)
+        )
+        self.con.register("incoming", df)
+        self.con.execute(
+            f"""
+            INSERT OR REPLACE INTO sf1_fundamentals
+            SELECT {select}
+            FROM incoming
+            WHERE ticker IS NOT NULL AND dimension IS NOT NULL
+              AND calendardate IS NOT NULL AND datekey IS NOT NULL
+            """
+        )
+        self.con.unregister("incoming")
+        return len(df)
+
     def ingest_index_prices(self, df: pd.DataFrame) -> int:
         """Upsert an index/regime daily series (e.g. ``^VIX``; P10 §5, ADR 0022).
         Keyed by (symbol, date) → re-ingesting the same dates converges. ``df`` is
@@ -270,7 +334,8 @@ class FactorDataStore:
     # ---- queries ------------------------------------------------------------
 
     def row_count(self, table: str) -> int:
-        if table not in {"sep", "tickers", "actions", "ingest_runs", "fundamentals", "index_prices"}:
+        if table not in {"sep", "tickers", "actions", "ingest_runs", "fundamentals",
+                         "index_prices", "sf1_fundamentals"}:
             raise ValueError(f"unknown table: {table}")
         row = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
         assert row is not None

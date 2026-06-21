@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-21 |
-| Status | **Draft** (owner-confirmed direction in `comments.md` 2026-06-21; acceptance gated on procurement — see Implementation notes) |
+| Status | **Accepted** (2026-06-21 — subscription acquired + full-table access verified; the verified depth is **~10 years (2016+)**, which revises this ADR's original "20+ years" assumption — see Verified access) |
 | Phase | P13 → **P14 (Factor Lab)** — the deep fundamental spine the multi-factor research program needs |
 | Supersedes | — |
 | Related | **0018** (point-in-time factor data via FMP + Sharadar — this ADR resolves its "SF1 sample-only" limitation and revises its FMP-as-fundamental-spine depth split), 0014 (backtests = primary eval ground-truth — SF1 is what makes the multi-factor verdict *decisive*), 0019 (Research Engine — read-only/advisory), 0017 (OS trust store — the vendor call rides that path), 0002 (single OrderRouter — SF1 is read-only data, never the order path) |
@@ -26,8 +26,9 @@ decisively answer whether Momentum + Value + Quality + Profitability + Low-Vol a
 The owner's decision (P13 Direction v0.2 §8.1, `comments.md`): this is the **single highest-priority
 strategic investment** — not because the *platform* needs it (the platform is proven end-to-end), but
 because the **research roadmap** needs it. The deferred multi-factor verdict, and the entire Factor
-Lab (P14), are blocked on institutional-grade fundamentals: **20+ years, ~3000+ stocks,
-survivorship-free, point-in-time.**
+Lab (P14), are blocked on institutional-grade fundamentals: deep, broad-universe, survivorship-free,
+point-in-time. (The aspiration was "20+ years, ~3000+ stocks"; the acquired tier delivers the breadth
+but a shorter ~10-year depth — see **Verified access** below.)
 
 The question: should the platform acquire Sharadar's **full SF1** fundamentals product and make it the
 primary point-in-time fundamental source, and on what terms?
@@ -84,12 +85,34 @@ primary point-in-time fundamental source, and on what terms?
   a *new, consequential* decision with its own cost and its own re-evaluation triggers — it earns its
   own record rather than a quiet edit to an Accepted ADR (per the ADR conventions).
 
+## Verified access (2026-06-21)
+
+The subscription is live and the **full** SF1 table is reachable through the existing
+`SharadarProvider` (`fetch_table("SF1", ...)`), TLS via the OS trust store (ADR 0017, Norton fine).
+Verified against the live key:
+
+- **Breadth:** one quarter (`calendardate=2023-12-31`, `dimension=ARQ`) returned **5,592 distinct
+  tickers** — the full table, not the old handful-of-names sample. (Exceeds the "~3000 stocks"
+  aspiration.)
+- **Depth:** **~10 years, 2016+.** Every large-cap checked (AAPL/MSFT/GE/IBM/JPM) starts at 2016
+  (~41 ARQ quarters → 2026); queries for 2000/2005/2010/2015 return **zero rows**. This is a
+  subscription history floor — **it revises this ADR's original "20+ years" assumption.** The owner
+  accepted the ~10-year depth (2026-06-21): still a major upgrade over FMP (5y / 197 mega-cap /
+  survivorship-biased), and 2016–2026 spans real regimes (2018 Q4, COVID-2020, 2022 bear, 2023–24
+  bull). A deeper-history tier is a follow-on (see Re-evaluation triggers).
+- **Survivorship-free:** confirmed — delisted **ATVI** (acquired Oct-2023) is present with history
+  ending 2023-07-31. (Some failed-2023 banks were not found by raw ticker — a ticker-mapping detail to
+  validate during ingest, not a coverage gap proven here.)
+- **Schema:** 112 columns incl. all six dimensions (ARQ/ART/ARY/MRQ/MRT/MRY), the PIT `datekey`, and
+  the value/quality/profitability ratios (`marketcap, ev, pe, pb, ps, evebit, evebitda, fcf, bvps,
+  divyield, roe, roa, roic, grossmargin, netmargin, currentratio, de, …`).
+
 ## Implementation notes
 
-- **Procurement (owner action — gates `Accepted`):** subscribe to the Sharadar **SF1** product on the
-  Nasdaq Data Link account that owns `NASDAQ_DATA_LINK_API_KEY`. **Owner-input fields to fill before
-  acceptance:** exact product SKU/tier, annual price, and licensed-use terms (personal vs commercial —
-  relevant once the platform is sold). Until subscribed, SF1 ingestion returns the sample only.
+- **Procurement:** done (2026-06-21). **Owner-input fields still to record for the commercial story:**
+  exact product SKU/tier, annual price, and licensed-use terms (personal vs commercial — relevant once
+  the platform is sold). The `~10-year depth` is the tier's floor; a deeper-history entitlement, if
+  offered, is the follow-on upgrade path.
 - **Settings:** no new field — SF1 uses the existing `nasdaq_data_link_api_key` (ADR 0018 §5). Empty
   key ⇒ provider disabled (graceful degrade, mirroring the existing posture).
 - **Ingest:** extend the Sharadar ingestion (`scripts/ingest_sharadar.py` / `app/factor_data/`) with an
@@ -139,9 +162,13 @@ primary point-in-time fundamental source, and on what terms?
 
 ## Re-evaluation triggers
 
-- **Procurement falls through** (price, licensing, or terms unacceptable): SF1 acceptance does not
-  happen; the multi-factor program stays deferred and this ADR returns to the alternatives above
-  (notably an FMP deep-tier re-evaluation).
+- **A deeper-history SF1 tier becomes available/affordable.** The acquired tier floors at ~2016
+  (Verified access). If the multi-factor verdict on 2016–2026 is borderline (CI still wide) *and* a
+  longer-history SF1 entitlement (Sharadar standard reaches 2000+) is offered at acceptable cost,
+  upgrade and re-ingest — more regimes is the cleanest way to tighten an inconclusive result.
+- **Procurement lapses** (renewal, price, licensing, or terms become unacceptable): the multi-factor
+  program reverts to deferred and this ADR returns to the alternatives above (notably an FMP deep-tier
+  re-evaluation).
 - **Multi-factor still fails to beat baselines on SF1** (per ADR 0014, ≥5 survivorship-free
   walk-forward evaluations): if Value/Quality/Composite do not clear momentum out-of-sample even on
   decisive data, the *finding* is "momentum is the edge" — record it, keep v1.1, and treat the SF1
