@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v0.1 (2026-06-21)** — first draft, from the owner's *"Tasks to work on"* notes (`Docs/implementation/Tasks to work on.md`). Frames P13 (Product Readiness) as the next phase while capturing the owner's **three parallel tracks** + **phased A→D roadmap**. Phase numbers (P13/P14/P15) are owner-confirmable per CLAUDE.md. |
+| Document version | **v0.2 (2026-06-21)** — **owner review folded (`comments.md`).** v0.1 was the first draft from the *"Tasks to work on"* notes. v0.2 folds the owner's decision: all three strategy options **approved in a structured sequence (3 → 2 → 4)**; new **P13.5 Platform Validation** milestone; new **Track D — Platform Capability Validation**; **Factor-Lab-first** roadmap reorder; **4-phase / 12-week** execution order; vol variants reframed as customer-facing **Risk Profiles**. §8 is now the resolved decision, not open questions. Phase numbers owner-confirmable per CLAUDE.md. |
 | Date | 2026-06-21 |
 | Phase | **P13 (proposed)** — Product Readiness / Commercialization (follows P12 Validation & Results) |
-| Status | **Draft charter — owner confirmation pending** (the §8 open questions). Next: owner confirms the track sequence + the SF1 timing → then draft the first P13 per-session doc. |
+| Status | **Direction CONFIRMED** (owner, `comments.md` 2026-06-21) — §8 resolved. Next: execute **Phase 1** — draft **ADR 0023 (Sharadar SF1 Integration)** + ship the **Monthly Evidence Report** and **Production Confidence Score** as P12.5 increments. |
 | Predecessor | **P12** — Validation & Results — functionally complete (§1–§3 merged + tagged; both flagship deliverables on `main`). **P12.5** — Production Validation — live; the evidence track now accrues automatically. |
-| Successor | **P14 — Factor Lab** (gated on SF1 acquisition) → **P15 — Research Marketplace / Continuous Research**. Roadmap arc: **P10 Portfolio Architecture → P11 Operational Trust → P12 Research & Validation → P12.5 Production Validation → P13 Productization → P14 Factor Lab (SF1) → P15 Research Marketplace.** |
+| Successor | **P13.5 — Platform Validation** (validate the platform itself: 3 live risk profiles + 90–180d evidence + benchmarks) → **P14 — Factor Lab** (gated on SF1) → **P15 — Research Marketplace**. Roadmap arc: **P10 Portfolio Architecture → P11 Operational Trust → P12 Research & Validation → P12.5 Production Validation → P13 Productization → P13.5 Platform Validation → P14 Factor Lab (SF1) → P15 Research Marketplace.** |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
-| Governing ADRs | No new architectural invariant expected for the productization work itself. Research work (Track B) stays under **0014** (backtests = ground-truth) + **0019** (Research Engine read-only). Any new external dependency (e.g. SF1 data vendor) requires an **ADR** per CLAUDE.md (local-first invariant). |
+| Governing ADRs | No new architectural invariant for the productization work itself. Research work stays under **0014** (backtests = ground-truth) + **0019** (Research Engine read-only). **SF1 = a new external data dependency → `ADR 0023` (Sharadar SF1 Integration, Draft)**, per the CLAUDE.md local-first invariant; relates to **0018** (point-in-time factor data FMP/Sharadar). |
 | Inputs | The owner's *"Tasks to work on"* notes; the P12 Direction doc (`..._P12_Direction_ResultsValidation_v0.1.md`, v0.3); the [[factor-research-program]] (momentum = the OOS edge; multi-factor inconclusive→deferred-to-SF1); the live P12.5 paper book + weekly evidence automation. |
 
 ---
@@ -139,19 +139,61 @@ This keeps commercialization and the research program advancing together.
 - Phase numbers P14/P15 as final (owner-confirmable).
 - `p11-complete` / `p12-complete` tags — those are elapsed-time/owner calls, tracked separately.
 
-## 8. Open questions for owner confirmation
+## 8. Confirmed direction (owner review folded — `comments.md`, 2026-06-21)
 
-1. **Track sequence:** confirm parallel **A (background) + B (main build) + C (SF1, start within a
-   month)**, with D/E opportunistic — or reprioritize?
-2. **P13 first session:** start B with the **unified product dashboard**, the **REST product APIs**, or
-   **authentication/multi-user** (the dependency root)? Recommendation: APIs + dashboard first (they
-   surface existing capability with no threat-model change); auth/multi-user as a deliberate ADR-gated
-   session after.
-3. **SF1 now or after a Track-A increment?** Recommendation: kick off the **SF1 ADR + acquisition** in
-   parallel immediately (long lead time), build the Monthly Report meanwhile.
-4. **Monthly report + confidence score:** are these P13 deliverables, or a P12.5 continuation (Track A)
-   shipped before P13 formally opens? Recommendation: ship them as **P12.5 increments now** — they are
-   small, build directly on `live_evidence.py`, and raise product value immediately.
+The owner approved expanding beyond one strategy — **but evidence-gated, in a structured sequence** —
+holding to the thesis: *"every strategy answers a research question; don't add strategies just to have
+more."* The v0.1 §8 open questions are resolved as follows.
+
+### 8.1 Strategy expansion — all three approved, sequenced
+
+| Priority | Option | Decision | Timing |
+|---|---|---|---|
+| ★★★★★ | **Option 3 — SF1 + Factor Lab** | **Start immediately** — highest strategic priority; resolves the biggest remaining evidence gap | Week 1 |
+| ★★★★☆ | **Option 2 — Live vol-target variants** | Approved — demonstrates *configurable risk*, not new alpha | After SF1 acquisition underway |
+| ★★★☆☆ | **Option 4 — Range Trader validation** | Approved as a **research track only — do NOT activate yet** | After Factor Lab infra complete |
+
+- **Option 2 → "Risk Profiles," not raw numbers:** **Conservative 10% · Balanced 15% · Growth 20%**,
+  all paper-traded, so customers see the *risk dial working live* (strong marketing; same strategy, no
+  new alpha claim).
+- **Option 4 → the platform demonstration:** run Range Trader through Backtest → Walk-Forward →
+  Bootstrap → Evidence → Governance → Decision. **Both outcomes prove the platform** — "Momentum
+  approved, Range rejected" is itself proof the evidence process is real. Activate later *only* if it
+  clears its gate.
+
+### 8.2 New milestone — P13.5 Platform Validation (between P13 and P14)
+
+Validate the *platform itself* before expanding the research program with SF1:
+- Three live momentum **Risk Profiles** (10 / 15 / 20%); **90–180 days** accumulated paper evidence.
+- Monthly evidence reports · Production Confidence Score · Operational KPI dashboard.
+- Product dashboard · product APIs · platform **performance & scalability benchmarks**.
+
+### 8.3 New Track D — Platform Capability Validation
+
+*Platform, not strategy.* Enterprise benchmarks: e.g. **1000 strategies / 100M rows / 10 years** —
+performance, scalability, parallelism, cloud, database, API, stress, recovery, failure, replay,
+monitoring. These become the **enterprise-benchmark** story (feeds P13.5 + the Platform Capability
+Report).
+
+### 8.4 Roadmap reorder — Factor Lab first
+
+Build the **generic Factor Lab first**, then everything plugs into it:
+**Factor Lab → Momentum → Value → Quality → Composite → Range → future factors (Sector Rotation,
+ETF Rotation, …).** *"That architecture will last for years."* (Supersedes the §3
+Momentum→Value→Quality ordering.)
+
+### 8.5 Execution order (owner's 12-week plan)
+
+| Phase | Weeks | Work |
+|---|---|---|
+| **1** | 1–4 | **SF1 ADR + acquisition** (Option 3 kickoff) · continue P12.5 evidence · build **Monthly Evidence Reports + Production Confidence Score** |
+| **2** | 5–8 | Build the **Factor Lab** · enable **10/15/20% vol paper books** (Option 2) · unified **product dashboard + APIs** |
+| **3** | 9–12 | **Re-test Value + Quality** on SF1 · first **multi-factor portfolio** · begin **Range Trader OOS validation** (Option 4) |
+| **4** | — | Promote winners through the full lifecycle (Research → Evidence → Governance → Paper → Production Validation); reject/defer those that miss the threshold |
+
+**Immediate next actions (Phase 1):** (1) **ADR 0023 — Sharadar SF1 Integration** (Draft); (2)
+**Monthly Evidence Report** + (3) **Production Confidence Score** as P12.5 increments on
+`live_evidence.py`.
 
 ## 9. Notes & gotchas
 
