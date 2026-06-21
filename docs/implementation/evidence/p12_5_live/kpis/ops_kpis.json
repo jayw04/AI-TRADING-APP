@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-06-21T18:38:45.675738+00:00",
+  "git_sha": "70fd87b",
+  "db": "data/workbench.sqlite",
+  "kpis": [
+    {
+      "key": "reconciliation_success",
+      "label": "Reconciliation success",
+      "value": 100.0,
+      "unit": "%",
+      "target": 99.0,
+      "status": "ok",
+      "note": "71/71 runs passed"
+    },
+    {
+      "key": "reconciliation_drift",
+      "label": "Reconciliation drift",
+      "value": 0,
+      "unit": "count",
+      "target": 0,
+      "status": "ok",
+      "note": "broker \u21c4 local position discrepancies (target 0)"
+    },
+    {
+      "key": "replay_consistency",
+      "label": "Replay consistency",
+      "value": null,
+      "unit": "%",
+      "target": 99.9,
+      "status": "n_a",
+      "note": "0/0 decisions reproduced"
+    },
+    {
+      "key": "risk_gate_efficacy",
+      "label": "Risk-gate efficacy",
+      "value": 20.0,
+      "unit": "% rejected",
+      "target": 0.0,
+      "status": "ok",
+      "note": "2 rejected / 10 checked (+1 by broker) \u2014 gates demonstrably fire"
+    },
+    {
+      "key": "breaker_recovery",
+      "label": "Circuit-breaker recovery",
+      "value": 9.6,
+      "unit": "min",
+      "target": 0.0,
+      "status": "ok",
+      "note": "1 trip(s), 1 recovered, ~10 min mean"
+    },
+    {
+      "key": "fill_success",
+      "label": "Fill success",
+      "value": 100.0,
+      "unit": "%",
+      "target": 90.0,
+      "status": "ok",
+      "note": "7 fills / 7 orders submitted"
+    },
+    {
+      "key": "operational_continuity",
+      "label": "Operational continuity",
+      "value": 100.0,
+      "unit": "%",
+      "target": 90.0,
+      "status": "ok",
+      "note": "1/1 trading days with an equity snapshot (daily-job uptime proxy)"
+    }
+  ],
+  "summary": {
+    "ok": 6,
+    "watch": 0,
+    "n_a": 1
+  },
+  "latency_note": "Execution/broker latency is not durably recorded \u2014 omitted rather than estimated (an instrumentation follow-on)."
+}
