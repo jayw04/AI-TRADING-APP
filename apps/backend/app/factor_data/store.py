@@ -437,6 +437,39 @@ class FactorDataStore:
             params,
         ).df()
 
+    def get_sf1_asof(
+        self, tickers: list[str], as_of: date, *, dimension: str = "ART"
+    ) -> pd.DataFrame:
+        """Latest-known Sharadar SF1 fundamentals per ticker as of ``as_of`` (ADR 0023).
+
+        For each requested ticker, returns the single most-recent ``sf1_fundamentals`` row with
+        ``datekey <= as_of`` for ``dimension`` — the no-look-ahead guarantee (a filing dated after
+        ``as_of`` is invisible). ``dimension`` defaults to ``ART`` (as-reported trailing-twelve-month,
+        the usual basis for ratios). Returns a frame indexed by ``ticker`` with the SF1 factor fields;
+        tickers with no knowable row are simply absent. Empty frame if ``tickers`` is empty or the
+        table is missing (degrades like the rest of the store)."""
+        if not tickers:
+            return pd.DataFrame()
+        placeholders = ",".join(["?"] * len(tickers))
+        try:
+            df = self.con.execute(
+                f"""
+                SELECT ticker, marketcap, ev, pe, pb, ps, evebit, evebitda, fcf, bvps, divyield,
+                       roe, roa, roic, ros, grossmargin, netmargin, ebitdamargin, currentratio, de,
+                       payoutratio, assetturnover, revenue, netinc, gp, ebit, ebitda, ncfo,
+                       assets, equity, debt, eps, shareswa
+                FROM (
+                    SELECT *, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY datekey DESC) AS rn
+                    FROM sf1_fundamentals
+                    WHERE dimension = ? AND datekey <= ? AND ticker IN ({placeholders})
+                ) WHERE rn = 1
+                """,
+                [dimension, as_of, *tickers],
+            ).df()
+        except duckdb.Error:
+            return pd.DataFrame()  # table absent (pre-SF1-ingest store)
+        return df.set_index("ticker") if not df.empty else df
+
     def dollar_volume_universe(
         self, as_of: date, n: int, lookback_days: int
     ) -> list[str]:
