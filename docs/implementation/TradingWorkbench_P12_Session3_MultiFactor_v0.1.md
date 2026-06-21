@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v0.2 — draft + review fold** (2026-06-20). Data path owner-confirmed (build infra → FMP exploratory → SF1 verdict). v0.2 folds the doc review (`comments.md`): the session split into **three distinct deliverables** (A engineering / B exploratory study / C recommendation), explicit **research states** (Validated/Rejected/Inconclusive/Deferred), a formal **research-debt table**, a **success matrix**, the **research-lifecycle diagram**, the crisp **scientific question**, "re-test"→**exploratory validation**, a **no-optimizer** guardrail, and a required **factor-correlation matrix** output. |
+| Document version | **v0.3 — draft + strategic/positioning fold** (2026-06-20). v0.2 added the 3-deliverable / research-state / success-matrix structure. v0.3 folds the *final* review (`comments.md`, positioning not software): a **Strategic Objective** (P12 validates the strategy **and** the platform — momentum is the platform's first customer), a third success dimension **Platform Success** (alongside Engineering + Research), a **Commercial Impact / Product Validation** subsection, **two conclusions** (Investment + Platform), a **platform-value success matrix** (every outcome creates value), and the **Platform Capability Report** as a second P12 deliverable beside the Strategy Evidence Book. |
 | Date | 2026-06-20 |
 | Phase | **P12** — Validation & Results |
 | Session | §3 of 4 (Advance the alpha — multi-factor book) |
@@ -15,6 +15,22 @@
 | Out of scope | See "What this session does NOT do" |
 
 ---
+
+## Strategic objective (the positioning)
+
+> **TradingWorkbench is not a momentum trading system. It is an evidence-driven quantitative
+> research & strategy-engineering *platform* whose first validated application is a momentum
+> strategy.** P12 validates **both**: (1) the *investment* evidence (is the strategy worth trading?)
+> and (2) the *platform* — that the system can **discover, evaluate, compare, and govern** strategies
+> reproducibly. §3 is where the platform claim gets real: the composite engine + factor-agnostic
+> backtest turn "we ran a momentum study" into "we can run *any* factor study." Momentum is the
+> platform's first customer, not the product.
+
+This matters because the eventual buyer (fund, partner, the owner's own future strategies) adopts the
+**research → validation → governance → evidence → deployment** loop — not a single factor. Every §3
+outcome therefore creates value: even if value/quality are rejected on FMP data, the platform gains a
+generic backtest, a composite engine, registries, and an evidence workflow (see the platform-value
+matrix in Deliverable C).
 
 ## Why this session exists
 
@@ -55,14 +71,17 @@ Idea → Infrastructure → Exploration → Validation → Evidence → Decision
              §3 (A)        §3 (B, FMP)            §3 (C) / SF1 (later)
 ```
 
-### Engineering success ≠ research success (do not conflate)
+### Three kinds of success — Engineering · Platform · Research (do not conflate)
 
-| Engineering success (this session delivers) | Research success (data-gated) |
-|---|---|
-| ✅ Composite multi-factor engine | ❓ Value — independent premium? |
-| ✅ Factor-agnostic backtest | ❓ Quality — independent premium? |
-| ✅ Tests + Research Registry rows | ❓ Composite — beats momentum-only OOS? |
-| **Always completable** | **May be Inconclusive on FMP data — that's a valid outcome** |
+| Engineering success (delivered) | Platform success (business value) | Research success (data-gated) |
+|---|---|---|
+| ✅ Composite multi-factor engine | Supports *unlimited* future factors, no arch change | ❓ Value — independent premium? |
+| ✅ Factor-agnostic backtest | Eliminates strategy-specific backtest code | ❓ Quality — independent premium? |
+| ✅ Tests + Research Registry | Governance + enterprise audit trail | ❓ Composite — beats momentum-only OOS? |
+| **Always completable** | **Always accrues — a customer-visible capability** | **May be Inconclusive on FMP — a valid outcome** |
+
+*Customers buy the platform, not momentum. Engineering + Platform success land regardless of the
+research verdict — which is how a durable product is designed.*
 
 ## ⚠ The load-bearing constraint (read before everything else)
 
@@ -163,6 +182,32 @@ a governance action (not a single pass/fail):
 
 The honest prior (mega-cap) predicts **Rejected/Inconclusive on FMP**, with **Deferred → SF1** as the
 real path to a verdict. A negative finding here is a *result*, recorded — not a failure.
+
+**Platform-value matrix — every research outcome creates value:**
+
+| Research outcome | Investment value | **Platform value (always positive)** |
+|---|---|---|
+| Multi-factor succeeds | New strategy candidate (v2.0) | Composite engine + workflow validated on a *winning* case |
+| Multi-factor fails / redundant | Momentum stands alone (keep v1.1) | Research platform validated (it can *reject* honestly) |
+| Data inconclusive | No change | Infrastructure complete; gates the SF1 data decision |
+
+**Two conclusions (different audiences) — §3 ends with both:**
+
+- **Investment conclusion** (audience: the trader/owner — *"should we trade this?"*): e.g. *"momentum
+  remains standalone on the testable data; no v2.0."*
+- **Platform conclusion** (audience: customers/partners/investors — *"why adopt TradingWorkbench?"*):
+  e.g. *"the composite engine + factor-agnostic backtest are validated; any factor is now researchable,
+  comparable, and governable without architectural change."*
+
+### Commercial impact (product validation)
+
+The composite engine + factor-agnostic backtest mean **future factors plug in with no architectural
+change** — momentum · value · quality · growth · profitability · low-volatility · ESG · custom · (later)
+AI-generated factors. §3 thereby validates customer-visible product capabilities: **generic factor
+research · multi-factor modelling · statistically-defensible evidence reports · research governance ·
+future factor expansion.** These feed P12's **second** final deliverable — a **Platform Capability
+Report** (*"why should customers buy TradingWorkbench?"*) alongside the **Strategy Evidence Book**
+(*"should we trade this?"*).
 
 ### §E — Results doc + registries + tests
 
