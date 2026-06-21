@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-06-21T18:33:36.093549+00:00",
+  "git_sha": "70fd87b",
+  "db": "data/workbench.sqlite",
+  "signals": {
+    "track_record_days": 6,
+    "replay_mismatches": 0,
+    "reconciliation_discrepancies": 0,
+    "reconciliation_runs": 70,
+    "breaker_trips": 1,
+    "breaker_resets": 1,
+    "orders_risk_passed": 8,
+    "orders_rejected_by_risk": 2,
+    "orders_rejected_by_broker": 1,
+    "fills_ingested": 7
+  },
+  "score": 74.1,
+  "band": "Building",
+  "components": {
+    "verifiability": 100.0,
+    "safety": 100.0,
+    "maturity": 12.5,
+    "operational": 80.0
+  },
+  "weights": {
+    "verifiability": 0.3,
+    "safety": 0.25,
+    "maturity": 0.25,
+    "operational": 0.2
+  },
+  "rationale": [
+    "replay + reconciliation clean",
+    "breaker: 1 trip(s), all recovered",
+    "risk gate demonstrably rejects (2)",
+    "6-day track record"
+  ]
+}
