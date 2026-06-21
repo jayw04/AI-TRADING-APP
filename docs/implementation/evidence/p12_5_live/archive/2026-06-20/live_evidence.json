@@ -1,0 +1,153 @@
+{
+  "generated_at": "2026-06-21T01:44:29.748857+00:00",
+  "git_sha": "1b1a9c8",
+  "db": "data/workbench.sqlite",
+  "strategy": {
+    "id": 2,
+    "name": "momentum-portfolio",
+    "version": "0.3.0",
+    "status": "PAPER",
+    "vol_scaling_on": true,
+    "vol_target_annual": 0.15,
+    "config": "v1.1 (momentum + vol-scaling)"
+  },
+  "account": {
+    "account_id": 1,
+    "cash": 2257.89,
+    "equity": 10208.14,
+    "portfolio_value": 10208.14,
+    "buying_power": 31292.26,
+    "day_change_pct": 0,
+    "status": "ACTIVE",
+    "updated_at": "2026-06-21 01:43:42.388259"
+  },
+  "book": {
+    "equity": 10208.14,
+    "gross_exposure_value": 7950.25,
+    "gross_exposure_pct": 0.7788,
+    "unrealized_pl": 208.16,
+    "n_positions": 6
+  },
+  "trades": [
+    {
+      "id": 7,
+      "ticker": "AAOI",
+      "side": "BUY",
+      "ordered_qty": 10,
+      "status": "FILLED",
+      "filled_qty": 10,
+      "avg_price": 188.112,
+      "commission": 0,
+      "created_at": "2026-06-15 14:50:09.741512"
+    },
+    {
+      "id": 8,
+      "ticker": "MU",
+      "side": "BUY",
+      "ordered_qty": 1,
+      "status": "FILLED",
+      "filled_qty": 1,
+      "avg_price": 1064.45,
+      "commission": 0,
+      "created_at": "2026-06-15 14:50:12.427086"
+    },
+    {
+      "id": 9,
+      "ticker": "INTC",
+      "side": "BUY",
+      "ordered_qty": 15,
+      "status": "FILLED",
+      "filled_qty": 15,
+      "avg_price": 128.05,
+      "commission": 0,
+      "created_at": "2026-06-15 14:50:14.319549"
+    },
+    {
+      "id": 10,
+      "ticker": "BE",
+      "side": "BUY",
+      "ordered_qty": 7,
+      "status": "FILLED",
+      "filled_qty": 7,
+      "avg_price": 276.96,
+      "commission": 0,
+      "created_at": "2026-06-15 16:18:27.910315"
+    }
+  ],
+  "n_trades": 4,
+  "first_trade": "2026-06-15 14:50:09.741512",
+  "positions": [
+    {
+      "ticker": "BE",
+      "qty": 7,
+      "market_value": 2302.37,
+      "unrealized_pl": 363.65,
+      "unrealized_plpc": 0.18757
+    },
+    {
+      "ticker": "INTC",
+      "qty": 15,
+      "market_value": 2009.85,
+      "unrealized_pl": 89.1,
+      "unrealized_plpc": 0.04639
+    },
+    {
+      "ticker": "AAOI",
+      "qty": 10,
+      "market_value": 1618.5,
+      "unrealized_pl": -262.62,
+      "unrealized_plpc": -0.13961
+    },
+    {
+      "ticker": "MU",
+      "qty": 1,
+      "market_value": 1133.99,
+      "unrealized_pl": 69.54,
+      "unrealized_plpc": 0.06533
+    },
+    {
+      "ticker": "MTDR",
+      "qty": 9,
+      "market_value": 446.04,
+      "unrealized_pl": -36.99,
+      "unrealized_plpc": -0.07658
+    },
+    {
+      "ticker": "ADC",
+      "qty": 6,
+      "market_value": 439.5,
+      "unrealized_pl": -14.52,
+      "unrealized_plpc": -0.03198
+    }
+  ],
+  "operational_safety": {
+    "orders_risk_passed": 8,
+    "orders_rejected_by_risk": 2,
+    "orders_rejected_by_broker": 1,
+    "breaker_trips": 1,
+    "breaker_resets": 1,
+    "fills_ingested": 7
+  },
+  "verifiability": {
+    "replay_mismatches": 0,
+    "reconciliation_discrepancies": 0,
+    "audit_actions_total": 70
+  },
+  "audit_breakdown": {
+    "CIRCUIT_BREAKER_RESET": 1,
+    "CIRCUIT_BREAKER_TRIPPED": 1,
+    "ORDER_CANCELED": 3,
+    "ORDER_CANCEL_REQUESTED": 1,
+    "ORDER_FILL_INGESTED": 7,
+    "ORDER_REJECTED_BY_BROKER": 1,
+    "ORDER_REJECTED_BY_RISK": 2,
+    "ORDER_RISK_PASSED": 8,
+    "ORDER_SUBMITTED": 7,
+    "SCANNER_RUN": 7,
+    "STRATEGY_DEACTIVATED": 1,
+    "STRATEGY_PROPOSAL_TRANSITIONED": 1,
+    "STRATEGY_REGISTERED": 20,
+    "STRATEGY_UNREGISTERED": 5,
+    "STRATEGY_UPDATED": 5
+  }
+}
