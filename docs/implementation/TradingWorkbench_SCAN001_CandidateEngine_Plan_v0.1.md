@@ -4,8 +4,8 @@
 > | | |
 > |---|---|
 > | **Program type** | **Platform Capability** (the first non-strategy program — `MOM/RNG/MF/SEC/LOW/TREND` are strategies; this is shared infrastructure they all consume) |
-> | **Name** | Daily Candidate Selection Engine |
-> | **Research goal** | **Which daily, pre-open filters select the small universe of stocks most likely to exhibit tradeable intraday opportunities?** Build the curated-watchlist engine *before* the intraday strategies, so they all trade the same evidence-selected candidates instead of scanning 4,000+ names blindly. |
+> | **Name** | **Market Opportunity Discovery Engine** — v1 profile: **daily intraday candidate selection** |
+> | **Research goal** | **Which daily, pre-open filters select the small universe of stocks most likely to exhibit tradeable opportunities?** Build the curated-watchlist engine *before* the strategies, so they all consume the same evidence-selected candidates instead of scanning 4,000+ names blindly. The engine is **profile-agnostic** — intraday is v1; swing / momentum / sector / event-driven / ETF candidate sets are future profiles over the *same* discovery infrastructure (the "Discovery Lab" endpoint, §12). |
 > | **Status** | **PLANNING** (pre-registration draft; no scan has run). |
 > | **Owner** | Jay |
 > | **Platform value** | The reusable **morning scanner** that feeds the whole Intraday Research Framework — a capability, not a one-off for the Range Trader. |
@@ -14,9 +14,10 @@
 | Field | Value |
 |---|---|
 | Document | **SCAN-001** — plan + **pre-registered** filter set & evidence gate. |
-| Version | **v0.1 (2026-06-22)** — initial draft from the owner's SCAN-001 / Intraday Research Framework roadmap (`Docs/design/`). |
+| Version | **v0.2 (2026-06-22)** — owner review folded (`Docs/review/comments.md`): repositioned as the broader **Market Opportunity Discovery Engine** (intraday = v1 profile); added §0a **candidate-discovery ≠ trading**, the explainable **Evidence Report / Candidate Report** output (§3a), the **multi-metric** opportunity evaluation (§5a), the **historical-research vs real-time-execution** data split (below), and the **Discovery Lab** future (§12). v0.1 was the initial draft. |
 | Governing | **ADR 0014** (backtests = ground-truth) · ADR 0019 (Research Engine, read-only) · the Evidence Engineering methodology (`docs/methodology/`). |
 | Data | **Alpaca** (primary — minute/daily bars, volume, premarket) + **FMP** (enrichment — float, market cap, sector, earnings calendar) + **internal calcs** (RVOL, ATR, gap %, overnight return). **No new paid vendors** in v1. ⚠ **Prerequisite met:** the bar-cache stale-data bug is fixed (open-bucket re-fetch) — candidate filters now read *current* bars. |
+| Two data planes (owner) | **Historical research data → Evidence** (deep, survivorship-free, point-in-time — used to *validate* which filters work) is a different plane from **real-time market data → Execution** (low-latency, current-session — used to *run* the live scan). SCAN-001's research runs on the former; the shipped engine reads the latter. Conflating them is the misunderstanding this split prevents. |
 
 ---
 
@@ -31,6 +32,18 @@
 This is the platform-not-strategy thesis applied to intraday: the scanner is the durable asset; the
 intraday strategies are interchangeable research programs built on top of it. SCAN-001 answers *which
 filters select good candidates* — a question whose answer outlives any single strategy.
+
+### 0a. Why candidate discovery is SEPARATE from trading (the boundary)
+
+> **Candidate selection identifies stocks with characteristics that may produce opportunities. It does NOT
+> decide whether or how to trade them.** Trade entry, exit, position sizing, and risk management remain the
+> responsibility of the **downstream research programs** (Intraday Mean Reversion, ORB, VWAP, …).
+
+This separation is the whole point of building the engine as a *capability*. SCAN answers *"which names are
+worth a strategy's attention today?"*; a strategy answers *"given this name, do I trade it, at what level,
+what size, and where's the stop?"*. Keeping them distinct means one validated scanner serves many
+strategies, each strategy's edge is measured independently of the universe it ran on, and the audit trail
+cleanly attributes *selection* vs *execution* decisions — exactly the Evidence Engineering discipline.
 
 ## 1. Hypothesis (frozen)
 
@@ -72,8 +85,9 @@ defaults; reported as a labeled robustness band, NOT tuned to maximize historica
 | **Earnings filter** | **exclude** names reporting today / overnight | FMP earnings calendar |
 | **News/catalyst (optional)** | flag-only (not a hard filter in v1) | Benzinga (already in the gappers scanner) |
 
-**Output:** ranked **top 10–20 candidates** per trading day (rank by a transparent composite, e.g. RVOL×Gap),
-each with its filter values — the daily watchlist.
+**Output is an EXPLAINABLE Evidence Report, not just a list (owner).** Per day, a ranked top 10–20 where
+every candidate carries its **filter scores, the reason it was selected, and a confidence** — so a reader
+(or a downstream strategy, or a customer) understands *why* it was picked. Full structure in §3a.
 
 ## 3. Construction (the engine, read-only research prototype)
 
@@ -87,6 +101,32 @@ candidate set is evidence, not a trade signal).
 > baseline (H1 fails) AND no single filter attributes signal (H3 flat)** on out-of-sample data, the curation
 > hypothesis is **archived** as a citable rejection — the platform would then trade the liquid universe
 > directly rather than over-engineer a scanner. This bounds the program.
+
+### 3a. The Candidate Report (formalized output — owner)
+
+Each daily scan emits a structured **Candidate Report**, not a bare ticker list — the explainable artifact
+that downstream strategies consume and customers read:
+
+| Report field | Content |
+|---|---|
+| `date` / `scan_time` | the PIT instant (e.g. 2026-06-23 09:25 ET) |
+| `universe` | the source universe + size |
+| `market_regime` | the day's breadth/regime context (advancers/decliners, index trend) |
+| `candidates[]` | the ranked top-N, each an **explainable record** (below) |
+| `filter_scores` | the raw per-filter values per candidate |
+| `evidence_summary` | how the set compares to the baseline (the H1 metric for the day) |
+| `research_version` | the five-coordinate repro stamp (dataset/code/filter/walk-forward/report) |
+
+**Per-candidate explainable record** (the owner's example):
+
+| symbol | rank | gap% | RVOL | ATR% | $-vol | reason | confidence |
+|---|---|---|---|---|---|---|---|
+| NVDA | 1 | 8.2 | 4.3 | 3.1 | $4.1B | Gap + RVOL + ATR all clear | 0.82 |
+| … | … | … | … | … | … | … | … |
+
+`reason` names which filters fired; `confidence` is a transparent, bounded score derived from how strongly
+the candidate clears the thresholds (NOT an opaque model output — Direction Decision 2: no black-box
+forecasting). A candidate is never just "selected"; it is *selected, scored, and explained*.
 
 ## 4. Pre-registered evidence gate (frozen BEFORE results)
 
@@ -117,6 +157,24 @@ candidate set is evidence, not a trade signal).
 5. **Walk-forward** sub-windows (consistency across regimes).
 6. **Filter attribution (H3)** — single-filter and ablation.
 7. **Evidence package** (`script → JSON → Markdown`, seeded/reproducible) → `docs/implementation/evidence/scan_001_candidate_engine/`.
+
+### 5a. Opportunity metrics — evaluate several, not one (owner)
+
+Rather than commit to a single "intraday range" metric, the run scores the candidate set on **multiple**
+opportunity metrics and reports each — so the platform can later learn *which metric best predicts a
+downstream strategy's success* (the real test of a good candidate):
+
+| Metric | Captures | Best-fit downstream |
+|---|---|---|
+| **Intraday range %** (HOD−LOD)/open | raw movement / volatility | most strategies |
+| **Opening-range expansion** | breakout potential | ORB |
+| **VWAP distance** (max excursion from VWAP) | mean-reversion room | VWAP Reversion, MeanRev |
+| **Realized intraday volatility** | general movement | most |
+| **Relative volume** (intraday) | liquidity / participation | all (execution quality) |
+| **Trade-opportunity count** (touches of a setup) | the *most practical* — how many tradeable setups occurred | the headline candidate-quality proxy |
+
+H1 picks one as the **pre-registered headline** (see Q2), but all are recorded; a later study correlates
+each metric with realized strategy P&L to pick the engine's standing objective.
 
 ## 6. Benchmarks
 - **Liquid-universe** (primary — does curation beat "trade everything liquid"?).
@@ -175,6 +233,23 @@ intraday analogue of the **Factor Lab** (research = configuration over shared in
 - **Q2 — Opportunity metric:** intraday range %, realized intraday vol, or a setup-count proxy as the H1 metric?
 - **Q3 — Scan time:** fix at 09:25 ET (just before open) for the PIT snapshot?
 - **Q4 — Top-N:** 10, 15, or 20 candidates as the headline?
+
+## 12. Long-term: the Discovery Lab (owner)
+
+The intraday candidate engine is **v1, profile 1**. The same discovery infrastructure — point-in-time
+feature panel + filter pipeline + explainable Evidence Report — generalizes into a standing **Discovery
+Lab** capability that produces *candidate sets for any research profile*:
+
+```
+Discovery Lab ──▶ signals: Gap · Volume · News · Sector · Options · Macro · ETF · Fundamentals
+              ──▶ profiles: Intraday (v1) · Swing · Momentum · Sector · Event-driven · ETF
+              ──▶ Candidate Set (+ Evidence Report) ──▶ the matching research programs
+```
+
+So SCAN-001 is the first instance of a much larger platform capability: *the platform's universal "what's
+worth looking at?" engine.* Each new profile is a configuration over the same engine (the Factor-Lab model
+again), and each is its own evidence-gated research question. Out of scope for v1; named here so the v1
+design doesn't paint the engine into an intraday-only corner.
 
 ---
 
