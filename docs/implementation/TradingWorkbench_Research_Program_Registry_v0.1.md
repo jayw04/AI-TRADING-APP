@@ -7,7 +7,7 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.5 (2026-06-22) — owner SCAN-001 review folded: **SCAN-001** added as the first **Platform Capability** program; the Capability Matrix **split into Platform vs Investment capabilities**; a **Primary consumer** dimension per program. **v0.4** folded the prior review (9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
+| Version | v0.6 (2026-06-22) — final SCAN-001 review: a **Reuse level** dimension per program (commercial-value signal — SCAN = Very High). **v0.5** folded the SCAN-001 review: **SCAN-001** added as the first **Platform Capability** program; the Capability Matrix **split into Platform vs Investment capabilities**; a **Primary consumer** dimension per program. **v0.4** folded the prior review (9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
 | Source of truth | `apps/backend/app/research/programs.py` + the Evidence Dashboard |
 | Convention | Permanent IDs (`MOM / RNG / MF / SEC / LOW / TREND-NNN`) are platform IP — citable in the whitepaper, patent, and customer docs. The registry is **open-ended**: it grows one program at a time, forever (the GitHub-repositories model), and never "closes." |
 
@@ -80,17 +80,18 @@ reached — `Completed` is not the same as "nothing left to study":
 
 **Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). **Platform value** answers *why each program exists* — its contribution to the platform, not just its result; a rejection and a diversifier are both assets. **Research line** is orthogonal to Status (above).
 
-**Primary consumer** (owner) — *who* each program's output is for, which further explains why it exists:
+**Primary consumer** + **Reuse level** (owner) — *who* each program's output is for, and *how broadly* its
+capabilities get reused (the commercial-value signal: high-reuse capabilities are what customers pay for):
 
-| Program | Primary consumer |
-|---|---|
-| MOM-001 | Portfolio Manager (the production book) |
-| RNG-001 | Research Team (the honest-rejection precedent) |
-| MF-001 | Research Team (factor research) |
-| SEC-001 | Portfolio Construction (the diversification sleeve) |
-| LOW-001 | Risk Management (the defensive complement) |
-| TREND-001 | Portfolio Manager (a return source) |
-| SCAN-001 | the **Intraday/Discovery Engine** + every strategy that consumes its candidates |
+| Program | Primary consumer | Reuse level |
+|---|---|---|
+| MOM-001 | Portfolio Manager (the production book) | **Medium** |
+| RNG-001 | Research Team (the honest-rejection precedent) | **Low** |
+| MF-001 | Research Team (factor research) | **High** (composite engine) |
+| SEC-001 | Portfolio Construction (the diversification sleeve) | **High** (sector-neutral construction) |
+| LOW-001 | Risk Management (the defensive complement) | **High** (calibration metrics) |
+| TREND-001 | Portfolio Manager (a return source) | **Medium** |
+| SCAN-001 | the **Intraday/Discovery Engine** + every strategy that consumes its candidates | **Very High** (a capability every strategy reuses) |
 
 ### Portfolio KPI (the "Insights" view)
 

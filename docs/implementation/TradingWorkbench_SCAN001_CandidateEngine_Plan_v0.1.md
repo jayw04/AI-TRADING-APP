@@ -14,7 +14,7 @@
 | Field | Value |
 |---|---|
 | Document | **SCAN-001** — plan + **pre-registered** filter set & evidence gate. |
-| Version | **v0.2 (2026-06-22)** — owner review folded (`Docs/review/comments.md`): repositioned as the broader **Market Opportunity Discovery Engine** (intraday = v1 profile); added §0a **candidate-discovery ≠ trading**, the explainable **Evidence Report / Candidate Report** output (§3a), the **multi-metric** opportunity evaluation (§5a), the **historical-research vs real-time-execution** data split (below), and the **Discovery Lab** future (§12). v0.1 was the initial draft. |
+| Version | **v0.3 (2026-06-22)** — final owner review folded: the **canonical Discovery → Evidence Engineering pipeline** diagram (§12a — the standing architecture for all discovery capabilities), the **Discovery Lab profiles** table (§12b), and **multiple candidate engines** as future room (§12c, do-not-build). **v0.2** repositioned as the broader **Market Opportunity Discovery Engine** (intraday = v1 profile); added §0a **candidate-discovery ≠ trading**, the explainable **Evidence Report / Candidate Report** output (§3a), the **multi-metric** opportunity evaluation (§5a), the **historical-research vs real-time-execution** data split (below), and the **Discovery Lab** future (§12). v0.1 was the initial draft. |
 | Governing | **ADR 0014** (backtests = ground-truth) · ADR 0019 (Research Engine, read-only) · the Evidence Engineering methodology (`docs/methodology/`). |
 | Data | **Alpaca** (primary — minute/daily bars, volume, premarket) + **FMP** (enrichment — float, market cap, sector, earnings calendar) + **internal calcs** (RVOL, ATR, gap %, overnight return). **No new paid vendors** in v1. ⚠ **Prerequisite met:** the bar-cache stale-data bug is fixed (open-bucket re-fetch) — candidate filters now read *current* bars. |
 | Two data planes (owner) | **Historical research data → Evidence** (deep, survivorship-free, point-in-time — used to *validate* which filters work) is a different plane from **real-time market data → Execution** (low-latency, current-session — used to *run* the live scan). SCAN-001's research runs on the former; the shipped engine reads the latter. Conflating them is the misunderstanding this split prevents. |
@@ -250,6 +250,53 @@ So SCAN-001 is the first instance of a much larger platform capability: *the pla
 worth looking at?" engine.* Each new profile is a configuration over the same engine (the Factor-Lab model
 again), and each is its own evidence-gated research question. Out of scope for v1; named here so the v1
 design doesn't paint the engine into an intraday-only corner.
+
+### 12a. The canonical Discovery → Evidence Engineering pipeline (owner)
+
+The architecture every discovery capability follows — discovery feeds the standard Evidence Engineering
+lifecycle; it does not bypass it:
+
+```
+Discovery Lab
+     ↓
+Candidate Set (+ Evidence Report)
+     ↓
+Research Program        ← a strategy picks up the candidates
+     ↓
+Evidence Package        ← pre-registered hypotheses, OOS gate
+     ↓
+Governance              ← verdict + promotion decision
+     ↓
+Paper                   ← activation cooldown
+     ↓
+Production
+     ↓
+Continuous Evidence     ← live monitoring; decay re-opens Research
+```
+
+Discovery sits **in front of** the lifecycle, not around it: it narrows *what to study*, then hands off to
+the same gated path every program obeys. This is the standing pattern for **all** future discovery
+capabilities.
+
+### 12b. Discovery Lab profiles (future — leave room, don't build)
+
+| Profile | Candidate cadence | Feeds |
+|---|---|---|
+| **Intraday** (v1 = SCAN-001) | Daily (pre-open) | intraday strategies |
+| Swing | Weekly | swing strategies |
+| Momentum | Monthly | the momentum book |
+| Sector | Monthly | sector rotation |
+| ETF | Weekly | ETF strategies |
+| Macro | Monthly | macro/regime overlays |
+| Earnings | Event-driven | event strategies |
+
+### 12c. Multiple candidate *engines* (future — leave room)
+
+Within a profile, the Discovery Lab can eventually compose **several engines** into one ranking — a Gap
+engine, Volume engine, News engine, Options engine, Macro engine → **combined ranking**. **Not built now** —
+the v1 design just keeps the engine interface pluggable so this doesn't require a rewrite later. (Per the
+owner: do NOT spin up DISCOVERY-002/003 as separate programs — everything after SCAN-001 is *configuration*
+over the Discovery Lab, exactly like the Factor Lab.)
 
 ---
 
