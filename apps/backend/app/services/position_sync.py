@@ -13,7 +13,11 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.brokers.base import BrokerAdapter
+    from app.brokers.registry import BrokerRegistry
 
 import structlog
 from sqlalchemy import delete, select
@@ -42,20 +46,25 @@ class PositionSyncService:
         adapter: AlpacaAdapter,
         session_factory: async_sessionmaker,
         bus: EventBus,
+        broker_registry: BrokerRegistry | None = None,
     ) -> None:
         self._adapter = adapter
         self._session_factory = session_factory
         self._bus = bus
+        # P13.5: when present, sync_all() resolves EACH account's own per-user adapter
+        # from the registry (built from that user's encrypted creds), so every account's
+        # positions are synced — not just the first/startup one. Mirrors AccountSyncService.
+        self._broker_registry = broker_registry
         # Keyed by (account_id, ticker) — unresolved tickers can't have a
         # symbol_id (that's why they're unresolved).
         self._drift_counters: dict[tuple[int, str], int] = {}
         self._drift_warned: set[tuple[int, str]] = set()
 
     async def sync_once(self) -> list[dict[str, Any]]:
-        """Pull positions, upsert into DB, delete stale rows, publish snapshot."""
-        raw_positions = await asyncio.to_thread(self._adapter.get_positions)
-        normalized = [_normalize_position(p) for p in raw_positions]
+        """Pull the *primary* account's positions and reconcile them.
 
+        Back-compat single-account path (the first paper/live account via the startup
+        adapter); ``sync_all`` covers every account via the broker registry."""
         async with self._session_factory() as session:
             mode = AccountMode.paper if self._adapter.is_paper else AccountMode.live
             account = (
@@ -63,14 +72,53 @@ class PositionSyncService:
                     select(Account).where(Account.broker == "alpaca", Account.mode == mode)
                 )
             ).scalars().first()
-            if account is None:
-                logger.warning("position_sync_no_account_row")
-                await self._bus.publish(
-                    "positions.snapshot",
-                    {"count": len(normalized), "positions": _decimals_to_str(normalized)},
-                )
-                return normalized
+        if account is None:
+            logger.warning("position_sync_no_account_row")
+            await self._bus.publish("positions.snapshot", {"count": 0, "positions": []})
+            return []
+        return await self._sync_account(account, self._adapter)
 
+    async def sync_all(self) -> dict[str, list[int]]:
+        """Sync EVERY broker account's positions from its own per-user adapter (multi-account).
+
+        Each account's adapter comes from the broker registry (constructed per-user from that
+        user's encrypted credentials and connected at boot). Falls back to the single-account
+        ``sync_once`` when no registry is wired (tests / minimal boots). One account's failure
+        is logged and skipped — it never aborts the others. Mirrors AccountSyncService.sync_all."""
+        if self._broker_registry is None:
+            await self.sync_once()
+            return {"synced": [], "skipped": [], "errors": []}
+        async with self._session_factory() as session:
+            accounts = (
+                await session.execute(select(Account).where(Account.broker == "alpaca"))
+            ).scalars().all()
+        synced: list[int] = []
+        skipped: list[int] = []
+        errors: list[int] = []
+        for account in accounts:
+            adapter = self._broker_registry.get(account.id)
+            if adapter is None:
+                skipped.append(account.id)  # no per-user adapter (missing creds)
+                continue
+            try:
+                await self._sync_account(account, adapter)
+                synced.append(account.id)
+            except Exception as exc:  # one account must not kill the sweep
+                logger.warning(
+                    "position_sync_account_failed", account_id=account.id, error=str(exc)
+                )
+                errors.append(account.id)
+        logger.info("position_sync_all_completed", synced=synced, skipped=skipped, errors=errors)
+        return {"synced": synced, "skipped": skipped, "errors": errors}
+
+    async def _sync_account(
+        self, account: Account, adapter: BrokerAdapter
+    ) -> list[dict[str, Any]]:
+        """Pull one account's positions, upsert/delete scoped to it, drift-check, publish."""
+        raw_positions = await asyncio.to_thread(adapter.get_positions)
+        normalized = [_normalize_position(p) for p in raw_positions]
+
+        async with self._session_factory() as session:
             tickers = [p["symbol"] for p in normalized if p["symbol"]]
             symbol_rows = (
                 (
@@ -176,10 +224,14 @@ class PositionSyncService:
                     },
                 )
 
-        logger.info("position_sync_completed", count=len(normalized))
+        logger.info("position_sync_completed", account_id=account.id, count=len(normalized))
         await self._bus.publish(
             "positions.snapshot",
-            {"count": len(normalized), "positions": _decimals_to_str(normalized)},
+            {
+                "account_id": account.id,
+                "count": len(normalized),
+                "positions": _decimals_to_str(normalized),
+            },
         )
         return normalized
 
