@@ -57,11 +57,18 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "construction ARCHIVED; a standalone edge needs a fundamentally different hypothesis.",
         "docs/implementation/evidence/sec_001_v2_pure_baskets/sector_rotation_v2.md"),
     ResearchProgram(
-        "LV-001", "Low Volatility", "Low-volatility factor", "planned",
-        "Next Tier-B philosophy (reuses the vol infrastructure). Not started.", None),
+        "LOW-001", "Low Volatility", "Defensive / low-volatility anomaly", "inconclusive",
+        "Verdict B (Diversifier/Defensive), full-cycle 2000-2026. Best risk-adjusted book on the platform: "
+        "Sharpe 0.59 (vs momentum 0.39, eqw 0.35), maxDD -39.0% = HALF of momentum's -76.4%, Calmar 0.20. "
+        "H1 standalone +0.24 CI [-0.029, 0.53] just spans zero (no decisive standalone edge). H2 corr "
+        "-0.15 (negative = true defensive diversifier). H3 emphatic: shallower DD than eqw in 5/5 windows; "
+        "cost-robust to 50bps. Reverses the #142 negative (that was a narrow-universe artifact). Next: "
+        "defensive-sleeve / blend product, or a broader-universe V2 to chase the near-miss standalone edge.",
+        "docs/implementation/evidence/low_001_low_volatility/low_volatility.md"),
     ResearchProgram(
-        "TF-001", "Trend Following", "Time-series trend", "planned",
-        "Tier-B philosophy (different holding period / turnover). Not started.", None),
+        "TREND-001", "Trend Following", "Time-series trend", "planned",
+        "Tier-B philosophy (different holding period / turnover). Charter after LOW-001; then the "
+        "platform shifts to the Factor Lab (programs become configuration, not new scripts).", None),
 )
 
 
