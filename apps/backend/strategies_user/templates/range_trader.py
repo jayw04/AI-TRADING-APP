@@ -24,8 +24,17 @@ Safeguards:
     whichever levels are set. Invalid combinations make the strategy inert
     for entries (exits/stops still protect an existing position).
 
-The price levels are PARAMETERS. They are 0 (unset) by default — a freshly
-applied strategy with no Range Insight is inert until the trader sets them.
+Levels come from one of two modes (``level_mode``):
+  - ``fixed`` (default): the ``entry/exit/stop`` PARAMETERS. 0 (unset) by default,
+    so a freshly applied strategy with no Range Insight is inert until set. These
+    are frozen — they do not track the current day's price.
+  - ``opening_range``: the levels are derived EACH DAY from today's first
+    ``opening_range_minutes`` of bars (entry = range low, exit = range high,
+    stop = range_low × (1 − ``stop_buffer_pct``)). No entries while the range
+    forms. Self-contained from the intraday feed — no stale daily-bar dependency.
+
+Position size scales to the LIVE account equity (``ctx.get_account_equity``),
+refreshed once per day, with ``initial_equity_estimate`` as the fallback.
 Orders route through ``self.ctx.submit_order`` only (ADR 0002).
 """
 
@@ -57,9 +66,14 @@ class RangeTrader(Strategy):
 
     default_params: ClassVar[dict[str, Any]] = {
         "timeframe": "5Min",
-        "entry_price": 0.0,  # buy when price <= this (near support)
-        "exit_price": 0.0,  # sell when price >= this (near resistance)
-        "stop_price": 0.0,  # hard stop (below support)
+        # Level source: "fixed" uses the entry/exit/stop params below; "opening_range"
+        # derives them each day from today's first ``opening_range_minutes`` of bars.
+        "level_mode": "fixed",
+        "opening_range_minutes": 30,
+        "stop_buffer_pct": 0.005,
+        "entry_price": 0.0,  # buy when price <= this (near support) — fixed mode
+        "exit_price": 0.0,  # sell when price >= this (near resistance) — fixed mode
+        "stop_price": 0.0,  # hard stop (below support) — fixed mode
         "risk_per_trade_pct": 0.01,
         "initial_equity_estimate": 100_000,
         "max_position_qty": 100,
@@ -74,6 +88,27 @@ class RangeTrader(Strategy):
             "choices": ["1Min", "5Min", "15Min", "1Hour"],
             "default": "5Min",
             "description": "Bar timeframe driving on_bar dispatch.",
+        },
+        "level_mode": {
+            "type": "enum",
+            "choices": ["fixed", "opening_range"],
+            "default": "fixed",
+            "description": "fixed = use the entry/exit/stop params; opening_range = "
+            "derive them each day from the first N minutes of price action.",
+        },
+        "opening_range_minutes": {
+            "type": "integer",
+            "min": 1,
+            "default": 30,
+            "description": "opening_range mode: minutes after 09:30 ET used to build "
+            "the day's range (no entries while it forms).",
+        },
+        "stop_buffer_pct": {
+            "type": "number",
+            "min": 0,
+            "max": 1,
+            "default": 0.005,
+            "description": "opening_range mode: stop = range-low × (1 − this).",
         },
         "entry_price": {
             "type": "number",
@@ -146,12 +181,14 @@ class RangeTrader(Strategy):
         self._pending: dict[str, str] = {}
         # Fix #4: log invalid-level inertness at most once per day.
         self._invalid_logged_day: str | None = None
+        # opening_range mode: today's range, built from the first
+        # ``opening_range_minutes`` of bars, then frozen for the rest of the day.
+        self._or_high: float | None = None
+        self._or_low: float | None = None
+        self._dyn_levels: tuple[float, float, float] | None = None
 
     async def on_bar(self, bar: Any) -> None:
         p = self.params
-        entry = float(p.get("entry_price") or 0)
-        exit_ = float(p.get("exit_price") or 0)
-        stop = float(p.get("stop_price") or 0)
         price = float(bar.c)
         symbol = bar.symbol
 
@@ -165,6 +202,19 @@ class RangeTrader(Strategy):
             # DAY orders expired at the prior close; stale flags would
             # otherwise block the new session.
             self._pending.pop(symbol, None)
+            # New day: reset the opening range, and refresh the sizing equity from
+            # the LIVE account balance (fall back to the configured estimate when no
+            # broker snapshot exists yet).
+            self._or_high = None
+            self._or_low = None
+            self._dyn_levels = None
+            equity = await self.ctx.get_account_equity()
+            if equity is not None and equity > 0:
+                self._equity_estimate = equity
+
+        # Resolve today's levels: fixed (params) or dynamic opening-range. In
+        # opening_range mode this also accumulates the range while it is forming.
+        entry, exit_, stop = self._resolve_levels(p, bar, tod)
 
         position = await self.ctx.get_position_for(symbol)
         in_long = (
@@ -253,6 +303,40 @@ class RangeTrader(Strategy):
             self._pending.pop(sym, None)
 
     # ---- helpers ----
+
+    def _resolve_levels(self, p: dict[str, Any], bar: Any, tod: time) -> tuple[float, float, float]:
+        """Return today's ``(entry, exit, stop)``.
+
+        ``fixed`` mode → the configured params (legacy behavior). ``opening_range``
+        mode → derived from today's first ``opening_range_minutes`` of price action:
+        entry = range low (fade/buy support), exit = range high (sell resistance),
+        stop = range_low × (1 − ``stop_buffer_pct``). Returns zeros while the range
+        is still forming (so the existing ``entry <= 0`` gate blocks entries), and
+        accumulates the range as a side effect during that window."""
+        if p.get("level_mode", "fixed") != "opening_range":
+            return (
+                float(p.get("entry_price") or 0),
+                float(p.get("exit_price") or 0),
+                float(p.get("stop_price") or 0),
+            )
+        or_end = _shift(SESSION_OPEN, int(p.get("opening_range_minutes", 30)))
+        if SESSION_OPEN <= tod < or_end:
+            self._or_high = bar.h if self._or_high is None else max(self._or_high, bar.h)
+            self._or_low = bar.l if self._or_low is None else min(self._or_low, bar.l)
+            return (0.0, 0.0, 0.0)  # range still forming — no levels yet
+        if (
+            self._dyn_levels is None
+            and self._or_high is not None
+            and self._or_low is not None
+            and self._or_high > self._or_low
+        ):
+            buf = float(p.get("stop_buffer_pct", 0.005))
+            self._dyn_levels = (
+                round(self._or_low, 4),
+                round(self._or_high, 4),
+                round(self._or_low * (1 - buf), 4),
+            )
+        return self._dyn_levels or (0.0, 0.0, 0.0)
 
     def _size_position(self, *, entry: float, stop: float) -> int:
         """Risk-based sizing: ``risk_per_trade_pct × equity / per-share-risk``,

@@ -57,6 +57,11 @@ DEFAULT_PARAMS = {
     "use_market_regime_filter": True,
     "market_filter_symbol": "SPY",
     "pricing_timeframe": "1Day",
+    # The engine's _dispatch_bar_tick fetches params["timeframe"] (default "1Min")
+    # to fire on_bar; momentum needs DAILY bars or the scheduled rebalance silently
+    # produces no orders. MUST be set here — omitting it is the bug that left the
+    # Conservative/Growth Risk Profiles un-invested on their first rebalance.
+    "timeframe": "1Day",
     # initial_equity_estimate is a FALLBACK only — live equity comes from
     # accounts_state via ctx.get_account_equity().
     "initial_equity_estimate": 10000,
@@ -101,7 +106,9 @@ def main(argv: list[str] | None = None) -> int:
                          "needs its OWN paper account/user (run on the right login).")
     ap.add_argument("--code-path", default="templates/momentum_portfolio.py")
     ap.add_argument("--version", default="0.3.0")
-    ap.add_argument("--schedule", default="0 14 * * 1", help="weekly Mon 14:00 UTC ≈ 10:00 ET")
+    # Day-NAME 'mon', NOT '1': APScheduler from_crontab reads dow 0=Mon and does
+    # NOT remap cron's 1=Mon, so "0 14 * * 1" fires TUESDAY. "mon" is unambiguous.
+    ap.add_argument("--schedule", default="0 14 * * mon", help="weekly Mon 14:00 UTC ≈ 10:00 ET")
     ap.add_argument("--dry-run", action="store_true", help="print the create payload and exit")
     args = ap.parse_args(argv)
 

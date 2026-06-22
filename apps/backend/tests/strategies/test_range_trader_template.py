@@ -13,6 +13,11 @@ from strategies_user.templates.range_trader import RangeTrader
 MID = datetime(2026, 6, 10, 18, 0, tzinfo=UTC)
 OPEN_WINDOW = datetime(2026, 6, 10, 13, 32, tzinfo=UTC)
 CLOSE_WINDOW = datetime(2026, 6, 10, 19, 57, tzinfo=UTC)
+# opening_range mode: two bars inside the 30-min window (09:35 / 09:50 ET) and one
+# after it (10:05 ET) — all in UTC.
+OR_BAR_1 = datetime(2026, 6, 10, 13, 35, tzinfo=UTC)
+OR_BAR_2 = datetime(2026, 6, 10, 13, 50, tzinfo=UTC)
+AFTER_OR = datetime(2026, 6, 10, 14, 5, tzinfo=UTC)
 
 
 def _bar(ts: datetime, c: float, symbol: str = "AAPL") -> Bar:
@@ -30,6 +35,8 @@ def _ctx(position_qty: Decimal | None = None):
         ctx.get_position_for = AsyncMock(return_value=None)
     ctx.submit_order = AsyncMock(return_value=MagicMock(rejection_reason=None))
     ctx.log_signal = AsyncMock(return_value=1)
+    # Sizing reads live equity (None → fall back to initial_equity_estimate).
+    ctx.get_account_equity = AsyncMock(return_value=None)
     return ctx
 
 
@@ -108,3 +115,44 @@ async def test_daily_trade_cap() -> None:
     await strat.on_bar(_bar(MID, c=100.0))
     await strat.on_bar(_bar(MID, c=100.0))  # still flat (mock), but cap hit
     assert ctx.submit_order.call_count == 1
+
+
+# ---- opening_range (dynamic daily levels) ----
+
+
+async def test_opening_range_builds_levels_then_enters_at_range_low() -> None:
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(
+        ctx=ctx,
+        params=_params(level_mode="opening_range", opening_range_minutes=30,
+                       stop_buffer_pct=0.01),
+    )
+    await strat.on_init()
+    # Build the opening range from two in-window bars: OR = [low 99.9, high 101.1].
+    await strat.on_bar(_bar(OR_BAR_1, c=100.0))  # h=100.1 l=99.9
+    await strat.on_bar(_bar(OR_BAR_2, c=101.0))  # h=101.1 l=100.9
+    ctx.submit_order.assert_not_called()  # no entry while the range is forming
+    # After the window, price dips to the dynamic entry (range low 99.9) → BUY.
+    await strat.on_bar(_bar(AFTER_OR, c=99.9))
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "buy"
+
+
+async def test_opening_range_no_entry_while_forming() -> None:
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(level_mode="opening_range"))
+    await strat.on_init()
+    # A low price during the window must NOT trigger an entry — levels aren't set yet.
+    await strat.on_bar(_bar(OR_BAR_1, c=50.0))
+    ctx.submit_order.assert_not_called()
+
+
+async def test_live_equity_sizing_uses_account_balance() -> None:
+    ctx = _ctx(position_qty=None)
+    ctx.get_account_equity = AsyncMock(return_value=Decimal("10000"))  # small account
+    strat = RangeTrader(ctx=ctx, params=_params(initial_equity_estimate=100_000))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0))  # entry 100, stop 95 → per-share risk 5
+    req = ctx.submit_order.call_args.args[0]
+    # Live equity 10k → risk 100 → qty 20. (The 100k estimate would size to 200→cap100.)
+    assert req.qty == Decimal(20)
