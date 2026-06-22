@@ -7,7 +7,7 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.2 (2026-06-22) — owner review folded (`Docs/review/comments.md`, 10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
+| Version | v0.3 (2026-06-22) — **final** owner review folded (`Docs/review/comments.md`, 9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
 | Source of truth | `apps/backend/app/research/programs.py` + the Evidence Dashboard |
 | Convention | Permanent IDs (`MOM / RNG / MF / SEC / LOW / TREND-NNN`) are platform IP — citable in the whitepaper, patent, and customer docs. The registry is **open-ended**: it grows one program at a time, forever (the GitHub-repositories model), and never "closes." |
 
@@ -51,22 +51,31 @@ research has happened when only the **plan** is frozen:
 `Completed · Diversifier (B)` (research done, overlay value) or `Archived · Rejected` (research done,
 shelved) — the two columns never collapse into one.
 
+**Research line** (a third, orthogonal axis). A program's *research line* can stay open after a verdict is
+reached — `Completed` is not the same as "nothing left to study":
+
+| Research line | Meaning |
+|---|---|
+| **Open** | Active or continuously accruing evidence (e.g. a live book under continuous monitoring; a planned program not yet run). |
+| **Follow-on available** | Research is `Completed`, but pre-registered next variants exist (e.g. LOW-001's defensive-sleeve / broader-universe V2; MF-001's SF1 re-test). |
+| **Closed** | The construction line is finished — a rejection or a stopping-rule fire; reopening requires a *fundamentally new hypothesis*. |
+
 ---
 
 ## The registry
 
 ### Status dashboard
 
-| ID | Philosophy | Status | Progress | Verdict |
-|---|---|---|---|---|
-| **MOM-001** | Momentum (cross-sectional relative strength) | **Production** (paper) | `██████████` 100% | ✅ **Approved** |
-| **RNG-001** | Range / mean-reversion | **Archived** | `██████████` 100% | 🔴 **Rejected** |
-| **MF-001** | Multi-Factor (value + quality) | **Completed** | `██████████` 100% | 🟡 **Inconclusive** (deferred → SF1) |
-| **SEC-001** | Sector Rotation (sector relative strength) | **Archived** (construction) | `██████████` 100% | 🟡 **Diversifier (B)** |
-| **LOW-001** | Low Volatility (defensive) | **Completed** | `██████████` 100% | 🟡 **Diversifier (B)** |
-| **TREND-001** | Trend Following (time-series trend) | **Planning** | `█░░░░░░░░░` 10% | — **Pending** |
+| ID | Philosophy | Status | Progress | Research line | Verdict | Platform value |
+|---|---|---|---|---|---|---|
+| **MOM-001** | Momentum (cross-sectional relative strength) | **Production** (paper) | `██████████` 100% | Open (continuous evidence) | ✅ **Approved** | **Reference strategy** — proves Layers 1–2 work |
+| **RNG-001** | Range / mean-reversion | **Archived** | `██████████` 100% | Closed | 🔴 **Rejected** | **Honest rejection** — the platform can decline |
+| **MF-001** | Multi-Factor (value + quality) | **Completed** | `██████████` 100% | Follow-on (→ SF1) | 🟡 **Inconclusive** | **Research discipline** — the gate held the line |
+| **SEC-001** | Sector Rotation (sector relative strength) | **Archived** (construction) | `██████████` 100% | Closed | 🟡 **Diversifier (B)** | **Diversification** — a non-momentum return source |
+| **LOW-001** | Low Volatility (defensive) | **Completed** | `██████████` 100% | Follow-on (sleeve / V2) | 🟡 **Diversifier (B)** | **Defensive strategy** — the calm-stocks complement |
+| **TREND-001** | Trend Following (time-series trend) | **Planning** | `█░░░░░░░░░` 10% | Open (not started) | — **Pending** | **Trend philosophy** — the time-series complement |
 
-**Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). `Progress` is the share of the program's research lifecycle complete — `Planning` programs are < 100% by definition (the plan is done, the research is not).
+**Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). **Platform value** answers *why each program exists* — its contribution to the platform, not just its result; a rejection and a diversifier are both assets. **Research line** is orthogonal to Status (above).
 
 ### Portfolio KPI (the "Insights" view)
 
