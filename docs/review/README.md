@@ -19,7 +19,8 @@ these are convenience copies. When a doc is reviewed + merged, it's removed from
 
 | Document | Outcome |
 |---|---|
-| `SEC-001` **V2** Pure Sector Baskets plan | ✅ **Approved 2026-06-21 ("one of the best research plans you've produced") + 4 suggestions → v0.2** (Why-V2, stopping rule, commercial-value table, no-overfit clause). Q1–Q3 → recommendations (K=3 · H3 read · all-sector-baskets primary). **Building `scripts/sector_rotation_v2_research.py` + the run now.** |
+| `LOW-001` Low Volatility plan | ✅ **Approved 2026-06-21 (9.7/10) + suggestions → v0.2** (momentum relationship · Low-Vol vs Vol-Target · expected-behavior table · outcome probabilities + learning objective · research cost · phase terminology). Q1–Q3 → recommendations (LOW-001 rename · top-200 first · realized vol). **Built + full 2000–2026 run in progress.** Also: Research Program Registry doc created. |
+| `SEC-001` **V2** Pure Sector Baskets | ✅ **Approved → built → run complete → verdict B (Diversifier, confirmed); stopping rule fired → construction ARCHIVED** (H1 +0.04 CI spans zero, H3 V2≈V1 → construction not the limiter). Full evidence + harness merged in **PR #216**. |
 | `SEC-001` **V1** Sector Rotation Research plan | ✅ **Approved (9.6/10) + 10 suggestions → v0.2** (PR #214). Run complete → **verdict B (Diversifier)**, PR #215 merged. V2 is the follow-up. |
 
 ---

@@ -57,11 +57,16 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "construction ARCHIVED; a standalone edge needs a fundamentally different hypothesis.",
         "docs/implementation/evidence/sec_001_v2_pure_baskets/sector_rotation_v2.md"),
     ResearchProgram(
-        "LV-001", "Low Volatility", "Low-volatility factor", "planned",
-        "Next Tier-B philosophy (reuses the vol infrastructure). Not started.", None),
+        "LOW-001", "Low Volatility", "Defensive / low-volatility anomaly", "research",
+        "Pre-registered (v0.2, approved 9.7/10). The defensive complement to momentum (strength vs "
+        "stability). Re-tests the low-vol anomaly on full-cycle survivorship-free 2000-2026 data "
+        "(a prior study found it negative on the narrow 2016-26 mega-cap window). H1 standalone / "
+        "H2 diversifier (expect neg corr) / H3 downside protection. Evidence run in progress.",
+        "docs/implementation/evidence/low_001_low_volatility/low_volatility.md"),
     ResearchProgram(
-        "TF-001", "Trend Following", "Time-series trend", "planned",
-        "Tier-B philosophy (different holding period / turnover). Not started.", None),
+        "TREND-001", "Trend Following", "Time-series trend", "planned",
+        "Tier-B philosophy (different holding period / turnover). Charter after LOW-001; then the "
+        "platform shifts to the Factor Lab (programs become configuration, not new scripts).", None),
 )
 
 
