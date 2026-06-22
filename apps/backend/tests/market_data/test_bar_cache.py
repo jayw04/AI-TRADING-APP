@@ -71,6 +71,25 @@ async def test_second_read_serves_from_disk(tmp_cache):
         assert fetcher.call_count == 1
 
 
+async def test_open_bucket_refetched_after_throttle(tmp_cache):
+    """The current, still-OPEN bucket must be re-fetched (throttled) so bars
+    printed since the last write land — a partial current-month/day file must NOT
+    freeze the cache (the weeks-stale-bars bug). Past buckets stay disk-served."""
+    cache, _root = tmp_cache
+    now = datetime.now(UTC)
+    start = now - timedelta(hours=6)  # within the current (open) month bucket
+    fetcher = MagicMock(return_value=_mk_bars(now - timedelta(hours=1), 5))
+
+    with patch("app.market_data.bar_cache._alpaca_fetch_bars", fetcher):
+        await cache.get_bars("AAPL", "1Day", start, now)
+        assert fetcher.call_count == 1  # first fetch of the open month
+        await cache.get_bars("AAPL", "1Day", start, now)
+        assert fetcher.call_count == 1  # throttled — no immediate re-fetch
+        cache._last_open_fetch.clear()  # simulate the throttle window elapsing
+        await cache.get_bars("AAPL", "1Day", start, now)
+        assert fetcher.call_count == 2  # FIX: open bucket re-fetched (was frozen before)
+
+
 async def test_empty_day_marker_skips_refetch(tmp_cache):
     """If Alpaca returns no bars for a given day (holiday, inactive symbol),
     a ``.empty`` marker is written. Future requests for the same day must
