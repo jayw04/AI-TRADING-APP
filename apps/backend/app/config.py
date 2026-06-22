@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     bars_cache_root: str = "bars_cache"
     bars_cache_max_gb: float = 5.0
 
+    # --- Pre-market gappers (read-only ingest of the external scanner) ---
+    # Directory holding ``premarket_gappers_<date>.json`` files produced by the
+    # sibling ``claude-trading-view`` scanner. Mounted read-only into the
+    # container (see docker-compose). Read-only/advisory — never an order signal.
+    premarket_gappers_dir: str = "/app/premarket_gappers"
+
     # --- Agent (P3) ---
     # Empty key disables the agent; Session 3's runtime refuses to start a
     # session with a clear error message rather than crashing on the first

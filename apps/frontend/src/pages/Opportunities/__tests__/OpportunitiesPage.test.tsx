@@ -29,6 +29,14 @@ function emptyResponse(): OpportunitiesResponse {
     open_orders_expiring: { items: [], count: 0, as_of: now },
     risk_rejections: { items: [], count: 0, as_of: now },
     recent_fills: { items: [], count: 0, as_of: now },
+    premarket_gappers: {
+      items: [],
+      count: 0,
+      as_of: now,
+      scanned_at: null,
+      date: null,
+      stale: true,
+    },
     as_of: now,
   };
 }
