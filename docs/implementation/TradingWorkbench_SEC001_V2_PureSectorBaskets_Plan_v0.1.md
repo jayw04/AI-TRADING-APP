@@ -15,7 +15,7 @@
 | Field | Value |
 |---|---|
 | Document | **Sector Rotation V2** — plan + **pre-registered** acceptance criteria. The §3 V1→V2→V3 roadmap, now at V2. |
-| Version | **v0.4 (2026-06-22)** — final owner-review pass folded: added the **Evidence-Engineering principle line** opening §0 ("change only one dimension at a time to isolate the limiting factor" — patent language; owner: *"SEC-001 is finished — the design"*). **v0.3** folded the second pass (9.8/10): added the structured **research-cost table** (§10, suggestion B). ⚠ The other two Round-1 suggestions — **pre-registered outcome probabilities** (A) and **learning-objective-per-outcome** (C) — are **deliberately not back-filled**: SEC-001 V2 has since *run* (verdict **B confirmed**, construction archived per the stopping rule), and inventing a "forecast" after the results are known would be a false pre-registration that undermines the Evidence Engineering moat. They live as a forward template in LOW-001 §4 / §10a instead. **v0.2 (2026-06-21)** folded the first review: **§0 Why V2 exists** (S1), a **stopping rule** (S2), the **commercial-value × outcome table** (S3), and the **patent-language no-overfit clause** (S4). Q1–Q3 resolved to recommendations. v0.1 was the pre-review draft. |
+| Version | **v0.5 (2026-06-22)** — owner review folded (9.95/10): added §12 **Reusable platform capability** (the construction line closes, but sector-neutral construction / paired V1↔V2 isolation / the all-sector control remain platform capabilities — *the strategy ends, the platform gets stronger*). **v0.4** added the **Evidence-Engineering principle line** opening §0 ("change only one dimension at a time to isolate the limiting factor" — patent language; owner: *"SEC-001 is finished — the design"*). **v0.3** folded the second pass (9.8/10): added the structured **research-cost table** (§10, suggestion B). ⚠ The other two Round-1 suggestions — **pre-registered outcome probabilities** (A) and **learning-objective-per-outcome** (C) — are **deliberately not back-filled**: SEC-001 V2 has since *run* (verdict **B confirmed**, construction archived per the stopping rule), and inventing a "forecast" after the results are known would be a false pre-registration that undermines the Evidence Engineering moat. They live as a forward template in LOW-001 §4 / §10a instead. **v0.2 (2026-06-21)** folded the first review: **§0 Why V2 exists** (S1), a **stopping rule** (S2), the **commercial-value × outcome table** (S3), and the **patent-language no-overfit clause** (S4). Q1–Q3 resolved to recommendations. v0.1 was the pre-review draft. |
 | Date | 2026-06-21 |
 | Strategy | **Pure sector baskets** — hold the top-K strongest sectors as **diversified, sector-neutral equal-weight baskets** (not the top-quintile *stocks* of strong sectors, as V1 did). |
 | Why V2 now | V1's H1 CI **[−0.03, 0.366]** missed zero by a hair. The V2 thesis: V1 mixed the sector signal with **single-stock selection noise** (top-quintile of strong sectors = concentrated, idiosyncratic). Diversifying *within* each sector should shrink return variance → **tighten the Sharpe CI** → potentially turn B (diversifier) into A (standalone edge). That is a falsifiable, pre-registered hypothesis, not a fishing expedition. |
@@ -192,3 +192,20 @@ Scientific success → commercial success → product success are **distinct gat
 - **Q3 — primary benchmark:** ✅ **All-sector equal-weight baskets** is the primary H1 control (sharpest isolation of the rotation signal); the equal-weight universe is reported alongside for V1 continuity.
 
 Plan is **frozen**. Next: build `scripts/sector_rotation_v2_research.py` + tests, run it, ship the evidence package.
+
+## 12. Reusable platform capability (the strategy ends, the platform gets stronger)
+
+Although SEC-001 concludes the **Sector Rotation construction research line** (verdict B, construction
+archived per the stopping rule), the **reusable platform capabilities** developed during this program
+remain part of TradingWorkbench for every future research program:
+
+- **Sector-neutral portfolio construction** — the top-K equal-weight-basket builder (`(1/K)·(1/n_sector)`
+  weighting), now a general construction primitive available to any factor study.
+- **Paired V1↔V2 construction-isolation methodology** — holding signal/window/universe fixed and changing
+  only construction, with a paired ΔSharpe bootstrap — a reusable experimental design, not a one-off.
+- **The all-sector-baskets control** — a sharper benchmark pattern (rotate-into-K vs hold-all) reusable
+  wherever a selection signal must be isolated from a construction artifact.
+
+This is the commercial point of Evidence Engineering: *a strategy's research line can close while the
+platform it hardened keeps compounding.* These capabilities are catalogued in the Research Program
+Registry's **Platform Capability Matrix**.

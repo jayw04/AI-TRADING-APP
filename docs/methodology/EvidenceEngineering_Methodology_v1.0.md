@@ -173,6 +173,10 @@ Decision → Knowledge*, not *Research → Report → Forgotten*.
 - **Research Program Registry** — the single catalog of every program from hypothesis through verdict,
   carrying Status · Progress · Research line · Verdict · Evidence package · Lesson learned · **Platform
   value** (why each program exists, beyond its result). The open-ended, forever-growing institutional record.
+- **Capability Registry** — the catalogue of **reusable platform capabilities** each program leaves behind
+  (engine code, methodology, workflow), indexed by origin program — because *customers buy capabilities, not
+  strategies*. A rejected or archived program still hardens the platform. Seeded today as the Registry's
+  **Platform Capability Matrix**; a first-class Capability Registry is Phase-B platform work.
 - **Decision Register** — one auditable row per study: *Decision · Reason · Study # · Evidence* — the durable
   "why is this on/off."
 - **Negative findings** — rejected and marginal studies are **kept with their reason**. Knowing what does
@@ -211,12 +215,15 @@ From v1.0 forward, the methodology is treated as software:
 
 | Version | Date | Change |
 |---|---|---|
-| v1.0 (draft) | 2026-06-22 | Initial freeze proposal — codifies the lifecycle, invariants, gate, taxonomies, evidence package, registries, governance, and calibration metrics exercised across MOM/RNG/MF/SEC/LOW/TREND-001. |
+| v1.0 (draft) | 2026-06-22 | Initial freeze proposal — codifies the lifecycle, invariants, gate, taxonomies, evidence package, registries (incl. the Capability Registry), governance, and calibration metrics exercised across MOM/RNG/MF/SEC/LOW/TREND-001. |
 
 ---
 
-> **Ratification.** This is a DRAFT proposing the freeze. On owner sign-off it becomes Evidence Engineering
-> **v1.0**, cited by the whitepaper (the three-layer model → Chapter 1; this spec + the Registry → an
-> appendix), the patent (the full *Research Program → Evidence → Decision → Registry → Continuous Evidence*
-> workflow as the invention), and the product. Nothing here is new behavior — it is the existing discipline,
-> written down and version-pinned.
+> **Ratification timing (owner, 2026-06-22).** The owner endorsed declaring Evidence Engineering **v1.0**
+> formally **after TREND-001 completes** — i.e. once the initial six-program research catalog is closed.
+> This document is therefore a DRAFT that *stages* the freeze: the content is stable now, and ratification
+> flips it to official v1.0 at that milestone. On sign-off it is cited by the whitepaper (the three-layer
+> model → Chapter 1; this spec + the Registry → an appendix), the patent (the full *Research Program →
+> Evidence → Decision Registry → Research Registry → Promotion Gate → Continuous Evidence → Research
+> Calibration* workflow as the invention), and the product. Nothing here is new behavior — it is the existing
+> discipline, written down and version-pinned.
