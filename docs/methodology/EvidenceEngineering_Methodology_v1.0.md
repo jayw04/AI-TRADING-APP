@@ -1,8 +1,9 @@
 # Evidence Engineering — Methodology Specification (v1.0 · DRAFT for owner ratification)
 
 > **What this is.** The frozen, versioned definition of *how TradingWorkbench does research* — the
-> standard lifecycle, evidence gates, verdict taxonomy, evidence-package structure, registries, and
-> governance workflow that **every** research program inherits. It is the methodology layer of the
+> standard lifecycle, evidence gates, verdict taxonomy, evidence-package structure, registries, governance
+> workflow, the **platform-vs-investment capability** taxonomy, and the **platform-capability Labs**
+> (Discovery Lab, Factor Lab) that **every** research program inherits. It is the methodology layer of the
 > three-layer product model, written down once so the whitepaper, patent, customer docs, and product UI
 > can all cite a single stable source instead of re-deriving it per strategy.
 >
@@ -33,6 +34,47 @@ platform implements and the programs obey.
 
 > A strategy is a *result* of the method, never the product. Momentum is the reference implementation that
 > proves Layers 1–2 work — the way Linux is a reference OS, not the OS.
+
+### 1a. Two kinds of capability — Platform vs Investment
+
+Every research program leaves behind a **capability**, and capabilities come in two kinds. Keeping them
+distinct is the product architecture (and the commercial story — *customers buy the platform capabilities,
+not the strategy logic*):
+
+| | **Platform capability** | **Investment capability** |
+|---|---|---|
+| What it is | reusable **engine · method · workflow · registry** | the **investment logic / signal / profile** a strategy contributes |
+| Layer | Layer 2 (the platform itself) | Layer 3 (content that runs on the platform) |
+| Examples | bootstrap engine, Evidence Package, sector-neutral construction, the Research Registry, the Discovery Lab, the Factor Lab | cross-sectional momentum, vol-targeting, low-volatility, sector rotation, trend |
+| Commercial role | **the product you sell** | the content the product produces |
+| Lifecycle | accrues and compounds across programs | tied to a single program's verdict |
+
+A rejected program (RNG) ships *zero* investment capability but still hardens *platform* capability (the
+honest-rejection workflow). That is why "every exit is a success": each program advances at least one of
+the two capability kinds.
+
+### 1b. Platform-capability Labs — research becomes configuration
+
+A **Lab** is a platform capability where authoring a *new* research program is **configuration over shared
+infrastructure**, not a new bespoke script. This is the platform's maturity signal: after a handful of
+bootstrapping programs prove the shared pipeline, the platform stops writing one-offs.
+
+- **Factor Lab** — the factor-research engine. After `MOM / MF / SEC / LOW` demonstrated ~90% code reuse,
+  a new factor study becomes a *configuration* over the shared evidence pipeline (universe + factor
+  definition + gate), not a new document.
+- **Discovery Lab** — the universal *"what's worth looking at?"* engine: pre-open / periodic candidate
+  **discovery** that runs *in front of* the lifecycle and hands a curated **Candidate Set** to the matching
+  research programs. `SCAN-001` is its first profile (daily intraday); swing / momentum / sector / ETF /
+  macro / earnings are future profiles — each a *configuration*, never a new `DISCOVERY-00N` codebase.
+
+**The canonical discovery pipeline** (discovery feeds the lifecycle; it never bypasses it):
+
+```
+Discovery Lab → Candidate Set → Research Program → Evidence Package → Governance → Paper → Production → Continuous Evidence
+```
+
+Both Labs embody the same rule: *new research is configuration, the engine is the durable asset.* New Labs
+(beyond Factor and Discovery) are themselves platform capabilities and join the registry as such.
 
 ## 2. Research invariants (non-negotiable)
 
@@ -216,6 +258,7 @@ From v1.0 forward, the methodology is treated as software:
 | Version | Date | Change |
 |---|---|---|
 | v1.0 (draft) | 2026-06-22 | Initial freeze proposal — codifies the lifecycle, invariants, gate, taxonomies, evidence package, registries (incl. the Capability Registry), governance, and calibration metrics exercised across MOM/RNG/MF/SEC/LOW/TREND-001. |
+| v1.0 (draft, rev.) | 2026-06-22 | **Architecture-freeze expansion (owner):** added §1a **Platform vs Investment capabilities** and §1b the **platform-capability Labs** — **Factor Lab** + **Discovery Lab** (research-as-configuration) with the canonical *Discovery → … → Continuous Evidence* pipeline. These join the frozen v1.0 concept set; owner direction is now *"freeze the architecture — implement, validate, commercialize,"* not invent further core abstractions. |
 
 ---
 
