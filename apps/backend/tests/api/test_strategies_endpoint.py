@@ -344,6 +344,69 @@ async def test_start_is_idempotent_when_already_active(client, factory) -> None:
     register_mock.assert_not_awaited()
 
 
+def _idle_and_active_pair(active_name: str, idle_name: str) -> list[StrategyRow]:
+    return [
+        StrategyRow(
+            user_id=1, name=active_name, version="0.1.0", type=StrategyType.PYTHON,
+            status=StrategyStatus.PAPER, code_path="examples/rsi_meanreversion.py",
+            params_json={}, symbols_json=["AAPL"], schedule="*/1 * * * *",
+            risk_limits_id=None, created_at=_now(), updated_at=_now(),
+        ),
+        StrategyRow(
+            user_id=1, name=idle_name, version="0.1.0", type=StrategyType.PYTHON,
+            status=StrategyStatus.IDLE, code_path="examples/rsi_meanreversion.py",
+            params_json={}, symbols_json=["MSFT"], schedule="*/1 * * * *",
+            risk_limits_id=None, created_at=_now(), updated_at=_now(),
+        ),
+    ]
+
+
+async def test_start_blocks_second_active_strategy_on_same_account(client, factory) -> None:
+    """One active strategy per account: a 2nd PAPER start on the same user is 409'd
+    (they'd share that account's cash + the user-level risk limits)."""
+    async with factory() as session:
+        active, idle = _idle_and_active_pair("active-book", "second-book")
+        session.add_all([active, idle])
+        await session.commit()
+        await session.refresh(idle)
+        sid = idle.id
+
+    register_mock = AsyncMock()
+    client._transport.app.state.strategy_engine.register = register_mock
+
+    resp = await client.post(f"/api/v1/strategies/{sid}/start")
+    assert resp.status_code == 409
+    assert "already has an active strategy" in resp.json()["detail"]
+    register_mock.assert_not_awaited()  # guard rejects BEFORE touching the engine
+
+
+async def test_start_allow_shared_account_override(client, factory) -> None:
+    """allow_shared_account=true deliberately bypasses the one-per-account guard."""
+    async with factory() as session:
+        active, idle = _idle_and_active_pair("active-book2", "second-book2")
+        session.add_all([active, idle])
+        await session.commit()
+        await session.refresh(idle)
+        sid = idle.id
+
+    async def fake_register(strategy_id: int):
+        async with factory() as s:
+            r = await s.get(StrategyRow, strategy_id)
+            r.status = StrategyStatus.PAPER
+            await s.commit()
+        result = MagicMock()
+        result.run_id = 7
+        return result
+
+    client._transport.app.state.strategy_engine.register = fake_register
+
+    resp = await client.post(
+        f"/api/v1/strategies/{sid}/start?allow_shared_account=true"
+    )
+    assert resp.status_code == 200
+    assert resp.json()["new_status"] == "paper"
+
+
 async def test_stop_calls_engine_unregister(client, factory) -> None:
     async with factory() as session:
         row = StrategyRow(
