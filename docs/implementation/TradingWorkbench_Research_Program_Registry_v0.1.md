@@ -7,7 +7,7 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.3 (2026-06-22) — **final** owner review folded (`Docs/review/comments.md`, 9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
+| Version | v0.4 (2026-06-22) — owner review folded (`Docs/review/comments.md`, 9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
 | Source of truth | `apps/backend/app/research/programs.py` + the Evidence Dashboard |
 | Convention | Permanent IDs (`MOM / RNG / MF / SEC / LOW / TREND-NNN`) are platform IP — citable in the whitepaper, patent, and customer docs. The registry is **open-ended**: it grows one program at a time, forever (the GitHub-repositories model), and never "closes." |
 
@@ -98,6 +98,29 @@ registry institutional memory rather than a scoreboard.
 | **SEC-001** | Strongest non-momentum book (Sharpe 0.51), but no standalone edge (V1 H1 +0.16, CI [−0.03, 0.366]). V2 pure baskets confirmed B; H3 showed construction is **not** the limiter → construction archived per the stopping rule. | `evidence/sec_001_sector_rotation/` (V1), `evidence/sec_001_v2_pure_baskets/` (V2) | The **stopping rule works**: V2 isolated construction, found it wasn't the constraint, and the program closed instead of looping on parameters. |
 | **LOW-001** | Best risk-adjusted book on the platform: Sharpe 0.59 (vs momentum 0.39), maxDD −39% (≈ half of momentum's −76%), Calmar 0.20. H1 standalone +0.24, CI [−0.029, 0.53] just spans zero; H2 corr **−0.15** (true defensive diversifier); H3 shallower DD than benchmark in **5/5** windows. | `evidence/low_001_low_volatility/` | A prior negative (#142) **reversed** once tested on the right universe/cycle — narrow-universe results don't generalize. Low-vol is the defensive complement to momentum. Open follow-on: defensive sleeve / blend, or broader-universe V2. |
 | **TREND-001** | — (planned; charter pending). | — | — |
+
+## Platform Capability Matrix (capabilities outlive strategies)
+
+Every program leaves behind **reusable platform capabilities** — engine code, methodology, and workflow
+that stay part of TradingWorkbench long after the strategy's research line closes. This is the commercial
+crux: *customers don't buy strategies, they buy capabilities.* A rejected program (RNG) still hardened the
+platform; an archived construction line (SEC) still contributed sector-neutral construction. The matrix is
+the seed of a future first-class **Capability Registry** (Phase B platform work).
+
+| Capability | Origin program | Status |
+|---|---|---|
+| Cross-sectional momentum signal | MOM-001 | shipped |
+| Volatility targeting (the risk dial) | MOM-001 | shipped (v1.1 live) |
+| Circular-block bootstrap engine | MOM-001 | shipped |
+| Evidence Package (script → JSON → MD, seeded) | MOM-001 | shipped |
+| Honest-rejection workflow | RNG-001 | shipped |
+| Multi-factor composite engine | MF-001 | shipped |
+| Factor-correlation analysis | MF-001 | shipped |
+| Sector-neutral portfolio construction | SEC-001 | shipped |
+| Construction-isolation methodology (paired V1↔V2) | SEC-001 | shipped |
+| Research-calibration metrics (Confidence/Complexity/Duration/Accuracy) | LOW-001 | shipped |
+| Defensive / low-volatility portfolio logic | LOW-001 | shipped |
+| Time-series trend engine | TREND-001 | planned |
 
 ## How this evolves
 

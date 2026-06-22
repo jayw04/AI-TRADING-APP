@@ -16,7 +16,7 @@
 | Field | Value |
 |---|---|
 | Document | **Low Volatility research program** — plan + **pre-registered** acceptance criteria. |
-| Version | **v0.4 (2026-06-22)** — final owner review folded: **Research Accuracy** named as the next calibration metric (Expected → Observed → Calibration Score, §10a) so the platform can score *how good its own research forecasts are*. **v0.3** folded the second review (`Docs/review/comments.md`, 9.7→9.9): three **research-calibration metrics** (§10a) — **Research Confidence** (expected, with reason), **Research Complexity** (Low/Med/High), and **Research Duration** (Planned → Started → Completed) — so the platform can later compare *expected vs observed* about its own research process. **v0.2 (2026-06-21)** folded the first review (9.7/10): the **Momentum relationship** (strength vs stability / offensive vs defensive, §0); an explicit **Low-Vol vs Vol-Target** distinction (§8a); a pre-registered **expected-behavior table** (§1a); the **expected-outcome probabilities** + **learning objective** per outcome (§4); a fuller **research-cost** breakdown (§10); and the standardized **research-phase terminology** (§10). v0.1 was the pre-review draft. |
+| Version | **v0.5 (2026-06-22)** — owner review folded (9.95/10): the **Research Calibration Index** (§10a) — the cross-program roll-up that Research Accuracy feeds (Confidence → Prediction → Outcome → portfolio calibration score). **v0.4** named **Research Accuracy** as the next calibration metric (Expected → Observed → Calibration Score, §10a) so the platform can score *how good its own research forecasts are*. **v0.3** folded the second review (`Docs/review/comments.md`, 9.7→9.9): three **research-calibration metrics** (§10a) — **Research Confidence** (expected, with reason), **Research Complexity** (Low/Med/High), and **Research Duration** (Planned → Started → Completed) — so the platform can later compare *expected vs observed* about its own research process. **v0.2 (2026-06-21)** folded the first review (9.7/10): the **Momentum relationship** (strength vs stability / offensive vs defensive, §0); an explicit **Low-Vol vs Vol-Target** distinction (§8a); a pre-registered **expected-behavior table** (§1a); the **expected-outcome probabilities** + **learning objective** per outcome (§4); a fuller **research-cost** breakdown (§10); and the standardized **research-phase terminology** (§10). v0.1 was the pre-review draft. |
 | Date | 2026-06-21 |
 | Strategy | **Low Volatility** — hold the lowest-realized-volatility names; the next Tier-B *investment philosophy* (Strategy Roadmap; owner 12-month roadmap item after SEC-001). |
 | Why it's different | Momentum is **offensive** (relative strength, trend); low-vol is **defensive** (own the calmer stocks). A genuinely different philosophy — and the one most likely to be *negatively* correlated with momentum, which is exactly what a diversifier needs. |
@@ -245,6 +245,12 @@ research calibration**, both roll up from these fields across the registry.
 > confidence" programs cleared their gate; how the pre-registered outcome probabilities compared to the
 > actual verdicts). That closes the loop — the platform measuring not just its strategies but the quality
 > of its *research process itself*. Deferred until the registry has the sample size to make it meaningful.
+>
+> **Roll-up — the Research Calibration Index (owner, latest review).** Aggregated across the registry, the
+> per-program `Confidence → Prediction → Outcome` chain becomes a single **Research Calibration Index** — a
+> portfolio-level score of how well-calibrated the platform's research forecasts are (e.g. MOM-001 High →
+> Succeeded · LOW-001 Medium → Succeeded · MF-001 Medium → Inconclusive · …). It lives in the Registry, not
+> this plan; named here as the destination this per-program metric feeds.
 
 ## 11. Resolved decisions (owner, 2026-06-21)
 
