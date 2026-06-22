@@ -7,9 +7,9 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.1 (2026-06-21) |
+| Version | v0.2 (2026-06-22) — owner review folded (`Docs/review/comments.md`, 10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
 | Source of truth | `apps/backend/app/research/programs.py` + the Evidence Dashboard |
-| Convention | Permanent IDs (`MOM / RNG / MF / SEC / LOW / TREND-NNN`) are platform IP — citable in the whitepaper, patent, and customer docs. |
+| Convention | Permanent IDs (`MOM / RNG / MF / SEC / LOW / TREND-NNN`) are platform IP — citable in the whitepaper, patent, and customer docs. The registry is **open-ended**: it grows one program at a time, forever (the GitHub-repositories model), and never "closes." |
 
 ---
 
@@ -33,27 +33,72 @@ Every program travels the same phases — the terminology used across the whitep
 
 A program can exit at any phase with a verdict (Approved / Rejected / Inconclusive / Diversifier) — and **every exit is a success**, because Evidence Engineering measures the quality of decisions, not the count of strategies shipped.
 
+## Program status taxonomy (plan-complete ≠ research-complete)
+
+`Status` answers *"where is this program in its life?"* and is deliberately distinct from `Verdict`
+(*"what did the research conclude?"*). The separation exists so a reader is never misled into thinking
+research has happened when only the **plan** is frozen:
+
+| Status | Meaning |
+|---|---|
+| **Planning** | Chartered; plan + pre-registration written/frozen. **No research has run yet.** |
+| **Running** | The evidence harness is executing (or mid-construction-sequence, e.g. a V2 follow-on). |
+| **Completed** | Research finished; a verdict is assigned and an evidence package exists. The program may still have open follow-on variants. |
+| **Archived** | Research finished **and** the construction line is closed — a rejection, or a stopping-rule fire. A citable end-state, not a failure. |
+| **Production** | Promoted past governance into paper and/or live trading. |
+
+`Status` is a property of the program; `Verdict` is a property of the evidence. A program can be
+`Completed · Diversifier (B)` (research done, overlay value) or `Archived · Rejected` (research done,
+shelved) — the two columns never collapse into one.
+
 ---
 
 ## The registry
 
-| ID | Philosophy | Phase | Verdict | Headline |
+### Status dashboard
+
+| ID | Philosophy | Status | Progress | Verdict |
 |---|---|---|---|---|
-| **MOM-001** | Momentum (cross-sectional relative strength) | Production (paper) | ✅ **Approved** | Sharpe 0.48, 95% CI [0.13, 0.85], p=0.003 (1997–2026, survivorship-free), cost-robust. Live as three vol-target Risk Profiles. |
-| **RNG-001** | Range / mean-reversion | Complete | 🔴 **Rejected** | First formal rejection: PF 1.27 (< 1.3 bar); bootstrap mean-P&L 95% CI [−$19.74, +$57.53] spans zero; walk-forward PF decays to 0.89. |
-| **MF-001** | Multi-Factor (value + quality) | Complete | 🟡 **Inconclusive** | On survivorship-free SF1: genuine diversifier (corr −0.09/−0.005), DD −51%→−40%, but ΔSharpe +0.04, CI [−0.35, +0.48] spans zero → keep Momentum v1.1. |
-| **SEC-001** | Sector Rotation (sector relative strength) | Complete | 🟡 **Diversifier (B)** | Strongest non-momentum book (Sharpe 0.51), but no standalone edge (V1 H1 +0.16 CI [−0.03, 0.366]). V2 pure baskets confirmed B; H3 showed construction is not the limiter → **construction archived** per the stopping rule. |
-| **LOW-001** | Low Volatility (defensive) | Complete | 🟡 **Diversifier (B)** | Best risk-adjusted book on the platform: Sharpe 0.59 (vs momentum 0.39), maxDD −39% = **half** of momentum's −76%, Calmar 0.20. H1 standalone +0.24 CI [−0.029, 0.53] just spans zero; H2 corr **−0.15** (true defensive diversifier); H3 shallower DD than benchmark in **5/5** windows. Reverses the #142 negative (a narrow-universe artifact). Next: defensive-sleeve / blend, or broader-universe V2. |
-| **TREND-001** | Trend Following (time-series trend) | Planned | — **Planned** | Tier-B philosophy (different holding period / turnover). Charter after LOW-001 — then the platform shifts to the **Factor Lab** (new programs become *configuration*, not new scripts). |
+| **MOM-001** | Momentum (cross-sectional relative strength) | **Production** (paper) | `██████████` 100% | ✅ **Approved** |
+| **RNG-001** | Range / mean-reversion | **Archived** | `██████████` 100% | 🔴 **Rejected** |
+| **MF-001** | Multi-Factor (value + quality) | **Completed** | `██████████` 100% | 🟡 **Inconclusive** (deferred → SF1) |
+| **SEC-001** | Sector Rotation (sector relative strength) | **Archived** (construction) | `██████████` 100% | 🟡 **Diversifier (B)** |
+| **LOW-001** | Low Volatility (defensive) | **Completed** | `██████████` 100% | 🟡 **Diversifier (B)** |
+| **TREND-001** | Trend Following (time-series trend) | **Planning** | `█░░░░░░░░░` 10% | — **Pending** |
 
-**Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone). Colors match the Evidence Dashboard (green / red / amber / amber-blue).
+**Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). `Progress` is the share of the program's research lifecycle complete — `Planning` programs are < 100% by definition (the plan is done, the research is not).
 
-## Score so far
+### Portfolio KPI (the "Insights" view)
 
-- **6 programs chartered;** 5 resolved, 1 planned.
-- **1 deployed** (Momentum, live on paper as three Risk Profiles).
-- **4 evidence-based "not deployed" decisions** — Range (rejected), Multi-Factor (inconclusive), Sector Rotation (diversifier, construction archived), Low Volatility (diversifier, best risk-adjusted book but no decisive standalone edge) — each a citable artifact. *Most software can validate; very few can decline.*
+> **6 programs chartered** → **Approved 1** · **Rejected 1** · **Diversifier 2** · **Inconclusive 1** · **Planned 1**
+
+- **1 deployed** (Momentum, live on paper as three vol-target Risk Profiles).
+- **4 evidence-based "not deployed" decisions** — Range (rejected), Multi-Factor (inconclusive), Sector Rotation (diversifier, construction archived), Low Volatility (diversifier, best risk-adjusted book, no decisive standalone edge). *Most software can validate; very few can decline.*
+
+## Evidence & decisions (institutional memory)
+
+Each program is more than a verdict — it is a durable chain of **Evidence Package → Decision → Lesson
+Learned**, the research analogue of GitHub's *Issue → PR → Merge → History*. This is what makes the
+registry institutional memory rather than a scoreboard.
+
+| ID | Headline result | Evidence package | Lesson learned |
+|---|---|---|---|
+| **MOM-001** | Sharpe 0.48, 95% CI [0.13, 0.85], p=0.003 (1997–2026, survivorship-free), cost-robust. Live as three vol-target Risk Profiles. | `evidence/p12_s1/`, `evidence/p12_s2_*` | Momentum is a real, cost-robust edge — but its −76% drawdown is the risk story, which is why it ships **with** the vol-target overlay (v1.1). |
+| **RNG-001** | First formal rejection: PF 1.27 (< 1.3 bar); bootstrap mean-P&L 95% CI [−$19.74, +$57.53] spans zero; walk-forward PF decays to 0.89. | `evidence/range_rejection/` | The platform can say **no**. A plausible, popular pattern failed the pre-registered bar — and the decline is itself a citable asset. |
+| **MF-001** | On survivorship-free SF1: genuine diversifier (corr −0.09 / −0.005), DD −51%→−40%, but ΔSharpe +0.04, CI [−0.35, +0.48] spans zero → keep Momentum v1.1. | `evidence/p12_s3_explore/`, `evidence/p14_s1_multifactor/` | A promising signal that the evidence gate held the line on. "Inconclusive" is not "negative" — it justified the SF1 data investment, not a strategy ship. |
+| **SEC-001** | Strongest non-momentum book (Sharpe 0.51), but no standalone edge (V1 H1 +0.16, CI [−0.03, 0.366]). V2 pure baskets confirmed B; H3 showed construction is **not** the limiter → construction archived per the stopping rule. | `evidence/sec_001_sector_rotation/` (V1), `evidence/sec_001_v2_pure_baskets/` (V2) | The **stopping rule works**: V2 isolated construction, found it wasn't the constraint, and the program closed instead of looping on parameters. |
+| **LOW-001** | Best risk-adjusted book on the platform: Sharpe 0.59 (vs momentum 0.39), maxDD −39% (≈ half of momentum's −76%), Calmar 0.20. H1 standalone +0.24, CI [−0.029, 0.53] just spans zero; H2 corr **−0.15** (true defensive diversifier); H3 shallower DD than benchmark in **5/5** windows. | `evidence/low_001_low_volatility/` | A prior negative (#142) **reversed** once tested on the right universe/cycle — narrow-universe results don't generalize. Low-vol is the defensive complement to momentum. Open follow-on: defensive sleeve / blend, or broader-universe V2. |
+| **TREND-001** | — (planned; charter pending). | — | — |
 
 ## How this evolves
 
-New programs are added to `programs.py` (which the Evidence Dashboard renders live) and reflected here. Per the owner's roadmap, after **TREND-001** the platform stops authoring bespoke research scripts and generalizes into the **Factor Lab**, where a new program is a configuration over the shared evidence pipeline rather than a new document — the natural endpoint of the high reuse % each successive program has demonstrated (SEC-001 ~90%, LOW-001 ~90%).
+The registry is **open-ended** — it grows one program at a time and never closes, the way a GitHub
+account accumulates repositories. The chartered horizon runs `MOM → RNG → MF → SEC → LOW → TREND`, and the
+backlog beyond it (`OPTIONS-001`, `MACRO-001`, `ML-001`, `ALT-001`, …) is illustrative, not committed.
+
+The pivot point is **TREND-001**. After it, the platform **stops authoring bespoke research scripts** and
+generalizes into the **Factor Lab**, where a new program is a *configuration* over the shared evidence
+pipeline rather than a new script + document — the natural endpoint of the high reuse % each successive
+program has demonstrated (SEC-001 ~90%, LOW-001 ~90%). New programs are still added to `programs.py`
+(which the Evidence Dashboard renders live) and mirrored here; the Factor Lab only changes *how cheaply* a
+new row appears.
