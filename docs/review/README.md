@@ -12,7 +12,8 @@ these are convenience copies. When a doc is reviewed + merged, it's removed from
 
 | Document | What it is | Decision needed |
 |---|---|---|
-| **`Whitepaper_v0.16_Implementation_Review.md`** | My fact-check of the v0.16 whitepaper against the actual implementation. **v2 (in progress):** folding your review feedback — add a **Product Positioning Review** section (momentum app → general-purpose Evidence Engineering platform; Momentum as *reference implementation*, not the product), the **"TradingWorkbench is not a trading strategy…"** opening sentence, and the **6-family patent roadmap**. | Once updated, tell me which edits to apply to the whitepaper `.docx` (I provide exact replacement text per section — I can't edit the binary). |
+| **`Whitepaper_v0.17_Implementation_Review.md`** | Review of the **new v0.17** draft. Good news: v0.17 **folded essentially all the v0.16 feedback** (Production Confidence implemented, Range rejected, three live profiles, Linux reference-implementation framing, patent-family portfolio, ADR 0021 fix). What's left is **new data v0.17 predates**: **§D has the paste-ready SEC-001 Sector Rotation results + a Case Study 7** (V1 = Diversifier B, the strongest non-momentum book yet), the Evidence Dashboard shipped, and a slot for the V2 result. | Tell me **which items** to apply to the v0.17 `.docx` — §D's Case Study 7 is paste-ready. The v0.16 review (below) is now superseded by this. |
+| `Whitepaper_v0.16_Implementation_Review.md` | **Superseded by the v0.17 review above** — v0.17 incorporated its fact-checks + positioning §D. Kept for history. | None — folded. |
 
 ## Recently reviewed
 

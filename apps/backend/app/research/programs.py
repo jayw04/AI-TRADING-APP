@@ -50,10 +50,12 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "docs/implementation/TradingWorkbench_P14_Session1_MultiFactorRetest_Results_v0.1.md"),
     ResearchProgram(
         "SEC-001", "Sector Rotation", "Sector relative strength", "inconclusive",
-        "Verdict B (Diversifier), 2000-2026, n=200: strongest non-momentum book yet (Sharpe 0.51 vs "
-        "momentum 0.39, DD -64.8% vs -76.4%, corr 0.38). H1 standalone Delta-Sharpe +0.16 CI "
-        "[-0.03, 0.366] just spans zero -> not yet validated; V2 pure-baskets next.",
-        "docs/implementation/evidence/sec_001_sector_rotation/sector_rotation.md"),
+        "Verdict B (Diversifier), 2000-2026, n=200. Strongest non-momentum book yet (V1 Sharpe 0.51 vs "
+        "momentum 0.39, DD -64.8% vs -76.4%, corr 0.38), but no standalone edge: V1 H1 +0.16 CI "
+        "[-0.03, 0.366]. V2 pure baskets confirmed B (H1 +0.04 CI [-0.17, 0.24]; H3 V2~=V1 -0.04 CI "
+        "[-0.18, 0.09] -> construction NOT the limiter). Per the pre-registered stopping rule: "
+        "construction ARCHIVED; a standalone edge needs a fundamentally different hypothesis.",
+        "docs/implementation/evidence/sec_001_v2_pure_baskets/sector_rotation_v2.md"),
     ResearchProgram(
         "LV-001", "Low Volatility", "Low-volatility factor", "planned",
         "Next Tier-B philosophy (reuses the vol infrastructure). Not started.", None),
