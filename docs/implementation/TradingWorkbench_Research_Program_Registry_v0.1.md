@@ -7,7 +7,7 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.4 (2026-06-22) — owner review folded (`Docs/review/comments.md`, 9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
+| Version | v0.6 (2026-06-22) — final SCAN-001 review: a **Reuse level** dimension per program (commercial-value signal — SCAN = Very High). **v0.5** folded the SCAN-001 review: **SCAN-001** added as the first **Platform Capability** program; the Capability Matrix **split into Platform vs Investment capabilities**; a **Primary consumer** dimension per program. **v0.4** folded the prior review (9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
 | Source of truth | `apps/backend/app/research/programs.py` + the Evidence Dashboard |
 | Convention | Permanent IDs (`MOM / RNG / MF / SEC / LOW / TREND-NNN`) are platform IP — citable in the whitepaper, patent, and customer docs. The registry is **open-ended**: it grows one program at a time, forever (the GitHub-repositories model), and never "closes." |
 
@@ -74,8 +74,24 @@ reached — `Completed` is not the same as "nothing left to study":
 | **SEC-001** | Sector Rotation (sector relative strength) | **Archived** (construction) | `██████████` 100% | Closed | 🟡 **Diversifier (B)** | **Diversification** — a non-momentum return source |
 | **LOW-001** | Low Volatility (defensive) | **Completed** | `██████████` 100% | Follow-on (sleeve / V2) | 🟡 **Diversifier (B)** | **Defensive strategy** — the calm-stocks complement |
 | **TREND-001** | Trend Following (time-series trend) | **Planning** | `█░░░░░░░░░` 10% | Open (not started) | — **Pending** | **Trend philosophy** — the time-series complement |
+| **SCAN-001** ⚙ | Daily Candidate Selection (intraday) — **platform capability, not a strategy** | **Planning** | `█░░░░░░░░░` 10% | Open (not started) | — **Pending** | **Candidate Engine** — the reusable morning scanner feeding the Intraday Research Framework |
+
+**Program type — SCAN-001 is the first Platform Capability program** (⚙), distinct from the strategy programs (MOM/RNG/MF/SEC/LOW/TREND). Strategies answer *"should we trade this?"*; a capability answers *"what shared infrastructure do strategies reuse?"*. Plan: `docs/implementation/TradingWorkbench_SCAN001_CandidateEngine_Plan_v0.1.md`.
 
 **Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). **Platform value** answers *why each program exists* — its contribution to the platform, not just its result; a rejection and a diversifier are both assets. **Research line** is orthogonal to Status (above).
+
+**Primary consumer** + **Reuse level** (owner) — *who* each program's output is for, and *how broadly* its
+capabilities get reused (the commercial-value signal: high-reuse capabilities are what customers pay for):
+
+| Program | Primary consumer | Reuse level |
+|---|---|---|
+| MOM-001 | Portfolio Manager (the production book) | **Medium** |
+| RNG-001 | Research Team (the honest-rejection precedent) | **Low** |
+| MF-001 | Research Team (factor research) | **High** (composite engine) |
+| SEC-001 | Portfolio Construction (the diversification sleeve) | **High** (sector-neutral construction) |
+| LOW-001 | Risk Management (the defensive complement) | **High** (calibration metrics) |
+| TREND-001 | Portfolio Manager (a return source) | **Medium** |
+| SCAN-001 | the **Intraday/Discovery Engine** + every strategy that consumes its candidates | **Very High** (a capability every strategy reuses) |
 
 ### Portfolio KPI (the "Insights" view)
 
@@ -107,20 +123,35 @@ crux: *customers don't buy strategies, they buy capabilities.* A rejected progra
 platform; an archived construction line (SEC) still contributed sector-neutral construction. The matrix is
 the seed of a future first-class **Capability Registry** (Phase B platform work).
 
-| Capability | Origin program | Status |
+Capabilities split into two kinds (owner) — the distinction customers grasp immediately: **Platform
+capabilities** are the reusable engines/methods/workflows (the product you *buy*); **Investment
+capabilities** are the investment logic each strategy contributes (the *content* that runs on the platform).
+
+**Platform capabilities** (engines · methods · workflows · registries):
+
+| Capability | Origin | Status |
 |---|---|---|
-| Cross-sectional momentum signal | MOM-001 | shipped |
-| Volatility targeting (the risk dial) | MOM-001 | shipped (v1.1 live) |
 | Circular-block bootstrap engine | MOM-001 | shipped |
 | Evidence Package (script → JSON → MD, seeded) | MOM-001 | shipped |
 | Honest-rejection workflow | RNG-001 | shipped |
 | Multi-factor composite engine | MF-001 | shipped |
 | Factor-correlation analysis | MF-001 | shipped |
-| Sector-neutral portfolio construction | SEC-001 | shipped |
-| Construction-isolation methodology (paired V1↔V2) | SEC-001 | shipped |
+| Sector-neutral construction + construction-isolation methodology | SEC-001 | shipped |
 | Research-calibration metrics (Confidence/Complexity/Duration/Accuracy) | LOW-001 | shipped |
-| Defensive / low-volatility portfolio logic | LOW-001 | shipped |
-| Time-series trend engine | TREND-001 | planned |
+| Research Registry · Decision Register · Negative-findings ledger | the methodology (cross-program) | shipped |
+| Evidence Dashboard (`/evidence`) | P13 | shipped |
+| **Candidate / Discovery Engine** | **SCAN-001** | **planned** |
+
+**Investment capabilities** (the investment logic / signal / profile a strategy contributes):
+
+| Capability | Origin | Status |
+|---|---|---|
+| Cross-sectional momentum | MOM-001 | shipped (live) |
+| Volatility targeting (the risk dial) | MOM-001 | shipped (v1.1 live) |
+| Multi-factor (value + quality) blend | MF-001 | shipped (inconclusive) |
+| Sector rotation | SEC-001 | shipped (diversifier) |
+| Defensive / low-volatility | LOW-001 | shipped (diversifier) |
+| Trend following | TREND-001 | planned |
 
 ## How this evolves
 
