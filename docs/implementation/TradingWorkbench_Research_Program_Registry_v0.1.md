@@ -74,6 +74,9 @@ reached — `Completed` is not the same as "nothing left to study":
 | **SEC-001** | Sector Rotation (sector relative strength) | **Archived** (construction) | `██████████` 100% | Closed | 🟡 **Diversifier (B)** | **Diversification** — a non-momentum return source |
 | **LOW-001** | Low Volatility (defensive) | **Completed** | `██████████` 100% | Follow-on (sleeve / V2) | 🟡 **Diversifier (B)** | **Defensive strategy** — the calm-stocks complement |
 | **TREND-001** | Trend Following (time-series trend) | **Planning** | `█░░░░░░░░░` 10% | Open (not started) | — **Pending** | **Trend philosophy** — the time-series complement |
+| **SCAN-001** ⚙ | Daily Candidate Selection (intraday) — **platform capability, not a strategy** | **Planning** | `█░░░░░░░░░` 10% | Open (not started) | — **Pending** | **Candidate Engine** — the reusable morning scanner feeding the Intraday Research Framework |
+
+**Program type — SCAN-001 is the first Platform Capability program** (⚙), distinct from the strategy programs (MOM/RNG/MF/SEC/LOW/TREND). Strategies answer *"should we trade this?"*; a capability answers *"what shared infrastructure do strategies reuse?"*. Plan: `docs/implementation/TradingWorkbench_SCAN001_CandidateEngine_Plan_v0.1.md`.
 
 **Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). **Platform value** answers *why each program exists* — its contribution to the platform, not just its result; a rejection and a diversifier are both assets. **Research line** is orthogonal to Status (above).
 
