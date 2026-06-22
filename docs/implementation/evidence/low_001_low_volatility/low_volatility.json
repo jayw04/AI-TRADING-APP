@@ -1,0 +1,119 @@
+{
+  "program": "LOW-001",
+  "experiment_id": "EXP-20260622-013311-low001",
+  "git_sha": "dded451",
+  "data": "SEP survivorship-free (full-cycle 2000-2026)",
+  "window": [
+    "2000-01-01",
+    "2026-06-12"
+  ],
+  "n": 200,
+  "construction": "V1 top-quintile lowest 252d realized vol, equal-weight",
+  "books": {
+    "momentum": {
+      "cagr": 0.0738710128402087,
+      "sharpe": 0.38810746155751447,
+      "max_drawdown": -0.7639996302083669,
+      "calmar": 0.09668985418234002
+    },
+    "low_vol": {
+      "cagr": 0.07731129955863625,
+      "sharpe": 0.5889848442180983,
+      "max_drawdown": -0.3897556682557223,
+      "calmar": 0.19835837129612083
+    },
+    "blend": {
+      "cagr": 0.06933733178448254,
+      "sharpe": 0.4835014198986196,
+      "max_drawdown": -0.45277298865318705,
+      "calmar": 0.15313928507690466
+    },
+    "equal_weight": {
+      "cagr": 0.05625559955895243,
+      "sharpe": 0.3477095200108433,
+      "max_drawdown": -0.6921230566103789,
+      "calmar": 0.0812797652406785
+    }
+  },
+  "H1_lowvol_vs_eqw_sharpe_ci": {
+    "delta": 0.241,
+    "ci_low": -0.029,
+    "ci_high": 0.53
+  },
+  "H2_corr_mom_lowvol": -0.153,
+  "H2_blend_vs_momentum_sharpe_ci": {
+    "delta": 0.095,
+    "ci_low": -0.165,
+    "ci_high": 0.359
+  },
+  "H3_maxdd_vs_momentum": 0.3742,
+  "H3_maxdd_vs_eqw": 0.3024,
+  "H3_windows_lowvol_shallower_dd": "5/5",
+  "walk_forward": [
+    {
+      "window": [
+        "2000-01-01",
+        "2005-04-15"
+      ],
+      "lv_sharpe": 0.23,
+      "eqw_sharpe": -0.15,
+      "delta": 0.38,
+      "lv_maxdd": -0.239,
+      "eqw_maxdd": -0.692
+    },
+    {
+      "window": [
+        "2005-04-15",
+        "2010-07-29"
+      ],
+      "lv_sharpe": 0.23,
+      "eqw_sharpe": 0.25,
+      "delta": -0.02,
+      "lv_maxdd": -0.39,
+      "eqw_maxdd": -0.599
+    },
+    {
+      "window": [
+        "2010-07-29",
+        "2015-11-11"
+      ],
+      "lv_sharpe": 1.16,
+      "eqw_sharpe": 0.66,
+      "delta": 0.5,
+      "lv_maxdd": -0.128,
+      "eqw_maxdd": -0.247
+    },
+    {
+      "window": [
+        "2015-11-11",
+        "2021-02-23"
+      ],
+      "lv_sharpe": 0.75,
+      "eqw_sharpe": 0.88,
+      "delta": -0.12,
+      "lv_maxdd": -0.325,
+      "eqw_maxdd": -0.375
+    },
+    {
+      "window": [
+        "2021-02-23",
+        "2026-06-12"
+      ],
+      "lv_sharpe": 0.8,
+      "eqw_sharpe": 0.42,
+      "delta": 0.38,
+      "lv_maxdd": -0.162,
+      "eqw_maxdd": -0.365
+    }
+  ],
+  "n_windows_lowvol_beats_eqw": "3/5",
+  "cost_sweep_lowvol_sharpe": {
+    "5bps": 0.6,
+    "10bps": 0.59,
+    "20bps": 0.57,
+    "50bps": 0.52
+  },
+  "outcome": "B - Diversifier / Defensive",
+  "action": "defensive sleeve / momentum+low-vol blend candidate (evidence-gated)",
+  "duration_s": 5446.6
+}

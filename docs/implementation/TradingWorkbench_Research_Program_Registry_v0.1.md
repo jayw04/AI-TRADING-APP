@@ -43,16 +43,16 @@ A program can exit at any phase with a verdict (Approved / Rejected / Inconclusi
 | **RNG-001** | Range / mean-reversion | Complete | 🔴 **Rejected** | First formal rejection: PF 1.27 (< 1.3 bar); bootstrap mean-P&L 95% CI [−$19.74, +$57.53] spans zero; walk-forward PF decays to 0.89. |
 | **MF-001** | Multi-Factor (value + quality) | Complete | 🟡 **Inconclusive** | On survivorship-free SF1: genuine diversifier (corr −0.09/−0.005), DD −51%→−40%, but ΔSharpe +0.04, CI [−0.35, +0.48] spans zero → keep Momentum v1.1. |
 | **SEC-001** | Sector Rotation (sector relative strength) | Complete | 🟡 **Diversifier (B)** | Strongest non-momentum book (Sharpe 0.51), but no standalone edge (V1 H1 +0.16 CI [−0.03, 0.366]). V2 pure baskets confirmed B; H3 showed construction is not the limiter → **construction archived** per the stopping rule. |
-| **LOW-001** | Low Volatility (defensive) | Research (running) | ⏳ **Pending** | The defensive complement to momentum (strength vs stability). Full-cycle 2000–2026 re-test (prior negative was on a narrow 2016–26 mega-cap window). H1 standalone / H2 diversifier / H3 downside protection. |
+| **LOW-001** | Low Volatility (defensive) | Complete | 🟡 **Diversifier (B)** | Best risk-adjusted book on the platform: Sharpe 0.59 (vs momentum 0.39), maxDD −39% = **half** of momentum's −76%, Calmar 0.20. H1 standalone +0.24 CI [−0.029, 0.53] just spans zero; H2 corr **−0.15** (true defensive diversifier); H3 shallower DD than benchmark in **5/5** windows. Reverses the #142 negative (a narrow-universe artifact). Next: defensive-sleeve / blend, or broader-universe V2. |
 | **TREND-001** | Trend Following (time-series trend) | Planned | — **Planned** | Tier-B philosophy (different holding period / turnover). Charter after LOW-001 — then the platform shifts to the **Factor Lab** (new programs become *configuration*, not new scripts). |
 
 **Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone). Colors match the Evidence Dashboard (green / red / amber / amber-blue).
 
 ## Score so far
 
-- **6 programs chartered;** 4 resolved, 1 running, 1 planned.
+- **6 programs chartered;** 5 resolved, 1 planned.
 - **1 deployed** (Momentum, live on paper as three Risk Profiles).
-- **3 evidence-based "not deployed" decisions** — Range (rejected), Multi-Factor (inconclusive), Sector Rotation (diversifier, not standalone) — each a citable artifact. *Most software can validate; very few can decline.*
+- **4 evidence-based "not deployed" decisions** — Range (rejected), Multi-Factor (inconclusive), Sector Rotation (diversifier, construction archived), Low Volatility (diversifier, best risk-adjusted book but no decisive standalone edge) — each a citable artifact. *Most software can validate; very few can decline.*
 
 ## How this evolves
 
