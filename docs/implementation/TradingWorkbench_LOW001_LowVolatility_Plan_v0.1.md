@@ -16,7 +16,7 @@
 | Field | Value |
 |---|---|
 | Document | **Low Volatility research program** — plan + **pre-registered** acceptance criteria. |
-| Version | **v0.2 (2026-06-21)** — owner review folded (`Docs/review/comments.md`, 9.7/10): the **Momentum relationship** (strength vs stability / offensive vs defensive, §0); an explicit **Low-Vol vs Vol-Target** distinction (§8a); a pre-registered **expected-behavior table** (§1a); the **expected-outcome probabilities** + **learning objective** per outcome (§4); a fuller **research-cost** breakdown (§10); and the standardized **research-phase terminology** (§10). v0.1 was the pre-review draft. |
+| Version | **v0.4 (2026-06-22)** — final owner review folded: **Research Accuracy** named as the next calibration metric (Expected → Observed → Calibration Score, §10a) so the platform can score *how good its own research forecasts are*. **v0.3** folded the second review (`Docs/review/comments.md`, 9.7→9.9): three **research-calibration metrics** (§10a) — **Research Confidence** (expected, with reason), **Research Complexity** (Low/Med/High), and **Research Duration** (Planned → Started → Completed) — so the platform can later compare *expected vs observed* about its own research process. **v0.2 (2026-06-21)** folded the first review (9.7/10): the **Momentum relationship** (strength vs stability / offensive vs defensive, §0); an explicit **Low-Vol vs Vol-Target** distinction (§8a); a pre-registered **expected-behavior table** (§1a); the **expected-outcome probabilities** + **learning objective** per outcome (§4); a fuller **research-cost** breakdown (§10); and the standardized **research-phase terminology** (§10). v0.1 was the pre-review draft. |
 | Date | 2026-06-21 |
 | Strategy | **Low Volatility** — hold the lowest-realized-volatility names; the next Tier-B *investment philosophy* (Strategy Roadmap; owner 12-month roadmap item after SEC-001). |
 | Why it's different | Momentum is **offensive** (relative strength, trend); low-vol is **defensive** (own the calmer stocks). A genuinely different philosophy — and the one most likely to be *negatively* correlated with momentum, which is exactly what a diversifier needs. |
@@ -224,6 +224,27 @@ lifecycle the momentum Risk Profiles are in now.
 The high reuse % is the point: LOW-001 is the cheapest Tier-B philosophy to charter, which is exactly why
 it's next — and a data point that motivates the **Factor Lab** generalization (where the next program is
 *configuration*, not a new script).
+
+### 10a. Research calibration metrics (pre-registered — owner Round-2 suggestions A/B/C)
+
+These describe **the research effort itself**, not the strategy. Recorded *before* results so the platform
+can later compare *expected vs observed* — Evidence Engineering evaluating its own process, not just the
+books it produces. (The evidence package stamps the observed values next to these forecasts.)
+
+| Metric | Pre-registered value | Reasoning |
+|---|---|---|
+| **Research Confidence** | **Medium** | Strong, well-documented academic literature (the low-vol anomaly is one of the most durable factors), but a *prior mixed result* (the #142 negative on the narrow universe) and a broader, regime-spanning history that has not yet been tested here. Not Low (the literature is real), not High (we have a contradicting prior to overturn). |
+| **Research Complexity** | **Low** | The score is a thin wrapper over the existing `_trailing_vol` primitive; the harness, bootstrap, walk-forward, and report scaffold are all inherited (~90% reuse). No new data dependency. |
+| **Research Duration** | **Planned 2026-06-21 → Started _(stamp on build)_ → Completed _(stamp in evidence package)_** | The lifecycle clock for research-ROI / enterprise reporting. Planned-vs-Completed elapsed time is the metric customers will eventually compare against Research Value. |
+
+Later, **Research Value / Research Cost → Research ROI**, and **expected Confidence vs observed outcome →
+research calibration**, both roll up from these fields across the registry.
+
+> **Next metric — Research Accuracy (owner, final review).** Once enough programs have run, the platform
+> can score its own forecasting: **Expected → Observed → Calibration Score** (e.g. how often "Medium
+> confidence" programs cleared their gate; how the pre-registered outcome probabilities compared to the
+> actual verdicts). That closes the loop — the platform measuring not just its strategies but the quality
+> of its *research process itself*. Deferred until the registry has the sample size to make it meaningful.
 
 ## 11. Resolved decisions (owner, 2026-06-21)
 

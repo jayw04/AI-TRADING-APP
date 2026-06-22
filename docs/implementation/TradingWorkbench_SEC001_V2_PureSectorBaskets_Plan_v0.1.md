@@ -15,7 +15,7 @@
 | Field | Value |
 |---|---|
 | Document | **Sector Rotation V2** — plan + **pre-registered** acceptance criteria. The §3 V1→V2→V3 roadmap, now at V2. |
-| Version | **v0.2 (2026-06-21)** — owner review folded (`Docs/review/comments.md`, "one of the best research plans you've produced"): added **§0 Why V2 exists** (business framing, S1), a **stopping rule** (S2), the **commercial-value × outcome table** (S3), and the **patent-language no-overfit clause** (S4). Q1–Q3 resolved to recommendations. v0.1 was the pre-review draft. |
+| Version | **v0.4 (2026-06-22)** — final owner-review pass folded: added the **Evidence-Engineering principle line** opening §0 ("change only one dimension at a time to isolate the limiting factor" — patent language; owner: *"SEC-001 is finished — the design"*). **v0.3** folded the second pass (9.8/10): added the structured **research-cost table** (§10, suggestion B). ⚠ The other two Round-1 suggestions — **pre-registered outcome probabilities** (A) and **learning-objective-per-outcome** (C) — are **deliberately not back-filled**: SEC-001 V2 has since *run* (verdict **B confirmed**, construction archived per the stopping rule), and inventing a "forecast" after the results are known would be a false pre-registration that undermines the Evidence Engineering moat. They live as a forward template in LOW-001 §4 / §10a instead. **v0.2 (2026-06-21)** folded the first review: **§0 Why V2 exists** (S1), a **stopping rule** (S2), the **commercial-value × outcome table** (S3), and the **patent-language no-overfit clause** (S4). Q1–Q3 resolved to recommendations. v0.1 was the pre-review draft. |
 | Date | 2026-06-21 |
 | Strategy | **Pure sector baskets** — hold the top-K strongest sectors as **diversified, sector-neutral equal-weight baskets** (not the top-quintile *stocks* of strong sectors, as V1 did). |
 | Why V2 now | V1's H1 CI **[−0.03, 0.366]** missed zero by a hair. The V2 thesis: V1 mixed the sector signal with **single-stock selection noise** (top-quintile of strong sectors = concentrated, idiosyncratic). Diversifying *within* each sector should shrink return variance → **tighten the Sharpe CI** → potentially turn B (diversifier) into A (standalone edge). That is a falsifiable, pre-registered hypothesis, not a fishing expedition. |
@@ -25,6 +25,11 @@
 ---
 
 ## 0. Why V2 exists (the business framing, not the technical one)
+
+> **This program demonstrates one of the central principles of Evidence Engineering: when an investment
+> philosophy appears promising but falls short of statistical significance, the platform changes _only one
+> dimension at a time_ to isolate the limiting factor.** That is what V2 does — it holds the signal,
+> window, and universe fixed and changes only *construction*.
 
 > Sector Rotation V1 demonstrated that the investment **philosophy** has diversification value but fell
 > slightly short of standalone statistical significance. **V2 is not an optimization exercise; it is an
@@ -168,6 +173,17 @@ Scientific success → commercial success → product success are **distinct gat
 ## 10. Production path & cost
 
 `Research → Evidence → Governance → Paper Account → 90-day Evidence → Production Candidate` (same lifecycle as the momentum Risk Profiles). **Estimated cost: ~1–1.5 sessions** — the basket backtester is the only new code (~2–3 hours); the run + analysis + evidence package ~1 day. Cheaper than V1 because the signal, harness primitives, and report scaffold already exist.
+
+**Research cost (logged for research-ROI tracking across programs — owner suggestion B):**
+
+| Resource | Estimate |
+|---|---|
+| Developer time | ~1–1.5 sessions (plan ✅ + basket backtester ~2–3h + run + evidence package) |
+| CPU hours | ~0.2–0.4h (one full 2000–2026 backtest pass + paired bootstrap + the V1↔V2 panel) |
+| Storage | negligible (one JSON + MD evidence package; reuses the existing store) |
+| Dataset | **none new** — identical inputs to V1 (survivorship-free SEP + Sharadar `tickers.sector`) |
+| Complexity | **Medium** — the sector-neutral basket backtester is genuinely new code (vs LOW-001's thin score wrapper), though everything around it is inherited |
+| Reuse % | **~85%** — signal, store, universe, bootstrap, walk-forward, and report scaffold all inherited from V1 |
 
 ## 11. Resolved decisions (owner, 2026-06-21)
 
