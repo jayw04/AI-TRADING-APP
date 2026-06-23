@@ -1,22 +1,56 @@
-# Whitepaper drop-in — The Confidence Model & Expanding-Window PIT (v0.1)
+# Whitepaper drop-in — The Confidence Model: reject → diagnose → redesign → accept (v0.2)
 
 > **Purpose.** A citable source for the whitepaper covering the **exact mechanics** of SCAN-001's Confidence
-> Model — the three-layer confidence formula (**Opportunity × Discovery = Composite**) and the
-> **Expanding-Window Point-in-Time (PIT)** rule that makes the discovery layer a forward test rather than a
-> circular fit. The whitepaper master is a binary `.docx` this repo can't edit, so this file supplies
-> ready-to-paste prose + ASCII figures + the empirical result. Sourced from the frozen pre-registration
-> (`TradingWorkbench_SCAN001_CandidateEngine_Plan_v0.4.md`, v1.1), the engine code
-> (`apps/backend/app/factor_data/candidate_engine.py`), and the v0.4 evidence package
-> (`evidence/scan_001_candidate_engine_v0_4/`, results doc `..._Results_v0.4.md`).
+> Model and — new in v0.2 — its **full research arc**: the platform designed a confidence model (v0.4),
+> **rejected** it on evidence, **diagnosed why** (ATR was poisoning it), **redesigned** it (ATR-decoupled), and
+> **accepted** the redesign (v0.5). The whitepaper master is a binary `.docx` this repo can't edit, so this file
+> supplies ready-to-paste prose + ASCII figures + the empirical result. Sourced from the frozen
+> pre-registrations (`..._Plan_v0.4.md` v1.1, `..._Plan_v0.5.md` v1.1), the engine code
+> (`apps/backend/app/factor_data/candidate_engine.py`), and the evidence packages
+> (`evidence/scan_001_candidate_engine_v0_4/`, `..._v0_5/`; results docs `..._Results_v0.4.md`,
+> `..._Results_v0.5.md`).
 >
-> **Honest framing for the whitepaper.** Present the Confidence Model as a *mechanism the platform designed,
-> pre-registered, tested, and then declined to ship as a ranking key* because the evidence said the confidence
-> magnitude does not predict the pre-registered outcome. The mechanics below are sound and reusable; the
-> **value to the whitepaper is the discipline**, not a claimed edge.
+> **The one sentence for the whitepaper:** *the platform rejected two confidence models before accepting one.*
+> That sequence — a designed mechanism, declined on evidence, then diagnosed and repaired into a validated one —
+> is a stronger story than any single positive result, and it is exactly what Evidence Engineering is for.
 
 ---
 
-## 1. The three-layer confidence formula
+## 0. Causal architecture — each component has exactly one job
+
+```
+   Market
+     │
+     ▼
+   ATR ───────────►  Candidate SELECTION         (volatility ADMITS a name)
+                            │
+                            ▼
+                       Candidate
+                            │
+        Gap ─┐              │
+             ├──►  Discovery Confidence  ──►  Ranking  ──►  Candidate Report
+       RVOL ─┘     (the non-mechanical ranking signal — v0.5, accepted)
+
+   The anti-pattern the platform refuted (the v0.1 / v0.4 tautology):
+
+       ATR ──►  Confidence ──►  "Move"     ✗   (ATR drives the confidence AND the move →
+                                                  the relationship is definitional, not predictive)
+```
+
+**The load-bearing design rule** (the reusable IP): *ATR belongs in **selection**, not in **confidence**.* A
+metric that admits names on volatility must not also *score confidence* on that volatility, or the confidence
+inherits the mechanical coupling and becomes either tautological (`CM`) or inverted (`E`). v0.4 violated this
+rule by accident (ATR was in the confidence blend); v0.5 enforced it and the signal appeared.
+
+---
+
+## 1. The three-layer confidence formula (the v0.4 model — rejected)
+
+> **Terminology note (v0.5 naming).** This section describes the **v0.4** model, which was *rejected*. In v0.4,
+> "Layer B" was called "Discovery Confidence." Under the going-forward naming, that **per-regime/per-day** number
+> is **Regime Confidence** ("Operating Envelope" stays the *methodology* name), and **"Discovery Confidence"** now
+> denotes the **accepted v0.5 per-candidate** number (§4). Code identifiers are unchanged. The mechanics below are
+> preserved as the historical record of the rejected design.
 
 The Confidence Model attaches a transparent, bounded `[0, 1]` number to every candidate, built from two
 **independent layers** that combine into one **composite**. Critically, the two layers operate at different
@@ -158,15 +192,74 @@ primary metric.**
   (covariance CI-separated positive on both cuts), but the throttle moves edge-per-exposure by ≈0 because v0.3
   found the engine REGIME-ROBUST (nothing to down-weight).
 
-**Whitepaper takeaway.** The Confidence Model is a clean illustration of Evidence Engineering: a mechanism the
-platform proposed, pre-registered with a frozen primary metric and decision matrix, tested point-in-time, and
-then **declined to ship as a ranking key** because the evidence didn't support it — while precisely naming the
-mechanism that *does* carry signal (absolute move size) for a future, separately pre-registered study. The
-discipline is the product; the honest "no" is the asset.
+## 4. The redesign (v0.5) — diagnose, repair, accept
+
+v0.4 also named *why* it failed: `E` is ATR-normalized and the confidence had **ATR in its blend**, so the two
+were mechanically coupled. v0.5 acted on that diagnosis — it tested an **ATR-decoupled** confidence built from
+**Gap + RVOL strength only** (ATR still drives selection, just not the confidence number), every test controlled
+**within ATR strata** so the tautology cannot pose as signal.
+
+**The reversal — the same high−low expansion test, before and after removing ATR from the confidence:**
+
+```
+   high − low realized E (CI-separated)
+   v0.4  ATR-blended confidence    −0.45   ◄ inverse  ✗
+   v0.5  ATR-decoupled (Gap+RVOL)  +0.89   ► positive ✓     ← removing ATR FLIPPED the sign
+```
+
+- **H-cm-1 (calibration on `E`):** monotone Low<Med<High on **both** cuts; high−low `E` **+0.89** CI [0.85, 0.93]
+  (headline), **+0.51** CI [0.45, 0.59] (recency). The Gap+RVOL magnitude predicts the de-tautologized outcome.
+- **H-cm-2 (calibration on `CM`, within ATR strata):** higher confidence → higher capturable move in **3 of 3**
+  ATR bands on **both** cuts — confidence predicts move size *even holding volatility fixed*.
+- **H-cm-3 (operational utility):** a top-K-by-confidence book lifts `E` (+0.19 / +0.17, CI-separated) **and** the
+  top-K's **mean ATR equals the flat book's** (5.48 vs 5.48) — so the lift is the Gap+RVOL signal, **not** an
+  ATR-selection artifact.
+
+**Verdict: DECOUPLED-CALIBRATED — accepted.** The platform ships `confidence_gr` (customer-facing **Discovery
+Confidence**) as the Candidate Report's ranking field; any live ranking/sizing use stays gated behind the
+premarket-data step.
+
+**Whitepaper takeaway.** This is Evidence Engineering's complete loop: a mechanism **proposed** (v0.4),
+**rejected** on a frozen metric, **diagnosed** (ATR poisoning), **redesigned** (ATR out of the confidence), and
+**accepted** (v0.5) on the same rigorous bar — *the platform rejected two confidence models before accepting
+one.* The reusable design rule it produced — **ATR belongs in selection, not in confidence** — is broader and
+more defensible IP than any single positive result: a method (hypothesis → validation → artifact detection →
+redesign → validation), not a claimed edge.
 
 ---
 
-*Sources: pre-registration `TradingWorkbench_SCAN001_CandidateEngine_Plan_v0.4.md` (v1.1, frozen); engine
-`apps/backend/app/factor_data/candidate_engine.py` (`confidence`, `discovery_confidence`,
-`composite_confidence`); results `TradingWorkbench_SCAN001_CandidateEngine_Results_v0.4.md`; evidence package
-`evidence/scan_001_candidate_engine_v0_4/` (seed 17, bootstrap n=2000, reproducible).*
+## 5. Scientific Self-Correction (a standalone whitepaper subsection)
+
+> Ready-to-paste subsection. The single most compelling property the SCAN-001 confidence arc demonstrates.
+
+**The platform does not optimize until it wins. It proposes, tests, rejects, redesigns, re-tests — and stops.**
+
+Most research tooling is built to *find* a positive result; under enough freedom it eventually will, and the
+result rarely survives contact with new data. TradingWorkbench is built to *trust* a result, which means it must
+be equally willing to reject one — including its own. The Confidence Model is the proof:
+
+```
+   Propose   →   Reject   →   Diagnose   →   Redesign   →   Re-test   →   Accept   →   STOP
+   (v0.4)        (v0.4)       (ATR is in     (ATR out of    (v0.5)        (v0.5)       (no v0.6;
+                 frozen        the           the                          frozen        Discovery Lab
+                 metric)       confidence)   confidence)                  metric)       v1.0 frozen)
+```
+
+Two disciplines make this credible and distinguish it from ordinary backtest iteration:
+
+1. **Frozen evaluation before data.** Each step's primary metric and decision matrix are pre-registered and
+   owner-frozen *before* the run, so neither the rejection (v0.4) nor the acceptance (v0.5) is a story told after
+   seeing the numbers.
+2. **Stop on answer, not on success.** When v0.5 answered the question, the research line **closed** — no v0.6
+   "optimization." Endless versioning would *reduce* credibility; the discipline is `Question → Evidence →
+   Decision → Archive → next program`.
+
+The artifact a customer, investor, or patent reviewer should remember is not the accepted confidence model — it
+is that *the platform corrected itself, on the record, against its own pre-registered bar.*
+
+---
+
+*Sources: pre-registrations `..._Plan_v0.4.md`, `..._Plan_v0.5.md` (both v1.1, frozen); engine
+`apps/backend/app/factor_data/candidate_engine.py` (`confidence`, `confidence_gr`, `discovery_confidence`,
+`composite_confidence`); results `..._Results_v0.4.md`, `..._Results_v0.5.md`; evidence packages
+`evidence/scan_001_candidate_engine_v0_4/` and `..._v0_5/` (seed 17, bootstrap n=2000, reproducible).*

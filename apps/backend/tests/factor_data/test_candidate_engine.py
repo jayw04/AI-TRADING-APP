@@ -309,6 +309,31 @@ def test_composite_confidence_clamps_malformed_inputs() -> None:
     assert ce.composite_confidence(0.5, 2.0) == 0.5
 
 
+# ---- v0.5 ATR-decoupled confidence ----------------------------------------
+
+
+def test_confidence_gr_ignores_atr() -> None:
+    # huge ATR but Gap/RVOL only just over threshold → gr-confidence is LOW (ATR excluded),
+    # while the full confidence would be pulled up by the strong ATR signal.
+    feat = _feat(gap_pct=3.0001, rvol=2.0001, atr_pct=20.0)
+    assert ce.confidence_gr(feat) == 0.0          # Gap/RVOL barely clear → ~0
+    assert ce.confidence(feat, ["Gap", "RVOL", "ATR"]) > 0.0  # full blend lifted by ATR
+
+
+def test_confidence_gr_no_gap_or_rvol_is_zero() -> None:
+    # only ATR fires → no Gap/RVOL signal cleared → gr-confidence is 0.0
+    feat = _feat(gap_pct=1.0, rvol=1.0, atr_pct=4.0)
+    assert ce.confidence_gr(feat) == 0.0
+
+
+def test_confidence_gr_matches_restricted_confidence() -> None:
+    # gr-confidence equals the full confidence() restricted to the cleared Gap/RVOL signals
+    feat = _feat(gap_pct=6.0, rvol=4.0, atr_pct=4.0)  # all clear; gr should ignore ATR
+    fired_gr = ce.opportunity_signals(feat, active_signals=("Gap", "RVOL"))
+    assert ce.confidence_gr(feat) == ce.confidence(feat, fired_gr)
+    assert fired_gr == ["Gap", "RVOL"]  # ATR not among the tested signals
+
+
 def test_candidate_to_dict_is_json_safe() -> None:
     out = ce.select_candidates([_feat(symbol="AAA")], top_n=1)
     d = out[0].to_dict()

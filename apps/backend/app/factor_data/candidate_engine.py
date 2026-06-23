@@ -244,6 +244,23 @@ def composite_confidence(opportunity_confidence: float, discovery_confidence_val
     return round(a * b, 4)
 
 
+# ---- v0.5 ATR-decoupled confidence (de-tautologized; SCAN-001 v0.5 §1a) -----
+
+
+def confidence_gr(feat: dict[str, Any], filters: dict[str, float] = FILTERS) -> float:
+    """The v0.5 **ATR-decoupled** confidence: the bounded [0, 1] opportunity confidence over the
+    cleared **Gap and RVOL** signals ONLY — ATR is excluded.
+
+    Rationale (SCAN-001 v0.5 §0): the realized outcomes are ATR-coupled (high-ATR names move more,
+    near-mechanically — the v0.1 tautology), and the full ``confidence`` blends ATR in, which is why
+    v0.4 found it *inverse* to the ATR-normalized expansion `E`. Stripping ATR out isolates the
+    **non-mechanical** part of the signal (Gap + RVOL strength) so a calibration test can ask whether
+    that part predicts a de-tautologized outcome. ATR still drives *selection* (the engine is frozen);
+    this changes only the *confidence number under test*."""
+    fired = opportunity_signals(feat, filters, active_signals=("Gap", "RVOL"))
+    return confidence(feat, fired, filters)
+
+
 # ---- selection -------------------------------------------------------------
 
 
