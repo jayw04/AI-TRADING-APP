@@ -266,6 +266,49 @@ def test_vol_regime_split() -> None:
     assert ce.vol_regime(0.25, []) is None
 
 
+# ---- v0.4 Confidence Model -------------------------------------------------
+
+
+def test_discovery_confidence_negative_regime_is_zero() -> None:
+    # a no-go regime (point ≤ 0) contributes no confidence regardless of the other stats
+    assert ce.discovery_confidence(point=-0.1, ci_low=-0.3, p_value=0.5, ref=0.2) == 0.0
+    assert ce.discovery_confidence(point=0.0, ci_low=-0.1, p_value=0.1, ref=0.2) == 0.0
+
+
+def test_discovery_confidence_separated_blends_sep_and_magnitude() -> None:
+    # positive + CI-separated: 0.5·(1−p) + 0.5·(point/ref). p=0, point==ref → 0.5 + 0.5 = 1.0
+    assert ce.discovery_confidence(point=0.2, ci_low=0.1, p_value=0.0, ref=0.2) == 1.0
+    # half the reference magnitude, still perfectly separated → 0.5 + 0.25 = 0.75
+    assert ce.discovery_confidence(point=0.1, ci_low=0.05, p_value=0.0, ref=0.2) == 0.75
+
+
+def test_discovery_confidence_not_separated_is_discounted() -> None:
+    # positive point but CI spans 0 → weak branch 0.4·(1−p); p=0.2 → 0.4·0.8 = 0.32
+    assert ce.discovery_confidence(point=0.05, ci_low=-0.01, p_value=0.2, ref=0.2) == 0.32
+
+
+def test_discovery_confidence_bounded_and_ref_zero_safe() -> None:
+    # magnitude clamps at 1.0 even when point > ref; and ref==0 → magnitude 0 (no crash)
+    assert ce.discovery_confidence(point=0.5, ci_low=0.4, p_value=0.0, ref=0.2) == 1.0
+    assert ce.discovery_confidence(point=0.1, ci_low=0.05, p_value=0.0, ref=0.0) == 0.5
+
+
+def test_composite_confidence_is_the_frozen_product() -> None:
+    assert ce.composite_confidence(0.8, 0.9) == 0.72
+    # neutral discovery confidence (warm-up) leaves opportunity confidence untouched
+    assert ce.composite_confidence(0.6, ce.NEUTRAL_CONFIDENCE) == 0.6
+    # a zero on either lever zeroes the composite
+    assert ce.composite_confidence(0.0, 0.9) == 0.0
+    assert ce.composite_confidence(0.9, 0.0) == 0.0
+
+
+def test_composite_confidence_clamps_malformed_inputs() -> None:
+    # out-of-range inputs are clamped, never propagated out of [0, 1]
+    assert ce.composite_confidence(1.5, 0.5) == 0.5
+    assert ce.composite_confidence(-0.2, 0.5) == 0.0
+    assert ce.composite_confidence(0.5, 2.0) == 0.5
+
+
 def test_candidate_to_dict_is_json_safe() -> None:
     out = ce.select_candidates([_feat(symbol="AAA")], top_n=1)
     d = out[0].to_dict()
