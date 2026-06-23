@@ -157,18 +157,20 @@ added, per the audit/migration convention).
   funnel; 6 tests. *Independent of #237 — uses the engine's selection only; a Discovery-Confidence overlay on
   the report is a one-line follow-on once #237 lands.* **Activation** (registering a ~09:25 job) needs a backend
   rebuild — deferred, like #221.
-- **(C) Forward-evidence accumulator — ⏸ BLOCKED on a decision** (below).
-- **(D) Replication verdict — ⏸ forward** (runs after the N-day window; depends on (C)).
+- **(C) Forward-evidence accumulator — ✅ persist-half BUILT** (`app/services/premarket_evidence.py`):
+  `evidence_record` (wraps a scan into a durable, back-fillable record — outcomes `pending`) + `persist_record`
+  (dated one-per-day JSON, idempotent) + `record_premarket_scan` (run + persist). 5 tests; ruff/mypy clean. This
+  is **Option 3** (owner-chosen): persist the premarket candidate set from today with **no new dependency**;
+  outcomes back-fill later. **Activation** (the ~09:25 job + a durable runtime dir) needs a rebuild — deferred.
+- **(D) Replication verdict — ⏸ forward** — runs once records have accrued (~N days) **and** been outcome-back-filled
+  (Option 2). Reads the `premarket_scan_<date>.json` records.
 
-> **⚠ The (C)/(D) blocker — a genuine open question, surfaced not guessed.** (C) must attach the *realized
-> intraday outcome* (`E`, `CM`) to each day's premarket candidates. **Where does that outcome come from for the
-> gappers universe?** The gappers are small/mid-cap Yahoo gainers frequently **not in our DuckDB store** (which
-> holds the liquid pool), and we have no intraday high/low/close feed for them. So the accumulator can persist
-> the *premarket candidate set* today, but the *outcome join* needs a data source for the gappers' realized bars.
-> **Options:** (i) restrict the gate's evidence to gappers that *are* store-covered (small, biased sample, uses
-> existing data); (ii) add a realized-outcome feed for the gappers universe (new data dependency → an ADR);
-> (iii) persist premarket candidates now and back-fill outcomes when a feed exists. The next owner call after
-> (A)+(B) land.
+> **The (C)/(D) decision — RESOLVED (owner, 2026-06-23): Option 3 now, then Option 2.** (C) must eventually attach
+> the *realized intraday outcome* (`E`, `CM`) to each day's premarket candidates, but the gappers are small/mid-cap
+> Yahoo gainers frequently **not in our DuckDB store**, with no intraday feed. The chosen path:
+> **(Option 3) persist the premarket candidate set now** (built above — evidence accrues from today, zero new
+> dependency), **then (Option 2) add a realized-outcome feed for the gappers universe** (a new data dependency →
+> an **ADR**, the next step) to back-fill outcomes and unblock (D).
 
 ---
 
