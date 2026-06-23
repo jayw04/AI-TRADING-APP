@@ -47,11 +47,14 @@ def evidence_record(report: dict[str, Any], *, asof: date) -> dict[str, Any]:
             "gappers_in": report.get("gappers_in", 0),
             "store_covered": report.get("store_covered", 0),
             "eligible_panel": report.get("eligible_panel", 0),
+            "eligible_count": report.get("eligible_count", 0),
             "candidate_count": report.get("candidate_count", 0),
         },
         # premarket features at selection time — the immutable left side of the forward pair
         "candidates": report.get("candidates", []),
-        # back-fill targets (Option 2): realized E/CM per candidate + eligible-field baseline
+        # the eligible baseline field (symbol + ATR) — needed for the candidate-vs-field edge
+        "eligible": report.get("eligible", []),
+        # back-fill targets (Option 2, ADR 0024): realized E/CM per candidate + eligible baseline
         "outcome_status": "pending",
         "outcomes": None,
     }
