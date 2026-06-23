@@ -43,20 +43,25 @@ Three independent hypotheses, each with a pre-registered metric and success bar.
 - **Interpretation:** if `E_candidate ≈ E_baseline ≈ 1`, the prototype edge was tautological — the screen
   picks volatile names that realize exactly their volatility, no opportunity *discovered*.
 
-### H2 — Directionality (is the range tradeable?)
+### H2 — Directionality (is the range tradeable?) — moderate 2-of-3 bar (owner)
 
 > The realized range is a **directional move**, not chop a strategy can't monetize.
 
-- **Metrics (two, reported together):**
+- **Three tradeability metrics (reported together):**
   - **Trend efficiency** `TE = |close − open| / (high − low)` — what fraction of the day's range was net
     directional travel (0 = pure round-trip chop, 1 = clean one-way trend).
   - **Capturable move** `CM = max(high − open, open − low) / open × 100` — the best single-direction excursion
     from the open (an MFE proxy), the move an intraday strategy could actually target.
-- **Pre-registered bar:** candidate **`TE` ≥ baseline `TE`** (CI on the difference not materially negative)
-  **and** candidate **`CM` > baseline `CM`** (CI excludes 0). I.e. the extra range is *at least as
-  directional* as the baseline's and the capturable excursion is genuinely larger.
-- **Interpretation:** wider-but-choppier range (higher range, lower `TE`) is a **caution flag** for any
-  downstream strategy — the opportunity is real but hard to harvest; we say so rather than imply tradeability.
+  - **Net move** `NM = |close − open| / open × 100` — the one-way move that actually *held to the close*
+    (what an open-to-close hold would have captured), distinct from `CM`'s best-case intraday excursion.
+- **Pre-registered bar — moderate, 2-of-3 (owner decision):** H2 is **Supported** if candidates beat the
+  baseline on **at least two of the three** metrics, each with a 95% bootstrap CI on the difference that
+  excludes 0 (for `TE`, "beats" = CI not materially negative — a directionality non-regression). Requiring
+  2-of-3 rather than all-3 avoids a single noisy metric vetoing a genuine signal, and rather than 1-of-3
+  avoids crowning a lone outlier.
+- **Interpretation:** wider-but-choppier range (higher range, only 0–1 of 3 tradeability metrics clearing) is
+  a **caution flag** for any downstream strategy — the opportunity is real but hard to harvest; we say so
+  rather than imply tradeability.
 
 ### H3 — Signal attribution (do Gap and RVOL earn their seat?)
 
@@ -77,7 +82,7 @@ Three independent hypotheses, each with a pre-registered metric and success bar.
 
 | Component | v0.1 (prototype) | v0.2 |
 |---|---|---|
-| Pure selection core (`candidate_engine.py`) | built | **reused**; add pure metrics `expansion_ratio`, `trend_efficiency`, `capturable_move` + a `signals=` selector so the harness can build the 4 attribution sets |
+| Pure selection core (`candidate_engine.py`) | built | **reused**; add pure metrics `expansion_ratio`, `trend_efficiency`, `capturable_move`, `net_move` + a `signals=` selector so the harness can build the 4 attribution sets |
 | Research harness (`scripts/candidate_engine.py`) | built | **reused**; add the 3 hypotheses + the attribution sweep + a v0.2 evidence section |
 | SEP store / monthly PIT universe / block bootstrap | built | **reused unchanged** |
 | Data | daily SEP | **daily SEP, unchanged** (see §3 — daily bars suffice for these questions) |
@@ -112,9 +117,20 @@ claim** — it is explicitly *not* in v0.2 scope, only named as the gate that fo
 | **H3:** Gap/RVOL not additive | (orthogonal) | **Simplify** the engine to the load-bearing signals; record the others as tested-and-dropped. |
 
 Bootstrap: seeded (seed 17), circular-block, n=2000, 95% CI + one-sided p-value — the same `evidence.py`
-machinery as MOM/LOW/SEC, so the numbers are comparable across the registry. Headline window **2018-2026**
-(full prototype window) **plus** sub-period robustness (pre-COVID / COVID / 2022 / 2023-26) — a result that
-only holds in one regime is not supported.
+machinery as MOM/LOW/SEC, so the numbers are comparable across the registry.
+
+### 4a. Frozen run configuration (owner decisions — locked before the run)
+
+| Parameter | Headline | Robustness | Rationale |
+|---|---|---|---|
+| **Window** | trailing **3 years** (2023-06-13 → 2026-06-12) | **5 years** (2021-06-13 → 2026-06-12) | Recent regime is the relevant one for a live intraday capability; the 5-year run (adds 2021–22, incl. the 2022 bear) guards against recency overfit. |
+| **Universe** | top **500** by trailing $-vol | top **200** | Headline widens the opportunity surface (more, thinner names = a harder, more realistic test); the 200 robustness ties back to the prototype's universe. |
+| **H2 bar** | **2-of-3** tradeability metrics CI-separated | same | Moderate (§1 H2). |
+
+**Pass discipline:** the verdict is **Supported** only if it holds on *both* the headline and the robustness
+cut (window × universe). A result that appears only at top-500/3yr but evaporates at top-200/5yr is **not
+supported** — that divergence is itself the finding (opportunity concentrated in thinner names / the recent
+regime), reported, not smoothed over.
 
 ---
 
@@ -152,10 +168,12 @@ caveat.
 
 ---
 
-## 8. Open questions (confirm before build)
+## 8. Open questions — RESOLVED (owner, 2026-06-22; frozen into §4a)
 
-1. **Headline window** — confirm 2018-2026 + the four sub-periods above (vs. extending to the full
-   survivorship-free 1997-2026, which is slower but more regimes).
-2. **H2 bar strictness** — is "`TE` ≥ baseline" the right tradeability bar, or do you want a positive
-   margin (candidates *more* directional, not merely *as* directional)?
-3. **Universe size** — keep top-200 by $-vol, or widen (more candidates/day, thinner names)?
+1. **Headline window** → **3-year headline (2023-06 → 2026-06) + 5-year robustness (2021-06 → 2026-06).**
+2. **H2 bar strictness** → **moderate: 2-of-3 tradeability metrics** (`TE` / `CM` / `NM`), each CI-separated
+   (§1 H2).
+3. **Universe size** → **top-500 headline + top-200 robustness** (§4a).
+
+The pre-registration is **frozen** with these values. Build proceeds against §4a; results are scored against
+the §4 decision matrix on *both* cuts.
