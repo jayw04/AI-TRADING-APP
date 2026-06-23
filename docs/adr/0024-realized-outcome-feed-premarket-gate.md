@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-23 |
-| Status | Draft |
+| Status | Accepted (owner, 2026-06-23) |
 | Phase | SCAN-001 premarket-data gate (increment C back-fill → D verdict) |
 | Supersedes | — |
 | Related | 0014 (backtests as eval ground truth), 0017 (OS trust store for outbound TLS), 0022 (market-regime data), 0023 (Sharadar SF1 PIT fundamentals) |
