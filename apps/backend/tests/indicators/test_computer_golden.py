@@ -143,6 +143,44 @@ def test_empty_bars_yields_empty_series() -> None:
     assert out["RSI14"].empty
 
 
+def test_short_window_normalizes_pandas_ta_none(monkeypatch) -> None:
+    """Regression: on some pandas-ta/numpy builds (the CI-resolved versions, not
+    local) a window longer than the bar count makes ``ta.rsi``/``atr``/``sma``/
+    ``ema``/``macd``/``bbands``/``vwap`` return ``None`` rather than an all-NaN
+    series. The computer must normalize that to a *full-length* NaN series, not
+    crash on ``.rename`` — the crash otherwise wedged the backtest worker job in
+    'running'. Forcing the pandas-ta calls to ``None`` reproduces the CI build
+    locally and pins the fix.
+
+    The full-length (not empty) shape matters: it matches the warmup region of a
+    real series so downstream ``.iloc[-1]`` behaves identically with or without
+    enough data — which is exactly what the local pandas-ta build already does."""
+    import pandas_ta as ta
+
+    bars = _synthetic_uptrend(5)  # fewer rows than any indicator's window
+    for fn in ("sma", "ema", "rsi", "atr", "macd", "bbands", "vwap"):
+        monkeypatch.setattr(ta, fn, lambda *a, **k: None)
+
+    names = ["SMA20", "EMA20", "RSI14", "ATR14", "MACD", "BB", "VWAP"]
+    out = IndicatorComputer().compute(bars, names=names, symbol="X", timeframe="1Min")
+
+    # Single-output → a full-length, all-NaN series (NOT the empty series the old
+    # except-branch produced after the crash).
+    for n in ("SMA20", "EMA20", "RSI14", "ATR14", "VWAP"):
+        assert isinstance(out[n], pd.Series), n
+        assert len(out[n]) == len(bars), n
+        assert out[n].isna().all(), n
+
+    # Multi-output → dict of full-length NaN series for each output.
+    for n, keys in (
+        ("MACD", {"macd", "signal", "hist"}),
+        ("BB", {"bb_lower", "bb_mid", "bb_upper"}),
+    ):
+        assert set(out[n].keys()) == keys, n
+        for s in out[n].values():
+            assert len(s) == len(bars) and s.isna().all(), n
+
+
 def test_memoization_returns_same_series_object(bars: pd.DataFrame) -> None:
     """Identity check: same call within the 60s TTL returns the cached
     series, not a recomputed one. This is how strategies pick up the same
