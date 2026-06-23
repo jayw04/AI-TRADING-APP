@@ -223,16 +223,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             from app.factor_data.store import FactorDataStore
 
             factor_store_path = resolve_store_path()
+            # Keep the store handle in app scope for infrastructure jobs (the
+            # premarket activation jobs below). The strategy-facing FactorAccessor
+            # deliberately does NOT expose it — that would widen the strategy sandbox
+            # (see test_accessor_surface_is_read_only). Infra holds its own reference;
+            # strategies only ever see the curated read methods via ctx.factors.
+            factor_store: FactorDataStore | None = None
             try:
                 if factor_store_path.exists():
-                    factor_accessor: FactorAccessor = FactorAccessor(
-                        FactorDataStore(read_only=True)
-                    )
+                    factor_store = FactorDataStore(read_only=True)
+                    factor_accessor: FactorAccessor = FactorAccessor(factor_store)
                     logger.info("factor_accessor_provisioned", path=str(factor_store_path))
                 else:
                     factor_accessor = FactorAccessor(None)
                     logger.info("factor_accessor_disabled_no_store", path=str(factor_store_path))
             except Exception as exc:  # noqa: BLE001 — factor data must never block boot
+                factor_store = None
                 factor_accessor = FactorAccessor(None)
                 logger.warning("factor_accessor_unavailable", error=str(exc))
 
@@ -411,7 +417,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # max_instances=1 + coalesce.
             from app.jobs.premarket_scan_scheduled import run_premarket_scan_scheduled
 
-            if factor_accessor.store is not None:
+            if factor_store is not None:
                 scheduler.scheduler.add_job(
                     run_premarket_scan_scheduled,
                     _ReplayCron(day_of_week="mon-fri", hour=9, minute=25),
@@ -421,7 +427,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     replace_existing=True,
                     kwargs={
                         "bar_cache": bar_cache,
-                        "factor_store": factor_accessor.store,
+                        "factor_store": factor_store,
                     },
                 )
                 logger.info("premarket_scan_scheduled")
