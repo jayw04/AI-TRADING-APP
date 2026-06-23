@@ -212,10 +212,9 @@ def main() -> int:
     ap.add_argument("--initial-equity", type=float, default=100_000.0)
     ap.add_argument("--report-dir", default=None)
     args = ap.parse_args()
-    try:  # never let a non-ASCII char in a verdict string kill a long run on a cp1252 pipe
+    # never let a non-ASCII char in a verdict string kill a long run on a cp1252 pipe
+    with contextlib.suppress(Exception):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
-    except Exception:
-        pass
     start, end = date.fromisoformat(args.start), date.fromisoformat(args.end)
     K, INIT = args.k, args.initial_equity
     started = time.monotonic()
