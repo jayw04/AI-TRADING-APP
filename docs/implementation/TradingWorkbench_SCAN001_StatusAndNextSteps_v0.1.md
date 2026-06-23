@@ -46,9 +46,34 @@ capability — Discovery *and* Factor Lab — travels the same ladder):
 | **L5** | Continuously Verified | after deployment (continuous evidence) |
 
 **Discovery Lab v1.0 — FROZEN on gate pass.** With Selection (v0.2) · Operating Envelope (v0.3) · Discovery
-Confidence (v0.5) · Production Validation Gate (A–D) · Continuous Evidence, Discovery Lab is a **complete
-subsystem**. The owner directive holds: **no SCAN v0.6, no new Discovery concepts** — freeze it and move to
-repeatability (§4).
+Confidence (v0.5) · Production Validation Gate (A–D) · Continuous Evidence → **Evidence Dashboard** (`/evidence`,
+the human-readable surface, so people can *see* the evidence), Discovery Lab is a **complete subsystem**. The
+owner directive holds: **no SCAN v0.6, no new Discovery concepts** — freeze it and move to repeatability (§4).
+
+*Framing (review): **Evidence Engineering** is the umbrella over all of this —
+`Evidence Engineering → Research Program → Production Validation → Capability Promotion`. The pipeline below is
+the promotion mechanism within that umbrella; it is **platform-wide**, not Discovery-specific.*
+
+---
+
+## 0a. Platform maturity (where the whole platform stands — for execs / investors / partners)
+
+A platform-level companion to the per-capability pipeline above: an at-a-glance read of the *whole* system, not
+just one research program.
+
+| Platform area | Status |
+|---|---|
+| **Evidence Engineering** (the methodology / the IP) | **Mature** — pre-registration → evidence → governance → promotion → continuous evidence, demonstrated end-to-end |
+| **Discovery Lab** | **L4-pending** — research-complete (v0.2–v0.5); Production Validation Gate built, accruing |
+| **Factor Lab** | **In progress** — MOM-001 live (paper); SEC-001 / LOW-001 diversifiers; MF-001 inconclusive; TREND-001 planned |
+| **Research / Capability Registry** | **Mature** — programs + capabilities (CAP-001…013) + outcome taxonomy + dependency graph |
+| **Governance** (pre-reg, promotion gates, stopping rule) | **Mature** |
+| **Continuous Evidence** | **Operational** — live paper books + weekly live-evidence refresh |
+| **Product UX / Dashboards** | **Early** — `/evidence` dashboard shipped; Candidate Report Discovery-Confidence overlay pending |
+| **Commercial packaging** (whitepaper / patent / SaaS) | **Planned** — Phase 3 (§4a) |
+
+*This is the "where is the platform as a whole" view the review asked for — it complements, not replaces, the
+per-capability L0–L5 pipeline.*
 
 ---
 
@@ -119,7 +144,7 @@ All read-only · advisory · no order path · no LLM. ~58 gate tests; ruff(CI-sc
    - Same rebuild-gated activation pattern as #221 (the `app/` image drifts from main until rebuilt).
 4. **Run the verdict** — once the window accrues, `run_gate_verdict(dir)` → the L4 recommendation
    (TRANSFERS → recommend L4, owner-gated; DOES-NOT-TRANSFER → documented boundary).
-5. **Optional product follow-on** — wire the v0.5 **Discovery Confidence** (`confidence_gr`) into the live
+5. **Optional product follow-on** — wire the v0.5 **Discovery Confidence** into the live
    Candidate Report's confidence field (a one-line overlay, pre-registered OQ4; separate product PR).
 
 ---
@@ -155,11 +180,22 @@ production-environment validation → gated promotion → continuous evidence) i
 **platform-wide standard** — the review's view (and mine) that *this methodology, not any single strategy, is
 TradingWorkbench's most valuable IP.*
 
-### 4b. Whitepaper follow-on (named, not built)
+### 4b. Named follow-ons (review — captured, deliberately NOT built now)
 
-Add the **canonical Discovery workflow figure** to the whitepaper:
-`Discovery Lab → Selection → Confidence → Operating Envelope → Production Validation → Continuous Evidence`.
-A drop-in for the binary `.docx`, sibling to `Whitepaper_DropIn_ConfidenceModel_v0.1.md`.
+The reviewer's own guidance: *spend little further effort refining SCAN docs; the ROI is in completing the gate,
+demonstrating repeatability, and reflecting these concepts in the whitepaper/patent.* So these are **named, not
+built**:
+
+- **Whitepaper figures** — the canonical Discovery workflow (`Discovery Lab → Selection → Confidence → Operating
+  Envelope → Production Validation → Continuous Evidence`) **and** the capability lifecycle (`Idea → Hypothesis →
+  Research → Validation → Promotion → Continuous Evidence → Retirement` — capabilities evolve or die). Drop-ins
+  sibling to `Whitepaper_DropIn_ConfidenceModel_v0.1.md`.
+- **Capability Registry split** — when the registry next grows (the reviewer's "~next month"), split into
+  Research Registry · Capability Registry · Architecture · Research History/Knowledge Graph.
+- **Research Programs hierarchy** — surface `Research Programs → {Discovery Lab · Factor Lab · (future) Risk Lab ·
+  Execution Lab}` in the architecture docs.
+- **ADR 0024 — `RealizedOutcomeProvider` interface** — generalize the realized-outcome source to a provider
+  abstraction (Alpaca today; Polygon / Databento / IBKR later); fits ADR 0024's existing re-eval triggers.
 
 ---
 
