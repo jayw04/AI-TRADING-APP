@@ -160,6 +160,73 @@ def test_select_empty_panel() -> None:
     assert ce.select_candidates([], top_n=10) == []
 
 
+# ---- v0.2 outcome metrics --------------------------------------------------
+
+
+def test_expansion_ratio_detautologizes() -> None:
+    # realized range 6% on a 3%-ATR name → expanded 2× its own vol
+    assert ce.expansion_ratio(6.0, 3.0) == 2.0
+    # realized exactly its ATR → ratio 1.0 (no opportunity beyond vol)
+    assert ce.expansion_ratio(3.0, 3.0) == 1.0
+    assert ce.expansion_ratio(5.0, 0.0) == 0.0  # no ATR → safe
+
+
+def test_trend_efficiency_chop_vs_trend() -> None:
+    # close == open → pure round trip → 0
+    assert ce.trend_efficiency(100.0, 105.0, 95.0, 100.0) == 0.0
+    # close at the high, open at the low → clean one-way → full range directional
+    assert ce.trend_efficiency(100.0, 110.0, 100.0, 110.0) == 1.0
+    assert ce.trend_efficiency(100.0, 100.0, 100.0, 100.0) == 0.0  # flat → safe
+
+
+def test_capturable_move_takes_best_excursion() -> None:
+    # up 8 from open vs down 5 → best excursion is the 8% up move
+    assert ce.capturable_move(100.0, 108.0, 95.0) == 8.0
+    # down excursion larger
+    assert ce.capturable_move(100.0, 102.0, 90.0) == 10.0
+
+
+def test_net_move_is_open_to_close() -> None:
+    assert ce.net_move(100.0, 103.0) == 3.0
+    assert ce.net_move(100.0, 97.0) == 3.0  # absolute
+    assert ce.net_move(0.0, 50.0) == 0.0
+
+
+# ---- v0.2 signal selector (H3 attribution) ---------------------------------
+
+
+def test_active_signals_atr_only() -> None:
+    feat = _feat(gap_pct=6.0, rvol=4.0, atr_pct=4.0)  # clears all three
+    assert ce.opportunity_signals(feat, active_signals=("ATR",)) == ["ATR"]
+
+
+def test_active_signals_excludes_inactive_driver() -> None:
+    feat = _feat(gap_pct=6.0, rvol=1.0, atr_pct=4.0)  # Gap + ATR fire, RVOL doesn't
+    assert ce.opportunity_signals(feat, active_signals=("Gap", "ATR")) == ["Gap", "ATR"]
+    assert ce.opportunity_signals(feat, active_signals=("RVOL", "ATR")) == ["ATR"]
+
+
+def test_select_with_atr_only_screen_drops_gap_only_names() -> None:
+    panel = [
+        _feat(symbol="GAPONLY", gap_pct=6.0, rvol=1.0, atr_pct=1.0),  # only Gap fires
+        _feat(symbol="ATRNAME", gap_pct=1.0, rvol=1.0, atr_pct=4.0),  # only ATR fires
+    ]
+    out = ce.select_candidates(panel, top_n=10, active_signals=("ATR",))
+    assert [c.symbol for c in out] == ["ATRNAME"]  # GAPONLY dropped (Gap inactive)
+
+
+def test_require_all_signals_respects_active_subset() -> None:
+    panel = [_feat(symbol="X", gap_pct=6.0, rvol=1.0, atr_pct=4.0)]  # Gap+ATR, not RVOL
+    out = ce.select_candidates(
+        panel, top_n=10, active_signals=("Gap", "ATR"), require_all_signals=True
+    )
+    assert [c.symbol for c in out] == ["X"]  # both active signals fired
+    out2 = ce.select_candidates(
+        panel, top_n=10, active_signals=("Gap", "RVOL"), require_all_signals=True
+    )
+    assert out2 == []  # RVOL didn't fire → fails all-active
+
+
 def test_candidate_to_dict_is_json_safe() -> None:
     out = ce.select_candidates([_feat(symbol="AAA")], top_n=1)
     d = out[0].to_dict()
