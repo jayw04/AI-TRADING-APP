@@ -22,8 +22,14 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.enums import OrderSourceType, SignalType
+from app.db.enums import (
+    TERMINAL_ORDER_STATUSES,
+    OrderSide,
+    OrderSourceType,
+    SignalType,
+)
 from app.db.models.account_state import AccountState
+from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.signal import Signal
 from app.db.models.symbol import Symbol
@@ -268,6 +274,45 @@ class StrategyContext:
                     )
                 )
             ).scalars().first()
+
+    async def pending_buy_qty(self) -> dict[str, Decimal]:
+        """In-flight BUY quantity per ticker for THIS strategy, keyed by ticker.
+
+        Sums the qty of this strategy's own non-terminal BUY orders (routed but
+        not yet filled/settled, so not yet visible in ``positions``). A strategy
+        nets its target buys against this so a re-run — e.g. after a
+        deactivate/reactivate within the same rebalance period — does not submit a
+        duplicate basket and stack unintended exposure (incident 2026-06-22).
+
+        DB-backed, so the guard survives the in-memory strategy instance being
+        recreated. Scoped to this strategy's own orders (``source_id``); other
+        strategies and manual orders on the account are netted by the risk
+        engine's account-level gates (ADR 0025), not here. Conservative: counts
+        each order's full qty (a partial fill's remainder lags in ``positions``).
+        Restricted to the strategy's allowed universe.
+        """
+        allowed = {s.upper() for s in self.symbols}
+        out: dict[str, Decimal] = {}
+        async with self._session_factory() as session:
+            rows = (
+                await session.execute(
+                    select(Symbol.ticker, Order.qty)
+                    .join(Symbol, Symbol.id == Order.symbol_id)
+                    .where(
+                        Order.account_id == self.account_id,
+                        Order.source_type == OrderSourceType.STRATEGY,
+                        Order.source_id == str(self.strategy_id),
+                        Order.side == OrderSide.BUY,
+                        Order.status.notin_(TERMINAL_ORDER_STATUSES),
+                    )
+                )
+            ).all()
+        for ticker, qty in rows:
+            t = ticker.upper()
+            if t not in allowed:
+                continue
+            out[t] = out.get(t, Decimal(0)) + Decimal(qty)
+        return out
 
     async def get_account_equity(self) -> Decimal | None:
         """Live account equity from the cached broker snapshot, or ``None`` if no

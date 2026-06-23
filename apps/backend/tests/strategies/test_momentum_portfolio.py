@@ -76,6 +76,9 @@ def _ctx(symbols, scores, holdings=None, price=100.0, equity=None, spy_bars=None
     ctx.get_account_equity = AsyncMock(return_value=equity)
     ctx.submit_order = AsyncMock(return_value=MagicMock(rejection_reason=None))
     ctx.log_signal = AsyncMock(return_value=1)
+    # No in-flight orders by default → buy sizing is unaffected. Tests that
+    # exercise idempotency override this.
+    ctx.pending_buy_qty = AsyncMock(return_value={})
     return ctx
 
 
@@ -685,3 +688,53 @@ async def test_fractional_shares_deploys_more_than_whole() -> None:
     await strat.on_bar(_bar(WK1_A))
     qty = _orders(ctx)["AAA"][1]
     assert qty > Decimal(73) and qty < Decimal(74)  # fractional, not floored to 73
+
+
+# ---- rebalance idempotency: net against in-flight buys (incident 2026-06-22) ----
+
+async def test_inflight_buys_are_not_reordered() -> None:
+    """A rebalance re-run while the basket is still in flight submits nothing."""
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]), equity=20_000)
+    ctx.pending_buy_qty = AsyncMock(
+        return_value={"AAA": Decimal(100), "BBB": Decimal(100)}
+    )
+    strat = _strat(ctx, top_quantile=1.0, max_names=10)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx) == {}  # both target buys already on the way → skipped
+
+
+async def test_partial_inflight_reduces_buy() -> None:
+    """An in-flight partial only shrinks the new buy; it never flips to a sell."""
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]), equity=20_000)
+    ctx.pending_buy_qty = AsyncMock(return_value={"AAA": Decimal(40)})  # 40 of 100
+    strat = _strat(ctx, top_quantile=1.0, max_names=10)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("buy", Decimal(60))    # 100 target − 40 in flight
+    assert orders["BBB"] == ("buy", Decimal(100))   # none in flight → full
+
+
+async def test_reactivation_does_not_duplicate_basket() -> None:
+    """Incident shape: after the first basket is routed, a fresh instance (on_init
+    resets the in-memory weekly guard) must NOT re-buy — in-flight orders net out."""
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
+    ctx = _ctx(["AAA", "BBB"], scores, equity=20_000)
+    strat1 = _strat(ctx, top_quantile=1.0, max_names=10)
+    await strat1.on_init()
+    await strat1.on_bar(_bar(WK1_A))
+    assert _orders(ctx) == {
+        "AAA": ("buy", Decimal(100)),
+        "BBB": ("buy", Decimal(100)),
+    }
+
+    # Those orders are now in flight; reactivate (new instance, fresh guard).
+    ctx.submit_order.reset_mock()
+    ctx.pending_buy_qty = AsyncMock(
+        return_value={"AAA": Decimal(100), "BBB": Decimal(100)}
+    )
+    strat2 = _strat(ctx, top_quantile=1.0, max_names=10)
+    await strat2.on_init()              # weekly guard reset to None
+    await strat2.on_bar(_bar(WK1_B))    # same ISO week, different instance
+    assert _orders(ctx) == {}           # nothing re-ordered
