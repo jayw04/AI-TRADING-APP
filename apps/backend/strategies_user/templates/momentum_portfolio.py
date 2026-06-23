@@ -281,6 +281,16 @@ class MomentumPortfolio(Strategy):
         per_name = min(equity / Decimal(k), equity * Decimal(str(self.params.get("max_position_pct", 0.10))))
         min_trade = Decimal(str(self.params.get("min_trade_pct", 0.03)))
 
+        # In-flight BUY quantity from THIS strategy's own not-yet-filled orders.
+        # Netting target buys against it makes the rebalance idempotent: a re-run
+        # within the same period (e.g. after a deactivate/reactivate cycle, which
+        # resets the in-memory weekly guard) sees the basket already on the way and
+        # submits nothing, instead of stacking a second full basket (incident
+        # 2026-06-22). DB-backed, so it survives the strategy instance being
+        # recreated; the risk engine's account-level gates (ADR 0025) are the
+        # non-bypassable backstop. Read once per rebalance.
+        pending_buys = await self.ctx.pending_buy_qty()
+
         # First pass sells (trims) so they precede buys; collect buys, submit after.
         fractional = bool(self.params.get("fractional_shares", False))
         buys: list[tuple[str, Decimal, float, Decimal]] = []
@@ -311,7 +321,17 @@ class MomentumPortfolio(Strategy):
                                    ref_price=price,
                                    payload={"price": price, "target_qty": str(target_qty)})
             else:
-                buys.append((sym, delta, price, target_qty))
+                # Subtract this strategy's already-in-flight buys so a re-run does
+                # not re-order the same shares. Only ever SHRINKS the buy (never
+                # flips it to a sell), so it cannot oversell a not-yet-filled
+                # position; netting <= 0 means enough is already on the way → skip.
+                buy_qty = delta - pending_buys.get(sym.upper(), Decimal(0))
+                if buy_qty <= 0:
+                    await self.ctx.log_signal(sym, SignalType.ENTRY, payload={
+                        "reason": f"{reason}_skip_inflight",
+                        "delta": str(delta), "pending_buy": str(pending_buys.get(sym.upper(), Decimal(0)))})
+                    continue
+                buys.append((sym, buy_qty, price, target_qty))
 
         for sym, qty, price, target_qty in buys:
             await self._submit(sym, OrderSide.BUY, qty, reason=f"{reason}_entry",
