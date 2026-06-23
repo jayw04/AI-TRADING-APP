@@ -227,6 +227,45 @@ def test_require_all_signals_respects_active_subset() -> None:
     assert out2 == []  # RVOL didn't fire → fails all-active
 
 
+# ---- v0.3 regime classifiers ------------------------------------------------
+
+
+def test_sma_and_trailing_return() -> None:
+    assert ce.sma([1, 2, 3, 4], 2) == 3.5
+    assert ce.sma([1, 2], 5) is None
+    assert abs(ce.trailing_return([100, 110], 1) - 0.10) < 1e-9
+    assert ce.trailing_return([100], 1) is None
+
+
+def test_realized_vol_zero_for_flat_returns() -> None:
+    assert ce.realized_vol([0.0] * 21, n=21) == 0.0
+    assert ce.realized_vol([0.01] * 5, n=21) is None  # insufficient history
+
+
+def test_market_regime_bull_bear_sideways() -> None:
+    # Bull: rising series ends above its SMA200 with a positive 60d return
+    bull = [100 + i * 0.5 for i in range(260)]
+    assert ce.market_regime(bull) == "bull"
+    # Bear: falling series ends below its SMA200 with a negative 60d return
+    bear = [200 - i * 0.5 for i in range(260)]
+    assert ce.market_regime(bear) == "bear"
+    # Sideways: flat ends at its SMA200 with ~0 60d return → not bull/bear
+    flat = [100.0] * 260
+    assert ce.market_regime(flat) == "sideways"
+
+
+def test_market_regime_insufficient_history() -> None:
+    assert ce.market_regime([100.0] * 50) is None
+
+
+def test_vol_regime_split() -> None:
+    hist = [0.10, 0.20, 0.30]  # median 0.20
+    assert ce.vol_regime(0.25, hist) == "high"
+    assert ce.vol_regime(0.15, hist) == "low"
+    assert ce.vol_regime(None, hist) is None
+    assert ce.vol_regime(0.25, []) is None
+
+
 def test_candidate_to_dict_is_json_safe() -> None:
     out = ce.select_candidates([_feat(symbol="AAA")], top_n=1)
     d = out[0].to_dict()
