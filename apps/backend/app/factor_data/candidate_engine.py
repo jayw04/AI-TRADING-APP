@@ -99,6 +99,35 @@ def intraday_range_pct(high: float, low: float, open_: float) -> float:
     return _safe_div(high - low, open_) * 100.0
 
 
+# ---- v0.2 outcome metrics (de-tautologize + tradeability; SCAN-001 v0.2 §1) ----
+# All are post-open OUTCOMES scored after selection — never fed back into the filters.
+
+
+def expansion_ratio(range_pct: float, atr_pct: float) -> float:
+    """H1′ — realized intraday range as a multiple of the name's OWN ATR. Normalizing
+    by ATR removes the v0.1 tautology (we selected partly on ATR): >1 means the name
+    expanded *beyond* the volatility we screened it for; ≈1 means it merely realized it."""
+    return _safe_div(range_pct, atr_pct)
+
+
+def trend_efficiency(open_: float, high: float, low: float, close: float) -> float:
+    """H2 tradeability — fraction of the day's range that was NET directional travel.
+    0 = pure round-trip chop (open==close), 1 = clean one-way trend (close at an extreme)."""
+    return _safe_div(abs(close - open_), high - low)
+
+
+def capturable_move(open_: float, high: float, low: float) -> float:
+    """H2 tradeability — the best single-direction excursion from the open, in % (an MFE
+    proxy): the move an intraday strategy could have targeted regardless of direction."""
+    return _safe_div(max(high - open_, open_ - low), open_) * 100.0
+
+
+def net_move(open_: float, close: float) -> float:
+    """H2 tradeability — the one-way move that actually HELD to the close, in % (what an
+    open-to-close hold would have captured). Distinct from capturable_move's best-case."""
+    return _safe_div(abs(close - open_), open_) * 100.0
+
+
 # ---- selection -------------------------------------------------------------
 
 
@@ -112,14 +141,22 @@ def is_eligible(feat: dict[str, Any], filters: dict[str, float] = FILTERS) -> bo
     )
 
 
-def opportunity_signals(feat: dict[str, Any], filters: dict[str, float] = FILTERS) -> list[str]:
-    """Which opportunity drivers cleared their threshold — the candidate's ``reason``."""
+def opportunity_signals(
+    feat: dict[str, Any],
+    filters: dict[str, float] = FILTERS,
+    active_signals: tuple[str, ...] = _OPPORTUNITY_SIGNALS,
+) -> list[str]:
+    """Which opportunity drivers cleared their threshold — the candidate's ``reason``.
+
+    ``active_signals`` restricts which drivers can fire — the H3 attribution lever: pass
+    ``("ATR",)`` for the ATR-only screen, ``("Gap", "ATR")`` for ATR+Gap, etc. A driver
+    not in ``active_signals`` is ignored even if it would have cleared."""
     fired: list[str] = []
-    if feat.get("gap_pct", 0.0) > filters["min_gap_pct"]:
+    if "Gap" in active_signals and feat.get("gap_pct", 0.0) > filters["min_gap_pct"]:
         fired.append("Gap")
-    if feat.get("rvol", 0.0) > filters["min_rvol"]:
+    if "RVOL" in active_signals and feat.get("rvol", 0.0) > filters["min_rvol"]:
         fired.append("RVOL")
-    if feat.get("atr_pct", 0.0) > filters["min_atr_pct"]:
+    if "ATR" in active_signals and feat.get("atr_pct", 0.0) > filters["min_atr_pct"]:
         fired.append("ATR")
     return fired
 
@@ -153,18 +190,20 @@ def select_candidates(
     top_n: int = 15,
     filters: dict[str, float] = FILTERS,
     require_all_signals: bool = False,
+    active_signals: tuple[str, ...] = _OPPORTUNITY_SIGNALS,
 ) -> list[Candidate]:
     """Run the engine over a day's per-symbol feature panel → ranked top-N candidates.
 
     Each panel row needs: symbol, gap_pct, rvol, atr_pct, price, dollar_vol, and
     optionally earnings_today. Selection = eligible AND ≥1 opportunity signal (or all
-    three when ``require_all_signals`` — the robustness tightening)."""
+    active when ``require_all_signals`` — the robustness tightening). ``active_signals``
+    restricts the drivers (the H3 attribution lever — see ``opportunity_signals``)."""
     scored: list[Candidate] = []
     for feat in panel:
         if not is_eligible(feat, filters):
             continue
-        fired = opportunity_signals(feat, filters)
-        if not fired or (require_all_signals and len(fired) < len(_OPPORTUNITY_SIGNALS)):
+        fired = opportunity_signals(feat, filters, active_signals)
+        if not fired or (require_all_signals and len(fired) < len(active_signals)):
             continue
         scored.append(
             Candidate(
