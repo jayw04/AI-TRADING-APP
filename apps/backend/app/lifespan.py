@@ -404,6 +404,48 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("equity_snapshot_scheduled")
 
+            # 10c-quint. Premarket scan (SCAN-001 increment C; PR #241 activation).
+            # Weekdays at 09:25 ET (market opens at 09:30). Records the live premarket
+            # gappers candidate set to a dated JSON record for forward evidence accrual.
+            # Read-only, fail-soft; requires factor_store to be provisioned.
+            # max_instances=1 + coalesce.
+            from app.jobs.premarket_scan_scheduled import run_premarket_scan_scheduled
+
+            if factor_accessor.store is not None:
+                scheduler.scheduler.add_job(
+                    run_premarket_scan_scheduled,
+                    _ReplayCron(day_of_week="mon-fri", hour=9, minute=25),
+                    id="premarket_scan",
+                    max_instances=1,
+                    coalesce=True,
+                    replace_existing=True,
+                    kwargs={
+                        "bar_cache": bar_cache,
+                        "factor_store": factor_accessor.store,
+                    },
+                )
+                logger.info("premarket_scan_scheduled")
+            else:
+                logger.info("premarket_scan_skipped", reason="factor_store_unavailable")
+
+            # 10c-sext. Premarket backfill (SCAN-001 increment D; PR #241 activation).
+            # Weekdays at 16:30 ET (after market close). Fetches realized intraday
+            # outcomes for today's premarket candidates from BarCache, back-fills the
+            # evidence record, and persists. Pure back-fill, read-only, fail-soft.
+            # max_instances=1 + coalesce.
+            from app.jobs.premarket_backfill_scheduled import run_premarket_backfill_scheduled
+
+            scheduler.scheduler.add_job(
+                run_premarket_backfill_scheduled,
+                _ReplayCron(day_of_week="mon-fri", hour=16, minute=30),
+                id="premarket_backfill",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"bar_cache": bar_cache},
+            )
+            logger.info("premarket_backfill_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't

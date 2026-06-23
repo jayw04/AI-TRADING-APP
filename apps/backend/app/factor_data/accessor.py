@@ -43,6 +43,11 @@ class FactorAccessor:
     def __init__(self, store: FactorDataStore | None) -> None:
         self._store = store
 
+    @property
+    def store(self) -> FactorDataStore | None:
+        """Read-only access to the underlying FactorDataStore (for activation jobs)."""
+        return self._store
+
     def _require_store(self) -> FactorDataStore:
         if self._store is None:
             raise FactorDataUnavailable(
