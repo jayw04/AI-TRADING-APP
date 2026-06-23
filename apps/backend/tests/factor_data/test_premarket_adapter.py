@@ -103,3 +103,44 @@ def test_panel_rows_flow_through_the_frozen_engine() -> None:
 
 def test_panel_empty_inputs() -> None:
     assert pa.premarket_panel([], {}) == []
+
+
+# ---- features_from_bars (the pure core of the historical store join, increment B) ----
+
+
+def _bars(n: int, *, high: float = 102.0, low: float = 98.0, close: float = 100.0,
+          volume: float = 1_000_000.0) -> list[dict[str, float]]:
+    return [{"high": high, "low": low, "close": close, "volume": volume} for _ in range(n)]
+
+
+def test_features_from_bars_computes_store_features() -> None:
+    feat = pa.features_from_bars(_bars(21))
+    assert feat is not None
+    assert feat["atr_pct"] == 4.0                       # $4 range on a $100 close → 4%
+    assert feat["avg_volume"] == 1_000_000.0
+    assert feat["prev_dollar_vol"] == 100_000_000.0     # 100 close × 1,000,000 volume
+
+
+def test_features_from_bars_needs_enough_history() -> None:
+    assert pa.features_from_bars(_bars(10)) is None      # < ATR_N + 1 bars
+
+
+def test_features_from_bars_zero_prev_close_is_safe() -> None:
+    bars = _bars(21)
+    bars[-1]["close"] = 0.0
+    assert pa.features_from_bars(bars) is None
+
+
+def test_features_from_bars_avg_volume_is_trailing_window() -> None:
+    bars = _bars(25, volume=2_000_000.0)
+    for b in bars[:5]:
+        b["volume"] = 99_000_000.0   # old bars outside the 20-day window must not skew the avg
+    feat = pa.features_from_bars(bars)
+    assert feat is not None and feat["avg_volume"] == 2_000_000.0
+
+
+def test_features_then_adapter_end_to_end() -> None:
+    # the historical join (features_from_bars) feeds the gapper adapter cleanly
+    store_feat = pa.features_from_bars(_bars(21))
+    row = pa.premarket_feature_row(_gapper(), store_feat)
+    assert row is not None and row["atr_pct"] == 4.0 and row["rvol"] == 4.0

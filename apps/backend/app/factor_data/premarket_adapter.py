@@ -32,6 +32,9 @@ from app.factor_data import candidate_engine as ce
 # Store-feature keys the adapter needs per symbol (the historical-data join).
 STORE_FEATURE_KEYS = ("atr_pct", "avg_volume", "prev_dollar_vol")
 
+ATR_N = 14
+RVOL_LOOKBACK = 20
+
 
 def _f(value: Any) -> float:
     """Best-effort float; non-numeric / None → 0.0 (fail-soft, never raises into a scan)."""
@@ -39,6 +42,33 @@ def _f(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def features_from_bars(bars: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Compute the per-symbol store features from prior daily bars (PURE — the testable core
+    of the historical join used by the live scan, increment B).
+
+    ``bars`` are the symbol's daily bars **strictly before** the scan day, oldest → newest, each
+    with ``high``/``low``/``close``/``volume`` (point-in-time: a premarket scan knows only prior
+    closes). Needs ≥ ``ATR_N + 1`` bars; returns ``None`` otherwise (the symbol is then dropped,
+    matching ``premarket_feature_row``'s no-ATR rule). Mirrors the v0.2 harness's ``_feature_row``
+    so premarket features are computed identically to the validated research."""
+    if len(bars) < ATR_N + 1:
+        return None
+    highs = [_f(b.get("high")) for b in bars]
+    lows = [_f(b.get("low")) for b in bars]
+    closes = [_f(b.get("close")) for b in bars]
+    prev_close = closes[-1]
+    if prev_close <= 0:
+        return None
+    avg_volume = sum(_f(b.get("volume")) for b in bars[-RVOL_LOOKBACK:]) / min(
+        RVOL_LOOKBACK, len(bars)
+    )
+    return {
+        "atr_pct": ce.atr_pct(highs, lows, closes, n=ATR_N),
+        "avg_volume": avg_volume,
+        "prev_dollar_vol": prev_close * _f(bars[-1].get("volume")),
+    }
 
 
 def premarket_feature_row(
