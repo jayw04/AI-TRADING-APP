@@ -1,4 +1,7 @@
-# SCAN-001 — Candidate Engine: Results v0.2 (de-tautologized)
+# SCAN-001 — Market Opportunity Discovery Engine: Results v0.2 (de-tautologized)
+
+> **Naming (owner):** the customer-facing name is the **Market Opportunity Discovery Engine**; *Candidate
+> Engine* is the internal abbreviation. Both refer to the same SCAN-001 capability.
 
 **Program:** SCAN-001 (Market Opportunity Discovery) · Type: Platform Capability
 **Pre-registration:** plan v0.2 §1/§4a (frozen 2026-06-22, owner-approved decisions)
@@ -72,6 +75,22 @@ decoration. (RVOL adds slightly more than Gap on the expansion metric; both clea
 3. **Daily-bar approximations unchanged.** Gap uses the official open (~5-min proxy for the 09:25 premarket
    price) and RVOL is a daily proxy. This affects selection *precision*, not the *validity* of the
    ATR-normalized comparison — but it is the reason the next gate is data, not more backtesting.
+4. **Discovery stability (preliminary, owner request).** The expansion edge is **positive in every calendar
+   year on both cuts** — but it is *not flat*. It **compresses in the 2022 bear** (5y-cut expansion edge
+   **+0.17 in 2022** vs ≈+0.25–0.28 in 2021/2023/2024/2025/2026), and the top-500 cut runs steadier (+0.54
+   to +0.58 across 2023–2025). First read: the engine works across regimes tested, but the opportunity
+   *shrinks* when the whole tape is falling. This is a *preliminary* signal, not the full picture — a
+   proper **Discovery-Stability study (bull / bear / sideways × volatility regime)** is the pre-registered
+   **v0.3 follow-on** that will tell us *when* the engine works best.
+
+   | Year | Headline (top-500) edge | Robustness (top-200) edge |
+   |---|---|---|
+   | 2021 | — | +0.28 |
+   | 2022 (bear) | — | **+0.17** |
+   | 2023 | +0.54 | +0.26 |
+   | 2024 | +0.58 | +0.25 |
+   | 2025 | +0.54 | +0.26 |
+   | 2026 (partial) | +0.47 | +0.27 |
 
 ---
 
@@ -85,6 +104,9 @@ historical iteration. Specifically:
 - **Next gate (pre-promotion to any live use):** wire the real premarket feed (PR #221 gappers) and replay
   H1′/H2 on live-data candidates — confirm the daily-proxy result survives true 09:25 inputs.
 - **Engine config frozen:** ATR + Gap + RVOL, all three retained (H3).
+- **v0.3 follow-on (pre-registered):** the **Discovery-Stability study** — decompose the edge by market
+  regime (bull / bear / sideways) and volatility regime, building on the §3.4 preliminary by-year read
+  (which already shows the edge compresses in the 2022 bear). Tells us *when* the engine works best.
 - **Not in scope / still downstream:** entry/exit mechanics, sizing, risk — the engine selects; strategies
   trade. The §3.2 finding (size > efficiency) is an input to *that* design, not a blocker here.
 

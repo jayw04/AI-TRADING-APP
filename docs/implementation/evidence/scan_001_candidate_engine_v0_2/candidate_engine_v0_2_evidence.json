@@ -1,7 +1,7 @@
 {
   "program": "SCAN-001",
   "plan": "v0.2",
-  "generated_utc": "2026-06-23T00:10:55+00:00",
+  "generated_utc": "2026-06-23T00:22:53+00:00",
   "headline": {
     "config": {
       "universe_n": 500,
@@ -104,6 +104,24 @@
           "p_value": 0.0
         },
         "additive": true
+      }
+    },
+    "stability_by_year": {
+      "2023": {
+        "days": 140,
+        "expansion_edge": 0.5384
+      },
+      "2024": {
+        "days": 252,
+        "expansion_edge": 0.5841
+      },
+      "2025": {
+        "days": 250,
+        "expansion_edge": 0.5442
+      },
+      "2026": {
+        "days": 112,
+        "expansion_edge": 0.4698
       }
     }
   },
@@ -209,6 +227,32 @@
           "p_value": 0.0
         },
         "additive": true
+      }
+    },
+    "stability_by_year": {
+      "2021": {
+        "days": 141,
+        "expansion_edge": 0.2795
+      },
+      "2022": {
+        "days": 251,
+        "expansion_edge": 0.1676
+      },
+      "2023": {
+        "days": 250,
+        "expansion_edge": 0.2579
+      },
+      "2024": {
+        "days": 252,
+        "expansion_edge": 0.251
+      },
+      "2025": {
+        "days": 250,
+        "expansion_edge": 0.2633
+      },
+      "2026": {
+        "days": 112,
+        "expansion_edge": 0.2651
       }
     }
   },

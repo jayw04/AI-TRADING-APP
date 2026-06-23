@@ -156,6 +156,7 @@ def run_cut(
     edges: dict[str, list[float]] = {"E": [], "TE": [], "CM": [], "NM": []}
     cand_means: dict[str, list[float]] = {"E": [], "TE": [], "CM": [], "NM": []}
     base_means: dict[str, list[float]] = {"E": [], "TE": [], "CM": [], "NM": []}
+    edge_years: list[int] = []  # calendar year per scored day, aligned with edges["E"]
     # H3: per-day candidate-set means of E and CM for each signal set
     h3_E: dict[str, list[float]] = {k: [] for k in SIGNAL_SETS}
     h3_CM: dict[str, list[float]] = {k: [] for k in SIGNAL_SETS}
@@ -192,6 +193,7 @@ def run_cut(
         if not cand_syms:
             continue
         scored_days += 1
+        edge_years.append(d.year)
         for key in edges:
             mk = f"_{key}"
             cm = _mean([outcomes[s][mk] for s in cand_syms])
@@ -239,6 +241,14 @@ def run_cut(
 
     h3 = {name: additive(name) for name in ("ATR_Gap", "ATR_RVOL", "full")}
 
+    # Discovery stability — per-calendar-year mean expansion edge (E). A first read on
+    # WHEN the engine works best (owner review suggestion); the full regime/vol-regime
+    # decomposition is the pre-registered v0.3 follow-on.
+    stability: dict[str, dict[str, float]] = {}
+    for y in sorted(set(edge_years)):
+        ys = [e for e, ey in zip(edges["E"], edge_years, strict=True) if ey == y]
+        stability[str(y)] = {"days": len(ys), "expansion_edge": round(_mean(ys), 4)}
+
     return {
         "config": {"universe_n": n, "start": start.isoformat(), "end": end.isoformat(),
                    "days": scored_days, "top_n": TOP_N, "bootstrap": bootstrap},
@@ -260,6 +270,7 @@ def run_cut(
             "clears_count": h2_count, "supported": h2_supported,
         },
         "h3_attribution": h3,
+        "stability_by_year": stability,
     }
 
 
@@ -338,6 +349,14 @@ def _write_report(result: dict[str, Any], report_dir: Path) -> None:
             L.append(f"| {sn} | [{a['vs_atr_only_E']['ci_low']}, {a['vs_atr_only_E']['ci_high']}] | "
                      f"[{a['vs_atr_only_CM']['ci_low']}, {a['vs_atr_only_CM']['ci_high']}] | "
                      f"{'✓' if a['additive'] else '—'} |")
+        L += [
+            "",
+            "### Discovery stability — expansion edge by year (preliminary)",
+            "| Year | Days | Expansion edge (E cand − base) |",
+            "| --- | --- | --- |",
+        ]
+        for y, s in cut["stability_by_year"].items():
+            L.append(f"| {y} | {s['days']} | {s['expansion_edge']} |")
         L.append("")
     L += [
         "## Honest scope",

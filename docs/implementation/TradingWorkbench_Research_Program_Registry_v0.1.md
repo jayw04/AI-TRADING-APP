@@ -7,7 +7,7 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.7 (2026-06-22) — **SCAN-001 registered as Prototype** (PR #229): status Planning → **Prototype** (40%, ⚪ caveated); first evidence row added (H1 edge +3.24% but flagged *partly definitional* — selection includes ATR; recorded as a prototype finding, not a validated edge); Candidate/Discovery Engine + Explainable Candidate Report listed as **prototype** platform capabilities; findings doc linked. **v0.6** — final SCAN-001 review: a **Reuse level** dimension per program (commercial-value signal — SCAN = Very High). **v0.5** folded the SCAN-001 review: **SCAN-001** added as the first **Platform Capability** program; the Capability Matrix **split into Platform vs Investment capabilities**; a **Primary consumer** dimension per program. **v0.4** folded the prior review (9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
+| Version | v0.8 (2026-06-23) — **SCAN-001 Prototype → Completed / ✅ Validated (Capability)** after the v0.2 de-tautologized run (both cuts SUPPORTED): status + verdict + evidence row updated; **Market Opportunity Discovery Engine** adopted as the customer-facing name (Candidate Engine = internal); new **Research Infrastructure** capability lens (*"this is the product"*); **architecture direction** note — Discovery Lab as a first-class peer to Factor Lab (four capability domains), pending ratification. Folds the owner review (Prototype 9.9 / Results 10 / Registry 10). **v0.7** — **SCAN-001 registered as Prototype** (PR #229): status Planning → **Prototype** (40%, ⚪ caveated); first evidence row added (H1 edge +3.24% but flagged *partly definitional* — selection includes ATR; recorded as a prototype finding, not a validated edge); Candidate/Discovery Engine + Explainable Candidate Report listed as **prototype** platform capabilities; findings doc linked. **v0.6** — final SCAN-001 review: a **Reuse level** dimension per program (commercial-value signal — SCAN = Very High). **v0.5** folded the SCAN-001 review: **SCAN-001** added as the first **Platform Capability** program; the Capability Matrix **split into Platform vs Investment capabilities**; a **Primary consumer** dimension per program. **v0.4** folded the prior review (9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
 | Source of truth | `apps/backend/app/research/programs.py` + the Evidence Dashboard |
 | Convention | Permanent IDs (`MOM / RNG / MF / SEC / LOW / TREND-NNN`) are platform IP — citable in the whitepaper, patent, and customer docs. The registry is **open-ended**: it grows one program at a time, forever (the GitHub-repositories model), and never "closes." |
 
@@ -74,9 +74,9 @@ reached — `Completed` is not the same as "nothing left to study":
 | **SEC-001** | Sector Rotation (sector relative strength) | **Archived** (construction) | `██████████` 100% | Closed | 🟡 **Diversifier (B)** | **Diversification** — a non-momentum return source |
 | **LOW-001** | Low Volatility (defensive) | **Completed** | `██████████` 100% | Follow-on (sleeve / V2) | 🟡 **Diversifier (B)** | **Defensive strategy** — the calm-stocks complement |
 | **TREND-001** | Trend Following (time-series trend) | **Planning** | `█░░░░░░░░░` 10% | Open (not started) | — **Pending** | **Trend philosophy** — the time-series complement |
-| **SCAN-001** ⚙ | Daily Candidate Selection / Market Opportunity Discovery — **platform capability, not a strategy** | **Prototype** | `████░░░░░░` 40% | Open (v0.2 next) | ⚪ **Prototype — caveated** | **Candidate Engine** — the reusable morning scanner feeding the Intraday Research Framework |
+| **SCAN-001** ⚙ | Market Opportunity Discovery Engine (Candidate Engine) — **platform capability, not a strategy** | **Completed** | `█████████░` 90% | Follow-on (v0.3 stability + premarket gate) | ✅ **Validated (Capability)** | **Discovery Engine** — the reusable morning scanner feeding the Intraday Research Framework |
 
-**Program type — SCAN-001 is the first Platform Capability program** (⚙), distinct from the strategy programs (MOM/RNG/MF/SEC/LOW/TREND). Strategies answer *"should we trade this?"*; a capability answers *"what shared infrastructure do strategies reuse?"*. Plan: `docs/implementation/TradingWorkbench_SCAN001_CandidateEngine_Plan_v0.1.md`. Prototype findings: `docs/implementation/TradingWorkbench_SCAN001_CandidateEngine_PrototypeFindings_v0.1.md` (PR #229). **Prototype status:** the pure selection core + research harness are built and tested; the first H1 run is **caveated, not validated** — the headline edge is partly *definitional* (selection includes ATR, a range measure), so it is recorded as a prototype finding that sharpened the research questions, **not** an approved capability. The ⚪ verdict reflects "built and instructive, not yet validated."
+**Program type — SCAN-001 is the first Platform Capability program** (⚙), distinct from the strategy programs (MOM/RNG/MF/SEC/LOW/TREND). Strategies answer *"should we trade this?"*; a capability answers *"what shared infrastructure do strategies reuse?"*. Plan: v0.1 + v0.2 (`..._CandidateEngine_Plan_v0.1.md`, `..._Plan_v0.2.md`). **The full Evidence-Engineering cycle ran here:** v0.1 prototype → caught its own ATR tautology (findings v0.1, kept as the scientific record) → v0.2 pre-registered de-tautologized hypotheses → **Validated on both cuts** (results v0.2). **Verdict ✅ Validated (Capability):** candidates expand **beyond their own ATR** (1.18–1.49× vs baseline ≈0.94×, CI-separated, p≈0 on both the top-500/3y and top-200/5y cuts), the expansion is tradeable (capturable & net move ~2.5× baseline), and all three signals (ATR+Gap+RVOL) are additive. ⚠ **"Validated" is the *capability* verdict, not a live-trading green light** — promotion to any live use still requires the premarket-data gate (PR #221) + a live-data replication, and the v0.3 Discovery-Stability study (regime/seasonality). Magnitude is regime/universe-dependent (recorded honestly in results §3).
 
 **Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). **Platform value** answers *why each program exists* — its contribution to the platform, not just its result; a rejection and a diversifier are both assets. **Research line** is orthogonal to Status (above).
 
@@ -114,7 +114,7 @@ registry institutional memory rather than a scoreboard.
 | **SEC-001** | Strongest non-momentum book (Sharpe 0.51), but no standalone edge (V1 H1 +0.16, CI [−0.03, 0.366]). V2 pure baskets confirmed B; H3 showed construction is **not** the limiter → construction archived per the stopping rule. | `evidence/sec_001_sector_rotation/` (V1), `evidence/sec_001_v2_pure_baskets/` (V2) | The **stopping rule works**: V2 isolated construction, found it wasn't the constraint, and the program closed instead of looping on parameters. |
 | **LOW-001** | Best risk-adjusted book on the platform: Sharpe 0.59 (vs momentum 0.39), maxDD −39% (≈ half of momentum's −76%), Calmar 0.20. H1 standalone +0.24, CI [−0.029, 0.53] just spans zero; H2 corr **−0.15** (true defensive diversifier); H3 shallower DD than benchmark in **5/5** windows. | `evidence/low_001_low_volatility/` | A prior negative (#142) **reversed** once tested on the right universe/cycle — narrow-universe results don't generalize. Low-vol is the defensive complement to momentum. Open follow-on: defensive sleeve / blend, or broader-universe V2. |
 | **TREND-001** | — (planned; charter pending). | — | — |
-| **SCAN-001** ⚙ | Prototype H1 (2018–2026, 2,123 days): candidate intraday range 6.33% vs baseline 3.09%, edge **+3.24%**, CI [3.08, 3.41], p≈0, **99.9% daily win** — **caveated as partly *definitional*** (selection includes ATR, a range measure; the ~100% win rate is the tell), so recorded as a prototype finding, not a validated edge. | `evidence/scan_001_candidate_engine/` | The honest catch fired on our *own* result: a clean, significant number that the methodology flags as near-tautological. Value = the engine + harness + three sharpened questions (range *expansion beyond* ATR, directionality, gap/RVOL attribution), not the +3.24%. v0.2 kills the tautology. |
+| **SCAN-001** ⚙ | **v0.2 (validated):** candidates expand **1.18–1.49× their own ATR** vs baseline ≈0.94× (CI-separated, p≈0 on both top-500/3y and top-200/5y); tradeable (capturable & net move ~2.5× baseline); ATR+Gap+RVOL all additive. *v0.1 prototype's +3.24% range edge was caught as partly definitional (selection includes ATR) and superseded.* | `evidence/scan_001_candidate_engine_v0_2/` (v0.2), `evidence/scan_001_candidate_engine/` (v0.1, archival) | **The full Evidence-Engineering cycle in one program:** build → detect a methodological flaw in our *own* result (the ATR tautology) → pre-register de-tautologized hypotheses → re-test rigorously → validate. The kept v0.1 doc shows the platform *correcting its own mistake* — the behavior to associate with TradingWorkbench. |
 
 ## Platform Capability Matrix (capabilities outlive strategies)
 
@@ -141,8 +141,8 @@ capabilities** are the investment logic each strategy contributes (the *content*
 | Research-calibration metrics (Confidence/Complexity/Duration/Accuracy) | LOW-001 | shipped |
 | Research Registry · Decision Register · Negative-findings ledger | the methodology (cross-program) | shipped |
 | Evidence Dashboard (`/evidence`) | P13 | shipped |
-| **Candidate / Discovery Engine** (pure selection core + research harness) | **SCAN-001** | **prototype** (PR #229) |
-| **Explainable Candidate Report** (reason + bounded transparent confidence) | **SCAN-001** | **prototype** (PR #229) |
+| **Market Opportunity Discovery Engine** (Candidate Engine — selection core + research harness) | **SCAN-001** | **validated** (v0.2) |
+| **Explainable Candidate Report** (reason + bounded transparent confidence) | **SCAN-001** | **validated** (v0.2) |
 
 **Investment capabilities** (the investment logic / signal / profile a strategy contributes):
 
@@ -154,6 +154,24 @@ capabilities** are the investment logic each strategy contributes (the *content*
 | Sector rotation | SEC-001 | shipped (diversifier) |
 | Defensive / low-volatility | LOW-001 | shipped (diversifier) |
 | Trend following | TREND-001 | planned |
+
+### Research Infrastructure — *this is the product* (owner)
+
+A third lens on the platform capabilities above: the subset that is **reusable research infrastructure** —
+the engines, registries, and surfaces that exist *independent of any single strategy* and constitute what a
+customer, partner, or patent reviewer is actually buying. Strategies are content; this is the platform. (As
+Discovery Lab and Factor Lab mature into peer components, this table is the seed of the four enduring
+capability domains — *Discovery · Research · Evidence · Operations* — see the architecture note below.)
+
+| Research-infrastructure capability | Origin | Status |
+|---|---|---|
+| **Evidence Package** (pre-registration → script → JSON → MD, seeded/reproducible) | MOM-001 / methodology | shipped |
+| **Circular-block Bootstrap Engine** (CIs + recentered-null p-values) | MOM-001 | shipped |
+| **Research Program Registry** (this document + `app/research/programs.py`) | methodology | shipped |
+| **Decision Registry** + Negative-findings ledger | methodology | shipped |
+| **Evidence Dashboard** (`/evidence`) | P13 | shipped |
+| **Market Opportunity Discovery Engine** (Candidate Engine, SCAN-001) | SCAN-001 | validated (v0.2) |
+| **Factor Lab** (factor-agnostic composite/score engine) | MF-001 | shipped (engine), program-config WIP |
 
 ## How this evolves
 
@@ -167,3 +185,21 @@ pipeline rather than a new script + document — the natural endpoint of the hig
 program has demonstrated (SEC-001 ~90%, LOW-001 ~90%). New programs are still added to `programs.py`
 (which the Evidence Dashboard renders live) and mirrored here; the Factor Lab only changes *how cheaply* a
 new row appears.
+
+### Architecture direction (owner, post-SCAN-001) — Discovery Lab becomes a first-class peer
+
+SCAN-001's validation makes **Discovery** a first-class capability domain alongside the existing ones, not a
+sub-feature of any strategy. The recommended enduring structure — to be ratified into the methodology + the
+whitepaper Ch2 figure (captured in `tasks/todo.md`, not executed unilaterally here):
+
+`TradingWorkbench → { Discovery Lab · Factor Lab · Evidence Engine · Execution & Operations }`
+
+- **Discovery Lab** — *finds market opportunities* (SCAN-001 today = the first profile; future Gap / Volume /
+  News / Macro / ETF / Options engines = configurations, the Factor-Lab pattern).
+- **Factor Lab** — *researches investment philosophies* (Momentum, Low-Vol, Sector, Trend, …).
+- **Evidence Engine** — *produces Evidence Packages, statistical validation, governance decisions*.
+- **Execution & Operations** — *paper, production, monitoring, Continuous Evidence*.
+
+Discovery and Factor as **peers** cover nearly the whole quant-research workflow (find opportunities ↔
+evaluate philosophies). This is a documented *direction*, pending owner ratification — see the whitepaper
+Ch2 figure and patent-family items in `tasks/todo.md`.
