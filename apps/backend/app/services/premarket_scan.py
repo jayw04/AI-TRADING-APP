@@ -69,6 +69,10 @@ def run_premarket_scan(store: Any, *, asof: date, top_n: int = 15) -> dict[str, 
     symbols = [str(g.get("symbol") or "").strip() for g in gappers if g.get("symbol")]
     store_features = store_features_for(store.con, symbols, asof) if symbols else {}
     panel = pa.premarket_panel(gappers, store_features)
+    # the eligible FIELD (passes the engine's $10 / $20M / no-earnings gates) is the
+    # candidate-vs-baseline reference (gate plan §1); persisted with each name's ATR so the
+    # back-fill (ADR 0024) can compute its realized E/CM. Candidates are the top-N of this field.
+    eligible = [r for r in panel if ce.is_eligible(r)]
     candidates = ce.select_candidates(panel, top_n=top_n)
     return {
         "date": payload.get("date"),
@@ -78,8 +82,11 @@ def run_premarket_scan(store: Any, *, asof: date, top_n: int = 15) -> dict[str, 
         "gappers_in": len(gappers),
         "store_covered": len(store_features),
         "eligible_panel": len(panel),
+        "eligible_count": len(eligible),
         "candidate_count": len(candidates),
         "candidates": [c.to_dict() for c in candidates],
+        # baseline field for the edge (symbol + ATR only — outcomes back-filled post-close)
+        "eligible": [{"symbol": r["symbol"], "atr_pct": r["atr_pct"]} for r in eligible],
         "note": "advisory — candidate set is evidence, not a signal (SCAN-001 §0a); RVOL is a "
                 "premarket-vs-daily proxy; gappers universe ≠ the validated liquid universe.",
     }

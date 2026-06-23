@@ -20,6 +20,14 @@
 > (Production-Ready on real data). It is **not** a new research idea — it is the validation of the existing one
 > on the data it will actually run on.
 
+> **Reframe (folds the review): this is the *Production Validation Gate*, premarket instance.** The gate is not
+> fundamentally about *premarket data* — it is about *validating that a capability works in its intended
+> production environment before promotion.* Premarket gappers are the **first instance**; future capabilities get
+> sibling gates (Options / Macro / ETF Validation Gates). Code stays `premarket_*` (the instance); the concept is
+> Production Validation. It runs in **two logical phases**: **Phase A — Technical Validation** (data → adapter →
+> scanner → persistence = increments A, B, C-persist) and **Phase B — Scientific Validation** (realized outcome →
+> evidence → bootstrap → verdict = increments C-backfill, D).
+
 ---
 
 ## 0. Two hard realities that shape everything (read first)
@@ -157,20 +165,22 @@ added, per the audit/migration convention).
   funnel; 6 tests. *Independent of #237 — uses the engine's selection only; a Discovery-Confidence overlay on
   the report is a one-line follow-on once #237 lands.* **Activation** (registering a ~09:25 job) needs a backend
   rebuild — deferred, like #221.
-- **(C) Forward-evidence accumulator — ✅ persist-half BUILT** (`app/services/premarket_evidence.py`):
-  `evidence_record` (wraps a scan into a durable, back-fillable record — outcomes `pending`) + `persist_record`
-  (dated one-per-day JSON, idempotent) + `record_premarket_scan` (run + persist). 5 tests; ruff/mypy clean. This
-  is **Option 3** (owner-chosen): persist the premarket candidate set from today with **no new dependency**;
-  outcomes back-fill later. **Activation** (the ~09:25 job + a durable runtime dir) needs a rebuild — deferred.
-- **(D) Replication verdict — ⏸ forward** — runs once records have accrued (~N days) **and** been outcome-back-filled
-  (Option 2). Reads the `premarket_scan_<date>.json` records.
+- **(C) Forward-evidence accumulator — ✅ BUILT (both halves).** *Persist* (`premarket_evidence.py`):
+  `evidence_record` + `persist_record` + `record_premarket_scan` (Option 3 — persist now, no new dependency; also
+  persists the eligible FIELD for the baseline). *Back-fill* (`premarket_outcomes.py`, **ADR 0024 accepted**):
+  `compute_outcome` (pure realized `E`/`CM`/`NM`) + `backfill_record` (candidate outcomes + eligible baseline +
+  candidate-vs-field edge + coverage; `filled`/`uncovered`) + `fetch_realized_bars` (thin Alpaca daily-bar read
+  via `BarCache`, fail-soft) + `backfill_evidence` (orchestration).
+- **(D) Replication verdict — ✅ harness BUILT** (`premarket_verdict.py`): `gate_verdict` (the v0.2 circular-block
+  bootstrap on the daily `edge_E` series) → **INSUFFICIENT** (< 40 filled days) / **TRANSFERS** (CI-sep > 0) /
+  **DOES-NOT-TRANSFER** (CI ≤ 0) + `load_records` + `run_gate_verdict`. The harness is complete; its **verdict is
+  forward** — INSUFFICIENT until the ~40-day window of back-filled records accrues (ADR 0014).
 
-> **The (C)/(D) decision — RESOLVED (owner, 2026-06-23): Option 3 now, then Option 2.** (C) must eventually attach
-> the *realized intraday outcome* (`E`, `CM`) to each day's premarket candidates, but the gappers are small/mid-cap
-> Yahoo gainers frequently **not in our DuckDB store**, with no intraday feed. The chosen path:
-> **(Option 3) persist the premarket candidate set now** (built above — evidence accrues from today, zero new
-> dependency), **then (Option 2) add a realized-outcome feed for the gappers universe** (a new data dependency →
-> an **ADR**, the next step) to back-fill outcomes and unblock (D).
+> **The (C)/(D) decision — RESOLVED + BUILT (owner, 2026-06-23): Option 3 then Option 2.** Option 3 persists the
+> premarket candidate set from today (zero new dependency); **Option 2 (ADR 0024, accepted)** back-fills the
+> realized outcomes from **Alpaca** (the existing audited dependency — not a new feed), with coverage recorded.
+> All four increments (A–D) are now built; what remains is **forward accrual** + **activation** (registering the
+> ~09:25 scan + ~16:30 back-fill jobs + a runtime evidence dir — needs a backend rebuild).
 
 ---
 

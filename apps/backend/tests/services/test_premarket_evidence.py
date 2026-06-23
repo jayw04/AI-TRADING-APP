@@ -20,8 +20,10 @@ from app.services import premarket_evidence as pe
 def _report(**kw: Any) -> dict[str, Any]:
     base = {
         "date": "2024-03-01", "scanned_at": "2024-03-01T13:00:00Z", "stale": False,
-        "gappers_in": 5, "store_covered": 3, "eligible_panel": 2, "candidate_count": 1,
+        "gappers_in": 5, "store_covered": 3, "eligible_panel": 2, "eligible_count": 2,
+        "candidate_count": 1,
         "candidates": [{"symbol": "AAA", "rank": 1, "reason": "Gap + RVOL + ATR"}],
+        "eligible": [{"symbol": "AAA", "atr_pct": 4.0}, {"symbol": "BBB", "atr_pct": 5.0}],
     }
     base.update(kw)
     return base
@@ -32,9 +34,10 @@ def test_evidence_record_wraps_with_pending_outcomes() -> None:
     assert rec["schema"] == pe.RECORD_SCHEMA
     assert rec["asof"] == "2024-03-01"
     assert rec["source_date"] == "2024-03-01"
-    assert rec["funnel"] == {"gappers_in": 5, "store_covered": 3,
-                             "eligible_panel": 2, "candidate_count": 1}
+    assert rec["funnel"] == {"gappers_in": 5, "store_covered": 3, "eligible_panel": 2,
+                             "eligible_count": 2, "candidate_count": 1}
     assert rec["candidates"][0]["symbol"] == "AAA"
+    assert [e["symbol"] for e in rec["eligible"]] == ["AAA", "BBB"]   # baseline field persisted
     assert rec["outcome_status"] == "pending"
     assert rec["outcomes"] is None
 
