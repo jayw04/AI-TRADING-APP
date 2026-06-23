@@ -1,0 +1,249 @@
+{
+  "program": "SCAN-001",
+  "plan": "v0.3",
+  "generated_utc": "2026-06-23T00:58:50+00:00",
+  "headline": {
+    "config": {
+      "universe_n": 200,
+      "start": "2010-06-12",
+      "end": "2026-06-12",
+      "scored_days": 3826,
+      "min_cell_days": 60,
+      "bootstrap": 2000
+    },
+    "regime_day_counts": {
+      "market": {
+        "bull": 2453,
+        "bear": 799,
+        "sideways": 574
+      },
+      "vol": {
+        "high": 1834,
+        "low": 1992
+      }
+    },
+    "cells": {
+      "bull": {
+        "days": 2453,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.2193,
+          "ci_low": 0.1994,
+          "ci_high": 0.2409,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 2.4194,
+          "ci_low": 2.2953,
+          "ci_high": 2.5485,
+          "p_value": 0.0
+        },
+        "stars": 5,
+        "confidence": 1.0
+      },
+      "bear": {
+        "days": 799,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.1812,
+          "ci_low": 0.154,
+          "ci_high": 0.2076,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 2.2882,
+          "ci_low": 2.099,
+          "ci_high": 2.482,
+          "p_value": 0.0
+        },
+        "stars": 3,
+        "confidence": 0.913
+      },
+      "sideways": {
+        "days": 574,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.1893,
+          "ci_low": 0.1584,
+          "ci_high": 0.2225,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 2.2598,
+          "ci_low": 2.0325,
+          "ci_high": 2.4827,
+          "p_value": 0.0
+        },
+        "stars": 4,
+        "confidence": 0.932
+      },
+      "high": {
+        "days": 1834,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.194,
+          "ci_low": 0.1761,
+          "ci_high": 0.211,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 2.3058,
+          "ci_low": 2.1723,
+          "ci_high": 2.4348,
+          "p_value": 0.0
+        },
+        "stars": 4,
+        "confidence": 0.942
+      },
+      "low": {
+        "days": 1992,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.2187,
+          "ci_low": 0.1938,
+          "ci_high": 0.2437,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 2.4254,
+          "ci_low": 2.2949,
+          "ci_high": 2.562,
+          "p_value": 0.0
+        },
+        "stars": 5,
+        "confidence": 0.999
+      }
+    }
+  },
+  "recency": {
+    "config": {
+      "universe_n": 500,
+      "start": "2021-06-12",
+      "end": "2026-06-12",
+      "scored_days": 1057,
+      "min_cell_days": 60,
+      "bootstrap": 2000
+    },
+    "regime_day_counts": {
+      "market": {
+        "bull": 626,
+        "bear": 264,
+        "sideways": 167
+      },
+      "vol": {
+        "high": 478,
+        "low": 579
+      }
+    },
+    "cells": {
+      "bull": {
+        "days": 626,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.5857,
+          "ci_low": 0.5301,
+          "ci_high": 0.6467,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 3.6897,
+          "ci_low": 3.5148,
+          "ci_high": 3.8606,
+          "p_value": 0.0
+        },
+        "stars": 5,
+        "confidence": 1.0
+      },
+      "bear": {
+        "days": 264,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.4046,
+          "ci_low": 0.3037,
+          "ci_high": 0.5014,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 3.3713,
+          "ci_low": 3.0462,
+          "ci_high": 3.7377,
+          "p_value": 0.0
+        },
+        "stars": 4,
+        "confidence": 0.845
+      },
+      "sideways": {
+        "days": 167,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.388,
+          "ci_low": 0.3041,
+          "ci_high": 0.4692,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 3.5483,
+          "ci_low": 3.2127,
+          "ci_high": 3.8678,
+          "p_value": 0.0
+        },
+        "stars": 3,
+        "confidence": 0.831
+      },
+      "high": {
+        "days": 478,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.4349,
+          "ci_low": 0.3664,
+          "ci_high": 0.5123,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 3.4769,
+          "ci_low": 3.2321,
+          "ci_high": 3.7503,
+          "p_value": 0.0
+        },
+        "stars": 4,
+        "confidence": 0.871
+      },
+      "low": {
+        "days": 579,
+        "insufficient": false,
+        "expansion_edge": {
+          "point": 0.5706,
+          "ci_low": 0.5135,
+          "ci_high": 0.6306,
+          "p_value": 0.0
+        },
+        "capturable_edge": {
+          "point": 3.6794,
+          "ci_low": 3.4997,
+          "ci_high": 3.8655,
+          "p_value": 0.0
+        },
+        "stars": 5,
+        "confidence": 0.987
+      }
+    }
+  },
+  "operating_envelope": {
+    "verdict": "REGIME-ROBUST \u2014 positive, CI-separated in every judged regime",
+    "strength_map": {
+      "bull": "\u2605\u2605\u2605\u2605\u2605",
+      "bear": "\u2605\u2605\u2605",
+      "sideways": "\u2605\u2605\u2605\u2605",
+      "high": "\u2605\u2605\u2605\u2605",
+      "low": "\u2605\u2605\u2605\u2605\u2605"
+    },
+    "confidence_heatmap": {
+      "bull": 1.0,
+      "bear": 0.913,
+      "sideways": 0.932,
+      "high": 0.942,
+      "low": 0.999
+    },
+    "note": "v0.2 Validated verdict is unchanged; this annotates WHERE it applies."
+  }
+}
