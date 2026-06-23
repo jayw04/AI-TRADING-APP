@@ -7,6 +7,14 @@
 | Phase | P12 (risk-engine hardening) |
 | Supersedes | — |
 | Related | 0002, 0004, 0020 |
+| Capability | CAP-014 — Pending-Aware Exposure Projection (Research Program Registry) |
+
+> **Foundational principle.** Risk decisions must be evaluated against *projected*
+> state — settled positions **plus** in-flight intent — not just current settled
+> state. This is broader than gross exposure: the same projected-state accounting
+> later extends to buying power, margin utilization, cash reservation, options
+> exposure, and multi-strategy capital allocation. ADR 0025 is where the platform
+> adopts it.
 
 ## Context
 
@@ -32,11 +40,32 @@ of the 15 market BUYs passed the $100k gross-exposure cap independently, stackin
 manually flattened. The per-order caps were each individually correct; none could
 see the cumulative in-flight exposure.
 
+The incident required **two independent protections to fail at once**: a strategy
+re-fired duplicate baskets (idempotency failure, addressed separately) *and* the
+risk engine was blind to in-flight exposure (this ADR). That both failed
+simultaneously is exactly what defense in depth exists to survive — fixing either
+layer alone would have prevented the loss; this ADR fixes the one that must never
+be bypassable.
+
 ## Decision
 
-The gross-exposure and per-position gates count **in-flight (non-terminal)
-orders** in addition to settled positions, and the engine **values market
-orders** from a caller-supplied reference price:
+The gates evaluate **projected exposure**, not just settled exposure:
+
+```
+        Settled Positions        In-flight Orders (pending BUYs)
+              │                          │
+              └──────────────┬───────────┘
+                             ▼
+                    Projected Exposure   ──►   Risk Engine   ──►   Pass / Reject
+                             ▲                  (gate: Projected ≤ Limit)
+              market orders valued via reference_price
+```
+
+That is: `Projected Exposure = Settled Exposure + Pending Exposure`, and each gate
+admits an order only while `Projected Exposure ≤ its limit`. Concretely the
+gross-exposure and per-position gates count **in-flight (non-terminal) orders** in
+addition to settled positions, and the engine **values market orders** from a
+caller-supplied reference price:
 
 1. `OrderRequest` gains an optional `reference_price`. For a market order the
    engine estimates notional as `qty × reference_price` (limit orders still use
@@ -44,8 +73,9 @@ orders** from a caller-supplied reference price:
    broker — it is purely a risk-valuation hint.
 2. The engine persists the estimated notional on the order row
    (`orders.estimated_notional`).
-3. The gross-exposure cap projects `settled gross + Σ(estimated_notional of
-   non-terminal BUY orders) + this order's notional (BUYs only)`.
+3. The gross-exposure cap's *projected exposure* is `settled gross +
+   Σ(estimated_notional of non-terminal BUY orders) + this order's notional
+   (BUYs only)`, admitted only while `≤ max_gross_exposure`.
 4. The per-position qty cap adds `Σ(qty of non-terminal BUY orders for the
    symbol)` to the resulting position quantity for BUY orders.
 
@@ -81,6 +111,15 @@ overlap is transient and over-counts (conservative) rather than under-counts.
 This *tightens* an existing gate; it does not remove or relax one (which would
 require an ADR per the risk-engine conventions). All prior checks still run in
 the same order.
+
+**Relationship to Evidence Engineering.** This ADR is the operational analogue of
+the platform's research methodology: an operational incident is analyzed with the
+same *observation → hypothesis → evidence → governance* discipline used for
+research programs. The root cause (in-flight blindness) was confirmed against the
+incident data before any code changed, the fix ships with a regression that
+reproduces the failure, and the change is promoted as a durable, named capability
+(CAP-014) rather than a one-off patch. Evidence Engineering is not only how the
+platform decides what to trade — it is also how it evolves its own operations.
 
 ## Implementation notes
 
@@ -121,8 +160,12 @@ the same order.
 - **In-engine live quote for market orders** (value via `bar_cache`/broker
   quote). Rejected: unreliable in the developer's Norton-inspected environment,
   adds a network round-trip to the hot pre-trade path, and couples the stateless
-  engine to a market-data feed. Reconsider if a dependable in-path quote source
-  exists.
+  engine to a market-data feed. Even if the SSL constraint disappears, a
+  deterministic, stateless, fast engine is the better architecture — so rather
+  than have the engine fetch quotes, a future **`PriceProvider`** (conceptual, not
+  built) would let the *originator* supply better reference prices through the
+  same `reference_price` seam: `reference_price ← strategy ← (future) PriceProvider`.
+  The interface stays open without the engine taking on a data dependency.
 - **Strategy-side idempotency only** (net targets against pending orders; durable
   rebalance guard). Necessary but insufficient: it reduces the trigger but leaves
   the centralized backstop blind. Handled as a separate change; this ADR is the
@@ -140,3 +183,12 @@ the same order.
   reconcile by `broker_order_id`).
 - Buying-power/leverage gating against live broker state lands → re-evaluate
   whether this estimate-based projection is still the primary defense.
+- Pending-order latency (route → terminal) routinely exceeds a few seconds, or
+  multi-strategy concurrency grows → consider **reservation-based risk
+  accounting**: reserve exposure at route time and release on terminal, rather
+  than re-deriving the pending sum each evaluation. Not needed at today's
+  sequential, low-latency volumes.
+- The Evidence Dashboard / Operational KPIs surface **risk rejections by reason**
+  (`GROSS_EXPOSURE`, `POSITION_CAP_QTY`, buying-power, …) → projected-exposure
+  rejections become a customer-visible KPI; watch the rate to confirm the gate is
+  protecting, not over-rejecting.
