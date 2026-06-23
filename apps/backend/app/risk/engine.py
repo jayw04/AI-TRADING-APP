@@ -22,6 +22,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.enums import (
+    TERMINAL_ORDER_STATUSES,
     OrderSide,
     OrderType,
     RiskDecision,
@@ -238,8 +239,17 @@ class RiskEngine:
                 )
             ).scalars().first()
             current_qty = pos.qty if pos else Decimal(0)
-            delta = req.qty if req.side == OrderSide.BUY else -req.qty
-            resulting_qty = abs(current_qty + delta)
+            # In-flight BUY orders for this symbol have already been routed but are
+            # not yet reflected in `positions` (fills lag). Count them so repeated
+            # baskets cannot each pass the per-position cap by seeing only the
+            # settled state (incident 2026-06-22). Sells keep their prior behavior.
+            if req.side == OrderSide.BUY:
+                pending_buy_qty = await self._pending_buy_qty(
+                    session, req.account_id, symbol.id
+                )
+                resulting_qty = abs(current_qty + pending_buy_qty + req.qty)
+            else:
+                resulting_qty = abs(current_qty - req.qty)
 
             if (
                 limits.max_position_qty is not None
@@ -265,7 +275,14 @@ class RiskEngine:
                         reasons=[ReasonCode.POSITION_CAP_NOTIONAL],
                     )
 
-            # 8. Gross exposure cap.
+            # 8. Gross exposure cap. Projected gross = settled positions
+            # + the notional of in-flight BUY orders (routed, not yet filled)
+            # + this order's notional when it is a BUY. Counting in-flight orders
+            # is what stops a burst of baskets from each passing against the same
+            # settled snapshot and stacking unintended leverage (incident
+            # 2026-06-22). Sells are not credited (a pending sell may not fill) —
+            # the gate fails conservative. In-flight orders with no resolvable
+            # price (estimated_notional NULL) contribute 0, the prior behavior.
             if limits.max_gross_exposure is not None:
                 gross_now = (
                     await session.execute(
@@ -274,7 +291,15 @@ class RiskEngine:
                         ).where(Position.account_id == req.account_id)
                     )
                 ).scalar_one()
-                projected = Decimal(gross_now or 0) + (estimated_notional or Decimal(0))
+                pending_buy_notional = await self._pending_buy_notional(
+                    session, req.account_id
+                )
+                incoming = (
+                    estimated_notional or Decimal(0)
+                    if req.side == OrderSide.BUY
+                    else Decimal(0)
+                )
+                projected = Decimal(gross_now or 0) + pending_buy_notional + incoming
                 if projected > limits.max_gross_exposure:
                     return await self._persist_and_return(
                         session,
@@ -394,6 +419,46 @@ class RiskEngine:
             )
         ).scalars().first()
 
+    async def _pending_buy_qty(
+        self, session: AsyncSession, account_id: int, symbol_id: int
+    ) -> Decimal:
+        """Total quantity of non-terminal BUY orders for (account, symbol).
+
+        These have been routed to the broker but their fills have not yet landed
+        in `positions`; counting them keeps the per-position cap honest across a
+        burst of orders. NULL/empty → 0.
+        """
+        total = (
+            await session.execute(
+                select(func.coalesce(func.sum(Order.qty), 0)).where(
+                    Order.account_id == account_id,
+                    Order.symbol_id == symbol_id,
+                    Order.side == OrderSide.BUY,
+                    Order.status.notin_(TERMINAL_ORDER_STATUSES),
+                )
+            )
+        ).scalar_one()
+        return Decimal(total or 0)
+
+    async def _pending_buy_notional(
+        self, session: AsyncSession, account_id: int
+    ) -> Decimal:
+        """Sum of estimated_notional over non-terminal BUY orders for the account.
+
+        The in-flight exposure not yet reflected in `positions`. SUM skips NULLs,
+        so orders the engine could not price contribute 0 (the prior behavior).
+        """
+        total = (
+            await session.execute(
+                select(func.coalesce(func.sum(Order.estimated_notional), 0)).where(
+                    Order.account_id == account_id,
+                    Order.side == OrderSide.BUY,
+                    Order.status.notin_(TERMINAL_ORDER_STATUSES),
+                )
+            )
+        ).scalar_one()
+        return Decimal(total or 0)
+
     def _market_open_utc_today(self) -> datetime:
         """09:30 US/Eastern today → UTC. Fixed -5h offset (EST); the 1-hour DST
         drift is acceptable for MVP (matches CircuitBreakerService)."""
@@ -406,7 +471,11 @@ class RiskEngine:
     def _estimate_notional(self, req: OrderRequest) -> Decimal | None:
         if req.limit_price is not None:
             return req.qty * req.limit_price
-        # For market orders we can't know fill price up front.
+        # Market orders carry no fill price up front, but the caller may supply a
+        # reference price (the strategy passes the price it sized against) so the
+        # exposure gates can still value the order. None only when neither exists.
+        if req.reference_price is not None and req.reference_price > 0:
+            return req.qty * req.reference_price
         return None
 
     async def _persist_and_return(
