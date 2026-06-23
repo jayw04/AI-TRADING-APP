@@ -20,6 +20,7 @@ Filter model:
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -126,6 +127,77 @@ def net_move(open_: float, close: float) -> float:
     """H2 tradeability — the one-way move that actually HELD to the close, in % (what an
     open-to-close hold would have captured). Distinct from capturable_move's best-case."""
     return _safe_div(abs(close - open_), open_) * 100.0
+
+
+# ---- v0.3 regime classifiers (Operating-Envelope study; SCAN-001 v0.3 §1) ----
+# Pure, PIT helpers that label a trading day's market + volatility regime from a
+# broad-market proxy series. Frozen rules — NOT tuned to any result. The labels are a
+# bucketing lens on the (already-validated) edge; they never touch selection.
+
+MARKET_SMA_N = 200      # trend filter window (frozen)
+MARKET_RET_N = 60       # trailing-return window for trend confirmation (frozen)
+VOL_WINDOW = 21         # realized-vol lookback ≈ 1 month (frozen)
+VOL_MEDIAN_WINDOW = 252  # trailing window for the high/low-vol median split (frozen)
+_TRADING_DAYS_YEAR = 252
+
+
+def _median(xs: list[float]) -> float:
+    s = sorted(xs)
+    n = len(s)
+    if n == 0:
+        return 0.0
+    mid = n // 2
+    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2.0
+
+
+def sma(values: list[float], n: int) -> float | None:
+    """Simple moving average of the last ``n`` values; None if fewer than ``n``."""
+    if len(values) < n:
+        return None
+    return sum(values[-n:]) / n
+
+
+def trailing_return(values: list[float], n: int) -> float | None:
+    """Return over the last ``n`` steps: values[-1] / values[-1-n] − 1; None if short."""
+    if len(values) < n + 1 or values[-1 - n] == 0:
+        return None
+    return values[-1] / values[-1 - n] - 1.0
+
+
+def realized_vol(returns: list[float], n: int = VOL_WINDOW) -> float | None:
+    """Annualized realized volatility over the last ``n`` daily returns; None if short."""
+    if len(returns) < n:
+        return None
+    window = returns[-n:]
+    mean = sum(window) / n
+    var = sum((r - mean) ** 2 for r in window) / (n - 1) if n > 1 else 0.0
+    return math.sqrt(var) * math.sqrt(_TRADING_DAYS_YEAR)
+
+
+def market_regime(levels: list[float]) -> str | None:
+    """Frozen 3-state market regime from a proxy price-index series ``levels`` (oldest →
+    newest, ending at the classification point). Bull/Bear require trend (vs SMA200) AND
+    direction (60-day return sign) to agree; everything else is Sideways. None if history
+    is insufficient (< SMA200 window)."""
+    sma200 = sma(levels, MARKET_SMA_N)
+    ret60 = trailing_return(levels, MARKET_RET_N)
+    if sma200 is None or ret60 is None:
+        return None
+    level = levels[-1]
+    if level > sma200 and ret60 > 0:
+        return "bull"
+    if level < sma200 and ret60 < 0:
+        return "bear"
+    return "sideways"
+
+
+def vol_regime(vol_today: float | None, vol_history: list[float]) -> str | None:
+    """Frozen 2-state volatility regime: today's realized vol vs the median of the trailing
+    realized-vol series (a self-referential, era-adaptive split). None if either input is
+    missing/empty."""
+    if vol_today is None or not vol_history:
+        return None
+    return "high" if vol_today > _median(vol_history) else "low"
 
 
 # ---- selection -------------------------------------------------------------
