@@ -1,10 +1,11 @@
-# SCAN-001 — Discovery-Stability Study: Research Plan & Pre-Registration (v0.3)
+# SCAN-001 — Operating-Envelope Study (Discovery-Stability): Research Plan & Pre-Registration (v0.3)
 
 **Program:** SCAN-001 (Market Opportunity Discovery Engine — first profile of the Discovery Lab)
-**Type:** Platform Capability · **Status:** Validated (v0.2) → v0.3 follow-on pre-registration
+**Type:** Platform Capability · **Capability Maturity:** L2 (Validated) → **L3 (Operating Envelope Defined)** on completion
+**Status:** Validated (v0.2) → v0.3 follow-on pre-registration · **APPROVED for implementation** (owner, 2026-06-23: 2010–2026 window · 3-state market regime · 60-day minimum sample)
 **Predecessor:** v0.2 results (engine validated on both cuts; §3.4 showed the expansion edge *compresses in the
 2022 bear* — the preliminary signal this study formalizes)
-**Date:** 2026-06-23 · **for owner review / approval before any run**
+**Date:** 2026-06-23
 
 > **The question v0.3 answers: *when* does the Discovery Engine work best?** v0.2 proved the engine selects
 > genuine, tradeable expansion *on average* across two cuts. But the by-year read already showed the edge is
@@ -12,6 +13,13 @@
 > (bull / bear / sideways) and **volatility regime** (high / low), turning "it works" into "it works *here*,
 > weaker *there*" — a usable input for every downstream strategy's regime gating. This is a **stability /
 > conditional-strength** study, not a re-validation: v0.2's verdict stands; v0.3 maps its boundaries.
+
+> **Framing (owner): the Operating Envelope.** Every engineering capability has an *operating envelope* — an
+> aircraft is certified for a range of altitude, temperature, and payload, not "it flies." v0.3 defines the
+> Discovery Engine's operating envelope: the market/volatility conditions under which the capability operates
+> safely (★★★★★), marginally (★★), or should **not** be used. "Operating Envelope" supersedes the earlier
+> "Regime Profile" wording throughout, and becomes shared language across *all* platform capabilities
+> (Momentum's envelope = trending markets; Low-Vol's = risk-off; Discovery's = TBD by this study).
 
 ---
 
@@ -123,6 +131,30 @@ to a pass/fail claim post hoc.
 The v0.2 **Validated (Capability)** verdict is **unchanged by any of these** — v0.3 annotates *where* it applies;
 it cannot un-validate a result that already held on the full sample.
 
+### 4a. The Operating Envelope outputs (owner — the customer-facing deliverables)
+
+The decision-matrix classifications above feed two headline artifacts that *anyone* can read at a glance:
+
+**(1) Capability Strength Map** — a ★ rating per regime, derived deterministically from edge magnitude +
+statistical separation (frozen mapping, set here before results):
+
+| Stars | Rule (on the regime's expansion edge) |
+|---|---|
+| ★★★★★ | CI-separated **and** edge in the top tercile of observed regime edges |
+| ★★★★ | CI-separated, middle tercile |
+| ★★★ | CI-separated, bottom tercile |
+| ★★ | positive point estimate, CI **not** separated |
+| ★ | point estimate ≤ 0 (a no-go regime) |
+| — | insufficient sample (< 60 days) |
+
+Illustrative shape (NOT a result — filled by the run): `Bull ★★★★★ · Bear ★★ · Sideways ★★★★ · High-vol ★★★★★ · Low-vol ★★★`.
+
+**(2) Discovery Confidence Heatmap** — a bounded **[0, 1]** confidence per regime (not just positive/negative),
+a transparent function of the edge's bootstrap separation (e.g. `1 − p_value`, clipped, blended with the
+normalized edge magnitude — exact formula frozen in the harness). This makes the envelope *composable*:
+
+> **v0.4 direction (named, not built here):** `Candidate Opportunity Score × Discovery Confidence(regime_today) = regime-aware Candidate Rank`. The confidence number is the bridge from "the engine works here" to "down-weight candidates automatically when today's regime is weak."
+
 ---
 
 ## 5. Method & reuse (≈90% reuse)
@@ -173,19 +205,44 @@ edge.
 1. Pure helpers + frozen classifiers in `candidate_engine.py` (+ tests at the v0.2 bar; ruff/mypy clean).
 2. Regime-decomposition harness + evidence package (`evidence/scan_001_candidate_engine_v0_3/`, JSON + MD),
    reproducible (seed, git, command), with the ranked **"works-best / weakest regime"** table.
-3. **Results doc** `..._CandidateEngine_Results_v0.3.md` — the per-regime verdicts against the §4 matrix, the
-   regime classification (Robust / Conditional / Fragile), and the §6 seasonality description.
-4. Registry update (v0.9) — record the regime profile as the SCAN-001 follow-on outcome; close or keep-open the
-   research line accordingly.
+3. **The Operating Envelope** (§4a) — the **Capability Strength Map** (★ ratings) + the **Discovery Confidence
+   Heatmap** ([0,1] per regime). These are the customer-facing artifacts.
+4. **Results doc** `..._CandidateEngine_Results_v0.3.md` — the per-regime verdicts against the §4 matrix, the
+   envelope classification (Robust / Conditional / Fragile), the Strength Map + Confidence Heatmap, and the §6
+   seasonality description.
+5. Registry update (v0.9) — record the **Operating Envelope** as the SCAN-001 follow-on outcome and advance its
+   **Capability Maturity to L3** (Operating Envelope Defined).
 
 Read-only research throughout. **Walk-away ≥ 1 h** before merge.
 
+### 9a. Capability Maturity & the Discovery research lifecycle (owner)
+
+SCAN-001 is the first capability to travel an explicit **Capability Maturity ladder** — a model meant to apply
+platform-wide (Factor Lab, Risk Engine, Execution Engine, …), so maturity is stated consistently everywhere:
+
+| Level | Meaning | SCAN-001 |
+|---|---|---|
+| **L0** | Concept | — |
+| **L1** | Prototype | v0.1 ✅ |
+| **L2** | Validated | v0.2 ✅ |
+| **L3** | **Operating Envelope Defined** | **v0.3 (this study)** |
+| **L4** | Production-Ready | future live deployment (after the premarket-data gate) |
+| **L5** | Continuously Verified | long-term paper/live evidence accrual |
+
+This mirrors the Discovery research lifecycle — `Discovery → Validation → Operating Envelope → Confidence Model
+→ Production` — itself a parallel of Evidence Engineering's `Hypothesis → Evidence → Governance → Promotion →
+Continuous Evidence`. The natural **v0.4** is the **Confidence Model** (§4a's heatmap turned into the live
+`Opportunity × Confidence` rank); **v1.0** is production. v0.3 is L3.
+
 ---
 
-## 10. Open questions (confirm before build)
+## 10. Open questions — RESOLVED (owner, 2026-06-23; pre-registration now frozen + APPROVED)
 
-1. **Primary window** — 16 years (2010-2026) as pre-registered, or longer (2000-2026, more crises but older
-   microstructure)?
-2. **Market-regime granularity** — 3-state (bull/bear/sideways) as frozen, or add a 4th "recovery/early-bull"
-   state?
-3. **Minimum cell sample** — 60 days, or stricter (e.g. 120) given 16 years gives ample room?
+1. **Primary window** → **2010–2026 (16y).** Better data quality + modern market structure; 2011/2015/2018/
+   2020/2022 give enough regimes; pre-2010 microstructure differs too much to be worth it.
+2. **Market-regime granularity** → **3-state (bull/bear/sideways).** Simple, reproducible, commercially
+   understandable; "recovery/early-bull" is subjective → deferred to a v2 of the envelope.
+3. **Minimum cell sample** → **60 days.** 120 throws away valuable information — this is a *capability profile*,
+   not a production strategy, so the lower bar is right.
+
+**Approved for implementation** with these three values. Build proceeds against §3 + §4a.
