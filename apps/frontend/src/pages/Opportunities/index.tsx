@@ -9,6 +9,7 @@ import { StrategyErrorsWidget } from "./widgets/StrategyErrorsWidget";
 import { OpenOrdersExpiringWidget } from "./widgets/OpenOrdersExpiringWidget";
 import { RiskRejectionsWidget } from "./widgets/RiskRejectionsWidget";
 import { RecentFillsWidget } from "./widgets/RecentFillsWidget";
+import { PremarketGappersWidget } from "./widgets/PremarketGappersWidget";
 
 const POLL_INTERVAL_MS = 10_000;
 const WS_TOPICS = ["signals", "strategies", "orders", "fills", "system"];
@@ -111,6 +112,14 @@ export default function OpportunitiesPage() {
           items={data?.recent_fills.items ?? []}
           count={data?.recent_fills.count ?? 0}
           asOf={data?.recent_fills.as_of ?? ""}
+        />
+        <PremarketGappersWidget
+          items={data?.premarket_gappers.items ?? []}
+          count={data?.premarket_gappers.count ?? 0}
+          asOf={data?.premarket_gappers.as_of ?? ""}
+          scannedAt={data?.premarket_gappers.scanned_at ?? null}
+          date={data?.premarket_gappers.date ?? null}
+          stale={data?.premarket_gappers.stale ?? true}
         />
       </div>
     </div>
