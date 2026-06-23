@@ -15,7 +15,7 @@ import pytest
 
 from agent.config import AgentConfig
 from agent.llm_call import LLMCallFailed
-from agent.proposal_generation import generate_proposal
+from agent.proposal_generation import _extract_json, generate_proposal
 
 CONFIG = AgentConfig(
     backend_api_base="http://backend",
@@ -175,3 +175,31 @@ async def test_non_draft_proposal_raises(monkeypatch):
     backend = FakeBackend(proposal_state="REVIEWING")
     with pytest.raises(ValueError):
         await generate_proposal(CONFIG, 7, mcp=FakeMcp(), backend=backend)
+
+
+# ---- _extract_json: tolerate fenced / prose-wrapped LLM output (live bug 2026-06-23) ----
+
+def test_extract_json_passthrough_raw_object():
+    s = '{"a": 1}'
+    assert json.loads(_extract_json(s)) == {"a": 1}
+
+
+def test_extract_json_strips_json_fence():
+    s = '```json\n{"a": 1}\n```'
+    assert json.loads(_extract_json(s)) == {"a": 1}
+
+
+def test_extract_json_strips_bare_fence():
+    s = '```\n{"a": 1}\n```'
+    assert json.loads(_extract_json(s)) == {"a": 1}
+
+
+def test_extract_json_strips_prose_preamble():
+    s = 'Here is the proposal:\n{"a": 1, "b": [2, 3]}\nHope this helps.'
+    assert json.loads(_extract_json(s)) == {"a": 1, "b": [2, 3]}
+
+
+def test_extract_json_returns_input_when_no_object():
+    # No braces → return the (stripped) text so json.loads raises a clear error.
+    assert _extract_json("  not json  ") == "not json"
+    assert _extract_json("") == ""
