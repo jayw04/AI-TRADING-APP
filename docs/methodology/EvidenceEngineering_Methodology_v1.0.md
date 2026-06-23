@@ -1,11 +1,12 @@
-# Evidence Engineering — Methodology Specification (v1.0 · DRAFT for owner ratification)
+# Evidence Engineering — Methodology Specification (v1.1 · DRAFT for owner ratification)
 
 > **What this is.** The frozen, versioned definition of *how TradingWorkbench does research* — the
 > standard lifecycle, evidence gates, verdict taxonomy, evidence-package structure, registries, governance
-> workflow, the **platform-vs-investment capability** taxonomy, and the **platform-capability Labs**
-> (Discovery Lab, Factor Lab) that **every** research program inherits. It is the methodology layer of the
-> three-layer product model, written down once so the whitepaper, patent, customer docs, and product UI
-> can all cite a single stable source instead of re-deriving it per strategy.
+> workflow, the **platform-vs-investment capability** taxonomy, the **platform-capability Labs**
+> (Discovery Lab, Factor Lab), and — new in v1.1 — the **Capability Maturity** ladder and the **Operating
+> Envelope** that **every** capability carries. It is the methodology layer of the four-layer product model,
+> written down once so the whitepaper, patent, customer docs, and product UI can all cite a single stable
+> source instead of re-deriving it per strategy.
 >
 > **Why v1.0 now.** Six programs (`MOM / RNG / MF / SEC / LOW / TREND-001`) have exercised the method
 > end-to-end — a validated book, a formal rejection, an inconclusive, two diversifiers, and a planned
@@ -14,26 +15,30 @@
 
 | Field | Value |
 |---|---|
-| Version | **v1.0 (DRAFT — pending owner ratification)** |
+| Version | **v1.1 (DRAFT — pending owner ratification)** — adds the four-layer model, Capability Maturity (L0–L5), and the Operating Envelope (§4a/§4b) atop the v1.0 draft. |
 | Status | Proposed freeze. On ratification, this becomes the baseline; all later changes are versioned (v1.1 minor / v2.0 major) with a changelog (§11). |
 | Sources codified | P12 Direction §4 (research methodology) · the Research Program Registry · the per-program plan/pre-registration docs (MOM/RNG/MF/SEC/LOW) · **ADR 0014** (backtests = primary eval ground-truth) · **ADR 0019** (Research Engine — read-only) · **ADR 0021** (operational contract — the trust substrate that makes results *verifiable*). |
 | Relationship to code | The taxonomies here are mirrored by `apps/backend/app/research/programs.py` + the Evidence Dashboard (`/evidence`); the code is the runtime source of truth, this doc is the normative spec. A status-enum alignment follow-up is tracked in `tasks/todo.md`. |
 
 ---
 
-## 1. The three-layer product model
+## 1. The four-layer product model
 
 Evidence Engineering is **Layer 1**. It is not a strategy and not the platform — it is the discipline the
-platform implements and the programs obey.
+platform implements and the programs obey. v1.1 makes **Research Infrastructure** its own layer (owner): the
+reusable, platform-wide research *assets* (the Labs, engines, registries) are neither the OS that hosts them
+nor the programs that run on them — they are *what the customer buys*.
 
 | Layer | What it is | Examples |
 |---|---|---|
 | **Layer 1 — Methodology** | **Evidence Engineering** — the discipline of producing, governing, and preserving the proof behind every decision (this document) | the lifecycle, evidence gates, verdict taxonomy, evidence package, registries, governance |
-| **Layer 2 — Platform** | **TradingWorkbench** — the operating system that makes the methodology usable | research engine, registries, risk engine, OrderRouter, audit, dashboards |
-| **Layer 3 — Research Programs** | The individual philosophies run *through* the platform — each a validated, rejected, or deferred instance | `MOM-001 … TREND-001` |
+| **Layer 2 — Platform** | **TradingWorkbench** — the operating system that makes the methodology usable | risk engine, OrderRouter, audit/hash-chain, scheduler, execution |
+| **Layer 3 — Research Infrastructure** | The reusable research *assets* strategies are produced *by* | **Discovery Lab · Factor Lab · Evidence Engine · Research Registry · Decision Registry · Evidence Dashboard** |
+| **Layer 4 — Research Programs** | The individual philosophies/capabilities run *through* Layer 3 — each a validated, rejected, or deferred instance | `MOM-001 … TREND-001`, `SCAN-001` |
 
 > A strategy is a *result* of the method, never the product. Momentum is the reference implementation that
-> proves Layers 1–2 work — the way Linux is a reference OS, not the OS.
+> proves Layers 1–3 work — the way Linux is a reference OS, not the OS. The platform's stable subsystem map:
+> **Evidence Engineering → Discovery Lab → Factor Lab → Execution Platform → Continuous Evidence.**
 
 ### 1a. Two kinds of capability — Platform vs Investment
 
@@ -139,6 +144,39 @@ These never collapse into one column. A program has all three.
 | **Open** | Active or continuously accruing (a live book; a planned program). |
 | **Follow-on available** | Research `Completed`, but pre-registered next variants exist. |
 | **Closed** | Construction line finished; reopening needs a *fundamentally new hypothesis*. |
+
+### 4a. Capability Maturity (L0–L5) — a fourth axis (v1.1, owner)
+
+A platform-wide maturity ladder, applicable to **every** capability (strategy *or* infrastructure), so
+maturity reads consistently across the Factor Lab, Risk Engine, Execution Engine, and every future
+capability. Where Status says *where in its life* and Verdict says *what the evidence concluded*, Maturity
+says *how far it has been proven and de-risked*.
+
+| Level | Meaning |
+|---|---|
+| **L0** | Concept |
+| **L1** | Prototype (built; not yet validated) |
+| **L2** | Validated (a real, evidence-backed result on the full sample) |
+| **L3** | **Operating Envelope Defined** (we know *where* it works and where it must not be used) |
+| **L4** | Production-Ready (promoted past governance; live/paper) |
+| **L5** | Continuously Verified (long-run live evidence keeps confirming it) |
+
+*Reference path (SCAN-001):* v0.1 → L1, v0.2 → L2, v0.3 → L3. MOM-001 ≈ L4–L5 (live + continuous evidence).
+
+### 4b. The Operating Envelope (v1.1, owner) — every capability has one
+
+In engineering, no capability is certified "it works" — it is certified for an **operating envelope** (an
+aircraft for a range of altitude, temperature, payload). Evidence Engineering adopts the same discipline:
+**a validated capability is not deployed blindly; its envelope — the market/volatility conditions under which
+it works (★★★★★), works marginally (★★), or must not be used (★) — is defined as a distinct maturity step (L3).**
+
+- The envelope is produced by a pre-registered **regime-decomposition** study (market × volatility regimes,
+  PIT-classified) that buckets the *already-validated* edge — it maps boundaries, it does not re-validate.
+- Its two artifacts are a **Capability Strength Map** (★ per regime) and a **Discovery/Capability Confidence**
+  score (∈ [0,1] per regime) — the latter composable into downstream sizing (`signal × confidence(regime)`).
+- It applies to *all* capabilities, giving the platform one shared language: Momentum's envelope is trending
+  markets; Low-Vol's is risk-off; SCAN-001's (the first formally mapped) is **regime-robust, strongest in
+  bull + low-vol**. "Honest about where it fails" is itself a trust asset — the inverse of marketing.
 
 ## 5. The standard evidence gate (pre-registered, frozen before results)
 
@@ -259,6 +297,7 @@ From v1.0 forward, the methodology is treated as software:
 |---|---|---|
 | v1.0 (draft) | 2026-06-22 | Initial freeze proposal — codifies the lifecycle, invariants, gate, taxonomies, evidence package, registries (incl. the Capability Registry), governance, and calibration metrics exercised across MOM/RNG/MF/SEC/LOW/TREND-001. |
 | v1.0 (draft, rev.) | 2026-06-22 | **Architecture-freeze expansion (owner):** added §1a **Platform vs Investment capabilities** and §1b the **platform-capability Labs** — **Factor Lab** + **Discovery Lab** (research-as-configuration) with the canonical *Discovery → … → Continuous Evidence* pipeline. These join the frozen v1.0 concept set; owner direction is now *"freeze the architecture — implement, validate, commercialize,"* not invent further core abstractions. |
+| **v1.1 (draft)** | **2026-06-23** | **Consolidation fold (owner, post-SCAN-001 v0.3 — minor/backward-compatible):** §1 three-layer → **four-layer** model (adds **Research Infrastructure** as an explicit layer); §4a new **Capability Maturity (L0–L5)** axis applied platform-wide; §4b new **Operating Envelope** concept (every capability is certified for the conditions it works within — a distinct L3 maturity step, with a Strength Map + Confidence score). First exercised end-to-end by SCAN-001 (prototype → validated → operating-envelope/regime-robust). No invariant, gate, or lifecycle changed — additive only. |
 
 ---
 
