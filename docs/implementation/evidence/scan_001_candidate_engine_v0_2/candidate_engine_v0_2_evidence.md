@@ -1,6 +1,6 @@
 # SCAN-001 v0.2 — Candidate Engine: de-tautologized evidence
 
-*Generated 2026-06-23T00:10:55+00:00 · read-only research · SCAN-001 §0a: candidate set is evidence, not a signal.*
+*Generated 2026-06-23T00:22:53+00:00 · read-only research · SCAN-001 §0a: candidate set is evidence, not a signal.*
 
 ## Overall verdict: SUPPORTED — engine finds genuine, tradeable expansion (holds on both cuts)
 
@@ -29,6 +29,14 @@
 | ATR_RVOL | [0.4959, 0.611] | [0.4852, 0.875] | ✓ |
 | full | [0.5046, 0.6253] | [0.8228, 1.2697] | ✓ |
 
+### Discovery stability — expansion edge by year (preliminary)
+| Year | Days | Expansion edge (E cand − base) |
+| --- | --- | --- |
+| 2023 | 140 | 0.5384 |
+| 2024 | 252 | 0.5841 |
+| 2025 | 250 | 0.5442 |
+| 2026 | 112 | 0.4698 |
+
 ## ROBUSTNESS (top-200, 5y) — 2021-06-12 → 2026-06-12, 1256 days, top-200
 
 ### H1′ — expansion beyond ATR
@@ -49,6 +57,16 @@
 | ATR_Gap | [0.1121, 0.1466] | [0.3245, 0.5283] | ✓ |
 | ATR_RVOL | [0.2131, 0.2621] | [0.222, 0.4033] | ✓ |
 | full | [0.242, 0.3022] | [0.3701, 0.6734] | ✓ |
+
+### Discovery stability — expansion edge by year (preliminary)
+| Year | Days | Expansion edge (E cand − base) |
+| --- | --- | --- |
+| 2021 | 141 | 0.2795 |
+| 2022 | 251 | 0.1676 |
+| 2023 | 250 | 0.2579 |
+| 2024 | 252 | 0.251 |
+| 2025 | 250 | 0.2633 |
+| 2026 | 112 | 0.2651 |
 
 ## Honest scope
 
