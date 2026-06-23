@@ -200,6 +200,50 @@ def vol_regime(vol_today: float | None, vol_history: list[float]) -> str | None:
     return "high" if vol_today > _median(vol_history) else "low"
 
 
+# ---- v0.4 Confidence Model (calibration + composability; SCAN-001 v0.4 §1) ----
+# Pure helpers that turn the v0.3 Operating-Envelope heatmap into a per-candidate, per-day
+# confidence number — and the frozen composite the model ships. No selection change: the
+# candidate SET is unchanged (v0.2 H3 engine); these only attach a weighting/ranking lens.
+
+# A regime needs at least this many PRIOR days before it emits a non-neutral Discovery
+# Confidence (the v0.4 §1b warm-up floor; mirrors the v0.3 60-day minimum cell sample).
+MIN_CONFIDENCE_DAYS = 60
+NEUTRAL_CONFIDENCE = 1.0  # under warm-up: no down-weight (multiplying by 1.0 is a no-op)
+
+
+def discovery_confidence(point: float, ci_low: float, p_value: float, ref: float) -> float:
+    """Map a regime's edge statistics to a bounded **[0, 1]** Discovery Confidence using the
+    **frozen v0.3 blend**, so v0.4's PIT numbers are directly comparable to the v0.3 heatmap.
+
+    Branch logic is identical to the v0.3 ``_assign_envelope`` confidence:
+      * ``point ≤ 0``                → 0.0 (a no-go regime contributes no confidence)
+      * positive but CI not separated → ``0.4·(1 − p)`` (weak, separation-discounted)
+      * positive and CI-separated     → ``0.5·(1 − p) + 0.5·magnitude``, magnitude = point/ref
+
+    ``point`` is the regime's mean expansion edge, ``ci_low`` its lower 95% bound, ``p_value``
+    the one-sided "edge > 0" p, and ``ref`` the normalizing reference (the largest separated
+    regime's point). v0.4 supplies these point-in-time from PRIOR days only (§1b)."""
+    if point <= 0:
+        return 0.0
+    sep = max(0.0, 1.0 - p_value)
+    if ci_low <= 0:
+        return round(0.4 * sep, 3)
+    mag = min(1.0, max(0.0, point / ref)) if ref > 0 else 0.0
+    return round(0.5 * sep + 0.5 * mag, 3)
+
+
+def composite_confidence(opportunity_confidence: float, discovery_confidence_value: float) -> float:
+    """The frozen v0.4 Confidence Model (§1c): the **product** of the two bounded [0, 1] terms —
+    the per-candidate ``opportunity_confidence`` (Lever A, within-day) and the per-day
+    ``discovery_confidence`` (Lever B, regime throttle). Product of two [0,1] terms → [0, 1].
+
+    Inputs are clamped to [0, 1] defensively so a malformed feed can never push the composite
+    out of range. This is a *weighting* key; it does not change which names are selected."""
+    a = min(1.0, max(0.0, opportunity_confidence))
+    b = min(1.0, max(0.0, discovery_confidence_value))
+    return round(a * b, 4)
+
+
 # ---- selection -------------------------------------------------------------
 
 
