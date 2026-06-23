@@ -147,6 +147,29 @@ the gate verdict is **INSUFFICIENT** — no live ranking/sizing use is unlocked 
 Read-only research/infrastructure throughout. **Walk-away ≥ 1 h** before merge (≥ 2 h if any new persistence is
 added, per the audit/migration convention).
 
+### Build status (2026-06-23)
+
+- **(A) Premarket-feature adapter — ✅ BUILT** (`app/factor_data/premarket_adapter.py`): pure
+  `premarket_feature_row` / `premarket_panel` + `features_from_bars` (store-join core); real gap, RVOL proxy,
+  store ATR, drop rules; 15 tests; ruff/mypy clean.
+- **(B) Read-only live premarket scan — ✅ BUILT** (`app/services/premarket_scan.py`): `store_features_for`
+  (PIT store join) + `run_premarket_scan` (read gappers → join → panel → select), fail-soft, surfaces the §0b
+  funnel; 6 tests. *Independent of #237 — uses the engine's selection only; a Discovery-Confidence overlay on
+  the report is a one-line follow-on once #237 lands.* **Activation** (registering a ~09:25 job) needs a backend
+  rebuild — deferred, like #221.
+- **(C) Forward-evidence accumulator — ⏸ BLOCKED on a decision** (below).
+- **(D) Replication verdict — ⏸ forward** (runs after the N-day window; depends on (C)).
+
+> **⚠ The (C)/(D) blocker — a genuine open question, surfaced not guessed.** (C) must attach the *realized
+> intraday outcome* (`E`, `CM`) to each day's premarket candidates. **Where does that outcome come from for the
+> gappers universe?** The gappers are small/mid-cap Yahoo gainers frequently **not in our DuckDB store** (which
+> holds the liquid pool), and we have no intraday high/low/close feed for them. So the accumulator can persist
+> the *premarket candidate set* today, but the *outcome join* needs a data source for the gappers' realized bars.
+> **Options:** (i) restrict the gate's evidence to gappers that *are* store-covered (small, biased sample, uses
+> existing data); (ii) add a realized-outcome feed for the gappers universe (new data dependency → an ADR);
+> (iii) persist premarket candidates now and back-fill outcomes when a feed exists. The next owner call after
+> (A)+(B) land.
+
 ---
 
 ## 7. Open questions — to RESOLVE with the owner before freezing
