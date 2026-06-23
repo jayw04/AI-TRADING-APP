@@ -2,9 +2,19 @@
 
 Three named tiers of the **same** momentum strategy, differing only in the vol-scaling target.
 P12 §2's grid validated vol-scaling as a *monotonic* risk dial across 10–20% (every target clears
-the enable gate), so a profile is purely a preset that turns the daily vol overlay on and sets
+the enable gate), so a profile is purely a preset that turns vol-scaling on and sets
 ``vol_target_annual``. Nothing about the alpha changes — only the realized-vol cap, hence the
 risk/return trade-off.
+
+"Vol-scaling on" means BOTH vol paths, so the target binds from the first order, not hours later:
+- ``use_vol_scaling`` — scales the **rebalance entry** basket to the target at sizing time
+  (``_gross_scale`` in the entry path). Without it the book enters every week at full gross (up to
+  1×) and is only de-risked later — a "10% vol" book briefly running ~4–5× its target. (This gap
+  also amplified the 2026-06-22 leverage incident, where the duplicate baskets stacked at the
+  unscaled entry; see ADR 0025.)
+- ``use_daily_overlay`` — re-sizes the **held** book toward the target between rebalances (ADR 0020).
+Both read ``vol_target_annual`` and cap at 1× (no leverage); they compose (the overlay measures live
+gross, so it no-ops once entry already hit target).
 
 | Profile | vol target | character (P12 §2 grid, backtest — survivorship-biased, indicative) |
 |---|---|---|
@@ -64,9 +74,15 @@ def profile_name(key: str) -> str:
 def profile_params(key: str, base: dict[str, Any] | None = None) -> dict[str, Any]:
     """Strategy params for a profile: ``base`` with vol-scaling turned ON at the profile's target.
 
-    Only the two vol-overlay keys are profile-specific; everything else (universe sizing, regime
-    filter, pricing) comes from ``base`` so all three profiles share identical alpha logic."""
+    Turns on BOTH vol paths so the target binds at entry, not only reactively:
+    ``use_vol_scaling`` (scales the rebalance basket at sizing time) and ``use_daily_overlay``
+    (re-sizes the held book between rebalances). Without ``use_vol_scaling`` the book enters every
+    week at full gross and is de-risked only on the next overlay tick — see the module docstring.
+
+    Only these vol keys are profile-specific; everything else (universe sizing, regime filter,
+    pricing) comes from ``base`` so all three profiles share identical alpha logic."""
     params = dict(base or {})
+    params["use_vol_scaling"] = True
     params["use_daily_overlay"] = True
     params["vol_target_annual"] = get_profile(key).vol_target_annual
     return params

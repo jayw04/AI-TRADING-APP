@@ -31,12 +31,15 @@ def test_profile_name_convention():
 
 
 def test_profile_params_turns_on_vol_scaling_and_preserves_base():
-    base = {"max_names": 5, "use_daily_overlay": False, "vol_target_annual": 0.99}
+    base = {"max_names": 5, "use_vol_scaling": False,
+            "use_daily_overlay": False, "vol_target_annual": 0.99}
     p = profile_params("conservative", base)
+    assert p["use_vol_scaling"] is True              # entry-time sizing scaled (not full gross)
     assert p["use_daily_overlay"] is True            # overlay forced on
     assert p["vol_target_annual"] == 0.10            # set to the profile's target
     assert p["max_names"] == 5                        # base preserved
     assert base["vol_target_annual"] == 0.99          # base not mutated (copy)
+    assert base["use_vol_scaling"] is False           # base not mutated (copy)
 
 
 def test_balanced_matches_live_default():
