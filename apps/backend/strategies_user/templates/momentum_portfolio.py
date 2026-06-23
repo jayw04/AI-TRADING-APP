@@ -308,12 +308,14 @@ class MomentumPortfolio(Strategy):
                 continue
             if delta < 0:
                 await self._submit(sym, OrderSide.SELL, -delta, reason=f"{reason}_trim",
+                                   ref_price=price,
                                    payload={"price": price, "target_qty": str(target_qty)})
             else:
                 buys.append((sym, delta, price, target_qty))
 
         for sym, qty, price, target_qty in buys:
             await self._submit(sym, OrderSide.BUY, qty, reason=f"{reason}_entry",
+                               ref_price=price,
                                payload={"price": price, "target_qty": str(target_qty)})
 
     def _select_targets(self, scores: Any, held: dict[str, Decimal]) -> list[str]:
@@ -628,6 +630,7 @@ class MomentumPortfolio(Strategy):
 
     async def _submit(
         self, symbol: str, side: OrderSide, qty: Decimal, *, reason: str,
+        ref_price: float | None = None,
         payload: dict[str, Any] | None = None,
     ) -> bool:
         if qty <= 0:
@@ -642,6 +645,9 @@ class MomentumPortfolio(Strategy):
             tif=TimeInForce.DAY,
             source_type=OrderSourceType.STRATEGY,
             source_id=None,  # context stamps the strategy id
+            # Sizing price → risk-valuation hint so the gross-exposure gate can
+            # value this MARKET order while it is in flight (never sent to broker).
+            reference_price=(Decimal(str(ref_price)) if ref_price and ref_price > 0 else None),
         )
         result = await self.ctx.submit_order(req)
         sig = SignalType.ENTRY if side == OrderSide.BUY else SignalType.EXIT

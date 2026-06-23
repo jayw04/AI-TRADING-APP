@@ -61,6 +61,11 @@ class Order(Base):
     )
     limit_price: Mapped[Decimal | None] = mapped_column(Numeric(20, 4), nullable=True)
     stop_price: Mapped[Decimal | None] = mapped_column(Numeric(20, 4), nullable=True)
+    # Pre-trade notional the risk engine estimated for this order (qty × reference
+    # price). Persisted so the gross-exposure / position gates can sum the exposure
+    # of still-in-flight orders, not just settled positions. NULL when no price was
+    # resolvable (e.g. a market order with no reference) — treated as 0 by the gates.
+    estimated_notional: Mapped[Decimal | None] = mapped_column(Numeric(20, 4), nullable=True)
     tif: Mapped[TimeInForce] = mapped_column(
         SQLEnum(TimeInForce, native_enum=False, length=8),
         nullable=False,

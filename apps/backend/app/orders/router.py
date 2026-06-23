@@ -489,6 +489,9 @@ class OrderRouter:
             source_type=req.source_type,
             source_id=req.source_id,
             risk_check_id=outcome.risk_check_id,
+            # Persist the engine's pre-trade notional so the gross-exposure /
+            # position gates can count this order while it is in flight.
+            estimated_notional=outcome.estimated_notional,
             created_at=now,
             updated_at=now,
         )
