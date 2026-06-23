@@ -7,23 +7,26 @@
 
 | Field | Value |
 |---|---|
-| Version | v0.8 (2026-06-23) — **SCAN-001 Prototype → Completed / ✅ Validated (Capability)** after the v0.2 de-tautologized run (both cuts SUPPORTED): status + verdict + evidence row updated; **Market Opportunity Discovery Engine** adopted as the customer-facing name (Candidate Engine = internal); new **Research Infrastructure** capability lens (*"this is the product"*); **architecture direction** note — Discovery Lab as a first-class peer to Factor Lab (four capability domains), pending ratification. Folds the owner review (Prototype 9.9 / Results 10 / Registry 10). **v0.7** — **SCAN-001 registered as Prototype** (PR #229): status Planning → **Prototype** (40%, ⚪ caveated); first evidence row added (H1 edge +3.24% but flagged *partly definitional* — selection includes ATR; recorded as a prototype finding, not a validated edge); Candidate/Discovery Engine + Explainable Candidate Report listed as **prototype** platform capabilities; findings doc linked. **v0.6** — final SCAN-001 review: a **Reuse level** dimension per program (commercial-value signal — SCAN = Very High). **v0.5** folded the SCAN-001 review: **SCAN-001** added as the first **Platform Capability** program; the Capability Matrix **split into Platform vs Investment capabilities**; a **Primary consumer** dimension per program. **v0.4** folded the prior review (9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
+| Version | v0.9 (2026-06-23) — folds the SCAN-001 v0.3 + Registry review (both 10/10): **three-layer → four-layer product model** (adds **Research Infrastructure** as an explicit layer — Discovery/Factor Labs, Evidence Engine, registries, dashboard); new **Capability Maturity (L0–L5)** axis applied platform-wide (SCAN at **L2**, → L3 on v0.3) + the **Operating Envelope** concept; SCAN noted as a **family** under Discovery Lab. **v0.8 (2026-06-23)** — **SCAN-001 Prototype → Completed / ✅ Validated (Capability)** after the v0.2 de-tautologized run (both cuts SUPPORTED): status + verdict + evidence row updated; **Market Opportunity Discovery Engine** adopted as the customer-facing name (Candidate Engine = internal); new **Research Infrastructure** capability lens (*"this is the product"*); **architecture direction** note — Discovery Lab as a first-class peer to Factor Lab (four capability domains), pending ratification. Folds the owner review (Prototype 9.9 / Results 10 / Registry 10). **v0.7** — **SCAN-001 registered as Prototype** (PR #229): status Planning → **Prototype** (40%, ⚪ caveated); first evidence row added (H1 edge +3.24% but flagged *partly definitional* — selection includes ATR; recorded as a prototype finding, not a validated edge); Candidate/Discovery Engine + Explainable Candidate Report listed as **prototype** platform capabilities; findings doc linked. **v0.6** — final SCAN-001 review: a **Reuse level** dimension per program (commercial-value signal — SCAN = Very High). **v0.5** folded the SCAN-001 review: **SCAN-001** added as the first **Platform Capability** program; the Capability Matrix **split into Platform vs Investment capabilities**; a **Primary consumer** dimension per program. **v0.4** folded the prior review (9.95/10): a **Platform Capability Matrix** (capabilities by origin program — *customers buy capabilities, not strategies*; the seed of a future Capability Registry). **v0.3** folded the prior review (9.9/10): a **Platform value** column (why each program exists, beyond its result) and a **Research line** status (Open / Follow-on / Closed) orthogonal to program Status (a program can be `Completed` with its research line still open). **v0.2** folded the prior review (10/10): an explicit **status taxonomy** (Planning → Running → Completed → Archived → Production) separating *plan-complete* from *research-complete*; a per-program **progress** indicator; a **portfolio KPI** (count by verdict); each program extended toward **Evidence Package → Decision → Lessons Learned** (institutional memory); and an **open-ended** registry note. v0.1 was the pre-review draft. |
 | Source of truth | `apps/backend/app/research/programs.py` + the Evidence Dashboard |
 | Convention | Permanent IDs (`MOM / RNG / MF / SEC / LOW / TREND-NNN`) are platform IP — citable in the whitepaper, patent, and customer docs. The registry is **open-ended**: it grows one program at a time, forever (the GitHub-repositories model), and never "closes." |
 
 ---
 
-## The three-layer product model
+## The four-layer product model
 
-The platform is best understood as three layers — a framing customers grasp immediately:
+The platform is best understood as four layers — a framing customers grasp immediately. The **Research
+Infrastructure** layer is owner-added: the platform-wide *assets* (engines, registries, labs) are distinct
+from both the operating system that hosts them and the individual programs that run on them.
 
 | Layer | What it is | Examples |
 |---|---|---|
 | **Layer 1 — Methodology** | **Evidence Engineering** — the discipline of producing, governing, and preserving the proof behind every decision | pre-registration, evidence packages, the promotion gate, the stopping rule |
-| **Layer 2 — Platform** | **TradingWorkbench** — the operating system that makes the methodology usable | the research engine, registries, risk engine, OrderRouter, audit, dashboards |
-| **Layer 3 — Research Programs** | The individual strategies run *through* the platform — each a validated, rejected, or deferred instance | the registry below (`MOM-001` … `TREND-001`) |
+| **Layer 2 — Platform** | **TradingWorkbench** — the operating system that makes the methodology usable | the risk engine, OrderRouter, audit/hash-chain, scheduler, execution |
+| **Layer 3 — Research Infrastructure** | The reusable, platform-wide research *assets* — the subsystems strategies are produced *by*, not the strategies themselves | **Discovery Lab · Factor Lab · Evidence Engine · Research Registry · Decision Registry · Evidence Dashboard** |
+| **Layer 4 — Research Programs** | The individual strategies/capabilities run *through* Layer 3 — each a validated, rejected, or deferred instance | the registry below (`MOM-001` … `TREND-001`, `SCAN-001`) |
 
-Momentum is **Layer 3**, not the product — the *reference implementation* that proves Layers 1–2 work, much as Linux is a reference implementation of an operating system rather than the operating system itself.
+Momentum is **Layer 4**, not the product — the *reference implementation* that proves Layers 1–3 work, much as Linux is a reference implementation of an operating system rather than the operating system itself. The platform's stable subsystem map (owner): **Evidence Engineering → Discovery Lab → Factor Lab → Execution Platform → Continuous Evidence**.
 
 ## The research lifecycle (standardized phase terminology)
 
@@ -60,6 +63,27 @@ reached — `Completed` is not the same as "nothing left to study":
 | **Follow-on available** | Research is `Completed`, but pre-registered next variants exist (e.g. LOW-001's defensive-sleeve / broader-universe V2; MF-001's SF1 re-test). |
 | **Closed** | The construction line is finished — a rejection or a stopping-rule fire; reopening requires a *fundamentally new hypothesis*. |
 
+## Capability Maturity (L0–L5) — owner
+
+A fourth axis, applicable **platform-wide** (every capability — strategy or infrastructure — gets a level), so
+maturity reads consistently across the Factor Lab, Risk Engine, Execution Engine, and every future capability.
+It refines `Status`: where Status says *where in its life*, Maturity says *how far it has been proven and
+de-risked*.
+
+| Level | Meaning |
+|---|---|
+| **L0** | Concept |
+| **L1** | Prototype (built; not yet validated) |
+| **L2** | Validated (a real, evidence-backed result on the full sample) |
+| **L3** | Operating Envelope Defined (we know *where* it works and where it must not be used) |
+| **L4** | Production-Ready (promoted past governance; live/paper) |
+| **L5** | Continuously Verified (long-run live evidence keeps confirming it) |
+
+First applied to **SCAN-001**: v0.1 → L1, **v0.2 → L2 (current)**, v0.3 → L3 (the Operating-Envelope study).
+Retrospectively, MOM-001 ≈ L4–L5 (live + continuous evidence). The **Operating Envelope** (L3) is the concept
+that every capability has conditions under which it operates safely — Momentum's is trending markets,
+Low-Vol's is risk-off, Discovery's is set by SCAN v0.3.
+
 ---
 
 ## The registry
@@ -76,7 +100,7 @@ reached — `Completed` is not the same as "nothing left to study":
 | **TREND-001** | Trend Following (time-series trend) | **Planning** | `█░░░░░░░░░` 10% | Open (not started) | — **Pending** | **Trend philosophy** — the time-series complement |
 | **SCAN-001** ⚙ | Market Opportunity Discovery Engine (Candidate Engine) — **platform capability, not a strategy** | **Completed** | `█████████░` 90% | Follow-on (v0.3 stability + premarket gate) | ✅ **Validated (Capability)** | **Discovery Engine** — the reusable morning scanner feeding the Intraday Research Framework |
 
-**Program type — SCAN-001 is the first Platform Capability program** (⚙), distinct from the strategy programs (MOM/RNG/MF/SEC/LOW/TREND). Strategies answer *"should we trade this?"*; a capability answers *"what shared infrastructure do strategies reuse?"*. Plan: v0.1 + v0.2 (`..._CandidateEngine_Plan_v0.1.md`, `..._Plan_v0.2.md`). **The full Evidence-Engineering cycle ran here:** v0.1 prototype → caught its own ATR tautology (findings v0.1, kept as the scientific record) → v0.2 pre-registered de-tautologized hypotheses → **Validated on both cuts** (results v0.2). **Verdict ✅ Validated (Capability):** candidates expand **beyond their own ATR** (1.18–1.49× vs baseline ≈0.94×, CI-separated, p≈0 on both the top-500/3y and top-200/5y cuts), the expansion is tradeable (capturable & net move ~2.5× baseline), and all three signals (ATR+Gap+RVOL) are additive. ⚠ **"Validated" is the *capability* verdict, not a live-trading green light** — promotion to any live use still requires the premarket-data gate (PR #221) + a live-data replication, and the v0.3 Discovery-Stability study (regime/seasonality). Magnitude is regime/universe-dependent (recorded honestly in results §3).
+**Program type — SCAN-001 is the first Platform Capability program** (⚙), distinct from the strategy programs (MOM/RNG/MF/SEC/LOW/TREND). Strategies answer *"should we trade this?"*; a capability answers *"what shared infrastructure do strategies reuse?"*. Plan: v0.1 + v0.2 (`..._CandidateEngine_Plan_v0.1.md`, `..._Plan_v0.2.md`). **The full Evidence-Engineering cycle ran here:** v0.1 prototype → caught its own ATR tautology (findings v0.1, kept as the scientific record) → v0.2 pre-registered de-tautologized hypotheses → **Validated on both cuts** (results v0.2). **Verdict ✅ Validated (Capability):** candidates expand **beyond their own ATR** (1.18–1.49× vs baseline ≈0.94×, CI-separated, p≈0 on both the top-500/3y and top-200/5y cuts), the expansion is tradeable (capturable & net move ~2.5× baseline), and all three signals (ATR+Gap+RVOL) are additive. ⚠ **"Validated" is the *capability* verdict, not a live-trading green light** — promotion to any live use still requires the premarket-data gate (PR #221) + a live-data replication, and the v0.3 Discovery-Stability study (regime/seasonality). Magnitude is regime/universe-dependent (recorded honestly in results §3). **Capability Maturity: L2 (Validated) now → L3 on v0.3** (the Operating-Envelope study, approved). **SCAN is becoming a *family*, not one program** (owner direction): SCAN-001 (the Candidate Engine) is the first of an eventual `SCAN-Regime / SCAN-News / SCAN-Options / SCAN-Earnings` line, all profiles under the **Discovery Lab** subsystem — built as *configuration* over the shared engine, the Factor-Lab pattern (leave room; do not build yet).
 
 **Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). **Platform value** answers *why each program exists* — its contribution to the platform, not just its result; a rejection and a diversifier are both assets. **Research line** is orthogonal to Status (above).
 
