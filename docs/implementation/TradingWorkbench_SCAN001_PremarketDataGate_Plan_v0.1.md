@@ -20,6 +20,14 @@
 > (Production-Ready on real data). It is **not** a new research idea — it is the validation of the existing one
 > on the data it will actually run on.
 
+> **Reframe (folds the review): this is the *Production Validation Gate*, premarket instance.** The gate is not
+> fundamentally about *premarket data* — it is about *validating that a capability works in its intended
+> production environment before promotion.* Premarket gappers are the **first instance**; future capabilities get
+> sibling gates (Options / Macro / ETF Validation Gates). Code stays `premarket_*` (the instance); the concept is
+> Production Validation. It runs in **two logical phases**: **Phase A — Technical Validation** (data → adapter →
+> scanner → persistence = increments A, B, C-persist) and **Phase B — Scientific Validation** (realized outcome →
+> evidence → bootstrap → verdict = increments C-backfill, D).
+
 ---
 
 ## 0. Two hard realities that shape everything (read first)
