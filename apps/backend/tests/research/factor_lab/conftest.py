@@ -51,3 +51,41 @@ def volatile_store(tmp_path) -> FactorDataStore:
     s.ingest_tickers(tickers)
     yield s
     s.close()
+
+
+def _build_sectored() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """30 random-walk names across 5 sectors (6 each), ~2.5y — enough for the sector
+    ranking (≥20 sectored names), the 252d momentum lookback, and a multi-month
+    backtest. Each sector gets its own drift so the cross-sector ranking is orderable."""
+    bdays = pd.bdate_range(_START, _END)
+    rng = random.Random(23)
+    sectors = ["TECH", "ENERGY", "HEALTH", "FIN", "UTIL"]
+    sep, tk = [], []
+    for si, sector in enumerate(sectors):
+        drift = 0.0001 + 0.00010 * si      # sector-level trend spread
+        for j in range(6):
+            ticker = f"{sector[:2]}{j:02d}"
+            sigma = 0.008 + 0.0008 * j
+            price = 100.0
+            for d in bdays:
+                price *= 1.0 + rng.gauss(drift, sigma)
+                price = max(price, 1.0)
+                sep.append(dict(ticker=ticker, date=d.strftime("%Y-%m-%d"),
+                                open=price, high=price, low=price, close=price,
+                                volume=2_000_000, closeadj=price, closeunadj=price,
+                                lastupdated="2026-01-01"))
+            tk.append(dict(ticker=ticker, name=f"{ticker} Inc", exchange="NYSE",
+                           category="Domestic Common Stock", sector=sector, industry="I",
+                           isdelisted="N", firstpricedate="2017-01-01",
+                           lastpricedate="2026-01-01", lastupdated="2026-01-01"))
+    return pd.DataFrame(sep), pd.DataFrame(tk)
+
+
+@pytest.fixture
+def sectored_store(tmp_path) -> FactorDataStore:
+    sep, tickers = _build_sectored()
+    s = FactorDataStore(db_path=str(tmp_path / "factorlab_sector.duckdb"))
+    s.ingest_sep(sep)
+    s.ingest_tickers(tickers)
+    yield s
+    s.close()

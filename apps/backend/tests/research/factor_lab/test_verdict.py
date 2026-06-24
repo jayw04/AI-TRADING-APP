@@ -88,6 +88,18 @@ def test_config_trend_verdict_reproduces_classify_outcome() -> None:
                     v)[0].startswith("D")
 
 
+def test_config_sec_verdict_reproduces_sector_rotation_v2() -> None:
+    """The shipped SEC_001.verdict (configs.py) reproduces sector_rotation_v2's A/B/C/D:
+    A on a consistent standalone edge vs the all-sector control; B when the blend helps;
+    C when the all-sector-control CI high < 0; else D."""
+    from app.research.factor_lab.configs import SEC_001
+    v = SEC_001.verdict
+    assert classify(_m(h1_real=True, consistent=True), v)[0].startswith("A")
+    assert classify(_m(blend_helps=True), v)[0].startswith("B")
+    assert classify(_m(h1_ci_high=-0.1), v)[0].startswith("C")
+    assert classify(_m(h1_ci_high=0.2), v)[0].startswith("D")
+
+
 def test_first_matching_rule_wins() -> None:
     spec = VerdictSpec(
         rules=(

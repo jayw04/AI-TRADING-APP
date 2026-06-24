@@ -123,4 +123,54 @@ TREND_001 = ProgramSpec(
     },
 )
 
-PROGRAMS: dict[str, ProgramSpec] = {LOW_001.id: LOW_001, TREND_001.id: TREND_001}
+# --- SEC-001 (sector_baskets) --------------------------------------------------------
+# The verdict tree faithful to sector_rotation_v2_research.py: A if the V2 baskets beat
+# the all-sector-baskets control (H1) consistently; B if the momentum+sector blend helps
+# (or V2 is shallower-drawdown AND low-correlation); C if H1 clearly excludes a positive
+# edge; else D. The runner assembles `blend_helps` (incl. the maxDD/corr fallback), so
+# the tree only reads flat metrics. `h1_ci_high` is the all-sector-control CI's high.
+_SEC_VERDICT = VerdictSpec(
+    rules=(
+        VerdictRule(lambda m: m["h1_real"] and m["consistent"],
+                    "A — Validated standalone",
+                    "construction turned B->A: standalone Strategy #2 candidate -> "
+                    "governance -> paper"),
+        VerdictRule(lambda m: m["blend_helps"],
+                    "B — Diversifier (confirmed)",
+                    "momentum+sector blend / overlay candidate (evidence-gated)"),
+        VerdictRule(lambda m: m["h1_ci_high"] < 0,
+                    "C — Rejected", "no edge; archive as a knowledge-base evidence package"),
+    ),
+    default_outcome="D — Inconclusive",
+    default_action="research debt",
+)
+
+
+SEC_001 = ProgramSpec(
+    id="SEC-001",
+    name="Sector Rotation (V2 pure baskets)",
+    philosophy="Sector-neutral top-K equal-weight baskets on 12-1 sector momentum",
+    factor="sector_momentum",
+    factor_params={"lookback_days": 252, "skip_days": 21, "k": 3, "k_band": [2, 4]},
+    n=200,
+    start=date(2000, 1, 1),
+    end=date(2026, 6, 12),
+    construction="sector_baskets",
+    top_quantile=0.20,            # the V1 stock-level construction quantile (H3 isolation)
+    weighting="equal_weight",
+    baseline="equal_weight",      # the continuity benchmark (the H1 control is all-sector)
+    turnover_cost_bps=10.0,
+    verdict=_SEC_VERDICT,
+    notes={
+        "verdict_of_record": "B - Diversifier",
+        "evidence": ("docs/implementation/evidence/sec_001_v2_pure_baskets/"
+                     "sector_rotation_v2.md"),
+        "hypotheses": ("H1 V2 vs all-sector baskets (primary) + vs eqw universe; "
+                       "H2 corr(sector,single-name momentum)+blend; "
+                       "H3 V2-vs-V1 construction isolation (read-only, stopping rule)"),
+    },
+)
+
+PROGRAMS: dict[str, ProgramSpec] = {
+    LOW_001.id: LOW_001, TREND_001.id: TREND_001, SEC_001.id: SEC_001,
+}
