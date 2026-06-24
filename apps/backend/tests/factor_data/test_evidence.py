@@ -97,6 +97,48 @@ def test_bootstrap_pvalue_separates_edge_from_noise() -> None:
 
 # ---- stability -----------------------------------------------------------------
 
+def _legacy_paired_sharpe_diff_ci(a_r, b_r, *, n_resamples, seed, block=21):
+    """The bespoke harnesses' paired-Sharpe-diff bootstrap, inlined verbatim — the
+    reference the promoted ev.paired_sharpe_diff_ci must reproduce byte-for-byte."""
+    import random
+    n = min(len(a_r), len(b_r))
+    point = ev.sharpe(a_r[:n]) - ev.sharpe(b_r[:n])
+    if n < block * 2:
+        return {"delta": round(point, 3), "ci_low": float("nan"), "ci_high": float("nan")}
+    rng = random.Random(seed)
+    diffs = []
+    for _ in range(n_resamples):
+        idx = []
+        while len(idx) < n:
+            s0 = rng.randrange(n)
+            idx.extend((s0 + k) % n for k in range(block))
+        idx = idx[:n]
+        diffs.append(ev.sharpe([a_r[i] for i in idx]) - ev.sharpe([b_r[i] for i in idx]))
+    diffs.sort()
+    return {"delta": round(point, 3), "ci_low": round(diffs[int(0.025 * n_resamples)], 3),
+            "ci_high": round(diffs[min(int(0.975 * n_resamples), n_resamples - 1)], 3)}
+
+
+def test_paired_sharpe_diff_ci_matches_legacy_byte_for_byte() -> None:
+    """Equivalence gate: the promoted helper must equal the bespoke implementation exactly
+    (same RNG sequence + 3dp rounding), so the Factor Lab reproduces committed evidence."""
+    import random
+    rng = random.Random(1)
+    a = [rng.gauss(0.0008, 0.012) for _ in range(900)]   # a slightly stronger book
+    b = [rng.gauss(0.0003, 0.012) for _ in range(900)]   # the benchmark
+    got = ev.paired_sharpe_diff_ci(a, b, n_resamples=500, seed=17)
+    exp = _legacy_paired_sharpe_diff_ci(a, b, n_resamples=500, seed=17)
+    assert got.delta == exp["delta"]
+    assert got.ci_low == exp["ci_low"]
+    assert got.ci_high == exp["ci_high"]
+
+
+def test_paired_sharpe_diff_ci_short_series_is_nan() -> None:
+    r = ev.paired_sharpe_diff_ci([0.01] * 10, [0.0] * 10, n_resamples=100, seed=17, block=21)
+    assert r.ci_low != r.ci_low and r.ci_high != r.ci_high  # NaN
+    assert not r.excludes_zero_positive()
+
+
 def test_stability_labels() -> None:
     assert ev.stability_label([1.0, 1.1, 0.9, 1.05]) == "stable"
     assert ev.stability_label([1.0, -0.5, 0.8, -0.6]) == "unstable"
