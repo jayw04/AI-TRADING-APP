@@ -867,6 +867,55 @@ async def validate_on_paper(
     return _to_response(row)
 
 
+@proposals_router.post("/{proposal_id}/rerun-eval", response_model=ProposalResponse)
+async def rerun_eval(
+    proposal_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ProposalResponse:
+    """P3 (review): re-run the backtest evaluation for a REVIEWING proposal whose eval
+    failed or skipped — *fix → re-run*, WITHOUT regenerating the proposal (no new LLM
+    call). Re-enqueues the baseline + variant jobs; the reconcile cron advances them as
+    usual. Idempotency: only a failed/skipped eval can be re-run (not one already
+    pending/running, nor a completed one that already has a verdict)."""
+    row = await session.get(StrategyProposal, proposal_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if row.state != ProposalState.REVIEWING:
+        raise HTTPException(
+            status_code=409,
+            detail="Eval re-run only applies to a REVIEWING proposal",
+        )
+    status = (row.evaluation_results_json or {}).get("status")
+    if status not in ("failed", "skipped"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Eval is '{status}'; re-run only applies to a failed or skipped eval",
+        )
+
+    from app.services.proposal_evaluation import enqueue_eval_for_proposal
+
+    try:
+        fragment = await enqueue_eval_for_proposal(session, proposal_id=proposal_id)
+    except Exception as exc:  # noqa: BLE001 - surface as a clean 502, not a 500
+        raise HTTPException(
+            status_code=502, detail=f"eval enqueue failed: {str(exc)[:200]}"
+        ) from exc
+    row.evaluation_results_json = fragment
+    row.updated_at = datetime.now(UTC)
+    await session.commit()
+    logger.info(
+        "proposal_eval_rerun",
+        proposal_id=proposal_id,
+        user_id=current_user.id,
+        new_status=fragment.get("status"),
+    )
+    refreshed = await session.get(StrategyProposal, proposal_id)
+    if refreshed is None:  # pragma: no cover - just updated
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return _to_response(refreshed)
+
+
 @proposals_router.post(
     "/{proposal_id}/stop-validation", response_model=ProposalResponse
 )

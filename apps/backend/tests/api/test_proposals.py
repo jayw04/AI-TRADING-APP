@@ -163,6 +163,50 @@ async def test_propose_minute_collision_returns_409(client, monkeypatch):
     assert r2.status_code == 409
 
 
+# ----- rerun-eval (P3: fix -> re-run eval, not regenerate) -----
+
+
+async def _set_eval(pid: int, status: str) -> None:
+    async with get_sessionmaker()() as s:
+        row = await s.get(StrategyProposal, pid)
+        row.evaluation_results_json = {"status": status, "failure_reason": "boom"}
+        await s.commit()
+
+
+async def test_rerun_eval_reenqueues_failed_eval(client):
+    # Give strategy 1 a code_path so the backtest enqueues (else it skips).
+    async with get_sessionmaker()() as s:
+        st = await s.get(Strategy, 1)
+        st.code_path = "strat.py"
+        await s.commit()
+    pid = await _mk_proposal(state=ProposalState.REVIEWING, payload={"changes": []})
+    await _set_eval(pid, "failed")
+    r = await client.post(f"{BASE}/proposals/{pid}/rerun-eval")
+    assert r.status_code == 200, r.text
+    assert r.json()["evaluation_results"]["status"] == "pending"  # re-enqueued, no LLM call
+
+
+async def test_rerun_eval_rejects_completed_eval(client):
+    pid = await _mk_proposal(state=ProposalState.REVIEWING)
+    await _set_eval(pid, "complete")
+    r = await client.post(f"{BASE}/proposals/{pid}/rerun-eval")
+    assert r.status_code == 409  # a completed eval has a verdict; don't clobber it
+
+
+async def test_rerun_eval_rejects_non_reviewing(client):
+    pid = await _mk_proposal(state=ProposalState.DRAFT)
+    await _set_eval(pid, "failed")
+    r = await client.post(f"{BASE}/proposals/{pid}/rerun-eval")
+    assert r.status_code == 409
+
+
+async def test_rerun_eval_other_users_proposal_404(client):
+    pid = await _mk_proposal(strategy_id=2, user_id=2, state=ProposalState.REVIEWING)
+    await _set_eval(pid, "failed")
+    r = await client.post(f"{BASE}/proposals/{pid}/rerun-eval")
+    assert r.status_code == 404
+
+
 # ----- patch transitions -----
 
 

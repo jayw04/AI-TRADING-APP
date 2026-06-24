@@ -130,6 +130,13 @@ export const proposalsApi = {
       { method: "POST", body: JSON.stringify({}) },
     ),
 
+  // P3 (review): re-run a failed/skipped eval without regenerating the proposal.
+  rerunEval: (proposalId: number) =>
+    apiFetch<Proposal>(`/api/v1/proposals/${proposalId}/rerun-eval`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
   evalSummary: (strategyId: number, windowDays = 30) =>
     apiFetch<ProposalEvalSummary>(
       `/api/v1/strategies/${strategyId}/proposal-eval-summary?window=${windowDays}`,
