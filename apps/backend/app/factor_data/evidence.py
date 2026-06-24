@@ -238,6 +238,57 @@ def block_bootstrap_ci(
     return ConfidenceResult(point, lo, hi, p_value, n_resamples, block)
 
 
+@dataclass(frozen=True)
+class SharpeDiffCI:
+    """A paired Sharpe-difference bootstrap result (strategy minus benchmark)."""
+    delta: float          # Sharpe(a) - Sharpe(b) on the observed series
+    ci_low: float         # paired bootstrap percentile lower bound (NaN if too short)
+    ci_high: float        # paired bootstrap percentile upper bound (NaN if too short)
+
+    def excludes_zero_positive(self) -> bool:
+        """True iff the CI lies strictly above zero (a significant positive edge). NaN-safe."""
+        return self.ci_low == self.ci_low and self.ci_low > 0
+
+
+def paired_sharpe_diff_ci(
+    a_returns: Returns,
+    b_returns: Returns,
+    *,
+    n_resamples: int = 2000,
+    seed: int = 17,
+    block: int = 21,
+) -> SharpeDiffCI:
+    """Circular-block **paired** bootstrap of Sharpe(a) - Sharpe(b) (a = strategy, b = benchmark).
+
+    The same resampled day indices are applied to BOTH return series each draw, so the
+    difference is paired (controls for shared market days). This is the canonical H1/H2
+    significance test the research harnesses use; promoted here so the Factor Lab and the
+    programs share one implementation. Deterministic for a given seed; values match the
+    bespoke ``_paired_sharpe_diff_ci`` byte-for-byte (same RNG sequence + 3dp rounding) so
+    the Factor Lab equivalence test reproduces the committed evidence.
+    """
+    n = min(len(a_returns), len(b_returns))
+    a, b = a_returns[:n], b_returns[:n]
+    point = sharpe(a) - sharpe(b)
+    if n < block * 2:
+        return SharpeDiffCI(round(point, 3), float("nan"), float("nan"))
+    rng = random.Random(seed)
+    diffs: list[float] = []
+    for _ in range(n_resamples):
+        idx: list[int] = []
+        while len(idx) < n:
+            s0 = rng.randrange(n)
+            idx.extend((s0 + k) % n for k in range(block))
+        idx = idx[:n]
+        diffs.append(sharpe([a[i] for i in idx]) - sharpe([b[i] for i in idx]))
+    diffs.sort()
+    return SharpeDiffCI(
+        round(point, 3),
+        round(diffs[int(0.025 * n_resamples)], 3),
+        round(diffs[min(int(0.975 * n_resamples), n_resamples - 1)], 3),
+    )
+
+
 # --- walk-forward stability -------------------------------------------------
 
 
