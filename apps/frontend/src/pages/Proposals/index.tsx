@@ -204,8 +204,11 @@ export default function Proposals() {
         )}
       </div>
       <p className="mt-1 text-xs text-neutral-400">
-        The agent suggests parameter adjustments for your strategies. You review,
-        accept, and explicitly apply — nothing changes a strategy until you do.
+        Pick one of <span className="text-neutral-200">your existing strategies</span> below — the
+        agent suggests <span className="text-neutral-200">parameter adjustments</span> for it (e.g.
+        entry/exit levels, position sizing). This page tunes strategies you already created; it does
+        not screen or pick tickers. You review, accept, and explicitly apply — nothing changes until
+        you do.
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
@@ -214,7 +217,7 @@ export default function Proposals() {
           onChange={(e) => setStrategyId(e.target.value === "" ? "" : Number(e.target.value))}
           className="rounded bg-neutral-800 px-2 py-1 text-sm text-white"
         >
-          <option value="">Select a strategy…</option>
+          <option value="">Select one of your strategies…</option>
           {(strategies.data?.items ?? []).map((s) => (
             <option key={s.id} value={s.id}>
               {s.name} (#{s.id})
