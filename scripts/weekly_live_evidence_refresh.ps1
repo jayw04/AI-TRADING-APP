@@ -69,21 +69,22 @@ if ($LASTEXITCODE -ne 0) { Log 'warn: git pull --ff-only failed; continuing on l
 git checkout -b $Branch 2>&1 | LogPipe
 if ($LASTEXITCODE -ne 0) { Log "ERROR: could not create branch $Branch"; exit 1 }
 
-# Regenerate the report (writes live_evidence.{json,md} into $ReportDir).
-& $Py 'apps/backend/scripts/live_evidence.py' --db $Db --strategy-id 2 --report-dir $ReportDir 2>&1 | LogPipe
+# Regenerate the reports for EVERY live PAPER book (per-strategy live_evidence_<id>.{json,md}
+# plus the canonical live_evidence.{json,md} for id=2) so new books (SEC-001, LOW-001) accrue.
+& $Py 'apps/backend/scripts/live_evidence.py' --db $Db --all-paper --report-dir $ReportDir 2>&1 | LogPipe
 if ($LASTEXITCODE -ne 0) {
     Log "ERROR: live_evidence.py exited $LASTEXITCODE"
     git checkout main 2>&1 | LogPipe; git branch -D $Branch 2>&1 | LogPipe
     exit 1
 }
 
-# Archive a dated copy (matches the manual convention archive/<date>/).
+# Archive a dated copy of all generated reports (matches the manual convention archive/<date>/).
 $ArchiveDir = Join-Path $ReportDir "archive/$Date"
 New-Item -ItemType Directory -Force -Path $ArchiveDir | Out-Null
-Copy-Item (Join-Path $ReportDir 'live_evidence.json') $ArchiveDir -Force
-Copy-Item (Join-Path $ReportDir 'live_evidence.md')   $ArchiveDir -Force
+Copy-Item (Join-Path $ReportDir 'live_evidence*.json') $ArchiveDir -Force
+Copy-Item (Join-Path $ReportDir 'live_evidence*.md')   $ArchiveDir -Force
 
-git add "$ReportDir/live_evidence.json" "$ReportDir/live_evidence.md" "$ReportDir/archive/$Date" 2>&1 | LogPipe
+git add "$ReportDir/live_evidence*.json" "$ReportDir/live_evidence*.md" "$ReportDir/archive/$Date" 2>&1 | LogPipe
 
 # No changes vs the committed report (DB unchanged since last run)? Abandon.
 git diff --cached --quiet
