@@ -64,6 +64,30 @@ def test_outcome_D_default_when_borderline() -> None:
     assert action == "research debt -> V2"
 
 
+def test_config_trend_verdict_reproduces_classify_outcome() -> None:
+    """The shipped TREND_001.verdict (configs.py) must reproduce trend_research's frozen
+    classify_outcome across A/B/C/D — including the H3-beyond-regime B and the
+    subsumed/all-fail C splits (the cases that carried the original verdict bug)."""
+    from app.research.factor_lab.configs import TREND_001
+    v = TREND_001.verdict
+    # A — standalone edge + consistent
+    assert classify(_m(h1_real=True, consistent=True), v)[0].startswith("A")
+    # B — H3 clears beyond the regime filter (no corr gate)
+    assert classify(_m(dd_vs_mom=0.30, dd_vs_eqw=0.23, beats_regime=True, h1_ci_high=0.33),
+                    v)[0].startswith("B")
+    # B — H2 blend helps (and not subsumed)
+    assert classify(_m(blend_helps=True, beats_regime=True, h1_ci_high=0.1), v)[0].startswith("B")
+    # C — subsumed by the regime filter (beats_regime False)
+    assert classify(_m(dd_vs_mom=0.30, dd_vs_eqw=0.20, beats_regime=False, h1_ci_high=-0.05),
+                    v)[0].startswith("C")
+    # C — all fail: not subsumed but neither H2 nor H3 clears and H1 CI high < 0
+    assert classify(_m(beats_regime=True, dd_vs_mom=-0.01, dd_vs_eqw=-0.01, h1_ci_high=-0.10),
+                    v)[0].startswith("C")
+    # D — borderline (not subsumed, nothing clears, H1 CI high ≥ 0)
+    assert classify(_m(beats_regime=True, dd_vs_mom=-0.01, dd_vs_eqw=-0.01, h1_ci_high=0.20),
+                    v)[0].startswith("D")
+
+
 def test_first_matching_rule_wins() -> None:
     spec = VerdictSpec(
         rules=(
