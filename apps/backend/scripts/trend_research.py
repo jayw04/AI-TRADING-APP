@@ -45,6 +45,7 @@ from app.factor_data.backtest import (  # noqa: E402
     _CachedPriceStore,
     _iso_week_last_trading_days,
     run_momentum_backtest,
+    simulate_cash_book,
 )
 from app.factor_data.regime import market_breadth  # noqa: E402
 from app.factor_data.store import FactorDataStore  # noqa: E402
@@ -100,58 +101,6 @@ def _regime_eqw_select(store: Any, as_of: date, *, n: int, ma_days: int = BREADT
         return {}  # risk-off → cash
     w = 1.0 / len(universe)
     return {t: w for t in universe}
-
-
-def simulate_cash(
-    store: Any, rebalances: list[date], trading_days: list[date],
-    select_fn: Any, *, initial_equity: float = 100_000.0, cost_bps: float = 10.0,
-) -> tuple[list[tuple[date, float]], list[tuple[date, float]]]:
-    """Cash-aware book sim: weekly weights (Σw ≤ 1; remainder banked as cash earning
-    0), daily closeadj marking. Mirrors ``backtest._simulate`` mechanics but holds the
-    uninvested fraction as a constant cash sleeve and charges one-way turnover on the
-    STOCK legs only (cash is not traded). Returns (equity_curve, gross_series)."""
-    equity = initial_equity
-    curve: list[tuple[date, float]] = []
-    gross_series: list[tuple[date, float]] = []
-    prev_w: dict[str, float] = {}
-
-    for i, d in enumerate(rebalances):
-        next_d = rebalances[i + 1] if i + 1 < len(rebalances) else None
-        seg = [t for t in trading_days if t > d and (next_d is None or t <= next_d)]
-        if not seg:
-            continue
-        weights = select_fn(d)
-        gross = sum(weights.values())
-        gross_series.append((d, round(gross, 4)))
-
-        keys = set(weights) | set(prev_w)
-        turnover = 0.5 * sum(abs(weights.get(k, 0.0) - prev_w.get(k, 0.0)) for k in keys)
-        equity *= 1.0 - (cost_bps / 1e4) * turnover
-
-        seg_end = seg[-1]
-        px_maps: dict[str, dict[date, float]] = {}
-        prev_px: dict[str, float] = {}
-        for tk in weights:
-            df = store.get_prices(tk, d, seg_end, adjusted=True)
-            pm = {row.date(): float(c) for row, c in zip(df["date"], df["close"], strict=False)
-                  if c is not None and float(c) > 0}
-            px_maps[tk] = pm
-            prev_px[tk] = pm.get(d, 0.0)
-
-        cash = (1.0 - gross) * equity  # constant over the segment (earns nothing)
-        sleeves = {tk: w * equity for tk, w in weights.items()}
-        for t in seg:
-            for tk in weights:
-                p = px_maps[tk].get(t)
-                if p is not None and prev_px[tk] > 0:
-                    sleeves[tk] *= p / prev_px[tk]
-                    prev_px[tk] = p
-                # else: no price today → sleeve frozen (delisted→cash / non-trading)
-            equity = sum(sleeves.values()) + cash
-            curve.append((t, equity))
-        prev_w = {tk: (sv / equity if equity > 0 else 0.0) for tk, sv in sleeves.items()}
-
-    return curve, gross_series
 
 
 def _curve_stats(curve: list[tuple[date, float]]) -> dict[str, float]:
@@ -274,8 +223,8 @@ def _run_trend(store: Any, start: date, end: date, *, n: int, cost_bps: float = 
     cached = _CachedPriceStore(store)
     days = cached.trading_days(start, end)
     rebs = _iso_week_last_trading_days(days)
-    return simulate_cash(cached, rebs, days, lambda d: _trend_select(cached, d, n=n),
-                         cost_bps=cost_bps)
+    return simulate_cash_book(cached, rebs, days, lambda d: _trend_select(cached, d, n=n),
+                              turnover_cost_bps=cost_bps)
 
 
 def _run_regime_eqw(store: Any, start: date, end: date, *, n: int
@@ -283,7 +232,7 @@ def _run_regime_eqw(store: Any, start: date, end: date, *, n: int
     cached = _CachedPriceStore(store)
     days = cached.trading_days(start, end)
     rebs = _iso_week_last_trading_days(days)
-    curve, _ = simulate_cash(cached, rebs, days, lambda d: _regime_eqw_select(cached, d, n=n))
+    curve, _ = simulate_cash_book(cached, rebs, days, lambda d: _regime_eqw_select(cached, d, n=n))
     return curve
 
 
