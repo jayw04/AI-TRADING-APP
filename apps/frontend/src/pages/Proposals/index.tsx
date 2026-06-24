@@ -186,6 +186,15 @@ export default function Proposals() {
     queryKey: ["proposals", "list", filter],
     queryFn: () =>
       proposalsApi.list(filter === "ALL" ? {} : { state: filter }),
+    // P2 (review): while any eval is pending/running, poll so the panel updates to the
+    // verdict on its own (it used to show "Backtest pending" until a manual refresh).
+    refetchInterval: (query) =>
+      (query.state.data?.items ?? []).some((p) =>
+        p.evaluation_results?.status === "pending" ||
+        p.evaluation_results?.status === "running",
+      )
+        ? 5000
+        : false,
   });
 
   const awaiting = useQuery({
