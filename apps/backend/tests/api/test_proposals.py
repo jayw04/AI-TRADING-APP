@@ -63,8 +63,19 @@ async def _mk_proposal(
         return row.id
 
 
+def _fake_agent_key(monkeypatch):
+    """Give the proposing user a resolved per-user agent API key so propose() gets
+    past the multi-user key gate (the real path reads the encrypted credential store)."""
+    async def fake_key(session, user_id: int) -> str:
+        return "test-agent-key"
+
+    monkeypatch.setattr(proposals_mod, "_resolve_user_agent_key", fake_key)
+
+
 def _fake_agent_success(monkeypatch):
-    async def fake(agent_url: str, proposal_id: int) -> dict:
+    _fake_agent_key(monkeypatch)
+
+    async def fake(agent_url: str, proposal_id: int, agent_api_key: str) -> dict:
         async with get_sessionmaker()() as s:
             row = await s.get(StrategyProposal, proposal_id)
             row.state = ProposalState.REVIEWING
@@ -96,7 +107,9 @@ async def test_propose_creates_draft_then_agent_completes_to_reviewing(client, m
 
 
 async def test_propose_agent_failure_cleans_up_draft(client, monkeypatch):
-    async def fake(agent_url, pid):
+    _fake_agent_key(monkeypatch)
+
+    async def fake(agent_url, pid, agent_api_key):
         return {"proposal_id": pid, "state": "DRAFT", "error": "LLM call failed"}
 
     monkeypatch.setattr(proposals_mod, "_invoke_agent", fake)
@@ -108,12 +121,29 @@ async def test_propose_agent_failure_cleans_up_draft(client, monkeypatch):
 
 
 async def test_propose_agent_unreachable_cleans_up_draft(client, monkeypatch):
-    async def fake(agent_url, pid):
+    _fake_agent_key(monkeypatch)
+
+    async def fake(agent_url, pid, agent_api_key):
         raise httpx.ConnectError("agent down")
 
     monkeypatch.setattr(proposals_mod, "_invoke_agent", fake)
     r = await client.post(f"{BASE}/strategies/1/propose", json={})
     assert r.status_code == 502
+    async with get_sessionmaker()() as s:
+        rows = (await s.execute(select(StrategyProposal))).scalars().all()
+    assert rows == []
+
+
+async def test_propose_without_agent_key_returns_503(client, monkeypatch):
+    """P1: when the proposing user has no agent API key, propose() fails with a clear
+    503 (not a silent/opaque error) and leaves no orphaned DRAFT."""
+    async def no_key(session, user_id: int):
+        return None
+
+    monkeypatch.setattr(proposals_mod, "_resolve_user_agent_key", no_key)
+    r = await client.post(f"{BASE}/strategies/1/propose", json={})
+    assert r.status_code == 503
+    assert "Agent API Key" in r.json()["detail"]
     async with get_sessionmaker()() as s:
         rows = (await s.execute(select(StrategyProposal))).scalars().all()
     assert rows == []

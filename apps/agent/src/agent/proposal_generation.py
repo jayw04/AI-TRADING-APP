@@ -19,7 +19,6 @@ import structlog
 from agent.backend_client import BackendClient
 from agent.config import AgentConfig
 from agent.llm_call import call_with_budget
-from agent.mcp_client import WorkbenchMcpClient
 
 logger = structlog.get_logger(__name__)
 
@@ -94,7 +93,6 @@ def _extract_json(text: str) -> str:
 
 async def _run(
     *,
-    mcp: Any,
     backend: Any,
     anthropic_api_key: str | None,
     proposal_id: int,
@@ -110,11 +108,12 @@ async def _run(
         )
     strategy_id = proposal["strategy_id"]
 
-    # Evidence via MCP (Decision 2 read surface).
-    profile = await mcp.get_trading_profile()
-    history = await mcp.get_strategy_history(strategy_id, limit=30)
-    recent_proposals = await mcp.get_recent_proposals(strategy_id, limit=5)
-    recent_orders = await mcp.get_strategy_recent_orders(strategy_id, limit=20)
+    # Evidence via the backend HTTP API (same routes workbench-mcp proxies).
+    # The proposing user's AGENT_API_KEY scopes every read to that user.
+    profile = await backend.get_trading_profile()
+    history = await backend.get_strategy_history(strategy_id, limit=30)
+    recent_proposals = await backend.get_recent_proposals(strategy_id, limit=5)
+    recent_orders = await backend.get_strategy_recent_orders(strategy_id, limit=20)
 
     evidence_bundle = {
         "strategy_snapshot": history.get("snapshot", {}),
@@ -199,26 +198,20 @@ async def generate_proposal(
     config: AgentConfig,
     proposal_id: int,
     *,
-    mcp: Any | None = None,
     backend: Any | None = None,
     model: str = PROPOSAL_GENERATION_MODEL,
 ) -> ProposalGenerationResult:
-    """Generate a proposal for a DRAFT proposal_id. Constructs real MCP +
-    backend clients from config unless injected (tests inject fakes)."""
-    if mcp is not None and backend is not None:
+    """Generate a proposal for a DRAFT proposal_id. Constructs a real backend
+    client from config unless injected (tests pass fakes)."""
+    if backend is not None:
         return await _run(
-            mcp=mcp,
             backend=backend,
             anthropic_api_key=config.anthropic_api_key,
             proposal_id=proposal_id,
             model=model,
         )
-    async with (
-        WorkbenchMcpClient(config.workbench_mcp_base) as real_mcp,
-        BackendClient(config.backend_api_base, config.agent_api_key) as real_backend,
-    ):
+    async with BackendClient(config.backend_api_base, config.agent_api_key) as real_backend:
         return await _run(
-            mcp=real_mcp,
             backend=real_backend,
             anthropic_api_key=config.anthropic_api_key,
             proposal_id=proposal_id,
