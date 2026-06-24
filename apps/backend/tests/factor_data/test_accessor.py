@@ -74,8 +74,8 @@ def test_accessor_surface_is_read_only(momentum_store: FactorDataStore) -> None:
     methods — only the read methods. This is the sandbox boundary."""
     acc = FactorAccessor(momentum_store)
     public = {a for a in dir(acc) if not a.startswith("_")}
-    assert public == {"momentum_scores", "momentum_for", "universe", "sectors",
-                      "market_breadth", "vix_percentile"}
+    assert public == {"momentum_scores", "low_vol_scores", "momentum_for", "universe",
+                      "sectors", "market_breadth", "vix_percentile"}
     # no ingest/connection handle leaks through a public attribute
     for forbidden in ("con", "store", "ingest_sep", "ingest_tickers", "path"):
         assert not hasattr(acc, forbidden)

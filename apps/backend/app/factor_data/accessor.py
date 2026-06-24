@@ -77,6 +77,25 @@ class FactorAccessor:
             lookback_days=lookback_days, skip_days=skip_days,
         )
 
+    def low_vol_scores(
+        self, as_of: date | None = None, *, n: int = 500,
+        lookback_days: int = 252,
+    ) -> pd.DataFrame:
+        """Cross-sectional low-volatility scores as of `as_of` (default: latest store date).
+
+        Each name is scored by −(trailing `lookback_days` realized vol) — lowest
+        realized vol → highest score — so a top-quantile-equal-weight book holds the
+        calmest names (LOW-001). `lookback_days` selects the realized-vol window
+        (default 252 = 12-month, frozen from research). The PIT/read-only guarantees
+        are identical to `momentum_scores`; only the score changes.
+        """
+        from app.factor_data.factors.low_vol import low_vol_scores
+
+        store = self._require_store()
+        return low_vol_scores(
+            store, self._resolve_as_of(as_of), n=n, lookback_days=lookback_days,
+        )
+
     def momentum_for(self, ticker: str, as_of: date | None = None) -> float | None:
         """Single-name momentum as of `as_of`; `None` if history is insufficient."""
         store = self._require_store()
