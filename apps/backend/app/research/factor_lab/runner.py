@@ -9,9 +9,11 @@ reference + rank-blend + monthly cross-sectional correlation the diversifier stu
 The real-data byte-equivalence acceptance (reproducing the committed verdicts) is the
 §5 gate, run offline.
 
-V1 supports `construction="quantile"` + `baseline="equal_weight"` (covers LOW-001 /
-SEC-quintile / any single-factor quantile book). `sector_baskets`, `participation`, and
-the `regime_filter` baseline land with the sector/trend scorers in the next session.
+Supports `construction="quantile"` + `baseline="equal_weight"` (LOW-001 / any
+single-factor quantile book) and `construction="participation"` +
+`baseline="regime_filter"` (TREND-001: a cash-aware trend book whose gross exposure
+falls in downtrends, vs the portfolio-level regime filter). `sector_baskets` (SEC-001)
+lands next.
 
 Read-only research (ADR 0019); no order path, no broker, no DB session, no LLM.
 """
@@ -24,14 +26,24 @@ from typing import Any
 import pandas as pd
 
 from app.factor_data import evidence as ev
-from app.factor_data.backtest import run_momentum_backtest
+from app.factor_data.backtest import (
+    _CachedPriceStore,
+    _iso_week_last_trading_days,
+    run_momentum_backtest,
+    simulate_cash_book,
+)
 from app.factor_data.factors.engine import FactorUnavailable
 from app.factor_data.factors.momentum import compute_momentum_batch
+from app.factor_data.factors.trend import trend_weights
+from app.factor_data.regime import market_breadth
 from app.factor_data.store import FactorDataStore
 from app.factor_data.universe import universe_asof
 from app.research.factor_lab.registry import ScoreFn, build_score_fn
 from app.research.factor_lab.spec import ProgramSpec
 from app.research.factor_lab.verdict import classify
+
+# The regime-filter control's market-breadth MA window (TREND-001: = the SMA window).
+_BREADTH_MA_DAYS = 200
 
 # The platform's diversification reference is the 12-1 single-name momentum cross-section
 # (matches the bespoke diversifier studies' MOM_LOOKBACK_DAYS / MOM_SKIP_DAYS).
@@ -78,6 +90,32 @@ def _rank_blend_fn(n: int, score_fn: ScoreFn) -> ScoreFn:
     return blend
 
 
+def _returns_blend(a: list[tuple[date, float]], b: list[tuple[date, float]],
+                   *, initial: float) -> list[tuple[date, float]]:
+    """A 50/50 daily-rebalanced blend of two equity curves (returns-averaged) — the
+    participation/trend H2 blend. Faithful to ``trend_research._blend_curve``."""
+    ar, br = ev.daily_returns(a), ev.daily_returns(b)
+    dates = [d for d, _ in a][1:]  # daily_returns drops the first point
+    n = min(len(ar), len(br), len(dates))
+    eq = initial
+    out: list[tuple[date, float]] = []
+    for i in range(n):
+        eq *= 1.0 + 0.5 * (ar[i] + br[i])
+        out.append((dates[i], eq))
+    return out
+
+
+def _returns_corr(a: list[float], b: list[float]) -> float | None:
+    """Pearson corr of two daily-return series (NaN-safe; None if < 30 paired points).
+    Faithful to ``trend_research._returns_corr`` — the trend↔momentum H2 correlation."""
+    n = min(len(a), len(b))
+    if n < 30:
+        return None
+    s = pd.concat([pd.Series(a[:n]), pd.Series(b[:n])], axis=1)
+    c = float(s.corr().iloc[0, 1])
+    return round(c, 3) if c == c else None  # NaN-safe
+
+
 def _monthly_corr(store: FactorDataStore, spec: ProgramSpec, score_fn: ScoreFn) -> float | None:
     """Average monthly cross-sectional corr(12-1 momentum, factor) — H2 diversification."""
     total, count = 0.0, 0
@@ -96,13 +134,161 @@ def _monthly_corr(store: FactorDataStore, spec: ProgramSpec, score_fn: ScoreFn) 
 
 
 def run_program(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:
-    """Run a quantile factor program end-to-end and return its evidence package dict."""
-    if spec.construction != "quantile":
+    """Run a research program end-to-end and return its evidence package dict.
+
+    Dispatches on ``spec.construction``: ``quantile`` (LOW-001 / any single-factor
+    quantile book) and ``participation`` (TREND-001 cash-aware trend book + regime-filter
+    control). ``sector_baskets`` (SEC-001) lands next. Equivalent by construction — each
+    branch calls the same library backtest + ``evidence`` stats the bespoke harnesses do.
+    """
+    if spec.construction == "quantile":
+        return _run_quantile(spec, store=store)
+    if spec.construction == "participation":
+        return _run_participation(spec, store=store)
+    raise NotImplementedError(
+        f"construction {spec.construction!r} lands in a later session "
+        "(sector_baskets next); supported = 'quantile' | 'participation'")
+
+
+def _run_participation(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:
+    """TREND-001 participation pipeline: a cash-aware trend book (gross falls in
+    downtrends) vs equal-weight (H1), a momentum blend (H2), and downside vs the
+    portfolio-level regime filter (H3). Faithful to ``scripts/trend_research.py`` —
+    same ``simulate_cash_book`` mechanics, same ``evidence`` stats, same verdict shape.
+    The ``baseline='regime_filter'`` competing-explanation control is required."""
+    if spec.baseline != "regime_filter":
         raise NotImplementedError(
-            f"construction {spec.construction!r} lands in a later session; V1 = 'quantile'")
+            f"participation requires baseline='regime_filter'; got {spec.baseline!r}")
+    n = spec.n
+    sma_days = int(spec.factor_params.get("sma_days", 200))
+
+    def _trend_select(s: FactorDataStore):
+        def sel(d: date) -> dict[str, float]:
+            return trend_weights(s, d, n=n, sma_days=sma_days)
+        return sel
+
+    def _regime_select(s: FactorDataStore):
+        def sel(d: date) -> dict[str, float]:
+            universe = universe_asof(s, d, n=n)
+            if not universe:
+                return {}
+            breadth = market_breadth(s, d, n=n, ma_days=_BREADTH_MA_DAYS)
+            if breadth is None or breadth < 0.5:
+                return {}  # risk-off → cash
+            w = 1.0 / len(universe)
+            return {t: w for t in universe}
+        return sel
+
+    def run_trend(s_start: date, s_end: date, *, cost_bps: float | None = None):
+        cached: FactorDataStore = _CachedPriceStore(store)  # type: ignore[assignment]
+        days = cached.trading_days(s_start, s_end)
+        rebs = _iso_week_last_trading_days(days)
+        return simulate_cash_book(
+            cached, rebs, days, _trend_select(cached), initial_equity=spec.initial_equity,
+            turnover_cost_bps=spec.turnover_cost_bps if cost_bps is None else cost_bps)
+
+    def run_regime(s_start: date, s_end: date) -> list[tuple[date, float]]:
+        cached: FactorDataStore = _CachedPriceStore(store)  # type: ignore[assignment]
+        days = cached.trading_days(s_start, s_end)
+        rebs = _iso_week_last_trading_days(days)
+        curve, _ = simulate_cash_book(
+            cached, rebs, days, _regime_select(cached), initial_equity=spec.initial_equity)
+        return curve
+
+    mom_rep = run_momentum_backtest(store, spec.start, spec.end, n=n)
+    eq_curve = mom_rep.baseline_curve
+    trend_curve, gross = run_trend(spec.start, spec.end)
+    regime_curve = run_regime(spec.start, spec.end)
+    blend_curve = _returns_blend(trend_curve, mom_rep.equity_curve, initial=spec.initial_equity)
+
+    mom, eqw = _curve_stats(mom_rep.equity_curve), _curve_stats(eq_curve)
+    trend = _curve_stats(trend_curve)
+    regime, blend = _curve_stats(regime_curve), _curve_stats(blend_curve)
+
+    tr = ev.daily_returns(trend_curve)
+    mr = ev.daily_returns(mom_rep.equity_curve)
+    er = ev.daily_returns(eq_curve)
+    # H1: trend vs equal-weight (standalone risk-adjusted)
+    h1 = ev.paired_sharpe_diff_ci(tr, er, n_resamples=spec.bootstrap, seed=spec.seed)
+    # H2: corr(trend, momentum) + blend vs momentum-alone
+    corr = _returns_corr(tr, mr)
+    h2_blend = ev.paired_sharpe_diff_ci(ev.daily_returns(blend_curve), mr,
+                                        n_resamples=spec.bootstrap, seed=spec.seed)
+    # H3: downside + the competing-explanation A/B vs the regime filter
+    dd_vs_mom = round(trend["max_drawdown"] - mom["max_drawdown"], 4)   # >0 ⇒ shallower
+    dd_vs_eqw = round(trend["max_drawdown"] - eqw["max_drawdown"], 4)
+    dd_vs_regime = round(trend["max_drawdown"] - regime["max_drawdown"], 4)
+    sharpe_vs_regime = round(trend["sharpe"] - regime["sharpe"], 3)
+    gross_vals = [g for _, g in gross]
+    gross_mean = round(sum(gross_vals) / len(gross_vals), 3) if gross_vals else None
+    gross_min = round(min(gross_vals), 3) if gross_vals else None
+
+    wf: list[dict[str, Any]] = []
+    n_pos = n_dd_better = 0
+    for ws, we in _windows(spec.start, spec.end, spec.windows):
+        try:
+            w_trend_curve, _ = run_trend(ws, we)
+            w_rep = run_momentum_backtest(store, ws, we, n=n)
+            w_eqw = _curve_stats(w_rep.baseline_curve)
+            w_tr = _curve_stats(w_trend_curve)
+            wf.append({"window": [str(ws), str(we)],
+                       "delta": round(w_tr["sharpe"] - w_eqw["sharpe"], 2),
+                       "trend_maxdd": round(w_tr["max_drawdown"], 3),
+                       "eqw_maxdd": round(w_eqw["max_drawdown"], 3)})
+            if w_tr["sharpe"] - w_eqw["sharpe"] > 0:
+                n_pos += 1
+            if w_tr["max_drawdown"] > w_eqw["max_drawdown"]:  # shallower
+                n_dd_better += 1
+        except Exception as exc:  # noqa: BLE001
+            wf.append({"window": [str(ws), str(we)], "error": repr(exc)})
+
+    costs = {}
+    for bps in (5.0, 10.0, 20.0, 50.0):
+        cc, _ = run_trend(spec.start, spec.end, cost_bps=bps)
+        costs[f"{int(bps)}bps"] = round(_curve_stats(cc)["sharpe"], 2)
+
+    h1_real = h1.excludes_zero_positive()
+    consistent = bool([w for w in wf if "delta" in w]) and n_pos >= (spec.windows + 1) // 2 + 1
+    blend_helps = h2_blend.excludes_zero_positive()
+    beats_regime = sharpe_vs_regime > 0.0 or dd_vs_regime > 0.0
+
+    # verdict metrics — the flat dict the TREND VerdictSpec predicates read
+    metrics: dict[str, Any] = {
+        "h1_real": h1_real, "h1_ci_low": h1.ci_low, "h1_ci_high": h1.ci_high,
+        "consistent": consistent, "n_windows_pos": n_pos,
+        "blend_helps": blend_helps, "corr": corr,
+        "dd_vs_mom": dd_vs_mom, "dd_vs_eqw": dd_vs_eqw,
+        "beats_regime": beats_regime, "subsumed": not beats_regime,
+    }
+    outcome, action = classify(metrics, spec.verdict)
+
+    return {
+        "program": spec.id, "name": spec.name, "philosophy": spec.philosophy,
+        "window": [str(spec.start), str(spec.end)], "n": n,
+        "construction": f"participation per-name close>{sma_days}d SMA, in-trend 1/N, cash rest",
+        "factor": spec.factor, "factor_params": dict(spec.factor_params),
+        "books": {"momentum": mom, "trend": trend, "blend": blend,
+                  "equal_weight": eqw, "regime_eqw": regime},
+        "H1_vs_eqw": {"delta": h1.delta, "ci_low": h1.ci_low, "ci_high": h1.ci_high},
+        "H2_corr_with_momentum": corr,
+        "H2_blend_vs_momentum": {"delta": h2_blend.delta,
+                                 "ci_low": h2_blend.ci_low, "ci_high": h2_blend.ci_high},
+        "H3_maxdd_vs_momentum": dd_vs_mom, "H3_maxdd_vs_eqw": dd_vs_eqw,
+        "H3_maxdd_vs_regime_filter": dd_vs_regime, "H3_sharpe_vs_regime_filter": sharpe_vs_regime,
+        "H3_windows_shallower_dd": f"{n_dd_better}/{spec.windows}",
+        "participation_gross_mean": gross_mean, "participation_gross_min": gross_min,
+        "walk_forward": wf, "n_windows_beats_eqw": f"{n_pos}/{spec.windows}",
+        "cost_sweep_sharpe": costs,
+        "beats_regime_filter": beats_regime, "subsumed_by_regime_filter": not beats_regime,
+        "metrics": metrics, "outcome": outcome, "action": action,
+    }
+
+
+def _run_quantile(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:
+    """Run a quantile factor program end-to-end and return its evidence package dict."""
     if spec.baseline != "equal_weight":
         raise NotImplementedError(
-            f"baseline {spec.baseline!r} lands with the trend scorer; V1 = 'equal_weight'")
+            f"baseline {spec.baseline!r} lands with sector_baskets; quantile = 'equal_weight'")
 
     n = spec.n
     score_fn = build_score_fn(spec.factor, n, dict(spec.factor_params))

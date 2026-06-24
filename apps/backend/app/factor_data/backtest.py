@@ -401,6 +401,74 @@ def _simulate(
     return curve, holdings
 
 
+def simulate_cash_book(
+    store: FactorDataStore,
+    rebalances: list[date],
+    trading_days: list[date],
+    select_fn: SelectFn,
+    *,
+    initial_equity: float = 100_000.0,
+    turnover_cost_bps: float = 10.0,
+) -> tuple[list[tuple[date, float]], list[tuple[date, float]]]:
+    """Cash-aware book sim: like ``_simulate`` but **banks the uninvested fraction**.
+
+    ``_simulate`` assumes a fully-invested book (Σweights = 1); any sub-1.0 weight is
+    silently dropped, not held as cash, so it cannot model a *participation* book whose
+    gross exposure falls in downtrends. This sibling holds ``(1 - Σweights)·equity`` as a
+    constant cash sleeve (earns nothing) over each segment and charges one-way turnover on
+    the **stock legs only** (cash is never traded — it is not a weight key). Daily
+    per-name marking is byte-identical to ``_simulate`` (same ``closeadj`` ratio,
+    same delisting→cash freeze).
+
+    This is the shared home for the TREND-001 ``simulate_cash`` harness and the runner's
+    ``construction="participation"`` / ``baseline="regime_filter"`` books. Returns
+    ``(equity_curve, gross_series)`` where ``gross_series`` is ``(rebalance_date, Σweights)``
+    so a caller can report the participation level. Deterministic for a given store + args.
+    """
+    equity = initial_equity
+    curve: list[tuple[date, float]] = []
+    gross_series: list[tuple[date, float]] = []
+    prev_w: dict[str, float] = {}
+
+    for i, d in enumerate(rebalances):
+        next_d = rebalances[i + 1] if i + 1 < len(rebalances) else None
+        seg = [t for t in trading_days if t > d and (next_d is None or t <= next_d)]
+        if not seg:
+            continue
+        weights = select_fn(d)
+        gross = sum(weights.values())
+        gross_series.append((d, round(gross, 4)))
+
+        keys = set(weights) | set(prev_w)
+        turnover = 0.5 * sum(abs(weights.get(k, 0.0) - prev_w.get(k, 0.0)) for k in keys)
+        equity *= 1.0 - (turnover_cost_bps / 1e4) * turnover
+
+        seg_end = seg[-1]
+        px_maps: dict[str, dict[date, float]] = {}
+        prev_px: dict[str, float] = {}
+        for tk in weights:
+            df = store.get_prices(tk, d, seg_end, adjusted=True)
+            pm = {row.date(): float(c) for row, c in zip(df["date"], df["close"], strict=False)
+                  if c is not None and float(c) > 0}
+            px_maps[tk] = pm
+            prev_px[tk] = pm.get(d, 0.0)
+
+        cash = (1.0 - gross) * equity  # constant over the segment (earns nothing)
+        sleeves = {tk: w * equity for tk, w in weights.items()}
+        for t in seg:
+            for tk in weights:
+                p = px_maps[tk].get(t)
+                if p is not None and prev_px[tk] > 0:
+                    sleeves[tk] *= p / prev_px[tk]
+                    prev_px[tk] = p
+                # else: no price today → sleeve frozen (delisted→cash / non-trading)
+            equity = sum(sleeves.values()) + cash
+            curve.append((t, equity))
+        prev_w = {tk: (sv / equity if equity > 0 else 0.0) for tk, sv in sleeves.items()}
+
+    return curve, gross_series
+
+
 class _CachedPriceStore:
     """Read-through price cache over a ``FactorDataStore`` for one backtest run.
 
