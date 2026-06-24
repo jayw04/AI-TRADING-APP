@@ -1,4 +1,4 @@
-# Evidence Engineering — Methodology Specification (v1.1 · DRAFT for owner ratification)
+# Evidence Engineering — Methodology Specification (v1.1 · RATIFIED 2026-06-24)
 
 > **What this is.** The frozen, versioned definition of *how TradingWorkbench does research* — the
 > standard lifecycle, evidence gates, verdict taxonomy, evidence-package structure, registries, governance
@@ -15,8 +15,8 @@
 
 | Field | Value |
 |---|---|
-| Version | **v1.1 (DRAFT — pending owner ratification)** — adds the four-layer model, Capability Maturity (L0–L5), and the Operating Envelope (§4a/§4b) atop the v1.0 draft. |
-| Status | Proposed freeze. On ratification, this becomes the baseline; all later changes are versioned (v1.1 minor / v2.0 major) with a changelog (§11). |
+| Version | **v1.1 (RATIFIED 2026-06-24, owner ARD review — 10/10 "ready to freeze")** — adds the four-layer model, Capability Maturity (L0–L5), the Operating Envelope (§4a/§4b), Principle 0 (§2), and mandatory Operating Envelope in the evidence package (§7). |
+| Status | **Ratified — this is the baseline.** All later changes are versioned (minor v1.x / major v2.0) with a changelog (§11). The methodology is now independent of any strategy. |
 | Sources codified | P12 Direction §4 (research methodology) · the Research Program Registry · the per-program plan/pre-registration docs (MOM/RNG/MF/SEC/LOW) · **ADR 0014** (backtests = primary eval ground-truth) · **ADR 0019** (Research Engine — read-only) · **ADR 0021** (operational contract — the trust substrate that makes results *verifiable*). |
 | Relationship to code | The taxonomies here are mirrored by `apps/backend/app/research/programs.py` + the Evidence Dashboard (`/evidence`); the code is the runtime source of truth, this doc is the normative spec. A status-enum alignment follow-up is tracked in `tasks/todo.md`. |
 
@@ -84,6 +84,14 @@ Both Labs embody the same rule: *new research is configuration, the engine is th
 ## 2. Research invariants (non-negotiable)
 
 The research analogue of the platform's operational invariants. Violating one invalidates the evidence.
+
+**Principle 0 — evidence precedes decisions (owner, ARD review).** *Absence of evidence is not
+evidence of success.* A decision — a verdict, a promotion, an "it works" — is valid only when
+backed by sufficient evidence to distinguish the hypothesis from the null. An evaluation that
+produces no observations (e.g. a zero-trade backtest) is **INSUFFICIENT_EVIDENCE**, never a pass.
+This is the principle the other invariants serve, and the single sentence that best captures the
+platform's philosophy: it explains ADR 0014's eval rule, the RNG-001 rejection, SCAN-001's
+iterations, and why SEC/LOW are diversifiers rather than approved alpha.
 
 1. **Never optimize on test data** — parameters are fit on train, never on the out-of-sample window.
 2. **Always preserve out-of-sample** — a held-out / walk-forward OOS segment is sacrosanct.
@@ -214,10 +222,16 @@ A study is reproducible forever or it is not evidence (invariant 5).
 **Standard structure:**
 
 ```
-Objective ─▶ Dataset ─▶ Methodology ─▶ Results ─▶ Limitations ─▶ Decision ─▶ Recommendation
+Objective ─▶ Dataset ─▶ Methodology ─▶ Results ─▶ Operating Envelope ─▶ Limitations ─▶ Decision ─▶ Recommendation
 ```
 
 An evidence doc that skips *Limitations* or *Decision* is incomplete.
+
+**Operating Envelope is mandatory (owner, ARD review).** Every capability that reaches *Validated*
+must carry an **Operating Envelope** in its evidence package before it can be promoted past L3 — a
+**Capability Strength Map** (★ per market × volatility regime) and a **Confidence Map** (∈ [0, 1] per
+regime, §4b). It is required, not optional: "works" is never certified without "*where* it works."
+A pre-existing capability without one is at L2 until the envelope study runs.
 
 **Pipeline:** `script → JSON → Markdown`, seeded and deterministic (same inputs → byte-identical output).
 
@@ -297,7 +311,8 @@ From v1.0 forward, the methodology is treated as software:
 |---|---|---|
 | v1.0 (draft) | 2026-06-22 | Initial freeze proposal — codifies the lifecycle, invariants, gate, taxonomies, evidence package, registries (incl. the Capability Registry), governance, and calibration metrics exercised across MOM/RNG/MF/SEC/LOW/TREND-001. |
 | v1.0 (draft, rev.) | 2026-06-22 | **Architecture-freeze expansion (owner):** added §1a **Platform vs Investment capabilities** and §1b the **platform-capability Labs** — **Factor Lab** + **Discovery Lab** (research-as-configuration) with the canonical *Discovery → … → Continuous Evidence* pipeline. These join the frozen v1.0 concept set; owner direction is now *"freeze the architecture — implement, validate, commercialize,"* not invent further core abstractions. |
-| **v1.1 (draft)** | **2026-06-23** | **Consolidation fold (owner, post-SCAN-001 v0.3 — minor/backward-compatible):** §1 three-layer → **four-layer** model (adds **Research Infrastructure** as an explicit layer); §4a new **Capability Maturity (L0–L5)** axis applied platform-wide; §4b new **Operating Envelope** concept (every capability is certified for the conditions it works within — a distinct L3 maturity step, with a Strength Map + Confidence score). First exercised end-to-end by SCAN-001 (prototype → validated → operating-envelope/regime-robust). No invariant, gate, or lifecycle changed — additive only. |
+| **v1.1 (RATIFIED)** | **2026-06-24** | **Ratified at the owner ARD review (10/10).** Added **Principle 0** (§2 — "evidence precedes decisions; absence of evidence is not evidence of success"); made the **Operating Envelope mandatory** in every evidence package (§7, Strength Map + Confidence Map, required before L4). Aligns with the ADR 0014 v1.1 amendment (INSUFFICIENT_EVIDENCE outcome). |
+| v1.1 (draft) | 2026-06-23 | **Consolidation fold (owner, post-SCAN-001 v0.3 — minor/backward-compatible):** §1 three-layer → **four-layer** model (adds **Research Infrastructure** as an explicit layer); §4a new **Capability Maturity (L0–L5)** axis applied platform-wide; §4b new **Operating Envelope** concept (every capability is certified for the conditions it works within — a distinct L3 maturity step, with a Strength Map + Confidence score). First exercised end-to-end by SCAN-001 (prototype → validated → operating-envelope/regime-robust). No invariant, gate, or lifecycle changed — additive only. |
 
 ---
 
