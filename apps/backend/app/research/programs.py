@@ -66,9 +66,17 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "defensive-sleeve / blend product, or a broader-universe V2 to chase the near-miss standalone edge.",
         "docs/implementation/evidence/low_001_low_volatility/low_volatility.md"),
     ResearchProgram(
-        "TREND-001", "Trend Following", "Time-series trend", "planned",
-        "Tier-B philosophy (different holding period / turnover). Charter after LOW-001; then the "
-        "platform shifts to the Factor Lab (programs become configuration, not new scripts).", None),
+        "TREND-001", "Trend Following", "Time-series trend (per-name 200d SMA participation)",
+        "inconclusive",
+        "Verdict B (Diversifier/Defensive), full-cycle 2000-2026. A defensive participation sleeve: "
+        "Sharpe 0.46 (vs momentum 0.39, eqw 0.35), maxDD -46.2% (vs momentum -76.4%) by de-risking to "
+        "cash in downtrends (gross falls to 1.5%). H1 standalone +0.11 CI [-0.11, 0.33] spans zero (no "
+        "standalone edge); H2 corr 0.871 with momentum (NOT a low-corr diversifier). H3 is the signature "
+        "+ key result: per-name trend BEATS the platform's existing portfolio-level regime filter "
+        "(maxDD -46.2% vs -61.1%, +14.9pp; Sharpe +0.06), refuting the pre-registered modal "
+        "'subsumed -> Rejected' prior. Cost-robust to 50bps. Next: V2 inverse-vol / multi-window "
+        "only if a sharper edge or lower correlation is wanted.",
+        "docs/implementation/evidence/trend_001_trend_following/trend_following.md"),
 )
 
 
