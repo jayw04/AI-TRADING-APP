@@ -2,12 +2,12 @@
 
 Research harnesses in `scripts/` are normally validated by running (the seeded,
 reproducible evidence package is the deliverable), but TREND-001 introduces a
-**cash-aware participation simulator** (`simulate_cash`) that the verdict depends on
-— trend following's signature is that gross exposure falls in downtrends, which the
-shared `run_momentum_backtest` cannot model (it drops, not banks, sub-1.0 weights).
-These tests pin that arithmetic and the in-trend signal so the verdict rests on
-proven mechanics. The harness is loaded by path (it lives in `scripts/`, not a
-package)."""
+**cash-aware participation simulator** (`backtest.simulate_cash_book`, promoted from
+the harness) that the verdict depends on — trend following's signature is that gross
+exposure falls in downtrends, which the shared `run_momentum_backtest` cannot model
+(it drops, not banks, sub-1.0 weights). These tests pin that arithmetic and the
+in-trend signal so the verdict rests on proven mechanics. The harness is loaded by
+path (it lives in `scripts/`, not a package)."""
 
 from __future__ import annotations
 
@@ -53,10 +53,10 @@ def test_simulate_cash_banks_uninvested_fraction(tmp_path) -> None:
     try:
         days = [d.date() for d in bdays]
         rebs = [days[0]]
-        half, gross = tr.simulate_cash(s, rebs, days, lambda d: {"AAA": 0.5},
-                                       initial_equity=100_000.0, cost_bps=0.0)
-        full, _ = tr.simulate_cash(s, rebs, days, lambda d: {"AAA": 1.0},
-                                   initial_equity=100_000.0, cost_bps=0.0)
+        half, gross = tr.simulate_cash_book(s, rebs, days, lambda d: {"AAA": 0.5},
+                                            initial_equity=100_000.0, turnover_cost_bps=0.0)
+        full, _ = tr.simulate_cash_book(s, rebs, days, lambda d: {"AAA": 1.0},
+                                        initial_equity=100_000.0, turnover_cost_bps=0.0)
         assert round(half[-1][1]) == 150_000   # 0.5·(2×) + 0.5·cash
         assert round(full[-1][1]) == 200_000   # fully invested doubles
         assert gross[0] == (days[0], 0.5)
@@ -70,8 +70,8 @@ def test_simulate_cash_all_cash_is_flat(tmp_path) -> None:
     s, bdays = _store(tmp_path, {"AAA": [100.0, 100.0, 200.0]})
     try:
         days = [d.date() for d in bdays]
-        curve, gross = tr.simulate_cash(s, [days[0]], days, lambda d: {},
-                                        initial_equity=100_000.0, cost_bps=0.0)
+        curve, gross = tr.simulate_cash_book(s, [days[0]], days, lambda d: {},
+                                             initial_equity=100_000.0, turnover_cost_bps=0.0)
         assert curve  # the segment is still marked (flat), not skipped
         assert all(round(eq) == 100_000 for _, eq in curve)  # 100% cash → flat
         assert gross == [(days[0], 0.0)]
