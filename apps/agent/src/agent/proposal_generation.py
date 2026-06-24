@@ -73,6 +73,25 @@ User's behavioral envelope (constraints you MUST respect):
 Output ONLY the JSON object. No preamble, no markdown fences, no text outside the JSON."""
 
 
+def _extract_json(text: str) -> str:
+    """Tolerate LLM output that wraps the JSON in markdown fences or prose.
+
+    The prompt asks for a bare JSON object, but models sometimes return
+    ```json … ``` or add a preamble. Strip the fences; otherwise fall back to
+    the first {...} span. Returns the original (stripped) text when no object is
+    found, so the caller's json.loads still raises a clear error."""
+    s = (text or "").strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else s[3:]
+        if "```" in s:
+            s = s[: s.rfind("```")]
+        s = s.strip()
+    if s.startswith("{"):
+        return s
+    i, j = s.find("{"), s.rfind("}")
+    return s[i : j + 1] if i != -1 and j > i else s
+
+
 async def _run(
     *,
     mcp: Any,
@@ -142,9 +161,11 @@ async def _run(
     )
 
     try:
-        payload = json.loads(llm_result.text)
+        payload = json.loads(_extract_json(llm_result.text))
     except json.JSONDecodeError as exc:
-        raise ValueError(f"LLM output not valid JSON: {exc}") from exc
+        raise ValueError(
+            f"LLM output not valid JSON: {exc} | raw[:200]={llm_result.text[:200]!r}"
+        ) from exc
 
     missing = [k for k in _REQUIRED_FIELDS if k not in payload]
     if missing:
