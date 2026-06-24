@@ -173,6 +173,36 @@ def _agent_url(request: Request) -> str:
     )
 
 
+def _coerce_to_ref_type(value: Any, ref: Any) -> Any:
+    """Coerce ``value`` to the type of ``ref`` (the existing param value) — E6.
+
+    Agent-generated proposal changes often arrive as strings ('15', 'true'); apply
+    them with the same type the strategy already uses so params_json stays
+    type-consistent. Unknown/None ref or an un-coercible value is returned unchanged
+    (apply must not fail on a stray type). bool is checked before int (bool ⊂ int)."""
+    if isinstance(ref, bool):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            low = value.strip().lower()
+            if low in ("true", "1", "yes"):
+                return True
+            if low in ("false", "0", "no"):
+                return False
+        return value
+    if isinstance(ref, int):  # ref is a real int here (bool handled above)
+        try:
+            return int(float(value)) if isinstance(value, str) else int(value)
+        except (ValueError, TypeError):
+            return value
+    if isinstance(ref, float):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return value
+    return value  # str / unknown / no existing value → leave as-is
+
+
 async def _invoke_agent(
     agent_url: str, proposal_id: int, agent_api_key: str
 ) -> dict[str, Any]:
@@ -689,8 +719,12 @@ async def apply_proposal(
         param = change.get("param")
         if not param:
             continue
-        new_params[param] = change.get("to")
-        applied_changes.append({"param": param, "to": change.get("to")})
+        # E6 (review): coerce the applied value to the existing param's type. Agent-
+        # generated changes often arrive as strings ('15'); store them with the type
+        # the strategy already uses so params_json stays type-consistent.
+        coerced = _coerce_to_ref_type(change.get("to"), new_params.get(param))
+        new_params[param] = coerced
+        applied_changes.append({"param": param, "to": coerced})
 
     strategy.params_json = new_params
     strategy.updated_at = datetime.now(UTC)

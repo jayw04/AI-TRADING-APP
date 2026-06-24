@@ -262,6 +262,32 @@ async def test_apply_merges_params_json(client):
         assert strat.params_json["rsi_min"] == 55
 
 
+def test_coerce_to_ref_type_unit():
+    """E6: applied values are coerced to the existing param's type."""
+    c = proposals_mod._coerce_to_ref_type
+    assert c("55", 50) == 55 and isinstance(c("55", 50), int)   # string -> int
+    assert c("15.5", 1.0) == 15.5                                # string -> float
+    assert c("true", False) is True and c("false", True) is False  # string -> bool
+    assert c("abc", 50) == "abc"   # un-coercible → unchanged (apply must not fail)
+    assert c("x", None) == "x"     # no existing value → unchanged
+    assert c(55, 50) == 55         # already the right type
+
+
+async def test_apply_coerces_param_type_to_existing(client):
+    # rsi_min is int 50; an agent change arriving as the string "55" stores as int 55 (E6).
+    pid = await _mk_proposal(
+        state=ProposalState.ACCEPTED,
+        payload={"changes": [{"param": "rsi_min", "from": 50, "to": "55"}]},
+    )
+    r = await client.post(f"{BASE}/proposals/{pid}/apply")
+    assert r.status_code == 200, r.text
+    assert r.json()["applied_changes"] == [{"param": "rsi_min", "to": 55}]
+    async with get_sessionmaker()() as s:
+        strat = await s.get(Strategy, 1)
+        assert strat.params_json["rsi_min"] == 55
+        assert isinstance(strat.params_json["rsi_min"], int)
+
+
 async def test_apply_requires_idle_strategy_409(client):
     from app.db.enums import StrategyStatus
 
