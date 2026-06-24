@@ -25,13 +25,16 @@ Safeguards:
     for entries (exits/stops still protect an existing position).
 
 Levels come from one of two modes (``level_mode``):
-  - ``fixed`` (default): the ``entry/exit/stop`` PARAMETERS. 0 (unset) by default,
-    so a freshly applied strategy with no Range Insight is inert until set. These
-    are frozen — they do not track the current day's price.
-  - ``opening_range``: the levels are derived EACH DAY from today's first
+  - ``opening_range`` (default): the levels are derived EACH DAY from today's first
     ``opening_range_minutes`` of bars (entry = range low, exit = range high,
     stop = range_low × (1 − ``stop_buffer_pct``)). No entries while the range
     forms. Self-contained from the intraday feed — no stale daily-bar dependency.
+    This is the default so the strategy (and its proposal eval) simulate live,
+    daily-adaptive rules rather than a frozen snapshot — evaluating fixed levels
+    measures a historical artifact, not the strategy (review E5).
+  - ``fixed``: the ``entry/exit/stop`` PARAMETERS. 0 (unset) by default, so a
+    freshly applied strategy with no Range Insight is inert until set. These are
+    frozen — they do not track the current day's price (an explicit static study).
 
 Position size scales to the LIVE account equity (``ctx.get_account_equity``),
 refreshed once per day, with ``initial_equity_estimate`` as the fallback.
@@ -66,9 +69,10 @@ class RangeTrader(Strategy):
 
     default_params: ClassVar[dict[str, Any]] = {
         "timeframe": "5Min",
-        # Level source: "fixed" uses the entry/exit/stop params below; "opening_range"
-        # derives them each day from today's first ``opening_range_minutes`` of bars.
-        "level_mode": "fixed",
+        # Level source: "opening_range" (default) derives entry/exit/stop each day from
+        # today's first ``opening_range_minutes`` of bars (daily-adaptive — so the eval
+        # simulates the real rules, review E5); "fixed" uses the static params below.
+        "level_mode": "opening_range",
         "opening_range_minutes": 30,
         "stop_buffer_pct": 0.005,
         "entry_price": 0.0,  # buy when price <= this (near support) — fixed mode
@@ -92,9 +96,9 @@ class RangeTrader(Strategy):
         "level_mode": {
             "type": "enum",
             "choices": ["fixed", "opening_range"],
-            "default": "fixed",
-            "description": "fixed = use the entry/exit/stop params; opening_range = "
-            "derive them each day from the first N minutes of price action.",
+            "default": "opening_range",
+            "description": "opening_range (default) = derive entry/exit/stop each day "
+            "from the first N minutes of price action; fixed = use the static params.",
         },
         "opening_range_minutes": {
             "type": "integer",
@@ -313,7 +317,10 @@ class RangeTrader(Strategy):
         stop = range_low × (1 − ``stop_buffer_pct``). Returns zeros while the range
         is still forming (so the existing ``entry <= 0`` gate blocks entries), and
         accumulates the range as a side effect during that window."""
-        if p.get("level_mode", "fixed") != "opening_range":
+        # Fallback matches default_params/schema (opening_range) so the dynamic rules
+        # apply even when the caller (e.g. the eval backtest) passes params that don't
+        # merge default_params — the base class sets self.params verbatim (E5).
+        if p.get("level_mode", "opening_range") != "opening_range":
             return (
                 float(p.get("entry_price") or 0),
                 float(p.get("exit_price") or 0),

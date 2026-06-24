@@ -41,8 +41,11 @@ def _ctx(position_qty: Decimal | None = None):
 
 
 def _params(**over):
+    # These cases exercise FIXED levels (explicit entry/exit/stop), so pin level_mode
+    # — the template now defaults to opening_range (E5: daily-adaptive by default).
     return {
         **RangeTrader.default_params,
+        "level_mode": "fixed",
         "entry_price": 100.0,
         "exit_price": 110.0,
         "stop_price": 95.0,
@@ -52,6 +55,13 @@ def _params(**over):
 
 def test_schema_matches_default_params() -> None:
     assert set(RangeTrader.params_schema) == set(RangeTrader.default_params)
+
+
+def test_default_level_mode_is_dynamic() -> None:
+    """E5: a Range Trader created with no overrides is daily-adaptive (opening_range),
+    not frozen fixed levels — so its proposal eval simulates the real rules."""
+    assert RangeTrader.default_params["level_mode"] == "opening_range"
+    assert RangeTrader.params_schema["level_mode"]["default"] == "opening_range"
 
 
 async def test_entry_buys_at_support() -> None:
