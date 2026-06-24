@@ -43,6 +43,47 @@ class BackendClient:
         r.raise_for_status()
         return r.json()
 
+    async def get_trading_profile(self) -> dict[str, Any]:
+        r = await self.http.get("/api/v1/users/me/trading-profile")
+        r.raise_for_status()
+        return r.json()
+
+    async def get_strategy_history(
+        self, strategy_id: int, *, limit: int = 30
+    ) -> dict[str, Any]:
+        r = await self.http.get(
+            f"/api/v1/strategies/{strategy_id}/history",
+            params={"limit": limit},
+        )
+        r.raise_for_status()
+        return r.json()
+
+    async def get_recent_proposals(
+        self, strategy_id: int, *, limit: int = 5
+    ) -> list[dict[str, Any]]:
+        r = await self.http.get(
+            "/api/v1/proposals",
+            params={"strategy_id": strategy_id, "limit": limit},
+        )
+        r.raise_for_status()
+        payload = r.json()
+        return payload.get("items", []) if isinstance(payload, dict) else payload
+
+    async def get_strategy_recent_orders(
+        self, strategy_id: int, *, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        r = await self.http.get(
+            "/api/v1/orders",
+            params={
+                "source_type": "strategy",
+                "source_id": str(strategy_id),
+                "limit": limit,
+            },
+        )
+        r.raise_for_status()
+        payload = r.json()
+        return payload.get("items", []) if isinstance(payload, dict) else payload
+
     async def update_proposal_to_reviewing(
         self,
         proposal_id: int,

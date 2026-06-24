@@ -61,6 +61,7 @@ from app.services.promotion import (
     in_lockout,
     lockout_expires_at,
 )
+from app.services.proposal_cadence import _resolve_user_agent_key
 from app.services.trading_profile import TradingProfileService
 
 logger = structlog.get_logger(__name__)
@@ -169,13 +170,16 @@ def _agent_url(request: Request) -> str:
     )
 
 
-async def _invoke_agent(agent_url: str, proposal_id: int) -> dict[str, Any]:
+async def _invoke_agent(
+    agent_url: str, proposal_id: int, agent_api_key: str
+) -> dict[str, Any]:
     """POST to the agent control-plane. Extracted as a module-level function so
     tests can monkeypatch it (mocking the agent without a live service). Raises
     httpx.HTTPError on transport/HTTP failure."""
     async with httpx.AsyncClient(timeout=90.0) as client:
         resp = await client.post(
-            f"{agent_url}/generate-proposal", json={"proposal_id": proposal_id}
+            f"{agent_url}/generate-proposal",
+            json={"proposal_id": proposal_id, "agent_api_key": agent_api_key},
         )
         resp.raise_for_status()
         return resp.json()
@@ -382,9 +386,20 @@ async def propose(
     proposal_id = row.id
 
     # Synchronously invoke the agent (it calls back via PATCH → REVIEWING).
+    agent_api_key = await _resolve_user_agent_key(session, current_user.id)
+    if not agent_api_key:
+        await _delete_proposal(session, proposal_id)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Agent API Key not configured for this user. "
+                "Set it in Settings → Credentials → Agent API Key."
+            ),
+        )
+
     agent_url = _agent_url(request)
     try:
-        agent_result = await _invoke_agent(agent_url, proposal_id)
+        agent_result = await _invoke_agent(agent_url, proposal_id, agent_api_key)
     except httpx.HTTPError as exc:
         logger.warning("agent_invocation_failed", proposal_id=proposal_id, error=str(exc))
         await _delete_proposal(session, proposal_id)

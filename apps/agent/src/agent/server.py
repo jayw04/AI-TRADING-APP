@@ -25,6 +25,7 @@ app = FastAPI(title="agent-control-plane", version="0.1.0")
 
 class GenerateProposalRequest(BaseModel):
     proposal_id: int
+    agent_api_key: str | None = None
 
 
 class GenerateProposalResponse(BaseModel):
@@ -43,7 +44,7 @@ async def healthz() -> dict:
 async def generate_proposal_endpoint(
     req: GenerateProposalRequest,
 ) -> GenerateProposalResponse:
-    config = AgentConfig.from_env()
+    config = AgentConfig.from_env(agent_api_key=req.agent_api_key)
     try:
         result = await generate_proposal(config, req.proposal_id)
         return GenerateProposalResponse(

@@ -13,8 +13,8 @@ class AgentConfig:
     anthropic_api_key: str | None  # may be empty; the LLM wrapper handles absence
 
     @classmethod
-    def from_env(cls) -> AgentConfig:
-        api_key = os.environ.get("AGENT_API_KEY", "")
+    def from_env(cls, *, agent_api_key: str | None = None) -> AgentConfig:
+        api_key = agent_api_key or os.environ.get("AGENT_API_KEY", "")
         if not api_key:
             raise RuntimeError(
                 "AGENT_API_KEY env var required. Generate via Settings → "

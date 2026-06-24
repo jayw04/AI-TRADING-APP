@@ -57,3 +57,9 @@ def test_backtest_context_exposes_injected_accessor() -> None:
 def test_backtest_context_without_accessor_raises() -> None:
     with pytest.raises(FactorDataUnavailable):
         _ = _backtest_ctx(None).factors
+
+
+@pytest.mark.asyncio
+async def test_backtest_context_get_account_equity_returns_initial() -> None:
+    ctx = _backtest_ctx(None)
+    assert await ctx.get_account_equity() == Decimal("10000")
