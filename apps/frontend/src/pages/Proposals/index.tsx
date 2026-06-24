@@ -64,6 +64,10 @@ function ProposalDetail({ proposal }: { proposal: Proposal }) {
     mutationFn: () => proposalsApi.apply(proposal.id),
     onSuccess: invalidate,
   });
+  const rerunEval = useMutation({
+    mutationFn: () => proposalsApi.rerunEval(proposal.id),
+    onSuccess: invalidate,
+  });
 
   const p = proposal.proposal_payload;
   return (
@@ -93,6 +97,16 @@ function ProposalDetail({ proposal }: { proposal: Proposal }) {
       )}
 
       <EvalPanel ev={proposal.evaluation_results} />
+      {proposal.evaluation_results?.status === "failed" && (
+        <button
+          type="button"
+          onClick={() => rerunEval.mutate()}
+          disabled={rerunEval.isPending}
+          className="mt-2 rounded bg-blue-900/50 px-2 py-1 text-xs font-medium text-blue-300 hover:bg-blue-900/70 disabled:opacity-50"
+        >
+          {rerunEval.isPending ? "Re-running…" : "Re-run evaluation"}
+        </button>
+      )}
 
       <details className="mt-2">
         <summary className="cursor-pointer text-neutral-500">Evidence bundle</summary>
