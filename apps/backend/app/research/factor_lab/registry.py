@@ -54,11 +54,35 @@ def _composite(n: int, *, factors: list[str], weights: dict[str, float] | None =
     return score_fn
 
 
+def _sector_momentum(n: int, *, lookback_days: int = 252, skip_days: int = 21,
+                     min_names: int = DEFAULT_MIN_NAMES) -> ScoreFn:
+    # Per-ticker score = its sector's mean 12-1 momentum (the SEC-001 cross-section).
+    # The sector-basket book construction is wired separately in the runner.
+    from app.factor_data.factors.sector import sector_scores
+
+    def score_fn(store: FactorDataStore, as_of: date) -> pd.DataFrame:
+        return sector_scores(store, as_of, n=n, lookback_days=lookback_days,
+                             skip_days=skip_days, min_names=min_names)
+    return score_fn
+
+
+def _trend(n: int, *, sma_days: int = 200, min_names: int = DEFAULT_MIN_NAMES) -> ScoreFn:
+    # Per-name in-trend flag (price > sma_days SMA). The cash-aware participation book
+    # construction is wired separately in the runner.
+    from app.factor_data.factors.trend import trend_scores
+
+    def score_fn(store: FactorDataStore, as_of: date) -> pd.DataFrame:
+        return trend_scores(store, as_of, n=n, sma_days=sma_days, min_names=min_names)
+    return score_fn
+
+
 # factor key -> builder(n, **factor_params) -> ScoreFn
 FACTOR_BUILDERS: dict[str, Callable[..., ScoreFn]] = {
     "momentum": _momentum,
     "low_vol": _low_vol,
     "composite": _composite,
+    "sector_momentum": _sector_momentum,
+    "trend": _trend,
 }
 
 
