@@ -16,6 +16,7 @@ Faithful to the validated V2 research; no order path / broker / DB / LLM.
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from datetime import date
 
@@ -59,6 +60,59 @@ def _sector_ranking(
     return ranked, dict(names_by_sector), sec_mom, sectors
 
 
+def sector_ranking(
+    store: FactorDataStore, as_of: date, *, n: int = 500,
+    lookback_days: int = DEFAULT_LOOKBACK_DAYS, skip_days: int = DEFAULT_SKIP_DAYS,
+    min_names: int = DEFAULT_MIN_NAMES,
+) -> tuple[list[str], dict[str, list[str]], dict[str, float]]:
+    """(sectors ranked strong→weak, {sector: names}, {sector: mean momentum}) at `as_of`.
+
+    The public, cacheable ranking the basket/V1 book constructions are built from — the
+    Factor Lab runner precomputes this once per rebalance, then slices it for the K-band,
+    the all-sector control, walk-forward and cost sweep (matching the bespoke harness)."""
+    ranked, names_by_sector, sec_mom, _sectors = _sector_ranking(
+        store, as_of, n=n, lookback_days=lookback_days, skip_days=skip_days, min_names=min_names)
+    return ranked, names_by_sector, sec_mom
+
+
+def basket_weights_from_ranking(
+    ranked: list[str], names_by_sector: dict[str, list[str]], *, k: int,
+) -> dict[str, float]:
+    """Top-K sector-neutral equal-weight baskets from a precomputed ranking (the SEC-001
+    V2 construction). Each of the K strongest sectors gets a 1/K sleeve, equal-weight
+    within → a name's weight = (1/K)·(1/n_sector). Σ=1, long-only. K ≥ #sectors → all
+    sectors. Returns {} when no chosen sector has names."""
+    chosen = [s for s in ranked[:k] if names_by_sector.get(s)]
+    if not chosen:
+        return {}
+    sleeve = 1.0 / len(chosen)
+    weights: dict[str, float] = {}
+    for s in chosen:
+        names = names_by_sector[s]
+        per = sleeve / len(names)
+        for t in names:
+            weights[t] = weights.get(t, 0.0) + per
+    return weights
+
+
+def v1_quantile_weights_from_ranking(
+    names_by_sector: dict[str, list[str]], sec_mom: dict[str, float], *, top_q: float = 0.20,
+) -> dict[str, float]:
+    """SEC-001 V1 stock-level book from a precomputed ranking: score each ticker by ITS
+    sector's momentum, hold the top-quantile equal-weight. For the H3 construction-
+    isolation comparison (V2 baskets vs V1 stock-level). Σ=1, long-only; {} if empty."""
+    scored: list[tuple[str, float]] = [
+        (t, sec_mom[s]) for s, names in names_by_sector.items() for t in names
+    ]
+    if not scored:
+        return {}
+    scored.sort(key=lambda x: x[1], reverse=True)
+    k = max(1, math.ceil(len(scored) * top_q))
+    chosen = [t for t, _ in scored[:k]]
+    w = 1.0 / len(chosen)
+    return {t: w for t in chosen}
+
+
 def sector_scores(
     store: FactorDataStore, as_of: date, *, n: int = 500,
     lookback_days: int = DEFAULT_LOOKBACK_DAYS, skip_days: int = DEFAULT_SKIP_DAYS,
@@ -90,18 +144,8 @@ def sector_basket_weights(
     (1/K)·(1/n_sector). Weights sum to 1 (long-only, fully invested). K ≥ #sectors → all
     sectors. Returns {} when the cross-section is too thin (the sim skips that rebalance)."""
     try:
-        ranked, names_by_sector, _sec_mom, _sectors = _sector_ranking(
+        ranked, names_by_sector, _sec_mom = sector_ranking(
             store, as_of, n=n, lookback_days=lookback_days, skip_days=skip_days, min_names=min_names)
     except FactorUnavailable:
         return {}
-    chosen = [s for s in ranked[:k] if names_by_sector.get(s)]
-    if not chosen:
-        return {}
-    sleeve = 1.0 / len(chosen)
-    weights: dict[str, float] = {}
-    for s in chosen:
-        names = names_by_sector[s]
-        per = sleeve / len(names)
-        for t in names:
-            weights[t] = weights.get(t, 0.0) + per
-    return weights
+    return basket_weights_from_ranking(ranked, names_by_sector, k=k)
