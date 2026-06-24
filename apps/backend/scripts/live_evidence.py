@@ -33,12 +33,16 @@ if str(BACKEND_ROOT) not in sys.path:
 from app.factor_data import evidence as ev  # noqa: E402  (reuse the §1 curve metrics)
 
 
-def _equity_curve(con: sqlite3.Connection) -> list[tuple[date, float]]:
-    """Daily live equity curve from the equity_snapshots time series (last point per calendar
-    day). Empty if the table doesn't exist yet (pre-first-snapshot)."""
+def _equity_curve(con: sqlite3.Connection, account_id: int | None = None) -> list[tuple[date, float]]:
+    """Daily live equity curve for ONE account from the equity_snapshots time series (last
+    point per calendar day). Scoped by account_id so each book gets its own curve; empty if
+    the table doesn't exist yet (pre-first-snapshot) or account_id is unknown."""
+    if account_id is None:
+        return []
     try:
         rows = con.execute(
-            "SELECT date(ts) AS d, equity FROM equity_snapshots ORDER BY ts"
+            "SELECT date(ts) AS d, equity FROM equity_snapshots WHERE account_id=? ORDER BY ts",
+            (account_id,),
         ).fetchall()
     except sqlite3.OperationalError:
         return []  # table not created yet (migration pending on next backend restart)
@@ -65,8 +69,22 @@ def _rows(con: sqlite3.Connection, sql: str, params: tuple = ()) -> list[dict[st
 def build(db: str, strategy_id: int) -> dict[str, Any]:
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
+        # Resolve the strategy's owner + its dedicated paper account (per-user isolation:
+        # one paper account per user). EVERYTHING below is scoped to that account/user so
+        # each book reports ITS OWN equity / trades / positions / safety trail — not a
+        # global aggregate (the multi-account correctness fix).
+        strat = _rows(con, "SELECT name, version, status, params_json, user_id FROM strategies WHERE id=?",
+                      (strategy_id,))
+        params = json.loads(strat[0]["params_json"]) if strat and strat[0].get("params_json") else {}
+        user_id = strat[0]["user_id"] if strat else None
+        acct_row = _rows(
+            con, "SELECT id FROM accounts WHERE user_id=? AND broker='alpaca' AND mode='paper' "
+                 "ORDER BY id LIMIT 1", (user_id,)) if user_id is not None else []
+        account_id = acct_row[0]["id"] if acct_row else None
+
         acct = _rows(con, "SELECT account_id, cash, equity, portfolio_value, buying_power, "
-                     "day_change_pct, status, updated_at FROM accounts_state ORDER BY updated_at DESC LIMIT 1")
+                     "day_change_pct, status, updated_at FROM accounts_state WHERE account_id=? "
+                     "ORDER BY updated_at DESC LIMIT 1", (account_id,)) if account_id is not None else []
         account = acct[0] if acct else {}
 
         trades = _rows(con, """
@@ -76,23 +94,21 @@ def build(db: str, strategy_id: int) -> dict[str, Any]:
                    COALESCE(SUM(f.commission),0) AS commission, o.created_at
             FROM orders o JOIN symbols s ON s.id=o.symbol_id
             LEFT JOIN fills f ON f.order_id=o.id
-            WHERE o.source_type='STRATEGY'
-            GROUP BY o.id ORDER BY o.created_at""")
+            WHERE o.source_type='STRATEGY' AND o.account_id=?
+            GROUP BY o.id ORDER BY o.created_at""", (account_id,))
 
         positions = _rows(con, """
             SELECT s.ticker, p.qty, p.market_value, p.unrealized_pl, p.unrealized_plpc
             FROM positions p JOIN symbols s ON s.id=p.symbol_id
-            WHERE p.qty != 0 ORDER BY p.market_value DESC""")
+            WHERE p.qty != 0 AND p.account_id=? ORDER BY p.market_value DESC""", (account_id,))
 
+        # Audit log has no account_id; scope to the owning user (each book has its own user).
         audit = {r["action"]: r["n"] for r in _rows(
-            con, "SELECT action, COUNT(*) AS n FROM audit_log GROUP BY action")}
-
-        strat = _rows(con, "SELECT name, version, status, params_json FROM strategies WHERE id=?",
-                      (strategy_id,))
-        params = json.loads(strat[0]["params_json"]) if strat and strat[0].get("params_json") else {}
+            con, "SELECT action, COUNT(*) AS n FROM audit_log WHERE user_id=? GROUP BY action",
+            (user_id,))}
 
         first_trade = trades[0]["created_at"] if trades else None
-        curve = _equity_curve(con)
+        curve = _equity_curve(con, account_id)
     finally:
         con.close()
 
@@ -230,28 +246,64 @@ def _render(r: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description="P12.5 live paper-trading evidence report")
-    ap.add_argument("--db", default="data/workbench.sqlite")
-    ap.add_argument("--strategy-id", type=int, default=2)
-    ap.add_argument("--report-dir", default=None)
-    args = ap.parse_args()
+def _paper_strategy_ids(db: str) -> list[int]:
+    """Every strategy currently on PAPER (ascending). Used by --all-paper so the
+    weekly evidence covers all live books (e.g. SEC-001, LOW-001), not just id=2."""
+    import sqlite3
+    con = sqlite3.connect(db)
+    try:
+        return [int(r[0]) for r in con.execute(
+            "SELECT id FROM strategies WHERE status='PAPER' ORDER BY id")]
+    finally:
+        con.close()
 
-    r = build(args.db, args.strategy_id)
+
+def _emit(r: dict[str, Any]) -> None:
     s, b, sf = r["strategy"], r["book"], r["operational_safety"]
-    print(f"[live-evidence] {s['name']} {s['config']} status={s['status']}")
+    print(f"[live-evidence] id={s['id']} {s['name']} {s['config']} status={s['status']}")
     print(f"  equity ${b['equity']:,.2f}  gross {(b['gross_exposure_pct'] or 0):.0%}  "
           f"unrealized ${b['unrealized_pl']:,.2f}  trades {r['n_trades']}")
     print(f"  risk: {sf['orders_risk_passed']} passed / {sf['orders_rejected_by_risk']} rejected; "
           f"breaker {sf['breaker_trips']} trip / {sf['breaker_resets']} reset; "
           f"replay+reconcile clean={r['verifiability']['replay_mismatches']==0 and r['verifiability']['reconciliation_discrepancies']==0}")
 
-    if args.report_dir:
-        d = Path(args.report_dir)
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="P12.5 live paper-trading evidence report")
+    ap.add_argument("--db", default="data/workbench.sqlite")
+    ap.add_argument("--strategy-id", type=int, default=2)
+    ap.add_argument("--all-paper", action="store_true",
+                    help="Report EVERY strategy on PAPER (per-strategy files), not just --strategy-id. "
+                         "Use for the weekly refresh so new books (SEC-001, LOW-001) accrue evidence.")
+    ap.add_argument("--report-dir", default=None)
+    args = ap.parse_args()
+
+    if args.all_paper:
+        ids = _paper_strategy_ids(args.db)
+        if not ids:
+            print("[live-evidence] no PAPER strategies found")
+            return 1
+    else:
+        ids = [args.strategy_id]
+
+    # Primary book for the canonical (back-compat) live_evidence.{json,md}: the
+    # requested --strategy-id if it's in scope, else the first PAPER book.
+    primary = args.strategy_id if args.strategy_id in ids else ids[0]
+
+    d = Path(args.report_dir) if args.report_dir else None
+    if d:
         d.mkdir(parents=True, exist_ok=True)
-        (d / "live_evidence.json").write_text(json.dumps(r, indent=2, default=str), encoding="utf-8")
-        (d / "live_evidence.md").write_text(_render(r), encoding="utf-8")
-        print(f"  wrote {d / 'live_evidence.json'} + live_evidence.md")
+    for sid in ids:
+        r = build(args.db, sid)
+        _emit(r)
+        if d:
+            (d / f"live_evidence_{sid}.json").write_text(json.dumps(r, indent=2, default=str), encoding="utf-8")
+            (d / f"live_evidence_{sid}.md").write_text(_render(r), encoding="utf-8")
+            if sid == primary:  # canonical filenames (Evidence Book + weekly archive refer to these)
+                (d / "live_evidence.json").write_text(json.dumps(r, indent=2, default=str), encoding="utf-8")
+                (d / "live_evidence.md").write_text(_render(r), encoding="utf-8")
+    if d:
+        print(f"  wrote {len(ids)} report(s) to {d} (canonical = id={primary})")
     return 0
 
 
