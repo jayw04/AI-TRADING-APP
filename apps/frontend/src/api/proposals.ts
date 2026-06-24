@@ -42,7 +42,11 @@ export interface EvaluationResults {
   baseline_metrics?: Record<string, number>;
   variant_metrics?: Record<string, number>;
   delta_metrics?: Record<string, number>;
-  verdict?: "above_baseline" | "below_baseline";
+  verdict?:
+    | "above_baseline"
+    | "below_baseline"
+    | "insufficient_evidence"
+    | "needs_review";
   human_review?: HumanReview;
 }
 
@@ -74,6 +78,8 @@ export interface ProposalEvalSummary {
   n_eval_failed: number;
   n_above_baseline: number;
   n_below_baseline: number;
+  n_insufficient_evidence?: number;
+  n_needs_review?: number;
   recent_metrics_summary: Record<string, unknown> | null;
   n_reviewed: number;
   n_thumbs_up: number;

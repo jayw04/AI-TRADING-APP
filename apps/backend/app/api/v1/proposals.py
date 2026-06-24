@@ -128,6 +128,9 @@ class ProposalEvalSummaryResponse(BaseModel):
     n_eval_failed: int
     n_above_baseline: int
     n_below_baseline: int
+    # E4 (review): a zero-trade eval is INSUFFICIENT_EVIDENCE, never above_baseline.
+    n_insufficient_evidence: int = 0
+    n_needs_review: int = 0
     recent_metrics_summary: dict[str, Any] | None
     # P6 §2b-review: human-review aggregates (additive — defaults keep the
     # response shape backward-compatible for existing callers + the MCP tool).
@@ -272,6 +275,7 @@ async def proposal_eval_summary(
     ).scalars().all()
 
     n_complete = n_pending = n_skipped = n_failed = n_above = n_below = 0
+    n_insufficient = n_needs_review = 0
     n_reviewed = n_thumbs_up = n_thumbs_down = 0
     latest_complete: dict[str, Any] | None = None
     for r in rows:
@@ -295,6 +299,10 @@ async def proposal_eval_summary(
                 n_above += 1
             elif verdict == "below_baseline":
                 n_below += 1
+            elif verdict == "insufficient_evidence":
+                n_insufficient += 1
+            elif verdict == "needs_review":
+                n_needs_review += 1
             if latest_complete is None:  # rows are desc → first complete is latest
                 latest_complete = {
                     "proposal_id": r.id,
@@ -319,6 +327,8 @@ async def proposal_eval_summary(
         n_eval_failed=n_failed,
         n_above_baseline=n_above,
         n_below_baseline=n_below,
+        n_insufficient_evidence=n_insufficient,
+        n_needs_review=n_needs_review,
         recent_metrics_summary=latest_complete,
         n_reviewed=n_reviewed,
         n_thumbs_up=n_thumbs_up,
