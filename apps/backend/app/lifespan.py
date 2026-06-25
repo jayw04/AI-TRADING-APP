@@ -304,6 +304,45 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("llm_opt_in_completion_scheduled")
 
+            # 10c. SCAN-001 Production Validation Gate (gate plan §0; ADR 0024) —
+            # forward-evidence accrual. The ~09:25 ET scan persists today's premarket
+            # candidate set; the ~16:30 ET back-fill attaches realized outcomes. Both
+            # read-only/advisory (no order path) and fail-soft. Scheduler is already
+            # America/New_York, so the hours below are ET. Needs the read-only factor
+            # store (held in app scope above for exactly this) — no store => skip.
+            if factor_store is not None:
+                from app.jobs.premarket_gate import (
+                    run_premarket_backfill_job,
+                    run_premarket_scan_job,
+                )
+
+                gate_dir = settings.premarket_gate_evidence_dir
+                scheduler.scheduler.add_job(
+                    run_premarket_scan_job,
+                    trigger="cron",
+                    day_of_week="mon-fri",
+                    hour=9,
+                    minute=25,
+                    id="premarket_gate_scan",
+                    max_instances=1,
+                    coalesce=True,
+                    kwargs={"factor_store": factor_store, "directory": gate_dir},
+                )
+                scheduler.scheduler.add_job(
+                    run_premarket_backfill_job,
+                    trigger="cron",
+                    day_of_week="mon-fri",
+                    hour=16,
+                    minute=30,
+                    id="premarket_gate_backfill",
+                    max_instances=1,
+                    coalesce=True,
+                    kwargs={"bar_cache": bar_cache, "directory": gate_dir},
+                )
+                logger.info("premarket_gate_scheduled", directory=gate_dir)
+            else:
+                logger.info("premarket_gate_disabled_no_factor_store")
+
             # 10c. Metrics snapshot job (P5 §8.3). Every 30s, sample the
             # DB-derived gauges (active strategies by status, cooldown / breaker
             # / pending-live counts, audit-log row count, credential staleness).
