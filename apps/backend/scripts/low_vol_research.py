@@ -1,4 +1,13 @@
-"""LOW-001 — Low Volatility research (the evidence package, per the approved pre-registration v0.2).
+"""[DEPRECATED 2026-06-25 — superseded by the Factor Lab, ADR 0026]
+
+Author new work as a ``ProgramSpec`` and run it through
+``app.research.factor_lab.runner.run_program(app.research.factor_lab.configs.LOW_001, store=…)``
+instead. ``run_program`` reproduces this harness's committed evidence package byte-for-byte
+(equivalence proven 2026-06-25; ADR 0026 §5). This bespoke script is **retained, not deleted**, as
+the immutable scientific record — its tests stay green and its evidence package stands. Do not add
+new programs here.
+
+LOW-001 — Low Volatility research (the evidence package, per the approved pre-registration v0.2).
 
 Tests whether a low-volatility book — hold the lowest-realized-volatility names — (H1) earns a standalone
 risk-adjusted OOS edge vs an equal-weight benchmark, (H2) diversifies single-name momentum (low/negative

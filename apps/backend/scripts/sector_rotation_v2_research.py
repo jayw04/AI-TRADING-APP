@@ -1,4 +1,13 @@
-"""SEC-001 V2 — Pure Sector Baskets research (the V2 evidence package, per the approved v0.2 plan).
+"""[DEPRECATED 2026-06-25 — superseded by the Factor Lab, ADR 0026]
+
+Author new work as a ``ProgramSpec`` and run it through
+``app.research.factor_lab.runner.run_program(app.research.factor_lab.configs.SEC_001, store=…)``
+instead. ``run_program`` reproduces this harness's committed evidence package byte-for-byte —
+**62/62 fields matched** on the full 2000–2026 window (equivalence proven 2026-06-25; ADR 0026 §5).
+This bespoke script is **retained, not deleted**, as the immutable scientific record — its tests stay
+green and its evidence package stands. Do not add new programs here.
+
+SEC-001 V2 — Pure Sector Baskets research (the V2 evidence package, per the approved v0.2 plan).
 
 V1 (top-quintile of strong-sectors' *stocks*) returned verdict **B (Diversifier)**: the standalone edge
 (H1 dSharpe +0.16, CI [-0.03, 0.366]) just missed zero. **V2 changes ONLY the construction** — it holds

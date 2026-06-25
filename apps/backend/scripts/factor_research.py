@@ -1,4 +1,12 @@
-"""Factor research engine (P10) — measure which factors actually work on OUR
+"""[NOT deprecated — distinct from the Factor Lab; ADR 0026 §5]
+
+Unlike the LOW/SEC/TREND *verdict* harnesses (now superseded by
+``app.research.factor_lab.run_program``), this is the IC / long-short factor-**measurement** study —
+a different capability that ``run_program`` does not reproduce, and an active Research-Engine
+dependency (``app.research.engine.runners`` imports its ``run_study``). It remains the canonical
+entry point for "which factors work on our universe." Keep it.
+
+Factor research engine (P10) — measure which factors actually work on OUR
 Sharadar universe, before building a strategy around them.
 
 "Measure first, build second." Reuses the survivorship-free price store
