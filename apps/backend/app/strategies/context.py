@@ -20,6 +20,7 @@ from typing import Any
 import pandas as pd
 import structlog
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.enums import (
@@ -36,6 +37,14 @@ from app.db.models.symbol import Symbol
 from app.risk import OrderRequest
 
 logger = structlog.get_logger(__name__)
+
+# Sanctioned portfolio-level signal sentinel. A strategy may log a signal that is
+# about the book as a whole (a full-liquidation EXIT, a gross-exposure overlay
+# decision) rather than a single ticker — e.g. momentum_portfolio / low_volatility
+# log ``log_signal("PORTFOLIO", …)``. This is NOT a universe-isolation violation, so
+# it must not raise ``strategy_logged_unauthorized_signal``; it is persisted against a
+# non-tradeable sentinel ``symbols`` row so the decision is recorded in the signal feed.
+PORTFOLIO_SIGNAL_SYMBOL = "PORTFOLIO"
 
 
 # ---------- DTOs handed to user code ----------
@@ -378,7 +387,8 @@ class StrategyContext:
         Returns the new signal id, or 0 if the symbol couldn't be resolved.
         """
         symbol = symbol.upper()
-        if symbol not in {s.upper() for s in self.symbols}:
+        is_portfolio = symbol == PORTFOLIO_SIGNAL_SYMBOL
+        if not is_portfolio and symbol not in {s.upper() for s in self.symbols}:
             logger.warning(
                 "strategy_logged_unauthorized_signal",
                 strategy_id=self.strategy_id,
@@ -389,8 +399,29 @@ class StrategyContext:
                 await session.execute(select(Symbol).where(Symbol.ticker == symbol))
             ).scalars().first()
             if sym is None:
-                logger.warning("strategy_signal_unknown_symbol", symbol=symbol)
-                return 0
+                if not is_portfolio:
+                    logger.warning("strategy_signal_unknown_symbol", symbol=symbol)
+                    return 0
+                # Lazily create the non-tradeable PORTFOLIO sentinel (once ever). A
+                # concurrent first-use race resolves to the row the other writer made.
+                try:
+                    async with session.begin_nested():
+                        sym = Symbol(
+                            ticker=PORTFOLIO_SIGNAL_SYMBOL,
+                            asset_class="sentinel",
+                            name="Portfolio-level signal sentinel",
+                            active=False,
+                        )
+                        session.add(sym)
+                        await session.flush()
+                except IntegrityError:
+                    sym = (
+                        await session.execute(
+                            select(Symbol).where(Symbol.ticker == PORTFOLIO_SIGNAL_SYMBOL)
+                        )
+                    ).scalars().first()
+                    if sym is None:
+                        return 0
             sig = Signal(
                 user_id=self.user_id,
                 strategy_id=self.strategy_id,
