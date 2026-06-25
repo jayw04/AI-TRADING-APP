@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-25 |
-| Status | Draft (owner ARD review folded 2026-06-25 — pending ratification) |
+| Status | Draft (owner ARD review folded 2026-06-25, two rounds — pending ratification) |
 | Phase | Platform consolidation (post-Phase-2 "Demonstrate Repeatability") |
 | Supersedes | — |
 | Related | 0019 (Research Engine subsystem — this extends it), 0014 (backtests = eval ground truth), 0018 (PIT factor data — the Lab reads it), 0002 (single OrderRouter — the Lab never submits orders) |
@@ -91,20 +91,49 @@ subsystem and not a parallel package.**
    frozen; the harness only ever runs a pre-registered config. This preserves the
    no-overfit invariant that underwrites every committed verdict.
 
-7. **Programs are immutable and versioned, not edited.** A program changes by creating a
-   *new* `ProgramSpec` (a new id / version — `LOW-001` → `LOW-002`, not an edit of
-   `LOW-001`), mirroring Git history and scientific experiments: the committed evidence a
-   program produced must stay attributable to the exact spec that produced it. Once a
-   program is promoted, its spec is frozen. (A `version` field on `ProgramSpec` is a clean
-   future addition; today the convention is carried by the id.)
+7. **Programs are immutable and versioned, not edited.** **Existing `ProgramSpec`s are never
+   edited after evidence has been generated; new research always produces a new `ProgramSpec`
+   identifier or version** (`LOW-001` → `LOW-002`, not an edit of `LOW-001`) — mirroring Git
+   history and scientific experiments: the committed evidence a program produced must stay
+   attributable to the exact spec that produced it. Once a program is promoted, its spec is
+   frozen. (A `version` field on `ProgramSpec` is a clean future addition; today the
+   convention is carried by the id.)
 
 8. **"Factor Lab" is Version 1 of a more general Research Program Framework.** The
    *implementation* is already broader than the name — it runs momentum, trend, sector,
    and low-vol, and the same `ProgramSpec` → runner → evidence shape will absorb discovery,
-   quality, value, macro, and alternative-data programs. We deliberately **do not rename it
-   today** (the name is load-bearing in code and docs), but record here that the abstraction
-   is general; a future rename (e.g. *Research Program Engine* / *Capability Lab*) is a
-   documentation decision, not a re-architecture.
+   quality, value, macro, and alternative-data programs. The framework spans the Labs:
+
+   ```
+   Evidence Engineering
+   ├── Discovery Lab  → Candidate Programs       (SCAN-001 …)
+   ├── Factor Lab     → Investment Programs       (LOW / SEC / TREND / MOM …)
+   └── Future Labs    → same ProgramSpec lifecycle
+   ```
+
+   We deliberately **do not rename it today** (the name is load-bearing in code and docs), but
+   record here that the abstraction is general; a future rename (e.g. *Research Program Engine*
+   / *Capability Lab*) is a documentation decision, not a re-architecture.
+
+## Platform impact
+
+What the platform *gains* by making research programs declarative (the executive read):
+
+- **New investment capabilities are authored as `ProgramSpec`s, not scripts** — a config (+ maybe
+  one score fn) instead of a ~400-line harness.
+- **Research results become directly comparable** — every program runs the same backtest, the
+  same bootstrap, the same walk-forward, so cross-program comparison is apples-to-apples.
+- **Capability promotion becomes uniform** — every program emits the same evidence-package shape
+  the promotion gate consumes.
+- **Every program shares identical statistical validation** — one bootstrap / CI / cost-sweep
+  implementation, not four divergent copies.
+- **Future Labs reuse the same lifecycle** — Discovery Lab and any later Lab plug into the same
+  `ProgramSpec` → runner → evidence → registry → promotion path (decision 8).
+
+This is the platform's three abstraction levels made concrete: **Methodology** (Evidence
+Engineering) → **Research Framework** (`ProgramSpec` · runner · evidence · registry · promotion)
+→ **Individual Programs** (Momentum, LOW, SEC, TREND, Discovery). The middle level is what this
+ADR adds.
 
 ## Program lifecycle, fingerprint, and promotion
 
@@ -112,10 +141,22 @@ A program travels a fixed, auditable path from authoring to a paper capability �
 config-driven analogue of ADR 0019's experiment lifecycle:
 
 ```
-Author ─▶ ProgramSpec (frozen) ─▶ run_program (Runner) ─▶ Evidence Package
+Author ─▶ ProgramSpec (frozen) ─▶ run_program (the Program Runner) ─▶ Evidence Package
        ─▶ Research Registry (immutable) ─▶ Promotion Gate ─▶ Paper Capability ─▶ Continuous Evidence
 ```
 
+(*"Program Runner"* / *"Research Runner"* is the conceptual name for `run_program`; the function
+keeps its literal name in code.)
+
+- **Evaluation is ADR 0014's ground truth.** Inside the runner, the evidence is produced by the
+  same backtest-as-ground-truth rule the rest of the platform uses:
+
+  ```
+  run_program ─▶ Backtest ─▶ Evidence ─▶ ADR 0014 evaluation (verdict / sufficiency)
+  ```
+
+  So a program's verdict is an ADR-0014 evaluation, not a bespoke judgement — the `VerdictSpec`
+  is just that evaluation declared as data.
 - **Into the Registry.** An authored `ProgramSpec` is **frozen** before it runs; the run emits
   an Evidence Package that enters the Research Registry as an **immutable** row (ADR 0019's
   registry + provenance). Reproducibility, not editing, is the contract (decision point 7).
@@ -124,12 +165,19 @@ Author ─▶ ProgramSpec (frozen) ─▶ run_program (Runner) ─▶ Evidence P
   the content-addressed identity ADR 0019 already mints, now anchored to the spec. "Produced by
   fingerprint XYZ" is what makes the equivalence gate (decision 4) and every committed verdict
   re-runnable forever. (Conceptual here; the orchestrator owns the implementation.)
+- **A `ProgramSpec` is not a Capability.** A `ProgramSpec` defines a research *experiment*; a
+  **Capability** exists only *after* its evidence has been evaluated and governance has approved
+  promotion. The spec is the input to research; the capability is the governed output. Keeping
+  them distinct is what lets a rejected program (RNG) still leave a *platform* capability behind
+  while contributing *zero* investment capability.
 - **To a capability (links to the Whitepaper).** The Evidence Package is not the end of the
   line. A validated program feeds the promotion chain that turns research into a deployable
-  asset:
+  asset, and the artifacts have **distinct owning registries** — research artifacts and
+  operational artifacts are kept separate:
 
   ```
-  ProgramSpec ─▶ Evidence Package ─▶ Capability Registry ─▶ Promotion Gate ─▶ Paper Capability
+  ProgramSpec ─▶ Research Registry ─▶ Capability Registry ─▶ Continuous Evidence Registry
+              (the experiment)       (the governed asset)    (live, ongoing proof)
   ```
 
   The gate stays owner-driven (ADR 0019: the gate validates, the owner deploys); the Factor Lab
@@ -180,9 +228,11 @@ Author ─▶ ProgramSpec (frozen) ─▶ run_program (Runner) ─▶ Evidence P
   they buy a *repeatable research capability*. Turning a research program into a
   declarative specification converts research from custom engineering into a reusable
   platform feature — the same shift the Whitepaper, the Evidence Engineering methodology,
-  and the Capability Registry are built around. The abstraction itself (research →
-  configuration → execution → evidence, in place of research → custom code) is a candidate
-  for the platform's patent family: it is a research *method*, not a software refactor.
+  and the Capability Registry are built around. The abstraction is a **second, independent
+  IP contribution** alongside Evidence Engineering itself: *Research Program → Declarative
+  Specification → Standardized Validation → Promotion* is broader than the Factor Lab and
+  is a research *method*, not a software refactor — a candidate for the platform's patent
+  family worth raising with counsel.
 
 ## Implementation notes
 
