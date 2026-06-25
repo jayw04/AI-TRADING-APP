@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-06-25 |
-| Status | Draft (owner ARD review folded 2026-06-25, two rounds — pending ratification) |
+| Status | **Accepted** (owner ratified 2026-06-25, after two ARD review rounds) |
 | Phase | Platform consolidation (post-Phase-2 "Demonstrate Repeatability") |
 | Supersedes | — |
 | Related | 0019 (Research Engine subsystem — this extends it), 0014 (backtests = eval ground truth), 0018 (PIT factor data — the Lab reads it), 0002 (single OrderRouter — the Lab never submits orders) |
