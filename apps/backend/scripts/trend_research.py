@@ -1,4 +1,13 @@
-"""TREND-001 Trend Following research harness (pre-registered, read-only).
+"""[DEPRECATED 2026-06-25 — superseded by the Factor Lab, ADR 0026]
+
+Author new work as a ``ProgramSpec`` and run it through
+``app.research.factor_lab.runner.run_program(app.research.factor_lab.configs.TREND_001, store=…)``
+instead. ``run_program`` reproduces this harness's committed evidence package byte-for-byte —
+**55/55 fields matched** on the full 2000–2026 window (equivalence proven 2026-06-25; ADR 0026 §5).
+This bespoke script is **retained, not deleted**, as the immutable scientific record — its tests stay
+green and its evidence package stands. Do not add new programs here.
+
+TREND-001 Trend Following research harness (pre-registered, read-only).
 
 Frozen plan v0.2 (`docs/implementation/TradingWorkbench_TREND001_TrendFollowing_Plan_v0.1.md`):
 signal = **per-name price > 200-day SMA**, weekly Monday rebalance, **hold all in-trend
