@@ -1,8 +1,10 @@
-# Range Trader — Paper Trial Runbook & Implementation Plan (v0.2)
+# Range Trader — Paper Trial Runbook & Implementation Plan (v0.3)
 
-**Status:** DRAFT for owner review · **Date:** 2026-06-24 · **For:** trying the Range Trader live on paper tomorrow at market open.
+**Status:** DRAFT for owner review · **Date:** 2026-06-24 (v0.3 fold 2026-06-25) · **For:** trying the Range Trader live on paper at market open.
 
-> **v0.2 — owner review folded** (`Docs/review/comments.md`, 9.6/10 → target 9.9/10). Added: explicit operational success criteria (§2); the **mechanical-vs-trading** framing up front (§0.1); a four-level **failure classification** (§13); **expected evidence artifacts** (§9.1); a **pre-registered "what would surprise us"** list (§10); **Capability Maturity** for RNG-001 (§0.3); the **whitepaper / platform** connection (§0.4); **why we keep a rejected strategy** + the **three strategy classes** reframing (§0.2); **regression value** (§17); and **exit deliverables + Go/No-Go** (§18).
+> **v0.3 — owner review folded** (`docs/review/comments.md`, 9.9/10). Methodology-strengthening pass: formalized the **Execution Regression Suite** as a named platform capability (§17, full set {Momentum, Range, Discovery, Insider, SEC, LOW}); standardized **"Reference Benchmark Strategy"** + **"Capability"** naming (§0.2, except in code); placed the trial's output as **Operational Evidence** in the four-evidence-types taxonomy and added the **Evidence-Registry → Capability-Registry destination** (§9.1).
+>
+> **v0.2 — owner review folded** (`docs/review/comments.md`, 9.6/10 → 9.9/10). Added: explicit operational success criteria (§2); the **mechanical-vs-trading** framing up front (§0.1); a four-level **failure classification** (§13); **expected evidence artifacts** (§9.1); a **pre-registered "what would surprise us"** list (§10); **Capability Maturity** for RNG-001 (§0.3); the **whitepaper / platform** connection (§0.4); **why we keep a rejected strategy** + the **three strategy classes** reframing (§0.2); **regression value** (§17); and **exit deliverables + Go/No-Go** (§18).
 
 **Goal of this trial:** verify that the Range Trader's **daily, opening-range mechanics fire correctly on a live paper account during RTH** — entries near support, exits near resistance, stop/time-exit, per-day trade caps. This is an **execution / operations validation, not an edge test** (see §0). RNG-001 was researched and formally **REJECTED** (no robust OOS edge); we are validating that the *execution platform does what the code says*, live, on real intraday bars — not expecting profit.
 
@@ -36,6 +38,13 @@ The platform runs three distinct classes of strategy:
 Range Trader is a **Reference Benchmark Strategy** (a.k.a. Execution Validation Strategy). Its purpose is **no longer alpha** — it is continuous validation of execution, broker integration, scheduler, audit, and regression, *without any risk of promotion to production*. Rejected strategies are retained as permanent reference implementations precisely because they exercise the full order path safely. That a rejected strategy can still have **production-quality execution** is a hallmark of a mature research platform — and a platform value worth demonstrating.
 
 > **Proposed follow-up (beyond this doc):** formalize the three-class taxonomy in the platform + registry (a `strategy_class` field; rename "rejected" → "Reference Benchmark" in the registry/UI). Owner-gated; noted here, not implemented by this trial.
+>
+> **Naming standard (owner review).** Use **"Reference Benchmark Strategy"** (not "Rejected Strategy") and
+> prefer **"Capability"** over **"Strategy"** consistently across the Registry, Whitepaper, Dashboard, and
+> runbooks — e.g. *Range Trader Capability*, a Reference Benchmark capability whose verdict is Rejected but
+> whose **execution** capability is production-grade. The exception is **inside the code**, where `strategy`
+> / `strategies.id` / `strategy_class` remain the literal identifiers. "Rejected" stays the *research
+> verdict*; "Reference Benchmark" is the *capability role* — the two are orthogonal axes, not synonyms.
 
 ### 0.3 Capability Maturity for RNG-001
 Maturity is tracked per lifecycle stage — a rejected research verdict and a production-grade execution capability coexist:
@@ -196,6 +205,13 @@ The trial's deliverable is **evidence**, not P&L. After the run these should exi
 - **Scheduler history** — job fire record (no missed/stacked runs)
 - **Broker reconciliation** — broker ⇄ local consistent
 
+Together these constitute **Operational Evidence** — the kind that answers *"does the execution platform do
+what the code says, live?"* (the four-evidence-types taxonomy, `EvidenceEngineering_Methodology` §7a; this
+is Pipeline B `Paper → Operations → Evidence → Operational Verdict`). **Evidence generated during this trial
+is stored in the Evidence Registry and referenced by the Capability Registry**, so the run contributes
+permanent platform evidence — validating a *platform* capability exactly as a research study validates an
+*investment* capability.
+
 ---
 
 ## 10. Pre-registered: "what would surprise us?"
@@ -275,15 +291,24 @@ If the only "failures" are L4, the trial **passed**: the execution platform work
 
 ---
 
-## 17. Regression value (why this outlives one trial)
+## 17. Regression value — the Execution Regression Suite (why this outlives one trial)
 
-Once validated, Range Trader becomes a **permanent execution-regression benchmark**. After any major execution/operations change, re-run the benchmark set to confirm no regression:
+Once validated, Range Trader becomes a **permanent execution-regression benchmark**. Rather than an
+ad-hoc *"run a few strategies"*, the platform defines this as a first-class capability — the **Execution
+Regression Suite**: the named set of Reference Benchmark capabilities re-run after any major
+execution/operations change to confirm no regression.
 
 ```
-Major execution change → run { Momentum, Range, Discovery, … } → verify execution unchanged
+Execution Regression Suite = { Momentum, Range, Discovery, Insider, SEC, LOW }
+
+Major execution/operations change → run the Execution Regression Suite → verify execution unchanged
 ```
 
-This elevates the strategy from a one-time experiment to a standing part of the platform's test surface — alpha-free, low-risk, full-path coverage.
+Each member exercises a different slice of the order path (cross-sectional rebalance, intraday
+opening-range, candidate discovery, event-driven, sector-basket, low-vol construction), so together they
+give **alpha-free, low-risk, full-path coverage**. This elevates the suite from a one-time experiment to a
+standing part of the platform's test surface — itself a **platform capability** in the Capability Registry,
+and a producer of **Operational Evidence** (`EvidenceEngineering_Methodology` §7a) on every run.
 
 ---
 
