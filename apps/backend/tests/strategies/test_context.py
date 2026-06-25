@@ -171,6 +171,42 @@ async def test_log_signal_returns_zero_for_unknown_symbol(session_factory, seede
     assert sig_id == 0
 
 
+async def test_log_signal_portfolio_sentinel_persists(session_factory, seeded):
+    """The "PORTFOLIO" portfolio-level sentinel is authorized (not a universe
+    violation) and persists against a lazily-created non-tradeable sentinel symbol,
+    so overlay/liquidation decisions are recorded rather than dropped with a
+    spurious ``strategy_logged_unauthorized_signal`` warning."""
+    from app.strategies.context import PORTFOLIO_SIGNAL_SYMBOL
+
+    ctx, _ = _ctx(session_factory, symbols=["AAPL"])  # PORTFOLIO is NOT in symbols
+    sig_id = await ctx.log_signal(
+        PORTFOLIO_SIGNAL_SYMBOL, SignalType.INFO, payload={"gross": 0.8}
+    )
+    assert sig_id > 0
+
+    async with session_factory() as session:
+        sym = (
+            await session.execute(
+                select(Symbol).where(Symbol.ticker == PORTFOLIO_SIGNAL_SYMBOL)
+            )
+        ).scalars().first()
+        assert sym is not None and sym.active is False
+        sig = (
+            await session.execute(select(Signal).where(Signal.symbol_id == sym.id))
+        ).scalars().first()
+        assert sig is not None and sig.payload_json == {"gross": 0.8}
+
+    # A second call reuses the existing sentinel — no duplicate symbol row.
+    assert await ctx.log_signal(PORTFOLIO_SIGNAL_SYMBOL, SignalType.EXIT) > 0
+    async with session_factory() as session:
+        rows = (
+            await session.execute(
+                select(Symbol).where(Symbol.ticker == PORTFOLIO_SIGNAL_SYMBOL)
+            )
+        ).scalars().all()
+        assert len(rows) == 1
+
+
 async def test_get_recent_bars_returns_empty_for_unauthorized_symbol(
     session_factory, seeded
 ):
