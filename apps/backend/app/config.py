@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     # container (see docker-compose). Read-only/advisory — never an order signal.
     premarket_gappers_dir: str = "/app/premarket_gappers"
 
+    # --- SCAN-001 Production Validation Gate evidence (ADR 0024) ---
+    # Persistent directory for the forward-evidence records the ~09:25 ET premarket
+    # scan writes and the ~16:30 ET back-fill updates (one JSON per trading day).
+    # Under the gitignored data/ root so the scan -> back-fill -> verdict chain spans
+    # the day across restarts. Read-only/advisory — never an order signal.
+    premarket_gate_evidence_dir: str = "data/premarket_gate_evidence"
+
     # --- Agent (P3) ---
     # Empty key disables the agent; Session 3's runtime refuses to start a
     # session with a clear error message rather than crashing on the first

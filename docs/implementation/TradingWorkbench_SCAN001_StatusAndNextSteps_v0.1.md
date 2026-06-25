@@ -138,10 +138,21 @@ All read-only · advisory · no order path · no LLM. ~58 gate tests; ruff(CI-sc
 1. **Merge the five open PRs** (order above), after walk-away.
 2. **Forward accrual** — the gate verdict is **INSUFFICIENT** until **~40 back-filled scan days** accrue
    (ADR 0014: partial forward data is not edge evidence). This is *elapsed time*, not work.
-3. **Activation (needs a backend rebuild)** — register two read-only jobs + a durable runtime evidence dir:
-   - ~**09:25 ET** → `record_premarket_scan` (the live scan + persist).
-   - ~**16:30 ET** → `backfill_evidence` (the realized-outcome back-fill).
-   - Same rebuild-gated activation pattern as #221 (the `app/` image drifts from main until rebuilt).
+3. **Activation — ✅ IMPLEMENTED 2026-06-25 (PR pending; takes effect on the next backend rebuild).**
+   Two read-only/advisory cron jobs are wired into the `WorkbenchScheduler` (already `America/New_York`,
+   so the hours are ET) in `app/lifespan.py`, guarded by the read-only `factor_store` (skipped + logged
+   `premarket_gate_disabled_no_factor_store` when absent), with a durable runtime evidence dir
+   (`settings.premarket_gate_evidence_dir = data/premarket_gate_evidence`, gitignored, created on first write):
+   - `premarket_gate_scan` — **mon–fri 09:25 ET** → `app/jobs/premarket_gate.run_premarket_scan_job` →
+     `record_premarket_scan` (live scan + persist today's candidate set + eligible field).
+   - `premarket_gate_backfill` — **mon–fri 16:30 ET** → `run_premarket_backfill_job` → `backfill_evidence`
+     (attach realized outcomes; a no-scan day is a clean no-op).
+   - Both are fail-soft (`logger.exception` + continue; never disturb the scheduler) and off the order path.
+     Same rebuild-gated pattern as #221 (the `app/` image drifts from main until rebuilt). 5 job tests +
+     16 gate-service tests green; ruff/mypy clean.
+   - ⚠ Operational dependency: the scan reads `premarket_gappers_<date>.json` from `settings.premarket_gappers_dir`
+     (the sibling `claude-trading-view` scanner, mounted read-only). No gappers file ⇒ 0 candidates (fail-soft),
+     so that scanner must be producing files for accrual to be meaningful.
 4. **Run the verdict** — once the window accrues, `run_gate_verdict(dir)` → the L4 recommendation
    (TRANSFERS → recommend L4, owner-gated; DOES-NOT-TRANSFER → documented boundary).
 5. **Optional product follow-on** — wire the v0.5 **Discovery Confidence** into the live
