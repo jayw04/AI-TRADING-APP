@@ -1,4 +1,4 @@
-# Evidence Engineering — Methodology Specification (v1.1 · RATIFIED 2026-06-24)
+# Evidence Engineering — Methodology Specification (v1.2 · base v1.1 RATIFIED 2026-06-24)
 
 > **What this is.** The frozen, versioned definition of *how TradingWorkbench does research* — the
 > standard lifecycle, evidence gates, verdict taxonomy, evidence-package structure, registries, governance
@@ -15,7 +15,7 @@
 
 | Field | Value |
 |---|---|
-| Version | **v1.1 (RATIFIED 2026-06-24, owner ARD review — 10/10 "ready to freeze")** — adds the four-layer model, Capability Maturity (L0–L5), the Operating Envelope (§4a/§4b), Principle 0 (§2), and mandatory Operating Envelope in the evidence package (§7). |
+| Version | **v1.2 (minor, additive — folds the `docs/review/comments.md` review, 2026-06-25)** — adds §7a **the four kinds of evidence** (Research / Proposal / Operational / Continuous) and the two validation pipelines, on the **v1.1 (RATIFIED 2026-06-24, owner ARD review — 10/10)** baseline that added the four-layer model, Capability Maturity (L0–L5), the Operating Envelope (§4a/§4b), Principle 0 (§2), and mandatory Operating Envelope in the evidence package (§7). |
 | Status | **Ratified — this is the baseline.** All later changes are versioned (minor v1.x / major v2.0) with a changelog (§11). The methodology is now independent of any strategy. |
 | Sources codified | P12 Direction §4 (research methodology) · the Research Program Registry · the per-program plan/pre-registration docs (MOM/RNG/MF/SEC/LOW) · **ADR 0014** (backtests = primary eval ground-truth) · **ADR 0019** (Research Engine — read-only) · **ADR 0021** (operational contract — the trust substrate that makes results *verifiable*). |
 | Relationship to code | The taxonomies here are mirrored by `apps/backend/app/research/programs.py` + the Evidence Dashboard (`/evidence`); the code is the runtime source of truth, this doc is the normative spec. A status-enum alignment follow-up is tracked in `tasks/todo.md`. |
@@ -247,6 +247,37 @@ validation. A red flag blocks the run, so no report silently sits on bad data.
 version · factor version · walk-forward version · report version** (the research analogue of the §4-replay
 `algorithm_version`/`registry_version` triple).
 
+## 7a. The four kinds of evidence (by lifecycle stage)
+
+"Evidence" is not one thing. As the platform matured, the lifecycle (§3) began producing evidence
+of four distinct kinds, each answering a different question and each with its own producer, verdict,
+and home. Defining them once here lets every downstream document (proposal findings, paper-trial
+runbooks, the whitepaper) refer to the right type instead of overloading the word.
+
+| Evidence type | Question it answers | Produced by | Example artifact |
+|---|---|---|---|
+| **Research Evidence** | Does the hypothesis have an edge? | a research program's backtest harness (the §5 gate, §7 package) | the SEC / LOW / TREND-001 evidence packages |
+| **Proposal Evidence** | Does this *change* beat the current baseline? | the Proposal Engine's baseline-vs-variant backtest eval (ADR 0014) | `strategy_proposals.evaluation_results_json` |
+| **Operational Evidence** | Does the *execution platform* do what the code says, live? | a paper-trial / operational-validation run | the Range Trader paper-trial Operational Report |
+| **Continuous Evidence** | Does the live edge *persist*? | live monitoring / continuous revalidation (ADR 0019 monitor) | the weekly live-evidence reports |
+
+These correspond to the **two validation pipelines** the platform now runs in parallel:
+
+- **Pipeline A — Research / Proposal:** `Research ─▶ Proposal ─▶ Backtest ─▶ Verdict` (produces Research + Proposal Evidence).
+- **Pipeline B — Operational:** `Paper ─▶ Operations ─▶ Evidence ─▶ Operational Verdict` (produces Operational Evidence).
+
+Two properties hold across all four kinds:
+
+- **Sufficiency is universal (Principle 0, §2).** A verdict requires sufficient evidence — a producer
+  that yields no observations returns **INSUFFICIENT_EVIDENCE**, never a pass. This is why a zero-trade
+  proposal eval is insufficient, not "above baseline" (ADR 0014 v1.1).
+- **Every kind lands in the institutional record (§9).** Each evidence artifact is stored in the
+  **Evidence Registry** and referenced by the **Capability Registry** — so an *operational* exercise
+  (a paper trial that validates a *platform* capability) contributes permanent platform evidence exactly
+  as a *research* study (validating an *investment* capability) does. This is the §1a platform-vs-investment
+  taxonomy seen from the evidence side: Operational and Continuous Evidence are how the platform validates
+  *itself*, not only its strategies.
+
 ## 8. The four research assets (experimentation vs governance, kept separate)
 
 | Asset | Purpose |
@@ -311,6 +342,7 @@ From v1.0 forward, the methodology is treated as software:
 |---|---|---|
 | v1.0 (draft) | 2026-06-22 | Initial freeze proposal — codifies the lifecycle, invariants, gate, taxonomies, evidence package, registries (incl. the Capability Registry), governance, and calibration metrics exercised across MOM/RNG/MF/SEC/LOW/TREND-001. |
 | v1.0 (draft, rev.) | 2026-06-22 | **Architecture-freeze expansion (owner):** added §1a **Platform vs Investment capabilities** and §1b the **platform-capability Labs** — **Factor Lab** + **Discovery Lab** (research-as-configuration) with the canonical *Discovery → … → Continuous Evidence* pipeline. These join the frozen v1.0 concept set; owner direction is now *"freeze the architecture — implement, validate, commercialize,"* not invent further core abstractions. |
+| **v1.2 (minor)** | **2026-06-25** | **Review fold (`docs/review/comments.md` — Proposal Findings 9.8 / Range Runbook 9.9).** Added §7a **the four kinds of evidence** — Research / Proposal / Operational / Continuous — distinguished from the §8 four research *assets*, with the two parallel validation pipelines (A Research/Proposal, B Operational), the universal sufficiency rule, and the Evidence-Registry → Capability-Registry destination. Additive only; no invariant, gate, lifecycle, or taxonomy changed. The owner's other two "biggest" review items were already present (Principle 0 / INSUFFICIENT_EVIDENCE in §2 + ADR 0014 v1.1; "validates platform capabilities" in §1a). |
 | **v1.1 (RATIFIED)** | **2026-06-24** | **Ratified at the owner ARD review (10/10).** Added **Principle 0** (§2 — "evidence precedes decisions; absence of evidence is not evidence of success"); made the **Operating Envelope mandatory** in every evidence package (§7, Strength Map + Confidence Map, required before L4). Aligns with the ADR 0014 v1.1 amendment (INSUFFICIENT_EVIDENCE outcome). |
 | v1.1 (draft) | 2026-06-23 | **Consolidation fold (owner, post-SCAN-001 v0.3 — minor/backward-compatible):** §1 three-layer → **four-layer** model (adds **Research Infrastructure** as an explicit layer); §4a new **Capability Maturity (L0–L5)** axis applied platform-wide; §4b new **Operating Envelope** concept (every capability is certified for the conditions it works within — a distinct L3 maturity step, with a Strength Map + Confidence score). First exercised end-to-end by SCAN-001 (prototype → validated → operating-envelope/regime-robust). No invariant, gate, or lifecycle changed — additive only. |
 
