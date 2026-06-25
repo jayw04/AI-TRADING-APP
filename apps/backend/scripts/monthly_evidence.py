@@ -76,14 +76,18 @@ def _git_sha() -> str:
         return "unknown"
 
 
-def _equity_curve(con: sqlite3.Connection, start: str, end: str) -> list[tuple[date, float]]:
-    """Daily equity curve within [start, end] (last snapshot per calendar day). Empty if the table
-    is absent (pre-first-snapshot)."""
+def _equity_curve(con: sqlite3.Connection, start: str, end: str,
+                  account_id: int | None) -> list[tuple[date, float]]:
+    """Daily equity curve within [start, end] (last snapshot per calendar day), **scoped to
+    one account** so each book reports ITS OWN curve — not a global mix. Empty if the table is
+    absent (pre-first-snapshot) or the account is unknown."""
+    if account_id is None:
+        return []
     try:
         rows = con.execute(
             "SELECT date(ts) AS d, equity FROM equity_snapshots "
-            "WHERE date(ts) BETWEEN ? AND ? ORDER BY ts",
-            (start, end),
+            "WHERE account_id=? AND date(ts) BETWEEN ? AND ? ORDER BY ts",
+            (account_id, start, end),
         ).fetchall()
     except sqlite3.OperationalError:
         return []
@@ -93,28 +97,42 @@ def _equity_curve(con: sqlite3.Connection, start: str, end: str) -> list[tuple[d
     return [(date.fromisoformat(d), v) for d, v in sorted(by_day.items())]
 
 
-def _audit_counts(con: sqlite3.Connection, start: str, end: str) -> dict[str, int]:
+def _audit_counts(con: sqlite3.Connection, start: str, end: str,
+                  user_id: int | None) -> dict[str, int]:
+    """Audit-action counts in [start, end], **scoped to the owning user** (audit_log has no
+    account_id; each book has its own user, so user_id = per-book)."""
     return {r["action"]: r["n"] for r in _rows(
         con,
         "SELECT action, COUNT(*) AS n FROM audit_log "
-        "WHERE date(ts) BETWEEN ? AND ? GROUP BY action",
-        (start, end),
+        "WHERE user_id=? AND date(ts) BETWEEN ? AND ? GROUP BY action",
+        (user_id, start, end),
     )}
 
 
 def _audit_events(con: sqlite3.Connection, start: str, end: str,
-                  actions: tuple[str, ...]) -> list[dict[str, Any]]:
+                  actions: tuple[str, ...], user_id: int | None) -> list[dict[str, Any]]:
     placeholders = ",".join("?" for _ in actions)
     return _rows(
         con,
         f"SELECT ts, action, actor_type, target_type, target_id FROM audit_log "
-        f"WHERE date(ts) BETWEEN ? AND ? AND action IN ({placeholders}) ORDER BY ts",
-        (start, end, *actions),
+        f"WHERE user_id=? AND date(ts) BETWEEN ? AND ? AND action IN ({placeholders}) "
+        f"ORDER BY ts",
+        (user_id, start, end, *actions),
     )
 
 
-def _runs(con: sqlite3.Connection, table: str, start: str, end: str) -> list[dict[str, Any]]:
+def _runs(con: sqlite3.Connection, table: str, start: str, end: str,
+          account_id: int | None = None) -> list[dict[str, Any]]:
+    """Run rows in [start, end]. When ``account_id`` is given AND the table is per-account
+    (reconciliation_runs), scope to it; replay_runs has no account column, so it stays global
+    (decision-replay verifies the order pipeline platform-wide)."""
     try:
+        if account_id is not None:
+            return _rows(
+                con,
+                f"SELECT * FROM {table} WHERE account_id=? AND date(ran_at) BETWEEN ? AND ? "
+                f"ORDER BY ran_at",
+                (account_id, start, end))
         return _rows(
             con, f"SELECT * FROM {table} WHERE date(ran_at) BETWEEN ? AND ? ORDER BY ran_at",
             (start, end))
@@ -126,14 +144,25 @@ def build(db: str, strategy_id: int, month: str) -> dict[str, Any]:
     start, end = _month_bounds(month)
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
-        audit = _audit_counts(con, start, end)
-        curve = _equity_curve(con, start, end)
-        incidents_raw = _audit_events(con, start, end, tuple(INCIDENT_ACTIONS))
-        changes_raw = _audit_events(con, start, end, CHANGE_ACTIONS)
-        recon = _runs(con, "reconciliation_runs", start, end)
-        replay = _runs(con, "replay_runs", start, end)
-        strat = _rows(con, "SELECT name, version, status, params_json FROM strategies WHERE id=?",
-                      (strategy_id,))
+        # Resolve the strategy's owner + its dedicated paper account (per-user isolation:
+        # one paper account per user) so EVERYTHING below is scoped to THIS book — its own
+        # equity curve / audit trail / reconciliation — not a global aggregate.
+        strat = _rows(
+            con, "SELECT name, version, status, params_json, user_id FROM strategies WHERE id=?",
+            (strategy_id,))
+        user_id = strat[0]["user_id"] if strat else None
+        acct_row = _rows(
+            con, "SELECT id FROM accounts WHERE user_id=? AND broker='alpaca' AND mode='paper' "
+                 "ORDER BY id LIMIT 1", (user_id,)) if user_id is not None else []
+        account_id = acct_row[0]["id"] if acct_row else None
+
+        audit = _audit_counts(con, start, end, user_id)
+        curve = _equity_curve(con, start, end, account_id)
+        incidents_raw = _audit_events(con, start, end, tuple(INCIDENT_ACTIONS), user_id)
+        changes_raw = _audit_events(con, start, end, CHANGE_ACTIONS, user_id)
+        recon = (_runs(con, "reconciliation_runs", start, end, account_id=account_id)
+                 if account_id is not None else [])  # unresolved book -> no recon (never global)
+        replay = _runs(con, "replay_runs", start, end)  # global — no per-account column
         params = json.loads(strat[0]["params_json"]) if strat and strat[0].get("params_json") else {}
     finally:
         con.close()
@@ -206,6 +235,7 @@ def build(db: str, strategy_id: int, month: str) -> dict[str, Any]:
         "git_sha": _git_sha(), "db": db, "month": month, "window": {"start": start, "end": end},
         "strategy": {
             "id": strategy_id, "name": strat[0]["name"] if strat else None,
+            "user_id": user_id, "account_id": account_id,
             "version": strat[0]["version"] if strat else None,
             "status": strat[0]["status"] if strat else None,
             "config": "v1.1 (momentum + vol-scaling)" if params.get("use_daily_overlay")
@@ -333,30 +363,67 @@ def _default_month() -> str:
     return f"{now.year:04d}-{now.month:02d}"
 
 
+def _paper_strategy_ids(db: str) -> list[int]:
+    """Every strategy currently on PAPER (ascending). Used by --all-paper so the monthly
+    evidence covers all live books (the momentum profiles, SEC-001, LOW-001), not just id=2
+    — the per-profile parameterization, mirroring live_evidence.py."""
+    con = sqlite3.connect(db)
+    try:
+        return [int(r[0]) for r in con.execute(
+            "SELECT id FROM strategies WHERE status='PAPER' ORDER BY id")]
+    finally:
+        con.close()
+
+
+def _emit(month: str, sid: int, r: dict[str, Any]) -> None:
+    s, p, v = r["strategy"], r["performance"], r["verifiability"]
+    perf = (f"return {p['total_return']:+.2%}, maxDD {p['max_drawdown']:.1%}"
+            if p.get("status") == "live curve" else p["status"])
+    print(f"[monthly-evidence] {month} id={sid} {s['name']} {s['config']}  ({perf})")
+    print(f"  risk {r['risk']['orders_risk_passed']} passed / {r['risk']['orders_rejected_by_risk']} "
+          f"rejected; incidents {len(r['incidents'])}; verifiability "
+          f"{'clean' if v['clean'] else 'see-incidents'}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="P12.5 monthly evidence report")
     ap.add_argument("--db", default="data/workbench.sqlite")
     ap.add_argument("--strategy-id", type=int, default=2)
+    ap.add_argument("--all-paper", action="store_true",
+                    help="Report EVERY strategy on PAPER (per-strategy files), not just "
+                         "--strategy-id — one monthly report per live book (SEC-001, LOW-001, …).")
     ap.add_argument("--month", default=None, help="YYYY-MM (default: current month)")
     ap.add_argument("--report-dir", default=None)
     args = ap.parse_args()
     month = args.month or _default_month()
 
-    r = build(args.db, args.strategy_id, month)
-    s, p, v = r["strategy"], r["performance"], r["verifiability"]
-    perf = (f"return {p['total_return']:+.2%}, maxDD {p['max_drawdown']:.1%}"
-            if p.get("status") == "live curve" else p["status"])
-    print(f"[monthly-evidence] {month} {s['name']} {s['config']}  ({perf})")
-    print(f"  risk {r['risk']['orders_risk_passed']} passed / {r['risk']['orders_rejected_by_risk']} "
-          f"rejected; incidents {len(r['incidents'])}; verifiability "
-          f"{'clean' if v['clean'] else 'see-incidents'}")
+    if args.all_paper:
+        ids = _paper_strategy_ids(args.db)
+        if not ids:
+            print("[monthly-evidence] no PAPER strategies found")
+            return 1
+    else:
+        ids = [args.strategy_id]
+    # Canonical (back-compat) monthly_evidence.{json,md}: the requested --strategy-id if
+    # it's in scope, else the first PAPER book.
+    primary = args.strategy_id if args.strategy_id in ids else ids[0]
 
-    if args.report_dir:
-        d = Path(args.report_dir)
+    d = Path(args.report_dir) if args.report_dir else None
+    if d:
         d.mkdir(parents=True, exist_ok=True)
-        (d / "monthly_evidence.json").write_text(json.dumps(r, indent=2, default=str), encoding="utf-8")
-        (d / "monthly_evidence.md").write_text(_render(r), encoding="utf-8")
-        print(f"  wrote {d / 'monthly_evidence.json'} + monthly_evidence.md")
+    for sid in ids:
+        r = build(args.db, sid, month)
+        _emit(month, sid, r)
+        if d:
+            (d / f"monthly_evidence_{sid}.json").write_text(
+                json.dumps(r, indent=2, default=str), encoding="utf-8")
+            (d / f"monthly_evidence_{sid}.md").write_text(_render(r), encoding="utf-8")
+            if sid == primary:  # canonical filenames (back-compat)
+                (d / "monthly_evidence.json").write_text(
+                    json.dumps(r, indent=2, default=str), encoding="utf-8")
+                (d / "monthly_evidence.md").write_text(_render(r), encoding="utf-8")
+    if d:
+        print(f"  wrote {len(ids)} report(s) to {d} (canonical = id={primary})")
     return 0
 
 
