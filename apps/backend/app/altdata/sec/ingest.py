@@ -12,6 +12,7 @@ reads those counts. The store keeps **raw** events; nothing here is filtered or 
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
@@ -35,9 +36,11 @@ class IngestReport:
     tickers_requested: int
     ciks_resolved: int
     unresolved_tickers: list[str] = field(default_factory=list)
-    form4_filings_seen: int = 0
+    form4_filings_seen: int = 0      # includes amendments
+    amendments_seen: int = 0         # of those, 4/A amendments
     events_ingested: int = 0
     fetch_failures: int = 0
+    shards_fetched: int = 0          # older history shards pulled (§4 multi-year reproduction)
 
 
 def submissions_url(cik: int) -> str:
@@ -45,8 +48,14 @@ def submissions_url(cik: int) -> str:
 
 
 def form4_xml_url(cik: int, accession: str, primary_document: str) -> str:
-    """The raw Form 4 ``ownershipDocument`` URL in the accession's archive folder."""
-    return f"{WWW_HOST}/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{primary_document}"
+    """The raw Form 4 ``ownershipDocument`` URL in the accession's archive folder.
+
+    EDGAR's ``primaryDocument`` for an ownership form points at the **XSLT-rendered HTML view**
+    under a stylesheet folder (e.g. ``xslF345X06/wk-form4_….xml``), not the machine-readable
+    source. The raw ownership XML sits at the accession root under the same basename, so we strip
+    any leading ``xsl…/`` stylesheet prefix to fetch parseable XML rather than rendered HTML."""
+    raw_doc = primary_document.rsplit("/", 1)[-1]
+    return f"{WWW_HOST}/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{raw_doc}"
 
 
 def _parse_acceptance(accept_dt: str | None, filing_date: str | None) -> datetime:
@@ -73,18 +82,17 @@ def _as_date(s: str | None) -> date | None:
         return None
 
 
-def iter_form4_filings(submissions: dict[str, Any], *, since: str | None):
-    """Yield ``(accession, filing_date, acceptance_dt, primary_document)`` for each Form 4 in the
-    submissions' ``recent`` block, filed on/after ``since`` (ISO date). The ``recent`` arrays are
-    index-aligned."""
-    recent = (submissions.get("filings") or {}).get("recent") or {}
-    forms = recent.get("form") or []
-    accs = recent.get("accessionNumber") or []
-    fdates = recent.get("filingDate") or []
-    accepts = recent.get("acceptanceDateTime") or []
-    prims = recent.get("primaryDocument") or []
+def _iter_filing_rows(rows: dict[str, Any], *, since: str | None):
+    """Yield ``(accession, filing_date, acceptance_dt, primary_document, form_type)`` for each
+    Form 4 / 4/A in a flat, index-aligned filings block (the ``recent`` sub-object *or* an older
+    shard, which share the same array schema), filed on/after ``since`` (ISO date)."""
+    forms = rows.get("form") or []
+    accs = rows.get("accessionNumber") or []
+    fdates = rows.get("filingDate") or []
+    accepts = rows.get("acceptanceDateTime") or []
+    prims = rows.get("primaryDocument") or []
     for i, form in enumerate(forms):
-        if form != "4":
+        if form not in ("4", "4/A"):
             continue
         fdate = fdates[i] if i < len(fdates) else None
         if since and fdate and fdate < since:
@@ -94,14 +102,40 @@ def iter_form4_filings(submissions: dict[str, Any], *, since: str | None):
             fdate,
             accepts[i] if i < len(accepts) else None,
             prims[i] if i < len(prims) else "",
+            form,
         )
+
+
+def iter_form4_filings(submissions: dict[str, Any], *, since: str | None):
+    """Yield Form 4 / 4/A filings from the submissions' ``recent`` block (the last ~1000 filings /
+    ~1yr). Amendments are included so the §2 validator can fold/flag corrections, not drop them.
+    Older history lives in the ``files`` shards — see :func:`older_shard_urls`."""
+    yield from _iter_filing_rows((submissions.get("filings") or {}).get("recent") or {}, since=since)
+
+
+def older_shard_urls(submissions: dict[str, Any], *, since: str | None) -> list[str]:
+    """URLs of the older ``filings.files`` submission shards whose date range overlaps ``since`` —
+    the deep history beyond the ``recent`` block. A shard wholly before ``since`` is skipped so a
+    multi-year reproduction (§4) only fetches the shards it needs."""
+    files = (submissions.get("filings") or {}).get("files") or []
+    urls: list[str] = []
+    for f in files:
+        name = f.get("name")
+        if not name:
+            continue
+        if since and (f.get("filingTo") or "") and f.get("filingTo") < since:
+            continue
+        urls.append(f"{DATA_HOST}/submissions/{name}")
+    return urls
 
 
 def form4_to_event(
     form4: Any, *, cik: int, ticker: str, accession: str,
-    filing_date: str | None, acceptance_dt: str | None,
+    filing_date: str | None, acceptance_dt: str | None, form_type: str = "4",
 ) -> CorporateEvent | None:
-    """Build an ``insider_buy`` event from a parsed Form 4 with >=1 open-market buy; else None."""
+    """Build an ``insider_buy`` event from a parsed Form 4 with >=1 open-market buy; else None.
+    ``form_type`` ('4' | '4/A') is recorded so the §2 validator and §3 signal can treat
+    amendments deliberately."""
     if not form4.has_open_market_buy:
         return None
     buys = form4.open_market_buys
@@ -124,6 +158,8 @@ def form4_to_event(
             "n_buys": len(buys),
             "issuer_name": form4.issuer_name,
             "issuer_ticker_reported": form4.issuer_ticker,
+            "form_type": form_type,
+            "is_amendment": form_type == "4/A",
         },
     )
 
@@ -145,12 +181,24 @@ def ingest_form4(
         except Exception:  # noqa: BLE001 — fail-soft per issuer; counted, never fatal
             report.fetch_failures += 1
             continue
-        for accession, fdate, accept_dt, prim in iter_form4_filings(subs, since=since):
+        # the recent block + any older shards reaching back into the requested window
+        row_iters = [iter_form4_filings(subs, since=since)]
+        for shard_url in older_shard_urls(subs, since=since):
+            try:
+                shard = client.get_json(shard_url)
+            except Exception:  # noqa: BLE001 — a missing shard must not break the issuer
+                report.fetch_failures += 1
+                continue
+            report.shards_fetched += 1
+            row_iters.append(_iter_filing_rows(shard, since=since))
+        for accession, fdate, accept_dt, prim, form in itertools.chain.from_iterable(row_iters):
             report.form4_filings_seen += 1
+            if form == "4/A":
+                report.amendments_seen += 1
             try:
                 f4 = parse_form4(client.get_text(form4_xml_url(cik, accession, prim)))
                 ev = form4_to_event(f4, cik=cik, ticker=ticker, accession=accession,
-                                    filing_date=fdate, acceptance_dt=accept_dt)
+                                    filing_date=fdate, acceptance_dt=accept_dt, form_type=form)
             except Exception:  # noqa: BLE001 — a malformed filing must not break the run
                 report.fetch_failures += 1
                 continue

@@ -9,6 +9,7 @@ from app.altdata.sec.cik_map import CikMap
 from app.altdata.sec.ingest import (
     form4_xml_url,
     ingest_form4,
+    older_shard_urls,
     submissions_url,
 )
 from tests.altdata.test_form4 import OFFICER_BUY
@@ -27,21 +28,74 @@ _SUBMISSIONS = {
 }
 
 
-class FakeClient:
-    """Routes EDGAR URLs to canned submissions JSON + the Form 4 XML; counts calls."""
+_SUBMISSIONS_WITH_AMENDMENT = {
+    "filings": {
+        "recent": {
+            "form": ["4", "4/A"],
+            "accessionNumber": ["0000320193-26-000061", "0000320193-26-000062"],
+            "filingDate": ["2026-06-10", "2026-06-11"],
+            "acceptanceDateTime": ["2026-06-10T18:30:00.000Z", "2026-06-11T18:30:00.000Z"],
+            "primaryDocument": ["form4.xml", "form4amend.xml"],
+        }
+    }
+}
 
-    def __init__(self) -> None:
+
+# a submissions index whose recent block starts in 2017 and points at an older history shard
+_SUBMISSIONS_WITH_SHARD = {
+    "filings": {
+        "recent": {
+            "form": ["4"],
+            "accessionNumber": ["0000320193-17-000061"],
+            "filingDate": ["2017-03-10"],
+            "acceptanceDateTime": ["2017-03-10T18:30:00.000Z"],
+            "primaryDocument": ["form4.xml"],
+        },
+        "files": [{"name": "CIK0000320193-submissions-001.json",
+                   "filingFrom": "2011-08-12", "filingTo": "2017-02-15"}],
+    }
+}
+
+_SHARD_001 = {
+    "form": ["4", "8-K"],
+    "accessionNumber": ["0000320193-15-000200", "0000320193-15-000199"],
+    "filingDate": ["2015-05-01", "2015-04-30"],
+    "acceptanceDateTime": ["2015-05-01T18:30:00.000Z", "2015-04-30T16:00:00.000Z"],
+    "primaryDocument": ["form4.xml", "8k.htm"],
+}
+
+
+class FakeClient:
+    """Routes EDGAR URLs to canned submissions JSON + the Form 4 XML; counts calls. ``shards`` maps
+    a shard URL → its flat filings dict for the §4 multi-year (history-shard) path."""
+
+    def __init__(self, submissions: dict | None = None, shards: dict | None = None) -> None:
         self.calls = 0
+        self._submissions = submissions or _SUBMISSIONS
+        self._shards = shards or {}
 
     def get_json(self, url: str):
         self.calls += 1
+        if url in self._shards:
+            return self._shards[url]
         assert url == submissions_url(320193)
-        return _SUBMISSIONS
+        return self._submissions
 
     def get_text(self, url: str) -> str:
         self.calls += 1
-        assert url == form4_xml_url(320193, "0000320193-26-000061", "form4.xml") or "form4.xml" in url
+        assert "/Archives/edgar/data/" in url  # a filing-archive document URL
         return OFFICER_BUY
+
+
+def test_form4_xml_url_strips_xslt_stylesheet_prefix():
+    """primaryDocument points at the XSLT-rendered HTML view (``xslF345X06/…``); the URL builder
+    must strip that prefix to fetch the raw, parseable ownership XML at the accession root."""
+    url = form4_xml_url(1520006, "0001688490-26-000006", "xslF345X06/wk-form4_1781729116.xml")
+    assert url.endswith("/Archives/edgar/data/1520006/000168849026000006/wk-form4_1781729116.xml")
+    assert "xslF345X06" not in url
+    # a primaryDocument already at the root (no stylesheet prefix) is left intact
+    plain = form4_xml_url(320193, "0000320193-26-000061", "form4.xml")
+    assert plain.endswith("/000032019326000061/form4.xml")
 
 
 def _store(tmp_path) -> EventStore:
@@ -83,4 +137,46 @@ def test_unresolved_tickers_reported(tmp_path):
     rep = ingest_form4(FakeClient(), store, ["AAPL", "ZZZZ"], since="2026-06-01", cik_map=cmap)
     assert rep.unresolved_tickers == ["ZZZZ"]
     assert rep.ciks_resolved == 1
+    store.close()
+
+
+def test_amendments_are_ingested_and_flagged(tmp_path):
+    """4/A amendments are ingested + flagged (not silently dropped) so the §2 gate can fold them."""
+    cmap = CikMap(by_ticker={"AAPL": 320193})
+    store = _store(tmp_path)
+    rep = ingest_form4(FakeClient(_SUBMISSIONS_WITH_AMENDMENT), store, ["AAPL"],
+                       since="2026-06-01", cik_map=cmap)
+    assert rep.form4_filings_seen == 2 and rep.amendments_seen == 1
+    assert rep.events_ingested == 2
+    flags = {e.accession: e.payload["is_amendment"]
+             for e in store.events_asof(date(2026, 6, 30), event_type="insider_buy")}
+    assert flags == {"0000320193-26-000061": False, "0000320193-26-000062": True}
+    store.close()
+
+
+def test_older_shard_urls_selects_overlapping_shards():
+    from app.altdata.sec.client import DATA_HOST
+    # a window reaching into 2015 needs the shard (filingTo 2017-02-15 >= since)
+    urls = older_shard_urls(_SUBMISSIONS_WITH_SHARD, since="2015-01-01")
+    assert urls == [f"{DATA_HOST}/submissions/CIK0000320193-submissions-001.json"]
+    # a recent-only window (after the shard's filingTo) fetches no shards -> §2 unaffected
+    assert older_shard_urls(_SUBMISSIONS_WITH_SHARD, since="2026-01-01") == []
+
+
+def test_multi_year_pull_reaches_into_history_shards(tmp_path):
+    """§4: a since-date that predates the recent block pulls the older shard too, so the
+    reproduction sees multi-year history rather than just the last ~year of filings."""
+    from app.altdata.sec.client import DATA_HOST
+    cmap = CikMap(by_ticker={"AAPL": 320193})
+    store = _store(tmp_path)
+    client = FakeClient(
+        _SUBMISSIONS_WITH_SHARD,
+        shards={f"{DATA_HOST}/submissions/CIK0000320193-submissions-001.json": _SHARD_001},
+    )
+    rep = ingest_form4(client, store, ["AAPL"], since="2015-01-01", cik_map=cmap)
+    assert rep.shards_fetched == 1
+    assert rep.form4_filings_seen == 2          # the 2017 recent Form 4 + the 2015 shard Form 4
+    assert rep.events_ingested == 2
+    accs = {e.accession for e in store.events_asof(date(2026, 1, 1), event_type="insider_buy")}
+    assert accs == {"0000320193-17-000061", "0000320193-15-000200"}
     store.close()
