@@ -7,6 +7,7 @@ import type { Strategy } from "@/api/types";
 import { ACTIVE_STRATEGY_STATUSES } from "@/api/types";
 import { StatusBadge } from "@/components/strategies/StatusBadge";
 import { NewStrategyModal } from "./NewStrategyModal";
+import RangeCandidatesPanel from "@/components/strategies/RangeCandidatesPanel";
 import { useWorkbenchSocket } from "@/hooks/useWorkbenchSocket";
 
 interface RowStats {
@@ -132,6 +133,10 @@ export default function StrategiesListPage() {
         <div className="rounded border border-red-700 bg-red-900/40 p-2 text-red-200">
           {error}
         </div>
+      )}
+
+      {strategies.some((s) => s.code_path?.includes("range_trader")) && (
+        <RangeCandidatesPanel onApplied={load} />
       )}
 
       <div className="overflow-x-auto rounded border border-gray-800">
