@@ -34,3 +34,21 @@ async def ops_state(
         "health_calculated_at": datetime.now(UTC).isoformat(),
         "features": [asdict(s) for s in states],
     }
+
+
+@router.get("/strategy-dispatch")
+async def ops_strategy_dispatch(
+    request: Request,
+    _user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """Per-strategy **dispatch liveness** — is each active bar-driven strategy actually
+    receiving ``on_bar`` during RTH? Flags the silent-inertness failure (an active intraday
+    strategy doing nothing because the engine isn't up through the session). Read-only;
+    `degraded` is true when any bar-driven strategy is `stale`."""
+    engine = getattr(request.app.state, "strategy_engine", None)
+    results = engine.dispatch_health() if engine is not None else []
+    return {
+        "as_of": datetime.now(UTC).isoformat(),
+        "degraded": any(r.health == "stale" for r in results),
+        "strategies": [asdict(r) for r in results],
+    }
