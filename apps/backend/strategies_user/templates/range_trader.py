@@ -79,6 +79,14 @@ class RangeTrader(Strategy):
         # day's range — entry .. entry + pct×(exit−entry) — not only an exact touch of `entry`.
         # 0.0 (default) = exact-low behavior, so live behavior is UNCHANGED until set.
         "entry_zone_pct": 0.0,
+        # ATR-scaled support zone (§8.2b / design Suggestion 2): size the zone to the symbol's
+        # daily volatility instead of the day's range — ceiling = entry + mult×atr20_pct×entry.
+        # Widens for high-ATR names, narrows for calm ones; robust across symbols. Takes
+        # precedence over entry_zone_pct when both `entry_zone_atr_mult` and `atr20_pct` > 0.
+        "entry_zone_atr_mult": 0.0,
+        # Symbol's 20-day ATR as a fraction of price (prefilled from Range Insight on apply);
+        # the per-symbol normalizer the ATR-scaled zone multiplies. 0.0 = unknown → ATR zone off.
+        "atr20_pct": 0.0,
         # VWAP confirmation gate (§8.2c): skip a fade-support entry when price is more than
         # this fraction below session VWAP (a strong downtrend). 0.0 = gate off (default).
         "vwap_gate_pct": 0.0,
@@ -128,6 +136,21 @@ class RangeTrader(Strategy):
             "default": 0.0,
             "description": "Support-zone width: buy anywhere in the lowest this-fraction of "
             "the range (entry … entry + pct×(exit−entry)). 0 = exact-low touch.",
+        },
+        "entry_zone_atr_mult": {
+            "type": "number",
+            "min": 0,
+            "default": 0.0,
+            "description": "ATR-scaled support-zone width: buy from support up to "
+            "entry + this × atr20_pct × entry (clamped to resistance). Takes precedence "
+            "over entry_zone_pct. 0 = off.",
+        },
+        "atr20_pct": {
+            "type": "number",
+            "min": 0,
+            "default": 0.0,
+            "description": "Symbol's 20-day ATR as a fraction of price (prefilled from Range "
+            "Insight). The per-symbol normalizer for entry_zone_atr_mult. 0 = unknown.",
         },
         "vwap_gate_pct": {
             "type": "number",
@@ -311,13 +334,24 @@ class RangeTrader(Strategy):
             return
         if entry <= 0:
             return
-        # Support ZONE (design doc §8.2a): buy anywhere in the lowest `entry_zone_pct` of the
-        # range — entry … entry + pct×(exit−entry) — not only an exact touch. At 0.0 (default)
-        # the ceiling is `entry`, reproducing the exact-low behavior byte-for-byte.
+        # Support ZONE — buy anywhere from `entry` up to a ceiling above support, not only an
+        # exact touch. Two ways to size the zone (ATR-scaled takes precedence, design §8.2):
+        #   • §8.2b ATR-scaled (cross-symbol robust): ceiling = entry + mult × atr20_pct × entry,
+        #     so the band widens for high-ATR names and narrows for calm ones, independent of the
+        #     day's range. Needs both `entry_zone_atr_mult` and `atr20_pct` (> 0).
+        #   • §8.2a range-fraction (fallback): ceiling = entry + entry_zone_pct × (exit − entry).
+        # At 0/0/0 the ceiling is exactly `entry`, reproducing the exact-low touch byte-for-byte.
+        zone_atr_mult = float(p.get("entry_zone_atr_mult", 0.0))
+        atr20_pct = float(p.get("atr20_pct", 0.0))
         zone_pct = float(p.get("entry_zone_pct", 0.0))
         buy_ceiling = entry
-        if 0.0 < zone_pct <= 1.0 and exit_ > entry:
+        if zone_atr_mult > 0.0 and atr20_pct > 0.0:
+            buy_ceiling = entry + zone_atr_mult * atr20_pct * entry
+        elif 0.0 < zone_pct <= 1.0 and exit_ > entry:
             buy_ceiling = entry + zone_pct * (exit_ - entry)
+        # Never fade above resistance: clamp the ceiling to `exit_` when it's a valid level.
+        if exit_ > entry:
+            buy_ceiling = min(buy_ceiling, exit_)
         if price > buy_ceiling:
             return
         # Optional VWAP confirmation gate (design §8.2c): don't fade support when price is
