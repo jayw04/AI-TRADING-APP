@@ -1,4 +1,4 @@
-# ADR 0027 — Scheduled daily strategy-universe refresh (Range Top-N auto-select)
+# ADR 0028 — Scheduled daily strategy-universe refresh (Range Top-N auto-select)
 
 | Field | Value |
 |---|---|
