@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models.position import Position
+from app.observability.metrics import automation_runs_total
 from app.risk.circuit_breaker import CircuitBreakerService
 
 logger = structlog.get_logger(__name__)
@@ -33,6 +34,9 @@ async def run_breaker_monitor(
     """Trip the circuit breaker for any account whose net daily P&L has breached
     its limit, independent of order flow. `evaluate()` skips already-tripped and
     no-limit accounts, so this is safe to run on every account with open positions."""
+    # P11 §2: record the run's OUTCOME — the scheduler listener only sees that this job
+    # "executed" (it swallows internal errors below), so this captures the real result.
+    outcome = "ok"
     try:
         async with session_factory() as session:
             account_ids = (
@@ -42,16 +46,17 @@ async def run_breaker_monitor(
                     .distinct()
                 )
             ).scalars().all()
-            if not account_ids:
-                return
-            cb = CircuitBreakerService(session=session, bus=bus)
-            for account_id in account_ids:
-                try:
-                    if await cb.evaluate(account_id):
-                        logger.warning("breaker_monitor_tripped", account_id=account_id)
-                except Exception:
-                    logger.exception(
-                        "breaker_monitor_account_failed", account_id=account_id
-                    )
+            if account_ids:
+                cb = CircuitBreakerService(session=session, bus=bus)
+                for account_id in account_ids:
+                    try:
+                        if await cb.evaluate(account_id):
+                            logger.warning("breaker_monitor_tripped", account_id=account_id)
+                    except Exception:
+                        logger.exception(
+                            "breaker_monitor_account_failed", account_id=account_id
+                        )
     except Exception:
+        outcome = "error"
         logger.exception("breaker_monitor_failed")
+    automation_runs_total.labels(actor="breaker_monitor", outcome=outcome).inc()

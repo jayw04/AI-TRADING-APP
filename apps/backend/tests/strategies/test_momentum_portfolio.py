@@ -61,6 +61,7 @@ def _params(**over):
 def _ctx(symbols, scores, holdings=None, price=100.0, equity=None, spy_bars=None):
     holdings = holdings or {}
     ctx = MagicMock()
+    ctx.strategy_id = 1
     ctx.symbols = symbols
     ctx.factors = MagicMock()
     ctx.factors.momentum_scores = MagicMock(return_value=scores)
@@ -75,6 +76,9 @@ def _ctx(symbols, scores, holdings=None, price=100.0, equity=None, spy_bars=None
     ctx.get_account_equity = AsyncMock(return_value=equity)
     ctx.submit_order = AsyncMock(return_value=MagicMock(rejection_reason=None))
     ctx.log_signal = AsyncMock(return_value=1)
+    # No in-flight orders by default → buy sizing is unaffected. Tests that
+    # exercise idempotency override this.
+    ctx.pending_buy_qty = AsyncMock(return_value={})
     return ctx
 
 
@@ -493,6 +497,187 @@ async def test_whole_shares_floor_sub_one_to_zero() -> None:
     ctx.submit_order.assert_not_called()
 
 
+# ---- daily gross-exposure overlay (P10 §2, ADR 0020) ---------------------------
+
+def test_daily_overlay_disabled_by_default() -> None:
+    assert MomentumPortfolio.default_params["use_daily_overlay"] is False
+
+
+async def _overlay_strat(holdings, *, equity=10_000, price=100.0, target_gross=0.10, **over):
+    """A strategy holding ``holdings`` with the overlay on; the vol math is stubbed via
+    _overlay_target_gross so these tests isolate the RE-SIZE logic (the desired_gross
+    math is unit-tested in test_overlay.py). base=equity (cash_buffer 0) → with all
+    names at ``price``, current_gross = invested/equity."""
+    from unittest.mock import AsyncMock as _AM
+    ctx = _ctx(["AAA", "BBB", "SPY"], _scores([("AAA", 2.0), ("BBB", 1.0)]),
+               holdings=holdings, price=price, equity=equity)
+    strat = _strat(ctx, use_daily_overlay=True, **over)
+    await strat.on_init()
+    strat._overlay_target_gross = _AM(return_value=target_gross)  # type: ignore[method-assign]
+    return strat, ctx
+
+
+async def test_overlay_disabled_noops() -> None:
+    """use_daily_overlay False → on_overlay_tick is inert (no orders, no vol read)."""
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), holdings={"AAA": 10},
+               price=100.0, equity=10_000)
+    strat = _strat(ctx)  # use_daily_overlay defaults False
+    await strat.on_init()
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
+async def test_overlay_noop_when_flat() -> None:
+    """No holdings → the overlay never SELECTS, so it cannot re-enter — pure no-op."""
+    strat, ctx = await _overlay_strat({})  # no positions
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
+async def test_overlay_scales_down_in_high_vol() -> None:
+    """current_gross 0.20 (2×10×100 / 10k), target 0.10 → ratio 0.5 → each held name
+    trimmed from 10 → 5 (SELL 5), composition preserved (equal names, equal trims)."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("sell", Decimal(5))
+    assert orders["BBB"] == ("sell", Decimal(5))
+
+
+async def test_overlay_scales_up_toward_target() -> None:
+    """target 0.40 vs current 0.20 → ratio 2.0 → each held name 10 → 20 (BUY 10).
+    Adds to EXISTING names only — never a new symbol."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.40)
+    await strat.on_overlay_tick()
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("buy", Decimal(10))
+    assert orders["BBB"] == ("buy", Decimal(10))
+
+
+async def test_overlay_drift_gate_skips() -> None:
+    """target within overlay_drift_pct of current gross → skip (no churn)."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.205)  # cur 0.20
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
+async def test_overlay_never_touches_unheld_names() -> None:
+    """Only held names are re-sized; a high-scored but UNHELD name is never bought
+    (the overlay does not select)."""
+    strat, ctx = await _overlay_strat({"AAA": 10}, target_gross=0.05)  # only AAA held
+    await strat.on_overlay_tick()
+    orders = _orders(ctx)
+    assert set(orders) == {"AAA"}  # BBB (unheld) never traded
+
+
+async def test_overlay_sets_gross_gauge_and_counter() -> None:
+    """A scaled tick exports the gross gauge (= target; current/avg/min are PromQL
+    over it) and increments the 'scaled' outcome counter."""
+    from prometheus_client import REGISTRY
+
+    from app.observability.metrics import overlay_actions_total
+
+    before = REGISTRY.get_sample_value(
+        "workbench_overlay_actions_total", {"strategy_id": "1", "outcome": "scaled"}
+    ) or 0.0
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()
+
+    gross = REGISTRY.get_sample_value("workbench_overlay_gross", {"strategy_id": "1"})
+    assert gross == pytest.approx(0.10)
+    after = REGISTRY.get_sample_value(
+        "workbench_overlay_actions_total", {"strategy_id": "1", "outcome": "scaled"}
+    )
+    assert after == pytest.approx(before + 1.0)
+    _ = overlay_actions_total  # imported for clarity; assertion reads via REGISTRY
+
+
+async def test_overlay_idempotent_resize_then_noop() -> None:
+    """Restart-safe idempotency: after a re-size brings the book to target, a second
+    tick at the same target finds the book already there → no further orders. Modelled
+    by updating holdings to the re-sized qty and re-running."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()  # trims 10 → 5
+    # Book is now at the target (5 each → gross 0.10); a re-fire must no-op.
+    ctx.get_position_for = AsyncMock(side_effect=lambda s: _pos(5) if s in ("AAA", "BBB") else None)
+    ctx.submit_order.reset_mock()
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
+async def test_overlay_partial_fill_converges_next_tick() -> None:
+    """P11 §5 (ADR 0021 property 6): a re-size that only PARTIALLY fills leaves the book
+    between states; the next tick converges it the rest of the way toward target, never
+    compounding or oscillating. Self-heal = the actor's own next scheduled tick, computed
+    against the LIVE book (no stored 'applied' flag — restart-safe by construction)."""
+    strat, ctx = await _overlay_strat({"AAA": 10, "BBB": 10}, target_gross=0.10)
+    await strat.on_overlay_tick()  # wants to trim 10 → 5 each
+    # Partial fill: the SELLs only partly execute → book settles at 7 each (gross 0.14),
+    # still above the 0.10 target.
+    ctx.get_position_for = AsyncMock(side_effect=lambda s: _pos(7) if s in ("AAA", "BBB") else None)
+    ctx.submit_order.reset_mock()
+    await strat.on_overlay_tick()  # converges the remaining gap: 7 → 5 (SELL 2 each)
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("sell", Decimal(2))
+    assert orders["BBB"] == ("sell", Decimal(2))
+    # Fully applied now → a further tick is a no-op (gap closed, never compounded).
+    ctx.get_position_for = AsyncMock(side_effect=lambda s: _pos(5) if s in ("AAA", "BBB") else None)
+    ctx.submit_order.reset_mock()
+    await strat.on_overlay_tick()
+    ctx.submit_order.assert_not_called()
+
+
+# ---- P10 §5 regime overlay plumbing (breadth / VIX) ----------------------------
+
+def test_regime_overlay_disabled_by_default() -> None:
+    assert MomentumPortfolio.default_params["use_breadth_overlay"] is False
+    assert MomentumPortfolio.default_params["use_vix_overlay"] is False
+
+
+def _calm_spy_ctx():
+    """A ctx with a flat SPY series (calm → vol-target gross caps at 1.0), so the
+    regime factor alone determines _overlay_target_gross."""
+    flat = pd.DataFrame({"c": [100.0] * 70})
+    return _ctx(["AAA", "SPY"], _scores([("AAA", 1.0)]), price=100.0, equity=10_000, spy_bars=flat)
+
+
+async def test_overlay_target_gross_off_ignores_regime() -> None:
+    """Regime params off → factors never read → gross stays the vol target (1.0)."""
+    ctx = _calm_spy_ctx()
+    ctx.factors.market_breadth = MagicMock(return_value=0.20)  # would de-risk IF read
+    strat = _strat(ctx, use_daily_overlay=True)  # both regime flags default False
+    await strat.on_init()
+    assert await strat._overlay_target_gross() == pytest.approx(1.0)
+    ctx.factors.market_breadth.assert_not_called()
+
+
+async def test_overlay_target_gross_applies_breadth() -> None:
+    """use_breadth_overlay on + low breadth (≤floor) → gross fully de-risked."""
+    ctx = _calm_spy_ctx()
+    ctx.factors.market_breadth = MagicMock(return_value=0.20)
+    strat = _strat(ctx, use_daily_overlay=True, use_breadth_overlay=True)
+    await strat.on_init()
+    assert await strat._overlay_target_gross() == 0.0
+
+
+async def test_overlay_target_gross_applies_vix() -> None:
+    """use_vix_overlay on + high VIX percentile (≥stress) → gross fully de-risked."""
+    ctx = _calm_spy_ctx()
+    ctx.factors.vix_percentile = MagicMock(return_value=0.95)
+    strat = _strat(ctx, use_daily_overlay=True, use_vix_overlay=True)
+    await strat.on_init()
+    assert await strat._overlay_target_gross() == 0.0
+
+
+async def test_overlay_target_gross_regime_fails_open() -> None:
+    """A regime-read error → fail open (no cut), never crash the tick."""
+    ctx = _calm_spy_ctx()
+    ctx.factors.market_breadth = MagicMock(side_effect=RuntimeError("store gone"))
+    strat = _strat(ctx, use_daily_overlay=True, use_breadth_overlay=True)
+    await strat.on_init()
+    assert await strat._overlay_target_gross() == pytest.approx(1.0)
+
+
 async def test_fractional_shares_deploys_more_than_whole() -> None:
     """Fractional target qty exceeds the whole-share floor for a pricey name."""
     # per_name = 20000 (100k/5 = 20k), price 271.78 → 73.59 frac vs 73 whole.
@@ -503,3 +688,53 @@ async def test_fractional_shares_deploys_more_than_whole() -> None:
     await strat.on_bar(_bar(WK1_A))
     qty = _orders(ctx)["AAA"][1]
     assert qty > Decimal(73) and qty < Decimal(74)  # fractional, not floored to 73
+
+
+# ---- rebalance idempotency: net against in-flight buys (incident 2026-06-22) ----
+
+async def test_inflight_buys_are_not_reordered() -> None:
+    """A rebalance re-run while the basket is still in flight submits nothing."""
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]), equity=20_000)
+    ctx.pending_buy_qty = AsyncMock(
+        return_value={"AAA": Decimal(100), "BBB": Decimal(100)}
+    )
+    strat = _strat(ctx, top_quantile=1.0, max_names=10)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx) == {}  # both target buys already on the way → skipped
+
+
+async def test_partial_inflight_reduces_buy() -> None:
+    """An in-flight partial only shrinks the new buy; it never flips to a sell."""
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]), equity=20_000)
+    ctx.pending_buy_qty = AsyncMock(return_value={"AAA": Decimal(40)})  # 40 of 100
+    strat = _strat(ctx, top_quantile=1.0, max_names=10)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    orders = _orders(ctx)
+    assert orders["AAA"] == ("buy", Decimal(60))    # 100 target − 40 in flight
+    assert orders["BBB"] == ("buy", Decimal(100))   # none in flight → full
+
+
+async def test_reactivation_does_not_duplicate_basket() -> None:
+    """Incident shape: after the first basket is routed, a fresh instance (on_init
+    resets the in-memory weekly guard) must NOT re-buy — in-flight orders net out."""
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
+    ctx = _ctx(["AAA", "BBB"], scores, equity=20_000)
+    strat1 = _strat(ctx, top_quantile=1.0, max_names=10)
+    await strat1.on_init()
+    await strat1.on_bar(_bar(WK1_A))
+    assert _orders(ctx) == {
+        "AAA": ("buy", Decimal(100)),
+        "BBB": ("buy", Decimal(100)),
+    }
+
+    # Those orders are now in flight; reactivate (new instance, fresh guard).
+    ctx.submit_order.reset_mock()
+    ctx.pending_buy_qty = AsyncMock(
+        return_value={"AAA": Decimal(100), "BBB": Decimal(100)}
+    )
+    strat2 = _strat(ctx, top_quantile=1.0, max_names=10)
+    await strat2.on_init()              # weekly guard reset to None
+    await strat2.on_bar(_bar(WK1_B))    # same ISO week, different instance
+    assert _orders(ctx) == {}           # nothing re-ordered

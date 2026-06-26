@@ -24,6 +24,8 @@ from app.api.v1.schemas.opportunities import (
     OppOpenOrdersExpiringWidget,
     OpportunitiesResponse,
     OppPineAlertsWidget,
+    OppPremarketGapperItem,
+    OppPremarketGappersWidget,
     OppRecentFillsWidget,
     OppRiskRejectionsWidget,
     OppRiskRejectItem,
@@ -51,6 +53,7 @@ from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
+from app.services.premarket_gappers import read_latest_gappers
 from app.utils.time import EASTERN
 
 router = APIRouter(prefix="/opportunities", tags=["opportunities"])
@@ -68,6 +71,7 @@ STRATEGY_ERRORS_MAX = 20
 OPEN_ORDERS_MAX = 25
 RISK_REJECTS_MAX = 25
 FILLS_MAX = 25
+GAPPERS_MAX = 15
 
 DAY_EXPIRY_MINUTES_BEFORE_CLOSE = 30
 GTC_AGE_DAYS_THRESHOLD = 7
@@ -98,6 +102,7 @@ async def get_opportunities(
     discovery_matches = await _fetch_discovery_matches(
         session, user_id=current_user.id, now=now
     )
+    premarket_gappers = _fetch_premarket_gappers(now=now)
 
     return OpportunitiesResponse(
         live_signals=OppLiveSignalsWidget(items=live_signals, count=len(live_signals), as_of=now),
@@ -117,7 +122,49 @@ async def get_opportunities(
             items=risk_rejections, count=len(risk_rejections), as_of=now
         ),
         recent_fills=OppRecentFillsWidget(items=recent_fills, count=len(recent_fills), as_of=now),
+        premarket_gappers=premarket_gappers,
         as_of=now,
+    )
+
+
+def _fetch_premarket_gappers(*, now: datetime) -> OppPremarketGappersWidget:
+    """Today's pre-market gappers from the external scanner file (read-only).
+
+    Fully fail-soft: any read/parse problem yields an empty, ``stale`` widget so
+    a missing or malformed source file can never break the Opportunities page.
+    The data is advisory only — it never reaches the order path.
+    """
+    try:
+        payload = read_latest_gappers()
+    except Exception:  # defensive: the page must never 500 on this widget
+        payload = {"date": None, "scanned_at": None, "gappers": [], "stale": True}
+
+    items: list[OppPremarketGapperItem] = []
+    for g in (payload.get("gappers") or [])[:GAPPERS_MAX]:
+        if not isinstance(g, dict):
+            continue
+        try:
+            items.append(
+                OppPremarketGapperItem(
+                    rank=int(g.get("rank") or 0),
+                    symbol=str(g.get("symbol") or ""),
+                    price=g.get("price"),
+                    gap_pct=g.get("gap_pct"),
+                    premarket_volume=g.get("premarket_volume"),
+                    catalyst=g.get("catalyst"),
+                    headlines=list(g.get("headlines") or []),
+                )
+            )
+        except (ValueError, TypeError):
+            continue
+
+    return OppPremarketGappersWidget(
+        items=items,
+        count=len(items),
+        as_of=now,
+        scanned_at=payload.get("scanned_at"),
+        date=payload.get("date"),
+        stale=bool(payload.get("stale", True)),
     )
 
 

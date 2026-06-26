@@ -65,35 +65,67 @@ async def _seed(
 # ---------------- compute_verdict ----------------
 
 
+# Both sides must have traded (trade_count > 0) to reach the Sharpe/drawdown comparison;
+# the zero-trade cases (E4) are tested separately below.
+
 def test_verdict_above_when_sharpe_up_and_dd_ok():
-    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.10}
-    var = {"sharpe_ratio": 1.2, "max_drawdown": -0.11}
+    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.10, "trade_count": 8}
+    var = {"sharpe_ratio": 1.2, "max_drawdown": -0.11, "trade_count": 9}
     assert compute_verdict(base, var) == "above_baseline"
 
 
 def test_verdict_below_when_sharpe_down():
-    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.10}
-    var = {"sharpe_ratio": 0.9, "max_drawdown": -0.10}
+    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.10, "trade_count": 8}
+    var = {"sharpe_ratio": 0.9, "max_drawdown": -0.10, "trade_count": 8}
     assert compute_verdict(base, var) == "below_baseline"
 
 
 def test_verdict_below_when_drawdown_breaches_relative_floor():
     # baseline_dd -0.10 → floor = max(-0.15, -0.20) = -0.15; variant -0.18 < floor.
-    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.10}
-    var = {"sharpe_ratio": 1.5, "max_drawdown": -0.18}
+    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.10, "trade_count": 8}
+    var = {"sharpe_ratio": 1.5, "max_drawdown": -0.18, "trade_count": 8}
     assert compute_verdict(base, var) == "below_baseline"
 
 
 def test_verdict_below_when_drawdown_breaches_absolute_floor():
     # baseline_dd -0.50 → floor = max(-0.55, -0.20) = -0.20; variant -0.25 < -0.20.
-    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.50}
-    var = {"sharpe_ratio": 1.5, "max_drawdown": -0.25}
+    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.50, "trade_count": 8}
+    var = {"sharpe_ratio": 1.5, "max_drawdown": -0.25, "trade_count": 8}
     assert compute_verdict(base, var) == "below_baseline"
 
 
 def test_verdict_ties_count_as_above():
-    m = {"sharpe_ratio": 1.0, "max_drawdown": -0.10}
+    m = {"sharpe_ratio": 1.0, "max_drawdown": -0.10, "trade_count": 5}
     assert compute_verdict(dict(m), dict(m)) == "above_baseline"
+
+
+# ---- E4: a verdict requires evidence (review comments.md) ----
+
+def test_verdict_insufficient_when_both_zero_trades():
+    """The core fix: two zero-trade backtests must NOT read as above_baseline."""
+    base = {"sharpe_ratio": 0.0, "max_drawdown": 0.0, "trade_count": 0}
+    var = {"sharpe_ratio": 0.0, "max_drawdown": 0.0, "trade_count": 0}
+    assert compute_verdict(base, var) == "insufficient_evidence"
+
+
+def test_verdict_below_when_variant_stops_trading():
+    # baseline traded, variant didn't → strictly worse, never a pass.
+    base = {"sharpe_ratio": 1.0, "max_drawdown": -0.10, "trade_count": 8}
+    var = {"sharpe_ratio": 0.0, "max_drawdown": 0.0, "trade_count": 0}
+    assert compute_verdict(base, var) == "below_baseline"
+
+
+def test_verdict_needs_review_when_only_variant_trades():
+    # baseline didn't trade, variant did → new behavior, a human should look.
+    base = {"sharpe_ratio": 0.0, "max_drawdown": 0.0, "trade_count": 0}
+    var = {"sharpe_ratio": 1.0, "max_drawdown": -0.10, "trade_count": 8}
+    assert compute_verdict(base, var) == "needs_review"
+
+
+def test_verdict_missing_trade_count_treated_as_zero():
+    """A metrics dict with no trade_count (legacy/degenerate) is treated as 0 trades —
+    never silently above_baseline."""
+    assert compute_verdict({}, {}) == "insufficient_evidence"
 
 
 # ---------------- enqueue ----------------
@@ -225,8 +257,8 @@ async def test_reconcile_both_complete_writes_verdict(session_factory):
         baseline_status=BacktestJobStatus.COMPLETED,
         variant_status=BacktestJobStatus.COMPLETED,
         with_results=True,
-        baseline_metrics={"sharpe_ratio": 1.0, "max_drawdown": -0.10},
-        variant_metrics={"sharpe_ratio": 1.3, "max_drawdown": -0.10},
+        baseline_metrics={"sharpe_ratio": 1.0, "max_drawdown": -0.10, "trade_count": 8},
+        variant_metrics={"sharpe_ratio": 1.3, "max_drawdown": -0.10, "trade_count": 9},
     )
     counts = await reconcile_pending_evals(session_factory=session_factory)
     assert counts["completed"] == 1

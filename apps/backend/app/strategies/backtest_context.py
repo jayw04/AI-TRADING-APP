@@ -375,6 +375,28 @@ class BacktestContext:
             for sym, p in self.positions.items()
         ]
 
+    async def get_account_equity(self) -> Decimal | None:
+        """Simulated account equity for position sizing during backtest.
+
+        Mirrors ``StrategyContext.get_account_equity`` so strategies that size
+        from live equity (e.g. range_trader) can run unchanged in eval jobs.
+        """
+        ts = self._current_bar_ts()
+        if ts is None:
+            return self._initial_equity if self._cursor <= 0 else None
+        equity = self.cash
+        for symbol, pos in self.positions.items():
+            df = self._bars_by_symbol.get(symbol)
+            if df is None or self._cursor >= len(df):
+                continue
+            current_close = Decimal(str(df.iloc[self._cursor]["c"]))
+            if pos.side == "long":
+                equity += current_close * pos.qty
+            else:
+                equity += (pos.avg_entry_price - current_close) * pos.qty
+                equity += pos.avg_entry_price * pos.qty
+        return equity
+
     async def get_position_for(self, symbol: str) -> _PositionView | None:
         symbol = symbol.upper()
         p = self.positions.get(symbol)

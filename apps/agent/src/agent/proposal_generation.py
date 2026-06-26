@@ -19,7 +19,6 @@ import structlog
 from agent.backend_client import BackendClient
 from agent.config import AgentConfig
 from agent.llm_call import call_with_budget
-from agent.mcp_client import WorkbenchMcpClient
 
 logger = structlog.get_logger(__name__)
 
@@ -73,9 +72,27 @@ User's behavioral envelope (constraints you MUST respect):
 Output ONLY the JSON object. No preamble, no markdown fences, no text outside the JSON."""
 
 
+def _extract_json(text: str) -> str:
+    """Tolerate LLM output that wraps the JSON in markdown fences or prose.
+
+    The prompt asks for a bare JSON object, but models sometimes return
+    ```json … ``` or add a preamble. Strip the fences; otherwise fall back to
+    the first {...} span. Returns the original (stripped) text when no object is
+    found, so the caller's json.loads still raises a clear error."""
+    s = (text or "").strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else s[3:]
+        if "```" in s:
+            s = s[: s.rfind("```")]
+        s = s.strip()
+    if s.startswith("{"):
+        return s
+    i, j = s.find("{"), s.rfind("}")
+    return s[i : j + 1] if i != -1 and j > i else s
+
+
 async def _run(
     *,
-    mcp: Any,
     backend: Any,
     anthropic_api_key: str | None,
     proposal_id: int,
@@ -91,11 +108,12 @@ async def _run(
         )
     strategy_id = proposal["strategy_id"]
 
-    # Evidence via MCP (Decision 2 read surface).
-    profile = await mcp.get_trading_profile()
-    history = await mcp.get_strategy_history(strategy_id, limit=30)
-    recent_proposals = await mcp.get_recent_proposals(strategy_id, limit=5)
-    recent_orders = await mcp.get_strategy_recent_orders(strategy_id, limit=20)
+    # Evidence via the backend HTTP API (same routes workbench-mcp proxies).
+    # The proposing user's AGENT_API_KEY scopes every read to that user.
+    profile = await backend.get_trading_profile()
+    history = await backend.get_strategy_history(strategy_id, limit=30)
+    recent_proposals = await backend.get_recent_proposals(strategy_id, limit=5)
+    recent_orders = await backend.get_strategy_recent_orders(strategy_id, limit=20)
 
     evidence_bundle = {
         "strategy_snapshot": history.get("snapshot", {}),
@@ -142,9 +160,11 @@ async def _run(
     )
 
     try:
-        payload = json.loads(llm_result.text)
+        payload = json.loads(_extract_json(llm_result.text))
     except json.JSONDecodeError as exc:
-        raise ValueError(f"LLM output not valid JSON: {exc}") from exc
+        raise ValueError(
+            f"LLM output not valid JSON: {exc} | raw[:200]={llm_result.text[:200]!r}"
+        ) from exc
 
     missing = [k for k in _REQUIRED_FIELDS if k not in payload]
     if missing:
@@ -178,26 +198,20 @@ async def generate_proposal(
     config: AgentConfig,
     proposal_id: int,
     *,
-    mcp: Any | None = None,
     backend: Any | None = None,
     model: str = PROPOSAL_GENERATION_MODEL,
 ) -> ProposalGenerationResult:
-    """Generate a proposal for a DRAFT proposal_id. Constructs real MCP +
-    backend clients from config unless injected (tests inject fakes)."""
-    if mcp is not None and backend is not None:
+    """Generate a proposal for a DRAFT proposal_id. Constructs a real backend
+    client from config unless injected (tests pass fakes)."""
+    if backend is not None:
         return await _run(
-            mcp=mcp,
             backend=backend,
             anthropic_api_key=config.anthropic_api_key,
             proposal_id=proposal_id,
             model=model,
         )
-    async with (
-        WorkbenchMcpClient(config.workbench_mcp_base) as real_mcp,
-        BackendClient(config.backend_api_base, config.agent_api_key) as real_backend,
-    ):
+    async with BackendClient(config.backend_api_base, config.agent_api_key) as real_backend:
         return await _run(
-            mcp=real_mcp,
             backend=real_backend,
             anthropic_api_key=config.anthropic_api_key,
             proposal_id=proposal_id,

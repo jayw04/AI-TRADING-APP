@@ -253,6 +253,25 @@ async def _authenticate_ws(websocket: WebSocket) -> int | None:
 # ---- WS endpoint ----
 
 
+def _is_ws_disconnect(exc: BaseException) -> bool:
+    """True when ``exc`` represents a client-side WS disconnect with no clean close
+    frame — normal browser behavior (page nav / reload), not a server error.
+
+    Matched by class name across the cause/context chain so we needn't import
+    uvicorn/websockets internals (``ClientDisconnected``, ``ConnectionClosed*``) or
+    couple to their versions.
+    """
+    names = {
+        "ClientDisconnected",   # uvicorn.protocols.utils
+        "ConnectionClosed",     # websockets.exceptions (+ OK/Error subclasses)
+        "ConnectionClosedError",
+        "ConnectionClosedOK",
+        "WebSocketDisconnect",  # starlette
+    }
+    chain = (exc, exc.__cause__, exc.__context__)
+    return any(e is not None and type(e).__name__ in names for e in chain)
+
+
 @router.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket) -> None:
     settings = get_settings()
@@ -268,18 +287,6 @@ async def ws_endpoint(websocket: WebSocket) -> None:
 
     # Per-connection state.
     subscriptions: set[str] = {"system"}  # heartbeat + connected events always on
-
-    # Send the connected event first.
-    await websocket.send_text(
-        _wrap(
-            "system",
-            "system.connected",
-            {"server_version": settings.version},
-        )
-    )
-
-    # Spawn one forwarder task per bus topic. Each forwards live events to
-    # the WS if its mapped WS topic is currently subscribed.
     forwarder_tasks: list[asyncio.Task[None]] = []
 
     async def _forward(bus_topic: str) -> None:
@@ -295,14 +302,19 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                 # Socket closed mid-send; let the receive_text loop unwind.
                 return
 
-    for bus_topic in _BUS_TOPICS:
-        forwarder_tasks.append(
-            asyncio.create_task(
-                _forward(bus_topic), name=f"ws-forward:{bus_topic}"
-            )
-        )
-
     try:
+        # Send the connected event, then spawn one forwarder per bus topic —
+        # both inside the try so a client that drops during setup (common on a
+        # page nav/reload) unwinds as a clean disconnect, not an uncaught
+        # ClientDisconnected traceback at the ASGI layer.
+        await websocket.send_text(
+            _wrap("system", "system.connected", {"server_version": settings.version})
+        )
+        for bus_topic in _BUS_TOPICS:
+            forwarder_tasks.append(
+                asyncio.create_task(_forward(bus_topic), name=f"ws-forward:{bus_topic}")
+            )
+
         while True:
             msg = await websocket.receive_text()
             try:
@@ -334,7 +346,12 @@ async def ws_endpoint(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     except Exception as exc:
-        log.warning("ws.error", error=str(exc))
+        # A client that vanishes mid-send raises ClientDisconnected/ConnectionClosed
+        # rather than WebSocketDisconnect — that's a normal disconnect, not a fault.
+        if _is_ws_disconnect(exc):
+            log.debug("ws.client_disconnected", error=str(exc))
+        else:
+            log.warning("ws.error", error=str(exc))
     finally:
         for t in forwarder_tasks:
             t.cancel()

@@ -3,6 +3,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "@/api/auth";
 import { ApiError } from "@/api/client";
 
+// TEMPORARY (2026-06-23): TOTP is removed from the login page at the owner's
+// request — password-only login for now. The field code and the backend
+// loginConfig() wiring below are intentionally LEFT INTACT so this is reversible
+// by flipping this single flag back to false (the field then re-appears whenever
+// the backend's WORKBENCH_LOGIN_TOTP_REQUIRED says so). Step-up TOTP on live
+// trading / activation / LLM opt-in is unaffected — this only governs login.
+// See tasks/todo.md ("Restore login TOTP") and ADR/runbook before re-enabling.
+const LOGIN_TOTP_DISABLED = true;
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14,10 +23,12 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Default to requiring TOTP until the backend says otherwise — fail safe
-  // (show the field) if the config fetch fails.
-  const [totpRequired, setTotpRequired] = useState(true);
+  // (show the field) if the config fetch fails. Forced off while
+  // LOGIN_TOTP_DISABLED is set (see note above).
+  const [totpRequired, setTotpRequired] = useState(!LOGIN_TOTP_DISABLED);
 
   useEffect(() => {
+    if (LOGIN_TOTP_DISABLED) return;
     authApi
       .loginConfig()
       .then((cfg) => setTotpRequired(cfg.totp_required))

@@ -294,6 +294,12 @@ async def update_strategy(
 async def start_strategy(
     strategy_id: int,
     request: Request,
+    allow_shared_account: bool = Query(
+        default=False,
+        description="Override the one-active-strategy-per-account guard to run a "
+        "second book on the same account deliberately (it then shares that "
+        "account's cash and risk limits).",
+    ),
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StrategyActionResponse:
@@ -309,6 +315,35 @@ async def start_strategy(
             new_status=row.status,
             run_id=None,
         )
+
+    # One active strategy per account. A strategy's account is resolved by
+    # (user, broker, mode) (P5 §7) — there is no per-strategy account — so all of a
+    # user's PAPER strategies share ONE paper account's cash AND the user-level risk
+    # limits. Two active books there compete for the same funds with no per-strategy
+    # isolation (one can starve or over-allocate the other). ``/start`` activates to
+    # PAPER, so refuse a second active book on that account unless explicitly opted in.
+    if not allow_shared_account:
+        other = (
+            await session.execute(
+                select(StrategyRow.id, StrategyRow.name)
+                .where(
+                    StrategyRow.user_id == current_user.id,
+                    StrategyRow.status == StrategyStatus.PAPER,
+                    StrategyRow.id != strategy_id,
+                )
+                .limit(1)
+            )
+        ).first()
+        if other is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"This account already has an active strategy '{other.name}' "
+                    f"(#{other.id}). Multiple strategies on one account share its cash "
+                    f"and risk limits — stop it first, or pass allow_shared_account=true "
+                    f"to run both on the same account deliberately."
+                ),
+            )
 
     engine = _get_engine(request)
     try:

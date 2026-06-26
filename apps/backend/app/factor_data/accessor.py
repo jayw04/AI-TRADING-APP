@@ -77,6 +77,25 @@ class FactorAccessor:
             lookback_days=lookback_days, skip_days=skip_days,
         )
 
+    def low_vol_scores(
+        self, as_of: date | None = None, *, n: int = 500,
+        lookback_days: int = 252,
+    ) -> pd.DataFrame:
+        """Cross-sectional low-volatility scores as of `as_of` (default: latest store date).
+
+        Each name is scored by −(trailing `lookback_days` realized vol) — lowest
+        realized vol → highest score — so a top-quantile-equal-weight book holds the
+        calmest names (LOW-001). `lookback_days` selects the realized-vol window
+        (default 252 = 12-month, frozen from research). The PIT/read-only guarantees
+        are identical to `momentum_scores`; only the score changes.
+        """
+        from app.factor_data.factors.low_vol import low_vol_scores
+
+        store = self._require_store()
+        return low_vol_scores(
+            store, self._resolve_as_of(as_of), n=n, lookback_days=lookback_days,
+        )
+
     def momentum_for(self, ticker: str, as_of: date | None = None) -> float | None:
         """Single-name momentum as of `as_of`; `None` if history is insufficient."""
         store = self._require_store()
@@ -97,3 +116,27 @@ class FactorAccessor:
         sector column yields all-None so callers can fail open."""
         store = self._require_store()
         return store.get_sectors(tickers)
+
+    def market_breadth(
+        self, as_of: date | None = None, *, n: int = 500, ma_days: int = 200,
+    ) -> float | None:
+        """Market breadth as of `as_of` (P10 §5, ADR 0022): the fraction of the
+        construction universe trading above its `ma_days` MA, in [0, 1], or `None`
+        when it can't be read honestly (caller fails open). PIT-clamped."""
+        from app.factor_data.regime import market_breadth
+
+        store = self._require_store()
+        return market_breadth(store, self._resolve_as_of(as_of), n=n, ma_days=ma_days)
+
+    def vix_percentile(
+        self, as_of: date | None = None, *, symbol: str = "^VIX", lookback_days: int = 252,
+    ) -> float | None:
+        """Trailing VIX percentile as of `as_of` (P10 §5, ADR 0022): the latest VIX
+        close's percentile rank within its prior `lookback_days` window, in [0, 1]
+        (~1 = stress), or `None` when the series is unavailable / too short (caller
+        fails open). PIT-clamped."""
+        from app.factor_data.regime import vix_percentile
+
+        store = self._require_store()
+        return vix_percentile(store, self._resolve_as_of(as_of), symbol=symbol,
+                              lookback_days=lookback_days)

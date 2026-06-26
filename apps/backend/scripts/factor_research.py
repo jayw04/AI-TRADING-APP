@@ -1,4 +1,12 @@
-"""Factor research engine (P10) — measure which factors actually work on OUR
+"""[NOT deprecated — distinct from the Factor Lab; ADR 0026 §5]
+
+Unlike the LOW/SEC/TREND *verdict* harnesses (now superseded by
+``app.research.factor_lab.run_program``), this is the IC / long-short factor-**measurement** study —
+a different capability that ``run_program`` does not reproduce, and an active Research-Engine
+dependency (``app.research.engine.runners`` imports its ``run_study``). It remains the canonical
+entry point for "which factors work on our universe." Keep it.
+
+Factor research engine (P10) — measure which factors actually work on OUR
 Sharadar universe, before building a strategy around them.
 
 "Measure first, build second." Reuses the survivorship-free price store
@@ -137,11 +145,19 @@ def _month_end_dates(index: pd.DatetimeIndex) -> list[pd.Timestamp]:
 
 
 def run_study(close: pd.DataFrame, *, split: pd.Timestamp,
-              horizons=(1, 3, 6, 12)) -> tuple[list[FactorResult], pd.DataFrame]:
+              horizons=(1, 3, 6, 12),
+              extra_matrices: dict[str, pd.DataFrame] | None = None,
+              ) -> tuple[list[FactorResult], pd.DataFrame]:
     """Compute IS/OOS IC, long-short, decay, and the LS-return panel for
-    correlation. ``close`` is a daily (date × ticker) adjusted-close matrix."""
+    correlation. ``close`` is a daily (date × ticker) adjusted-close matrix.
+
+    ``extra_matrices`` (optional) are additional (date × ticker) factor matrices —
+    e.g. the Value/Quality fundamental factors — already aligned to the month-end
+    rebalance dates; they are studied alongside the price factors."""
     close = close.sort_index()
     fmats = _factor_matrices(close)
+    if extra_matrices:
+        fmats = {**fmats, **extra_matrices}
     rebal = _month_end_dates(close.index)
     px = close.reindex(rebal)  # month-end prices
     # forward h-month returns at each rebalance date
@@ -151,9 +167,9 @@ def run_study(close: pd.DataFrame, *, split: pd.Timestamp,
     ls_series: dict[str, pd.Series] = {}
     for fname, fmat in fmats.items():
         fr = fmat.reindex(rebal)  # factor at each rebalance date
-        per_ic = {h: [] for h in horizons}
-        ls_by_date = {}
-        windows = {"IS": [], "OOS": [], "IS_ls": [], "OOS_ls": []}
+        per_ic: dict[int, list] = {h: [] for h in horizons}
+        ls_by_date: dict = {}
+        windows: dict[str, list] = {"IS": [], "OOS": [], "IS_ls": [], "OOS_ls": []}
         for dt in rebal:
             f_row = fr.loc[dt]
             ic1 = spearman_ic(f_row, fwd[1].loc[dt])
@@ -209,12 +225,35 @@ def _load_close(n: int, start: str) -> pd.DataFrame:
     return df.pivot_table(index="date", columns="ticker", values="closeadj")
 
 
+def _load_fundamentals(tickers: list[str]) -> pd.DataFrame:
+    """Annual (FY) fundamentals for ``tickers`` from the store, for the PIT factor
+    build. Returns ticker/accepted_date/period_end + the raw fields; empty if the
+    fundamentals table is empty (ingest_fmp.py not run)."""
+    from app.factor_data.store import FactorDataStore
+    store = FactorDataStore(read_only=True)
+    try:
+        if store.row_count("fundamentals") == 0 or not tickers:
+            return pd.DataFrame()
+        ph = ",".join("?" * len(tickers))
+        return store.con.execute(
+            f"SELECT ticker, accepted_date, filing_date, period_end, revenue, "
+            f"gross_profit, operating_income, ebitda, net_income, free_cash_flow, "
+            f"total_debt, total_equity, total_assets, shares_diluted, enterprise_value "
+            f"FROM fundamentals WHERE period = 'FY' AND ticker IN ({ph})",
+            tickers,
+        ).df()
+    finally:
+        store.close()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Factor research engine (IS/OOS IC + long-short).")
     ap.add_argument("--n", type=int, default=200, help="universe size (top-N by dollar volume).")
     ap.add_argument("--start", default="2016-01-01")
     ap.add_argument("--split", default="2023-01-01", help="IS/OOS boundary (YYYY-MM-DD).")
     ap.add_argument("--report-dir", default=None)
+    ap.add_argument("--with-fundamentals", action="store_true",
+                    help="also study the FMP Value/Quality factors (needs ingest_fmp run first).")
     args = ap.parse_args()
 
     close = _load_close(args.n, args.start)
@@ -223,7 +262,19 @@ def main() -> int:
         return 1
     print(f"Universe {close.shape[1]} names, {close.index.min().date()}..{close.index.max().date()} "
           f"({close.shape[0]} days). IS/OOS split {args.split}.\n")
-    results, ls_panel = run_study(close, split=pd.Timestamp(args.split))
+
+    extra: dict[str, pd.DataFrame] | None = None
+    if args.with_fundamentals:
+        from app.factor_data.factors.fundamental import build_fundamental_factor_matrices
+        fund = _load_fundamentals(list(close.columns))
+        if fund.empty:
+            print("--with-fundamentals: no fundamentals in store; run ingest_fmp.py first.", file=sys.stderr)
+        else:
+            rebal = _month_end_dates(close.index)
+            extra = build_fundamental_factor_matrices(fund, close, rebal)
+            print(f"Fundamentals: {fund['ticker'].nunique()} names, {len(fund)} statements "
+                  f"-> {len([m for m in extra.values() if not m.empty])} factor matrices.\n")
+    results, ls_panel = run_study(close, split=pd.Timestamp(args.split), extra_matrices=extra)
 
     def fmt(x, p=2):
         return "n/a" if x is None else f"{x:.{p}f}"
@@ -239,7 +290,8 @@ def main() -> int:
         import json
         d = Path(args.report_dir)
         d.mkdir(parents=True, exist_ok=True)
-        (d / "factor_rankings.json").write_text(json.dumps([asdict(r) for r in results], indent=2, default=str))
+        (d / "factor_rankings.json").write_text(
+            json.dumps([asdict(r) for r in results], indent=2, default=str), encoding="utf-8")
         lines = [f"# Factor research — {close.index.min().date()}..{close.index.max().date()} "
                  f"({close.shape[1]} names, IS/OOS split {args.split})\n",
                  "| factor | win | mean IC | IC-IR | t | IC>0 | LS Sharpe | LS ann.ret |",
@@ -248,7 +300,7 @@ def main() -> int:
             lines.append(f"| {r.factor} | {r.window} | {fmt(r.mean_ic,3)} | {fmt(r.ic_ir)} | {fmt(r.ic_tstat)} "
                          f"| {fmt(r.ic_hit)} | {fmt(r.ls_sharpe)} | {fmt(r.ls_ann_return)} |")
         lines += ["\n## Long-short return correlation\n", "```", corr.round(2).to_string(), "```"]
-        (d / "factor_report.md").write_text("\n".join(lines))
+        (d / "factor_report.md").write_text("\n".join(lines), encoding="utf-8")
         print(f"\nWrote {d/'factor_report.md'} and factor_rankings.json")
     return 0
 

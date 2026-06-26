@@ -58,7 +58,7 @@ Listed in roughly order of merge: ADR 0002 single-router, strategy isolation, ri
 
 ### Phase and session structure
 
-Work is organized into phases (P0, P1, P2, P3, P4, P5, P5.5, P6, P7) and sessions within phases. Each session ships as one or more PRs and is tagged when complete (`p5-session3-complete`, `p5-complete`, etc.). The phase docs in `docs/implementation/` are the authoritative plan; `todo.md` at the repo root tracks current status.
+Work is organized into phases (P0, P1, P2, P3, P4, P5, P5.5, P6, P7) and sessions within phases. Each session ships as one or more PRs and is tagged when complete (`p5-session3-complete`, `p5-complete`, etc.). The phase docs in `docs/implementation/` are the authoritative plan; `tasks/todo.md` tracks current status.
 
 Do not pivot phases mid-session without explicit developer instruction. If a session reveals that the phase plan is wrong, surface that as a finding; do not rewrite the plan unilaterally.
 

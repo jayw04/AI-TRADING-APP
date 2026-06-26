@@ -30,6 +30,13 @@ class OrderRequest:
     # source_type == MANUAL and the account is LIVE; ignored otherwise. Must
     # equal the symbol after normalization (uppercase, stripped).
     confirmation_text: str | None = None
+    # Optional caller-supplied reference price for MARKET orders, used only to
+    # estimate the order's notional for the gross-exposure / position gates (a
+    # market order carries no limit_price to value it by). Strategies pass the
+    # price they sized the order against; ignored when limit_price is present.
+    # Appended last so existing positional construction is unaffected. Never sent
+    # to the broker — purely a risk-valuation hint.
+    reference_price: Decimal | None = None
 
 
 @dataclass(frozen=True)

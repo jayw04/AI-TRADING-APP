@@ -1,0 +1,131 @@
+{
+  "program": "TREND-001",
+  "experiment_id": "EXP-20260624-161616-trend001",
+  "git_sha": "b335c6e",
+  "data": "SEP survivorship-free (full-cycle 2000-2026)",
+  "window": [
+    "2000-01-01",
+    "2026-06-12"
+  ],
+  "n": 200,
+  "construction": "V1 per-name close>200d SMA, in-trend equal-weight (1/N), cash rest",
+  "books": {
+    "momentum": {
+      "cagr": 0.0738710128402087,
+      "sharpe": 0.38810746155751447,
+      "max_drawdown": -0.7639996302083669,
+      "calmar": 0.09668985418234002
+    },
+    "trend": {
+      "cagr": 0.04729697406543942,
+      "sharpe": 0.455875040138449,
+      "max_drawdown": -0.4617776953086127,
+      "calmar": 0.10242368686480229
+    },
+    "blend": {
+      "cagr": 0.06797280715899467,
+      "sharpe": 0.4256723089189169,
+      "max_drawdown": -0.6260976501469668,
+      "calmar": 0.10856582378649576
+    },
+    "equal_weight": {
+      "cagr": 0.05625559955895243,
+      "sharpe": 0.3477095200108433,
+      "max_drawdown": -0.6921230566103789,
+      "calmar": 0.0812797652406785
+    },
+    "regime_eqw": {
+      "cagr": 0.04897960480667196,
+      "sharpe": 0.39284534184132414,
+      "max_drawdown": -0.6107564627265654,
+      "calmar": 0.08019498408255084
+    }
+  },
+  "H1_trend_vs_eqw_sharpe_ci": {
+    "delta": 0.108,
+    "ci_low": -0.111,
+    "ci_high": 0.33
+  },
+  "H2_corr_trend_momentum": 0.871,
+  "H2_blend_vs_momentum_sharpe_ci": {
+    "delta": 0.04,
+    "ci_low": -0.095,
+    "ci_high": 0.165
+  },
+  "H3_maxdd_vs_momentum": 0.3022,
+  "H3_maxdd_vs_eqw": 0.2303,
+  "H3_maxdd_vs_regime_filter": 0.149,
+  "H3_sharpe_vs_regime_filter": 0.063,
+  "H3_windows_trend_shallower_dd": "5/5",
+  "participation_gross_mean": 0.618,
+  "participation_gross_min": 0.015,
+  "walk_forward": [
+    {
+      "window": [
+        "2000-01-01",
+        "2005-04-15"
+      ],
+      "trend_sharpe": -0.19,
+      "eqw_sharpe": -0.15,
+      "delta": -0.04,
+      "trend_maxdd": -0.462,
+      "eqw_maxdd": -0.692
+    },
+    {
+      "window": [
+        "2005-04-15",
+        "2010-07-29"
+      ],
+      "trend_sharpe": 0.42,
+      "eqw_sharpe": 0.25,
+      "delta": 0.17,
+      "trend_maxdd": -0.22,
+      "eqw_maxdd": -0.599
+    },
+    {
+      "window": [
+        "2010-07-29",
+        "2015-11-11"
+      ],
+      "trend_sharpe": 0.75,
+      "eqw_sharpe": 0.66,
+      "delta": 0.09,
+      "trend_maxdd": -0.136,
+      "eqw_maxdd": -0.247
+    },
+    {
+      "window": [
+        "2015-11-11",
+        "2021-02-23"
+      ],
+      "trend_sharpe": 1.08,
+      "eqw_sharpe": 0.88,
+      "delta": 0.2,
+      "trend_maxdd": -0.163,
+      "eqw_maxdd": -0.375
+    },
+    {
+      "window": [
+        "2021-02-23",
+        "2026-06-12"
+      ],
+      "trend_sharpe": 0.45,
+      "eqw_sharpe": 0.42,
+      "delta": 0.03,
+      "trend_maxdd": -0.194,
+      "eqw_maxdd": -0.365
+    }
+  ],
+  "n_windows_trend_beats_eqw": "4/5",
+  "cost_sweep_trend_sharpe": {
+    "5bps": 0.47,
+    "10bps": 0.46,
+    "20bps": 0.43,
+    "50bps": 0.35
+  },
+  "beats_regime_filter": true,
+  "subsumed_by_regime_filter": false,
+  "outcome": "B - Diversifier / Defensive",
+  "action": "participation sleeve / momentum+trend blend candidate (evidence-gated)",
+  "duration_s": 3521.2
+}

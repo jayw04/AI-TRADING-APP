@@ -8,10 +8,26 @@ const EVAL_BADGE_CLASS: Record<string, string> = {
   failed: "bg-red-900/50 text-red-300",
 };
 
+// E4: a verdict requires evidence. Zero-trade evals are insufficient/needs-review,
+// never a silent "above baseline".
+const VERDICT_LABEL: Record<string, string> = {
+  above_baseline: "Above baseline",
+  below_baseline: "Below baseline",
+  insufficient_evidence: "Insufficient evidence",
+  needs_review: "Needs review",
+};
+
+const VERDICT_LINE: Record<string, string> = {
+  above_baseline: "Above baseline ✓",
+  below_baseline: "Below baseline ✗",
+  insufficient_evidence: "Insufficient evidence — no trades on either side ⚠",
+  needs_review: "Needs review — only the variant traded ⚠",
+};
+
 function badgeLabel(ev: EvaluationResults): string {
   switch (ev.status) {
     case "complete":
-      return ev.verdict === "above_baseline" ? "Above baseline" : "Below baseline";
+      return VERDICT_LABEL[ev.verdict ?? ""] ?? "Below baseline";
     case "running":
       return "Backtest running";
     case "pending":
@@ -70,8 +86,7 @@ export function EvalPanel({ ev }: { ev: EvaluationResults }) {
   return (
     <div className="mt-2 rounded border border-neutral-800 bg-neutral-950 p-3 text-xs">
       <div className="font-medium text-neutral-200">
-        Evaluation —{" "}
-        {ev.verdict === "above_baseline" ? "Above baseline ✓" : "Below baseline ✗"}
+        Evaluation — {VERDICT_LINE[ev.verdict ?? ""] ?? "Below baseline ✗"}
       </div>
       <table className="mt-2 w-full text-left">
         <thead className="text-neutral-500">

@@ -1,0 +1,153 @@
+{
+  "program": "SEC-001",
+  "version": "V2",
+  "experiment_id": "EXP-20260622-010112-sec001v2",
+  "git_sha": "22f34f8",
+  "data": "SEP survivorship-free + Sharadar tickers.sector",
+  "window": [
+    "2000-01-01",
+    "2026-06-12"
+  ],
+  "n": 200,
+  "k": 3,
+  "n_sectors": 11,
+  "construction": "V2 sector-neutral top-3 equal-weight baskets",
+  "n_rebalances": 1380,
+  "books": {
+    "v2_baskets": {
+      "cagr": 0.09187480999609043,
+      "sharpe": 0.4907121165385336,
+      "max_drawdown": -0.6676722799369821,
+      "calmar": 0.13760464940189218
+    },
+    "all_sector_baskets": {
+      "cagr": 0.0746568128593208,
+      "sharpe": 0.44853628501877046,
+      "max_drawdown": -0.5566510179838321,
+      "calmar": 0.1341178053167401
+    },
+    "equal_weight_universe": {
+      "cagr": 0.05625559955895243,
+      "sharpe": 0.3477095200108433,
+      "max_drawdown": -0.6921230566103789,
+      "calmar": 0.0812797652406785
+    },
+    "momentum": {
+      "cagr": 0.0738710128402087,
+      "sharpe": 0.38810746155751447,
+      "max_drawdown": -0.7639996302083669,
+      "calmar": 0.09668985418234002
+    },
+    "v1_stock_level": {
+      "cagr": 0.10825044268224282,
+      "sharpe": 0.5264079815877604,
+      "max_drawdown": -0.6343098674533861,
+      "calmar": 0.17065861377317748
+    },
+    "blend": {
+      "cagr": 0.08784694167181328,
+      "sharpe": 0.45450586888057276,
+      "max_drawdown": -0.6597436997192755,
+      "calmar": 0.13315313463272577
+    }
+  },
+  "k_band": {
+    "K=2": {
+      "cagr": 0.10015456091542796,
+      "sharpe": 0.5023830076556329,
+      "max_drawdown": -0.6326584515649187,
+      "calmar": 0.15830747327833783
+    },
+    "K=4": {
+      "cagr": 0.09922414595446227,
+      "sharpe": 0.5337621115711446,
+      "max_drawdown": -0.5777625259903175,
+      "calmar": 0.1717386322077336
+    },
+    "K=3": {
+      "cagr": 0.09187480999609043,
+      "sharpe": 0.4907121165385336,
+      "max_drawdown": -0.6676722799369821,
+      "calmar": 0.13760464940189218
+    }
+  },
+  "H1_v2_vs_allsec_baskets_ci": {
+    "delta": 0.042,
+    "ci_low": -0.165,
+    "ci_high": 0.244
+  },
+  "H1_v2_vs_eqw_universe_ci": {
+    "delta": 0.143,
+    "ci_low": -0.056,
+    "ci_high": 0.351
+  },
+  "H2_corr_sector_momentum": 0.378,
+  "H2_blend_vs_momentum_ci": {
+    "delta": 0.069,
+    "ci_low": -0.086,
+    "ci_high": 0.22
+  },
+  "H3_v2_vs_v1_ci": {
+    "delta": -0.036,
+    "ci_low": -0.179,
+    "ci_high": 0.093
+  },
+  "walk_forward": [
+    {
+      "window": [
+        "2000-01-01",
+        "2005-04-15"
+      ],
+      "v2_sharpe": 0.26,
+      "allsec_sharpe": 0.05,
+      "delta": 0.21
+    },
+    {
+      "window": [
+        "2005-04-15",
+        "2010-07-29"
+      ],
+      "v2_sharpe": 0.12,
+      "allsec_sharpe": 0.31,
+      "delta": -0.19
+    },
+    {
+      "window": [
+        "2010-07-29",
+        "2015-11-11"
+      ],
+      "v2_sharpe": 0.87,
+      "allsec_sharpe": 0.73,
+      "delta": 0.14
+    },
+    {
+      "window": [
+        "2015-11-11",
+        "2021-02-23"
+      ],
+      "v2_sharpe": 0.88,
+      "allsec_sharpe": 0.78,
+      "delta": 0.1
+    },
+    {
+      "window": [
+        "2021-02-23",
+        "2026-06-12"
+      ],
+      "v2_sharpe": 0.55,
+      "allsec_sharpe": 0.53,
+      "delta": 0.01
+    }
+  ],
+  "n_windows_v2_beats_allsec": "4/5",
+  "cost_sweep_v2_sharpe": {
+    "5bps": 0.51,
+    "10bps": 0.49,
+    "20bps": 0.45,
+    "50bps": 0.34
+  },
+  "outcome": "B \u2014 Diversifier (confirmed)",
+  "action": "momentum+sector blend / overlay candidate (evidence-gated)",
+  "stopping_rule": "ARCHIVE Sector Rotation construction: V2 did not achieve a standalone edge and H3 shows no construction benefit (dSharpe(V2-V1) CI spans zero). Per the v0.2 stopping rule, further work requires a fundamentally different hypothesis, not more construction tuning.",
+  "duration_s": 715.8
+}

@@ -1,0 +1,446 @@
+{
+  "program": "SCAN-001",
+  "plan": "v0.5",
+  "generated_utc": "2026-06-23T11:42:26+00:00",
+  "headline": {
+    "config": {
+      "universe_n": 200,
+      "start": "2010-06-12",
+      "end": "2026-06-12",
+      "scored_days": 4025,
+      "candidates": 60375,
+      "top_n": 15,
+      "top_k": 8,
+      "bootstrap": 2000
+    },
+    "confidence_distribution": [
+      {
+        "bin": "[0.0,0.1)",
+        "count": 35330,
+        "pct": 58.5
+      },
+      {
+        "bin": "[0.1,0.2)",
+        "count": 4188,
+        "pct": 6.9
+      },
+      {
+        "bin": "[0.2,0.3)",
+        "count": 3272,
+        "pct": 5.4
+      },
+      {
+        "bin": "[0.3,0.4)",
+        "count": 2677,
+        "pct": 4.4
+      },
+      {
+        "bin": "[0.4,0.5)",
+        "count": 2157,
+        "pct": 3.6
+      },
+      {
+        "bin": "[0.5,0.6)",
+        "count": 2291,
+        "pct": 3.8
+      },
+      {
+        "bin": "[0.6,0.7)",
+        "count": 1899,
+        "pct": 3.1
+      },
+      {
+        "bin": "[0.7,0.8)",
+        "count": 1505,
+        "pct": 2.5
+      },
+      {
+        "bin": "[0.8,0.9)",
+        "count": 1218,
+        "pct": 2.0
+      },
+      {
+        "bin": "[0.9,1.0]",
+        "count": 5838,
+        "pct": 9.7
+      }
+    ],
+    "h_cm_1": {
+      "calibration_curve": {
+        "low": {
+          "n": 20125,
+          "conf_min": 0.0,
+          "conf_max": 0.0,
+          "mean_E": 0.8043,
+          "mean_CM": 3.2657
+        },
+        "mid": {
+          "n": 20125,
+          "conf_min": 0.0,
+          "conf_max": 0.2203,
+          "mean_E": 1.0481,
+          "mean_CM": 4.1228
+        },
+        "high": {
+          "n": 20125,
+          "conf_min": 0.2203,
+          "conf_max": 1.0,
+          "mean_E": 1.5807,
+          "mean_CM": 5.8988
+        }
+      },
+      "diff_high_minus_low_E": {
+        "point": 0.8909,
+        "ci_low": 0.847,
+        "ci_high": 0.9348,
+        "p_value": 0.0,
+        "n": 3094
+      },
+      "monotone_E": true,
+      "supported": true
+    },
+    "h_cm_2": {
+      "atr_terciles": {
+        "c33": 4.0452,
+        "c67": 5.3721
+      },
+      "bands": {
+        "low_atr": {
+          "candidates": 20126,
+          "paired_days": 1722,
+          "insufficient": false,
+          "diff_high_minus_low_CM": {
+            "point": 1.2837,
+            "ci_low": 1.1684,
+            "ci_high": 1.4041,
+            "p_value": 0.0,
+            "n": 1722
+          },
+          "passed": true,
+          "curve": {
+            "low": {
+              "n": 6708,
+              "conf_min": 0.0,
+              "conf_max": 0.061,
+              "mean_E": 1.0008,
+              "mean_CM": 2.6981
+            },
+            "high": {
+              "n": 6710,
+              "conf_min": 0.4199,
+              "conf_max": 1.0,
+              "mean_E": 2.1003,
+              "mean_CM": 4.3253
+            }
+          }
+        },
+        "mid_atr": {
+          "candidates": 20124,
+          "paired_days": 3222,
+          "insufficient": false,
+          "diff_high_minus_low_CM": {
+            "point": 0.3057,
+            "ci_low": 0.2702,
+            "ci_high": 0.3442,
+            "p_value": 0.0,
+            "n": 3222
+          },
+          "passed": true,
+          "curve": {
+            "low": {
+              "n": 6708,
+              "conf_min": 0.0,
+              "conf_max": 0.0,
+              "mean_E": 0.8085,
+              "mean_CM": 2.9012
+            },
+            "high": {
+              "n": 6708,
+              "conf_min": 0.0,
+              "conf_max": 1.0,
+              "mean_E": 1.1825,
+              "mean_CM": 4.4494
+            }
+          }
+        },
+        "high_atr": {
+          "candidates": 20125,
+          "paired_days": 1374,
+          "insufficient": false,
+          "diff_high_minus_low_CM": {
+            "point": 4.0097,
+            "ci_low": 3.5543,
+            "ci_high": 4.4795,
+            "p_value": 0.0,
+            "n": 1374
+          },
+          "passed": true,
+          "curve": {
+            "low": {
+              "n": 6708,
+              "conf_min": 0.0,
+              "conf_max": 0.0,
+              "mean_E": 0.7736,
+              "mean_CM": 4.5426
+            },
+            "high": {
+              "n": 6709,
+              "conf_min": 0.303,
+              "conf_max": 1.0,
+              "mean_E": 1.1612,
+              "mean_CM": 8.5424
+            }
+          }
+        }
+      },
+      "bands_passed": 3,
+      "supported": true
+    },
+    "h_cm_3": {
+      "topk_minus_flat_E": {
+        "point": 0.1862,
+        "ci_low": 0.1752,
+        "ci_high": 0.1973,
+        "p_value": 0.0,
+        "n": 4025
+      },
+      "topk_minus_flat_CM": {
+        "point": 0.5081,
+        "ci_low": 0.462,
+        "ci_high": 0.5536,
+        "p_value": 0.0,
+        "n": 4025
+      },
+      "supported_E": true,
+      "decoupling_check": {
+        "mean_atr_topk": 5.4757,
+        "mean_atr_flat": 5.4808,
+        "note": "if topk\u2248flat ATR, the CM lift is not an ATR-selection artifact"
+      }
+    }
+  },
+  "recency": {
+    "config": {
+      "universe_n": 500,
+      "start": "2021-06-12",
+      "end": "2026-06-12",
+      "scored_days": 1256,
+      "candidates": 18840,
+      "top_n": 15,
+      "top_k": 8,
+      "bootstrap": 2000
+    },
+    "confidence_distribution": [
+      {
+        "bin": "[0.0,0.1)",
+        "count": 3526,
+        "pct": 18.7
+      },
+      {
+        "bin": "[0.1,0.2)",
+        "count": 1690,
+        "pct": 9.0
+      },
+      {
+        "bin": "[0.2,0.3)",
+        "count": 1615,
+        "pct": 8.6
+      },
+      {
+        "bin": "[0.3,0.4)",
+        "count": 1369,
+        "pct": 7.3
+      },
+      {
+        "bin": "[0.4,0.5)",
+        "count": 1229,
+        "pct": 6.5
+      },
+      {
+        "bin": "[0.5,0.6)",
+        "count": 1640,
+        "pct": 8.7
+      },
+      {
+        "bin": "[0.6,0.7)",
+        "count": 1351,
+        "pct": 7.2
+      },
+      {
+        "bin": "[0.7,0.8)",
+        "count": 1089,
+        "pct": 5.8
+      },
+      {
+        "bin": "[0.8,0.9)",
+        "count": 906,
+        "pct": 4.8
+      },
+      {
+        "bin": "[0.9,1.0]",
+        "count": 4425,
+        "pct": 23.5
+      }
+    ],
+    "h_cm_1": {
+      "calibration_curve": {
+        "low": {
+          "n": 6280,
+          "conf_min": 0.0,
+          "conf_max": 0.2632,
+          "mean_E": 1.128,
+          "mean_CM": 4.8613
+        },
+        "mid": {
+          "n": 6280,
+          "conf_min": 0.2633,
+          "conf_max": 0.7118,
+          "mean_E": 1.441,
+          "mean_CM": 6.0233
+        },
+        "high": {
+          "n": 6280,
+          "conf_min": 0.7118,
+          "conf_max": 1.0,
+          "mean_E": 1.7704,
+          "mean_CM": 7.5167
+        }
+      },
+      "diff_high_minus_low_E": {
+        "point": 0.5143,
+        "ci_low": 0.4453,
+        "ci_high": 0.5855,
+        "p_value": 0.0,
+        "n": 1030
+      },
+      "monotone_E": true,
+      "supported": true
+    },
+    "h_cm_2": {
+      "atr_terciles": {
+        "c33": 3.971,
+        "c67": 6.3466
+      },
+      "bands": {
+        "low_atr": {
+          "candidates": 6281,
+          "paired_days": 595,
+          "insufficient": false,
+          "diff_high_minus_low_CM": {
+            "point": 1.4374,
+            "ci_low": 1.1867,
+            "ci_high": 1.6844,
+            "p_value": 0.0,
+            "n": 595
+          },
+          "passed": true,
+          "curve": {
+            "low": {
+              "n": 2093,
+              "conf_min": 0.0003,
+              "conf_max": 0.3328,
+              "mean_E": 1.5259,
+              "mean_CM": 3.5908
+            },
+            "high": {
+              "n": 2095,
+              "conf_min": 0.7648,
+              "conf_max": 1.0,
+              "mean_E": 2.4113,
+              "mean_CM": 5.4213
+            }
+          }
+        },
+        "mid_atr": {
+          "candidates": 6279,
+          "paired_days": 429,
+          "insufficient": false,
+          "diff_high_minus_low_CM": {
+            "point": 2.486,
+            "ci_low": 1.8856,
+            "ci_high": 3.1341,
+            "p_value": 0.0,
+            "n": 429
+          },
+          "passed": true,
+          "curve": {
+            "low": {
+              "n": 2093,
+              "conf_min": 0.0,
+              "conf_max": 0.1619,
+              "mean_E": 0.9836,
+              "mean_CM": 3.9243
+            },
+            "high": {
+              "n": 2093,
+              "conf_min": 0.5975,
+              "conf_max": 1.0,
+              "mean_E": 1.6406,
+              "mean_CM": 6.6083
+            }
+          }
+        },
+        "high_atr": {
+          "candidates": 6280,
+          "paired_days": 550,
+          "insufficient": false,
+          "diff_high_minus_low_CM": {
+            "point": 4.3747,
+            "ci_low": 3.245,
+            "ci_high": 5.8161,
+            "p_value": 0.0,
+            "n": 550
+          },
+          "passed": true,
+          "curve": {
+            "low": {
+              "n": 2093,
+              "conf_min": 0.0,
+              "conf_max": 0.3094,
+              "mean_E": 0.9267,
+              "mean_CM": 7.1844
+            },
+            "high": {
+              "n": 2094,
+              "conf_min": 0.7782,
+              "conf_max": 1.0,
+              "mean_E": 1.2047,
+              "mean_CM": 10.2838
+            }
+          }
+        }
+      },
+      "bands_passed": 3,
+      "supported": true
+    },
+    "h_cm_3": {
+      "topk_minus_flat_E": {
+        "point": 0.1664,
+        "ci_low": 0.1446,
+        "ci_high": 0.188,
+        "p_value": 0.0,
+        "n": 1256
+      },
+      "topk_minus_flat_CM": {
+        "point": 0.674,
+        "ci_low": 0.5801,
+        "ci_high": 0.777,
+        "p_value": 0.0,
+        "n": 1256
+      },
+      "supported_E": true,
+      "decoupling_check": {
+        "mean_atr_topk": 6.5371,
+        "mean_atr_flat": 6.3138,
+        "note": "if topk\u2248flat ATR, the CM lift is not an ATR-selection artifact"
+      }
+    }
+  },
+  "verdict": {
+    "verdict": "DECOUPLED-CALIBRATED \u2014 Gap+RVOL strength predicts a de-tautologized outcome and lifts the book; ship confidence_gr as the Candidate Report confidence (ranking gated)",
+    "h_cm_1": true,
+    "h_cm_2": true,
+    "h_cm_3_E": true,
+    "note": "v0.2 Validated / v0.3 Operating-Envelope / v0.4 Confidence-Uninformative verdicts are unchanged; Capability Maturity stays L3; L4 gated on the premarket-data step."
+  }
+}

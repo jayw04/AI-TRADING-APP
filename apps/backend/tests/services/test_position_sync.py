@@ -191,3 +191,92 @@ async def test_position_sync_no_account_row_still_publishes(session_factory) -> 
     svc = PositionSyncService(adapter, session_factory, bus)
     result = await svc.sync_once()
     assert result == []
+
+
+# ---- multi-account sync (mirrors AccountSyncService.sync_all) ------------------
+
+
+def _pos(symbol: str, qty: str = "10") -> dict:
+    return {
+        "symbol": symbol, "qty": qty, "avg_entry_price": "100", "side": "long",
+        "market_value": "1000", "cost_basis": "1000", "unrealized_pl": "0",
+        "unrealized_plpc": "0",
+    }
+
+
+def _mock_pos_adapter(positions: list, *, fail: bool = False) -> MagicMock:
+    a = MagicMock()
+    a.is_paper = True
+    if fail:
+        a.get_positions.side_effect = RuntimeError("broker down")
+    else:
+        a.get_positions.return_value = positions
+    return a
+
+
+class _FakeRegistry:
+    def __init__(self, mapping: dict) -> None:
+        self._m = mapping
+
+    def get(self, account_id: int):
+        return self._m.get(account_id)
+
+
+async def _seed_multi(session_factory, n: int) -> None:
+    """n users/paper-accounts + the AAPL(1)/MSFT(2) symbols (shared)."""
+    async with session_factory() as session:
+        session.add(Symbol(id=1, ticker="AAPL", exchange="NASDAQ",
+                           asset_class="us_equity", name="Apple", active=True))
+        session.add(Symbol(id=2, ticker="MSFT", exchange="NASDAQ",
+                           asset_class="us_equity", name="Microsoft", active=True))
+        for i in range(1, n + 1):
+            session.add(User(id=i, email=f"u{i}@test", display_name=f"U{i}"))
+            await session.flush()
+            session.add(Account(id=i, user_id=i, broker="alpaca",
+                                mode=AccountMode.paper, label=f"P{i}"))
+        await session.commit()
+
+
+async def test_sync_all_syncs_positions_for_every_account(session_factory) -> None:
+    """Each account's own adapter is used → positions land scoped to that account."""
+    await _seed_multi(session_factory, 2)
+    reg = _FakeRegistry({1: _mock_pos_adapter([_pos("AAPL")]),
+                         2: _mock_pos_adapter([_pos("MSFT")])})
+    svc = PositionSyncService(MagicMock(), session_factory, EventBus(), broker_registry=reg)
+    result = await svc.sync_all()
+    assert sorted(result["synced"]) == [1, 2]
+    async with session_factory() as session:
+        rows = (await session.execute(select(Position))).scalars().all()
+        pairs = {(r.account_id, r.symbol_id) for r in rows}
+    assert pairs == {(1, 1), (2, 2)}  # acct1→AAPL, acct2→MSFT — NOT just account 1
+
+
+async def test_sync_all_skips_account_without_adapter(session_factory) -> None:
+    await _seed_multi(session_factory, 2)
+    reg = _FakeRegistry({1: _mock_pos_adapter([_pos("AAPL")]), 2: None})  # acct2 has no creds
+    svc = PositionSyncService(MagicMock(), session_factory, EventBus(), broker_registry=reg)
+    result = await svc.sync_all()
+    assert result["synced"] == [1] and result["skipped"] == [2]
+
+
+async def test_sync_all_one_failure_does_not_abort_others(session_factory) -> None:
+    await _seed_multi(session_factory, 2)
+    reg = _FakeRegistry({1: _mock_pos_adapter([_pos("AAPL")]),
+                         2: _mock_pos_adapter([], fail=True)})
+    svc = PositionSyncService(MagicMock(), session_factory, EventBus(), broker_registry=reg)
+    result = await svc.sync_all()
+    assert result["synced"] == [1] and result["errors"] == [2]
+    async with session_factory() as session:
+        rows = (await session.execute(select(Position))).scalars().all()
+    assert [r.account_id for r in rows] == [1]  # the good account still synced
+
+
+async def test_sync_all_without_registry_falls_back_to_primary(
+    session_factory, seeded_for_positions, mock_adapter_paper
+) -> None:
+    svc = PositionSyncService(mock_adapter_paper, session_factory, EventBus())  # no registry
+    result = await svc.sync_all()
+    assert result == {"synced": [], "skipped": [], "errors": []}
+    async with session_factory() as session:
+        rows = (await session.execute(select(Position))).scalars().all()
+    assert len(rows) == 1  # sync_once ran for the primary account (AAPL)

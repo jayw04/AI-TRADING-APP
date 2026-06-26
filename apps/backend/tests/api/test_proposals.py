@@ -63,8 +63,19 @@ async def _mk_proposal(
         return row.id
 
 
+def _fake_agent_key(monkeypatch):
+    """Give the proposing user a resolved per-user agent API key so propose() gets
+    past the multi-user key gate (the real path reads the encrypted credential store)."""
+    async def fake_key(session, user_id: int) -> str:
+        return "test-agent-key"
+
+    monkeypatch.setattr(proposals_mod, "_resolve_user_agent_key", fake_key)
+
+
 def _fake_agent_success(monkeypatch):
-    async def fake(agent_url: str, proposal_id: int) -> dict:
+    _fake_agent_key(monkeypatch)
+
+    async def fake(agent_url: str, proposal_id: int, agent_api_key: str) -> dict:
         async with get_sessionmaker()() as s:
             row = await s.get(StrategyProposal, proposal_id)
             row.state = ProposalState.REVIEWING
@@ -96,7 +107,9 @@ async def test_propose_creates_draft_then_agent_completes_to_reviewing(client, m
 
 
 async def test_propose_agent_failure_cleans_up_draft(client, monkeypatch):
-    async def fake(agent_url, pid):
+    _fake_agent_key(monkeypatch)
+
+    async def fake(agent_url, pid, agent_api_key):
         return {"proposal_id": pid, "state": "DRAFT", "error": "LLM call failed"}
 
     monkeypatch.setattr(proposals_mod, "_invoke_agent", fake)
@@ -108,12 +121,29 @@ async def test_propose_agent_failure_cleans_up_draft(client, monkeypatch):
 
 
 async def test_propose_agent_unreachable_cleans_up_draft(client, monkeypatch):
-    async def fake(agent_url, pid):
+    _fake_agent_key(monkeypatch)
+
+    async def fake(agent_url, pid, agent_api_key):
         raise httpx.ConnectError("agent down")
 
     monkeypatch.setattr(proposals_mod, "_invoke_agent", fake)
     r = await client.post(f"{BASE}/strategies/1/propose", json={})
     assert r.status_code == 502
+    async with get_sessionmaker()() as s:
+        rows = (await s.execute(select(StrategyProposal))).scalars().all()
+    assert rows == []
+
+
+async def test_propose_without_agent_key_returns_503(client, monkeypatch):
+    """P1: when the proposing user has no agent API key, propose() fails with a clear
+    503 (not a silent/opaque error) and leaves no orphaned DRAFT."""
+    async def no_key(session, user_id: int):
+        return None
+
+    monkeypatch.setattr(proposals_mod, "_resolve_user_agent_key", no_key)
+    r = await client.post(f"{BASE}/strategies/1/propose", json={})
+    assert r.status_code == 503
+    assert "Agent API Key" in r.json()["detail"]
     async with get_sessionmaker()() as s:
         rows = (await s.execute(select(StrategyProposal))).scalars().all()
     assert rows == []
@@ -131,6 +161,50 @@ async def test_propose_minute_collision_returns_409(client, monkeypatch):
     assert r1.status_code == 200
     r2 = await client.post(f"{BASE}/strategies/1/propose", json={})
     assert r2.status_code == 409
+
+
+# ----- rerun-eval (P3: fix -> re-run eval, not regenerate) -----
+
+
+async def _set_eval(pid: int, status: str) -> None:
+    async with get_sessionmaker()() as s:
+        row = await s.get(StrategyProposal, pid)
+        row.evaluation_results_json = {"status": status, "failure_reason": "boom"}
+        await s.commit()
+
+
+async def test_rerun_eval_reenqueues_failed_eval(client):
+    # Give strategy 1 a code_path so the backtest enqueues (else it skips).
+    async with get_sessionmaker()() as s:
+        st = await s.get(Strategy, 1)
+        st.code_path = "strat.py"
+        await s.commit()
+    pid = await _mk_proposal(state=ProposalState.REVIEWING, payload={"changes": []})
+    await _set_eval(pid, "failed")
+    r = await client.post(f"{BASE}/proposals/{pid}/rerun-eval")
+    assert r.status_code == 200, r.text
+    assert r.json()["evaluation_results"]["status"] == "pending"  # re-enqueued, no LLM call
+
+
+async def test_rerun_eval_rejects_completed_eval(client):
+    pid = await _mk_proposal(state=ProposalState.REVIEWING)
+    await _set_eval(pid, "complete")
+    r = await client.post(f"{BASE}/proposals/{pid}/rerun-eval")
+    assert r.status_code == 409  # a completed eval has a verdict; don't clobber it
+
+
+async def test_rerun_eval_rejects_non_reviewing(client):
+    pid = await _mk_proposal(state=ProposalState.DRAFT)
+    await _set_eval(pid, "failed")
+    r = await client.post(f"{BASE}/proposals/{pid}/rerun-eval")
+    assert r.status_code == 409
+
+
+async def test_rerun_eval_other_users_proposal_404(client):
+    pid = await _mk_proposal(strategy_id=2, user_id=2, state=ProposalState.REVIEWING)
+    await _set_eval(pid, "failed")
+    r = await client.post(f"{BASE}/proposals/{pid}/rerun-eval")
+    assert r.status_code == 404
 
 
 # ----- patch transitions -----
@@ -230,6 +304,32 @@ async def test_apply_merges_params_json(client):
     async with get_sessionmaker()() as s:
         strat = await s.get(Strategy, 1)
         assert strat.params_json["rsi_min"] == 55
+
+
+def test_coerce_to_ref_type_unit():
+    """E6: applied values are coerced to the existing param's type."""
+    c = proposals_mod._coerce_to_ref_type
+    assert c("55", 50) == 55 and isinstance(c("55", 50), int)   # string -> int
+    assert c("15.5", 1.0) == 15.5                                # string -> float
+    assert c("true", False) is True and c("false", True) is False  # string -> bool
+    assert c("abc", 50) == "abc"   # un-coercible → unchanged (apply must not fail)
+    assert c("x", None) == "x"     # no existing value → unchanged
+    assert c(55, 50) == 55         # already the right type
+
+
+async def test_apply_coerces_param_type_to_existing(client):
+    # rsi_min is int 50; an agent change arriving as the string "55" stores as int 55 (E6).
+    pid = await _mk_proposal(
+        state=ProposalState.ACCEPTED,
+        payload={"changes": [{"param": "rsi_min", "from": 50, "to": "55"}]},
+    )
+    r = await client.post(f"{BASE}/proposals/{pid}/apply")
+    assert r.status_code == 200, r.text
+    assert r.json()["applied_changes"] == [{"param": "rsi_min", "to": 55}]
+    async with get_sessionmaker()() as s:
+        strat = await s.get(Strategy, 1)
+        assert strat.params_json["rsi_min"] == 55
+        assert isinstance(strat.params_json["rsi_min"], int)
 
 
 async def test_apply_requires_idle_strategy_409(client):

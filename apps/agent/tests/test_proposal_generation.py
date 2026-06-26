@@ -15,7 +15,7 @@ import pytest
 
 from agent.config import AgentConfig
 from agent.llm_call import LLMCallFailed
-from agent.proposal_generation import generate_proposal
+from agent.proposal_generation import _extract_json, generate_proposal
 
 CONFIG = AgentConfig(
     backend_api_base="http://backend",
@@ -23,20 +23,6 @@ CONFIG = AgentConfig(
     agent_api_key="agt-key",
     anthropic_api_key="sk-test",
 )
-
-
-class FakeMcp:
-    async def get_trading_profile(self):
-        return {"bias_criteria": {}, "bias_thresholds": {}, "agent_envelope": {}}
-
-    async def get_strategy_history(self, strategy_id, limit=30):
-        return {"snapshot": {"id": strategy_id, "params": {"rsi_min": 50}}, "performance": {}}
-
-    async def get_recent_proposals(self, strategy_id, limit=5):
-        return []
-
-    async def get_strategy_recent_orders(self, strategy_id, limit=20):
-        return []
 
 
 class FakeBackend:
@@ -61,6 +47,18 @@ class FakeBackend:
 
     async def get_proposal(self, proposal_id):
         return {"id": proposal_id, "strategy_id": 1, "state": self._proposal_state}
+
+    async def get_trading_profile(self):
+        return {"bias_criteria": {}, "bias_thresholds": {}, "agent_envelope": {}}
+
+    async def get_strategy_history(self, strategy_id, *, limit=30):
+        return {"snapshot": {"id": strategy_id, "params": {"rsi_min": 50}}, "performance": {}}
+
+    async def get_recent_proposals(self, strategy_id, *, limit=5):
+        return []
+
+    async def get_strategy_recent_orders(self, strategy_id, *, limit=20):
+        return []
 
     async def update_proposal_to_reviewing(self, proposal_id, *, proposal_payload, evidence_bundle, llm_usage):
         self.patched = {
@@ -110,7 +108,7 @@ def _anthropic_returning(text: str):
 async def test_full_flow_success(monkeypatch):
     _install_fake_anthropic(monkeypatch, _anthropic_returning(_ok_payload()))
     backend = FakeBackend()
-    result = await generate_proposal(CONFIG, 7, mcp=FakeMcp(), backend=backend)
+    result = await generate_proposal(CONFIG, 7, backend=backend)
     assert result.state == "REVIEWING"
     assert result.confidence == "MEDIUM"
     # The PATCH to REVIEWING carried the payload + llm_usage cost telemetry.
@@ -123,7 +121,7 @@ async def test_parse_error_drops_proposal(monkeypatch):
     _install_fake_anthropic(monkeypatch, _anthropic_returning("not json at all"))
     backend = FakeBackend()
     with pytest.raises(ValueError):
-        await generate_proposal(CONFIG, 7, mcp=FakeMcp(), backend=backend)
+        await generate_proposal(CONFIG, 7, backend=backend)
     assert backend.patched is None  # never wrote back
 
 
@@ -131,7 +129,7 @@ async def test_missing_fields_raises_keyerror(monkeypatch):
     _install_fake_anthropic(monkeypatch, _anthropic_returning(json.dumps({"summary": "x"})))
     backend = FakeBackend()
     with pytest.raises(KeyError):
-        await generate_proposal(CONFIG, 7, mcp=FakeMcp(), backend=backend)
+        await generate_proposal(CONFIG, 7, backend=backend)
 
 
 async def test_invalid_confidence_raises_valueerror(monkeypatch):
@@ -147,7 +145,7 @@ async def test_invalid_confidence_raises_valueerror(monkeypatch):
     _install_fake_anthropic(monkeypatch, _anthropic_returning(bad))
     backend = FakeBackend()
     with pytest.raises(ValueError):
-        await generate_proposal(CONFIG, 7, mcp=FakeMcp(), backend=backend)
+        await generate_proposal(CONFIG, 7, backend=backend)
 
 
 async def test_budget_rejected_propagates(monkeypatch):
@@ -156,7 +154,7 @@ async def test_budget_rejected_propagates(monkeypatch):
     _install_fake_anthropic(monkeypatch, _anthropic_returning(_ok_payload()))
     backend = FakeBackend(budget="REJECTED")
     with pytest.raises(BudgetRejected):
-        await generate_proposal(CONFIG, 7, mcp=FakeMcp(), backend=backend)
+        await generate_proposal(CONFIG, 7, backend=backend)
     assert backend.patched is None
 
 
@@ -167,11 +165,39 @@ async def test_anthropic_timeout_raises_llm_call_failed(monkeypatch):
     _install_fake_anthropic(monkeypatch, boom)
     backend = FakeBackend()
     with pytest.raises(LLMCallFailed):
-        await generate_proposal(CONFIG, 7, mcp=FakeMcp(), backend=backend)
+        await generate_proposal(CONFIG, 7, backend=backend)
 
 
 async def test_non_draft_proposal_raises(monkeypatch):
     _install_fake_anthropic(monkeypatch, _anthropic_returning(_ok_payload()))
     backend = FakeBackend(proposal_state="REVIEWING")
     with pytest.raises(ValueError):
-        await generate_proposal(CONFIG, 7, mcp=FakeMcp(), backend=backend)
+        await generate_proposal(CONFIG, 7, backend=backend)
+
+
+# ---- _extract_json: tolerate fenced / prose-wrapped LLM output (live bug 2026-06-23) ----
+
+def test_extract_json_passthrough_raw_object():
+    s = '{"a": 1}'
+    assert json.loads(_extract_json(s)) == {"a": 1}
+
+
+def test_extract_json_strips_json_fence():
+    s = '```json\n{"a": 1}\n```'
+    assert json.loads(_extract_json(s)) == {"a": 1}
+
+
+def test_extract_json_strips_bare_fence():
+    s = '```\n{"a": 1}\n```'
+    assert json.loads(_extract_json(s)) == {"a": 1}
+
+
+def test_extract_json_strips_prose_preamble():
+    s = 'Here is the proposal:\n{"a": 1, "b": [2, 3]}\nHope this helps.'
+    assert json.loads(_extract_json(s)) == {"a": 1, "b": [2, 3]}
+
+
+def test_extract_json_returns_input_when_no_object():
+    # No braces → return the (stripped) text so json.loads raises a clear error.
+    assert _extract_json("  not json  ") == "not json"
+    assert _extract_json("") == ""

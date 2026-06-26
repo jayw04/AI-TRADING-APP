@@ -2,14 +2,124 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.3 (2026-06-15: +§9 deferred data models & methodology — overlay action invariant, PIT survivorship spec, execution-cost baseline, from review comments §2) |
-| Date | 2026-06-15 |
+| Document version | v0.6.1 (2026-06-19: + Implemented-vs-Proven-vs-Enabled status table recording the **§5 regime-overlay promotion backtest = NO-GO** (stays default-off); + dependency-rules "must NOT write" column; + partial-fill operational note → ADR 0021. Factual status update to the frozen baseline, not an expansion.) — v0.6: **P10 portfolio-risk CODE-COMPLETE** — §2 daily overlay (#173), §4 exposure smoothing (#174), and §5 regime data/overlay (breadth #175, VIX ingest #176, regime wiring #177) all merged; every roadmap section now on `main`. v0.5 froze the baseline + added the dependency graph, promotion criteria, rollback, architecture-maturity / dependency-rules tables, and ADR lineage.) |
+| Date | 2026-06-19 |
 | Phase | P10 — Portfolio-Level Risk Engineering |
-| Predecessor | P9 §4 `momentum-portfolio` (now v0.5.0); paper-active id=2 |
+| Predecessor | P9 §4 `momentum-portfolio` (now v0.5.0+); paper-active id=2 |
 | Repository | github.com/jayw04/AI-TRADING-APP |
 | Scope | Turn the `momentum-portfolio` book from a pure cross-sectional alpha sleeve into a risk-managed portfolio: vol targeting, sector caps, daily exposure overlay, exposure smoothing — *without* adding alpha signals or sacrificing the current simplicity. |
 | Source | Owner's two reviews of `momentum_portfolio.py` (`strategy-review/review comment.md`, 2026-06-15): v1 (10 weaknesses) and **v2 (8 critical issues, re-prioritized)**. |
-| Status | EWMA vol targeting (v0.4.0) + **sector caps (v0.5.0, #118)** implemented, both **default off**. Broad-history store (28.5 yr) built. **Review v2 re-prioritizes — see below.** |
+| Status | ✅ **CODE-COMPLETE as of 2026-06-19 (git-verified): every section (§1–§8, §3C) is merged to `main`.** §1 vol targeting + walk-forward, §2 daily overlay (#173), §3 strategy sector caps (#118), §3C research-weigher cap (#172), §4 exposure smoothing (#174), §5 regime overlay (breadth #175 / VIX ingest #176 / wiring #177), §6 continuous breaker (#120), §7 fractional shares (#121), §8 survivorship pool. **Remaining work is owner-gated, not code:** run the ADR-0022 §7 promotion backtest before *enabling* the regime overlay (default-off; same posture as §1 vol-scaling). See the "Verified status" box. |
+
+---
+
+## Verified status (2026-06-19) — read this first
+
+The body below is preserved as the original reasoning, but several items it marks "pending / NEW / not done" have since shipped. This box is the **git-verified ground truth**; where it disagrees with the prose, this box wins.
+
+| Item | Status (git-verified) | Evidence |
+|---|---|---|
+| §1 — EWMA vol targeting | ✅ done + walk-forward validated across regimes | `_gross_scale`, `_vol_target_overlay`; §1 below |
+| §3 — strategy sector caps | ✅ done (default off) | PR #118; `momentum_portfolio.py` `max_sector_pct` |
+| §3C — research-engine *weigher* sector cap | ✅ done | PR #172 — `_apply_sector_cap` in `app/factor_data/backtest.py` (distinct from the §3 strategy cap) |
+| §6 — continuous breaker monitor | ✅ done | PR #120 — `app/jobs/breaker_monitor.py` + `CircuitBreakerService.evaluate()` + 60s lifespan job |
+| §7 — fractional shares | ✅ done (default off) | PR #121 |
+| §8 — survivorship-unbiased pool | ✅ **effectively done** | broad SEP ingest already present: 38.99M rows / 14,150 tickers / **8,322 delisted** / history to 1997; GFC-2008 rankable pool 6,083 names @ 99.7% coverage, 66% delisted. `universe_asof` is survivorship-free by construction. |
+| **§2 — daily overlay engine** | ✅ **done (default off)** | PR #173 — `app/strategies/overlay/` + optional `daily_overlay_schedule` engine cadence + ADR 0020 |
+| **§4 — exposure smoothing** | ✅ **done (default off)** | PR #174 — optional `gross_smooth_span` EWMA damping in `overlay.desired_gross` |
+| **§5 — regime data (breadth + VIX)** | ✅ **done (default off)** | ADR 0022 + PR #175 (breadth `regime.market_breadth`), #176 (`^VIX` ingest + `vix_percentile`), #177 (wiring into `desired_gross`) |
+
+**Net:** **P10 portfolio-risk is code-complete — every section is on `main`.** The regime overlay (§5) and the daily/smoothing overlays (§2/§4) ship **default-off**; the only remaining work is **owner-gated, not code** — run the ADR-0022 §7 promotion backtest (survivorship-free + IS/OOS + walk-forward + paper) before *enabling* `use_daily_overlay` / `use_breadth_overlay` / `use_vix_overlay`, and populate breadth/`^VIX` in the live container store at that point. §8's original premise ("today's ~1,252 survivors, survivorship-biased") is obsolete — the "survivorship-biased" caveat on the §3A/§3B study and walk-forward reports is now over-conservative for this store (delisted names' SEP is present, so the pool is rankable and unbiased).
+
+### Dependency graph (all shipped — kept for the record)
+
+```
+§2 daily overlay engine  ──▶  §4 exposure smoothing  ──▶  §5 regime signals (breadth + VIX)
+✅ #173 (default off)          ✅ #174 (damp the gross)     ✅ #175/#176/#177 (default off)
+```
+
+Each shipped as a **separate PR** (not combined): §4 layers a damping function on §2's raw
+gross series; §5 folds breadth + the VIX percentile into the scale (data-dependency settled
+by ADR 0022). §2 was the prerequisite for both. All default-off pending the ADR-0022 §7
+promotion backtest.
+
+### Promotion criteria (every P10 feature, mirroring strategy promotion)
+
+```
+Built (default off)  ──▶  Backtested  ──▶  Paper-enabled  ──▶  ~30d observation  ──▶  Production candidate
+```
+
+A feature ships **default off**, is validated by backtest (ADR 0014), enabled on a
+**paper** book, observed (turnover, drawdown, fail-open rate, scheduler reliability),
+and only then is a production-candidate. Nothing flips on by a code default.
+
+### Rollback (every P10 feature)
+
+Every feature is a **feature flag, default off** → rollback is "set the flag off," which
+returns the weekly strategy to byte-identical prior behavior. No data migration to
+unwind, no schema rollback.
+
+### Architecture maturity
+
+| Layer | Status |
+|---|---|
+| Data (PIT factor store) | Production |
+| Research Engine | Production |
+| Portfolio (construction, sector caps) | Production |
+| Overlay (gross-exposure: vol-target + smoothing + regime) | Built, default-off (§2/§4/§5 — ADR 0020/0022; pending §7 backtest to enable) |
+| Execution (routing via OrderRouter) | Integrated (no standalone engine yet) |
+| Risk (gates + circuit breaker + continuous monitor) | Production |
+| AI assistance | Experimental / gated |
+
+### Implemented vs Proven vs Enabled (validation status)
+
+"Implemented" (code on `main`) is distinct from "Proven" (cleared its promotion
+backtest) and from "Enabled" (running on a book). **All overlays ship default-off.**
+
+| Overlay | Implemented | Proven (ADR-0014/0022 §7) | Enabled |
+|---|---|---|---|
+| §1 vol-target | ✅ | ✅ walk-forward across regimes (a drawdown tool, not a Sharpe booster) | owner-gated |
+| §2 daily overlay | ✅ | ⏳ pending backtest | off |
+| §4 exposure smoothing | ✅ | ⏳ pending backtest | off |
+| §5 regime (breadth + VIX) | ✅ | ❌ **NO-GO** — promotion backtest (weekly + daily-VIX passes, 2026-06-19) shows a drawdown tool with a **Sharpe cost** (worse in 3/5 regime windows, drawdown worse in 1/5); §1 already captures most crisis-window drawdown protection. | off |
+
+The §5 "no" is **recorded, not hidden** — the wiring stays in place, dormant (like the
+rejected value/quality factors; an honest negative result is itself a deliverable).
+Re-evaluating it would need new evidence (e.g. deeper `^VIX` history), not threshold
+tuning (which would overfit).
+
+**Partial fills (operational note):** an overlay re-size that only partially fills leaves
+gross between states; it self-heals on the next overlay cycle and is observable via the
+audit fingerprint (`gross_before`/`gross_after`). Formalized in **ADR 0021** (operational
+recovery contract) — not a roadmap concern.
+
+### Dependency rules (anti-erosion)
+
+Owning a responsibility is half the contract; the other half is what a layer **may not
+know**. These rules prevent architectural erosion as the layers grow:
+
+| Component | Must NOT depend on | Must NOT write / produce |
+|---|---|---|
+| Research Engine | the broker / order path (ADR 0019, 0002) | orders (read-only; alerts, never trades) |
+| Overlay | the factor ranking / alpha scores (it only scales gross — ADR 0020) | rankings / names (only a scalar gross) |
+| Risk Engine | alpha logic / strategy internals | signals / alpha |
+| Execution / OrderRouter | the factor model | alpha / selection |
+| Broker adapters | strategy or overlay logic | strategy / portfolio state |
+
+### ADR lineage for this work
+
+```
+ADR 0014 (backtests = eval ground truth)
+   └─▶ ADR 0019 (Research Engine subsystem)
+          └─▶ ADR 0020 (daily gross-exposure overlay)
+                 └─▶ P10 §2 session doc (implements 0020)
+```
+
+*Baselines frozen 2026-06-19: ADR 0019, ADR 0020, and this roadmap are architectural
+baselines; future changes go through new incremental ADRs rather than rewrites. The
+recommended **next** ADR is operational, not architectural — an Operational Recovery
+ADR (scheduler crash, broker outage, duplicate orders, partial fills, restart recovery,
+replay, reconciliation).*
 
 ---
 
@@ -191,21 +301,27 @@ No data-dep ADR is required for Priorities 1, 2, or 4 (all use already-available
 
 ---
 
-## §6 — Continuous breaker monitoring (NEW, Review v2 Critical Issue #5 — HIGH priority)
+## §6 — Continuous breaker monitoring (✅ SHIPPED in PR #120 — see Verified-status box)
+
+> **Status (2026-06-19):** DONE. `app/jobs/breaker_monitor.py` runs a 60s lifespan interval job calling `CircuitBreakerService.evaluate()` (the non-raising sibling of `check()`) for every account with an open position; trips audit identically with `payload.source="monitor"`. 20 breaker tests green. The scoping prose below is retained for history.
 
 **Problem:** `CircuitBreakerService.check()` only runs at order submission, so a portfolio that crashes overnight (no orders submitted) never trips the daily-loss breaker until the next order attempt. Operationally unacceptable.
 
 **Build:** a ~1-minute APScheduler job (in `lifespan`/the engine) that calls `CircuitBreakerService.check()` for every account with open positions — trips + HALTs the same way the order-path check does. Purely additive, self-contained, no new data dependency. (This is the job already noted as "P5+ polish" in `docs/runbook/risk-gates.md`; Review v2 elevates it.) Tests at the risk-engine bar (ADR 0004; ≥95% coverage).
 
-## §7 — Fractional shares (NEW, Review v2 Critical Issue #6 — elevated, possibly ahead of §2)
+## §7 — Fractional shares (✅ SHIPPED in PR #121, default off — see Verified-status box)
+
+> **Status (2026-06-19):** DONE. `momentum-portfolio` fractional-share sizing shipped default-off in PR #121. The scoping prose below is retained for history.
 
 **Problem:** whole-share sizing on the ~$10k book deploys only ~67% and systematically biases *away* from expensive mega-cap momentum leaders — distorting factor exposure, diversification, and backtest realism.
 
 **Build:** fractional-qty support through the order path (OrderRouter / Alpaca adapter — Alpaca supports fractional) + strategy sizing (`Decimal` fractional qty instead of `floor`). Touches the order path → risk-engine + audit discipline; needs its own session doc. Biggest single deployment-realism win.
 
-## §8 — Universe breadth / survivorship (NEW, the open half of Review v2 Critical Issue #1)
+## §8 — Universe breadth / survivorship (✅ EFFECTIVELY DONE — premise obsolete; see Verified-status box)
 
-**Problem:** the broad-history ingest fixed history *depth* (28.5 yr) but the candidate pool is *today's* active mega/large names — so a historical `universe_asof` (e.g. 2008) can't include names that were large then but have since delisted (survivorship bias in historical backtests). SEP is survivorship-free *per ticker*; the *pool selection* is not.
+> **Status (2026-06-19):** the broad survivorship-inclusive SEP ingest has happened. Measured against the local full store: **38.99M rows, 14,150 distinct tickers, 8,322 delisted, history to 1997**; the GFC-2008 rankable pool is 6,083 names (66% delisted) at 99.7% coverage. `universe_asof`/`dollar_volume_universe` rank over whatever SEP holds joined to TICKERS lifetime bounds, so the pool is survivorship-free by construction. The only residual is minor coverage holes (77–92% in some windows) of thin names that wouldn't make a top-N book. The original (now-obsolete) framing follows.
+
+**Problem (original framing, now obsolete):** the broad-history ingest fixed history *depth* (28.5 yr) but the candidate pool is *today's* active mega/large names — so a historical `universe_asof` (e.g. 2008) can't include names that were large then but have since delisted (survivorship bias in historical backtests). SEP is survivorship-free *per ticker*; the *pool selection* is not.
 
 **Build:** derive a point-in-time, survivorship-unbiased candidate pool (e.g. top-N by trailing dollar-volume from the full `TICKERS` set per as-of date, including delisted names) and ingest their SEP history. This is the prerequisite for trustworthy GFC/2011/2015-era backtests and any LIVE alpha claim. Larger ingest; sequence after the overlays are validated on the (biased-but-informative) current pool.
 

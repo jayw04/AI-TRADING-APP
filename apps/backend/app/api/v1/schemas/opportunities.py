@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.enums import (
     OrderSide,
@@ -153,6 +153,27 @@ class OppDiscoveryMatchesWidget(BaseModel):
     as_of: datetime
 
 
+# Pre-market gappers — read-only ingest of the external scanner (advisory only).
+class OppPremarketGapperItem(BaseModel):
+    rank: int
+    symbol: str
+    price: float | None = None
+    gap_pct: float | None = None
+    premarket_volume: int | None = None
+    catalyst: str | None = None
+    headlines: list[str] = Field(default_factory=list)
+
+
+class OppPremarketGappersWidget(BaseModel):
+    items: list[OppPremarketGapperItem]
+    count: int
+    as_of: datetime
+    # Source-file metadata so the UI can show provenance + a stale badge.
+    scanned_at: datetime | None = None
+    date: str | None = None
+    stale: bool = True
+
+
 class OpportunitiesResponse(BaseModel):
     live_signals: OppLiveSignalsWidget
     pine_alerts: OppPineAlertsWidget
@@ -161,4 +182,5 @@ class OpportunitiesResponse(BaseModel):
     open_orders_expiring: OppOpenOrdersExpiringWidget
     risk_rejections: OppRiskRejectionsWidget
     recent_fills: OppRecentFillsWidget
+    premarket_gappers: OppPremarketGappersWidget
     as_of: datetime

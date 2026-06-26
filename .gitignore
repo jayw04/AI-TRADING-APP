@@ -50,6 +50,10 @@ bars_cache/
 # Fetched market-data parquets cached by scripts/backtest_range_trader_sweep.py
 scripts/.sweep_cache/
 apps/backend/scripts/.sweep_cache/
+# P10 Phase 3A portfolio study (§4.9): the comparison report (.md) is committed; the
+# bulky, fully-reproducible evidence-bundle curves + any local stores are not.
+research/**/*.json
+research/**/*.duckdb
 
 # Editor / OS
 .DS_Store

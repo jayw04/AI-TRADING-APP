@@ -61,6 +61,7 @@ from app.services.promotion import (
     in_lockout,
     lockout_expires_at,
 )
+from app.services.proposal_cadence import _resolve_user_agent_key
 from app.services.trading_profile import TradingProfileService
 
 logger = structlog.get_logger(__name__)
@@ -127,6 +128,9 @@ class ProposalEvalSummaryResponse(BaseModel):
     n_eval_failed: int
     n_above_baseline: int
     n_below_baseline: int
+    # E4 (review): a zero-trade eval is INSUFFICIENT_EVIDENCE, never above_baseline.
+    n_insufficient_evidence: int = 0
+    n_needs_review: int = 0
     recent_metrics_summary: dict[str, Any] | None
     # P6 §2b-review: human-review aggregates (additive — defaults keep the
     # response shape backward-compatible for existing callers + the MCP tool).
@@ -169,13 +173,46 @@ def _agent_url(request: Request) -> str:
     )
 
 
-async def _invoke_agent(agent_url: str, proposal_id: int) -> dict[str, Any]:
+def _coerce_to_ref_type(value: Any, ref: Any) -> Any:
+    """Coerce ``value`` to the type of ``ref`` (the existing param value) — E6.
+
+    Agent-generated proposal changes often arrive as strings ('15', 'true'); apply
+    them with the same type the strategy already uses so params_json stays
+    type-consistent. Unknown/None ref or an un-coercible value is returned unchanged
+    (apply must not fail on a stray type). bool is checked before int (bool ⊂ int)."""
+    if isinstance(ref, bool):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            low = value.strip().lower()
+            if low in ("true", "1", "yes"):
+                return True
+            if low in ("false", "0", "no"):
+                return False
+        return value
+    if isinstance(ref, int):  # ref is a real int here (bool handled above)
+        try:
+            return int(float(value)) if isinstance(value, str) else int(value)
+        except (ValueError, TypeError):
+            return value
+    if isinstance(ref, float):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return value
+    return value  # str / unknown / no existing value → leave as-is
+
+
+async def _invoke_agent(
+    agent_url: str, proposal_id: int, agent_api_key: str
+) -> dict[str, Any]:
     """POST to the agent control-plane. Extracted as a module-level function so
     tests can monkeypatch it (mocking the agent without a live service). Raises
     httpx.HTTPError on transport/HTTP failure."""
     async with httpx.AsyncClient(timeout=90.0) as client:
         resp = await client.post(
-            f"{agent_url}/generate-proposal", json={"proposal_id": proposal_id}
+            f"{agent_url}/generate-proposal",
+            json={"proposal_id": proposal_id, "agent_api_key": agent_api_key},
         )
         resp.raise_for_status()
         return resp.json()
@@ -268,6 +305,7 @@ async def proposal_eval_summary(
     ).scalars().all()
 
     n_complete = n_pending = n_skipped = n_failed = n_above = n_below = 0
+    n_insufficient = n_needs_review = 0
     n_reviewed = n_thumbs_up = n_thumbs_down = 0
     latest_complete: dict[str, Any] | None = None
     for r in rows:
@@ -291,6 +329,10 @@ async def proposal_eval_summary(
                 n_above += 1
             elif verdict == "below_baseline":
                 n_below += 1
+            elif verdict == "insufficient_evidence":
+                n_insufficient += 1
+            elif verdict == "needs_review":
+                n_needs_review += 1
             if latest_complete is None:  # rows are desc → first complete is latest
                 latest_complete = {
                     "proposal_id": r.id,
@@ -315,6 +357,8 @@ async def proposal_eval_summary(
         n_eval_failed=n_failed,
         n_above_baseline=n_above,
         n_below_baseline=n_below,
+        n_insufficient_evidence=n_insufficient,
+        n_needs_review=n_needs_review,
         recent_metrics_summary=latest_complete,
         n_reviewed=n_reviewed,
         n_thumbs_up=n_thumbs_up,
@@ -382,9 +426,20 @@ async def propose(
     proposal_id = row.id
 
     # Synchronously invoke the agent (it calls back via PATCH → REVIEWING).
+    agent_api_key = await _resolve_user_agent_key(session, current_user.id)
+    if not agent_api_key:
+        await _delete_proposal(session, proposal_id)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Agent API Key not configured for this user. "
+                "Set it in Settings → Credentials → Agent API Key."
+            ),
+        )
+
     agent_url = _agent_url(request)
     try:
-        agent_result = await _invoke_agent(agent_url, proposal_id)
+        agent_result = await _invoke_agent(agent_url, proposal_id, agent_api_key)
     except httpx.HTTPError as exc:
         logger.warning("agent_invocation_failed", proposal_id=proposal_id, error=str(exc))
         await _delete_proposal(session, proposal_id)
@@ -664,8 +719,12 @@ async def apply_proposal(
         param = change.get("param")
         if not param:
             continue
-        new_params[param] = change.get("to")
-        applied_changes.append({"param": param, "to": change.get("to")})
+        # E6 (review): coerce the applied value to the existing param's type. Agent-
+        # generated changes often arrive as strings ('15'); store them with the type
+        # the strategy already uses so params_json stays type-consistent.
+        coerced = _coerce_to_ref_type(change.get("to"), new_params.get(param))
+        new_params[param] = coerced
+        applied_changes.append({"param": param, "to": coerced})
 
     strategy.params_json = new_params
     strategy.updated_at = datetime.now(UTC)
@@ -840,6 +899,55 @@ async def validate_on_paper(
     if row is None:  # pragma: no cover - just spawned
         raise HTTPException(status_code=404, detail="Proposal not found")
     return _to_response(row)
+
+
+@proposals_router.post("/{proposal_id}/rerun-eval", response_model=ProposalResponse)
+async def rerun_eval(
+    proposal_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ProposalResponse:
+    """P3 (review): re-run the backtest evaluation for a REVIEWING proposal whose eval
+    failed or skipped — *fix → re-run*, WITHOUT regenerating the proposal (no new LLM
+    call). Re-enqueues the baseline + variant jobs; the reconcile cron advances them as
+    usual. Idempotency: only a failed/skipped eval can be re-run (not one already
+    pending/running, nor a completed one that already has a verdict)."""
+    row = await session.get(StrategyProposal, proposal_id)
+    if row is None or row.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if row.state != ProposalState.REVIEWING:
+        raise HTTPException(
+            status_code=409,
+            detail="Eval re-run only applies to a REVIEWING proposal",
+        )
+    status = (row.evaluation_results_json or {}).get("status")
+    if status not in ("failed", "skipped"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Eval is '{status}'; re-run only applies to a failed or skipped eval",
+        )
+
+    from app.services.proposal_evaluation import enqueue_eval_for_proposal
+
+    try:
+        fragment = await enqueue_eval_for_proposal(session, proposal_id=proposal_id)
+    except Exception as exc:  # noqa: BLE001 - surface as a clean 502, not a 500
+        raise HTTPException(
+            status_code=502, detail=f"eval enqueue failed: {str(exc)[:200]}"
+        ) from exc
+    row.evaluation_results_json = fragment
+    row.updated_at = datetime.now(UTC)
+    await session.commit()
+    logger.info(
+        "proposal_eval_rerun",
+        proposal_id=proposal_id,
+        user_id=current_user.id,
+        new_status=fragment.get("status"),
+    )
+    refreshed = await session.get(StrategyProposal, proposal_id)
+    if refreshed is None:  # pragma: no cover - just updated
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return _to_response(refreshed)
 
 
 @proposals_router.post(

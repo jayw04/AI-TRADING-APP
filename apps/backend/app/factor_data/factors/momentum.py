@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import numpy as np
 import pandas as pd
 
 from app.factor_data.store import FactorDataStore
@@ -46,9 +47,17 @@ def compute_momentum(
         return None
 
     as_of_ts = pd.Timestamp(as_of)
-    s = prices.loc[pd.to_datetime(prices["date"]) <= as_of_ts]
-    s = s.sort_values("date")
-    closes = s["close"].to_numpy()
+    dates = prices["date"]
+    # Fast path for the store/cache contract (datetime64, ascending): the rows on or
+    # before as_of are a prefix, located by binary search — no full-history reparse or
+    # sort (which, over a multi-decade frame queried every rebalance, dominated runtime).
+    # Byte-identical to the general path below; falls back for any other frame shape.
+    if pd.api.types.is_datetime64_any_dtype(dates) and dates.is_monotonic_increasing:
+        cut = int(np.searchsorted(dates.to_numpy(), as_of_ts.to_datetime64(), side="right"))
+        closes = prices["close"].to_numpy()[:cut]
+    else:
+        s = prices.loc[pd.to_datetime(dates) <= as_of_ts].sort_values("date")
+        closes = s["close"].to_numpy()
 
     needed = lookback_days + skip_days + 1
     if len(closes) < needed:
