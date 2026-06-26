@@ -364,3 +364,39 @@ async def rank_range_candidates(
         *(compute_range_insight(s, bar_cache=bar_cache, now=now) for s in deduped)
     )
     return rank_candidates(insights, evidence=evidence)
+
+
+def top_range_symbols(
+    candidates: Iterable[RangeCandidate], *, n: int = 5, require_suitable: bool = True
+) -> list[str]:
+    """The day's Top-N range picks, in rank order — the symbol list the Candidate Engine
+    hands to the Range Trader (design §"Top 3–5 candidates"). ``candidates`` must already be
+    ranked (output of ``rank_candidates``). Only ``ok`` names are eligible; with
+    ``require_suitable`` (default) a name must also be range-bound + have a usable ATR%, so a
+    thin or trending day yields FEWER than ``n`` picks rather than forcing in poor candidates
+    (no silent padding). ``n <= 0`` selects none."""
+    if n <= 0:
+        return []
+    picks = [
+        c
+        for c in candidates
+        if c.status == "ok" and (c.suitable or not require_suitable)
+    ]
+    return [c.symbol for c in picks[:n]]
+
+
+async def select_top_range_symbols(
+    symbols: Iterable[str],
+    *,
+    bar_cache: Any,
+    now: datetime,
+    n: int = 5,
+    evidence: dict[str, CandidateEvidence] | None = None,
+    require_suitable: bool = True,
+) -> list[str]:
+    """Rank a universe (evidence-first) and return today's Top-N symbols to range-trade.
+    The daily auto-select entry point: ``rank_range_candidates`` → ``top_range_symbols``."""
+    ranked = await rank_range_candidates(
+        symbols, bar_cache=bar_cache, now=now, evidence=evidence
+    )
+    return top_range_symbols(ranked, n=n, require_suitable=require_suitable)

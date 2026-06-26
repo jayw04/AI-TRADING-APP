@@ -7,6 +7,7 @@ from app.services.range_insight import (
     CandidateEvidence,
     RangeInsight,
     rank_candidates,
+    top_range_symbols,
 )
 
 
@@ -182,3 +183,58 @@ def test_evidence_with_null_win_rate_is_treated_as_no_evidence():
     )
     assert [c.symbol for c in out] == ["AMD", "ZERO"]  # falls back to structural score
     assert all(c.backtested is False for c in out)
+
+
+# --- Top-N selection: the day's picks the Candidate Engine hands to the Range Trader -----
+
+def test_top_range_symbols_picks_n_in_rank_order():
+    ranked = rank_candidates([
+        _ri("AMD", atr20_pct=0.066, classification="range_bound"),
+        _ri("NVDA", atr20_pct=0.050, classification="range_bound"),
+        _ri("KO", atr20_pct=0.020, classification="range_bound"),
+        _ri("MSFT", atr20_pct=0.038, classification="range_bound"),
+    ])
+    assert top_range_symbols(ranked, n=2) == ["AMD", "NVDA"]  # top-2 by rank
+    assert top_range_symbols(ranked, n=10) == ["AMD", "NVDA", "MSFT", "KO"]  # n>len → all eligible
+
+
+def test_top_range_symbols_excludes_unsuitable_and_insufficient():
+    ranked = rank_candidates([
+        _ri("AMD", atr20_pct=0.066, classification="range_bound"),     # suitable
+        _ri("TSLA", atr20_pct=0.060, classification="trending"),       # not range_bound → unsuitable
+        _ri("BADX", status="insufficient_data"),                       # not ok
+    ])
+    # Even asking for 5, only the genuinely suitable name is returned — no padding.
+    assert top_range_symbols(ranked, n=5) == ["AMD"]
+
+
+def test_top_range_symbols_require_suitable_false_allows_ok_trending():
+    ranked = rank_candidates([
+        _ri("AMD", atr20_pct=0.066, classification="range_bound"),
+        _ri("TSLA", atr20_pct=0.060, classification="trending"),
+        _ri("BADX", status="insufficient_data"),
+    ])
+    # Relaxed: any ``ok`` name qualifies (still excludes insufficient_data); rank order kept.
+    assert top_range_symbols(ranked, n=5, require_suitable=False) == ["AMD", "TSLA"]
+
+
+def test_top_range_symbols_evidence_first_picks_winners():
+    # The picks honor evidence-first ranking: AAPL (62%) leads NVDA (25%) despite NVDA's
+    # higher structural ATR%.
+    ranked = rank_candidates(
+        [
+            _ri("NVDA", atr20_pct=0.060, classification="range_bound"),
+            _ri("AAPL", atr20_pct=0.030, classification="range_bound"),
+        ],
+        evidence={
+            "NVDA": CandidateEvidence(win_rate=0.25, sharpe=-1.12, n_trades=20),
+            "AAPL": CandidateEvidence(win_rate=0.62, sharpe=0.46, n_trades=24),
+        },
+    )
+    assert top_range_symbols(ranked, n=1) == ["AAPL"]
+
+
+def test_top_range_symbols_n_zero_or_negative_selects_none():
+    ranked = rank_candidates([_ri("AMD", atr20_pct=0.066, classification="range_bound")])
+    assert top_range_symbols(ranked, n=0) == []
+    assert top_range_symbols(ranked, n=-3) == []
