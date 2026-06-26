@@ -1,10 +1,10 @@
-# Range Trading — Logic, Trigger Rules & Improvement Research (v0.2)
+# Range Trading — Logic, Trigger Rules & Improvement Research (v0.3 — frozen)
 
 | Field | Value |
 |---|---|
 | Date | 2026-06-26 |
 | Scope | The TradingWorkbench **RangeTrader** template (`apps/backend/strategies_user/templates/range_trader.py`) — the *fade-the-range* intraday mean-reversion strategy. (Distinct from the sibling system's "Combined Book.") |
-| Status | Working doc — current behavior + a prioritized research plan. **v0.2 folds the owner review (`design ideas.md`, 9.8/10):** the two-hypothesis split (H1 symbols / H2 entry, tested separately), a composite **Range Score** + **Range Efficiency**, the **support-zone** entry, **bounce confirmation**, and the **Candidate Engine** architecture (§8, §10). |
+| Status | **FROZEN design (v0.3, 9.95/10).** Remaining work is implementation, not concepts. v0.2 added the two-hypothesis split + Range Score + support-zone + Candidate Engine; **v0.3 folds the final review:** **H3 (exits)** as a third hypothesis, ATR-scaled support zone, explicit **research-success metrics + Evidence Package + promotion criteria** per hypothesis (§8.4), the **Opportunity** terminology (a scored/ranked candidate), Candidate Engine as a **Platform Capability**, and the architecture diagram (§10). |
 | Live instance | `Range Trader NVDA` (strategy id=1, user2 `range@local.dev`, account 2, PAPER). An IDLE `Range Trader AAPL` (id=3) also exists. |
 | Related | Range Candidates ranker (PR #281) · dispatch-liveness monitor (PR #280) · the MarketHours autostart task. |
 
@@ -102,6 +102,8 @@ Observed: **0 orders for ~2 days** on the NVDA range strategy. Root causes, in o
 
 > Distinction that matters: (1), (3), (5) are *strategy-design* reasons (the setup didn't appear); (2) is an *operational* reason (the engine wasn't running). (2) is fixed. The research below targets (1)/(3)/(5).
 
+**One-sentence motivation (the whole point):** *NVDA's failure was not an implementation defect but that it rarely satisfied the entry conditions on trending days — demonstrating that **candidate selection is a larger determinant of strategy utilization than trigger frequency**.*
+
 ---
 
 ## 8. Research plan — two independent hypotheses (owner review folded, 9.8/10)
@@ -111,6 +113,9 @@ Observed: **0 orders for ~2 days** on the NVDA range strategy. Root causes, in o
 > (clean Evidence-Engineering attribution):
 > - **H1 — Can we pick better *symbols*?** → the Candidate Engine.
 > - **H2 — Can we improve the *entry logic*?** → the strategy trigger.
+> - **H3 — Can we improve the *exits*?** → exit logic (resistance/stop/time are *fixed* today; deserves its own research **later**, after H1/H2).
+>
+> Sequence: **test H1 → freeze → test H2 → freeze → test H3** (textbook experimental design — never change two things at once).
 >
 > Every change is backtested (`scripts/backtest_range_trader_{sweep,alpaca,synthetic}.py`) and judged on
 > **risk-adjusted P&L, not trade count.** A flat day on a trending symbol is *correct*; the goal is more
@@ -150,6 +155,11 @@ Example: OR high 210 / low 200 → buy anywhere ≤ **202** (vs only ≤ 200). M
 preserving the mean-reversion concept. **Experiment:** sweep the zone fraction {0, 10%, 20%, 33%} — trades/day
 vs win-rate/avg-entry; find the knee.
 
+> **Don't hard-code 20% (owner).** The zone width should ultimately **scale with volatility**:
+> `ZoneWidth = f(ATR%)` — narrow zone for low-ATR names, wider for high-ATR — so one setting is robust across
+> symbols. **Implementation note:** ship `entry_zone_pct` (a fixed fraction, default **0.0** = today's exact-low
+> behavior, so live behavior is unchanged) first; add an ATR-scaled mode (`zone_width_mode = atr`) as a follow-up.
+
 **8.2b Bounce confirmation *(optional, after 8.2a)*.** Instead of buying *at* support (catching a falling
 knife), buy when price **crosses back up through** support — buying *confirmation*. **Experiment:** "first
 touch" vs "cross-back-above" on win-rate + drawdown.
@@ -175,6 +185,24 @@ trades/day, win, Sharpe, maxDD per cell; pick the efficient frontier, **not** th
 | **4** | Richer **Range Score** (oscillation/trend/liquidity/RVOL/spread + Range Efficiency) | **H1** | ATR% alone is insufficient |
 | **5** | Bounce confirmation | **H2** | Buy confirmation, not a falling knife — *after* 1 & 2 |
 
+### 8.4 Evidence Engineering — success metrics, Evidence Package, promotion (owner)
+
+**Research success ≠ trading success — define it per hypothesis up front** so "more trades" never masquerades
+as a win:
+
+| Hypothesis | Success metrics | Success = |
+|---|---|---|
+| **H1** (symbols) | Range Score · trade frequency · win rate · Sharpe | higher Range Score → more *valid* setups → **no Sharpe degradation** (not just more trades) |
+| **H2** (entry) | trigger hit-rate · average entry price · drawdown · win rate | more valid entries at *no worse* average entry / drawdown |
+| **H3** (exits) | capture ratio · avg win/loss · drawdown | larger captured move per trade, controlled drawdown |
+
+**Every hypothesis ships an Evidence Package** (the standard EE chain): backtest → bootstrap CI → walk-forward →
+parameter sensitivity → **Decision** → **Registry update**. No live param change without it.
+
+**Promotion path** (research → platform capability): `Candidate Engine v1 (ATR%×range_bound) → Evidence →
+v2 (full Opportunity Score) → Paper → Promotion`. The doc currently stops at *research*; promotion turns the
+Candidate Engine into a first-class **Platform Capability** (§10).
+
 ### Out of scope / explicitly *not* the goal
 - **Manufacturing trades for their own sake.** A flat day on a trending symbol is correct.
 - Hot-swapping the live strategy's symbol daily (collides with the activation-cooldown invariant, ADR 0005).
@@ -195,16 +223,31 @@ trades/day, win, Sharpe, maxDD per cell; pick the efficient frontier, **not** th
 
 ---
 
-## 10. Strategic architecture — Range Trader as a Candidate-Engine consumer (owner)
+## 10. Strategic architecture — the Candidate Engine as a Platform Capability (owner)
 
-The owner's headline recommendation: **Range Trader should stop being a standalone strategy and become the
-*execution component* of a two-stage pipeline** — mirroring Discovery Lab:
+**Range Trader should stop being a standalone strategy and become the *execution component* of a pipeline** —
+the strategy is no longer the *first* step, it's the *middle*:
 
-> `Candidate Engine → Candidate Ranking → Strategy → Execution → Evidence Collection`  *(not `Strategy → Stock`)*
+```
+                         ┌─────────────── reusable Platform Capability ───────────────┐
+   Discovery Lab  →  Candidate Engine  →  Opportunity Score (ranking)  →  Opportunity List
+                         │ profiles: Momentum · Range · Trend · Sector · Value          │
+                         └──────────────────────────────┬─────────────────────────────┘
+                                                         ▼
+                            Strategy (e.g. Range Trader)  →  Execution (OrderRouter)
+                                                         ▼
+                                       Evidence  →  Research Registry  →  Continuous Evidence
+```
 
-And the engine should be **generic**, not range-only: a single **Candidate Engine** produces
-**Momentum / Range / Trend / Sector** candidate lists, and Range Trader is *one consumer* (the PR #281 ranker
-is the seed of the *Range profile*). This turns candidate selection into a **reusable platform capability** —
-far more valuable than relaxing a trigger, and consistent with the rest of TradingWorkbench (Discovery Lab,
-Factor Lab). The cooldown-safe realization is a **universe range strategy** that picks intraday from the
-ranked list (no daily symbol-swap → no re-activation).
+Key reframes from the final review:
+- **It's a Platform Capability, not a Range feature.** A single **Candidate Engine** with **profiles**
+  (Momentum / Range / Trend / Sector / Value) — Range is *one* profile; the PR #281 ranker is its seed. Whitepaper-aligned.
+- **"Candidate" → "Opportunity" (terminology).** A *candidate* merely passed a filter; an **Opportunity** has
+  been **scored and prioritized** (by the composite Range/Opportunity Score) into a ranked **Opportunity List
+  (Registry)**. This wording scales across every program (Momentum, Range, Trend, Sector, …), not just Range —
+  reinforcing that the engine is reusable. **Static features** (ATR, liquidity, spread, market-cap, price) vs
+  **dynamic features** (gap, RVOL, oscillation, trend, sector vol) should be distinguished — that split matters
+  when this becomes a Discovery-Lab capability.
+- **Strategy in the middle.** `Discovery Lab → Candidate Engine → Opportunity Ranking → Evidence → Strategy →
+  Execution → Continuous Evidence`. The cooldown-safe realization for Range is a **universe range strategy**
+  that picks intraday from the Opportunity List (no daily symbol-swap → no re-activation).
