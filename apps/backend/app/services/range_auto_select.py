@@ -175,7 +175,7 @@ async def refresh_range_universe(
         row = await session.get(StrategyRow, strategy_id)
         if row is None:
             return {"strategy_id": strategy_id, "status": "not_found"}
-        # LIVE is out of scope (ADR 0027): the stop→start cycle passes through IDLE and
+        # LIVE is out of scope (ADR 0028): the stop→start cycle passes through IDLE and
         # register() maps IDLE→PAPER, which would silently downgrade a live book; and
         # rotating a live universe daily warrants its own ADR + stronger controls. Skip it.
         if row.status == StrategyStatus.LIVE:

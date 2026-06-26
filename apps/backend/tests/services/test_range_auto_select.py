@@ -215,7 +215,7 @@ async def test_refresh_idle_strategy_updates_without_restart(db) -> None:
 
 
 async def test_refresh_skips_live_strategy(db) -> None:
-    # ADR 0027: LIVE books are out of scope — the job must skip them, not cycle them through
+    # ADR 0028: LIVE books are out of scope — the job must skip them, not cycle them through
     # IDLE (which would downgrade LIVE→PAPER). No engine calls, universe untouched.
     sid = await _seed_strategy(
         db, symbols=["ZZZ"], status=StrategyStatus.LIVE,
