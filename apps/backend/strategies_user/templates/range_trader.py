@@ -83,7 +83,7 @@ class _SymState:
 
     __slots__ = (
         "trade_day", "trades_today", "stopped_today", "pending", "invalid_logged_day",
-        "or_high", "or_low", "dyn_levels", "cum_pv", "cum_v", "vwap",
+        "or_high", "or_low", "dyn_levels", "cum_pv", "cum_v", "vwap", "scaled_out",
     )
 
     def __init__(self) -> None:
@@ -92,6 +92,7 @@ class _SymState:
         self.stopped_today: bool = False        # hard stop fired today → range broken
         self.pending: str | None = None         # in-flight order: "entry" | "exit" | None
         self.invalid_logged_day: str | None = None
+        self.scaled_out: bool = False           # H3: the partial profit-take has fired today
         # opening_range mode: today's range, built from the first N minutes then frozen.
         self.or_high: float | None = None
         self.or_low: float | None = None
@@ -108,6 +109,7 @@ class _SymState:
         self.trades_today = 0
         self.stopped_today = False
         self.pending = None
+        self.scaled_out = False
         self.or_high = None
         self.or_low = None
         self.dyn_levels = None
@@ -159,6 +161,13 @@ class RangeTrader(Strategy):
         "max_trades_per_day": 4,
         "no_trade_open_minutes": 5,
         "hard_exit_before_close_minutes": 5,
+        # Scale-out partial exit (H3 exit research): take partial profit at a nearer target and
+        # let the remainder run to resistance, instead of one all-or-nothing exit.
+        # scale_out_pct = fraction of the position sold at the first target (0 = off, default →
+        # single full exit, UNCHANGED). scale_out_target_pct = where that target sits as a
+        # fraction from entry to exit (0.5 = midpoint of the range).
+        "scale_out_pct": 0.0,
+        "scale_out_target_pct": 0.5,
     }
 
     params_schema: ClassVar[dict[str, Any]] = {
@@ -282,6 +291,22 @@ class RangeTrader(Strategy):
             "default": 5,
             "description": "Force-exit in the last N minutes before 16:00 ET.",
         },
+        "scale_out_pct": {
+            "type": "number",
+            "min": 0,
+            "max": 1,
+            "default": 0.0,
+            "description": "Scale-out: fraction of the position sold at the first profit target "
+            "(the rest runs to resistance). 0 = off (single full exit).",
+        },
+        "scale_out_target_pct": {
+            "type": "number",
+            "min": 0,
+            "max": 1,
+            "default": 0.5,
+            "description": "Scale-out target as a fraction from entry to exit (0.5 = midpoint). "
+            "Only used when scale_out_pct > 0.",
+        },
     }
 
     async def on_init(self) -> None:
@@ -368,6 +393,28 @@ class RangeTrader(Strategy):
             ):
                 st.pending = "exit"
             return
+
+        # ---- scale-out partial exit (H3 exit research) ----
+        # Take partial profit at a nearer target (between entry and resistance), letting the
+        # remainder run to the full exit above. Fires at most once per symbol per day. Price is
+        # strictly below `exit_` here (the full exit already returned), so the partial only ever
+        # lands in the [target, exit_) band. Off by default (scale_out_pct = 0).
+        scale_pct = float(p.get("scale_out_pct", 0.0))
+        if (
+            in_long
+            and not st.scaled_out
+            and pend != "exit"
+            and 0.0 < scale_pct < 1.0
+            and exit_ > entry > 0
+        ):
+            target = entry + float(p.get("scale_out_target_pct", 0.5)) * (exit_ - entry)
+            if price >= target:
+                partial = int(float(position.qty) * scale_pct)
+                if partial > 0 and await self._submit(
+                    symbol, OrderSide.SELL, Decimal(partial), reason="scale_out"
+                ):
+                    st.scaled_out = True  # don't re-trim the same leg; remainder runs to exit
+                return
 
         # ---- no-trade window after the open ----
         open_cutoff = _shift(SESSION_OPEN, int(p.get("no_trade_open_minutes", 5)))
