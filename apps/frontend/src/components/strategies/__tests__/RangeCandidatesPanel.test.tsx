@@ -20,7 +20,8 @@ const mockedTmpl = vi.mocked(strategyTemplatesApi, true);
 function cand(over: Partial<RangeCandidate>): RangeCandidate {
   return {
     symbol: "X", status: "ok", atr20: 5, atr20_pct: 0.04, intraday_range: 4,
-    classification: "range_bound", last_close: 100, suitable: true, score: 0.04, rank: 1,
+    classification: "range_bound", last_close: 100, efficiency_ratio: 0.1, oscillation: 0.9,
+    suitable: true, score: 0.04, rank: 1,
     ...over,
   };
 }

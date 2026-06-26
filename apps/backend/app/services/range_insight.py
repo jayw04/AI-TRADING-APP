@@ -240,22 +240,36 @@ class RangeCandidate:
     symbol: str
     status: str
     atr20: float | None
-    atr20_pct: float | None        # NORMALIZED range — the price-independent, fair metric
+    atr20_pct: float | None        # NORMALIZED range — the price-independent "size" factor
     intraday_range: float | None
     classification: str | None     # range_bound | trending | mixed
     last_close: float | None
+    efficiency_ratio: float | None  # Kaufman ER (net/path): high = trending, low = choppy
+    oscillation: float | None      # Range Efficiency = 1 − ER (high = oscillating = good)
     suitable: bool                 # range_bound + a usable atr20_pct
-    score: float                   # ranking score (higher = better range candidate)
+    score: float                   # composite Range Score (higher = better range candidate)
     rank: int                      # 1-based, after sorting
 
 
+def _oscillation(insight: RangeInsight) -> float:
+    """The "shape" factor — how much a name *oscillates* vs trends, in [0, 1] (high = good
+    for fading). The platform's ``efficiency_ratio`` is Kaufman ER (net move / total path):
+    **high ER = directional/trending, low ER = choppy/range-bound**, so oscillation = 1 − ER.
+    Falls back to the coarse ``classification`` weight when ER isn't available (keeps callers
+    that only set the bucket working)."""
+    if insight.efficiency_ratio is not None:
+        return max(0.0, min(1.0, 1.0 - insight.efficiency_ratio))
+    return _CLASS_WEIGHT.get(insight.classification or "", 0.5)
+
+
 def _candidate_score(insight: RangeInsight) -> float:
-    """Higher = better range candidate. Rewards a larger normalized range (``atr20_pct``)
-    weighted by ``classification`` — ``trending`` is heavily penalized (the NVDA-fade
-    failure mode), not zeroed, so the list still sorts deterministically."""
+    """Composite **Range Score** = normalized range (``atr20_pct``, the "size") × oscillation
+    (the "shape", §8.1a of the design doc). Rewards a wide range that genuinely *oscillates*
+    rather than trends — so a high-ATR% trender (NVDA) ranks below a moderate-ATR% oscillator,
+    which ATR% alone could not capture. (Liquidity/spread factors are a future extension.)"""
     if insight.status != "ok" or insight.atr20_pct is None:
         return 0.0
-    return insight.atr20_pct * _CLASS_WEIGHT.get(insight.classification or "", 0.5)
+    return insight.atr20_pct * _oscillation(insight)
 
 
 def rank_candidates(insights: Iterable[RangeInsight]) -> list[RangeCandidate]:
@@ -276,7 +290,9 @@ def rank_candidates(insights: Iterable[RangeInsight]) -> list[RangeCandidate]:
         RangeCandidate(
             symbol=ins.symbol, status=ins.status, atr20=ins.atr20, atr20_pct=ins.atr20_pct,
             intraday_range=ins.intraday_range, classification=ins.classification,
-            last_close=ins.last_close, suitable=suitable, score=round(score, 6), rank=i + 1,
+            last_close=ins.last_close, efficiency_ratio=ins.efficiency_ratio,
+            oscillation=round(_oscillation(ins), 4) if ins.status == "ok" else None,
+            suitable=suitable, score=round(score, 6), rank=i + 1,
         )
         for i, (score, ins, suitable) in enumerate(scored)
     ]

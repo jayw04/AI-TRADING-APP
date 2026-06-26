@@ -28,6 +28,8 @@ class RangeCandidateModel(BaseModel):
     intraday_range: float | None
     classification: str | None
     last_close: float | None
+    efficiency_ratio: float | None
+    oscillation: float | None
     suitable: bool
     score: float
     rank: int

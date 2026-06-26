@@ -46,6 +46,8 @@ export interface RangeCandidate {
   intraday_range: number | null;
   classification: string | null;
   last_close: number | null;
+  efficiency_ratio: number | null;
+  oscillation: number | null;
   suitable: boolean;
   score: number;
   rank: number;

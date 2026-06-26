@@ -10,7 +10,8 @@ from app.services.range_insight import (
 
 
 def _ri(symbol: str, *, status="ok", atr20_pct=None, classification=None,
-        atr20=None, intraday_range=None, last_close=100.0) -> RangeInsight:
+        atr20=None, intraday_range=None, last_close=100.0,
+        efficiency_ratio=None) -> RangeInsight:
     """A RangeInsight with only the ranking-relevant fields set; rest are inert."""
     return RangeInsight(
         symbol=symbol, status=status, bars_used=60, low_confidence=False, as_of=None,
@@ -18,7 +19,7 @@ def _ri(symbol: str, *, status="ok", atr20_pct=None, classification=None,
         atr20_pct=atr20_pct, typical_move_up=None, typical_move_down=None,
         support=None, resistance=None, high_band=None, low_band=None,
         intraday_range=intraday_range, classification=classification,
-        efficiency_ratio=None,
+        efficiency_ratio=efficiency_ratio,
     )
 
 
@@ -76,3 +77,34 @@ def test_rank_is_stable_and_one_based():
     # equal scores/atr% -> tie-break by symbol ascending
     assert [c.symbol for c in out] == ["AAA", "MMM", "ZZZ"]
     assert [c.rank for c in out] == [1, 2, 3]
+
+
+# --- Range Score = ATR% × oscillation (Range Efficiency = 1 − Kaufman ER) ---
+
+def test_range_score_uses_efficiency_oscillation():
+    # WIDE: high ATR% but a strong TRENDER (ER 0.8 → osc 0.2) → 0.066×0.2 = 0.0132
+    # CHOP: lower ATR% but oscillating (ER 0.1 → osc 0.9) → 0.040×0.9 = 0.036 → wins
+    out = rank_candidates([
+        _ri("WIDE", atr20_pct=0.066, classification="trending", efficiency_ratio=0.8),
+        _ri("CHOP", atr20_pct=0.040, classification="range_bound", efficiency_ratio=0.1),
+    ])
+    assert [c.symbol for c in out] == ["CHOP", "WIDE"]  # oscillation beats raw ATR%
+    chop = next(c for c in out if c.symbol == "CHOP")
+    assert chop.oscillation == 0.9
+    assert round(chop.score, 4) == 0.036
+
+
+def test_efficiency_overrides_classification_bucket_when_present():
+    # same coarse 'mixed' bucket, very different ER → different oscillation/score/order
+    out = rank_candidates([
+        _ri("DRIFT", atr20_pct=0.05, classification="mixed", efficiency_ratio=0.7),  # osc 0.3
+        _ri("BOUNCE", atr20_pct=0.05, classification="mixed", efficiency_ratio=0.1),  # osc 0.9
+    ])
+    assert [c.symbol for c in out] == ["BOUNCE", "DRIFT"]
+
+
+def test_oscillation_falls_back_to_classification_without_er():
+    # no efficiency_ratio → oscillation uses the coarse class weight (back-compatible)
+    out = rank_candidates([_ri("X", atr20_pct=0.05, classification="range_bound")])
+    assert out[0].efficiency_ratio is None
+    assert out[0].oscillation == 1.0  # range_bound class weight

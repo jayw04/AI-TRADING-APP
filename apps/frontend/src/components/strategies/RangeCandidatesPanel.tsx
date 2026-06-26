@@ -110,6 +110,12 @@ export default function RangeCandidatesPanel({ onApplied }: Props) {
                 <th className="px-3 py-1.5">#</th>
                 <th className="px-3 py-1.5">Symbol</th>
                 <th className="px-3 py-1.5 text-right">ATR%</th>
+                <th
+                  className="px-3 py-1.5 text-right"
+                  title="Range Efficiency = 1 − Kaufman ER (higher = more oscillating = better)"
+                >
+                  Osc
+                </th>
                 <th className="px-3 py-1.5">Behavior</th>
                 <th className="px-3 py-1.5 text-right">Range ($)</th>
                 <th className="px-3 py-1.5"></th>
@@ -124,6 +130,7 @@ export default function RangeCandidatesPanel({ onApplied }: Props) {
                   <td className="px-3 py-1.5 font-mono text-gray-500">{c.rank}</td>
                   <td className="px-3 py-1.5 font-mono font-semibold text-gray-100">{c.symbol}</td>
                   <td className="px-3 py-1.5 text-right font-mono text-gray-200">{pct(c.atr20_pct)}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-gray-400">{pct(c.oscillation)}</td>
                   <td className="px-3 py-1.5">
                     <span
                       className={`rounded px-1.5 py-0.5 text-[11px] ${
