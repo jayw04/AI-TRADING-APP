@@ -135,6 +135,20 @@ class Settings(BaseSettings):
     # subsystem (read-only-derived; never committed). Backend-relative.
     research_db_path: str = "data/research.duckdb"
 
+    # --- SEC EDGAR alternative data (corporate events; ADR 0027, DCAP-005) ---
+    # EDGAR is free/public (no key). SEC fair-access requires a DESCRIPTIVE User-Agent
+    # (org + contact email) and <=10 req/s. An EMPTY user-agent DISABLES ingestion —
+    # never an un-throttled anonymous fetch. Read-only, off the order path.
+    sec_edgar_user_agent: str = Field(
+        default="",
+        alias="SEC_EDGAR_USER_AGENT",
+        description="SEC fair-access User-Agent ('Org Name contact@example.com'). Empty disables EDGAR.",
+    )
+    sec_edgar_rate_limit_per_sec: float = 8.0  # conservative under SEC's 10/s ceiling
+    # Local DuckDB point-in-time corporate-event store (the reusable Event Store,
+    # event-type-agnostic). Backend-relative, under the gitignored data/. Never committed.
+    event_store_path: str = "data/event_store.duckdb"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
