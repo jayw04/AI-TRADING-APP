@@ -75,6 +75,110 @@ async def test_entry_buys_at_support() -> None:
     assert req.qty > 0  # risk 1000 / (100-95) = 200, capped at 100
 
 
+async def test_entry_zone_default_is_exact_low() -> None:
+    """entry_zone_pct=0 (default) reproduces the exact-low touch: a price *above* the
+    support level does NOT buy — back-compatible."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())  # entry 100, exit 110, zone 0
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=102.0))  # above entry 100, zone=0 → no buy
+    ctx.submit_order.assert_not_called()
+
+
+async def test_entry_zone_buys_within_the_band() -> None:
+    """zone_pct=0.2 → ceiling = 100 + 0.2×(110−100) = 102; price 102 is inside → buy."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(entry_zone_pct=0.2))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=102.0))
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "buy"
+
+
+async def test_entry_zone_rejects_above_the_band() -> None:
+    """price 103 > the 102 zone ceiling → no buy even with a 20% zone."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(entry_zone_pct=0.2))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=103.0))
+    ctx.submit_order.assert_not_called()
+
+
+async def test_atr_zone_widens_entry_ceiling() -> None:
+    """ATR-scaled zone: mult 0.5 × atr20_pct 0.04 × entry 100 = a $2 band → ceiling 102.
+    Price 101.5 is above support yet inside the ATR band → buy (default zone would reject it)."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(entry_zone_atr_mult=0.5, atr20_pct=0.04))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=101.5))
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "buy"
+
+
+async def test_atr_zone_off_without_atr20_pct() -> None:
+    """A multiplier with no atr20_pct (0) leaves the ATR zone OFF → exact-low touch."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(entry_zone_atr_mult=0.5, atr20_pct=0.0))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=101.0))  # above entry 100, ATR zone inert → no buy
+    ctx.submit_order.assert_not_called()
+
+
+async def test_atr_zone_takes_precedence_over_pct() -> None:
+    """When both are set the ATR band wins: pct 0.05 → ceiling 100.5, ATR → ceiling 102.
+    Price 101.5 is above the pct ceiling but inside the ATR band, so the entry fires."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(
+        ctx=ctx, params=_params(entry_zone_pct=0.05, entry_zone_atr_mult=0.5, atr20_pct=0.04)
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=101.5))
+    ctx.submit_order.assert_called_once()
+
+
+async def test_atr_zone_clamped_to_resistance() -> None:
+    """A large ATR band is clamped to resistance — never fade above exit. exit 101 with a
+    raw $10 ATR band → ceiling 101; price 101.5 is above resistance → no entry."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(
+        ctx=ctx,
+        params=_params(exit_price=101.0, entry_zone_atr_mult=1.0, atr20_pct=0.10),
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=101.5))
+    ctx.submit_order.assert_not_called()
+
+
+async def test_vwap_gate_off_enters_below_vwap() -> None:
+    """Default (vwap_gate_pct=0): gate off, so an entry fires even far below VWAP — back-compatible."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())  # gate off
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=120.0))  # builds VWAP high, no entry (120 > entry 100)
+    await strat.on_bar(_bar(MID, c=99.0))   # ≤ entry, far below VWAP, gate off → entry
+    ctx.submit_order.assert_called_once()
+
+
+async def test_vwap_gate_blocks_entry_far_below_vwap() -> None:
+    """Gate on: skip a support entry when price is far below session VWAP (a downtrend)."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(vwap_gate_pct=0.05))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=120.0))  # VWAP → 120
+    await strat.on_bar(_bar(MID, c=99.0))   # VWAP 109.5; 99 < 109.5×0.95≈104 → gated
+    ctx.submit_order.assert_not_called()
+
+
+async def test_vwap_gate_allows_entry_near_vwap() -> None:
+    """Gate on: when price is at/above the VWAP threshold, the entry passes the gate."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(vwap_gate_pct=0.05))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0))  # VWAP=100; 100 ≥ 100×0.95=95 → entry fires
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "buy"
+
+
 async def test_exit_sells_at_resistance() -> None:
     ctx = _ctx(position_qty=Decimal("10"))
     strat = RangeTrader(ctx=ctx, params=_params())
@@ -82,6 +186,59 @@ async def test_exit_sells_at_resistance() -> None:
     await strat.on_bar(_bar(MID, c=110.0))  # price >= exit 110
     req = ctx.submit_order.call_args.args[0]
     assert req.side.value == "sell"
+
+
+# ---- H3 scale-out partial exit ----
+
+
+async def test_scale_out_off_by_default_no_partial() -> None:
+    """Default (scale_out_pct=0): a price between entry and resistance does NOT sell —
+    single all-or-nothing exit preserved (back-compatible)."""
+    ctx = _ctx(position_qty=Decimal("100"))
+    strat = RangeTrader(ctx=ctx, params=_params())  # fixed entry 100 / exit 110
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=105.0))  # mid-range, scale-out off → hold
+    ctx.submit_order.assert_not_called()
+
+
+async def test_scale_out_sells_fraction_at_target() -> None:
+    """scale_out_pct=0.5, target_pct=0.5 → sell half (50 of 100) at the midpoint 105."""
+    ctx = _ctx(position_qty=Decimal("100"))
+    strat = RangeTrader(
+        ctx=ctx, params=_params(scale_out_pct=0.5, scale_out_target_pct=0.5),
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=105.0))  # >= target 105, < exit 110 → partial
+    ctx.submit_order.assert_called_once()
+    req = ctx.submit_order.call_args.args[0]
+    assert req.side.value == "sell" and req.qty == Decimal(50)
+    assert strat._sym["AAPL"].scaled_out is True
+
+
+async def test_scale_out_fires_once_then_full_exit_runs() -> None:
+    """The partial trims once; the remainder then exits in full at resistance."""
+    ctx = _ctx(position_qty=Decimal("100"))
+    strat = RangeTrader(
+        ctx=ctx, params=_params(scale_out_pct=0.5, scale_out_target_pct=0.5),
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=105.0))  # partial 50
+    await strat.on_bar(_bar(MID, c=106.0))  # already scaled_out, still < exit → no submit
+    await strat.on_bar(_bar(MID, c=110.0))  # >= exit → full exit of the (mock) position
+    qtys = [(c.args[0].qty, c.args[0].side.value) for c in ctx.submit_order.call_args_list]
+    assert qtys == [(Decimal(50), "sell"), (Decimal(100), "sell")]
+
+
+async def test_full_exit_takes_precedence_over_scale_out_at_resistance() -> None:
+    """At/above resistance the FULL exit wins, not a partial — sells the whole position."""
+    ctx = _ctx(position_qty=Decimal("100"))
+    strat = RangeTrader(
+        ctx=ctx, params=_params(scale_out_pct=0.5, scale_out_target_pct=0.5),
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=110.0))  # at resistance
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].qty == Decimal(100)  # full, not 50
 
 
 async def test_stop_loss_sells_below_stop() -> None:
@@ -155,6 +312,86 @@ async def test_opening_range_no_entry_while_forming() -> None:
     # A low price during the window must NOT trigger an entry — levels aren't set yet.
     await strat.on_bar(_bar(OR_BAR_1, c=50.0))
     ctx.submit_order.assert_not_called()
+
+
+# ---- multi-symbol independence (one Range Trader over a candidate universe) ----
+
+
+async def test_two_symbols_have_independent_opening_ranges() -> None:
+    """Two symbols build their OWN opening ranges and enter at their OWN range lows —
+    no state collision (the core multi-symbol-safety guarantee)."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(level_mode="opening_range", stop_buffer_pct=0.01))
+    await strat.on_init()
+    # AAPL OR ≈ [99.9, 101.1]; AMD OR ≈ [199.9, 201.1] — disjoint price regimes.
+    await strat.on_bar(_bar(OR_BAR_1, c=100.0, symbol="AAPL"))
+    await strat.on_bar(_bar(OR_BAR_2, c=101.0, symbol="AAPL"))
+    await strat.on_bar(_bar(OR_BAR_1, c=200.0, symbol="AMD"))
+    await strat.on_bar(_bar(OR_BAR_2, c=201.0, symbol="AMD"))
+    ctx.submit_order.assert_not_called()  # both still forming
+
+    # Each symbol's frozen levels are its own and distinct.
+    aapl_levels = strat._sym["AAPL"].dyn_levels
+    amd_levels = strat._sym["AMD"].dyn_levels
+    assert aapl_levels is None and amd_levels is None  # not frozen until first post-OR bar
+
+    await strat.on_bar(_bar(AFTER_OR, c=99.9, symbol="AAPL"))   # AAPL at its range low → BUY
+    await strat.on_bar(_bar(AFTER_OR, c=199.9, symbol="AMD"))   # AMD at its range low → BUY
+    assert strat._sym["AAPL"].dyn_levels[0] == 99.9
+    assert strat._sym["AMD"].dyn_levels[0] == 199.9
+    sides = [(c.args[0].symbol_ticker, c.args[0].side.value) for c in ctx.submit_order.call_args_list]
+    assert ("AAPL", "buy") in sides and ("AMD", "buy") in sides
+
+
+async def test_one_symbol_opening_range_does_not_leak_into_another() -> None:
+    """A symbol with NO opening range of its own stays inert — it must not inherit another
+    symbol's frozen levels."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(level_mode="opening_range"))
+    await strat.on_init()
+    # Only AAPL builds a range.
+    await strat.on_bar(_bar(OR_BAR_1, c=100.0, symbol="AAPL"))
+    await strat.on_bar(_bar(OR_BAR_2, c=101.0, symbol="AAPL"))
+    # AMD's first-ever bar is post-window with no OR → no levels → no entry at any price.
+    await strat.on_bar(_bar(AFTER_OR, c=99.9, symbol="AMD"))
+    sides = [c.args[0].symbol_ticker for c in ctx.submit_order.call_args_list]
+    assert "AMD" not in sides
+    assert strat._sym["AMD"].dyn_levels is None
+
+
+async def test_per_symbol_trade_counter_is_independent() -> None:
+    """One symbol hitting max_trades_per_day must not consume another symbol's budget."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(max_trades_per_day=1))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0, symbol="AAPL"))  # AAPL enters (counter → 1)
+    await strat.on_bar(_bar(MID, c=100.0, symbol="AMD"))   # AMD independent → also enters
+    syms = [c.args[0].symbol_ticker for c in ctx.submit_order.call_args_list]
+    assert syms.count("AAPL") == 1 and syms.count("AMD") == 1
+    assert strat._sym["AAPL"].trades_today == 1 and strat._sym["AMD"].trades_today == 1
+
+
+async def test_per_symbol_stop_out_halt_is_independent() -> None:
+    """A stop-out (range broken) on one symbol must not halt entries on another."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())  # fixed entry 100 / stop 95
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=94.0, symbol="AAPL"))   # below stop → AAPL range broken
+    await strat.on_bar(_bar(MID, c=100.0, symbol="AAPL"))  # at entry but halted → no buy
+    await strat.on_bar(_bar(MID, c=100.0, symbol="AMD"))   # AMD unaffected → buys
+    assert strat._sym["AAPL"].stopped_today is True
+    syms = [c.args[0].symbol_ticker for c in ctx.submit_order.call_args_list]
+    assert "AAPL" not in syms and syms.count("AMD") == 1
+
+
+async def test_per_position_budget_caps_notional() -> None:
+    """per_position_budget caps each symbol's qty to budget/price (multi-symbol allocation)."""
+    ctx = _ctx(position_qty=None)
+    # Without a budget this sizes to 100 (risk 1000 / per-share-risk 5 = 200, capped at 100).
+    strat = RangeTrader(ctx=ctx, params=_params(per_position_budget=300.0))  # 300/100 = 3 shares
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0))
+    assert ctx.submit_order.call_args.args[0].qty == Decimal(3)
 
 
 async def test_live_equity_sizing_uses_account_balance() -> None:

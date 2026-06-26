@@ -7,6 +7,11 @@ import type { Strategy } from "@/api/types";
 import { ACTIVE_STRATEGY_STATUSES } from "@/api/types";
 import { StatusBadge } from "@/components/strategies/StatusBadge";
 import { NewStrategyModal } from "./NewStrategyModal";
+import RangeCandidatesPanel from "@/components/strategies/RangeCandidatesPanel";
+import {
+  TodayRangeUniverseBanner,
+  autoSelectN,
+} from "@/components/strategies/TodayRangeUniverseBanner";
 import { useWorkbenchSocket } from "@/hooks/useWorkbenchSocket";
 
 interface RowStats {
@@ -134,6 +139,12 @@ export default function StrategiesListPage() {
         </div>
       )}
 
+      <TodayRangeUniverseBanner strategies={strategies} />
+
+      {strategies.some((s) => s.code_path?.includes("range_trader")) && (
+        <RangeCandidatesPanel onApplied={load} />
+      )}
+
       <div className="overflow-x-auto rounded border border-gray-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-800 text-gray-300">
@@ -178,7 +189,17 @@ export default function StrategiesListPage() {
                 </td>
                 <td className="px-3 py-2 text-gray-300">{s.type}</td>
                 <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
-                <td className="px-3 py-2 text-gray-300">{s.symbols.join(", ") || "—"}</td>
+                <td className="px-3 py-2 text-gray-300">
+                  {autoSelectN(s) > 0 && (
+                    <span
+                      className="mr-1.5 rounded bg-sky-900/70 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-sky-200"
+                      title={`System auto-selects the Top ${autoSelectN(s)} range candidates each morning`}
+                    >
+                      Auto·{autoSelectN(s)}
+                    </span>
+                  )}
+                  {s.symbols.join(", ") || "—"}
+                </td>
                 <td className="px-3 py-2 text-right">{stats.get(s.id)?.signalsToday ?? 0}</td>
                 <td className="px-3 py-2 font-mono text-xs text-gray-400">{s.schedule}</td>
                 <td className="px-3 py-2 text-right">
