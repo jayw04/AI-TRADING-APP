@@ -94,6 +94,19 @@ SEC-Filing Capability → Event Store → Signal Construction → Event-Study En
                           events)        / any event score)   reusable per event)
 ```
 
+**Why EDGAR matters — one event store, many programs (owner review).** The capability is layered
+(*Corporate Event Capability → SEC Filing Capability → Form 4*, ADR 0027); the Event Store is at the
+corporate-event level, so it feeds *every* future event program, not just insider:
+
+```
+SEC Filing ─▶ Event Store ─▶ Research Programs
+                              ├── Insider   (INSIDER-001 — the first consumer)
+                              ├── Earnings
+                              ├── Buybacks
+                              ├── Dividends
+                              └── Future …
+```
+
 1. **SEC-Filing Capability (initial implementation: Form 4)** — *not* "EDGAR Form 4 only" (owner S2). A read-only SEC-filings ingestion under `app/altdata/` (new) — ticker→CIK mapping (source flags ~11% unresolved CIK), Form 4 `P`-parsing now; architected so **8-K / 10-Q / 10-K / 13F** drop in later without redesign. Off the order path; no key (EDGAR is free/public) → not the encrypted CredentialStore. **⚠ NEW EXTERNAL DEPENDENCY → an EDGAR-specific ADR (OQ5).**
 2. **Event Store** (owner S9) — a **point-in-time corporate-event store** (the source's #1 research gap; current scoring uses current-universe pulls = look-ahead risk). PIT correctness is non-negotiable for an EE verdict. *"Corporate Events → Research → Signals"* — supports many future programs, not just insider.
 3. **Signal Construction** (owner S6) — the conviction scorer as a reusable construction step (cluster + role + $ value now; any event-score later).
