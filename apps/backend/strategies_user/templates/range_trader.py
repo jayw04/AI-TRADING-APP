@@ -75,6 +75,10 @@ class RangeTrader(Strategy):
         "level_mode": "opening_range",
         "opening_range_minutes": 30,
         "stop_buffer_pct": 0.005,
+        # Support ZONE (design doc §8.2a): buy anywhere in the lowest `entry_zone_pct` of the
+        # day's range — entry .. entry + pct×(exit−entry) — not only an exact touch of `entry`.
+        # 0.0 (default) = exact-low behavior, so live behavior is UNCHANGED until set.
+        "entry_zone_pct": 0.0,
         "entry_price": 0.0,  # buy when price <= this (near support) — fixed mode
         "exit_price": 0.0,  # sell when price >= this (near resistance) — fixed mode
         "stop_price": 0.0,  # hard stop (below support) — fixed mode
@@ -113,6 +117,14 @@ class RangeTrader(Strategy):
             "max": 1,
             "default": 0.005,
             "description": "opening_range mode: stop = range-low × (1 − this).",
+        },
+        "entry_zone_pct": {
+            "type": "number",
+            "min": 0,
+            "max": 1,
+            "default": 0.0,
+            "description": "Support-zone width: buy anywhere in the lowest this-fraction of "
+            "the range (entry … entry + pct×(exit−entry)). 0 = exact-low touch.",
         },
         "entry_price": {
             "type": "number",
@@ -271,7 +283,16 @@ class RangeTrader(Strategy):
         # ---- entry near support (fade the range) ----
         if in_long or pend is not None:
             return
-        if entry <= 0 or price > entry:
+        if entry <= 0:
+            return
+        # Support ZONE (design doc §8.2a): buy anywhere in the lowest `entry_zone_pct` of the
+        # range — entry … entry + pct×(exit−entry) — not only an exact touch. At 0.0 (default)
+        # the ceiling is `entry`, reproducing the exact-low behavior byte-for-byte.
+        zone_pct = float(p.get("entry_zone_pct", 0.0))
+        buy_ceiling = entry
+        if 0.0 < zone_pct <= 1.0 and exit_ > entry:
+            buy_ceiling = entry + zone_pct * (exit_ - entry)
+        if price > buy_ceiling:
             return
         if not _levels_ok(entry=entry, exit_=exit_, stop=stop):
             await self._log_invalid_levels(symbol, day_key, entry=entry, exit_=exit_, stop=stop)
