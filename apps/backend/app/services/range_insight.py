@@ -11,6 +11,8 @@ Never raises — insufficiency / degeneracy is reported via ``status``.
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -213,3 +215,83 @@ async def compute_range_insight(
     except Exception:
         return _insufficient(symbol, bars_used=0, as_of=None)
     return range_insight_from_bars(symbol, bars, now)
+
+
+# --- Range-candidate ranking (P8 §5a) -----------------------------------------------
+# "Which symbols are the best range-trading candidates today?" — rank a universe by
+# NORMALIZED range (atr20_pct, so price level doesn't distort it) weighted by how
+# range-bound each name is. A fade/range strategy wants oscillation, not trend; this is
+# the daily user-select feed for choosing what to range-trade.
+
+# Classification weight: a fade strategy thrives on range_bound, is hurt by trend.
+_CLASS_WEIGHT = {"range_bound": 1.0, "mixed": 0.5, "trending": 0.1}
+
+# Default candidate universe (liquid large-caps) when the caller passes none.
+DEFAULT_CANDIDATE_UNIVERSE: tuple[str, ...] = (
+    "AAPL", "MSFT", "NVDA", "AMD", "TSLA", "GOOGL", "AMZN", "META", "NFLX",
+    "INTC", "MU", "F", "KO", "DIS", "BAC", "XOM", "WMT", "SPY", "QQQ",
+)
+
+
+@dataclass(frozen=True)
+class RangeCandidate:
+    """One symbol's range-trading suitability (for the daily candidate ranker)."""
+
+    symbol: str
+    status: str
+    atr20: float | None
+    atr20_pct: float | None        # NORMALIZED range — the price-independent, fair metric
+    intraday_range: float | None
+    classification: str | None     # range_bound | trending | mixed
+    last_close: float | None
+    suitable: bool                 # range_bound + a usable atr20_pct
+    score: float                   # ranking score (higher = better range candidate)
+    rank: int                      # 1-based, after sorting
+
+
+def _candidate_score(insight: RangeInsight) -> float:
+    """Higher = better range candidate. Rewards a larger normalized range (``atr20_pct``)
+    weighted by ``classification`` — ``trending`` is heavily penalized (the NVDA-fade
+    failure mode), not zeroed, so the list still sorts deterministically."""
+    if insight.status != "ok" or insight.atr20_pct is None:
+        return 0.0
+    return insight.atr20_pct * _CLASS_WEIGHT.get(insight.classification or "", 0.5)
+
+
+def rank_candidates(insights: Iterable[RangeInsight]) -> list[RangeCandidate]:
+    """Pure ranking over already-computed insights (sort by range-trading suitability)."""
+    scored = [
+        (
+            _candidate_score(ins),
+            ins,
+            ins.status == "ok"
+            and ins.classification == "range_bound"
+            and ins.atr20_pct is not None,
+        )
+        for ins in insights
+    ]
+    # best score first; ties by atr20_pct desc then symbol (stable, deterministic).
+    scored.sort(key=lambda t: (-t[0], -(t[1].atr20_pct or 0.0), t[1].symbol))
+    return [
+        RangeCandidate(
+            symbol=ins.symbol, status=ins.status, atr20=ins.atr20, atr20_pct=ins.atr20_pct,
+            intraday_range=ins.intraday_range, classification=ins.classification,
+            last_close=ins.last_close, suitable=suitable, score=round(score, 6), rank=i + 1,
+        )
+        for i, (score, ins, suitable) in enumerate(scored)
+    ]
+
+
+async def rank_range_candidates(
+    symbols: Iterable[str], *, bar_cache: Any, now: datetime
+) -> list[RangeCandidate]:
+    """Compute Range Insight for each symbol concurrently, then rank by range-trading
+    suitability. Fail-soft per symbol (``compute_range_insight`` never raises)."""
+    deduped: dict[str, None] = {}
+    for s in symbols:
+        if s and s.strip():
+            deduped.setdefault(s.strip().upper(), None)
+    insights = await asyncio.gather(
+        *(compute_range_insight(s, bar_cache=bar_cache, now=now) for s in deduped)
+    )
+    return rank_candidates(insights)

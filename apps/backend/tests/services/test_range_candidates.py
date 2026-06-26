@@ -1,0 +1,78 @@
+"""P8 §5a — range-candidate ranking (which symbols to range-trade today)."""
+
+from __future__ import annotations
+
+from app.services.range_insight import (
+    DEFAULT_CANDIDATE_UNIVERSE,
+    RangeInsight,
+    rank_candidates,
+)
+
+
+def _ri(symbol: str, *, status="ok", atr20_pct=None, classification=None,
+        atr20=None, intraday_range=None, last_close=100.0) -> RangeInsight:
+    """A RangeInsight with only the ranking-relevant fields set; rest are inert."""
+    return RangeInsight(
+        symbol=symbol, status=status, bars_used=60, low_confidence=False, as_of=None,
+        anchor=None, anchor_source=None, last_close=last_close, atr20=atr20,
+        atr20_pct=atr20_pct, typical_move_up=None, typical_move_down=None,
+        support=None, resistance=None, high_band=None, low_band=None,
+        intraday_range=intraday_range, classification=classification,
+        efficiency_ratio=None,
+    )
+
+
+def test_ranks_range_bound_high_atr_first():
+    out = rank_candidates([
+        _ri("MSFT", atr20_pct=0.038, classification="mixed"),
+        _ri("AMD", atr20_pct=0.066, classification="range_bound"),   # best: range_bound + highest %
+        _ri("NVDA", atr20_pct=0.040, classification="range_bound"),
+        _ri("TSLA", atr20_pct=0.046, classification="trending"),     # high % but trending -> penalized
+    ])
+    assert [c.symbol for c in out] == ["AMD", "NVDA", "MSFT", "TSLA"]
+    assert [c.rank for c in out] == [1, 2, 3, 4]
+    assert out[0].suitable is True               # AMD range_bound
+    assert out[3].suitable is False              # TSLA trending
+
+
+def test_trending_penalized_below_range_bound_even_with_bigger_range():
+    # AMD trending (0.10) vs NVDA range_bound (0.04): weight makes NVDA win
+    out = rank_candidates([
+        _ri("AMD", atr20_pct=0.10, classification="trending"),    # 0.10 * 0.1 = 0.010
+        _ri("NVDA", atr20_pct=0.04, classification="range_bound"),  # 0.04 * 1.0 = 0.040
+    ])
+    assert [c.symbol for c in out] == ["NVDA", "AMD"]
+
+
+def test_insufficient_or_missing_data_sorts_last_and_unsuitable():
+    out = rank_candidates([
+        _ri("BADX", status="insufficient_data", atr20_pct=None, classification=None),
+        _ri("KO", atr20_pct=0.02, classification="range_bound"),
+        _ri("NODATA", atr20_pct=None, classification="range_bound"),  # no atr% -> score 0
+    ])
+    assert out[0].symbol == "KO" and out[0].rank == 1
+    # the two score-0 names sort after KO (deterministic by symbol)
+    assert {c.symbol for c in out[1:]} == {"BADX", "NODATA"}
+    assert all(c.suitable is False for c in out if c.symbol != "KO")
+
+
+def test_score_normalization_beats_raw_dollar_intuition():
+    # NVDA tiny $ intraday range but decent ATR% should outrank a high-$ trending name
+    out = rank_candidates([
+        _ri("PRICEY", atr20_pct=0.035, classification="trending", intraday_range=25.0),
+        _ri("NVDA", atr20_pct=0.040, classification="range_bound", intraday_range=4.0),
+    ])
+    assert out[0].symbol == "NVDA"  # normalized + range_bound wins over big-dollar trender
+
+
+def test_default_universe_is_sane():
+    assert "AMD" in DEFAULT_CANDIDATE_UNIVERSE and "NVDA" in DEFAULT_CANDIDATE_UNIVERSE
+    assert len(set(DEFAULT_CANDIDATE_UNIVERSE)) == len(DEFAULT_CANDIDATE_UNIVERSE)  # no dups
+
+
+def test_rank_is_stable_and_one_based():
+    out = rank_candidates([_ri(s, atr20_pct=0.05, classification="range_bound")
+                           for s in ("ZZZ", "AAA", "MMM")])
+    # equal scores/atr% -> tie-break by symbol ascending
+    assert [c.symbol for c in out] == ["AAA", "MMM", "ZZZ"]
+    assert [c.rank for c in out] == [1, 2, 3]

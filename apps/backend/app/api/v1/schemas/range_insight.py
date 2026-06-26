@@ -18,6 +18,28 @@ class BandModel(BaseModel):
     high: float
 
 
+class RangeCandidateModel(BaseModel):
+    """One ranked range-trading candidate (P8 §5a)."""
+
+    symbol: str
+    status: str
+    atr20: float | None
+    atr20_pct: float | None
+    intraday_range: float | None
+    classification: str | None
+    last_close: float | None
+    suitable: bool
+    score: float
+    rank: int
+
+
+class RangeCandidatesResponse(BaseModel):
+    """Ranked range-trading candidates over a universe (daily 'what to range-trade' feed)."""
+
+    as_of: datetime
+    candidates: list[RangeCandidateModel]
+
+
 class RangeInsightResponse(BaseModel):
     symbol: str
     status: str  # "ok" | "insufficient_data"

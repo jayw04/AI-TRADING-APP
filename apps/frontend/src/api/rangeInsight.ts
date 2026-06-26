@@ -37,9 +37,36 @@ export interface RangeInsight {
   disclaimer: string;
 }
 
+// P8 §5a — ranked range-trading candidates (which symbol to range-trade today).
+export interface RangeCandidate {
+  symbol: string;
+  status: string;
+  atr20: number | null;
+  atr20_pct: number | null;
+  intraday_range: number | null;
+  classification: string | null;
+  last_close: number | null;
+  suitable: boolean;
+  score: number;
+  rank: number;
+}
+
+export interface RangeCandidatesResponse {
+  as_of: string;
+  candidates: RangeCandidate[];
+}
+
 export const rangeInsightApi = {
   get: (symbol: string) =>
     apiFetch<RangeInsight>(
       `/api/v1/range-insight/${encodeURIComponent(symbol)}`,
+    ),
+  candidates: (symbols?: string[]) =>
+    apiFetch<RangeCandidatesResponse>(
+      `/api/v1/range-insight/candidates${
+        symbols && symbols.length
+          ? `?symbols=${encodeURIComponent(symbols.join(","))}`
+          : ""
+      }`,
     ),
 };
