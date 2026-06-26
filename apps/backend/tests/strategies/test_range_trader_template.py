@@ -188,6 +188,59 @@ async def test_exit_sells_at_resistance() -> None:
     assert req.side.value == "sell"
 
 
+# ---- H3 scale-out partial exit ----
+
+
+async def test_scale_out_off_by_default_no_partial() -> None:
+    """Default (scale_out_pct=0): a price between entry and resistance does NOT sell —
+    single all-or-nothing exit preserved (back-compatible)."""
+    ctx = _ctx(position_qty=Decimal("100"))
+    strat = RangeTrader(ctx=ctx, params=_params())  # fixed entry 100 / exit 110
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=105.0))  # mid-range, scale-out off → hold
+    ctx.submit_order.assert_not_called()
+
+
+async def test_scale_out_sells_fraction_at_target() -> None:
+    """scale_out_pct=0.5, target_pct=0.5 → sell half (50 of 100) at the midpoint 105."""
+    ctx = _ctx(position_qty=Decimal("100"))
+    strat = RangeTrader(
+        ctx=ctx, params=_params(scale_out_pct=0.5, scale_out_target_pct=0.5),
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=105.0))  # >= target 105, < exit 110 → partial
+    ctx.submit_order.assert_called_once()
+    req = ctx.submit_order.call_args.args[0]
+    assert req.side.value == "sell" and req.qty == Decimal(50)
+    assert strat._sym["AAPL"].scaled_out is True
+
+
+async def test_scale_out_fires_once_then_full_exit_runs() -> None:
+    """The partial trims once; the remainder then exits in full at resistance."""
+    ctx = _ctx(position_qty=Decimal("100"))
+    strat = RangeTrader(
+        ctx=ctx, params=_params(scale_out_pct=0.5, scale_out_target_pct=0.5),
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=105.0))  # partial 50
+    await strat.on_bar(_bar(MID, c=106.0))  # already scaled_out, still < exit → no submit
+    await strat.on_bar(_bar(MID, c=110.0))  # >= exit → full exit of the (mock) position
+    qtys = [(c.args[0].qty, c.args[0].side.value) for c in ctx.submit_order.call_args_list]
+    assert qtys == [(Decimal(50), "sell"), (Decimal(100), "sell")]
+
+
+async def test_full_exit_takes_precedence_over_scale_out_at_resistance() -> None:
+    """At/above resistance the FULL exit wins, not a partial — sells the whole position."""
+    ctx = _ctx(position_qty=Decimal("100"))
+    strat = RangeTrader(
+        ctx=ctx, params=_params(scale_out_pct=0.5, scale_out_target_pct=0.5),
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=110.0))  # at resistance
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].qty == Decimal(100)  # full, not 50
+
+
 async def test_stop_loss_sells_below_stop() -> None:
     ctx = _ctx(position_qty=Decimal("10"))
     strat = RangeTrader(ctx=ctx, params=_params())
