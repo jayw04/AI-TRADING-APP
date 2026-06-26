@@ -214,6 +214,26 @@ async def test_refresh_idle_strategy_updates_without_restart(db) -> None:
         assert row.status == StrategyStatus.IDLE  # left idle — activation stays a user action
 
 
+async def test_refresh_skips_live_strategy(db) -> None:
+    # ADR 0027: LIVE books are out of scope — the job must skip them, not cycle them through
+    # IDLE (which would downgrade LIVE→PAPER). No engine calls, universe untouched.
+    sid = await _seed_strategy(
+        db, symbols=["ZZZ"], status=StrategyStatus.LIVE,
+        params={"auto_select_top_n": 2, "auto_select_universe": ["AAA", "BBB", "CCC"]},
+    )
+    engine = _FakeEngine(db)
+    out = await refresh_range_universe(
+        db, engine, _FakeBarCache(), strategy_id=sid, n=2,
+        universe=["AAA", "BBB", "CCC"], now=WEEKDAY,
+    )
+    assert out["status"] == "skipped_live"
+    assert engine.unregister_calls == [] and engine.register_calls == []
+    async with db() as s:
+        row = await s.get(StrategyRow, sid)
+        assert row.symbols_json == ["ZZZ"]
+        assert row.status == StrategyStatus.LIVE  # untouched
+
+
 async def test_refresh_no_candidates_leaves_strategy_untouched(db) -> None:
     sid = await _seed_strategy(
         db, symbols=["ZZZ"], status=StrategyStatus.PAPER,

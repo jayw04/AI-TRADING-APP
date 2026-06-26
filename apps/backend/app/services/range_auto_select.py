@@ -29,7 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.audit.logger import AuditAction, AuditActorType, AuditLogger
-from app.db.enums import ACTIVE_STRATEGY_STATUSES
+from app.db.enums import ACTIVE_STRATEGY_STATUSES, StrategyStatus
 from app.db.models.backtest_result import BacktestResult
 from app.db.models.strategy import Strategy as StrategyRow
 from app.services.range_insight import (
@@ -175,6 +175,12 @@ async def refresh_range_universe(
         row = await session.get(StrategyRow, strategy_id)
         if row is None:
             return {"strategy_id": strategy_id, "status": "not_found"}
+        # LIVE is out of scope (ADR 0027): the stop→start cycle passes through IDLE and
+        # register() maps IDLE→PAPER, which would silently downgrade a live book; and
+        # rotating a live universe daily warrants its own ADR + stronger controls. Skip it.
+        if row.status == StrategyStatus.LIVE:
+            logger.warning("range_autoselect_skipped_live", strategy_id=strategy_id)
+            return {"strategy_id": strategy_id, "status": "skipped_live"}
         prev_symbols = [str(s).upper() for s in (row.symbols_json or [])]
         user_id = row.user_id
         was_running = row.status in ACTIVE_STRATEGY_STATUSES
