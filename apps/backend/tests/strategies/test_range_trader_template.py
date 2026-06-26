@@ -75,6 +75,110 @@ async def test_entry_buys_at_support() -> None:
     assert req.qty > 0  # risk 1000 / (100-95) = 200, capped at 100
 
 
+async def test_entry_zone_default_is_exact_low() -> None:
+    """entry_zone_pct=0 (default) reproduces the exact-low touch: a price *above* the
+    support level does NOT buy — back-compatible."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())  # entry 100, exit 110, zone 0
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=102.0))  # above entry 100, zone=0 → no buy
+    ctx.submit_order.assert_not_called()
+
+
+async def test_entry_zone_buys_within_the_band() -> None:
+    """zone_pct=0.2 → ceiling = 100 + 0.2×(110−100) = 102; price 102 is inside → buy."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(entry_zone_pct=0.2))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=102.0))
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "buy"
+
+
+async def test_entry_zone_rejects_above_the_band() -> None:
+    """price 103 > the 102 zone ceiling → no buy even with a 20% zone."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(entry_zone_pct=0.2))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=103.0))
+    ctx.submit_order.assert_not_called()
+
+
+async def test_atr_zone_widens_entry_ceiling() -> None:
+    """ATR-scaled zone: mult 0.5 × atr20_pct 0.04 × entry 100 = a $2 band → ceiling 102.
+    Price 101.5 is above support yet inside the ATR band → buy (default zone would reject it)."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(entry_zone_atr_mult=0.5, atr20_pct=0.04))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=101.5))
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "buy"
+
+
+async def test_atr_zone_off_without_atr20_pct() -> None:
+    """A multiplier with no atr20_pct (0) leaves the ATR zone OFF → exact-low touch."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(entry_zone_atr_mult=0.5, atr20_pct=0.0))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=101.0))  # above entry 100, ATR zone inert → no buy
+    ctx.submit_order.assert_not_called()
+
+
+async def test_atr_zone_takes_precedence_over_pct() -> None:
+    """When both are set the ATR band wins: pct 0.05 → ceiling 100.5, ATR → ceiling 102.
+    Price 101.5 is above the pct ceiling but inside the ATR band, so the entry fires."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(
+        ctx=ctx, params=_params(entry_zone_pct=0.05, entry_zone_atr_mult=0.5, atr20_pct=0.04)
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=101.5))
+    ctx.submit_order.assert_called_once()
+
+
+async def test_atr_zone_clamped_to_resistance() -> None:
+    """A large ATR band is clamped to resistance — never fade above exit. exit 101 with a
+    raw $10 ATR band → ceiling 101; price 101.5 is above resistance → no entry."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(
+        ctx=ctx,
+        params=_params(exit_price=101.0, entry_zone_atr_mult=1.0, atr20_pct=0.10),
+    )
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=101.5))
+    ctx.submit_order.assert_not_called()
+
+
+async def test_vwap_gate_off_enters_below_vwap() -> None:
+    """Default (vwap_gate_pct=0): gate off, so an entry fires even far below VWAP — back-compatible."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())  # gate off
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=120.0))  # builds VWAP high, no entry (120 > entry 100)
+    await strat.on_bar(_bar(MID, c=99.0))   # ≤ entry, far below VWAP, gate off → entry
+    ctx.submit_order.assert_called_once()
+
+
+async def test_vwap_gate_blocks_entry_far_below_vwap() -> None:
+    """Gate on: skip a support entry when price is far below session VWAP (a downtrend)."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(vwap_gate_pct=0.05))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=120.0))  # VWAP → 120
+    await strat.on_bar(_bar(MID, c=99.0))   # VWAP 109.5; 99 < 109.5×0.95≈104 → gated
+    ctx.submit_order.assert_not_called()
+
+
+async def test_vwap_gate_allows_entry_near_vwap() -> None:
+    """Gate on: when price is at/above the VWAP threshold, the entry passes the gate."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(vwap_gate_pct=0.05))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0))  # VWAP=100; 100 ≥ 100×0.95=95 → entry fires
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "buy"
+
+
 async def test_exit_sells_at_resistance() -> None:
     ctx = _ctx(position_qty=Decimal("10"))
     strat = RangeTrader(ctx=ctx, params=_params())

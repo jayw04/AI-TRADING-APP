@@ -75,6 +75,21 @@ class RangeTrader(Strategy):
         "level_mode": "opening_range",
         "opening_range_minutes": 30,
         "stop_buffer_pct": 0.005,
+        # Support ZONE (design doc §8.2a): buy anywhere in the lowest `entry_zone_pct` of the
+        # day's range — entry .. entry + pct×(exit−entry) — not only an exact touch of `entry`.
+        # 0.0 (default) = exact-low behavior, so live behavior is UNCHANGED until set.
+        "entry_zone_pct": 0.0,
+        # ATR-scaled support zone (§8.2b / design Suggestion 2): size the zone to the symbol's
+        # daily volatility instead of the day's range — ceiling = entry + mult×atr20_pct×entry.
+        # Widens for high-ATR names, narrows for calm ones; robust across symbols. Takes
+        # precedence over entry_zone_pct when both `entry_zone_atr_mult` and `atr20_pct` > 0.
+        "entry_zone_atr_mult": 0.0,
+        # Symbol's 20-day ATR as a fraction of price (prefilled from Range Insight on apply);
+        # the per-symbol normalizer the ATR-scaled zone multiplies. 0.0 = unknown → ATR zone off.
+        "atr20_pct": 0.0,
+        # VWAP confirmation gate (§8.2c): skip a fade-support entry when price is more than
+        # this fraction below session VWAP (a strong downtrend). 0.0 = gate off (default).
+        "vwap_gate_pct": 0.0,
         "entry_price": 0.0,  # buy when price <= this (near support) — fixed mode
         "exit_price": 0.0,  # sell when price >= this (near resistance) — fixed mode
         "stop_price": 0.0,  # hard stop (below support) — fixed mode
@@ -113,6 +128,37 @@ class RangeTrader(Strategy):
             "max": 1,
             "default": 0.005,
             "description": "opening_range mode: stop = range-low × (1 − this).",
+        },
+        "entry_zone_pct": {
+            "type": "number",
+            "min": 0,
+            "max": 1,
+            "default": 0.0,
+            "description": "Support-zone width: buy anywhere in the lowest this-fraction of "
+            "the range (entry … entry + pct×(exit−entry)). 0 = exact-low touch.",
+        },
+        "entry_zone_atr_mult": {
+            "type": "number",
+            "min": 0,
+            "default": 0.0,
+            "description": "ATR-scaled support-zone width: buy from support up to "
+            "entry + this × atr20_pct × entry (clamped to resistance). Takes precedence "
+            "over entry_zone_pct. 0 = off.",
+        },
+        "atr20_pct": {
+            "type": "number",
+            "min": 0,
+            "default": 0.0,
+            "description": "Symbol's 20-day ATR as a fraction of price (prefilled from Range "
+            "Insight). The per-symbol normalizer for entry_zone_atr_mult. 0 = unknown.",
+        },
+        "vwap_gate_pct": {
+            "type": "number",
+            "min": 0,
+            "max": 1,
+            "default": 0.0,
+            "description": "VWAP gate: skip an entry when price is more than this fraction "
+            "below session VWAP (avoids fading a strong downtrend). 0 = gate off.",
         },
         "entry_price": {
             "type": "number",
@@ -190,6 +236,11 @@ class RangeTrader(Strategy):
         self._or_high: float | None = None
         self._or_low: float | None = None
         self._dyn_levels: tuple[float, float, float] | None = None
+        # Session VWAP (for the optional `vwap_gate_pct` entry filter, §8.2c):
+        # cumulative volume-weighted typical price, reset each ET day.
+        self._cum_pv = 0.0
+        self._cum_v = 0.0
+        self._vwap: float | None = None
 
     async def on_bar(self, bar: Any) -> None:
         p = self.params
@@ -212,9 +263,19 @@ class RangeTrader(Strategy):
             self._or_high = None
             self._or_low = None
             self._dyn_levels = None
+            self._cum_pv = 0.0
+            self._cum_v = 0.0
+            self._vwap = None
             equity = await self.ctx.get_account_equity()
             if equity is not None and equity > 0:
                 self._equity_estimate = equity
+
+        # Update session VWAP every bar (only consulted by the optional vwap_gate_pct filter).
+        typical = (float(bar.h) + float(bar.l) + float(bar.c)) / 3.0
+        vol = float(bar.v) or 1.0
+        self._cum_pv += typical * vol
+        self._cum_v += vol
+        self._vwap = self._cum_pv / self._cum_v if self._cum_v else None
 
         # Resolve today's levels: fixed (params) or dynamic opening-range. In
         # opening_range mode this also accumulates the range while it is forming.
@@ -271,7 +332,32 @@ class RangeTrader(Strategy):
         # ---- entry near support (fade the range) ----
         if in_long or pend is not None:
             return
-        if entry <= 0 or price > entry:
+        if entry <= 0:
+            return
+        # Support ZONE — buy anywhere from `entry` up to a ceiling above support, not only an
+        # exact touch. Two ways to size the zone (ATR-scaled takes precedence, design §8.2):
+        #   • §8.2b ATR-scaled (cross-symbol robust): ceiling = entry + mult × atr20_pct × entry,
+        #     so the band widens for high-ATR names and narrows for calm ones, independent of the
+        #     day's range. Needs both `entry_zone_atr_mult` and `atr20_pct` (> 0).
+        #   • §8.2a range-fraction (fallback): ceiling = entry + entry_zone_pct × (exit − entry).
+        # At 0/0/0 the ceiling is exactly `entry`, reproducing the exact-low touch byte-for-byte.
+        zone_atr_mult = float(p.get("entry_zone_atr_mult", 0.0))
+        atr20_pct = float(p.get("atr20_pct", 0.0))
+        zone_pct = float(p.get("entry_zone_pct", 0.0))
+        buy_ceiling = entry
+        if zone_atr_mult > 0.0 and atr20_pct > 0.0:
+            buy_ceiling = entry + zone_atr_mult * atr20_pct * entry
+        elif 0.0 < zone_pct <= 1.0 and exit_ > entry:
+            buy_ceiling = entry + zone_pct * (exit_ - entry)
+        # Never fade above resistance: clamp the ceiling to `exit_` when it's a valid level.
+        if exit_ > entry:
+            buy_ceiling = min(buy_ceiling, exit_)
+        if price > buy_ceiling:
+            return
+        # Optional VWAP confirmation gate (design §8.2c): don't fade support when price is
+        # far below session VWAP (a strong downtrend = catching a falling knife). 0.0 = off.
+        vwap_gate = float(p.get("vwap_gate_pct", 0.0))
+        if vwap_gate > 0.0 and self._vwap is not None and price < self._vwap * (1.0 - vwap_gate):
             return
         if not _levels_ok(entry=entry, exit_=exit_, stop=stop):
             await self._log_invalid_levels(symbol, day_key, entry=entry, exit_=exit_, stop=stop)

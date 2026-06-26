@@ -56,6 +56,10 @@ def _range_trader_params(
         params["stop_price"] = round(
             max(0.0, insight.support - STOP_ATR_MULT * insight.atr20), 2
         )
+        # Per-symbol ATR normalizer for the ATR-scaled support zone (entry_zone_atr_mult).
+        # Inert (zone off) until the trader sets a multiplier; prefilling it is harmless.
+        if insight.atr20_pct is not None:
+            params["atr20_pct"] = round(insight.atr20_pct, 4)
         return params, True
     return params, False
 
