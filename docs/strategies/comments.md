@@ -1,415 +1,392 @@
-Overall Positioning
+I reviewed the updated PORT-001 — Crash-Protected Multi-Asset Portfolio Capability document carefully. This revision is a significant improvement over the previous version. The biggest change is that it now reads like a TradingWorkbench capability specification rather than simply a strategy description. That aligns much better with the platform direction you've been building.
 
-The biggest issue is the title.
+Overall assessment:
 
-Today it reads like:
+Category	Score
+Platform alignment	10/10
+Capability framing	10/10
+Technical depth	10/10
+Research transparency	10/10
+Commercial readiness	9.8/10
+Overall	9.95/10
+
+I only have a handful of suggestions, and they're mostly about making the document even more consistent with the rest of the TradingWorkbench platform.
+
+What Improved the Most
+1. Capability framing
+
+This is the biggest improvement.
+
+Beginning with:
+
+PORT-001 — Crash-Protected Multi-Asset Portfolio Capability
+
+instead of
 
 Combined Book Strategy
 
-Inside TradingWorkbench, it should instead read as:
+is exactly the right move.
 
-CAPABILITY: CAP-PORT-001 – Crash-Protected Multi-Asset Portfolio
+The document is now describing:
 
-The strategy is only one part.
+a capability
+its lifecycle
+its governance
+its migration
 
-The platform capability includes:
+rather than just portfolio rules.
 
-research
-validation
-governance
-execution
-continuous evidence
-promotion lifecycle
+That's a much better fit for TradingWorkbench.
 
-That distinction is central to TradingWorkbench.
+2. Current vs Target honesty
 
-1. Add Capability Metadata (Highest Priority)
+I especially like this section.
 
-Near the beginning, add a capability summary.
+You explicitly distinguish:
 
-For example:
+Current:
 
-Field	Value
-Capability ID	PORT-001
-Program Type	Portfolio Construction
-Research Program	PORT-001
-Data Dependencies	Sharadar DAILY, FMP, Yahoo, Alpaca
-Current Status	Paper Capability
-Capability Level	Production Candidate
-Continuous Evidence	Active
-Governance Status	Approved for Paper
+Sibling system
 
-That immediately aligns the document with the Capability Registry.
+Target:
 
-2. Connect to Evidence Engineering
+TradingWorkbench
 
-Currently the document begins with the strategy.
+This is excellent engineering documentation.
 
-Instead I'd show its place in the platform.
+It avoids pretending something already exists.
+
+I'd keep this pattern throughout future capability documents.
+
+3. Capability metadata
+
+Excellent addition.
+
+The metadata table is now exactly what I'd expect from a Capability Registry entry.
+
+Eventually, I could imagine every capability page beginning with a similar standardized header.
+
+4. Two-capability distinction
+
+This is probably my favorite conceptual improvement.
+
+Separating
+
+Investment Capability
+Platform Capability
+
+is very powerful.
+
+In fact, I'd make this a platform convention.
+
+Every future capability should answer:
+
+What investment capability is being delivered?
+
+and
+
+What reusable platform capability does this create?
+
+That's a very strong architectural pattern.
+
+My Suggestions
+
+These are refinements rather than corrections.
+
+Suggestion 1 (Highest Priority)
+Add Capability Dependencies
+
+You already describe data dependencies.
+
+I'd also describe platform dependencies.
 
 Example:
 
-Evidence Engineering
+Depends On	Purpose
+Factor Lab	ProgramSpec execution
+Evidence Engine	Statistical validation
+Risk Engine	Portfolio limits
+OrderRouter	Execution
+Continuous Evidence	Monitoring
+
+This emphasizes that PORT-001 is built on platform services rather than existing independently.
+
+Suggestion 2
+Distinguish Current vs Target visually
+
+Right now the current/target distinction is embedded in text.
+
+I'd make it much more obvious.
+
+Example:
+
+Current	Target
+Sibling system	TradingWorkbench
+Native scripts	ProgramSpec
+Local monitoring	Continuous Evidence
+Standalone execution	OrderRouter
+Manual registry	Capability Registry
+
+That makes migration status immediately visible.
+
+Suggestion 3
+Capability Lifecycle Status
+
+You already have lifecycle diagrams.
+
+I'd also include a progress table.
+
+Example:
+
+Phase	Status
+Research	✓
+Reproduction	✓ (Sibling)
+ProgramSpec	Planned
+Evidence Package	Planned
+Registry	Planned
+Paper Capability	Running (Sibling)
+Platform Migration	Not Started
+
+That helps readers understand where the capability actually is today.
+
+Suggestion 4
+Separate Platform Roadmap from Strategy Roadmap
+
+Currently Section 11 and Section 12 sit adjacent.
+
+One concerns
+
+research improvements.
+
+The other concerns
+
+platform migration.
+
+I'd visually separate them.
+
+Example:
+
+Part A
+
+Investment Research
+
+Part B
+
+Platform Integration
+
+This makes ownership clearer.
+
+Suggestion 5
+Add ProgramSpec Mapping
+
+Since ADR-0026 is now foundational, I'd add a short subsection.
+
+Example:
+
+ProgramSpec
 
 ↓
 
-Factor Lab
+Sleeve A
 
 ↓
 
-PORT-001 ProgramSpec
+Sleeve B
+
+↓
+
+Portfolio Construction
 
 ↓
 
 Evidence Package
 
-↓
+That directly connects the capability to the Factor Lab architecture.
 
-Capability Registry
+Suggestion 6
+Explicit Evidence Outputs
 
-↓
+You describe Continuous Evidence.
 
-Paper Trading
-
-↓
-
-Continuous Evidence
-
-This is how every major capability should begin.
-
-3. Add Research Provenance
-
-This is probably my biggest recommendation.
-
-TradingWorkbench isn't just executing portfolios.
-
-It proves how they were discovered.
-
-I'd add something like:
-
-Stage	Status
-Research Completed	✓
-Independent Reproduction	✓
-Statistical Validation	✓
-Governance Review	✓
-Paper Promotion	✓
-Continuous Monitoring	Running
-
-That reinforces the platform methodology.
-
-4. Separate Strategy from Capability
-
-Today the document mixes:
-
-investment logic
-implementation
-operational status
-
-I'd reorganize it into:
-
-Capability
-
-↓
-
-Research
-
-↓
-
-Construction
-
-↓
-
-Execution
-
-↓
-
-Continuous Evidence
-
-This matches every other major Workbench capability.
-
-5. ProgramSpec Reference
-
-Since ADR-0026 now exists, I would explicitly reference it.
-
-Instead of describing the strategy as:
-
-crash-protected momentum
-
-I'd state:
-
-Implemented as a ProgramSpec within Factor Lab.
-
-That connects the document to the architecture.
-
-6. Capability Lifecycle
-
-I'd add a lifecycle.
-
-Example:
-
-Research
-
-↓
-
-ProgramSpec
-
-↓
-
-Evidence
-
-↓
-
-Promotion
-
-↓
-
-Paper Capability
-
-↓
-
-Production Capability
-
-↓
-
-Continuous Evidence
-
-This is becoming a standard pattern across the platform.
-
-7. Capability Classification
-
-The Capability Registry should classify this capability.
+I'd specify what evidence is produced.
 
 For example:
 
-Attribute	Value
-Type	Portfolio Construction
-Investment Style	Diversified Trend
-Expected Role	Core Portfolio
-Return Driver	Diversification + Risk Management
-Alpha Classification	Not Primary
-Risk Profile	Medium
+portfolio snapshots
+rebalance history
+correlation history
+drawdown history
+risk violations
+execution reconciliation
 
-This becomes useful when multiple capabilities exist.
+That reinforces the idea that capabilities continuously generate evidence.
 
-8. Platform Capability vs Investment Capability
+Suggestion 7
+Platform Capability Registry Classification
 
-One thing I noticed.
+The metadata currently includes
 
-This document actually describes two capabilities.
+Program Type.
 
-Investment capability
+I'd add
 
-Crash-Protected Portfolio
+Capability Class.
 
-Platform capability
+For example:
 
-Portfolio Construction Engine
+Capability Class
 
-Those should be separated.
+Portfolio Construction
 
-Because eventually
+Later the registry could contain:
 
-LOW
+Factor
+Portfolio Construction
+Event Driven
+Discovery
+Execution
+Risk
 
-MOM
+That scales well.
 
-SEC
+Suggestion 8
+Separate Research Conclusions
 
-INSIDER
+Section 6 mixes
 
-could all reuse
+research findings
 
-the same
+and
 
-Portfolio Construction Engine.
+current operational concerns.
 
-That's more valuable than the individual strategy.
+I'd consider splitting them.
 
-9. Data Capability Mapping
+Research Conclusions
 
-Since TradingWorkbench now has ADRs for data capabilities,
+alpha insignificant
+diversification validated
+PIT refutation
 
-I'd explicitly document:
+Operational Concerns
 
-Sharadar DAILY
+correlation drift
+Treasury regime
+monitoring
+account reset
+
+This makes the document easier to scan.
+
+Suggestion 9
+Link Improvement Levers to Capability Version
+
+Section 11 is excellent.
+
+I'd simply note which improvements require:
+
+ProgramSpec change
+platform capability
+operational configuration
+
+For example:
+
+Improvement	Category
+Correlation-aware allocation	ProgramSpec
+Look-through risk	Platform
+KPI logging	Platform
+Third sleeve	Research
+
+That helps prioritize engineering work.
+
+Suggestion 10
+Add Success Criteria for Migration
+
+Section 12 describes migration.
+
+I'd define when migration is complete.
+
+For example:
+
+Migration complete when:
+
+ProgramSpec implemented
+Evidence reproduced
+Registry entry created
+Paper capability running
+Continuous Evidence operational
+Sibling retired
+
+That closes the loop.
+
+Strategic Observation
+
+One thing became very clear while reading this version.
+
+TradingWorkbench is no longer simply "hosting strategies."
+
+It is becoming a platform that standardizes:
+
+Research
 
 ↓
 
-Momentum
-
-Yahoo
+Validation
 
 ↓
 
-Cross Asset
-
-Alpaca
+Governance
 
 ↓
 
 Execution
 
-Risk Engine
-
 ↓
-
-Portfolio
-
-That shows how multiple platform capabilities interact.
-
-10. Continuous Evidence
-
-Currently there is a "Current Live State."
-
-Inside TradingWorkbench I'd rename it:
 
 Continuous Evidence
 
-That terminology is now consistent across the platform.
+across very different capability types.
 
-Example:
+PORT-001 demonstrates that well because it is a portfolio construction capability rather than a simple factor.
 
-Paper Days
+One Suggestion for the Whitepaper
 
-Current Drawdown
+PORT-001 introduces a concept that deserves to appear in the Whitepaper:
 
-Current Correlation
+Portfolio Construction Engine
 
-Current Evidence Status
+The platform now contains several reusable engines:
 
-Capability Health
-11. Connect to Other Platform Capabilities
-
-The document currently stands alone.
-
-I'd add a dependency diagram.
-
-Example:
-
-Factor Lab
-
-↓
-
-Momentum
-
-↓
-
-Crash Engine
-
-↓
-
-Portfolio Optimizer
-
-↓
-
+Factor Engine
+Discovery Engine
+Portfolio Construction Engine
 Risk Engine
-
-↓
-
 Execution Engine
+Evidence Engine
 
-↓
-
-Continuous Evidence
-
-That better reflects the platform architecture.
-
-12. Capability Promotion History
-
-This is unique to TradingWorkbench.
-
-Near the end I'd add:
-
-Milestone	Date
-Research Complete	
-ProgramSpec Frozen	
-Capability Approved	
-Paper Promotion	
-Production Candidate	
-
-That reinforces governance.
-
-Biggest Architectural Observation
-
-Reading this document alongside the recent ADRs made me realize something important.
-
-TradingWorkbench is no longer a collection of research labs.
-
-It is becoming a capability platform.
-
-Today you have capabilities like:
-
-Factor Capability
-
-↓
-
-Discovery Capability
-
-↓
-
-Portfolio Capability
-
-↓
-
-Execution Capability
-
-↓
-
-Risk Capability
-
-↓
-
-Continuous Evidence Capability
-
-This document should present PORT-001 as one node in that ecosystem, not as a standalone strategy.
-
-White Paper Alignment
-
-This document should eventually map directly into the White Paper.
-
-I would reference:
-
-Evidence Engineering
-Factor Lab
-ProgramSpec
-Capability Registry
-Continuous Evidence
-Portfolio Construction Framework
-
-Those concepts now define the platform.
-
-My Biggest Suggestion
-
-This is the one change I'd make before anything else.
-
-Today the document answers:
-
-How does this strategy work?
-
-Inside TradingWorkbench it should answer:
-
-How does TradingWorkbench discover, validate, govern, deploy, and continuously monitor this portfolio capability?
-
-That subtle change aligns the document with everything you've built over the past month.
+That architecture is becoming one of the strongest differentiators of TradingWorkbench.
 
 Final Assessment
 
-Viewed as a standalone investment strategy, this document is already excellent.
+I think this document has reached the point where it could serve as a reference template for future capability specifications.
 
-Viewed as a TradingWorkbench platform capability, I think it should become one of the flagship examples of the platform's methodology. Rather than emphasizing the portfolio itself, it should demonstrate the complete lifecycle:
+The pattern is now very consistent:
 
-Evidence Engineering
-        ↓
-Research Program (ProgramSpec)
-        ↓
-Statistical Validation
-        ↓
-Capability Registry
-        ↓
-Paper Promotion
-        ↓
-Execution Engine
-        ↓
-Continuous Evidence
+Capability framing
+Current vs target implementation
+Metadata
+Research provenance
+Architecture
+Validation evidence
+Honest assessment
+Continuous evidence
+Improvement roadmap
+Platform integration
 
-That tells a much more powerful story than "here is a momentum portfolio." It shows exactly what makes TradingWorkbench different: it is a platform for engineering investment capabilities, not just implementing trading strategies.
+That structure is reusable across LOW-001, SEC-001, INSIDER-001, future TREND-001, and any additional portfolio capabilities.
+
+The only remaining improvements are about standardization—making sure every capability document follows the same template and clearly distinguishes:
+
+research evolution (improving the investment capability), and
+platform evolution (migrating it into TradingWorkbench as a first-class managed capability).
+
+Once that template is standardized, the Capability Registry, Whitepaper, and individual capability documents will all reinforce the same architecture and tell a consistent story.

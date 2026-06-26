@@ -1,7 +1,8 @@
 # PORT-001 — Crash-Protected Multi-Asset Portfolio Capability _(Combined Book · PAPER2)_
 
-_Last updated: 2026-06-26 (lever 1 researched — §6.1 + §11 #1; capability framing folded from
-`comments.md` — see "Capability framing" below).
+_Last updated: 2026-06-26 (lever 1 researched — §6.1 + §11 #1; capability framing + 2nd-round review
+(9.95/10) folded from `comments.md` — current/target tables, lifecycle status, ProgramSpec mapping,
+Part A/B split).
 The flagship paper strategy: two independently-built sleeves (crash-protected equity momentum +
 cross-asset trend) blended at equal-risk-contribution and governed by a correlation-regime overlay
 and a live risk stack. This doc mirrors `Docs/Insider Strategy.md`: architecture, validation, live
@@ -41,6 +42,7 @@ state, honest assessment, and an improvement roadmap for review._
 |---|---|
 | Capability ID | **PORT-001** (proposed; not yet in the Research Program Registry) |
 | Program type | Portfolio Construction (multi-sleeve ERC + crash/correlation overlay) |
+| Capability class | **Portfolio Construction** (registry classes: Factor · Portfolio Construction · Event-Driven · Discovery · Execution · Risk) |
 | Investment style | Diversified trend / crash-protected beta |
 | Expected role | Core portfolio (risk-managed beta + diversification) |
 | Return driver | Diversification + risk management — **not** primary alpha (§6.3) |
@@ -77,6 +79,44 @@ sibling two-sleeve ERC construction into Factor Lab as a `PORT-001` ProgramSpec*
 single OrderRouter + risk engine. Until then the book is sibling-native and this doc is its capability
 *spec*, not its implementation. _(Platform-integration roadmap item — distinct from the §11 research
 levers; see §12.)_
+
+**Current vs target at a glance** (migration status, review-2 #2):
+
+| Dimension | Current | Target |
+|---|---|---|
+| System | Sibling `claude-trading-view` | TradingWorkbench |
+| Construction | Native scripts | Factor-Lab **ProgramSpec** (ADR 0026) |
+| Validation | Sibling backtests | **Evidence Engine** (bootstrap + Evidence Package) |
+| Execution | Standalone executor | **OrderRouter** + risk engine (ADR 0002) |
+| Monitoring | Local monitors (§9) | **Continuous Evidence** (Evidence Dashboard) |
+| Registry | This doc | **Capability Registry** (PORT-001 entry) |
+
+**Capability lifecycle status** (where it *actually* is today, review-2 #3):
+
+| Phase | Status |
+|---|---|
+| Research | ✓ |
+| Reproduction | ✓ (sibling) |
+| ProgramSpec (Factor Lab) | Planned |
+| Evidence Package | Planned |
+| Registry entry | Planned |
+| Paper capability | ✓ Running (sibling) |
+| Platform migration | Not started |
+
+**Platform dependencies _(target — PORT-001 is built on platform services, not standalone)_** (review-2 #1):
+
+| Depends on | Purpose | Status |
+|---|---|---|
+| Factor Lab | ProgramSpec execution (`run_program`) | _(target)_ |
+| Evidence Engine | Statistical validation + Evidence Package | _(target)_ |
+| Risk Engine | Portfolio/position limits (ADR 0002) | _(target)_ |
+| OrderRouter | Single-dispatch execution | _(target)_ |
+| Continuous Evidence | Monitoring → Evidence Dashboard | _(target)_ |
+
+**ProgramSpec mapping _(target, ADR 0026)_** (review-2 #5) — how the book becomes Factor-Lab configuration:
+`PORT-001 ProgramSpec → Sleeve A (crash-protected momentum) + Sleeve B (cross-asset TSMOM) → ERC portfolio
+construction + de-risk overlays → Evidence Package`. Today these are sibling scripts (§2); the migration
+(§12 Part B) expresses them as a ProgramSpec.
 
 **Platform dependency map (current).** Sharadar DAILY → equity-momentum sleeve · Yahoo + `^VIX` →
 cross-asset sleeve · ERC optimizer + crash/correlation overlays → unified book · Alpaca → execution ·
@@ -267,6 +307,12 @@ plain tilt. Lifting Sharpe past ~0.95–1.10 needs **new premia, not re-sizing**
 
 ## 6. Honest assessment (ordered by practical importance)
 
+> _Scan map (review-2 #8) — two kinds of finding:_
+> - **Operational concerns** (live risks to manage): §6.1 diversification weakening · §6.2 hidden
+>   equity-beta concentration. _(See also §10: Treasury regime, monitoring, account-reset fragility.)_
+> - **Research conclusions** (what the evidence settled): §6.3 risk-managed beta, not alpha · §6.4
+>   selection alpha refuted under PIT · §6.5 selection layer adds little · §6.6 Sharpe ceiling from re-sizing.
+
 ### 6.1 ⚠️ The diversification thesis — the whole point — is weakening (the #1 risk)
 `correlation-monitor-fix`: sleeve correlation is **+0.68 over 1y (persistent 12 months) and +0.77 over
 60d and rising**. Historically the sleeves were a real hedge (**2008 corr −0.45**, it worked) but
@@ -314,6 +360,12 @@ Re-sizing is exhausted as a lever; pushing Sharpe higher requires a genuinely ne
 ---
 
 ## 7. Continuous Evidence (live state, 2026-06-25)
+
+**Evidence outputs this capability generates** (review-2 #6 — what "Continuous Evidence" produces, today
+via the sibling stack; _target_ destination = the Workbench Evidence Dashboard): daily **portfolio
+snapshots** (`portfolio_live_book_<date>.json`) · **rebalance history** · **correlation-regime history**
+(`correlation_monitor_latest.json`) · **drawdown-vs-HWM history** · **risk-limit violations**
+(`portfolio_risk.py`) · **execution reconciliation** (`portfolio_reconcile.py`).
 
 - **PAPER2** `PA3344TNRFYD` ACTIVE — equity ≈ $99,827, cash ≈ $32,308.
 - **28 positions filled** at today's open (book asof 2026-06-24): cross-asset core IEF 15.8% / UUP
@@ -386,10 +438,24 @@ rate, correlation-regime state over time, days since last successful rebalance, 
 
 ---
 
-## 11. Improvement levers (prioritized)
+## 11. Improvement levers — Part A · Investment Research (prioritized)
+
+> _**Part A** (this §11) = research that improves the *investment* capability. **Part B** (§12) =
+> *platform* integration. Separating them clarifies ownership (review-2 #4)._
 
 **Governing principle (per review): fully optimize the risk management of the existing two sleeves
 before adding a third.** Order below reflects that.
+
+**Lever → work category** (review-2 #9 — what kind of change each needs):
+
+| Lever | Category |
+|---|---|
+| 1 · Correlation-aware allocation | **ProgramSpec** (sleeve weighting) |
+| 2 · Look-through risk model into construction | **Platform** (risk-engine integration) |
+| 3 · Operational hardening (KPI tripwires) | **Operational** |
+| 4 · Reconcile crash-engine numbers | Research |
+| 5 · Full-universe vs top-20 | Research |
+| 6 · Add a third return stream | Research _(last)_ |
 
 **1. Correlation-aware allocation — ✅ RESEARCHED 2026-06-25/26 _(was lever B)_; deploy decision pending.**
 
@@ -457,7 +523,7 @@ index) alongside MaxDD; a SPY-vs-combined drawdown chart; look-through concentra
 
 ---
 
-## 12. Related context
+## 12. Related context & Part B · Platform Integration
 
 Flagship of the program. The retired ETF-momentum book (PAPER1-era) was superseded by this book's
 cross-asset sleeve. The insider overlay (PAPER1) is a separate, smaller factor-tilt book — see
@@ -484,3 +550,15 @@ section literally true rather than aspirational):
 
 This is an engineering/platform track, **distinct from the §11 research levers** (which optimize the
 strategy itself). Sequence is the owner's call; until then this doc is PORT-001's capability *spec*.
+
+**Migration complete when** (review-2 #10 — the done-definition that closes the loop):
+
+1. **ProgramSpec implemented** — the two-sleeve ERC construction runs through Factor-Lab `run_program`.
+2. **Evidence reproduced** — a Workbench Evidence Package reproduces the sibling's headline numbers
+   (independent reproduction, the SEC-001/INSIDER-001 bar).
+3. **Registry entry created** — `PORT-001` is in the Research Program Registry with its verdict.
+4. **Paper capability running** — executes via the OrderRouter + risk engine on a Workbench paper account.
+5. **Continuous Evidence operational** — monitors feed the platform Evidence Dashboard.
+6. **Sibling retired** — only after sustained agreement between the two (co-exist, then retire).
+
+Until all six hold, the "Capability framing" tables above keep their _(target)_ markers.
