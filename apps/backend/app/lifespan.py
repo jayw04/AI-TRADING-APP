@@ -343,6 +343,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             else:
                 logger.info("premarket_gate_disabled_no_factor_store")
 
+            # 10c-range. Daily Range-Trader universe auto-select (design §"Top 3–5
+            # candidates"). ~09:00 ET weekdays (before the open / the premarket gate),
+            # re-point each opted-in range strategy (params_json["auto_select_top_n"] > 0)
+            # to today's Top-N candidates: stop → set symbols → start, audit-logged.
+            # No-op when no strategy has opted in; fail-soft. Scheduler tz is already ET.
+            from app.services.range_auto_select import run_daily_range_universe
+
+            scheduler.scheduler.add_job(
+                run_daily_range_universe,
+                trigger="cron",
+                day_of_week="mon-fri",
+                hour=9,
+                minute=0,
+                id="range_autoselect_daily",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={
+                    "session_factory": session_factory,
+                    "engine": strategy_engine,
+                    "bar_cache": bar_cache,
+                },
+            )
+            logger.info("range_autoselect_scheduled")
+
             # 10c. Metrics snapshot job (P5 §8.3). Every 30s, sample the
             # DB-derived gauges (active strategies by status, cooldown / breaker
             # / pending-live counts, audit-log row count, credential staleness).
