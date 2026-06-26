@@ -51,6 +51,11 @@ export interface RangeCandidate {
   suitable: boolean;
   score: number;
   rank: number;
+  // Realized backtest evidence (null when the symbol has no range backtest).
+  win_rate: number | null;
+  sharpe: number | null;
+  n_trades: number | null;
+  backtested: boolean;
 }
 
 export interface RangeCandidatesResponse {

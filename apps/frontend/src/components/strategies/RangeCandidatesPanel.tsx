@@ -28,6 +28,13 @@ function pct(n: number | null | undefined): string {
 function fmt(n: number | null | undefined): string {
   return n === null || n === undefined ? "—" : n.toFixed(2);
 }
+// Win% color cue: a fade strategy needs a majority of winners to overcome costs.
+function winRateStyle(wr: number | null): string {
+  if (wr === null) return "text-gray-600";
+  if (wr >= 0.55) return "text-emerald-300";
+  if (wr >= 0.45) return "text-amber-300";
+  return "text-rose-300";
+}
 
 interface Props {
   /** Called after a candidate is adopted (parent reloads its strategy list). */
@@ -84,7 +91,8 @@ export default function RangeCandidatesPanel({ onApplied }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-white">Range candidates — pick what to trade today</h2>
           <p className="text-[11px] text-gray-500">
-            Ranked by normalized range (ATR%) × how range-bound — not raw dollars. Descriptive, not a forecast.
+            Ranked by realized backtest <span className="text-gray-300">win rate</span> (then Sharpe) where
+            available; un-backtested names fall back to structural range fit (ATR% × how range-bound).
           </p>
         </div>
         <button
@@ -109,6 +117,18 @@ export default function RangeCandidatesPanel({ onApplied }: Props) {
               <tr>
                 <th className="px-3 py-1.5">#</th>
                 <th className="px-3 py-1.5">Symbol</th>
+                <th
+                  className="px-3 py-1.5 text-right"
+                  title="Realized backtest win rate — the primary ranking key when present"
+                >
+                  Win%
+                </th>
+                <th
+                  className="px-3 py-1.5 text-right"
+                  title="Realized backtest Sharpe (tiebreaker after win rate)"
+                >
+                  Sharpe
+                </th>
                 <th className="px-3 py-1.5 text-right">ATR%</th>
                 <th
                   className="px-3 py-1.5 text-right"
@@ -128,7 +148,25 @@ export default function RangeCandidatesPanel({ onApplied }: Props) {
                   className={`border-t border-gray-800/60 ${c.suitable ? "" : "opacity-60"}`}
                 >
                   <td className="px-3 py-1.5 font-mono text-gray-500">{c.rank}</td>
-                  <td className="px-3 py-1.5 font-mono font-semibold text-gray-100">{c.symbol}</td>
+                  <td className="px-3 py-1.5 font-mono font-semibold text-gray-100">
+                    {c.symbol}
+                    {c.backtested && (
+                      <span
+                        className="ml-1.5 rounded bg-sky-900/60 px-1 py-0.5 text-[9px] font-semibold uppercase text-sky-200"
+                        title={
+                          c.n_trades != null
+                            ? `Ranked on a realized backtest (${c.n_trades} trades)`
+                            : "Ranked on a realized backtest"
+                        }
+                      >
+                        BT
+                      </span>
+                    )}
+                  </td>
+                  <td className={`px-3 py-1.5 text-right font-mono ${winRateStyle(c.win_rate)}`}>
+                    {pct(c.win_rate)}
+                  </td>
+                  <td className="px-3 py-1.5 text-right font-mono text-gray-300">{fmt(c.sharpe)}</td>
                   <td className="px-3 py-1.5 text-right font-mono text-gray-200">{pct(c.atr20_pct)}</td>
                   <td className="px-3 py-1.5 text-right font-mono text-gray-400">{pct(c.oscillation)}</td>
                   <td className="px-3 py-1.5">

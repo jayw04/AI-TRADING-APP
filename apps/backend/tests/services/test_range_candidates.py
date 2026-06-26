@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.services.range_insight import (
     DEFAULT_CANDIDATE_UNIVERSE,
+    CandidateEvidence,
     RangeInsight,
     rank_candidates,
 )
@@ -108,3 +109,76 @@ def test_oscillation_falls_back_to_classification_without_er():
     out = rank_candidates([_ri("X", atr20_pct=0.05, classification="range_bound")])
     assert out[0].efficiency_ratio is None
     assert out[0].oscillation == 1.0  # range_bound class weight
+
+
+# --- Evidence-first ranking: realized backtest win rate leads (design §8.4) ----------
+
+def test_evidence_win_rate_drives_order_aapl_above_nvda():
+    # The motivating case: NVDA structurally looks fine but its 5-min fade backtested at a
+    # 25% win rate / Sharpe -1.12, while AAPL was 62% / +0.46. Win rate must order them.
+    out = rank_candidates(
+        [
+            _ri("NVDA", atr20_pct=0.040, classification="range_bound", efficiency_ratio=0.1),
+            _ri("AAPL", atr20_pct=0.030, classification="range_bound", efficiency_ratio=0.2),
+        ],
+        evidence={
+            "NVDA": CandidateEvidence(win_rate=0.25, sharpe=-1.12, n_trades=20),
+            "AAPL": CandidateEvidence(win_rate=0.62, sharpe=0.46, n_trades=24),
+        },
+    )
+    assert [c.symbol for c in out] == ["AAPL", "NVDA"]
+    aapl = out[0]
+    assert aapl.backtested is True
+    assert aapl.win_rate == 0.62 and aapl.sharpe == 0.46 and aapl.n_trades == 24
+
+
+def test_evidence_outranks_structural_prior():
+    # AMD has the best structural Range Score but no backtest; AAPL is backtested. Evidence
+    # beats structure → AAPL first, AMD (structural-only) second.
+    out = rank_candidates(
+        [
+            _ri("AMD", atr20_pct=0.066, classification="range_bound", efficiency_ratio=0.1),
+            _ri("AAPL", atr20_pct=0.030, classification="range_bound", efficiency_ratio=0.2),
+        ],
+        evidence={"AAPL": CandidateEvidence(win_rate=0.58, sharpe=0.3, n_trades=15)},
+    )
+    assert [c.symbol for c in out] == ["AAPL", "AMD"]
+    assert out[0].backtested is True
+    assert out[1].backtested is False and out[1].win_rate is None
+
+
+def test_evidence_sharpe_breaks_win_rate_ties():
+    out = rank_candidates(
+        [
+            _ri("LOWSH", atr20_pct=0.05, classification="range_bound", efficiency_ratio=0.1),
+            _ri("HISH", atr20_pct=0.05, classification="range_bound", efficiency_ratio=0.1),
+        ],
+        evidence={
+            "LOWSH": CandidateEvidence(win_rate=0.55, sharpe=0.2, n_trades=30),
+            "HISH": CandidateEvidence(win_rate=0.55, sharpe=0.9, n_trades=30),
+        },
+    )
+    assert [c.symbol for c in out] == ["HISH", "LOWSH"]  # equal win rate → higher Sharpe wins
+
+
+def test_evidence_none_is_pure_structural_and_backtested_false():
+    # No evidence → identical to the structural ranking, and every candidate is backtested=False.
+    out = rank_candidates([
+        _ri("AMD", atr20_pct=0.066, classification="range_bound"),
+        _ri("NVDA", atr20_pct=0.040, classification="range_bound"),
+    ])
+    assert [c.symbol for c in out] == ["AMD", "NVDA"]
+    assert all(c.backtested is False and c.win_rate is None for c in out)
+
+
+def test_evidence_with_null_win_rate_is_treated_as_no_evidence():
+    # A backtest row that produced no win_rate (e.g. zero trades) must not jump the queue.
+    out = rank_candidates(
+        [
+            _ri("AMD", atr20_pct=0.066, classification="range_bound"),
+            _ri("ZERO", atr20_pct=0.020, classification="range_bound"),
+        ],
+        evidence={"ZERO": CandidateEvidence(win_rate=None, sharpe=None, n_trades=0)},
+    )
+    assert [c.symbol for c in out] == ["AMD", "ZERO"]  # falls back to structural score
+    assert all(c.backtested is False for c in out)

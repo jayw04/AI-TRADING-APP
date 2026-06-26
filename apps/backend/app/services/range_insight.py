@@ -218,10 +218,15 @@ async def compute_range_insight(
 
 
 # --- Range-candidate ranking (P8 §5a) -----------------------------------------------
-# "Which symbols are the best range-trading candidates today?" — rank a universe by
-# NORMALIZED range (atr20_pct, so price level doesn't distort it) weighted by how
-# range-bound each name is. A fade/range strategy wants oscillation, not trend; this is
-# the daily user-select feed for choosing what to range-trade.
+# "Which symbols are the best range-trading candidates today?" — rank a universe so a
+# user can pick what to range-trade. Ranking is EVIDENCE-FIRST (design §8.4 Evidence
+# Engineering): when a symbol has a realized range backtest, it ranks by its **win rate**
+# (then Sharpe) — proven performance beats a structural guess. Names without a backtest
+# fall back below, ordered by the structural **Range Score** (normalized range × how
+# range-bound). Rationale, from this program's own runs: range trading is a marginal edge
+# even on structurally "good" names — NVDA's 5-min fade returned Sharpe −1.12 at a 25%
+# win rate while AAPL returned +0.46 at 62%, so realized win rate, not structure, must
+# lead the ranking.
 
 # Classification weight: a fade strategy thrives on range_bound, is hurt by trend.
 _CLASS_WEIGHT = {"range_bound": 1.0, "mixed": 0.5, "trending": 0.1}
@@ -231,6 +236,19 @@ DEFAULT_CANDIDATE_UNIVERSE: tuple[str, ...] = (
     "AAPL", "MSFT", "NVDA", "AMD", "TSLA", "GOOGL", "AMZN", "META", "NFLX",
     "INTC", "MU", "F", "KO", "DIS", "BAC", "XOM", "WMT", "SPY", "QQQ",
 )
+
+
+@dataclass(frozen=True)
+class CandidateEvidence:
+    """Realized range-trading performance for a symbol, taken from its most recent range
+    backtest. When present this *overrides* the structural prior in the ranking — the
+    candidate ranks by win rate (then Sharpe) above any name without a backtest."""
+
+    win_rate: float | None        # [0, 1]
+    sharpe: float | None
+    n_trades: int | None
+    as_of: datetime | None = None
+    label: str | None = None      # backtest label / provenance, for the UI tooltip
 
 
 @dataclass(frozen=True)
@@ -249,6 +267,12 @@ class RangeCandidate:
     suitable: bool                 # range_bound + a usable atr20_pct
     score: float                   # composite Range Score (higher = better range candidate)
     rank: int                      # 1-based, after sorting
+    # Realized backtest evidence (None when the symbol has no range backtest). Evidenced
+    # names sort above structural-only ones, by win_rate then sharpe.
+    win_rate: float | None = None
+    sharpe: float | None = None
+    n_trades: int | None = None
+    backtested: bool = False
 
 
 def _oscillation(insight: RangeInsight) -> float:
@@ -272,20 +296,40 @@ def _candidate_score(insight: RangeInsight) -> float:
     return insight.atr20_pct * _oscillation(insight)
 
 
-def rank_candidates(insights: Iterable[RangeInsight]) -> list[RangeCandidate]:
-    """Pure ranking over already-computed insights (sort by range-trading suitability)."""
-    scored = [
-        (
-            _candidate_score(ins),
-            ins,
+def rank_candidates(
+    insights: Iterable[RangeInsight],
+    *,
+    evidence: dict[str, CandidateEvidence] | None = None,
+) -> list[RangeCandidate]:
+    """Pure ranking over already-computed insights. Evidence-first (design §8.4): a symbol
+    with a realized range backtest (``evidence`` carrying a non-null ``win_rate``) ranks by
+    that win rate then Sharpe, ABOVE any name without one; the rest fall back to the
+    structural Range Score. ``evidence`` is keyed by uppercased symbol."""
+    ev_by_symbol = {k.upper(): v for k, v in (evidence or {}).items()}
+    rows = []
+    for ins in insights:
+        score = _candidate_score(ins)
+        suitable = (
             ins.status == "ok"
             and ins.classification == "range_bound"
-            and ins.atr20_pct is not None,
+            and ins.atr20_pct is not None
         )
-        for ins in insights
-    ]
-    # best score first; ties by atr20_pct desc then symbol (stable, deterministic).
-    scored.sort(key=lambda t: (-t[0], -(t[1].atr20_pct or 0.0), t[1].symbol))
+        ev = ev_by_symbol.get(ins.symbol.upper())
+        has_ev = ev is not None and ev.win_rate is not None
+        rows.append((score, ins, suitable, ev, has_ev))
+
+    # Evidenced names first (group 0), ranked by win_rate desc then sharpe desc; the rest
+    # (group 1) by structural score desc. Ties: atr20_pct desc, then symbol (deterministic).
+    rows.sort(
+        key=lambda t: (
+            0 if t[4] else 1,
+            -((t[3].win_rate if t[3] else None) or 0.0),
+            -((t[3].sharpe if t[3] else None) or 0.0),
+            -t[0],
+            -(t[1].atr20_pct or 0.0),
+            t[1].symbol,
+        )
+    )
     return [
         RangeCandidate(
             symbol=ins.symbol, status=ins.status, atr20=ins.atr20, atr20_pct=ins.atr20_pct,
@@ -293,16 +337,25 @@ def rank_candidates(insights: Iterable[RangeInsight]) -> list[RangeCandidate]:
             last_close=ins.last_close, efficiency_ratio=ins.efficiency_ratio,
             oscillation=round(_oscillation(ins), 4) if ins.status == "ok" else None,
             suitable=suitable, score=round(score, 6), rank=i + 1,
+            win_rate=(ev.win_rate if ev else None),
+            sharpe=(ev.sharpe if ev else None),
+            n_trades=(ev.n_trades if ev else None),
+            backtested=has_ev,
         )
-        for i, (score, ins, suitable) in enumerate(scored)
+        for i, (score, ins, suitable, ev, has_ev) in enumerate(rows)
     ]
 
 
 async def rank_range_candidates(
-    symbols: Iterable[str], *, bar_cache: Any, now: datetime
+    symbols: Iterable[str],
+    *,
+    bar_cache: Any,
+    now: datetime,
+    evidence: dict[str, CandidateEvidence] | None = None,
 ) -> list[RangeCandidate]:
-    """Compute Range Insight for each symbol concurrently, then rank by range-trading
-    suitability. Fail-soft per symbol (``compute_range_insight`` never raises)."""
+    """Compute Range Insight for each symbol concurrently, then rank evidence-first
+    (realized backtest win rate, then the structural Range Score). Fail-soft per symbol
+    (``compute_range_insight`` never raises)."""
     deduped: dict[str, None] = {}
     for s in symbols:
         if s and s.strip():
@@ -310,4 +363,4 @@ async def rank_range_candidates(
     insights = await asyncio.gather(
         *(compute_range_insight(s, bar_cache=bar_cache, now=now) for s in deduped)
     )
-    return rank_candidates(insights)
+    return rank_candidates(insights, evidence=evidence)

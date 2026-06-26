@@ -33,6 +33,11 @@ class RangeCandidateModel(BaseModel):
     suitable: bool
     score: float
     rank: int
+    # Realized backtest evidence (null when the symbol has no range backtest).
+    win_rate: float | None = None
+    sharpe: float | None = None
+    n_trades: int | None = None
+    backtested: bool = False
 
 
 class RangeCandidatesResponse(BaseModel):
