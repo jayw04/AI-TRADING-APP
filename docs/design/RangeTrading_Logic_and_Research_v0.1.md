@@ -1,10 +1,10 @@
-# Range Trading — Logic, Trigger Rules & Improvement Research (v0.1)
+# Range Trading — Logic, Trigger Rules & Improvement Research (v0.2)
 
 | Field | Value |
 |---|---|
 | Date | 2026-06-26 |
 | Scope | The TradingWorkbench **RangeTrader** template (`apps/backend/strategies_user/templates/range_trader.py`) — the *fade-the-range* intraday mean-reversion strategy. (Distinct from the sibling system's "Combined Book.") |
-| Status | Working doc — documents current behavior + a prioritized research plan to fix the "no trades for days" problem. |
+| Status | Working doc — current behavior + a prioritized research plan. **v0.2 folds the owner review (`design ideas.md`, 9.8/10):** the two-hypothesis split (H1 symbols / H2 entry, tested separately), a composite **Range Score** + **Range Efficiency**, the **support-zone** entry, **bounce confirmation**, and the **Candidate Engine** architecture (§8, §10). |
 | Live instance | `Range Trader NVDA` (strategy id=1, user2 `range@local.dev`, account 2, PAPER). An IDLE `Range Trader AAPL` (id=3) also exists. |
 | Related | Range Candidates ranker (PR #281) · dispatch-liveness monitor (PR #280) · the MarketHours autostart task. |
 
@@ -104,37 +104,107 @@ Observed: **0 orders for ~2 days** on the NVDA range strategy. Root causes, in o
 
 ---
 
-## 8. Research plan — improve results & reduce dry spells
+## 8. Research plan — two independent hypotheses (owner review folded, 9.8/10)
 
-Prioritized; lead with selection (biggest lever, lowest risk), then trigger widening, then structural changes. **Each change must be backtested** (`scripts/backtest_range_trader_{sweep,alpaca,synthetic}.py`) before any live param change — and judged on **risk-adjusted P&L**, not trade count.
+> **Methodology fold (owner — the most important one):** split the research into **two independent
+> hypotheses** and test them **separately**, or you'll never know which change actually mattered
+> (clean Evidence-Engineering attribution):
+> - **H1 — Can we pick better *symbols*?** → the Candidate Engine.
+> - **H2 — Can we improve the *entry logic*?** → the strategy trigger.
+>
+> Every change is backtested (`scripts/backtest_range_trader_{sweep,alpaca,synthetic}.py`) and judged on
+> **risk-adjusted P&L, not trade count.** A flat day on a trending symbol is *correct*; the goal is more
+> *good* setups, not more trades.
 
-### A. Symbol selection — pick range-suitable names *(highest leverage, shippable now)*
-Use the **Range Candidates ranker** (PR #281): rank a universe by **normalized ATR% × `range_bound` classification** and trade the best range-bound, wide-range names instead of a fixed NVDA. Live example today: **AMD (6.6%, range_bound) > NVDA (4.0%)**. A wider, genuinely range-bound symbol produces more clean support touches → fewer dry days *and* better setups. **Experiment:** backtest the fade strategy on the top-5 ranked names vs NVDA; measure trades/day, win-rate, Sharpe.
+### 8.1 H1 — Candidate selection (the #1 lever)
+The single highest-value change — and it eliminates most "no-trade" days **without touching the strategy
+logic**. The architecture should be `Candidate Engine → Range Candidate → Range Trader`, **not**
+`Fixed Symbol → Range Trader` — the same evolution made with Discovery Lab (see §10).
 
-### B. Entry as a *zone*, not a point *(directly attacks the dry-spell)*
-Today entry fires only at `price ≤ opening-range low` — an exact touch. Widen to an **entry band** (e.g., buy anywhere in the lower X% of the day's range, or at the 25th percentile of the opening range), or place a **resting limit** at the level. This fires on *near*-misses that currently produce nothing. **Experiment:** sweep an `entry_band_pct` (0 / 0.25% / 0.5% / lower-quartile) on the backtest; watch trades/day vs win-rate (wider band = more trades but worse average entry — find the knee).
+**8.1a Rank by a composite Range Score, not ATR% alone.** ATR% is *necessary but not sufficient* (owner):
+a high-ATR% **trender** (NVDA) should rank *below* a moderate-ATR% genuine **oscillator**. Proposed:
 
-### C. Two-sided range trading *(structural; more opportunity)*
-Add **fade-the-resistance** (short the opening-range high) or a symmetric buy-low/sell-high so the strategy trades **both edges**, roughly doubling setups and covering up-from-the-open days. Requires shorting permission + risk design (the platform is long-only today for this template). **Experiment:** backtest a long+short variant; confirm the short edge isn't negative (shorts often behave differently).
+> **RangeScore = ATR% × RangeBoundProbability × IntradayOscillation × Liquidity × SpreadQuality**
 
-### D. Adaptive / rolling levels *(reduces frozen-range staleness)*
-Instead of a single frozen opening range, derive levels from a **rolling intraday window** (last N bars' high/low) or re-derive midday. Levels then track a drifting range and fire more often in a slow grind. **Experiment:** sweep `opening_range_minutes` (15/30/60) and a rolling-window variant; shorter/earlier ranges give tighter, earlier levels (more touches) at the cost of noise.
+- **IntradayOscillation = Range Efficiency** — `intraday_travel / |net_change|` (high travel, low net move
+  ⇒ oscillating ⇒ good). *Stock A:* H−L $20 / Close−Open $18 ⇒ directional ⇒ **bad**. *Stock B:* H−L $20 /
+  Close−Open $1 ⇒ oscillating ⇒ **excellent**. **Same ATR, opposite behavior.** ⭐ The platform **already
+  computes a version of this — `RangeInsight.efficiency_ratio`** — so feature it in the score.
+- Add the richer candidate dimensions the owner listed: **RVOL, average spread, liquidity, mean-reversion
+  score, trend score, gap size, sector volatility** — then let the strategy filter.
 
-### E. Regime gating — *trade only when it should* *(quality over quantity)*
-Add a daily filter: **skip days classified `trending`**, trade only `range_bound`/`mixed`. This *reduces* trades but raises their quality (avoids the NVDA-trend losses). Pair with (A): on a trending day for the held symbol, the ranker may point to a different, range-bound name. **Experiment:** compare P&L with/without the regime gate; confirm the skipped days were net-negative.
+The current ranker (PR #281) is **v1** (ATR% × `range_bound`); this extends it to the full Range Score.
 
-### F. Parameter sweep matrix *(do this first to calibrate B/D/E)*
-Backtest grid over: `opening_range_minutes` {15,30,60} × `stop_buffer_pct` {0.25%,0.5%,1%} × entry-band {0,0.25%,0.5%} × `timeframe` {1Min,5Min} × `max_trades_per_day` {2,4,8}. Output trades/day, win-rate, Sharpe, maxDD per cell → pick the efficient frontier (not the most-trades cell).
+**8.1b Experiment (H1, in isolation):** backtest the **unchanged** fade on the top-5 RangeScore names vs
+NVDA; measure trades/day, win-rate, Sharpe. If selection alone lifts it, H1 is confirmed independent of any
+trigger change.
+
+### 8.2 H2 — Entry logic (kept separate from H1)
+**8.2a Support ZONE, not an exact low *(Priority 2)*.** Markets rarely touch an exact level — support is
+an *area*, not a point. Replace `BUY when price ≤ OR-low` with a **support zone = the lowest 20% of the
+opening range**:
+
+> **BUY when price ≤ OR-low + 0.20 × (OR-high − OR-low)**
+
+Example: OR high 210 / low 200 → buy anywhere ≤ **202** (vs only ≤ 200). Many more legitimate entries while
+preserving the mean-reversion concept. **Experiment:** sweep the zone fraction {0, 10%, 20%, 33%} — trades/day
+vs win-rate/avg-entry; find the knee.
+
+**8.2b Bounce confirmation *(optional, after 8.2a)*.** Instead of buying *at* support (catching a falling
+knife), buy when price **crosses back up through** support — buying *confirmation*. **Experiment:** "first
+touch" vs "cross-back-above" on win-rate + drawdown.
+
+**8.2c VWAP confirmation.** Gate entries by VWAP (e.g., only fade support when price is near/above VWAP, or
+use VWAP as a dynamic support). Usually filters bad entries. **Experiment:** add a VWAP gate; measure
+false-entry reduction.
+
+**8.2d Adaptive/rolling levels & two-sided *(structural, last)*.** A rolling intraday range instead of a
+frozen opening range (fires more in a slow grind); and **fade-the-resistance** (short the OR high) to cover
+up-from-the-open days (needs shorting + risk design — long-only today).
+
+**8.2e Param-sweep matrix** (calibrates the above): `opening_range_minutes`{15,30,60} × zone-fraction
+{0,10,20,33%} × `stop_buffer_pct`{0.25,0.5,1%} × `timeframe`{1Min,5Min} × `max_trades_per_day`{2,4,8} →
+trades/day, win, Sharpe, maxDD per cell; pick the efficient frontier, **not** the most-trades cell.
+
+### 8.3 Priority (owner)
+| # | Improvement | Hypothesis | Why |
+|---|---|---|---|
+| **1** | Dynamic candidate selection | **H1** | Biggest expected lift; eliminates most no-trade days *without changing logic* |
+| **2** | Support-zone entry (`≤ OR-low + 20%·range`) | **H2** | Realistic market behavior; more valid entries, preserves the concept |
+| **3** | **Keep H1 and H2 separate** | method | Attribute which change mattered → clean Evidence Engineering |
+| **4** | Richer **Range Score** (oscillation/trend/liquidity/RVOL/spread + Range Efficiency) | **H1** | ATR% alone is insufficient |
+| **5** | Bounce confirmation | **H2** | Buy confirmation, not a falling knife — *after* 1 & 2 |
 
 ### Out of scope / explicitly *not* the goal
-- **Manufacturing trades for their own sake.** A flat day on a trending symbol is correct. The fix is *better symbols + better triggers*, validated, not loosening until it trades.
-- Hot-swapping the live strategy's symbol daily (collides with the activation-cooldown invariant, ADR 0005). The ranker's "Use" creates an **IDLE** strategy you then activate — the cooldown-safe path. A true auto-daily universe strategy is a separate, larger design.
+- **Manufacturing trades for their own sake.** A flat day on a trending symbol is correct.
+- Hot-swapping the live strategy's symbol daily (collides with the activation-cooldown invariant, ADR 0005).
+  The ranker's "Use" creates an **IDLE** strategy you then activate — the cooldown-safe path.
 
 ---
 
 ## 9. Immediate next steps (recommended order)
 
-1. **Confirm the operational fix held** — with the MarketHours task + dispatch monitor live, verify the engine is up pre-open and `on_bar` is dispatching (the dispatch-liveness endpoint / WARN logs).
-2. **Run the symbol study (A)** — backtest the fade on the top range-candidates vs NVDA; if AAPL/AMD clearly trade more and better, that alone fixes most dry spells.
-3. **Run the param sweep (F)** + the entry-band study (B) — calibrate the trigger.
-4. Only then consider the structural changes (C/D/E), each gated on backtest evidence.
+1. **Confirm the operational fix held** — engine up pre-open; `on_bar` dispatching (dispatch-liveness
+   endpoint / WARN logs clean).
+2. **Test H1 in isolation** — backtest the *unchanged* fade on the top RangeScore names vs NVDA. If AMD/AAPL
+   trade more and better, selection alone fixes most dry spells.
+3. **Then test H2 in isolation** — support-zone entry (8.2a) on a *fixed* symbol set, so the lift is
+   attributable to the trigger, not the symbol.
+4. **Combine only after each is independently attributed.** Structural changes (rolling levels / two-sided /
+   VWAP) last, each gated on backtest evidence.
+
+---
+
+## 10. Strategic architecture — Range Trader as a Candidate-Engine consumer (owner)
+
+The owner's headline recommendation: **Range Trader should stop being a standalone strategy and become the
+*execution component* of a two-stage pipeline** — mirroring Discovery Lab:
+
+> `Candidate Engine → Candidate Ranking → Strategy → Execution → Evidence Collection`  *(not `Strategy → Stock`)*
+
+And the engine should be **generic**, not range-only: a single **Candidate Engine** produces
+**Momentum / Range / Trend / Sector** candidate lists, and Range Trader is *one consumer* (the PR #281 ranker
+is the seed of the *Range profile*). This turns candidate selection into a **reusable platform capability** —
+far more valuable than relaxing a trigger, and consistent with the rest of TradingWorkbench (Discovery Lab,
+Factor Lab). The cooldown-safe realization is a **universe range strategy** that picks intraday from the
+ranked list (no daily symbol-swap → no re-activation).
