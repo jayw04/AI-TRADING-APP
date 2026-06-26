@@ -103,6 +103,13 @@ class RangeTraderVWAP(RangeTrader):
 
     async def on_init(self) -> None:
         await super().on_init()
+        # This VWAP variant keeps its OWN single-symbol scalar state (it has its own on_bar
+        # and does not use the parent's per-symbol _SymState model). The parent's on_init
+        # now sets up only ``self._sym`` / equity, so re-declare the scalars this class uses.
+        self._trade_day: str | None = None
+        self._trades_today = 0
+        self._stopped_today = False
+        self._pending: dict[str, str] = {}
         # Per-session VWAP + deviation accumulators (running, O(1) per bar).
         self._cum_pv = 0.0
         self._cum_v = 0.0
