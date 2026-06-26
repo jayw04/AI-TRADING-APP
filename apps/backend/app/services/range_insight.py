@@ -11,6 +11,8 @@ Never raises — insufficiency / degeneracy is reported via ``status``.
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -213,3 +215,188 @@ async def compute_range_insight(
     except Exception:
         return _insufficient(symbol, bars_used=0, as_of=None)
     return range_insight_from_bars(symbol, bars, now)
+
+
+# --- Range-candidate ranking (P8 §5a) -----------------------------------------------
+# "Which symbols are the best range-trading candidates today?" — rank a universe so a
+# user can pick what to range-trade. Ranking is EVIDENCE-FIRST (design §8.4 Evidence
+# Engineering): when a symbol has a realized range backtest, it ranks by its **win rate**
+# (then Sharpe) — proven performance beats a structural guess. Names without a backtest
+# fall back below, ordered by the structural **Range Score** (normalized range × how
+# range-bound). Rationale, from this program's own runs: range trading is a marginal edge
+# even on structurally "good" names — NVDA's 5-min fade returned Sharpe −1.12 at a 25%
+# win rate while AAPL returned +0.46 at 62%, so realized win rate, not structure, must
+# lead the ranking.
+
+# Classification weight: a fade strategy thrives on range_bound, is hurt by trend.
+_CLASS_WEIGHT = {"range_bound": 1.0, "mixed": 0.5, "trending": 0.1}
+
+# Default candidate universe (liquid large-caps) when the caller passes none.
+DEFAULT_CANDIDATE_UNIVERSE: tuple[str, ...] = (
+    "AAPL", "MSFT", "NVDA", "AMD", "TSLA", "GOOGL", "AMZN", "META", "NFLX",
+    "INTC", "MU", "F", "KO", "DIS", "BAC", "XOM", "WMT", "SPY", "QQQ",
+)
+
+
+@dataclass(frozen=True)
+class CandidateEvidence:
+    """Realized range-trading performance for a symbol, taken from its most recent range
+    backtest. When present this *overrides* the structural prior in the ranking — the
+    candidate ranks by win rate (then Sharpe) above any name without a backtest."""
+
+    win_rate: float | None        # [0, 1]
+    sharpe: float | None
+    n_trades: int | None
+    as_of: datetime | None = None
+    label: str | None = None      # backtest label / provenance, for the UI tooltip
+
+
+@dataclass(frozen=True)
+class RangeCandidate:
+    """One symbol's range-trading suitability (for the daily candidate ranker)."""
+
+    symbol: str
+    status: str
+    atr20: float | None
+    atr20_pct: float | None        # NORMALIZED range — the price-independent "size" factor
+    intraday_range: float | None
+    classification: str | None     # range_bound | trending | mixed
+    last_close: float | None
+    efficiency_ratio: float | None  # Kaufman ER (net/path): high = trending, low = choppy
+    oscillation: float | None      # Range Efficiency = 1 − ER (high = oscillating = good)
+    suitable: bool                 # range_bound + a usable atr20_pct
+    score: float                   # composite Range Score (higher = better range candidate)
+    rank: int                      # 1-based, after sorting
+    # Realized backtest evidence (None when the symbol has no range backtest). Evidenced
+    # names sort above structural-only ones, by win_rate then sharpe.
+    win_rate: float | None = None
+    sharpe: float | None = None
+    n_trades: int | None = None
+    backtested: bool = False
+
+
+def _oscillation(insight: RangeInsight) -> float:
+    """The "shape" factor — how much a name *oscillates* vs trends, in [0, 1] (high = good
+    for fading). The platform's ``efficiency_ratio`` is Kaufman ER (net move / total path):
+    **high ER = directional/trending, low ER = choppy/range-bound**, so oscillation = 1 − ER.
+    Falls back to the coarse ``classification`` weight when ER isn't available (keeps callers
+    that only set the bucket working)."""
+    if insight.efficiency_ratio is not None:
+        return max(0.0, min(1.0, 1.0 - insight.efficiency_ratio))
+    return _CLASS_WEIGHT.get(insight.classification or "", 0.5)
+
+
+def _candidate_score(insight: RangeInsight) -> float:
+    """Composite **Range Score** = normalized range (``atr20_pct``, the "size") × oscillation
+    (the "shape", §8.1a of the design doc). Rewards a wide range that genuinely *oscillates*
+    rather than trends — so a high-ATR% trender (NVDA) ranks below a moderate-ATR% oscillator,
+    which ATR% alone could not capture. (Liquidity/spread factors are a future extension.)"""
+    if insight.status != "ok" or insight.atr20_pct is None:
+        return 0.0
+    return insight.atr20_pct * _oscillation(insight)
+
+
+def rank_candidates(
+    insights: Iterable[RangeInsight],
+    *,
+    evidence: dict[str, CandidateEvidence] | None = None,
+) -> list[RangeCandidate]:
+    """Pure ranking over already-computed insights. Evidence-first (design §8.4): a symbol
+    with a realized range backtest (``evidence`` carrying a non-null ``win_rate``) ranks by
+    that win rate then Sharpe, ABOVE any name without one; the rest fall back to the
+    structural Range Score. ``evidence`` is keyed by uppercased symbol."""
+    ev_by_symbol = {k.upper(): v for k, v in (evidence or {}).items()}
+    rows = []
+    for ins in insights:
+        score = _candidate_score(ins)
+        suitable = (
+            ins.status == "ok"
+            and ins.classification == "range_bound"
+            and ins.atr20_pct is not None
+        )
+        ev = ev_by_symbol.get(ins.symbol.upper())
+        has_ev = ev is not None and ev.win_rate is not None
+        rows.append((score, ins, suitable, ev, has_ev))
+
+    # Evidenced names first (group 0), ranked by win_rate desc then sharpe desc; the rest
+    # (group 1) by structural score desc. Ties: atr20_pct desc, then symbol (deterministic).
+    rows.sort(
+        key=lambda t: (
+            0 if t[4] else 1,
+            -((t[3].win_rate if t[3] else None) or 0.0),
+            -((t[3].sharpe if t[3] else None) or 0.0),
+            -t[0],
+            -(t[1].atr20_pct or 0.0),
+            t[1].symbol,
+        )
+    )
+    return [
+        RangeCandidate(
+            symbol=ins.symbol, status=ins.status, atr20=ins.atr20, atr20_pct=ins.atr20_pct,
+            intraday_range=ins.intraday_range, classification=ins.classification,
+            last_close=ins.last_close, efficiency_ratio=ins.efficiency_ratio,
+            oscillation=round(_oscillation(ins), 4) if ins.status == "ok" else None,
+            suitable=suitable, score=round(score, 6), rank=i + 1,
+            win_rate=(ev.win_rate if ev else None),
+            sharpe=(ev.sharpe if ev else None),
+            n_trades=(ev.n_trades if ev else None),
+            backtested=has_ev,
+        )
+        for i, (score, ins, suitable, ev, has_ev) in enumerate(rows)
+    ]
+
+
+async def rank_range_candidates(
+    symbols: Iterable[str],
+    *,
+    bar_cache: Any,
+    now: datetime,
+    evidence: dict[str, CandidateEvidence] | None = None,
+) -> list[RangeCandidate]:
+    """Compute Range Insight for each symbol concurrently, then rank evidence-first
+    (realized backtest win rate, then the structural Range Score). Fail-soft per symbol
+    (``compute_range_insight`` never raises)."""
+    deduped: dict[str, None] = {}
+    for s in symbols:
+        if s and s.strip():
+            deduped.setdefault(s.strip().upper(), None)
+    insights = await asyncio.gather(
+        *(compute_range_insight(s, bar_cache=bar_cache, now=now) for s in deduped)
+    )
+    return rank_candidates(insights, evidence=evidence)
+
+
+def top_range_symbols(
+    candidates: Iterable[RangeCandidate], *, n: int = 5, require_suitable: bool = True
+) -> list[str]:
+    """The day's Top-N range picks, in rank order — the symbol list the Candidate Engine
+    hands to the Range Trader (design §"Top 3–5 candidates"). ``candidates`` must already be
+    ranked (output of ``rank_candidates``). Only ``ok`` names are eligible; with
+    ``require_suitable`` (default) a name must also be range-bound + have a usable ATR%, so a
+    thin or trending day yields FEWER than ``n`` picks rather than forcing in poor candidates
+    (no silent padding). ``n <= 0`` selects none."""
+    if n <= 0:
+        return []
+    picks = [
+        c
+        for c in candidates
+        if c.status == "ok" and (c.suitable or not require_suitable)
+    ]
+    return [c.symbol for c in picks[:n]]
+
+
+async def select_top_range_symbols(
+    symbols: Iterable[str],
+    *,
+    bar_cache: Any,
+    now: datetime,
+    n: int = 5,
+    evidence: dict[str, CandidateEvidence] | None = None,
+    require_suitable: bool = True,
+) -> list[str]:
+    """Rank a universe (evidence-first) and return today's Top-N symbols to range-trade.
+    The daily auto-select entry point: ``rank_range_candidates`` → ``top_range_symbols``."""
+    ranked = await rank_range_candidates(
+        symbols, bar_cache=bar_cache, now=now, evidence=evidence
+    )
+    return top_range_symbols(ranked, n=n, require_suitable=require_suitable)
