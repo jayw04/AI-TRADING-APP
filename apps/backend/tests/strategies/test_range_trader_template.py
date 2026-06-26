@@ -104,6 +104,36 @@ async def test_entry_zone_rejects_above_the_band() -> None:
     ctx.submit_order.assert_not_called()
 
 
+async def test_vwap_gate_off_enters_below_vwap() -> None:
+    """Default (vwap_gate_pct=0): gate off, so an entry fires even far below VWAP — back-compatible."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())  # gate off
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=120.0))  # builds VWAP high, no entry (120 > entry 100)
+    await strat.on_bar(_bar(MID, c=99.0))   # ≤ entry, far below VWAP, gate off → entry
+    ctx.submit_order.assert_called_once()
+
+
+async def test_vwap_gate_blocks_entry_far_below_vwap() -> None:
+    """Gate on: skip a support entry when price is far below session VWAP (a downtrend)."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(vwap_gate_pct=0.05))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=120.0))  # VWAP → 120
+    await strat.on_bar(_bar(MID, c=99.0))   # VWAP 109.5; 99 < 109.5×0.95≈104 → gated
+    ctx.submit_order.assert_not_called()
+
+
+async def test_vwap_gate_allows_entry_near_vwap() -> None:
+    """Gate on: when price is at/above the VWAP threshold, the entry passes the gate."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(vwap_gate_pct=0.05))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0))  # VWAP=100; 100 ≥ 100×0.95=95 → entry fires
+    ctx.submit_order.assert_called_once()
+    assert ctx.submit_order.call_args.args[0].side.value == "buy"
+
+
 async def test_exit_sells_at_resistance() -> None:
     ctx = _ctx(position_qty=Decimal("10"))
     strat = RangeTrader(ctx=ctx, params=_params())
