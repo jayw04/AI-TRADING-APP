@@ -261,6 +261,86 @@ async def test_opening_range_no_entry_while_forming() -> None:
     ctx.submit_order.assert_not_called()
 
 
+# ---- multi-symbol independence (one Range Trader over a candidate universe) ----
+
+
+async def test_two_symbols_have_independent_opening_ranges() -> None:
+    """Two symbols build their OWN opening ranges and enter at their OWN range lows —
+    no state collision (the core multi-symbol-safety guarantee)."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(level_mode="opening_range", stop_buffer_pct=0.01))
+    await strat.on_init()
+    # AAPL OR ≈ [99.9, 101.1]; AMD OR ≈ [199.9, 201.1] — disjoint price regimes.
+    await strat.on_bar(_bar(OR_BAR_1, c=100.0, symbol="AAPL"))
+    await strat.on_bar(_bar(OR_BAR_2, c=101.0, symbol="AAPL"))
+    await strat.on_bar(_bar(OR_BAR_1, c=200.0, symbol="AMD"))
+    await strat.on_bar(_bar(OR_BAR_2, c=201.0, symbol="AMD"))
+    ctx.submit_order.assert_not_called()  # both still forming
+
+    # Each symbol's frozen levels are its own and distinct.
+    aapl_levels = strat._sym["AAPL"].dyn_levels
+    amd_levels = strat._sym["AMD"].dyn_levels
+    assert aapl_levels is None and amd_levels is None  # not frozen until first post-OR bar
+
+    await strat.on_bar(_bar(AFTER_OR, c=99.9, symbol="AAPL"))   # AAPL at its range low → BUY
+    await strat.on_bar(_bar(AFTER_OR, c=199.9, symbol="AMD"))   # AMD at its range low → BUY
+    assert strat._sym["AAPL"].dyn_levels[0] == 99.9
+    assert strat._sym["AMD"].dyn_levels[0] == 199.9
+    sides = [(c.args[0].symbol_ticker, c.args[0].side.value) for c in ctx.submit_order.call_args_list]
+    assert ("AAPL", "buy") in sides and ("AMD", "buy") in sides
+
+
+async def test_one_symbol_opening_range_does_not_leak_into_another() -> None:
+    """A symbol with NO opening range of its own stays inert — it must not inherit another
+    symbol's frozen levels."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(level_mode="opening_range"))
+    await strat.on_init()
+    # Only AAPL builds a range.
+    await strat.on_bar(_bar(OR_BAR_1, c=100.0, symbol="AAPL"))
+    await strat.on_bar(_bar(OR_BAR_2, c=101.0, symbol="AAPL"))
+    # AMD's first-ever bar is post-window with no OR → no levels → no entry at any price.
+    await strat.on_bar(_bar(AFTER_OR, c=99.9, symbol="AMD"))
+    sides = [c.args[0].symbol_ticker for c in ctx.submit_order.call_args_list]
+    assert "AMD" not in sides
+    assert strat._sym["AMD"].dyn_levels is None
+
+
+async def test_per_symbol_trade_counter_is_independent() -> None:
+    """One symbol hitting max_trades_per_day must not consume another symbol's budget."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params(max_trades_per_day=1))
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0, symbol="AAPL"))  # AAPL enters (counter → 1)
+    await strat.on_bar(_bar(MID, c=100.0, symbol="AMD"))   # AMD independent → also enters
+    syms = [c.args[0].symbol_ticker for c in ctx.submit_order.call_args_list]
+    assert syms.count("AAPL") == 1 and syms.count("AMD") == 1
+    assert strat._sym["AAPL"].trades_today == 1 and strat._sym["AMD"].trades_today == 1
+
+
+async def test_per_symbol_stop_out_halt_is_independent() -> None:
+    """A stop-out (range broken) on one symbol must not halt entries on another."""
+    ctx = _ctx(position_qty=None)
+    strat = RangeTrader(ctx=ctx, params=_params())  # fixed entry 100 / stop 95
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=94.0, symbol="AAPL"))   # below stop → AAPL range broken
+    await strat.on_bar(_bar(MID, c=100.0, symbol="AAPL"))  # at entry but halted → no buy
+    await strat.on_bar(_bar(MID, c=100.0, symbol="AMD"))   # AMD unaffected → buys
+    assert strat._sym["AAPL"].stopped_today is True
+    syms = [c.args[0].symbol_ticker for c in ctx.submit_order.call_args_list]
+    assert "AAPL" not in syms and syms.count("AMD") == 1
+
+
+async def test_per_position_budget_caps_notional() -> None:
+    """per_position_budget caps each symbol's qty to budget/price (multi-symbol allocation)."""
+    ctx = _ctx(position_qty=None)
+    # Without a budget this sizes to 100 (risk 1000 / per-share-risk 5 = 200, capped at 100).
+    strat = RangeTrader(ctx=ctx, params=_params(per_position_budget=300.0))  # 300/100 = 3 shares
+    await strat.on_init()
+    await strat.on_bar(_bar(MID, c=100.0))
+    assert ctx.submit_order.call_args.args[0].qty == Decimal(3)
+
+
 async def test_live_equity_sizing_uses_account_balance() -> None:
     ctx = _ctx(position_qty=None)
     ctx.get_account_equity = AsyncMock(return_value=Decimal("10000"))  # small account
