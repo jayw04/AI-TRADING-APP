@@ -62,6 +62,12 @@ from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.strategy_run import StrategyRun
 from app.events.bus import EventBus
 from app.market.session import MarketSession
+from app.ops.dispatch_health import (
+    DispatchHealth,
+    DispatchSnapshot,
+    evaluate_dispatch_health,
+    stale_dispatch,
+)
 
 from .base import Strategy
 from .context import Bar, FillEvent, SignalEvent, StrategyContext
@@ -71,6 +77,9 @@ logger = structlog.get_logger(__name__)
 
 
 EVENT_SCHEDULE_SENTINEL = "event"
+
+# P11 ops: how often the dispatch-liveness monitor runs (minutes).
+DISPATCH_HEALTH_CHECK_MINUTES = 5
 
 # Standard crontab day-of-week is 0/7=Sunday, 1=Monday … 6=Saturday. APScheduler's
 # CronTrigger numbers day_of_week 0=Monday … 6=Sunday and `from_crontab` does NOT
@@ -122,6 +131,7 @@ class RunningStrategy:
     timeframe: str  # for periodic on_bar dispatch
     schedule: str  # cron expression or "event" — drives WS vs cron path
     overlay_job_id: str | None = None  # P10 §2: APScheduler id for the daily overlay tick (None = no overlay)
+    last_dispatch_at: float | None = None  # epoch secs of the last successful on_bar (P11 dispatch-liveness)
 
 
 class StrategyEngine:
@@ -170,6 +180,19 @@ class StrategyEngine:
             self._consume_topic("signal.new", self._on_signal_event),
             name="strategy-engine:signal.new",
         )
+        self._started_at = time.time()  # P11 dispatch-liveness: engine uptime baseline
+        # P11 ops: periodically flag an active bar-driven strategy that has stopped being
+        # dispatched during RTH (the silent-inertness guard — read-only, never trades).
+        with contextlib.suppress(Exception):
+            self._scheduler.add_job(
+                self._dispatch_health_monitor_tick,
+                "interval",
+                minutes=DISPATCH_HEALTH_CHECK_MINUTES,
+                id="ops:dispatch_health_monitor",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
         logger.info("strategy_engine_started")
 
     async def shutdown(self) -> None:
@@ -213,6 +236,27 @@ class StrategyEngine:
         APScheduler ``job_id``/``overlay_job_id`` — the truth of *what is running on a book
         right now*, which the operational-state resolver reads to derive Enabled/Healthy."""
         return list(self._running.values())
+
+    def dispatch_health(self) -> list[DispatchHealth]:
+        """P11 ops — per-strategy dispatch liveness (read-only). Flags an active bar-driven
+        strategy that has stopped receiving ``on_bar`` during RTH (silent inertness), the
+        failure that left the Range Trader idle for weeks while the engine was down."""
+        now = time.time()
+        is_regular = self._market_session.classify().is_regular
+        snaps = [
+            DispatchSnapshot(
+                strategy_id=r.strategy_id,
+                name=getattr(r.instance, "name", None) or f"strategy:{r.strategy_id}",
+                schedule=r.schedule,
+                timeframe=r.timeframe,
+                last_dispatch_at=r.last_dispatch_at,
+            )
+            for r in self._running.values()
+        ]
+        return evaluate_dispatch_health(
+            snaps, now=now, is_regular_session=is_regular,
+            engine_uptime_s=now - self._started_at,
+        )
 
     def scheduler_has_job(self, job_id: str) -> bool:
         """Whether an APScheduler job is currently registered (P11 §1 — detects infra
@@ -640,6 +684,7 @@ class StrategyEngine:
                 continue
             try:
                 await running.instance.on_bar(event_bar)
+                running.last_dispatch_at = time.time()
             except Exception as exc:
                 await self._handle_user_exception(sid, "on_bar", exc)
 
@@ -691,6 +736,7 @@ class StrategyEngine:
                     continue
                 try:
                     await running.instance.on_bar(event_bar)
+                    running.last_dispatch_at = time.time()
                 except Exception as exc:
                     await self._handle_user_exception(sid, "on_bar", exc)
                     break
@@ -811,9 +857,27 @@ class StrategyEngine:
 
             try:
                 await running.instance.on_bar(bar)
+                running.last_dispatch_at = time.time()
             except Exception as exc:
                 await self._handle_user_exception(strategy_id, "on_bar", exc)
                 return  # stop dispatching to a broken strategy this tick
+
+    async def _dispatch_health_monitor_tick(self) -> None:
+        """Recurring P11 ops check: WARN-log any active bar-driven strategy that has gone
+        stale on dispatch during RTH — the alert that would have caught the Range Trader
+        sitting idle for weeks. Fully defensive: never raises into the scheduler."""
+        try:
+            for r in stale_dispatch(self.dispatch_health()):
+                logger.warning(
+                    "strategy_dispatch_stale",
+                    strategy_id=r.strategy_id,
+                    name=r.name,
+                    schedule=r.schedule,
+                    last_dispatch_age_s=r.last_dispatch_age_s,
+                    reason=r.reason,
+                )
+        except Exception:
+            logger.exception("dispatch_health_monitor_failed")
 
     async def _dispatch_overlay_tick(self, *, strategy_id: int) -> None:
         """APScheduler-invoked at the daily overlay cadence (P10 §2, ADR 0020): call
