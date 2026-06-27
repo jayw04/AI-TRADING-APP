@@ -101,7 +101,7 @@ count from this registry** — where an aggregate can't be honestly computed (e.
 | In production (paper) | **1** — Momentum v1.1 (three vol-target Risk Profiles) |
 | Preserved negative / null findings | **4** — RNG-001 rejection · SCAN-001 v0.1 ATR-tautology self-catch · SCAN-001 v0.4 confidence-uninformative · INSIDER-001 rejection (beta-not-alpha) |
 | Confidence models | **2 rejected → 1 accepted** (v0.4 ATR-blended ✗ · naive CM-chase ✗ · v0.5 ATR-decoupled ✓) |
-| Platform capabilities catalogued | **17** (CAP-001 … CAP-017, below) |
+| Platform capabilities catalogued | **19** (CAP-001 … CAP-019, below) |
 | Evidence packages on disk (`evidence/`) | **10+**, every one seeded & reproducible |
 | Decision records | one per executed study (Evidence → Decision → Lesson, below) |
 | Capability reuse | **High** qualitatively (SEC/LOW ≈ 90% reuse; SCAN "Very High") — no single aggregate % asserted |
@@ -202,6 +202,8 @@ independently of the program that birthed it. The CAP space is open-ended like t
 | **CAP-015** | **SEC-Filing Ingestion** (native EDGAR client: fair-access UA + ≤10 req/s throttle, ticker→CIK map w/ explicit unresolved coverage, Form 4 ownership-doc XML parser → typed open-market-buy events; read-only, off the order path) | INSIDER-001 → ADR 0027 | shipped — *first event-driven / alt-data capability; extends to 8-K/10-Q/13F* |
 | **CAP-016** | **PIT Corporate-Event Store** (DuckDB, event-type-agnostic, idempotent `event_id` upsert, `events_asof` no-look-ahead, naive-UTC filed-at boundary) | INSIDER-001 → ADR 0027 | shipped — *reusable for earnings / buybacks / dividends / analyst / 13F* |
 | **CAP-017** | **De-overlapped Event-Study Engine** (entry-on-filing PIT, hold-window de-overlap, equal-weight-basket H1, circular-block bootstrap Sharpe-diff CI + declared verdict tree) | INSIDER-001 | shipped — *the event analogue of Factor Lab's `run_program`* |
+| **CAP-018** | **Portfolio Construction Engine** (multi-sleeve **ERC** blend in Factor Lab — sqrt-damped risk-budgeting + correlation-regime de-risk overlay + look-through risk evidence; allocation-policy-agnostic, future Policy Registry) | PORT-001 → ADR 0030 | **built (core, unit-tested)** — `factor_lab/{erc,portfolio}.py`; reproduction run data-gated. *What makes a portfolio program differ from single-sleeve LOW/MOM/SEC* |
+| **CAP-019** | **Capability Onboarding** (the reusable lifecycle: External Capability → Evidence Reproduction → objective **Onboarding Gate** → **Capability Certificate** + Manifest → Continuous Evidence → Retirement; reproduce-first) | PORT-001 → ADR 0030 | **built (Gate + Certificate, unit-tested)** — `factor_lab/onboarding_gate.py`; the platform standard for onboarding INSIDER / Discovery outputs / external-partner strategies |
 
 *CAP-012 is the honest case: the mechanics are a real, documented, reusable capability (cited in
 `Docs/design/Whitepaper_DropIn_ConfidenceModel_v0.1.md`) even though v0.4's evidence declined the ranking use.*
