@@ -10,6 +10,7 @@ set** before the strategy starts.)*
 | Status | **Accepted** (owner approved 2026-06-26, 9.7/10, `docs/review/comments.md`; small edits folded) |
 | Phase | Range-trading research (P8 §5a/§7 follow-on) |
 | Supersedes | — |
+| Refined by | **0029** (Opportunity Registry & engine separation) — names the three responsibilities this job performs (Qualification / Ranking / **Assignment**) and lifts its output into a shared, persisted **Opportunity Registry**; 0028's mechanism and guards are unchanged |
 | Related | 0005 (24-hour activation cooldown — this carves a narrow exemption), 0002 (single OrderRouter — the job never submits orders), 0026 (research programs as configuration — this extends "selection is configuration"), 0019 (Research Engine subsystem), 0020 (daily gross-exposure overlay — strategy-level risk stays centralized) |
 
 ## Context
