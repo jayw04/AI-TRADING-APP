@@ -22,7 +22,7 @@ _The versioned platform-status stamp for a capability onboarded under the Capabi
 | **evidence-package** | ✅ `docs/implementation/evidence/port_001/EvidencePackage_PORT-001_v1.0.md` (Onboarding Gate PASSED, construction-verification) |
 | **dependencies** | DCAP-001 (Sharadar PIT equity) · DCAP-003 (Alpaca bars) · **DCAP-006 (Total-Return Adapter)** · CAP-002/003 (Evidence Package + Bootstrap) · **CAP-018 (Portfolio Construction Engine)** |
 | **risk-profile** | Medium — crash-protected beta; look-through equity-beta concentration (~13% capital / majority of risk, spec §6.2) is the headline disclosure |
-| **paper-account** | _to be provisioned at §4_ |
+| **paper-account** | ✅ account 7 (user 7 `combined-book@globalcomplyai.com`, ALPACA_PAPER_6, $100k) — strategy id=9 live on PAPER 2026-06-27 |
 | **version** | 1.0 |
 | **certificate** | this document |
 
@@ -33,11 +33,11 @@ _The versioned platform-status stamp for a capability onboarded under the Capabi
 | **L0** | Research complete | ✅ **Completed** — validated in the sibling system; honest verdict below |
 | **L1** | Evidence reproduced (Workbench Evidence Package) | ✅ **Completed** 2026-06-27 — construction-verification: the platform PCE reproduces the origin combined book from its sleeve return series (daily-return corr 0.99994). `EvidencePackage_PORT-001_v1.0.md`. |
 | **L2** | Onboarding Gate passed | ✅ **Completed** 2026-06-27 — **6/6 criteria, Lifecycle Fidelity 98.8%** (Sharpe Δ0.0014 · MaxDD Δ0.0009 · daily-return corr 0.99994 · weight corr 0.99981 · trade-count n/a · determinism). |
-| **L3** | Paper operational | ⏳ Pending — §4 live `combined_book` template + dedicated paper account (owner-gated) |
-| **L4** | Continuous Evidence | ⏳ Pending — §5 monitors → Evidence Dashboard |
+| **L3** | Paper operational | ✅ **Completed** 2026-06-27 — live on PAPER: strategy id=9 `combined-book` (user 7 / **account 7** = ALPACA_PAPER_6, fresh $100k), 208 symbols (201 momentum universe + 8 ETFs), schedule `0 14 * * mon`; **first rebalance Mon 2026-06-29 14:00 UTC**. |
+| **L4** | Continuous Evidence | 🔄 **Accruing** — account-7 equity snapshots + the weekly live-evidence pipeline now cover the book; L4 confirms once a clean multi-week track record accrues (ADR 0014: 4 weeks is too short). |
 | **L5** | Production-Qualified | ⏳ Pending |
 
-**Highest level reached: L2 (Onboarding Gate passed — construction).** The platform's Portfolio Construction Engine reproduces the origin combined book within tolerance on every criterion. **Scope:** this validates the *construction engine*; the self-stack (Alpaca total-return + platform momentum) end-to-end data-fidelity port is a separate tracked study (the harness's `--db` real mode), expected to read against a looser, attributed tolerance (cross-vendor: Alpaca vs Yahoo).
+**Highest level reached: L3 (Paper operational).** The platform's Portfolio Construction Engine reproduces the origin combined book within tolerance on every criterion. **Scope:** this validates the *construction engine*; the self-stack (Alpaca total-return + platform momentum) end-to-end data-fidelity port is a separate tracked study (the harness's `--db` real mode), expected to read against a looser, attributed tolerance (cross-vendor: Alpaca vs Yahoo).
 
 ## Honest verdict (carried on every artifact — spec §6)
 
@@ -45,6 +45,6 @@ _The versioned platform-status stamp for a capability onboarded under the Capabi
 
 ## What advances this certificate
 
-**L1 + L2 done** (construction-verification, 2026-06-27). Next: **§4** — build the live `combined_book` template + provision a dedicated paper account + activate (24h cooldown, ADR 0005) → advances **L3** (owner-gated). In parallel, the **self-stack data-fidelity study** (`--db` real mode over Sharadar + the §1 Total-Return Adapter) confirms the platform's own data path; **§5** Continuous Evidence advances **L4**.
+**L1 + L2 + L3 done** (construction-verification gate 2026-06-27; live on PAPER 2026-06-27). The self-stack data-fidelity study (`SelfStackDataFidelity_PORT-001_v0.1.md`) is complete (companion, not a gate). Next: **L4** confirms once the account-7 paper book accrues a clean multi-week Continuous-Evidence track record; then **§6** retire the sibling (advances L5) — deliberately deferred until the platform book has proven out (do not retire the origin before the replacement has evidence).
 
 _v1.0 — 2026-06-27. A capability certificate is re-issued (same or bumped version) as the capability advances the maturity ladder or is re-onboarded with improvements._
