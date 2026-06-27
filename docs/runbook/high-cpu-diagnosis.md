@@ -10,6 +10,46 @@ row at ~100% while everything else is near 0. This runbook is the **how-to-diagn
 > one core pinned at 100%. Fixed by driving the connection ourselves (`_start_ws` → `_consume`)
 > instead of `_run_forever`. Backend CPU **~100% → ~1.2%**. (commit `4396e2a`, PR #295.)
 
+### Incident classification (2026-06-27)
+
+| Field | Value |
+|---|---|
+| **Incident type** | Operational (performance) |
+| **Component** | Market-data streaming (`bar_stream_adapter_alpaca`) |
+| **Severity** | Medium |
+| **Customer impact** | None (paper books; fills unaffected) |
+| **Performance impact** | High (one core pinned ~100%, socket churn) |
+| **Detection** | Manual (Docker Desktop CPU view) |
+
+### Decision summary (read this if you read nothing else)
+
+```
+Problem          one backend core pinned at ~100%
+   ↓
+Symptom          asyncio event-loop spin (main thread, not a worker)
+   ↓
+Cause            alpaca-py StockDataStream._run_forever() busy-waits on
+                 `await asyncio.sleep(0)` while no symbols are subscribed
+   ↓
+Decision         own the connection lifecycle — DON'T call _run_forever();
+                 drive _start_ws → _consume, let our supervisor own reconnect
+   ↓
+Result           CPU ~100% → ~1.2%   ·   sockets-to-Alpaca 17 → 9
+```
+
+### Architecture of the change (old vs new)
+
+```
+OLD (busy-spin)                          NEW (supervised)
+─────────────────                        ──────────────────
+BarStreamService._run                    BarStreamService._run   ← owns reconnect + CAPPED backoff
+   └─ adapter.connect()                     └─ adapter.connect()
+        └─ stream._run_forever()  ✗              └─ _connect_and_consume()  ✓
+             while not subscribed:                    └─ stream._start_ws()   (one connect)
+               await asyncio.sleep(0) ← SPIN          └─ stream._consume()    (until drop → raises)
+             (+ reconnect: sleep(0.01))           task ENDS on disconnect → outer loop retries
+```
+
 ---
 
 ## 0. The golden rule
@@ -116,10 +156,17 @@ while not self._subscriptions:      # nothing subscribed yet
 ```
 Our bar stream connects on boot and is frequently up with **no symbols subscribed** (no live
 strategy is streaming bars at that moment), so the loop spins on `asyncio.sleep(0)` forever.
-`sleep(0)` is a bare yield with no delay — it pins the core. (alpaca-py's *trade-updates*
-`TradingStream` uses `sleep(0.1)` in the same spot, which is why that one didn't spin — only the
-**data** stream uses `sleep(0)`.) **This was not a Norton/network problem at all** — it spins even
-when the socket is perfectly healthy, simply because nothing is subscribed.
+
+> **Why `asyncio.sleep(0)` is dangerous.** `asyncio.sleep(0)` is a **cooperative yield, not a delay**:
+> it hands control back to the event loop and then *immediately* reschedules the coroutine on the very
+> next iteration. Inside a tight polling loop (`while <cond>: await asyncio.sleep(0)`) it therefore
+> consumes an **entire CPU core** while making no progress — it looks like "yielding politely" but is a
+> 100%-CPU busy-wait. Use `asyncio.sleep(0)` only to yield *once*; never as the only await in a loop.
+> A real poll needs a real delay (`asyncio.sleep(0.1)`+) or, better, an event to await.
+
+(alpaca-py's *trade-updates* `TradingStream` uses `sleep(0.1)` in the same spot, which is why that one
+didn't spin — only the **data** stream uses `sleep(0)`.) **This was not a Norton/network problem at
+all** — it spins even when the socket is perfectly healthy, simply because nothing is subscribed.
 
 Secondary (same family): both alpaca `_run_forever` variants reconnect with only
 `await asyncio.sleep(0.01)` between attempts, so a **Norton-MITM-torn socket** also spins and leaks
@@ -147,11 +194,15 @@ change its sleeps). Drive the connection ourselves with the SDK's own primitives
 > version; re-check `_start_ws` / `_consume` / `close` on any alpaca-py upgrade.)
 
 ### Result
-- Backend CPU **~100% → ~1.2%**, sustained.
-- Established sockets to Alpaca **17 → 9** (the reconnect churn/leak stopped).
-- Bar stream, trade-updates stream, and the range auto-select scheduler all healthy after the
-  rebuild. Tests (`tests/brokers/alpaca/test_streaming.py`, `tests/services/test_bar_stream.py`) +
-  ruff + mypy clean.
+
+| Metric | Before | After |
+|---|---|---|
+| Backend CPU (one core) | **~100%** | **~1.2%** (sustained) |
+| Established sockets to Alpaca | **17** (churning) | **9** (stable) |
+| Bar / trade-updates / scheduler | healthy | healthy |
+| Tests · ruff · mypy | — | green |
+
+Tests: `tests/brokers/alpaca/test_streaming.py`, `tests/services/test_bar_stream.py`.
 
 ---
 
@@ -170,4 +221,34 @@ change its sleeps). Drive the connection ourselves with the SDK's own primitives
 5. **A pinned core is cheap-but-real.** It rarely takes the app down (1 of 20 cores) but it leaks
    resources (sockets), wastes power, and masks other load — fix it, don't normalize it.
 
-_Last updated: 2026-06-27 (incident + fix; commit `4396e2a`, PR #295)._
+> **Adoption principle (transferable beyond Alpaca):** *Any third-party SDK that embeds its own
+> reconnect / "run forever" loop must be evaluated before adoption — check how it backs off and
+> whether it can busy-spin. TradingWorkbench owns connection supervision (connect → consume →
+> reconnect/backoff) whenever practical, and treats a vendor's `run_forever()` as a primitive to be
+> driven, not a loop to be trusted.*
+
+## 7. This runbook is Evidence Engineering, applied to operations
+
+The same discipline the platform uses for trading research produced this fix — the loop is identical,
+just pointed at a process instead of a strategy:
+
+```
+Observation (CPU 100%) → Hypothesis (which subsystem?) → Measurement (py-spy record)
+   → Root cause (sleep(0) busy-wait) → Fix (own the lifecycle) → Verification (CPU ~1.2%, re-measured)
+```
+
+The first hypothesis (trade-updates stream) was **rejected by measurement**, not by argument — exactly
+as a research verdict is. Operations gets the same "evidence precedes the decision" treatment as
+investment research: this is Evidence Engineering for software operations, not just for trading.
+
+## Related
+
+- **Code:** `app/services/bar_stream_adapter_alpaca.py` (the fix), `app/services/bar_stream.py`
+  (`BarStreamService._run`, the outer reconnect supervisor), `app/brokers/alpaca/streaming.py`
+  (trade-updates supervised loop). Commit `4396e2a`; PR #295.
+- **Doc separation:** this is a **runbook** — *what an operator does* to diagnose/fix. The *why* of
+  "TradingWorkbench owns streaming supervision" is architecture: if that principle is reused for a
+  second SDK, capture it as an **ADR** ("streaming supervision / external-SDK connection ownership")
+  and link it here. None exists yet — it becomes worth writing on the second occurrence.
+
+_Last updated: 2026-06-27 (incident + fix + owner doc-review fold, 9.9/10; commit `4396e2a`, PR #295)._
