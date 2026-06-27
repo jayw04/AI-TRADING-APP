@@ -13,7 +13,13 @@ from collections.abc import Mapping
 from datetime import date
 from typing import Any
 
-from app.research.factor_lab.spec import ProgramSpec, VerdictRule, VerdictSpec
+from app.research.factor_lab.spec import (
+    PortfolioSpec,
+    ProgramSpec,
+    SleeveSpec,
+    VerdictRule,
+    VerdictSpec,
+)
 
 
 def _defensive(m: Mapping[str, Any]) -> bool:
@@ -171,6 +177,59 @@ SEC_001 = ProgramSpec(
     },
 )
 
+# PORT-001 verdict — a portfolio program, not a standalone-edge factor program: the verdict is
+# DESCRIPTIVE (crash-protected beta + diversification, alpha refuted under PIT — spec §6), and
+# flags the #1 operational risk (the diversification thesis weakening, spec §6.1).
+_PORT_VERDICT = VerdictSpec(
+    rules=(
+        VerdictRule(
+            lambda m: (m.get("sleeve_correlation") or 0.0) > 0.8,
+            "B - Diversifier (correlation weakening)",
+            "diversification thinning (sleeve corr > 0.8) -> re-weight toward surviving "
+            "diversifiers (spec §6.1 / §11.1)",
+        ),
+    ),
+    default_outcome="B - Diversifier (crash-protected beta)",
+    default_action="risk-managed beta; alpha refuted under PIT -> size as crash-protected beta",
+)
+
+
+# PORT-001 "Risk-Balanced Multi-Asset Portfolio" (the Combined Book), onboarded from the
+# sibling system. Multi-sleeve ERC (ADR 0030 #1); the equity sleeve's crash engine rides the
+# ADR-0020 daily overlay live (§4). `factor` carries the equity sleeve's factor for continuity;
+# construction="portfolio" routes to the Portfolio Construction Engine.
+PORT_001 = ProgramSpec(
+    id="PORT-001",
+    name="Risk-Balanced Multi-Asset Portfolio",
+    philosophy="Multi-sleeve ERC: crash-protected equity momentum + cross-asset TSMOM",
+    factor="momentum",
+    factor_params={"lookback_days": 252, "skip_days": 21},
+    n=20,
+    start=date(2016, 1, 1),
+    end=date(2026, 1, 1),
+    construction="portfolio",
+    portfolio=PortfolioSpec(
+        sleeves=(
+            SleeveSpec("equity", "equity_momentum", {
+                "lookback_days": 252, "skip_days": 21, "top_quantile": 0.40,
+                "max_position_pct": 0.04, "max_sector_pct": 0.25, "vol_target": 0.12,
+            }),
+            SleeveSpec("cross_asset", "cross_asset_tsmom", {
+                "lookback": 252, "skip": 21, "vol_lookback": 60, "vol_target": 0.10,
+            }),
+        ),
+        equity_sleeve="equity",
+    ),
+    verdict=_PORT_VERDICT,
+    notes={
+        "honest_verdict": "crash-protected BETA + diversification, NOT alpha (combined alpha "
+                          "t=0.82 insignificant; stock-selection alpha refuted under PIT, spec §6.4)",
+        "onboarding": "reproduce-first; status 'planned' until the Onboarding Gate passes (ADR 0030)",
+    },
+)
+
+
 PROGRAMS: dict[str, ProgramSpec] = {
     LOW_001.id: LOW_001, TREND_001.id: TREND_001, SEC_001.id: SEC_001,
+    PORT_001.id: PORT_001,
 }

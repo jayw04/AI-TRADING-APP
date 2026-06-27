@@ -39,6 +39,33 @@ class VerdictSpec:
 
 
 @dataclass(frozen=True)
+class SleeveSpec:
+    """One sleeve of a multi-sleeve portfolio program (PORT-001; ADR 0030 #1)."""
+    name: str                                     # e.g. "equity", "cross_asset"
+    kind: str                                     # "equity_momentum" | "cross_asset_tsmom"
+    params: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class PortfolioSpec:
+    """The Portfolio Construction Engine config: sleeves blended at ERC (the only policy
+    built now; ADR 0030 #1). ``equity_sleeve`` names the equity sleeve for the look-through
+    risk disclosure; ``budgets`` are optional per-sleeve ERC risk budgets (None = equal)."""
+    sleeves: tuple[SleeveSpec, ...]
+    equity_sleeve: str
+    budgets: tuple[float, ...] | None = None
+
+    def __post_init__(self) -> None:
+        names = [s.name for s in self.sleeves]
+        if len(names) != len(set(names)):
+            raise ValueError("sleeve names must be unique")
+        if self.equity_sleeve not in names:
+            raise ValueError(f"equity_sleeve {self.equity_sleeve!r} not among sleeves {names}")
+        if self.budgets is not None and len(self.budgets) != len(self.sleeves):
+            raise ValueError("budgets length must match the number of sleeves")
+
+
+@dataclass(frozen=True)
 class ProgramSpec:
     """A declarative research program (the Factor Lab "configuration")."""
 
@@ -79,12 +106,17 @@ class ProgramSpec:
     # optional: a research/promotion GateProfile name to also run (ADR 0019)
     gate_profile: str | None = None
 
+    # multi-sleeve portfolio construction (PORT-001; required when construction="portfolio")
+    portfolio: PortfolioSpec | None = None
+
     # free-form notes (e.g. the pre-registered hypotheses text), not used by the runner
     notes: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.construction not in ("quantile", "sector_baskets", "participation"):
+        if self.construction not in ("quantile", "sector_baskets", "participation", "portfolio"):
             raise ValueError(f"unknown construction: {self.construction!r}")
+        if self.construction == "portfolio" and self.portfolio is None:
+            raise ValueError("construction='portfolio' requires a PortfolioSpec in `portfolio`")
         if self.baseline not in ("equal_weight", "regime_filter"):
             raise ValueError(f"unknown baseline: {self.baseline!r}")
         if not (0.0 < self.top_quantile <= 1.0):

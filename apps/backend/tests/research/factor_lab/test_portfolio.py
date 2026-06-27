@@ -5,7 +5,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from app.research.factor_lab.portfolio import construct_portfolio, regime_gross_multiplier
+from app.research.factor_lab.portfolio import (
+    construct_portfolio,
+    portfolio_evidence_package,
+    regime_gross_multiplier,
+)
 
 
 def _two_sleeve_returns(n: int = 250, seed: int = 3) -> pd.DataFrame:
@@ -70,3 +74,28 @@ def test_lookthrough_evidence_present():
     # equal-risk by construction → each sleeve ≈ half the risk.
     assert 0.4 < book.equity_risk_fraction < 0.6
     assert abs(sum(book.sleeve_risk_contributions.values()) - 1.0) < 1e-9
+
+
+def test_evidence_package_shape_and_metrics():
+    from app.research.factor_lab.configs import PORT_001
+
+    rets = _two_sleeve_returns()
+    pkg = portfolio_evidence_package(
+        rets, {"equity": {"AAPL": 1.0}, "cross_asset": {"TLT": 0.6, "GLD": 0.4}},
+        equity_sleeve="equity", verdict=PORT_001.verdict,
+    )
+    assert pkg["construction"] == "portfolio" and pkg["n_days"] == len(rets)
+    m = pkg["metrics"]
+    for k in ("sharpe", "cagr", "max_drawdown", "calmar", "ann_volatility",
+              "sleeve_correlation", "equity_risk_fraction", "gross"):
+        assert k in m
+    assert set(pkg["book"]) == {"AAPL", "TLT", "GLD"}
+    assert pkg["outcome"].startswith("B - Diversifier")   # the honest portfolio verdict
+
+
+def test_evidence_package_regime_derisks():
+    rets = _two_sleeve_returns()
+    iw = {"equity": {"AAPL": 1.0}, "cross_asset": {"TLT": 1.0}}
+    green = portfolio_evidence_package(rets, iw, equity_sleeve="equity", regime="GREEN")
+    red = portfolio_evidence_package(rets, iw, equity_sleeve="equity", regime="RED")
+    assert red["metrics"]["gross"] < green["metrics"]["gross"]   # RED de-risks the book
