@@ -198,6 +198,17 @@ def test_top_range_symbols_picks_n_in_rank_order():
     assert top_range_symbols(ranked, n=10) == ["AMD", "NVDA", "MSFT", "KO"]  # n>len → all eligible
 
 
+def test_top_range_symbols_min_score_floor():
+    # Range Score = atr20_pct × oscillation (range_bound class weight 1.0 here).
+    ranked = rank_candidates([
+        _ri("AMD", atr20_pct=0.066, classification="range_bound"),   # score 0.066
+        _ri("KO", atr20_pct=0.020, classification="range_bound"),    # score 0.020
+    ])
+    # A floor between the two keeps only AMD; a floor above both selects nothing (skip day).
+    assert top_range_symbols(ranked, n=5, min_score=0.03) == ["AMD"]
+    assert top_range_symbols(ranked, n=5, min_score=0.10) == []
+
+
 def test_top_range_symbols_excludes_unsuitable_and_insufficient():
     ranked = rank_candidates([
         _ri("AMD", atr20_pct=0.066, classification="range_bound"),     # suitable

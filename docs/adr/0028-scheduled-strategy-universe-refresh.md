@@ -118,11 +118,15 @@ must refuse LIVE.
 - **Schedule**: registered in `app/lifespan.py` as an APScheduler cron job, `day_of_week="mon-fri",
   hour=9, minute=0` (scheduler timezone is already ET), `max_instances=1`, `coalesce=True`. It is a
   **no-op until a strategy opts in**.
-- **Planned refinements** (not blocking; review #3/#4): (#4) a **minimum Range-Score threshold** so a
-  weak day selects fewer than N or zero — today `top_range_symbols` only avoids *padding* (returns
-  fewer than N when not enough names are `suitable`); (#3) **richer selection evidence** in the audit
-  payload (candidate scores, ranking version, excluded names/reasons, engine version) to make the
-  daily pick a full Evidence-Engineering artifact rather than a config diff.
+- **Minimum-quality gate** (review #4, implemented): an optional `params_json.auto_select_min_score`
+  (default 0 = off) sets a structural Range-Score floor (`score = atr20_pct × oscillation`); a
+  candidate must clear it to be eligible, so a weak day selects fewer than N — or zero, which skips
+  the day for that sleeve — rather than filling slots with poor setups.
+- **Selection evidence** (review #3, implemented): the audit payload carries a `selection` record —
+  `ranking_version` ("evidence-first-v1"), `n_requested`, `min_score`, `universe_size`, the chosen
+  names with `rank`/`score`/`win_rate`/`sharpe`/`backtested`, and the `excluded` names with reasons
+  (`insufficient_data` / `not_range_bound` / `below_min_score` / `rank_beyond_n`) — making each daily
+  pick a reproducible Evidence-Engineering artifact, not just a symbol diff.
 - **Audit**: `AuditAction.STRATEGY_UPDATED`, `actor_type=SYSTEM`, `payload={"changed":{"symbols":…},
   "previous":…, "source":"daily_preopen_auto_select", "n":…}`. No new `AuditAction` value (keeps the
   on-call runbook unchanged); the `source` tag distinguishes a system rotation from a user edit.
