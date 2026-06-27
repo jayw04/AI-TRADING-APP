@@ -81,10 +81,15 @@ async def test_start_is_idempotent(creds: AlpacaCredentials) -> None:
     with patch("alpaca.trading.stream.TradingStream") as MockTS:
         instance = MagicMock()
 
+        async def _ok() -> None:
+            return None
+
         async def _hang() -> None:
             await asyncio.sleep(3600)
 
-        instance._run_forever = _hang
+        instance._start_ws = _ok
+        instance._consume = _hang  # connected; receive loop blocks until cancelled
+        instance.close = _ok
         MockTS.return_value = instance
 
         await stream.start()
@@ -143,10 +148,15 @@ async def test_status_event_published_on_start_stop(creds: AlpacaCredentials) ->
     with patch("alpaca.trading.stream.TradingStream") as MockTS:
         instance = MagicMock()
 
+        async def _ok() -> None:
+            return None
+
         async def _hang() -> None:
             await asyncio.sleep(3600)
 
-        instance._run_forever = _hang
+        instance._start_ws = _ok
+        instance._consume = _hang  # connected; receive loop blocks until cancelled
+        instance.close = _ok
         MockTS.return_value = instance
 
         stream = TradeUpdatesStream(creds, bus)
@@ -163,3 +173,54 @@ async def test_stop_without_start_is_noop(creds: AlpacaCredentials) -> None:
     stream = TradeUpdatesStream(creds, bus)
     await stream.stop()  # should not raise
     assert stream.is_started is False
+
+
+async def test_reconnect_backs_off_and_auto_disables(
+    creds: AlpacaCredentials, monkeypatch
+) -> None:
+    """A socket that keeps breaking (Norton MITM) must NOT spin: after
+    _MAX_CONSECUTIVE_FAILURES rapid failures the stream auto-disables instead of
+    reconnecting forever (fills then come from the polling sync)."""
+    import app.brokers.alpaca.streaming as smod
+
+    # Make backoff instant and the cap small so the test is fast + deterministic.
+    monkeypatch.setattr(smod, "_RECONNECT_BASE_BACKOFF_S", 0.0)
+    monkeypatch.setattr(smod, "_RECONNECT_MAX_BACKOFF_S", 0.0)
+    monkeypatch.setattr(smod, "_MAX_CONSECUTIVE_FAILURES", 3)
+
+    bus = EventBus()
+    statuses: list[str] = []
+
+    async def consumer() -> None:
+        async for event in bus.subscribe("alpaca.stream_status"):
+            statuses.append(event["status"])
+            if "disabled" in statuses:
+                break
+
+    consumer_task = asyncio.create_task(consumer())
+    await asyncio.sleep(0)
+
+    with patch("alpaca.trading.stream.TradingStream") as MockTS:
+        instance = MagicMock()
+        consume_calls = {"n": 0}
+
+        async def _ok() -> None:
+            return None
+
+        async def _consume_fail() -> None:
+            consume_calls["n"] += 1
+            raise RuntimeError("websocket torn (simulated Norton MITM)")
+
+        instance._start_ws = _ok
+        instance._consume = _consume_fail
+        instance.close = _ok
+        MockTS.return_value = instance
+
+        stream = TradeUpdatesStream(creds, bus)
+        await stream.start()
+        await asyncio.wait_for(stream._task, timeout=2.0)  # task ends when it disables
+
+    assert stream.is_disabled is True
+    assert consume_calls["n"] == 3  # tried exactly the cap, then stopped (no spin)
+    await asyncio.wait_for(consumer_task, timeout=2.0)
+    assert "disabled" in statuses
