@@ -12,6 +12,7 @@ Never raises — insufficiency / degeneracy is reported via ``status``.
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -57,6 +58,7 @@ class RangeInsight:
     atr20: float | None
     atr20_pct: float | None
     adv: float | None  # avg daily $ volume (mean close×volume over the window) — liquidity filter
+    cs_spread_pct: float | None  # Corwin-Schultz estimated bid-ask spread (proportion of price)
     typical_move_up: MoveStats | None
     typical_move_down: MoveStats | None
     support: float | None
@@ -84,6 +86,7 @@ def _insufficient(
         atr20=None,
         atr20_pct=None,
         adv=None,
+        cs_spread_pct=None,
         typical_move_up=None,
         typical_move_down=None,
         support=None,
@@ -110,6 +113,42 @@ def _efficiency_ratio(closes: pd.Series) -> float:
     net = abs(float(closes.iloc[-1]) - float(closes.iloc[0]))
     path = float(closes.diff().abs().sum())
     return net / path if path > 0 else 0.0
+
+
+# Corwin-Schultz (2012) high-low spread estimator denominator constant, 3 − 2√2.
+_CS_K = 3.0 - 2.0 * math.sqrt(2.0)
+
+
+def _corwin_schultz_spread(highs: pd.Series, lows: pd.Series) -> float | None:
+    """Corwin & Schultz (2012) bid-ask spread estimate from daily high/low, averaged over
+    the consecutive-day pairs in the window. Returns the spread as a **proportion of price**
+    (e.g. 0.001 = 0.10%), or None if not computable.
+
+    Lets us screen on spread WITHOUT quote data (the bar cache carries OHLCV only) and at
+    the pre-open run (it uses completed daily bars, not live quotes). It is an *estimate*,
+    not a realized quoted spread — appropriate for a structural eligibility gate, where a
+    name must be tight enough to fade. Per the standard convention, negative single-pair
+    estimates (which the estimator produces for very tight names) are floored to 0.
+    """
+    h = highs.to_numpy(dtype=float)
+    low = lows.to_numpy(dtype=float)
+    n = len(h)
+    if n < 2:
+        return None
+    spreads: list[float] = []
+    for i in range(n - 1):
+        h1, l1, h2, l2 = h[i], low[i], h[i + 1], low[i + 1]
+        if not (h1 > 0 and l1 > 0 and h2 > 0 and l2 > 0):
+            continue
+        beta = math.log(h1 / l1) ** 2 + math.log(h2 / l2) ** 2
+        hh, ll = max(h1, h2), min(l1, l2)
+        gamma = math.log(hh / ll) ** 2
+        alpha = (math.sqrt(2 * beta) - math.sqrt(beta)) / _CS_K - math.sqrt(gamma / _CS_K)
+        s = 2.0 * (math.exp(alpha) - 1.0) / (1.0 + math.exp(alpha))
+        spreads.append(max(s, 0.0))
+    if not spreads:
+        return None
+    return sum(spreads) / len(spreads)
 
 
 def _classify(er: float) -> str:
@@ -184,6 +223,9 @@ def range_insight_from_bars(
     er = _efficiency_ratio(stats["c"])
     # Average daily dollar volume over the window — the liquidity hard filter (ADR 0028 §4).
     adv = float((stats["c"] * stats["v"]).mean())
+    # Estimated bid-ask spread (Corwin-Schultz) over the window — the spread hard filter,
+    # computed from daily H/L so it needs no quote feed and works at the pre-open run.
+    cs_spread_pct = _corwin_schultz_spread(stats["h"], stats["l"])
 
     return RangeInsight(
         symbol=symbol,
@@ -197,6 +239,7 @@ def range_insight_from_bars(
         atr20=atr20,
         atr20_pct=(atr20 / last_close if last_close else None),
         adv=adv,
+        cs_spread_pct=cs_spread_pct,
         typical_move_up=_move_stats(up),
         typical_move_down=_move_stats(down),
         support=float(stats["l"].min()),
@@ -249,14 +292,27 @@ class HardFilters:
     a name must pass ALL of these to enter the *qualified universe* and receive a Range
     Score — preventing a stock with one strong metric but poor liquidity/range from ranking.
 
-    Only the filters computable from daily bars are enforced (price, avg daily $ volume,
-    ATR%). RVOL (>1.5) and average spread (<0.10%) from the owner's list are **deferred** —
-    RVOL needs intraday volume (unavailable at the ~09:00 ET pre-open run) and spread needs
-    quote data the bar cache does not carry; both join once that data is wired."""
+    All filters are computable from the daily bars the candidate engine already pulls
+    (price, avg daily $ volume, ATR%, estimated spread) — so the whole screen runs at the
+    pre-open job with no quote feed and no intraday data.
+
+    **Spread** (``max_spread_pct``) uses the **Corwin-Schultz** high-low estimate
+    (``RangeInsight.cs_spread_pct``), not a quoted spread — the bar cache carries OHLCV only,
+    and live quotes are both unavailable pre-open and (on this dev machine) Norton-blocked.
+    It defaults to ``None`` = OFF until the threshold is calibrated to the estimator's scale.
+
+    **RVOL is intentionally NOT a hard filter.** Classic RVOL (today's intraday volume vs
+    typical) does not exist at the ~09:00 ET pre-open run, and the day's Opportunity Set is
+    frozen pre-open (ADR 0028 §"frozen daily input"), so there is no valid intraday RVOL to
+    gate on; a trailing/prior-day proxy is largely redundant with the ADV liquidity filter,
+    and a premarket-RVOL definition would need a premarket-volume baseline + a (Norton-
+    blocked) live fetch. Liquidity and activity are already covered by ADV + ATR%. (Decision
+    2026-06-27; range follow-up TASK 1.)"""
 
     min_price: float = 10.0
     min_adv: float = 50_000_000.0   # $50M average daily dollar volume
     min_atr_pct: float = 0.03       # 3% ATR
+    max_spread_pct: float | None = None  # Corwin-Schultz est. spread cap (proportion); None = OFF
 
 
 DEFAULT_HARD_FILTERS = HardFilters()
@@ -264,7 +320,8 @@ DEFAULT_HARD_FILTERS = HardFilters()
 
 def _qualify_reason(insight: RangeInsight, f: HardFilters) -> str | None:
     """None if the insight clears every (enforced) hard filter, else the first failure
-    reason: insufficient_data | price_below_min | adv_below_min | atr_below_min."""
+    reason: insufficient_data | price_below_min | adv_below_min | atr_below_min |
+    spread_above_max. The spread gate is only applied when ``max_spread_pct`` is set."""
     if insight.status != STATUS_OK:
         return "insufficient_data"
     if insight.last_close is None or insight.last_close < f.min_price:
@@ -273,6 +330,10 @@ def _qualify_reason(insight: RangeInsight, f: HardFilters) -> str | None:
         return "adv_below_min"
     if insight.atr20_pct is None or insight.atr20_pct < f.min_atr_pct:
         return "atr_below_min"
+    if f.max_spread_pct is not None and (
+        insight.cs_spread_pct is None or insight.cs_spread_pct > f.max_spread_pct
+    ):
+        return "spread_above_max"
     return None
 
 
@@ -315,6 +376,7 @@ class RangeCandidate:
     # (the qualified universe). ``qualified`` defaults True so candidates built without
     # filters (e.g. the descriptive view) are unaffected.
     adv: float | None = None
+    cs_spread_pct: float | None = None  # Corwin-Schultz estimated spread (proportion of price)
     qualified: bool = True
     qualify_reason: str | None = None  # why it was excluded from the qualified universe
 
@@ -396,7 +458,8 @@ def rank_candidates(
             sharpe=(ev.sharpe if ev else None),
             n_trades=(ev.n_trades if ev else None),
             backtested=has_ev,
-            adv=ins.adv, qualified=qualified, qualify_reason=qreason,
+            adv=ins.adv, cs_spread_pct=ins.cs_spread_pct,
+            qualified=qualified, qualify_reason=qreason,
         )
         for i, (score, ins, suitable, ev, has_ev, qualified, qreason) in enumerate(rows)
     ]
