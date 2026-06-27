@@ -129,6 +129,10 @@ services:
       - .env
     environment:
       VITE_DEV_HOST: 0.0.0.0
+      VITE_API_BASE: ""
+      VITE_WS_BASE: ""
+      VITE_PROXY_TARGET: http://backend:8000
+      VITE_WS_PROXY_TARGET: ws://backend:8000
     ports:
       - "127.0.0.1:5173:5173"
     depends_on:

@@ -32,6 +32,21 @@ const UNIVERSE_LABELS: Record<UniverseKind, string> = {
 
 const OPERATOR_CHIPS = ["<", ">", "<=", ">=", "and", "or", "/"];
 
+// Common ready-made criteria — click to fill the box, then tweak. Each uses only
+// supported indicators/fields so it validates as-is. (label, default scan name, expr)
+const CRITERIA_PRESETS: { label: string; name: string; expr: string }[] = [
+  { label: "Oversold (RSI < 30)", name: "Oversold", expr: "RSI14 < 30" },
+  { label: "Overbought (RSI > 70)", name: "Overbought", expr: "RSI14 > 70" },
+  { label: "High rel. volume", name: "High Volume", expr: "RELVOL20 > 2" },
+  { label: "Liquid movers", name: "Liquid Movers", expr: "RELVOL20 > 2 and close > 5" },
+  { label: "Volatile (ATR > 3%)", name: "Volatile", expr: "ATR14 / close > 0.03" },
+  { label: "Uptrend (> 200d SMA)", name: "Uptrend", expr: "close > SMA200" },
+  { label: "EMA20 > EMA50", name: "EMA Cross", expr: "EMA20 > EMA50" },
+  { label: "MACD bullish", name: "MACD Bullish", expr: "macd > signal" },
+  { label: "Breakout (> upper BB)", name: "Breakout", expr: "close > bb_upper" },
+  { label: "Momentum + volume", name: "Momentum", expr: "RSI14 > 50 and RELVOL20 > 1.5" },
+];
+
 function errDetail(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     const detail = (e.body as { detail?: string } | null)?.detail;
@@ -268,6 +283,24 @@ export default function Discovery() {
             />
 
             <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="mr-1 text-xs text-neutral-500">Common criteria:</span>
+                {CRITERIA_PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    title={p.expr}
+                    onClick={() => {
+                      setCriteria(p.expr);
+                      if (!name.trim()) setName(p.name);
+                      setFormError(null);
+                    }}
+                    className="rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-xs text-neutral-200 hover:border-blue-600 hover:bg-neutral-700"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
               <textarea
                 value={criteria}
                 onChange={(e) => setCriteria(e.target.value)}
@@ -371,6 +404,17 @@ export default function Discovery() {
                 </>
               )}
             </div>
+            {(!name.trim() || !criteria.trim()) && (
+              <div className="text-xs text-neutral-500">
+                {!name.trim() && !criteria.trim()
+                  ? "Enter a scan name and a criterion"
+                  : !name.trim()
+                    ? "Enter a scan name"
+                    : "Enter a criterion"}{" "}
+                to enable {selectedId === null ? "Create" : "Save"} scan — e.g.{" "}
+                <code className="rounded bg-neutral-800 px-1">RELVOL20 &gt; 2 and close &gt; 5</code>.
+              </div>
+            )}
             {notice && <div className="text-xs text-emerald-300">{notice}</div>}
           </div>
 
