@@ -77,6 +77,17 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "'subsumed -> Rejected' prior. Cost-robust to 50bps. Next: V2 inverse-vol / multi-window "
         "only if a sharper edge or lower correlation is wanted.",
         "docs/implementation/evidence/trend_001_trend_following/trend_following.md"),
+    ResearchProgram(
+        "PORT-001", "Portfolio Construction",
+        "Multi-sleeve ERC: crash-protected equity momentum + cross-asset TSMOM", "planned",
+        "'Risk-Balanced Multi-Asset Portfolio' (Combined Book) — being ONBOARDED from the sibling "
+        "claude-trading-view system (reproduce-first). Two sleeves at ERC ~40/60; sibling headline "
+        "Sharpe ~0.84, maxDD -11.9% (vs equity-only -23.5%). HONEST VERDICT: crash-protected BETA + "
+        "diversification, NOT alpha -- combined alpha t=0.82 insignificant, and stock-selection alpha "
+        "REFUTED under point-in-time data. Status 'planned' until a Workbench Evidence Package "
+        "reproduces the headline through the Onboarding Gate (Sharpe +/-0.05, maxDD +/-2pp, "
+        "daily-return corr >=0.98). Capability Onboarding plan FROZEN v1.0.",
+        "docs/implementation/TradingWorkbench_PORT001_ImplementationPlan_v1.0.md"),
 )
 
 
