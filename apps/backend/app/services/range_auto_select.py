@@ -21,7 +21,7 @@ the scheduler.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 from typing import Any
 
 import structlog
@@ -29,9 +29,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.audit.logger import AuditAction, AuditActorType, AuditLogger
-from app.db.enums import ACTIVE_STRATEGY_STATUSES, StrategyStatus
+from app.db.enums import (
+    ACTIVE_STRATEGY_STATUSES,
+    TERMINAL_ORDER_STATUSES,
+    OrderSourceType,
+    StrategyStatus,
+)
+from app.db.models.account import Account, AccountMode
 from app.db.models.backtest_result import BacktestResult
+from app.db.models.order import Order
+from app.db.models.position import Position
 from app.db.models.strategy import Strategy as StrategyRow
+from app.db.models.symbol import Symbol
 from app.services.range_insight import (
     DEFAULT_CANDIDATE_UNIVERSE,
     CandidateEvidence,
@@ -48,6 +57,58 @@ AUTOSELECT_PARAM = "auto_select_top_n"
 AUTOSELECT_UNIVERSE_PARAM = "auto_select_universe"
 # Audit payload tag so this system rebalance is distinguishable from a user symbol edit.
 AUTOSELECT_SOURCE = "daily_preopen_auto_select"
+# Regular-trading-hours open (ET). Rotation is a PRE-OPEN act only; once the session has
+# begun the day's universe is frozen (ADR 0028 §"frozen daily input" / review #2).
+RTH_OPEN_ET = time(9, 30)
+
+
+async def _preflight_blocker(session: AsyncSession, row: StrategyRow) -> str | None:
+    """ADR 0028 / review #6 pre-flight: it is unsafe to stop→start a running sleeve that
+    holds a position or has a working order — a stop mid-position could strand a fill and a
+    working order could fill against the old universe. Returns a short skip reason, or None
+    when clear. Checked only for the PAPER stop→start path."""
+    # A working (non-terminal) order placed by this strategy.
+    working = (
+        await session.execute(
+            select(Order.id)
+            .where(
+                Order.source_type == OrderSourceType.STRATEGY,
+                Order.source_id == str(row.id),
+                Order.status.notin_(tuple(TERMINAL_ORDER_STATUSES)),
+            )
+            .limit(1)
+        )
+    ).first()
+    if working is not None:
+        return "pending_order"
+    # An open position in any symbol the sleeve currently trades, on its paper account.
+    syms = [str(s).upper() for s in (row.symbols_json or [])]
+    if syms:
+        acct_id = (
+            await session.execute(
+                select(Account.id).where(
+                    Account.user_id == row.user_id,
+                    Account.broker == "alpaca",
+                    Account.mode == AccountMode.paper,
+                )
+            )
+        ).scalars().first()
+        if acct_id is not None:
+            held = (
+                await session.execute(
+                    select(Position.id)
+                    .join(Symbol, Symbol.id == Position.symbol_id)
+                    .where(
+                        Position.account_id == acct_id,
+                        Position.qty != 0,
+                        Symbol.ticker.in_(syms),
+                    )
+                    .limit(1)
+                )
+            ).first()
+            if held is not None:
+                return "open_position"
+    return None
 
 
 async def load_range_backtest_evidence(
@@ -197,6 +258,18 @@ async def refresh_range_universe(
             "was_running": was_running,
         }
 
+    # Pre-flight (ADR 0028 / review #6): never stop→start a running sleeve that holds a
+    # position or has a working order. (IDLE strategies aren't trading → nothing to strand.)
+    if was_running:
+        async with session_factory() as session:
+            row = await session.get(StrategyRow, strategy_id)
+            blocker = await _preflight_blocker(session, row) if row is not None else "not_found"
+        if blocker:
+            logger.warning(
+                "range_autoselect_skipped_preflight", strategy_id=strategy_id, reason=blocker
+            )
+            return {"strategy_id": strategy_id, "status": f"skipped_{blocker}"}
+
     # Stop first so the symbol update passes the IDLE-only guard (engine commits its own tx).
     if was_running:
         await engine.unregister(strategy_id, reason="daily_range_autoselect")
@@ -254,8 +327,14 @@ async def run_daily_range_universe(
     Top-N. Skips weekends. Per-strategy fail-soft so one failure can't stop the rest;
     never raises into the scheduler."""
     now = now or datetime.now(UTC)
-    if now.astimezone(EASTERN).weekday() >= 5:
+    now_et = now.astimezone(EASTERN)
+    if now_et.weekday() >= 5:
         logger.info("range_autoselect_skipped_weekend")
+        return []
+    # Pre-open only: once RTH has begun the day's universe is frozen — no intraday rotation
+    # (ADR 0028 §"frozen daily input" / review #2). Guards a mis-scheduled/late run.
+    if now_et.time() >= RTH_OPEN_ET:
+        logger.warning("range_autoselect_skipped_after_open", at=now_et.isoformat())
         return []
     if engine is None or bar_cache is None:
         logger.warning("range_autoselect_skipped_unwired")

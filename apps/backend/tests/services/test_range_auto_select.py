@@ -17,9 +17,21 @@ import pytest_asyncio
 from sqlalchemy import func, select
 
 from app.audit.logger import AuditAction
-from app.db.enums import StrategyStatus, StrategyType
+from app.db.enums import (
+    OrderSide,
+    OrderSourceType,
+    OrderStatus,
+    OrderType,
+    StrategyStatus,
+    StrategyType,
+    TimeInForce,
+)
+from app.db.models.account import Account, AccountMode
 from app.db.models.audit_log import AuditLog
+from app.db.models.order import Order
+from app.db.models.position import Position
 from app.db.models.strategy import Strategy as StrategyRow
+from app.db.models.symbol import Symbol
 from app.services.range_auto_select import (
     AUTOSELECT_SOURCE,
     find_autoselect_range_strategies,
@@ -29,9 +41,10 @@ from app.services.range_auto_select import (
 )
 
 RANGE_CODE = "templates/range_trader.py"
-# A Saturday and a weekday (both 14:00 UTC) for the weekend-skip test.
-SATURDAY = datetime(2026, 6, 27, 14, 0, tzinfo=UTC)
-WEEKDAY = datetime(2026, 6, 26, 14, 0, tzinfo=UTC)
+# Times for the schedule gates (June = EDT, UTC-4):
+SATURDAY = datetime(2026, 6, 27, 13, 0, tzinfo=UTC)        # weekend
+WEEKDAY = datetime(2026, 6, 26, 13, 0, tzinfo=UTC)         # Fri 09:00 ET — pre-open (valid)
+WEEKDAY_AFTER_OPEN = datetime(2026, 6, 26, 14, 0, tzinfo=UTC)  # Fri 10:00 ET — RTH, frozen
 
 
 def _range_bound_bars() -> pd.DataFrame:
@@ -110,6 +123,64 @@ async def _seed_strategy(
         sid = row.id
         await s.commit()
     return sid
+
+
+async def _paper_account(session_factory: Any, user_id: int = 1) -> int:
+    async with session_factory() as s:
+        acct = (
+            await s.execute(
+                select(Account).where(
+                    Account.user_id == user_id, Account.broker == "alpaca",
+                    Account.mode == AccountMode.paper,
+                )
+            )
+        ).scalars().first()
+        if acct is None:
+            acct = Account(user_id=user_id, broker="alpaca", mode=AccountMode.paper)
+            s.add(acct)
+            await s.flush()
+        aid = acct.id
+        await s.commit()
+    return aid
+
+
+async def _symbol_id(session_factory: Any, ticker: str) -> int:
+    async with session_factory() as s:
+        sym = (await s.execute(select(Symbol).where(Symbol.ticker == ticker))).scalars().first()
+        if sym is None:
+            sym = Symbol(ticker=ticker)
+            s.add(sym)
+            await s.flush()
+        sid = sym.id
+        await s.commit()
+    return sid
+
+
+async def _seed_position(session_factory: Any, *, ticker: str, qty: int, user_id: int = 1) -> None:
+    aid = await _paper_account(session_factory, user_id)
+    syid = await _symbol_id(session_factory, ticker)
+    async with session_factory() as s:
+        s.add(Position(
+            user_id=user_id, account_id=aid, symbol_id=syid, qty=qty, side="long",
+            updated_at=datetime.now(UTC),
+        ))
+        await s.commit()
+
+
+async def _seed_order(
+    session_factory: Any, *, strategy_id: int, ticker: str, status: OrderStatus, user_id: int = 1
+) -> None:
+    aid = await _paper_account(session_factory, user_id)
+    syid = await _symbol_id(session_factory, ticker)
+    async with session_factory() as s:
+        now = datetime.now(UTC)
+        s.add(Order(
+            user_id=user_id, account_id=aid, symbol_id=syid, side=OrderSide.BUY, qty=1,
+            type=OrderType.MARKET, tif=TimeInForce.DAY, status=status,
+            source_type=OrderSourceType.STRATEGY, source_id=str(strategy_id),
+            created_at=now, updated_at=now,
+        ))
+        await s.commit()
 
 
 # ---- discovery ----
@@ -232,6 +303,80 @@ async def test_refresh_skips_live_strategy(db) -> None:
         row = await s.get(StrategyRow, sid)
         assert row.symbols_json == ["ZZZ"]
         assert row.status == StrategyStatus.LIVE  # untouched
+
+
+async def test_refresh_skips_when_open_position(db) -> None:
+    # ADR 0028 / review #6: don't stop→start a running sleeve that holds a position.
+    sid = await _seed_strategy(
+        db, symbols=["ZZZ"], status=StrategyStatus.PAPER,
+        params={"auto_select_top_n": 2, "auto_select_universe": ["AAA", "BBB", "CCC"]},
+    )
+    await _seed_position(db, ticker="ZZZ", qty=10)  # open position in the held symbol
+    engine = _FakeEngine(db)
+    out = await refresh_range_universe(
+        db, engine, _FakeBarCache(), strategy_id=sid, n=2,
+        universe=["AAA", "BBB", "CCC"], now=WEEKDAY,
+    )
+    assert out["status"] == "skipped_open_position"
+    assert engine.unregister_calls == [] and engine.register_calls == []
+    async with db() as s:
+        assert (await s.get(StrategyRow, sid)).symbols_json == ["ZZZ"]  # untouched
+
+
+async def test_refresh_ignores_position_in_unheld_symbol(db) -> None:
+    # A position in a symbol the sleeve does NOT trade must not block the rotation.
+    sid = await _seed_strategy(
+        db, symbols=["ZZZ"], status=StrategyStatus.PAPER,
+        params={"auto_select_top_n": 2, "auto_select_universe": ["AAA", "BBB", "CCC"]},
+    )
+    await _seed_position(db, ticker="QQQ", qty=10)  # unrelated holding
+    engine = _FakeEngine(db)
+    out = await refresh_range_universe(
+        db, engine, _FakeBarCache(), strategy_id=sid, n=2,
+        universe=["AAA", "BBB", "CCC"], now=WEEKDAY,
+    )
+    assert out["status"] == "applied"
+    assert engine.register_calls == [sid]
+
+
+async def test_refresh_skips_when_pending_order(db) -> None:
+    sid = await _seed_strategy(
+        db, symbols=["ZZZ"], status=StrategyStatus.PAPER,
+        params={"auto_select_top_n": 2, "auto_select_universe": ["AAA", "BBB", "CCC"]},
+    )
+    await _seed_order(db, strategy_id=sid, ticker="ZZZ", status=OrderStatus.SUBMITTED)  # working
+    engine = _FakeEngine(db)
+    out = await refresh_range_universe(
+        db, engine, _FakeBarCache(), strategy_id=sid, n=2,
+        universe=["AAA", "BBB", "CCC"], now=WEEKDAY,
+    )
+    assert out["status"] == "skipped_pending_order"
+    assert engine.unregister_calls == [] and engine.register_calls == []
+
+
+async def test_refresh_ignores_terminal_order(db) -> None:
+    # A filled (terminal) order from this strategy must not block.
+    sid = await _seed_strategy(
+        db, symbols=["ZZZ"], status=StrategyStatus.PAPER,
+        params={"auto_select_top_n": 2, "auto_select_universe": ["AAA", "BBB", "CCC"]},
+    )
+    await _seed_order(db, strategy_id=sid, ticker="ZZZ", status=OrderStatus.FILLED)
+    engine = _FakeEngine(db)
+    out = await refresh_range_universe(
+        db, engine, _FakeBarCache(), strategy_id=sid, n=2,
+        universe=["AAA", "BBB", "CCC"], now=WEEKDAY,
+    )
+    assert out["status"] == "applied"
+
+
+async def test_run_daily_skips_after_market_open(db) -> None:
+    # Once RTH has begun the day's universe is frozen — no intraday rotation (review #2).
+    await _seed_strategy(db, symbols=["ZZZ"], status=StrategyStatus.PAPER,
+                         params={"auto_select_top_n": 2})
+    out = await run_daily_range_universe(
+        db, _FakeEngine(db), _FakeBarCache(), now=WEEKDAY_AFTER_OPEN
+    )
+    assert out == []
 
 
 async def test_refresh_no_candidates_leaves_strategy_untouched(db) -> None:

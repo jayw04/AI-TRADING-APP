@@ -1,9 +1,13 @@
-# ADR 0028 — Scheduled daily strategy-universe refresh (Range Top-N auto-select)
+# ADR 0028 — Scheduled Pre-Open Opportunity Assignment (Range Top-N)
+
+*(formerly "Scheduled daily strategy-universe refresh"; renamed per owner review to match the
+Candidate Engine / Discovery Lab framing — the Candidate Engine **assigns the day's opportunity
+set** before the strategy starts.)*
 
 | Field | Value |
 |---|---|
 | Date | 2026-06-26 |
-| Status | **Draft** |
+| Status | **Accepted** (owner approved 2026-06-26, 9.7/10, `docs/review/comments.md`; small edits folded) |
 | Phase | Range-trading research (P8 §5a/§7 follow-on) |
 | Supersedes | — |
 | Related | 0005 (24-hour activation cooldown — this carves a narrow exemption), 0002 (single OrderRouter — the job never submits orders), 0026 (research programs as configuration — this extends "selection is configuration"), 0019 (Research Engine subsystem), 0020 (daily gross-exposure overlay — strategy-level risk stays centralized) |
@@ -29,22 +33,32 @@ under what guardrails.
 
 ## Decision
 
-1. A strategy may **opt in** to daily system-driven universe refresh by setting
+1. A strategy may **opt in** to daily system-driven opportunity assignment by setting
    `params_json.auto_select_top_n` to an integer `> 0` (Range Trader template only). An
    optional `params_json.auto_select_universe` overrides the default candidate pool. A
    strategy without the marker is never touched.
 2. A **pre-open scheduled job** (~09:00 ET, weekdays) selects today's Top-N candidates
    **evidence-first** (realized backtest win rate → Sharpe → structural Range Score) and
    re-points each opted-in strategy via **stop → set `symbols_json` → audit → start**.
-3. This refresh is **exempt from the activation cooldown (ADR 0005)**: it is a same-status
-   universe rotation, not an (re)activation, and does not reset any cooldown or activation
-   timestamp.
-4. The refresh is restricted to **PAPER (research) strategies**. LIVE strategies are
-   explicitly **out of scope** and must be skipped by the job.
-5. Every refresh is **audit-logged** (`STRATEGY_UPDATED`, actor `SYSTEM`,
+3. **Frozen daily input.** The Top-N set is chosen once, pre-open, and is **immutable for the
+   trading session** — no intraday replacement occurs even if a better candidate appears later.
+   This keeps each day's paper-trial evidence reproducible. The job runs only **before RTH
+   (09:30 ET)**; a run at/after the open is skipped.
+4. **Pre-flight guards.** For a given strategy the stop → start runs only when **all** hold:
+   it is **PAPER** (not LIVE), the time is **pre-RTH**, there is **no open position** in any
+   symbol it currently trades, and there is **no working (non-terminal) order** from it. If any
+   fails, the rotation is **skipped + WARN-logged** for that sleeve that day (never a partial
+   stop/start).
+5. This assignment is **exempt from the activation cooldown (ADR 0005)**, narrowly: the
+   exemption applies **only to system-initiated, pre-open, same-strategy, PAPER-only universe
+   reassignment with no open position and no pending order**. It is a same-status rotation, not
+   an (re)activation, and resets no cooldown or activation timestamp.
+6. LIVE strategies are explicitly **out of scope** and skipped (the stop→start cycle would
+   downgrade LIVE→PAPER; rotating a live book daily needs its own ADR + stronger controls).
+7. Every applied assignment is **audit-logged** (`STRATEGY_UPDATED`, actor `SYSTEM`,
    `payload.source = "daily_preopen_auto_select"`, carrying the previous and new symbol lists
-   and `n`). The refresh is **idempotent** (a no-op when the selection equals the current
-   universe), **fail-soft** per strategy, and touches **no order path**.
+   and `n`). The job is **idempotent** (a no-op when the selection equals the current universe),
+   **fail-soft** per strategy, and touches **no order path**.
 
 ## Rationale
 
@@ -92,15 +106,23 @@ must refuse LIVE.
     read row → select → (if running) `engine.unregister(reason="daily_range_autoselect")` →
     set `symbols_json` + `updated_at` → audit → (if it was running) `engine.register`. Idempotent
     on unchanged; an `IDLE` strategy is updated but **not** started (activation stays a user action).
-  - `run_daily_range_universe(session_factory, engine, bar_cache, *, now)` — weekend-skip, discover
-    opted-in strategies via `find_autoselect_range_strategies`, apply each, per-strategy fail-soft.
-- **LIVE guard (required)**: `refresh_range_universe` MUST skip a strategy whose status is `LIVE`
-  (return a `skipped_live` status + WARN log) rather than cycle it through `IDLE`→`PAPER`. The
-  preview implementation (PR #284) operates on PAPER books; this explicit guard is a precondition
-  of the non-preview merge.
+  - `run_daily_range_universe(session_factory, engine, bar_cache, *, now)` — weekend-skip,
+    **before-RTH gate** (`now_et.time() < 09:30` or skip), discover opted-in strategies via
+    `find_autoselect_range_strategies`, apply each, per-strategy fail-soft.
+  - `_preflight_blocker(session, row)` — returns `"pending_order"` (any non-terminal `Order` from
+    this strategy) or `"open_position"` (a `Position` with `qty != 0` on the strategy's PAPER
+    account in any symbol it currently trades), else `None`. `refresh_range_universe` calls it on
+    the stop→start path and returns `skipped_pending_order` / `skipped_open_position` on a hit.
+- **Guards implemented** (review #6): `skipped_live` (status LIVE), `skipped_after_open` (RTH gate),
+  `skipped_open_position`, `skipped_pending_order` — each WARN-logged; no partial stop/start.
 - **Schedule**: registered in `app/lifespan.py` as an APScheduler cron job, `day_of_week="mon-fri",
   hour=9, minute=0` (scheduler timezone is already ET), `max_instances=1`, `coalesce=True`. It is a
   **no-op until a strategy opts in**.
+- **Planned refinements** (not blocking; review #3/#4): (#4) a **minimum Range-Score threshold** so a
+  weak day selects fewer than N or zero — today `top_range_symbols` only avoids *padding* (returns
+  fewer than N when not enough names are `suitable`); (#3) **richer selection evidence** in the audit
+  payload (candidate scores, ranking version, excluded names/reasons, engine version) to make the
+  daily pick a full Evidence-Engineering artifact rather than a config diff.
 - **Audit**: `AuditAction.STRATEGY_UPDATED`, `actor_type=SYSTEM`, `payload={"changed":{"symbols":…},
   "previous":…, "source":"daily_preopen_auto_select", "n":…}`. No new `AuditAction` value (keeps the
   on-call runbook unchanged); the `source` tag distinguishes a system rotation from a user edit.
