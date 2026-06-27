@@ -10,8 +10,15 @@ Design notes:
   calls ``asyncio.run``) and an async ``_run_forever`` coroutine. We use the
   async path so we can run inside the FastAPI event loop without spawning a
   thread.
-* alpaca-py handles reconnects internally for transient socket failures. We do
-  NOT add a second layer of supervision; we just log connection state.
+* alpaca-py's ``_run_forever`` has only a hardcoded ``asyncio.sleep(0.01)``
+  between reconnect attempts, so a socket that keeps breaking (e.g. a Norton SSL
+  MITM that half-opens the connection) makes it reconnect ~100x/second — pinning
+  the event-loop core at ~100% CPU and leaking sockets. We therefore do NOT call
+  ``_run_forever``; we drive its own primitives (``_start_ws`` / ``_consume`` /
+  ``close``) in a supervised loop with **exponential backoff** and **auto-disable
+  after repeated rapid failures**. When disabled, fills are still captured by the
+  account/position reconciliation polling jobs. (Depends on alpaca-py internals;
+  pinned version — revisit on upgrade.)
 * No translation from raw events to internal Order/Fill records happens here.
   Session 4 adds an EventBus subscriber that does that translation once the
   DB schema for orders/fills exists.
@@ -21,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -30,6 +38,17 @@ from app.brokers.alpaca.credentials import AlpacaCredentials
 from app.events.bus import EventBus
 
 logger = structlog.get_logger(__name__)
+
+# Supervised-reconnect policy (replaces alpaca-py's 0.01s spin). Exponential backoff
+# between attempts; after this many *consecutive rapid* failures the stream auto-disables
+# (it can't sustain a connection — almost always Norton MITM on this dev box) and we fall
+# back to the reconciliation polling jobs for fills.
+_RECONNECT_BASE_BACKOFF_S = 1.0
+_RECONNECT_MAX_BACKOFF_S = 60.0
+_MAX_CONSECUTIVE_FAILURES = 6
+# A connection that stays up at least this long is "healthy" — reset the failure counter so a
+# one-off blip after hours of uptime doesn't count toward the disable threshold.
+_MIN_HEALTHY_SECONDS = 30.0
 
 
 class TradeUpdatesStream:
@@ -47,12 +66,19 @@ class TradeUpdatesStream:
         self._started: bool = False
         self._last_message_at: datetime | None = None
         self._stopping: bool = False
+        self._disabled: bool = False
 
     # ---- public surface ----
 
     @property
     def is_started(self) -> bool:
         return self._started
+
+    @property
+    def is_disabled(self) -> bool:
+        """True once the stream auto-disabled after repeated reconnect failures
+        (fills then rely on the reconciliation polling jobs)."""
+        return self._disabled
 
     @property
     def last_message_at(self) -> datetime | None:
@@ -116,21 +142,61 @@ class TradeUpdatesStream:
     # ---- internals ----
 
     async def _run_forever_supervised(self) -> None:
-        """Run alpaca-py's stream loop and translate exits to log lines.
+        """Supervise the connection ourselves with real backoff + a failure cap.
 
-        alpaca-py handles its own per-message reconnects. If the entire loop
-        ever returns or raises, we log it; the caller (lifespan) can decide
-        whether to restart the whole stream.
+        We deliberately do NOT call alpaca-py's ``_run_forever`` (its reconnect loop
+        sleeps only 0.01s → a persistently-broken socket spins the event loop at ~100%
+        CPU and leaks sockets). Instead we drive the SDK's own ``_start_ws`` / ``_consume``
+        / ``close`` per connection, back off exponentially on failure, and **auto-disable**
+        after ``_MAX_CONSECUTIVE_FAILURES`` rapid failures — at which point fills are still
+        captured by the reconciliation polling jobs.
         """
-        try:
-            await self._stream._run_forever()
-        except asyncio.CancelledError:
-            logger.info("trade_updates_stream_cancelled")
-            raise
-        except Exception:
-            logger.exception("trade_updates_stream_loop_crashed")
-            await self._publish_status("crashed")
-            self._started = False
+        # Mirror the minimal SDK state ``_run_forever`` would set up.
+        self._stream._loop = asyncio.get_running_loop()
+        self._stream._should_run = True
+
+        failures = 0
+        while not self._stopping:
+            connected_at = time.monotonic()
+            try:
+                await self._stream._start_ws()  # connect + auth + subscribe
+                await self._stream._consume()   # receive until stop (clean) or error (raises)
+            except asyncio.CancelledError:
+                logger.info("trade_updates_stream_cancelled")
+                raise
+            except Exception as exc:
+                with contextlib.suppress(Exception):
+                    await self._stream.close()  # always close — don't leak the socket
+                if self._stopping:
+                    break
+                # A long-lived connection that finally errored is a transient blip, not a
+                # sustained failure → reset the counter.
+                if time.monotonic() - connected_at >= _MIN_HEALTHY_SECONDS:
+                    failures = 0
+                failures += 1
+                if failures >= _MAX_CONSECUTIVE_FAILURES:
+                    self._disabled = True
+                    logger.warning(
+                        "trade_updates_stream_disabled",
+                        consecutive_failures=failures,
+                        last_error=str(exc)[:200],
+                    )
+                    await self._publish_status("disabled")
+                    return
+                backoff = min(
+                    _RECONNECT_BASE_BACKOFF_S * 2 ** (failures - 1),
+                    _RECONNECT_MAX_BACKOFF_S,
+                )
+                logger.warning(
+                    "trade_updates_stream_reconnect",
+                    attempt=failures,
+                    backoff_s=backoff,
+                    error=str(exc)[:200],
+                )
+                await asyncio.sleep(backoff)
+            else:
+                # _consume returned without error → a stop was signaled via the queue.
+                break
 
     async def _handle_update(self, data: Any) -> None:
         """alpaca-py invokes this for every trade update payload."""
