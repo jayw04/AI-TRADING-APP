@@ -8,6 +8,7 @@ import pandas as pd
 from app.research.factor_lab.portfolio import construct_portfolio
 from app.research.factor_lab.reproduction import (
     backtest_cross_asset_sleeve,
+    cross_asset_rebalance_weights,
     run_reproduction,
 )
 
@@ -44,6 +45,17 @@ def test_cross_asset_backtest_all_downtrend_is_all_cash_flat():
     panel = _panel({"A": (-0.0015, 0.008, 1), "B": (-0.0020, 0.006, 2)})
     ret = backtest_cross_asset_sleeve(panel)
     assert float(ret.abs().sum()) == 0.0
+
+
+def test_cross_asset_rebalance_weights_nan_before_first_then_valid():
+    panel = _panel({"SPY": (0.0008, 0.008, 1), "TLT": (0.0003, 0.006, 2),
+                    "GLD": (0.0005, 0.007, 3)})
+    w = cross_asset_rebalance_weights(panel)
+    assert list(w.columns) == list(panel.columns)
+    assert w.iloc[:252].isna().all().all()              # NaN until the first qualifying rebalance
+    valid = w.dropna(how="all")
+    assert not valid.empty
+    assert (valid.iloc[-1].fillna(0.0).sum()) <= 1.0 + 1e-9   # de-risk only, gross ≤ 1
 
 
 # --------------------------------------------------------------------------- run_reproduction

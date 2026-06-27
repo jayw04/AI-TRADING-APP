@@ -29,6 +29,25 @@ from app.research.factor_lab.portfolio import construct_portfolio, portfolio_evi
 from app.research.factor_lab.spec import VerdictSpec
 
 
+def cross_asset_rebalance_weights(
+    panel: pd.DataFrame, *, rebalance_freq: str = "W-FRI", **sleeve_kwargs: Any
+) -> pd.DataFrame:
+    """Per-rebalance as-of sleeve weights (rows = panel dates, cols = tickers): the cross-asset
+    TSMOM weights recomputed at each rebalance date, NaN before the first qualifying rebalance.
+    The basis for both ``backtest_cross_asset_sleeve`` (ffill → held weights) and the harness's
+    internal-weights/trade-count needs. Pure."""
+    px = panel.sort_index()
+    cols = list(px.columns)
+    reb_dates = pd.Series(px.index, index=px.index).resample(rebalance_freq).last().dropna()
+    weights = pd.DataFrame(index=px.index, columns=cols, dtype=float)  # NaN until first rebalance
+    for d in reb_dates:
+        pos = int(px.index.get_loc(d))
+        sleeve = cross_asset_tsmom(px, asof=pos, **sleeve_kwargs)
+        if sleeve.status == "ok":
+            weights.loc[d] = [sleeve.weights.get(c, 0.0) for c in cols]
+    return weights
+
+
 def backtest_cross_asset_sleeve(
     panel: pd.DataFrame, *, rebalance_freq: str = "W-FRI", **sleeve_kwargs: Any
 ) -> pd.Series:
@@ -37,15 +56,7 @@ def backtest_cross_asset_sleeve(
     rebalance; daily return = Σ (prior-day weights × asset daily total-returns). Pure."""
     px = panel.sort_index()
     rets = px.pct_change().fillna(0.0)
-    cols = list(px.columns)
-    reb_dates = pd.Series(px.index, index=px.index).resample(rebalance_freq).last().dropna()
-
-    weights = pd.DataFrame(index=px.index, columns=cols, dtype=float)  # NaN until first rebalance
-    for d in reb_dates:
-        pos = int(px.index.get_loc(d))
-        sleeve = cross_asset_tsmom(px, asof=pos, **sleeve_kwargs)
-        if sleeve.status == "ok":
-            weights.loc[d] = [sleeve.weights.get(c, 0.0) for c in cols]
+    weights = cross_asset_rebalance_weights(px, rebalance_freq=rebalance_freq, **sleeve_kwargs)
     weights = weights.ffill().fillna(0.0)  # hold weights between rebalances; cash before the first
     return (weights.shift(1).fillna(0.0) * rets).sum(axis=1)
 
