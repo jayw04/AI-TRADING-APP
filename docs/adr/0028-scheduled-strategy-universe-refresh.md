@@ -118,15 +118,27 @@ must refuse LIVE.
 - **Schedule**: registered in `app/lifespan.py` as an APScheduler cron job, `day_of_week="mon-fri",
   hour=9, minute=0` (scheduler timezone is already ET), `max_instances=1`, `coalesce=True`. It is a
   **no-op until a strategy opts in**.
-- **Minimum-quality gate** (review #4, implemented): an optional `params_json.auto_select_min_score`
-  (default 0 = off) sets a structural Range-Score floor (`score = atr20_pct × oscillation`); a
-  candidate must clear it to be eligible, so a weak day selects fewer than N — or zero, which skips
-  the day for that sleeve — rather than filling slots with poor setups.
+- **Two-step screen — hard filters → qualified universe → Range Score → Top-N** (review #4,
+  implemented). The minimum-quality gate is a set of **hard filters** applied *before* scoring, not
+  an absolute score cutoff: a name must clear them to enter the qualified universe and be selectable.
+  Enforced today (computable from daily bars): **price > $10**, **avg daily $ volume > $50M**,
+  **ATR% > 3%** (`HardFilters`, defaults overridable). **Deferred** (need intraday/quote data not
+  available at the pre-open run): **RVOL > 1.5**, **avg spread < 0.10%**. Range-boundness is NOT a
+  hard filter — it is a *score* factor (oscillation), so a qualified trender can still be selected
+  but ranks low.
+- **Research phase: no absolute score threshold.** During calibration the engine selects the Top-N
+  from the qualified universe **regardless of absolute Range Score**, to collect evidence on how
+  score relates to outcomes. An optional `params_json.auto_select_min_score` exists (default **0 =
+  off**) for a *future* production cutoff; after sufficient history (≈ ≥40 trading days) that
+  threshold is to be **derived empirically** from observed outcomes (trades/day, win rate, P&L,
+  Sharpe, opening-range touch rate per score band) and only then incorporated — the threshold itself
+  becomes a research result, not an assumption.
 - **Selection evidence** (review #3, implemented): the audit payload carries a `selection` record —
-  `ranking_version` ("evidence-first-v1"), `n_requested`, `min_score`, `universe_size`, the chosen
-  names with `rank`/`score`/`win_rate`/`sharpe`/`backtested`, and the `excluded` names with reasons
-  (`insufficient_data` / `not_range_bound` / `below_min_score` / `rank_beyond_n`) — making each daily
-  pick a reproducible Evidence-Engineering artifact, not just a symbol diff.
+  `ranking_version` ("evidence-first-v1"), `n_requested`, `min_score`, `universe_size`,
+  `qualified_size`, the chosen names with `rank`/`score`/`win_rate`/`sharpe`/`backtested`, and the
+  `excluded` names with reasons (`insufficient_data` / `price_below_min` / `adv_below_min` /
+  `atr_below_min` / `below_min_score` / `rank_beyond_n`) — making each daily pick a reproducible
+  Evidence-Engineering artifact, not just a symbol diff.
 - **Audit**: `AuditAction.STRATEGY_UPDATED`, `actor_type=SYSTEM`, `payload={"changed":{"symbols":…},
   "previous":…, "source":"daily_preopen_auto_select", "n":…}`. No new `AuditAction` value (keeps the
   on-call runbook unchanged); the `source` tag distinguishes a system rotation from a user edit.

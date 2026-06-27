@@ -43,7 +43,9 @@ from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
 from app.services.range_insight import (
     DEFAULT_CANDIDATE_UNIVERSE,
+    DEFAULT_HARD_FILTERS,
     CandidateEvidence,
+    HardFilters,
     RangeCandidate,
     rank_range_candidates,
     top_range_symbols,
@@ -186,15 +188,23 @@ async def select_range_universe_detailed(
     universe: Iterable[str] | None = None,
     now: datetime | None = None,
     min_score: float = 0.0,
+    hard_filters: HardFilters | None = None,
 ) -> tuple[list[str], list[RangeCandidate]]:
     """Today's Top-N range symbols PLUS the full ranked candidate list (for audit evidence).
-    Ranked evidence-first (realized win rate → Sharpe → structural Range Score); a candidate
-    must clear ``min_score`` to be eligible. Defaults to the liquid-large-cap pool."""
+    Two-step (ADR 0028 review #4): hard filters → qualified universe → evidence-first Range
+    Score → Top-N. Only **qualified** names (price/ADV/ATR%) are selectable; range-boundness is
+    a *score* factor, not a gate. ``min_score`` is the optional absolute cutoff (0 = research
+    default → collect Top-N regardless of absolute score). Defaults to the liquid-large-cap pool."""
     now = now or datetime.now(UTC)
+    filters = hard_filters if hard_filters is not None else DEFAULT_HARD_FILTERS
     uni = list(universe) if universe else list(DEFAULT_CANDIDATE_UNIVERSE)
     evidence = await load_range_backtest_evidence(session, uni)
-    ranked = await rank_range_candidates(uni, bar_cache=bar_cache, now=now, evidence=evidence)
-    selected = top_range_symbols(ranked, n=n, min_score=min_score)
+    ranked = await rank_range_candidates(
+        uni, bar_cache=bar_cache, now=now, evidence=evidence, hard_filters=filters
+    )
+    selected = top_range_symbols(
+        ranked, n=n, require_suitable=False, require_qualified=True, min_score=min_score
+    )
     return selected, ranked
 
 
@@ -206,10 +216,12 @@ async def select_range_universe(
     universe: Iterable[str] | None = None,
     now: datetime | None = None,
     min_score: float = 0.0,
+    hard_filters: HardFilters | None = None,
 ) -> list[str]:
     """Today's Top-N range symbols for a universe (thin wrapper over the detailed form)."""
     selected, _ = await select_range_universe_detailed(
-        session, bar_cache=bar_cache, n=n, universe=universe, now=now, min_score=min_score
+        session, bar_cache=bar_cache, n=n, universe=universe, now=now,
+        min_score=min_score, hard_filters=hard_filters,
     )
     return selected
 
@@ -225,8 +237,8 @@ def _selection_evidence(
     def _excluded_reason(c: RangeCandidate) -> str:
         if c.status != "ok":
             return "insufficient_data"
-        if not c.suitable:
-            return "not_range_bound"
+        if not c.qualified:  # failed a hard filter (price / ADV / ATR%)
+            return c.qualify_reason or "not_qualified"
         if c.score < min_score:
             return "below_min_score"
         return "rank_beyond_n"
@@ -236,6 +248,7 @@ def _selection_evidence(
         "n_requested": n,
         "min_score": min_score,
         "universe_size": len(ranked),
+        "qualified_size": sum(1 for c in ranked if c.qualified),
         "selected": [
             {
                 "symbol": c.symbol, "rank": c.rank, "score": c.score,
