@@ -14,13 +14,14 @@ from app.services.range_insight import (
 
 def _ri(symbol: str, *, status="ok", atr20_pct=None, classification=None,
         atr20=None, intraday_range=None, last_close=100.0,
-        efficiency_ratio=None, adv=1e9) -> RangeInsight:
+        efficiency_ratio=None, adv=1e9, cs_spread_pct=None) -> RangeInsight:
     """A RangeInsight with only the ranking-relevant fields set; rest are inert.
     ``adv`` defaults to $1B so candidates clear the liquidity hard filter unless overridden."""
     return RangeInsight(
         symbol=symbol, status=status, bars_used=60, low_confidence=False, as_of=None,
         anchor=None, anchor_source=None, last_close=last_close, atr20=atr20,
-        atr20_pct=atr20_pct, adv=adv, typical_move_up=None, typical_move_down=None,
+        atr20_pct=atr20_pct, adv=adv, cs_spread_pct=cs_spread_pct,
+        typical_move_up=None, typical_move_down=None,
         support=None, resistance=None, high_band=None, low_band=None,
         intraday_range=intraday_range, classification=classification,
         efficiency_ratio=efficiency_ratio,
@@ -242,6 +243,45 @@ def test_top_range_symbols_require_qualified_gates_universe():
 def test_no_hard_filters_all_ok_are_qualified():
     out = rank_candidates([_ri("X", atr20_pct=0.05, classification="range_bound")])  # filters None
     assert out[0].qualified is True and out[0].qualify_reason is None
+
+
+# --- Spread hard filter (Corwin-Schultz estimate; default-OFF) — range follow-up TASK 1 ---
+
+def test_spread_filter_off_by_default_ignores_spread():
+    # Default HardFilters has max_spread_pct=None → a wide estimated spread does NOT disqualify.
+    out = rank_candidates(
+        [_ri("WIDE", atr20_pct=0.05, classification="range_bound", cs_spread_pct=0.01)],
+        hard_filters=HardFilters(),
+    )
+    assert out[0].qualified is True and out[0].qualify_reason is None
+    assert out[0].cs_spread_pct == 0.01  # surfaced on the candidate
+
+
+def test_spread_filter_gates_when_enabled():
+    fil = HardFilters(max_spread_pct=0.001)  # 0.10% cap
+    out = rank_candidates([
+        _ri("TIGHT", atr20_pct=0.05, classification="range_bound", cs_spread_pct=0.0005),
+        _ri("WIDE",  atr20_pct=0.05, classification="range_bound", cs_spread_pct=0.0030),
+        _ri("NONE",  atr20_pct=0.05, classification="range_bound", cs_spread_pct=None),
+    ], hard_filters=fil)
+    by = {c.symbol: c for c in out}
+    assert by["TIGHT"].qualified is True and by["TIGHT"].qualify_reason is None
+    assert by["WIDE"].qualified is False and by["WIDE"].qualify_reason == "spread_above_max"
+    # No estimate available → cannot prove tightness → excluded under an active spread gate.
+    assert by["NONE"].qualified is False and by["NONE"].qualify_reason == "spread_above_max"
+
+
+def test_corwin_schultz_spread_estimator():
+    import pandas as pd
+
+    from app.services.range_insight import _corwin_schultz_spread
+    # A constant high/low ratio with no overnight drift → small, non-negative estimate.
+    highs = pd.Series([101.0, 101.0, 101.0, 101.0])
+    lows = pd.Series([100.0, 100.0, 100.0, 100.0])
+    s = _corwin_schultz_spread(highs, lows)
+    assert s is not None and 0.0 <= s < 0.05  # a fraction of price, floored at 0
+    # Degenerate inputs are handled (no crash, None when not computable).
+    assert _corwin_schultz_spread(pd.Series([100.0]), pd.Series([100.0])) is None
 
 
 def test_top_range_symbols_excludes_unsuitable_and_insufficient():
