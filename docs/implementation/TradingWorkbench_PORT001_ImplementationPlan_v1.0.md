@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | **v1.0 — FROZEN for execution** (2026-06-27; all 4 OQs resolved) |
+| Document version | **v1.1 — FROZEN for execution** (2026-06-27; all 4 OQs resolved; ADR-0030-review refinements folded) |
 | Date | 2026-06-27 |
 | Program | **PORT-001** — product name **"Risk-Balanced Multi-Asset Portfolio"** (formerly "Combined Book") |
 | Capability class | Portfolio Construction (multi-sleeve ERC + crash/correlation overlays) |
@@ -129,7 +129,7 @@ Market Data Layer  ─►  Total-Return Adapter (Alpaca closes + distributions) 
 - **§0 — This document (Session Zero, no code).** Ships: this plan (freeze at v1.0 after OQ-1/OQ-3); a **`PORT-001` Registry entry** (`status="planned"`, honest verdict); and the governing **ADR** (§ADR). → done #3 (initial).
 - **§1 — Total-Return Adapter + cross-asset TSMOM sleeve** *(G2, G3)*. The adapter (decision #2, reusable) + the 8-ETF sleeve (research parity with `cross_asset_momentum.py`), cross-validated vs the sibling. Est 5–8h, walk-away ≥1h.
 - **§2 — Portfolio Construction Engine + ERC + reproduction** *(G1, G4; heavy)*. Extend `ProgramSpec` (sleeves + blending) + a `_run_portfolio` branch; an **ERC optimizer**; portfolio-level evidence metrics (sleeve corr, look-through beta). **Reproduce the sibling headline → run the Onboarding Gate (§Gate).** Est 8–12h, walk-away ≥2h.
-- **§3 — Evidence Package + Registry verdict + Capability Certificate** *(done #1,#2,#3)*. Register the Evidence Package + honest verdict; emit the **Migration Fidelity dashboard** + the **Capability Certificate** (§Certificate). Est 3–5h, walk-away ≥1h.
+- **§3 — Evidence Package + Registry verdict + Capability Certificate** *(done #1,#2,#3)*. Register the Evidence Package + honest verdict; emit the **Lifecycle Fidelity dashboard** + the **versioned Capability Certificate** (§Certificate). Est 3–5h, walk-away ≥1h.
 - **§4 — Live `combined_book` template + Workbench paper account** *(done #4)*. `strategies_user/templates/combined_book.py` (weekly ERC rebalance; crash engine via `on_overlay_tick`; corr-regime gross multiplier) on a dedicated paper account (OQ-3), activation-gated, **co-existing** with the sibling. Est 6–9h, walk-away ≥2h.
 - **§5 — Continuous Evidence** *(done #5)*. Correlation-regime / look-through / reconciliation monitors → the Evidence Dashboard (the `live_evidence.py` weekly pattern). Est 4–6h.
 - **§6 — Retire sibling** *(done #6)*. Gated on sustained agreement (co-exist). Owner-timed.
@@ -148,19 +148,19 @@ Market Data Layer  ─►  Total-Return Adapter (Alpaca closes + distributions) 
 | Weight correlation (per-rebalance target weights) | **> 0.99** | target-book agreement |
 | Annual turnover | within tolerance (set in §2) | construction parity |
 | **Trade count / frequency** | within tolerance | execution sanity — Sharpe + MaxDD can match while *execution* doesn't; matching trade frequency catches that |
-| **Determinism** | exact | run the same inputs ≥10× → **identical** Evidence Package + identical target weights (the §Lifecycle determinism principle) |
+| **Determinism** | exact | **identical inputs → identical outputs** (Evidence Package + target weights) — a principle, verified by repeated runs (not a fixed run-count); the §Lifecycle determinism principle |
 
 A miss → diagnose + attribute the drift (data, universe, or construction) before any promotion. Drift is *attributed*, not waved through.
 
-## Migration Fidelity dashboard (§3 output — the onboarding's own evidence)
+## Lifecycle Fidelity dashboard (§3 output — the onboarding's own evidence)
 
-A side-by-side **Sibling → Workbench → Δ** scorecard, surfaced as a **permanent dashboard** with a composite **Migration Fidelity score** (e.g., *PORT-001 — Migration Fidelity 96.7%*) that drills into: **Sharpe · CAGR · MaxDD · tracking error · turnover · trade count · gross/exposure · sleeve correlation · weight difference · daily-return correlation · drawdown difference.** Customer-legible at a glance; feeds the Evidence Dashboard and the Capability Certificate.
+A **permanent dashboard** with a composite **fidelity score** (e.g., *PORT-001 — Fidelity 96.7%*) that drills into: **Sharpe · CAGR · MaxDD · tracking error · turnover · trade count · gross/exposure · sleeve correlation · weight difference · daily-return correlation · drawdown difference.** Framed as **Lifecycle Fidelity** — compare the book across its whole lifecycle (**Capability → Research → Workbench → Live**), not just sibling → Workbench — so drift is attributable to the stage that introduced it. Customer-legible at a glance; feeds the Evidence Dashboard and the Capability Certificate.
 
 ## Capability Certificate (ties to Capability Onboarding Maturity)
 
-Every onboarding emits a **Capability Certificate** — a platform-status stamp (not a "migration" artifact; it scales to any capability's lifecycle state):
+Every onboarding emits a **versioned Capability Certificate** — a platform-status stamp (not a "migration" artifact; it scales to any capability's lifecycle state). Versioning (`v1.0`) lets a later re-onboarding/improvement (`v2.0`) be compared against the first. It is stamped onto the capability's **Capability Manifest** (the registry metadata layer defined in **ADR 0030 §3**: name · owner · research-id · evidence-package · dependencies · risk-profile · paper-account · version · certificate).
 
-| Capability Certificate | PORT-001 |
+| Capability Certificate — PORT-001 **v1.0** | Status |
 |---|---|
 | Research | ✓ Completed |
 | Evidence reproduced (L1) | _(set at §2)_ |
@@ -222,4 +222,4 @@ One ADR governs the new architecture (proposed title): **"Portfolio Construction
 
 ---
 
-*v1.0 — 2026-06-27 — **FROZEN for execution** (final review 10/10; all 4 OQs resolved). Execute: §0 (Registry `planned` + ADR) → §1 (Total-Return Adapter + cross-asset sleeve) → §2 (Portfolio Construction Engine + reproduction → Onboarding Gate) → §3 (Evidence Package + Capability Certificate) → §4 (live book + paper account) → §5 (Continuous Evidence) → §6 (retire sibling).*
+*v1.1 — 2026-06-27 — **FROZEN for execution** (final review 10/10; ADR-0030-review refinements folded: Lifecycle Fidelity, principle-based determinism, versioned Capability Certificate + Capability Manifest pointer to ADR 0030). Filename kept at `…v1.0.md` (the frozen-plan anchor referenced by §0/§1 commits, ADR 0030, and memory); the version field is authoritative. Execute: §0 ✓ → §1 ✓ → §2 (PCE + reproduction → Onboarding Gate) → §3 → §4 → §5 → §6.*
