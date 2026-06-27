@@ -48,8 +48,17 @@ def test_port001_registered_and_shaped():
     assert {s.name for s in PORT_001.portfolio.sleeves} == {"equity", "cross_asset"}
 
 
-def test_run_program_dispatches_portfolio_to_gated_branch():
-    # The construction is recognized (not 'unknown'); the real-data sleeve run is the
-    # data-gated §2 remainder, so it raises a clear, directed NotImplementedError.
-    with pytest.raises(NotImplementedError, match="data-gated"):
-        run_program(PORT_001, store=None)  # type: ignore[arg-type]  # raises before touching store
+def test_run_program_routes_portfolio_through_the_harness(monkeypatch):
+    # 'portfolio' construction routes through the shared reproduction harness
+    # (build_self_stack_inputs → portfolio_evidence_package), not a NotImplementedError.
+    import pandas as pd
+
+    sr = pd.DataFrame({"equity": [0.01, -0.01], "cross_asset": [0.0, 0.02]},
+                      index=pd.to_datetime(["2020-01-02", "2020-01-03"]))
+    internal = {"equity": {"AAA": 1.0}, "cross_asset": {"TLT": 1.0}}
+    monkeypatch.setattr(
+        "app.research.factor_lab.reproduction.build_self_stack_inputs",
+        lambda spec, store: (sr, internal, 42))
+    out = run_program(PORT_001, store=object())  # type: ignore[arg-type]  # store unused by the fake
+    assert out["program"] == "PORT-001" and out["construction"] == "portfolio"
+    assert out["trades"] == 42 and "metrics" in out and "book" in out

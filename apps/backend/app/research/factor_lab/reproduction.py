@@ -129,3 +129,177 @@ def run_reproduction(
         "reference": {"sharpe": reference["sharpe"], "max_drawdown": reference["max_drawdown"],
                       "trades": reference["trades"]},
     }
+
+
+# --------------------------------------------------------------------------- self-stack builders
+# The "build the Workbench sleeves from the platform's OWN data stack" path — shared by the CLI
+# harness (`--db` real mode) and the Factor Lab runner (`_run_portfolio`). Heavy deps are imported
+# locally so this module stays light/research-pure at import time. The cross-asset sleeve reads
+# live ETF bars (Alpaca via the bar provider) — the one network dependency, off the order path.
+
+# Equity-momentum SleeveSpec.params → run_momentum_backtest kwargs (max_position_pct is a
+# live-template per-name cap with no backtest equivalent → dropped, recorded in the package).
+_EQUITY_PARAM_MAP = {
+    "lookback_days": "lookback_days", "skip_days": "skip_days",
+    "top_quantile": "top_quantile", "max_sector_pct": "max_sector_pct",
+    "vol_target": "vol_target_annual",
+}
+
+
+class SharadarDistributions:
+    """Concrete ``DistributionsProvider`` over the Sharadar ``actions`` table (DCAP-001), read
+    through the FactorDataStore's DuckDB connection. Fail-soft: no rows (or no coverage for an
+    ETF) → empty Series → the Total-Return Adapter yields a price-return leg (still valid). ⚠
+    assumes the Sharadar convention: ``action`` contains 'div'/'split' and ``value`` is
+    cash-per-share / the split share-multiplier."""
+
+    def __init__(self, store: Any) -> None:
+        self._store = store
+
+    def distributions(
+        self, symbol: str, start: pd.Timestamp, end: pd.Timestamp
+    ) -> tuple[pd.Series, pd.Series]:
+        try:
+            rows = self._store.con.execute(
+                "SELECT date, action, value FROM actions "
+                "WHERE ticker = ? AND date BETWEEN ? AND ? ORDER BY date",
+                [symbol, pd.Timestamp(start).date(), pd.Timestamp(end).date()],
+            ).fetchall()
+        except Exception:  # noqa: BLE001 — missing table / sparse coverage → price-return leg
+            rows = []
+        div: dict[pd.Timestamp, float] = {}
+        spl: dict[pd.Timestamp, float] = {}
+        for d, action, value in rows:
+            if value is None:
+                continue
+            a = str(action or "").lower()
+            ts = pd.Timestamp(d)
+            if "div" in a:
+                div[ts] = div.get(ts, 0.0) + float(value)
+            elif "split" in a:
+                spl[ts] = float(value)
+        return pd.Series(div, dtype="float64"), pd.Series(spl, dtype="float64")
+
+
+def curve_returns(curve: list) -> pd.Series:
+    """Daily simple returns from an equity curve [(date, equity), …], date-indexed, first dropped."""
+    if len(curve) < 2:
+        return pd.Series(dtype="float64")
+    idx = pd.to_datetime([d for d, _ in curve]).normalize()
+    eq = pd.Series([v for _, v in curve], index=idx, dtype="float64")
+    return eq.pct_change().dropna()
+
+
+def count_trades(weight_history: list[dict[str, float]], *, tol: float = 1e-6) -> int:
+    """Number of position changes across a sequence of rebalance weight maps — an open, close, or
+    reweight (|Δw|>tol) of any name counts as one trade."""
+    prev: dict[str, float] = {}
+    n = 0
+    for w in weight_history:
+        for name in set(w) | set(prev):
+            if abs(w.get(name, 0.0) - prev.get(name, 0.0)) > tol:
+                n += 1
+        prev = w
+    return n
+
+
+def default_bar_cache() -> Any:
+    """A standalone Alpaca daily-bar source (BarCache, adapter=None → builds the env-cred adapter
+    lazily on fetch; rides the ADR-0017 truststore past Norton). Reuses the app's configured cache
+    root so a warm cache serves history from disk."""
+    from app.config import get_settings
+    from app.market_data.bar_cache import BarCache
+
+    s = get_settings()
+    return BarCache(adapter=None, root=s.bars_cache_root, max_gb=s.bars_cache_max_gb)
+
+
+async def build_total_return_panel(
+    symbols: tuple[str, ...] | list[str], start: Any, end: Any, *,
+    bar_provider: Any, dist_provider: Any,
+) -> pd.DataFrame:
+    """Total-return ETF price panel via the §1 Total-Return Adapter (raw bars + distributions).
+    Index = naive daily timestamps, cols = tickers, values = tr_close."""
+    from app.factor_data.total_return import TotalReturnAdapter
+
+    adapter = TotalReturnAdapter(bar_provider, dist_provider)
+    series: dict[str, pd.Series] = {}
+    for sym in symbols:
+        df = await adapter.get_total_return_bars(sym, pd.Timestamp(start), pd.Timestamp(end))
+        if df is None or df.empty:
+            continue
+        idx = pd.to_datetime(df["t"], utc=True).dt.tz_localize(None).dt.normalize()
+        series[sym] = pd.Series(df["tr_close"].to_numpy(dtype="float64"), index=idx)
+    if not series:
+        raise RuntimeError(
+            f"no total-return bars for any cross-asset ETF (check Alpaca access). Universe={list(symbols)}.")
+    return pd.DataFrame(series).sort_index().dropna(how="all")
+
+
+def build_equity_sleeve(
+    store: Any, params: dict[str, Any], start: Any, end: Any, n: int
+) -> tuple[pd.Series, dict[str, float], int]:
+    """Sleeve A — crash-protected equity momentum via run_momentum_backtest over the Sharadar
+    store. Returns (daily-return Series, last-rebalance internal weights, trade count)."""
+    from app.factor_data.backtest import run_momentum_backtest
+
+    kw = {dst: params[src] for src, dst in _EQUITY_PARAM_MAP.items() if src in params}
+    rep = run_momentum_backtest(store, start, end, n=n, **kw)
+    curve = rep.vol_scaled_curve or rep.equity_curve  # crash-protected curve when vol-targeted
+    returns = curve_returns(curve)
+    internal = dict(rep.holdings[-1].weights) if rep.holdings else {}
+    trades = count_trades([dict(h.weights) for h in rep.holdings])
+    return returns, internal, trades
+
+
+def build_cross_asset_sleeve(
+    store: Any, params: dict[str, Any], start: Any, end: Any, *, bar_provider: Any
+) -> tuple[pd.Series, dict[str, float], int]:
+    """Sleeve B — cross-asset TSMOM over the §1 Total-Return Adapter panel. Returns (daily-return
+    Series, last-rebalance internal weights, trade count)."""
+    import asyncio
+    from datetime import UTC, datetime
+
+    from app.research.factor_lab.cross_asset import CROSS_ASSET_UNIVERSE
+
+    dist = SharadarDistributions(store)
+    s = start if hasattr(start, "year") else pd.Timestamp(start).date()
+    e = end if hasattr(end, "year") else pd.Timestamp(end).date()
+    start_dt = datetime(s.year, s.month, s.day, tzinfo=UTC)
+    end_dt = datetime(e.year, e.month, e.day, tzinfo=UTC)
+    panel = asyncio.run(
+        build_total_return_panel(CROSS_ASSET_UNIVERSE, start_dt, end_dt,
+                                 bar_provider=bar_provider, dist_provider=dist))
+    kw = dict(params)
+    returns = backtest_cross_asset_sleeve(panel, **kw)
+    reb = cross_asset_rebalance_weights(panel, **kw).dropna(how="all")
+    internal = {k: float(v) for k, v in reb.iloc[-1].items()} if not reb.empty else {}
+    trades = count_trades([{k: float(v) for k, v in row.items()} for _, row in reb.iterrows()])
+    return returns, internal, trades
+
+
+def build_self_stack_inputs(
+    spec: Any, store: Any, *, bar_provider: Any | None = None
+) -> tuple[pd.DataFrame, dict[str, dict[str, float]], int]:
+    """Build the Workbench sleeve return series from the platform's OWN data stack, straight off
+    a portfolio ``ProgramSpec`` (so the harness, the runner, and the live config never drift):
+    Sleeve A (equity momentum) over the Sharadar store; Sleeve B (cross-asset TSMOM) over the §1
+    Total-Return Adapter panel (Alpaca bars + Sharadar distributions). Returns ``(sleeve_returns,
+    sleeve_internal_weights, cand_trades)``. Read-only research (ADR 0019); no order path."""
+    pf = spec.portfolio
+    if pf is None:
+        raise RuntimeError(f"{spec.id} has no PortfolioSpec")
+    by_kind = {s.kind: s for s in pf.sleeves}
+    eq_spec = by_kind["equity_momentum"]
+    xa_spec = by_kind["cross_asset_tsmom"]
+    bars = bar_provider if bar_provider is not None else default_bar_cache()
+
+    eq_ret, eq_w, eq_trades = build_equity_sleeve(store, eq_spec.params, spec.start, spec.end, spec.n)
+    xa_ret, xa_w, xa_trades = build_cross_asset_sleeve(
+        store, xa_spec.params, spec.start, spec.end, bar_provider=bars)
+
+    sleeve_returns = pd.DataFrame({eq_spec.name: eq_ret, xa_spec.name: xa_ret}).dropna()
+    if sleeve_returns.empty:
+        raise RuntimeError("no overlapping trading days between the equity and cross-asset sleeves")
+    internal = {eq_spec.name: eq_w, xa_spec.name: xa_w}
+    return sleeve_returns, internal, eq_trades + xa_trades

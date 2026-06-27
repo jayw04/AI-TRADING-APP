@@ -1,0 +1,67 @@
+{
+ "window": [
+  "2018-11-01",
+  "2025-12-31"
+ ],
+ "n_days": 1800,
+ "gate": {
+  "passed": false,
+  "fidelity_pct": 43.7,
+  "criteria": [
+   {
+    "name": "sharpe",
+    "passed": false,
+    "value": 0.2686,
+    "threshold": 0.05
+   },
+   {
+    "name": "maxdd",
+    "passed": false,
+    "value": 0.0309,
+    "threshold": 0.02
+   },
+   {
+    "name": "daily_return_corr",
+    "passed": false,
+    "value": 0.852001,
+    "threshold": 0.98
+   },
+   {
+    "name": "weight_corr",
+    "passed": false,
+    "value": 0.767064,
+    "threshold": 0.99
+   },
+   {
+    "name": "trade_count",
+    "passed": false,
+    "value": 268.857143,
+    "threshold": 0.1
+   },
+   {
+    "name": "determinism",
+    "passed": true,
+    "value": 1.0,
+    "threshold": 1.0
+   }
+  ],
+  "notes": [
+   "FAIL sharpe: 0.2686 vs threshold 0.05 \u2014 attribute the drift",
+   "FAIL maxdd: 0.0309 vs threshold 0.02 \u2014 attribute the drift",
+   "FAIL daily_return_corr: 0.8520 vs threshold 0.98 \u2014 attribute the drift",
+   "FAIL weight_corr: 0.7671 vs threshold 0.99 \u2014 attribute the drift",
+   "FAIL trade_count: 268.8571 vs threshold 0.1 \u2014 attribute the drift"
+  ]
+ },
+ "candidate": {
+  "sharpe": 1.0298,
+  "max_drawdown": -0.0848,
+  "trades": 7556
+ },
+ "reference": {
+  "sharpe": 0.7612,
+  "max_drawdown": 0.1157,
+  "trades": 28
+ },
+ "passed": false
+}
