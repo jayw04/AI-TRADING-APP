@@ -204,7 +204,7 @@ PORT_001 = ProgramSpec(
     philosophy="Multi-sleeve ERC: crash-protected equity momentum + cross-asset TSMOM",
     factor="momentum",
     factor_params={"lookback_days": 252, "skip_days": 21},
-    n=20,
+    n=150,  # the sibling production equity universe (max_names=150); reproduce current config first
     start=date(2016, 1, 1),
     end=date(2026, 1, 1),
     construction="portfolio",

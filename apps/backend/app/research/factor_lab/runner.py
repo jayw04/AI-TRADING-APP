@@ -161,24 +161,31 @@ def run_program(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:
 
 
 def _run_portfolio(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:
-    """PORT-001 multi-sleeve portfolio pipeline (ADR 0030 #1; the Portfolio Construction
-    Engine). Runs each sleeve's backtest, ERC-blends them, and assembles the Evidence Package
-    via ``app.research.factor_lab.portfolio.portfolio_evidence_package`` (the tested
-    orchestrator — combined curve metrics + the look-through evidence + the verdict).
+    """PORT-001 multi-sleeve portfolio pipeline (ADR 0030 #1; the Portfolio Construction Engine).
 
-    Building the sleeve return series requires the real data the equivalence run needs: the
-    equity-momentum sleeve from ``store`` (Sharadar) and the cross-asset sleeve from the §1
-    **Total-Return Adapter** (Alpaca total-return ETF bars, Norton-gated). That sleeve-data
-    wiring + the reproduction → Onboarding Gate run are the **data-gated §2 remainder**, run
-    offline at the gate (as the other constructions' real-data acceptance is). Until that data
-    path is wired we raise rather than fabricate a book — the orchestrator it will call is in
-    place and unit-tested."""
-    raise NotImplementedError(
-        "portfolio construction (PORT-001) routes to portfolio_evidence_package; the sleeve "
-        "backtests (equity momentum via the store + cross-asset via the Total-Return Adapter) "
-        "and the reproduction run are the data-gated §2 remainder — see "
-        "docs/implementation/TradingWorkbench_PORT001_ImplementationPlan_v1.0.md."
-    )
+    Routes through the **shared reproduction harness** (the canonical reproduction path):
+    ``reproduction.build_self_stack_inputs`` builds the sleeve return series from the platform's
+    own data stack — the equity-momentum sleeve from ``store`` (Sharadar) and the cross-asset
+    sleeve from the §1 **Total-Return Adapter** (live ETF bars, the one network read; off the
+    order path, ADR 0019) — then ``portfolio_evidence_package`` ERC-blends them into the Evidence
+    Package (combined curve metrics + look-through evidence + verdict). Same code the CLI harness
+    runs, so the runner and the harness never drift. Note: PORT-001's *validation* rests on the
+    construction-verification gate (``EvidencePackage_PORT-001_v1.0.md``); this self-stack path is
+    the data-fidelity study companion (``SelfStackDataFidelity_PORT-001_v0.1.md``)."""
+    from app.research.factor_lab.portfolio import portfolio_evidence_package
+    from app.research.factor_lab.reproduction import build_self_stack_inputs
+
+    pf = spec.portfolio
+    if pf is None:
+        raise NotImplementedError(f"{spec.id}: portfolio construction requires a PortfolioSpec")
+    sleeve_returns, internal, trades = build_self_stack_inputs(spec, store)
+    pkg = portfolio_evidence_package(
+        sleeve_returns, internal, equity_sleeve=pf.equity_sleeve, verdict=spec.verdict)
+    return {
+        "program": spec.id, "name": spec.name, "philosophy": spec.philosophy,
+        "window": [str(spec.start), str(spec.end)], "n": spec.n, "trades": trades,
+        **pkg,  # construction, metrics, book, regime, n_days, outcome, action, look-through
+    }
 
 
 def _run_sector_baskets(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:

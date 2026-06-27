@@ -1,51 +1,43 @@
-"""PORT-001 reproduction harness — the pure data-machine helpers (no data env needed).
+"""PORT-001 self-stack builders — the pure data-machine helpers (no data env needed).
 
-The script's real-data path (`_build_real_inputs`) needs a non-Norton machine with Sharadar +
-Alpaca, but its building blocks — trade counting, curve→returns, the Sharadar distributions
-parser — are pure and CI-guarded here. The script is loaded via importlib (it lives under
-``scripts/`` with a ``sys.path`` bootstrap, not an importable package)."""
+The self-stack real-data path needs a non-Norton machine with Sharadar + Alpaca, but its
+building blocks — trade counting, curve→returns, the Sharadar distributions parser — are pure
+and CI-guarded here. They live in the importable ``app.research.factor_lab.reproduction`` module
+(shared by the CLI harness's ``--db`` mode and the Factor Lab runner's ``_run_portfolio``)."""
 
 from __future__ import annotations
 
-import importlib.util
 from datetime import date
-from pathlib import Path
 
 import pandas as pd
-import pytest
 
-_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "run_port001_reproduction.py"
-
-
-@pytest.fixture(scope="module")
-def harness():
-    spec = importlib.util.spec_from_file_location("port001_reproduction_harness", _SCRIPT)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+from app.research.factor_lab.reproduction import (
+    SharadarDistributions,
+    count_trades,
+    curve_returns,
+)
 
 
-def test_count_trades_counts_opens_reweights_and_closes(harness):
+def test_count_trades_counts_opens_reweights_and_closes():
     # rebalance 1 opens A+B (2); rb 2 closes B (1); rb 3 opens C (1); rb 4 reweights A (1) → 5.
     history = [{"A": 0.5, "B": 0.5}, {"A": 0.5}, {"A": 0.5, "C": 0.5}, {"A": 0.7, "C": 0.5}]
-    assert harness._count_trades(history) == 5
+    assert count_trades(history) == 5
 
 
-def test_count_trades_ignores_subthreshold_drift(harness):
+def test_count_trades_ignores_subthreshold_drift():
     history = [{"A": 0.5}, {"A": 0.5 + 1e-9}]   # below tol → not a trade
-    assert harness._count_trades(history) == 1   # only the initial open
+    assert count_trades(history) == 1           # only the initial open
 
 
-def test_curve_returns_simple_returns_drop_first(harness):
+def test_curve_returns_simple_returns_drop_first():
     curve = [(date(2020, 1, 1), 100.0), (date(2020, 1, 2), 110.0), (date(2020, 1, 3), 99.0)]
-    r = harness._curve_returns(curve)
+    r = curve_returns(curve)
     assert [round(x, 4) for x in r.tolist()] == [0.1, -0.1]
     assert len(r) == 2                            # first (no-prior) point dropped
 
 
-def test_curve_returns_empty_for_short_curve(harness):
-    assert harness._curve_returns([(date(2020, 1, 1), 100.0)]).empty
+def test_curve_returns_empty_for_short_curve():
+    assert curve_returns([(date(2020, 1, 1), 100.0)]).empty
 
 
 class _FakeResult:
@@ -70,7 +62,7 @@ class _FakeStore:
         self.con = _FakeCon(rows)
 
 
-def test_sharadar_distributions_parses_dividends_and_splits(harness):
+def test_sharadar_distributions_parses_dividends_and_splits():
     rows = [
         (date(2021, 3, 19), "dividend", 1.23),
         (date(2021, 6, 18), "Dividend", 0.50),     # case-insensitive
@@ -78,16 +70,16 @@ def test_sharadar_distributions_parses_dividends_and_splits(harness):
         (date(2021, 9, 1), "spinoff", 5.0),        # neither div nor split → ignored
         (date(2021, 9, 2), "dividend", None),      # null value → skipped
     ]
-    prov = harness._SharadarDistributions(_FakeStore(rows))
+    prov = SharadarDistributions(_FakeStore(rows))
     div, spl = prov.distributions("TLT", pd.Timestamp("2021-01-01"), pd.Timestamp("2021-12-31"))
     assert div.to_dict() == {pd.Timestamp("2021-03-19"): 1.23, pd.Timestamp("2021-06-18"): 0.50}
     assert spl.to_dict() == {pd.Timestamp("2021-08-25"): 4.0}
 
 
-def test_sharadar_distributions_failsoft_on_missing_table(harness):
+def test_sharadar_distributions_failsoft_on_missing_table():
     class _Boom:
         con = type("C", (), {"execute": lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError())})()
 
-    div, spl = harness._SharadarDistributions(_Boom()).distributions(
+    div, spl = SharadarDistributions(_Boom()).distributions(
         "SPY", pd.Timestamp("2020-01-01"), pd.Timestamp("2020-12-31"))
     assert div.empty and spl.empty               # no actions table → price-return leg, no crash
