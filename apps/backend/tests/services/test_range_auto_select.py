@@ -28,6 +28,7 @@ from app.db.enums import (
 )
 from app.db.models.account import Account, AccountMode
 from app.db.models.audit_log import AuditLog
+from app.db.models.backtest_result import BacktestResult
 from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.strategy import Strategy as StrategyRow
@@ -35,6 +36,7 @@ from app.db.models.symbol import Symbol
 from app.services.range_auto_select import (
     AUTOSELECT_SOURCE,
     find_autoselect_range_strategies,
+    load_range_backtest_evidence,
     refresh_range_universe,
     run_daily_range_universe,
     select_range_universe,
@@ -199,6 +201,61 @@ async def _seed_order(
             created_at=now, updated_at=now,
         ))
         await s.commit()
+
+
+async def _seed_backtest(
+    session_factory: Any, *, strategy_id: int, win_rate: float | None, trades: int | None,
+    sharpe: float | None = 0.1, created_at: datetime | None = None, label: str = "bt",
+) -> None:
+    now = created_at or datetime.now(UTC)
+    metrics: dict[str, Any] = {}
+    if win_rate is not None:
+        metrics["win_rate"] = win_rate
+    if trades is not None:
+        metrics["trade_count"] = trades
+    if sharpe is not None:
+        metrics["sharpe_ratio"] = sharpe
+    async with session_factory() as s:
+        s.add(BacktestResult(
+            strategy_id=strategy_id, label=label, metrics_json=metrics,
+            range_start=now, range_end=now, created_at=now,
+        ))
+        await s.commit()
+
+
+# ---- evidence loader (0-trade guard, ADR 0028 review §14.1 — AAPL anomaly) ----
+
+
+async def test_load_evidence_skips_zero_trade_backtest(db) -> None:
+    """A backtest with trade_count == 0 carries no win-rate signal: it must NOT become
+    evidence (else its win_rate=0.0 sorts the symbol ABOVE genuine non-backtested names).
+    A symbol with real trades is still loaded."""
+    zsid = await _seed_strategy(db, symbols=["ZTRADE"], status=StrategyStatus.IDLE, params={})
+    await _seed_backtest(db, strategy_id=zsid, win_rate=0.0, trades=0)
+    rsid = await _seed_strategy(db, symbols=["REALSYM"], status=StrategyStatus.IDLE, params={})
+    await _seed_backtest(db, strategy_id=rsid, win_rate=0.5, trades=10)
+
+    async with db() as s:
+        ev = await load_range_backtest_evidence(s, ["ZTRADE", "REALSYM"])
+
+    assert "ZTRADE" not in ev  # 0-trade backtest → no evidence → structural fallback
+    assert "REALSYM" in ev and ev["REALSYM"].win_rate == 0.5 and ev["REALSYM"].n_trades == 10
+
+
+async def test_load_evidence_falls_back_to_older_nondegenerate_backtest(db) -> None:
+    """When the LATEST backtest is degenerate (0 trades) but an older one has real trades,
+    the older non-degenerate result is used rather than discarding the symbol entirely."""
+    sid = await _seed_strategy(db, symbols=["FALLBK"], status=StrategyStatus.IDLE, params={})
+    old = datetime(2026, 6, 20, 12, tzinfo=UTC)
+    new = datetime(2026, 6, 25, 12, tzinfo=UTC)
+    await _seed_backtest(db, strategy_id=sid, win_rate=0.6, trades=8, created_at=old, label="old")
+    await _seed_backtest(db, strategy_id=sid, win_rate=0.0, trades=0, created_at=new, label="new")
+
+    async with db() as s:
+        ev = await load_range_backtest_evidence(s, ["FALLBK"])
+
+    assert "FALLBK" in ev
+    assert ev["FALLBK"].win_rate == 0.6 and ev["FALLBK"].n_trades == 8  # older real one wins
 
 
 # ---- discovery ----

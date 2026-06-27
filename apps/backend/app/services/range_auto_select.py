@@ -170,10 +170,19 @@ async def load_range_backtest_evidence(
         m = r.metrics_json or {}
         if esym is None or m.get("win_rate") is None:
             continue
+        # A backtest that produced ZERO trades carries no win-rate signal — treat it as NO
+        # evidence (skip it). Otherwise a degenerate 0-trade run reads as win_rate=0.0 and,
+        # because it is "evidenced", sorts ABOVE genuinely range-bound non-backtested names
+        # (the AAPL anomaly: AAPL's 0-trade backtest displaced real candidates). The symbol
+        # then correctly falls back to structural ranking, and an older non-degenerate
+        # backtest (if any) wins instead, since results are ordered oldest→newest.
+        tc = m.get("trade_count")
+        if tc is None or int(tc) <= 0:
+            continue
         evidence[esym] = CandidateEvidence(
             win_rate=float(m["win_rate"]),
             sharpe=(float(m["sharpe_ratio"]) if m.get("sharpe_ratio") is not None else None),
-            n_trades=(int(m["trade_count"]) if m.get("trade_count") is not None else None),
+            n_trades=int(tc),
             as_of=r.created_at,
             label=r.label,
         )
