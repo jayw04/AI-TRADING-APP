@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.services.range_insight import (
     DEFAULT_CANDIDATE_UNIVERSE,
     CandidateEvidence,
+    HardFilters,
     RangeInsight,
     rank_candidates,
     top_range_symbols,
@@ -13,12 +14,13 @@ from app.services.range_insight import (
 
 def _ri(symbol: str, *, status="ok", atr20_pct=None, classification=None,
         atr20=None, intraday_range=None, last_close=100.0,
-        efficiency_ratio=None) -> RangeInsight:
-    """A RangeInsight with only the ranking-relevant fields set; rest are inert."""
+        efficiency_ratio=None, adv=1e9) -> RangeInsight:
+    """A RangeInsight with only the ranking-relevant fields set; rest are inert.
+    ``adv`` defaults to $1B so candidates clear the liquidity hard filter unless overridden."""
     return RangeInsight(
         symbol=symbol, status=status, bars_used=60, low_confidence=False, as_of=None,
         anchor=None, anchor_source=None, last_close=last_close, atr20=atr20,
-        atr20_pct=atr20_pct, typical_move_up=None, typical_move_down=None,
+        atr20_pct=atr20_pct, adv=adv, typical_move_up=None, typical_move_down=None,
         support=None, resistance=None, high_band=None, low_band=None,
         intraday_range=intraday_range, classification=classification,
         efficiency_ratio=efficiency_ratio,
@@ -207,6 +209,39 @@ def test_top_range_symbols_min_score_floor():
     # A floor between the two keeps only AMD; a floor above both selects nothing (skip day).
     assert top_range_symbols(ranked, n=5, min_score=0.03) == ["AMD"]
     assert top_range_symbols(ranked, n=5, min_score=0.10) == []
+
+
+# --- Hard filters → qualified universe (two-step screen, ADR 0028 review #4) ---
+
+def test_hard_filters_tag_qualified_with_reason():
+    fil = HardFilters(min_price=10.0, min_adv=50_000_000.0, min_atr_pct=0.03)
+    out = rank_candidates([
+        _ri("OK",    atr20_pct=0.05, classification="range_bound", last_close=100, adv=1e8),
+        _ri("THIN",  atr20_pct=0.01, classification="range_bound", last_close=100, adv=1e8),
+        _ri("ILLIQ", atr20_pct=0.05, classification="range_bound", last_close=100, adv=1e6),
+        _ri("CHEAP", atr20_pct=0.05, classification="range_bound", last_close=5,   adv=1e8),
+    ], hard_filters=fil)
+    by = {c.symbol: c for c in out}
+    assert by["OK"].qualified is True and by["OK"].qualify_reason is None
+    assert by["THIN"].qualified is False and by["THIN"].qualify_reason == "atr_below_min"
+    assert by["ILLIQ"].qualify_reason == "adv_below_min"
+    assert by["CHEAP"].qualify_reason == "price_below_min"
+
+
+def test_top_range_symbols_require_qualified_gates_universe():
+    out = rank_candidates([
+        _ri("OK",   atr20_pct=0.05, classification="range_bound", adv=1e8),
+        _ri("THIN", atr20_pct=0.01, classification="range_bound", adv=1e8),  # fails ATR% filter
+    ], hard_filters=HardFilters())
+    # Qualified universe only (range-boundness is a score factor, not a gate → require_suitable False).
+    assert top_range_symbols(out, n=5, require_suitable=False, require_qualified=True) == ["OK"]
+    # Without require_qualified the hard filter doesn't gate (back-compatible).
+    assert set(top_range_symbols(out, n=5, require_suitable=False)) == {"OK", "THIN"}
+
+
+def test_no_hard_filters_all_ok_are_qualified():
+    out = rank_candidates([_ri("X", atr20_pct=0.05, classification="range_bound")])  # filters None
+    assert out[0].qualified is True and out[0].qualify_reason is None
 
 
 def test_top_range_symbols_excludes_unsuitable_and_insufficient():

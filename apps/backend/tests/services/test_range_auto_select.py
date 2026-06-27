@@ -38,6 +38,7 @@ from app.services.range_auto_select import (
     refresh_range_universe,
     run_daily_range_universe,
     select_range_universe,
+    select_range_universe_detailed,
 )
 
 RANGE_CODE = "templates/range_trader.py"
@@ -56,9 +57,26 @@ def _range_bound_bars() -> pd.DataFrame:
     )
 
 
+def _calm_bars() -> pd.DataFrame:
+    # Tight daily range → ATR% ≈ 0.4% (< the 3% hard filter).
+    end = pd.Timestamp(2026, 6, 25, 13, tz="UTC")
+    dates = [end - pd.Timedelta(days=24 - i) for i in range(25)]
+    return pd.DataFrame(
+        {"t": dates, "o": [100.0] * 25, "h": [100.2] * 25, "l": [99.8] * 25,
+         "c": [100.0] * 25, "v": [1_000_000] * 25}
+    )
+
+
 class _FakeBarCache:
     async def get_bars(self, symbol: str, tf: str, start: Any, end: Any) -> pd.DataFrame:
         return _range_bound_bars()
+
+
+class _MixedBarCache:
+    """CALM has too-thin a range to clear the ATR% hard filter; everything else qualifies."""
+
+    async def get_bars(self, symbol: str, tf: str, start: Any, end: Any) -> pd.DataFrame:
+        return _calm_bars() if symbol == "CALM" else _range_bound_bars()
 
 
 class _FakeEngine:
@@ -243,6 +261,18 @@ async def test_select_range_universe_min_score_floor(db) -> None:
     assert some == ["AAA", "BBB"]
 
 
+async def test_select_excludes_names_failing_hard_filters(db) -> None:
+    # Two-step screen: CALM fails the ATR% hard filter → not in the qualified universe → not picked.
+    async with db() as s:
+        picks, ranked = await select_range_universe_detailed(
+            s, bar_cache=_MixedBarCache(), n=3, universe=["CALM", "AAA", "BBB"], now=WEEKDAY
+        )
+    assert "CALM" not in picks
+    assert set(picks) == {"AAA", "BBB"}
+    calm = next(c for c in ranked if c.symbol == "CALM")
+    assert calm.qualified is False and calm.qualify_reason == "atr_below_min"
+
+
 # ---- orchestration ----
 
 async def test_refresh_min_score_skips_weak_day(db) -> None:
@@ -285,6 +315,27 @@ async def test_audit_records_selection_evidence(db) -> None:
     assert all(c["score"] > 0 for c in sel["selected"])
     # CCC ranked beyond N → recorded as excluded with a reason.
     assert {"symbol": "CCC", "reason": "rank_beyond_n"} in sel["excluded"]
+
+
+async def test_audit_records_hard_filter_exclusion(db) -> None:
+    # The selection evidence records a hard-filter exclusion + the qualified-universe size.
+    sid = await _seed_strategy(
+        db, symbols=["ZZZ"], status=StrategyStatus.PAPER,
+        params={"auto_select_top_n": 3, "auto_select_universe": ["CALM", "AAA", "BBB"]},
+    )
+    await refresh_range_universe(
+        db, _FakeEngine(db), _MixedBarCache(), strategy_id=sid, n=3,
+        universe=["CALM", "AAA", "BBB"], now=WEEKDAY,
+    )
+    async with db() as s:
+        row = (
+            await s.execute(
+                select(AuditLog).where(AuditLog.action == AuditAction.STRATEGY_UPDATED.value)
+            )
+        ).scalars().first()
+    sel = json.loads(row.payload_json)["selection"]
+    assert sel["universe_size"] == 3 and sel["qualified_size"] == 2  # CALM filtered out
+    assert {"symbol": "CALM", "reason": "atr_below_min"} in sel["excluded"]
 
 
 # ---- orchestration ----

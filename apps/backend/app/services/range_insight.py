@@ -56,6 +56,7 @@ class RangeInsight:
     last_close: float | None
     atr20: float | None
     atr20_pct: float | None
+    adv: float | None  # avg daily $ volume (mean close×volume over the window) — liquidity filter
     typical_move_up: MoveStats | None
     typical_move_down: MoveStats | None
     support: float | None
@@ -82,6 +83,7 @@ def _insufficient(
         last_close=None,
         atr20=None,
         atr20_pct=None,
+        adv=None,
         typical_move_up=None,
         typical_move_down=None,
         support=None,
@@ -180,6 +182,8 @@ def range_insight_from_bars(
     )
 
     er = _efficiency_ratio(stats["c"])
+    # Average daily dollar volume over the window — the liquidity hard filter (ADR 0028 §4).
+    adv = float((stats["c"] * stats["v"]).mean())
 
     return RangeInsight(
         symbol=symbol,
@@ -192,6 +196,7 @@ def range_insight_from_bars(
         last_close=last_close,
         atr20=atr20,
         atr20_pct=(atr20 / last_close if last_close else None),
+        adv=adv,
         typical_move_up=_move_stats(up),
         typical_move_down=_move_stats(down),
         support=float(stats["l"].min()),
@@ -239,6 +244,39 @@ DEFAULT_CANDIDATE_UNIVERSE: tuple[str, ...] = (
 
 
 @dataclass(frozen=True)
+class HardFilters:
+    """The two-step screen's first stage (ADR 0028 review #4 / design §"hard filters"):
+    a name must pass ALL of these to enter the *qualified universe* and receive a Range
+    Score — preventing a stock with one strong metric but poor liquidity/range from ranking.
+
+    Only the filters computable from daily bars are enforced (price, avg daily $ volume,
+    ATR%). RVOL (>1.5) and average spread (<0.10%) from the owner's list are **deferred** —
+    RVOL needs intraday volume (unavailable at the ~09:00 ET pre-open run) and spread needs
+    quote data the bar cache does not carry; both join once that data is wired."""
+
+    min_price: float = 10.0
+    min_adv: float = 50_000_000.0   # $50M average daily dollar volume
+    min_atr_pct: float = 0.03       # 3% ATR
+
+
+DEFAULT_HARD_FILTERS = HardFilters()
+
+
+def _qualify_reason(insight: RangeInsight, f: HardFilters) -> str | None:
+    """None if the insight clears every (enforced) hard filter, else the first failure
+    reason: insufficient_data | price_below_min | adv_below_min | atr_below_min."""
+    if insight.status != STATUS_OK:
+        return "insufficient_data"
+    if insight.last_close is None or insight.last_close < f.min_price:
+        return "price_below_min"
+    if insight.adv is None or insight.adv < f.min_adv:
+        return "adv_below_min"
+    if insight.atr20_pct is None or insight.atr20_pct < f.min_atr_pct:
+        return "atr_below_min"
+    return None
+
+
+@dataclass(frozen=True)
 class CandidateEvidence:
     """Realized range-trading performance for a symbol, taken from its most recent range
     backtest. When present this *overrides* the structural prior in the ranking — the
@@ -273,6 +311,12 @@ class RangeCandidate:
     sharpe: float | None = None
     n_trades: int | None = None
     backtested: bool = False
+    # Two-step screen: avg daily $ volume + whether the name cleared the hard filters
+    # (the qualified universe). ``qualified`` defaults True so candidates built without
+    # filters (e.g. the descriptive view) are unaffected.
+    adv: float | None = None
+    qualified: bool = True
+    qualify_reason: str | None = None  # why it was excluded from the qualified universe
 
 
 def _oscillation(insight: RangeInsight) -> float:
@@ -300,11 +344,17 @@ def rank_candidates(
     insights: Iterable[RangeInsight],
     *,
     evidence: dict[str, CandidateEvidence] | None = None,
+    hard_filters: HardFilters | None = None,
 ) -> list[RangeCandidate]:
     """Pure ranking over already-computed insights. Evidence-first (design §8.4): a symbol
     with a realized range backtest (``evidence`` carrying a non-null ``win_rate``) ranks by
     that win rate then Sharpe, ABOVE any name without one; the rest fall back to the
-    structural Range Score. ``evidence`` is keyed by uppercased symbol."""
+    structural Range Score. ``evidence`` is keyed by uppercased symbol.
+
+    When ``hard_filters`` is given, each candidate is also tagged ``qualified`` (passed the
+    price/ADV/ATR% screen) with a ``qualify_reason`` on failure; ranking order is unchanged
+    (the qualified universe is applied at selection time). ``None`` → every ``ok`` candidate
+    is qualified (descriptive view)."""
     ev_by_symbol = {k.upper(): v for k, v in (evidence or {}).items()}
     rows = []
     for ins in insights:
@@ -314,9 +364,14 @@ def rank_candidates(
             and ins.classification == "range_bound"
             and ins.atr20_pct is not None
         )
+        if hard_filters is None:
+            qreason = None if ins.status == "ok" else "insufficient_data"
+        else:
+            qreason = _qualify_reason(ins, hard_filters)
+        qualified = qreason is None
         ev = ev_by_symbol.get(ins.symbol.upper())
         has_ev = ev is not None and ev.win_rate is not None
-        rows.append((score, ins, suitable, ev, has_ev))
+        rows.append((score, ins, suitable, ev, has_ev, qualified, qreason))
 
     # Evidenced names first (group 0), ranked by win_rate desc then sharpe desc; the rest
     # (group 1) by structural score desc. Ties: atr20_pct desc, then symbol (deterministic).
@@ -341,8 +396,9 @@ def rank_candidates(
             sharpe=(ev.sharpe if ev else None),
             n_trades=(ev.n_trades if ev else None),
             backtested=has_ev,
+            adv=ins.adv, qualified=qualified, qualify_reason=qreason,
         )
-        for i, (score, ins, suitable, ev, has_ev) in enumerate(rows)
+        for i, (score, ins, suitable, ev, has_ev, qualified, qreason) in enumerate(rows)
     ]
 
 
@@ -352,10 +408,11 @@ async def rank_range_candidates(
     bar_cache: Any,
     now: datetime,
     evidence: dict[str, CandidateEvidence] | None = None,
+    hard_filters: HardFilters | None = None,
 ) -> list[RangeCandidate]:
     """Compute Range Insight for each symbol concurrently, then rank evidence-first
-    (realized backtest win rate, then the structural Range Score). Fail-soft per symbol
-    (``compute_range_insight`` never raises)."""
+    (realized backtest win rate, then the structural Range Score), tagging each with whether
+    it cleared ``hard_filters``. Fail-soft per symbol (``compute_range_insight`` never raises)."""
     deduped: dict[str, None] = {}
     for s in symbols:
         if s and s.strip():
@@ -363,25 +420,28 @@ async def rank_range_candidates(
     insights = await asyncio.gather(
         *(compute_range_insight(s, bar_cache=bar_cache, now=now) for s in deduped)
     )
-    return rank_candidates(insights, evidence=evidence)
+    return rank_candidates(insights, evidence=evidence, hard_filters=hard_filters)
 
 
 def eligible_range_candidates(
     candidates: Iterable[RangeCandidate],
     *,
     require_suitable: bool = True,
+    require_qualified: bool = False,
     min_score: float = 0.0,
 ) -> list[RangeCandidate]:
-    """The eligible candidates, in rank order: ``ok``, optionally range-bound + usable ATR%
-    (``require_suitable``), and clearing the minimum structural Range-Score floor
-    (``min_score``). The floor ensures a pick has enough daily range to be a viable fade
-    target — a quality gate so a weak day yields fewer names (or none) rather than filling
-    slots with poor setups (design §"minimum quality" / ADR 0028 review #4). 0 = no floor."""
+    """The eligible candidates, in rank order: ``ok``; in the qualified universe when
+    ``require_qualified`` (passed the price/ADV/ATR% hard filters); optionally range-bound +
+    usable ATR% (``require_suitable``); and clearing the absolute Range-Score floor
+    (``min_score``). The two-step screen (ADR 0028 review #4) gates on the **hard filters**;
+    ``min_score`` is the optional *absolute* cutoff (0 = off, the research-phase default —
+    Top-N is collected regardless of absolute score to gather calibration evidence)."""
     return [
         c
         for c in candidates
         if c.status == "ok"
         and (c.suitable or not require_suitable)
+        and (c.qualified or not require_qualified)
         and c.score >= min_score
     ]
 
@@ -391,17 +451,19 @@ def top_range_symbols(
     *,
     n: int = 5,
     require_suitable: bool = True,
+    require_qualified: bool = False,
     min_score: float = 0.0,
 ) -> list[str]:
     """The day's Top-N range picks, in rank order — the symbol list the Candidate Engine
     hands to the Range Trader (design §"Top 3–5 candidates"). ``candidates`` must already be
-    ranked (output of ``rank_candidates``). Eligibility: ``ok``, range-bound + usable ATR%
-    (``require_suitable``), and ``score >= min_score``. A thin/trending day yields FEWER than
-    ``n`` picks rather than forcing in poor candidates (no silent padding). ``n <= 0`` → none."""
+    ranked (output of ``rank_candidates``). See ``eligible_range_candidates`` for the gates.
+    A thin day yields FEWER than ``n`` picks rather than padding (no silent padding).
+    ``n <= 0`` → none."""
     if n <= 0:
         return []
     picks = eligible_range_candidates(
-        candidates, require_suitable=require_suitable, min_score=min_score
+        candidates, require_suitable=require_suitable,
+        require_qualified=require_qualified, min_score=min_score,
     )
     return [c.symbol for c in picks[:n]]
 
@@ -414,13 +476,16 @@ async def select_top_range_symbols(
     n: int = 5,
     evidence: dict[str, CandidateEvidence] | None = None,
     require_suitable: bool = True,
+    require_qualified: bool = False,
     min_score: float = 0.0,
+    hard_filters: HardFilters | None = None,
 ) -> list[str]:
     """Rank a universe (evidence-first) and return today's Top-N symbols to range-trade.
     The daily auto-select entry point: ``rank_range_candidates`` → ``top_range_symbols``."""
     ranked = await rank_range_candidates(
-        symbols, bar_cache=bar_cache, now=now, evidence=evidence
+        symbols, bar_cache=bar_cache, now=now, evidence=evidence, hard_filters=hard_filters
     )
     return top_range_symbols(
-        ranked, n=n, require_suitable=require_suitable, min_score=min_score
+        ranked, n=n, require_suitable=require_suitable,
+        require_qualified=require_qualified, min_score=min_score,
     )
