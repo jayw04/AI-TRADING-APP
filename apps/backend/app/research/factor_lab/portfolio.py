@@ -16,11 +16,15 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from app.factor_data import evidence as ev
 from app.research.factor_lab.erc import erc_weights, risk_contributions
+from app.research.factor_lab.spec import VerdictSpec
+from app.research.factor_lab.verdict import classify
 
 # Correlation-regime → whole-book gross multiplier (spec §3.3; de-risk only, never > 1.0).
 REGIME_GROSS: dict[str, float] = {"GREEN": 1.0, "AMBER": 1.0, "RED": 0.6, "BLACK": 0.3}
@@ -98,3 +102,60 @@ def construct_portfolio(
         regime_multiplier=g, sleeve_risk_contributions=sleeve_rc,
         sleeve_correlation=sleeve_corr, equity_risk_fraction=equity_rc,
     )
+
+
+def portfolio_evidence_package(
+    sleeve_returns: pd.DataFrame,
+    sleeve_internal_weights: dict[str, dict[str, float]],
+    *,
+    equity_sleeve: str,
+    budgets: dict[str, float] | None = None,
+    regime: str = "GREEN",
+    initial_equity: float = 100_000.0,
+    verdict: VerdictSpec | None = None,
+) -> dict[str, Any]:
+    """Run-program-shaped **Evidence Package** for a multi-sleeve portfolio program — the
+    PCE's integration into Factor Lab (ADR 0030 #1). ERC-blends the sleeves' daily returns
+    into a combined book, derives the combined equity curve, and emits the same curve metrics
+    the single-factor packages do (via ``app.factor_data.evidence``) **plus** the
+    portfolio-level look-through evidence (sleeve correlation, equity risk fraction). Optionally
+    classifies the verdict. Pure/deterministic over the sleeve return series.
+
+    The combined daily return is ``g · Σ_s w_s·r_s`` (ERC sleeve weights ``w_s`` × the regime
+    de-risk gross ``g``; the un-invested fraction is cash earning 0)."""
+    book = construct_portfolio(
+        sleeve_returns, sleeve_internal_weights,
+        equity_sleeve=equity_sleeve, budgets=budgets, regime=regime,
+    )
+    sleeves = list(sleeve_returns.columns)
+    w = np.array([book.sleeve_weights.get(s, 0.0) for s in sleeves], dtype=float)
+    combined = book.regime_multiplier * (sleeve_returns[sleeves].to_numpy(dtype=float) @ w)
+    series = pd.Series(combined, index=sleeve_returns.index).fillna(0.0)
+
+    equity = float(initial_equity) * (1.0 + series).cumprod()
+    curve = [(pd.Timestamp(ts).date(), float(v)) for ts, v in equity.items()]
+    rets = ev.daily_returns(curve)
+    cagr = ev.cagr(curve)
+    mdd = ev.max_drawdown(curve)
+    metrics: dict[str, Any] = {
+        "sharpe": round(ev.sharpe(rets), 4),
+        "cagr": round(cagr, 4),
+        "max_drawdown": round(mdd, 4),
+        "calmar": round(ev.calmar(cagr, mdd), 4),
+        "ann_volatility": round(ev.ann_volatility(rets), 4),
+        "total_return": round(ev.total_return(curve), 4),
+        "sleeve_correlation": book.sleeve_correlation,
+        "equity_risk_fraction": book.equity_risk_fraction,
+        "sleeve_weights": book.sleeve_weights,
+        "gross": round(book.gross, 4),
+    }
+    outcome, action = (classify(metrics, verdict) if verdict is not None else (None, None))
+    return {
+        "construction": "portfolio",
+        "metrics": metrics,
+        "book": book.weights,
+        "regime": book.regime,
+        "n_days": len(curve),
+        "outcome": outcome,
+        "action": action,
+    }

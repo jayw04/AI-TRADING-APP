@@ -153,9 +153,32 @@ def run_program(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:
         return _run_participation(spec, store=store)
     if spec.construction == "sector_baskets":
         return _run_sector_baskets(spec, store=store)
+    if spec.construction == "portfolio":
+        return _run_portfolio(spec, store=store)
     raise NotImplementedError(
         f"unknown construction {spec.construction!r}; supported = "
-        "'quantile' | 'participation' | 'sector_baskets'")
+        "'quantile' | 'participation' | 'sector_baskets' | 'portfolio'")
+
+
+def _run_portfolio(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:
+    """PORT-001 multi-sleeve portfolio pipeline (ADR 0030 #1; the Portfolio Construction
+    Engine). Runs each sleeve's backtest, ERC-blends them, and assembles the Evidence Package
+    via ``app.research.factor_lab.portfolio.portfolio_evidence_package`` (the tested
+    orchestrator — combined curve metrics + the look-through evidence + the verdict).
+
+    Building the sleeve return series requires the real data the equivalence run needs: the
+    equity-momentum sleeve from ``store`` (Sharadar) and the cross-asset sleeve from the §1
+    **Total-Return Adapter** (Alpaca total-return ETF bars, Norton-gated). That sleeve-data
+    wiring + the reproduction → Onboarding Gate run are the **data-gated §2 remainder**, run
+    offline at the gate (as the other constructions' real-data acceptance is). Until that data
+    path is wired we raise rather than fabricate a book — the orchestrator it will call is in
+    place and unit-tested."""
+    raise NotImplementedError(
+        "portfolio construction (PORT-001) routes to portfolio_evidence_package; the sleeve "
+        "backtests (equity momentum via the store + cross-asset via the Total-Return Adapter) "
+        "and the reproduction run are the data-gated §2 remainder — see "
+        "docs/implementation/TradingWorkbench_PORT001_ImplementationPlan_v1.0.md."
+    )
 
 
 def _run_sector_baskets(spec: ProgramSpec, *, store: FactorDataStore) -> dict[str, Any]:
