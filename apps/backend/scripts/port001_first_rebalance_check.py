@@ -76,7 +76,7 @@ async def main() -> int:
 
         fired = bool(strat_orders) or bool(sigs)
         if not fired:
-            warns.append("NO orders and NO signals from the strategy today — rebalance may not "
+            warns.append("NO orders and NO signals from the strategy today -- rebalance may not "
                          "have fired yet (check the time / cron) or the book went to cash (regime/"
                          "factor HOLD). Inspect `docker compose logs backend`.")
 
@@ -99,27 +99,28 @@ async def main() -> int:
         breaker_tripped = bool(brk and brk[0].get("circuit_breaker_tripped_at"))
         if breaker_tripped:
             fails.append(f"CIRCUIT BREAKER TRIPPED on account {ACCOUNT_ID} at "
-                         f"{brk[0]['circuit_breaker_tripped_at']} — HALT; see the breaker-recovery runbook")
+                         f"{brk[0]['circuit_breaker_tripped_at']} -- HALT; see the breaker-recovery runbook")
         if state and state[0].get("trading_blocked"):
             fails.append("account trading_blocked = true")
         if rejected:
             warns.append(f"{len(rejected)} order(s) rejected: "
                          + ", ".join(sorted({str(o['rejection_reason']) for o in rejected})))
 
-    # ---- report ----
-    out.append(f"# PORT-001 §4 — Combined Book first-rebalance check ({today})")
+    # ---- report (ASCII-only: the report crosses docker->PowerShell->file, where non-ASCII
+    # gets mangled by the console code page; keep it bulletproof in any environment) ----
+    out.append(f"# PORT-001 S4 - Combined Book first-rebalance check ({today})")
     out.append("")
-    out.append(f"- Strategy: id={STRATEGY_ID} {st.get('name','?')} · status **{st.get('status','?')}** "
-               f"· updated {st.get('updated_at','?')}")
+    out.append(f"- Strategy: id={STRATEGY_ID} {st.get('name','?')} | status **{st.get('status','?')}** "
+               f"| updated {st.get('updated_at','?')}")
     out.append(f"- Rebalance fired: **{'YES' if fired else 'NO'}** "
                f"({len(strat_orders)} strategy orders, {len(sigs)} signals today)")
-    out.append(f"- Orders: {len(strat_orders)} submitted · {len(filled)} filled · {len(rejected)} rejected")
-    out.append(f"- Positions (account {ACCOUNT_ID}): {len(held)} held — "
+    out.append(f"- Orders: {len(strat_orders)} submitted | {len(filled)} filled | {len(rejected)} rejected")
+    out.append(f"- Positions (account {ACCOUNT_ID}): {len(held)} held -- "
                f"equity sleeve {len(eq_held)} names, cross-asset ETFs {etf_held}")
     if state:
-        out.append(f"- Account state: equity {state[0].get('equity')} · "
-                   f"day_change_pct {state[0].get('day_change_pct')} · status {state[0].get('status')}")
-    out.append(f"- Circuit breaker: {'TRIPPED ⚠' if breaker_tripped else 'clean'}")
+        out.append(f"- Account state: equity {state[0].get('equity')} | "
+                   f"day_change_pct {state[0].get('day_change_pct')} | status {state[0].get('status')}")
+    out.append(f"- Circuit breaker: {'TRIPPED [!]' if breaker_tripped else 'clean'}")
     if snap:
         out.append(f"- Latest equity snapshot: {snap[0].get('ts')} equity {snap[0].get('equity')} "
                    f"(Continuous-Evidence / L4 signal)")
@@ -129,15 +130,15 @@ async def main() -> int:
     verdict = "FAIL" if fails else ("WARN" if warns else "PASS")
     out.append(f"## Verdict: {verdict}")
     for f in fails:
-        out.append(f"- ❌ {f}")
+        out.append(f"- [FAIL] {f}")
     for w in warns:
-        out.append(f"- ⚠ {w}")
+        out.append(f"- [WARN] {w}")
     if verdict == "PASS":
-        out.append("- ✅ Rebalance fired, orders filled, risk gates clean, evidence accruing — "
+        out.append("- [OK] Rebalance fired, orders filled, risk gates clean, evidence accruing -- "
                    "the first L4 Continuous-Evidence data point.")
     out.append("")
     out.append("_Read-only check. Smart diagnosis/fix is the Claude post-rebalance task; this is "
-               "the headless evidence-capture backstop. Do NOT retire the sibling (§6) yet._")
+               "the headless evidence-capture backstop. Do NOT retire the sibling (S6) yet._")
     print("\n".join(out))
     return 1 if fails else 0
 
