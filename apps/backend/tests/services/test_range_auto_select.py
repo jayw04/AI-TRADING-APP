@@ -193,7 +193,7 @@ async def test_find_autoselect_only_marked_non_variants(db) -> None:
                          params={"auto_select_top_n": 5}, parent_id=marked)  # variant
     async with db() as s:
         targets = await find_autoselect_range_strategies(s)
-    assert targets == [(marked, 3, None)]
+    assert targets == [(marked, 3, None, 0.0)]
 
 
 async def test_find_autoselect_carries_universe_override(db) -> None:
@@ -203,7 +203,17 @@ async def test_find_autoselect_carries_universe_override(db) -> None:
     )
     async with db() as s:
         targets = await find_autoselect_range_strategies(s)
-    assert targets == [(sid, 2, ["AAA", "BBB"])]
+    assert targets == [(sid, 2, ["AAA", "BBB"], 0.0)]
+
+
+async def test_find_autoselect_reads_min_score(db) -> None:
+    sid = await _seed_strategy(
+        db, symbols=["X"], status=StrategyStatus.PAPER,
+        params={"auto_select_top_n": 2, "auto_select_min_score": 0.02},
+    )
+    async with db() as s:
+        targets = await find_autoselect_range_strategies(s)
+    assert targets == [(sid, 2, None, 0.02)]
 
 
 # ---- selection ----
@@ -215,6 +225,66 @@ async def test_select_range_universe_returns_top_n(db) -> None:
         )
     # Identical bars → structural tie broken by symbol asc → top-2 = AAA, BBB.
     assert picks == ["AAA", "BBB"]
+
+
+async def test_select_range_universe_min_score_floor(db) -> None:
+    # The fake bars score ~0.05 (atr% 0.05 × oscillation 1.0). A floor above that → none;
+    # a floor below it → the names qualify (review #4 minimum-quality gate).
+    async with db() as s:
+        none = await select_range_universe(
+            s, bar_cache=_FakeBarCache(), n=2, universe=["AAA", "BBB"], now=WEEKDAY,
+            min_score=0.10,
+        )
+        some = await select_range_universe(
+            s, bar_cache=_FakeBarCache(), n=2, universe=["AAA", "BBB"], now=WEEKDAY,
+            min_score=0.01,
+        )
+    assert none == []
+    assert some == ["AAA", "BBB"]
+
+
+# ---- orchestration ----
+
+async def test_refresh_min_score_skips_weak_day(db) -> None:
+    # No candidate clears the floor → nothing selected → skip the day, sleeve untouched.
+    sid = await _seed_strategy(
+        db, symbols=["ZZZ"], status=StrategyStatus.PAPER,
+        params={"auto_select_top_n": 2, "auto_select_min_score": 0.10},
+    )
+    engine = _FakeEngine(db)
+    out = await refresh_range_universe(
+        db, engine, _FakeBarCache(), strategy_id=sid, n=2,
+        universe=["AAA", "BBB", "CCC"], now=WEEKDAY, min_score=0.10,
+    )
+    assert out["status"] == "no_candidates"
+    assert engine.unregister_calls == [] and engine.register_calls == []
+    async with db() as s:
+        assert (await s.get(StrategyRow, sid)).symbols_json == ["ZZZ"]
+
+
+async def test_audit_records_selection_evidence(db) -> None:
+    # Review #3: the audit carries scores + ranking version + excluded names, not just the diff.
+    sid = await _seed_strategy(
+        db, symbols=["ZZZ"], status=StrategyStatus.PAPER,
+        params={"auto_select_top_n": 2, "auto_select_universe": ["AAA", "BBB", "CCC"]},
+    )
+    await refresh_range_universe(
+        db, _FakeEngine(db), _FakeBarCache(), strategy_id=sid, n=2,
+        universe=["AAA", "BBB", "CCC"], now=WEEKDAY,
+    )
+    async with db() as s:
+        row = (
+            await s.execute(
+                select(AuditLog).where(AuditLog.action == AuditAction.STRATEGY_UPDATED.value)
+            )
+        ).scalars().first()
+    sel = json.loads(row.payload_json)["selection"]
+    assert sel["ranking_version"] == "evidence-first-v1"
+    assert sel["n_requested"] == 2 and sel["universe_size"] == 3
+    assert [c["symbol"] for c in sel["selected"]] == ["AAA", "BBB"]
+    assert all(c["score"] > 0 for c in sel["selected"])
+    # CCC ranked beyond N → recorded as excluded with a reason.
+    assert {"symbol": "CCC", "reason": "rank_beyond_n"} in sel["excluded"]
 
 
 # ---- orchestration ----

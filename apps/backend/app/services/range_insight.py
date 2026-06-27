@@ -366,22 +366,43 @@ async def rank_range_candidates(
     return rank_candidates(insights, evidence=evidence)
 
 
+def eligible_range_candidates(
+    candidates: Iterable[RangeCandidate],
+    *,
+    require_suitable: bool = True,
+    min_score: float = 0.0,
+) -> list[RangeCandidate]:
+    """The eligible candidates, in rank order: ``ok``, optionally range-bound + usable ATR%
+    (``require_suitable``), and clearing the minimum structural Range-Score floor
+    (``min_score``). The floor ensures a pick has enough daily range to be a viable fade
+    target — a quality gate so a weak day yields fewer names (or none) rather than filling
+    slots with poor setups (design §"minimum quality" / ADR 0028 review #4). 0 = no floor."""
+    return [
+        c
+        for c in candidates
+        if c.status == "ok"
+        and (c.suitable or not require_suitable)
+        and c.score >= min_score
+    ]
+
+
 def top_range_symbols(
-    candidates: Iterable[RangeCandidate], *, n: int = 5, require_suitable: bool = True
+    candidates: Iterable[RangeCandidate],
+    *,
+    n: int = 5,
+    require_suitable: bool = True,
+    min_score: float = 0.0,
 ) -> list[str]:
     """The day's Top-N range picks, in rank order — the symbol list the Candidate Engine
     hands to the Range Trader (design §"Top 3–5 candidates"). ``candidates`` must already be
-    ranked (output of ``rank_candidates``). Only ``ok`` names are eligible; with
-    ``require_suitable`` (default) a name must also be range-bound + have a usable ATR%, so a
-    thin or trending day yields FEWER than ``n`` picks rather than forcing in poor candidates
-    (no silent padding). ``n <= 0`` selects none."""
+    ranked (output of ``rank_candidates``). Eligibility: ``ok``, range-bound + usable ATR%
+    (``require_suitable``), and ``score >= min_score``. A thin/trending day yields FEWER than
+    ``n`` picks rather than forcing in poor candidates (no silent padding). ``n <= 0`` → none."""
     if n <= 0:
         return []
-    picks = [
-        c
-        for c in candidates
-        if c.status == "ok" and (c.suitable or not require_suitable)
-    ]
+    picks = eligible_range_candidates(
+        candidates, require_suitable=require_suitable, min_score=min_score
+    )
     return [c.symbol for c in picks[:n]]
 
 
@@ -393,10 +414,13 @@ async def select_top_range_symbols(
     n: int = 5,
     evidence: dict[str, CandidateEvidence] | None = None,
     require_suitable: bool = True,
+    min_score: float = 0.0,
 ) -> list[str]:
     """Rank a universe (evidence-first) and return today's Top-N symbols to range-trade.
     The daily auto-select entry point: ``rank_range_candidates`` → ``top_range_symbols``."""
     ranked = await rank_range_candidates(
         symbols, bar_cache=bar_cache, now=now, evidence=evidence
     )
-    return top_range_symbols(ranked, n=n, require_suitable=require_suitable)
+    return top_range_symbols(
+        ranked, n=n, require_suitable=require_suitable, min_score=min_score
+    )

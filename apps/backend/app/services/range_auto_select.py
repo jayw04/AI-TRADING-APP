@@ -44,7 +44,9 @@ from app.db.models.symbol import Symbol
 from app.services.range_insight import (
     DEFAULT_CANDIDATE_UNIVERSE,
     CandidateEvidence,
-    select_top_range_symbols,
+    RangeCandidate,
+    rank_range_candidates,
+    top_range_symbols,
 )
 from app.utils.time import EASTERN
 
@@ -52,11 +54,16 @@ logger = structlog.get_logger(__name__)
 
 # Range strategies reference this template; their traded symbols are symbols_json.
 _RANGE_CODE_MATCH = "%range_trader%"
-# Per-strategy opt-in marker (in params_json) and its optional universe override.
+# Per-strategy opt-in marker (in params_json), its optional universe override, and the
+# optional minimum Range-Score quality floor (ADR 0028 review #4; 0 = no floor).
 AUTOSELECT_PARAM = "auto_select_top_n"
 AUTOSELECT_UNIVERSE_PARAM = "auto_select_universe"
+AUTOSELECT_MIN_SCORE_PARAM = "auto_select_min_score"
 # Audit payload tag so this system rebalance is distinguishable from a user symbol edit.
 AUTOSELECT_SOURCE = "daily_preopen_auto_select"
+# Stamped into the selection evidence so a future audit can tie a pick to the ranking it used
+# (evidence-first = realized win rate → Sharpe → structural Range Score). Bump on rule changes.
+RANKING_VERSION = "evidence-first-v1"
 # Regular-trading-hours open (ET). Rotation is a PRE-OPEN act only; once the session has
 # begun the day's universe is frozen (ADR 0028 §"frozen daily input" / review #2).
 RTH_OPEN_ET = time(9, 30)
@@ -171,6 +178,26 @@ async def load_range_backtest_evidence(
     return evidence
 
 
+async def select_range_universe_detailed(
+    session: AsyncSession,
+    *,
+    bar_cache: Any,
+    n: int,
+    universe: Iterable[str] | None = None,
+    now: datetime | None = None,
+    min_score: float = 0.0,
+) -> tuple[list[str], list[RangeCandidate]]:
+    """Today's Top-N range symbols PLUS the full ranked candidate list (for audit evidence).
+    Ranked evidence-first (realized win rate → Sharpe → structural Range Score); a candidate
+    must clear ``min_score`` to be eligible. Defaults to the liquid-large-cap pool."""
+    now = now or datetime.now(UTC)
+    uni = list(universe) if universe else list(DEFAULT_CANDIDATE_UNIVERSE)
+    evidence = await load_range_backtest_evidence(session, uni)
+    ranked = await rank_range_candidates(uni, bar_cache=bar_cache, now=now, evidence=evidence)
+    selected = top_range_symbols(ranked, n=n, min_score=min_score)
+    return selected, ranked
+
+
 async def select_range_universe(
     session: AsyncSession,
     *,
@@ -178,23 +205,57 @@ async def select_range_universe(
     n: int,
     universe: Iterable[str] | None = None,
     now: datetime | None = None,
+    min_score: float = 0.0,
 ) -> list[str]:
-    """Today's Top-N range symbols for a universe, ranked evidence-first (realized win rate
-    then the structural Range Score). Defaults to the standard liquid-large-cap pool."""
-    now = now or datetime.now(UTC)
-    uni = list(universe) if universe else list(DEFAULT_CANDIDATE_UNIVERSE)
-    evidence = await load_range_backtest_evidence(session, uni)
-    return await select_top_range_symbols(
-        uni, bar_cache=bar_cache, now=now, n=n, evidence=evidence
+    """Today's Top-N range symbols for a universe (thin wrapper over the detailed form)."""
+    selected, _ = await select_range_universe_detailed(
+        session, bar_cache=bar_cache, n=n, universe=universe, now=now, min_score=min_score
     )
+    return selected
+
+
+def _selection_evidence(
+    ranked: list[RangeCandidate], selected: list[str], *, n: int, min_score: float
+) -> dict[str, Any]:
+    """Build the auditable selection record (ADR 0028 review #3): the chosen names with their
+    scores + evidence, why the others were excluded, and the ranking version — so a future
+    audit can reconstruct exactly what the engine saw and picked, not just the symbol diff."""
+    chosen = set(selected)
+
+    def _excluded_reason(c: RangeCandidate) -> str:
+        if c.status != "ok":
+            return "insufficient_data"
+        if not c.suitable:
+            return "not_range_bound"
+        if c.score < min_score:
+            return "below_min_score"
+        return "rank_beyond_n"
+
+    return {
+        "ranking_version": RANKING_VERSION,
+        "n_requested": n,
+        "min_score": min_score,
+        "universe_size": len(ranked),
+        "selected": [
+            {
+                "symbol": c.symbol, "rank": c.rank, "score": c.score,
+                "win_rate": c.win_rate, "sharpe": c.sharpe, "backtested": c.backtested,
+            }
+            for c in ranked if c.symbol in chosen
+        ],
+        "excluded": [
+            {"symbol": c.symbol, "reason": _excluded_reason(c)}
+            for c in ranked if c.symbol not in chosen
+        ][:10],
+    }
 
 
 async def find_autoselect_range_strategies(
     session: AsyncSession,
-) -> list[tuple[int, int, list[str] | None]]:
+) -> list[tuple[int, int, list[str] | None, float]]:
     """Discover range strategies opted into daily auto-selection. Returns
-    ``(strategy_id, n, universe_override)`` for each strategy whose ``params_json`` carries
-    ``auto_select_top_n`` > 0. Paper-variant clones (``parent_strategy_id``) are excluded."""
+    ``(strategy_id, n, universe_override, min_score)`` for each strategy whose ``params_json``
+    carries ``auto_select_top_n`` > 0. Paper-variant clones (``parent_strategy_id``) excluded."""
     rows = (
         await session.execute(
             select(StrategyRow).where(
@@ -203,7 +264,7 @@ async def find_autoselect_range_strategies(
             )
         )
     ).scalars().all()
-    targets: list[tuple[int, int, list[str] | None]] = []
+    targets: list[tuple[int, int, list[str] | None, float]] = []
     for row in rows:
         params = row.params_json or {}
         try:
@@ -213,7 +274,11 @@ async def find_autoselect_range_strategies(
         if n <= 0:
             continue
         uni = params.get(AUTOSELECT_UNIVERSE_PARAM) or None
-        targets.append((row.id, n, list(uni) if uni else None))
+        try:
+            min_score = float(params.get(AUTOSELECT_MIN_SCORE_PARAM, 0.0) or 0.0)
+        except (TypeError, ValueError):
+            min_score = 0.0
+        targets.append((row.id, n, list(uni) if uni else None, min_score))
     return targets
 
 
@@ -226,6 +291,7 @@ async def refresh_range_universe(
     n: int,
     universe: Iterable[str] | None = None,
     now: datetime | None = None,
+    min_score: float = 0.0,
 ) -> dict[str, Any]:
     """Re-point one range strategy to today's Top-N: select → (if running) stop → update
     symbols → audit → (if it was running) start. Idempotent: a no-op when the selection
@@ -245,8 +311,8 @@ async def refresh_range_universe(
         prev_symbols = [str(s).upper() for s in (row.symbols_json or [])]
         user_id = row.user_id
         was_running = row.status in ACTIVE_STRATEGY_STATUSES
-        selected = await select_range_universe(
-            session, bar_cache=bar_cache, n=n, universe=universe, now=now
+        selected, ranked = await select_range_universe_detailed(
+            session, bar_cache=bar_cache, n=n, universe=universe, now=now, min_score=min_score
         )
 
     if not selected:
@@ -292,6 +358,11 @@ async def refresh_range_universe(
                 "previous": prev_symbols,
                 "source": AUTOSELECT_SOURCE,
                 "n": n,
+                # ADR 0028 review #3 — full selection evidence (scores, ranking version,
+                # excluded names + reasons), not just the symbol diff.
+                "selection": _selection_evidence(
+                    ranked, selected, n=n, min_score=min_score
+                ),
             },
             user_id=user_id,
         )
@@ -347,12 +418,12 @@ async def run_daily_range_universe(
         return []
 
     results: list[dict[str, Any]] = []
-    for sid, n, uni in targets:
+    for sid, n, uni, min_score in targets:
         try:
             results.append(
                 await refresh_range_universe(
                     session_factory, engine, bar_cache,
-                    strategy_id=sid, n=n, universe=uni, now=now,
+                    strategy_id=sid, n=n, universe=uni, now=now, min_score=min_score,
                 )
             )
         except Exception:
