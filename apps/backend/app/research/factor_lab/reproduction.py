@@ -62,10 +62,14 @@ def backtest_cross_asset_sleeve(
 
 
 def _aligned(ref: dict[str, float], cand: dict[str, float]) -> tuple[np.ndarray, np.ndarray]:
-    """Align two {symbol: weight} maps onto the union of symbols (absent → 0) for weight corr."""
-    keys = sorted(set(ref) | set(cand))
-    return (np.array([ref.get(k, 0.0) for k in keys]),
-            np.array([cand.get(k, 0.0) for k in keys]))
+    """Align two {symbol: weight} maps onto the union of symbols (absent → 0) for weight corr.
+    Symbol keys are upper-cased first: ``construct_portfolio`` canonicalizes tickers to upper
+    case, so a reference keyed in any case must still align (else identical books anti-correlate)."""
+    ru = {str(k).upper(): float(v) for k, v in ref.items()}
+    cu = {str(k).upper(): float(v) for k, v in cand.items()}
+    keys = sorted(set(ru) | set(cu))
+    return (np.array([ru.get(k, 0.0) for k in keys]),
+            np.array([cu.get(k, 0.0) for k in keys]))
 
 
 def run_reproduction(
@@ -107,7 +111,9 @@ def run_reproduction(
         ref_daily.index = pd.to_datetime(ref_daily.index)  # align ISO-date keys to cand timestamps
     gate: GateResult = onboarding_gate(
         ref_sharpe=float(reference["sharpe"]), cand_sharpe=float(m["sharpe"]),
-        ref_maxdd=float(reference["max_drawdown"]), cand_maxdd=float(m["max_drawdown"]),
+        # compare drawdown MAGNITUDES — be robust to the caller's sign convention (the candidate
+        # package reports max_drawdown as a negative fraction; references may be either sign).
+        ref_maxdd=abs(float(reference["max_drawdown"])), cand_maxdd=abs(float(m["max_drawdown"])),
         ref_daily_returns=ref_daily,
         cand_daily_returns=cand_daily,
         ref_weights=ref_w, cand_weights=cand_w,

@@ -1,4 +1,4 @@
-# PORT-001 Reproduction — SYNTHETIC
+# PORT-001 Reproduction — Synthetic
 
 **Onboarding Gate: PASSED**  ·  Lifecycle Fidelity **100.0%**
 

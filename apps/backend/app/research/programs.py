@@ -79,15 +79,19 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "docs/implementation/evidence/trend_001_trend_following/trend_following.md"),
     ResearchProgram(
         "PORT-001", "Portfolio Construction",
-        "Multi-sleeve ERC: crash-protected equity momentum + cross-asset TSMOM", "planned",
-        "'Risk-Balanced Multi-Asset Portfolio' (Combined Book) — being ONBOARDED from the sibling "
-        "claude-trading-view system (reproduce-first). Two sleeves at ERC ~40/60; sibling headline "
-        "Sharpe ~0.84, maxDD -11.9% (vs equity-only -23.5%). HONEST VERDICT: crash-protected BETA + "
-        "diversification, NOT alpha -- combined alpha t=0.82 insignificant, and stock-selection alpha "
-        "REFUTED under point-in-time data. Status 'planned' until a Workbench Evidence Package "
-        "reproduces the headline through the Onboarding Gate (Sharpe +/-0.05, maxDD +/-2pp, "
-        "daily-return corr >=0.98). Capability Onboarding plan FROZEN v1.0.",
-        "docs/implementation/TradingWorkbench_PORT001_ImplementationPlan_v1.0.md"),
+        "Multi-sleeve ERC: crash-protected equity momentum + cross-asset TSMOM", "validated",
+        "'Risk-Balanced Multi-Asset Portfolio' (Combined Book), ONBOARDED from the sibling "
+        "claude-trading-view system (reproduce-first). ONBOARDING GATE PASSED 2026-06-27 via "
+        "construction-verification (Lifecycle Fidelity 98.8%, 6/6 criteria): the platform's PCE/ERC "
+        "reproduces the sibling combined book from its own sleeve return series -- daily-return corr "
+        "0.99994, Sharpe 0.9001 vs 0.9015, maxDD 11.66% vs 11.57%, and the ERC blend independently "
+        "lands at 0.41/0.59 ~= the pinned 40/60. HONEST VERDICT: crash-protected BETA + "
+        "diversification, NOT alpha -- combined alpha t=0.82 insignificant, stock-selection alpha "
+        "REFUTED under point-in-time data. SCOPE: this validates the construction engine; the "
+        "self-stack (Alpaca total-return + platform momentum) end-to-end data-fidelity port is a "
+        "separate tracked study (the harness's --db real mode). Capability Certificate v1.0 "
+        "Gate-Passed (L1+L2).",
+        "docs/implementation/evidence/port_001/EvidencePackage_PORT-001_v1.0.md"),
 )
 
 
