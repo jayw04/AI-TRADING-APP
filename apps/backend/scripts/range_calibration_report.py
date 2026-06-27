@@ -300,7 +300,7 @@ def main() -> int:
     if not args.no_file:
         out_dir = args.out or _DEFAULT_OUT
         out_dir.mkdir(parents=True, exist_ok=True)
-        out_file = out_dir / f"range_calibration_{datetime.now(UTC):%Y-%m-%d}.md"
+        out_file = out_dir / "range_calibration.md"  # canonical (stable name); wrapper archives dated copies
         out_file.write_text(report, encoding="utf-8")
         print(f"[range-calibration] wrote {out_file}")
 
