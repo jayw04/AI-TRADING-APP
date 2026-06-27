@@ -259,15 +259,69 @@ def _build_real_inputs(db: str | None) -> tuple[pd.DataFrame, dict, int]:
     return sleeve_returns, internal, eq_trades + xa_trades
 
 
+# --------------------------------------------------------------------------- construction-verify
+def _sibling_inputs(sibling_dir: str) -> tuple[pd.DataFrame, dict, dict, int]:
+    """Construction-verification inputs (the chosen reproduce-first test): feed the sibling's OWN
+    committed sleeve return series through the platform's PCE/ERC + Evidence Package + Gate, vs the
+    sibling's combined book. This isolates the *construction engine being onboarded* from
+    data-source noise (Alpaca-vs-Yahoo) — it asks "does our blend reproduce the book?", not "does
+    our data stack match theirs?". Reads claude-trading-view's ``factor_backtest_*.json``
+    (``results.crash_engine.daily``) + ``cross_asset_momentum_*.json`` (``results.daily``)."""
+    import glob
+    import os
+
+    from app.factor_data import evidence as ev
+
+    def _latest(pat: str) -> str:
+        hits = sorted(glob.glob(os.path.join(sibling_dir, pat)))
+        if not hits:
+            raise FileNotFoundError(f"no {pat} under {sibling_dir}")
+        return hits[-1]
+
+    fb = json.loads(Path(_latest("factor_backtest_*.json")).read_text(encoding="utf-8"))
+    ca = json.loads(Path(_latest("cross_asset_momentum_*.json")).read_text(encoding="utf-8"))
+    eq = dict(fb["results"]["crash_engine"]["daily"])      # date -> daily return
+    cad = dict(ca["results"]["daily"])
+    common = sorted(set(eq) & set(cad))
+    idx = pd.to_datetime(common)
+    sleeve_returns = pd.DataFrame(
+        {"equity": [eq[d] for d in common], "cross_asset": [cad[d] for d in common]}, index=idx)
+
+    # The sibling cross-asset internal weights (live §7, normalized). The equity sleeve enters the
+    # blend as one synthetic instrument (its 150-name internal book is the equity sleeve's own
+    # concern, not the cross-sleeve blend's). Both are look-through-comparable to the reference.
+    live = {"IEF": 0.158, "UUP": 0.153, "TLT": 0.091, "SPY": 0.056,
+            "EFA": 0.041, "DBC": 0.038, "GLD": 0.032, "EEM": 0.024}
+    ssum = sum(live.values())
+    ca_w = {k: v / ssum for k, v in live.items()}
+    internal = {"equity": {"equity_momentum": 1.0}, "cross_asset": ca_w}
+
+    # reference = the sibling COMBINED book (fixed 0.40 equity + 0.60 cross-asset), metrics via the
+    # platform's own evidence functions (apples-to-apples with the candidate).
+    comb = {d: 0.40 * eq[d] + 0.60 * cad[d] for d in common}
+    eqv, curve = 100_000.0, []
+    for d in common:
+        eqv *= 1.0 + comb[d]
+        curve.append((date.fromisoformat(d), eqv))
+    ref_w = {"equity_momentum": 0.40, **{k: 0.60 * v for k, v in ca_w.items()}}
+    reference = {
+        "sharpe": round(ev.sharpe(ev.daily_returns(curve)), 4),
+        "max_drawdown": round(abs(ev.max_drawdown(curve)), 4),
+        "trades": 0,  # construction-verification feeds return series → no rebalance sim; N/A
+        "daily_returns": {d: comb[d] for d in common},
+        "weights": ref_w,
+    }
+    return sleeve_returns, internal, reference, 0  # cand_trades=0 == ref → trade criterion N/A
+
+
 # --------------------------------------------------------------------------- report
-def _write_outputs(result: dict, out_dir: Path, *, synthetic: bool) -> Path:
+def _write_outputs(result: dict, out_dir: Path, *, tag: str, footer: str) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
-    tag = "SYNTHETIC" if synthetic else "REPRODUCTION"
     (out_dir / f"port001_{tag.lower()}.json").write_text(
         json.dumps(result, indent=2, default=str), encoding="utf-8")
     g = result["gate"]
     lines = [
-        f"# PORT-001 Reproduction — {tag}",
+        f"# PORT-001 Reproduction — {tag.replace('_', ' ').title()}",
         "",
         f"**Onboarding Gate: {'PASSED' if result['passed'] else 'FAILED'}**  ·  "
         f"Lifecycle Fidelity **{g['fidelity_pct']}%**",
@@ -282,12 +336,9 @@ def _write_outputs(result: dict, out_dir: Path, *, synthetic: bool) -> Path:
         f"- Reference (sibling): Sharpe {result['reference']['sharpe']} · "
         f"MaxDD {result['reference']['max_drawdown']} · trades {result['reference']['trades']}",
         "",
-        ("_Synthetic self-test — proves the harness wiring, NOT a real reproduction._"
-         if synthetic else
-         "_On PASS: attach this Evidence Package, promote programs.py planned->validated, and "
-         "issue the Capability Certificate as v1.0 (Gate-Passed) advancing L1+L2._"),
+        footer,
     ]
-    md = out_dir / f"LifecycleFidelity_{tag}.md"
+    md = out_dir / f"LifecycleFidelity_{tag.upper()}.md"
     md.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return md
 
@@ -295,6 +346,9 @@ def _write_outputs(result: dict, out_dir: Path, *, synthetic: bool) -> Path:
 def main() -> int:
     ap = argparse.ArgumentParser(description="PORT-001 reproduction harness")
     ap.add_argument("--synthetic", action="store_true", help="offline wiring self-test (no data)")
+    ap.add_argument("--from-sibling", default=None, metavar="DIR",
+                    help="construction-verification: blend the sibling's OWN committed sleeve "
+                         "return series (claude-trading-view dir) through the platform PCE + Gate")
     ap.add_argument("--db", default=None,
                     help="Sharadar FactorDataStore DuckDB path (default: app's factor_data duckdb)")
     ap.add_argument("--reference", default=None, help="sibling reference JSON (real mode)")
@@ -305,8 +359,20 @@ def main() -> int:
     assert pf is not None, "PORT_001 is a portfolio program"  # noqa: S101 — config invariant
 
     if args.synthetic:
+        tag = "synthetic"
+        footer = "_Synthetic self-test — proves the harness wiring, NOT a real reproduction._"
         sleeve_returns, internal, reference, cand_trades = _synthetic_inputs()
+    elif args.from_sibling:
+        tag = "construction_verification"
+        footer = ("_Construction-verification: the sibling's OWN sleeve return series blended "
+                  "through the platform PCE/ERC vs its combined book — isolates the construction "
+                  "engine from data-source noise. A clean pass is L1+L2 construction evidence; the "
+                  "self-stack (Alpaca) data-fidelity port is a separate study._")
+        sleeve_returns, internal, reference, cand_trades = _sibling_inputs(args.from_sibling)
     else:
+        tag = "reproduction"
+        footer = ("_On PASS: attach this Evidence Package, promote programs.py planned->validated, "
+                  "and issue the Capability Certificate as v1.0 (Gate-Passed) advancing L1+L2._")
         sleeve_returns, internal, cand_trades = _build_real_inputs(args.db)
         if not args.reference:
             print("ERROR: --reference <sibling.json> is required for the real reproduction")
@@ -318,7 +384,7 @@ def main() -> int:
         equity_sleeve=pf.equity_sleeve, reference=reference,
         cand_trades=cand_trades, verdict=PORT_001.verdict,
     )
-    md = _write_outputs(result, args.out, synthetic=args.synthetic)
+    md = _write_outputs(result, args.out, tag=tag, footer=footer)
     verdict = "PASSED" if result["passed"] else "FAILED"
     print(f"[port001-reproduction] Onboarding Gate {verdict}  ·  "
           f"fidelity {result['gate']['fidelity_pct']}%  ->  {md}")

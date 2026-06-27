@@ -114,6 +114,36 @@ def test_run_reproduction_fails_when_trade_count_drifts():
     assert by["trade_count"]["passed"] is False
 
 
+def test_gate_robust_to_maxdd_sign_and_weight_key_case():
+    """The two harness bugs the first real construction-verification run caught: (1) a reference
+    maxdd given as a POSITIVE fraction while the candidate package reports it negative — the gate
+    must compare magnitudes; (2) a reference weight keyed in a different case than
+    construct_portfolio's upper-cased book — weight_corr must align case-insensitively (else an
+    identical book anti-correlates)."""
+    sleeve_returns, internal = _inputs()
+    book = construct_portfolio(sleeve_returns, internal, equity_sleeve="equity")
+    w = np.array([book.sleeve_weights[s] for s in sleeve_returns.columns])
+    cand_daily = pd.Series(sleeve_returns.to_numpy() @ w, index=sleeve_returns.index)
+    from app.factor_data.evidence import daily_returns as _dr
+    from app.factor_data.evidence import max_drawdown, sharpe
+    curve = list(zip(sleeve_returns.index.date,
+                     100_000.0 * (1.0 + cand_daily).cumprod(), strict=True))
+    reference = {
+        "sharpe": sharpe(_dr(curve)),
+        "max_drawdown": abs(max_drawdown(curve)),                     # POSITIVE on purpose
+        "trades": 0,
+        "daily_returns": {d.strftime("%Y-%m-%d"): float(v) for d, v in cand_daily.items()},
+        "weights": {k.lower(): v for k, v in book.weights.items()},   # lower-case on purpose
+    }
+    res = run_reproduction(
+        sleeve_returns=sleeve_returns, sleeve_internal_weights=internal,
+        equity_sleeve="equity", reference=reference, cand_trades=0)
+    by = {c["name"]: c for c in res["gate"]["criteria"]}
+    assert by["maxdd"]["passed"], by["maxdd"]            # magnitude compare, not signed diff
+    assert by["weight_corr"]["passed"], by["weight_corr"]  # case-insensitive alignment
+    assert res["passed"]
+
+
 def test_run_reproduction_is_deterministic():
     sleeve_returns, internal = _inputs()
     reference, _ = _matching_reference(sleeve_returns, internal, trades=120)
