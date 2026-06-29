@@ -242,6 +242,22 @@ unchanged and correct. This ADR does not relitigate them; it renames the capabil
   consumer. Name now (Phase 0), persist the read-model (Phase 1), extract when the second consumer is
   real (Phases 2–3).
 
+## Open items
+
+- **[OPEN 2026-06-29] The shipped Ranking code still implements hard *evidence-first* tiering, not the
+  *evidence-weighted* composite this ADR's §6 mandates.** `rank_candidates`
+  (`apps/backend/app/services/range_insight.py:440–448`) sorts backtested names into a tier *above* all
+  non-backtested names unconditionally — precisely the "single historical backtest dominates" /
+  NVDA-anchoring failure §6 and the "*evidence-weighted, not evidence-first*" rationale flag. With NVDA
+  the lone backtested+qualified name (win rate ≈ 27%), this is an effective NVDA pin for today's trial.
+  Until §6's composite (`w·Historical + (1−w)·CurrentScore`) is built and calibrated, an **interim AND-guard
+  is now IMPLEMENTED** (2026-06-29, owner-requested) — a backtest grants tier-0 priority only when
+  `win_rate ≥ 0.50` **AND** `sharpe > 0` (the "OR" form was rejected: NVDA's Sharpe 0.10 > 0 would have
+  kept the boost). Details + code refs in the authoritative **ADR 0028 §Open items** (`_evidence_grants_priority`,
+  `RANKING_VERSION` → `evidence-first-v2-guarded`). It does not change Monday's gate (the selected set is
+  identical either way) and is not yet deployed to the running stack; it is the first ranking refinement and
+  is subsumed when §6's composite lands.
+
 ## Re-evaluation triggers
 
 - **A second program is ready to consume opportunities** → execute Phases 2–3; if the Range-derived

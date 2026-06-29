@@ -63,9 +63,10 @@ AUTOSELECT_UNIVERSE_PARAM = "auto_select_universe"
 AUTOSELECT_MIN_SCORE_PARAM = "auto_select_min_score"
 # Audit payload tag so this system rebalance is distinguishable from a user symbol edit.
 AUTOSELECT_SOURCE = "daily_preopen_auto_select"
-# Stamped into the selection evidence so a future audit can tie a pick to the ranking it used
-# (evidence-first = realized win rate → Sharpe → structural Range Score). Bump on rule changes.
-RANKING_VERSION = "evidence-first-v1"
+# Stamped into the selection evidence so a future audit can tie a pick to the ranking it used.
+# v2-guarded (ADR 0028 §Open items): evidence grants top-tier priority only when win_rate >= 0.50
+# AND sharpe > 0; otherwise the name ranks on its structural Range Score. Bump on rule changes.
+RANKING_VERSION = "evidence-first-v2-guarded"
 # Regular-trading-hours open (ET). Rotation is a PRE-OPEN act only; once the session has
 # begun the day's universe is frozen (ADR 0028 §"frozen daily input" / review #2).
 RTH_OPEN_ET = time(9, 30)
