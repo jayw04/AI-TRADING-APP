@@ -48,6 +48,13 @@ class BacktestTrade:
     # where wall-clock duration over-counts (an EOD exit that fills next-open is
     # ~1 session of bars, not ~17h).
     bar_count_held: int | None = None
+    # Phase 0A research instrumentation. MAE/MFE = worst/best price excursion DURING the hold,
+    # as a signed fraction of entry (mae <= 0 adverse, mfe >= 0 favorable). time_to_entry_seconds
+    # = seconds from the 09:30 ET session open to the entry fill. (META's stop-then-target shows
+    # exactly why MAE/MFE matter — owner review, 2026-06-30.)
+    mae: float | None = None
+    mfe: float | None = None
+    time_to_entry_seconds: int | None = None
 
 
 @dataclass
@@ -66,6 +73,10 @@ class BacktestMetrics:
     avg_trade_duration_seconds: float
     starting_equity: float
     ending_equity: float
+    # Phase 0A aggregates (means over closed trades; 0.0 when no trades).
+    avg_mae: float = 0.0
+    avg_mfe: float = 0.0
+    avg_time_to_entry_seconds: float = 0.0
 
 
 @dataclass
