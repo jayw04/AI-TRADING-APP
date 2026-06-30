@@ -258,4 +258,38 @@ is the owner's actual decision window; segmenting it by the Regime Classifier is
 
 ### Results — 3-year decision window (2023-07 → 2026-06)
 
-_(run in progress; table appended on completion)_
+| Mode | Trades | Return | PF | Win% | avg MAE | avg MFE | Funnel (univ/qual/touch/enter) |
+|---|---:|---:|---:|---:|---:|---:|---|
+| A exact-low | 641 | −1.50% | 0.87 | 30.6% | −0.53% | +0.66% | 1271/1270/748/611 |
+| B zone-15% | 783 | −1.79% | **0.89** | 36.0% | −0.66% | +0.73% | 1271/1270/748/739 |
+| C atr-0.25 | 1140 | −2.93% | 0.87 | **48.4%** | −0.73% | +0.65% | 1271/1270/748/945 |
+| D vwap+zone | 736 | −2.71% | 0.82 | 35.6% | −0.64% | +0.70% | 1271/1270/748/697 |
+| E bounce | 641 | −2.24% | 0.83 | 38.1% | −0.66% | +0.70% | 1271/1270/748/608 |
+
+_Data note: today's (2026-06-30) TSLA 5-min bars failed to fetch (Norton SSL MITM on
+`data.alpaca.markets` — known blocker `blocker_norton_ssl_alpaca`); 1 symbol-day of 1,271, the rest
+from cache. Negligible for these aggregates; re-run on the EC2/non-Norton box to close the gap._
+
+**The 1-year finding holds — and harder.** Over the owner's full 3-year decision window, **every mode
+still fails the gate**: PF 0.82–0.89 (<1.2), win 31–48% (<50%), expectancy negative. The rankings are
+stable across both windows (A/B = best PF & least-bad return; C = best win-rate but most trades & worst
+return; D = worst; E = mid). Two things worth noting:
+
+1. **The 3-year PFs are slightly *higher* than the 1-year (0.82–0.89 vs 0.70–0.81)** — i.e. the broader,
+   more regime-varied window is *less* bad than the pure-uptrend 2025-26 slice. That is exactly the
+   regime signature: the long-only fade bleeds less when not fighting a relentless uptrend, but it never
+   crosses into profit on this universe at the whole-window level. **Confirms the lever is regime/trend,
+   not entry.**
+2. **Entry mode is settled as a second-order knob.** Across 641–1,140 trades over 3 years the five modes
+   span a PF range of just 0.82–0.89 — the entry trigger cannot rescue a strategy that is short edge by
+   ~15–20% in PF terms. No amount of entry tuning closes a 0.89→1.20 gap.
+
+**Decision (Phase 1 closed):** carry **C** (best conversion/win-rate, robust across both windows) and
+**E** (the new two-stage bounce — best MFE, the variant most likely to benefit once a trend filter
+removes the fight-the-trend losers) into the downstream phases, both **default-off**. Drop B and D for
+the live path (B is a fine PF baseline but adds nothing over A/C; D is strictly dominated). **Re-prioritize
+Phase 3 (trend filter: SPY-trend + OR-width + VIX) ahead of further entry/stop tuning** — the evidence
+says *whether to be long at all in a trending name* is the first-order lever, and the Regime Classifier
+segmentation (range/neutral vs trend days) is where the fade's real edge, if any, will show. Entry modes
+C/E will be re-measured *within* the trend-filtered, regime-segmented universe in Phase 3, not in
+isolation again.
