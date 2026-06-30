@@ -84,6 +84,7 @@ class _SymState:
     __slots__ = (
         "trade_day", "trades_today", "stopped_today", "pending", "invalid_logged_day",
         "or_high", "or_low", "dyn_levels", "cum_pv", "cum_v", "vwap", "scaled_out",
+        "support_touched",
     )
 
     def __init__(self) -> None:
@@ -93,6 +94,7 @@ class _SymState:
         self.pending: str | None = None         # in-flight order: "entry" | "exit" | None
         self.invalid_logged_day: str | None = None
         self.scaled_out: bool = False           # H3: the partial profit-take has fired today
+        self.support_touched: bool = False      # Phase 1 mode E: bar low dipped to support today
         # opening_range mode: today's range, built from the first N minutes then frozen.
         self.or_high: float | None = None
         self.or_low: float | None = None
@@ -110,6 +112,7 @@ class _SymState:
         self.stopped_today = False
         self.pending = None
         self.scaled_out = False
+        self.support_touched = False
         self.or_high = None
         self.or_low = None
         self.dyn_levels = None
@@ -147,6 +150,10 @@ class RangeTrader(Strategy):
         # VWAP confirmation gate (§8.2c): skip a fade-support entry when price is more than
         # this fraction below session VWAP (a strong downtrend). 0.0 = gate off (default).
         "vwap_gate_pct": 0.0,
+        # Phase 1 mode E — two-stage "bounce confirmation": instead of buying the instant price
+        # is in the support zone, require a prior dip to support THEN a reclaim back above the OR
+        # low (buyers stepping in). Needs a zone (entry_zone_*). False = current one-stage entry.
+        "bounce_confirm": False,
         "entry_price": 0.0,  # buy when price <= this (near support) — fixed mode
         "exit_price": 0.0,  # sell when price >= this (near resistance) — fixed mode
         "stop_price": 0.0,  # hard stop (below support) — fixed mode
@@ -228,6 +235,12 @@ class RangeTrader(Strategy):
             "default": 0.0,
             "description": "VWAP gate: skip an entry when price is more than this fraction "
             "below session VWAP (avoids fading a strong downtrend). 0 = gate off.",
+        },
+        "bounce_confirm": {
+            "type": "boolean",
+            "default": False,
+            "description": "Mode E: require a dip to support THEN a reclaim above the OR low "
+            "before entering (two-stage), instead of buying the first touch. Needs a zone.",
         },
         "entry_price": {
             "type": "number",
@@ -354,10 +367,11 @@ class RangeTrader(Strategy):
         # opening_range mode this also accumulates the symbol's range while it forms.
         entry, exit_, stop = self._resolve_levels(p, bar, tod, st)
         if entry > 0:
-            # Phase 0B funnel: OR levels resolved (qualified); price at/below support = touched.
+            # Phase 0B funnel: OR levels resolved (qualified); bar low reaching support = touched.
             self.ctx.record_opportunity(symbol, "qualified", day_key)
-            if price <= entry:
+            if float(bar.l) <= entry:
                 self.ctx.record_opportunity(symbol, "touched", day_key)
+                st.support_touched = True  # Phase 1 mode E: arm the bounce-confirm trigger
 
         position = await self.ctx.get_position_for(symbol)
         in_long = (
@@ -451,8 +465,16 @@ class RangeTrader(Strategy):
         # Never fade above resistance: clamp the ceiling to `exit_` when it's a valid level.
         if exit_ > entry:
             buy_ceiling = min(buy_ceiling, exit_)
-        if price > buy_ceiling:
-            return
+        # Entry trigger. Default: price anywhere in the support zone (<= buy_ceiling).
+        # Bounce-confirm (Phase 1 mode E): require a prior dip to support (support_touched) AND
+        # the close reclaiming back ABOVE the OR low — buyers stepping in — while still within the
+        # zone (no chasing). Needs a zone (entry_zone_* > 0) so the band (entry, buy_ceiling] exists.
+        if bool(p.get("bounce_confirm", False)):
+            if (not st.support_touched) or price <= entry or price > buy_ceiling:
+                return
+        else:
+            if price > buy_ceiling:
+                return
         # Optional VWAP confirmation gate (design §8.2c): don't fade support when price is
         # far below session VWAP (a strong downtrend = catching a falling knife). 0.0 = off.
         vwap_gate = float(p.get("vwap_gate_pct", 0.0))
