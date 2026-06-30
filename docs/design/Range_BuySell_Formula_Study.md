@@ -293,3 +293,77 @@ says *whether to be long at all in a trending name* is the first-order lever, an
 segmentation (range/neutral vs trend days) is where the fade's real edge, if any, will show. Entry modes
 C/E will be re-measured *within* the trend-filtered, regime-segmented universe in Phase 3, not in
 isolation again.
+
+---
+
+# Phase 3 — Trend-day filter (regime segmentation, research-first)
+
+> Plan rev.2 Phase 3, moved ahead of Stop/Delay per Phase 1's finding. The disciplined order: BEFORE
+> building a runtime gate, prove which regimes carry the edge vs the bleed. Harness:
+> `scripts/research/range_regime_segment.py` (disarmed one-off). No strategy change — we label each
+> session and bucket the existing Phase-1 trades by regime.
+
+**Regime signal.** SPY **intraday directional efficiency** `DE = |close − open| / (high − low)` per SPY
+daily bar — *not* the SMA200 macro trend (which labels 91% of 2023-26 sessions "trend" simply because
+SPY ran 409→740, and is useless for a per-session gate). DE measures whether SPY travelled decisively
+one way (trend) or oscillated and closed mid-range (range). Split at the window's empirical tertiles:
+`range ≤ 0.33`, `trend ≥ 0.63`, else `neutral`. Distribution over 2023-07..2026-06: **trend 252 /
+neutral 251 / range 247** of 750 sessions — balanced, as tertiles should be.
+
+### Per-regime trade quality (3-year window, carry-forward modes)
+
+| Mode | Bucket | Trades | PF | Win% | Expectancy $/trade | avg MAE | avg MFE |
+|---|---|---:|---:|---:|---:|---:|---:|
+| A exact-low | ALL | 641 | 0.87 | 30.6% | −2.34 | −0.53% | +0.66% |
+| | **range** | 203 | **0.99** | 31.5% | **−0.15** | −0.48% | +0.71% |
+| | neutral | 197 | 0.77 | 33.0% | −3.68 | −0.49% | +0.58% |
+| | trend | 241 | 0.84 | 27.8% | −3.08 | −0.62% | +0.67% |
+| | GATED (drop trend) | 400 | 0.88 | 32.2% | −1.89 | −0.48% | +0.65% |
+| C atr-0.25 | ALL | 1140 | 0.87 | 48.4% | −2.57 | −0.73% | +0.65% |
+| | **range** | 374 | **0.99** | 50.8% | **−0.15** | −0.67% | +0.68% |
+| | neutral | 376 | 0.78 | 47.3% | −4.38 | −0.71% | +0.59% |
+| | trend | 390 | 0.86 | 47.2% | −3.16 | −0.80% | +0.68% |
+| | GATED (drop trend) | 750 | 0.88 | 49.1% | −2.27 | −0.69% | +0.63% |
+| E bounce | ALL | 641 | 0.83 | 38.1% | −3.50 | −0.66% | +0.70% |
+| | **range** | 207 | **0.99** | 41.5% | **−0.21** | −0.60% | +0.75% |
+| | neutral | 196 | 0.86 | 37.8% | −2.70 | −0.60% | +0.67% |
+| | trend | 238 | **0.71** | 35.3% | **−7.02** | −0.76% | +0.69% |
+| | GATED (drop trend) | 403 | 0.92 | 39.7% | −1.42 | −0.60% | +0.71% |
+
+### Findings
+
+1. **The fade is a range-day strategy — confirmed numerically.** On range days every mode is
+   **near-breakeven (PF 0.99, expectancy −$0.15 / −$0.15 / −$0.21)**; on neutral + trend days it
+   bleeds. The strategy's whole-window loss is concentrated in non-range sessions. This is the
+   strongest validation yet of the opening-range-fade thesis: it works where it's supposed to (calm,
+   oscillating days) and loses where it's supposed to (decisive one-way days).
+2. **Entry mode is second-order — re-confirmed by a third independent cut.** Range-day expectancy is
+   −$0.15 / −$0.15 / −$0.21 across A / C / E — essentially *identical*. The regime, not the entry
+   trigger, governs the outcome. Phase 1's conclusion holds.
+3. **"Drop trend days" is the WRONG gate.** For A and C the worst bucket is **neutral** (PF 0.77–0.78),
+   not trend (0.84–0.86); only E's bleed is trend-concentrated (PF 0.71, −$7.02 — the bounce-confirm
+   gets chopped on decisive days). A blunt trend-exclusion helps E a lot (−$3.50 → −$1.42, PF 0.92, the
+   best gated variant) but A/C only modestly (−$2.34 → −$1.89). **The right gate is "trade range days
+   ONLY"** — that isolates the PF-0.99 bucket and removes both bleeding regimes.
+4. **The regime gate is NECESSARY but not SUFFICIENT.** Even range-only is only ~breakeven (PF 0.99),
+   not profitable. The gate removes the bleed; it does not by itself create positive expectancy. The
+   positive edge must come from Phase 2 (stop — range-day losers are the lever) and/or symbol selection.
+   But removing a −$2.3..−$3.5/trade drag to ≈0 is a first-order improvement that entry tuning never got
+   near.
+
+### ⚠ Critical caveat — DE is look-ahead; this segmentation is NOT yet a live gate
+
+`DE = |close − open| / (high − low)` uses the **day's close, high, and low** — none of which are known
+at ~10:00 ET when the fade entry fires. So the regime label here is **post-hoc**: perfectly valid for
+*learning* "where the strategy works" (the question Phase 3 asks first), but it **cannot be used as a
+runtime gate** — that would be trading on the future. A live gate needs a **point-in-time regime
+predictor** built only from information available at entry time, e.g. SPY's opening 30-min directional
+efficiency / range, VIX level at the open, the overnight gap, or the prior day's (settled) regime. The
+open empirical question is whether such an early-session signal predicts the full-day regime *well
+enough* to recover most of the range-only edge. That PIT predictor — built + validated against this
+look-ahead label — is the real Phase-3 deliverable, and gates whether a runtime `trend_filter` /
+`range_only` param is worth building (with an ADR, since it's a structural entry-gate). Until then: no
+strategy change, no live gate.
+
+**Next:** build the PIT regime predictor (SPY opening-range behavior / VIX-at-open), measure how much of
+the range-only separation it recovers, then decide on the runtime gate + ADR.
