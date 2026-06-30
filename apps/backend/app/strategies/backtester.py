@@ -295,6 +295,7 @@ class Backtester:
         avg_mae = (sum(maes) / len(maes)) if maes else 0.0
         avg_mfe = (sum(mfes) / len(mfes)) if mfes else 0.0
         avg_tte = (sum(ttes) / len(ttes)) if ttes else 0.0
+        funnel = ctx.opportunity_funnel_counts()
 
         return BacktestMetrics(
             total_return=total_return,
@@ -312,6 +313,7 @@ class Backtester:
             avg_mae=avg_mae,
             avg_mfe=avg_mfe,
             avg_time_to_entry_seconds=avg_tte,
+            opportunity_funnel=funnel,
         )
 
     # P6b §1a-drift: `_sharpe` / `_max_drawdown` were extracted verbatim into

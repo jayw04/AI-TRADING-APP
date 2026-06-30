@@ -77,6 +77,10 @@ class BacktestMetrics:
     avg_mae: float = 0.0
     avg_mfe: float = 0.0
     avg_time_to_entry_seconds: float = 0.0
+    # Phase 0B: Opportunity Funnel — distinct symbol-days reaching each stage
+    # (universe -> qualified -> touched -> entered -> stopped / exited). Answers
+    # "why did only 1 of N trade?" — a permanent research/dashboard KPI (owner review).
+    opportunity_funnel: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass

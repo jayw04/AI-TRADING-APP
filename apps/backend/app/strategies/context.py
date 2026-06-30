@@ -374,6 +374,14 @@ class StrategyContext:
             order_request = replace(order_request, **updates)
         return await self._submit_order_fn(order_request)
 
+    # ---- opportunity funnel (Phase 0B) ----
+
+    def record_opportunity(self, symbol: str, stage: str, day: str) -> None:
+        """No-op in live (today). Mirrors ``BacktestContext.record_opportunity`` so the
+        SAME strategy code reports funnel stages in backtest without erroring live. A live
+        funnel collector (for the permanent dashboard KPI) is a future surface."""
+        return None
+
     # ---- signal logging ----
 
     async def log_signal(

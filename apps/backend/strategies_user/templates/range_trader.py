@@ -335,6 +335,8 @@ class RangeTrader(Strategy):
             # New ET day for this symbol: reset its opening range, VWAP, counters and
             # in-flight flag (DAY orders expired at the prior close).
             st.roll_day(day_key)
+            # Phase 0B funnel: this (symbol, ET-day) is now in the evaluated universe.
+            self.ctx.record_opportunity(symbol, "universe", day_key)
             # Refresh the (strategy-level) sizing equity from the LIVE account balance,
             # falling back to the configured estimate when no broker snapshot exists yet.
             equity = await self.ctx.get_account_equity()
@@ -351,6 +353,11 @@ class RangeTrader(Strategy):
         # Resolve this symbol's levels: fixed (params) or dynamic opening-range. In
         # opening_range mode this also accumulates the symbol's range while it forms.
         entry, exit_, stop = self._resolve_levels(p, bar, tod, st)
+        if entry > 0:
+            # Phase 0B funnel: OR levels resolved (qualified); price at/below support = touched.
+            self.ctx.record_opportunity(symbol, "qualified", day_key)
+            if price <= entry:
+                self.ctx.record_opportunity(symbol, "touched", day_key)
 
         position = await self.ctx.get_position_for(symbol)
         in_long = (
