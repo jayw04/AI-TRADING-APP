@@ -487,45 +487,83 @@ problem: momentum names **move but trend** (fade fights the trend); reverters **
 momentum semis and low-vol defensives. (Precise scope: two families were tested, not the whole universe
 space; the claim is bounded to what was measured.)
 
-## PROGRAM CONCLUSION — the fade has no tradable edge (RNG = rejected benchmark, fully evidenced)
+## PROGRAM CONCLUSION — no statistically useful edge on the tested universes/regimes/variants
 
-The long-only opening-range fade is short edge across **three independent dimensions**, on clean 3-year
-data: (1) every entry mode [Phase 1, PF 0.84–0.91]; (2) every regime [Phase 3, best bucket PF 0.94];
-(3) both universe archetypes [momentum PF ~0.87, mean-reverting PF ~0.72]. Entry, stop, trend-gate, and
-universe were each tested and none reaches profitability. This is a **strong, conclusive negative
-result** — it confirms the research-portfolio design that classes RNG as the *rejected-benchmark* sleeve,
-and now supplies the full *why*.
+**The tested long-only opening-range fade demonstrated no statistically useful edge on the tested
+universes, tested regimes, and tested implementation variants** — clean 3-year data, three independent
+dimensions: (1) every entry mode [Phase 1, PF 0.84–0.91]; (2) every regime [Phase 3, best bucket PF 0.94];
+(3) both tested universe archetypes [momentum PF ~0.87, mean-reverting PF ~0.72]. None reaches
+profitability. The wording is deliberately bounded — it does not claim the fade *cannot* work in *any*
+market; it states that on what was measured, it does not. (A different instrument class — futures,
+options — or a different execution model is outside this evidence and remains an open question.)
 
 **Verdict framing: RNG-001 is COMPLETE — evidence REJECTS, program SUCCEEDED.** The program is not
 "closed" (which frames a success as a failure); it is **completed with a rejected verdict**. The
-*hypothesis* — that a long-only opening-range fade has a tradable edge — failed; the *research program*
-succeeded, because it produced a transparent, reproducible verdict plus durable infrastructure. Formally:
+*hypothesis* failed; the *research program* succeeded, because it produced a transparent, reproducible
+verdict plus durable infrastructure. Formally:
 
 > **RNG-001 — Status: Completed · Verdict: Rejected · Disposition: Archived.** The evidence does not
 > support promotion of the opening-range fade on any tested universe or regime. RNG-001 is archived as a
 > completed, rejected benchmark; its instrumentation, research harnesses, and methodology become reusable
 > platform capabilities.
 
+**Research Cost Saved (the measurable benefit).** Framed for stakeholders, the outcome is not "a strategy
+was rejected" — it is **"the platform prevented the deployment of an unprofitable strategy,"** *before*
+any capital, live-trading risk, or months of build-out were spent on Phases 2/4/5. Catching a
+convincing-but-false hypothesis on paper, with evidence, is the platform's core value: it reduces false
+positives, not just finds true ones.
+
 **"Archived" ≠ "paused" — reopening requires a NEW HYPOTHESIS, not another sweep.** Do not pursue Phase
 1.5/2/4/5: parameter tuning cannot close a ~0.1–0.15 PF gap that is structural to the fade thesis on the
-tested universes. The one residual thread (an exit capturing more of a positive MFE that the OR-high/stop
-leaves on the table) is a long shot, relevant only on the *momentum* names where the fade also fights the
-trend — not worth a phase. RNG stays live on the box as the **rejected-benchmark** sleeve (default config,
+tested universes. RNG stays live on the box as the **rejected-benchmark** sleeve (default config,
 untouched): a verdict-distinct, evidence-backed negative. A future reopen must bring a *materially
 different mechanic or instrument class* (not the same fade with new knobs) and a new hypothesis id.
 
-### Research Deliverables (reusable platform assets, independent of the strategy)
+### Deliverables — Platform Assets vs Research Assets vs Strategy Outcome
 
-The durable output of RNG-001 is infrastructure, not a strategy. Each carries forward to any future
-program:
+The durable output of RNG-001 is infrastructure, not a strategy. Separating by reuse scope:
 
-- ✅ **MAE/MFE + time-to-entry** per-trade instrumentation (`app/strategies/backtest_*`)
-- ✅ **Opportunity Funnel** (universe→qualified→touched→entered→stopped→exited) — recommend promoting to
-  a permanent, all-strategy dashboard KPI (Momentum, Insider, future books), not just a research artifact
-- ✅ **Regime Classifier / segmentation** (SPY directional-efficiency day labels + trade bucketing)
-- ✅ **Entry-mode comparison harness** (`scripts/research/range_entry_mode_compare.py`)
-- ✅ **Universe-screen harness** (variance-ratio mean-reversion selection; lesson: avg daily DE is a
-  non-discriminating ~0.45 constant — use VR)
-- ✅ **Data-integrity checker + cache-repair tool** (`scripts/research/rebuild_5min_cache.py`) — surfaced
-  and worked around the bar_cache 10k-truncation bug; the platform fix is recorded in **ADR-0033
-  (Historical Data Integrity)**.
+**Platform Assets Produced** (reusable by *every* future program; not Range-specific):
+- **Opportunity Funnel** (universe→qualified→touched→entered→stopped→exited) — promote to a permanent,
+  all-strategy dashboard KPI (Momentum, Insider, future books).
+- **Data-integrity checker + cache-repair tool** (`scripts/research/rebuild_5min_cache.py`) + the
+  platform fix in **ADR-0033 (Foundational — Historical Data Integrity)** — protects every future backtest.
+- **Evidence Correction Report** pattern (see §above) — the standard for publishing a defect-invalidated
+  result.
+
+**Research Assets Produced** (reusable research tooling/method):
+- **MAE/MFE + time-to-entry** per-trade instrumentation (`app/strategies/backtest_*`).
+- **Regime Classifier / segmentation** (SPY directional-efficiency day labels + trade bucketing).
+- **Entry-mode comparison harness** (`scripts/research/range_entry_mode_compare.py`).
+- **Universe-screen harness** (variance-ratio mean-reversion selection; lesson: avg daily DE is a
+  non-discriminating ~0.45 constant — use VR).
+
+**Strategy Outcome**: RNG-001 rejected (archived benchmark). *One strategy did not survive; six-plus
+reusable capabilities did.*
+
+---
+
+## Evidence Package (RNG-001) — standardized index
+
+Per the platform template, this study is the RNG-001 Evidence Package; components map to its sections:
+
+| Component | Where |
+|---|---|
+| Research Summary | Phase 1 / Phase 3 / Universe-pivot sections above |
+| Reproducibility | Harnesses in `scripts/research/` (deterministic, disarmed one-off containers) |
+| Data Integrity | Evidence Correction Report §; ADR-0033 |
+| Evidence Correction Report | § "⚠ Evidence Correction Report (2026-06-30)" |
+| Final Verdict | § PROGRAM CONCLUSION (RNG-001 Completed/Rejected/Archived) |
+| Lessons Learned | below |
+| Executive Summary (1-page) | `docs/design/RNG-001_Executive_Summary.md` |
+
+### Lessons Learned
+
+1. **Verify data completeness before trusting any long-window backtest.** A silent cache truncation
+   biased weeks of results; a coverage assertion (ADR-0033) would have caught it on day one.
+2. **Entry micro-structure is second-order** for this strategy class — regime/universe dominate. Don't
+   tune the entry before establishing the environment where an edge could exist.
+3. **Pick selection metrics that discriminate.** Avg daily DE was a ~0.45 constant across all names;
+   variance ratio was the metric that actually separated trending from mean-reverting.
+4. **A negative result is an asset** when it is transparent, reproducible, and leaves reusable
+   infrastructure — the whole point of Evidence Engineering.

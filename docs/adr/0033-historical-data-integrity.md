@@ -1,14 +1,15 @@
-# ADR 0033 — Historical Data Integrity (bar-cache completeness)
+# ADR 0033 — Historical Data Integrity (bar-cache completeness) — **Foundational**
 
 | Field | Value |
 |---|---|
 | Date | 2026-06-30 |
-| Status | **Draft** (awaiting owner review; recommended in `docs/design/Strategy Review.md` during RNG-001) |
+| Status | **Draft** (awaiting owner review; recommended in `docs/design/Strategy Review.md` and the 2026-07-01 review during RNG-001) |
+| Class | **Foundational** — a data-integrity guarantee every research result depends on (peer of ADR 0002 OrderRouter for the *research* path), not a one-off implementation fix |
 | Phase | Cross-phase (market-data layer; research reproducibility) |
 | Supersedes | — |
 | Related | 0017 (OS trust store for Alpaca TLS), 0032 (paper-stack on EC2 — the always-on box fetches incrementally, which *masks* this bug), gotcha_barcache_10k_truncation_poison; discovered during RNG-001 (`docs/design/Range_BuySell_Formula_Study.md`) |
 
-*Escalated from a Range-research finding to a platform ADR because the defect is in the shared market-data layer, not in any strategy. It silently biased a multi-week research program's results; any future backtest over a long window is exposed until the decision below is implemented.*
+*Escalated from a Range-research finding to a **Foundational platform ADR** because the defect is in the shared market-data layer, not in any strategy, and because **without trustworthy historical data no other research matters** — a silent data gap contaminates every backtest built on it. It already biased a multi-week research program's results; any future long-window backtest is exposed until the decision below is implemented. This ADR is the guarantee of research-data trustworthiness; treat it with the weight of a foundational decision, not a bug ticket.*
 
 ## Context
 
