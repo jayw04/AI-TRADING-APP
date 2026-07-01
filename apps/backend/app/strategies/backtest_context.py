@@ -23,6 +23,7 @@ import structlog
 
 from app.db.enums import OrderSide, OrderType, SignalType
 from app.risk import OrderRequest
+from app.utils.time import EASTERN
 
 from .backtest_models import BacktestTrade
 from .context import FillEvent
@@ -38,6 +39,10 @@ class _SimPosition:
     entry_ts: datetime
     side: str  # 'long' | 'short'
     entry_bar_index: int = 0  # master-symbol cursor at entry → bars-held metric
+    # Phase 0A: running worst/best price seen DURING the hold (init to entry at open;
+    # updated each bar from the bar's low/high → MAE/MFE at close).
+    mae_price: Decimal = Decimal("0")
+    mfe_price: Decimal = Decimal("0")
 
 
 @dataclass
@@ -125,6 +130,20 @@ class BacktestContext:
         self.trades: list[BacktestTrade] = []
         self.signals: list[dict[str, Any]] = []
         self.equity_curve: list[tuple[datetime, Decimal]] = []
+        # Phase 0B Opportunity Funnel: per stage, the set of (symbol, ET-day) that reached
+        # it. universe/qualified/touched are strategy-reported via record_opportunity();
+        # entered/stopped/exited are recorded automatically on fills/closes.
+        self._funnel: dict[str, set[tuple[str, str]]] = {
+            stage: set()
+            for stage in (
+                "universe",
+                "qualified",
+                "touched",
+                "entered",
+                "stopped",
+                "exited",
+            )
+        }
 
     @property
     def factors(self) -> Any:
@@ -139,6 +158,20 @@ class BacktestContext:
                 "FactorAccessor to BacktestContext / the Backtester."
             )
         return self._factor_accessor
+
+    # ---------- Opportunity Funnel (Phase 0B) ----------
+
+    def record_opportunity(self, symbol: str, stage: str, day: str) -> None:
+        """Strategy-reported funnel stage for a (symbol, ET-day). Idempotent per
+        symbol-day (set semantics). Mirrored as a no-op on the live StrategyContext so
+        the same strategy code runs in both."""
+        bucket = self._funnel.get(stage)
+        if bucket is not None:
+            bucket.add((symbol.upper(), day))
+
+    def opportunity_funnel_counts(self) -> dict[str, int]:
+        """Distinct symbol-days that reached each funnel stage."""
+        return {stage: len(s) for stage, s in self._funnel.items()}
 
     # ---------- harness-only methods ----------
 
@@ -225,6 +258,11 @@ class BacktestContext:
                     entry_ts=ts,
                     side="long",
                     entry_bar_index=self._cursor,
+                    mae_price=fill_price,
+                    mfe_price=fill_price,
+                )
+                self._funnel["entered"].add(
+                    (symbol.upper(), ts.astimezone(EASTERN).date().isoformat())
                 )
             elif current.side == "long":
                 total_qty = current.qty + qty
@@ -247,6 +285,11 @@ class BacktestContext:
                     entry_ts=ts,
                     side="short",
                     entry_bar_index=self._cursor,
+                    mae_price=fill_price,
+                    mfe_price=fill_price,
+                )
+                self._funnel["entered"].add(
+                    (symbol.upper(), ts.astimezone(EASTERN).date().isoformat())
                 )
             elif current.side == "long":
                 self._close_or_reduce(
@@ -275,6 +318,29 @@ class BacktestContext:
         else:
             pnl = float((position.avg_entry_price - exit_price) * closing_qty)
 
+        # Phase 0A: excursions as signed fractions of entry (mae <= 0 adverse, mfe >= 0
+        # favorable), and time from the 09:30 ET session open to the entry fill.
+        entry = position.avg_entry_price
+        if entry > 0:
+            if position.side == "long":
+                mae = float((position.mae_price - entry) / entry)
+                mfe = float((position.mfe_price - entry) / entry)
+            else:
+                mae = float((entry - position.mae_price) / entry)
+                mfe = float((entry - position.mfe_price) / entry)
+        else:
+            mae = mfe = 0.0
+        entry_et = position.entry_ts.astimezone(EASTERN)
+        session_open = entry_et.replace(hour=9, minute=30, second=0, microsecond=0)
+        time_to_entry = max(0, int((entry_et - session_open).total_seconds()))
+
+        # Phase 0B: funnel — exited (+ stopped) keyed on the ENTRY day so all stages align
+        # to the same opportunity-day.
+        entry_day = entry_et.date().isoformat()
+        self._funnel["exited"].add((position.symbol, entry_day))
+        if "stop" in exit_reason.lower():
+            self._funnel["stopped"].add((position.symbol, entry_day))
+
         self.trades.append(
             BacktestTrade(
                 symbol=position.symbol,
@@ -288,6 +354,9 @@ class BacktestContext:
                 duration_seconds=int((exit_ts - position.entry_ts).total_seconds()),
                 bar_count_held=max(0, self._cursor - position.entry_bar_index),
                 exit_reason=exit_reason,
+                mae=mae,
+                mfe=mfe,
+                time_to_entry_seconds=time_to_entry,
             )
         )
 
@@ -315,7 +384,22 @@ class BacktestContext:
             df = self._bars_by_symbol.get(symbol)
             if df is None or self._cursor >= len(df):
                 continue
-            current_close = Decimal(str(df.iloc[self._cursor]["c"]))
+            bar = df.iloc[self._cursor]
+            # Phase 0A: extend this position's running excursion with the bar's extremes.
+            # Done here (the per-bar equity sample) so it runs exactly once per bar.
+            bar_hi = Decimal(str(bar["h"]))
+            bar_lo = Decimal(str(bar["l"]))
+            if pos.side == "long":
+                if bar_lo < pos.mae_price:
+                    pos.mae_price = bar_lo
+                if bar_hi > pos.mfe_price:
+                    pos.mfe_price = bar_hi
+            else:
+                if bar_hi > pos.mae_price:
+                    pos.mae_price = bar_hi
+                if bar_lo < pos.mfe_price:
+                    pos.mfe_price = bar_lo
+            current_close = Decimal(str(bar["c"]))
             if pos.side == "long":
                 equity += current_close * pos.qty
             else:

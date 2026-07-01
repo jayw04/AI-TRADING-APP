@@ -284,6 +284,18 @@ class Backtester:
             if closed_trades
             else 0.0
         )
+        # Phase 0A aggregates.
+        maes = [t.mae for t in closed_trades if t.mae is not None]
+        mfes = [t.mfe for t in closed_trades if t.mfe is not None]
+        ttes = [
+            t.time_to_entry_seconds
+            for t in closed_trades
+            if t.time_to_entry_seconds is not None
+        ]
+        avg_mae = (sum(maes) / len(maes)) if maes else 0.0
+        avg_mfe = (sum(mfes) / len(mfes)) if mfes else 0.0
+        avg_tte = (sum(ttes) / len(ttes)) if ttes else 0.0
+        funnel = ctx.opportunity_funnel_counts()
 
         return BacktestMetrics(
             total_return=total_return,
@@ -298,6 +310,10 @@ class Backtester:
             avg_trade_duration_seconds=avg_duration,
             starting_equity=starting,
             ending_equity=ending,
+            avg_mae=avg_mae,
+            avg_mfe=avg_mfe,
+            avg_time_to_entry_seconds=avg_tte,
+            opportunity_funnel=funnel,
         )
 
     # P6b §1a-drift: `_sharpe` / `_max_drawdown` were extracted verbatim into
