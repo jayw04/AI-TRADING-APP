@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from decimal import Decimal
 
 from app.api.v1.schemas.account import AccountResponse
 from app.auth.stub import CurrentUser, get_current_user
