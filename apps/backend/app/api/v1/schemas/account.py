@@ -21,6 +21,11 @@ class AccountResponse(BaseModel):
     portfolio_value: Decimal
     day_change: Decimal
     day_change_pct: Decimal
+    # Inception-to-date figures (THIS account only, never aggregated across users).
+    # starting_equity = earliest recorded equity snapshot (fallback: current equity → 0%).
+    starting_equity: Decimal
+    total_return: Decimal  # equity - starting_equity
+    total_return_pct: Decimal  # fraction, same convention as day_change_pct
     daytrade_count: int
     pattern_day_trader: bool
     trading_blocked: bool
