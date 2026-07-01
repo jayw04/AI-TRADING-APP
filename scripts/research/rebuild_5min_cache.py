@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import pathlib
+import sys
 import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -30,7 +31,9 @@ from app.db.session import get_sessionmaker
 from app.market_data.bar_cache import BarCache
 from app.utils.time import EASTERN
 
-SYMBOLS = ["SPY", "MU", "INTC", "AMD", "TSLA", "META"]
+# Default = the SPY reference + the original momentum Top-5. Override via CLI args, e.g.
+#   python - D PFE BMY VZ PG   (rebuild just the universe-pivot names)
+SYMBOLS = sys.argv[1:] if len(sys.argv) > 1 else ["SPY", "MU", "INTC", "AMD", "TSLA", "META"]
 START = datetime(2023, 7, 1, tzinfo=timezone.utc)
 END = datetime(2026, 6, 30, tzinfo=timezone.utc)
 

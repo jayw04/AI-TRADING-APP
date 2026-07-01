@@ -447,3 +447,53 @@ and salvageable; if it fails there too, the fade thesis is dead and RNG stays a 
 Phases 1.5 / 2 (entry-delay, stop) are deprioritized — the clean data says they cannot rescue a
 strategy that is short edge in its *best* bucket. No live change; the strategy stays default-config on
 the box (it is a benchmark, not an approved edge).
+
+---
+
+# Universe pivot — mean-reverting names (the decisive test); PROGRAM CONCLUSION
+
+**Design.** One clean variable: the *same* strategy + params, run on a mean-reverting universe instead
+of the momentum Top-5. Candidate selection: screened a 34-name cross-style pool by **variance ratio**
+(`Var(k-day)/(k·Var(1-day))`, <1 = mean-reverting) + low-momentum/defensive prior + tradeable daily
+range. (Note: avg daily DE — my first proposed selector — was a near-constant ~0.45 across ALL liquid
+equities and did NOT discriminate; VR was the usable metric.) Pivot universe = **D, PFE, BMY, VZ, PG**
+(utility / 2× health / telecom / staple; VR5 0.87–0.92). Clean 5-min data rebuilt to 749 sessions each.
+
+**Result — the pivot FAILED (worse than momentum, every mode):**
+
+| Mode | Momentum Top-5 PF | Pivot (mean-rev) PF | Pivot win% | Pivot MFE |
+|---|---:|---:|---:|---:|
+| A exact-low | 0.84 | 0.74 | 38.7% | +0.39% |
+| B zone-15% | 0.91 | 0.77 | 42.9% | +0.41% |
+| C atr-0.25 | 0.88 | 0.65 | 49.6% | +0.26% |
+| D vwap+zone | 0.88 | 0.76 | 42.7% | +0.41% |
+| E bounce | 0.87 | 0.77 | 45.1% | +0.39% |
+
+Per-name (mode C): **all five lose** — D 0.71, BMY 0.75, VZ 0.62, PFE 0.59, PG 0.52. Per-regime: uniformly
+bad (PF 0.63–0.66, no bucket helps).
+
+**Mechanism — the exact failure mode predicted.** The defensive reverters have **much smaller MFE
+(~0.26–0.41% vs the semis' 0.66–0.77%)**: they *do* revert more often (**higher win rates, 44–50%**) but
+each win is **too tiny to cover the losers + costs** (5 bps slippage/side + spread). Mode C is worst
+(PF 0.65, −18%) — its ATR-zone over-trades low-vol names into a cost sink. The two universes bracket the
+problem: momentum names **move but trend** (fade fights the trend); reverters **revert but don't move**
+(fade can't clear costs). **There is no sweet spot between them.**
+
+## PROGRAM CONCLUSION — the fade has no tradable edge (RNG = rejected benchmark, fully evidenced)
+
+The long-only opening-range fade is short edge across **three independent dimensions**, on clean 3-year
+data: (1) every entry mode [Phase 1, PF 0.84–0.91]; (2) every regime [Phase 3, best bucket PF 0.94];
+(3) both universe archetypes [momentum PF ~0.87, mean-reverting PF ~0.72]. Entry, stop, trend-gate, and
+universe were each tested and none reaches profitability. This is a **strong, conclusive negative
+result** — it confirms the research-portfolio design that classes RNG as the *rejected-benchmark* sleeve,
+and now supplies the full *why*.
+
+**Recommendation: CLOSE the range research program.** Do not pursue Phase 1.5/2/4/5 — the evidence says
+parameter tuning cannot close a ~0.1–0.15 PF gap that is structural to the fade thesis on any tested
+universe. The one residual thread (exit capturing more of a positive MFE that the OR-high/stop leaves on
+the table) is a long shot and only relevant on the *momentum* names, where the fade also fights the
+trend — not worth a phase. RNG stays live on the box as a **rejected benchmark** (default config,
+untouched), its purpose in the lineup being exactly this: a verdict-distinct, evidence-backed negative.
+The reusable assets built here — MAE/MFE + Opportunity Funnel instrumentation, the entry-mode /
+regime-segmentation / universe-screen harnesses, and the bar_cache data-fidelity fix — carry forward to
+the next program.
