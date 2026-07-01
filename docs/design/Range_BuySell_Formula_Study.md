@@ -377,7 +377,13 @@ the range-only separation it recovers, then decide on the runtime gate + ADR.
 
 ---
 
-# ⚠ CORRECTION (2026-06-30) — data-fidelity bug; Phase 1 & 3 recomputed on clean data
+# ⚠ Evidence Correction Report (2026-06-30) — data-fidelity bug; Phase 1 & 3 recomputed on clean data
+
+> **Reusable pattern.** When a result is invalidated by a defect, don't silently re-run — publish a
+> record of *what the bug was, why it happened, how it biased the result, and what changed after
+> correction*. That transparency is what makes a negative (or any) result credible. This section is the
+> template for future Evidence Correction Reports. The underlying platform defect is escalated to
+> **ADR-0033 (Historical Data Integrity)** — it is a platform issue, not a Range issue.
 
 **The bug.** `app/market_data/bar_cache.py` `_fetch_and_write` issues ONE Alpaca call for the whole
 missing span with `limit=10000`. A cold multi-year 5-min fetch truncates at Alpaca's 10k-row page
@@ -477,7 +483,9 @@ bad (PF 0.63–0.66, no bucket helps).
 each win is **too tiny to cover the losers + costs** (5 bps slippage/side + spread). Mode C is worst
 (PF 0.65, −18%) — its ATR-zone over-trades low-vol names into a cost sink. The two universes bracket the
 problem: momentum names **move but trend** (fade fights the trend); reverters **revert but don't move**
-(fade can't clear costs). **There is no sweet spot between them.**
+(fade can't clear costs). **No sweet spot was found within the two tested universe families** — high-
+momentum semis and low-vol defensives. (Precise scope: two families were tested, not the whole universe
+space; the claim is bounded to what was measured.)
 
 ## PROGRAM CONCLUSION — the fade has no tradable edge (RNG = rejected benchmark, fully evidenced)
 
@@ -488,12 +496,36 @@ universe were each tested and none reaches profitability. This is a **strong, co
 result** — it confirms the research-portfolio design that classes RNG as the *rejected-benchmark* sleeve,
 and now supplies the full *why*.
 
-**Recommendation: CLOSE the range research program.** Do not pursue Phase 1.5/2/4/5 — the evidence says
-parameter tuning cannot close a ~0.1–0.15 PF gap that is structural to the fade thesis on any tested
-universe. The one residual thread (exit capturing more of a positive MFE that the OR-high/stop leaves on
-the table) is a long shot and only relevant on the *momentum* names, where the fade also fights the
-trend — not worth a phase. RNG stays live on the box as a **rejected benchmark** (default config,
-untouched), its purpose in the lineup being exactly this: a verdict-distinct, evidence-backed negative.
-The reusable assets built here — MAE/MFE + Opportunity Funnel instrumentation, the entry-mode /
-regime-segmentation / universe-screen harnesses, and the bar_cache data-fidelity fix — carry forward to
-the next program.
+**Verdict framing: RNG-001 is COMPLETE — evidence REJECTS, program SUCCEEDED.** The program is not
+"closed" (which frames a success as a failure); it is **completed with a rejected verdict**. The
+*hypothesis* — that a long-only opening-range fade has a tradable edge — failed; the *research program*
+succeeded, because it produced a transparent, reproducible verdict plus durable infrastructure. Formally:
+
+> **RNG-001 — Status: Completed · Verdict: Rejected · Disposition: Archived.** The evidence does not
+> support promotion of the opening-range fade on any tested universe or regime. RNG-001 is archived as a
+> completed, rejected benchmark; its instrumentation, research harnesses, and methodology become reusable
+> platform capabilities.
+
+**"Archived" ≠ "paused" — reopening requires a NEW HYPOTHESIS, not another sweep.** Do not pursue Phase
+1.5/2/4/5: parameter tuning cannot close a ~0.1–0.15 PF gap that is structural to the fade thesis on the
+tested universes. The one residual thread (an exit capturing more of a positive MFE that the OR-high/stop
+leaves on the table) is a long shot, relevant only on the *momentum* names where the fade also fights the
+trend — not worth a phase. RNG stays live on the box as the **rejected-benchmark** sleeve (default config,
+untouched): a verdict-distinct, evidence-backed negative. A future reopen must bring a *materially
+different mechanic or instrument class* (not the same fade with new knobs) and a new hypothesis id.
+
+### Research Deliverables (reusable platform assets, independent of the strategy)
+
+The durable output of RNG-001 is infrastructure, not a strategy. Each carries forward to any future
+program:
+
+- ✅ **MAE/MFE + time-to-entry** per-trade instrumentation (`app/strategies/backtest_*`)
+- ✅ **Opportunity Funnel** (universe→qualified→touched→entered→stopped→exited) — recommend promoting to
+  a permanent, all-strategy dashboard KPI (Momentum, Insider, future books), not just a research artifact
+- ✅ **Regime Classifier / segmentation** (SPY directional-efficiency day labels + trade bucketing)
+- ✅ **Entry-mode comparison harness** (`scripts/research/range_entry_mode_compare.py`)
+- ✅ **Universe-screen harness** (variance-ratio mean-reversion selection; lesson: avg daily DE is a
+  non-discriminating ~0.45 constant — use VR)
+- ✅ **Data-integrity checker + cache-repair tool** (`scripts/research/rebuild_5min_cache.py`) — surfaced
+  and worked around the bar_cache 10k-truncation bug; the platform fix is recorded in **ADR-0033
+  (Historical Data Integrity)**.
