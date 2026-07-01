@@ -74,26 +74,54 @@ export default function Dashboard() {
           </p>
         )}
         {acc && (
-          <div className="grid gap-4 mt-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Equity" value={formatMoney(acc.equity)} />
-            <Stat
-              label="Day P&L"
-              value={formatMoney(acc.day_change)}
-              valueClassName={pnlClassName(acc.day_change)}
-              sub={formatPercent(acc.day_change_pct)}
-            />
-            <Stat label="Cash" value={formatMoney(acc.cash)} />
-            <Stat label="Buying power" value={formatMoney(acc.buying_power)} />
-            <Stat label="Portfolio value" value={formatMoney(acc.portfolio_value)} />
-            <Stat label="Last equity" value={formatMoney(acc.last_equity)} />
-            <Stat label="Day-trade count" value={formatNumber(acc.daytrade_count, 0)} />
-            <Stat
-              label="Status"
-              value={acc.status}
-              sub={acc.pattern_day_trader ? "PDT" : acc.mode.toUpperCase()}
-            />
-            <div className="sm:col-span-2 lg:col-span-4 text-[11px] text-neutral-500">
-              Updated {formatTimestamp(acc.updated_at)} ·{" "}
+          <div className="mt-3">
+            {/* Explicit: these figures are THIS logged-in user's own paper account only. */}
+            <div className="text-[11px] text-neutral-500 mb-3">
+              Your paper account · {acc.mode.toUpperCase()} · #{acc.account_id}
+            </div>
+            {/* Headline: what you actually have, and how you're doing overall + today. */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Stat label="Total Value (Equity)" value={formatMoney(acc.equity)} big />
+              <Stat
+                label="Total Gain / Loss"
+                value={formatMoney(acc.total_return)}
+                valueClassName={pnlClassName(acc.total_return)}
+                sub={`${formatPercent(acc.total_return_pct)} since start`}
+                big
+              />
+              <Stat
+                label="Today's Change"
+                value={formatMoney(acc.day_change)}
+                valueClassName={pnlClassName(acc.day_change)}
+                sub={formatPercent(acc.day_change_pct)}
+                big
+              />
+            </div>
+            {/* Breakdown: starting money, and where the value sits now. */}
+            <div className="grid gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Stat label="Starting Capital" value={formatMoney(acc.starting_equity)} />
+              <Stat label="Cash" value={formatMoney(acc.cash)} />
+              <Stat
+                label="Invested (positions)"
+                value={formatMoney(Number(acc.equity) - Number(acc.cash))}
+              />
+              <Stat
+                label="Status"
+                value={acc.status}
+                sub={acc.pattern_day_trader ? "PDT" : acc.mode.toUpperCase()}
+              />
+            </div>
+            {/* De-emphasized: margin/technical figures that were confusing up top. */}
+            <div className="mt-3 text-[11px] text-neutral-500 flex flex-wrap gap-x-4 gap-y-1">
+              <span>
+                Buying power (margin ≈{" "}
+                {(Number(acc.buying_power) / Math.max(Number(acc.equity), 1)).toFixed(1)}×):{" "}
+                {formatMoney(acc.buying_power)}
+              </span>
+              <span>Portfolio value: {formatMoney(acc.portfolio_value)}</span>
+              <span>Last equity: {formatMoney(acc.last_equity)}</span>
+              <span>Day-trade count: {formatNumber(acc.daytrade_count, 0)}</span>
+              <span>Updated {formatTimestamp(acc.updated_at)}</span>
               {acc.trading_blocked ? (
                 <span className="text-rose-400">Trading blocked</span>
               ) : (
@@ -214,18 +242,22 @@ function Stat({
   value,
   sub,
   valueClassName,
+  big,
 }: {
   label: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
   valueClassName?: string;
+  big?: boolean;
 }) {
   return (
     <div className="rounded border border-neutral-800 bg-neutral-950 p-3">
       <div className="text-[11px] uppercase tracking-wider text-neutral-500">
         {label}
       </div>
-      <div className={`mt-1 font-mono text-lg ${valueClassName ?? "text-neutral-100"}`}>
+      <div
+        className={`mt-1 font-mono ${big ? "text-2xl" : "text-lg"} ${valueClassName ?? "text-neutral-100"}`}
+      >
         {value}
       </div>
       {sub && <div className="text-[11px] text-neutral-500 mt-0.5">{sub}</div>}

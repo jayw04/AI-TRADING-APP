@@ -139,6 +139,9 @@ export interface Account {
   portfolio_value: string;
   day_change: string;
   day_change_pct: string;
+  starting_equity: string;
+  total_return: string;
+  total_return_pct: string;
   daytrade_count: number;
   pattern_day_trader: boolean;
   trading_blocked: boolean;
