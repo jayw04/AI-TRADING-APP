@@ -258,6 +258,9 @@ is the owner's actual decision window; segmenting it by the Regime Classifier is
 
 ### Results — 3-year decision window (2023-07 → 2026-06)
 
+> ⚠ **SUPERSEDED — the table below was computed on TRUNCATED data (bar_cache 10k bug; see the
+> Correction section at the end of this file). Use the clean numbers there.**
+
 | Mode | Trades | Return | PF | Win% | avg MAE | avg MFE | Funnel (univ/qual/touch/enter) |
 |---|---:|---:|---:|---:|---:|---:|---|
 | A exact-low | 641 | −1.50% | 0.87 | 30.6% | −0.53% | +0.66% | 1271/1270/748/611 |
@@ -309,6 +312,10 @@ SPY ran 409→740, and is useless for a per-session gate). DE measures whether S
 one way (trend) or oscillated and closed mid-range (range). Split at the window's empirical tertiles:
 `range ≤ 0.33`, `trend ≥ 0.63`, else `neutral`. Distribution over 2023-07..2026-06: **trend 252 /
 neutral 251 / range 247** of 750 sessions — balanced, as tertiles should be.
+
+> ⚠ **SUPERSEDED — computed on TRUNCATED data (bar_cache 10k bug). Clean numbers in the Correction
+> section at the end of this file. The "range days near-breakeven (PF 0.99)" claim below did NOT
+> survive on full data — clean range days are PF 0.94, still losing.**
 
 ### Per-regime trade quality (3-year window, carry-forward modes)
 
@@ -367,3 +374,76 @@ strategy change, no live gate.
 
 **Next:** build the PIT regime predictor (SPY opening-range behavior / VIX-at-open), measure how much of
 the range-only separation it recovers, then decide on the runtime gate + ADR.
+
+---
+
+# ⚠ CORRECTION (2026-06-30) — data-fidelity bug; Phase 1 & 3 recomputed on clean data
+
+**The bug.** `app/market_data/bar_cache.py` `_fetch_and_write` issues ONE Alpaca call for the whole
+missing span with `limit=10000`. A cold multi-year 5-min fetch truncates at Alpaca's 10k-row page
+(~126 sessions) and then writes bogus `.empty` markers for every un-returned day (which block
+re-fetch). Result: the Range Top-5 + SPY 5-min caches held ~250 **non-contiguous** sessions (H2-2023
++ part of 2025), with **2024 and 2026 almost entirely missing**. The Phase-1 and Phase-3 tables above
+were therefore computed on a biased ⅓ sample. Methodology/harnesses were correct; the data was not.
+Fixed by `scripts/research/rebuild_5min_cache.py` (clear bogus markers, re-fetch month-by-month <10k
+rows). All six symbols verified at 750 contiguous sessions `{2023:126, 2024:252, 2025:249, 2026:123}`.
+
+## Phase 1 — clean 3-year (2023-07 → 2026-06), 5 entry modes
+
+| Mode | Trades | Return | PF | Win% | avg MAE | avg MFE |
+|---|---:|---:|---:|---:|---:|---:|
+| A exact-low | 1843 | −5.02% | 0.84 | 27.7% | −0.52% | +0.66% |
+| B zone-15% | 2310 | −4.29% | **0.91** | 34.2% | −0.66% | +0.77% |
+| C atr-0.25 | 3302 | −7.86% | 0.88 | **46.2%** | −0.73% | +0.69% |
+| D vwap+zone | 2120 | −5.22% | 0.88 | 34.7% | −0.64% | +0.73% |
+| E bounce | 1876 | −5.31% | 0.87 | 37.3% | −0.65% | +0.75% |
+
+Funnel: universe 3709 / qualified 3708 / touched 2189 / entered 1752–2728. **No mode passes the gate**
+(PF 0.84–0.91 < 1.2, win < 50%, negative return). **Entry mode is second-order** — tight PF cluster.
+The Phase-1 verdict is unchanged from the (biased) run; the bias flattered nobody differently.
+
+## Phase 3 — clean per-regime segmentation (SPY DE tertiles; trend 252 / neutral 251 / range 247)
+
+| Mode | Bucket | Trades | PF | Win% | Expectancy $/trade |
+|---|---|---:|---:|---:|---:|
+| A | ALL | 1843 | 0.84 | 27.7% | −2.72 |
+| | range | 608 | **0.94** | 30.6% | −0.94 |
+| | neutral | 609 | 0.74 | 25.3% | −4.68 |
+| | trend | 626 | 0.85 | 27.3% | −2.55 |
+| | GATED (drop trend) | 1217 | 0.84 | 27.9% | −2.81 |
+| C | ALL | 3302 | 0.88 | 46.2% | −2.38 |
+| | range | 1100 | **0.94** | 47.5% | −1.13 |
+| | neutral | 1100 | 0.86 | 45.1% | −2.96 |
+| | trend | 1102 | 0.86 | 46.0% | −3.05 |
+| | GATED (drop trend) | 2200 | 0.90 | 46.3% | −2.05 |
+| E | ALL | 1876 | 0.87 | 37.3% | −2.83 |
+| | range | 630 | **0.94** | 40.3% | −1.14 |
+| | neutral | 610 | 0.85 | 35.9% | −3.35 |
+| | trend | 636 | 0.82 | 35.5% | −3.99 |
+| | GATED (drop trend) | 1240 | 0.89 | 38.1% | −2.23 |
+
+### Revised conclusions (authoritative — these supersede the pre-correction Phase-1/3 findings)
+
+1. **The fade loses in EVERY regime.** Range days are the least-bad bucket (PF 0.94) but still lose
+   ~−$1/trade; neutral and trend days lose more. The earlier "range days ≈ breakeven (PF 0.99)"
+   finding was a **data artifact** of the missing 2024/2026 sessions and does NOT survive.
+2. **Entry mode is second-order — confirmed a 4th time.** Range-day PF is 0.94 / 0.94 / 0.94, identical
+   across A / C / E. Stop tuning cannot close a >0.06 PF gap from the *best* bucket.
+3. **The trend gate is ineffective and sometimes counter-productive.** For A it makes things slightly
+   *worse* (−$2.81 gated vs −$2.72 all), because neutral, not trend, is A's worst bucket. No gate
+   variant reaches profitability.
+4. **This is structural, not a tuning problem.** The long-only opening-range fade has **no edge in any
+   regime** on the momentum-leader Top-5 (MU/INTC/AMD/TSLA/META) — the market's strongest *trenders*,
+   i.e. the worst possible names to fade. Consistent with the research-portfolio design that already
+   classes RNG as the **rejected-benchmark** sleeve.
+
+### Recommendation — stop tuning; test the universe hypothesis
+
+The evidence says the lever is neither entry nor stop nor a trend gate — it is **what we fade**. The
+single highest-value next experiment is a **universe pivot** (one clean variable): run the *same*
+strategy on genuinely mean-reverting names (low-momentum / high mean-reversion-score / range-bound
+screen) instead of momentum leaders. If the fade shows an edge there, the thesis is universe-specific
+and salvageable; if it fails there too, the fade thesis is dead and RNG stays a rejected benchmark.
+Phases 1.5 / 2 (entry-delay, stop) are deprioritized — the clean data says they cannot rescue a
+strategy that is short edge in its *best* bucket. No live change; the strategy stays default-config on
+the box (it is a benchmark, not an approved edge).
