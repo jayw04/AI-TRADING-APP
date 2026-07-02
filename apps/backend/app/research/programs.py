@@ -93,16 +93,17 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "Gate-Passed (L1+L2).",
         "docs/implementation/evidence/port_001/EvidencePackage_PORT-001_v1.0.md"),
     ResearchProgram(
-        "MOM-002", "Momentum", "Broad vs concentrated momentum (book breadth)", "research",
-        "Breadth sweep (Top-5/10/15/20, survivorship-free, 2019-2026, n=150). Answers the 2026-07-02 "
-        "review's Q: does Top-20 beat Top-5 risk-adjusted? NO -- Sharpe falls 1.37->1.12, Calmar "
-        "1.40->0.96, CAGR +77%->+38% with breadth (OOS-confirmed 1.67->1.33); breadth buys only a "
-        "shallower maxDD (-55.3%->-40.2%). Load-bearing finding: Top-5<->Top-20 monthly returns still "
-        "correlate 0.90 -- widening the SAME factor does NOT create independent evidence, so the "
-        "three-momentum-book redundancy (PR #322: corr ~1.00, 100% overlap) needs distinct factors, not "
-        "wider books. v2 sector-cap arm (box store, recent-window): a 30% sector cap does NOT recover "
-        "drawdown and costs Sharpe (Top-10/15/20 -0.17..-0.29) -> neither breadth nor sector-capping "
-        "improves the book; fix = distinct factors, not a reshaped momentum book.",
+        "MOM-002", "Momentum", "Reshaping a concentrated momentum book (breadth / sector cap)", "rejected",
+        "REJECTED (closed 2026-07-02). Q: can RESHAPING a concentrated momentum book improve "
+        "risk-adjusted performance? NO on both arms. Breadth (Top-5->Top-20): Sharpe 1.37->1.12, Calmar "
+        "1.40->0.96, CAGR +77%->+38% (OOS-confirmed 1.67->1.33) -- breadth buys only a shallower maxDD "
+        "(-55%->-40%). Sector cap (30%): costs Sharpe (Top-10/15/20 -0.17..-0.29) WITHOUT recovering "
+        "drawdown. Load-bearing finding: Top-5<->Top-20 monthly returns still correlate 0.90 -- widening "
+        "the SAME factor does NOT create independent evidence (cf. the three-book redundancy, PR #322: "
+        "corr ~1.00, 100% overlap). Conclusion: diversify by combining INDEPENDENT FACTORS, not by "
+        "weakening the momentum signal. Caveat: within the available 2025-2026 sector-store universe; a "
+        "full-history confirmation is Future Research (Medium), not on the critical path. 2nd preserved "
+        "negative alongside RNG-001 -- the platform declines a plausible ENHANCEMENT, not just a strategy.",
         "docs/implementation/evidence/mom_002_broad_momentum/broad_momentum.md"),
 )
 

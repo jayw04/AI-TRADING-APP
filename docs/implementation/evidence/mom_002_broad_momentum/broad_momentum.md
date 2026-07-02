@@ -95,10 +95,33 @@ not single-sector concentration) barely moves. Artifacts: `research/mom002/v2_se
 
 **Combined v1 + v2 verdict:** neither *breadth* nor *sector-capping* improves the momentum book on a
 risk-adjusted basis. Concentration keeps winning; the fix for the portfolio's redundancy is **distinct
-factors, not a reshaped momentum book**. A definitive long-window (2019–2026) sector-cap test remains
-blocked by a data gap on *both* stores (local: full history, no sector; box: sector, no pre-2025 breadth)
-— it needs one store with **both** full history and sector data (re-ingest `tickers.sector` into the
-local full-history store, or back-fill pre-2025 SEP breadth into the box store).
+factors, not a reshaped momentum book**.
+
+Precise scope for the sector-cap arm (avoids overstating generality): *within the available 2025–2026
+universe, sector caps did not improve risk-adjusted returns.* A full-history confirmation remains
+**desirable** when a complete sector dataset becomes available — it is blocked today by a data gap on
+*both* stores (local: full history, no sector; box: sector, no pre-2025 breadth) and would need one
+store with **both**. Per the 2026-07-02 review, this is classified **Future Research, Priority: Medium
+— not a current milestone.** Whether a sector cap moves Sharpe by ~0.05 over eight years is not on the
+critical path; the practical decision (diversify via independent factors) is already made.
+
+## Program close-out — REJECTED (2026-07-02)
+
+> **Program:** MOM-002 · **Question:** Can reshaping a concentrated momentum portfolio improve
+> risk-adjusted performance? · **Experiments:** ✓ Broadening (Top-5→Top-20) · ✓ Sector cap (30%) ·
+> **Result:** **Rejected** · **Conclusion:** Risk diversification should be achieved by combining
+> **independent factors** rather than weakening the momentum signal.
+
+**Rejected, not Failed.** A plausible, intuitive *enhancement* to a validated strategy was tested one
+variable at a time against the same evidence framework and did not survive. That is a preserved negative
+— the platform's **second** alongside RNG-001, and a stronger one: RNG-001 rejected a plausible
+*strategy*; MOM-002 rejects a plausible *enhancement to a validated strategy*. Together they show the
+platform is built to decline attractive ideas that don't survive evidence, not only to discover alpha.
+
+**What this closes and what it opens.** MOM-002's construction line is closed (no v3 reshaping variants).
+The next research is **factor interaction**, not another momentum variant: Momentum + Low-Vol, Momentum +
+Sector Rotation, Momentum + Cross-Asset Trend, correlation stability, dynamic allocation — the transition
+from *strategy research* to *portfolio research*.
 
 ## Reproduce
 
@@ -113,6 +136,6 @@ Artifacts: `apps/backend/research/mom002/mom002_report.md` + `mom002_results.jso
 given store + args. Framework change: `app/factor_data/backtest.py` gained a backward-compatible `top_n`
 absolute-count override (tests in `tests/factor_data/test_backtest.py`).
 
-## Verdict: **Neither breadth nor a sector cap improves the momentum book risk-adjusted.** Top-20 does not beat Top-5 (breadth = a drawdown-for-Sharpe trade, breadth ≠ diversification); a 30% sector cap costs Sharpe without recovering drawdown (v2, recent-window). Portfolio fix = fewer momentum books + distinct factors, NOT a reshaped momentum book. Definitive long-window sector-cap test still blocked by a both-stores data gap.
+## Verdict: **REJECTED** (closed 2026-07-02) — reshaping a concentrated momentum book does not improve risk-adjusted performance. Top-20 does not beat Top-5 (breadth = a drawdown-for-Sharpe trade, breadth ≠ diversification); a 30% sector cap costs Sharpe without recovering drawdown (v2, 2025–2026 universe). Diversify by combining **independent factors**, not by weakening the momentum signal. Full-history sector-cap confirmation = Future Research (Medium), not the critical path. Preserved negative #2 alongside RNG-001.
 
 _Whatever the number, the evidence package is the deliverable. 12-1 momentum frozen — no optimization performed._
