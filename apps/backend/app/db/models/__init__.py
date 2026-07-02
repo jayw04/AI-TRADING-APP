@@ -9,6 +9,7 @@ from app.db.models.backtest_result import BacktestResult
 from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.models.eval_harness import EvalHarness, EvalHarnessDecision
 from app.db.models.fill import Fill
+from app.db.models.journal_note import JournalNote
 from app.db.models.llm_opt_in import LLMOptIn
 from app.db.models.morning_brief import MorningBrief
 from app.db.models.order import Order
@@ -47,6 +48,7 @@ __all__ = [
     "EvalHarnessDecision",
     "LLMOptIn",
     "Fill",
+    "JournalNote",
     "MorningBrief",
     "Order",
     "Position",
