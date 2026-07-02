@@ -105,6 +105,21 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "full-history confirmation is Future Research (Medium), not on the critical path. 2nd preserved "
         "negative alongside RNG-001 -- the platform declines a plausible ENHANCEMENT, not just a strategy.",
         "docs/implementation/evidence/mom_002_broad_momentum/broad_momentum.md"),
+    ResearchProgram(
+        "FI-001", "Portfolio Engineering",
+        "Multi-Factor Interaction & Portfolio Engineering — how validated factors interact & combine",
+        "research",
+        "CHARTERED 2026-07-02, pre-registered (plan v0.1). The bridge from Discovery Lab (validating single "
+        "factors) to Portfolio Engineering (combining them). Q: how do the validated books (MOM/LOW/SEC/TREND) "
+        "interact, and can a principled combination beat standalone momentum risk-adjusted -- WITHOUT "
+        "re-optimizing the factors? Motivated by MOM-002 (reshaping momentum != diversification) + the "
+        "2026-07-02 review (live momentum books corr ~1.00). 4 phases: (1) Measurement -- rolling corr, "
+        "holdings/sector overlap, diversification score; (2) Interaction -- pairwise blends vs standalone; "
+        "(3) Allocation -- eqw/risk-parity/ERC/dynamic-vol/correlation-aware; (4) Adaptive Portfolio. "
+        "Frozen priors (H1): MOM<->LOW ~-0.15 (real diversifier), MOM<->SEC ~+0.38, MOM<->TREND ~+0.87 "
+        "(redundant). Consumes PORT-001's ERC engine; the live Portfolio Analytics Engine (#322) is its "
+        "operational counterpart. No interaction study has run yet -- this is the freeze, not the result.",
+        "docs/implementation/TradingWorkbench_FI001_MultiFactorInteraction_Plan_v0.1.md"),
 )
 
 
