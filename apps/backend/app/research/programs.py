@@ -92,6 +92,19 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "separate tracked study (the harness's --db real mode). Capability Certificate v1.0 "
         "Gate-Passed (L1+L2).",
         "docs/implementation/evidence/port_001/EvidencePackage_PORT-001_v1.0.md"),
+    ResearchProgram(
+        "MOM-002", "Momentum", "Reshaping a concentrated momentum book (breadth / sector cap)", "rejected",
+        "REJECTED (closed 2026-07-02). Q: can RESHAPING a concentrated momentum book improve "
+        "risk-adjusted performance? NO on both arms. Breadth (Top-5->Top-20): Sharpe 1.37->1.12, Calmar "
+        "1.40->0.96, CAGR +77%->+38% (OOS-confirmed 1.67->1.33) -- breadth buys only a shallower maxDD "
+        "(-55%->-40%). Sector cap (30%): costs Sharpe (Top-10/15/20 -0.17..-0.29) WITHOUT recovering "
+        "drawdown. Load-bearing finding: Top-5<->Top-20 monthly returns still correlate 0.90 -- widening "
+        "the SAME factor does NOT create independent evidence (cf. the three-book redundancy, PR #322: "
+        "corr ~1.00, 100% overlap). Conclusion: diversify by combining INDEPENDENT FACTORS, not by "
+        "weakening the momentum signal. Caveat: within the available 2025-2026 sector-store universe; a "
+        "full-history confirmation is Future Research (Medium), not on the critical path. 2nd preserved "
+        "negative alongside RNG-001 -- the platform declines a plausible ENHANCEMENT, not just a strategy.",
+        "docs/implementation/evidence/mom_002_broad_momentum/broad_momentum.md"),
 )
 
 

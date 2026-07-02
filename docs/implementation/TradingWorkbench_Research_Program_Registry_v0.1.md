@@ -97,9 +97,9 @@ count from this registry** — where an aggregate can't be honestly computed (e.
 | Indicator | Value |
 |---|---|
 | Programs chartered | **8** (7 strategy + 1 platform capability) |
-| Research verdicts | Approved **1** · Diversifier **2** · Inconclusive **1** · Rejected **2** · Planned **1** · Validated capability **1** |
+| Research verdicts | Approved **1** · Diversifier **2** · Inconclusive **1** · Rejected **3** · Planned **1** · Validated capability **1** |
 | In production (paper) | **1** — Momentum v1.1 (three vol-target Risk Profiles) |
-| Preserved negative / null findings | **4** — RNG-001 rejection · SCAN-001 v0.1 ATR-tautology self-catch · SCAN-001 v0.4 confidence-uninformative · INSIDER-001 rejection (beta-not-alpha) |
+| Preserved negative / null findings | **5** — RNG-001 rejection · MOM-002 rejection (reshaping a validated book — breadth & sector cap both declined) · SCAN-001 v0.1 ATR-tautology self-catch · SCAN-001 v0.4 confidence-uninformative · INSIDER-001 rejection (beta-not-alpha) |
 | Confidence models | **2 rejected → 1 accepted** (v0.4 ATR-blended ✗ · naive CM-chase ✗ · v0.5 ATR-decoupled ✓) |
 | Platform capabilities catalogued | **19** (CAP-001 … CAP-019, below) |
 | Evidence packages on disk (`evidence/`) | **10+**, every one seeded & reproducible |
@@ -111,6 +111,7 @@ count from this registry** — where an aggregate can't be honestly computed (e.
 | ID | Philosophy | Status | Progress | Research line | Verdict | Platform value |
 |---|---|---|---|---|---|---|
 | **MOM-001** | Momentum (cross-sectional relative strength) | **Production** (paper) | `██████████` 100% | Open (continuous evidence) | ✅ **Approved** | **Reference strategy** — proves Layers 1–2 work |
+| **MOM-002** | Reshaping a concentrated momentum book (breadth / sector cap) | **Archived** | `██████████` 100% | Closed | 🔴 **Rejected** | **Honest rejection #2** — the platform declines a plausible *enhancement*, not just a strategy; diversify via independent factors, not by weakening the signal |
 | **RNG-001** | Range / mean-reversion | **Archived** | `██████████` 100% | Closed | 🔴 **Rejected** | **Honest rejection** — the platform can decline |
 | **MF-001** | Multi-Factor (value + quality) | **Completed** | `██████████` 100% | Follow-on (→ SF1) | 🟡 **Inconclusive** | **Research discipline** — the gate held the line |
 | **SEC-001** | Sector Rotation (sector relative strength) | **Archived** (construction) | `██████████` 100% | Closed | 🟡 **Diversifier (B)** | **Diversification** — a non-momentum return source |
