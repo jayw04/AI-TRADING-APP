@@ -69,6 +69,7 @@ class BacktestRunConfig:
     weighting: str = "equal_weight"          # Phase 3A §4.4: equal_weight | inverse_vol | risk_parity_diagonal
     vol_lookback_days: int = DEFAULT_VOL_LOOKBACK_DAYS
     max_sector_pct: float | None = None      # Phase 3A §3C: per-sector book-weight cap (None = disabled)
+    top_n: int | None = None                 # MOM-002: absolute name count; overrides top_quantile when set
 
 
 @dataclass(frozen=True)
@@ -524,6 +525,7 @@ def run_momentum_backtest(
     lookback_days: int = DEFAULT_LOOKBACK_DAYS,
     skip_days: int = DEFAULT_SKIP_DAYS,
     top_quantile: float = 0.20,
+    top_n: int | None = None,
     turnover_cost_bps: float = 10.0,
     delisting: str = "last_price_to_cash",
     min_names: int = DEFAULT_MIN_NAMES,
@@ -547,6 +549,8 @@ def run_momentum_backtest(
         raise ValueError(f"unsupported delisting mechanism: {delisting!r}")
     if not (0.0 < top_quantile <= 1.0):
         raise ValueError("top_quantile must be in (0, 1]")
+    if top_n is not None and top_n < 1:
+        raise ValueError("top_n must be >= 1 or None")
     if weighting not in WEIGHTING_METHODS:
         raise ValueError(f"unsupported weighting: {weighting!r} (one of {WEIGHTING_METHODS})")
     if max_sector_pct is not None and not (0.0 < max_sector_pct <= 1.0):
@@ -558,7 +562,7 @@ def run_momentum_backtest(
         delisting=delisting, initial_equity=initial_equity,
         vol_target_annual=vol_target_annual, vol_ewma_span=vol_ewma_span,
         weighting=weighting, vol_lookback_days=vol_lookback_days,
-        max_sector_pct=max_sector_pct,
+        max_sector_pct=max_sector_pct, top_n=top_n,
     )
 
     all_days = store.trading_days(start, end)
@@ -603,7 +607,13 @@ def run_momentum_backtest(
 
     def book_select(d: date) -> dict[str, float]:
         ranked = scores_by_date[d]
-        k = max(1, math.ceil(len(ranked) * top_quantile))
+        # top_n (absolute count) overrides top_quantile when supplied — MOM-002
+        # breadth sweep (Top-5/10/15/20) needs a fixed name count independent of the
+        # (possibly thin) scored cross-section. Falls back to the quantile otherwise.
+        if top_n is not None:
+            k = min(len(ranked), top_n)
+        else:
+            k = max(1, math.ceil(len(ranked) * top_quantile))
         chosen = ranked[:k]
         return _weigh(store, chosen, d, method=weighting, vol_lookback_days=vol_lookback_days,
                       max_sector_pct=max_sector_pct)

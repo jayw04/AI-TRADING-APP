@@ -92,6 +92,17 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "separate tracked study (the harness's --db real mode). Capability Certificate v1.0 "
         "Gate-Passed (L1+L2).",
         "docs/implementation/evidence/port_001/EvidencePackage_PORT-001_v1.0.md"),
+    ResearchProgram(
+        "MOM-002", "Momentum", "Broad vs concentrated momentum (book breadth)", "research",
+        "Breadth sweep (Top-5/10/15/20, survivorship-free, 2019-2026, n=150). Answers the 2026-07-02 "
+        "review's Q: does Top-20 beat Top-5 risk-adjusted? NO -- Sharpe falls 1.37->1.12, Calmar "
+        "1.40->0.96, CAGR +77%->+38% with breadth (OOS-confirmed 1.67->1.33); breadth buys only a "
+        "shallower maxDD (-55.3%->-40.2%). Load-bearing finding: Top-5<->Top-20 monthly returns still "
+        "correlate 0.90 -- widening the SAME factor does NOT create independent evidence, so the "
+        "three-momentum-book redundancy (PR #322: corr ~1.00, 100% overlap) needs distinct factors, not "
+        "wider books. Sector-cap arm deferred (local store has no sector data) -> v2 on the "
+        "sector-populated store.",
+        "docs/implementation/evidence/mom_002_broad_momentum/broad_momentum.md"),
 )
 
 
