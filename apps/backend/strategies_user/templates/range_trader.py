@@ -84,6 +84,7 @@ class _SymState:
     __slots__ = (
         "trade_day", "trades_today", "stopped_today", "pending", "invalid_logged_day",
         "or_high", "or_low", "dyn_levels", "cum_pv", "cum_v", "vwap", "scaled_out",
+        "levels_emitted_day",
     )
 
     def __init__(self) -> None:
@@ -93,6 +94,7 @@ class _SymState:
         self.pending: str | None = None         # in-flight order: "entry" | "exit" | None
         self.invalid_logged_day: str | None = None
         self.scaled_out: bool = False           # H3: the partial profit-take has fired today
+        self.levels_emitted_day: str | None = None  # UI monitoring: levels published this ET day
         # opening_range mode: today's range, built from the first N minutes then frozen.
         self.or_high: float | None = None
         self.or_low: float | None = None
@@ -113,6 +115,7 @@ class _SymState:
         self.or_high = None
         self.or_low = None
         self.dyn_levels = None
+        self.levels_emitted_day = None
         self.cum_pv = 0.0
         self.cum_v = 0.0
         self.vwap = None
@@ -351,6 +354,23 @@ class RangeTrader(Strategy):
         # Resolve this symbol's levels: fixed (params) or dynamic opening-range. In
         # opening_range mode this also accumulates the symbol's range while it forms.
         entry, exit_, stop = self._resolve_levels(p, bar, tod, st)
+
+        # Publish this symbol's ACTUAL levels once per ET day (the moment they're valid)
+        # so the Range Levels UI can monitor buy/sell/stop vs price and catch a trigger
+        # that should have fired but didn't. Observability only — never gates trading.
+        if entry > 0 and exit_ > 0 and st.levels_emitted_day != day_key:
+            st.levels_emitted_day = day_key
+            await self.ctx.log_signal(
+                symbol,
+                SignalType.INFO,
+                payload={
+                    "kind": "range_levels",
+                    "buy": round(entry, 4),
+                    "sell": round(exit_, 4),
+                    "stop": round(stop, 4),
+                    "at_price": round(price, 4),
+                },
+            )
 
         position = await self.ctx.get_position_for(symbol)
         in_long = (
