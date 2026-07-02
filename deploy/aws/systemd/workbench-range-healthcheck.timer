@@ -1,0 +1,14 @@
+[Unit]
+Description=Range self-healing: pre-open 09:00, post-open 10:10, hourly intraday (ET, weekdays)
+[Timer]
+OnCalendar=Mon-Fri 09:00
+OnCalendar=Mon-Fri 10:10
+OnCalendar=Mon-Fri 11:10
+OnCalendar=Mon-Fri 12:10
+OnCalendar=Mon-Fri 13:10
+OnCalendar=Mon-Fri 14:10
+OnCalendar=Mon-Fri 15:10
+AccuracySec=1min
+Persistent=false
+[Install]
+WantedBy=timers.target
