@@ -92,8 +92,11 @@ def classify(h: Health) -> tuple[str, str]:
     if red:
         return "RED", action
 
-    # ORANGE — needs an operator (any Level-3/4 finding, or partial level failure).
-    if any(lv in (3, 4) for lv in levels) or h.levels_missing or h.levels_invalid:
+    # ORANGE — needs an operator. Driven by the FINDINGS, which are already phase-gated:
+    # missing levels are only a finding post-open; PRE-OPEN they're expected (no opening
+    # range yet), so reading the raw levels_missing here would send a spurious ORANGE at
+    # 09:00 every morning. levels_invalid always produces a finding regardless of phase.
+    if any(lv in (3, 4) for lv in levels):
         return "ORANGE", action
 
     # YELLOW — a safe auto-correction is warranted (the wrapper will perform it).
