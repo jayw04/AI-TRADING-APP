@@ -1,0 +1,96 @@
+{
+  "window": {
+    "start": "2019-01-01",
+    "end": "2026-06-13",
+    "n": 150
+  },
+  "store_bounds": [
+    "1997-12-31",
+    "2026-06-16"
+  ],
+  "sector_coverage": 0,
+  "books": [
+    {
+      "book": "momentum",
+      "n_rebalances": 389,
+      "cagr": 0.3158,
+      "sharpe": 1.044,
+      "max_drawdown": -0.3829
+    },
+    {
+      "book": "low_vol",
+      "n_rebalances": 389,
+      "cagr": 0.1215,
+      "sharpe": 0.833,
+      "max_drawdown": -0.3024
+    },
+    {
+      "book": "trend",
+      "n_rebalances": 389,
+      "cagr": 0.2486,
+      "sharpe": 1.131,
+      "max_drawdown": -0.298
+    }
+  ],
+  "momentum_dd_window": [
+    "2025-01-23",
+    "2025-04-08"
+  ],
+  "pairs": [
+    {
+      "pair": "momentum <-> low_vol",
+      "corr_full": 0.52,
+      "corr_stress_momDD": 0.213,
+      "roll63": {
+        "window": 63,
+        "mean": 0.48,
+        "min": -0.162,
+        "max": 0.947
+      },
+      "roll126": {
+        "window": 126,
+        "mean": 0.492,
+        "min": -0.134,
+        "max": 0.933
+      },
+      "holdings_overlap": 0.064
+    },
+    {
+      "pair": "momentum <-> trend",
+      "corr_full": 0.898,
+      "corr_stress_momDD": 0.893,
+      "roll63": {
+        "window": 63,
+        "mean": 0.888,
+        "min": 0.662,
+        "max": 0.989
+      },
+      "roll126": {
+        "window": 126,
+        "mean": 0.893,
+        "min": 0.766,
+        "max": 0.983
+      },
+      "holdings_overlap": 0.187
+    },
+    {
+      "pair": "low_vol <-> trend",
+      "corr_full": 0.703,
+      "corr_stress_momDD": 0.544,
+      "roll63": {
+        "window": 63,
+        "mean": 0.625,
+        "min": -0.056,
+        "max": 0.977
+      },
+      "roll126": {
+        "window": 126,
+        "mean": 0.642,
+        "min": 0.009,
+        "max": 0.966
+      },
+      "holdings_overlap": 0.13
+    }
+  ],
+  "diversification_score": 29
+}
