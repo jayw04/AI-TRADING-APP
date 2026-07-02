@@ -141,10 +141,15 @@ async def main():
             lines.append("- strategy: _(none active)_")
         lines.append(f"- **value ${eq:,.2f}** · start(prior close) ${le:,.2f} · "
                      f"**G/L ${gl:,.2f} ({glp:+.2f}%)** · cash ${cash:,.2f}")
+        # Cap the fill detail: a rebalance day can have 50+ fills — a wall in an
+        # email. Show the count + the first few, then summarize the rest.
+        _shown = fills[:6]
+        _more = len(fills) - len(_shown)
         lines.append(f"- fills today: **{len(fills)}**"
                      + ("" if not fills else "  \n"
                         + "  \n".join(f"    - {_enum(o.get('side')).upper()} {o.get('qty')} "
-                                      f"{o.get('symbol')} @ {o.get('filled_avg_price')}" for o in fills)))
+                                      f"{o.get('symbol')} @ {o.get('filled_avg_price')}" for o in _shown)
+                        + (f"  \n    - …and {_more} more" if _more > 0 else "")))
         posrepr = ", ".join(f"{p.get('symbol')}×{p.get('qty')}" for p in pos) or "_flat_"
         lines.append(f"- open positions ({len(pos)}): {posrepr}")
         if stuck:

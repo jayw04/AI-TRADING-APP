@@ -16,7 +16,9 @@ OUTDIR="/opt/workbench/app/reports"
 [ -f "$SCRIPT" ] || { echo "generator missing: $SCRIPT"; exit 1; }
 
 # Feed the generator into the container over stdin; the container needs no on-disk copy.
-BODY="$($DOCKER exec -i workbench-backend python - < "$SCRIPT" 2>/dev/null)"
+# The container's structlog init writes to STDOUT (broker-adapter load, factor-store open),
+# so it precedes the Markdown — strip everything before the report header.
+BODY="$($DOCKER exec -i workbench-backend python - < "$SCRIPT" 2>/dev/null | sed -n '/^# Daily Report/,$p')"
 
 DATE_ET="$(TZ=America/New_York date '+%Y-%m-%d')"
 if [ -z "$BODY" ] || ! printf '%s' "$BODY" | grep -q '^# Daily Report'; then
