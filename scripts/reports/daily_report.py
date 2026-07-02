@@ -11,7 +11,7 @@ a single ALERT line rather than killing the whole report.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 from sqlalchemy import select
@@ -47,7 +47,7 @@ async def main():
     reg = BrokerRegistry(sf)
     await reg.load_all()
     now_et = datetime.now(EASTERN)
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     et_today = now_et.date()
 
     async with sf() as s:
@@ -59,6 +59,9 @@ async def main():
 
     alerts = []       # (severity, text) — severity in {"crit","warn"}
     user_blocks = []  # rendered per-user markdown
+    accounts_for_pae: list = []       # (account_id, strategy_label) for the analytics engine
+    tot_eq = tot_le = 0.0             # portfolio totals for the P&L KPI
+    tot_fills = tot_stuck = 0
 
     for u in users:
         async with sf() as s:
@@ -113,7 +116,7 @@ async def main():
                     fills.append(o)
                 elif ostat in NON_TERMINAL:
                     sub = o.get("submitted_at") or o.get("created_at")
-                    age_min = (now_utc - _to_et_dt(sub).astimezone(timezone.utc)).total_seconds() / 60 if sub else 0
+                    age_min = (now_utc - _to_et_dt(sub).astimezone(UTC)).total_seconds() / 60 if sub else 0
                     stuck.append((o, age_min, ostat))
         except Exception as e:  # noqa: BLE001
             alerts.append(("warn", f"user {u.id} · could not list orders: {type(e).__name__}"))
@@ -129,6 +132,13 @@ async def main():
             pos = ad.get_positions()
         except Exception:  # noqa: BLE001
             pos = []
+
+        # accumulate portfolio-level totals + the account list for the analytics engine
+        tot_eq += eq
+        tot_le += le
+        tot_fills += len(fills)
+        tot_stuck += len(stuck)
+        accounts_for_pae.append((acct.id, active[0].name if active else u.email.split("@")[0]))
 
         # --- render user block ---
         lines = [f"### user {u.id} — {u.email}",
@@ -186,10 +196,40 @@ async def main():
     except Exception as e:  # noqa: BLE001
         alerts.append(("warn", f"factor-store health check failed: {type(e).__name__}"))
 
+    # --- Portfolio Analytics Engine: correlation / overlap / diversification ---
+    pa = None
+    try:
+        from app.services import portfolio_analytics as _pae
+        async with sf() as s:
+            pa = await _pae.compute(s, accounts_for_pae, window_days=30)
+    except Exception as e:  # noqa: BLE001
+        alerts.append(("warn", f"portfolio analytics failed: {type(e).__name__}"))
+
+    crits = [t for sev, t in alerts if sev == "crit"]
+    tot_glp = (tot_eq / tot_le - 1) * 100 if tot_le > 0 else 0.0
+
     # ===================== render markdown =====================
     out = []
     out.append(f"# Daily Report — {now_et.strftime('%Y-%m-%d')}")
     out.append(f"_Generated {now_et.strftime('%Y-%m-%d %H:%M ET (%a)')} · single armed host (AWS)_\n")
+
+    # KPI panel — evidence-first: P&L is one line among many (report-review.md).
+    _op_ok = not crits
+    _exec_ok = tot_stuck == 0
+    _exec_pct = 100 if _exec_ok else round(100 * tot_fills / max(1, tot_fills + tot_stuck))
+    out.append("## 📊 Portfolio KPIs")
+    out.append("| KPI | Value | Status |")
+    out.append("|---|---|---|")
+    out.append(f"| Operational Health | {'100%' if _op_ok else 'degraded'} | {'✅' if _op_ok else '🟠'} |")
+    out.append(f"| Execution Success | {_exec_pct}% | {'✅' if _exec_ok else '🟡'} |")
+    if pa is not None and pa.highest_corr and pa.highest_corr.correlation is not None:
+        _cs = pa.correlation_status
+        _cflag = "⚠ Review" if _cs == "High" else ("✅" if _cs == "Low" else "🟡")
+        out.append(f"| Strategy Correlation | {_cs} ({pa.highest_corr.correlation:.2f}) | {_cflag} |")
+        out.append(f"| Diversification | {pa.diversification}/100 | {'✅' if pa.diversification >= 60 else '🟡'} |")
+    out.append("| Research Progress | +1 evidence day | ✅ |")
+    out.append(f"| **Total P&L today** | **{tot_glp:+.2f}%** | _evidence, not the goal_ |")
+    out.append("")
 
     out.append("## ⚠ Issues & Alerts")
     crits = [t for sev, t in alerts if sev == "crit"]
@@ -206,6 +246,25 @@ async def main():
     out.append("## Data health")
     out.extend(data_lines or ["- _(unavailable)_"])
     out.append("")
+
+    if pa is not None and pa.pairs:
+        out.append("## 🔗 Strategy correlation & holdings overlap")
+        out.append(f"_return correlation over the last {pa.window_days}d of snapshots · "
+                   f"diversification score **{pa.diversification}/100**_")
+        ranked = sorted(
+            (p for p in pa.pairs if p.correlation is not None),
+            key=lambda p: p.correlation, reverse=True,
+        )
+        out.append("| Pair | Corr | Overlap |")
+        out.append("|---|---|---|")
+        for p in ranked[:6]:
+            out.append(f"| {p.a_label} ↔ {p.b_label} | {p.correlation:+.2f} | {p.overlap_pct:.0f}% |")
+        hc = pa.highest_corr
+        if hc and hc.correlation is not None and hc.correlation >= 0.9:
+            out.append(f"\n⚠ **{hc.a_label} ↔ {hc.b_label}** are near-lockstep "
+                       f"({hc.correlation:.2f}, {hc.overlap_pct:.0f}% overlap) — effectively "
+                       f"one bet, not independent evidence.")
+        out.append("")
 
     out.append("## Accounts")
     out.append("")
