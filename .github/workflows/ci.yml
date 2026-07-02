@@ -8,13 +8,19 @@ name: CI
 # - Draft PRs run ZERO jobs (the `changes` gate is skipped, and everything needs it).
 #
 # Cost-control refinements (see Docs/Cost Control.md):
-# 1. Python checks are path-filtered. The BACKEND project (ruff/mypy/pytest + the 13
-#    load-bearing invariant/coverage gates) ALWAYS runs — CLAUDE.md requires it and it is
-#    never gated on paths. The 3 auxiliary Python projects (mcp-server, mcp-workbench,
-#    agent) run only when their folder changes. On push/dispatch, everything runs.
+# 1. Python checks are path-filtered. The BACKEND project always runs; the 3 auxiliary
+#    Python projects (mcp-server, mcp-workbench, agent) run only when their folder
+#    changes. On push/dispatch/schedule, everything runs.
 # 2. Docker images rebuild only when their Dockerfile or dependency manifest changes — a
 #    source-only merge cannot break the build. A workflow change or a manual dispatch
 #    rebuilds all images to fully re-verify before a release.
+# 3. LIGHT / FULL split (the big PR-cost saver). PRs run LIGHT: ruff + mypy + the fast
+#    grep-based invariant checks (no pytest, no coverage gates). The slow pytest +
+#    coverage gates run FULL — on every push to main, on the nightly schedule, and on
+#    manual dispatch. Trade-off: a test/coverage regression surfaces at merge or nightly
+#    rather than on the PR; acceptable because the repo has no required-check branch
+#    protection (PR checks never blocked merge) and the push-to-main run catches it
+#    immediately on main.
 on:
   push:
     branches: [main]
@@ -34,6 +40,11 @@ on:
   # Manual full run: rebuilds all images and runs all Python projects. Use before a
   # stable milestone / release to verify everything at once.
   workflow_dispatch: {}
+  # Nightly FULL run on main (07:00 UTC) — the safety net for the light/full split:
+  # PRs run LIGHT (lint + type + fast invariant checks, no pytest), while pytest +
+  # coverage gates run on every push to main AND here nightly. See below.
+  schedule:
+    - cron: "0 7 * * *"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -173,22 +184,29 @@ jobs:
         working-directory: ${{ matrix.p.dir }}
         run: mypy ${{ matrix.p.src }}
 
-      - name: Pytest
+      # FULL only (push to main / nightly / dispatch): pytest + coverage gates are the
+      # slow part (~10 min). PRs run LIGHT — ruff + mypy + the fast bash invariant checks
+      # above/below — and the full test+coverage suite runs on every merge to main and
+      # nightly (the safety net). Trade-off: a test/coverage regression is caught at merge
+      # or nightly, not on the PR. The repo has no required-check branch protection, so PR
+      # checks never gated merge anyway; the push-to-main run catches it immediately on main.
+      - name: Pytest (full runs only)
+        if: github.event_name != 'pull_request'
         working-directory: ${{ matrix.p.dir }}
         run: pytest -q --cov=${{ matrix.p.src }} --cov-branch --cov-report=xml
 
       - name: Risk engine branch-coverage gate (backend)
-        if: matrix.p.project == 'backend'
+        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
         working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_risk_coverage.py
 
       - name: P2 module branch-coverage gate (backend)
-        if: matrix.p.project == 'backend'
+        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
         working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_p2_coverage.py
 
       - name: P3 module branch-coverage gate (backend)
-        if: matrix.p.project == 'backend'
+        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
         working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_p3_coverage.py
 
