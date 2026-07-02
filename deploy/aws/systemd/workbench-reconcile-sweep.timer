@@ -1,0 +1,11 @@
+[Unit]
+Description=Reconcile stuck orders every 10 min (self-heal the order ledger)
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+AccuracySec=30s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

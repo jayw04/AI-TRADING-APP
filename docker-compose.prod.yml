@@ -1,0 +1,57 @@
+# Production overlay for the AWS EC2 paper box (ADR 0032). Layer ON TOP of the base:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# This file is ADDITIVE — it never modifies the base compose, so the local laptop
+# stack (which uses docker-compose.yml [+ docker-compose.override.yml]) is unchanged.
+#
+# It pins the scheduler timezone to ET, defaults the host to ARMED (override per the
+# cutover runbook), and hard-pins paper-only (no live trading on this box).
+name: trading-workbench
+
+services:
+  backend:
+    environment:
+      # Keep the BACKEND in UTC — same as the laptop. Per-strategy on_bar crons use
+      # CronTrigger.from_crontab WITHOUT an explicit tz, so they inherit the container-local
+      # tz; the live books' schedules (e.g. "0 14 * * mon" = 10:00 ET) were authored against
+      # UTC. Forcing ET here would shift every rebalance +4h (→ 2 PM ET) — an
+      # infrastructure-induced behavior change, which ADR 0032 Invariant 2 forbids. The in-app
+      # scheduler is pinned to America/New_York IN CODE, so morning-brief/range/premarket jobs
+      # stay ET regardless of this.
+      TZ: UTC
+      # Single-active-scheduler invariant. Default armed; the cutover runbook sets
+      # this false on the standby host. Never two armed hosts on the same accounts.
+      WORKBENCH_SCHEDULER_ENABLED: "${WORKBENCH_SCHEDULER_ENABLED:-true}"
+      # Paper-only box (ADR 0032). Live trading is out of scope here.
+      WORKBENCH_LIVE_TRADING_ALLOWED: "false"
+      # Stable host id for the heartbeat (else a persisted uuid is used).
+      WORKBENCH_HOST_ID: "${WORKBENCH_HOST_ID:-ec2-paper}"
+      # Which code is dispatching — git short-sha recorded in the heartbeat.
+      WORKBENCH_CODE_VERSION: "${WORKBENCH_CODE_VERSION:-unknown}"
+      # Password-only login, parity with the laptop (PR #132). The box is 127.0.0.1-bound and
+      # reached only through the SSH tunnel, so the SSH key is the real access gate. Without this
+      # the box defaulted to login_totp_required=TRUE and rejected password-only logins. Step-up
+      # TOTP on consequential actions (live activation, LLM opt-in) is unaffected by this flag.
+      WORKBENCH_LOGIN_TOTP_REQUIRED: "false"
+
+  mcp-server:
+    environment:
+      TZ: America/New_York
+
+  workbench-mcp:
+    environment:
+      TZ: America/New_York
+
+  agent:
+    environment:
+      TZ: America/New_York
+
+  frontend:
+    environment:
+      TZ: America/New_York
+    # NOTE: `vite preview` was tried here to serve a bundled prod build (faster initial
+    # load than dev's ~190 unbundled module requests), but its dev-grade proxy had an
+    # intermittent cold-start (~9s+ first request after idle) that blanked pages for a
+    # long time (found 2026-06-30). Reverted to the dev server (stable, warm proxy). The
+    # durable fix for BOTH fast loads AND a fast proxy is a real reverse proxy (nginx
+    # serving the static build + proxying /api,/ws) — a follow-up, not a cutover blocker.
+    # vite.config keeps preview.proxy so a future `vite preview`/nginx path still works.

@@ -154,8 +154,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 adapter, session_factory, bus, broker_registry=broker_registry
             )
 
-            scheduler = WorkbenchScheduler(asset_sync, account_sync, position_sync)
+            scheduler = WorkbenchScheduler(
+                asset_sync, account_sync, position_sync,
+                enabled=settings.scheduler_enabled,
+            )
             scheduler.start()
+
+            # Single-active-scheduler heartbeat (ADR 0032). Record this host's arm
+            # state at boot (so a DISARMED standby is visible too); on an armed host,
+            # refresh it every 30s. Best-effort — never blocks boot or scheduling.
+            from app.jobs.scheduler_heartbeat import (
+                resolve_host_id,
+                run_scheduler_heartbeat,
+                write_startup_heartbeat,
+            )
+
+            _host_id = resolve_host_id()
+            await write_startup_heartbeat(
+                session_factory, _host_id, armed=settings.scheduler_enabled
+            )
+            if settings.scheduler_enabled:
+                scheduler.scheduler.add_job(
+                    run_scheduler_heartbeat,
+                    trigger="interval",
+                    seconds=30,
+                    id="scheduler_heartbeat",
+                    max_instances=1,
+                    coalesce=True,
+                    replace_existing=True,
+                    kwargs={"session_factory": session_factory, "host_id": _host_id},
+                )
+                logger.info("scheduler_heartbeat_scheduled", host_id=_host_id)
 
             # 5. Trade Updates WebSocket (P1 Session 3)
             trade_stream = TradeUpdatesStream(adapter.credentials, bus)
@@ -700,7 +729,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # ENGINE_RUNNABLE_STATUSES (⊃ ACTIVE) so PAPER_VARIANT clones resume too.
             from app.services.recovery import resume_strategies_on_boot
 
-            await resume_strategies_on_boot(session_factory, strategy_engine)
+            # ADR 0032: a DISARMED standby registers NO strategies, so the engine
+            # has nothing to dispatch even if something started the scheduler.
+            if settings.scheduler_enabled:
+                await resume_strategies_on_boot(session_factory, strategy_engine)
+            else:
+                logger.warning(
+                    "resume_strategies_skipped_disarmed",
+                    reason="WORKBENCH_SCHEDULER_ENABLED=false",
+                )
         else:
             logger.info("alpaca_startup_disabled")
 

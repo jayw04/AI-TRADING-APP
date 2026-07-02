@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     # don't need real creds and don't hit the broker network.
     alpaca_startup_enabled: bool = True
 
+    # Single-active-scheduler invariant (ADR 0032). When True (default) this host
+    # ARMS its scheduler: it starts the recurring jobs (syncs, strategy rebalances,
+    # backups) and resumes strategies on boot — i.e. it dispatches orders. Set
+    # WORKBENCH_SCHEDULER_ENABLED=false to run a DISARMED standby (e.g. the laptop
+    # after cutover to AWS): the process stays up and serves the API/UI, but starts
+    # no scheduler and registers no strategies, so it dispatches no automated orders.
+    # The default preserves today's single-host behavior — the laptop is unchanged
+    # unless this is explicitly set false. Never have two ARMED hosts pointed at the
+    # same Alpaca paper accounts.
+    scheduler_enabled: bool = True
+
     # When True (default — conservative) /auth/login requires a valid TOTP code
     # in addition to the password. Set WORKBENCH_LOGIN_TOTP_REQUIRED=false to
     # log in with password only (single-user localhost convenience). This gates

@@ -1,0 +1,12 @@
+[Unit]
+Description=Publish Workbench paper-stack health metrics to CloudWatch (ADR 0032)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+Environment=AWS_REGION=us-east-1
+WorkingDirectory=/opt/workbench/app
+ExecStart=/bin/bash /opt/workbench/app/deploy/aws/cw-publish-metrics.sh
+# Best-effort telemetry: a failed publish must never cascade.
+SuccessExitStatus=0 1
