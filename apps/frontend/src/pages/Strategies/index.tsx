@@ -8,6 +8,7 @@ import { ACTIVE_STRATEGY_STATUSES } from "@/api/types";
 import { StatusBadge } from "@/components/strategies/StatusBadge";
 import { NewStrategyModal } from "./NewStrategyModal";
 import RangeCandidatesPanel from "@/components/strategies/RangeCandidatesPanel";
+import RangeLevelsPanel from "@/components/strategies/RangeLevelsPanel";
 import {
   TodayRangeUniverseBanner,
   autoSelectN,
@@ -143,6 +144,14 @@ export default function StrategiesListPage() {
 
       {strategies.some((s) => s.code_path?.includes("range_trader")) && (
         <RangeCandidatesPanel onApplied={load} />
+      )}
+
+      {strategies.some((s) => s.code_path?.includes("range_trader")) && (
+        <RangeLevelsPanel
+          strategyId={
+            strategies.find((s) => s.code_path?.includes("range_trader"))?.id
+          }
+        />
       )}
 
       <div className="overflow-x-auto rounded border border-gray-800">
