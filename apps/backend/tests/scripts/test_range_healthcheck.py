@@ -63,3 +63,15 @@ def test_preopen_not_registered_triggers_rearm_yellow() -> None:
     state, action = rhc.classify(h)
     assert action == "rearm"   # the one safe Level-1 operational correction
     assert state == "YELLOW"   # will recover automatically
+
+
+def test_preopen_missing_levels_is_green_not_orange() -> None:
+    # Pre-open, levels aren't computed yet (no opening range) — EXPECTED, not a problem.
+    # Regression: raw levels_missing must not force ORANGE pre-open (no finding added).
+    h = rhc.Health(
+        phase="pre_open", strategy_id=1, strategy_name="Range", registered=True,
+        universe=["AAPL", "MSFT"], levels_missing=["AAPL", "MSFT"],
+    )
+    state, action = rhc.classify(h)
+    assert state == "GREEN"
+    assert action == "none"
