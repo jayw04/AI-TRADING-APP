@@ -38,7 +38,7 @@ from app.db.models.symbol import Symbol
 from app.market.session import MarketSession, default_market_session
 from app.risk.buying_power import BuyingPowerChecker
 from app.risk.circuit_breaker import CircuitBreakerError, CircuitBreakerService
-from app.risk.halt import is_halted, set_halted
+from app.risk.halt import is_halted
 from app.risk.reason_codes import ReasonCode
 from app.risk.types import OrderRequest, RiskOutcome
 
@@ -307,7 +307,14 @@ class RiskEngine:
                         reasons=[ReasonCode.GROSS_EXPOSURE],
                     )
 
-            # 9. Daily loss cap → trip the system halt flag.
+            # 9. Daily-loss cap → trip THIS ACCOUNT's circuit breaker, scoped to
+            # the breaching account (ADR 0034, supersedes ADR 0004's global auto-
+            # halt). A single account's daily loss must not halt the whole system;
+            # the per-account breaker (step 13) then blocks only this account's
+            # further orders, leaving every other account trading. Uses the start-
+            # of-day baseline (AccountState.day_change = equity − last_equity).
+            # cb.trip() sets the breaker, HALTs this account's active strategies,
+            # and audits — atomically and idempotently.
             if limits.max_daily_loss is not None:
                 state = (
                     await session.execute(
@@ -317,11 +324,21 @@ class RiskEngine:
                     )
                 ).scalars().first()
                 if state is not None and state.day_change <= -limits.max_daily_loss:
-                    await set_halted(session, True, reason="daily_loss_cap_reached")
+                    await CircuitBreakerService(
+                        session=session, bus=self._bus
+                    ).trip(
+                        account_id=req.account_id,
+                        reason="daily_loss_exceeded",
+                        payload={
+                            "day_change": str(state.day_change),
+                            "max_daily_loss": str(limits.max_daily_loss),
+                            "source": "risk_engine_daily_loss",
+                        },
+                    )
                     return await self._persist_and_return(
                         session,
                         decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.HALT_REACHED],
+                        reasons=[ReasonCode.CIRCUIT_BREAKER],
                     )
 
             # 10. Rate limit (per minute).
@@ -380,8 +397,8 @@ class RiskEngine:
             # risk-engine convention (most likely to terminate the request).
             # check() raises if already tripped OR if this order trips it (which
             # also HALTs the account's active strategies + audits, atomically).
-            # This is ADDITIONAL to the GLOBAL daily-loss halt at step 9; the two
-            # compose (defense in depth) — see ADR 0004.
+            # This composes with the per-account daily-loss trip at step 9 (both
+            # scope to this account, never the system) — see ADR 0034 / ADR 0004.
             cb = CircuitBreakerService(session=session, bus=self._bus)
             try:
                 await cb.check(req.account_id)

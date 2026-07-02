@@ -411,3 +411,35 @@ async def test_breaker_monitor_job_trips_account_with_open_position(seeded):
     async with seeded() as session:
         account = await session.get(Account, 1)
     assert account.circuit_breaker_tripped_at is not None
+
+
+async def test_breaker_monitor_skips_outside_regular_session(seeded):
+    """ADR 0034: the monitor evaluates only during REGULAR hours — outside RTH it
+    returns early and does NOT trip on stale pre-/post-market prints."""
+    from datetime import UTC, datetime
+
+    from app.jobs.breaker_monitor import run_breaker_monitor
+    from app.market.session import MarketSessionType, SessionInfo
+
+    class _ClosedMarket:
+        def classify(self, instant=None):
+            return SessionInfo(
+                session=MarketSessionType.CLOSED,
+                as_of=datetime.now(UTC),
+                is_trading_day=False,
+                is_half_day=False,
+                regular_open=None,
+                regular_close=None,
+            )
+
+    async with seeded() as session:
+        session.add(Position(
+            user_id=1, account_id=1, symbol_id=1, qty=Decimal("10"),
+            unrealized_pl=Decimal("-600"), updated_at=_now(),
+        ))
+        await session.commit()
+    # Same breaching position as the RTH test, but the market is CLOSED → skip.
+    await run_breaker_monitor(seeded, market_session=_ClosedMarket())
+    async with seeded() as session:
+        account = await session.get(Account, 1)
+    assert account.circuit_breaker_tripped_at is None
