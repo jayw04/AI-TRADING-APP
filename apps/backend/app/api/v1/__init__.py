@@ -17,6 +17,7 @@ from app.api.v1 import (
     evidence,
     indicators,
     internal,
+    journal,
     live_autodispatch,
     llm_opt_in,
     market_data,
@@ -49,6 +50,8 @@ api_router.include_router(accounts.router)
 api_router.include_router(internal.router)
 api_router.include_router(orders.router)
 api_router.include_router(positions.router)
+# Trade Journal: the user's filled trades + a free-text note per trade.
+api_router.include_router(journal.router)
 api_router.include_router(market_data.router)
 api_router.include_router(indicators.router)
 api_router.include_router(users.router)
