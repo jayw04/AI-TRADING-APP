@@ -69,6 +69,37 @@ breadth of momentum.
 - Equal-weight Top-N implicitly caps each position at 1/N, so the review's separate "position cap" knob only
   binds under inverse-vol weighting; not exercised here.
 
+## v2 — Sector-cap arm (run on the sector-populated box store, 2026-07-02)
+
+The sector-cap arm was run on the AWS box store (the only store with `tickers.sector`
+populated — 21,679 names, 11 sectors). **Important caveat:** that store has full universe
+breadth only **from 2025-01** (pre-2025 SEP holds ~4 names/yr), so 309 of 389 weekly
+rebalances were skipped as thin and the surviving **80 rebalances all fall in ~2025-01→2026-06**
+— an ~18-month recent window, not 2019–2026. Absolute magnitudes (e.g. the 170%+ CAGRs) and
+long-window generalization are therefore **not** comparable to the primary run above. But all
+8 configs ran on the **identical 80 rebalances**, so the **sector-cap comparison is internally
+valid**.
+
+| Config | Sharpe | +sec30 Sharpe | ΔSharpe | MaxDD | +sec30 MaxDD |
+|---|---|---|---|---|---|
+| Top-5 | 1.70 | 1.73 | +0.03 (negligible) | −55.3% | −55.4% |
+| Top-10 | 1.51 | **1.22** | **−0.29** | −48.5% | **−51.3%** (deeper) |
+| Top-15 | 1.52 | **1.24** | **−0.28** | −41.7% | −42.5% (deeper) |
+| Top-20 | 1.32 | **1.15** | **−0.17** | −40.2% | −41.1% (deeper) |
+
+**Answer: a 30% sector cap does NOT recover drawdown, and it costs Sharpe.** For Top-10/15/20 it
+cuts Sharpe by 0.17–0.29 *and* slightly deepens the max drawdown; for Top-5 it is negligible (five
+equal-weight 20% names rarely breach a 30% weight cap). The cap forces the book off its strongest
+momentum names into weaker sectors — hurting return while the drawdown (driven by broad market beta,
+not single-sector concentration) barely moves. Artifacts: `research/mom002/v2_sectorcap_box/`.
+
+**Combined v1 + v2 verdict:** neither *breadth* nor *sector-capping* improves the momentum book on a
+risk-adjusted basis. Concentration keeps winning; the fix for the portfolio's redundancy is **distinct
+factors, not a reshaped momentum book**. A definitive long-window (2019–2026) sector-cap test remains
+blocked by a data gap on *both* stores (local: full history, no sector; box: sector, no pre-2025 breadth)
+— it needs one store with **both** full history and sector data (re-ingest `tickers.sector` into the
+local full-history store, or back-fill pre-2025 SEP breadth into the box store).
+
 ## Reproduce
 
 ```
@@ -82,6 +113,6 @@ Artifacts: `apps/backend/research/mom002/mom002_report.md` + `mom002_results.jso
 given store + args. Framework change: `app/factor_data/backtest.py` gained a backward-compatible `top_n`
 absolute-count override (tests in `tests/factor_data/test_backtest.py`).
 
-## Verdict: **Top-20 does not beat Top-5 risk-adjusted (this window).** Breadth = drawdown-for-Sharpe trade; breadth ≠ diversification. Portfolio fix = fewer momentum books + distinct factors. Sector-cap arm deferred to the sector-populated store (v2).
+## Verdict: **Neither breadth nor a sector cap improves the momentum book risk-adjusted.** Top-20 does not beat Top-5 (breadth = a drawdown-for-Sharpe trade, breadth ≠ diversification); a 30% sector cap costs Sharpe without recovering drawdown (v2, recent-window). Portfolio fix = fewer momentum books + distinct factors, NOT a reshaped momentum book. Definitive long-window sector-cap test still blocked by a both-stores data gap.
 
 _Whatever the number, the evidence package is the deliverable. 12-1 momentum frozen — no optimization performed._

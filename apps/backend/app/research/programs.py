@@ -100,8 +100,9 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "shallower maxDD (-55.3%->-40.2%). Load-bearing finding: Top-5<->Top-20 monthly returns still "
         "correlate 0.90 -- widening the SAME factor does NOT create independent evidence, so the "
         "three-momentum-book redundancy (PR #322: corr ~1.00, 100% overlap) needs distinct factors, not "
-        "wider books. Sector-cap arm deferred (local store has no sector data) -> v2 on the "
-        "sector-populated store.",
+        "wider books. v2 sector-cap arm (box store, recent-window): a 30% sector cap does NOT recover "
+        "drawdown and costs Sharpe (Top-10/15/20 -0.17..-0.29) -> neither breadth nor sector-capping "
+        "improves the book; fix = distinct factors, not a reshaped momentum book.",
         "docs/implementation/evidence/mom_002_broad_momentum/broad_momentum.md"),
 )
 
