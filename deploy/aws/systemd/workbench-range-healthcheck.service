@@ -1,0 +1,11 @@
+[Unit]
+Description=Range price-setting operational self-healing check (ADR 0035)
+After=docker.service
+Wants=docker.service
+[Service]
+Type=oneshot
+Environment=AWS_REGION=us-east-1
+WorkingDirectory=/opt/workbench/app
+ExecStart=/bin/bash /opt/workbench/app/deploy/aws/range-healthcheck.sh
+# A transient gather failure must not cascade; the state is carried in the SNS body.
+SuccessExitStatus=0 1
