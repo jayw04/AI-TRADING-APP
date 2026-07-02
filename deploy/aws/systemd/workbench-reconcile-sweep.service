@@ -1,0 +1,10 @@
+[Unit]
+Description=Reconcile stuck-SUBMITTED orders (missed fills) - ADR 0032 ops
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/workbench/app
+ExecStart=/bin/bash /opt/workbench/app/deploy/aws/reconcile-sweep.sh
+SuccessExitStatus=0 1

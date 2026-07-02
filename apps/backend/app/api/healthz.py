@@ -15,8 +15,9 @@ Status levels:
 
 A subsystem that is intentionally not started — i.e. ``alpaca_startup_enabled``
 is false (tests, or a diagnostics boot) — reports ``disabled`` and does not
-degrade the status. The legacy top-level ``db`` key is preserved for the P0
-health probe contract.
+degrade the status. A scheduler that is intentionally DISARMED (``scheduler_enabled``
+false — an ADR 0032 standby host) reports ``disarmed`` and stays healthy. The legacy
+top-level ``db`` key is preserved for the P0 health probe contract.
 """
 
 from __future__ import annotations
@@ -101,6 +102,11 @@ async def healthz(request: Request) -> JSONResponse:
     # 4. Background scheduler.
     if not settings.alpaca_startup_enabled:
         checks["scheduler"] = "disabled"
+    elif not settings.scheduler_enabled:
+        # Intentionally DISARMED standby (ADR 0032): the scheduler is deliberately
+        # not started so this host dispatches no automated orders. That is a healthy
+        # operating mode, NOT a failure — report it as such.
+        checks["scheduler"] = "disarmed"
     else:
         scheduler = getattr(request.app.state, "scheduler", None)
         underlying = getattr(scheduler, "scheduler", None)

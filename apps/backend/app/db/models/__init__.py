@@ -19,6 +19,7 @@ from app.db.models.risk_check import RiskCheck
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.scanner_definition import ScannerDefinition
 from app.db.models.scanner_run import ScannerRun
+from app.db.models.scheduler_heartbeat import SchedulerHeartbeat
 from app.db.models.session import Session
 from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy
@@ -55,6 +56,7 @@ __all__ = [
     "RiskLimits",
     "ScannerDefinition",
     "ScannerRun",
+    "SchedulerHeartbeat",
     "Session",
     "ProposalState",
     "Signal",

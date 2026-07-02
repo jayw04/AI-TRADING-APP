@@ -1,0 +1,9 @@
+# Force LF for files that EXECUTE on Linux (the EC2 box). The dev machine is Windows
+# with core.autocrlf=true, which makes `git archive` inject CRLF into shell scripts and
+# systemd units → `$'\r': command not found` / `set: pipefail<CR>: invalid option` at
+# runtime on the box. eol=lf pins LF in the working tree AND in `git archive` output,
+# independent of the local autocrlf setting. (Found 2026-06-30 during the CloudWatch
+# publisher deploy; protects the ADR-0032 cutover scripts too.)
+*.sh      text eol=lf
+*.service text eol=lf
+*.timer   text eol=lf

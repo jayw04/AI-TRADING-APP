@@ -58,6 +58,7 @@ function OrdersTable({
             <th className="text-right px-3 py-2">Qty</th>
             <th className="text-left px-3 py-2">Type</th>
             <th className="text-right px-3 py-2">Limit / Stop</th>
+            <th className="text-right px-3 py-2">Avg Fill</th>
             <th className="text-left px-3 py-2">Status</th>
             <th className="text-right px-3 py-2">Actions</th>
           </tr>
@@ -65,21 +66,21 @@ function OrdersTable({
         <tbody>
           {query.isLoading && (
             <tr>
-              <td colSpan={8} className="px-3 py-4 text-center text-neutral-500">
+              <td colSpan={9} className="px-3 py-4 text-center text-neutral-500">
                 Loading…
               </td>
             </tr>
           )}
           {query.error && (
             <tr>
-              <td colSpan={8} className="px-3 py-4 text-center text-rose-400">
+              <td colSpan={9} className="px-3 py-4 text-center text-rose-400">
                 {(query.error as Error).message}
               </td>
             </tr>
           )}
           {query.data?.items.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-6 text-center text-neutral-500">
+              <td colSpan={9} className="px-3 py-6 text-center text-neutral-500">
                 No {filter === "all" ? "" : filter} orders.
               </td>
             </tr>
@@ -293,6 +294,14 @@ function OrderRow({ order, onSelect }: { order: Order; onSelect: () => void }) {
   const isTerminal =
     TERMINAL_ORDER_STATUSES.has(order.status) || order.id === null;
   const limitOrStop = order.limit_price ?? order.stop_price ?? null;
+  // Quantity-weighted average execution price across this order's fills. Market orders
+  // carry no limit/stop, so this is the only price the History/All/Working tabs can show.
+  const fills = order.fills ?? [];
+  const filledQty = fills.reduce((s, f) => s + Number(f.qty), 0);
+  const avgFill =
+    filledQty > 0
+      ? fills.reduce((s, f) => s + Number(f.qty) * Number(f.price), 0) / filledQty
+      : null;
   return (
     <tr
       onClick={onSelect}
@@ -312,6 +321,9 @@ function OrderRow({ order, onSelect }: { order: Order; onSelect: () => void }) {
       </td>
       <td className="px-3 py-2 text-right font-mono text-neutral-300">
         {limitOrStop ? formatMoney(limitOrStop) : "—"}
+      </td>
+      <td className="px-3 py-2 text-right font-mono text-neutral-200">
+        {avgFill !== null ? formatMoney(String(avgFill)) : "—"}
       </td>
       <td className="px-3 py-2">
         <StatusBadge status={order.status} />

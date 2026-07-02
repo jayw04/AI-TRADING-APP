@@ -39,6 +39,8 @@ class WorkbenchScheduler:
         asset_sync: AssetSyncService,
         account_sync: AccountSyncService,
         position_sync: PositionSyncService,
+        *,
+        enabled: bool = True,
     ) -> None:
         self._asset_sync = asset_sync
         self._account_sync = account_sync
@@ -46,8 +48,25 @@ class WorkbenchScheduler:
         self._scheduler = AsyncIOScheduler(timezone="America/New_York")
         self._account_ticks = 0
         self._position_ticks = 0
+        # Single-active-scheduler invariant (ADR 0032). Default True keeps
+        # current behavior; a DISARMED host never starts the scheduler.
+        self._enabled = enabled
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
 
     def start(self) -> None:
+        if not self._enabled:
+            # DISARMED standby (ADR 0032): do not start the scheduler. No recurring
+            # job fires, so this host dispatches no automated orders. The process
+            # otherwise stays up (API/UI reachable). Caller also skips strategy
+            # resume-on-boot, so the engine has nothing to dispatch either.
+            logger.warning(
+                "scheduler_disarmed",
+                reason="WORKBENCH_SCHEDULER_ENABLED=false",
+            )
+            return
         self._scheduler.add_job(
             self._safe(self._asset_sync.sync_once, "asset_sync"),
             CronTrigger(hour=4, minute=0),

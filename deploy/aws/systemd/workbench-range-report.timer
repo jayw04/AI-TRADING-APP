@@ -1,0 +1,11 @@
+[Unit]
+Description=Range recap: post-open 10:15 ET + EOD 16:15 ET, weekdays
+
+[Timer]
+OnCalendar=Mon-Fri 10:15
+OnCalendar=Mon-Fri 16:15
+AccuracySec=1min
+Persistent=false
+
+[Install]
+WantedBy=timers.target
