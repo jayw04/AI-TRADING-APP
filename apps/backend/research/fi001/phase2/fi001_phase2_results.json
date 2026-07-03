@@ -1,0 +1,114 @@
+{
+  "window": {
+    "start": "2019-01-01",
+    "end": "2026-06-13",
+    "n": 150
+  },
+  "sector_coverage": 0,
+  "standalone": [
+    {
+      "label": "momentum",
+      "cagr": 0.3147,
+      "sharpe": 1.044,
+      "max_drawdown": -0.3829,
+      "calmar": 0.822
+    },
+    {
+      "label": "low_vol",
+      "cagr": 0.1202,
+      "sharpe": 0.833,
+      "max_drawdown": -0.3024,
+      "calmar": 0.398
+    },
+    {
+      "label": "trend",
+      "cagr": 0.2478,
+      "sharpe": 1.131,
+      "max_drawdown": -0.298,
+      "calmar": 0.831
+    }
+  ],
+  "blends": [
+    {
+      "blend": "momentum+low_vol",
+      "components": [
+        "momentum",
+        "low_vol"
+      ],
+      "metrics": {
+        "label": "momentum+low_vol",
+        "cagr": 0.2243,
+        "sharpe": 1.097,
+        "max_drawdown": -0.3115,
+        "calmar": 0.72
+      },
+      "delta_sharpe_vs_mom": 0.054,
+      "ci_low": -0.163,
+      "ci_high": 0.333,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 7.14,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    },
+    {
+      "blend": "momentum+trend",
+      "components": [
+        "momentum",
+        "trend"
+      ],
+      "metrics": {
+        "label": "momentum+trend",
+        "cagr": 0.2844,
+        "sharpe": 1.107,
+        "max_drawdown": -0.3186,
+        "calmar": 0.893
+      },
+      "delta_sharpe_vs_mom": 0.064,
+      "ci_low": -0.069,
+      "ci_high": 0.215,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 6.43,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    },
+    {
+      "blend": "low_vol+trend",
+      "components": [
+        "low_vol",
+        "trend"
+      ],
+      "metrics": {
+        "label": "low_vol+trend",
+        "cagr": 0.1859,
+        "sharpe": 1.09,
+        "max_drawdown": -0.2982,
+        "calmar": 0.623
+      },
+      "delta_sharpe_vs_mom": 0.046,
+      "ci_low": -0.371,
+      "ci_high": 0.602,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 8.47,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    },
+    {
+      "blend": "momentum+low_vol+trend",
+      "components": [
+        "momentum",
+        "low_vol",
+        "trend"
+      ],
+      "metrics": {
+        "label": "momentum+low_vol+trend",
+        "cagr": 0.2329,
+        "sharpe": 1.125,
+        "max_drawdown": -0.3066,
+        "calmar": 0.759
+      },
+      "delta_sharpe_vs_mom": 0.081,
+      "ci_low": -0.153,
+      "ci_high": 0.372,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 7.63,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    }
+  ]
+}
