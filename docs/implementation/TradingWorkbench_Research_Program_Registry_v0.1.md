@@ -23,10 +23,28 @@ from both the operating system that hosts them and the individual programs that 
 |---|---|---|
 | **Layer 1 — Methodology** | **Evidence Engineering** — the discipline of producing, governing, and preserving the proof behind every decision | pre-registration, evidence packages, the promotion gate, the stopping rule |
 | **Layer 2 — Platform** | **TradingWorkbench** — the operating system that makes the methodology usable | the risk engine, OrderRouter, audit/hash-chain, scheduler, execution |
-| **Layer 3 — Research Infrastructure** | The reusable, platform-wide research *assets* — the subsystems strategies are produced *by*, not the strategies themselves | **Discovery Lab · Factor Lab · Evidence Engine · Research Registry · Decision Registry · Evidence Dashboard** |
+| **Layer 3 — Research Infrastructure** | The reusable, platform-wide research *assets* — the subsystems strategies are produced *by*, not the strategies themselves | **Discovery Lab · Factor Lab · Portfolio Engineering · Evidence Engine · Research Registry · Decision Registry · Evidence Dashboard** |
 | **Layer 4 — Research Programs** | The individual strategies/capabilities run *through* Layer 3 — each a validated, rejected, or deferred instance | the registry below (`MOM-001` … `TREND-001`, `SCAN-001`) |
 
-Momentum is **Layer 4**, not the product — the *reference implementation* that proves Layers 1–3 work, much as Linux is a reference implementation of an operating system rather than the operating system itself. The platform's stable subsystem map (owner): **Evidence Engineering → Discovery Lab → Factor Lab → Execution Platform → Continuous Evidence**.
+Momentum is **Layer 4**, not the product — the *reference implementation* that proves Layers 1–3 work, much as Linux is a reference implementation of an operating system rather than the operating system itself. The platform's stable subsystem map (owner): **Evidence Engineering → Discovery Lab → Factor Lab → Portfolio Engineering → Execution Platform → Continuous Evidence → Institutional Knowledge** (the Registry + Decision Records are what that last block *is*).
+
+**The research-to-operation lifecycle (three pillars).** `Discovery Lab → Portfolio Engineering → Continuous Evidence` — each consumes or verifies the prior. Discovery Lab *validates* individual capabilities (does this factor have an edge?); **Portfolio Engineering** is the discipline responsible for *combining* validated capabilities into resilient portfolios (FI-001 is its first evidence program); **Continuous Evidence** *verifies*, in live operation, that realized behavior stays within the research envelope that justified deployment. Portfolio Engineering is deliberately kept a *discipline*, not a heavyweight framework/registry: per Evidence Engineering's own logic, abstractions wait until a second program genuinely requires them (FI-001 alone does not).
+
+> **Deployment is not the end of research. Deployment begins Continuous Evidence.**
+
+**Evidence Engineering principles (the growing methodology).** The platform's established discipline,
+made explicit — the first six are how every program has always operated; #7–#9 are the FI-001-era
+additions:
+
+1. **Pre-registration** — freeze the hypotheses and the promotion gate *before* running.
+2. **A verdict requires evidence** — "Validated" means a confidence interval that *excludes zero*; nothing weaker earns the word.
+3. **Every result is a success** — Approved / Rejected / Inconclusive / Diversifier all ship a citable evidence package; negative findings are preserved.
+4. **The stopping rule** — don't loop on parameters; a pre-registered stopping rule closes a program (see SEC-001 V2, MOM-002).
+5. **Reproducible & honest** — survivorship-free, no-look-ahead, seeded, tested; conservative labels, never overclaim.
+6. **Capabilities outlive strategies** — every program leaves reusable platform capabilities (the CAP-NNN catalog).
+7. **Portfolio construction is evaluated *separately* from factor discovery** — factor discovery seeks *alpha*; portfolio engineering seeks *robustness*. *(FI-001.)*
+8. **Live observations accumulate evidence; they do not rewrite research** — a bad day is *added to the evidence set*, not a trigger to change the strategy; only sustained, statistically-meaningful drift reopens a program. *(FI-001 review → Continuous Evidence.)*
+9. **Continuous Evidence observes; it does not optimize** — the engine surfaces evidence and escalates to humans; it never auto-adjusts a parameter or a weight. *(FI-001 review; consistent with ADR 0035.)*
 
 ## The research lifecycle (standardized phase terminology)
 
@@ -49,6 +67,7 @@ research has happened when only the **plan** is frozen:
 | **Completed** | Research finished; a verdict is assigned and an evidence package exists. The program may still have open follow-on variants. |
 | **Archived** | Research finished **and** the construction line is closed — a rejection, or a stopping-rule fire. A citable end-state, not a failure. |
 | **Production** | Promoted past governance into paper and/or live trading. |
+| **Retired** | Production ended, but the evidence is preserved — a citable end-of-life, not a deletion. (Reserved; not yet used.) |
 
 `Status` is a property of the program; `Verdict` is a property of the evidence. A program can be
 `Completed · Diversifier (B)` (research done, overlay value) or `Archived · Rejected` (research done,
@@ -69,6 +88,17 @@ A fourth axis, applicable **platform-wide** (every capability — strategy or in
 maturity reads consistently across the Factor Lab, Risk Engine, Execution Engine, and every future capability.
 It refines `Status`: where Status says *where in its life*, Maturity says *how far it has been proven and
 de-risked*.
+
+**Capability Maturity ≠ Evidence Maturity** (keep them distinct — L5 is *not* the same as "high
+confidence"):
+
+| Dimension | Meaning |
+|---|---|
+| **Capability Maturity** (L0–L5) | how mature the *implementation* is — built, validated, envelope-defined, production-ready |
+| **Evidence Maturity** (the Continuous Evidence clock) | how much *live evidence* has accumulated — Insufficient → Preliminary → Emerging → Moderate → Mature |
+
+A capability can be L4 (production-ready) yet have *Insufficient* evidence maturity (just deployed); the
+two axes move on different clocks and the Continuous Evidence Engine tracks the second.
 
 | Level | Meaning |
 |---|---|
@@ -96,12 +126,12 @@ count from this registry** — where an aggregate can't be honestly computed (e.
 
 | Indicator | Value |
 |---|---|
-| Programs chartered | **9** (7 strategy + 1 platform capability + 1 portfolio-engineering) |
-| Research verdicts | Approved **1** · Diversifier **3** · Inconclusive **1** · Rejected **3** · Planned/Pending **1** · Validated capability **1** |
+| Programs chartered | **9** (7 strategy + 1 platform capability + 1 portfolio-engineering) + **1 reserved** (FI-002 Correlation Stability) |
+| Research verdicts | Approved **1** · Diversifier **3** · Inconclusive **1** · Rejected **3** · Planned/Pending/Reserved **2** · Validated capability **1** |
 | In production (paper) | **1** — Momentum v1.1 (three vol-target Risk Profiles) |
 | Preserved negative / null findings | **5** — RNG-001 rejection · MOM-002 rejection (reshaping a validated book — breadth & sector cap both declined) · SCAN-001 v0.1 ATR-tautology self-catch · SCAN-001 v0.4 confidence-uninformative · INSIDER-001 rejection (beta-not-alpha) |
 | Confidence models | **2 rejected → 1 accepted** (v0.4 ATR-blended ✗ · naive CM-chase ✗ · v0.5 ATR-decoupled ✓) |
-| Platform capabilities catalogued | **19** (CAP-001 … CAP-019, below) |
+| Platform capabilities catalogued | **21** (CAP-001 … CAP-021, below) |
 | Evidence packages on disk (`evidence/`) | **10+**, every one seeded & reproducible |
 | Decision records | one per executed study (Evidence → Decision → Lesson, below) |
 | Capability reuse | **High** qualitatively (SEC/LOW ≈ 90% reuse; SCAN "Very High") — no single aggregate % asserted |
@@ -119,9 +149,26 @@ count from this registry** — where an aggregate can't be honestly computed (e.
 | **TREND-001** | Trend Following (time-series trend) | **Planning** | `█░░░░░░░░░` 10% | Open (not started) | — **Pending** | **Trend philosophy** — the time-series complement |
 | **INSIDER-001** 📅 | Insider-Conviction (SEC Form 4 exec/officer open-market buys) — **first event-driven / alt-data program** | **Archived** | `██████████` 100% | Closed | 🔴 **Rejected (C)** | **Event-Driven Capability v1** — the reusable SEC-Filing → Event Store → Event-Study stack (the program's lasting asset, even though the signal was declined) |
 | **SCAN-001** ⚙ | Market Opportunity Discovery Engine (Candidate Engine) — **platform capability, not a strategy** | **Completed** (L3) | `██████████` 100% | **Closed** (Discovery Lab v1.0 complete; premarket gate is separate infra) | ✅ **Validated · Regime-Robust · Discovery Confidence accepted (v0.5)** | **Discovery Engine** — the reusable morning scanner feeding the Intraday Research Framework |
-| **FI-001** 🧩 | Multi-Factor Interaction & Portfolio Engineering — **how validated factors interact & combine** | **Completed** (Phases 1–3 + sector arm) | `████████░░` 80% | Follow-on (Phase 4 Adaptive) | 🟡 **Diversifier (B) — portfolio-level** | **Portfolio Engineering** — the bridge from Discovery Lab to combining factors; verdict: combining = drawdown reduction, not alpha → equal-weight + optional vol-target |
+| **FI-001** 🧩 | Multi-Factor Interaction & Portfolio Engineering — **how validated factors interact & combine** | **Completed** (Phases 1–4 + sector arm) | `██████████` 100% | Follow-on (FI-002) | 🟡 **Diversifier (B) — portfolio-level** | **Portfolio Engineering** — the bridge from Discovery Lab to combining factors; verdict: combining = drawdown reduction, not alpha → equal-weight + market-regime gross overlay |
+| **FI-002** 🧩 | Correlation Stability — **is factor correlation stable enough to allocate on?** | **Reserved** (do not start yet) | `░░░░░░░░░░` 0% | Reserved | — **Pending** | **Portfolio Engineering** — FI-001's most interesting finding (Mom↔Low corr swings −0.16→0.95) earns its own identity; start only after enough live paper data accrues |
 
 **Program type — SCAN-001 is the first Platform Capability program** (⚙), distinct from the strategy programs (MOM/RNG/MF/SEC/LOW/TREND). Strategies answer *"should we trade this?"*; a capability answers *"what shared infrastructure do strategies reuse?"*. Plan: v0.1 + v0.2 (`..._CandidateEngine_Plan_v0.1.md`, `..._Plan_v0.2.md`). **The full Evidence-Engineering cycle ran here:** v0.1 prototype → caught its own ATR tautology (findings v0.1, kept as the scientific record) → v0.2 pre-registered de-tautologized hypotheses → **Validated on both cuts** (results v0.2). **Verdict ✅ Validated (Capability):** candidates expand **beyond their own ATR** (1.18–1.49× vs baseline ≈0.94×, CI-separated, p≈0 on both the top-500/3y and top-200/5y cuts), the expansion is tradeable (capturable & net move ~2.5× baseline), and all three signals (ATR+Gap+RVOL) are additive. ⚠ **"Validated" is the *capability* verdict, not a live-trading green light** — promotion to any live use still requires the premarket-data gate (PR #221) + a live-data replication, and the v0.3 Discovery-Stability study (regime/seasonality). Magnitude is regime/universe-dependent (recorded honestly in results §3). **Capability Maturity: L3 — Operating Envelope Defined ✅** (v0.3 complete, results v0.3): the edge is **REGIME-ROBUST** — positive + CI-separated in *every* market & volatility regime (no no-go), **best Bull + Low-vol (★★★★★)**, weakest **Bear (★★★, still positive)**; a counter-prior finding that **low-vol > high-vol** (the engine is not a volatility-chaser). Next maturity step = L4 (premarket-data gate + live replication). **v0.4 Confidence Model — EXECUTED, CONFIDENCE-UNINFORMATIVE (pre-registered negative):** the per-candidate confidence does not predict ATR-normalized expansion `E` (mildly inverse, CI-separated) → the `Opportunity × Discovery` product is **not shipped** as a ranking key (confidence remains an explainability artifact). Honest companions: confidence *does* track absolute move `CM` (→ v0.5 CM-targeted confidence), and the per-day Discovery Confidence forward-calibrates weakly-but-correctly with ~0 throttle headroom (REGIME-ROBUST). **Maturity stays L3.** A clean capability-layer "the platform declines its own proposed feature." **v0.5 De-Tautologized Confidence — EXECUTED, DECOUPLED-CALIBRATED (positive):** v0.4's negative was an *ATR-poisoning* artifact — removing ATR from the confidence (Gap+RVOL only, customer name **Discovery Confidence**) **flipped** the high−low `E` from −0.45 to **+0.89** (CI-sep, monotone, both cuts), calibrated within **3/3 ATR bands** on `CM`, and **lifted the book** with the top-K ATR *equal* to flat (decoupled, not an artifact). **Lesson: ATR belongs in *selection*, not *confidence*.** → ship `confidence_gr` as the Candidate Report confidence (ranking gated). **The platform rejected two confidence models before accepting one.** This **completes Discovery Lab v1.0** (Selection v0.2 / Operating Envelope v0.3 / Discovery Confidence v0.5); Maturity stays L3, research line **closed** (promote-or-close discipline — no v0.6). **SCAN is becoming a *family*, not one program** (owner direction): SCAN-001 (the Candidate Engine) is the first of an eventual `SCAN-Regime / SCAN-News / SCAN-Options / SCAN-Earnings` line, all profiles under the **Discovery Lab** subsystem — built as *configuration* over the shared engine, the Factor-Lab pattern (leave room; do not build yet).
+
+**Verdict confidence** (how much we trust each verdict — the review's "Confidence" dimension, kept in the one existing registry, no new registry). Confidence is *High* when the evidence is statistically decisive (a CI that excludes zero, either direction), *Medium* when the verdict is a confidently-held "no decisive edge" (a B / inconclusive whose CI just spans zero), and *n/a* for reserved/unstarted programs:
+
+| Program | Verdict | Confidence | Basis |
+|---|---|---|---|
+| MOM-001 | ✅ Approved | **High** | Sharpe 0.48, CI [0.13, 0.85], p=0.003 |
+| RNG-001 | 🔴 Rejected | **High** | bootstrap mean-P&L CI spans zero + walk-forward decay |
+| MOM-002 | 🔴 Rejected | **High** | breadth OOS-confirmed; sector cap arm directionally clear (recent-window) |
+| INSIDER-001 | 🔴 Rejected (C) | **High** | H1 Sharpe-diff −0.30, CI [−0.63, −0.004], p=0.039 (CI below 0) |
+| SCAN-001 | ✅ Validated (capability) | **High** | edge CI-separated, p≈0, both cuts; regime-robust |
+| LOW-001 | 🟡 Diversifier (B) | **Medium** | H1 +0.24, CI [−0.029, 0.53] just spans zero |
+| SEC-001 | 🟡 Diversifier (B) | **Medium** | H1 +0.16, CI [−0.03, 0.366]; construction isolated (H3) |
+| TREND-001 | 🟡 Diversifier (B) | **Medium** | H1 +0.11, CI [−0.11, 0.33] spans zero |
+| MF-001 | 🟡 Inconclusive | **Medium** | ΔSharpe +0.04, CI [−0.35, 0.48] spans zero |
+| FI-001 | 🟡 Diversifier (B, portfolio) | **Medium** | no interaction cleared the Sharpe gate across 4 phases + sector arm |
+| FI-002 | — Pending | **n/a** | reserved; not started |
 
 **Verdict legend:** Approved (validated standalone) · Rejected (no edge) · Inconclusive (gate held the line) · Diversifier (B — overlay value, not standalone) · Pending (research not yet run). Colors match the Evidence Dashboard (green / red / amber / amber-blue). **Platform value** answers *why each program exists* — its contribution to the platform, not just its result; a rejection and a diversifier are both assets. **Research line** is orthogonal to Status (above).
 
@@ -206,6 +253,8 @@ independently of the program that birthed it. The CAP space is open-ended like t
 | **CAP-017** | **De-overlapped Event-Study Engine** (entry-on-filing PIT, hold-window de-overlap, equal-weight-basket H1, circular-block bootstrap Sharpe-diff CI + declared verdict tree) | INSIDER-001 | shipped — *the event analogue of Factor Lab's `run_program`* |
 | **CAP-018** | **Portfolio Construction Engine** (multi-sleeve **ERC** blend in Factor Lab — sqrt-damped risk-budgeting + correlation-regime de-risk overlay + look-through risk evidence; allocation-policy-agnostic, future Policy Registry) | PORT-001 → ADR 0030 | **built (core, unit-tested)** — `factor_lab/{erc,portfolio}.py`; reproduction run data-gated. *What makes a portfolio program differ from single-sleeve LOW/MOM/SEC* |
 | **CAP-019** | **Capability Onboarding** (the reusable lifecycle: External Capability → Evidence Reproduction → objective **Onboarding Gate** → **Capability Certificate** + Manifest → Continuous Evidence → Retirement; reproduce-first) | PORT-001 → ADR 0030 | **built (Gate + Certificate, unit-tested)** — `factor_lab/onboarding_gate.py`; the platform standard for onboarding INSIDER / Discovery outputs / external-partner strategies |
+| **CAP-020** | **Market Regime Overlay** (de-risk gross exposure below the market's 200d trend — a return-preserving alternative to continuous vol-targeting; the best drawdown-managed combined book in FI-001) | FI-001 Phase 4 | **Drawdown-effective · Sharpe-neutral · Verdict: Promising · Next: live validation.** Cuts combined-book maxDD −38%→−24% keeping most CAGR, but ΔSharpe CI spans zero and the study is return-level (no turnover cost / single-point calibration). NOT "validated" — the alpha bar is a CI excluding zero; this earns *live* validation, not the word. |
+| **CAP-021** | **Portfolio Interaction Measurement — the measurement layer the Continuous Evidence Engine consumes** (pairwise + rolling correlation, stress correlation in a book's worst drawdown, holdings/sector overlap, diversification score). Produces the *observed* distributions the CEE compares against each book's Research Envelope. | FI-001 Phase 1 | **shipped** — `scripts/fi001_phase1_measurement.py` + `app/services/portfolio_analytics.py`; the observed-side feed for Continuous Evidence |
 
 *CAP-012 is the honest case: the mechanics are a real, documented, reusable capability (cited in
 `Docs/design/Whitepaper_DropIn_ConfidenceModel_v0.1.md`) even though v0.4's evidence declined the ranking use.*

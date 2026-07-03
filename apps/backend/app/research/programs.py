@@ -110,7 +110,7 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "Multi-Factor Interaction & Portfolio Engineering — how validated factors interact & combine",
         "inconclusive",
         "Verdict B (Diversifier, portfolio-level): combining the validated books is a RISK-MANAGEMENT "
-        "tool (drawdown reduction), NOT an alpha source. Phases 1-3 + the 4-book sector arm all agree "
+        "tool (drawdown reduction), NOT an alpha source. Phases 1-4 + the 4-book sector arm all agree "
         "(no interaction study cleared the paired-Sharpe gate). Phase 1 (Measurement): H1 ordering "
         "confirmed -- MOM<->LOW ~0.22-0.52 (independent, decouples in momentum's drawdown), MOM<->SEC "
         "~0.69 (moderate), MOM<->TREND ~0.90 (redundant); correlation is regime-dependent (rolling-63d "
@@ -118,12 +118,25 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "non-significant Sharpe uplift (CIs span zero) = 'Diversification Confirmed (DD-only)'. Phase 3 "
         "(Allocation): sophistication does NOT pay -- inverse-vol/ERC/min-variance all fail to beat naive "
         "equal-weight (confirmed with 4 books; min-variance decisively worse); the vol-target OVERLAY is "
-        "the real lever, halving maxDD (-38%->-14%, Calmar ->1.0) at a large CAGR give-up but still no "
-        "Sharpe edge. RECIPE: equal-weight the books + optional vol-target overlay; skip the optimizer. "
-        "Consumes PORT-001's ERC engine; live counterpart = Portfolio Analytics Engine (#322). NOTE: "
-        "sector arm is recent-window (box store, breadth from 2025). OPEN follow-on: Phase 4 Adaptive "
-        "Portfolio + a full-history+sector store (Future Research/Medium).",
+        "the real lever, halving maxDD but at a large CAGR give-up. Phase 4 (Adaptive): a market-regime "
+        "gross overlay (de-risk below the 200d trend) is the best drawdown-managed book (Sharpe 1.17, "
+        "maxDD -24% vs mom -38%, keeps more CAGR than vol-target) -- still no Sharpe-CI edge; regime-tilt "
+        "and correlation-triggers do not help. RECIPE: equal-weight the books + a market-regime gross "
+        "overlay; skip the optimizer. Regime overlay catalogued CAP-020 (drawdown-effective, Sharpe-"
+        "neutral, verdict Promising, next: live validation -- NOT 'validated'). Consumes PORT-001's ERC "
+        "engine; live counterpart = Portfolio Analytics Engine (#322). Follow-on: FI-002 (Correlation "
+        "Stability, reserved) + a full-history+sector store (the sector arm is recent-window on the box).",
         "docs/implementation/TradingWorkbench_FI001_MultiFactorInteraction_Plan_v0.1.md"),
+    ResearchProgram(
+        "FI-002", "Portfolio Engineering",
+        "Correlation Stability — is factor correlation stable enough to allocate on?", "planned",
+        "RESERVED 2026-07-02 (do NOT start yet). FI-001's most interesting finding earns its own research "
+        "identity: pairwise factor correlation is regime-dependent (Momentum<->Low-Vol rolling-63d swings "
+        "-0.16..0.95), so a static combined book understates tail correlation and a 'diversification "
+        "score' is falsely precise without a stability band. Q: can correlation stability / 'correlation "
+        "confidence' be measured and used to gate allocation? Start only after enough live paper data "
+        "accrues (per the FI-001 review) -- Continuous Evidence Engine is the higher priority first.",
+        None),
 )
 
 
