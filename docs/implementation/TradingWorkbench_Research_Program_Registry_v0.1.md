@@ -26,7 +26,7 @@ from both the operating system that hosts them and the individual programs that 
 | **Layer 3 — Research Infrastructure** | The reusable, platform-wide research *assets* — the subsystems strategies are produced *by*, not the strategies themselves | **Discovery Lab · Factor Lab · Portfolio Engineering · Evidence Engine · Research Registry · Decision Registry · Evidence Dashboard** |
 | **Layer 4 — Research Programs** | The individual strategies/capabilities run *through* Layer 3 — each a validated, rejected, or deferred instance | the registry below (`MOM-001` … `TREND-001`, `SCAN-001`) |
 
-Momentum is **Layer 4**, not the product — the *reference implementation* that proves Layers 1–3 work, much as Linux is a reference implementation of an operating system rather than the operating system itself. The platform's stable subsystem map (owner): **Evidence Engineering → Discovery Lab → Factor Lab → Portfolio Engineering → Execution Platform → Continuous Evidence**.
+Momentum is **Layer 4**, not the product — the *reference implementation* that proves Layers 1–3 work, much as Linux is a reference implementation of an operating system rather than the operating system itself. The platform's stable subsystem map (owner): **Evidence Engineering → Discovery Lab → Factor Lab → Portfolio Engineering → Execution Platform → Continuous Evidence → Institutional Knowledge** (the Registry + Decision Records are what that last block *is*).
 
 **The research-to-operation lifecycle (three pillars).** `Discovery Lab → Portfolio Engineering → Continuous Evidence` — each consumes or verifies the prior. Discovery Lab *validates* individual capabilities (does this factor have an edge?); **Portfolio Engineering** is the discipline responsible for *combining* validated capabilities into resilient portfolios (FI-001 is its first evidence program); **Continuous Evidence** *verifies*, in live operation, that realized behavior stays within the research envelope that justified deployment. Portfolio Engineering is deliberately kept a *discipline*, not a heavyweight framework/registry: per Evidence Engineering's own logic, abstractions wait until a second program genuinely requires them (FI-001 alone does not).
 
@@ -67,6 +67,7 @@ research has happened when only the **plan** is frozen:
 | **Completed** | Research finished; a verdict is assigned and an evidence package exists. The program may still have open follow-on variants. |
 | **Archived** | Research finished **and** the construction line is closed — a rejection, or a stopping-rule fire. A citable end-state, not a failure. |
 | **Production** | Promoted past governance into paper and/or live trading. |
+| **Retired** | Production ended, but the evidence is preserved — a citable end-of-life, not a deletion. (Reserved; not yet used.) |
 
 `Status` is a property of the program; `Verdict` is a property of the evidence. A program can be
 `Completed · Diversifier (B)` (research done, overlay value) or `Archived · Rejected` (research done,
@@ -87,6 +88,17 @@ A fourth axis, applicable **platform-wide** (every capability — strategy or in
 maturity reads consistently across the Factor Lab, Risk Engine, Execution Engine, and every future capability.
 It refines `Status`: where Status says *where in its life*, Maturity says *how far it has been proven and
 de-risked*.
+
+**Capability Maturity ≠ Evidence Maturity** (keep them distinct — L5 is *not* the same as "high
+confidence"):
+
+| Dimension | Meaning |
+|---|---|
+| **Capability Maturity** (L0–L5) | how mature the *implementation* is — built, validated, envelope-defined, production-ready |
+| **Evidence Maturity** (the Continuous Evidence clock) | how much *live evidence* has accumulated — Insufficient → Preliminary → Emerging → Moderate → Mature |
+
+A capability can be L4 (production-ready) yet have *Insufficient* evidence maturity (just deployed); the
+two axes move on different clocks and the Continuous Evidence Engine tracks the second.
 
 | Level | Meaning |
 |---|---|
@@ -242,7 +254,7 @@ independently of the program that birthed it. The CAP space is open-ended like t
 | **CAP-018** | **Portfolio Construction Engine** (multi-sleeve **ERC** blend in Factor Lab — sqrt-damped risk-budgeting + correlation-regime de-risk overlay + look-through risk evidence; allocation-policy-agnostic, future Policy Registry) | PORT-001 → ADR 0030 | **built (core, unit-tested)** — `factor_lab/{erc,portfolio}.py`; reproduction run data-gated. *What makes a portfolio program differ from single-sleeve LOW/MOM/SEC* |
 | **CAP-019** | **Capability Onboarding** (the reusable lifecycle: External Capability → Evidence Reproduction → objective **Onboarding Gate** → **Capability Certificate** + Manifest → Continuous Evidence → Retirement; reproduce-first) | PORT-001 → ADR 0030 | **built (Gate + Certificate, unit-tested)** — `factor_lab/onboarding_gate.py`; the platform standard for onboarding INSIDER / Discovery outputs / external-partner strategies |
 | **CAP-020** | **Market Regime Overlay** (de-risk gross exposure below the market's 200d trend — a return-preserving alternative to continuous vol-targeting; the best drawdown-managed combined book in FI-001) | FI-001 Phase 4 | **Drawdown-effective · Sharpe-neutral · Verdict: Promising · Next: live validation.** Cuts combined-book maxDD −38%→−24% keeping most CAGR, but ΔSharpe CI spans zero and the study is return-level (no turnover cost / single-point calibration). NOT "validated" — the alpha bar is a CI excluding zero; this earns *live* validation, not the word. |
-| **CAP-021** | **Portfolio Interaction Measurement** (pairwise + rolling correlation, stress correlation in a book's worst drawdown, holdings/sector overlap, diversification score — the Phase 1 measurement toolkit; live counterpart = Portfolio Analytics Engine) | FI-001 Phase 1 | **shipped** — `scripts/fi001_phase1_measurement.py` + `app/services/portfolio_analytics.py`; the measurement layer the Continuous Evidence Engine will consume |
+| **CAP-021** | **Portfolio Interaction Measurement — the measurement layer the Continuous Evidence Engine consumes** (pairwise + rolling correlation, stress correlation in a book's worst drawdown, holdings/sector overlap, diversification score). Produces the *observed* distributions the CEE compares against each book's Research Envelope. | FI-001 Phase 1 | **shipped** — `scripts/fi001_phase1_measurement.py` + `app/services/portfolio_analytics.py`; the observed-side feed for Continuous Evidence |
 
 *CAP-012 is the honest case: the mechanics are a real, documented, reusable capability (cited in
 `Docs/design/Whitepaper_DropIn_ConfidenceModel_v0.1.md`) even though v0.4's evidence declined the ranking use.*

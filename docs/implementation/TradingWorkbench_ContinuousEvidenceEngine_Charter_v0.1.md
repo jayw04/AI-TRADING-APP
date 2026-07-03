@@ -25,6 +25,46 @@ capabilities; the CEE **verifies, in live operation, that realized behavior stay
 envelope that justified deployment.** Without it, "validated in 2026" silently decays into "assumed still
 true" — the exact failure mode Evidence Engineering exists to prevent.
 
+## Key terms (first-class concepts)
+
+- **Research Envelope** — the statistically justified operating range for a validated capability: the
+  *expected distribution* of its key performance metrics (Sharpe, drawdown, turnover, correlation,
+  volatility, hit-rate, holdings overlap) derived from the evidence package that supported deployment.
+  This is the "expected" side of every comparison — a distribution (a CI), never a point.
+- **Evidence Drift** — a divergence between the **observed** live distribution and the **Research
+  Envelope**, measured probabilistically. The first-class object the engine detects:
+  `Research Envelope → Observed Distribution → Evidence Drift → Review`.
+- **Evidence Debt** — a governance signal: *time since the last meaningful verification*, weighted by how
+  little evidence has accrued (deployed long ago + few observations + still-low confidence → high debt).
+
+**Scope — multi-program.** The engine applies equally to investment strategies, portfolio capabilities,
+and future platform capabilities that accumulate measurable live evidence — not just single strategies.
+
+## The methodology at a glance
+
+```
+Research Program
+      │
+      ▼
+Evidence Package  ──►  Governance  ──►  Paper / Production
+                                              │
+                                              ▼
+                              Continuous Evidence Engine
+                                              │
+                                              ▼
+                         Observed  vs  Research Envelope   (Evidence Drift)
+                                              │
+                                              ▼
+                    Insufficient · Consistent · Watch · Investigate
+                                              │
+                                              ▼
+                                     Decision Review (human)
+                                              │
+                                              ▼
+                                     Research Registry
+                              (institutional knowledge)
+```
+
 ## §1 — Frozen design principles
 
 These are non-negotiable and define the engine's character:
@@ -110,9 +150,12 @@ rule — those come later, if ever, and only once calibrated against real live d
 
 ## §7 — The Evidence Clock (a first-class capability)
 
-Every live book shows, always: **Days Live · Evidence Collected · Confidence · Last Review · Next
-Review.** Example: *Momentum — 62 trading days · Confidence Low · Next review 30 days.* This is the
-anti-overreaction device — it makes "we don't know yet" visible and legitimate.
+Every live book shows, always: **Days Live · Evidence Collected · Confidence · Expected Review Cadence ·
+Last Review · Next Review · Evidence Debt.** Example: *Momentum — 62 trading days · Confidence Low ·
+Cadence 30 days · Next review in 12 days · Evidence Debt Moderate.* The **Expected Review Cadence** (e.g.
+30 / 90 days / Quarterly) gives governance a consistent rhythm; **Evidence Debt** flags books that have
+been live a while but still lack the observations to say anything. Together they make "we don't know yet"
+visible and legitimate — the anti-overreaction device.
 
 ## §8 — Pre-registered scope & phasing
 
@@ -126,9 +169,14 @@ anti-overreaction device — it makes "we don't know yet" visible and legitimate
 
 ## §9 — Non-goals (what it must never become)
 
-- Not an adaptive optimizer (never changes params/weights).
+- Not an adaptive optimizer (never changes params/weights). **The Continuous Evidence Engine recommends
+  investigation; it never changes deployment status** — arming, halting, and reallocation stay human
+  decisions.
 - Not a performance dashboard (it measures *consistency with the justifying evidence*, not P&L).
 - Not a fast alarm (skeptical, slow, honest > eager and noisy).
+- **No AI-driven interpretation or automatic recommendations in v1.** Keep it deterministic, statistical,
+  and explainable — that is what preserves the credibility of the evidence. (An LLM narration layer, if
+  ever, is a later, separately-gated decision.)
 
 ## §10 — Success criterion
 
