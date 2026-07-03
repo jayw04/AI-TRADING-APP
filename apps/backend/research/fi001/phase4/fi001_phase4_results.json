@@ -1,0 +1,93 @@
+{
+  "window": {
+    "start": "2019-01-01",
+    "end": "2026-06-13",
+    "n": 150,
+    "risk_off_gross": 0.5,
+    "corr_threshold": 0.6
+  },
+  "sector_coverage": 0,
+  "pct_risk_off_days": 0.268,
+  "results": [
+    {
+      "strategy": "static_eqw",
+      "cagr": 0.2329,
+      "sharpe": 1.125,
+      "max_drawdown": -0.3066,
+      "calmar": 0.759,
+      "dS_vs_eqw": 0.0,
+      "ci_eqw": [
+        0.0,
+        0.0
+      ],
+      "improves_vs_eqw": false,
+      "dS_vs_mom": 0.081,
+      "ci_mom": [
+        -0.153,
+        0.372
+      ],
+      "improves_vs_mom": false,
+      "dMaxDD_vs_eqw_pp": 0.0
+    },
+    {
+      "strategy": "regime_gross",
+      "cagr": 0.1949,
+      "sharpe": 1.166,
+      "max_drawdown": -0.2422,
+      "calmar": 0.805,
+      "dS_vs_eqw": 0.041,
+      "ci_eqw": [
+        -0.189,
+        0.228
+      ],
+      "improves_vs_eqw": false,
+      "dS_vs_mom": 0.122,
+      "ci_mom": [
+        -0.116,
+        0.358
+      ],
+      "improves_vs_mom": false,
+      "dMaxDD_vs_eqw_pp": 6.44
+    },
+    {
+      "strategy": "regime_tilt",
+      "cagr": 0.2338,
+      "sharpe": 1.071,
+      "max_drawdown": -0.3191,
+      "calmar": 0.733,
+      "dS_vs_eqw": -0.054,
+      "ci_eqw": [
+        -0.178,
+        0.044
+      ],
+      "improves_vs_eqw": false,
+      "dS_vs_mom": 0.027,
+      "ci_mom": [
+        -0.151,
+        0.241
+      ],
+      "improves_vs_mom": false,
+      "dMaxDD_vs_eqw_pp": -1.25
+    },
+    {
+      "strategy": "corr_adaptive",
+      "cagr": 0.1561,
+      "sharpe": 1.066,
+      "max_drawdown": -0.245,
+      "calmar": 0.637,
+      "dS_vs_eqw": -0.058,
+      "ci_eqw": [
+        -0.347,
+        0.202
+      ],
+      "improves_vs_eqw": false,
+      "dS_vs_mom": 0.023,
+      "ci_mom": [
+        -0.225,
+        0.277
+      ],
+      "improves_vs_mom": false,
+      "dMaxDD_vs_eqw_pp": 6.16
+    }
+  ]
+}
