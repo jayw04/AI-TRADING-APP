@@ -63,10 +63,135 @@ def test_classify_metric_none_observation_is_insufficient():
     assert ce.classify_metric(None, 0.1, 1.5, ce._MATURITY_MATURE)[0] == ce.INSUFFICIENT
 
 
-def test_phase1_never_emits_investigate():
-    # Phase 1 escalates at most to WATCH; INVESTIGATE is Phase 2
+def test_point_band_classify_never_emits_investigate():
+    # the point-in-band primitive (no distribution) escalates at most to WATCH
     states = {ce.classify_metric(v, 0.1, 1.5, ce._MATURITY_MATURE)[0] for v in (-9, 0.5, 9)}
     assert ce.INVESTIGATE not in states
+
+
+# ---- Phase 2: probabilistic drift ----
+
+def _dist(point, lo, hi, n=200):
+    return ce.ObservedDistribution(point=point, ci_low=lo, ci_high=hi, n=n)
+
+
+def test_separated_detects_non_overlap():
+    assert ce._separated(_dist(0.9, 0.6, 1.2), 0.1, 0.5)      # CI entirely above band
+    assert ce._separated(_dist(-0.9, -1.2, -0.6), 0.1, 0.5)   # CI entirely below band
+    assert not ce._separated(_dist(0.3, 0.05, 0.6), 0.1, 0.5)  # CI overlaps band
+
+
+def test_probabilistic_insufficient_at_insufficient_tier_or_no_distribution():
+    # only the Insufficient maturity tier (<1mo) or a missing distribution forces INSUFFICIENT
+    assert ce.classify_metric_probabilistic(
+        _dist(3.0, 2.5, 3.5), 0.1, 1.5, ce._MATURITY_INSUFFICIENT)[0] == ce.INSUFFICIENT
+    assert ce.classify_metric_probabilistic(
+        None, 0.1, 1.5, ce._MATURITY_MATURE)[0] == ce.INSUFFICIENT
+
+
+def test_probabilistic_separated_and_mature_is_investigate():
+    st, _ = ce.classify_metric_probabilistic(_dist(3.0, 2.5, 3.5), 0.1, 1.5, ce._MATURITY_MATURE)
+    assert st == ce.INVESTIGATE
+    st, _ = ce.classify_metric_probabilistic(_dist(3.0, 2.5, 3.5), 0.1, 1.5, ce._MATURITY_MODERATE)
+    assert st == ce.INVESTIGATE
+
+
+def test_probabilistic_separated_but_immature_is_watch():
+    # separation seen at Emerging maturity (3-6mo) — not enough history for INVESTIGATE
+    st, _ = ce.classify_metric_probabilistic(_dist(3.0, 2.5, 3.5), 0.1, 1.5, ce._MATURITY_EMERGING)
+    assert st == ce.WATCH
+
+
+def test_probabilistic_overlap_is_consistent_or_watch():
+    # CI overlaps band and point inside -> Consistent
+    assert ce.classify_metric_probabilistic(
+        _dist(0.8, 0.4, 1.2), 0.1, 1.5, ce._MATURITY_MATURE)[0] == ce.CONSISTENT
+    # CI overlaps band but point drifted outside -> Watch (not statistically separated)
+    assert ce.classify_metric_probabilistic(
+        _dist(1.7, 1.2, 2.0), 0.1, 1.5, ce._MATURITY_MATURE)[0] == ce.WATCH
+
+
+def test_observed_distribution_too_short_is_none():
+    assert ce.observed_distribution(0.5, [0.01] * 5, ce.ev.sharpe) is None
+
+
+def test_observed_distribution_is_deterministic_and_brackets_point():
+    rets = [0.01, -0.005, 0.008, -0.002, 0.006, 0.003, -0.004, 0.009] * 4  # 32 returns
+    point = ce.ev.sharpe(rets)
+    d1 = ce.observed_distribution(round(point, 4), rets, ce.ev.sharpe)
+    d2 = ce.observed_distribution(round(point, 4), rets, ce.ev.sharpe)
+    assert d1 is not None and d1 == d2                 # seeded -> reproducible
+    assert d1.ci_low <= d1.point <= d1.ci_high         # point sits inside its own CI
+    assert d1.n == len(rets)
+
+
+def test_drawdown_from_returns_matches_curve_drawdown():
+    # a clean 10% dip then recovery
+    vals = [100.0] * 5 + [90.0] + [100.0] * 5
+    curve = _curve(vals)
+    rets = ce.ev.daily_returns(curve)
+    assert abs(ce._drawdown_from_returns(rets) - ce.ev.max_drawdown(curve)) < 1e-9
+
+
+# ---- Phase 2: operational drift (separate track) ----
+
+def test_operational_drift_ok_for_fresh_contiguous_curve():
+    curve = _curve([100.0] * 10)  # daily, contiguous
+    op = ce.operational_drift_from_curve(curve, as_of=curve[-1][0])
+    assert op.state == ce._OP_OK and op.reasons == []
+
+
+def test_operational_drift_flags_staleness():
+    curve = _curve([100.0] * 10)
+    late = curve[-1][0] + timedelta(days=6)
+    op = ce.operational_drift_from_curve(curve, as_of=late)
+    assert op.state == ce._OP_DEGRADED
+    assert op.stale_days == 6 and any("stale" in r for r in op.reasons)
+
+
+def test_operational_drift_tolerates_weekend_gap():
+    # Fri -> Mon is a 3-day calendar gap; must NOT be flagged
+    fri = datetime(2026, 1, 2, tzinfo=UTC)   # a Friday
+    mon = datetime(2026, 1, 5, tzinfo=UTC)
+    curve = [(fri, 100.0), (mon, 101.0)]
+    op = ce.operational_drift_from_curve(curve, as_of=mon)
+    assert op.state == ce._OP_OK and op.max_gap_days == 3
+
+
+def test_operational_drift_flags_large_gap():
+    d0 = datetime(2026, 1, 1, tzinfo=UTC)
+    curve = [(d0, 100.0), (d0 + timedelta(days=8), 101.0)]
+    op = ce.operational_drift_from_curve(curve, as_of=d0 + timedelta(days=8))
+    assert op.state == ce._OP_DEGRADED and op.max_gap_days == 8
+
+
+def test_operational_drift_never_folded_into_investment_state():
+    # a stale feed must not change the investment verdict — it rides its own track
+    vals = [100.0] * 10 + [95.0] + [100.0] * 19
+    curve = _curve(vals)
+    stale_as_of = curve[-1][0] + timedelta(days=30)
+    ev_row = ce.book_evidence_from_curve(
+        "momentum", 1, curve, ce.match_envelope("momentum"), as_of=stale_as_of)
+    assert ev_row.operational.state == ce._OP_DEGRADED   # ops track sees the staleness
+    assert ev_row.state in (ce.CONSISTENT, ce.WATCH, ce.INSUFFICIENT)  # investment verdict untouched by ops
+
+
+def test_book_evidence_investigate_when_distribution_separates_and_mature():
+    # 260 trading days (Mature) of a *sustained* decline: consistently negative returns give a
+    # tight, strongly-negative Sharpe whose CI separates below the momentum envelope's 0.10 floor.
+    eq = 100.0
+    vals = [eq]
+    for i in range(259):
+        eq *= (1 - 0.004) if i % 2 == 0 else (1 - 0.001)   # every day negative, some dispersion
+        vals.append(eq)
+    ev_row = ce.book_evidence_from_curve(
+        "momentum", 1, _curve(vals), ce.match_envelope("momentum"))
+    assert ev_row.maturity == ce._MATURITY_MATURE
+    shp = next(m for m in ev_row.metrics if m.metric == "sharpe")
+    assert shp.obs_ci_low is not None                      # a distribution was built
+    assert shp.obs_ci_high < 0.10                          # CI sits entirely below the envelope
+    assert shp.separated and shp.state == ce.INVESTIGATE
+    assert ev_row.state == ce.INVESTIGATE                  # worst-metric dominates
 
 
 # ---- envelope matching ----

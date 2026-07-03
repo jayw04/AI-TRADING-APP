@@ -205,7 +205,7 @@ async def main():
     except Exception as e:  # noqa: BLE001
         alerts.append(("warn", f"portfolio analytics failed: {type(e).__name__}"))
 
-    # --- Continuous Evidence Engine (Phase 1): Research Envelope + Evidence Clock ---
+    # --- Continuous Evidence Engine: envelope + clock (P1) + probabilistic drift (P2) ---
     cee = None
     try:
         from app.services import continuous_evidence as _cee
@@ -280,20 +280,32 @@ async def main():
         out.append("## 🔬 Continuous Evidence (envelope + evidence clock)")
         out.append("_Does live behavior still match the evidence that justified deployment? "
                    "Skeptical by design — 'Insufficient Evidence' until enough live history accrues._")
-        out.append("| Book | State | Evidence maturity | Days live | Debt | Next review | Observed vs envelope |")
-        out.append("|---|---|---|---|---|---|---|")
+        out.append("| Book | State | Evidence maturity | Days live | Debt | Ops | Next review | "
+                   "Observed vs envelope |")
+        out.append("|---|---|---|---|---|---|---|---|")
         for b in cee:
-            obs = "; ".join(
-                f"{m.metric.replace('_', ' ')} {m.observed}"
-                + ("" if m.state == "Insufficient Evidence" or m.difference in (None, 0.0)
-                   else f" (Δ{m.difference:+})")
-                for m in b.metrics if m.observed is not None
-            ) or "—"
+            parts = []
+            for m in b.metrics:
+                if m.observed is None:
+                    continue
+                # Phase 2: show the observed CI (the distribution) and flag separation.
+                ci = (f" [{m.obs_ci_low:g},{m.obs_ci_high:g}]"
+                      if m.obs_ci_low is not None else "")
+                delta = ("" if m.state == "Insufficient Evidence" or m.difference in (None, 0.0)
+                         else f" Δ{m.difference:+g}")
+                sep = " ⛌" if m.separated else ""
+                parts.append(f"{m.metric.replace('_', ' ')} {m.observed:g}{ci}{delta}{sep}")
+            obs = "; ".join(parts) or "—"
             src = f" · _{b.envelope_source}_" if b.envelope_source else " · _no envelope yet_"
+            op = b.operational
+            ops = "✅" if op.state == "OK" else f"🟠 {'; '.join(op.reasons)}"
             out.append(f"| {b.book} | {_emoji.get(b.state, '')} {b.state} | {b.maturity} | "
-                       f"{b.days_live} | {b.evidence_debt} | ~{b.review_cadence_days}d | {obs}{src} |")
-        out.append("\n> Continuous Evidence **observes; it never changes deployment status** — it "
-                   "recommends investigation, humans decide (charter §9).")
+                       f"{b.days_live} | {b.evidence_debt} | {ops} | ~{b.review_cadence_days}d | "
+                       f"{obs}{src} |")
+        out.append("\n> **Investment drift** (the table's State) and **operational drift** (Ops) are "
+                   "tracked separately and never mixed (charter §4). `⛌` marks a metric whose observed "
+                   "CI has separated from the research envelope. Continuous Evidence **observes; it never "
+                   "changes deployment status** — it recommends investigation, humans decide (charter §9).")
         out.append("")
 
     out.append("## Accounts")
