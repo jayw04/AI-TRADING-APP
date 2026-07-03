@@ -107,7 +107,7 @@ Read the Range Levels panel first; then confirm with the signals/orders below.
 | **Forming…** past ~10:05 ET | Opening range not building — no bars, or dispatch not firing | Backend logs for `strategy_dispatch_get_bar_failed` / no `on_bar`; check Alpaca bar flow for the symbol | Restart/reload the strategy; confirm the range book is armed and the market-session gate says REGULAR |
 | **At buy** + flat, persists (price ≤ buy, no position) | A buy that should have fired didn't | Latest `signals` for the symbol: a `rejected` reason? `strategy_cooldown_set` (order pacing)? `stopped_today`? global halt? | Clear the specific blocker — reset a spuriously-tripped breaker, clear the halt, or wait out the 60s order cooldown |
 | **Below stop!** + still holding | Stop should have flattened the position | Same checklist as "At buy" — a rejected exit or a halt blocked it | Reconcile/flatten; investigate why the exit was refused |
-| Position held **overnight** (panel/positions show a leftover next morning) | The pre-close force-exit was blocked | Was there a halt or a stuck `SUBMITTED` order yesterday afternoon? | Cancel the stuck order + flatten. **Root cause fixed** by the per-account daily-loss halt (ADR 0034 / #315) — one account's loss no longer halts the range book |
+| Position held **overnight** (panel/positions show a leftover next morning) | The pre-close force-exit was blocked | Was there a halt or a stuck `SUBMITTED` order yesterday afternoon? | Cancel the stuck order + flatten. **Root cause fixed** by per-account risk containment (ADR 0034 / #315; daily-loss halt) — one account's loss no longer halts the range book |
 | Levels look inverted (buy ≥ sell) | Invalid level ordering | `INFO` signal `entry_skipped_invalid_levels` for that symbol | Strategy goes inert for **entries** only (existing position still protected). Investigate the OR data |
 | Panel empty / all "Forming…" after a deploy | Strategy hasn't run yet since restart, or it's not a range strategy | It publishes levels only after it next dispatches post-open | Expected right after a deploy — populates during the next opening range |
 
@@ -129,7 +129,7 @@ WHERE s.strategy_id = 1 ORDER BY s.received_at DESC LIMIT 20;
 - Strategy: `apps/backend/strategies_user/templates/range_trader.py`
 - Endpoint: `apps/backend/app/api/v1/range_levels.py` · Panel:
   `apps/frontend/src/components/strategies/RangeLevelsPanel.tsx`
-- Halt fix: ADR 0034 (per-account daily-loss halt) — why a range position no longer
+- Halt fix: ADR 0034 (per-account risk containment; daily-loss halt) — why a range position no longer
   gets stranded overnight by another book's loss.
 - Design: `docs/design/RangeTrading_Logic_and_Research_v0.1.md`,
   `docs/design/Range_BuySell_Formula_Study.md`.
