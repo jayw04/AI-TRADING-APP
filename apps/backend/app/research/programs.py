@@ -108,17 +108,21 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
     ResearchProgram(
         "FI-001", "Portfolio Engineering",
         "Multi-Factor Interaction & Portfolio Engineering — how validated factors interact & combine",
-        "research",
-        "CHARTERED 2026-07-02, pre-registered (plan v0.1). The bridge from Discovery Lab (validating single "
-        "factors) to Portfolio Engineering (combining them). Q: how do the validated books (MOM/LOW/SEC/TREND) "
-        "interact, and can a principled combination beat standalone momentum risk-adjusted -- WITHOUT "
-        "re-optimizing the factors? Motivated by MOM-002 (reshaping momentum != diversification) + the "
-        "2026-07-02 review (live momentum books corr ~1.00). 4 phases: (1) Measurement -- rolling corr, "
-        "holdings/sector overlap, diversification score; (2) Interaction -- pairwise blends vs standalone; "
-        "(3) Allocation -- eqw/risk-parity/ERC/dynamic-vol/correlation-aware; (4) Adaptive Portfolio. "
-        "Frozen priors (H1): MOM<->LOW ~-0.15 (real diversifier), MOM<->SEC ~+0.38, MOM<->TREND ~+0.87 "
-        "(redundant). Consumes PORT-001's ERC engine; the live Portfolio Analytics Engine (#322) is its "
-        "operational counterpart. No interaction study has run yet -- this is the freeze, not the result.",
+        "inconclusive",
+        "Verdict B (Diversifier, portfolio-level): combining the validated books is a RISK-MANAGEMENT "
+        "tool (drawdown reduction), NOT an alpha source. Phases 1-3 + the 4-book sector arm all agree "
+        "(no interaction study cleared the paired-Sharpe gate). Phase 1 (Measurement): H1 ordering "
+        "confirmed -- MOM<->LOW ~0.22-0.52 (independent, decouples in momentum's drawdown), MOM<->SEC "
+        "~0.69 (moderate), MOM<->TREND ~0.90 (redundant); correlation is regime-dependent (rolling-63d "
+        "swings -0.16..0.95). Phase 2 (Interaction): every blend cuts drawdown 6-8pp with a POSITIVE but "
+        "non-significant Sharpe uplift (CIs span zero) = 'Diversification Confirmed (DD-only)'. Phase 3 "
+        "(Allocation): sophistication does NOT pay -- inverse-vol/ERC/min-variance all fail to beat naive "
+        "equal-weight (confirmed with 4 books; min-variance decisively worse); the vol-target OVERLAY is "
+        "the real lever, halving maxDD (-38%->-14%, Calmar ->1.0) at a large CAGR give-up but still no "
+        "Sharpe edge. RECIPE: equal-weight the books + optional vol-target overlay; skip the optimizer. "
+        "Consumes PORT-001's ERC engine; live counterpart = Portfolio Analytics Engine (#322). NOTE: "
+        "sector arm is recent-window (box store, breadth from 2025). OPEN follow-on: Phase 4 Adaptive "
+        "Portfolio + a full-history+sector store (Future Research/Medium).",
         "docs/implementation/TradingWorkbench_FI001_MultiFactorInteraction_Plan_v0.1.md"),
 )
 
