@@ -13,6 +13,24 @@ validated*. Momentum is the platform's reference book, live on paper and backed 
 edge. The temptation, after a sharp down day, is to "fix" the winner. MOM-002 is the record of that
 temptation being tested — one variable at a time — and declined.
 
+## At a glance
+
+```
+Observation           three live momentum books lost together — too correlated (one macro bet)
+      │
+      ▼
+Hypothesis            broaden Top-5 → Top-20 and cap each sector to de-concentrate
+      │
+      ▼
+Breadth Test  ──►  Sector-Cap Test  ──►  Correlation Analysis
+      │
+      ▼
+Rejected              reshaping the same factor is not diversification
+      │
+      ▼
+Portfolio Engineering combine independent factors instead
+```
+
 ## The hypothesis
 
 On 2 July 2026 the three live momentum books lost together. A daily-report review made the correct
@@ -62,6 +80,8 @@ books correlating ~1.00, with 100% holdings overlap) therefore *cannot* be engin
 momentum book. Independent evidence has to come from a **different factor** — low volatility, sector
 rotation, cross-asset trend — not a different shape of momentum.
 
+> **Key finding.** Diversification comes from **independent factors**, not from reshaping the same factor.
+
 ## The honest caveat
 
 The sector-cap arm ran on the only store with sector data, which has full universe breadth only from
@@ -73,8 +93,10 @@ the practical decision is made.
 
 ## Verdict: Rejected — not Failed
 
-MOM-002 is closed **Rejected**. A plausible, intuitive enhancement to a validated strategy was tested
-against the same evidence framework as everything else and did not survive. Placed beside RNG-001 the
+MOM-002 is closed **Rejected**. A rejected enhancement is a *successful* research outcome: it narrows the
+design space and prevents future effort from being spent rediscovering the same dead end. A plausible,
+intuitive enhancement to a validated strategy was tested against the same evidence framework as everything
+else and did not survive. Placed beside RNG-001 the
 pair tells a single, durable story:
 
 > **RNG-001:** a plausible *strategy* was rejected after systematic testing.
@@ -83,6 +105,7 @@ pair tells a single, durable story:
 
 Almost every quantitative platform markets its winners. TradingWorkbench is designed not only to
 discover alpha but to *decline attractive ideas that do not survive rigorous evidence* — and to preserve
-the reasoning so the next researcher never re-runs the dead end. MOM-002's lasting contribution is that
+both the evidence and the reasoning so future researchers can build from known results rather than
+repeating them. MOM-002's lasting contribution is that
 decision, recorded: the project's focus now shifts from optimizing momentum to engineering a portfolio of
 *independent* validated factors — the transition from strategy research to portfolio research.
