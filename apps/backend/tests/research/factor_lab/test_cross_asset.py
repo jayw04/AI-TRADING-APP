@@ -77,3 +77,58 @@ def test_deterministic():
     a = cross_asset_tsmom(panel)
     b = cross_asset_tsmom(panel)
     assert a.weights == b.weights and a.gross == b.gross
+
+
+# ---- correlation-aware tilt (PORT-001 §5.6/§11 #1) --------------------------------
+
+def _corr_panel(n: int = 320, seed: int = 7) -> pd.DataFrame:
+    """SPY (market) + HOT (~+0.9 corr to SPY) + HEDGE (~−0.8 corr), all trending up so all three
+    are in-trend. Lets the tilt's directional effect be asserted."""
+    rng = np.random.default_rng(seed)
+    spy_r = 0.0018 + 0.010 * rng.standard_normal(n)
+    spy_dm = spy_r - spy_r.mean()
+    hot_r = 0.0018 + 0.9 * spy_dm + 0.003 * rng.standard_normal(n)     # equity-correlated
+    hedge_r = 0.0018 - 0.8 * spy_dm + 0.003 * rng.standard_normal(n)   # diversifier
+    idx = pd.date_range("2025-01-01", periods=n, freq="B")
+
+    def _px(r: np.ndarray) -> np.ndarray:
+        return 100.0 * np.cumprod(1.0 + r)
+
+    return pd.DataFrame({"SPY": _px(spy_r), "HOT": _px(hot_r), "HEDGE": _px(hedge_r)}, index=idx)
+
+
+def test_tilt_default_off_is_noop():
+    panel = _corr_panel()
+    base = cross_asset_tsmom(panel)
+    off = cross_asset_tsmom(panel, corr_aware=False, corr_lambda=0.5)
+    assert off.weights == base.weights and off.gross == base.gross
+    assert base.notes == []  # no tilt note when off
+
+
+def test_tilt_leans_into_the_hedge_and_off_the_correlated():
+    panel = _corr_panel()
+    base = cross_asset_tsmom(panel)
+    tilt = cross_asset_tsmom(panel, corr_aware=True, corr_lambda=0.5)
+    assert set(tilt.in_trend) == {"SPY", "HOT", "HEDGE"}
+    # vol_scale is common → weight ratios reflect the tilt directly. The hedge rises vs the
+    # equity-correlated names; SPY (corr 1 → ×0.5) falls vs the hedge.
+    assert tilt.weights["HEDGE"] / tilt.weights["HOT"] > base.weights["HEDGE"] / base.weights["HOT"]
+    assert tilt.weights["HEDGE"] / tilt.weights["SPY"] > base.weights["HEDGE"] / base.weights["SPY"]
+    assert tilt.gross <= 1.0 + 1e-9              # still de-risk only, never levers up
+    assert tilt.notes and "corr-aware tilt" in tilt.notes[0]
+
+
+def test_tilt_clip_collapses_to_noop():
+    # floor == cap == 1.0 pins every multiplier to 1.0 → the tilt cannot change weights.
+    panel = _corr_panel()
+    base = cross_asset_tsmom(panel)
+    pinned = cross_asset_tsmom(panel, corr_aware=True, corr_lambda=0.5, corr_floor=1.0, corr_cap=1.0)
+    assert pinned.weights == base.weights
+
+
+def test_tilt_skipped_when_proxy_absent():
+    # No SPY column → the tilt is silently skipped (behaves like baseline).
+    panel = _panel({"UP_LOW": (0.0015, 0.004, 1), "UP_HIGH": (0.0050, 0.020, 2)})
+    base = cross_asset_tsmom(panel)
+    out = cross_asset_tsmom(panel, corr_aware=True, corr_proxy="SPY")
+    assert out.weights == base.weights and out.notes == []

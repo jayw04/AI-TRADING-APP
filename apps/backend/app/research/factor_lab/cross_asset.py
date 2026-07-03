@@ -22,13 +22,27 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-# The validated 8 (spec §5.4 — expansion was researched and REJECTED; keep the 8).
+# The validated 9 (spec §5.6 — managed futures KMLM added 2026-07-03 as the rate-crisis hedge,
+# the first structural response to the diversification decay in §6.1; supersedes the earlier
+# "keep the 8" call in §5.4). KMLM inception 2020-12 → short history (handled by the panel's
+# common-date join). See Docs/Combined Book Strategy.md §5.6 and §11 #6.
 CROSS_ASSET_UNIVERSE: tuple[str, ...] = (
-    "SPY", "EFA", "EEM", "TLT", "IEF", "GLD", "DBC", "UUP",
+    "SPY", "EFA", "EEM", "TLT", "IEF", "GLD", "DBC", "UUP", "KMLM",
 )
 
 _TRADING_DAYS = 252
 _EPS_VOL = 1e-9  # an asset with ~zero 60d vol can't be risk-weighted (1/vol → ∞); drop it.
+
+
+def _clip(x: float, lo: float, hi: float) -> float:
+    return min(hi, max(lo, x))
+
+
+def _safe_corr(xs: pd.Series, ys: pd.Series) -> float:
+    """Pearson correlation of two return series; 0.0 when undefined (mirrors the sibling's
+    ``_corr`` <3-point / zero-variance guard so the tilt is a no-op on degenerate windows)."""
+    c = xs.corr(ys)
+    return float(c) if pd.notna(c) else 0.0
 
 
 @dataclass(frozen=True)
@@ -54,10 +68,26 @@ def cross_asset_tsmom(
     vol_lookback: int = 60,
     vol_target: float = 0.10,
     asof: int | None = None,
+    corr_aware: bool = False,
+    corr_lambda: float = 0.5,
+    corr_lookback: int = 60,
+    corr_floor: float = 0.0,
+    corr_cap: float = 2.0,
+    corr_proxy: str = "SPY",
 ) -> CrossAssetSleeve:
     """Compute the sleeve weights from a **total-return** price panel (index = dates ascending,
     columns = tickers, values = total-return close). ``asof`` is a row position (default last).
-    Never raises — insufficiency is reported via ``status``."""
+    Never raises — insufficiency is reported via ``status``.
+
+    Correlation-aware tilt (``corr_aware``, default OFF → byte-identical to the plain sleeve):
+    multiply the inverse-vol risk-parity weights by ``clip(1 − corr_lambda·corr(asset, proxy),
+    corr_floor, corr_cap)`` over the trailing ``corr_lookback`` days, then renormalize. This
+    down-weights whatever is currently correlated to the equity proxy (``corr_proxy``, SPY) and
+    leans into the live hedges (PORT-001 §5.6/§11 #1). It runs **after** the trend filter and
+    **before** the de-risk-only vol-target — the vol-target math is unchanged. ``corr(proxy,
+    proxy)=1`` so the proxy itself takes the ``1−corr_lambda`` multiplier (intended — the proxy
+    is down-weighted like any equity-correlated asset). Faithful port of the sibling
+    ``cross_asset_momentum._weights`` (λ=0.5, window 60, floor 0.0, cap 2.0)."""
     if panel is None or panel.empty:
         return _insufficient("empty panel")
     px = panel.sort_index()
@@ -91,7 +121,25 @@ def cross_asset_tsmom(
     inv_vol = np.array([1.0 / float(vol[c]) for c in in_trend])
     rp = inv_vol / inv_vol.sum()  # risk-parity weights, sum to 1 over in-trend
 
-    # --- 3. portfolio vol-target (de-risk only) ---
+    # --- 2b. correlation-aware diversification tilt (default OFF; PORT-001 §5.6/§11 #1) ---
+    tilt_note: str | None = None
+    if corr_aware and corr_proxy in cols and pos >= corr_lookback:
+        cwin = px[cols].pct_change().iloc[pos - corr_lookback + 1: pos + 1]
+        proxy_r = cwin[corr_proxy]
+        mult = np.array([
+            _clip(1.0 - corr_lambda * _safe_corr(cwin[c], proxy_r), corr_floor, corr_cap)
+            for c in in_trend
+        ])
+        tilted = rp * mult
+        s = float(tilted.sum())
+        if s > 0:  # renormalize the tilted weights back to a gross-1 risk-parity book
+            rp = tilted / s
+            tilt_note = (
+                f"corr-aware tilt applied (λ={corr_lambda}, lb={corr_lookback}, "
+                f"proxy={corr_proxy})"
+            )
+
+    # --- 3. portfolio vol-target (de-risk only) — runs on the (possibly tilted) rp ---
     cov = rets[in_trend].cov().to_numpy()  # daily covariance
     port_vol_daily = float(np.sqrt(max(rp @ cov @ rp, 0.0)))
     port_vol_annual = port_vol_daily * np.sqrt(_TRADING_DAYS)
@@ -104,6 +152,7 @@ def cross_asset_tsmom(
     return CrossAssetSleeve(
         weights=weights, gross=gross, cash=1.0 - gross, in_trend=in_trend,
         momentum=momentum, port_vol_annual=port_vol_annual, vol_scale=float(vol_scale),
+        notes=[tilt_note] if tilt_note else [],
     )
 
 
