@@ -6,13 +6,13 @@
 | Status | Accepted (2026-07-02; reframed *daily-loss halt* → *Risk Containment* per owner review 2026-07-03 — **the decision below is unchanged**, the title broadens to name the principle) |
 | Phase | Cross-phase (risk engine; P5 §5 circuit breaker) |
 | Supersedes | The *global-halt* behavior of ADR 0004 (daily-loss circuit breaker) |
-| Related | 0002 (single OrderRouter), 0004 (daily-loss circuit breaker as hard halt), 0032 (single-armed-host paper stack), Platform Principles (*Risk Containment is Local*) |
+| Related | 0002 (single OrderRouter), 0004 (daily-loss circuit breaker as hard halt), 0032 (single-armed-host paper stack), Platform Principles v1.0 (*Risk Containment is Local*) |
 
 > **Principle: Risk Containment is Local.** A risk failure is contained to the smallest appropriate scope —
 > the breaching account — never propagated across the platform's independent research programs. **Daily loss
 > is the first containment control**, and the one this ADR decides; the same per-account scoping is intended
 > to extend to future controls (volatility, liquidity, execution failures, compliance) as they are added.
-> The principle is *containment*, not *daily loss*. (See `docs/design/Platform_Principles.md`.)
+> The principle is *containment*, not *daily loss*. (See Platform Principles v1.0, `docs/design/Platform_Principles.md`.)
 
 ## Context
 

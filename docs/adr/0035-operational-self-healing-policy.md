@@ -57,7 +57,7 @@ take the action its level permits.
   position-size violation, max-drawdown, manual trading pause, broker order
   rejection.
 
-The principle behind the four levels, stated once: **automation exists to improve reliability, not to override governance.** It may correct only what it can prove is operationally safe, and it never touches risk-control state (Level 4). (This is the platform principle *Automation ≠ Governance* — see `docs/design/Platform_Principles.md`.)
+The principle behind the four levels, stated once: **automation exists to improve reliability, not to override governance.** It may correct only what it can prove is operationally safe, and it never touches risk-control state (Level 4). (This is the platform principle *Automation ≠ Governance* — see Platform Principles v1.0, `docs/design/Platform_Principles.md`.)
 
 Three invariants bind the policy:
 

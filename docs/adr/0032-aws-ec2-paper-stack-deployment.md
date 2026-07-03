@@ -26,7 +26,7 @@ Today the laptop is ACTIVE and EC2 is STANDBY; at cutover they swap. The roles a
 
 > **Invariant 2 — Infrastructure-independent determinism.** A strategy running on EC2 with the same database, configuration, and market data must produce the **same decisions** it would have on the laptop. Infrastructure may change; trading behavior must not. This migration improves operational reliability — it does not alter research results or trading logic.
 
-> This invariant generalizes beyond EC2 into the platform-wide principle **Infrastructure Independence**: *infrastructure must never change research or trading decisions* — bigger than any single host or cloud (see `docs/design/Platform_Principles.md`). ADR 0032 is its first concrete application.
+> This invariant generalizes beyond EC2 into the platform-wide principle **Infrastructure Independence**: *infrastructure must never change research or trading decisions* — bigger than any single host or cloud (see Platform Principles v1.0, `docs/design/Platform_Principles.md`). ADR 0032 is its first concrete application.
 
 In service of those invariants and the move:
 
