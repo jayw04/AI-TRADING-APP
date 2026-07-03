@@ -6,7 +6,7 @@
 | Status | Accepted |
 | Phase | Cross-phase (operations; scheduler, strategy engine, daily setup) |
 | Supersedes | — |
-| Related | 0002 (single OrderRouter), 0004/0034 (daily-loss halt), 0005 (activation cooldown), 0032 (single-armed-host paper stack) |
+| Related | 0002 (single OrderRouter), 0004/0034 (risk containment — daily-loss halt), 0005 (activation cooldown), 0032 (single-armed-host paper stack) |
 
 ## Context
 
@@ -56,6 +56,8 @@ take the action its level permits.
   only **alert with a recommendation**. Examples: daily-loss breaker, risk halt,
   position-size violation, max-drawdown, manual trading pause, broker order
   rejection.
+
+The principle behind the four levels, stated once: **automation exists to improve reliability, not to override governance.** It may correct only what it can prove is operationally safe, and it never touches risk-control state (Level 4). (This is the platform principle *Automation ≠ Governance* — see Platform Principles v1.0, `docs/design/Platform_Principles.md`.)
 
 Three invariants bind the policy:
 
