@@ -124,7 +124,7 @@ A capability (or the platform) matures through six levels. This is a *roadmap*, 
 | **L1** | Research | Hypothesis + methodology defined |
 | **L2** | Backtesting | Reproducible historical evidence on integrity-checked data |
 | **L3** | Paper | Live paper deployment on an isolated account |
-| **L4** | Operational Governance | Deterministic, contained, self-healing operation (ADR 0032/0034/0035) |
+| **L4** | Operational Readiness | Deterministic, contained, self-healing operation is in place (ADR 0032/0034/0035 — the *Operational Governance* capability) |
 | **L5** | Continuous Evidence | Live behavior continuously verified against the research envelope |
 | **L6** | Production | Live capital, having cleared all of the above |
 
