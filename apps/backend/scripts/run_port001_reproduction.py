@@ -124,8 +124,10 @@ def _sibling_inputs(sibling_dir: str) -> tuple[pd.DataFrame, dict, dict, int]:
     # The sibling cross-asset internal weights (live §7, normalized). The equity sleeve enters the
     # blend as one synthetic instrument (its 150-name internal book is the equity sleeve's own
     # concern, not the cross-sleeve blend's). Both are look-through-comparable to the reference.
-    live = {"IEF": 0.158, "UUP": 0.153, "TLT": 0.091, "SPY": 0.056,
-            "EFA": 0.041, "DBC": 0.038, "GLD": 0.032, "EEM": 0.024}
+    # Refreshed 2026-07-03 → the 9-asset correlation-aware tilted book (λ=0.5, +KMLM), from the
+    # sibling's regenerated live_weights (asof 2026-07-02, gross 1.0). See PORT-001 §5.6/§11 #1.
+    live = {"UUP": 0.350832, "IEF": 0.197044, "TLT": 0.120781, "KMLM": 0.106628,
+            "DBC": 0.07107, "SPY": 0.049161, "EFA": 0.043326, "GLD": 0.037573, "EEM": 0.023586}
     ssum = sum(live.values())
     ca_w = {k: v / ssum for k, v in live.items()}
     internal = {"equity": {"equity_momentum": 1.0}, "cross_asset": ca_w}

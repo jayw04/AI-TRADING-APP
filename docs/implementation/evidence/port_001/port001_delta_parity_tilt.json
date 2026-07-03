@@ -1,0 +1,60 @@
+{
+  "gate": "delta_parity_tilt_kmlm",
+  "passed": true,
+  "asof": "2026-07-02",
+  "panel_rows": 1401,
+  "assets": [
+    "SPY",
+    "EFA",
+    "EEM",
+    "TLT",
+    "IEF",
+    "GLD",
+    "DBC",
+    "UUP",
+    "KMLM"
+  ],
+  "lambda": 0.5,
+  "corr_lookback": 60,
+  "sleeve_spy_corr": {
+    "baseline": 0.2131,
+    "tilt": 0.024
+  },
+  "kmlm_weight_norm": 0.1066,
+  "spy_weight_norm": {
+    "baseline": 0.0878,
+    "tilt": 0.0492
+  },
+  "gross": {
+    "baseline": 1.0,
+    "tilt": 1.0
+  },
+  "weights_norm_tilt": {
+    "UUP": 0.3508,
+    "IEF": 0.197,
+    "TLT": 0.1208,
+    "KMLM": 0.1066,
+    "DBC": 0.0711,
+    "SPY": 0.0492,
+    "EFA": 0.0433,
+    "GLD": 0.0376,
+    "EEM": 0.0236
+  },
+  "weights_norm_baseline": {
+    "IEF": 0.2438,
+    "UUP": 0.2392,
+    "TLT": 0.1372,
+    "SPY": 0.0878,
+    "KMLM": 0.0816,
+    "EFA": 0.0647,
+    "DBC": 0.0581,
+    "GLD": 0.0511,
+    "EEM": 0.0365
+  },
+  "checks": {
+    "kmlm_participates": true,
+    "tilt_lowers_equity_corr": true,
+    "tilt_downweights_spy": true,
+    "gross_le_1": true
+  }
+}

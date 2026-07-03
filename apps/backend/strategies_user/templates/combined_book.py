@@ -8,16 +8,18 @@ sandboxed read-only accessor) and submits every rebalance order through ``ctx.su
 → OrderRouter + risk engine (ADR 0002). No broker / DB / network access; no LLM (ADR 0006 v2).
 
 Two sleeves blended at a **fixed 0.40 equity / 0.60 cross-asset** weight (the production live
-config, λ=0 — ERC was used once to *derive* ~40/60, then pinned; the correlation-aware tilt is
-deferred, plan §locked-decisions). Faithful to the validated engines:
+config — ERC was used once to *derive* ~40/60, then pinned). Faithful to the validated engines:
 
   * **Equity sleeve** — crash-protected 12-1 momentum: the top-quantile of the momentum
     cross-section (``ctx.factors.momentum_scores``), equal-weight, per-name capped. The
     crash-protection is the market-regime filter (de-risk the equity sleeve to cash below the
     market MA — the live analogue of the sibling's vol-target/VIX crash engine, ADR 0020).
-  * **Cross-asset sleeve** — the validated ``cross_asset_tsmom`` (PORT-001 §1): 8-ETF 12-1
-    TSMOM, risk-parity, vol-targeted (de-risk-only; gross ≤ 1, rotates to cash/bonds/gold in
-    the absence of trends — its own crash protection).
+  * **Cross-asset sleeve** — the validated ``cross_asset_tsmom`` (PORT-001 §1/§5.6): a **9-ETF**
+    12-1 TSMOM (the 8 asset classes + **KMLM managed futures**, added 2026-07-03 as the missing
+    rate-crisis hedge), risk-parity, vol-targeted (de-risk-only; gross ≤ 1, rotates to
+    cash/bonds/gold in the absence of trends — its own crash protection), now with the
+    **correlation-aware tilt ON (λ=0.5)** — down-weights whatever is currently equity-correlated,
+    leans into the live hedges (PORT-001 §11 #1; sibling has run this live since 2026-06-25).
 
 HONEST VERDICT (carried on every artifact): crash-protected BETA + diversification, NOT alpha
 (combined alpha t=0.82 insignificant; stock-selection alpha refuted under PIT). The product's
@@ -28,7 +30,9 @@ Every sell precedes buys (capital-flow efficiency); turnover damped by a trade t
 
 **Scope note:** this template's cross-asset sleeve prices off daily *close* bars
 (``ctx.get_recent_bars``), a small price-return approximation of the research path's total-return
-panel (distributions are immaterial intra-rebalance for sizing). Activation is owner-gated (a
+panel (distributions are immaterial intra-rebalance for sizing). KMLM (managed futures, larger
+distributions) inherits the same approximation already accepted for TLT/IEF/GLD/DBC; a true
+total-return live pricing path is a separate design item. Activation is owner-gated (a
 provisioned Alpaca paper account + the ADR-0005 24h cooldown), like SEC-001 / LOW-001.
 """
 
@@ -55,7 +59,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class CombinedBook(Strategy):
     name: ClassVar[str] = "combined-book"
-    version: ClassVar[str] = "1.0.0"  # PORT-001 Gate-Passed (construction-verification); first deploy
+    version: ClassVar[str] = "1.1.0"  # PORT-001 refresh: 9-ETF (+KMLM) + corr-aware tilt λ=0.5 (§5.6)
     symbols: ClassVar[list[str]] = []  # set at registration: equity universe + the 8 cross-asset ETFs
     # Weekly, Monday 14:00 UTC ≈ 09:00 ET. Day names avoid APScheduler's off-by-one.
     schedule: ClassVar[str] = "0 14 * * mon"
@@ -68,10 +72,17 @@ class CombinedBook(Strategy):
         "momentum_lookback_days": 252,   # 12-month
         "momentum_skip_days": 21,        # skip the most recent month
         "equity_top_quantile": 0.40,     # hold the top 40% of the momentum cross-section
-        # --- cross-asset sleeve (validated cross_asset_tsmom, PORT-001 §1) ---
+        # --- cross-asset sleeve (validated cross_asset_tsmom, PORT-001 §1/§5.6; 9 ETFs incl KMLM) ---
         "cross_asset_symbols": list(CROSS_ASSET_UNIVERSE),
         "ca_lookback_days": 252, "ca_skip_days": 21,
         "ca_vol_lookback_days": 60, "ca_vol_target": 0.10,
+        # --- correlation-aware tilt (PORT-001 §5.6/§11 #1; ON, λ=0.5 — sibling live since 2026-06-25) ---
+        "ca_corr_aware": True,
+        "ca_corr_lambda": 0.5,
+        "ca_corr_lookback": 60,
+        "ca_corr_floor": 0.0,
+        "ca_corr_cap": 2.0,
+        "ca_corr_proxy": "SPY",
         # --- crash protection for the equity sleeve (market-regime filter) ---
         "use_market_regime_filter": True,
         "market_filter_symbol": "SPY",   # proxy for the MA filter (also a held cross-asset ETF)
@@ -127,6 +138,30 @@ class CombinedBook(Strategy):
         "ca_vol_target": {
             "type": "number", "min": 0, "max": 2, "default": 0.10,
             "description": "Cross-asset sleeve annualized vol target (de-risk only; gross ≤ 1)."
+        },
+        "ca_corr_aware": {
+            "type": "boolean", "default": True,
+            "description": "Correlation-aware tilt: down-weight assets correlated to the equity proxy, lean into hedges (PORT-001 §5.6)."
+        },
+        "ca_corr_lambda": {
+            "type": "number", "min": 0, "max": 2, "default": 0.5,
+            "description": "Tilt strength λ in clip(1 − λ·corr(asset, proxy), floor, cap). 0.5 = the sibling live setting."
+        },
+        "ca_corr_lookback": {
+            "type": "integer", "min": 3, "default": 60,
+            "description": "Trailing window (trading days) for the asset-vs-proxy correlation used by the tilt."
+        },
+        "ca_corr_floor": {
+            "type": "number", "min": 0, "max": 2, "default": 0.0,
+            "description": "Lower clip on the tilt multiplier."
+        },
+        "ca_corr_cap": {
+            "type": "number", "min": 0, "max": 5, "default": 2.0,
+            "description": "Upper clip on the tilt multiplier."
+        },
+        "ca_corr_proxy": {
+            "type": "string", "default": "SPY",
+            "description": "Equity proxy the tilt correlates each asset against (skipped if absent from the panel)."
         },
         "use_market_regime_filter": {
             "type": "boolean", "default": True,
@@ -261,7 +296,13 @@ class CombinedBook(Strategy):
             return {}
         sleeve = cross_asset_tsmom(
             panel, lookback=lookback, skip=skip, vol_lookback=vol_lb,
-            vol_target=float(self.params.get("ca_vol_target", 0.10)))
+            vol_target=float(self.params.get("ca_vol_target", 0.10)),
+            corr_aware=bool(self.params.get("ca_corr_aware", False)),
+            corr_lambda=float(self.params.get("ca_corr_lambda", 0.5)),
+            corr_lookback=int(self.params.get("ca_corr_lookback", 60)),
+            corr_floor=float(self.params.get("ca_corr_floor", 0.0)),
+            corr_cap=float(self.params.get("ca_corr_cap", 2.0)),
+            corr_proxy=str(self.params.get("ca_corr_proxy", "SPY")))
         if sleeve.status != "ok":
             return {}
         return {k.upper(): float(v) for k, v in sleeve.weights.items() if v > 0}

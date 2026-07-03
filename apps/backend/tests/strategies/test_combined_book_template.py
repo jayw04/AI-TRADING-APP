@@ -127,9 +127,12 @@ def test_production_frozen_blend_and_sleeve_defaults() -> None:
     assert CombinedBook.default_params["equity_sleeve_weight"] == 0.40
     assert CombinedBook.default_params["cross_asset_weight"] == 0.60
     assert CombinedBook.default_params["cross_asset_symbols"] == \
-        ["SPY", "EFA", "EEM", "TLT", "IEF", "GLD", "DBC", "UUP"]
+        ["SPY", "EFA", "EEM", "TLT", "IEF", "GLD", "DBC", "UUP", "KMLM"]  # §5.6: KMLM added
     assert CombinedBook.default_params["momentum_lookback_days"] == 252
     assert CombinedBook.schedule == "0 14 * * mon"
+    # Correlation-aware tilt ON at the sibling live setting (PORT-001 §5.6/§11 #1).
+    assert CombinedBook.default_params["ca_corr_aware"] is True
+    assert CombinedBook.default_params["ca_corr_lambda"] == 0.5
 
 
 async def test_rebalances_once_per_iso_week() -> None:

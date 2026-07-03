@@ -216,6 +216,9 @@ PORT_001 = ProgramSpec(
             }),
             SleeveSpec("cross_asset", "cross_asset_tsmom", {
                 "lookback": 252, "skip": 21, "vol_lookback": 60, "vol_target": 0.10,
+                # v1.1 refresh (§5.6/§11 #1): 9-asset universe (+KMLM, via CROSS_ASSET_UNIVERSE) +
+                # correlation-aware tilt λ=0.5 — matches the live combined-book template.
+                "corr_aware": True, "corr_lambda": 0.5,
             }),
         ),
         equity_sleeve="equity",
