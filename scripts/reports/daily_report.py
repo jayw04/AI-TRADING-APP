@@ -205,6 +205,15 @@ async def main():
     except Exception as e:  # noqa: BLE001
         alerts.append(("warn", f"portfolio analytics failed: {type(e).__name__}"))
 
+    # --- Continuous Evidence Engine (Phase 1): Research Envelope + Evidence Clock ---
+    cee = None
+    try:
+        from app.services import continuous_evidence as _cee
+        async with sf() as s:
+            cee = await _cee.compute(s, accounts_for_pae)
+    except Exception as e:  # noqa: BLE001
+        alerts.append(("warn", f"continuous evidence failed: {type(e).__name__}"))
+
     crits = [t for sev, t in alerts if sev == "crit"]
     tot_glp = (tot_eq / tot_le - 1) * 100 if tot_le > 0 else 0.0
 
@@ -264,6 +273,27 @@ async def main():
             out.append(f"\n⚠ **{hc.a_label} ↔ {hc.b_label}** are near-lockstep "
                        f"({hc.correlation:.2f}, {hc.overlap_pct:.0f}% overlap) — effectively "
                        f"one bet, not independent evidence.")
+        out.append("")
+
+    if cee:
+        _emoji = {"Insufficient Evidence": "⏳", "Consistent": "✅", "Watch": "🟡", "Investigate": "🔴"}
+        out.append("## 🔬 Continuous Evidence (envelope + evidence clock)")
+        out.append("_Does live behavior still match the evidence that justified deployment? "
+                   "Skeptical by design — 'Insufficient Evidence' until enough live history accrues._")
+        out.append("| Book | State | Evidence maturity | Days live | Debt | Next review | Observed vs envelope |")
+        out.append("|---|---|---|---|---|---|---|")
+        for b in cee:
+            obs = "; ".join(
+                f"{m.metric.replace('_', ' ')} {m.observed}"
+                + ("" if m.state == "Insufficient Evidence" or m.difference in (None, 0.0)
+                   else f" (Δ{m.difference:+})")
+                for m in b.metrics if m.observed is not None
+            ) or "—"
+            src = f" · _{b.envelope_source}_" if b.envelope_source else " · _no envelope yet_"
+            out.append(f"| {b.book} | {_emoji.get(b.state, '')} {b.state} | {b.maturity} | "
+                       f"{b.days_live} | {b.evidence_debt} | ~{b.review_cadence_days}d | {obs}{src} |")
+        out.append("\n> Continuous Evidence **observes; it never changes deployment status** — it "
+                   "recommends investigation, humans decide (charter §9).")
         out.append("")
 
     out.append("## Accounts")
