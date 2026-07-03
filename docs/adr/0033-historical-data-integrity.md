@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-07-03 |
-| Status | **Draft** (owner's 2026-07-01 positioning review requested elevating this to a *Foundational* Data Integrity ADR; owner's 2026-07-03 ADR review folded — 9.9/10; pending explicit ratification) |
+| Status | **Accepted** (owner ratified 2026-07-03. Lineage: 2026-07-01 positioning review requested the Foundational elevation; 2026-07-03 ADR review folded — 9.9/10. The *decision* is accepted; enforcement of points 1–3 remains tracked below — an Accepted ADR may lead its implementation.) |
 | Phase | Cross-phase / Foundational — the Data Integrity Layer that underpins every research read |
 | Supersedes | — |
 | Related | 0018 (PIT factor data — same "data available at decision time" discipline), 0014 (backtests = evaluation ground truth — a backtest is only ground truth if its data is complete), 0026 (Factor Lab — the programs that read the cache), 0019 (Research Engine — the read-only subsystem this protects), 0030 (Capability Onboarding — independent reproductions inherit this guarantee) |
@@ -94,7 +94,7 @@ Honest status — the *decision* is recorded here; enforcement is **partially la
 
 ## Re-evaluation triggers
 
-- **Points 1–3 land:** flip this ADR to Accepted and update Implementation notes; add the cache-writer regression tests (truncation → missing-not-empty; page-limit → continuation) and consider promoting them to a CI invariant.
+- **Points 1–3 land:** update Implementation notes to reflect enforcement is complete; add the cache-writer regression tests (truncation → missing-not-empty; page-limit → continuation) and consider promoting them to a CI invariant.
 - **CEE consumes `dataset_health`:** when the Continuous Evidence Engine adds integrity/coverage/provenance to its governed signals (the forward-looking consequence above), revisit to align the two.
 - **A second data provider or dataset** (beyond Alpaca bars / Sharadar) exhibits a different integrity failure mode — generalize the guarantee (and possibly merge with a broader data-quality ADR) rather than special-casing per source.
 - **The live path stops being incrementally-fetched** (e.g., a live feature begins issuing multi-year cold fetches) — the "live box is largely unexposed" assumption no longer holds and points 1–3 become urgent rather than deferred.
