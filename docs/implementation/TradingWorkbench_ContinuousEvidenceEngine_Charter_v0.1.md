@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Artifact | **Continuous Evidence Engine (CEE)** — a permanent Layer-3 subsystem (the third pillar) |
-| Status | **Charter / design — pre-registered.** No engine built yet. |
+| Status | **Pre-registered charter (frozen).** Phase 1 built (PR #332) · Phase 2 built (PR #333) · Phase 3 pending. |
 | Owner | Jay Wang (GlobalComplyAI, LLC) |
 | Date | 2026-07-02 |
 | Source | The FI-001 review (owner) — this doc is the design spec that review produced, made concrete |
@@ -159,11 +159,17 @@ visible and legitimate — the anti-overreaction device.
 
 ## §8 — Pre-registered scope & phasing
 
-- **Phase 1 — Envelope + Evidence Clock (read-only).** Persist each live book's research envelope (the
-  expected CIs); compute the observed metrics from `EquitySnapshot`; emit the four-state + Evidence-Clock
-  row per book into Daily Report v3. Overwhelmingly "Insufficient Evidence" at first — by design.
-- **Phase 2 — Probabilistic drift.** Distribution-comparison per metric (observed vs research CI);
-  Watch/Investigate escalation gated by the confidence clock; operational-vs-investment split.
+- **Phase 1 — Envelope + Evidence Clock (read-only). ✅ Built (PR #332).** Persist each live book's
+  research envelope (the expected CIs); compute the observed metrics from `EquitySnapshot`; emit the
+  four-state + Evidence-Clock row per book into Daily Report v3. Overwhelmingly "Insufficient Evidence" at
+  first — by design. Shipped as `app/services/continuous_evidence.py` + the daily-report 🔬 section.
+- **Phase 2 — Probabilistic drift. ✅ Built (PR #333).** The observed side of each metric is now a
+  *distribution* — block-bootstrapped into a CI (reusing `app/factor_data/evidence.block_bootstrap_ci`,
+  §6). A metric escalates Consistent → Watch → **Investigate** only when the observed CI *separates* from
+  the research envelope AND the confidence clock has matured (`classify_metric_probabilistic`);
+  operational drift (staleness / observation gaps) rides a separate `OperationalDrift` track and is never
+  mixed into the investment verdict (§4). *Time-gated to actually escalate* — the machinery is built and
+  unit-tested now, but no real book reaches "Investigate" until months of live history accrue.
 - **Phase 3 — Continuous verification loop.** `Expected → Observed → Deviation → (human) Investigation`,
   audit-logged; feeds the reopen decision for a research program (never automatic).
 
@@ -184,6 +190,7 @@ The engine succeeds if, months from now, it can answer one question with statist
 live book: **"Does reality still support the evidence that justified deploying this?"** — and if, in its
 first weeks, it has the discipline to answer "we don't know yet" instead of pretending.
 
-*Pre-registered 2026-07-02. Charter frozen; no engine built yet — this is the design, not the result.
-The distinguishing characteristic vs conventional monitoring: it accumulates confidence slowly, reports
-uncertainty honestly, and requires sustained evidence before changing any conclusion.*
+*Pre-registered 2026-07-02. Charter frozen. Phases 1–2 built to this pre-registered design (PR #332,
+#333); Phase 3 pending. The distinguishing characteristic vs conventional monitoring: it accumulates
+confidence slowly, reports uncertainty honestly, and requires sustained evidence before changing any
+conclusion.*
