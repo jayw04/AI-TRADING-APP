@@ -85,6 +85,14 @@ def main(argv: list[str] | None = None) -> int:
         help="date.gte filter for SEP/ACTIONS (YYYY-MM-DD) — bound the pull so a broad "
         "ticker list stays within the 1M-rows/day cap (e.g. a paper-universe ingest).",
     )
+    ap.add_argument(
+        "--skip-deep-enough",
+        action="store_true",
+        help="DEEPEN resume: skip a ticker's SEP only when its existing earliest date is already "
+        "<= --from (i.e. deep enough). Unlike --skip-existing (skips on mere presence, so it would "
+        "never deepen), this makes a multi-day back-fill re-runnable — each day it pulls only the "
+        "tickers still shallower than --from. Requires --from.",
+    )
     args = ap.parse_args(argv)
     sep_filters: dict[str, str] = {"date.gte": args.from_date} if args.from_date else {}
 
@@ -130,12 +138,26 @@ def main(argv: list[str] | None = None) -> int:
                         r[0] for r in
                         store.con.execute("SELECT DISTINCT ticker FROM sf1_fundamentals").fetchall()
                     }
+            # DEEPEN resume: a ticker is "deep enough" when its earliest SEP date is already <= --from.
+            deep_enough: set[str] = set()
+            if args.skip_deep_enough:
+                if not args.from_date:
+                    print("--skip-deep-enough requires --from", file=sys.stderr)
+                    return 2
+                target = datetime.fromisoformat(args.from_date).date()
+                deep_enough = {
+                    r[0] for r in store.con.execute(
+                        "SELECT ticker, min(date) FROM sep GROUP BY ticker").fetchall()
+                    if r[1] is not None and r[1] <= target
+                }
             total = len(tickers)
             for i, tk in enumerate(tickers, 1):
                 did: list[str] = []
                 if "sep" in datasets:
                     if args.skip_existing and tk in existing.get("sep", set()):
                         did.append("sep=skip")
+                    elif args.skip_deep_enough and tk in deep_enough:
+                        did.append("sep=deep")
                     else:
                         _run(store, f"sep:{tk}", lambda tk=tk: store.ingest_sep(provider.fetch_table("SEP", ticker=tk, **sep_filters)), quiet=True)
                         did.append("sep")
