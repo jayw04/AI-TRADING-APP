@@ -141,10 +141,11 @@ If the developer confirms the request is intentional, the next step is usually a
 
 ## Working environment notes
 
+- **⚠️ RUNTIME IS AWS — NEVER RUN THE LOCAL STACK.** The live paper application runs **only** on the AWS EC2 box `ec2-paper` (ADR 0032 cutover 2026-06-30/07-02). The developer's laptop is **warm standby**: the local Docker stack must **not** be started. Running it dual-arms the Alpaca data websocket (conflicts with AWS) and any operational change lands on a **dead standby DB**, not the live book. The laptop autostart is guard-disabled (`scripts/workbench-autostart.bat` no-ops unless `WORKBENCH_ALLOW_LOCAL=1`) and its scheduler tasks are disabled. **Operate the live app on the box via SSH** (`ssh workbench` → `sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml …`; app ports are loopback + SSH-only SG, so `curl` the EIP times out by design — that is NOT "down"). Deploy code changes to the box per the recipe in the `aws_migration_phase1` memory. Only `docker compose` *build/config* checks and offline tests belong on the laptop.
 - **Repo**: `github.com/jayw04/AI-TRADING-APP`
 - **Default branch**: `main`
 - **Tagging convention**: `p<N>-session<M>-complete` for sessions; `p<N>-complete` for phase completions; descriptive tags like `p4-tv-webhooks-complete` for out-of-order P4 items.
-- **Local Docker stack**: `docker compose` brings up backend, MCP server, frontend; `./scripts/dev.sh` is the convenience launcher.
+- **Local Docker stack** (⚠ standby only — see the RUNTIME note above; do not start it to trade): `docker compose` builds backend, MCP server, frontend; used for build/config verification, not for running the live app.
 - **Backend**: Python 3.12 + FastAPI + SQLAlchemy 2.x async + Alembic + SQLite (WAL mode). Tooling: `uv`, `ruff`, `pytest`.
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind + React Query + Zustand. Tooling: `pnpm`.
 - **Two MCP servers**: chart-data MCP at `127.0.0.1:8765` (read-only, P3), workbench-MCP at `127.0.0.1:8766` (read-only, P5.5 §3 — `apps/mcp-workbench/`; SSE; per-user `WORKBENCH_MCP_KEY` bearer auth; agent guide in `apps/mcp-workbench/CLAUDE.md`).

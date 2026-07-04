@@ -22,6 +22,18 @@ REM (docs/runbook/factor-data.md 5d) - only then toggle Norton / run host-venv.
 REM Prereq: Docker Desktop set to start on login.
 REM ============================================================================
 
+REM ===== DECOMMISSIONED 2026-07-04 — the Trading Workbench app runs on AWS =====
+REM The live paper stack runs on the AWS EC2 box 'ec2-paper' (ADR 0032 cutover
+REM 2026-06-30/07-02). The LOCAL Docker stack must NOT run: dual-running conflicts
+REM with AWS on the Alpaca data websocket, and any operational change hits a dead
+REM (standby) DB. This guard makes the autostart a NO-OP so the local app never
+REM starts. To intentionally run locally (offline dev only), set WORKBENCH_ALLOW_LOCAL=1.
+if not "%WORKBENCH_ALLOW_LOCAL%"=="1" (
+  echo [DECOMMISSIONED] Trading Workbench runs on AWS ^(ec2-paper^); the local stack is disabled.
+  echo Set WORKBENCH_ALLOW_LOCAL=1 to override for offline dev only.
+  exit /b 0
+)
+
 REM Repo root = parent of this script's dir.
 cd /d "%~dp0.."
 if not exist "logs" mkdir "logs"
