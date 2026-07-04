@@ -128,7 +128,7 @@ count from this registry** — where an aggregate can't be honestly computed (e.
 |---|---|
 | Programs chartered | **10** (8 strategy + 1 platform capability [SCAN-001] + 1 portfolio-engineering [FI-001]) + **2 not-yet-run** (FI-002 Correlation Stability *reserved* · FI-003 Tail-Hedge Overlay Validation *planned*) |
 | Research verdicts | Approved **1** · Diversifier **3** · Inconclusive **1** · Rejected **3** · Planned/Pending/Reserved **3** (TREND-001 · FI-002 · FI-003) · Validated capability **1** · *capability-level Rejected* **1** (CAP-020) |
-| In production (paper) | **1** — Momentum v1.1 (three vol-target Risk Profiles) |
+| In production (paper) | **1 canonical** — MOM-001 Momentum v1.1 (Balanced 15% default; Conservative/Growth are **selectable presets**, not separate books — the two redundant vol-variant accounts were archived after the risk-profile study concluded, ADR 0036) |
 | Preserved negative / null findings | **6** — RNG-001 rejection · MOM-002 rejection (reshaping a validated book — breadth & sector cap both declined) · SCAN-001 v0.1 ATR-tautology self-catch · SCAN-001 v0.4 confidence-uninformative · INSIDER-001 rejection (beta-not-alpha) · CAP-020 rejection (regime overlay not a Calmar/return improver — survivorship-free confirmed) |
 | Confidence models | **2 rejected → 1 accepted** (v0.4 ATR-blended ✗ · naive CM-chase ✗ · v0.5 ATR-decoupled ✓) |
 | Platform capabilities catalogued | **22** (CAP-001 … CAP-022, below) |
@@ -140,7 +140,7 @@ count from this registry** — where an aggregate can't be honestly computed (e.
 
 | ID | Philosophy | Status | Progress | Research line | Verdict | Platform value |
 |---|---|---|---|---|---|---|
-| **MOM-001** | Momentum (cross-sectional relative strength) | **Production** (paper) | `██████████` 100% | Open (continuous evidence) | ✅ **Approved** | **Reference strategy** — proves Layers 1–2 work |
+| **MOM-001** | Momentum (cross-sectional relative strength) | **Production** (paper) | `██████████` 100% | Open (continuous evidence) | ✅ **Approved** | **Reference strategy** — proves Layers 1–2 work. **Risk-profile study concluded 2026-07-04:** the 3 vol-variant books (Conservative/Balanced/Growth) were corr ≈ 1.00 / 100%-overlap (CAP-021) → *one* alpha, three risk settings. Consolidated to **one canonical book** (Balanced 15% default; presets configurable); the Conservative & Growth accounts (users 3/4) archived-after-research. Governed by **ADR 0036 (Canonical Strategy Representation)**; decision `evidence/mom_001/MOM001_RiskProfile_Consolidation_v1.0.md` |
 | **MOM-002** | Reshaping a concentrated momentum book (breadth / sector cap) | **Archived** | `██████████` 100% | Closed | 🔴 **Rejected** | **Honest rejection #2** — the platform declines a plausible *enhancement*, not just a strategy; diversify via independent factors, not by weakening the signal |
 | **RNG-001** | Range / mean-reversion | **Archived** | `██████████` 100% | Closed | 🔴 **Rejected** | **Honest rejection** — the platform can decline |
 | **MF-001** | Multi-Factor (value + quality) | **Completed** | `██████████` 100% | Follow-on (→ SF1) | 🟡 **Inconclusive** | **Research discipline** — the gate held the line |
