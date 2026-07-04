@@ -133,6 +133,10 @@ def test_production_frozen_blend_and_sleeve_defaults() -> None:
     # Correlation-aware tilt ON at the sibling live setting (PORT-001 §5.6/§11 #1).
     assert CombinedBook.default_params["ca_corr_aware"] is True
     assert CombinedBook.default_params["ca_corr_lambda"] == 0.5
+    # Equity-beta-cap governor (lever #2) ships DEFAULT OFF with the dry-run report on (PORT-001 §6.2).
+    assert CombinedBook.default_params["enforce_beta_cap"] is False
+    assert CombinedBook.default_params["beta_cap_report_only"] is True
+    assert CombinedBook.default_params["beta_cap_max_rc"] == 0.80
 
 
 async def test_rebalances_once_per_iso_week() -> None:

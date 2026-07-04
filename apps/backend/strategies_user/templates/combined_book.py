@@ -21,6 +21,13 @@ config — ERC was used once to *derive* ~40/60, then pinned). Faithful to the v
     **correlation-aware tilt ON (λ=0.5)** — down-weights whatever is currently equity-correlated,
     leans into the live hedges (PORT-001 §11 #1; sibling has run this live since 2026-06-25).
 
+**Look-through equity-beta-cap governor (lever #2, PORT-001 §11 #2 / §6.2) — de-risk only, default
+OFF.** After the blend, optionally trim the equity-beta names (stocks + SPY/EFA/EEM) down when their
+look-through risk contribution exceeds a budget (0.80), raising cash — the non-equity legs (bonds /
+gold / commodities / USD / KMLM) untouched. Shipped ``enforce_beta_cap=False`` (book unchanged) with
+``beta_cap_report_only=True`` so the would-be haircut is logged on the live book (the dry-run) before
+the owner enables it. See ``app/research/factor_lab/beta_cap.py``.
+
 HONEST VERDICT (carried on every artifact): crash-protected BETA + diversification, NOT alpha
 (combined alpha t=0.82 insignificant; stock-selection alpha refuted under PIT). The product's
 value is drawdown reduction + diversification.
@@ -49,6 +56,7 @@ from app.db.enums import OrderSide, OrderSourceType, OrderType, SignalType, Time
 from app.factor_data.accessor import FactorDataUnavailable
 from app.factor_data.factors.engine import FactorUnavailable
 from app.factor_data.universe import UniverseUnavailable
+from app.research.factor_lab.beta_cap import cap_equity_beta, default_equity_names
 from app.research.factor_lab.cross_asset import CROSS_ASSET_UNIVERSE, cross_asset_tsmom
 from app.risk import OrderRequest
 from app.strategies import Strategy
@@ -59,7 +67,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class CombinedBook(Strategy):
     name: ClassVar[str] = "combined-book"
-    version: ClassVar[str] = "1.1.0"  # PORT-001 refresh: 9-ETF (+KMLM) + corr-aware tilt λ=0.5 (§5.6)
+    version: ClassVar[str] = "1.2.0"  # + look-through equity-beta-cap governor (lever #2, default OFF)
     symbols: ClassVar[list[str]] = []  # set at registration: equity universe + the 8 cross-asset ETFs
     # Weekly, Monday 14:00 UTC ≈ 09:00 ET. Day names avoid APScheduler's off-by-one.
     schedule: ClassVar[str] = "0 14 * * mon"
@@ -83,6 +91,12 @@ class CombinedBook(Strategy):
         "ca_corr_floor": 0.0,
         "ca_corr_cap": 2.0,
         "ca_corr_proxy": "SPY",
+        # --- look-through equity-beta-cap governor (PORT-001 lever #2; DE-RISK ONLY, default OFF) ---
+        "enforce_beta_cap": False,      # apply the haircut; False = book unchanged
+        "beta_cap_report_only": True,   # when not enforcing, still LOG the would-be haircut (dry-run)
+        "beta_cap_max_rc": 0.80,        # max equity-beta risk-contribution share
+        "beta_cap_lookback": 120,       # covariance window (trading days; live 1Day history ~1yr cap)
+        "beta_cap_shrink": 0.15,        # off-diagonal covariance shrinkage λ
         # --- crash protection for the equity sleeve (market-regime filter) ---
         "use_market_regime_filter": True,
         "market_filter_symbol": "SPY",   # proxy for the MA filter (also a held cross-asset ETF)
@@ -163,6 +177,26 @@ class CombinedBook(Strategy):
             "type": "string", "default": "SPY",
             "description": "Equity proxy the tilt correlates each asset against (skipped if absent from the panel)."
         },
+        "enforce_beta_cap": {
+            "type": "boolean", "default": False,
+            "description": "Apply the look-through equity-beta-cap governor (de-risk only). False = book unchanged (PORT-001 §6.2)."
+        },
+        "beta_cap_report_only": {
+            "type": "boolean", "default": True,
+            "description": "When not enforcing, still compute + log the would-be equity-beta haircut (the live dry-run)."
+        },
+        "beta_cap_max_rc": {
+            "type": "number", "min": 0.1, "max": 1.0, "default": 0.80,
+            "description": "Max share of total risk from the equity-beta names before the governor trims them."
+        },
+        "beta_cap_lookback": {
+            "type": "integer", "min": 20, "default": 120,
+            "description": "Covariance window (trading days) for the governor. Live 1Day history is ~1yr-capped."
+        },
+        "beta_cap_shrink": {
+            "type": "number", "min": 0.0, "max": 1.0, "default": 0.15,
+            "description": "Off-diagonal covariance shrinkage (Ledoit-Wolf-lite) for the governor."
+        },
         "use_market_regime_filter": {
             "type": "boolean", "default": True,
             "description": "De-risk the EQUITY sleeve to cash when the market is below its MA (crash protection)."
@@ -241,8 +275,47 @@ class CombinedBook(Strategy):
         for sym, w in ca_w.items():
             target[sym.upper()] = target.get(sym.upper(), 0.0) + c * w
 
+        target = await self._maybe_beta_cap(target)  # PORT-001 lever #2 (de-risk only; default OFF)
+
         held = await self._current_holdings()
         await self._apply_targets(target, held=held, reason="rebalance")
+
+    async def _maybe_beta_cap(self, target: dict[str, float]) -> dict[str, float]:
+        """Look-through equity-beta-cap governor (PORT-001 lever #2, spec §11 #2 / §6.2). De-risk-only:
+        if the book's equity-beta risk contribution exceeds ``beta_cap_max_rc``, scale the equity-beta
+        names down (raising cash). When ``enforce_beta_cap`` is False but ``beta_cap_report_only`` is True
+        the would-be haircut is LOGGED but NOT applied — the live dry-run. Fail-open (any error / thin
+        panel → book unchanged)."""
+        enforce = bool(self.params.get("enforce_beta_cap", False))
+        report_only = bool(self.params.get("beta_cap_report_only", True))
+        if not (enforce or report_only):
+            return target
+        names = [s for s in target if target[s] > 0]
+        if len(names) < 3:
+            return target
+        try:
+            lookback = int(self.params.get("beta_cap_lookback", 120))
+            panel = await self._close_panel(names, lookback + 10)
+            rets = None if panel is None else panel.pct_change().dropna(how="any")
+            if rets is None or rets.shape[0] < 3:
+                await self.ctx.log_signal(
+                    "PORTFOLIO", SignalType.INFO,
+                    payload={"reason": "beta_cap_skip", "note": "insufficient return panel"})
+                return target
+            new_target, report = cap_equity_beta(
+                target, rets, equity_names=default_equity_names(names),
+                cap=float(self.params.get("beta_cap_max_rc", 0.80)),
+                lookback=lookback,
+                shrink=float(self.params.get("beta_cap_shrink", 0.15)))
+            await self.ctx.log_signal(
+                "PORTFOLIO", SignalType.INFO,
+                payload={"reason": "beta_cap", "enforced": enforce, **report})
+            return new_target if enforce else target
+        except Exception as exc:
+            await self.ctx.log_signal(
+                "PORTFOLIO", SignalType.INFO,
+                payload={"reason": "beta_cap_failopen", "error": str(exc)[:160]})
+            return target
 
     async def _equity_sleeve_weights(self) -> dict[str, float]:
         """Crash-protected equity-momentum sleeve → equal-weight target weights (sum ≤ 1).

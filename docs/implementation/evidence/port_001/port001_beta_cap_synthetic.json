@@ -1,0 +1,44 @@
+{
+  "check": "beta_cap_governor_synthetic",
+  "passed": true,
+  "cap": 0.8,
+  "equity_names": [
+    "EQ0",
+    "EQ1",
+    "EQ2",
+    "EQ3",
+    "EQ4"
+  ],
+  "report": {
+    "applied": true,
+    "cap": 0.8,
+    "n_priced": 8,
+    "equity_beta_rc_before": 1.0826,
+    "gross_before": 1.0,
+    "n_equity": 5,
+    "scale_equity_beta": 0.145,
+    "equity_beta_rc_after": 0.8,
+    "gross_after": 0.4442,
+    "cash_freed": 0.5558
+  },
+  "weights_before": {
+    "EQ0": 0.13,
+    "EQ1": 0.13,
+    "EQ2": 0.13,
+    "EQ3": 0.13,
+    "EQ4": 0.13,
+    "TLT": 0.15,
+    "GLD": 0.1,
+    "UUP": 0.1
+  },
+  "weights_after": {
+    "EQ0": 0.0188,
+    "EQ1": 0.0188,
+    "EQ2": 0.0188,
+    "EQ3": 0.0188,
+    "EQ4": 0.0188,
+    "TLT": 0.15,
+    "GLD": 0.1,
+    "UUP": 0.1
+  }
+}
