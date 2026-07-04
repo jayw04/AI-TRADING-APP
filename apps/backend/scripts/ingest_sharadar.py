@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # ADR 0017 — OS trust store before any HTTPS (a standalone script must do this
@@ -144,7 +144,12 @@ def main(argv: list[str] | None = None) -> int:
                 if not args.from_date:
                     print("--skip-deep-enough requires --from", file=sys.stderr)
                     return 2
-                target = datetime.fromisoformat(args.from_date).date()
+                # "deep enough" tolerance: a ticker whose real history reaches --from has its earliest
+                # row on the first TRADING day >= --from (e.g. --from 2017-01-01 → 2017-01-03), so an
+                # exact `<= --from` never matches. Allow a small window so already-deepened tickers are
+                # correctly skipped. (Tickers that IPO'd after --from stay "shallow" and would re-pull on
+                # a resume — idempotent and harmless; a marker table would be the fully-precise fix.)
+                target = datetime.fromisoformat(args.from_date).date() + timedelta(days=10)
                 deep_enough = {
                     r[0] for r in store.con.execute(
                         "SELECT ticker, min(date) FROM sep GROUP BY ticker").fetchall()
