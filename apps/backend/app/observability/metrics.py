@@ -187,6 +187,44 @@ recovery_duration_seconds = Histogram(
     buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
 )
 
+# PORT-001 total-return live pricing — the Alpaca corporate-actions distributions
+# provider + the combined-book pricing mode. Always-on (cheap), independent of whether
+# TR pricing is enabled, so provider health + the active pricing mode are visible on
+# Grafana without log-diving. Cardinality note: pricing_mode is labelled by strategy_id
+# only — per-symbol divergence lives in the evidence signal payload, NOT in Prometheus
+# (200+ equity symbols would blow up the series count).
+distribution_requests_total = Counter(
+    "workbench_distribution_requests_total",
+    "Corporate-actions distribution fetches attempted, by provider",
+    labelnames=["provider"],
+)
+distribution_failures_total = Counter(
+    "workbench_distribution_failures_total",
+    "Distribution fetches that failed after retries (fell through to fail-open), by provider",
+    labelnames=["provider"],
+)
+distribution_records_total = Counter(
+    "workbench_distribution_records_total",
+    "Distribution records processed, by kind (dividend|split|rejected)",
+    labelnames=["provider", "kind"],
+)
+total_return_fail_open_total = Counter(
+    "workbench_total_return_fail_open_total",
+    "Rebalances that fell back to RAW pricing due to a distributions error",
+    labelnames=["strategy_id"],
+)
+distribution_fetch_seconds = Histogram(
+    "workbench_distribution_fetch_seconds",
+    "Corporate-actions batched-fetch wall-clock duration, by provider",
+    labelnames=["provider"],
+    buckets=(0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0),
+)
+pricing_mode = Gauge(
+    "workbench_pricing_mode",
+    "Active cross-asset pricing mode by strategy (0=raw, 1=total_return)",
+    labelnames=["strategy_id"],
+)
+
 # --- Histograms --------------------------------------------------------------
 
 order_submission_duration_seconds = Histogram(

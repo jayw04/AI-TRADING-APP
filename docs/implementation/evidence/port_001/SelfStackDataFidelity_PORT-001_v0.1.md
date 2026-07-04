@@ -31,7 +31,7 @@ Candidate self-stack book: Sharpe **1.03**, maxDD **−8.5%** over its available
 ## The attributed divergences (all known, none a defect)
 
 1. **Data window.** The Alpaca **IEX free feed starts ~2018-11**, so the self-stack runs 2018-11 → 2025-12 (1,800 overlapping days) vs the origin's 2016-02 → 2026-06. Sharpe/maxDD are not window-comparable.
-2. **Data vendor.** Cross-asset prices come from Alpaca (post-processed to total-return via the §1 adapter; Sharadar `actions` distribution coverage for ETFs is partial → some legs are effectively price-return) vs the origin's Yahoo total-return. This is the dominant driver of the 0.852 (not ≥0.98) daily-return correlation.
+2. **Data vendor.** Cross-asset prices come from Alpaca (post-processed to total-return via the §1 adapter) vs the origin's Yahoo total-return. This is the dominant driver of the 0.852 (not ≥0.98) daily-return correlation. **ETF distribution source (resolved, PORT-001 #3, 2026-07-04):** Sharadar `actions` has **zero** coverage for the 9 cross-asset ETFs (they are absent from `actions`/`sep`), so the live source is the **Alpaca corporate-actions API** (`app/market_data/alpaca_distributions.py`) — a live box preview confirmed real distributions for 8/9 ETFs (GLD pays none), with raw-vs-TR trailing-return divergence of ~400–1200 bps on the coupon-payers (TLT, IEF, DBC).
 3. **Rebalance cadence.** The platform's `run_momentum_backtest` (equity) and `backtest_cross_asset_sleeve` (W-FRI) rebalance **weekly**; the origin rebalances **monthly (21d)**. Different turnover and daily-return texture.
 4. **Trade-count convention.** 7,556 (per-name open/close/reweight, weekly) vs ~28 (a turnover-per-year proxy). Not a like-for-like measure; the criterion is meaningless across conventions here.
 5. **Weights.** Self-stack as-of ERC vs the origin's live correlation-aware-tilted (λ>0) weights.
@@ -44,7 +44,7 @@ The platform's own data stack produces a **coherent, crash-protected multi-asset
 
 - A **paid Alpaca data feed** (SIP) for pre-2018 history → the full 2016-2026 window.
 - **Monthly (21d)** rebalance cadence in the harness to match the origin.
-- Complete **ETF distribution coverage** for the total-return adapter (a dedicated corporate-actions source for the 8 ETFs).
+- ~~Complete **ETF distribution coverage** for the total-return adapter (a dedicated corporate-actions source for the 8 ETFs).~~ **Resolved (PORT-001 #3):** live Alpaca corporate-actions provider wired into the sleeve pricing (default OFF).
 - A **shared trade-count definition** exported by the origin.
 
 _v0.1 — 2026-06-27. Companion to `EvidencePackage_PORT-001_v1.0.md` (the validation)._
