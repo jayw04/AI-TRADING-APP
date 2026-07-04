@@ -21,6 +21,23 @@ async def test_evidence_summary_shape(client) -> None:
     ids = {p["id"] for p in body["research_programs"]}
     assert {"MOM-001", "RNG-001", "MF-001", "SEC-001"}.issubset(ids)
     assert isinstance(body["strategies"], list)
+    # default = platform-wide scope
+    assert body["scope"]["kind"] == "platform"
+
+
+async def test_evidence_summary_scoped(client) -> None:
+    """?strategy_id= scopes the summary to one book (same envelope, scope tag set)."""
+    resp = await client.get("/api/v1/evidence/summary", params={"strategy_id": 1})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["scope"] == {"kind": "account", "strategy_id": 1,
+                             **{k: body["scope"][k] for k in ("account_id", "user_id")}}
+    assert body["scope"]["strategy_id"] == 1
+    # same envelope as the platform view
+    assert 0 <= body["confidence"]["score"] <= 100
+    assert "rows" in body["kpis"] and "summary" in body["kpis"]
+    # strategies list is filtered to the requested book (0 or 1 rows depending on seed)
+    assert all(s["id"] == 1 for s in body["strategies"])
 
 
 def test_research_programs_catalog():

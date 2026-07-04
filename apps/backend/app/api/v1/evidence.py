@@ -13,11 +13,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.stub import CurrentUser, get_current_user
+from app.db.models.account import Account, AccountMode
 from app.db.models.audit_log import AuditLog
 from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.models.reconciliation_run import ReconciliationRun
@@ -35,28 +36,60 @@ async def _scalar(session: AsyncSession, stmt: Any) -> Any:
     return (await session.execute(stmt)).scalar()
 
 
+async def _resolve_scope(
+    session: AsyncSession, strategy_id: int | None
+) -> tuple[int | None, int | None]:
+    """(user_id, account_id) for a strategy's owner + its dedicated Alpaca paper account, or
+    (None, None) for the platform-wide (unscoped) summary. Mirrors ``app.ops.evidence_scope``."""
+    if strategy_id is None:
+        return None, None
+    user_id = await _scalar(session, select(Strategy.user_id).where(Strategy.id == strategy_id))
+    account_id = None
+    if user_id is not None:
+        account_id = await _scalar(session, select(Account.id).where(
+            Account.user_id == user_id, Account.broker == "alpaca",
+            Account.mode == AccountMode.paper).order_by(Account.id).limit(1))
+    return user_id, account_id
+
+
 @router.get("/summary")
 async def evidence_summary(
+    strategy_id: int | None = Query(
+        None, description="Scope the summary to ONE book (its account/user). Omit = platform-wide."),
     session: AsyncSession = Depends(get_session),
     _user: CurrentUser = Depends(get_current_user),
 ) -> dict:
-    """The live evidence summary: confidence score + operational KPIs + research programs + books."""
-    audit = {a: n for a, n in (
-        await session.execute(select(AuditLog.action, func.count()).group_by(AuditLog.action))).all()}
+    """The live evidence summary: confidence score + operational KPIs + research programs + books.
 
-    recon_runs = await _scalar(session, select(func.count()).select_from(ReconciliationRun)) or 0
+    Platform-wide by default; pass ``?strategy_id=`` to scope the confidence/KPI/equity aggregations
+    to one book (account-scoped equity/reconciliation, user-scoped audit; replay stays platform-wide)."""
+    user_id, account_id = await _resolve_scope(session, strategy_id)
+
+    def _audit_stmt() -> Any:
+        stmt = select(AuditLog.action, func.count()).group_by(AuditLog.action)
+        return stmt.where(AuditLog.user_id == user_id) if user_id is not None else stmt
+
+    def _recon(stmt: Any) -> Any:
+        return stmt.where(ReconciliationRun.account_id == account_id) if account_id is not None else stmt
+
+    def _equity(stmt: Any) -> Any:
+        return stmt.where(EquitySnapshot.account_id == account_id) if account_id is not None else stmt
+
+    audit = {a: n for a, n in (await session.execute(_audit_stmt())).all()}
+
+    recon_runs = await _scalar(session, _recon(select(func.count()).select_from(ReconciliationRun))) or 0
     recon_pass = await _scalar(
-        session, select(func.count()).select_from(ReconciliationRun).where(
-            ReconciliationRun.result == "pass")) or 0
+        session, _recon(select(func.count()).select_from(ReconciliationRun).where(
+            ReconciliationRun.result == "pass"))) or 0
     recon_disc = await _scalar(
-        session, select(func.coalesce(func.sum(ReconciliationRun.n_discrepancies), 0))) or 0
+        session, _recon(select(func.coalesce(func.sum(ReconciliationRun.n_discrepancies), 0)))) or 0
     replay_checked = await _scalar(session, select(func.coalesce(func.sum(ReplayRun.n_checked), 0))) or 0
     replay_matched = await _scalar(session, select(func.coalesce(func.sum(ReplayRun.n_matched), 0))) or 0
     replay_mismatched = await _scalar(
         session, select(func.coalesce(func.sum(ReplayRun.n_mismatched), 0))) or 0
-    first_snap = await _scalar(session, select(func.min(EquitySnapshot.ts)))
+    first_snap = await _scalar(session, _equity(select(func.min(EquitySnapshot.ts))))
     actual_days = await _scalar(
-        session, select(func.count(func.distinct(func.date(EquitySnapshot.ts))))) or 0
+        session, _equity(select(func.count(func.distinct(func.date(EquitySnapshot.ts)))))) or 0
     track_days = (datetime.now(UTC).date() - first_snap.date()).days if first_snap else 0
 
     signals = ConfidenceSignals(
@@ -89,7 +122,10 @@ async def evidence_summary(
     )
     kpis = build_scorecard(kpi_inputs)
 
-    strat_rows = (await session.execute(select(Strategy).order_by(Strategy.id))).scalars().all()
+    strat_stmt = select(Strategy).order_by(Strategy.id)
+    if strategy_id is not None:
+        strat_stmt = strat_stmt.where(Strategy.id == strategy_id)
+    strat_rows = (await session.execute(strat_stmt)).scalars().all()
     strategies = [
         {"id": s.id, "name": s.name,
          "status": s.status.value if hasattr(s.status, "value") else str(s.status),
@@ -98,8 +134,12 @@ async def evidence_summary(
         for s in strat_rows
     ]
 
+    scope = ({"kind": "account", "strategy_id": strategy_id,
+              "account_id": account_id, "user_id": user_id}
+             if strategy_id is not None else {"kind": "platform"})
     return {
         "as_of": datetime.now(UTC).isoformat(),
+        "scope": scope,
         "confidence": confidence,
         "kpis": {"rows": kpis, "summary": scorecard_summary(kpis)},
         "research_programs": list_programs(),
