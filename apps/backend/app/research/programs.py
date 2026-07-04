@@ -123,7 +123,9 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "maxDD -24% vs mom -38%, keeps more CAGR than vol-target) -- still no Sharpe-CI edge; regime-tilt "
         "and correlation-triggers do not help. RECIPE: equal-weight the books + a market-regime gross "
         "overlay; skip the optimizer. Regime overlay catalogued CAP-020 (drawdown-effective, Sharpe-"
-        "neutral, verdict Promising, next: live validation -- NOT 'validated'). Consumes PORT-001's ERC "
+        "neutral, verdict Promising, next: live validation -- NOT 'validated'; validation attempted "
+        "2026-07-04 -> Inconclusive (data-gated): the box store's 4-book overlap is only 1.5y bull-only "
+        "-- harness ready, blocked on >=4y overlapping history incl. bears). Consumes PORT-001's ERC "
         "engine; live counterpart = Portfolio Analytics Engine (#322). Follow-on: FI-002 (Correlation "
         "Stability, reserved) + a full-history+sector store (the sector arm is recent-window on the box).",
         "docs/implementation/TradingWorkbench_FI001_MultiFactorInteraction_Plan_v0.1.md"),
