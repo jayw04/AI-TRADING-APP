@@ -27,7 +27,7 @@ Last updated: **2026-07-03** (PORT-001 **v1.2** — all 3 sibling levers now on 
 
 **Deferred design (owner, not scoped)**
 - **Production Confidence Score re-baseline** — an audited, one-way "production inception" / clean-window marker (NOT an arbitrary reset). See [[design_confidence_score_rebaseline]].
-- **Per-profile evidence reporting** — evidence tools default to account 1; parameterize for the 5 live books.
+- **Per-account evidence reporting** — ✅ DONE 2026-07-04 (PR #344 `dc8329c`): each live book emits its own Confidence Score + KPI scorecard + live_evidence (now with turnover/cost); `GET /evidence/summary?strategy_id=` scopes the dashboard feed; the weekly driver publishes the per-account set. Shared resolver `app/ops/evidence_scope.py`. Deferred: monthly_evidence turnover/cost + live-vs-backtest + frontend per-account view.
 
 **Long-horizon / commercialization (owner roadmap)**
 - Whitepaper figures, expanded patent families, Capability Registry as a first-class feature, SaaS/cloud + onboarding.
