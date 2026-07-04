@@ -8,10 +8,11 @@ ourselves** rather than add a new data vendor (ADR 0030 #2), and the adjustment 
 **explicit and reproducible** (ADR 0014) — not an opaque vendor adjustment flag.
 
 The math is pure and deterministic (trivially testable). The LIVE corporate-actions
-source (Alpaca corporate-actions API or the Sharadar `actions` table) is injected via the
-``DistributionsProvider`` seam and is wired separately — the live fetch is deferred where
-Norton SSL inspection blocks ``data.alpaca.markets`` (the standard Norton pattern; see
-``blocker_norton_ssl_alpaca``).
+source is injected via the ``DistributionsProvider`` seam; the live implementation is
+``app/market_data/alpaca_distributions.py::AlpacaDistributionsProvider`` (Alpaca
+corporate-actions API — the Sharadar ``actions`` table has zero coverage for the
+cross-asset ETFs). The original Norton-SSL deferral applied only to the dev laptop; the
+live runtime is AWS, where the fetch works (PORT-001 #3).
 
 Total-return one-day holding return (the standard formulation, handling a same-day split):
 

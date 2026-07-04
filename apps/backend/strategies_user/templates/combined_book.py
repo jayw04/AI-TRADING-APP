@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, ClassVar
 
@@ -55,7 +56,10 @@ import pandas as pd
 from app.db.enums import OrderSide, OrderSourceType, OrderType, SignalType, TimeInForce
 from app.factor_data.accessor import FactorDataUnavailable
 from app.factor_data.factors.engine import FactorUnavailable
+from app.factor_data.total_return import total_return_index
 from app.factor_data.universe import UniverseUnavailable
+from app.market_data.alpaca_distributions import AlpacaDistributionsProvider
+from app.observability import metrics
 from app.research.factor_lab.beta_cap import cap_equity_beta, default_equity_names
 from app.research.factor_lab.cross_asset import CROSS_ASSET_UNIVERSE, cross_asset_tsmom
 from app.risk import OrderRequest
@@ -67,7 +71,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class CombinedBook(Strategy):
     name: ClassVar[str] = "combined-book"
-    version: ClassVar[str] = "1.2.0"  # + look-through equity-beta-cap governor (lever #2, default OFF)
+    version: ClassVar[str] = "1.3.0"  # + total-return live pricing for the cross-asset sleeve (default OFF)
     symbols: ClassVar[list[str]] = []  # set at registration: equity universe + the 8 cross-asset ETFs
     # Weekly, Monday 14:00 UTC ≈ 09:00 ET. Day names avoid APScheduler's off-by-one.
     schedule: ClassVar[str] = "0 14 * * mon"
@@ -97,6 +101,9 @@ class CombinedBook(Strategy):
         "beta_cap_max_rc": 0.80,        # max equity-beta risk-contribution share
         "beta_cap_lookback": 120,       # covariance window (trading days; live 1Day history ~1yr cap)
         "beta_cap_shrink": 0.15,        # off-diagonal covariance shrinkage λ
+        # --- total-return live pricing for the cross-asset sleeve (PORT-001 #3; default OFF) ---
+        "use_total_return_pricing": False,   # price the cross-asset sleeve on total-return closes (Alpaca corp-actions)
+        "tr_pricing_report_only": False,     # log the TR-vs-raw divergence without changing the panel (dry-run)
         # --- crash protection for the equity sleeve (market-regime filter) ---
         "use_market_regime_filter": True,
         "market_filter_symbol": "SPY",   # proxy for the MA filter (also a held cross-asset ETF)
@@ -197,6 +204,14 @@ class CombinedBook(Strategy):
             "type": "number", "min": 0.0, "max": 1.0, "default": 0.15,
             "description": "Off-diagonal covariance shrinkage (Ledoit-Wolf-lite) for the governor."
         },
+        "use_total_return_pricing": {
+            "type": "boolean", "default": False,
+            "description": "Price the cross-asset sleeve on TOTAL-RETURN closes (raw + Alpaca corp-actions). False = raw closes (PORT-001 #3)."
+        },
+        "tr_pricing_report_only": {
+            "type": "boolean", "default": False,
+            "description": "When not enforcing TR pricing, still compute + log the TR-vs-raw divergence (the live dry-run)."
+        },
         "use_market_regime_filter": {
             "type": "boolean", "default": True,
             "description": "De-risk the EQUITY sleeve to cash when the market is below its MA (crash protection)."
@@ -246,6 +261,8 @@ class CombinedBook(Strategy):
     async def on_init(self) -> None:
         self._equity_estimate = Decimal(str(self.params.get("initial_equity_estimate", 100_000)))
         self._last_rebalance_week: tuple[int, int] | None = None
+        # Set per-rebalance by _maybe_prefetch_distributions when TR pricing is on; None = raw closes.
+        self._dist_provider: AlpacaDistributionsProvider | None = None
 
     async def on_bar(self, bar: Any) -> None:
         wk = bar.t.isocalendar()[:2]
@@ -264,6 +281,7 @@ class CombinedBook(Strategy):
 
     async def _rebalance(self) -> None:
         """Build the two-sleeve target book (fixed 40/60 blend) and trade the diff toward it."""
+        await self._maybe_prefetch_distributions()       # PORT-001 #3 total-return pricing (default OFF)
         eq_w = await self._equity_sleeve_weights()       # {ticker: weight in [0,1]}, sums ≤ 1
         ca_w = await self._cross_asset_sleeve_weights()   # {etf: weight}, sums ≤ 1 (de-risked)
 
@@ -380,9 +398,70 @@ class CombinedBook(Strategy):
             return {}
         return {k.upper(): float(v) for k, v in sleeve.weights.items() if v > 0}
 
+    async def _maybe_prefetch_distributions(self) -> None:
+        """PORT-001 #3 — total-return live pricing (DEFAULT OFF). When enabled (or in report-only), fetch
+        the cross-asset ETFs' distributions once for this rebalance, log an evidence signal (pricing
+        method + provider metadata + raw-vs-TR divergence), and — only when *enabled* — arm
+        ``_close_panel`` to price on total-return closes. Fail-open: any provider error ⇒ raw closes."""
+        self._dist_provider = None
+        use_tr = bool(self.params.get("use_total_return_pricing", False))
+        report_only = bool(self.params.get("tr_pricing_report_only", False))
+        sid = str(self.ctx.strategy_id)
+        metrics.pricing_mode.labels(strategy_id=sid).set(1 if use_tr else 0)
+        if not (use_tr or report_only):
+            return
+
+        symbols = self._cross_asset_symbols()
+        need = int(self.params.get("ca_lookback_days", 252)) + int(self.params.get("ca_skip_days", 21)) \
+            + max(int(self.params.get("ca_vol_lookback_days", 60)), int(self.params.get("beta_cap_lookback", 120))) + 5
+        end = datetime.now(UTC)
+        start = end - timedelta(days=int(need * 1.5) + 40)
+        provider = AlpacaDistributionsProvider()
+        summary = await provider.prefetch(symbols, start, end)
+        if summary.fallback:
+            metrics.total_return_fail_open_total.labels(strategy_id=sid).inc()
+        elif use_tr:
+            self._dist_provider = provider  # arm the panel only when enabled and the fetch succeeded
+
+        divergence = {} if summary.fallback else await self._tr_divergence_bps(provider, symbols, need)
+        await self.ctx.log_signal(
+            "PORTFOLIO", SignalType.INFO,
+            payload={
+                "reason": "total_return_pricing",
+                "pricing_method": "TOTAL_RETURN" if (use_tr and not summary.fallback) else "RAW",
+                "report_only": report_only and not use_tr,
+                "provider": summary.provider, "provider_sdk": summary.provider_sdk,
+                "fetched_at": summary.fetched_at, "window": list(summary.window),
+                "symbols": summary.symbols, "dividends": summary.dividends, "splits": summary.splits,
+                "rejected": summary.rejected, "fallback": summary.fallback,
+                "elapsed_ms": summary.elapsed_ms, "divergence_bps": divergence,
+            })
+
+    async def _tr_divergence_bps(
+        self, provider: AlpacaDistributionsProvider, symbols: list[str], n: int
+    ) -> dict[str, float]:
+        """Per-symbol trailing-return delta (total-return − raw), in basis points — the report-only
+        evidence of what enabling TR pricing would change. Read-only; skips symbols without bars."""
+        out: dict[str, float] = {}
+        for sym in symbols:
+            bars = await self.ctx.get_recent_bars(sym, "1Day", n=n)
+            if bars is None or bars.empty or len(bars) < 2:
+                continue
+            raw = pd.Series(bars["c"].astype(float).to_numpy(),
+                            index=pd.to_datetime(bars["t"]).dt.tz_localize(None).dt.normalize())
+            div, spl = provider.distributions(sym, raw.index[0], raw.index[-1])
+            tri = total_return_index(raw, div, spl)
+            if raw.iloc[0] > 0 and tri.iloc[0] > 0:
+                raw_ret = raw.iloc[-1] / raw.iloc[0] - 1.0
+                tr_ret = tri.iloc[-1] / tri.iloc[0] - 1.0
+                out[sym.upper()] = round((tr_ret - raw_ret) * 1e4, 2)
+        return out
+
     async def _close_panel(self, symbols: list[str], n: int) -> pd.DataFrame | None:
         """Daily-close price panel (index = date, cols = symbol) over the common dates, for the
-        cross-asset sleeve. None if no symbol has bars."""
+        cross-asset sleeve. None if no symbol has bars. When TR pricing is armed
+        (``_maybe_prefetch_distributions``), each priced series is a total-return index instead of the
+        raw close (raw + distributions); symbols absent from the distributions cache stay raw."""
         series: dict[str, pd.Series] = {}
         for sym in symbols:
             bars = await self.ctx.get_recent_bars(sym, "1Day", n=n)
@@ -390,6 +469,10 @@ class CombinedBook(Strategy):
                 continue
             s = pd.Series(bars["c"].astype(float).to_numpy(),
                           index=pd.to_datetime(bars["t"]).dt.tz_localize(None).dt.normalize())
+            if self._dist_provider is not None:
+                div, spl = self._dist_provider.distributions(sym, s.index[0], s.index[-1])
+                if len(div) or len(spl):
+                    s = total_return_index(s, div, spl)
             series[sym.upper()] = s
         if not series:
             return None

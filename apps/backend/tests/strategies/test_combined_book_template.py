@@ -18,7 +18,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pandas as pd
 
 from app.factor_data.accessor import FactorDataUnavailable
+from app.market_data.alpaca_distributions import FetchSummary
 from app.strategies.context import Bar
+from strategies_user.templates import combined_book
 from strategies_user.templates.combined_book import CombinedBook
 
 WK1_A = datetime(2026, 6, 8, 14, 0, tzinfo=UTC)   # Mon
@@ -231,3 +233,93 @@ async def test_order_rejection_is_logged_not_raised() -> None:
     await strat.on_bar(_bar(WK1_A))   # must not raise
     assert any("rejected" in str(c.kwargs.get("payload", {}))
                for c in ctx.log_signal.call_args_list)
+
+
+# ---- PORT-001 #3 total-return live pricing (default OFF) -----------------------
+
+def _signal(ctx, reason):
+    """The payload of the first logged signal with payload.reason == reason, else None."""
+    for c in ctx.log_signal.call_args_list:
+        payload = c.kwargs.get("payload") or (c.args[2] if len(c.args) > 2 else {})
+        if payload.get("reason") == reason:
+            return payload
+    return None
+
+
+class _FakeDist:
+    """A distributions provider that pays TLT a large dividend (visible divergence) and nothing else."""
+
+    fallback = False
+
+    def __init__(self, *a, **k) -> None:
+        pass
+
+    async def prefetch(self, symbols, start, end) -> FetchSummary:
+        return FetchSummary(provider="fake", provider_sdk="fake", fetched_at="2026-01-01T00:00:00Z",
+                            window=("2025-01-01", "2026-01-01"), symbols=len(symbols), dividends=1,
+                            splits=0, rejected=0, elapsed_ms=1, fallback=self.fallback)
+
+    def distributions(self, sym, start, end):
+        if sym.upper() == "TLT":  # $5 div inside the 2025-01-01+ TLT panel → clear divergence
+            return pd.Series({pd.Timestamp("2025-01-20"): 5.0}), pd.Series(dtype="float64")
+        return pd.Series(dtype="float64"), pd.Series(dtype="float64")
+
+
+class _FakeDistFailOpen(_FakeDist):
+    fallback = True
+
+
+async def test_tr_off_by_default_never_constructs_provider(monkeypatch) -> None:
+    """Both flags default False ⇒ the provider is never even constructed (no network, no signal)."""
+    made = {"n": 0}
+
+    class _Boom:
+        def __init__(self, *a, **k):
+            made["n"] += 1
+
+    monkeypatch.setattr(combined_book, "AlpacaDistributionsProvider", _Boom)
+    ctx = _ctx(["AAA", "TLT", "GLD"], _scores([("AAA", 2.0)]))
+    strat = _strat(ctx)  # defaults: use_total_return_pricing / tr_pricing_report_only both False
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert made["n"] == 0
+    assert _signal(ctx, "total_return_pricing") is None
+
+
+async def test_tr_report_only_logs_divergence_without_arming_panel(monkeypatch) -> None:
+    monkeypatch.setattr(combined_book, "AlpacaDistributionsProvider", _FakeDist)
+    ctx = _ctx(["AAA", "TLT", "GLD"], _scores([("AAA", 2.0)]))
+    strat = _strat(ctx, tr_pricing_report_only=True)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    sig = _signal(ctx, "total_return_pricing")
+    assert sig is not None
+    assert sig["pricing_method"] == "RAW"        # report-only never changes the panel
+    assert sig["report_only"] is True
+    assert sig["divergence_bps"].get("TLT", 0.0) != 0.0
+    assert strat._dist_provider is None          # panel NOT armed
+
+
+async def test_tr_enabled_arms_panel_and_reports_total_return(monkeypatch) -> None:
+    monkeypatch.setattr(combined_book, "AlpacaDistributionsProvider", _FakeDist)
+    ctx = _ctx(["AAA", "TLT", "GLD"], _scores([("AAA", 2.0)]))
+    strat = _strat(ctx, use_total_return_pricing=True)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    sig = _signal(ctx, "total_return_pricing")
+    assert sig is not None
+    assert sig["pricing_method"] == "TOTAL_RETURN"
+    assert strat._dist_provider is not None       # panel armed to price on TR
+
+
+async def test_tr_fail_open_falls_back_to_raw(monkeypatch) -> None:
+    monkeypatch.setattr(combined_book, "AlpacaDistributionsProvider", _FakeDistFailOpen)
+    ctx = _ctx(["AAA", "TLT", "GLD"], _scores([("AAA", 2.0)]))
+    strat = _strat(ctx, use_total_return_pricing=True)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))               # must not raise
+    sig = _signal(ctx, "total_return_pricing")
+    assert sig is not None
+    assert sig["fallback"] is True
+    assert sig["pricing_method"] == "RAW"         # fell back despite the flag
+    assert strat._dist_provider is None
