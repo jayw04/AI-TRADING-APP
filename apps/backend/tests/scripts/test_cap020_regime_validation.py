@@ -119,6 +119,13 @@ def test_classify_rejected_when_no_benefit():
               d_calmar=-0.05, d_maxdd_pp=-1.0)
     assert _mod.classify(c, robustness_frac=0.9) == "Rejected (Evidenced)"
 
+def test_classify_rejected_when_calmar_negative_and_guardrail_fails():
+    # the real CAP-020 result: negative Calmar + a positive ΔMaxDD point but Sharpe guardrail breached
+    # → Rejected (the primary rule governs), NOT Conditionally Promising off the positive ΔMaxDD.
+    c = _cell(passes=False, passes_primary=False, passes_guardrails=False,
+              d_calmar=-0.30, d_maxdd_pp=2.6, d_sharpe=-0.23)
+    assert _mod.classify(c, robustness_frac=0.0) == "Rejected (Evidenced)"
+
 def test_robustness_fraction_counts_passing_cells():
     cells = [_cell(passes=True), _cell(passes=True), _cell(passes=False)]
     assert abs(_mod.robustness_fraction(cells) - 2 / 3) < 1e-9
