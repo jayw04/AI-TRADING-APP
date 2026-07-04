@@ -131,6 +131,26 @@ def build(db: str, strategy_id: int) -> dict[str, Any]:
     gross = sum(float(p["market_value"] or 0) for p in positions)
     unrealized = sum(float(p["unrealized_pl"] or 0) for p in positions)
 
+    # activity + cost (turnover + commissions), from the realized-trade fills. Turnover = filled
+    # notional over the window / average equity; cost = summed fill commissions. Both were already
+    # collected per-trade (the trades join carries filled_qty/avg_price/commission).
+    traded_notional = 0.0
+    total_commission = 0.0
+    for t in trades:
+        fq, ap_, cm = t.get("filled_qty"), t.get("avg_price"), t.get("commission")
+        if fq is not None and ap_ is not None:
+            traded_notional += abs(float(fq) * float(ap_))
+        if cm is not None:
+            total_commission += float(cm)
+    avg_equity = (sum(v for _, v in curve) / len(curve)) if curve else equity
+    activity = {
+        "traded_notional": round(traded_notional, 2),
+        "turnover_ratio": round(traded_notional / avg_equity, 4) if avg_equity else None,
+        "total_commission": round(total_commission, 2),
+        "cost_bps_of_notional": (round(10000 * total_commission / traded_notional, 2)
+                                 if traded_notional else None),
+    }
+
     # operational + safety evidence (the differentiating content)
     safety = {
         "orders_risk_passed": audit.get("ORDER_RISK_PASSED", 0),
@@ -162,6 +182,7 @@ def build(db: str, strategy_id: int) -> dict[str, Any]:
                  "gross_exposure_pct": round(gross / equity, 4) if equity else None,
                  "unrealized_pl": round(unrealized, 2), "n_positions": len(positions)},
         "performance": performance,
+        "activity": activity,
         "trades": trades, "n_trades": len(trades), "first_trade": first_trade,
         "positions": positions,
         "operational_safety": safety,
@@ -183,6 +204,18 @@ def _perf_md(p: dict[str, Any]) -> list[str]:
         f"- Total return **{p['total_return']:+.2%}** · ann. vol {p['ann_volatility']:.1%} · "
         f"max drawdown **{p['max_drawdown']:.1%}** · Sharpe {p['sharpe']:.2f}.",
         "_Live realized metrics (short window = indicative, not a track record yet; accrues daily)._",
+        "",
+    ]
+
+
+def _activity_md(ac: dict[str, Any]) -> list[str]:
+    """Turnover + cost from realized fills (P12.5 enrichment)."""
+    tr = f"{ac['turnover_ratio']:.2f}x" if ac.get("turnover_ratio") is not None else "n/a"
+    cb = f"{ac['cost_bps_of_notional']:.1f} bps" if ac.get("cost_bps_of_notional") is not None else "n/a"
+    return [
+        "## Activity & cost (realized)", "",
+        f"- Turnover **{tr}** of average equity (${ac['traded_notional']:,.0f} filled notional) · "
+        f"commissions **${ac['total_commission']:,.2f}** ({cb} of notional).",
         "",
     ]
 
@@ -222,6 +255,7 @@ def _render(r: dict[str, Any]) -> str:
         *[f"| {t['id']} | {t['ticker']} | {t['side']} | {t['ordered_qty']} | "
           f"${float(t['avg_price'] or 0):,.2f} | {t['status']} |" for t in r["trades"]],
         "",
+        *(_activity_md(r["activity"])),
         "## Operational & safety evidence (the differentiator)",
         "",
         f"- **Risk gates fired:** {sf['orders_risk_passed']} orders passed risk, "
@@ -241,7 +275,8 @@ def _render(r: dict[str, Any]) -> str:
         "- **Equity-curve history is now persisted** (the `equity_snapshot` daily job appends one point "
         "per account near market close) — the Performance section above accrues into a real live curve.",
         "- Run this weekly/monthly; the equity curve + trade log + operational trail accumulate into the "
-        "live track record. Turnover/slippage attribution is a later increment.",
+        "live track record. Turnover + commission cost are now reported (Activity & cost); live-vs-backtest "
+        "attribution is a later increment.",
     ]
     return "\n".join(lines) + "\n"
 
