@@ -244,11 +244,15 @@ def classify(headline: CellResult, robustness_frac: float) -> str:
     Sharpe/CAGR are guardrails; robustness (>= 2/3 grid) is the trust check."""
     if headline.passes and robustness_frac >= ROBUSTNESS_FRACTION:
         return "Validated"
-    # any genuine drawdown/Calmar improvement but a failed guardrail / CI / robustness / floor
-    improved = headline.d_calmar > 0 or headline.d_maxdd_pp > 0
-    if improved and not (headline.d_calmar <= 0 and headline.d_maxdd_pp <= 0):
-        return "Conditionally Promising"
-    return "Rejected (Evidenced)"
+    # Calmar is the PRIMARY rule. Reject when it is non-positive AND the book is not genuinely helped —
+    # either a guardrail is breached (portfolio quality materially degrades) or there is no real
+    # drawdown reduction. A positive ΔMaxDD point estimate alone does NOT rescue a negative-Calmar,
+    # guardrail-breaching result (that would over-credit the supporting metric over the primary rule).
+    if headline.d_calmar <= 0 and (not headline.passes_guardrails or headline.d_maxdd_pp <= 0):
+        return "Rejected (Evidenced)"
+    # Otherwise a genuine-but-incomplete benefit (Calmar positive, or a real drawdown reduction with
+    # guardrails intact) that does not fully clear the bar.
+    return "Conditionally Promising"
 
 
 def robustness_fraction(cells: list[CellResult]) -> float:
