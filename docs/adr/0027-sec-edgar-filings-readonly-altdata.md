@@ -6,7 +6,7 @@
 | Status | **Accepted** (owner ratified 2026-06-25; comments.md review folded — the Corporate Event Capability → SEC Filing Capability → Form 4 hierarchy) |
 | Phase | INSIDER-001 §1 — the platform's first event-driven / alternative-data program ("Event-Driven Research Capability v1") |
 | Supersedes | — |
-| Related | 0018 (PIT factor data — same read-only / off-order-path / config-not-CredentialStore posture, extended here to a *no-key* public source), 0019 (Research Engine — read-only subsystem the events feed), 0002 (single OrderRouter — this data never reaches the order path), 0017 (OS trust store for outbound TLS — the EDGAR fetch rides it), 0026 (Factor Lab — INSIDER-001 lands as a `ProgramSpec` consuming this data), 0014 (backtests = eval ground truth — PIT correctness is what keeps the insider event study honest) |
+| Related | 0018 (PIT factor data — same read-only / off-order-path / config-not-CredentialStore posture, extended here to a *no-key* public source), 0019 (Research Engine — read-only subsystem the events feed), 0002 (single OrderRouter — this data never reaches the order path), 0017 (OS trust store for outbound TLS — the EDGAR fetch rides it), 0026 (Factor Lab — INSIDER-001 lands as a `ProgramSpec` consuming this data), 0014 (backtests = eval ground truth — PIT correctness is what keeps the insider event study honest), 0037 (EAD — extends this store to paid alternative data: Quiver events + first-class governance/PIT columns, Security Master CAP-024) |
 
 ## Context
 
