@@ -139,6 +139,23 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "confidence' be measured and used to gate allocation? Start only after enough live paper data "
         "accrues (per the FI-001 review) -- Continuous Evidence Engine is the higher priority first.",
         None),
+    ResearchProgram(
+        "TV-001", "External Strategy Import",
+        "Import test of popular TradingView community strategies", "rejected",
+        "REJECTED (program closed 2026-07-04). The platform's first external/community-strategy import "
+        "test. Top-3 TradingView strategies by popularity (HalfTrend 398 boosts / Universal-RSI 75 / "
+        "Supertrend 33) reconstructed + Strategy-Tested (15m, US-RTH, 0.02%+2tick, $10k; 28 backtests). "
+        "HalfTrend + Universal-RSI REJECTED at import (no edge; sign-flip across windows; RSI best case "
+        "breakeven +0.5% on SPY). Supertrend kept as candidate TV-001-SUPERTREND -> FULL PRE-REGISTERED "
+        "VALIDATION 2026-07-04 (15 symbols, 2023-2026 walk-forward, 10bps, vs buy-and-hold): REJECTED "
+        "(Evidenced) -- beats buy-and-hold on 1/15 (both fit-winners MSFT/PLTR fail, PLTR -13.8x vs "
+        "holding), best-of-9 ATRxmult settings 13% (no parameter rescues it), ~98 trades/yr cost-bleed, "
+        "walk-forward not robust; faint +per-trade signal (CI excludes 0) but loses to holding = "
+        "research-yes / deployment-no. Lessons: popularity != edge; symbol selection > strategy choice; "
+        "window sensitivity severe; no 100%-equity in promotion tests. Lasting assets = the import->recon"
+        "->validation pipeline + the Strategy x Symbol Fit screener (CAP-023). Evidence: "
+        "evidence/tv_001_supertrend/TV001_Supertrend_Result_v1.0.md.",
+        "docs/implementation/TradingWorkbench_TV001_CommunityStrategyImport_v0.1.md"),
 )
 
 
