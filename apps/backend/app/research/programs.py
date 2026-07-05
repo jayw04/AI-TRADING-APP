@@ -156,6 +156,18 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "->validation pipeline + the Strategy x Symbol Fit screener (CAP-023). Evidence: "
         "evidence/tv_001_supertrend/TV001_Supertrend_Result_v1.0.md.",
         "docs/implementation/TradingWorkbench_TV001_CommunityStrategyImport_v0.1.md"),
+    ResearchProgram(
+        "GOVCONTRACT-001", "Event-Driven",
+        "Do new federal government-contract awards predict drift in small/mid-cap contractors?", "planned",
+        "EAD's first event-driven research program (Quiver Government Contracts, DCAP-007; ADR 0037). "
+        "Pre-registered (plan v0.1): a MATCHED-CONTROL benchmark (~20 controls, same sector + mktcap/ADV/"
+        "6m-momentum decile +/-1, clean of same-event-type) so the test is residual alpha, not the "
+        "sector/size beta that got INSIDER-001 rejected; 20d primary hold + 5/10/60 robustness; bootstrap "
+        "excess-return 95% CI must exclude zero; >=100-event floor. Matched-control engine + verdict tree "
+        "BUILT + unit-tested (app/altdata/matched_control.py). Verdict DATA-GATED on the deploy gate "
+        "(migration + ingest) and the USAspending cross-check calibrating the disclosure lag. No book "
+        "until Approved.",
+        "docs/implementation/TradingWorkbench_GOVCONTRACT001_Plan_v0.1.md"),
 )
 
 
