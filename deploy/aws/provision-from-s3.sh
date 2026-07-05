@@ -43,7 +43,7 @@ tar xzf /tmp/code.tgz -C "$APP/app"
   echo "AGENT_DAILY_BUDGET_USD=2.0"
   for KEY in WORKBENCH_MASTER_KEY MCP_BACKEND_TOKEN WORKBENCH_MCP_KEY ANTHROPIC_API_KEY \
              AGENT_API_KEY ALPACA_PAPER_API_KEY ALPACA_PAPER_API_SECRET \
-             NASDAQ_DATA_LINK_API_KEY FMP_API_KEY; do
+             NASDAQ_DATA_LINK_API_KEY FMP_API_KEY QUIVER_API_KEY; do
     V=$(aws ssm get-parameter --region "$R" --name "/workbench/prod/$KEY" --with-decryption \
           --query Parameter.Value --output text 2>/dev/null)
     [ -n "$V" ] && [ "$V" != "None" ] && echo "$KEY=$V"
