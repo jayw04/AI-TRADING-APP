@@ -160,6 +160,17 @@ class Settings(BaseSettings):
     # event-type-agnostic). Backend-relative, under the gitignored data/. Never committed.
     event_store_path: str = "data/event_store.duckdb"
 
+    # --- Quiver Quant alternative data (Government Contracts first; ADR 0037, DCAP-007) ---
+    # A single Quiver API token (sent as 'Authorization: Token <key>'). Settings env-alias,
+    # NOT the encrypted CredentialStore — same read-only posture as the Sharadar/FMP keys
+    # (ADR 0018 §5); printed as a length only, never logged. Empty DISABLES Quiver ingestion,
+    # never an unauthenticated fetch. Off the order path.
+    quiver_api_key: str = Field(
+        default="",
+        alias="QUIVER_API_KEY",
+        description="Quiver Quant API token (Hobbyist). Empty disables Quiver alt-data ingestion.",
+    )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
