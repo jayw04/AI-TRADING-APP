@@ -158,8 +158,8 @@ def run_matched_excess_study(
             n_thin += 1
             continue
         ev_ret = forward_return(price_fn, ev.ticker, ev.entry_date, hold_days)
-        ctrl_rets = [forward_return(price_fn, c, ev.entry_date, hold_days) for c in mc.controls]
-        ctrl_rets = [r for r in ctrl_rets if r is not None]
+        ctrl_raw = [forward_return(price_fn, c, ev.entry_date, hold_days) for c in mc.controls]
+        ctrl_rets = [r for r in ctrl_raw if r is not None]   # narrows to list[float] for mypy
         if ev_ret is None or len(ctrl_rets) < min_controls:
             n_thin += 1
             continue
