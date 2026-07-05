@@ -1,0 +1,43 @@
+//@version=5
+// #3 — Supertrend [KivancOzbilgic recon] — faithful reconstruction (original is public; this mirrors it).
+// Apples-to-apples test config: 15m, US-RTH session gating ON, 100% equity, $10k, 0.02% comm + 2 ticks slip.
+strategy("Supertrend Strategy [KivancOzbilgic recon]", overlay=true,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=100,
+     initial_capital=10000, commission_type=strategy.commission.percent,
+     commission_value=0.02, slippage=2, pyramiding=0)
+
+Periods    = input.int(10, "ATR Period")
+src        = input.source(hl2, "Source")
+Multiplier = input.float(3.0, "ATR Multiplier", step=0.1)
+changeATR  = input.bool(true, "Change ATR Calculation Method ?")
+useSession = input.bool(true, "Restrict entries to US RTH")
+sess       = input.session("0930-1600", "Session (ET)")
+// Set useDateFilter=true for the last-3-month window (entries only after Mar 29 2026).
+useDateFilter = input.bool(false, "Limit to backtest start")
+
+atr2 = ta.sma(ta.tr, Periods)
+atr  = changeATR ? ta.atr(Periods) : atr2
+
+up  = src - Multiplier * atr
+up1 = nz(up[1], up)
+up := close[1] > up1 ? math.max(up, up1) : up
+
+dn  = src + Multiplier * atr
+dn1 = nz(dn[1], dn)
+dn := close[1] < dn1 ? math.min(dn, dn1) : dn
+
+trend = 1
+trend := nz(trend[1], trend)
+trend := trend == -1 and close > dn1 ? 1 : (trend == 1 and close < up1 ? -1 : trend)
+
+buySignal  = trend == 1 and trend[1] == -1
+sellSignal = trend == -1 and trend[1] == 1
+inSession  = not useSession or not na(time(timeframe.period, sess))
+inDate     = not useDateFilter or time >= timestamp(2026, 3, 29, 0, 0)
+
+plot(trend == 1 ? up : dn, "Supertrend", color = trend == 1 ? color.green : color.red, linewidth=2)
+
+if buySignal and inSession and inDate
+    strategy.entry("BUY", strategy.long)
+if sellSignal and inSession and inDate
+    strategy.entry("SELL", strategy.short)
