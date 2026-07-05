@@ -7,7 +7,7 @@
 | Phase | PORT-001 onboarding (Portfolio Construction capability) — cross-phase platform architecture |
 | Supersedes | — |
 | Extends | **0026** (research programs as configuration — adds a portfolio-construction run path), **0014** (backtests are the primary eval ground truth — the reproduction bar), **0020** (daily gross-exposure overlay — the equity sleeve's crash engine rides it) |
-| Related | 0002 (single OrderRouter — the live book routes through it), 0005 (activation cooldown — the live book is gated), 0019 (Research Engine subsystem), 0029 (Opportunity Registry — the Registry-split + phased-generalization precedent) |
+| Related | 0002 (single OrderRouter — the live book routes through it), 0005 (activation cooldown — the live book is gated), 0019 (Research Engine subsystem), 0029 (Opportunity Registry — the Registry-split + phased-generalization precedent), 0037 (EAD — CAP-024 Security Master + GOVCONTRACT-001 onboard through this lifecycle; DCAP-007 Quiver as a data input) |
 
 ## Context
 

@@ -7,7 +7,7 @@
 | Phase | Range-trading research (P8 §5a/§7 follow-on) → cross-program platform architecture |
 | Supersedes | — |
 | Refines | **0028** (Scheduled Pre-Open Opportunity Assignment) — 0028 stays Accepted; this ADR names the three responsibilities its job already performs and lifts them to a reusable, multi-program contract |
-| Related | 0019 (Research Engine subsystem), 0026 (research programs as configuration — this extends "selection is configuration" to "selection is a *shared, persisted artifact*"), 0014 (backtests are the primary eval ground truth — the evidence the Ranking Engine weights), 0002 (single OrderRouter — none of these three engines touch the order path), 0005 (activation cooldown — the Assignment Engine carries 0028's narrow exemption) |
+| Related | 0019 (Research Engine subsystem), 0026 (research programs as configuration — this extends "selection is configuration" to "selection is a *shared, persisted artifact*"), 0014 (backtests are the primary eval ground truth — the evidence the Ranking Engine weights), 0002 (single OrderRouter — none of these three engines touch the order path), 0005 (activation cooldown — the Assignment Engine carries 0028's narrow exemption), 0037 (EAD — the Daily Opportunity Report reads an `OpportunityInputAdapter` until this Registry is built, then swaps to it) |
 
 ## Context
 
