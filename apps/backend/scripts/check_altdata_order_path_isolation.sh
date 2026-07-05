@@ -14,6 +14,8 @@ PATTERN='(from|import)[[:space:]]+app\.(services\.order_router|risk|brokers)([.[
 SEARCH_PATHS=(
   "apps/backend/app/altdata/quiver"
   "apps/backend/app/altdata/security_master.py"
+  "apps/backend/app/altdata/source_registry.py"
+  "apps/backend/app/services/data_quality"
   "apps/backend/app/services/opportunity_report"   # created in Phase 3; absent paths are skipped
 )
 

@@ -364,3 +364,39 @@ class EventStore:
             "n_latency_over_5d": int(over5 or 0),   # unusually late (late filing / data issue)
             "n_missing_event_date": int((missing or [0])[0]),
         }
+
+    def ead_stats(self, *, event_type: str | None = None, source: str | None = None) -> dict[str, Any]:
+        """EAD data-quality counters (ADR 0037 §4.0) — eligibility, resolution, availability,
+        revisions, raw-hash coverage, and the unresolved-reason breakdown. Scoped by
+        event_type/source. Feeds the internal Data-Quality Report."""
+        base: list[str] = []
+        params: list[Any] = []
+        if event_type is not None:
+            base.append("event_type = ?")
+            params.append(event_type)
+        if source is not None:
+            base.append("source = ?")
+            params.append(source)
+
+        def _count(extra: list[str]) -> int:
+            conds = base + extra
+            where = (" WHERE " + " AND ".join(conds)) if conds else ""
+            row = self._con.execute(f"SELECT COUNT(*) FROM corporate_events{where}", params).fetchone()
+            return int(row[0]) if row else 0
+
+        reason_where = " WHERE " + " AND ".join(
+            base + ["research_eligible = FALSE", "unresolved_reason IS NOT NULL"])
+        reasons = {
+            r[0]: int(r[1]) for r in self._con.execute(
+                f"SELECT unresolved_reason, COUNT(*) FROM corporate_events{reason_where} "
+                "GROUP BY unresolved_reason", params).fetchall()
+        }
+        return {
+            "n_total": _count([]),
+            "n_eligible": _count(["research_eligible = TRUE"]),
+            "n_ineligible": _count(["research_eligible = FALSE"]),
+            "n_missing_available_time": _count(["available_time IS NULL"]),
+            "n_revised": _count(["revision_time IS NOT NULL"]),
+            "n_with_raw_hash": _count(["raw_payload_hash IS NOT NULL"]),
+            "unresolved_reasons": reasons,
+        }
