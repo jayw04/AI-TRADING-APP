@@ -472,8 +472,11 @@ async def test_sector_cap_unset_does_not_query_sectors() -> None:
 
 # ---- fractional shares (P10 §7) ------------------------------------------------
 
-def test_fractional_shares_disabled_by_default() -> None:
-    assert MomentumPortfolio.default_params["fractional_shares"] is False
+def test_fractional_shares_enabled_by_default() -> None:
+    # Default ON: whole-share rounding under-deploys the book (single $400 shares vs a
+    # ~$600 per-name budget → ~63% deployed). Fractional deploys ~fully; non-fractionable
+    # names reject gracefully.
+    assert MomentumPortfolio.default_params["fractional_shares"] is True
 
 
 async def test_fractional_shares_buys_sub_one_share() -> None:

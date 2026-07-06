@@ -110,7 +110,7 @@ class CombinedBook(Strategy):
         "market_ma_days": 200,
         # --- governance & sizing ---
         "max_position_pct": 0.04,        # per-name cap (the sibling equity sleeve's 4%)
-        "fractional_shares": False,
+        "fractional_shares": True,  # fractional deploys ~fully; whole shares under-deploy (default ON)
         "cash_buffer_pct": 0.02,
         "initial_equity_estimate": 100_000,
         "pricing_timeframe": "1Day",
@@ -229,7 +229,7 @@ class CombinedBook(Strategy):
             "description": "Hard cap on any single position as a fraction of equity."
         },
         "fractional_shares": {
-            "type": "boolean", "default": False,
+            "type": "boolean", "default": True,
             "description": "Size fractional share quantities (deploys ~fully vs whole-share rounding)."
         },
         "cash_buffer_pct": {
@@ -500,7 +500,7 @@ class CombinedBook(Strategy):
         equity = await self._investable_equity()
         cap = Decimal(str(self.params.get("max_position_pct", 0.04)))
         min_trade = Decimal(str(self.params.get("min_trade_pct", 0.03)))
-        fractional = bool(self.params.get("fractional_shares", False))
+        fractional = bool(self.params.get("fractional_shares", True))
 
         buys: list[tuple[str, Decimal, float, Decimal]] = []
         for sym, weight in sorted(target.items()):
