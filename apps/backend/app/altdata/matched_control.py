@@ -109,11 +109,13 @@ class MatchedExcessResult:
     n_events: int
     n_benchmarked: int           # events with a sufficient matched basket + valid returns
     n_thin: int                  # events dropped for thin controls / missing prices
-    mean_excess: float           # mean (event return − matched-control-basket return)
-    ci_low: float
+    mean_excess: float           # mean NET (event − matched-control) excess return (after cost)
+    mean_excess_gross: float     # before transaction cost
+    ci_low: float                # CI on the NET excess-return series
     ci_high: float
     p_value: float
     hold_days: int
+    cost_bps_per_side: float
     n_resamples: int
 
     @property
@@ -140,13 +142,19 @@ def forward_return(price_fn: PriceFn, ticker: str, entry: date, hold_days: int) 
 def run_matched_excess_study(
     events: Sequence[EventPoint], *, price_fn: PriceFn, feature_fn: FeatureFn,
     exclude_fn: ExcludeFn | None = None, hold_days: int = 20, n_target: int = 20,
-    min_controls: int = 10, decile_band: int = 1, seed: int = 17, n_resamples: int = 2000,
-    block: int = 1,
+    min_controls: int = 10, decile_band: int = 1, cost_bps_per_side: float = 0.0,
+    seed: int = 17, n_resamples: int = 2000, block: int = 1,
 ) -> MatchedExcessResult:
     """Per event: build the matched control basket, compute (event return − equal-weight control
-    return); bootstrap a CI on the cross-event excess-return series. ``block=1`` (i.i.d.) because
-    the units are de-overlapped cross-event excesses, not an autocorrelated daily series."""
-    excess: list[float] = []
+    return); net a transaction cost; bootstrap a CI on the cross-event NET excess-return series.
+    ``block=1`` (i.i.d.) because the units are de-overlapped cross-event excesses, not an
+    autocorrelated daily series.
+
+    **Cost.** The excess is harvested by a dollar-neutral long-short (long the event stock, short
+    the matched-control basket). That's two legs, each a round trip, so the drag is
+    ``4 × cost_bps_per_side`` per event (2 legs × 2 sides). Symmetric market-wide costs largely
+    cancel in the excess; this charges the implementation cost of isolating the alpha."""
+    gross: list[float] = []
     n_thin = 0
     for ev in events:
         candidates = feature_fn(ev.entry_date)
@@ -163,14 +171,17 @@ def run_matched_excess_study(
         if ev_ret is None or len(ctrl_rets) < min_controls:
             n_thin += 1
             continue
-        excess.append(ev_ret - _mean(ctrl_rets))
+        gross.append(ev_ret - _mean(ctrl_rets))
 
-    if len(excess) >= 2:
-        ci = block_bootstrap_ci(excess, _mean, n_resamples=n_resamples, seed=seed, block=block)
+    drag = 4.0 * cost_bps_per_side / 10_000.0            # long-short round-trip (2 legs × 2 sides)
+    net = [g - drag for g in gross]
+    if len(net) >= 2:
+        ci = block_bootstrap_ci(net, _mean, n_resamples=n_resamples, seed=seed, block=block)
     else:
-        ci = ConfidenceResult(_mean(excess), 0.0, 0.0, 1.0, n_resamples, block)
+        ci = ConfidenceResult(_mean(net), 0.0, 0.0, 1.0, n_resamples, block)
     return MatchedExcessResult(
-        n_events=len(events), n_benchmarked=len(excess), n_thin=n_thin,
-        mean_excess=ci.point, ci_low=ci.ci_low, ci_high=ci.ci_high, p_value=ci.p_value,
-        hold_days=hold_days, n_resamples=n_resamples,
+        n_events=len(events), n_benchmarked=len(net), n_thin=n_thin,
+        mean_excess=ci.point, mean_excess_gross=_mean(gross), ci_low=ci.ci_low, ci_high=ci.ci_high,
+        p_value=ci.p_value, hold_days=hold_days, cost_bps_per_side=cost_bps_per_side,
+        n_resamples=n_resamples,
     )
