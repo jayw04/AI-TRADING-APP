@@ -106,3 +106,24 @@ def test_ingest_upserts_and_is_idempotent(tmp_path):
     assert {e.ticker for e in got} == {"LMT"} and len(got) == 2
     assert all(e.resolved_security_id == "CIK0000936468" for e in got)
     store.close()
+
+
+class _FakeBulkClient:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def govcontracts_live(self):
+        return list(self._rows)
+
+
+def test_bulk_ingest_upserts_and_tallies(tmp_path):
+    from app.altdata.quiver.ingest import ingest_govcontracts_bulk
+
+    store = EventStore(str(tmp_path / "ev.duckdb"))
+    client = _FakeBulkClient([_ROW, {**_ROW, "Ticker": "ZZZZ"}])
+    rep = ingest_govcontracts_bulk(client, store, security_master=_sm())
+    assert rep.rows_seen == 2 and rep.events_built == 2
+    assert rep.events_ingested == 2 and rep.unresolved == 1
+    # idempotent re-run
+    assert ingest_govcontracts_bulk(client, store, security_master=_sm()).events_ingested == 0
+    store.close()
