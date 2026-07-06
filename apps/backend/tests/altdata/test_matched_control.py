@@ -95,3 +95,14 @@ def test_thin_events_are_counted_not_benchmarked():
         _events("T10", 2), price_fn=_price_fn("T10", 0.10, 0.02), feature_fn=_feature_fn(),
         hold_days=HOLD, min_controls=6, n_resamples=200)   # 5 controls < 6 → thin
     assert res.n_benchmarked == 0 and res.n_thin == 2
+
+
+def test_cost_nets_a_long_short_round_trip_drag():
+    kw = dict(price_fn=_price_fn("T10", 0.10, 0.02), feature_fn=_feature_fn(),
+              hold_days=HOLD, min_controls=3, n_resamples=300)
+    gross = run_matched_excess_study(_events("T10", 3), cost_bps_per_side=0.0, **kw)
+    net = run_matched_excess_study(_events("T10", 3), cost_bps_per_side=10.0, **kw)
+    assert abs(gross.mean_excess - 0.08) < 1e-6
+    # 10 bps/side × (2 legs × 2 sides) = 40 bps drag
+    assert abs(net.mean_excess - (0.08 - 0.0040)) < 1e-6
+    assert abs(net.mean_excess_gross - 0.08) < 1e-6

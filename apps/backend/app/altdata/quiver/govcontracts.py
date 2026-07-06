@@ -43,10 +43,13 @@ SOURCE = "quiver"
 PROVIDER_DATASET = "government_contracts"
 DATA_SOURCE_ID = "DCAP-007"
 
-# Conservative disclosure lag: federal awards become public on USAspending within a few business
-# days of the action. A larger lag is PIT-SAFE (delays entry; never look-ahead). Pre-registered
-# placeholder — calibrate against USAspending (Phase 1 exit gate) before trusting the numbers.
-DISCLOSURE_LAG_DAYS = 7
+# Disclosure lag: available_time = action_date + lag. PIT-safe (larger = later entry, never
+# look-ahead). **Locked at 21 (GOVCONTRACT-001 pre-registration v0.2, 2026-07-05):** FPDS requires
+# reporting within 3 business days; USAspending processing adds ~days-to-2-weeks; 21 clears both
+# comfortably. The USAspending cross-check's ~46-day `Last Modified` signal is an inflated
+# record-maintenance proxy, so it is NOT used as the primary. Robustness is tested at {14, 46}
+# (plan §6a) — separate from the primary; it must not become a search for the best result.
+DISCLOSURE_LAG_DAYS = 21
 
 
 def _as_date(s: Any) -> date | None:
