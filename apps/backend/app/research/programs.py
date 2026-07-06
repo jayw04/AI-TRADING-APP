@@ -158,15 +158,19 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "docs/implementation/TradingWorkbench_TV001_CommunityStrategyImport_v0.1.md"),
     ResearchProgram(
         "GOVCONTRACT-001", "Event-Driven",
-        "Do new federal government-contract awards predict drift in small/mid-cap contractors?", "planned",
+        "Do new federal government-contract awards predict drift in small/mid-cap contractors?", "inconclusive",
         "EAD's first event-driven research program (Quiver Government Contracts, DCAP-007; ADR 0037). "
-        "Pre-registered (plan v0.1): a MATCHED-CONTROL benchmark (~20 controls, same sector + mktcap/ADV/"
-        "6m-momentum decile +/-1, clean of same-event-type) so the test is residual alpha, not the "
-        "sector/size beta that got INSIDER-001 rejected; 20d primary hold + 5/10/60 robustness; bootstrap "
-        "excess-return 95% CI must exclude zero; >=100-event floor. Matched-control engine + verdict tree "
-        "BUILT + unit-tested (app/altdata/matched_control.py). Verdict DATA-GATED on the deploy gate "
-        "(migration + ingest) and the USAspending cross-check calibrating the disclosure lag. No book "
-        "until Approved.",
+        "Pre-registered (plan v0.2 - locked calibration + decision gates): a MATCHED-CONTROL benchmark "
+        "(same sector + mktcap/ADV/6m-momentum decile +/-1, clean of same-event-type) so the test is "
+        "residual alpha, not the sector/size beta that got INSIDER-001 rejected; net-of-cost bootstrap 95% "
+        "CI must exclude zero; >=100-benchmarked-event gate. RAN end-to-end on the box (890,114 events, "
+        "2018-2026; USAspending-validated mapping) -> terminated INTERIM Insufficient Evidence: only 10 of "
+        "123 material events benchmarked (< 100 gate), and that sample is fragile (excess-return sign flips "
+        "across reasonable disclosure lags). NOT a gate-relaxing failure - it is COVERAGE-LIMITED: materiality "
+        "(0.25% of mktcap) selects small-caps, but the factor-data universe (1,254 SEP tickers) is small-cap-"
+        "sparse, so most events lack >=10 same-decile controls. Path to a real verdict = broaden small-cap "
+        "SEP+SF1 coverage (data provisioning), NOT lower the thresholds. No book. Evidence: "
+        "evidence/govcontract_001/GOVCONTRACT001_InterimResult_v0.1.md.",
         "docs/implementation/TradingWorkbench_GOVCONTRACT001_Plan_v0.1.md"),
 )
 
