@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily incremental Sharadar SEP refresh for the live factor store (ADR 0032)
+After=docker.service
+Wants=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/workbench/app
+ExecStart=/bin/bash /opt/workbench/app/deploy/aws/factor-refresh.sh
+# The job stops+starts the backend for an atomic store swap; give it headroom.
+TimeoutStartSec=900

@@ -1,0 +1,8 @@
+[Unit]
+Description=Factor-data refresh: 06:00 ET pre-market, weekdays (ADR 0032)
+[Timer]
+OnCalendar=Mon-Fri 06:00
+AccuracySec=2min
+Persistent=false
+[Install]
+WantedBy=timers.target
