@@ -56,7 +56,7 @@ $COMPOSE run --rm --no-deps \
   -e WORKBENCH_FACTOR_DATA_DB_PATH=/app/data/factor_data.staging.duckdb \
   backend python scripts/ingest_sharadar.py \
     --tickers-file "$UNIVERSE_FILE" \
-    --datasets sep,actions --from-date "$FROM"
+    --datasets sep,actions --from "$FROM"
 log "ingested SEP/actions since ${FROM} into staging"
 
 # 3) shortest-downtime atomic swap
