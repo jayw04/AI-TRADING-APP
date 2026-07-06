@@ -193,3 +193,27 @@ def test_normalized_weekly_cron_fires_on_monday():
     nxt = trigger.get_next_fire_time(None, base)
     assert nxt.weekday() == 0  # Monday
     assert (nxt.hour, nxt.minute) == (14, 0)
+
+
+def test_strategy_schedule_is_eastern_time_pinned_across_dst():
+    """★ The drift fix: strategy crons are evaluated in Eastern time, so a market-clock
+    schedule fires at the same ET wall-time year-round — NOT a fixed UTC hour that slides
+    vs the 09:30 open across daylight saving. '0 10 * * mon' = 10:00 ET in both seasons:
+    14:00 UTC in summer (EDT) and 15:00 UTC in winter (EST)."""
+    from zoneinfo import ZoneInfo
+
+    from apscheduler.triggers.cron import CronTrigger
+
+    from app.strategies.engine import _STRATEGY_SCHEDULE_TZ
+
+    assert str(_STRATEGY_SCHEDULE_TZ) == "America/New_York"
+    et = ZoneInfo("America/New_York")
+    trigger = CronTrigger.from_crontab("0 10 * * mon", timezone=_STRATEGY_SCHEDULE_TZ)
+
+    summer = trigger.get_next_fire_time(None, datetime(2026, 7, 6, 6, 0, tzinfo=UTC))
+    assert (summer.astimezone(et).hour, summer.astimezone(et).minute) == (10, 0)
+    assert summer.astimezone(UTC).hour == 14  # 10:00 EDT == 14:00 UTC
+
+    winter = trigger.get_next_fire_time(None, datetime(2026, 1, 5, 6, 0, tzinfo=UTC))
+    assert (winter.astimezone(et).hour, winter.astimezone(et).minute) == (10, 0)
+    assert winter.astimezone(UTC).hour == 15  # 10:00 EST == 15:00 UTC

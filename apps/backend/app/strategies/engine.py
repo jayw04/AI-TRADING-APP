@@ -41,6 +41,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -87,6 +88,16 @@ DISPATCH_HEALTH_CHECK_MINUTES = 5
 # weekly strategy by a day. We translate numeric dow tokens to unambiguous day
 # NAMES (which APScheduler interprets identically to cron) before scheduling.
 _CRON_DOW_NAMES = {0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"}
+
+# Strategy schedules are EASTERN-TIME (market clock). The WorkbenchScheduler is an
+# AsyncIOScheduler(timezone="America/New_York") and StrategyEngine shares that instance,
+# BUT ``CronTrigger.from_crontab(expr)`` with no timezone= defaults to the process-local
+# tz (UTC in the container) — silently overriding the scheduler's ET tz. That made a
+# ``0 14 * * mon`` schedule fire at 14:00 UTC = 10:00 ET in summer but 09:00 ET in winter,
+# drifting vs the 09:30 market open across DST. Pinning from_crontab to ET keeps every
+# strategy schedule on the market clock year-round (and consistent with the scheduler's
+# own ET jobs). Schedule STRINGS are therefore ET-hour values (e.g. "0 10" = 10:00 ET).
+_STRATEGY_SCHEDULE_TZ = ZoneInfo("America/New_York")
 
 
 def _normalize_crontab_dow(expr: str) -> str:
@@ -457,14 +468,16 @@ class StrategyEngine:
         if schedule != "event":
             job_id = f"strategy:{strategy_id}:on_bar"
             try:
-                cron = CronTrigger.from_crontab(_normalize_crontab_dow(schedule))
+                cron = CronTrigger.from_crontab(
+                    _normalize_crontab_dow(schedule), timezone=_STRATEGY_SCHEDULE_TZ
+                )
             except Exception:
                 logger.warning(
                     "strategy_schedule_invalid_falling_back",
                     strategy_id=strategy_id,
                     schedule=schedule,
                 )
-                cron = CronTrigger.from_crontab("*/1 * * * *")
+                cron = CronTrigger.from_crontab("*/1 * * * *", timezone=_STRATEGY_SCHEDULE_TZ)
             self._scheduler.add_job(
                 self._dispatch_bar_tick,
                 cron,
@@ -490,7 +503,7 @@ class StrategyEngine:
             overlay_job_id = f"strategy:{strategy_id}:overlay"
             try:
                 overlay_cron = CronTrigger.from_crontab(
-                    _normalize_crontab_dow(str(overlay_schedule))
+                    _normalize_crontab_dow(str(overlay_schedule)), timezone=_STRATEGY_SCHEDULE_TZ
                 )
             except Exception:
                 logger.warning(
