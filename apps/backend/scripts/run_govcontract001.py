@@ -59,7 +59,7 @@ def main() -> None:
     with EventStore(args.events_db, read_only=True) as store:
         events = store.events_asof_eligible(date.today(), event_type="gov_contract_award")
     if not events:
-        print("no research-eligible gov_contract_award events — run the migration + ingest first.")
+        print("no research-eligible gov_contract_award events - run the migration + ingest first.")
         return
 
     points, exclude = _dedupe_overlapping(events, args.hold_days)
