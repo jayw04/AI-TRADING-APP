@@ -1,0 +1,8 @@
+[Unit]
+Description=Daily report: 16:35 ET after close, weekdays
+[Timer]
+OnCalendar=Mon-Fri 16:35
+AccuracySec=1min
+Persistent=false
+[Install]
+WantedBy=timers.target
