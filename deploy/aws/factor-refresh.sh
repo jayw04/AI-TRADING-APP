@@ -52,12 +52,19 @@ log "derived refresh universe from the live books"
 
 # 2) incremental upsert of recent SEP (+ corporate actions) into STAGING, via a one-off container
 #    that reuses the backend image (has ingest_sharadar.py, deps, and the .env / Nasdaq key).
+# Refresh sep + actions (prices) AND tickers (reference metadata). The tickers table's
+# `lastpricedate` gates the point-in-time universe (dollar_volume_universe filters
+# lastpricedate >= as_of), so if SEP prices advance PAST a stale lastpricedate the universe
+# resolves EMPTY and every factor book HOLDS instead of rebalancing (incident 2026-07-06:
+# refresh advanced SEP to 07-02 but tickers.lastpricedate stayed 06-12 -> all books held).
+# Keep prices and tickers metadata in lockstep. (tickers is a full ref-table pull; it ignores
+# --tickers-file/--from.)
 $COMPOSE run --rm --no-deps \
   -e WORKBENCH_FACTOR_DATA_DB_PATH=/app/data/factor_data.staging.duckdb \
   backend python scripts/ingest_sharadar.py \
     --tickers-file "$UNIVERSE_FILE" \
-    --datasets sep,actions --from "$FROM"
-log "ingested SEP/actions since ${FROM} into staging"
+    --datasets sep,actions,tickers --from "$FROM"
+log "ingested SEP/actions/tickers since ${FROM} into staging"
 
 # 3) shortest-downtime atomic swap
 $COMPOSE stop backend
@@ -70,7 +77,12 @@ sleep 20
 $COMPOSE exec -T backend python - <<'PY' || true
 import duckdb
 c = duckdb.connect('/app/data/factor_data.duckdb', read_only=True)
-print("sep max date after refresh:", c.execute("SELECT max(date) FROM sep").fetchone()[0])
+sep_max = c.execute("SELECT max(date) FROM sep").fetchone()[0]
+tk_max = c.execute("SELECT max(lastpricedate) FROM tickers").fetchone()[0]
+print("sep max date after refresh:", sep_max, "| tickers.lastpricedate max:", tk_max)
+if sep_max is not None and tk_max is not None and tk_max < sep_max:
+    print("WARN: tickers.lastpricedate", tk_max, "is BEHIND sep", sep_max,
+          "-> point-in-time universe will be EMPTY for recent dates; factor books will HOLD.")
 c.close()
 PY
 if curl -fsS http://127.0.0.1:8000/healthz >/dev/null 2>&1; then
