@@ -41,6 +41,9 @@ tar xzf /tmp/code.tgz -C "$APP/app"
   echo "WORKBENCH_LIVE_TRADING_ALLOWED=false"
   echo "WORKBENCH_HOST_ID=${HOST_ID}"
   echo "AGENT_DAILY_BUDGET_USD=2.0"
+  # SEC EDGAR fair-access User-Agent (org + contact) — public, non-secret config, NOT in SSM.
+  # Required by the Security Master (CAP-024) ticker->CIK map for EAD / GOVCONTRACT-001 ingestion.
+  echo "SEC_EDGAR_USER_AGENT=TradingWorkbench (GlobalComplyAI, LLC) jay.w0416@gmail.com"
   for KEY in WORKBENCH_MASTER_KEY MCP_BACKEND_TOKEN WORKBENCH_MCP_KEY ANTHROPIC_API_KEY \
              AGENT_API_KEY ALPACA_PAPER_API_KEY ALPACA_PAPER_API_SECRET \
              NASDAQ_DATA_LINK_API_KEY FMP_API_KEY QUIVER_API_KEY; do
