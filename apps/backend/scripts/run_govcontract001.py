@@ -69,7 +69,8 @@ def main() -> None:
         print("no research-eligible gov_contract_award events - run the migration + ingest first.")
         return
 
-    factor_store = FactorDataStore(args.factor_db) if args.factor_db else FactorDataStore()
+    # read-only: the live app holds the factor-store write lock (research is read-only anyway)
+    factor_store = FactorDataStore(args.factor_db, read_only=True)
     feature_fn = factor_feature_fn(factor_store)
     mktcap_fn = factor_mktcap_fn(factor_store)
     price_fn = make_price_fn(factor_store)
