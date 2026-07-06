@@ -24,10 +24,16 @@ entry-logic sub-study (2026-07-06) added a fourth, mechanistic leg of evidence �
 
 **Research Cost Saved.** Framed for a stakeholder, the outcome is not "a strategy was rejected." It is that
 the platform **prevented the deployment of an unprofitable strategy before any capital, live-trading risk,
-or months of further build-out were spent** — and left behind seven reusable capabilities that accelerate
-every future program. One strategy did not survive; seven capabilities did.
+or months of further build-out were spent** — and left behind eight reusable capabilities that accelerate
+every future program. One strategy did not survive; eight capabilities did.
 
-**The takeaway.** TradingWorkbench reduces *false positives*. It caught a convincing but unprofitable
-strategy on paper, with a transparent and reproducible evidence trail, before a dollar was put at risk.
-That the platform detected and disclosed a fault in its own data pipeline along the way — rather than
-quietly re-running the numbers — is one of the strongest trust signals it can produce.
+> **RNG-001 did not produce a tradable strategy, but it produced CAP-025 — a reusable intraday
+> replay and funnel-diagnostic capability now required for every future intraday study.** The archive
+> is a net-positive: a failed strategy became a permanent lift to the platform's evidence bar.
+
+**The takeaway.** TradingWorkbench reduces *false positives* — and the sharpest proof is that it did not
+merely reject RNG-001, it **rejected a tempting *fix* to RNG-001** after that fix produced attractive but
+non-robust in-sample evidence (per-trade PF 1.53). A date-clustered bootstrap and a train/test split
+exposed the apparent edge as a rally artifact, and nothing changed live. That the platform also detected
+and disclosed a fault in its own data pipeline along the way — rather than quietly re-running the numbers —
+is one of the strongest trust signals it can produce.
