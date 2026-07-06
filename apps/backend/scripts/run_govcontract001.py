@@ -71,12 +71,14 @@ def main() -> None:
 
     # read-only: the live app holds the factor-store write lock (research is read-only anyway)
     factor_store = FactorDataStore(args.factor_db, read_only=True)
-    feature_fn = factor_feature_fn(factor_store)
     mktcap_fn = factor_mktcap_fn(factor_store)
     price_fn = make_price_fn(factor_store)
 
     material = filter_material(events, mktcap_fn=mktcap_fn, lag_days=DISCLOSURE_LAG_PRIMARY)
     deduped, exclude = _dedupe_overlapping(material, HOLD_PRIMARY)
+    # the (small/mid-cap) event tickers must be in the candidate pool so they get features — the
+    # top-liquidity universe alone would drop them (which produced n_benchmarked=0 the first run).
+    feature_fn = factor_feature_fn(factor_store, always_include=frozenset(exclude))
     common = dict(price_fn=price_fn, feature_fn=feature_fn, exclude_fn=lambda _d: exclude,
                   min_controls=args.min_controls, n_resamples=args.n_resamples)
 
