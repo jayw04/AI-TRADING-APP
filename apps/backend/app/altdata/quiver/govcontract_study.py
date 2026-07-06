@@ -197,19 +197,36 @@ def is_robust(primary_outcome: str, sensitivity: dict[str, Any]) -> bool:
 
 # --- factor-store adapters (DATA-GATED — need the factor spine; not unit-tested) --------------
 
-def _adv(factor_store: Any, ticker: str, as_of: date, lookback: int) -> float | None:
-    """Average dollar volume over the trailing ``lookback`` trading days (no store accessor)."""
-    df = factor_store.get_prices(ticker, as_of - timedelta(days=lookback * 2 + 10), as_of)
-    if df is None or df.empty:
-        return None
-    dv = (df["close"] * df["volume"]).tail(lookback)
-    return float(dv.mean()) if len(dv) else None
+def _batch_adv(factor_store: Any, tickers: Sequence[str], as_of: date, lookback: int) -> dict[str, float]:
+    """Average dollar volume per ticker over the trailing window — ONE query for the whole universe
+    (a per-ticker get_prices loop is ~1000× slower and made the study intractable)."""
+    if not tickers:
+        return {}
+    lo = as_of - timedelta(days=lookback * 2 + 10)
+    ph = ",".join("?" for _ in tickers)
+    rows = factor_store.con.execute(
+        f"SELECT ticker, avg(close * volume) FROM sep WHERE ticker IN ({ph}) "
+        "AND date BETWEEN ? AND ? GROUP BY ticker",
+        [*tickers, lo, as_of],
+    ).fetchall()
+    return {t: float(v) for t, v in rows if v is not None}
 
 
-def factor_feature_fn(factor_store: Any, *, n_universe: int = 500, universe_lookback: int = 63,
-                      momentum_lookback: int = 126, adv_lookback: int = 63):
-    """``feature_fn(as_of) -> list[CandidateFeatures]`` over the factor spine (Sharadar sector, not
-    GICS; ADV computed from ``sep``). Cached per as-of date. Data-gated."""
+def _mcap(sf1: Any, ticker: str) -> float | None:
+    if hasattr(sf1, "index") and ticker in sf1.index and "marketcap" in sf1.columns:
+        v = sf1.loc[ticker, "marketcap"]
+        return float(v) if v is not None else None
+    return None
+
+
+def factor_feature_fn(factor_store: Any, *, n_universe: int = 2000, universe_lookback: int = 63,
+                      momentum_lookback: int = 126, adv_lookback: int = 63,
+                      always_include: frozenset[str] = frozenset()):
+    """``feature_fn(as_of) -> list[CandidateFeatures]`` over the factor spine. The candidate pool is
+    the as-of dollar-volume universe (``n_universe`` large enough to span the FULL size spectrum, so
+    a small-cap event finds same-market-cap-decile controls) UNIONED with ``always_include`` (the
+    event tickers, so a small/mid-cap contractor below the liquidity cut still gets features). ADV is
+    a single batch query per date. Sharadar sector (not GICS). Cached per as-of date. Data-gated."""
     from app.factor_data.factors.momentum import compute_momentum_batch
     from app.factor_data.universe import universe_asof
 
@@ -218,16 +235,14 @@ def factor_feature_fn(factor_store: Any, *, n_universe: int = 500, universe_look
     def feature_fn(as_of: date) -> list[CandidateFeatures]:
         if as_of in cache:
             return cache[as_of]
-        tickers = universe_asof(factor_store, as_of, n=n_universe, lookback_days=universe_lookback)
+        pool = universe_asof(factor_store, as_of, n=n_universe, lookback_days=universe_lookback)
+        tickers = list(dict.fromkeys([*pool, *always_include]))     # union, order-stable, de-duped
         sectors = factor_store.get_sectors(tickers)
         sf1 = factor_store.get_sf1_asof(tickers, as_of)
         mom = compute_momentum_batch(factor_store, tickers, as_of, lookback_days=momentum_lookback)
-        feats: list[CandidateFeatures] = []
-        for t in tickers:
-            mcap = (float(sf1.loc[t, "marketcap"])
-                    if (hasattr(sf1, "index") and t in sf1.index and "marketcap" in sf1.columns)
-                    else None)
-            feats.append(CandidateFeatures(t, sectors.get(t), mcap, _adv(factor_store, t, as_of, adv_lookback), mom.get(t)))
+        adv = _batch_adv(factor_store, tickers, as_of, adv_lookback)
+        feats = [CandidateFeatures(t, sectors.get(t), _mcap(sf1, t), adv.get(t), mom.get(t))
+                 for t in tickers]
         cache[as_of] = feats
         return feats
 
