@@ -210,8 +210,16 @@ class StrategyContext:
             return pd.DataFrame(columns=["t", "o", "h", "l", "c", "v"])
 
         now = datetime.now(UTC)
-        hours_back = _LOOKBACK_HOURS_BY_TF.get(timeframe, 24)
-        start = now - timedelta(hours=hours_back)
+        # The fetch window must cover at least ``n`` bars. The per-timeframe values are a floor;
+        # for daily bars a large ``n`` needs a wider window than the 1-year default, else
+        # get_recent_bars(n) silently caps at ~251 trading days no matter how deep the cache
+        # (this starved the combined-book cross-asset sleeve, which needs ~338 trading days).
+        # ~1.6× calendar days covers weekends/holidays.
+        if timeframe == "1Day":
+            days_back = max(365, int(n * 1.6) + 10)
+            start = now - timedelta(days=days_back)
+        else:
+            start = now - timedelta(hours=_LOOKBACK_HOURS_BY_TF.get(timeframe, 24))
         df = await self._bar_cache.get_bars(symbol.upper(), timeframe, start, now)
         return df.tail(n).reset_index(drop=True)
 

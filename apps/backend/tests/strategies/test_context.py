@@ -215,6 +215,22 @@ async def test_get_recent_bars_returns_empty_for_unauthorized_symbol(
     assert df.empty
 
 
+async def test_get_recent_bars_daily_window_scales_with_n(session_factory, seeded):
+    """★ get_recent_bars('1Day', n) must fetch a window covering >= n trading days. A fixed
+    1-year window silently capped large-n daily requests at ~251 bars regardless of cache
+    depth, which starved the combined-book cross-asset sleeve (needs ~338 trading days)."""
+    from datetime import UTC, datetime
+
+    ctx, _ = _ctx(session_factory, symbols=["AAPL"])
+    ctx._bar_cache.get_bars = AsyncMock(
+        return_value=pd.DataFrame(columns=["t", "o", "h", "l", "c", "v"])
+    )
+    await ctx.get_recent_bars("AAPL", "1Day", n=338)
+    start = ctx._bar_cache.get_bars.call_args.args[2]  # (symbol, timeframe, start, end)
+    span_days = (datetime.now(UTC) - start).days
+    assert span_days >= int(338 * 1.4), f"daily window only {span_days}d — too short for n=338"
+
+
 async def test_log_signal_publishes_on_bus_after_commit(session_factory, seeded):
     """When a bus is passed, log_signal must publish ``signal.new`` AFTER the
     DB commit so subscribers reading back from the DB see the row."""
