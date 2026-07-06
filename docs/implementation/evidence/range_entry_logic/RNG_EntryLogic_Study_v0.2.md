@@ -3,11 +3,24 @@
 | Field | Value |
 |---|---|
 | Date | 2026-07-06 |
-| Program | RNG-001 (Range Trader) — entry-logic sub-study |
-| Status | Complete |
+| Version | v0.2 (adds day-level portfolio results, date-clustered bootstrap, promotion-gate scorecard, denominator + activation-timing precision — per owner review) |
+| Program | RNG-001 (Range Trader) — entry-logic sub-study (final supporting evidence) |
+| Status | Complete · **Archived** as part of RNG-001 |
 | Verdict | **Rejected** — no robust tradable edge; RNG-001 rejection stands and is strengthened |
-| Live impact | **None** (no change to the live Range strategy) |
-| Related | RNG-001 case study; ADR 0028 (range auto-select); `range_strategy_research_program` |
+| Live impact | **None.** This result does **not** justify raising levels, enabling new entries, or increasing allocation. The live Range strategy remains unchanged (and may be retired from active paper evaluation). |
+| Related | RNG-001 case study + exec summary; CAP-025 (Intraday Replay & Entry-Funnel Diagnostics — the reusable tooling this study produced); ADR 0028 (range auto-select); `range_strategy_research_program` |
+
+**Denominator convention (read before the tables):** `fill%` is a fraction of **candidate-days**
+(a name-day that passed selection and had a valid opening range). `win%` and `stop%` are fractions
+of **filled trades** (not candidate-days). Per-trade P&L / PF are over **filled trades**. §3.5's
+day-level metrics are over **trading days** (the selected top-5 collapsed to one portfolio return
+per day). A "candidate-day" is one name on one day; a "trade" is a filled candidate-day.
+
+**Activation timing (precise):** the opening range is built from the six 5-Min bars 09:30–10:00 ET
+and **frozen at 10:00 ET**. Orders become eligible at 10:00; the **first actionable bar is the
+10:00–10:05 ET bar** (timestamped 10:00). The live system's `range_levels` signal is emitted ~10:05
+ET (one bar-close of processing lag after the 10:00 freeze); the replay's next-bar granularity
+approximates that — entries are only evaluated on bars timestamped ≥ 10:00, never inside the OR window.
 
 ## 1. Question
 
@@ -95,6 +108,27 @@ this because the late-half rally dominated the averages. E-vwap+gate is the **be
 halves** — the confirmation mechanism is a real structural improvement — but "best" is not
 "profitable": in the early half even the best variant bleeds.
 
+### 3.5 Day-level portfolio + date-clustered bootstrap (the decisive test)
+
+Candidate-days on the same day are **not independent** — the five selected names share one market
+regime — so per-trade PF overstates significance. Collapsing each day's selected top-5 to one
+**equal-weight portfolio return** (idle capital = 0 on non-fills) and bootstrapping **over days**
+(date-clustered, 2000 resamples) is the honest test. It is also the form of the owner's promotion
+gate ("Bootstrap CI above zero").
+
+| Window | Variant | mean/day | winning-days | fills/day | total | maxDD | worst day | **date-clustered 95% CI** |
+|---|---|---|---|---|---|---|---|---|
+| FULL 6mo (105d) | A base | −0.044% | 30% | 2.50 | −4.6% | −6.1% | −0.60% | [−0.118%, +0.036%] |
+| FULL 6mo (105d) | **E-vwap+gate** | +0.079% | 45% | 1.83 | +8.3% | −3.7% | −0.78% | **[−0.010%, +0.181%]** |
+| TRAIN (52d) | E-vwap+gate | −0.055% | 33% | 1.63 | −2.9% | −3.7% | −0.78% | [−0.126%, +0.015%] |
+| TEST/rally (53d) | E-vwap+gate | +0.212% | 57% | 2.02 | +11.2% | −0.7% | −0.54% | **[+0.057%, +0.414%]** |
+
+**The per-trade "PF 1.53" does not survive day-level clustering.** On the full sample E-vwap+gate's
+day-clustered CI is **[−0.010%, +0.181%] — it spans zero**, and winning-days is **45% (< 50%)**. The
+positive mean is entirely a **test-half (rally) effect** (CI strictly above zero only there); the
+train half is negative. This is the strongest form of the rejection: even the best variant fails the
+"bootstrap CI above zero" bar once within-day correlation is respected.
+
 ## 4. Decision-rule scorecard — E-vwap+gate
 
 | # | Condition | Full sample | With OOS split |
@@ -107,6 +141,20 @@ halves** — the confirmation mechanism is a real structural improvement — but
 | 6 | Survives multiple regimes/periods | ✅ (pooled) | ❌ (train ≠ test) |
 
 Passes 5/6 on the full sample; **the train/test split fails 2, 3, 6 → Rejected.**
+
+### 4.1 Against the owner's formal promotion gate (`range_strategy_research_program`)
+
+| Gate condition | E-vwap+gate | Pass? |
+|---|---|---|
+| Trades > 100 | ~192 filled (selected) | ✅ |
+| Profit Factor > 1.2 | 1.53 per-trade (full sample) | ✅ |
+| Win Rate > 50% | 33% of fills / 45% winning-days | ❌ |
+| MaxDD not worse than baseline | −3.7% vs A −6.1% | ✅ |
+| Expectancy positive | +0.079%/day full, **−0.055%/day train (OOS)** | ❌ |
+| **Bootstrap CI above zero** | **[−0.010%, +0.181%] spans zero** | ❌ |
+
+Fails **3 of 6** gate conditions — Win Rate, out-of-sample Expectancy, and the load-bearing
+**Bootstrap CI**. **Not promotable.**
 
 ## 5. Verdict
 
@@ -138,4 +186,23 @@ Backend-container scripts (run against the 5-Min bar cache):
 - `apps/backend/scripts/research/range/backfill_intraday.py` — month-chunked 5-Min backfill (18 names).
 - `apps/backend/scripts/research/range/range_funnel.py` — funnel diagnostic + bottleneck table.
 - `apps/backend/scripts/research/range/range_variant_study.py` — variant A/B/D/E replay, selection
-  filter, regime split, train/test OOS split.
+  filter, regime split, train/test OOS split, day-level portfolio + date-clustered bootstrap.
+
+## 8. Follow-on direction
+
+1. **Close RNG-001 stronger.** This sub-study is the **final supporting evidence** for RNG-001,
+   which now rests on four independent legs: (a) the original strategy rejection, (b) the entry-mode
+   comparison, (c) the corrected data-integrity re-run (ADR-0033), and (d) — here — a *mechanistic*
+   explanation of **why** the entry fails plus the rejection of a plausible fix. Mark RNG-001
+   **Completed · Rejected (Evidenced) · Archived.**
+2. **Stop tuning Range.** More levels/buffers/thresholds/gates are data mining; this study shows the
+   danger directly (the full-sample VWAP+gate looked promotable; the OOS split killed it). No further
+   RNG-001 parameter work.
+3. **Preserve the tooling as a capability — CAP-025 (Intraday Replay & Entry-Funnel Diagnostics).**
+   The intraday sequence replay, entry/target/stop funnel, post-activation fill diagnostics,
+   target-before-entry detection, regime split, and train/test time-split should be standard for any
+   future intraday strategy. Charter: `docs/implementation/evidence/cap_025/`.
+4. **If the VWAP-confirmation idea is pursued, it is a NEW strategy, not a Range patch** — an
+   *Opening-Range Reclaim / Momentum-Confirmation* mechanic (candidate program **ORM-001**), opened
+   only with (a) a materially **longer test window** than six months and (b) **pre-registered rules
+   before testing**. It must not resurface as "Range Trader with a tweak."

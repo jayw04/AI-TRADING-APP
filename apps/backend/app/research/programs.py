@@ -40,9 +40,13 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "docs/implementation/TradingWorkbench_P12_Session1_EdgeEvidence_Results_v0.1.md"),
     ResearchProgram(
         "RNG-001", "Range / Mean-Reversion", "Intraday mean reversion", "rejected",
-        "First formally-rejected strategy: best config PF 1.271, bootstrap mean-P&L 95% CI "
-        "[-$19.74, +$57.53] spans zero; walk-forward PF decays to 0.89. No edge.",
-        "docs/implementation/TradingWorkbench_RangeTrader_RejectionEvidence_v0.1.md"),
+        "First formally-rejected strategy (Completed / Rejected / Archived): best config PF 1.271, "
+        "bootstrap mean-P&L 95% CI [-$19.74, +$57.53] spans zero; walk-forward PF decays to 0.89. "
+        "Entry-logic sub-study (2026-07-06) added the mechanism: the OR-low fade is adversely selected "
+        "(fills into falling knives, misses breakouts); a VWAP-reclaim+market-gate fix looked promotable "
+        "(PF 1.53) but its day-clustered bootstrap CI [-0.010%,+0.181%] spans zero and a train/test split "
+        "exposes it as a rally artifact (train PF 0.68 vs test 2.68). No edge. Tooling -> CAP-025.",
+        "docs/implementation/evidence/range_entry_logic/RNG_EntryLogic_Study_v0.2.md"),
     ResearchProgram(
         "MF-001", "Multi-Factor", "Value + Quality blend", "inconclusive",
         "Re-tested on survivorship-free SF1 (P14): genuine diversifier (corr -0.09/-0.005), DD "
