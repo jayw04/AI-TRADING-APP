@@ -93,8 +93,17 @@ def filter_material(events: Sequence[CorporateEvent], *, mktcap_fn: MktCapFn,
     for ev in events:
         if ev.event_date is None or not ev.ticker:
             continue
+        amount = (ev.payload or {}).get("amount")
+        if amount is None:
+            continue
+        try:
+            amt = float(amount)
+        except (TypeError, ValueError):
+            continue
+        if amt < MATERIALITY_ABS_USD:            # cheap absolute pre-filter — avoids a market-cap
+            continue                             # lookup for the vast majority (sub-$250k) of awards
         entry = ev.event_date + timedelta(days=lag_days)
-        if is_material((ev.payload or {}).get("amount"), mktcap_fn(ev.ticker, entry)):
+        if is_material(amt, mktcap_fn(ev.ticker, entry)):   # market cap only for the survivors
             kept.append(ev)
     return kept
 
