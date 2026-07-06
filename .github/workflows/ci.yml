@@ -1,35 +1,165 @@
 name: CI
 
+# Usage-conscious triggers (P10, refined for cost control):
+# - Correctness gates run on PRs to main; expensive Docker image builds run only AFTER
+#   merge to main (Dockerfiles rarely break and are verified before they can ship).
+# - Feature-branch pushes never trigger this workflow directly (only via their PR).
+# - `concurrency` cancels superseded runs so rapid PR pushes collapse to one run.
+# - Draft PRs run ZERO jobs (the `changes` gate is skipped, and everything needs it).
+#
+# Cost-control refinements (see Docs/Cost Control.md):
+# 1. Python checks are path-filtered. The BACKEND project always runs; the 3 auxiliary
+#    Python projects (mcp-server, mcp-workbench, agent) run only when their folder
+#    changes. On push/dispatch/schedule, everything runs.
+# 2. Docker images rebuild only when their Dockerfile or dependency manifest changes — a
+#    source-only merge cannot break the build. A workflow change or a manual dispatch
+#    rebuilds all images to fully re-verify before a release.
+# 3. LIGHT / FULL split (the big PR-cost saver). PRs run LIGHT: ruff + mypy + the fast
+#    grep-based invariant checks (no pytest, no coverage gates). The slow pytest +
+#    coverage gates run FULL — on every push to main, on the nightly schedule, and on
+#    manual dispatch. Trade-off: a test/coverage regression surfaces at merge or nightly
+#    rather than on the PR; acceptable because the repo has no required-check branch
+#    protection (PR checks never blocked merge) and the push-to-main run catches it
+#    immediately on main.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+      - 'docs/**'
   pull_request:
     branches: [main]
+    # Skip CI entirely when a change touches ONLY docs (a run is skipped only if EVERY
+    # changed path matches). For a one-off doc commit you can also put [skip ci] in the
+    # message — GitHub honours it natively.
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+      - 'docs/**'
+  # Manual full run: rebuilds all images and runs all Python projects. Use before a
+  # stable milestone / release to verify everything at once.
+  workflow_dispatch: {}
+  # Nightly FULL run on main (07:00 UTC) — the safety net for the light/full split:
+  # PRs run LIGHT (lint + type + fast invariant checks, no pytest), while pytest +
+  # coverage gates run on every push to main AND here nightly. See below.
+  schedule:
+    - cron: "0 7 * * *"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Cheap (~10s) change detector. Computes the Python and Docker matrices so jobs whose
+  # inputs did not change are skipped. Backend Python is ALWAYS in the matrix.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    # Don't spend CI on a draft PR — everything needs this job, so a draft runs zero jobs.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    # dorny/paths-filter lists a PR's changed files via the API (needs pull-requests:read).
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      py_projects: ${{ steps.py.outputs.py_projects }}
+      docker_services: ${{ steps.docker.outputs.docker_services }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'apps/frontend/**'
+            mcp_server:
+              - 'apps/mcp-server/**'
+            mcp_workbench:
+              - 'apps/mcp-workbench/**'
+            agent:
+              - 'apps/agent/**'
+            docker_backend:
+              - 'apps/backend/Dockerfile'
+              - 'apps/backend/pyproject.toml'
+            docker_mcp_server:
+              - 'apps/mcp-server/Dockerfile'
+              - 'apps/mcp-server/pyproject.toml'
+            docker_workbench:
+              - 'apps/mcp-workbench/Dockerfile'
+              - 'apps/mcp-workbench/pyproject.toml'
+            docker_agent:
+              - 'apps/agent/Dockerfile'
+              - 'apps/agent/pyproject.toml'
+            docker_frontend:
+              - 'apps/frontend/Dockerfile.dev'
+              - 'apps/frontend/package.json'
+              - 'apps/frontend/pnpm-lock.yaml'
+            workflow:
+              - '.github/workflows/ci.yml'
+
+      # Backend always runs (load-bearing invariants). Aux projects run only when their
+      # folder changes — except on push/dispatch or a workflow edit, where all run.
+      - name: Compute Python matrix
+        id: py
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ] || [ "${{ steps.filter.outputs.workflow }}" = "true" ]; then
+            sel=(backend mcp-server mcp-workbench agent)
+          else
+            sel=(backend)
+            [ "${{ steps.filter.outputs.mcp_server }}" = "true" ] && sel+=(mcp-server)
+            [ "${{ steps.filter.outputs.mcp_workbench }}" = "true" ] && sel+=(mcp-workbench)
+            [ "${{ steps.filter.outputs.agent }}" = "true" ] && sel+=(agent)
+          fi
+          json='[]'
+          for p in "${sel[@]}"; do
+            case "$p" in backend) s=app;; *) s=src;; esac
+            json=$(printf '%s' "$json" | jq -c --arg p "$p" --arg d "apps/$p" --arg s "$s" '. + [{project:$p,dir:$d,src:$s}]')
+          done
+          json=$(printf '%s' "$json" | jq -c 'unique_by(.project)')
+          echo "py_projects=$json" >> "$GITHUB_OUTPUT"
+          echo "Python matrix: $json"
+
+      # Docker images rebuild only when their Dockerfile / dependency manifest changes.
+      # A workflow edit or a manual dispatch rebuilds all images to fully re-verify.
+      - name: Compute Docker matrix
+        id: docker
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ steps.filter.outputs.workflow }}" = "true" ]; then
+            sel=(backend mcp-server workbench-mcp agent frontend)
+          else
+            sel=()
+            [ "${{ steps.filter.outputs.docker_backend }}" = "true" ] && sel+=(backend)
+            [ "${{ steps.filter.outputs.docker_mcp_server }}" = "true" ] && sel+=(mcp-server)
+            [ "${{ steps.filter.outputs.docker_workbench }}" = "true" ] && sel+=(workbench-mcp)
+            [ "${{ steps.filter.outputs.docker_agent }}" = "true" ] && sel+=(agent)
+            [ "${{ steps.filter.outputs.docker_frontend }}" = "true" ] && sel+=(frontend)
+          fi
+          json='[]'
+          for svc in "${sel[@]}"; do
+            case "$svc" in
+              backend) ctx=apps/backend; df=apps/backend/Dockerfile;;
+              mcp-server) ctx=apps/mcp-server; df=apps/mcp-server/Dockerfile;;
+              workbench-mcp) ctx=apps/mcp-workbench; df=apps/mcp-workbench/Dockerfile;;
+              agent) ctx=apps/agent; df=apps/agent/Dockerfile;;
+              frontend) ctx=apps/frontend; df=apps/frontend/Dockerfile.dev;;
+            esac
+            json=$(printf '%s' "$json" | jq -c --arg s "$svc" --arg c "$ctx" --arg f "$df" '. + [{service:$s,context:$c,dockerfile:$f}]')
+          done
+          echo "docker_services=$json" >> "$GITHUB_OUTPUT"
+          echo "Docker matrix: $json"
+
   python-checks:
-    name: Python (${{ matrix.project }})
+    name: Python (${{ matrix.p.project }})
+    needs: changes
+    # Never empty when reached (backend is always present); guard is belt-and-suspenders.
+    if: needs.changes.outputs.py_projects != '' && needs.changes.outputs.py_projects != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - project: backend
-            dir: apps/backend
-            src: app
-          - project: mcp-server
-            dir: apps/mcp-server
-            src: src
-          - project: mcp-workbench
-            dir: apps/mcp-workbench
-            src: src
-          - project: agent
-            dir: apps/agent
-            src: src
+        p: ${{ fromJSON(needs.changes.outputs.py_projects) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,83 +168,97 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: ${{ matrix.dir }}/pyproject.toml
+          cache-dependency-path: ${{ matrix.p.dir }}/pyproject.toml
 
-      - name: Install ${{ matrix.project }}
-        working-directory: ${{ matrix.dir }}
+      - name: Install ${{ matrix.p.project }}
+        working-directory: ${{ matrix.p.dir }}
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
       - name: Ruff
-        working-directory: ${{ matrix.dir }}
+        working-directory: ${{ matrix.p.dir }}
         run: ruff check .
 
       - name: Mypy
-        working-directory: ${{ matrix.dir }}
-        run: mypy ${{ matrix.src }}
+        working-directory: ${{ matrix.p.dir }}
+        run: mypy ${{ matrix.p.src }}
 
-      - name: Pytest
-        working-directory: ${{ matrix.dir }}
-        run: pytest -q --cov=${{ matrix.src }} --cov-branch --cov-report=xml
+      # FULL only (push to main / nightly / dispatch): pytest + coverage gates are the
+      # slow part (~10 min). PRs run LIGHT — ruff + mypy + the fast bash invariant checks
+      # above/below — and the full test+coverage suite runs on every merge to main and
+      # nightly (the safety net). Trade-off: a test/coverage regression is caught at merge
+      # or nightly, not on the PR. The repo has no required-check branch protection, so PR
+      # checks never gated merge anyway; the push-to-main run catches it immediately on main.
+      - name: Pytest (full runs only)
+        if: github.event_name != 'pull_request'
+        working-directory: ${{ matrix.p.dir }}
+        run: pytest -q --cov=${{ matrix.p.src }} --cov-branch --cov-report=xml
 
       - name: Risk engine branch-coverage gate (backend)
-        if: matrix.project == 'backend'
-        working-directory: ${{ matrix.dir }}
+        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
+        working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_risk_coverage.py
 
       - name: P2 module branch-coverage gate (backend)
-        if: matrix.project == 'backend'
-        working-directory: ${{ matrix.dir }}
+        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
+        working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_p2_coverage.py
 
       - name: P3 module branch-coverage gate (backend)
-        if: matrix.project == 'backend'
-        working-directory: ${{ matrix.dir }}
+        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
+        working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_p3_coverage.py
 
       - name: Strategy isolation invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_strategy_isolation.sh
 
       - name: MCP read-only invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_mcp_readonly.sh
 
       - name: No-LLM-in-order-path invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_no_llm_in_order_path.sh
 
       - name: Broker isolation invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_broker_isolation.sh
 
+      - name: EAD order-path isolation invariant check (backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_altdata_order_path_isolation.sh
+
       - name: Credential env-isolation invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_no_env_credentials.sh
 
       - name: Audit immutability invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_audit_immutability.sh
 
       - name: Workbench-MCP read-only invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_workbench_mcp_readonly.sh
 
       - name: Agent no-DB-access invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_agent_no_db_access.sh
 
       - name: Eval-harness paper-only invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_eval_harness_paper_only.sh
 
       - name: LLM-opt-in bypass-gating invariant check (backend)
-        if: matrix.project == 'backend'
+        if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_llm_optin_bypass_gated.sh
 
   frontend-checks:
     name: Frontend
+    needs: changes
+    # Run when the frontend changed, or on any push/dispatch (full verification).
+    if: needs.changes.outputs.frontend == 'true' || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -149,39 +293,32 @@ jobs:
         run: pnpm test
 
   build-images:
-    name: Build image (${{ matrix.service }})
+    name: Build image (${{ matrix.img.service }})
+    needs: changes
+    # Docker builds are the most expensive jobs: only after merge to main (or a manual
+    # dispatch), and only for images whose Dockerfile/manifest changed (see Compute
+    # Docker matrix). Skipped entirely when nothing needs rebuilding.
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && needs.changes.outputs.docker_services != ''
+      && needs.changes.outputs.docker_services != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service: backend
-            context: apps/backend
-            dockerfile: apps/backend/Dockerfile
-          - service: mcp-server
-            context: apps/mcp-server
-            dockerfile: apps/mcp-server/Dockerfile
-          - service: workbench-mcp
-            context: apps/mcp-workbench
-            dockerfile: apps/mcp-workbench/Dockerfile
-          - service: agent
-            context: apps/agent
-            dockerfile: apps/agent/Dockerfile
-          - service: frontend
-            context: apps/frontend
-            dockerfile: apps/frontend/Dockerfile.dev
+        img: ${{ fromJSON(needs.changes.outputs.docker_services) }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.service }}
+      - name: Build ${{ matrix.img.service }}
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: ${{ matrix.img.context }}
+          file: ${{ matrix.img.dockerfile }}
           push: false
           load: false
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,scope=${{ matrix.service }},mode=max
+          cache-from: type=gha,scope=${{ matrix.img.service }}
+          cache-to: type=gha,scope=${{ matrix.img.service }},mode=max

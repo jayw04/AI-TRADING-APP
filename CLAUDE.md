@@ -48,9 +48,9 @@ The platform runs on the user's machine. The two external dependencies — Alpac
 
 Moving a strategy from idle to live requires a 24-hour cooldown for deterministic strategies, 7 days for LLM-driven variants. Cancellation during the cooldown is frictionless; activation is the expensive direction. Do not add code paths that bypass cooldowns "for testing" — testing happens against the cooldown system, not around it.
 
-### The thirteen CI invariants are load-bearing
+### The fourteen CI invariants are load-bearing
 
-Listed in roughly order of merge: ADR 0002 single-router, strategy isolation, risk coverage ≥95%, P2 module coverage, P3 module coverage, MCP read-only, broker isolation, no env credentials, audit immutability, workbench-MCP read-only, no-LLM-in-order-path, eval-harness-paper-only (P6b §4 — the LLM eval harness never routes orders to a live account, ADR 0006 v2), llm-opt-in-bypass-gated (P6b §5 — the only sanctioned LLM-in-order-path fires only behind an `active` `llm_opt_in` DB row + version pin + per-user cap, ADR 0006 v2 §5). Each enforces a property that cannot be re-introduced without breaking trust the platform has spent years earning. Disabling an invariant requires an ADR.
+Listed in roughly order of merge: ADR 0002 single-router, strategy isolation, risk coverage ≥95%, P2 module coverage, P3 module coverage, MCP read-only, broker isolation, no env credentials, audit immutability, workbench-MCP read-only, no-LLM-in-order-path, eval-harness-paper-only (P6b §4 — the LLM eval harness never routes orders to a live account, ADR 0006 v2), llm-opt-in-bypass-gated (P6b §5 — the only sanctioned LLM-in-order-path fires only behind an `active` `llm_opt_in` DB row + version pin + per-user cap, ADR 0006 v2 §5), and altdata-order-path-isolation (ADR 0037 — the EAD alt-data / Security-Master / opportunity-report packages import no order-path module; `check_altdata_order_path_isolation.sh`, lands with Phase 1 EAD ingestion). Each enforces a property that cannot be re-introduced without breaking trust the platform has spent years earning. Disabling an invariant requires an ADR.
 
 ---
 
@@ -58,7 +58,7 @@ Listed in roughly order of merge: ADR 0002 single-router, strategy isolation, ri
 
 ### Phase and session structure
 
-Work is organized into phases (P0, P1, P2, P3, P4, P5, P5.5, P6, P7) and sessions within phases. Each session ships as one or more PRs and is tagged when complete (`p5-session3-complete`, `p5-complete`, etc.). The phase docs in `docs/implementation/` are the authoritative plan; `todo.md` at the repo root tracks current status.
+Work is organized into phases (P0, P1, P2, P3, P4, P5, P5.5, P6, P7) and sessions within phases. Each session ships as one or more PRs and is tagged when complete (`p5-session3-complete`, `p5-complete`, etc.). The phase docs in `docs/implementation/` are the authoritative plan; `tasks/todo.md` tracks current status.
 
 Do not pivot phases mid-session without explicit developer instruction. If a session reveals that the phase plan is wrong, surface that as a finding; do not rewrite the plan unilaterally.
 
@@ -141,10 +141,11 @@ If the developer confirms the request is intentional, the next step is usually a
 
 ## Working environment notes
 
+- **⚠️ RUNTIME IS AWS — NEVER RUN THE LOCAL STACK.** The live paper application runs **only** on the AWS EC2 box `ec2-paper` (ADR 0032 cutover 2026-06-30/07-02). The developer's laptop is **warm standby**: the local Docker stack must **not** be started. Running it dual-arms the Alpaca data websocket (conflicts with AWS) and any operational change lands on a **dead standby DB**, not the live book. The laptop autostart is guard-disabled (`scripts/workbench-autostart.bat` no-ops unless `WORKBENCH_ALLOW_LOCAL=1`) and its scheduler tasks are disabled. **Operate the live app on the box via SSH** (`ssh workbench` → `sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml …`; app ports are loopback + SSH-only SG, so `curl` the EIP times out by design — that is NOT "down"). Deploy code changes to the box per the recipe in the `aws_migration_phase1` memory. Only `docker compose` *build/config* checks and offline tests belong on the laptop.
 - **Repo**: `github.com/jayw04/AI-TRADING-APP`
 - **Default branch**: `main`
 - **Tagging convention**: `p<N>-session<M>-complete` for sessions; `p<N>-complete` for phase completions; descriptive tags like `p4-tv-webhooks-complete` for out-of-order P4 items.
-- **Local Docker stack**: `docker compose` brings up backend, MCP server, frontend; `./scripts/dev.sh` is the convenience launcher.
+- **Local Docker stack** (⚠ standby only — see the RUNTIME note above; do not start it to trade): `docker compose` builds backend, MCP server, frontend; used for build/config verification, not for running the live app.
 - **Backend**: Python 3.12 + FastAPI + SQLAlchemy 2.x async + Alembic + SQLite (WAL mode). Tooling: `uv`, `ruff`, `pytest`.
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind + React Query + Zustand. Tooling: `pnpm`.
 - **Two MCP servers**: chart-data MCP at `127.0.0.1:8765` (read-only, P3), workbench-MCP at `127.0.0.1:8766` (read-only, P5.5 §3 — `apps/mcp-workbench/`; SSE; per-user `WORKBENCH_MCP_KEY` bearer auth; agent guide in `apps/mcp-workbench/CLAUDE.md`).

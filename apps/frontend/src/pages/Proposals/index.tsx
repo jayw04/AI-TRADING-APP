@@ -64,6 +64,10 @@ function ProposalDetail({ proposal }: { proposal: Proposal }) {
     mutationFn: () => proposalsApi.apply(proposal.id),
     onSuccess: invalidate,
   });
+  const rerunEval = useMutation({
+    mutationFn: () => proposalsApi.rerunEval(proposal.id),
+    onSuccess: invalidate,
+  });
 
   const p = proposal.proposal_payload;
   return (
@@ -93,6 +97,16 @@ function ProposalDetail({ proposal }: { proposal: Proposal }) {
       )}
 
       <EvalPanel ev={proposal.evaluation_results} />
+      {proposal.evaluation_results?.status === "failed" && (
+        <button
+          type="button"
+          onClick={() => rerunEval.mutate()}
+          disabled={rerunEval.isPending}
+          className="mt-2 rounded bg-blue-900/50 px-2 py-1 text-xs font-medium text-blue-300 hover:bg-blue-900/70 disabled:opacity-50"
+        >
+          {rerunEval.isPending ? "Re-running…" : "Re-run evaluation"}
+        </button>
+      )}
 
       <details className="mt-2">
         <summary className="cursor-pointer text-neutral-500">Evidence bundle</summary>
@@ -172,6 +186,15 @@ export default function Proposals() {
     queryKey: ["proposals", "list", filter],
     queryFn: () =>
       proposalsApi.list(filter === "ALL" ? {} : { state: filter }),
+    // P2 (review): while any eval is pending/running, poll so the panel updates to the
+    // verdict on its own (it used to show "Backtest pending" until a manual refresh).
+    refetchInterval: (query) =>
+      (query.state.data?.items ?? []).some((p) =>
+        p.evaluation_results?.status === "pending" ||
+        p.evaluation_results?.status === "running",
+      )
+        ? 5000
+        : false,
   });
 
   const awaiting = useQuery({
@@ -204,8 +227,11 @@ export default function Proposals() {
         )}
       </div>
       <p className="mt-1 text-xs text-neutral-400">
-        The agent suggests parameter adjustments for your strategies. You review,
-        accept, and explicitly apply — nothing changes a strategy until you do.
+        Pick one of <span className="text-neutral-200">your existing strategies</span> below — the
+        agent suggests <span className="text-neutral-200">parameter adjustments</span> for it (e.g.
+        entry/exit levels, position sizing). This page tunes strategies you already created; it does
+        not screen or pick tickers. You review, accept, and explicitly apply — nothing changes until
+        you do.
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
@@ -214,7 +240,7 @@ export default function Proposals() {
           onChange={(e) => setStrategyId(e.target.value === "" ? "" : Number(e.target.value))}
           className="rounded bg-neutral-800 px-2 py-1 text-sm text-white"
         >
-          <option value="">Select a strategy…</option>
+          <option value="">Select one of your strategies…</option>
           {(strategies.data?.items ?? []).map((s) => (
             <option key={s.id} value={s.id}>
               {s.name} (#{s.id})

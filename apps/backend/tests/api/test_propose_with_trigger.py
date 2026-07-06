@@ -35,7 +35,7 @@ async def _seed(client, monkeypatch):
         )
         await s.commit()
 
-    async def fake(agent_url, proposal_id):
+    async def fake(agent_url, proposal_id, agent_api_key):
         async with get_sessionmaker()() as s:
             row = await s.get(StrategyProposal, proposal_id)
             row.state = ProposalState.REVIEWING
@@ -45,6 +45,11 @@ async def _seed(client, monkeypatch):
         return {"proposal_id": proposal_id, "state": "REVIEWING", "error": None}
 
     monkeypatch.setattr(proposals_mod, "_invoke_agent", fake)
+
+    async def fake_key(session, user_id: int) -> str:
+        return "test-agent-key"
+
+    monkeypatch.setattr(proposals_mod, "_resolve_user_agent_key", fake_key)
     return client
 
 

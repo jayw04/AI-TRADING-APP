@@ -39,6 +39,13 @@ class Strategy:
     # OR the literal string "event" for purely event-driven strategies.
     schedule: ClassVar[str] = "*/1 * * * *"
 
+    # P10 §2 (ADR 0020): optional SECOND cadence for a daily gross-exposure overlay
+    # tick (``on_overlay_tick``), independent of the weekly ``schedule``. Class-level
+    # default; a strategy may override it per-instance via the ``daily_overlay_schedule``
+    # param (the engine reads param-or-classvar, gated by the ``use_daily_overlay``
+    # param so the overlay is opt-in / default-off). ``None`` = no overlay cadence.
+    daily_overlay_schedule: ClassVar[str | None] = None
+
     # Default parameter dict. Merged with the registered strategy's
     # params_json (registered values override defaults).
     default_params: ClassVar[dict[str, Any]] = {}
@@ -66,6 +73,15 @@ class Strategy:
 
     async def on_signal(self, signal: SignalEvent) -> None:
         """Called when a signal scoped to this strategy is emitted by another component."""
+        pass
+
+    async def on_overlay_tick(self) -> None:
+        """Called at the optional daily overlay cadence (P10 §2, ADR 0020).
+
+        The overlay re-sizes *gross exposure* of the already-held book without
+        re-selecting names — it must not change which symbols are held. Default no-op
+        (a strategy that declares no ``daily_overlay_schedule`` never gets this tick).
+        Compute → validate → execute → audit; fail open (no scaling) on bad data."""
         pass
 
     async def on_fill(self, fill: FillEvent) -> None:

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # ADR 0017 — OS trust store before any HTTPS (a standalone script must do this
@@ -45,7 +45,7 @@ except Exception:
 from app.factor_data.providers.sharadar import SharadarConfigError, SharadarProvider  # noqa: E402
 from app.factor_data.store import FactorDataStore  # noqa: E402
 
-ALL_DATASETS = ("tickers", "sep", "actions")
+ALL_DATASETS = ("tickers", "sep", "actions", "sf1")
 
 
 def _parse_tickers(args: argparse.Namespace) -> list[str]:
@@ -85,6 +85,14 @@ def main(argv: list[str] | None = None) -> int:
         help="date.gte filter for SEP/ACTIONS (YYYY-MM-DD) — bound the pull so a broad "
         "ticker list stays within the 1M-rows/day cap (e.g. a paper-universe ingest).",
     )
+    ap.add_argument(
+        "--skip-deep-enough",
+        action="store_true",
+        help="DEEPEN resume: skip a ticker's SEP only when its existing earliest date is already "
+        "<= --from (i.e. deep enough). Unlike --skip-existing (skips on mere presence, so it would "
+        "never deepen), this makes a multi-day back-fill re-runnable — each day it pulls only the "
+        "tickers still shallower than --from. Requires --from.",
+    )
     args = ap.parse_args(argv)
     sep_filters: dict[str, str] = {"date.gte": args.from_date} if args.from_date else {}
 
@@ -95,10 +103,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     tickers = _parse_tickers(args)
-    if ("sep" in datasets or "actions" in datasets) and not tickers:
+    per_ticker = [d for d in ("sep", "actions", "sf1") if d in datasets]
+    if per_ticker and not tickers:
         print(
-            "no tickers given — SEP/ACTIONS need an explicit --tickers/--tickers-file scope "
-            "(a full-market SEP pull would exceed the 1M/day rate limit). "
+            "no tickers given — SEP/ACTIONS/SF1 need an explicit --tickers/--tickers-file scope "
+            "(a full-market pull would exceed the 1M/day rate limit). "
             "Use --datasets tickers to ingest only the reference table.",
             file=sys.stderr,
         )
@@ -115,26 +124,66 @@ def main(argv: list[str] | None = None) -> int:
         if "tickers" in datasets:
             _run(store, "tickers", lambda: store.ingest_tickers(provider.fetch_table("TICKERS", table="SEP")))
 
-        if "sep" in datasets or "actions" in datasets:
-            existing = set()
+        if per_ticker:
+            # per-dataset "already ingested" sets for --skip-existing resume across rate-limit
+            # days. SEP/ACTIONS resume off `sep` (the original behavior); SF1 off `sf1_fundamentals`.
+            existing: dict[str, set[str]] = {}
             if args.skip_existing:
-                existing = {
-                    r[0]
-                    for r in store.con.execute("SELECT DISTINCT ticker FROM sep").fetchall()
+                if "sep" in datasets or "actions" in datasets:
+                    existing["sep"] = {
+                        r[0] for r in store.con.execute("SELECT DISTINCT ticker FROM sep").fetchall()
+                    }
+                if "sf1" in datasets:
+                    existing["sf1"] = {
+                        r[0] for r in
+                        store.con.execute("SELECT DISTINCT ticker FROM sf1_fundamentals").fetchall()
+                    }
+            # DEEPEN resume: a ticker is "deep enough" when its earliest SEP date is already <= --from.
+            deep_enough: set[str] = set()
+            if args.skip_deep_enough:
+                if not args.from_date:
+                    print("--skip-deep-enough requires --from", file=sys.stderr)
+                    return 2
+                # "deep enough" tolerance: a ticker whose real history reaches --from has its earliest
+                # row on the first TRADING day >= --from (e.g. --from 2017-01-01 → 2017-01-03), so an
+                # exact `<= --from` never matches. Allow a small window so already-deepened tickers are
+                # correctly skipped. (Tickers that IPO'd after --from stay "shallow" and would re-pull on
+                # a resume — idempotent and harmless; a marker table would be the fully-precise fix.)
+                target = datetime.fromisoformat(args.from_date).date() + timedelta(days=10)
+                deep_enough = {
+                    r[0] for r in store.con.execute(
+                        "SELECT ticker, min(date) FROM sep GROUP BY ticker").fetchall()
+                    if r[1] is not None and r[1] <= target
                 }
             total = len(tickers)
             for i, tk in enumerate(tickers, 1):
-                if args.skip_existing and tk in existing:
-                    print(f"[{i}/{total}] {tk}: skip (already in sep)")
-                    continue
+                did: list[str] = []
                 if "sep" in datasets:
-                    _run(store, f"sep:{tk}", lambda tk=tk: store.ingest_sep(provider.fetch_table("SEP", ticker=tk, **sep_filters)), quiet=True)
+                    if args.skip_existing and tk in existing.get("sep", set()):
+                        did.append("sep=skip")
+                    elif args.skip_deep_enough and tk in deep_enough:
+                        did.append("sep=deep")
+                    else:
+                        _run(store, f"sep:{tk}", lambda tk=tk: store.ingest_sep(provider.fetch_table("SEP", ticker=tk, **sep_filters)), quiet=True)
+                        did.append("sep")
                 if "actions" in datasets:
-                    _run(store, f"actions:{tk}", lambda tk=tk: store.ingest_actions(provider.fetch_table("ACTIONS", ticker=tk, **sep_filters)), quiet=True)
-                print(f"[{i}/{total}] {tk}: done")
+                    if args.skip_existing and tk in existing.get("sep", set()):
+                        did.append("actions=skip")
+                    else:
+                        _run(store, f"actions:{tk}", lambda tk=tk: store.ingest_actions(provider.fetch_table("ACTIONS", ticker=tk, **sep_filters)), quiet=True)
+                        did.append("actions")
+                if "sf1" in datasets:
+                    if args.skip_existing and tk in existing.get("sf1", set()):
+                        did.append("sf1=skip")
+                    else:
+                        # SF1 is per-ticker across all dimensions; no date filter (the tier floors
+                        # at ~2016 anyway, ADR 0023), so a ticker's full fundamental history loads.
+                        _run(store, f"sf1:{tk}", lambda tk=tk: store.ingest_sf1(provider.fetch_table("SF1", ticker=tk)), quiet=True)
+                        did.append("sf1")
+                print(f"[{i}/{total}] {tk}: {', '.join(did)}")
 
         print("\n--- store row counts ---")
-        for t in ("sep", "tickers", "actions"):
+        for t in ("sep", "tickers", "actions", "sf1_fundamentals"):
             print(f"  {t}: {store.row_count(t)}")
     finally:
         store.close()

@@ -1,0 +1,21 @@
+{
+  "_comment": "PORT-001 sibling reference — the claude-trading-view Combined Book's headline evidence, the FIXED target the Workbench reproduction is gated against (ADR 0030 #4). Export this from the sibling system on the data machine, fill the real numbers, save as sibling_reference.json (drop the .template), and pass via --reference. daily_returns + weights drive the gate's correlation criteria (the proof it is the SAME book, not merely similar summary stats), so they must be the sibling's actual per-day series + final sleeve/asset weights, not summaries.",
+  "sharpe": 0.84,
+  "max_drawdown": 0.119,
+  "trades": 0,
+  "daily_returns": {
+    "2018-01-02": 0.0,
+    "2018-01-03": 0.0
+  },
+  "weights": {
+    "equity_momentum": 0.0,
+    "SPY": 0.0,
+    "EFA": 0.0,
+    "EEM": 0.0,
+    "TLT": 0.0,
+    "IEF": 0.0,
+    "GLD": 0.0,
+    "DBC": 0.0,
+    "UUP": 0.0
+  }
+}

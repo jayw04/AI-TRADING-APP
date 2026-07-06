@@ -13,12 +13,14 @@ from sqlalchemy import select
 from app.db.enums import (
     OrderSide,
     OrderSourceType,
+    OrderStatus,
     OrderType,
     SignalType,
     TimeInForce,
 )
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
+from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.signal import Signal
 from app.db.models.symbol import Symbol
@@ -169,6 +171,42 @@ async def test_log_signal_returns_zero_for_unknown_symbol(session_factory, seede
     assert sig_id == 0
 
 
+async def test_log_signal_portfolio_sentinel_persists(session_factory, seeded):
+    """The "PORTFOLIO" portfolio-level sentinel is authorized (not a universe
+    violation) and persists against a lazily-created non-tradeable sentinel symbol,
+    so overlay/liquidation decisions are recorded rather than dropped with a
+    spurious ``strategy_logged_unauthorized_signal`` warning."""
+    from app.strategies.context import PORTFOLIO_SIGNAL_SYMBOL
+
+    ctx, _ = _ctx(session_factory, symbols=["AAPL"])  # PORTFOLIO is NOT in symbols
+    sig_id = await ctx.log_signal(
+        PORTFOLIO_SIGNAL_SYMBOL, SignalType.INFO, payload={"gross": 0.8}
+    )
+    assert sig_id > 0
+
+    async with session_factory() as session:
+        sym = (
+            await session.execute(
+                select(Symbol).where(Symbol.ticker == PORTFOLIO_SIGNAL_SYMBOL)
+            )
+        ).scalars().first()
+        assert sym is not None and sym.active is False
+        sig = (
+            await session.execute(select(Signal).where(Signal.symbol_id == sym.id))
+        ).scalars().first()
+        assert sig is not None and sig.payload_json == {"gross": 0.8}
+
+    # A second call reuses the existing sentinel — no duplicate symbol row.
+    assert await ctx.log_signal(PORTFOLIO_SIGNAL_SYMBOL, SignalType.EXIT) > 0
+    async with session_factory() as session:
+        rows = (
+            await session.execute(
+                select(Symbol).where(Symbol.ticker == PORTFOLIO_SIGNAL_SYMBOL)
+            )
+        ).scalars().all()
+        assert len(rows) == 1
+
+
 async def test_get_recent_bars_returns_empty_for_unauthorized_symbol(
     session_factory, seeded
 ):
@@ -255,3 +293,45 @@ async def test_get_account_equity_returns_snapshot(session_factory, seeded):
 async def test_get_account_equity_none_without_snapshot(session_factory, seeded):
     ctx, _ = _ctx(session_factory)  # no AccountState row seeded
     assert await ctx.get_account_equity() is None
+
+
+async def _add_order(
+    session_factory, *, symbol_id=1, qty="10", side=OrderSide.BUY,
+    status=OrderStatus.SUBMITTED, source_id="99",
+    source_type=OrderSourceType.STRATEGY, tag="x",
+):
+    async with session_factory() as session:
+        session.add(
+            Order(
+                user_id=1, account_id=1, symbol_id=symbol_id,
+                client_order_id=f"ctx-{tag}",
+                side=side, qty=Decimal(qty), type=OrderType.MARKET,
+                tif=TimeInForce.DAY, status=status,
+                source_type=source_type, source_id=source_id,
+                created_at=_now(), updated_at=_now(),
+            )
+        )
+        await session.commit()
+
+
+async def test_pending_buy_qty_sums_inflight_own_strategy(session_factory, seeded):
+    """Sums this strategy's own non-terminal BUY qty per ticker — and excludes
+    filled/terminal orders, sells, other strategies, and out-of-universe names."""
+    await _add_order(session_factory, symbol_id=1, qty="6", tag="a")   # counts
+    await _add_order(session_factory, symbol_id=1, qty="4", tag="b")   # counts → AAPL 10
+    await _add_order(session_factory, symbol_id=1, qty="99",
+                     status=OrderStatus.FILLED, tag="filled")          # terminal → excluded
+    await _add_order(session_factory, symbol_id=1, qty="99",
+                     side=OrderSide.SELL, tag="sell")                  # sell → excluded
+    await _add_order(session_factory, symbol_id=1, qty="99",
+                     source_id="42", tag="other")                     # other strategy → excluded
+    await _add_order(session_factory, symbol_id=2, qty="99", tag="msft")  # not in universe → excluded
+
+    ctx, _ = _ctx(session_factory, symbols=["AAPL"], strategy_id=99)
+    pending = await ctx.pending_buy_qty()
+    assert pending == {"AAPL": Decimal("10")}
+
+
+async def test_pending_buy_qty_empty_when_none(session_factory, seeded):
+    ctx, _ = _ctx(session_factory, symbols=["AAPL"], strategy_id=99)
+    assert await ctx.pending_buy_qty() == {}

@@ -14,17 +14,21 @@ from app.api.v1 import (
     discovery,
     drift,
     eval_harness,
+    evidence,
     indicators,
     internal,
+    journal,
     live_autodispatch,
     llm_opt_in,
     market_data,
     morning_brief,
     opportunities,
+    ops,
     orders,
     positions,
     proposals,
     range_insight,
+    range_levels,
     range_template,
     risk,
     scanner,
@@ -47,6 +51,8 @@ api_router.include_router(accounts.router)
 api_router.include_router(internal.router)
 api_router.include_router(orders.router)
 api_router.include_router(positions.router)
+# Trade Journal: the user's filled trades + a free-text note per trade.
+api_router.include_router(journal.router)
 api_router.include_router(market_data.router)
 api_router.include_router(indicators.router)
 api_router.include_router(users.router)
@@ -60,9 +66,14 @@ api_router.include_router(strategies.router)
 api_router.include_router(signals.router)
 api_router.include_router(backtest_jobs.router)
 api_router.include_router(opportunities.router)
+# P11 §1: read-only operational state (/ops/state) — what's enabled/running today.
+api_router.include_router(ops.router)
+api_router.include_router(evidence.router)
 api_router.include_router(discovery.router)
 api_router.include_router(scanner.router)
 api_router.include_router(range_insight.router)
+# Live buy/sell/stop levels per range symbol (monitoring the Range Trader triggers).
+api_router.include_router(range_levels.router)
 api_router.include_router(range_template.router)
 api_router.include_router(agent.router)
 # P6 §1a: agent cost-envelope check (prefix=/agent, route /budget). Distinct

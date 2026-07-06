@@ -167,8 +167,9 @@ async def test_rejects_when_already_halted(session_factory, seeded) -> None:
     assert ReasonCode.HALT_REACHED in out.reason_codes
 
 
-async def test_daily_loss_cap_trips_halt(session_factory, seeded) -> None:
-    """When unrealized P&L breaches the cap, next order is rejected AND the halt flag persists."""
+async def test_daily_loss_cap_trips_account_breaker(session_factory, seeded) -> None:
+    """ADR 0034: a daily-loss breach trips THIS account's circuit breaker (the
+    order is rejected with CIRCUIT_BREAKER) and does NOT set the global halt."""
     async with session_factory() as session:
         state = (await session.execute(select(AccountState))).scalars().first()
         state.day_change = Decimal("-2500")  # below -max_daily_loss (2000)
@@ -176,10 +177,76 @@ async def test_daily_loss_cap_trips_halt(session_factory, seeded) -> None:
 
     eng = RiskEngine(session_factory)
     out = await eng.evaluate(_req(), trading_mode="paper")
-    assert ReasonCode.HALT_REACHED in out.reason_codes
+    assert ReasonCode.CIRCUIT_BREAKER in out.reason_codes
 
     async with session_factory() as session:
-        assert await is_halted(session) is True
+        # Per-account breaker tripped; the GLOBAL halt is NOT set (ADR 0034).
+        assert await is_halted(session) is False
+        acct = await session.get(Account, 1)
+        assert acct.circuit_breaker_tripped_at is not None
+
+
+async def test_daily_loss_halt_is_account_scoped(session_factory, seeded) -> None:
+    """ADR 0034 blast-radius: account 1 breaching its cap trips only account 1;
+    account 2 (healthy) still trades — no system-wide halt."""
+    async with session_factory() as session:
+        session.add(User(id=2, email="k@test", display_name="K"))
+        session.add(
+            Account(
+                id=2, user_id=2, broker="alpaca", mode=AccountMode.paper, label="Paper2"
+            )
+        )
+        session.add(
+            RiskLimits(
+                user_id=2,
+                scope_type=RiskScopeType.GLOBAL,
+                scope_id=None,
+                max_position_qty=Decimal("100"),
+                max_position_notional=Decimal("25000"),
+                max_gross_exposure=Decimal("100000"),
+                max_daily_loss=Decimal("2000"),
+                max_orders_per_minute=10,
+                allow_short=False,
+                created_at=_now(),
+                updated_at=_now(),
+            )
+        )
+        session.add(
+            AccountState(
+                account_id=2,
+                cash=Decimal("100000"),
+                equity=Decimal("100000"),
+                last_equity=Decimal("100000"),
+                buying_power=Decimal("200000"),
+                portfolio_value=Decimal("100000"),
+                daytrade_count=0,
+                day_change=Decimal(0),
+                day_change_pct=Decimal(0),
+                status="ACTIVE",
+                pattern_day_trader=False,
+                trading_blocked=False,
+                account_blocked=False,
+                raw_payload={},
+                updated_at=_now(),
+            )
+        )
+        state1 = (
+            await session.execute(
+                select(AccountState).where(AccountState.account_id == 1)
+            )
+        ).scalars().first()
+        state1.day_change = Decimal("-2500")  # account 1 breaches
+        await session.commit()
+
+    eng = RiskEngine(session_factory)
+    out1 = await eng.evaluate(_req(account_id=1), trading_mode="paper")
+    assert ReasonCode.CIRCUIT_BREAKER in out1.reason_codes
+    # Account 2 is untouched — the halt did not go system-wide.
+    out2 = await eng.evaluate(_req(user_id=2, account_id=2), trading_mode="paper")
+    assert out2.passed
+    async with session_factory() as session:
+        assert await is_halted(session) is False
+        assert (await session.get(Account, 2)).circuit_breaker_tripped_at is None
 
 
 async def test_no_limits_configured(session_factory) -> None:

@@ -75,6 +75,110 @@ because the broker is flaky? Check
 - Limit too tight → raise it at Settings → Risk Limits → LIVE (audit-logged).
 - Broker flakiness inflating the count → fix the adapter/network first.
 
+## "Replay reports a mismatch" (`REPLAY_MISMATCH`) — **CRITICAL**
+
+**Symptom:** `workbench_replay_verifications_total{verdict="mismatch"}` increments, a
+`REPLAY_MISMATCH` audit row appears, or `replay_decisions.py` exits non-zero. Replay (P11 §4,
+ADR 0021) reconstructs an automated decision from its audit fingerprint and recomputes the
+decision rule from the *recorded inputs*. A **mismatch means the recorded decision is not
+justified by its recorded evidence** — a logic regression, a fingerprint missing a load-bearing
+input, or an input computed inconsistently. Replay is read-only — it verifies, never corrects.
+
+**Check:** read the `REPLAY_MISMATCH` audit payload (`audit_log_id`, `decision_type`,
+`recorded`, `recomputed`, `note`) — it points at the original decision's audit row. Re-run the
+verifier on it for the full picture:
+
+    python scripts/replay_decisions.py --audit-id <audit_log_id>
+
+By `decision_type`:
+- `CIRCUIT_BREAKER_TRIPPED` — the recorded trip's `net_pnl` (= `realized_pnl_today +
+  unrealized_pnl_now`) either does not reproduce, or does not satisfy `net_pnl ≤ −max_daily_loss`.
+  This is the *spurious-trip* class (see "Circuit breaker keeps tripping"): the breaker tripped on
+  an input that doesn't justify it — suspect a start-of-day equity-baseline bug.
+- `RECONCILIATION_DISCREPANCY` — the recorded discrepancy `kind` does not match the
+  classification recomputed from the recorded `local`/`broker` quantities (a §3 classification bug).
+
+**Fix:**
+- First confirm it is not a **replay engine** fault: a `verdict="error"` (not `mismatch`) means a
+  malformed payload, not an unjustified decision — fix the verifier/payload, not the decision.
+- A real `mismatch` is **stop-and-investigate**: the automation that produced the original
+  decision has a bug (or its fingerprint is incomplete). Find the producing code path
+  (`decision_type` → the trip in `circuit_breaker.py` / the diff in `reconciliation.py`), fix it,
+  and add a regression test. Do **not** edit the audit log — it is the evidence.
+- `replay_coverage_ratio` < 1.0 is expected, not an alert: it honestly reports the fraction of
+  decision types replay can verify today (overlay + risk-check are `unreplayable` pending durable
+  fingerprints).
+
+## "Reconciliation reports a discrepancy" (broker ⇄ local drift)
+
+**Symptom:** `workbench_reconciliation_discrepancies_total` increments, or a
+`RECONCILIATION_DISCREPANCY` audit row appears. The 300s reconciliation pass
+(P11 §3, ADR 0021) does an INDEPENDENT broker `get_positions()` fetch per account
+and diffs it against the local `positions` table. It is **alert-only** — it never
+submits a corrective order; it only surfaces the drift for you to judge.
+
+**Check:** read the audit payload (`domain`, `kind`, `severity`, `symbol`,
+`local`, `broker`) and the latest `reconciliation_runs` row for the account:
+
+    SELECT ran_at, result, n_checked, n_discrepancies, detail_json
+    FROM reconciliation_runs WHERE account_id = $ID ORDER BY id DESC LIMIT 5;
+
+`kind` tells you the shape:
+- `qty_mismatch` — both sides hold the symbol, quantities differ.
+- `missing_local` — broker holds a position local does not (a fill we missed, or
+  a stalled `PositionSync`).
+- `missing_broker` — local holds a position the broker does not (a closed/expired
+  position we didn't clear, or a sync that deleted late).
+
+**Fix:**
+- First suspect a **stalled PositionSync**, not a real trade: check the sync job
+  and `workbench_broker_api_errors_total{operation="get_positions"}`. A healthy
+  re-sync usually clears a transient `qty_mismatch`/`missing_*`.
+- If the drift persists after a clean sync, treat it as a real position the books
+  disagree on: inspect recent fills/orders for the symbol, reconcile against the
+  Alpaca dashboard, and correct manually (a manual order through the OrderRouter —
+  reconciliation will not do this for you).
+- A `result` of `unavailable` means the broker was unreachable that pass (no
+  conclusion drawn) — not a discrepancy. Recurring `unavailable` → broker/network.
+
+## "Duplicate order / an actor double-acted" (P11 §5, **P1 — immediate**)
+
+**Symptom:** two `order` rows for the same intent in one period (a doubled rebalance or
+overlay re-size), or `recovery_failures_total` spikes after a restart. ADR 0021 property 1
+(idempotency) is the guard; a duplicate means a guard did not hold.
+
+**Check:**
+- Was there a **restart at a cron tick**? Resume-on-boot is idempotent (`register()` returns
+  the existing run), so a restart alone never double-registers — but the weekly-rebalance
+  `_last_rebalance_week` guard is **in-memory** and resets on restart. A restart *exactly at*
+  the Monday 14:00 tick is the only window APScheduler could re-fire the rebalance.
+- Read the duplicate `order` rows' `source_type` / timestamps and the `automation_runs_total`
+  for the actor; check `recovery_attempts_total{recovery_type="resume_on_boot"}`.
+
+**Fix:**
+- **Halt the actor first** (deactivate the strategy → IDLE; this does not stop already-filled
+  orders). Reconcile (§3) and replay (§4) the period to confirm the duplicate is real, not a
+  re-delivered fill (fills are idempotent on `execution_id`).
+- If it was a tick-time-restart double-rebalance: the cross-restart guard today is the cron
+  schedule, not a durable mark — if this recurs, the named follow-on is a **durable
+  last-rebalanced-week flag** (ADR 0021 re-evaluation trigger). File it; do not hand-patch the
+  in-memory guard under incident pressure.
+- Never "undo" via a compensating automated order — close manually through the OrderRouter.
+
+## "Scheduler tick was delayed or missed" (P11 §5, **P4 — monitor only**)
+
+**Symptom:** `workbench_scheduler_job_last_success_timestamp{job_id=…}` is stale, scheduler
+success dips below 99.9% (§2), or `/ops/state` shows a job `degraded`.
+
+**Check:** was the host/Docker down (laptop asleep, Docker Desktop not started)? Resume-on-boot
+re-registers all jobs on the next boot — a missed weekly tick simply runs at the next scheduled
+time; the actor converges next cycle (it never "catches up" by firing twice — single-flight +
+`coalesce`).
+
+**Fix:** bring the stack up (see `deployment.md` / the autostart task). Confirm the job
+re-registered (`scheduler_job_events_total{event="executed"}` advances). No manual catch-up
+fire is needed or wanted — a delayed tick is fail-safe (less action), not an incident to force.
+
 ## "Strategy in cooldown, I want to retry NOW"
 
 **Fix:** Strategy detail → CooldownIndicator → "Clear now" (audit-logged), or

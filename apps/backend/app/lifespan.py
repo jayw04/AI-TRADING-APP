@@ -140,12 +140,51 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session_factory = get_sessionmaker()
             bus = get_event_bus()
 
-            asset_sync = AssetSyncService(adapter, session_factory, bus)
-            account_sync = AccountSyncService(adapter, session_factory, bus)
-            position_sync = PositionSyncService(adapter, session_factory, bus)
+            # Broker registry constructed early so AccountSyncService can sync EVERY
+            # account via its own per-user adapter (P13.5 multi-account). load_all() +
+            # adopt_startup_adapter() below populate + connect the adapters before the
+            # scheduler's first sync_all tick.
+            broker_registry = BrokerRegistry(session_factory)
 
-            scheduler = WorkbenchScheduler(asset_sync, account_sync, position_sync)
+            asset_sync = AssetSyncService(adapter, session_factory, bus)
+            account_sync = AccountSyncService(
+                adapter, session_factory, bus, broker_registry=broker_registry
+            )
+            position_sync = PositionSyncService(
+                adapter, session_factory, bus, broker_registry=broker_registry
+            )
+
+            scheduler = WorkbenchScheduler(
+                asset_sync, account_sync, position_sync,
+                enabled=settings.scheduler_enabled,
+            )
             scheduler.start()
+
+            # Single-active-scheduler heartbeat (ADR 0032). Record this host's arm
+            # state at boot (so a DISARMED standby is visible too); on an armed host,
+            # refresh it every 30s. Best-effort — never blocks boot or scheduling.
+            from app.jobs.scheduler_heartbeat import (
+                resolve_host_id,
+                run_scheduler_heartbeat,
+                write_startup_heartbeat,
+            )
+
+            _host_id = resolve_host_id()
+            await write_startup_heartbeat(
+                session_factory, _host_id, armed=settings.scheduler_enabled
+            )
+            if settings.scheduler_enabled:
+                scheduler.scheduler.add_job(
+                    run_scheduler_heartbeat,
+                    trigger="interval",
+                    seconds=30,
+                    id="scheduler_heartbeat",
+                    max_instances=1,
+                    coalesce=True,
+                    replace_existing=True,
+                    kwargs={"session_factory": session_factory, "host_id": _host_id},
+                )
+                logger.info("scheduler_heartbeat_scheduled", host_id=_host_id)
 
             # 5. Trade Updates WebSocket (P1 Session 3)
             trade_stream = TradeUpdatesStream(adapter.credentials, bus)
@@ -166,7 +205,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # Live accounts (none exist yet) get a paper=False adapter from
             # load_all(), but the OrderRouter's §1 BrokerModeError guard
             # short-circuits before the registry is consulted for them.
-            broker_registry = BrokerRegistry(session_factory)
             await broker_registry.load_all()
             await broker_registry.adopt_startup_adapter(adapter)
 
@@ -214,16 +252,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             from app.factor_data.store import FactorDataStore
 
             factor_store_path = resolve_store_path()
+            # Keep the store handle in app scope for infrastructure jobs (the
+            # premarket activation jobs below). The strategy-facing FactorAccessor
+            # deliberately does NOT expose it — that would widen the strategy sandbox
+            # (see test_accessor_surface_is_read_only). Infra holds its own reference;
+            # strategies only ever see the curated read methods via ctx.factors.
+            factor_store: FactorDataStore | None = None
             try:
                 if factor_store_path.exists():
-                    factor_accessor: FactorAccessor = FactorAccessor(
-                        FactorDataStore(read_only=True)
-                    )
+                    factor_store = FactorDataStore(read_only=True)
+                    factor_accessor: FactorAccessor = FactorAccessor(factor_store)
                     logger.info("factor_accessor_provisioned", path=str(factor_store_path))
                 else:
                     factor_accessor = FactorAccessor(None)
                     logger.info("factor_accessor_disabled_no_store", path=str(factor_store_path))
             except Exception as exc:  # noqa: BLE001 — factor data must never block boot
+                factor_store = None
                 factor_accessor = FactorAccessor(None)
                 logger.warning("factor_accessor_unavailable", error=str(exc))
 
@@ -289,6 +333,70 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("llm_opt_in_completion_scheduled")
 
+            # 10c. SCAN-001 Production Validation Gate (gate plan §0; ADR 0024) —
+            # forward-evidence accrual. The ~09:25 ET scan persists today's premarket
+            # candidate set; the ~16:30 ET back-fill attaches realized outcomes. Both
+            # read-only/advisory (no order path) and fail-soft. Scheduler is already
+            # America/New_York, so the hours below are ET. Needs the read-only factor
+            # store (held in app scope above for exactly this) — no store => skip.
+            if factor_store is not None:
+                from app.jobs.premarket_gate import (
+                    run_premarket_backfill_job,
+                    run_premarket_scan_job,
+                )
+
+                gate_dir = settings.premarket_gate_evidence_dir
+                scheduler.scheduler.add_job(
+                    run_premarket_scan_job,
+                    trigger="cron",
+                    day_of_week="mon-fri",
+                    hour=9,
+                    minute=25,
+                    id="premarket_gate_scan",
+                    max_instances=1,
+                    coalesce=True,
+                    kwargs={"factor_store": factor_store, "directory": gate_dir},
+                )
+                scheduler.scheduler.add_job(
+                    run_premarket_backfill_job,
+                    trigger="cron",
+                    day_of_week="mon-fri",
+                    hour=16,
+                    minute=30,
+                    id="premarket_gate_backfill",
+                    max_instances=1,
+                    coalesce=True,
+                    kwargs={"bar_cache": bar_cache, "directory": gate_dir},
+                )
+                logger.info("premarket_gate_scheduled", directory=gate_dir)
+            else:
+                logger.info("premarket_gate_disabled_no_factor_store")
+
+            # 10c-range. Daily Range-Trader universe auto-select (design §"Top 3–5
+            # candidates"). ~09:00 ET weekdays (before the open / the premarket gate),
+            # re-point each opted-in range strategy (params_json["auto_select_top_n"] > 0)
+            # to today's Top-N candidates: stop → set symbols → start, audit-logged.
+            # No-op when no strategy has opted in; fail-soft. Scheduler tz is already ET.
+            from app.services.range_auto_select import run_daily_range_universe
+
+            scheduler.scheduler.add_job(
+                run_daily_range_universe,
+                trigger="cron",
+                day_of_week="mon-fri",
+                hour=9,
+                minute=0,
+                id="range_autoselect_daily",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={
+                    "session_factory": session_factory,
+                    "engine": strategy_engine,
+                    "bar_cache": bar_cache,
+                },
+            )
+            logger.info("range_autoselect_scheduled")
+
             # 10c. Metrics snapshot job (P5 §8.3). Every 30s, sample the
             # DB-derived gauges (active strategies by status, cooldown / breaker
             # / pending-live counts, audit-log row count, credential staleness).
@@ -324,6 +432,118 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 kwargs={"session_factory": session_factory, "bus": bus},
             )
             logger.info("breaker_monitor_scheduled")
+
+            # 10c-bis. Broker⇄local reconciliation (P11 §3, ADR 0021). 300s
+            # interval. INDEPENDENT fresh broker fetch per account (so it also
+            # catches a stalled PositionSync), diffs vs the local positions
+            # table, and ALERTS on a discrepancy (audit + metric + a
+            # reconciliation_runs row). Read-only + alert-only — never the order
+            # path. Resolves each account's own adapter via the registry.
+            # max_instances=1 + coalesce so a slow pass can't stack.
+            from app.services.reconciliation import run_reconciliation_pass
+
+            scheduler.scheduler.add_job(
+                run_reconciliation_pass,
+                trigger="interval",
+                seconds=300,
+                id="reconciliation",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={
+                    "session_factory": session_factory,
+                    "resolve_broker": broker_registry.get,
+                },
+            )
+            logger.info("reconciliation_scheduled")
+
+            # 10c-ter. Decision replay verifier (P11 §4, ADR 0021). Daily (03:30
+            # in the scheduler's timezone). Replays the last 24h of automated
+            # decisions from their audit fingerprints, re-verifying each decision
+            # against its recorded inputs, and feeds the replay-consistency +
+            # coverage KPIs. READ-ONLY verification — never the order path; a
+            # mismatch is audit-logged (REPLAY_MISMATCH) + alerted, not corrected.
+            # Not per-minute (rescanning the whole log adds no safety). max_instances=1
+            # + coalesce so a slow pass can't stack.
+            from apscheduler.triggers.cron import CronTrigger as _ReplayCron
+
+            from app.services.replay import run_daily_replay, validate_registry
+
+            # Boot-time consistency check: every SUPPORTED capability has a wired
+            # verifier (and vice versa). A drift is a programming error — fail fast
+            # here rather than silently miscount coverage at 03:30.
+            validate_registry()
+
+            scheduler.scheduler.add_job(
+                run_daily_replay,
+                _ReplayCron(hour=3, minute=30),
+                id="replay",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"session_factory": session_factory},
+            )
+            logger.info("replay_scheduled")
+
+            # 10c-quater. Equity-snapshot persistence (P12.5 Production Validation).
+            # Appends one equity point per account near market close (16:10 in the
+            # scheduler's timezone, America/New_York) so the live book's equity curve
+            # accrues for the production-validation report. Read-only beyond its own
+            # append; no order path. Best-effort; single-flight + coalesce.
+            from app.services.equity_snapshot import run_daily_equity_snapshot
+
+            scheduler.scheduler.add_job(
+                run_daily_equity_snapshot,
+                _ReplayCron(hour=16, minute=10),
+                id="equity_snapshot",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"session_factory": session_factory},
+            )
+            logger.info("equity_snapshot_scheduled")
+
+            # 10c-quint. Premarket scan (SCAN-001 increment C; PR #241 activation).
+            # Weekdays at 09:25 ET (market opens at 09:30). Records the live premarket
+            # gappers candidate set to a dated JSON record for forward evidence accrual.
+            # Read-only, fail-soft; requires factor_store to be provisioned.
+            # max_instances=1 + coalesce.
+            from app.jobs.premarket_scan_scheduled import run_premarket_scan_scheduled
+
+            if factor_store is not None:
+                scheduler.scheduler.add_job(
+                    run_premarket_scan_scheduled,
+                    _ReplayCron(day_of_week="mon-fri", hour=9, minute=25),
+                    id="premarket_scan",
+                    max_instances=1,
+                    coalesce=True,
+                    replace_existing=True,
+                    kwargs={
+                        "bar_cache": bar_cache,
+                        "factor_store": factor_store,
+                    },
+                )
+                logger.info("premarket_scan_scheduled")
+            else:
+                logger.info("premarket_scan_skipped", reason="factor_store_unavailable")
+
+            # 10c-sext. Premarket backfill (SCAN-001 increment D; PR #241 activation).
+            # Weekdays at 16:30 ET (after market close). Fetches realized intraday
+            # outcomes for today's premarket candidates from BarCache, back-fills the
+            # evidence record, and persists. Pure back-fill, read-only, fail-soft.
+            # max_instances=1 + coalesce.
+            from app.jobs.premarket_backfill_scheduled import run_premarket_backfill_scheduled
+
+            scheduler.scheduler.add_job(
+                run_premarket_backfill_scheduled,
+                _ReplayCron(day_of_week="mon-fri", hour=16, minute=30),
+                id="premarket_backfill",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"bar_cache": bar_cache},
+            )
+            logger.info("premarket_backfill_scheduled")
 
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
@@ -501,31 +721,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # Initial sync pass (each call wraps its own try/except internally)
             await scheduler.run_startup_sync()
 
-            # Resume-on-boot: re-register strategies that were active before
-            # the last shutdown. Best-effort — a single broken strategy
-            # shouldn't take down boot.
-            from sqlalchemy import select
+            # Resume-on-boot (P11 §5, ADR 0021 property 3): re-register strategies
+            # that were active before the last shutdown. Extracted into the recovery
+            # service so it is testable + instrumented (recovery_* metrics). Idempotent
+            # (engine.register is a no-op if already registered) and best-effort — a
+            # single broken strategy shouldn't take down boot. P6b §2a:
+            # ENGINE_RUNNABLE_STATUSES (⊃ ACTIVE) so PAPER_VARIANT clones resume too.
+            from app.services.recovery import resume_strategies_on_boot
 
-            from app.db.enums import ENGINE_RUNNABLE_STATUSES
-            from app.db.models.strategy import Strategy as StrategyRow
-
-            async with session_factory() as resume_session:
-                # P6b §2a: ENGINE_RUNNABLE_STATUSES (⊃ ACTIVE) so PAPER_VARIANT
-                # clones resume after a restart, like any running strategy.
-                rows_to_resume = (
-                    await resume_session.execute(
-                        select(StrategyRow).where(
-                            StrategyRow.status.in_(list(ENGINE_RUNNABLE_STATUSES))
-                        )
-                    )
-                ).scalars().all()
-            for row in rows_to_resume:
-                try:
-                    await strategy_engine.register(row.id)
-                except Exception:
-                    logger.exception(
-                        "strategy_resume_failed_on_boot", strategy_id=row.id
-                    )
+            # ADR 0032: a DISARMED standby registers NO strategies, so the engine
+            # has nothing to dispatch even if something started the scheduler.
+            if settings.scheduler_enabled:
+                await resume_strategies_on_boot(session_factory, strategy_engine)
+            else:
+                logger.warning(
+                    "resume_strategies_skipped_disarmed",
+                    reason="WORKBENCH_SCHEDULER_ENABLED=false",
+                )
         else:
             logger.info("alpaca_startup_disabled")
 

@@ -157,10 +157,36 @@ async def enqueue_eval_for_proposal(
     }
 
 
+# Verdict states. The first two are the Decision-8 comparison; the last two enforce the
+# Evidence Engineering rule (review comments.md, E4): a verdict requires EVIDENCE — a
+# zero-trade backtest must never read as "above baseline".
+VERDICT_ABOVE = "above_baseline"
+VERDICT_BELOW = "below_baseline"
+VERDICT_INSUFFICIENT = "insufficient_evidence"   # neither side traded → no evidence
+VERDICT_NEEDS_REVIEW = "needs_review"            # only the variant traded → human look
+
+
 def compute_verdict(
     baseline_metrics: dict[str, Any], variant_metrics: dict[str, Any]
 ) -> str:
-    """Decision 8 rule. Ties (variant == baseline) count as above_baseline."""
+    """Decision 8 rule, gated by the evidence guard (E4).
+
+    A proposal verdict requires evidence; absence of evidence is not evidence of success.
+    So before comparing Sharpe/drawdown we check trade counts:
+      - both 0 trades        → ``insufficient_evidence`` (never a pass)
+      - variant 0, baseline>0 → ``below_baseline`` (the change stopped trading — strictly worse)
+      - baseline 0, variant>0 → ``needs_review`` (new behavior emerged; a human should look)
+      - both > 0             → the Sharpe/drawdown comparison (ties count as above_baseline)
+    """
+    baseline_trades = int(baseline_metrics.get("trade_count", 0) or 0)
+    variant_trades = int(variant_metrics.get("trade_count", 0) or 0)
+    if baseline_trades == 0 and variant_trades == 0:
+        return VERDICT_INSUFFICIENT
+    if variant_trades == 0:
+        return VERDICT_BELOW
+    if baseline_trades == 0:
+        return VERDICT_NEEDS_REVIEW
+
     variant_sharpe = float(variant_metrics.get("sharpe_ratio", 0.0))
     baseline_sharpe = float(baseline_metrics.get("sharpe_ratio", 0.0))
     variant_dd = float(variant_metrics.get("max_drawdown", 0.0))
@@ -169,8 +195,8 @@ def compute_verdict(
         baseline_dd - DEFAULT_DRAWDOWN_FLOOR_DELTA, DEFAULT_DRAWDOWN_FLOOR_ABS
     )
     if variant_sharpe >= baseline_sharpe and variant_dd >= drawdown_floor:
-        return "above_baseline"
-    return "below_baseline"
+        return VERDICT_ABOVE
+    return VERDICT_BELOW
 
 
 def _delta_metrics(

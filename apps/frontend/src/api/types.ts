@@ -139,6 +139,9 @@ export interface Account {
   portfolio_value: string;
   day_change: string;
   day_change_pct: string;
+  starting_equity: string;
+  total_return: string;
+  total_return_pct: string;
   daytrade_count: number;
   pattern_day_trader: boolean;
   trading_blocked: boolean;
@@ -469,6 +472,26 @@ export interface OppDiscoveryMatchItem {
   run_at: string;
 }
 
+// Read-only ingest of the external pre-market gappers scanner (advisory only).
+export interface OppPremarketGapperItem {
+  rank: number;
+  symbol: string;
+  price: number | null;
+  gap_pct: number | null;
+  premarket_volume: number | null;
+  catalyst: string | null;
+  headlines: string[];
+}
+
+export interface OppPremarketGappersWidget {
+  items: OppPremarketGapperItem[];
+  count: number;
+  as_of: string;
+  scanned_at: string | null;
+  date: string | null;
+  stale: boolean;
+}
+
 export interface OpportunitiesWidget<T> {
   items: T[];
   count: number;
@@ -483,6 +506,7 @@ export interface OpportunitiesResponse {
   open_orders_expiring: OpportunitiesWidget<OppOpenOrderItem>;
   risk_rejections: OpportunitiesWidget<OppRiskRejectItem>;
   recent_fills: OpportunitiesWidget<OppFillItem>;
+  premarket_gappers: OppPremarketGappersWidget;
   as_of: string;
 }
 

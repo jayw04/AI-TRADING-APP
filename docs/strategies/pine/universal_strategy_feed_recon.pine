@@ -1,0 +1,38 @@
+//@version=5
+// #2 — Universal Strategy Feed [recon]. The original is a configurable meta-framework with no inherent
+// edge; to test it fairly we PIN one config: Level-Cross RSI(14) 30/70 entries + ATR(14) exits
+// (SL 2x / TP 4x), long & short. Test config: 15m, US-RTH gating, 100% equity, $10k.
+strategy("Universal Strategy Feed [recon: RSI 30/70 + ATR exits]", overlay=true,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=100,
+     initial_capital=10000, commission_type=strategy.commission.percent,
+     commission_value=0.02, slippage=2, pyramiding=0)
+
+rsiLen     = input.int(14, "RSI Length")
+osLevel    = input.int(30, "Oversold")
+obLevel    = input.int(70, "Overbought")
+atrLen     = input.int(14, "ATR Length")
+slMult     = input.float(2.0, "SL ATR mult")
+tpMult     = input.float(4.0, "TP ATR mult")
+useSession = input.bool(true, "Restrict entries to US RTH")
+sess       = input.session("0930-1600", "Session (ET)")
+allowShort = input.bool(true, "Allow shorts")
+// Set useDateFilter=true for the last-3-month window (entries only after Mar 29 2026).
+useDateFilter = input.bool(false, "Limit to backtest start")
+
+r   = ta.rsi(close, rsiLen)
+atr = ta.atr(atrLen)
+inSession = not useSession or not na(time(timeframe.period, sess))
+inDate    = not useDateFilter or time >= timestamp(2026, 3, 29, 0, 0)
+
+// Level-Cross mean-reversion: long when RSI exits oversold, short when RSI exits overbought
+longSignal  = ta.crossover(r, osLevel)
+shortSignal = ta.crossunder(r, obLevel)
+
+if longSignal and inSession and inDate
+    strategy.entry("L", strategy.long)
+if shortSignal and inSession and inDate and allowShort
+    strategy.entry("S", strategy.short)
+
+// ATR-scaled exits
+strategy.exit("xL", "L", stop = strategy.position_avg_price - slMult * atr, limit = strategy.position_avg_price + tpMult * atr)
+strategy.exit("xS", "S", stop = strategy.position_avg_price + slMult * atr, limit = strategy.position_avg_price - tpMult * atr)

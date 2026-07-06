@@ -29,7 +29,7 @@ class AlpacaBarStreamAdapter:
 
     def __init__(self, *, on_bar: BarCallback) -> None:
         self._on_bar = on_bar
-        self._stream: Any | None = None
+        self._stream: Any = None  # alpaca StockDataStream (untyped SDK object)
         self._stream_task: asyncio.Task[None] | None = None
         self._subscribed: set[str] = set()
 
@@ -48,11 +48,29 @@ class AlpacaBarStreamAdapter:
         self._stream = StockDataStream(
             creds.api_key, creds.api_secret, feed=feed
         )
+        # We drive ONE connection lifecycle ourselves (connect -> consume) rather than
+        # alpaca-py's StockDataStream._run_forever(). _run_forever busy-waits for a first
+        # subscription on `await asyncio.sleep(0)` (100% CPU whenever the stream is up with
+        # NO symbols subscribed — our common case) and its reconnect loop sleeps only 0.01s.
+        # By calling _start_ws()/_consume() directly the task simply ENDS (raises) on a
+        # disconnect, and the outer BarStreamService._run reconnects with capped backoff —
+        # no busy-wait, no spin. (Depends on alpaca-py internals; pinned version.)
+        self._stream._loop = asyncio.get_running_loop()
+        self._stream._should_run = True
         self._stream_task = asyncio.create_task(
-            self._stream._run_forever(), name="alpaca_bar_stream"
+            self._connect_and_consume(), name="alpaca_bar_stream"
         )
         await asyncio.sleep(0)
         logger.info("alpaca_bar_stream_connected", feed=feed)
+
+    async def _connect_and_consume(self) -> None:
+        """One connection lifetime: connect + auth + (re)subscribe, then consume until the
+        socket drops (raises) or stop is signalled (returns). NO internal reconnect/wait
+        loop — the outer service supervises reconnect."""
+        assert self._stream is not None
+        await self._stream._start_ws()
+        self._stream._running = True  # so live subscribe_bars()/unsubscribe_bars() take effect
+        await self._stream._consume()
 
     async def disconnect(self) -> None:
         if self._stream is not None:

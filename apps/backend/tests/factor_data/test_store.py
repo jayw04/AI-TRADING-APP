@@ -142,3 +142,84 @@ def test_get_sectors_maps_known_and_unknown(tmp_path) -> None:
         assert s.get_sectors([]) == {}
     finally:
         s.close()
+
+
+# ---- SF1 fundamentals (ADR 0023) -----------------------------------------------
+
+def _sf1_frame(extra_cols: bool = False):
+    """A synthetic Sharadar SF1 slice (two quarters of AAPL ART)."""
+    import pandas as pd
+
+    rows = [
+        dict(ticker="AAPL", dimension="ART", calendardate="2025-12-31", datekey="2026-01-30",
+             reportperiod="2025-12-31", lastupdated="2026-02-01", marketcap=3.8e12, pe=32.3,
+             pb=43.2, ps=9.0, roe=1.6, roic=0.55, grossmargin=0.47, de=1.4, fcf=1.0e11,
+             revenue=4.0e11, netinc=1.0e11),
+        dict(ticker="AAPL", dimension="ART", calendardate="2026-03-31", datekey="2026-05-01",
+             reportperiod="2026-03-31", lastupdated="2026-05-02", marketcap=4.1e12, pe=33.6,
+             pb=38.6, ps=9.2, roe=1.47, roic=0.52, grossmargin=0.48, de=1.3, fcf=1.1e11,
+             revenue=4.1e11, netinc=1.05e11),
+    ]
+    df = pd.DataFrame(rows)
+    if extra_cols:
+        df["unstored_vendor_col"] = 123  # extra columns must be ignored, not crash
+        df = df.drop(columns=["ps"])  # a missing curated column must become NULL, not crash
+    return df
+
+
+def test_sf1_schema_and_pk(store: FactorDataStore) -> None:
+    tables = {r[0] for r in store.con.execute("SHOW TABLES").fetchall()}
+    assert "sf1_fundamentals" in tables
+    pk = {r[1] for r in store.con.execute("PRAGMA table_info('sf1_fundamentals')").fetchall() if r[5]}
+    assert pk == {"ticker", "dimension", "calendardate", "datekey"}
+
+
+def test_ingest_sf1_populates_and_casts(tmp_path) -> None:
+    s = FactorDataStore(db_path=str(tmp_path / "sf1.duckdb"))
+    try:
+        assert s.ingest_sf1(_sf1_frame()) == 2
+        assert s.row_count("sf1_fundamentals") == 2
+        # latest-known row, columns cast to real numbers (no all-NULL trap)
+        row = s.con.execute(
+            "SELECT pe, pb, roe, marketcap, grossmargin FROM sf1_fundamentals "
+            "WHERE ticker='AAPL' AND dimension='ART' ORDER BY datekey DESC LIMIT 1"
+        ).fetchone()
+        assert row == (33.6, 38.6, 1.47, 4.1e12, 0.48)
+        # datekey is a real DATE (PIT), distinct from calendardate
+        dk, cd = s.con.execute(
+            "SELECT datekey, calendardate FROM sf1_fundamentals ORDER BY datekey DESC LIMIT 1"
+        ).fetchone()
+        assert str(dk) == "2026-05-01" and str(cd) == "2026-03-31"
+    finally:
+        s.close()
+
+
+def test_ingest_sf1_idempotent_and_reindex_robust(tmp_path) -> None:
+    s = FactorDataStore(db_path=str(tmp_path / "sf1idem.duckdb"))
+    try:
+        s.ingest_sf1(_sf1_frame())
+        s.ingest_sf1(_sf1_frame(extra_cols=True))  # re-ingest: extra col ignored, missing col → NULL
+        assert s.row_count("sf1_fundamentals") == 2  # converged, not doubled
+        # the dropped 'ps' column is NULL after the second (reindexed) ingest
+        ps = s.con.execute("SELECT ps FROM sf1_fundamentals ORDER BY datekey DESC LIMIT 1").fetchone()
+        assert ps[0] is None
+    finally:
+        s.close()
+
+
+def test_get_sf1_asof_is_point_in_time(tmp_path) -> None:
+    s = FactorDataStore(db_path=str(tmp_path / "sf1asof.duckdb"))
+    try:
+        s.ingest_sf1(_sf1_frame())  # AAPL ART, datekeys 2026-01-30 (pe 32.3) and 2026-05-01 (pe 33.6)
+        # as of 2026-03-01 only the Jan filing is knowable (the May one is in the future)
+        early = s.get_sf1_asof(["AAPL"], date(2026, 3, 1))
+        assert list(early.index) == ["AAPL"]
+        assert early.loc["AAPL", "pe"] == 32.3
+        # as of 2026-06-01 the latest-known is the May filing
+        assert s.get_sf1_asof(["AAPL"], date(2026, 6, 1)).loc["AAPL", "pe"] == 33.6
+        # before any filing → empty; unknown ticker → absent (not error); empty input → empty
+        assert s.get_sf1_asof(["AAPL"], date(2026, 1, 1)).empty
+        assert "ZZZ" not in s.get_sf1_asof(["AAPL", "ZZZ"], date(2026, 6, 1)).index
+        assert s.get_sf1_asof([], date(2026, 6, 1)).empty
+    finally:
+        s.close()

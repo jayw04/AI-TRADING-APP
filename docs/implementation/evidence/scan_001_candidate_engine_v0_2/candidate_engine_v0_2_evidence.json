@@ -1,0 +1,265 @@
+{
+  "program": "SCAN-001",
+  "plan": "v0.2",
+  "generated_utc": "2026-06-23T00:22:53+00:00",
+  "headline": {
+    "config": {
+      "universe_n": 500,
+      "start": "2023-06-12",
+      "end": "2026-06-12",
+      "days": 754,
+      "top_n": 15,
+      "bootstrap": 2000
+    },
+    "h1_prime": {
+      "candidate_expansion_ratio": 1.4934,
+      "baseline_expansion_ratio": 0.948,
+      "edge": {
+        "point": 0.5454,
+        "ci_low": 0.483,
+        "ci_high": 0.606,
+        "p_value": 0.0
+      },
+      "supported": true
+    },
+    "h2": {
+      "trend_efficiency": {
+        "edge": {
+          "point": 0.0277,
+          "ci_low": 0.022,
+          "ci_high": 0.0335,
+          "p_value": 0.0
+        },
+        "clears": true,
+        "candidate": 0.4776,
+        "baseline": 0.4499
+      },
+      "capturable_move": {
+        "edge": {
+          "point": 3.5862,
+          "ci_low": 3.4234,
+          "ci_high": 3.7636,
+          "p_value": 0.0
+        },
+        "clears": true,
+        "candidate": 5.87,
+        "baseline": 2.2837
+      },
+      "net_move": {
+        "edge": {
+          "point": 2.3424,
+          "ci_low": 2.2334,
+          "ci_high": 2.4612,
+          "p_value": 0.0
+        },
+        "clears": true,
+        "candidate": 3.7603,
+        "baseline": 1.418
+      },
+      "clears_count": 3,
+      "supported": true
+    },
+    "h3_attribution": {
+      "ATR_Gap": {
+        "vs_atr_only_E": {
+          "point": 0.2955,
+          "ci_low": 0.2572,
+          "ci_high": 0.3355,
+          "p_value": 0.0
+        },
+        "vs_atr_only_CM": {
+          "point": 0.8913,
+          "ci_low": 0.7289,
+          "ci_high": 1.0599,
+          "p_value": 0.0
+        },
+        "additive": true
+      },
+      "ATR_RVOL": {
+        "vs_atr_only_E": {
+          "point": 0.554,
+          "ci_low": 0.4959,
+          "ci_high": 0.611,
+          "p_value": 0.0
+        },
+        "vs_atr_only_CM": {
+          "point": 0.6764,
+          "ci_low": 0.4852,
+          "ci_high": 0.875,
+          "p_value": 0.0
+        },
+        "additive": true
+      },
+      "full": {
+        "vs_atr_only_E": {
+          "point": 0.5642,
+          "ci_low": 0.5046,
+          "ci_high": 0.6253,
+          "p_value": 0.0
+        },
+        "vs_atr_only_CM": {
+          "point": 1.0553,
+          "ci_low": 0.8228,
+          "ci_high": 1.2697,
+          "p_value": 0.0
+        },
+        "additive": true
+      }
+    },
+    "stability_by_year": {
+      "2023": {
+        "days": 140,
+        "expansion_edge": 0.5384
+      },
+      "2024": {
+        "days": 252,
+        "expansion_edge": 0.5841
+      },
+      "2025": {
+        "days": 250,
+        "expansion_edge": 0.5442
+      },
+      "2026": {
+        "days": 112,
+        "expansion_edge": 0.4698
+      }
+    }
+  },
+  "robustness": {
+    "config": {
+      "universe_n": 200,
+      "start": "2021-06-12",
+      "end": "2026-06-12",
+      "days": 1256,
+      "top_n": 15,
+      "bootstrap": 2000
+    },
+    "h1_prime": {
+      "candidate_expansion_ratio": 1.1807,
+      "baseline_expansion_ratio": 0.9381,
+      "edge": {
+        "point": 0.2426,
+        "ci_low": 0.2124,
+        "ci_high": 0.2741,
+        "p_value": 0.0
+      },
+      "supported": true
+    },
+    "h2": {
+      "trend_efficiency": {
+        "edge": {
+          "point": 0.0205,
+          "ci_low": 0.0162,
+          "ci_high": 0.0249,
+          "p_value": 0.0
+        },
+        "clears": true,
+        "candidate": 0.4755,
+        "baseline": 0.4549
+      },
+      "capturable_move": {
+        "edge": {
+          "point": 2.7304,
+          "ci_low": 2.5964,
+          "ci_high": 2.8719,
+          "p_value": 0.0
+        },
+        "clears": true,
+        "candidate": 5.2372,
+        "baseline": 2.5068
+      },
+      "net_move": {
+        "edge": {
+          "point": 1.7644,
+          "ci_low": 1.6793,
+          "ci_high": 1.8566,
+          "p_value": 0.0
+        },
+        "clears": true,
+        "candidate": 3.3393,
+        "baseline": 1.5749
+      },
+      "clears_count": 3,
+      "supported": true
+    },
+    "h3_attribution": {
+      "ATR_Gap": {
+        "vs_atr_only_E": {
+          "point": 0.129,
+          "ci_low": 0.1121,
+          "ci_high": 0.1466,
+          "p_value": 0.0
+        },
+        "vs_atr_only_CM": {
+          "point": 0.4206,
+          "ci_low": 0.3245,
+          "ci_high": 0.5283,
+          "p_value": 0.0
+        },
+        "additive": true
+      },
+      "ATR_RVOL": {
+        "vs_atr_only_E": {
+          "point": 0.2371,
+          "ci_low": 0.2131,
+          "ci_high": 0.2621,
+          "p_value": 0.0
+        },
+        "vs_atr_only_CM": {
+          "point": 0.3066,
+          "ci_low": 0.222,
+          "ci_high": 0.4033,
+          "p_value": 0.0
+        },
+        "additive": true
+      },
+      "full": {
+        "vs_atr_only_E": {
+          "point": 0.2706,
+          "ci_low": 0.242,
+          "ci_high": 0.3022,
+          "p_value": 0.0
+        },
+        "vs_atr_only_CM": {
+          "point": 0.5181,
+          "ci_low": 0.3701,
+          "ci_high": 0.6734,
+          "p_value": 0.0
+        },
+        "additive": true
+      }
+    },
+    "stability_by_year": {
+      "2021": {
+        "days": 141,
+        "expansion_edge": 0.2795
+      },
+      "2022": {
+        "days": 251,
+        "expansion_edge": 0.1676
+      },
+      "2023": {
+        "days": 250,
+        "expansion_edge": 0.2579
+      },
+      "2024": {
+        "days": 252,
+        "expansion_edge": 0.251
+      },
+      "2025": {
+        "days": 250,
+        "expansion_edge": 0.2633
+      },
+      "2026": {
+        "days": 112,
+        "expansion_edge": 0.2651
+      }
+    }
+  },
+  "overall": {
+    "verdict": "SUPPORTED \u2014 engine finds genuine, tradeable expansion (holds on both cuts)",
+    "h1_prime_both_cuts": true,
+    "h2_both_cuts": true,
+    "attribution_recommendation": "Keep signals: ATR + Gap + RVOL."
+  }
+}

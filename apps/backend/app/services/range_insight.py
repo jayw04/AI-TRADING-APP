@@ -11,6 +11,9 @@ Never raises — insufficiency / degeneracy is reported via ``status``.
 
 from __future__ import annotations
 
+import asyncio
+import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -54,6 +57,8 @@ class RangeInsight:
     last_close: float | None
     atr20: float | None
     atr20_pct: float | None
+    adv: float | None  # avg daily $ volume (mean close×volume over the window) — liquidity filter
+    cs_spread_pct: float | None  # Corwin-Schultz estimated bid-ask spread (proportion of price)
     typical_move_up: MoveStats | None
     typical_move_down: MoveStats | None
     support: float | None
@@ -80,6 +85,8 @@ def _insufficient(
         last_close=None,
         atr20=None,
         atr20_pct=None,
+        adv=None,
+        cs_spread_pct=None,
         typical_move_up=None,
         typical_move_down=None,
         support=None,
@@ -106,6 +113,42 @@ def _efficiency_ratio(closes: pd.Series) -> float:
     net = abs(float(closes.iloc[-1]) - float(closes.iloc[0]))
     path = float(closes.diff().abs().sum())
     return net / path if path > 0 else 0.0
+
+
+# Corwin-Schultz (2012) high-low spread estimator denominator constant, 3 − 2√2.
+_CS_K = 3.0 - 2.0 * math.sqrt(2.0)
+
+
+def _corwin_schultz_spread(highs: pd.Series, lows: pd.Series) -> float | None:
+    """Corwin & Schultz (2012) bid-ask spread estimate from daily high/low, averaged over
+    the consecutive-day pairs in the window. Returns the spread as a **proportion of price**
+    (e.g. 0.001 = 0.10%), or None if not computable.
+
+    Lets us screen on spread WITHOUT quote data (the bar cache carries OHLCV only) and at
+    the pre-open run (it uses completed daily bars, not live quotes). It is an *estimate*,
+    not a realized quoted spread — appropriate for a structural eligibility gate, where a
+    name must be tight enough to fade. Per the standard convention, negative single-pair
+    estimates (which the estimator produces for very tight names) are floored to 0.
+    """
+    h = highs.to_numpy(dtype=float)
+    low = lows.to_numpy(dtype=float)
+    n = len(h)
+    if n < 2:
+        return None
+    spreads: list[float] = []
+    for i in range(n - 1):
+        h1, l1, h2, l2 = h[i], low[i], h[i + 1], low[i + 1]
+        if not (h1 > 0 and l1 > 0 and h2 > 0 and l2 > 0):
+            continue
+        beta = math.log(h1 / l1) ** 2 + math.log(h2 / l2) ** 2
+        hh, ll = max(h1, h2), min(l1, l2)
+        gamma = math.log(hh / ll) ** 2
+        alpha = (math.sqrt(2 * beta) - math.sqrt(beta)) / _CS_K - math.sqrt(gamma / _CS_K)
+        s = 2.0 * (math.exp(alpha) - 1.0) / (1.0 + math.exp(alpha))
+        spreads.append(max(s, 0.0))
+    if not spreads:
+        return None
+    return sum(spreads) / len(spreads)
 
 
 def _classify(er: float) -> str:
@@ -178,6 +221,11 @@ def range_insight_from_bars(
     )
 
     er = _efficiency_ratio(stats["c"])
+    # Average daily dollar volume over the window — the liquidity hard filter (ADR 0028 §4).
+    adv = float((stats["c"] * stats["v"]).mean())
+    # Estimated bid-ask spread (Corwin-Schultz) over the window — the spread hard filter,
+    # computed from daily H/L so it needs no quote feed and works at the pre-open run.
+    cs_spread_pct = _corwin_schultz_spread(stats["h"], stats["l"])
 
     return RangeInsight(
         symbol=symbol,
@@ -190,6 +238,8 @@ def range_insight_from_bars(
         last_close=last_close,
         atr20=atr20,
         atr20_pct=(atr20 / last_close if last_close else None),
+        adv=adv,
+        cs_spread_pct=cs_spread_pct,
         typical_move_up=_move_stats(up),
         typical_move_down=_move_stats(down),
         support=float(stats["l"].min()),
@@ -213,3 +263,292 @@ async def compute_range_insight(
     except Exception:
         return _insufficient(symbol, bars_used=0, as_of=None)
     return range_insight_from_bars(symbol, bars, now)
+
+
+# --- Range-candidate ranking (P8 §5a) -----------------------------------------------
+# "Which symbols are the best range-trading candidates today?" — rank a universe so a
+# user can pick what to range-trade. Ranking is EVIDENCE-FIRST (design §8.4 Evidence
+# Engineering): when a symbol has a realized range backtest, it ranks by its **win rate**
+# (then Sharpe) — proven performance beats a structural guess. Names without a backtest
+# fall back below, ordered by the structural **Range Score** (normalized range × how
+# range-bound). Rationale, from this program's own runs: range trading is a marginal edge
+# even on structurally "good" names — NVDA's 5-min fade returned Sharpe −1.12 at a 25%
+# win rate while AAPL returned +0.46 at 62%, so realized win rate, not structure, must
+# lead the ranking.
+
+# Classification weight: a fade strategy thrives on range_bound, is hurt by trend.
+_CLASS_WEIGHT = {"range_bound": 1.0, "mixed": 0.5, "trending": 0.1}
+
+# Default candidate universe (liquid large-caps) when the caller passes none.
+DEFAULT_CANDIDATE_UNIVERSE: tuple[str, ...] = (
+    "AAPL", "MSFT", "NVDA", "AMD", "TSLA", "GOOGL", "AMZN", "META", "NFLX",
+    "INTC", "MU", "F", "KO", "DIS", "BAC", "XOM", "WMT", "SPY", "QQQ",
+)
+
+
+@dataclass(frozen=True)
+class HardFilters:
+    """The two-step screen's first stage (ADR 0028 review #4 / design §"hard filters"):
+    a name must pass ALL of these to enter the *qualified universe* and receive a Range
+    Score — preventing a stock with one strong metric but poor liquidity/range from ranking.
+
+    All filters are computable from the daily bars the candidate engine already pulls
+    (price, avg daily $ volume, ATR%, estimated spread) — so the whole screen runs at the
+    pre-open job with no quote feed and no intraday data.
+
+    **Spread** (``max_spread_pct``) uses the **Corwin-Schultz** high-low estimate
+    (``RangeInsight.cs_spread_pct``), not a quoted spread — the bar cache carries OHLCV only,
+    and live quotes are both unavailable pre-open and (on this dev machine) Norton-blocked.
+    It defaults to ``None`` = OFF until the threshold is calibrated to the estimator's scale.
+
+    **RVOL is intentionally NOT a hard filter.** Classic RVOL (today's intraday volume vs
+    typical) does not exist at the ~09:00 ET pre-open run, and the day's Opportunity Set is
+    frozen pre-open (ADR 0028 §"frozen daily input"), so there is no valid intraday RVOL to
+    gate on; a trailing/prior-day proxy is largely redundant with the ADV liquidity filter,
+    and a premarket-RVOL definition would need a premarket-volume baseline + a (Norton-
+    blocked) live fetch. Liquidity and activity are already covered by ADV + ATR%. (Decision
+    2026-06-27; range follow-up TASK 1.)"""
+
+    min_price: float = 10.0
+    min_adv: float = 50_000_000.0   # $50M average daily dollar volume
+    min_atr_pct: float = 0.03       # 3% ATR
+    max_spread_pct: float | None = None  # Corwin-Schultz est. spread cap (proportion); None = OFF
+
+
+DEFAULT_HARD_FILTERS = HardFilters()
+
+
+def _qualify_reason(insight: RangeInsight, f: HardFilters) -> str | None:
+    """None if the insight clears every (enforced) hard filter, else the first failure
+    reason: insufficient_data | price_below_min | adv_below_min | atr_below_min |
+    spread_above_max. The spread gate is only applied when ``max_spread_pct`` is set."""
+    if insight.status != STATUS_OK:
+        return "insufficient_data"
+    if insight.last_close is None or insight.last_close < f.min_price:
+        return "price_below_min"
+    if insight.adv is None or insight.adv < f.min_adv:
+        return "adv_below_min"
+    if insight.atr20_pct is None or insight.atr20_pct < f.min_atr_pct:
+        return "atr_below_min"
+    if f.max_spread_pct is not None and (
+        insight.cs_spread_pct is None or insight.cs_spread_pct > f.max_spread_pct
+    ):
+        return "spread_above_max"
+    return None
+
+
+@dataclass(frozen=True)
+class CandidateEvidence:
+    """Realized range-trading performance for a symbol, taken from its most recent range
+    backtest. When present this *overrides* the structural prior in the ranking — the
+    candidate ranks by win rate (then Sharpe) above any name without a backtest."""
+
+    win_rate: float | None        # [0, 1]
+    sharpe: float | None
+    n_trades: int | None
+    as_of: datetime | None = None
+    label: str | None = None      # backtest label / provenance, for the UI tooltip
+
+
+@dataclass(frozen=True)
+class RangeCandidate:
+    """One symbol's range-trading suitability (for the daily candidate ranker)."""
+
+    symbol: str
+    status: str
+    atr20: float | None
+    atr20_pct: float | None        # NORMALIZED range — the price-independent "size" factor
+    intraday_range: float | None
+    classification: str | None     # range_bound | trending | mixed
+    last_close: float | None
+    efficiency_ratio: float | None  # Kaufman ER (net/path): high = trending, low = choppy
+    oscillation: float | None      # Range Efficiency = 1 − ER (high = oscillating = good)
+    suitable: bool                 # range_bound + a usable atr20_pct
+    score: float                   # composite Range Score (higher = better range candidate)
+    rank: int                      # 1-based, after sorting
+    # Realized backtest evidence (None when the symbol has no range backtest). Evidenced
+    # names sort above structural-only ones, by win_rate then sharpe.
+    win_rate: float | None = None
+    sharpe: float | None = None
+    n_trades: int | None = None
+    backtested: bool = False
+    # Two-step screen: avg daily $ volume + whether the name cleared the hard filters
+    # (the qualified universe). ``qualified`` defaults True so candidates built without
+    # filters (e.g. the descriptive view) are unaffected.
+    adv: float | None = None
+    cs_spread_pct: float | None = None  # Corwin-Schultz estimated spread (proportion of price)
+    qualified: bool = True
+    qualify_reason: str | None = None  # why it was excluded from the qualified universe
+
+
+def _oscillation(insight: RangeInsight) -> float:
+    """The "shape" factor — how much a name *oscillates* vs trends, in [0, 1] (high = good
+    for fading). The platform's ``efficiency_ratio`` is Kaufman ER (net move / total path):
+    **high ER = directional/trending, low ER = choppy/range-bound**, so oscillation = 1 − ER.
+    Falls back to the coarse ``classification`` weight when ER isn't available (keeps callers
+    that only set the bucket working)."""
+    if insight.efficiency_ratio is not None:
+        return max(0.0, min(1.0, 1.0 - insight.efficiency_ratio))
+    return _CLASS_WEIGHT.get(insight.classification or "", 0.5)
+
+
+def _candidate_score(insight: RangeInsight) -> float:
+    """Composite **Range Score** = normalized range (``atr20_pct``, the "size") × oscillation
+    (the "shape", §8.1a of the design doc). Rewards a wide range that genuinely *oscillates*
+    rather than trends — so a high-ATR% trender (NVDA) ranks below a moderate-ATR% oscillator,
+    which ATR% alone could not capture. (Liquidity/spread factors are a future extension.)"""
+    if insight.status != "ok" or insight.atr20_pct is None:
+        return 0.0
+    return insight.atr20_pct * _oscillation(insight)
+
+
+def rank_candidates(
+    insights: Iterable[RangeInsight],
+    *,
+    evidence: dict[str, CandidateEvidence] | None = None,
+    hard_filters: HardFilters | None = None,
+) -> list[RangeCandidate]:
+    """Pure ranking over already-computed insights. Evidence-first (design §8.4): a symbol
+    with a realized range backtest (``evidence`` carrying a non-null ``win_rate``) ranks by
+    that win rate then Sharpe, ABOVE any name without one; the rest fall back to the
+    structural Range Score. ``evidence`` is keyed by uppercased symbol.
+
+    When ``hard_filters`` is given, each candidate is also tagged ``qualified`` (passed the
+    price/ADV/ATR% screen) with a ``qualify_reason`` on failure; ranking order is unchanged
+    (the qualified universe is applied at selection time). ``None`` → every ``ok`` candidate
+    is qualified (descriptive view)."""
+    ev_by_symbol = {k.upper(): v for k, v in (evidence or {}).items()}
+    rows = []
+    for ins in insights:
+        score = _candidate_score(ins)
+        suitable = (
+            ins.status == "ok"
+            and ins.classification == "range_bound"
+            and ins.atr20_pct is not None
+        )
+        if hard_filters is None:
+            qreason = None if ins.status == "ok" else "insufficient_data"
+        else:
+            qreason = _qualify_reason(ins, hard_filters)
+        qualified = qreason is None
+        ev = ev_by_symbol.get(ins.symbol.upper())
+        has_ev = ev is not None and ev.win_rate is not None
+        rows.append((score, ins, suitable, ev, has_ev, qualified, qreason))
+
+    # Evidenced names first (group 0), ranked by win_rate desc then sharpe desc; the rest
+    # (group 1) by structural score desc. Ties: atr20_pct desc, then symbol (deterministic).
+    rows.sort(
+        key=lambda t: (
+            0 if t[4] else 1,
+            -((t[3].win_rate if t[3] else None) or 0.0),
+            -((t[3].sharpe if t[3] else None) or 0.0),
+            -t[0],
+            -(t[1].atr20_pct or 0.0),
+            t[1].symbol,
+        )
+    )
+    return [
+        RangeCandidate(
+            symbol=ins.symbol, status=ins.status, atr20=ins.atr20, atr20_pct=ins.atr20_pct,
+            intraday_range=ins.intraday_range, classification=ins.classification,
+            last_close=ins.last_close, efficiency_ratio=ins.efficiency_ratio,
+            oscillation=round(_oscillation(ins), 4) if ins.status == "ok" else None,
+            suitable=suitable, score=round(score, 6), rank=i + 1,
+            win_rate=(ev.win_rate if ev else None),
+            sharpe=(ev.sharpe if ev else None),
+            n_trades=(ev.n_trades if ev else None),
+            backtested=has_ev,
+            adv=ins.adv, cs_spread_pct=ins.cs_spread_pct,
+            qualified=qualified, qualify_reason=qreason,
+        )
+        for i, (score, ins, suitable, ev, has_ev, qualified, qreason) in enumerate(rows)
+    ]
+
+
+async def rank_range_candidates(
+    symbols: Iterable[str],
+    *,
+    bar_cache: Any,
+    now: datetime,
+    evidence: dict[str, CandidateEvidence] | None = None,
+    hard_filters: HardFilters | None = None,
+) -> list[RangeCandidate]:
+    """Compute Range Insight for each symbol concurrently, then rank evidence-first
+    (realized backtest win rate, then the structural Range Score), tagging each with whether
+    it cleared ``hard_filters``. Fail-soft per symbol (``compute_range_insight`` never raises)."""
+    deduped: dict[str, None] = {}
+    for s in symbols:
+        if s and s.strip():
+            deduped.setdefault(s.strip().upper(), None)
+    insights = await asyncio.gather(
+        *(compute_range_insight(s, bar_cache=bar_cache, now=now) for s in deduped)
+    )
+    return rank_candidates(insights, evidence=evidence, hard_filters=hard_filters)
+
+
+def eligible_range_candidates(
+    candidates: Iterable[RangeCandidate],
+    *,
+    require_suitable: bool = True,
+    require_qualified: bool = False,
+    min_score: float = 0.0,
+) -> list[RangeCandidate]:
+    """The eligible candidates, in rank order: ``ok``; in the qualified universe when
+    ``require_qualified`` (passed the price/ADV/ATR% hard filters); optionally range-bound +
+    usable ATR% (``require_suitable``); and clearing the absolute Range-Score floor
+    (``min_score``). The two-step screen (ADR 0028 review #4) gates on the **hard filters**;
+    ``min_score`` is the optional *absolute* cutoff (0 = off, the research-phase default —
+    Top-N is collected regardless of absolute score to gather calibration evidence)."""
+    return [
+        c
+        for c in candidates
+        if c.status == "ok"
+        and (c.suitable or not require_suitable)
+        and (c.qualified or not require_qualified)
+        and c.score >= min_score
+    ]
+
+
+def top_range_symbols(
+    candidates: Iterable[RangeCandidate],
+    *,
+    n: int = 5,
+    require_suitable: bool = True,
+    require_qualified: bool = False,
+    min_score: float = 0.0,
+) -> list[str]:
+    """The day's Top-N range picks, in rank order — the symbol list the Candidate Engine
+    hands to the Range Trader (design §"Top 3–5 candidates"). ``candidates`` must already be
+    ranked (output of ``rank_candidates``). See ``eligible_range_candidates`` for the gates.
+    A thin day yields FEWER than ``n`` picks rather than padding (no silent padding).
+    ``n <= 0`` → none."""
+    if n <= 0:
+        return []
+    picks = eligible_range_candidates(
+        candidates, require_suitable=require_suitable,
+        require_qualified=require_qualified, min_score=min_score,
+    )
+    return [c.symbol for c in picks[:n]]
+
+
+async def select_top_range_symbols(
+    symbols: Iterable[str],
+    *,
+    bar_cache: Any,
+    now: datetime,
+    n: int = 5,
+    evidence: dict[str, CandidateEvidence] | None = None,
+    require_suitable: bool = True,
+    require_qualified: bool = False,
+    min_score: float = 0.0,
+    hard_filters: HardFilters | None = None,
+) -> list[str]:
+    """Rank a universe (evidence-first) and return today's Top-N symbols to range-trade.
+    The daily auto-select entry point: ``rank_range_candidates`` → ``top_range_symbols``."""
+    ranked = await rank_range_candidates(
+        symbols, bar_cache=bar_cache, now=now, evidence=evidence, hard_filters=hard_filters
+    )
+    return top_range_symbols(
+        ranked, n=n, require_suitable=require_suitable,
+        require_qualified=require_qualified, min_score=min_score,
+    )

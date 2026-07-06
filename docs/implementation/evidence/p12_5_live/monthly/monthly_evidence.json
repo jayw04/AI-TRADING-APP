@@ -1,0 +1,114 @@
+{
+  "generated_at": "2026-06-21T12:13:10.299010+00:00",
+  "git_sha": "ab4aede",
+  "db": "data/workbench.sqlite",
+  "month": "2026-06",
+  "window": {
+    "start": "2026-06-01",
+    "end": "2026-06-30"
+  },
+  "strategy": {
+    "id": 2,
+    "name": "momentum-portfolio",
+    "version": "0.3.0",
+    "status": "PAPER",
+    "config": "v1.1 (momentum + vol-scaling)",
+    "vol_target_annual": 0.15
+  },
+  "performance": {
+    "status": "accruing (need >=2 daily snapshots in the month)",
+    "n_days": 1
+  },
+  "risk": {
+    "orders_risk_passed": 6,
+    "orders_rejected_by_risk": 0,
+    "orders_rejected_by_broker": 1,
+    "breaker_trips": 1,
+    "breaker_resets": 1
+  },
+  "operations": {
+    "orders_submitted": 5,
+    "fills_ingested": 7,
+    "orders_canceled": 1,
+    "scanner_runs": 7,
+    "reconciliation_runs": 40,
+    "replay_runs": 0,
+    "strategy_reregistrations": 22,
+    "audit_actions_total": 64
+  },
+  "incidents": [
+    {
+      "ts": "2026-06-11 21:59:29.668675",
+      "kind": "broker_reject",
+      "severity": "medium",
+      "action": "ORDER_REJECTED_BY_BROKER",
+      "target": "order:5"
+    },
+    {
+      "ts": "2026-06-15 14:50:16.347512",
+      "kind": "breaker",
+      "severity": "high",
+      "action": "CIRCUIT_BREAKER_TRIPPED",
+      "target": "account:1"
+    }
+  ],
+  "recovery": {
+    "breaker_trips": 1,
+    "breaker_resets": 1,
+    "recovered": true
+  },
+  "verifiability": {
+    "replay_runs": 0,
+    "replay_checked": 0,
+    "replay_matched": 0,
+    "replay_mismatched": 0,
+    "replay_consistency": null,
+    "reconciliation_runs": 40,
+    "reconciliation_discrepancies": 0,
+    "reconciliation_failed_runs": 0,
+    "clean": true
+  },
+  "changes": [
+    {
+      "ts": "2026-06-09 21:11:03.056798",
+      "action": "STRATEGY_PROPOSAL_TRANSITIONED",
+      "target": "strategy_proposal:1"
+    },
+    {
+      "ts": "2026-06-15 14:47:59.727024",
+      "action": "STRATEGY_UPDATED",
+      "target": "strategy:2"
+    },
+    {
+      "ts": "2026-06-15 14:59:50.575288",
+      "action": "STRATEGY_DEACTIVATED",
+      "target": "strategy:2"
+    },
+    {
+      "ts": "2026-06-15 14:59:50.738158",
+      "action": "STRATEGY_UPDATED",
+      "target": "strategy:2"
+    },
+    {
+      "ts": "2026-06-15 16:16:48.955153",
+      "action": "STRATEGY_UPDATED",
+      "target": "strategy:2"
+    },
+    {
+      "ts": "2026-06-15 16:34:34.348716",
+      "action": "STRATEGY_UPDATED",
+      "target": "strategy:2"
+    },
+    {
+      "ts": "2026-06-21 01:12:34.258110",
+      "action": "STRATEGY_UPDATED",
+      "target": "strategy:2"
+    }
+  ],
+  "lessons_learned": [
+    "Incident (medium, broker_reject) at 2026-06-11 21:59:29.668675 [ORDER_REJECTED_BY_BROKER order:5] - see the incident log.",
+    "Incident (high, breaker) at 2026-06-15 14:50:16.347512 [CIRCUIT_BREAKER_TRIPPED account:1] - see the incident log.",
+    "The circuit breaker tripped and recovered under the documented runbook (deactivate != stop; reset confirmed) - the safety net worked.",
+    "Equity curve + trade log + operational trail continue to accumulate into the live track record (P12.5)."
+  ]
+}

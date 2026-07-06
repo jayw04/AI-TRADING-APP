@@ -138,6 +138,28 @@ def test_backtest_runs_top_quintile(bt_store: FactorDataStore) -> None:
     assert r.metrics.total_return > r.baseline_metrics.total_return
 
 
+def test_backtest_top_n_absolute_count(bt_store: FactorDataStore) -> None:
+    """MOM-002: top_n selects an ABSOLUTE book size, overriding top_quantile.
+    top_quantile=0.2 on 25 names would pick 5; top_n=3 pins it to 3 regardless."""
+    r = run_momentum_backtest(bt_store, _START, _END, top_quantile=0.2, top_n=3)
+    assert all(len(h.tickers) == 3 for h in r.holdings)
+    assert r.config.top_n == 3
+    # the top-3 are the strongest momentum names (subset of the top quintile)
+    assert "MOM24" in r.holdings[0].tickers
+
+
+def test_backtest_top_n_caps_at_universe(bt_store: FactorDataStore) -> None:
+    """top_n larger than the scored cross-section is clamped to what exists —
+    never raises, never pads with phantom names."""
+    r = run_momentum_backtest(bt_store, _START, _END, top_n=1000)
+    assert all(1 <= len(h.tickers) <= 25 for h in r.holdings)
+
+
+def test_backtest_rejects_bad_top_n(bt_store: FactorDataStore) -> None:
+    with pytest.raises(ValueError):
+        run_momentum_backtest(bt_store, _START, _END, top_n=0)
+
+
 def test_backtest_deterministic(bt_store: FactorDataStore) -> None:
     a = run_momentum_backtest(bt_store, _START, _END)
     b = run_momentum_backtest(bt_store, _START, _END)

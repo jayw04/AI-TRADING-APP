@@ -1,0 +1,187 @@
+{
+  "program": "SCAN-001",
+  "plan": "v0.4",
+  "generated_utc": "2026-06-23T11:04:11+00:00",
+  "headline": {
+    "config": {
+      "universe_n": 200,
+      "start": "2010-06-12",
+      "end": "2026-06-12",
+      "scored_days": 3826,
+      "top_n": 15,
+      "top_k": 8,
+      "warmup_days": 180,
+      "bootstrap": 2000
+    },
+    "calibration_curve": {
+      "low": {
+        "n": 19130,
+        "conf_min": 0.0031,
+        "conf_max": 0.6904,
+        "mean_E": 1.4344,
+        "mean_CM": 4.4725
+      },
+      "mid": {
+        "n": 19130,
+        "conf_min": 0.6905,
+        "conf_max": 1.0,
+        "mean_E": 1.0944,
+        "mean_CM": 4.3914
+      },
+      "high": {
+        "n": 19130,
+        "conf_min": 1.0,
+        "conf_max": 1.0,
+        "mean_E": 0.9163,
+        "mean_CM": 4.6206
+      }
+    },
+    "h_conf_1": {
+      "diff_high_minus_low": {
+        "point": -0.4505,
+        "ci_low": -0.4864,
+        "ci_high": -0.4151,
+        "p_value": 1.0
+      },
+      "monotone": false,
+      "supported": false,
+      "diff_days": 3496
+    },
+    "h_conf_2": {
+      "covariance": {
+        "point": 0.0007,
+        "ci_low": 0.0002,
+        "ci_high": 0.0011,
+        "p_value": 0.0005
+      },
+      "median_split": {
+        "median_conf": 0.984,
+        "high_conf_edge": 0.2331,
+        "low_conf_edge": 0.187,
+        "high_days": 1810,
+        "low_days": 1836
+      },
+      "non_warm_days": 3646,
+      "supported": true
+    },
+    "h_conf_3a": {
+      "topk_minus_flat_E": {
+        "point": -0.1129,
+        "ci_low": -0.1222,
+        "ci_high": -0.1035,
+        "p_value": 1.0
+      },
+      "flat_mean_E": 1.1484,
+      "topk_mean_E": 1.0355,
+      "supported": false
+    },
+    "h_conf_3b": {
+      "flat_edge_per_exposure": 0.2069,
+      "throttled_edge_per_exposure": 0.2074,
+      "delta": 0.0006,
+      "mean_exposure": 0.9768,
+      "note": "Lever B significance is carried by H-conf-2; expected small (REGIME-ROBUST)."
+    },
+    "h_conf_3c": {
+      "composite_mean_E_per_exposure": 1.0363,
+      "flat_book_mean_E_per_exposure": 1.1489,
+      "delta": -0.1126,
+      "note": "Within-day, final_confidence rank \u2261 opportunity_confidence rank (Lever B is constant per day); the composite's distinct effect is the cross-day weighting."
+    }
+  },
+  "recency": {
+    "config": {
+      "universe_n": 500,
+      "start": "2021-06-12",
+      "end": "2026-06-12",
+      "scored_days": 1057,
+      "top_n": 15,
+      "top_k": 8,
+      "warmup_days": 180,
+      "bootstrap": 2000
+    },
+    "calibration_curve": {
+      "low": {
+        "n": 5285,
+        "conf_min": 0.0083,
+        "conf_max": 0.6004,
+        "mean_E": 1.503,
+        "mean_CM": 4.7134
+      },
+      "mid": {
+        "n": 5285,
+        "conf_min": 0.6005,
+        "conf_max": 0.852,
+        "mean_E": 1.5089,
+        "mean_CM": 6.2007
+      },
+      "high": {
+        "n": 5285,
+        "conf_min": 0.8521,
+        "conf_max": 1.0,
+        "mean_E": 1.3381,
+        "mean_CM": 6.9442
+      }
+    },
+    "h_conf_1": {
+      "diff_high_minus_low": {
+        "point": -0.0834,
+        "ci_low": -0.1439,
+        "ci_high": -0.019,
+        "p_value": 0.998
+      },
+      "monotone": false,
+      "supported": false,
+      "diff_days": 970
+    },
+    "h_conf_2": {
+      "covariance": {
+        "point": 0.0036,
+        "ci_low": 0.0005,
+        "ci_high": 0.007,
+        "p_value": 0.018
+      },
+      "median_split": {
+        "median_conf": 1.0,
+        "high_conf_edge": 0.0,
+        "low_conf_edge": 0.5329,
+        "high_days": 0,
+        "low_days": 877
+      },
+      "non_warm_days": 877,
+      "supported": true
+    },
+    "h_conf_3a": {
+      "topk_minus_flat_E": {
+        "point": -0.0103,
+        "ci_low": -0.0248,
+        "ci_high": 0.004,
+        "p_value": 0.925
+      },
+      "flat_mean_E": 1.45,
+      "topk_mean_E": 1.4397,
+      "supported": false
+    },
+    "h_conf_3b": {
+      "flat_edge_per_exposure": 0.5093,
+      "throttled_edge_per_exposure": 0.5117,
+      "delta": 0.0024,
+      "mean_exposure": 0.9745,
+      "note": "Lever B significance is carried by H-conf-2; expected small (REGIME-ROBUST)."
+    },
+    "h_conf_3c": {
+      "composite_mean_E_per_exposure": 1.4425,
+      "flat_book_mean_E_per_exposure": 1.4527,
+      "delta": -0.0102,
+      "note": "Within-day, final_confidence rank \u2261 opportunity_confidence rank (Lever B is constant per day); the composite's distinct effect is the cross-day weighting."
+    }
+  },
+  "confidence_model": {
+    "verdict": "CONFIDENCE-UNINFORMATIVE \u2014 per-candidate confidence does not predict expansion",
+    "h_conf_1_headline": false,
+    "h_conf_1_recency": false,
+    "h_conf_2_headline": true,
+    "h_conf_3a_headline": false,
+    "note": "v0.2 Validated + v0.3 Operating-Envelope verdicts are unchanged; v0.4 annotates HOW to weight the candidate set. L4 stays gated on the premarket-data replication."
+  }
+}

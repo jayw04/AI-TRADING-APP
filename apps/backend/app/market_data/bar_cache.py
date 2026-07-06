@@ -77,7 +77,17 @@ class BarCache:
         # pull that subsumes the streamed range is the persistence path.
         self._streaming_buffer: dict[str, list[dict[str, Any]]] = {}
         self._max_buffer_bars: int = 500
+        # Last time the still-open bucket (current month/day) was re-fetched, keyed
+        # by "symbol:timeframe:bucket". In-memory throttle (resets on restart, which
+        # forces one fresh re-fetch on boot — the desired behavior). NOT mtime-based:
+        # reads os.utime() the file for LRU, so file mtime ≠ last fetch.
+        self._last_open_fetch: dict[str, datetime] = {}
         logger.info("bar_cache_init", root=str(self._root), max_gb=max_gb)
+
+    # The current, still-open bucket is re-fetched at most once per these windows,
+    # so newly-printed bars land instead of a partial file freezing the cache.
+    _OPEN_REFRESH_FINE = timedelta(minutes=1)  # intraday day-bucket
+    _OPEN_REFRESH_COARSE = timedelta(hours=1)  # daily month-bucket
 
     # ---------- public API ----------
 
@@ -195,14 +205,34 @@ class BarCache:
         end: datetime,
         granularity: str,
     ) -> list[tuple[str, datetime, datetime]]:
+        now = datetime.now(UTC)
+        refresh = (
+            self._OPEN_REFRESH_FINE if granularity == "fine" else self._OPEN_REFRESH_COARSE
+        )
         missing = []
         for bucket_key, b_start, b_end in self._enumerate_buckets_with_range(
             start, end, granularity
         ):
             f = self._bucket_file(symbol, timeframe, bucket_key)
             marker = f.with_suffix(".empty")
+            # ``b_end >= now`` → this is the current, still-OPEN period (current
+            # month for daily, current day for intraday). Its cached file may be
+            # missing bars printed since the last fetch — a partial file must NOT
+            # freeze the cache (the bug behind weeks-stale bars).
+            is_open = b_end >= now
+            tf_key = f"{symbol}:{timeframe}:{bucket_key}"
             if not f.exists() and not marker.exists():
                 missing.append((bucket_key, b_start, b_end))
+                if is_open:
+                    self._last_open_fetch[tf_key] = now  # start its refresh clock
+                continue
+            # Existing file: trust past buckets; re-fetch the open one, throttled
+            # to ≤ once per bar period so we don't hammer Alpaca on every read.
+            if is_open:
+                last = self._last_open_fetch.get(tf_key)
+                if last is None or (now - last) >= refresh:
+                    missing.append((bucket_key, b_start, b_end))
+                    self._last_open_fetch[tf_key] = now
         return missing
 
     def _enumerate_buckets_with_range(
@@ -288,7 +318,8 @@ class BarCache:
             f.parent.mkdir(parents=True, exist_ok=True)
             tmp = f.with_suffix(".parquet.tmp")
             bucket_df.to_parquet(tmp, index=False)
-            tmp.rename(f)
+            tmp.replace(f)  # atomic overwrite (cross-platform; rename() won't replace on Windows)
+            f.with_suffix(".empty").unlink(missing_ok=True)  # clear any stale marker
             logger.info(
                 "bar_cache_wrote",
                 symbol=symbol,

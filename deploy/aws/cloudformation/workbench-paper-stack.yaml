@@ -1,0 +1,439 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  TradingWorkbench paper stack on EC2 (ADR 0032). Provisions the AWS *environment* for the
+  always-on paper-trading box: an SSH-only EC2 t4g.medium (arm64) with an Elastic IP, an IAM role
+  scoped to read /workbench/prod/* secrets + write S3 backups + Session Manager, a versioned/
+  encrypted S3 backup bucket, a daily EBS-snapshot lifecycle, a monthly cost-budget alarm, and a
+  CloudWatch log group. The instance self-provisions via the in-repo bootstrap
+  (deploy/aws/ec2-user-data.sh) and boots DISARMED with a scratch DB (Phase 1 - touches no live
+  books). SECRETS ARE NOT IN THIS TEMPLATE: create the SSM SecureString parameters out-of-band
+  (Docs/runbook/aws-migration.md) - CloudFormation only grants read access to them.
+
+#######################################################################################
+Parameters:
+#######################################################################################
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Existing EC2 key pair for SSH.
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to launch into (your default VPC is fine).
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: PUBLIC subnet in the chosen VPC (needs a route to an internet gateway).
+  SshLocationCidr:
+    Type: String
+    Description: CIDR allowed to SSH (use YOUR.IP/32 - never 0.0.0.0/0 for a trading box).
+    AllowedPattern: ^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$
+    ConstraintDescription: Must be a CIDR like 203.0.113.7/32.
+  InstanceType:
+    Type: String
+    Default: t4g.medium
+    AllowedValues: [t4g.small, t4g.medium, t4g.large]
+  RootVolumeSizeGb:
+    Type: Number
+    Default: 30
+    MinValue: 20
+  UbuntuAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: Latest Ubuntu 24.04 arm64 AMI (auto-resolved; do not edit unless mirroring).
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id
+  RepoUrl:
+    Type: String
+    Default: https://github.com/jayw04/AI-TRADING-APP.git
+  RepoBranch:
+    Type: String
+    Default: main
+  SsmPrefix:
+    Type: String
+    Default: /workbench/prod
+    Description: SSM SecureString prefix holding the secrets (incl. WORKBENCH_MASTER_KEY).
+  HostId:
+    Type: String
+    Default: ec2-paper
+    Description: Friendly heartbeat host id (ADR 0032).
+  SchedulerEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Phase 1 = false (DISARMED). Only the cutover runbook flips this true.
+  BackupBucketName:
+    Type: String
+    Description: Globally-unique S3 bucket name for DB backups (versioned).
+  BudgetEmail:
+    Type: String
+    Description: Email for the monthly cost-budget alarm.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 50
+  SnapshotRetentionCount:
+    Type: Number
+    Default: 14
+
+#######################################################################################
+Resources:
+#######################################################################################
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "${AWS::StackName} - SSH only (app ports are loopback-bound, reached via tunnel)"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SshLocationCidr
+          Description: SSH from the operator only
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-sg" }
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Session Manager (a keyless access path / agent registration) + CW agent.
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: workbench-secrets-and-backups
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReadProdSecrets
+                Effect: Allow
+                Action: [ssm:GetParameter, ssm:GetParameters, ssm:GetParametersByPath]
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*"
+              - Sid: KmsDecryptForSecureString
+                Effect: Allow
+                Action: [kms:Decrypt]
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com"
+              - Sid: BackupsAndBootstrap
+                Effect: Allow
+                # GetObject lets the instance pull its code/bootstrap from the bucket (S3 delivery
+                # path); Put/List/Location cover the nightly DB backups.
+                Action: [s3:PutObject, s3:GetObject, s3:ListBucket, s3:GetBucketLocation]
+                Resource:
+                  - !Sub "arn:aws:s3:::${BackupBucketName}"
+                  - !Sub "arn:aws:s3:::${BackupBucketName}/*"
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  BackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref BackupBucketName
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-backup-versions
+            Status: Enabled
+            NoncurrentVersionExpiration: { NoncurrentDays: 30 }
+
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/workbench/${AWS::StackName}"
+      RetentionInDays: 30
+
+  Eip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-eip" }
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref UbuntuAmiId
+      KeyName: !Ref KeyName
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref InstanceSecurityGroup]
+      IamInstanceProfile: !Ref InstanceProfile
+      MetadataOptions:
+        HttpTokens: required          # IMDSv2 only
+        HttpPutResponseHopLimit: 1
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: !Ref RootVolumeSizeGb
+            VolumeType: gp3
+            Encrypted: true
+            DeleteOnTermination: true
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}" }
+        - { Key: Backup, Value: workbench }   # targeted by the DLM snapshot policy
+        - { Key: Role, Value: STANDBY }       # boots DISARMED (Phase 1); flip at cutover
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -y
+          apt-get install -y git awscli
+          # Private-repo clone: fetch an optional read-only deploy token from SSM.
+          TOKEN=$(aws ssm get-parameter --region ${AWS::Region} --name ${SsmPrefix}/GITHUB_DEPLOY_TOKEN --with-decryption --query Parameter.Value --output text 2>/dev/null || true)
+          CLONE_URL="${RepoUrl}"
+          if [ -n "$TOKEN" ] && [ "$TOKEN" != "None" ]; then
+            CLONE_URL=$(echo "${RepoUrl}" | sed "s#https://#https://x-access-token:$TOKEN@#")
+          fi
+          mkdir -p /opt/workbench/app
+          if [ ! -d /opt/workbench/app/.git ]; then
+            git clone --branch ${RepoBranch} "$CLONE_URL" /opt/workbench/app
+          fi
+          # Strip the token from the stored remote so it isn't persisted in .git/config.
+          git -C /opt/workbench/app remote set-url origin "${RepoUrl}" || true
+          # Hand off to the in-repo bootstrap (single source of truth), CFN params via env.
+          AWS_REGION=${AWS::Region} \
+          REPO_URL="${RepoUrl}" \
+          REPO_BRANCH=${RepoBranch} \
+          SSM_PREFIX=${SsmPrefix} \
+          SCHEDULER_ENABLED=${SchedulerEnabled} \
+          WORKBENCH_HOST_ID=${HostId} \
+          bash /opt/workbench/app/deploy/aws/ec2-user-data.sh
+
+  EipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt Eip.AllocationId
+      InstanceId: !Ref Instance
+
+  # Daily EBS snapshots of the instance's volumes (block-level backup, complements S3 DB dumps).
+  DlmRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: dlm.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole
+
+  SnapshotPolicy:
+    Type: AWS::DLM::LifecyclePolicy
+    Properties:
+      Description: !Sub "${AWS::StackName} daily EBS snapshots"
+      State: ENABLED
+      ExecutionRoleArn: !GetAtt DlmRole.Arn
+      PolicyDetails:
+        ResourceTypes: [INSTANCE]
+        TargetTags:
+          - { Key: Backup, Value: workbench }
+        Schedules:
+          - Name: DailySnapshots
+            CreateRule:
+              Interval: 24
+              IntervalUnit: HOURS
+              Times: ["07:00"]   # ~03:00 ET
+            RetainRule:
+              Count: !Ref SnapshotRetentionCount
+            CopyTags: true
+
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub "${AWS::StackName}-monthly"
+        BudgetLimit: { Amount: !Ref MonthlyBudgetUsd, Unit: USD }
+        TimeUnit: MONTHLY
+        BudgetType: COST
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref BudgetEmail }
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref BudgetEmail }
+
+  # ---- Monitoring (ADR 0032 review). The custom app metrics (namespace
+  #      Workbench/Paper, dimension HostId) are published by the on-box systemd timer
+  #      deploy/aws/cw-publish-metrics.sh. Alarms on them sit in INSUFFICIENT_DATA
+  #      until the publisher runs AND the box is armed (cutover) - expected, not a fault.
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-alarms"
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref BudgetEmail   # reuse the ops email; owner clicks the one-time confirm link
+
+  # Host-level: the instance failed its EC2 status checks (unreachable / impaired).
+  InstanceStatusAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-instance-status-failed"
+      AlarmDescription: EC2 instance/system status check failed (host impaired).
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed
+      Dimensions:
+        - { Name: InstanceId, Value: !Ref Instance }
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  # THE missed-job alarm (ADR-0032 review ask): armed AND market-open AND no on_bar
+  # dispatch in >15 min. The publisher already gates MissedDispatch on armed+market-open,
+  # so it never false-fires overnight/weekends/holidays or on a disarmed box.
+  MissedDispatchAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-missed-dispatch"
+      AlarmDescription: Armed scheduler stopped dispatching during regular hours (missed-rebalance risk).
+      Namespace: Workbench/Paper
+      MetricName: MissedDispatch
+      Dimensions:
+        - { Name: HostId, Value: !Ref HostId }
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  # Backend /healthz reporting unhealthy for 15 min while metrics are flowing.
+  BackendUnhealthyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-backend-unhealthy"
+      AlarmDescription: Backend /healthz is not ok for 15 minutes.
+      Namespace: Workbench/Paper
+      MetricName: BackendHealthy
+      Dimensions:
+        - { Name: HostId, Value: !Ref HostId }
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Ref AWS::StackName
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type":"text","x":0,"y":0,"width":24,"height":1,
+              "properties":{"markdown":"# ${AWS::StackName} - paper stack (ADR 0032). App metrics: namespace Workbench/Paper, HostId=${HostId}. Custom metrics populate once the on-box publisher runs + the box is armed."}
+            },
+            {
+              "type":"metric","x":0,"y":1,"width":12,"height":6,
+              "properties":{
+                "title":"App state (1=on)","region":"${AWS::Region}","period":300,"stat":"Maximum",
+                "yAxis":{"left":{"min":0,"max":1.2}},
+                "metrics":[
+                  ["Workbench/Paper","SchedulerArmed","HostId","${HostId}"],
+                  [".","BackendHealthy",".","."],
+                  [".","MarketOpen",".","."],
+                  [".","MissedDispatch",".","."]
+                ]
+              }
+            },
+            {
+              "type":"metric","x":12,"y":1,"width":12,"height":6,
+              "properties":{
+                "title":"Dispatch / heartbeat age (s)","region":"${AWS::Region}","period":300,"stat":"Average",
+                "metrics":[
+                  ["Workbench/Paper","DispatchAgeSeconds","HostId","${HostId}"],
+                  [".","HeartbeatAgeSeconds",".","."]
+                ]
+              }
+            },
+            {
+              "type":"metric","x":0,"y":7,"width":12,"height":6,
+              "properties":{
+                "title":"EC2 CPU %","region":"${AWS::Region}","period":300,"stat":"Average",
+                "metrics":[["AWS/EC2","CPUUtilization","InstanceId","${Instance}"]]
+              }
+            },
+            {
+              "type":"metric","x":12,"y":7,"width":12,"height":6,
+              "properties":{
+                "title":"EC2 status checks (0=ok)","region":"${AWS::Region}","period":60,"stat":"Maximum",
+                "metrics":[
+                  ["AWS/EC2","StatusCheckFailed_Instance","InstanceId","${Instance}"],
+                  [".","StatusCheckFailed_System",".","."]
+                ]
+              }
+            }
+          ]
+        }
+
+#######################################################################################
+Outputs:
+#######################################################################################
+  InstanceId:
+    Value: !Ref Instance
+  PublicIp:
+    Description: Elastic IP (stable across stop/start).
+    Value: !Ref Eip
+  SshTunnelCommand:
+    Description: Reach the UI/API over the tunnel (no public app ports).
+    Value: !Sub "ssh -N -L 5173:127.0.0.1:5173 -L 8000:127.0.0.1:8000 ubuntu@${Eip}"
+  SessionManagerCommand:
+    Description: Keyless shell (no open port) via SSM Session Manager.
+    Value: !Sub "aws ssm start-session --region ${AWS::Region} --target ${Instance}"
+  BackupBucket:
+    Value: !Ref BackupBucket
+  DashboardUrl:
+    Description: CloudWatch dashboard for the paper stack.
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/${AWS::StackName}"
+  AlarmTopicArn:
+    Description: SNS topic alarms publish to (confirm the email subscription to receive them).
+    Value: !Ref AlarmTopic
+  NextSteps:
+    Value: >
+      BEFORE this is usable: create the SSM SecureString secrets under the SsmPrefix
+      (WORKBENCH_MASTER_KEY [== the DB's key], ANTHROPIC_API_KEY, WORKBENCH_MCP_KEY,
+      AGENT_API_KEY, MCP_BACKEND_TOKEN, and optionally GITHUB_DEPLOY_TOKEN) - see
+      Docs/runbook/aws-migration.md. The box boots DISARMED with a scratch DB (Phase 1).

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +12,7 @@ from app.api.v1.schemas.account import AccountResponse
 from app.auth.stub import CurrentUser, get_current_user
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
+from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.session import get_session
 
 router = APIRouter(prefix="/account", tags=["account"])
@@ -46,6 +49,25 @@ async def get_account(
             detail="Account state not yet synced; try again in a few seconds",
         )
 
+    # Inception-to-date: earliest equity snapshot for THIS account (per-user, never
+    # aggregated). Fallback to current equity when no history exists → 0% return.
+    starting_equity = (
+        await session.execute(
+            select(EquitySnapshot.equity)
+            .where(EquitySnapshot.account_id == account.id)
+            .order_by(EquitySnapshot.ts.asc())
+            .limit(1)
+        )
+    ).scalars().first()
+    if starting_equity is None or starting_equity <= 0:
+        starting_equity = state.equity
+    total_return = state.equity - starting_equity
+    total_return_pct = (
+        (state.equity / starting_equity - Decimal(1))
+        if starting_equity and starting_equity > 0
+        else Decimal(0)
+    )
+
     return AccountResponse(
         account_id=account.id,
         mode=account.mode.value,
@@ -57,6 +79,9 @@ async def get_account(
         portfolio_value=state.portfolio_value,
         day_change=state.day_change,
         day_change_pct=state.day_change_pct,
+        starting_equity=starting_equity,
+        total_return=total_return,
+        total_return_pct=total_return_pct,
         daytrade_count=state.daytrade_count,
         pattern_day_trader=state.pattern_day_trader,
         trading_blocked=state.trading_blocked,

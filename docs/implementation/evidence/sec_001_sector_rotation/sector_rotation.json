@@ -1,0 +1,106 @@
+{
+  "program": "SEC-001",
+  "experiment_id": "EXP-20260621-223842-sec001",
+  "git_sha": "181dbbb",
+  "data": "SEP survivorship-free + Sharadar tickers.sector (11 sectors)",
+  "window": [
+    "2000-01-01",
+    "2026-06-12"
+  ],
+  "n": 200,
+  "construction": "V1 top-quintile of strong sectors",
+  "books": {
+    "momentum": {
+      "cagr": 0.0738710128402087,
+      "sharpe": 0.38810746155751447,
+      "max_drawdown": -0.7639996302083669,
+      "calmar": 0.09668985418234002
+    },
+    "sector_rotation": {
+      "cagr": 0.10361425864005191,
+      "sharpe": 0.5086925883977259,
+      "max_drawdown": -0.6479097158700202,
+      "calmar": 0.1599208286310656
+    },
+    "blend": {
+      "cagr": 0.1043954700361096,
+      "sharpe": 0.4798663423719871,
+      "max_drawdown": -0.6684035822175216,
+      "calmar": 0.15618628148245878
+    },
+    "equal_weight": {
+      "cagr": 0.05625559955895243,
+      "sharpe": 0.3477095200108433,
+      "max_drawdown": -0.6921230566103789,
+      "calmar": 0.0812797652406785
+    }
+  },
+  "H1_sector_vs_eqw_sharpe_ci": {
+    "delta": 0.161,
+    "ci_low": -0.03,
+    "ci_high": 0.366
+  },
+  "H2_corr_mom_sector": 0.379,
+  "H2_blend_vs_momentum_sharpe_ci": {
+    "delta": 0.092,
+    "ci_low": -0.045,
+    "ci_high": 0.233
+  },
+  "walk_forward": [
+    {
+      "window": [
+        "2000-01-01",
+        "2005-04-15"
+      ],
+      "sector_sharpe": 0.21,
+      "eqw_sharpe": -0.15,
+      "delta": 0.36
+    },
+    {
+      "window": [
+        "2005-04-15",
+        "2010-07-29"
+      ],
+      "sector_sharpe": 0.11,
+      "eqw_sharpe": 0.25,
+      "delta": -0.14
+    },
+    {
+      "window": [
+        "2010-07-29",
+        "2015-11-11"
+      ],
+      "sector_sharpe": 0.83,
+      "eqw_sharpe": 0.66,
+      "delta": 0.17
+    },
+    {
+      "window": [
+        "2015-11-11",
+        "2021-02-23"
+      ],
+      "sector_sharpe": 0.87,
+      "eqw_sharpe": 0.88,
+      "delta": -0.0
+    },
+    {
+      "window": [
+        "2021-02-23",
+        "2026-06-12"
+      ],
+      "sector_sharpe": 0.77,
+      "eqw_sharpe": 0.42,
+      "delta": 0.35
+    }
+  ],
+  "n_windows_sector_beats_eqw": "3/5",
+  "cost_sweep_sector_sharpe": {
+    "5bps": 0.53,
+    "10bps": 0.51,
+    "20bps": 0.47,
+    "50bps": 0.35
+  },
+  "outcome": "B \u2014 Diversifier",
+  "action": "momentum+sector blend candidate (evidence-gated)",
+  "duration_s": 4048.3
+}

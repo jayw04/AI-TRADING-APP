@@ -89,6 +89,142 @@ audit_log_rows_total = Gauge(
     "Total rows in audit_log (a sanity check on growth)",
 )
 
+# P10 §2 daily gross-exposure overlay (ADR 0020). Set inline by the strategy's
+# overlay tick (NOT snapshotted) — gauges remember their last value, so this is the
+# book's gross after the most recent tick. The reviewer's "current / average /
+# minimum gross" are all derived from this one time series in PromQL: current =
+# the gauge, average = avg_over_time(...[1d]), minimum = min_over_time(...[1d]).
+overlay_gross = Gauge(
+    "workbench_overlay_gross",
+    "Book gross-exposure target after the latest daily overlay tick, by strategy",
+    labelnames=["strategy_id"],
+)
+
+overlay_actions_total = Counter(
+    "workbench_overlay_actions_total",
+    "Daily overlay ticks by outcome (scaled / skip_drift / skip_no_price / skip_flat)",
+    labelnames=["strategy_id", "outcome"],
+)
+
+# P11 §2 (ADR 0021) — operational-reliability KPIs. The scheduler-event metrics are set by
+# the WorkbenchScheduler's APScheduler listener (every recurring job, uniformly); the
+# last-success/last-error gauges drive the point-in-time health in /ops/state.
+scheduler_job_events_total = Counter(
+    "workbench_scheduler_job_events_total",
+    "APScheduler job lifecycle events, by job and event",
+    labelnames=["job_id", "event"],  # event: executed | error | missed
+)
+scheduler_job_last_success_timestamp = Gauge(
+    "workbench_scheduler_job_last_success_timestamp",
+    "Unix timestamp of the last successful execution, by job",
+    labelnames=["job_id"],
+)
+scheduler_job_last_error_timestamp = Gauge(
+    "workbench_scheduler_job_last_error_timestamp",
+    "Unix timestamp of the last errored/missed execution, by job",
+    labelnames=["job_id"],
+)
+automation_runs_total = Counter(
+    "workbench_automation_runs_total",
+    "Automated-actor runs by actor and outcome (e.g. breaker_monitor ok/error)",
+    labelnames=["actor", "outcome"],
+)
+
+# P11 §3 (ADR 0021) — reconciliation (broker ⇄ local), alert-only.
+reconciliation_discrepancies_total = Counter(
+    "workbench_reconciliation_discrepancies_total",
+    "Reconciliation discrepancies by domain and severity",
+    labelnames=["domain", "severity"],  # domain: position|intent ; severity: low|medium|high|critical
+)
+reconciliation_duration_seconds = Histogram(
+    "workbench_reconciliation_duration_seconds",
+    "Reconciliation pass wall-clock duration",
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
+)
+
+# P11 §4 (ADR 0021) — replay (re-verify automated decisions from their audit fingerprint).
+replay_verifications_total = Counter(
+    "workbench_replay_verifications_total",
+    "Replay verifications by decision type and verdict",
+    labelnames=["decision_type", "verdict"],  # verdict: match|mismatch|skipped|error
+)
+replay_consistency_ratio = Gauge(
+    "workbench_replay_consistency_ratio",
+    "Last replay pass: matched / (matched + mismatched) over replayable decisions",
+)
+replay_coverage_ratio = Gauge(
+    "workbench_replay_coverage_ratio",
+    "Replayable (SUPPORTED) decision types / total catalogued decision types",
+)
+replay_duration_seconds = Histogram(
+    "workbench_replay_duration_seconds",
+    "Replay pass wall-clock duration",
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
+)
+
+# P11 §5 (ADR 0021) — recovery (restart-resume + partial-fill convergence). Additive
+# observability of the existing recovery paths; no new subsystem/persistence. A recovery
+# "event" is bounded: one resume-on-boot pass, or one convergence tick that closed a gap.
+recovery_attempts_total = Counter(
+    "workbench_recovery_attempts_total",
+    "Recovery actions attempted, by recovery type",
+    labelnames=["recovery_type"],  # resume_on_boot | overlay_convergence
+)
+recovery_success_total = Counter(
+    "workbench_recovery_success_total",
+    "Recovery actions that completed successfully, by recovery type",
+    labelnames=["recovery_type"],
+)
+recovery_failures_total = Counter(
+    "workbench_recovery_failures_total",
+    "Recovery actions that failed, by recovery type",
+    labelnames=["recovery_type"],
+)
+recovery_duration_seconds = Histogram(
+    "workbench_recovery_duration_seconds",
+    "Recovery action wall-clock duration, by recovery type",
+    labelnames=["recovery_type"],
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+)
+
+# PORT-001 total-return live pricing — the Alpaca corporate-actions distributions
+# provider + the combined-book pricing mode. Always-on (cheap), independent of whether
+# TR pricing is enabled, so provider health + the active pricing mode are visible on
+# Grafana without log-diving. Cardinality note: pricing_mode is labelled by strategy_id
+# only — per-symbol divergence lives in the evidence signal payload, NOT in Prometheus
+# (200+ equity symbols would blow up the series count).
+distribution_requests_total = Counter(
+    "workbench_distribution_requests_total",
+    "Corporate-actions distribution fetches attempted, by provider",
+    labelnames=["provider"],
+)
+distribution_failures_total = Counter(
+    "workbench_distribution_failures_total",
+    "Distribution fetches that failed after retries (fell through to fail-open), by provider",
+    labelnames=["provider"],
+)
+distribution_records_total = Counter(
+    "workbench_distribution_records_total",
+    "Distribution records processed, by kind (dividend|split|rejected)",
+    labelnames=["provider", "kind"],
+)
+total_return_fail_open_total = Counter(
+    "workbench_total_return_fail_open_total",
+    "Rebalances that fell back to RAW pricing due to a distributions error",
+    labelnames=["strategy_id"],
+)
+distribution_fetch_seconds = Histogram(
+    "workbench_distribution_fetch_seconds",
+    "Corporate-actions batched-fetch wall-clock duration, by provider",
+    labelnames=["provider"],
+    buckets=(0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0),
+)
+pricing_mode = Gauge(
+    "workbench_pricing_mode",
+    "Active cross-asset pricing mode by strategy (0=raw, 1=total_return)",
+    labelnames=["strategy_id"],
+)
+
 # --- Histograms --------------------------------------------------------------
 
 order_submission_duration_seconds = Histogram(

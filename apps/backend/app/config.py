@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     # don't need real creds and don't hit the broker network.
     alpaca_startup_enabled: bool = True
 
+    # Single-active-scheduler invariant (ADR 0032). When True (default) this host
+    # ARMS its scheduler: it starts the recurring jobs (syncs, strategy rebalances,
+    # backups) and resumes strategies on boot — i.e. it dispatches orders. Set
+    # WORKBENCH_SCHEDULER_ENABLED=false to run a DISARMED standby (e.g. the laptop
+    # after cutover to AWS): the process stays up and serves the API/UI, but starts
+    # no scheduler and registers no strategies, so it dispatches no automated orders.
+    # The default preserves today's single-host behavior — the laptop is unchanged
+    # unless this is explicitly set false. Never have two ARMED hosts pointed at the
+    # same Alpaca paper accounts.
+    scheduler_enabled: bool = True
+
     # When True (default — conservative) /auth/login requires a valid TOTP code
     # in addition to the password. Set WORKBENCH_LOGIN_TOTP_REQUIRED=false to
     # log in with password only (single-user localhost convenience). This gates
@@ -56,6 +67,19 @@ class Settings(BaseSettings):
     # ./apps/backend/bars_cache -> /app/bars_cache so host + container agree.
     bars_cache_root: str = "bars_cache"
     bars_cache_max_gb: float = 5.0
+
+    # --- Pre-market gappers (read-only ingest of the external scanner) ---
+    # Directory holding ``premarket_gappers_<date>.json`` files produced by the
+    # sibling ``claude-trading-view`` scanner. Mounted read-only into the
+    # container (see docker-compose). Read-only/advisory — never an order signal.
+    premarket_gappers_dir: str = "/app/premarket_gappers"
+
+    # --- SCAN-001 Production Validation Gate evidence (ADR 0024) ---
+    # Persistent directory for the forward-evidence records the ~09:25 ET premarket
+    # scan writes and the ~16:30 ET back-fill updates (one JSON per trading day).
+    # Under the gitignored data/ root so the scan -> back-fill -> verdict chain spans
+    # the day across restarts. Read-only/advisory — never an order signal.
+    premarket_gate_evidence_dir: str = "data/premarket_gate_evidence"
 
     # --- Agent (P3) ---
     # Empty key disables the agent; Session 3's runtime refuses to start a
@@ -100,11 +124,52 @@ class Settings(BaseSettings):
         alias="NASDAQ_DATA_LINK_API_KEY",
         description="Nasdaq Data Link / Sharadar API key. Empty disables factor-data ingestion.",
     )
+    # FMP (Financial Modeling Prep) key for the read-only fundamentals layer
+    # (income/balance/cash-flow/ratios/key-metrics + delisted universe), used only
+    # by app/factor_data/ (ADR 0018). Same Settings env-alias posture as the
+    # Sharadar key (NOT the encrypted CredentialStore); printed as a length only,
+    # never logged. Empty disables FMP ingestion. The provider targets FMP's
+    # /stable API (the legacy /api/v3 + /v4 endpoints were retired 2026-08-31).
+    fmp_api_key: str = Field(
+        default="",
+        alias="FMP_API_KEY",
+        description="Financial Modeling Prep API key. Empty disables FMP fundamentals ingestion.",
+    )
     # Local DuckDB point-in-time factor-data store. Resolved relative to
     # apps/backend/ (matches db_url / bars_cache_root). Lives under the
     # already-gitignored data/. Never commit the store or raw vendor pulls
     # (size + licensing, ADR 0018 §6).
     factor_data_db_path: str = "data/factor_data.duckdb"
+    # Local DuckDB store for the Research Engine subsystem (P10 Phase 2): the
+    # experiment/strategy/dataset/feature/artifact registries + transition log.
+    # Separate from the factor-data store — the Research Engine is its own
+    # subsystem (read-only-derived; never committed). Backend-relative.
+    research_db_path: str = "data/research.duckdb"
+
+    # --- SEC EDGAR alternative data (corporate events; ADR 0027, DCAP-005) ---
+    # EDGAR is free/public (no key). SEC fair-access requires a DESCRIPTIVE User-Agent
+    # (org + contact email) and <=10 req/s. An EMPTY user-agent DISABLES ingestion —
+    # never an un-throttled anonymous fetch. Read-only, off the order path.
+    sec_edgar_user_agent: str = Field(
+        default="",
+        alias="SEC_EDGAR_USER_AGENT",
+        description="SEC fair-access User-Agent ('Org Name contact@example.com'). Empty disables EDGAR.",
+    )
+    sec_edgar_rate_limit_per_sec: float = 8.0  # conservative under SEC's 10/s ceiling
+    # Local DuckDB point-in-time corporate-event store (the reusable Event Store,
+    # event-type-agnostic). Backend-relative, under the gitignored data/. Never committed.
+    event_store_path: str = "data/event_store.duckdb"
+
+    # --- Quiver Quant alternative data (Government Contracts first; ADR 0037, DCAP-007) ---
+    # A single Quiver API token (sent as 'Authorization: Token <key>'). Settings env-alias,
+    # NOT the encrypted CredentialStore — same read-only posture as the Sharadar/FMP keys
+    # (ADR 0018 §5); printed as a length only, never logged. Empty DISABLES Quiver ingestion,
+    # never an unauthenticated fetch. Off the order path.
+    quiver_api_key: str = Field(
+        default="",
+        alias="QUIVER_API_KEY",
+        description="Quiver Quant API token (Hobbyist). Empty disables Quiver alt-data ingestion.",
+    )
 
 
 @lru_cache(maxsize=1)

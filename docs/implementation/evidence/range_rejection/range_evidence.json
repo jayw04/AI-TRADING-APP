@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-06-21T22:04:54.458745+00:00",
+  "git_sha": "9e43abe",
+  "hypothesis": "RangeTraderVWAP has a robust intraday mean-reversion edge",
+  "symbol": "PLTR",
+  "config": {
+    "entry_sigma": 2.0,
+    "exit_sigma": 0.5,
+    "stop_sigma": 3.0
+  },
+  "window": [
+    "2026-01-02",
+    "2026-06-12"
+  ],
+  "data": "alpaca_iex_5min RTH (intraday history ~6 months = ONE regime \u2014 walk-forward is depth-limited; the single-regime caveat is load-bearing)",
+  "full_window": {
+    "trades": 102,
+    "profit_factor": 1.271,
+    "mean_pnl": 15.14,
+    "win_rate": 0.549,
+    "total_pnl": 1544.59
+  },
+  "bootstrap_mean_pnl_ci": {
+    "mean": 15.14,
+    "ci_low": -19.74,
+    "ci_high": 57.53,
+    "excludes_zero": false
+  },
+  "walk_forward": [
+    {
+      "window": [
+        "2026-01-02",
+        "2026-02-11"
+      ],
+      "trades": 29,
+      "profit_factor": 1.691,
+      "mean_pnl": 49.23,
+      "win_rate": 0.517,
+      "total_pnl": 1427.71
+    },
+    {
+      "window": [
+        "2026-02-11",
+        "2026-03-23"
+      ],
+      "trades": 25,
+      "profit_factor": 1.141,
+      "mean_pnl": 7.1,
+      "win_rate": 0.6,
+      "total_pnl": 177.5
+    },
+    {
+      "window": [
+        "2026-03-23",
+        "2026-05-02"
+      ],
+      "trades": 30,
+      "profit_factor": 1.325,
+      "mean_pnl": 12.88,
+      "win_rate": 0.6,
+      "total_pnl": 386.4
+    },
+    {
+      "window": [
+        "2026-05-02",
+        "2026-06-12"
+      ],
+      "trades": 22,
+      "profit_factor": 0.886,
+      "mean_pnl": -6.37,
+      "win_rate": 0.5,
+      "total_pnl": -140.04
+    }
+  ],
+  "n_windows_profitable": "3/4",
+  "verdict": "REJECTED",
+  "prior": "\u00a75c (2026-06-16): every IS-passing config collapsed OOS (best IS PF 1.37 -> OOS 0.92 = NO-GO)"
+}

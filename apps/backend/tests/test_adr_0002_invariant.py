@@ -45,6 +45,22 @@ ALLOWED = {
     # to trade the weekly rebalance diff — the same sanctioned context path
     # (dispatches through OrderRouter + the risk engine), not a direct adapter call.
     "strategies_user/templates/momentum_portfolio.py",
+    # P12 §4: the sector-rotation template (SEC-001 promotion) calls
+    # `self.ctx.submit_order(...)` to trade its weekly sector-basket rebalance —
+    # the same sanctioned context path (dispatches through OrderRouter + the risk
+    # engine), not a direct adapter call.
+    "strategies_user/templates/sector_rotation.py",
+    # Phase 2: the low-volatility template (LOW-001 promotion) calls
+    # `self.ctx.submit_order(...)` to trade its weekly low-vol rebalance — the same
+    # sanctioned context path (dispatches through OrderRouter + the risk engine),
+    # not a direct adapter call.
+    "strategies_user/templates/low_volatility.py",
+    # PORT-001: the combined-book template (Risk-Balanced Multi-Asset Portfolio,
+    # user 7) calls `self.ctx.submit_order(...)` to trade its equity + cross-asset
+    # rebalance diff — the same sanctioned context path (dispatches through
+    # OrderRouter + the risk engine), not a direct adapter call. It is the only
+    # order call site in the file; there is no adapter/broker access.
+    "strategies_user/templates/combined_book.py",
     "tests/strategies/test_backtester.py",
     "tests/strategies/test_strategy_risk_integration.py",
     # P7 §1: the strategy-generation prompt embeds the platform Strategy

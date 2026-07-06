@@ -1,0 +1,142 @@
+{
+  "window": {
+    "start": "2019-01-01",
+    "end": "2026-06-12",
+    "n": 150
+  },
+  "sector_coverage": 21679,
+  "standalone": [
+    {
+      "label": "momentum",
+      "cagr": 0.535,
+      "sharpe": 1.18,
+      "max_drawdown": -0.3829,
+      "calmar": 1.397
+    },
+    {
+      "label": "low_vol",
+      "cagr": 0.0526,
+      "sharpe": 0.513,
+      "max_drawdown": -0.1137,
+      "calmar": 0.463
+    },
+    {
+      "label": "trend",
+      "cagr": 0.4215,
+      "sharpe": 1.48,
+      "max_drawdown": -0.2324,
+      "calmar": 1.814
+    },
+    {
+      "label": "sector",
+      "cagr": 0.1865,
+      "sharpe": 0.741,
+      "max_drawdown": -0.2889,
+      "calmar": 0.646
+    }
+  ],
+  "blends": [
+    {
+      "blend": "momentum+low_vol",
+      "components": [
+        "momentum",
+        "low_vol"
+      ],
+      "metrics": {
+        "label": "momentum+low_vol",
+        "cagr": 0.3008,
+        "sharpe": 1.207,
+        "max_drawdown": -0.246,
+        "calmar": 1.223
+      },
+      "delta_sharpe_vs_mom": 0.027,
+      "ci_low": -0.305,
+      "ci_high": 0.439,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 13.69,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    },
+    {
+      "blend": "momentum+trend",
+      "components": [
+        "momentum",
+        "trend"
+      ],
+      "metrics": {
+        "label": "momentum+trend",
+        "cagr": 0.4876,
+        "sharpe": 1.324,
+        "max_drawdown": -0.3059,
+        "calmar": 1.594
+      },
+      "delta_sharpe_vs_mom": 0.144,
+      "ci_low": -0.136,
+      "ci_high": 0.425,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 7.7,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    },
+    {
+      "blend": "momentum+sector",
+      "components": [
+        "momentum",
+        "sector"
+      ],
+      "metrics": {
+        "label": "momentum+sector",
+        "cagr": 0.3668,
+        "sharpe": 1.089,
+        "max_drawdown": -0.3147,
+        "calmar": 1.166
+      },
+      "delta_sharpe_vs_mom": -0.091,
+      "ci_low": -0.622,
+      "ci_high": 0.454,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 6.82,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    },
+    {
+      "blend": "low_vol+trend",
+      "components": [
+        "low_vol",
+        "trend"
+      ],
+      "metrics": {
+        "label": "low_vol+trend",
+        "cagr": 0.2321,
+        "sharpe": 1.372,
+        "max_drawdown": -0.1665,
+        "calmar": 1.394
+      },
+      "delta_sharpe_vs_mom": 0.192,
+      "ci_low": -0.786,
+      "ci_high": 1.246,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 21.64,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    },
+    {
+      "blend": "momentum+low_vol+trend+sector",
+      "components": [
+        "momentum",
+        "low_vol",
+        "trend",
+        "sector"
+      ],
+      "metrics": {
+        "label": "momentum+low_vol+trend+sector",
+        "cagr": 0.3059,
+        "sharpe": 1.228,
+        "max_drawdown": -0.2402,
+        "calmar": 1.274
+      },
+      "delta_sharpe_vs_mom": 0.048,
+      "ci_low": -0.526,
+      "ci_high": 0.679,
+      "improves_sharpe": false,
+      "delta_maxdd_vs_mom_pp": 14.27,
+      "verdict": "DIVERSIFIES (DD-only; Sharpe CI spans 0)"
+    }
+  ]
+}

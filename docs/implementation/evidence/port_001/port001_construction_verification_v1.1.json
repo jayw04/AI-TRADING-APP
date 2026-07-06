@@ -1,0 +1,90 @@
+{
+  "evidence_package": {
+    "construction": "portfolio",
+    "metrics": {
+      "sharpe": 1.03,
+      "cagr": 0.0652,
+      "max_drawdown": -0.0925,
+      "calmar": 0.7047,
+      "ann_volatility": 0.0636,
+      "total_return": 0.3312,
+      "sleeve_correlation": 0.3317009043474229,
+      "equity_risk_fraction": 0.5,
+      "sleeve_weights": {
+        "equity": 0.38968288263114087,
+        "cross_asset": 0.6103171173688592
+      },
+      "gross": 1.0
+    },
+    "book": {
+      "EQUITY_MOMENTUM": 0.38968288263114087,
+      "UUP": 0.21411856080219083,
+      "IEF": 0.12025920581562369,
+      "TLT": 0.07371463803829015,
+      "KMLM": 0.06507682851397821,
+      "DBC": 0.04337519415621066,
+      "SPY": 0.030003769803200686,
+      "EFA": 0.026442572984550213,
+      "GLD": 0.02293142211947803,
+      "EEM": 0.01439492513533678
+    },
+    "regime": "GREEN",
+    "n_days": 1137,
+    "outcome": "B - Diversifier (crash-protected beta)",
+    "action": "risk-managed beta; alpha refuted under PIT -> size as crash-protected beta"
+  },
+  "gate": {
+    "passed": true,
+    "fidelity_pct": 96.7,
+    "criteria": [
+      {
+        "name": "sharpe",
+        "passed": true,
+        "value": 0.0091,
+        "threshold": 0.05
+      },
+      {
+        "name": "maxdd",
+        "passed": true,
+        "value": 0.0003,
+        "threshold": 0.02
+      },
+      {
+        "name": "daily_return_corr",
+        "passed": true,
+        "value": 0.999883,
+        "threshold": 0.98
+      },
+      {
+        "name": "weight_corr",
+        "passed": true,
+        "value": 0.999746,
+        "threshold": 0.99
+      },
+      {
+        "name": "trade_count",
+        "passed": true,
+        "value": 0.0,
+        "threshold": 0.1
+      },
+      {
+        "name": "determinism",
+        "passed": true,
+        "value": 1.0,
+        "threshold": 1.0
+      }
+    ],
+    "notes": []
+  },
+  "passed": true,
+  "candidate": {
+    "sharpe": 1.03,
+    "max_drawdown": -0.0925,
+    "trades": 0
+  },
+  "reference": {
+    "sharpe": 1.0209,
+    "max_drawdown": 0.0922,
+    "trades": 0
+  }
+}

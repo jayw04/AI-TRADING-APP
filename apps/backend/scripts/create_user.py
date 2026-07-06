@@ -39,6 +39,7 @@ import os
 import secrets
 import sys
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 # Make the backend importable when run as `python scripts/create_user.py`
@@ -53,7 +54,8 @@ from app.auth.totp import (  # noqa: E402
     make_provisioning_uri,
 )
 from app.config import get_settings  # noqa: E402
-from app.db.models import User  # noqa: E402
+from app.db.enums import RiskScopeType  # noqa: E402
+from app.db.models import RiskLimits, User  # noqa: E402
 from app.db.session import get_sessionmaker  # noqa: E402
 from app.security.credential_store import CredentialKind, CredentialStore  # noqa: E402
 
@@ -199,6 +201,42 @@ async def create_user(args: argparse.Namespace) -> None:
             uri = make_provisioning_uri(secret, account_name=user.email)
             print(f"  + TOTP secret {action}: {secret}")
             print(f"    enroll with: {uri}")
+
+        # --- Default GLOBAL paper risk limits ---
+        # The risk engine FAILS CLOSED: a user with no resolvable RiskLimits row
+        # has every order rejected (NO_LIMITS_CONFIGURED). seed_dev_data seeds the
+        # dev user's limits, but a freshly-created profile user (e.g. a Risk Profile)
+        # otherwise has none — so seed the same conservative global paper caps here,
+        # idempotently, so a new book can actually trade once activated.
+        existing_limits = await session.scalar(
+            select(RiskLimits).where(
+                RiskLimits.user_id == user.id,
+                RiskLimits.scope_type == RiskScopeType.GLOBAL,
+            )
+        )
+        if existing_limits is None:
+            now = datetime.now(UTC)
+            session.add(
+                RiskLimits(
+                    user_id=user.id,
+                    scope_type=RiskScopeType.GLOBAL,
+                    scope_id=None,
+                    max_position_qty=Decimal("1000"),
+                    max_position_notional=Decimal("25000"),
+                    max_gross_exposure=Decimal("100000"),
+                    max_daily_loss=Decimal("2000"),
+                    max_orders_per_minute=10,
+                    allow_short=False,
+                    allowed_symbols=None,
+                    denied_symbols=None,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            await session.commit()
+            print("  + risk_limits global (default paper caps)")
+        else:
+            print("  = risk_limits global already present")
 
     print("Done. Login should now succeed at /api/v1/auth/login.")
     print(f"  email: {email}")

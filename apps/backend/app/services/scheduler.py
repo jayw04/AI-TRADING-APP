@@ -12,13 +12,16 @@ maintaining two competing jobs.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Awaitable, Callable
 
 import structlog
+from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_MISSED
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from app.observability import metrics as obs
 from app.services.account_sync import AccountSyncService
 from app.services.asset_sync import AssetSyncService
 from app.services.market_hours import is_regular_session
@@ -36,6 +39,8 @@ class WorkbenchScheduler:
         asset_sync: AssetSyncService,
         account_sync: AccountSyncService,
         position_sync: PositionSyncService,
+        *,
+        enabled: bool = True,
     ) -> None:
         self._asset_sync = asset_sync
         self._account_sync = account_sync
@@ -43,8 +48,25 @@ class WorkbenchScheduler:
         self._scheduler = AsyncIOScheduler(timezone="America/New_York")
         self._account_ticks = 0
         self._position_ticks = 0
+        # Single-active-scheduler invariant (ADR 0032). Default True keeps
+        # current behavior; a DISARMED host never starts the scheduler.
+        self._enabled = enabled
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
 
     def start(self) -> None:
+        if not self._enabled:
+            # DISARMED standby (ADR 0032): do not start the scheduler. No recurring
+            # job fires, so this host dispatches no automated orders. The process
+            # otherwise stays up (API/UI reachable). Caller also skips strategy
+            # resume-on-boot, so the engine has nothing to dispatch either.
+            logger.warning(
+                "scheduler_disarmed",
+                reason="WORKBENCH_SCHEDULER_ENABLED=false",
+            )
+            return
         self._scheduler.add_job(
             self._safe(self._asset_sync.sync_once, "asset_sync"),
             CronTrigger(hour=4, minute=0),
@@ -67,8 +89,34 @@ class WorkbenchScheduler:
             max_instances=1,
         )
 
+        # P11 §2 (ADR 0021): one listener over every recurring job → scheduler-reliability
+        # KPIs (success rate) + the last-success/last-error gauges that drive /ops/state
+        # health. Centralized, so no per-job instrumentation is needed for this signal.
+        self._scheduler.add_listener(
+            self._on_job_event,
+            EVENT_JOB_EXECUTED | EVENT_JOB_ERROR | EVENT_JOB_MISSED,
+        )
+
         self._scheduler.start()
         logger.info("scheduler_started")
+
+    def _on_job_event(self, event: object) -> None:
+        """APScheduler listener (P11 §2): record job lifecycle events as metrics.
+        Best-effort — never let a metrics failure disturb the scheduler."""
+        job_id = str(getattr(event, "job_id", "?"))
+        code = getattr(event, "code", None)
+        try:
+            if code == EVENT_JOB_EXECUTED:
+                obs.scheduler_job_events_total.labels(job_id=job_id, event="executed").inc()
+                obs.scheduler_job_last_success_timestamp.labels(job_id=job_id).set(time.time())
+            elif code == EVENT_JOB_ERROR:
+                obs.scheduler_job_events_total.labels(job_id=job_id, event="error").inc()
+                obs.scheduler_job_last_error_timestamp.labels(job_id=job_id).set(time.time())
+            elif code == EVENT_JOB_MISSED:
+                obs.scheduler_job_events_total.labels(job_id=job_id, event="missed").inc()
+                obs.scheduler_job_last_error_timestamp.labels(job_id=job_id).set(time.time())
+        except Exception:  # noqa: BLE001 — metrics are best-effort, never break scheduling
+            logger.exception("scheduler_event_metric_failed", job_id=job_id)
 
     async def shutdown(self) -> None:
         if self._scheduler.running:
@@ -98,11 +146,11 @@ class WorkbenchScheduler:
         except Exception:
             logger.exception("startup_asset_sync_failed")
         try:
-            await self._account_sync.sync_once()
+            await self._account_sync.sync_all()  # every account at boot (P13.5)
         except Exception:
             logger.exception("startup_account_sync_failed")
         try:
-            await self._position_sync.sync_once()
+            await self._position_sync.sync_all()  # every account at boot (multi-account)
         except Exception:
             logger.exception("startup_position_sync_failed")
 
@@ -112,13 +160,13 @@ class WorkbenchScheduler:
         self._account_ticks = (self._account_ticks + 1) % _OFFHOURS_THROTTLE
         if not is_regular_session() and self._account_ticks != 0:
             return
-        await self._account_sync.sync_once()
+        await self._account_sync.sync_all()  # every account (P13.5 multi-account)
 
     async def _position_tick(self) -> None:
         self._position_ticks = (self._position_ticks + 1) % _OFFHOURS_THROTTLE
         if not is_regular_session() and self._position_ticks != 0:
             return
-        await self._position_sync.sync_once()
+        await self._position_sync.sync_all()  # every account (multi-account)
 
     # ---- helpers ----
 

@@ -1,75 +1,31 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ordersApi, type OrderListFilter } from "@/api/orders";
-import type { Order, OrderStatus } from "@/api/types";
+import type { Order, OrderSide, OrderStatus } from "@/api/types";
 import { TERMINAL_ORDER_STATUSES } from "@/api/types";
 import { ApiError } from "@/api/client";
 import { describeReasons } from "@/lib/risk-reasons";
 import { formatMoney, formatQty, formatTimestamp } from "@/lib/format";
 
-export default function OrdersPage() {
-  const [filter, setFilter] = useState<OrderListFilter>("open");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+type OrdersView = OrderListFilter | "today";
 
-  const query = useQuery({
-    queryKey: ["orders", filter],
-    queryFn: () => ordersApi.list({ filter }),
-    refetchInterval: 5_000,
-  });
+export default function OrdersPage() {
+  // Default to "Today" so the first thing a user sees is the day's executed trades.
+  const [view, setView] = useState<OrdersView>("today");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-neutral-100">Orders</h2>
-        <Tabs value={filter} onChange={setFilter} />
+        <Tabs value={view} onChange={setView} />
       </div>
 
-      <div className="rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-950 text-[11px] uppercase tracking-wider text-neutral-500">
-            <tr>
-              <th className="text-left px-3 py-2">Created</th>
-              <th className="text-left px-3 py-2">Symbol</th>
-              <th className="text-left px-3 py-2">Side</th>
-              <th className="text-right px-3 py-2">Qty</th>
-              <th className="text-left px-3 py-2">Type</th>
-              <th className="text-right px-3 py-2">Limit / Stop</th>
-              <th className="text-left px-3 py-2">Status</th>
-              <th className="text-right px-3 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {query.isLoading && (
-              <tr>
-                <td colSpan={8} className="px-3 py-4 text-center text-neutral-500">
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {query.error && (
-              <tr>
-                <td colSpan={8} className="px-3 py-4 text-center text-rose-400">
-                  {(query.error as Error).message}
-                </td>
-              </tr>
-            )}
-            {query.data?.items.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-neutral-500">
-                  No {filter === "all" ? "" : filter} orders.
-                </td>
-              </tr>
-            )}
-            {query.data?.items.map((o) => (
-              <OrderRow
-                key={o.id ?? `eph-${o.created_at}-${o.symbol}`}
-                order={o}
-                onSelect={() => o.id !== null && setSelectedId(o.id)}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {view === "today" ? (
+        <TodayActivity onSelect={setSelectedId} />
+      ) : (
+        <OrdersTable filter={view} onSelect={setSelectedId} />
+      )}
 
       {selectedId !== null && (
         <OrderDrawer orderId={selectedId} onClose={() => setSelectedId(null)} />
@@ -78,14 +34,238 @@ export default function OrdersPage() {
   );
 }
 
+function OrdersTable({
+  filter,
+  onSelect,
+}: {
+  filter: OrderListFilter;
+  onSelect: (id: number) => void;
+}) {
+  const query = useQuery({
+    queryKey: ["orders", filter],
+    queryFn: () => ordersApi.list({ filter }),
+    refetchInterval: 5_000,
+  });
+
+  return (
+    <div className="rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-neutral-950 text-[11px] uppercase tracking-wider text-neutral-500">
+          <tr>
+            <th className="text-left px-3 py-2">Created</th>
+            <th className="text-left px-3 py-2">Symbol</th>
+            <th className="text-left px-3 py-2">Side</th>
+            <th className="text-right px-3 py-2">Qty</th>
+            <th className="text-left px-3 py-2">Type</th>
+            <th className="text-right px-3 py-2">Limit / Stop</th>
+            <th className="text-right px-3 py-2">Avg Fill</th>
+            <th className="text-left px-3 py-2">Status</th>
+            <th className="text-right px-3 py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {query.isLoading && (
+            <tr>
+              <td colSpan={9} className="px-3 py-4 text-center text-neutral-500">
+                Loading…
+              </td>
+            </tr>
+          )}
+          {query.error && (
+            <tr>
+              <td colSpan={9} className="px-3 py-4 text-center text-rose-400">
+                {(query.error as Error).message}
+              </td>
+            </tr>
+          )}
+          {query.data?.items.length === 0 && (
+            <tr>
+              <td colSpan={9} className="px-3 py-6 text-center text-neutral-500">
+                No {filter === "all" ? "" : filter} orders.
+              </td>
+            </tr>
+          )}
+          {query.data?.items.map((o) => (
+            <OrderRow
+              key={o.id ?? `eph-${o.created_at}-${o.symbol}`}
+              order={o}
+              onSelect={() => o.id !== null && onSelect(o.id)}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+interface FillRow {
+  key: string;
+  orderId: number | null;
+  symbol: string;
+  side: OrderSide;
+  qty: string;
+  price: string;
+  filledAt: string;
+  source: string;
+}
+
+function startOfTodayMs(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Flatten every fill executed today (local day) across all orders, newest first.
+ * One row per fill = one executed buy/sell with its actual price. */
+export function todaysFills(orders: Order[]): FillRow[] {
+  const start = startOfTodayMs();
+  const rows: FillRow[] = [];
+  for (const o of orders) {
+    for (const f of o.fills) {
+      if (new Date(f.filled_at).getTime() >= start) {
+        rows.push({
+          key: `${o.id ?? o.created_at}-${f.id}`,
+          orderId: o.id,
+          symbol: o.symbol,
+          side: o.side,
+          qty: f.qty,
+          price: f.price,
+          filledAt: f.filled_at,
+          source: o.source_type,
+        });
+      }
+    }
+  }
+  rows.sort((a, b) => new Date(b.filledAt).getTime() - new Date(a.filledAt).getTime());
+  return rows;
+}
+
+/** Today's executed trades — a flat buy/sell history with fill prices. */
+function TodayActivity({ onSelect }: { onSelect: (id: number) => void }) {
+  const query = useQuery({
+    queryKey: ["orders", "today"],
+    queryFn: () => ordersApi.list({ filter: "all", limit: 500 }),
+    refetchInterval: 5_000,
+  });
+
+  const fills = query.data ? todaysFills(query.data.items) : [];
+  let bought = 0;
+  let sold = 0;
+  let buys = 0;
+  let sells = 0;
+  for (const f of fills) {
+    const notional = Number(f.qty) * Number(f.price);
+    if (f.side === "buy") {
+      bought += notional;
+      buys += 1;
+    } else {
+      sold += notional;
+      sells += 1;
+    }
+  }
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap gap-3">
+        <Stat label="Trades today" value={String(fills.length)} />
+        <Stat label="Buys" value={`${buys} · ${formatMoney(String(bought))}`} tone="buy" />
+        <Stat label="Sells" value={`${sells} · ${formatMoney(String(sold))}`} tone="sell" />
+      </div>
+      <div className="rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-neutral-950 text-[11px] uppercase tracking-wider text-neutral-500">
+            <tr>
+              <th className="text-left px-3 py-2">Time</th>
+              <th className="text-left px-3 py-2">Symbol</th>
+              <th className="text-left px-3 py-2">Side</th>
+              <th className="text-right px-3 py-2">Qty</th>
+              <th className="text-right px-3 py-2">Price</th>
+              <th className="text-right px-3 py-2">Value</th>
+              <th className="text-left px-3 py-2">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {query.isLoading && (
+              <tr>
+                <td colSpan={7} className="px-3 py-4 text-center text-neutral-500">
+                  Loading…
+                </td>
+              </tr>
+            )}
+            {query.error && (
+              <tr>
+                <td colSpan={7} className="px-3 py-4 text-center text-rose-400">
+                  {(query.error as Error).message}
+                </td>
+              </tr>
+            )}
+            {query.data && fills.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-3 py-6 text-center text-neutral-500">
+                  No fills yet today.
+                </td>
+              </tr>
+            )}
+            {fills.map((f) => (
+              <tr
+                key={f.key}
+                onClick={() => f.orderId !== null && onSelect(f.orderId)}
+                className="border-t border-neutral-800 hover:bg-neutral-850/30 cursor-pointer"
+              >
+                <td className="px-3 py-2 font-mono text-xs text-neutral-400">
+                  {formatTimestamp(f.filledAt)}
+                </td>
+                <td className="px-3 py-2 font-semibold text-neutral-100">{f.symbol}</td>
+                <td className="px-3 py-2">
+                  <SideBadge side={f.side} />
+                </td>
+                <td className="px-3 py-2 text-right font-mono">{formatQty(f.qty)}</td>
+                <td className="px-3 py-2 text-right font-mono text-neutral-100">
+                  {formatMoney(f.price)}
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-neutral-300">
+                  {formatMoney(String(Number(f.qty) * Number(f.price)))}
+                </td>
+                <td className="px-3 py-2 text-xs capitalize text-neutral-400">
+                  {f.source.replace("_", " ")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "buy" | "sell";
+}) {
+  const toneCls =
+    tone === "buy" ? "text-emerald-300" : tone === "sell" ? "text-rose-300" : "text-neutral-200";
+  return (
+    <div className="rounded border border-neutral-800 bg-neutral-900 px-3 py-1.5">
+      <div className="text-[10px] uppercase tracking-wider text-neutral-500">{label}</div>
+      <div className={`font-mono text-sm ${toneCls}`}>{value}</div>
+    </div>
+  );
+}
+
 function Tabs({
   value,
   onChange,
 }: {
-  value: OrderListFilter;
-  onChange: (v: OrderListFilter) => void;
+  value: OrdersView;
+  onChange: (v: OrdersView) => void;
 }) {
-  const tabs: { id: OrderListFilter; label: string }[] = [
+  const tabs: { id: OrdersView; label: string }[] = [
+    { id: "today", label: "Today" },
     { id: "open", label: "Working" },
     { id: "history", label: "History" },
     { id: "all", label: "All" },
@@ -114,6 +294,14 @@ function OrderRow({ order, onSelect }: { order: Order; onSelect: () => void }) {
   const isTerminal =
     TERMINAL_ORDER_STATUSES.has(order.status) || order.id === null;
   const limitOrStop = order.limit_price ?? order.stop_price ?? null;
+  // Quantity-weighted average execution price across this order's fills. Market orders
+  // carry no limit/stop, so this is the only price the History/All/Working tabs can show.
+  const fills = order.fills ?? [];
+  const filledQty = fills.reduce((s, f) => s + Number(f.qty), 0);
+  const avgFill =
+    filledQty > 0
+      ? fills.reduce((s, f) => s + Number(f.qty) * Number(f.price), 0) / filledQty
+      : null;
   return (
     <tr
       onClick={onSelect}
@@ -133,6 +321,9 @@ function OrderRow({ order, onSelect }: { order: Order; onSelect: () => void }) {
       </td>
       <td className="px-3 py-2 text-right font-mono text-neutral-300">
         {limitOrStop ? formatMoney(limitOrStop) : "—"}
+      </td>
+      <td className="px-3 py-2 text-right font-mono text-neutral-200">
+        {avgFill !== null ? formatMoney(String(avgFill)) : "—"}
       </td>
       <td className="px-3 py-2">
         <StatusBadge status={order.status} />

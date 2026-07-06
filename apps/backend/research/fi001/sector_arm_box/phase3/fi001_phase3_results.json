@@ -1,0 +1,111 @@
+{
+  "window": {
+    "start": "2019-01-01",
+    "end": "2026-06-12",
+    "n": 150,
+    "vol_target": 0.12
+  },
+  "sector_coverage": 21679,
+  "results": [
+    {
+      "method": "equal_weight",
+      "cagr": 0.3059,
+      "sharpe": 1.228,
+      "max_drawdown": -0.2402,
+      "calmar": 1.274,
+      "dS_vs_mom": 0.048,
+      "ci_mom": [
+        -0.526,
+        0.679
+      ],
+      "improves_vs_mom": false,
+      "dS_vs_eqw": 0.0,
+      "ci_eqw": [
+        0.0,
+        0.0
+      ],
+      "improves_vs_eqw": false,
+      "dMaxDD_vs_mom_pp": 14.27
+    },
+    {
+      "method": "inverse_vol",
+      "cagr": 0.1787,
+      "sharpe": 0.961,
+      "max_drawdown": -0.2327,
+      "calmar": 0.768,
+      "dS_vs_mom": -0.218,
+      "ci_mom": [
+        -0.858,
+        0.522
+      ],
+      "improves_vs_mom": false,
+      "dS_vs_eqw": -0.266,
+      "ci_eqw": [
+        -0.607,
+        0.166
+      ],
+      "improves_vs_eqw": false,
+      "dMaxDD_vs_mom_pp": 15.02
+    },
+    {
+      "method": "erc",
+      "cagr": 0.1509,
+      "sharpe": 0.88,
+      "max_drawdown": -0.232,
+      "calmar": 0.651,
+      "dS_vs_mom": -0.3,
+      "ci_mom": [
+        -1.006,
+        0.577
+      ],
+      "improves_vs_mom": false,
+      "dS_vs_eqw": -0.348,
+      "ci_eqw": [
+        -0.872,
+        0.315
+      ],
+      "improves_vs_eqw": false,
+      "dMaxDD_vs_mom_pp": 15.09
+    },
+    {
+      "method": "min_variance",
+      "cagr": -0.0017,
+      "sharpe": 0.051,
+      "max_drawdown": -0.2186,
+      "calmar": 0.008,
+      "dS_vs_mom": -1.129,
+      "ci_mom": [
+        -2.223,
+        0.035
+      ],
+      "improves_vs_mom": false,
+      "dS_vs_eqw": -1.177,
+      "ci_eqw": [
+        -2.255,
+        -0.171
+      ],
+      "improves_vs_eqw": false,
+      "dMaxDD_vs_mom_pp": 16.43
+    },
+    {
+      "method": "erc_voltarget",
+      "cagr": 0.1339,
+      "sharpe": 1.147,
+      "max_drawdown": -0.1341,
+      "calmar": 0.999,
+      "dS_vs_mom": -0.057,
+      "ci_mom": [
+        -0.849,
+        0.709
+      ],
+      "improves_vs_mom": false,
+      "dS_vs_eqw": -0.091,
+      "ci_eqw": [
+        -0.737,
+        0.556
+      ],
+      "improves_vs_eqw": false,
+      "dMaxDD_vs_mom_pp": 24.88
+    }
+  ]
+}

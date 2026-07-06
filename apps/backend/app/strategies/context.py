@@ -20,16 +20,31 @@ from typing import Any
 import pandas as pd
 import structlog
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.enums import OrderSourceType, SignalType
+from app.db.enums import (
+    TERMINAL_ORDER_STATUSES,
+    OrderSide,
+    OrderSourceType,
+    SignalType,
+)
 from app.db.models.account_state import AccountState
+from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.signal import Signal
 from app.db.models.symbol import Symbol
 from app.risk import OrderRequest
 
 logger = structlog.get_logger(__name__)
+
+# Sanctioned portfolio-level signal sentinel. A strategy may log a signal that is
+# about the book as a whole (a full-liquidation EXIT, a gross-exposure overlay
+# decision) rather than a single ticker — e.g. momentum_portfolio / low_volatility
+# log ``log_signal("PORTFOLIO", …)``. This is NOT a universe-isolation violation, so
+# it must not raise ``strategy_logged_unauthorized_signal``; it is persisted against a
+# non-tradeable sentinel ``symbols`` row so the decision is recorded in the signal feed.
+PORTFOLIO_SIGNAL_SYMBOL = "PORTFOLIO"
 
 
 # ---------- DTOs handed to user code ----------
@@ -269,6 +284,45 @@ class StrategyContext:
                 )
             ).scalars().first()
 
+    async def pending_buy_qty(self) -> dict[str, Decimal]:
+        """In-flight BUY quantity per ticker for THIS strategy, keyed by ticker.
+
+        Sums the qty of this strategy's own non-terminal BUY orders (routed but
+        not yet filled/settled, so not yet visible in ``positions``). A strategy
+        nets its target buys against this so a re-run — e.g. after a
+        deactivate/reactivate within the same rebalance period — does not submit a
+        duplicate basket and stack unintended exposure (incident 2026-06-22).
+
+        DB-backed, so the guard survives the in-memory strategy instance being
+        recreated. Scoped to this strategy's own orders (``source_id``); other
+        strategies and manual orders on the account are netted by the risk
+        engine's account-level gates (ADR 0025), not here. Conservative: counts
+        each order's full qty (a partial fill's remainder lags in ``positions``).
+        Restricted to the strategy's allowed universe.
+        """
+        allowed = {s.upper() for s in self.symbols}
+        out: dict[str, Decimal] = {}
+        async with self._session_factory() as session:
+            rows = (
+                await session.execute(
+                    select(Symbol.ticker, Order.qty)
+                    .join(Symbol, Symbol.id == Order.symbol_id)
+                    .where(
+                        Order.account_id == self.account_id,
+                        Order.source_type == OrderSourceType.STRATEGY,
+                        Order.source_id == str(self.strategy_id),
+                        Order.side == OrderSide.BUY,
+                        Order.status.notin_(TERMINAL_ORDER_STATUSES),
+                    )
+                )
+            ).all()
+        for ticker, qty in rows:
+            t = ticker.upper()
+            if t not in allowed:
+                continue
+            out[t] = out.get(t, Decimal(0)) + Decimal(qty)
+        return out
+
     async def get_account_equity(self) -> Decimal | None:
         """Live account equity from the cached broker snapshot, or ``None`` if no
         snapshot exists yet.
@@ -333,7 +387,8 @@ class StrategyContext:
         Returns the new signal id, or 0 if the symbol couldn't be resolved.
         """
         symbol = symbol.upper()
-        if symbol not in {s.upper() for s in self.symbols}:
+        is_portfolio = symbol == PORTFOLIO_SIGNAL_SYMBOL
+        if not is_portfolio and symbol not in {s.upper() for s in self.symbols}:
             logger.warning(
                 "strategy_logged_unauthorized_signal",
                 strategy_id=self.strategy_id,
@@ -344,8 +399,29 @@ class StrategyContext:
                 await session.execute(select(Symbol).where(Symbol.ticker == symbol))
             ).scalars().first()
             if sym is None:
-                logger.warning("strategy_signal_unknown_symbol", symbol=symbol)
-                return 0
+                if not is_portfolio:
+                    logger.warning("strategy_signal_unknown_symbol", symbol=symbol)
+                    return 0
+                # Lazily create the non-tradeable PORTFOLIO sentinel (once ever). A
+                # concurrent first-use race resolves to the row the other writer made.
+                try:
+                    async with session.begin_nested():
+                        sym = Symbol(
+                            ticker=PORTFOLIO_SIGNAL_SYMBOL,
+                            asset_class="sentinel",
+                            name="Portfolio-level signal sentinel",
+                            active=False,
+                        )
+                        session.add(sym)
+                        await session.flush()
+                except IntegrityError:
+                    sym = (
+                        await session.execute(
+                            select(Symbol).where(Symbol.ticker == PORTFOLIO_SIGNAL_SYMBOL)
+                        )
+                    ).scalars().first()
+                    if sym is None:
+                        return 0
             sig = Signal(
                 user_id=self.user_id,
                 strategy_id=self.strategy_id,

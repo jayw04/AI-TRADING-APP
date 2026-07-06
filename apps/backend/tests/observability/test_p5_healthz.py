@@ -33,6 +33,30 @@ async def test_healthz_ok_when_alpaca_disabled(client):
     assert body["checks"]["scheduler"] == "disabled"
 
 
+async def test_healthz_disarmed_scheduler_is_healthy(client, monkeypatch):
+    # ADR 0032: a DISARMED standby (alpaca on, scheduler_enabled false) must stay
+    # healthy — the scheduler is deliberately not running, which is NOT a failure.
+    from types import SimpleNamespace
+
+    import app.api.healthz as hz
+
+    base = hz.get_settings()
+    monkeypatch.setattr(
+        hz, "get_settings",
+        lambda: SimpleNamespace(
+            alpaca_startup_enabled=True, scheduler_enabled=False, version=base.version
+        ),
+    )
+    # broker check (now "on") needs a registry object; no accounts -> "no_accounts".
+    client._transport.app.state.broker_registry = SimpleNamespace(_adapters={})
+
+    r = await client.get("/healthz")
+    body = r.json()
+    assert body["checks"]["scheduler"] == "disarmed"
+    assert body["status"] == "ok"
+    assert r.status_code == 200
+
+
 async def test_healthz_degraded_when_breaker_tripped(client):
     from app.db.models.account import Account, AccountMode
     from app.db.models.user import User

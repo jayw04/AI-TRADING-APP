@@ -1,0 +1,63 @@
+{
+  "experiment_id": "EXP-20260621-002659-mf",
+  "EXPLORATORY": "FMP ~5yr / one regime / not survivorship-free \u2014 current evidence, not a verdict",
+  "window": [
+    "2021-01-01",
+    "2026-06-12"
+  ],
+  "n": 200,
+  "dataset_health_ok": true,
+  "correlation_matrix": {
+    "momentum": {
+      "momentum": 1.0,
+      "value": -0.044,
+      "quality": 0.003,
+      "multifactor": 0.212
+    },
+    "value": {
+      "momentum": -0.044,
+      "value": 1.0,
+      "quality": 0.265,
+      "multifactor": 0.75
+    },
+    "quality": {
+      "momentum": 0.003,
+      "value": 0.265,
+      "quality": 1.0,
+      "multifactor": 0.78
+    },
+    "multifactor": {
+      "momentum": 0.212,
+      "value": 0.75,
+      "quality": 0.78,
+      "multifactor": 1.0
+    }
+  },
+  "n_correlation_samples": 43,
+  "momentum_value_corr": -0.044,
+  "momentum_quality_corr": 0.003,
+  "momentum_book": {
+    "cagr": 0.2926841599110268,
+    "sharpe": 0.9975772725782351,
+    "max_drawdown": -0.38774848974204934,
+    "calmar": 0.7548299159223951
+  },
+  "multifactor_book": {
+    "cagr": 0.2530597178422358,
+    "sharpe": 1.2311726748293315,
+    "max_drawdown": -0.21415511646345975,
+    "calmar": 1.1816655236692146
+  },
+  "multifactor_sharpe_ci": {
+    "point": 1.2311726748293315,
+    "ci_low": 0.46394100949598216,
+    "ci_high": 1.9997654036538968,
+    "p_value": 0.0005,
+    "n_resamples": 2000,
+    "block": 21
+  },
+  "delta_sharpe": 0.234,
+  "research_state": "Inconclusive",
+  "action": "further research / acquire SF1",
+  "duration_s": 586.32
+}

@@ -41,6 +41,12 @@ from pathlib import Path
 
 import httpx
 
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.strategies.risk_profiles import RISK_PROFILES, profile_name, profile_params  # noqa: E402
+
 DEFAULT_PARAMS = {
     # P9 §4 dry-run-locked sizing for the ~$10k paper account:
     "max_names": 5,
@@ -51,6 +57,11 @@ DEFAULT_PARAMS = {
     "use_market_regime_filter": True,
     "market_filter_symbol": "SPY",
     "pricing_timeframe": "1Day",
+    # The engine's _dispatch_bar_tick fetches params["timeframe"] (default "1Min")
+    # to fire on_bar; momentum needs DAILY bars or the scheduled rebalance silently
+    # produces no orders. MUST be set here — omitting it is the bug that left the
+    # Conservative/Growth Risk Profiles un-invested on their first rebalance.
+    "timeframe": "1Day",
     # initial_equity_estimate is a FALLBACK only — live equity comes from
     # accounts_state via ctx.get_account_equity().
     "initial_equity_estimate": 10000,
@@ -86,20 +97,36 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--totp", help="current 6-digit TOTP code")
     ap.add_argument("--totp-secret", help="base32 TOTP secret (computes the code via pyotp)")
     ap.add_argument("--symbols-file", required=True, help="newline/comma-separated tickers (incl. SPY)")
-    ap.add_argument("--name", default="momentum-portfolio")
+    ap.add_argument("--name", default=None,
+                    help="strategy/book name (default: 'momentum-portfolio', or "
+                         "'momentum-<profile>' when --risk-profile is set)")
+    ap.add_argument("--risk-profile", choices=sorted(RISK_PROFILES), default=None,
+                    help="P13.5 Risk Profile preset — turns vol-scaling ON at the profile's vol "
+                         "target (conservative=10%% / balanced=15%% / growth=20%%). Each profile "
+                         "needs its OWN paper account/user (run on the right login).")
     ap.add_argument("--code-path", default="templates/momentum_portfolio.py")
     ap.add_argument("--version", default="0.3.0")
-    ap.add_argument("--schedule", default="0 14 * * 1", help="weekly Mon 14:00 UTC ≈ 10:00 ET")
+    # Day-NAME 'mon', NOT '1': APScheduler from_crontab reads dow 0=Mon and does
+    # NOT remap cron's 1=Mon, so "0 14 * * 1" fires TUESDAY. "mon" is unambiguous.
+    ap.add_argument("--schedule", default="0 14 * * mon", help="weekly Mon 14:00 UTC ≈ 10:00 ET")
     ap.add_argument("--dry-run", action="store_true", help="print the create payload and exit")
     args = ap.parse_args(argv)
 
+    # Risk-profile preset (P13.5): vol-scaling ON at the profile's target; default the name too.
+    if args.risk_profile:
+        params = profile_params(args.risk_profile, DEFAULT_PARAMS)
+        name = args.name or profile_name(args.risk_profile)
+    else:
+        params = DEFAULT_PARAMS
+        name = args.name or "momentum-portfolio"
+
     symbols = _load_symbols(args.symbols_file)
     create_body = {
-        "name": args.name,
+        "name": name,
         "version": args.version,
         "type": "python",
         "code_path": args.code_path,
-        "params": DEFAULT_PARAMS,
+        "params": params,
         "symbols": symbols,
         "schedule": args.schedule,
     }
@@ -107,8 +134,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         print(f"[dry-run] {len(symbols)} symbols (incl. SPY={'SPY' in symbols})")
         print("[dry-run] POST /api/v1/strategies body:")
-        print(json.dumps({**create_body, "symbols": symbols[:8] + ["…"]}, indent=2))
-        print(f"[dry-run] params: {json.dumps(DEFAULT_PARAMS)}")
+        print(json.dumps({**create_body, "symbols": symbols[:8] + ["..."]}, indent=2))
+        print(f"[dry-run] params: {json.dumps(params)}")
+        if args.risk_profile:
+            print(f"[dry-run] risk profile: {args.risk_profile} "
+                  f"(vol_target_annual={params['vol_target_annual']}, vol-scaling ON) -> name={name!r}")
         return 0
 
     if not (args.email and args.password):
@@ -141,13 +171,13 @@ def main(argv: list[str] | None = None) -> int:
         body = r.json()
         print(f"started: status={body.get('new_status')} run_id={body.get('run_id')}")
         if body.get("new_status") != "paper":
-            print(f"⚠ expected status 'paper', got {body.get('new_status')} — check engine logs",
+            print(f"WARN expected status 'paper', got {body.get('new_status')} - check engine logs",
                   file=sys.stderr)
             return 1
 
-    print(f"\n✅ momentum-portfolio is ACTIVE on PAPER (strategy id={sid}).")
+    print(f"\nOK: {name} is ACTIVE on PAPER (strategy id={sid}).")
     print(f"   The weekly cron '{args.schedule}' fires the rebalance automatically")
-    print("   (Mon 14:00 UTC ≈ 10:00 ET — i.e. ~30 min after the 09:30 open).")
+    print("   (Mon 14:00 UTC ~ 10:00 ET, i.e. ~30 min after the 09:30 open).")
     print("   To fire SOONER for the validation, re-create with a frequent schedule,")
     print("   e.g. --schedule '*/5 * * * *' (the rebalance-once-per-ISO-week guard means")
     print("   it rebalances ONCE then no-ops; NB each tick fetches bars for all symbols,")
