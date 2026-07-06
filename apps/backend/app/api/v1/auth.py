@@ -48,8 +48,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # ---------------- Rate limit (in-memory, per IP) ----------------
 
 LOGIN_RATE_LIMIT_WINDOW = 15 * 60.0  # 15 min
-LOGIN_RATE_LIMIT_MAX = 5
-LOGIN_COOLDOWN_SECONDS = 60 * 60.0  # 60 min cooldown after exceeding
+LOGIN_RATE_LIMIT_MAX = 20  # raised from 5: the owner legitimately logs in across several
+# paper users when switching books, which is a normal burst — not a brute-force.
+LOGIN_COOLDOWN_SECONDS = 15 * 60.0  # 15 min cooldown after exceeding (was 60)
+
+# Loopback is exempt from the limiter. The box is loopback-bound + SSH-only, so every
+# legitimate UI login arrives over an SSH tunnel and keys to 127.0.0.1 (nginx forwards the
+# tunnel endpoint) — rate-limiting it only locks out the operator, and a brute-force from
+# loopback already implies host access, which is not the threat this control defends against.
+_LOOPBACK_IPS = frozenset({"127.0.0.1", "::1", "localhost"})
 
 _login_attempts: dict[str, list[float]] = defaultdict(list)
 _login_cooldown_until: dict[str, float] = {}
@@ -62,9 +69,15 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _is_loopback(ip: str) -> bool:
+    return ip in _LOOPBACK_IPS or ip.startswith("127.")
+
+
 def _check_login_rate_limit(ip: str) -> None:
     """Raise 429 if the IP has exceeded the rate limit. Always records the
-    current attempt."""
+    current attempt. Loopback IPs are exempt (see _LOOPBACK_IPS)."""
+    if _is_loopback(ip):
+        return
     now = time.time()
     cooldown = _login_cooldown_until.get(ip, 0.0)
     if cooldown > now:
