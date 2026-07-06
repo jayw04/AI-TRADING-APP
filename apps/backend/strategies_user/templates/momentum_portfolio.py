@@ -17,8 +17,8 @@ MTG strategy-spec lens (Docs/Strategies/Trading+Plan+Clean.pdf):
   Entry/Exit     weekly rebalance — enter the target quintile, exit names that
                   fall out of it (with a rank-hysteresis buffer to damp churn)
   Position Sizing equal target notional = investable_equity / k, capped at
-                  max_position_pct, market orders; whole shares by default, or
-                  fractional (fractional_shares, opt-in) to deploy ~fully
+                  max_position_pct, market orders; fractional shares by default
+                  (deploys ~fully; set fractional_shares=False for whole-share only)
   Stop Loss      none per-name (diversification + weekly turnover + risk engine)
   Bail-Out       no factor data → HOLD; bearish market regime (price < SPY 200d
                   MA) → risk-off to CASH; risk engine caps/breaker are the halt
@@ -112,7 +112,7 @@ class MomentumPortfolio(Strategy):
         "market_ma_days": 200,  # MA window for the regime filter
         "max_position_pct": 0.10,  # hard cap on any one name's weight
         "max_sector_pct": None,  # cap per-sector book weight (None = disabled; P10 §3, opt-in)
-        "fractional_shares": False,  # size fractional qty (deploys ~fully on a small acct; P10 §7, opt-in)
+        "fractional_shares": True,  # fractional deploys ~fully; whole shares under-deploy (P10 §7 — default ON)
         "cash_buffer_pct": 0.02,  # keep this fraction in cash (deploy the rest)
         "initial_equity_estimate": 100_000,  # FALLBACK only when live equity is unavailable
         # Engine dispatch timeframe: StrategyEngine._dispatch_bar_tick fetches a bar
@@ -168,7 +168,7 @@ class MomentumPortfolio(Strategy):
                            "description": "Moving-average window (trading days) for the regime filter."},
         "max_position_pct": {"type": "number", "min": 0, "max": 1, "default": 0.10,
                              "description": "Hard cap on any single position as a fraction of equity."},
-        "fractional_shares": {"type": "boolean", "default": False,
+        "fractional_shares": {"type": "boolean", "default": True,
                               "description": "Size fractional share quantities (deploys ~fully vs whole-share rounding). Alpaca fractional MARKET/DAY only."},
         "max_sector_pct": {"type": "number", "min": 0, "max": 1, "nullable": True, "default": None,
                            "description": "Cap on any one sector's share of the book (≈names, equal-weight). Empty/None = no sector cap."},
@@ -292,7 +292,7 @@ class MomentumPortfolio(Strategy):
         pending_buys = await self.ctx.pending_buy_qty()
 
         # First pass sells (trims) so they precede buys; collect buys, submit after.
-        fractional = bool(self.params.get("fractional_shares", False))
+        fractional = bool(self.params.get("fractional_shares", True))
         buys: list[tuple[str, Decimal, float, Decimal]] = []
         for sym in target:
             price = await self._price(sym)
@@ -566,7 +566,7 @@ class MomentumPortfolio(Strategy):
         # engine (marking the run errored) and is the recovery-failure signal (attempt w/o success).
         recovery_attempts_total.labels(recovery_type="overlay_convergence").inc()
         ratio = Decimal(str(desired)) / Decimal(str(current_gross))
-        fractional = bool(self.params.get("fractional_shares", False))
+        fractional = bool(self.params.get("fractional_shares", True))
         for sym, qty in held.items():
             if fractional:
                 target_qty = (qty * ratio).quantize(Decimal("0.000001"))

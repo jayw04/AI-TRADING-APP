@@ -70,7 +70,7 @@ class LowVolatility(Strategy):
         "market_filter_symbol": "SPY",         # market proxy (must be in symbols)
         "market_ma_days": 200,                 # MA window for regime filter
         "max_position_pct": 0.10,              # hard cap on any single position
-        "fractional_shares": False,            # size whole shares unless opted in
+        "fractional_shares": True,             # fractional deploys ~fully; whole shares under-deploy
         "cash_buffer_pct": 0.02,               # hold 2% cash
         "initial_equity_estimate": 100_000,    # fallback when live equity unavailable
         "pricing_timeframe": "1Day",           # price by daily close (not intraday bar)
@@ -114,7 +114,7 @@ class LowVolatility(Strategy):
             "description": "Hard cap on any single position as a fraction of equity."
         },
         "fractional_shares": {
-            "type": "boolean", "default": False,
+            "type": "boolean", "default": True,
             "description": "Size fractional share quantities (deploys ~fully vs whole-share rounding)."
         },
         "cash_buffer_pct": {
@@ -246,7 +246,7 @@ class LowVolatility(Strategy):
         per_name = min(equity / Decimal(k), equity * Decimal(str(self.params.get("max_position_pct", 0.10))))
         min_trade = Decimal(str(self.params.get("min_trade_pct", 0.03)))
 
-        fractional = bool(self.params.get("fractional_shares", False))
+        fractional = bool(self.params.get("fractional_shares", True))
         buys: list[tuple[str, Decimal, float, Decimal]] = []
         for sym in target:
             price = await self._price(sym)
