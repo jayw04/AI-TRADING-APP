@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 (pre-registration — written before any results are seen) |
+| Document version | **v0.2** (pre-registration — locks the calibration parameters + decision gates before any results are seen; supersedes the v0.1 placeholders in §2/§4/§5/§6) |
 | Date | 2026-07-05 |
 | Program ID | **GOVCONTRACT-001** (EAD's first event-driven research program; DCAP-007 / Quiver Government Contracts) |
 | Governing ADR | **0037** (EAD governance) — inherits the matched-benchmark gate (§3.2), bounded testing, and the pre-register-before-run discipline |
@@ -14,6 +14,28 @@
 ## 0. The discipline (why this doc exists)
 
 The registry rejected INSIDER-001's early form because its apparent edge was **beta, not alpha** — a small/mid-cap factor tilt, not residual predictive power. GOVCONTRACT-001 must not repeat that. This pre-registration fixes, **before the data is examined**: the hypothesis, the eligibility rules, the matched-control construction, the holding windows, the statistical test, the sample-size floor, the cost model, the kill criteria, and the verdict tree. A verdict computed under any deviation from this plan is not evidence — it is a new pre-registration.
+
+## 0.2 Locked pre-registration (v0.2) — the authoritative parameters
+
+This section supersedes the v0.1 placeholders. Two kinds of thing, kept deliberately distinct:
+
+**Calibration parameters** (fixed model assumptions; **NOT adjusted** unless the study terminates *Insufficient Evidence*):
+
+| Parameter | Locked value | Basis |
+|---|---|---|
+| Disclosure lag | **21 trading-calendar days** (`available_time = event_date + 21`) | FPDS reporting (≤3 business days) + USAspending processing (~days–2 weeks); PIT-safe. The USAspending cross-check's ~46-day `Last Modified` is an inflated record-*maintenance* proxy → not used as the primary. |
+| Materiality | **award ≥ 0.25% of market cap (as-of `available_time`) AND ≥ $250k absolute** | scales across small/mid/large caps. **Primary threshold — pre-registered; no adjustment unless the study terminates Insufficient Evidence.** No sweep (that would be data dredging). |
+| Transaction cost | **10 bps per side** | commission-free venue; conservative spread+slippage for mid-cap liquidity. Charged as a dollar-neutral long-short round trip (4× per side per event). |
+
+**Decision gates** (pre-registered pass/fail):
+
+| Gate | Threshold |
+|---|---|
+| Eligible, de-overlapped, **material, benchmarked** events | **Target ≥ 150; Minimum 100. Below 100 ⇒ verdict = "Insufficient Evidence"** (the study terminates; do NOT lower materiality to reach it). |
+| Primary edge | 95% bootstrap CI on the **net** matched-control excess return **excludes zero** |
+| Multiple testing | Benjamini–Hochberg **FDR ≤ 0.10** across the holding-window family |
+
+**Analysis order — PRIMARY → SENSITIVITY → DECISION.** The verdict is computed from the **primary** analysis (lag 21, hold 20 days, cost 10 bps). **Sensitivity is one-factor-at-a-time** over three dimensions — disclosure lag {14, 46}, cost {20 bps}, holding period {5, 10, 60 days} — and answers only *"would a reasonable alternative flip the conclusion?"*, never *"which parameter gives the best result?"* Robustness is **one-directional**: it can confirm or caveat a verdict (a fragile Approved is flagged), but it can never upgrade one — no cherry-picking. The decision is recorded **after** the sensitivity checks. *(The primary objective is robustness across reasonable disclosure assumptions, not optimization of the disclosure lag.)*
 
 ## 1. Hypothesis (pre-registered, single primary)
 
@@ -56,7 +78,7 @@ For **each** event stock, select **~20 control securities as-of `available_time`
 
 - **Minimum:** **≥ 100** eligible, de-overlapped, liquidity-passing events with ≥ 10 matched controls each.
 - **Preferred:** 300+ events / 50+ unique tickers.
-- **Kill:** too few mapped / liquid / eligible events to support the test ⇒ **Insufficient-Data** (a recordable non-verdict; do NOT weaken the gates to reach 100).
+- **Kill:** too few mapped / liquid / eligible events to support the test ⇒ **Insufficient Evidence** (a recordable non-verdict; do NOT weaken the gates to reach 100).
 
 ## 6. Cost model (pre-registered)
 
@@ -73,7 +95,7 @@ Computed **once** on the complete pull:
 - **Approved** — net excess-return 95% CI excludes zero at the 20-day primary, in the hypothesized (positive) direction, **and** survives the matched-control gate (the effect is not sector/size/liquidity/momentum beta), **and** the sample floor is met.
 - **Diversifier** — excess return is weak/insignificant on its own but the event-basket return stream has **low/negative correlation** to the existing live books (a portfolio-diversification value), per the platform's diversifier criteria.
 - **Rejected** — CI includes zero (no residual alpha over matched controls), or the effect is wrong-signed, or it dies net of cost. (This is the *expected-and-fine* outcome per ADR 0037: "the verdict does not matter; the system maturity does.")
-- **Insufficient-Data** — the §5 floor is not met.
+- **Insufficient Evidence** — the §5 floor is not met.
 
 ## 9. Evidence Package (verdict-as-data, ADR 0026/0014)
 
