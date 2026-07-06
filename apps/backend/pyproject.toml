@@ -95,6 +95,11 @@ ignore = ["E501"]
 # template — or a hand-authored migration — can't break CI with stylistic
 # nits we'd never edit. Behavioral lints (F, E, W, B) still apply.
 "alembic/versions/*.py" = ["UP007", "UP035", "UP006", "I001"]
+# Research reproduction scripts are exploratory one-off artifacts written in a dense inline
+# style (semicolons, compact one-liners). Exempt the stylistic multi-statement/import nits;
+# behavioral lints (F821 undefined names, unused imports, B-series) still apply so a broken
+# repro script still fails CI.
+"scripts/research/**/*.py" = ["E701", "E702", "E703", "E401", "E741", "W291", "F541", "B905"]
 
 [tool.mypy]
 python_version = "3.12"
