@@ -2,7 +2,9 @@
 
 *One-page stakeholder artifact. Every completed research program emits two outputs: a full technical
 report and this one-page summary. Companion to the full report (`Range_BuySell_Formula_Study.md`) and the
-whitepaper case study (`RNG-001_Case_Study_for_Whitepaper.md`). Program concluded 2026-06-30.*
+whitepaper case study (`RNG-001_Case_Study_for_Whitepaper.md`). Program concluded 2026-06-30; an
+entry-logic sub-study (2026-07-06) added a fourth, mechanistic leg of evidence — see
+`docs/implementation/evidence/range_entry_logic/RNG_EntryLogic_Study_v0.2.md`.*
 
 ---
 
@@ -11,11 +13,12 @@ whitepaper case study (`RNG-001_Case_Study_for_Whitepaper.md`). Program conclude
 | **Program** | RNG-001 — Range Trader (long-only opening-range fade) |
 | **Question** | Does the opening-range fade have a tradable edge? |
 | **Answer** | **No** — on the tested universes, regimes, and implementation variants. |
-| **Confidence** | **High** — fails across three independent dimensions. |
+| **Confidence** | **High** — fails across four independent dimensions (strategy rejection · entry-mode comparison · corrected-data re-run · mechanistic entry-logic sub-study). |
 | **Reason** | Entry mode is second-order (all five variants PF 0.84–0.91, none pass the gate); loses in every market regime (best bucket — range days — PF 0.94); loses on both universe families (momentum names *move but trend*, so the fade fights the trend; mean-reverting names *revert but do not move*, too quiet to clear costs). No sweet spot between them. |
 | **Data caveat** | Early results were biased by a bar-cache truncation defect; **disclosed** via an Evidence Correction Report, corrected (data rebuilt), and every experiment re-run — the verdict held and hardened. The defect was escalated to **ADR-0033 (Historical Data Integrity, Foundational)**. |
-| **Reusable assets** | **7** — Opportunity Funnel · MAE/MFE trade instrumentation · regime classifier + segmentation harness · entry-comparison harness · universe-screening harness · data-integrity checker + cache-repair tool · the Evidence Correction Report pattern (→ ADR-0033). |
-| **Recommendation** | **Archive.** Status: Completed · Rejected. The research program is closed — reopening requires a genuinely new hypothesis (a different mechanic or instrument class), not another parameter sweep. The Range book **remains live on paper as the verdict-distinct rejected-benchmark sleeve**, which also proves the execution/operations layer behaves correctly every session. |
+| **Reusable assets** | **8** — Opportunity Funnel · MAE/MFE trade instrumentation · regime classifier + segmentation harness · entry-comparison harness · universe-screening harness · data-integrity checker + cache-repair tool · the Evidence Correction Report pattern (→ ADR-0033) · **CAP-025 Intraday Replay & Entry-Funnel Diagnostics** (sequence-correct replay + funnel + date-clustered bootstrap + train/test split — the 2026-07-06 sub-study's durable output). |
+| **Sub-study (2026-07-06)** | Asked whether a better *entry rule* rescues the strategy. Answer: **no.** The OR-low fade is *adversely selected* (fills into falling knives, misses breakouts). "Raise both" refuted. VWAP-reclaim + market-gate fixes the mechanism and looked promotable (PF 1.53) — but the **date-clustered bootstrap CI spans zero** and a **train/test split** exposes it as a rally artifact (train PF 0.68 vs test 2.68). A textbook false-positive caught by the discipline. |
+| **Recommendation** | **Archive.** Status: **Completed · Rejected (Evidenced) · Archived.** The program is closed — reopening requires a genuinely new hypothesis (a different mechanic or instrument class), not another parameter sweep. Any VWAP-confirmation follow-on is a **separate new program (ORM-001)**, not a Range patch, and only with a longer window + pre-registered rules. The Range book **remains live on paper as the verdict-distinct rejected-benchmark sleeve** (also proving the execution/operations layer behaves correctly every session), and **may be retired from active paper evaluation**. |
 
 ---
 
