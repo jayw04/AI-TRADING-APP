@@ -149,7 +149,13 @@ export default function StrategiesListPage() {
       {strategies.some((s) => s.code_path?.includes("range_trader")) && (
         <RangeLevelsPanel
           strategyId={
-            strategies.find((s) => s.code_path?.includes("range_trader"))?.id
+            // Prefer the ACTIVE range book — a user can also have archived/IDLE range
+            // strategies, and a plain find() would return one of those and show empty levels.
+            (strategies.find(
+              (s) =>
+                s.code_path?.includes("range_trader") &&
+                ["paper", "live"].includes((s.status ?? "").toLowerCase()),
+            ) ?? strategies.find((s) => s.code_path?.includes("range_trader")))?.id
           }
         />
       )}
