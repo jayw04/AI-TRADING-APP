@@ -2,7 +2,7 @@
 
 P5 §5 introduced four account-level risk gates on top of P1's per-order
 checks. See also `docs/runbook/risk-limits.md` (editing limits) and
-ADR 0004 (the circuit-breaker hard-halt decision).
+ADR 0004 v2 (the circuit-breaker hard-halt decision + start-of-day daily-loss measure).
 
 | Gate | When checked | What happens on failure |
 |---|---|---|
@@ -50,23 +50,31 @@ blocks the install). A classification error **fails closed** (rejected with
 
 ## Circuit breaker
 
-**Trip condition:** `realized_pnl_today + unrealized_pnl_now ≤ -max_daily_loss`,
-where realized PnL is recognized only on **closing trades** — for each of
-today's SELL fills, `(sell_price − avg_cost) × qty`, with `avg_cost` built from
-the account's full fill history (so a position opened on a prior day carries its
-cost basis into today's sells). A BUY realizes nothing; opening a position swaps
-cash for an asset that the unrealized term then marks. Unrealized PnL is the sum
-of `positions.unrealized_pl` for the account.
+**Trip condition (ADR 0004 v2):** `daily_pnl ≤ -max_daily_loss`, where `daily_pnl`
+is **today's** P&L measured from a **start-of-day baseline**:
+- **Preferred (`daily_pnl_basis = "equity_baseline"`):** `equity − last_equity`
+  (== `AccountState.day_change`) — the same measure the global halt uses. Excludes
+  capital merely deployed today and losses carried over from prior days.
+- **Fail-closed fallback (`"cumulative_fallback"`):** when no usable `AccountState`
+  baseline exists (no row, or `last_equity` not yet populated), fall back to
+  `realized_pnl_today + unrealized_pnl_now` — the stricter cumulative measure
+  (can only trip earlier, never later). Realized PnL is recognized only on
+  **closing trades** (`(sell_price − avg_cost) × qty` per SELL fill; a BUY
+  realizes nothing); unrealized is the sum of `positions.unrealized_pl`.
 
-> ⚠ Until 2026-06-15 the realized term was the *signed cash flow* of today's
-> fills, which counted BUY notional as a realized loss — so opening a book
-> larger than `max_daily_loss` tripped the breaker on capital deployment, not on
-> loss. Corrected to the close-based calc above (`_compute_realized_pnl_today`).
+The trip payload and `/risk` status carry `daily_pnl` and `daily_pnl_basis` so an
+operator can see which measure fired.
+
+> ⚠ History: until 2026-06-15 the realized term signed BUY notional as a loss, so
+> opening a book tripped on capital deployment (fixed, PR #114). Until 2026-06-17
+> the trip used `realized + TOTAL unrealized` with no start-of-day baseline, so a
+> position carrying a prior-day open loss counted against *today's* limit every
+> day — fixed by the start-of-day baseline above (ADR 0004 v2).
 
 This is **in addition to** the older *global* daily-loss halt
-(`app/risk/halt.py`, keyed on `AccountState.day_change`), which still trips a
-system-wide `system_config` flag. The two compose (defense in depth); see
-ADR 0004.
+(`app/risk/halt.py`, also keyed on `AccountState.day_change`), which still trips a
+system-wide `system_config` flag. The two now use the same daily-loss measure and
+compose (defense in depth); see ADR 0004 v2.
 
 When the account breaker trips:
 1. `accounts.circuit_breaker_tripped_at` is set to NOW().
