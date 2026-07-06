@@ -40,6 +40,35 @@ def _reset_rate_limit():
     _reset_rate_limit_for_tests()
 
 
+def test_rate_limit_exempts_loopback():
+    """Loopback is exempt: the box is loopback + SSH-only, so UI logins tunnel in as
+    127.0.0.1 and must not be throttled. Far past the max still never raises."""
+    from app.api.v1.auth import (
+        LOGIN_RATE_LIMIT_MAX,
+        _check_login_rate_limit,
+        _is_loopback,
+    )
+
+    assert _is_loopback("127.0.0.1") and _is_loopback("::1") and _is_loopback("127.5.5.5")
+    assert not _is_loopback("1.2.3.4")
+    for _ in range(LOGIN_RATE_LIMIT_MAX + 30):
+        _check_login_rate_limit("127.0.0.1")  # never raises
+        _check_login_rate_limit("::1")
+
+
+def test_rate_limit_enforced_for_non_loopback():
+    """A real (non-loopback) IP is still limited: MAX attempts pass, the next trips 429."""
+    from fastapi import HTTPException
+
+    from app.api.v1.auth import LOGIN_RATE_LIMIT_MAX, _check_login_rate_limit
+
+    for _ in range(LOGIN_RATE_LIMIT_MAX):
+        _check_login_rate_limit("203.0.113.7")
+    with pytest.raises(HTTPException) as exc:
+        _check_login_rate_limit("203.0.113.7")
+    assert exc.value.status_code == 429
+
+
 @pytest_asyncio.fixture
 async def secret() -> str:
     """Build a fresh DB, seed user id=1 with verified TOTP, yield the secret."""
@@ -183,11 +212,16 @@ async def test_password_still_enforced_when_totp_disabled(
 
 
 async def test_login_rate_limit_kicks_in(client: AsyncClient, secret: str):
-    """5 bad attempts → the 6th is 429 even with correct credentials."""
-    for _ in range(5):
+    """From a non-loopback IP, MAX bad attempts → the next is 429 even with correct
+    credentials (loopback is exempt, so a forwarded IP must drive the limiter)."""
+    from app.api.v1.auth import LOGIN_RATE_LIMIT_MAX
+
+    hdrs = {"x-forwarded-for": "203.0.113.7"}
+    for _ in range(LOGIN_RATE_LIMIT_MAX):
         await client.post(
             "/api/v1/auth/login",
             json={"email": "jay@example.com", "password": "wrongpw", "totp_code": "000000"},
+            headers=hdrs,
         )
     r = await client.post(
         "/api/v1/auth/login",
@@ -196,6 +230,7 @@ async def test_login_rate_limit_kicks_in(client: AsyncClient, secret: str):
             "password": "correctpw",
             "totp_code": pyotp.TOTP(secret).now(),
         },
+        headers=hdrs,
     )
     assert r.status_code == 429
 
