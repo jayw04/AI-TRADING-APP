@@ -10,6 +10,7 @@ from app.api.v1 import (
     audit,
     auth,
     backtest_jobs,
+    benchmarks,
     credentials,
     discovery,
     drift,
@@ -48,6 +49,7 @@ api_router.include_router(credentials.router)
 api_router.include_router(audit.router)
 api_router.include_router(account.router)
 api_router.include_router(accounts.router)
+api_router.include_router(benchmarks.router)
 api_router.include_router(internal.router)
 api_router.include_router(orders.router)
 api_router.include_router(positions.router)

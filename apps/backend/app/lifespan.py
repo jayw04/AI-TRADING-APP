@@ -503,6 +503,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("equity_snapshot_scheduled")
 
+            # 10c-quater-b. Benchmark-snapshot persistence (dashboard comparison).
+            # Appends one daily close per reference index fund (SPY/VOO/…) at the same
+            # 16:10 ET tick, so the benchmark curve accrues over the SAME window as the
+            # accounts' equity curve. Read-only vendor fetch, off the order path; best-effort.
+            from app.services.benchmark_snapshot import run_daily_benchmark_snapshot
+
+            scheduler.scheduler.add_job(
+                run_daily_benchmark_snapshot,
+                _ReplayCron(hour=16, minute=10),
+                id="benchmark_snapshot",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"session_factory": session_factory},
+            )
+            logger.info("benchmark_snapshot_scheduled")
+
             # 10c-quint. Premarket scan (SCAN-001 increment C; PR #241 activation).
             # Weekdays at 09:25 ET (market opens at 09:30). Records the live premarket
             # gappers candidate set to a dated JSON record for forward evidence accrual.
