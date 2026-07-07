@@ -147,6 +147,55 @@ async def test_broker_permanent_error_marks_rejected(
     assert "insufficient funds" in (order.rejection_reason or "")
 
 
+# ---- non-fractionable rounding (avoids the Alpaca "not fractionable" reject that trips
+# the §6 strategy cooldown and cascades through a rebalance batch) ----
+
+
+@pytest.fixture
+def adapter_non_fractionable() -> MagicMock:
+    a = MagicMock()
+    a.is_paper = True
+    a.is_fractionable.return_value = False
+    a.submit_order.return_value = {"id": "broker-nf", "status": "accepted"}
+    return a
+
+
+async def test_non_fractionable_qty_floored_to_whole_shares(
+    session_factory, seeded, adapter_non_fractionable
+) -> None:
+    router = OrderRouter(
+        adapter_non_fractionable, RiskEngine(session_factory), session_factory, EventBus()
+    )
+    order = await router.submit(_req(qty=Decimal("5.7")))
+    assert order.status == OrderStatus.SUBMITTED
+    # The broker saw WHOLE shares — never the fractional 5.7 (which Alpaca rejects).
+    assert adapter_non_fractionable.submit_order.call_args.kwargs["qty"] == Decimal("5")
+
+
+async def test_fractionable_qty_is_left_untouched(
+    session_factory, seeded, adapter_mock_ok
+) -> None:
+    adapter_mock_ok.is_fractionable.return_value = True
+    router = OrderRouter(
+        adapter_mock_ok, RiskEngine(session_factory), session_factory, EventBus()
+    )
+    order = await router.submit(_req(qty=Decimal("5.7")))
+    assert order.status == OrderStatus.SUBMITTED
+    assert adapter_mock_ok.submit_order.call_args.kwargs["qty"] == Decimal("5.7")
+
+
+async def test_non_fractionable_sub_share_rejected_without_broker_call(
+    session_factory, seeded, adapter_non_fractionable
+) -> None:
+    router = OrderRouter(
+        adapter_non_fractionable, RiskEngine(session_factory), session_factory, EventBus()
+    )
+    order = await router.submit(_req(qty=Decimal("0.5")))
+    assert order.status == OrderStatus.REJECTED
+    assert "NON_FRACTIONABLE_SUB_SHARE" in (order.rejection_reason or "")
+    adapter_non_fractionable.submit_order.assert_not_called()
+
+
 async def test_risk_check_back_links_order(
     session_factory, seeded, adapter_mock_ok
 ) -> None:

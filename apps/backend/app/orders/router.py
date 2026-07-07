@@ -16,8 +16,9 @@ and emits internal events so the WS gateway and audit trail stay in sync.
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -124,6 +125,33 @@ class OrderRouter:
         if account_mode == AccountMode.live.value:
             obs.live_orders_submitted_total.labels(outcome=outcome).inc()
 
+    def _whole_share_if_non_fractionable(
+        self, req: OrderRequest, adapter: Any
+    ) -> OrderRequest | None:
+        """Return ``req`` with ``qty`` floored to whole shares when the asset is
+        non-fractionable (Alpaca rejects a fractional qty there). Returns ``req``
+        unchanged when the qty is already whole or the asset is fractionable, and
+        ``None`` when flooring yields 0 shares (nothing broker-legal to submit).
+
+        Fail-open: an adapter without ``is_fractionable`` (e.g. a test double) or a
+        fractionable asset is left untouched, preserving prior behavior."""
+        qty = req.qty
+        if qty == qty.to_integral_value():
+            return req  # already whole shares
+        is_frac = getattr(adapter, "is_fractionable", None)
+        if is_frac is None or is_frac(req.symbol_ticker):
+            return req  # fractional is accepted for this asset
+        whole = qty.to_integral_value(rounding=ROUND_DOWN)
+        if whole <= 0:
+            return None
+        logger.info(
+            "order_qty_rounded_non_fractionable",
+            symbol=req.symbol_ticker,
+            from_qty=str(qty),
+            to_qty=str(whole),
+        )
+        return replace(req, qty=whole)
+
     async def _submit_inner(self, req: OrderRequest) -> Order:
         """Order-submission logic (unchanged across P5 §1–§7)."""
         # P5 §1 — refuse LIVE accounts *before* any other work. Running the
@@ -196,6 +224,24 @@ class OrderRouter:
         # live account never reaches the registry). Falls back to the default
         # adapter when no registry is wired — paper behavior is unchanged.
         adapter = self._resolve_adapter(account)
+
+        # Non-fractionable rounding — BEFORE the risk engine + the order record, so both
+        # see the broker-legal qty. Alpaca rejects a fractional qty on a non-fractionable
+        # asset with a PermanentAlpacaError, which trips the §6 strategy cooldown and
+        # cascades (killing the rest of a rebalance batch). fractional_shares books hold
+        # non-fractionable large-caps (e.g. HON) in the factor universe.
+        rounded = self._whole_share_if_non_fractionable(req, adapter)
+        if rounded is None:
+            logger.info(
+                "order_skipped_non_fractionable_sub_share",
+                symbol=req.symbol_ticker,
+                qty=str(req.qty),
+            )
+            return _ephemeral_rejected_order_with_reason(
+                req, ReasonCode.NON_FRACTIONABLE_SUB_SHARE.value
+            )
+        req = rounded
+
         trading_mode = "paper" if adapter.is_paper else "live"
         outcome = await self._risk.evaluate(
             req, trading_mode=trading_mode, broker_mode=broker_mode
