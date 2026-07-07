@@ -126,3 +126,18 @@ class QuiverClient:
     def congresstrading_live(self) -> list[dict[str, Any]]:
         """Recent cross-market congressional trades (bulk) — the daily-incremental source."""
         return self.get_json("/beta/live/congresstrading")
+
+    # --- Corporate Lobbying (LOBBY-001) -----------------------------------------------------
+    # Rows: ``{Ticker, Amount, Date, Client, Registrant, Issue, Specific_Issue}``. ``Date`` is the
+    # observable LDA filing date (no lag). There is NO bulk endpoint (404) and the live feed caps at
+    # ~18mo, so LOBBY-001 ingests the DEEP per-ticker history (1999→present).
+
+    def lobbying_history(self, ticker: str) -> list[dict[str, Any]]:
+        """Full per-ticker corporate-lobbying disclosure history (DCAP-007). Rows aggregate to
+        firm-quarter spend for the spend-spike event (see ``lobbying.py``)."""
+        return self.get_json(f"/beta/historical/lobbying/{ticker.strip().upper()}")
+
+    def lobbying_live(self) -> list[dict[str, Any]]:
+        """Recent cross-market lobbying disclosures (bulk) — the daily-incremental source
+        (caps at ~18 months; use ``lobbying_history`` for the full baseline)."""
+        return self.get_json("/beta/live/lobbying")
