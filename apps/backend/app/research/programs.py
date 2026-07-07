@@ -195,6 +195,22 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "rejecting a popular-but-hollow signal (3rd False-Positive-Reduction confirmation after "
         "INSIDER-001/GOVCONTRACT-001).",
         "docs/implementation/TradingWorkbench_CONGRESS001_Plan_v0.1.md"),
+    ResearchProgram(
+        "LOBBY-001", "Event-Driven",
+        "Does a SPIKE in a firm's lobbying spend predict residual drift after controlling for "
+        "sector/size/liquidity/momentum?", "planned",
+        "EAD's third event-driven program (Quiver Lobbying, DCAP-007; ADR 0037). Pre-registered "
+        "(plan v0.1): the EVENT is a spend SPIKE not the level (lobbying is recurring -> level is size, "
+        "already matched) = firm-quarter total >= 2.0x the trailing-4Q baseline AND >= $100k AND >=4 "
+        "prior quarters of history; PIT entry = first trading day after the quarterly LDA filing "
+        "DEADLINE (Jan/Apr/Jul/Oct 20, observable, no lag); matched-control excess (sector/size/ADV/"
+        "momentum deciles, 20d, 10bps/side); DATE-CLUSTERED bootstrap MANDATORY + load-bearing (spikes "
+        "fire on only ~4 deadline dates/yr -> extreme clustering); >=100-benchmarked gate; BH-FDR "
+        "one-directional; amendments-after-deadline ignored. Data: per-ticker historical lobbying "
+        "(1999-2026 deep; no bulk endpoint, live caps ~18mo) ingested over the factor universe. Reuses "
+        "the CONGRESS-001/GOVCONTRACT-001 engine wholesale. NEXT = build (lobbying client+ingest, "
+        "lobby_study, run_lobby001) -> run once on separate 32GB compute -> registered verdict.",
+        "docs/implementation/TradingWorkbench_LOBBY001_Plan_v0.1.md"),
 )
 
 
