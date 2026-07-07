@@ -178,7 +178,7 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
     ResearchProgram(
         "CONGRESS-001", "Event-Driven",
         "Does a disclosed congressional PURCHASE predict residual drift after controlling for "
-        "sector/size/liquidity/momentum?", "planned",
+        "sector/size/liquidity/momentum?", "rejected",
         "EAD's second event-driven program (Quiver Congressional Trading, DCAP-007; ADR 0037). "
         "Pre-registered (plan v0.2, owner-reviewed 9.8/10): PURCHASE-only long matched-control excess as the "
         "primary verdict (sales are liquidity/tax/rebalancing-driven -> diagnostic only, not assumed "
@@ -187,9 +187,13 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "calibration, unlike gov-contracts); DATE-CLUSTERED bootstrap (reports cluster -> pooled per-event "
         "resampling overstates confidence, the RNG false-positive lesson); >=100-benchmarked gate; BH-FDR "
         "one-directional; amendment PIT handling + short-side borrow caveat. Reuses the GOVCONTRACT-001 "
-        "matched-control engine + CAP-024 + batched momentum + throwaway-32GB-compute recipe. NEXT = build "
-        "(client congress endpoints + congress_trade ingest + run_congress001) -> run once on separate "
-        "compute -> registered verdict. Data access verified (license pulls congresstrading).",
+        "matched-control engine + CAP-024 + batched momentum + throwaway-32GB-compute recipe. "
+        "REGISTERED VERDICT 2026-07-07 (PR #379): Rejected (Evidenced) - 77,896 eligible events -> 2,234 "
+        "material Purchase clusters -> 314 benchmarked (>=100 gate CLEARED); net excess -0.34%, 95% "
+        "date-clustered CI [-1.54%, +0.92%] SPANS ZERO (gross +0.06% ~zero); robust across cost+holding "
+        "sensitivity (BH-FDR 0/4). Congressional purchases are beta not alpha - the matched-control design "
+        "rejecting a popular-but-hollow signal (3rd False-Positive-Reduction confirmation after "
+        "INSIDER-001/GOVCONTRACT-001).",
         "docs/implementation/TradingWorkbench_CONGRESS001_Plan_v0.1.md"),
 )
 
