@@ -112,3 +112,17 @@ class QuiverClient:
     def govcontracts_live(self) -> list[dict[str, Any]]:
         """Recent cross-market awards (bulk) — the daily-incremental source."""
         return self.get_json("/beta/live/govcontractsall")
+
+    # --- Congressional Trading (CONGRESS-001) -----------------------------------------------
+    # Rows carry a real disclosure date (``ReportDate``) *and* the trade date (``TransactionDate``),
+    # so — unlike gov contracts — the PIT anchor is directly observable (no lag calibration).
+
+    def congresstrading_history(self, ticker: str) -> list[dict[str, Any]]:
+        """Full per-ticker congressional-trade history: rows of ``{Representative, BioGuideID,
+        ReportDate, TransactionDate, Ticker, Transaction, Range, House}``. ``TransactionDate`` is
+        the trade (private until disclosed); ``ReportDate`` is the public STOCK-Act filing date."""
+        return self.get_json(f"/beta/historical/congresstrading/{ticker.strip().upper()}")
+
+    def congresstrading_live(self) -> list[dict[str, Any]]:
+        """Recent cross-market congressional trades (bulk) — the daily-incremental source."""
+        return self.get_json("/beta/live/congresstrading")
