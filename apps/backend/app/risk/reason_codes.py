@@ -16,6 +16,7 @@ class ReasonCode(StrEnum):
     HALT_REACHED = "HALT_REACHED"
     RATE_LIMIT = "RATE_LIMIT"
     INVALID_INPUT = "INVALID_INPUT"
+    NON_FRACTIONABLE_SUB_SHARE = "NON_FRACTIONABLE_SUB_SHARE"  # fractional qty on a non-fractionable asset floored to 0 whole shares
     NO_LIMITS_CONFIGURED = "NO_LIMITS_CONFIGURED"
     # P5 §5 — live-mode risk gates.
     CIRCUIT_BREAKER = "CIRCUIT_BREAKER"

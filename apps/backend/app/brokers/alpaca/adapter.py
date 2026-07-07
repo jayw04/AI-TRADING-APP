@@ -36,6 +36,7 @@ class AlpacaAdapter:
     def __init__(self, credentials: AlpacaCredentials | None = None) -> None:
         self._creds = credentials or load_credentials()
         self._trading: Any = None  # alpaca.trading.client.TradingClient
+        self._fractionable_cache: dict[str, bool] = {}  # symbol -> fractionable (rarely changes)
         logger.info(
             "alpaca_adapter_init",
             paper=self._creds.paper,
@@ -126,6 +127,27 @@ class AlpacaAdapter:
             return [_to_dict(a) for a in assets]
         except Exception as exc:
             raise classify(exc) from exc
+
+    def is_fractionable(self, symbol: str) -> bool:
+        """Whether Alpaca accepts fractional-share orders for ``symbol`` (cached).
+
+        The order path uses this to round a fractional qty DOWN to whole shares for
+        non-fractionable assets (some large-caps, e.g. HON), which Alpaca would otherwise
+        reject with a ``PermanentAlpacaError`` — tripping the P5 §6 strategy cooldown and
+        cascading through the rest of a rebalance batch. Fail-OPEN (assume fractionable) on
+        a lookup blip so a transient assets-API error never blocks trading; the worst case
+        is the pre-existing behavior (Alpaca rejects the fractional order)."""
+        key = symbol.upper()
+        cached = self._fractionable_cache.get(key)
+        if cached is not None:
+            return cached
+        try:
+            asset = self._client().get_asset(key)
+            fractionable = bool(getattr(asset, "fractionable", True))
+        except Exception:  # noqa: BLE001 — fail open; never block the order path on a lookup blip
+            return True
+        self._fractionable_cache[key] = fractionable
+        return fractionable
 
     def get_order(self, broker_order_id: str) -> dict[str, Any]:
         try:
