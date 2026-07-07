@@ -61,6 +61,9 @@ def main() -> None:
     ap.add_argument("--factor-db", default=None)
     ap.add_argument("--min-controls", type=int, default=10)
     ap.add_argument("--n-resamples", type=int, default=2000)
+    ap.add_argument("--n-universe", type=int, default=2000,
+                    help="candidate-pool size (top-by-dollar-volume). Small-cap peers need a "
+                         "large pool (e.g. ~9000) or they are excluded from the matched controls.")
     args = ap.parse_args()
 
     with EventStore(args.events_db, read_only=True) as store:
@@ -78,7 +81,8 @@ def main() -> None:
     deduped, exclude = _dedupe_overlapping(material, HOLD_PRIMARY)
     # the (small/mid-cap) event tickers must be in the candidate pool so they get features — the
     # top-liquidity universe alone would drop them (which produced n_benchmarked=0 the first run).
-    feature_fn = factor_feature_fn(factor_store, always_include=frozenset(exclude))
+    feature_fn = factor_feature_fn(factor_store, n_universe=args.n_universe,
+                                   always_include=frozenset(exclude))
     common = dict(price_fn=price_fn, feature_fn=feature_fn, exclude_fn=lambda _d: exclude,
                   min_controls=args.min_controls, n_resamples=args.n_resamples)
 
