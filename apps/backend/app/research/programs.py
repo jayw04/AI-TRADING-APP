@@ -162,19 +162,18 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "docs/implementation/TradingWorkbench_TV001_CommunityStrategyImport_v0.1.md"),
     ResearchProgram(
         "GOVCONTRACT-001", "Event-Driven",
-        "Do new federal government-contract awards predict drift in small/mid-cap contractors?", "inconclusive",
+        "Do new federal government-contract awards predict drift in small/mid-cap contractors?", "rejected",
         "EAD's first event-driven research program (Quiver Government Contracts, DCAP-007; ADR 0037). "
-        "Pre-registered (plan v0.2 - locked calibration + decision gates): a MATCHED-CONTROL benchmark "
-        "(same sector + mktcap/ADV/6m-momentum decile +/-1, clean of same-event-type) so the test is "
-        "residual alpha, not the sector/size beta that got INSIDER-001 rejected; net-of-cost bootstrap 95% "
-        "CI must exclude zero; >=100-benchmarked-event gate. RAN end-to-end on the box (890,114 events, "
-        "2018-2026; USAspending-validated mapping) -> terminated INTERIM Insufficient Evidence: only 10 of "
-        "123 material events benchmarked (< 100 gate), and that sample is fragile (excess-return sign flips "
-        "across reasonable disclosure lags). NOT a gate-relaxing failure - it is COVERAGE-LIMITED: materiality "
-        "(0.25% of mktcap) selects small-caps, but the factor-data universe (1,254 SEP tickers) is small-cap-"
-        "sparse, so most events lack >=10 same-decile controls. Path to a real verdict = broaden small-cap "
-        "SEP+SF1 coverage (data provisioning), NOT lower the thresholds. No book. Evidence: "
-        "evidence/govcontract_001/GOVCONTRACT001_InterimResult_v0.1.md.",
+        "Pre-registered MATCHED-CONTROL benchmark (same sector + mktcap/ADV/6m-momentum decile +/-1, clean of "
+        "same-event-type) so the test is residual alpha, not the sector/size beta that got INSIDER-001 rejected; "
+        "net-of-cost bootstrap 95% CI must exclude zero; >=100-benchmarked-event gate. First run was "
+        "COVERAGE-LIMITED (Insufficient Evidence: only 10/123 benchmarked - the 1,254-ticker universe was "
+        "small-cap-sparse); fixed by DCAP-008 (broad small-cap SF1: 1,251->9,040 tickers) + n_universe=10000 "
+        "run on separate 32GB compute (the live box OOMs). REGISTERED VERDICT: 890,229 eligible -> 490 material "
+        "-> 324 de-overlapped -> 289 benchmarked (gate PASSED). REJECTED: net excess +1.15%, 95% CI "
+        "[-0.24%, +2.66%] SPANS ZERO; only 60-day hold nominally sig (BH-FDR 1/4), fragile (robust=False). "
+        "No residual alpha over matched controls - beta-not-alpha, ADR-0037's design working. No book. "
+        "Evidence: evidence/govcontract_001/GOVCONTRACT001_Result_v1.0.md.",
         "docs/implementation/TradingWorkbench_GOVCONTRACT001_Plan_v0.1.md"),
 )
 

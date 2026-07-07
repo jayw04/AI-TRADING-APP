@@ -78,18 +78,35 @@ def compute_momentum_batch(
     lookback_days: int = DEFAULT_LOOKBACK_DAYS,
     skip_days: int = DEFAULT_SKIP_DAYS,
 ) -> dict[str, float | None]:
-    """Momentum for each ticker, pulling each name's adjusted prices once.
+    """Momentum for each ticker via ONE window-bounded batched query.
 
-    A wide enough start bound is used (the store's price floor) so the trailing
-    window is always fully covered when the history exists.
+    Semantics are identical to a per-ticker ``get_prices(floor, as_of)`` + ``compute_momentum``
+    loop, but a single query over a bounded trailing window (not each name's full history from the
+    store floor) replaces N queries — the per-ticker loop was ~1000x slower and made a large
+    ``n_universe`` (needed to include small-cap peers) intractable.
     """
-    floor, _ = store.price_date_bounds()
-    if floor is None:
-        return {t: None for t in tickers}
-    out: dict[str, float | None] = {}
-    for ticker in tickers:
-        px = store.get_prices(ticker, floor, as_of, adjusted=True)
-        out[ticker] = compute_momentum(
-            px, as_of, lookback_days=lookback_days, skip_days=skip_days
-        )
+    out: dict[str, float | None] = {t: None for t in tickers}
+    if not tickers:
+        return out
+    # A generous calendar window that always covers >= lookback+skip+1 *trading* rows on/before
+    # as_of (compute_momentum still slices by trading-day row offsets, so over-fetch is harmless).
+    start = (
+        pd.Timestamp(as_of) - pd.Timedelta(days=(lookback_days + skip_days) * 2 + 30)
+    ).date()
+    tdf = pd.DataFrame({"ticker": pd.unique(pd.Series(list(tickers)))})
+    store.con.register("_mom_tk", tdf)
+    try:
+        df = store.con.execute(
+            "SELECT s.ticker, s.date, s.closeadj AS close "
+            "FROM sep s JOIN _mom_tk t ON s.ticker = t.ticker "
+            "WHERE s.date BETWEEN ? AND ? ORDER BY s.ticker, s.date",
+            [start, as_of],
+        ).df()
+    finally:
+        store.con.unregister("_mom_tk")
+    if df.empty:
+        return out
+    df["date"] = pd.to_datetime(df["date"])
+    for tk, g in df.groupby("ticker", sort=False):
+        out[tk] = compute_momentum(g, as_of, lookback_days=lookback_days, skip_days=skip_days)
     return out

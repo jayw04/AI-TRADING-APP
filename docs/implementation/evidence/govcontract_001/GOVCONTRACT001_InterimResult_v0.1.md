@@ -1,5 +1,9 @@
 # GOVCONTRACT-001 — Interim Result (coverage-limited)
 
+> **⚠️ SUPERSEDED (2026-07-06)** by the REGISTERED VERDICT in `GOVCONTRACT001_Result_v1.0.md`
+> (**Rejected**, 289 benchmarked). This interim doc is kept as the record of the coverage-limited
+> first run and the path (DCAP-008 small-cap SF1 + a small-cap-inclusive universe) that unblocked it.
+
 | Field | Value |
 |---|---|
 | Program | **GOVCONTRACT-001** (EAD's first event-driven research program; DCAP-007 / Quiver Government Contracts) |

@@ -491,10 +491,10 @@ async def test_fractional_shares_buys_sub_one_share() -> None:
 
 
 async def test_whole_shares_floor_sub_one_to_zero() -> None:
-    """Default (whole shares): the same below-one-share target floors to 0 → no
-    order (this is exactly the under-deployment fractional mode fixes)."""
+    """Whole-share mode (fractional_shares=False): a below-one-share target floors to 0 → no
+    order. Fractional is now the DEFAULT (deploys ~fully); this is the opt-out behavior it fixes."""
     ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), price=200.0, equity=100)
-    strat = _strat(ctx, top_quantile=1.0, max_names=1)  # fractional defaults False
+    strat = _strat(ctx, top_quantile=1.0, max_names=1, fractional_shares=False)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     ctx.submit_order.assert_not_called()
