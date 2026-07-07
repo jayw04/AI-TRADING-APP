@@ -201,8 +201,9 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "sector/size/liquidity/momentum?", "planned",
         "EAD's third event-driven program (Quiver Lobbying, DCAP-007; ADR 0037). Pre-registered "
         "(plan v0.1): the EVENT is a spend SPIKE not the level (lobbying is recurring -> level is size, "
-        "already matched) = firm-quarter total >= 2.0x the trailing-4Q baseline AND >= $100k AND >=4 "
-        "prior quarters of history; PIT entry = first trading day after the quarterly LDA filing "
+        "already matched) = firm-quarter total >= 2.0x the trailing-4Q MEDIAN baseline (nonzero quarters "
+        "only) AND >= $100k AND >=4 prior NONZERO quarters; PIT rule = sum only filings Date<=deadline "
+        "(late/amended excluded) + aggregation-provenance fields; PIT entry = first trading day after the quarterly LDA filing "
         "DEADLINE (Jan/Apr/Jul/Oct 20, observable, no lag); matched-control excess (sector/size/ADV/"
         "momentum deciles, 20d, 10bps/side); DATE-CLUSTERED bootstrap MANDATORY + load-bearing (spikes "
         "fire on only ~4 deadline dates/yr -> extreme clustering); >=100-benchmarked gate; BH-FDR "
