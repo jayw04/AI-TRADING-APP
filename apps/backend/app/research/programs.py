@@ -175,6 +175,22 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "No residual alpha over matched controls - beta-not-alpha, ADR-0037's design working. No book. "
         "Evidence: evidence/govcontract_001/GOVCONTRACT001_Result_v1.0.md.",
         "docs/implementation/TradingWorkbench_GOVCONTRACT001_Plan_v0.1.md"),
+    ResearchProgram(
+        "CONGRESS-001", "Event-Driven",
+        "Does a disclosed congressional PURCHASE predict residual drift after controlling for "
+        "sector/size/liquidity/momentum?", "planned",
+        "EAD's second event-driven program (Quiver Congressional Trading, DCAP-007; ADR 0037). "
+        "Pre-registered (plan v0.2, owner-reviewed 9.8/10): PURCHASE-only long matched-control excess as the "
+        "primary verdict (sales are liquidity/tax/rebalancing-driven -> diagnostic only, not assumed "
+        "short-alpha); CLUSTER-level materiality (de-overlap same ticker+direction -> sum Range lower-bounds "
+        "-> $50k floor); exact PIT entry = first trading day after the OBSERVABLE ReportDate (no lag "
+        "calibration, unlike gov-contracts); DATE-CLUSTERED bootstrap (reports cluster -> pooled per-event "
+        "resampling overstates confidence, the RNG false-positive lesson); >=100-benchmarked gate; BH-FDR "
+        "one-directional; amendment PIT handling + short-side borrow caveat. Reuses the GOVCONTRACT-001 "
+        "matched-control engine + CAP-024 + batched momentum + throwaway-32GB-compute recipe. NEXT = build "
+        "(client congress endpoints + congress_trade ingest + run_congress001) -> run once on separate "
+        "compute -> registered verdict. Data access verified (license pulls congresstrading).",
+        "docs/implementation/TradingWorkbench_CONGRESS001_Plan_v0.1.md"),
 )
 
 
