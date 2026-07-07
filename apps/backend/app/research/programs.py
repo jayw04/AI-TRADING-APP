@@ -198,7 +198,7 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
     ResearchProgram(
         "LOBBY-001", "Event-Driven",
         "Does a SPIKE in a firm's lobbying spend predict residual drift after controlling for "
-        "sector/size/liquidity/momentum?", "planned",
+        "sector/size/liquidity/momentum?", "rejected",
         "EAD's third event-driven program (Quiver Lobbying, DCAP-007; ADR 0037). Pre-registered "
         "(plan v0.1): the EVENT is a spend SPIKE not the level (lobbying is recurring -> level is size, "
         "already matched) = firm-quarter total >= 2.0x the trailing-4Q MEDIAN baseline (nonzero quarters "
@@ -209,8 +209,13 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "fire on only ~4 deadline dates/yr -> extreme clustering); >=100-benchmarked gate; BH-FDR "
         "one-directional; amendments-after-deadline ignored. Data: per-ticker historical lobbying "
         "(1999-2026 deep; no bulk endpoint, live caps ~18mo) ingested over the factor universe. Reuses "
-        "the CONGRESS-001/GOVCONTRACT-001 engine wholesale. NEXT = build (lobbying client+ingest, "
-        "lobby_study, run_lobby001) -> run once on separate 32GB compute -> registered verdict.",
+        "the CONGRESS-001/GOVCONTRACT-001 engine wholesale. REGISTERED VERDICT 2026-07-07 (PR #379): "
+        "Rejected (Evidenced) - 2,088 spike events -> 1,078 benchmarked (>=100 gate CLEARED); net "
+        "excess -0.62%, 95% date-clustered CI [-1.18%,+0.11%] SPANS ZERO (gross -0.22%, negative "
+        "pre-cost; some short-hold/high-cost rows sig NEGATIVE but wrong-signed -> NOT a short per "
+        "plan §5); robust (BH-FDR 0/4). Lobbying spikes carry no positive residual alpha (lean "
+        "slightly negative) - 4th False-Positive-Reduction confirmation. v1 caveat: currently-active "
+        "lobbyists only (full survivorship-free sweep throttled by Quiver).",
         "docs/implementation/TradingWorkbench_LOBBY001_Plan_v0.1.md"),
 )
 
