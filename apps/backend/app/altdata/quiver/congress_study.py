@@ -107,8 +107,9 @@ def _entry_after(available_time: date) -> date:
 
 
 def _finish(ticker: str, evs: list[CorporateEvent], direction: str) -> Cluster:
-    anchor = min(_as_date(e.available_time) for e in evs)  # earliest disclosure = PIT anchor
-    assert anchor is not None
+    dates = [d for e in evs if (d := _as_date(e.available_time)) is not None]
+    assert dates, "cluster has no dated events"
+    anchor = min(dates)  # earliest disclosure = PIT anchor
     rl_sum = sum(float((e.payload or {}).get("range_low") or 0.0) for e in evs)
     return Cluster(ticker, anchor, _entry_after(anchor), rl_sum, len(evs), direction)
 
