@@ -3,7 +3,12 @@
 **Date:** 2026-07-08 · **Owner:** Jay Wang · **Program ID:** GAPPER-001 · **Registry:** Planning →
 **Running** (on freeze) · **Authority:** Strategy Production Sprint Plan v0.4 (Week 2) + TREND-001/002
 disposition (trend characterized; sprint focus now GAPPER).
-**Status:** DRAFT to FREEZE on owner confirmation of the open items (§ Verdict + § Candidate provenance).
+**Status:** ▶ **ACTIVE — evidence accruing** (owner decision 2026-07-08: build the Candidate Report now,
+then accrue). The Data Availability Gate ran → GAPPER-001 is **data-gated** (only 11 gappers-dates « the
+≥40 floor; candidate intraday bars uncached) → **verdict = pending forward accrual**. Provenance resolved
+to **live-files-only** (PIT reconstruction impractical — no premarket-gapper inputs before 2026-06-22).
+The **Morning Opportunities Candidate Report is shipped** (`scripts/reports/morning_opportunities.py`).
+Full design-freeze (verdict metric + replay) happens when the ≥40-date sample gate is met (≈ September).
 
 > **Why now.** TREND-001/002 honestly characterized multi-asset trend (defensive Diversifier Candidates,
 > power-limited, no paper). The next chance at a **user-visible** strategy is the SCAN/gapper opportunity
@@ -93,19 +98,30 @@ bars the OR-break + VWAP need). As with TREND-001, the gate runs first and recor
 available; if intraday history is too shallow, the realistic Week-2 outcome is `insufficient_sample`
 ("evidence accumulation started"), which is honest.
 
+### Data Availability Gate — result (2026-07-08) → data-gated; accrue forward
+
+Ran on the box. **11 gappers-dates** only (2026-06-22 → 07-08, ~10 candidates/day); **6** persisted
+premarket-gate evidence records; intraday bars cached for **19 liquid names (5Min) / 5 (1Min)** but
+**0 of the current gapper candidates** — the small/mid-cap gappers are uncached. The **≥40-date floor
+cannot be met (11 « 40)**, so a replay now would be `insufficient_sample` by construction. → **Verdict =
+pending forward accrual** (~1 gappers file/trading day → ≥40 dates ≈ September); mirrors SCAN-001's own
+forward-validation gate. **Interim deliverable SHIPPED:** the Morning Opportunities Candidate Report
+(`scripts/reports/morning_opportunities.py`) renders the daily SCAN candidates as an **ADR-0037-labelled
+watchlist (Backtest Pending)** with an **N/40 accrual counter** — user-visible now, no verdict claimed.
+
 ## 10. Lifecycle & guardrails
 
 - No paper promotion unless §7 Approved. Paper requires **CEE from day one**, the **Week-3 paper
   protocol**, and the **ADR-0040 minimal metrics** in place (GAPPER uses intraday/market-order execution).
 - Stopping rule: one primary design; a revision is **GAPPER-002** (fresh pre-registration), not an edit.
 
-### Open items to confirm before FREEZE (owner)
+### Decisions (2026-07-08)
 
-1. **Candidate provenance (§3):** PIT reconstruction (a) or live-files-only (b)?
-2. **Verdict metric (§7):** net per-trade edge in bps (date-clustered) as primary — confirm, and the
-   breakeven-slippage guardrail (≥ 2× assumed cost).
-3. **Data (§9):** run the Data Availability Gate now (gappers/SCAN/intraday freshness) to size the
-   available event count before freezing the sample-gate expectation?
+1. **Candidate provenance (§3): live-files-only (b)** — PIT reconstruction impractical (no premarket-gapper
+   inputs before 2026-06-22).
+2. **Verdict metric (§7):** proposed net per-trade edge in bps (date-clustered) + breakeven ≥ 2× cost —
+   **to CONFIRM before the replay** (≈ September); moot until the ≥40-date sample gate is met.
+3. **Data gate (§9): RAN** → data-gated; **accruing 6/40**. Interim Candidate Report shipped.
 
-*On confirmation this freezes to v1.0 (Planning → Running) and the Data Availability Gate runs first;
-the backtest/replay executes only on data that passes the gate.*
+*Next checkpoint: when accrual reaches ≥40 dates, confirm the verdict metric and run the CAP-025 replay.
+Until then GAPPER-001 stays ACTIVE-accruing; the Candidate Report is the user-visible surface.*
