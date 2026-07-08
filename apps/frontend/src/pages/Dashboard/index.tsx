@@ -190,29 +190,46 @@ export default function Dashboard() {
                   </td>
                 </tr>
               )}
-              {benchItems.map((b) => (
-                <tr key={b.symbol} className="text-neutral-300">
-                  <td className="py-1.5 pr-4">
-                    <span className="font-semibold text-neutral-100">{b.symbol}</span>{" "}
-                    <span className="text-[11px] text-neutral-500">{b.name}</span>
-                  </td>
-                  <td className="py-1.5 pr-4 text-right font-mono">
-                    {b.inception_price
-                      ? `$${Number(b.inception_price).toFixed(2)}`
-                      : "—"}
-                  </td>
-                  <td className="py-1.5 pr-4 text-right font-mono">
-                    {b.current_price ? `$${Number(b.current_price).toFixed(2)}` : "—"}
-                  </td>
-                  <td
-                    className={`py-1.5 text-right font-mono ${
-                      b.return_pct != null ? pnlClassName(b.return_pct) : "text-neutral-500"
-                    }`}
-                  >
-                    {b.return_pct != null ? formatPercent(b.return_pct) : "pending"}
-                  </td>
-                </tr>
-              ))}
+              {benchItems.map((b) => {
+                // Normalize each benchmark to the SAME starting balance as the book, so Start/Now are
+                // total values (apples-to-apples), not per-share prices. Per-share shown as sub-text.
+                const ip = b.inception_price ? Number(b.inception_price) : null;
+                const cp = b.current_price ? Number(b.current_price) : null;
+                const startBal = acc ? Number(acc.starting_equity) : null;
+                const nowVal =
+                  startBal != null && ip && cp && ip > 0 ? startBal * (cp / ip) : null;
+                return (
+                  <tr key={b.symbol} className="text-neutral-300">
+                    <td className="py-1.5 pr-4">
+                      <span className="font-semibold text-neutral-100">{b.symbol}</span>{" "}
+                      <span className="text-[11px] text-neutral-500">{b.name}</span>
+                    </td>
+                    <td className="py-1.5 pr-4 text-right font-mono">
+                      {startBal != null ? formatMoney(startBal) : "—"}
+                      {ip != null && (
+                        <span className="block text-[11px] font-normal text-neutral-500">
+                          @ ${ip.toFixed(2)}/sh
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-1.5 pr-4 text-right font-mono text-neutral-100">
+                      {nowVal != null ? formatMoney(nowVal) : "—"}
+                      {cp != null && (
+                        <span className="block text-[11px] font-normal text-neutral-500">
+                          @ ${cp.toFixed(2)}/sh
+                        </span>
+                      )}
+                    </td>
+                    <td
+                      className={`py-1.5 text-right font-mono align-top ${
+                        b.return_pct != null ? pnlClassName(b.return_pct) : "text-neutral-500"
+                      }`}
+                    >
+                      {b.return_pct != null ? formatPercent(b.return_pct) : "pending"}
+                    </td>
+                  </tr>
+                );
+              })}
               {!benchmarks.isLoading && benchItems.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-2 text-neutral-500">
