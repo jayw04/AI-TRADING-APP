@@ -63,12 +63,6 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <VariantsCard />
-
-      <MorningBriefCard />
-
-      <RecentProposalsCard />
-
       <section className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
         <h3 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide">
           Account
@@ -141,6 +135,10 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      <VariantsCard />
+
+      <RecentProposalsCard />
 
       {/* Your book's return vs passive index funds over the SAME window (starting balance → now). */}
       <section className="rounded-lg bg-neutral-900 border border-neutral-800 p-6">
@@ -328,6 +326,8 @@ export default function Dashboard() {
       <section>
         <OrderTicket />
       </section>
+
+      <MorningBriefCard />
     </div>
   );
 }
