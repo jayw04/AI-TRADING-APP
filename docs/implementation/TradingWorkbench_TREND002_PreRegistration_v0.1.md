@@ -2,8 +2,9 @@
 
 **Date:** 2026-07-08 · **Owner:** Jay Wang · **Program ID:** TREND-002 · **Registry:** Planning →
 **Running** (on freeze) · **Authority:** Strategy Production Sprint Plan v0.4 + TREND-001 disposition.
-**Status:** DRAFT to FREEZE on owner confirmation of the one new choice (§3 cash proxy). This is a
-**new program**, not an edit of TREND-001 (the stopping rule has no back door).
+**Status:** ✅ **FROZEN v1.0 (2026-07-08).** Cash proxy = **SHY** confirmed by the owner (BIL-overlap +
+zero-yield as sensitivities). This is a **new program**, not an edit of TREND-001 (the stopping rule has
+no back door). No paper promotion unless the pre-registered Approved or Diversifier gates clear.
 
 > **Why TREND-002.** TREND-001 (10-ETF, 2007-03→2026-07, 233 mo) was **Power-Limited · Inconclusive ·
 > Diversifier Candidate**: favorable, robust point estimates (62.9% MaxDD reduction, ΔSharpe +0.18) that
@@ -43,6 +44,19 @@ BIL (TREND-001's proxy) only starts 2007-05, so it cannot cover a 2002 window. *
 window** (a short-duration Treasury proxy — slightly more duration than pure T-bills, but the only
 liquid cash-like series covering 2002+). **BIL (2007+) and zero-yield are sensitivities.**
 
+> **Caveat (documented before freeze):** SHY is used as a long-history cash-like **short-Treasury
+> proxy, not a risk-free cash series** — it carries some duration/rate risk (e.g. it can behave worse
+> than true T-bills in a year like 2022). The **BIL-overlap and zero-yield sensitivities test whether
+> the verdict depends on this proxy.**
+
+### 4. Cash-leg attribution block (evidence-package addition, owner-required)
+
+To keep the SHY choice transparent (so the result can't be attributed to the cash proxy rather than the
+trend rule), the TREND-002 evidence package reports: **cash-proxy return contribution** (CAGR delta
+SHY-cash vs zero-cash) · **average cash weight** · **worst cash-proxy month** (SHY) · **BIL-overlap
+comparison** (SHY vs BIL cash on the post-2007 window) · **zero-yield comparison** · **verdict
+dependency on SHY** (does Approved/Diversifier/Inconclusive change under BIL / zero?).
+
 ## Data Availability Gate (largely pre-passed from the TREND-001 gate)
 
 All six core ETFs have full Yahoo adjusted-close history (confirmed 2026-07-08): SPY 1993 · QQQ 1999 ·
@@ -60,10 +74,11 @@ point estimates, that is itself a strong statement (multi-asset trend's edge is 
 genuinely hard to resolve even over 24 years — a defensible "defensive sleeve, manage expectations"
 conclusion). Either way the evidence brief ships.
 
-### Open item to confirm before FREEZE (owner)
+### Confirmed & frozen (owner, 2026-07-08)
 
-1. **Cash proxy = SHY** for the full 2002+ window (BIL/zero as sensitivities) — confirm or substitute.
+1. **Cash proxy = SHY** for the full 2002+ window — **CONFIRMED** (BIL-overlap + zero-yield as
+   sensitivities; SHY caveat + cash-leg attribution block added above).
 
-*On confirmation this freezes to v1.0 (Planning → Running) and the backtest runs on the same seeded,
-reproducible harness (`evidence/trend_002/`), reusing the TREND-001 script with the core-6 universe +
-SHY cash + the sensitivity additions.*
+*Frozen v1.0 → Planning → Running. The backtest runs on the seeded, reproducible harness
+(`evidence/trend_002/`): core-6 universe + SHY cash + the sensitivity additions (EEM/GLD/DBC) +
+BIL-overlap + zero-yield + the cash-leg attribution block. No paper promotion unless a gate clears.*

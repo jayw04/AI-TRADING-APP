@@ -1,0 +1,185 @@
+{
+  "meta": {
+    "universe": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "EFA",
+      "TLT",
+      "IEF"
+    ],
+    "sensitivity_adds": [
+      "EEM",
+      "GLD",
+      "DBC"
+    ],
+    "cash_proxy": "SHY",
+    "cadence": "monthly_first_trading_day",
+    "start": "2002-07-01",
+    "n_months": 289,
+    "window": [
+      "2002-07-01",
+      "2026-07-01"
+    ],
+    "vol_target": 0.1,
+    "cost_bps": 5.0,
+    "block": 6,
+    "n_boot": 5000,
+    "seed": 20260708,
+    "fetch_fails": []
+  },
+  "strategy": {
+    "cagr": 0.07147927956695077,
+    "vol": 0.08753634918479562,
+    "sharpe": 0.6142007740997883,
+    "maxdd": -0.17190793074293187,
+    "calmar": 0.41579977874225965,
+    "n": 289
+  },
+  "benchmark_ew": {
+    "cagr": 0.08589920948755014,
+    "vol": 0.11925517963078162,
+    "sharpe": 0.5914347399922241,
+    "maxdd": -0.3465154729034571,
+    "calmar": 0.24789429680527594,
+    "n": 289
+  },
+  "bench_SPY": {
+    "cagr": 0.10514920354647961,
+    "vol": 0.16182055942497658,
+    "sharpe": 0.5832495416671503,
+    "maxdd": -0.5289499571645232,
+    "calmar": 0.198788566143648,
+    "n": 289
+  },
+  "delta_sharpe": {
+    "point": 0.02276603410756428,
+    "ci_lo": -0.3977190876853419,
+    "ci_hi": 0.4561895897526129,
+    "excludes_zero": false,
+    "se": 0.21801302035229253,
+    "mde_95": 0.42730551989049337
+  },
+  "delta_calmar": {
+    "point": 0.1679054819369837,
+    "ci_lo": -0.33328105297850624,
+    "ci_hi": 0.5980118435414282,
+    "excludes_zero": false,
+    "se": 0.23289230213480744,
+    "mde_95": 0.4564689121842226
+  },
+  "maxdd_reduction_rel": 0.5038953692240252,
+  "power": {
+    "mde_95_delta_sharpe": 0.42730551989049337,
+    "observed_delta_sharpe": 0.02276603410756428,
+    "adequately_powered": false
+  },
+  "verdict": "Inconclusive",
+  "status_label": "Completed \u00b7 Power-Limited \u00b7 Inconclusive",
+  "secondary_label": "Diversifier Candidate",
+  "cash_leg_attribution": {
+    "cash_proxy": "SHY",
+    "avg_cash_weight": 0.12474251458059202,
+    "worst_cash_proxy_month_shy": -0.018341216004692518,
+    "cash_contribution_cagr_pp": 0.13344270285493565,
+    "bil_overlap": {
+      "window": [
+        "2007-07-02",
+        "2026-07-01"
+      ],
+      "shy": {
+        "cagr": 0.06904880467531971,
+        "vol": 0.09312381927309502,
+        "sharpe": 0.5695072293296717,
+        "maxdd": -0.17190793074293176,
+        "calmar": 0.4016615427625275,
+        "n": 229
+      },
+      "bil": {
+        "cagr": 0.07098615593351654,
+        "vol": 0.09268125191031544,
+        "sharpe": 0.6436232189327588,
+        "maxdd": -0.13874988311718606,
+        "calmar": 0.5116123656375459,
+        "n": 229
+      }
+    },
+    "zero_yield": {
+      "cagr": 0.07014485253840141,
+      "vol": 0.08732097153291926,
+      "sharpe": 0.6011470637413051,
+      "maxdd": -0.1570922511479721,
+      "calmar": 0.4465201308518324,
+      "n": 289
+    },
+    "verdict_under": {
+      "SHY": "Inconclusive",
+      "BIL": "Inconclusive",
+      "zero": "Inconclusive"
+    },
+    "verdict_depends_on_proxy": false
+  },
+  "sensitivities": {
+    "add_EEM": {
+      "cagr": 0.07306510171458025,
+      "vol": 0.0888561542118037,
+      "sharpe": 0.6231162302620166,
+      "maxdd": -0.17190793074293176,
+      "calmar": 0.42502461287746274,
+      "n": 289,
+      "delta_sharpe_pt": 0.05489580579665054,
+      "window": [
+        "2002-07-01",
+        "2026-07-01"
+      ]
+    },
+    "add_GLD": {
+      "cagr": 0.07914892823144726,
+      "vol": 0.08460846537688355,
+      "sharpe": 0.7171787155958711,
+      "maxdd": -0.1908090486085926,
+      "calmar": 0.41480699583490815,
+      "n": 289,
+      "delta_sharpe_pt": 0.05109793573834831,
+      "window": [
+        "2002-07-01",
+        "2026-07-01"
+      ]
+    },
+    "add_DBC": {
+      "cagr": 0.07236483222511225,
+      "vol": 0.08415654400953865,
+      "sharpe": 0.6453888086860289,
+      "maxdd": -0.14784819117211911,
+      "calmar": 0.4894536189547827,
+      "n": 289,
+      "delta_sharpe_pt": 0.09533205732163674,
+      "window": [
+        "2002-07-01",
+        "2026-07-01"
+      ]
+    },
+    "add_ALL3": {
+      "cagr": 0.08239248029650748,
+      "vol": 0.08515537965960604,
+      "sharpe": 0.74860640671228,
+      "maxdd": -0.1318867449969754,
+      "calmar": 0.6247214630886296,
+      "n": 289,
+      "delta_sharpe_pt": 0.15635340206668014,
+      "window": [
+        "2002-07-01",
+        "2026-07-01"
+      ]
+    }
+  },
+  "usability": {
+    "avg_positions": 3.6262975778546713,
+    "median_positions": 4.0,
+    "avg_cash_weight": 0.12474251458059202,
+    "annual_turnover": 3.8909119096854727,
+    "worst_month": -0.1108817691629646,
+    "suggested_role": "defensive / all-weather sleeve \u2014 NOT a core return engine",
+    "account_size": "unbounded for an individual (\u22646 mega-cap ETFs; monthly, low churn)"
+  }
+}
