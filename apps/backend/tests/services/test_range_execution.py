@@ -1,7 +1,8 @@
-"""capture_window — materializes fills + daily high/low into range_execution_records, frozen.
+"""capture_window — materializes the daily SET range levels + high/low into range_execution_records.
 
-Uses a stub bar cache and dates relative to *now* (yesterday = a completed day; today = incomplete) so
-the test is independent of the wall clock.
+The buy/sell columns hold the strategy's SET daily fade levels (from its ``range_levels`` INFO signal),
+not fills. Uses a stub bar cache and dates relative to *now* (yesterday = a completed day; today =
+incomplete) so the test is independent of the wall clock.
 """
 
 from __future__ import annotations
@@ -13,19 +14,9 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from sqlalchemy import select
 
-from app.db.enums import (
-    OrderSide,
-    OrderSourceType,
-    OrderStatus,
-    OrderType,
-    StrategyStatus,
-    StrategyType,
-    TimeInForce,
-)
-from app.db.models.account import Account, AccountMode
-from app.db.models.fill import Fill
-from app.db.models.order import Order
+from app.db.enums import StrategyStatus, StrategyType
 from app.db.models.range_execution_record import RangeExecutionRecord
+from app.db.models.signal import Signal, SignalType
 from app.db.models.strategy import Strategy
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
@@ -56,19 +47,18 @@ def _now() -> datetime:
 async def _seed(factory, day) -> None:
     async with factory() as s:
         s.add(User(id=2, email="range@test"))
-        s.add(Account(id=2, user_id=2, broker="alpaca", mode=AccountMode.paper, label="Range"))
         s.add(Symbol(id=1, ticker="MU", exchange="NASDAQ", asset_class="us_equity",
                      name="Micron", active=True))
         s.add(Strategy(id=1, user_id=2, name="Range Trader Top-5", version="0.1.0",
                        type=StrategyType.PYTHON, status=StrategyStatus.PAPER, code_path="x.py",
                        params_json={}, symbols_json=["MU"], schedule="*/5 * * * *",
                        created_at=_now(), updated_at=_now()))
-        created = datetime.combine(day, time(14, 15), tzinfo=UTC)  # 10:15 ET, RTH
-        s.add(Order(id=100, user_id=2, account_id=2, symbol_id=1, side=OrderSide.BUY,
-                    qty=Decimal("4"), type=OrderType.MARKET, tif=TimeInForce.DAY,
-                    status=OrderStatus.FILLED, source_type=OrderSourceType.STRATEGY, source_id="1",
-                    created_at=created, submitted_at=created, updated_at=created))
-        s.add(Fill(order_id=100, qty=Decimal("4"), price=Decimal("910.81"), filled_at=created))
+        # The strategy logs its SET fade levels for the day as a range_levels INFO signal (10:05 ET).
+        received = datetime.combine(day, time(14, 5), tzinfo=UTC)
+        s.add(Signal(user_id=2, strategy_id=1, symbol_id=1, type=SignalType.INFO,
+                     payload_json={"kind": "range_levels", "buy": 909.89, "sell": 935.38,
+                                   "stop": 905.34, "at_price": 918.42},
+                     received_at=received))
         await s.commit()
 
 
@@ -85,8 +75,8 @@ async def test_capture_freezes_and_is_idempotent(session_factory) -> None:
         r = (await s.execute(select(RangeExecutionRecord))).scalars().one()
         assert r.symbol == "MU"
         assert r.et_date == yesterday
-        assert r.avg_buy_price == Decimal("910.81")  # qty-weighted avg fill
-        assert r.avg_sell_price is None
+        assert r.avg_buy_price == Decimal("909.89")   # the SET daily buy level (range_levels)
+        assert r.avg_sell_price == Decimal("935.38")  # the SET daily sell level
         assert r.daily_low == Decimal("891.75")
         assert r.daily_high == Decimal("941.32")
 

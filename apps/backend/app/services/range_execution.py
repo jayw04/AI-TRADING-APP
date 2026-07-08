@@ -1,11 +1,15 @@
-"""Range Trader daily execution-vs-range capture — materializes daily high/low into the DB.
+"""Range Trader daily levels-vs-range capture — materializes the daily SET levels + high/low into the DB.
 
-For a date window this records one *frozen* row per (symbol, ET trading day): our qty-weighted average
-BUY/SELL fill (from orders/fills, user 2) alongside the stock's RTH daily low/high (from the 1Day bar
-cache). Only COMPLETED days (< today ET) are captured, and each (symbol, date) is inserted once — a
-re-query never recomputes. This is the read-through populate behind ``GET /api/v1/range-execution``:
-querying a window backfills any completed days the table doesn't have yet, so there is no cron and no
-daily file.
+For a date window this records one *frozen* row per (symbol, ET trading day): the **buy/sell levels the
+strategy SET that day** (the opening-range fade entry/exit — from its ``range_levels`` INFO signal, NOT
+the executed fill prices) alongside the stock's RTH daily low/high (from the 1Day bar cache). This lets
+the user see how well each day's *planned* fade levels sat inside the realized range. Only COMPLETED days
+(< today ET) are captured, and each (symbol, date) is inserted once — a re-query never recomputes. This
+is the read-through populate behind ``GET /api/v1/range-execution``: querying a window backfills any
+completed days the table doesn't have yet, so there is no cron and no daily file.
+
+``avg_buy_price`` / ``avg_sell_price`` hold the SET daily buy/sell level (column names retained for API/
+schema stability); they are the strategy's planned levels, not fill averages.
 """
 
 from __future__ import annotations
@@ -19,9 +23,8 @@ import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.fill import Fill
-from app.db.models.order import Order
 from app.db.models.range_execution_record import RangeExecutionRecord
+from app.db.models.signal import Signal, SignalType
 from app.db.models.strategy import Strategy
 from app.db.models.symbol import Symbol
 
@@ -50,39 +53,57 @@ async def _current_top5(session: AsyncSession) -> list[str]:
     return FALLBACK_TOP5
 
 
-async def _fills_by_day(
-    session: AsyncSession, d_from: date, d_to: date
-) -> dict[tuple[str, str, str], Decimal]:
-    """{(et_date_iso, TICKER, 'BUY'|'SELL'): qty-weighted avg fill price} over the window.
+def _dec(v: Any) -> Decimal | None:
+    return Decimal(str(v)) if v is not None else None
 
-    Matches the ET date by the UTC-date prefix of ``created_at`` (a string in SQLite); during RTH the
-    UTC and ET calendar dates coincide, which is when the intraday range book trades.
+
+async def _levels_by_day(
+    session: AsyncSession, d_from: date, d_to: date
+) -> dict[tuple[str, str], tuple[Decimal | None, Decimal | None]]:
+    """{(et_date_iso, TICKER): (buy_level, sell_level)} from the Range Trader's daily ``range_levels``
+    signals over the window.
+
+    The strategy logs one ``INFO`` signal per Top-5 symbol at the open with payload
+    ``{"kind": "range_levels", "buy", "sell", "stop", ...}`` — the fade levels it SET for the day. The
+    ET date is matched by the UTC-date prefix of ``received_at`` (a string in SQLite); the open-range
+    signals fire mid-session, when the UTC and ET calendar dates coincide. If a symbol has more than one
+    such signal in a day, the first (opening-range) one wins.
     """
+    strat_id = await session.scalar(
+        select(Strategy.id)
+        .where(Strategy.name.like("Range Trader%"))
+        .order_by(Strategy.id)
+        .limit(1)
+    )
+    if strat_id is None:
+        return {}
     rows = (
         await session.execute(
             select(
-                func.substr(Order.created_at, 1, 10),
+                func.substr(Signal.received_at, 1, 10),
                 Symbol.ticker,
-                Order.side,
-                Fill.qty,
-                Fill.price,
+                Signal.payload_json,
             )
-            .join(Fill, Fill.order_id == Order.id)
-            .join(Symbol, Symbol.id == Order.symbol_id)
+            .join(Symbol, Symbol.id == Signal.symbol_id)
             .where(
-                Order.user_id == RANGE_USER_ID,
-                func.substr(Order.created_at, 1, 10) >= d_from.isoformat(),
-                func.substr(Order.created_at, 1, 10) <= d_to.isoformat(),
+                Signal.strategy_id == strat_id,
+                Signal.type == SignalType.INFO,
+                func.substr(Signal.received_at, 1, 10) >= d_from.isoformat(),
+                func.substr(Signal.received_at, 1, 10) <= d_to.isoformat(),
             )
+            .order_by(Signal.received_at)
         )
     ).all()
-    agg: dict[tuple[str, str, str], list[Decimal]] = {}
-    for day_iso, ticker, side, qty, price in rows:
-        s = getattr(side, "value", str(side)).upper()
-        key = (day_iso, ticker.upper(), s)
-        q, n = agg.get(key, [Decimal(0), Decimal(0)])
-        agg[key] = [q + Decimal(qty), n + Decimal(qty) * Decimal(price)]
-    return {k: (n / q) for k, (q, n) in agg.items() if q > 0}
+    out: dict[tuple[str, str], tuple[Decimal | None, Decimal | None]] = {}
+    for day_iso, ticker, payload in rows:
+        p = payload if isinstance(payload, dict) else {}
+        if p.get("kind") != "range_levels":
+            continue
+        key = (day_iso, ticker.upper())
+        if key in out:
+            continue  # first (opening-range) levels of the day win
+        out[key] = (_dec(p.get("buy")), _dec(p.get("sell")))
+    return out
 
 
 async def _daily_low_high_map(
@@ -122,9 +143,9 @@ async def capture_window(
     if bar_cache is None or end < d_from:
         return 0
 
-    fills = await _fills_by_day(session, d_from, end)
-    traded = {ticker for (_d, ticker, _s) in fills}
-    universe = sorted(traded | set(await _current_top5(session)))
+    levels = await _levels_by_day(session, d_from, end)
+    leveled = {ticker for (_d, ticker) in levels}
+    universe = sorted(leveled | set(await _current_top5(session)))
 
     # Prefetch already-captured (symbol, et_date) pairs and the daily bars per symbol.
     existing = {
@@ -154,12 +175,13 @@ async def capture_window(
             if lh is None:
                 continue  # non-trading day / no bar → retry on a later query
             low, high = lh
+            buy_level, sell_level = levels.get((d_iso, sym), (None, None))
             session.add(
                 RangeExecutionRecord(
                     et_date=d,
                     symbol=sym,
-                    avg_buy_price=fills.get((d_iso, sym, "BUY")),
-                    avg_sell_price=fills.get((d_iso, sym, "SELL")),
+                    avg_buy_price=buy_level,   # the SET daily buy level (range_levels), not a fill
+                    avg_sell_price=sell_level,  # the SET daily sell level
                     daily_low=low,
                     daily_high=high,
                     captured_at=now,
