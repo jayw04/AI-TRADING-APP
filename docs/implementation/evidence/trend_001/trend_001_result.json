@@ -1,0 +1,165 @@
+{
+  "meta": {
+    "universe": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "EFA",
+      "EEM",
+      "TLT",
+      "IEF",
+      "GLD",
+      "DBC",
+      "UUP"
+    ],
+    "start": "2007-03-01",
+    "n_months": 219,
+    "window": [
+      "2008-05-31",
+      "2026-07-31"
+    ],
+    "vol_target": 0.1,
+    "vol_lb": 63,
+    "cost_bps": 5.0,
+    "block": 6,
+    "n_boot": 5000,
+    "seed": 20260708,
+    "fetch_fails": []
+  },
+  "strategy": {
+    "cagr": 0.07481326015353695,
+    "vol": 0.07618404546302268,
+    "sharpe": 0.8261937979426701,
+    "maxdd": -0.0999260729446797,
+    "calmar": 0.7486860831102058,
+    "n": 219
+  },
+  "benchmark_ew": {
+    "cagr": 0.07052414376077887,
+    "vol": 0.09780755585446206,
+    "sharpe": 0.6221296545221524,
+    "maxdd": -0.293173030145791,
+    "calmar": 0.2405546776444892,
+    "n": 219
+  },
+  "bench_SPY": {
+    "cagr": 0.11696322224715727,
+    "vol": 0.15694276740301394,
+    "sharpe": 0.7086186816682205,
+    "maxdd": -0.46322409087923166,
+    "calmar": 0.2524981419363421,
+    "n": 219
+  },
+  "bench_DBMF_overlap": {
+    "cagr": 0.09009213906798985,
+    "vol": 0.1123046121679309,
+    "sharpe": 0.5989585881186703,
+    "maxdd": -0.1729849091076494,
+    "calmar": 0.5208092401396994,
+    "n": 86
+  },
+  "bench_KMLM_overlap": {
+    "cagr": 0.048189541393953705,
+    "vol": 0.12842418043358653,
+    "sharpe": 0.19574959189020583,
+    "maxdd": -0.2592631547161456,
+    "calmar": 0.18587115260058473,
+    "n": 67
+  },
+  "delta_sharpe": {
+    "point": 0.2040641434205177,
+    "ci_lo": -0.3739298360788662,
+    "ci_hi": 0.7709296017619296,
+    "excludes_zero": false,
+    "se": 0.2977825272946016,
+    "mde_95": 0.5836537534974191
+  },
+  "delta_calmar": {
+    "point": 0.5081314054657166,
+    "ci_lo": -0.4711247236002161,
+    "ci_hi": 1.0417632439462028,
+    "excludes_zero": false,
+    "se": 0.3722242790467732,
+    "mde_95": 0.7295595869316754
+  },
+  "maxdd_reduction_rel": 0.6591566663038964,
+  "power": {
+    "mde_95_delta_sharpe": 0.5836537534974191,
+    "observed_delta_sharpe": 0.2040641434205177,
+    "adequately_powered": false
+  },
+  "verdict": "Rejected",
+  "verdict_note": "POWER-LIMITED: |\u0394Sharpe| < MDE \u2014 a Rejected on \u0394Sharpe may be a power failure, not evidence of no effect; the Diversifier path is the realistic bar.",
+  "sensitivities": {
+    "ma_only": {
+      "cagr": 0.07266339175863146,
+      "vol": 0.07058871720643918,
+      "sharpe": 0.8573130241660462,
+      "maxdd": -0.08013911629109594,
+      "calmar": 0.9067156604858259,
+      "n": 219,
+      "delta_sharpe_pt": 0.23518336964389375
+    },
+    "tr_only": {
+      "cagr": 0.06729021998808338,
+      "vol": 0.0766805021301499,
+      "sharpe": 0.7293082117255474,
+      "maxdd": -0.10711937271635152,
+      "calmar": 0.6281797426714363,
+      "n": 219,
+      "delta_sharpe_pt": 0.10717855720339498
+    },
+    "no_skip_12m": {
+      "cagr": 0.06956165607522125,
+      "vol": 0.07248143394622951,
+      "sharpe": 0.7966123278552381,
+      "maxdd": -0.12175431955174398,
+      "calmar": 0.5713280344493935,
+      "n": 219,
+      "delta_sharpe_pt": 0.17448267333308565
+    },
+    "zero_cash": {
+      "cagr": 0.07406267307193759,
+      "vol": 0.07625166934241674,
+      "sharpe": 0.8163101627598849,
+      "maxdd": -0.09986088966393336,
+      "calmar": 0.741658454287602,
+      "n": 219,
+      "delta_sharpe_pt": 0.19418050823773247
+    },
+    "costs_2x": {
+      "cagr": 0.0720802200943853,
+      "vol": 0.07618349206723068,
+      "sharpe": 0.792589183565681,
+      "maxdd": -0.10108744946794002,
+      "calmar": 0.713048162494649,
+      "n": 219,
+      "delta_sharpe_pt": 0.17045952904352857
+    },
+    "ex_UUP": {
+      "cagr": 0.08112804636385329,
+      "vol": 0.08711417718195466,
+      "sharpe": 0.8003240013825682,
+      "maxdd": -0.1293979889248431,
+      "calmar": 0.6269652800475443,
+      "n": 219,
+      "delta_sharpe_pt": 0.22207501269975594
+    },
+    "ex_DBC": {
+      "cagr": 0.08107873951991107,
+      "vol": 0.07761881401111533,
+      "sharpe": 0.887663693953723,
+      "maxdd": -0.09992607294467926,
+      "calmar": 0.8113872298854136,
+      "n": 219,
+      "delta_sharpe_pt": 0.19509718075298743
+    }
+  },
+  "usability": {
+    "avg_positions": null,
+    "note": "turnover/positions summarized in the MD from the run log",
+    "worst_drawdown": -0.0999260729446797,
+    "cost_drag_2x_vs_1x_cagr_pp": -0.2733040059151648,
+    "suitability": "core (if Approved) / defensive (if Diversifier)"
+  }
+}
