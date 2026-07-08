@@ -1,6 +1,7 @@
-# EAD Dataset Triage — required gate before any new alt-data / event program (v0.1)
+# EAD Dataset Triage — required gate before any new alt-data / event program (v0.2)
 
 **Date:** 2026-07-07 · **Owner:** Jay Wang · **Status:** Active governance artifact.
+**v0.2 (owner fold):** four **hard** gates now (PIT clarity · distinct mechanism · license path · ≥100 sample), not two — any one fails → no full study. The reference-use rule is a **codified EAD invariant** (enforced in code), not a recommendation.
 **Why this exists:** after four matched-control rejections of Quiver event datasets, "test every dataset" is no longer a good use of research. This one-page gate makes alt-data exploration **hypothesis-driven, not dataset-by-dataset**. Fold of the owner's LOBBY-001 review (`docs/implementation/comments.md`, Step 2).
 
 ---
@@ -25,19 +26,23 @@ Score every candidate dataset against all gates **before** committing to a full 
 |---|---|---|---|
 | 1 | **PIT clarity** | A trustworthy, observable availability date (when the signal was *knowably* public). | **HARD VETO** |
 | 2 | **Distinct mechanism** | Not another beta / sector / size / public-disclosure-event proxy. A genuinely different economic channel. | **HARD VETO** |
-| 3 | License | Available under the current subscription, or the paid upgrade is clearly justified by a *proven* prior. | Soft |
-| 4 | Identity resolution | Maps cleanly to tradable securities (Security-Master resolvable). | Soft |
-| 5 | Sample size | Likely **≥100 benchmarked** events/signals *after* PIT + materiality + universe filters. | Soft |
+| 3 | **License path** | A license path exists for the *intended use* — available now, or a clearly-justified upgrade. A study you cannot act on is a dead-end eval. | **HARD VETO** |
+| 4 | **Sample size** | Can plausibly reach **≥100 benchmarked** events/signals *after* PIT + materiality + universe filters. Below this the gate cannot hold the line. | **HARD — no full study** |
+| 5 | Identity resolution | Maps cleanly to tradable securities (Security-Master resolvable). | Soft |
 | 6 | Reusable harness | Fits an existing harness (event-study **or** cross-sectional signal), or the new harness is itself justified. | Soft |
 | 7 | Commercial path | If it proves out, the license supports future product use (not a dead-end eval). | Soft |
 
 ### Decision rule
 
-1. **Any HARD VETO fails → No-Go.** No study. (Rationale: without PIT you cannot separate alpha from lookahead — LOBBY dropped 35% of filings on this gate; without a distinct mechanism the prior already says "no.")
-2. Otherwise, **fail two or more soft gates → No full study** (triage note / reference use only).
-3. Otherwise → pre-register and run, with an explicit primary hypothesis and the gates recorded.
+1. **Four hard gates — any one fails → do not run a full study:**
+   - **PIT clarity** — no trustworthy observable availability date → No-Go (you cannot separate alpha from lookahead; LOBBY dropped 35% of filings on this gate).
+   - **Distinct mechanism** — another beta / sector / size / public-disclosure-event proxy → No-Go *on prior* (the four rejections are one finding; a fifth of the same class fails before any data is pulled).
+   - **License path** — no license path for the intended use → No-Go (a study you can't act on is a dead-end eval).
+   - **Sample size** — cannot plausibly reach ≥100 benchmarked observations after filters → No full study (below it the gate cannot hold the line).
+2. All four hard gates pass, but **two or more soft gates** (identity resolution, reusable harness, commercial path) fail → triage note / reference use only, no full study.
+3. All gates pass → pre-register and run, with an explicit primary hypothesis and the gates recorded.
 
-Gate 2 (distinct mechanism) is the **most weighted** soft-or-hard consideration given the prior above: when in doubt about whether a dataset is "just another disclosure-event proxy," treat it as a veto.
+Of the four, **distinct mechanism** is the sharpest given the prior: when in doubt whether a dataset is "just another disclosure-event proxy," treat it as a veto.
 
 ---
 
@@ -68,7 +73,11 @@ It may **not** be used to size positions, select or rank securities, or trigger 
 - **Allowed:** "Company had a lobbying-spend spike, but LOBBY-001 found no positive residual alpha."
 - **Not allowed:** "Buy because lobbying spend spiked."
 
-**Recommended code guardrail (not just policy):** any rejected event-label that surfaces in the Opportunity Report or a signal feed must carry a `rejected_reference_only` tag, and the sizing / ranking path must refuse to consume tagged labels. Policies erode; the platform's discipline is enforced in code (single router, no-LLM-in-order-path) — extend the same pattern here so "buy because X spiked" cannot creep back in.
+**This is a codified EAD invariant, not just policy (owner, 2026-07-07):**
+
+> **A rejected EAD pattern may be displayed as reference/context, but it may not enter ranking, sizing, or order-path logic.**
+
+Enforced in code via a `rejected_reference_only` tag: any rejected event-label that surfaces in the Opportunity Report or a signal feed carries it, and the ranking / sizing / order path must refuse to consume tagged labels. This joins the platform's other enforced-in-code invariants (single OrderRouter, no-LLM-in-order-path) — policies erode; enforcement doesn't, so "buy because X spiked" cannot creep back in. (Guardrail implementation tracked as the EAD-invariant work item.)
 
 ---
 
