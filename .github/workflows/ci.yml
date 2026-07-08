@@ -230,6 +230,10 @@ jobs:
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_altdata_order_path_isolation.sh
 
+      - name: EAD reference-only invariant check (backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_reference_only_invariant.sh
+
       - name: Credential env-isolation invariant check (backend)
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_no_env_credentials.sh
