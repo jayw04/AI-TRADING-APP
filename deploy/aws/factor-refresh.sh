@@ -9,8 +9,12 @@
 #
 # HOW: ingest_sharadar.py upserts sep by (ticker,date) (INSERT OR REPLACE), so an incremental is just
 # a recent-bars pull (no --skip-existing) bounded by --from-date. The backend holds the DuckDB file
-# read-only, so we ingest into a STAGING copy (backend stays up), then take the shortest possible
-# downtime for an atomic swap + restart (resume-on-boot re-registers strategies).
+# read-only, so we ingest into a STAGING copy (backend stays up). Before the swap the staging store
+# is VERIFIED against the current live (no sep_max regression, <10% ticker loss, lastpricedate>=sep);
+# on failure the job ABORTS with the live store untouched. On success we retain a one-deep rollback
+# (factor_data.prev.duckdb), then take the shortest possible downtime for the swap + restart
+# (resume-on-boot re-registers strategies). A stale factor store is a silent allocation bug — so a
+# bad refresh must never reach the live book, and a good store is always recoverable.
 #
 # SCHEDULE: pre-market on trading days (e.g. 06:00 ET) via systemd timer / cron — see
 # Docs/runbook/aws-migration.md. PREREQS: NASDAQ_DATA_LINK_API_KEY in SSM /workbench/prod/* (+ the
@@ -66,23 +70,59 @@ $COMPOSE run --rm --no-deps \
     --datasets sep,actions,tickers --from "$FROM"
 log "ingested SEP/actions/tickers since ${FROM} into staging"
 
-# 3) shortest-downtime atomic swap
+# 2b) VERIFY the staging store BEFORE the swap — a bad refresh must NOT reach the live book.
+#     A stale factor store is a silent allocation bug, so the swap is GATED: staging must not
+#     regress vs the current live (sep_max backward, >10% tickers lost) and must be self-consistent
+#     (tickers.lastpricedate >= sep, else the PIT universe empties and every book HOLDS — the
+#     2026-07-06 incident). On any failure we ABORT: the live store is left untouched and the job
+#     exits non-zero (systemd marks it failed; the daily report's >7d staleness check is the backstop).
+if ! $COMPOSE run --rm --no-deps backend python - <<'PY'
+import duckdb, sys
+live = duckdb.connect('/app/data/factor_data.duckdb', read_only=True)
+stage = duckdb.connect('/app/data/factor_data.staging.duckdb', read_only=True)
+def q(con, sql):
+    try:
+        return con.execute(sql).fetchone()[0]
+    except Exception:
+        return None
+l_sep, s_sep = q(live, "SELECT max(date) FROM sep"), q(stage, "SELECT max(date) FROM sep")
+l_tk, s_tk = q(live, "SELECT count(DISTINCT ticker) FROM sep"), q(stage, "SELECT count(DISTINCT ticker) FROM sep")
+s_lpd = q(stage, "SELECT max(lastpricedate) FROM tickers")
+print(f"verify: sep_max live={l_sep} stage={s_sep} | sep tickers live={l_tk} stage={s_tk} | stage lastpricedate={s_lpd}")
+fail = []
+if s_sep is None:
+    fail.append("staging sep is EMPTY")
+elif l_sep is not None and s_sep < l_sep:
+    fail.append(f"sep_max REGRESSED {l_sep}->{s_sep}")
+if s_tk is not None and l_tk and s_tk < 0.9 * l_tk:
+    fail.append(f"ticker count dropped {l_tk}->{s_tk} (>10%)")
+if s_lpd is not None and s_sep is not None and s_lpd < s_sep:
+    fail.append(f"tickers.lastpricedate {s_lpd} BEHIND sep {s_sep} -> PIT universe would EMPTY (books HOLD)")
+if fail:
+    print("VERIFY_FAILED: " + "; ".join(fail)); sys.exit(1)
+print("VERIFY_OK")
+PY
+then
+  log "ABORTED: staging verification FAILED — LIVE store left unchanged, refresh NOT applied. Investigate."
+  rm -f "$STAGE"
+  exit 1
+fi
+log "staging verified OK"
+
+# 3) safe atomic swap: retain a one-deep rollback copy of the CURRENT live, then swap.
 $COMPOSE stop backend
+cp -f "$LIVE" "$DATADIR/factor_data.prev.duckdb"   # rollback point (last known-good store)
 mv -f "$STAGE" "$LIVE"
 $COMPOSE start backend
-log "swapped staging -> live; backend restarting"
+log "swapped staging -> live (rollback at factor_data.prev.duckdb); backend restarting"
 
-# 4) verify the data advanced + the backend is healthy
+# 4) post-swap health: backend up + the live store now reads what staging verified.
 sleep 20
 $COMPOSE exec -T backend python - <<'PY' || true
 import duckdb
 c = duckdb.connect('/app/data/factor_data.duckdb', read_only=True)
-sep_max = c.execute("SELECT max(date) FROM sep").fetchone()[0]
-tk_max = c.execute("SELECT max(lastpricedate) FROM tickers").fetchone()[0]
-print("sep max date after refresh:", sep_max, "| tickers.lastpricedate max:", tk_max)
-if sep_max is not None and tk_max is not None and tk_max < sep_max:
-    print("WARN: tickers.lastpricedate", tk_max, "is BEHIND sep", sep_max,
-          "-> point-in-time universe will be EMPTY for recent dates; factor books will HOLD.")
+print("live sep max after swap:", c.execute("SELECT max(date) FROM sep").fetchone()[0],
+      "| tickers.lastpricedate:", c.execute("SELECT max(lastpricedate) FROM tickers").fetchone()[0])
 c.close()
 PY
 if curl -fsS http://127.0.0.1:8000/healthz >/dev/null 2>&1; then

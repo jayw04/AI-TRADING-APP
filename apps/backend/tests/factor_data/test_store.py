@@ -61,6 +61,36 @@ def test_actions_ingest_idempotent_per_ticker(tmp_path) -> None:
         s.close()
 
 
+def test_ingest_tickers_survives_legacy_column_order(tmp_path) -> None:
+    """Regression: the live store's `tickers` table predates a DDL reorder (isdelisted before
+    sector/industry). A positional INSERT..SELECT then lands the sector string ('Basic Materials')
+    into the BOOLEAN isdelisted column, raising ConversionException and silently aborting the whole
+    daily factor refresh (found 2026-07-07). The explicit column list must map by NAME regardless of
+    the table's physical column order."""
+    import pandas as pd
+
+    s = FactorDataStore(db_path=str(tmp_path / "reordered.duckdb"))
+    try:
+        # rebuild `tickers` in the LEGACY order (isdelisted before sector/industry — the live schema)
+        s.con.execute("DROP TABLE tickers")
+        s.con.execute(
+            "CREATE TABLE tickers (ticker VARCHAR PRIMARY KEY, name VARCHAR, exchange VARCHAR, "
+            "category VARCHAR, isdelisted BOOLEAN, firstpricedate DATE, lastpricedate DATE, "
+            "lastupdated DATE, sector VARCHAR, industry VARCHAR)"
+        )
+        df = pd.DataFrame([dict(
+            ticker="AAA", name="Alpha", exchange="NYSE", category="Domestic Common Stock",
+            sector="Basic Materials", industry="Chemicals", isdelisted="N",
+            firstpricedate="2010-01-01", lastpricedate="2026-07-06", lastupdated="2026-07-07",
+        )])
+        assert s.ingest_tickers(df) == 1   # positional INSERT would raise ConversionException here
+        assert s.con.execute(
+            "SELECT sector, isdelisted FROM tickers WHERE ticker = 'AAA'"
+        ).fetchone() == ("Basic Materials", False)
+    finally:
+        s.close()
+
+
 def test_survivorship_free_delisted_name_has_history(store: FactorDataStore) -> None:
     """★ The single most important test in P9: a delisted name is not 'unknown';
     it has a finite price history ending at its delisting."""
