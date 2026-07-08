@@ -161,6 +161,15 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "evidence/tv_001_supertrend/TV001_Supertrend_Result_v1.0.md.",
         "docs/implementation/TradingWorkbench_TV001_CommunityStrategyImport_v0.1.md"),
     ResearchProgram(
+        "INSIDER-001", "Event-Driven",
+        "Do SEC Form 4 exec/officer open-market BUYS predict drift?", "rejected",
+        "The platform's FIRST event-driven / alt-data program (native EDGAR ingestion + PIT Event Store + "
+        "Event-Study Engine, ADR 0027; PR #279). Verdict C - REJECTED (small/mid-cap beta, not alpha): "
+        "H1 Sharpe-diff -0.30, 95% CI [-0.63, -0.004], p=0.039 (CI below 0). Concluded/documented, NO paper "
+        "book; the reusable SEC-Filing -> Event Store -> Event-Study stack is the lasting asset (reused "
+        "wholesale by GOVCONTRACT/CONGRESS/LOBBY). event_type=insider_buy is reference-only.",
+        None),
+    ResearchProgram(
         "GOVCONTRACT-001", "Event-Driven",
         "Do new federal government-contract awards predict drift in small/mid-cap contractors?", "rejected",
         "EAD's first event-driven research program (Quiver Government Contracts, DCAP-007; ADR 0037). "
