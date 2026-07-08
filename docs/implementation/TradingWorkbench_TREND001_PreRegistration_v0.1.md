@@ -1,11 +1,13 @@
 # TREND-001 — Pre-Registration v1.0 (FROZEN) · Multi-Asset Time-Series Trend
 
 **Date:** 2026-07-08 · **Owner:** Jay Wang · **Program ID:** TREND-001 · **Registry:** Planning →
-Running → **Rejected — power-limited (2026-07-08)** · **Authority:** accepted Strategy Production Sprint
-Plan **v0.4**. · **Verdict + evidence:** `evidence/trend_001/TREND001_Evidence_Brief.md`
-(Sharpe 0.83 vs 0.62, MaxDD −10% vs −29% / 65.9% reduction, but ΔSharpe CI [−0.37,+0.77] spans 0 and
-the study is under-powered — MDE 0.58 > observed 0.20; robust across all 7 sensitivities. Not
-evidence of no effect; owner options incl. TREND-002 longer-history variant).
+Running → **Completed · Power-Limited · Inconclusive · Diversifier Candidate (2026-07-08)** ·
+**Authority:** accepted Strategy Production Sprint Plan **v0.4**. · **Verdict + evidence:**
+`evidence/trend_001/TREND001_Evidence_Brief.md` — run on the frozen §6 first-trading-day cadence,
+2007-03→2026-07 (233 mo): Sharpe 0.79 vs 0.61, MaxDD −11.3% vs −30.5% (62.9% reduction), but ΔSharpe
++0.18 CI [−0.34,+0.71] spans 0 and the study is under-powered (MDE 0.52 > 0.18); robust across all 7
+sensitivities; beats DBMF/KMLM on their own overlap. **A power limitation, not a rejection** — held as a
+Diversifier Candidate (no paper promotion); **TREND-002** (long-history core universe) is the next test.
 **Status:** ✅ **FROZEN v1.0 (2026-07-08).** §5 parameters and §10 thresholds confirmed by the owner;
 the ETF Data Availability Gate (ingestion + total-return verification) runs in parallel and records the
 final universe. Any change to the primary design is TREND-002, not an edit of this file.
