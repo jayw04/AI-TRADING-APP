@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/strategies/StatusBadge";
 import { NewStrategyModal } from "./NewStrategyModal";
 import RangeCandidatesPanel from "@/components/strategies/RangeCandidatesPanel";
 import RangeLevelsPanel from "@/components/strategies/RangeLevelsPanel";
+import { RangeTraderHistoryModal } from "@/components/strategies/RangeTraderHistoryModal";
 import {
   TodayRangeUniverseBanner,
   autoSelectN,
@@ -25,6 +26,7 @@ export default function StrategiesListPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [showRangeHistory, setShowRangeHistory] = useState(false);
   const [actionPending, setActionPending] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -158,6 +160,22 @@ export default function StrategiesListPage() {
             ) ?? strategies.find((s) => s.code_path?.includes("range_trader")))?.id
           }
         />
+      )}
+
+      {strategies.some((s) => s.code_path?.includes("range_trader")) && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowRangeHistory(true)}
+            className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm text-neutral-200 hover:bg-neutral-700"
+          >
+            Buy/Sell vs High/Low history
+          </button>
+        </div>
+      )}
+
+      {showRangeHistory && (
+        <RangeTraderHistoryModal onClose={() => setShowRangeHistory(false)} />
       )}
 
       <div className="overflow-x-auto rounded border border-gray-800">
