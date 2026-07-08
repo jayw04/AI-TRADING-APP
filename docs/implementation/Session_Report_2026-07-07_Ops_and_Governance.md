@@ -109,21 +109,33 @@ as context** but must **never enter ranking, sizing, or the order path.**
 ## Tasks remaining
 
 ### Near-term / this program
-1. **CEE deploy + schedule** — the report runs on the box on demand but isn't automated. Needs:
-   `scripts/reports/` synced into the backend image, a systemd timer (like `daily-report`), and an
-   **SNS alert on INVESTIGATE**. (The box source tree currently lacks `scripts/reports/`.)
-2. **Total-return pricing rollout** — PORT-001 #3 (cross-asset total-return live pricing) is built and
-   **default-OFF**; the rollout decision + enablement is not started.
-3. **Confirm Monday's rebalance** — verify the four factor books actually rank on the fresh store at
+1. **CEE deploy + schedule — the next immediate operational task.** The report runs on the box on
+   demand but isn't automated. Needs: `scripts/reports/` synced into the backend image, a systemd
+   timer (like `daily-report`), an **SNS alert on INVESTIGATE**, and a link/summary line in the
+   daily report. (The box source tree currently lacks `scripts/reports/`.) This closes the loop on
+   Continuous Evidence — the engine is built and classifies all 5 books, but a dormant check that
+   nobody runs is not a control.
+2. **Factor-store freshness — promote to a permanent scheduled health check.** The Step-2 fix stops
+   *this* failure mode, but the store silently froze for a day before anyone noticed; the standing
+   control is a daily check (co-scheduled with the refresh) that asserts and **alerts on**:
+   SEP max date · `tickers` max `lastpricedate` · sep/tickers lockstep · refresh success/failure ·
+   rollback file (`factor_data.prev.duckdb`) present · **staleness > 1 expected trading day → alert.**
+   Fold the alert into the daily report / SNS. Silent staleness must never again survive undetected.
+3. **Total-return pricing rollout** — PORT-001 #3 (cross-asset total-return live pricing) is built and
+   **default-OFF**; the rollout decision + enablement is not started. Start in **report-only mode.**
+4. **Confirm Monday's rebalance** — verify the four factor books actually rank on the fresh store at
    the 10:00 ET Monday rebalance (Step 3's live proof).
-4. **Optional — momentum cap headroom** — momentum is at 3% ($3,000), which clears today's churn by
-   only ~$900; consider $3,500–4,000 if it should comfortably survive a volatile down-day.
+5. **Hold — do NOT raise the momentum cap again yet** — momentum is at 3% ($3,000), which clears
+   today's churn by only ~$900. That headroom is thin, but the $3,000 cap is a *freshly loosened*
+   protection (2% → 3% this session) and the only trip so far was a benign rebuild-day artifact.
+   Wait for **another real trip** before considering $3,500–4,000 — raising it again immediately
+   would weaken the newly-tuned protection on no evidence. (Conservative-defaults discipline.)
 
 ### Deferred / reserved (governed, do NOT start without a trigger)
-5. **LOBBY-002** (New-Issue Lobbying Entry) — reserved; same mechanism class as the rejections.
-6. **OFX-001** (Off-Exchange / Dark-Pool signal study) — reserved as a *cross-sectional signal*
+6. **LOBBY-002** (New-Issue Lobbying Entry) — reserved; same mechanism class as the rejections.
+7. **OFX-001** (Off-Exchange / Dark-Pool signal study) — reserved as a *cross-sectional signal*
    program (not an event study); **check the free FINRA feed before paying Quiver.**
-7. **EAD event studies** — paused. Any new alt-data dataset must pass the Dataset Triage gate first.
+8. **EAD event studies** — paused. Any new alt-data dataset must pass the Dataset Triage gate first.
 
 ### Watch-items (not action, just awareness)
 - The **$3,000 (3%) daily-loss caps** are a loosened protection — monitor for real trips.

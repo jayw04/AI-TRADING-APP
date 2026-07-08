@@ -9,7 +9,7 @@
 # modules never name a reference-only event-type string — structurally, so "buy because X spiked"
 # can't creep in via the one PR nobody looks closely at.
 #
-# Governance: docs/implementation/TradingWorkbench_EAD_DatasetTriage_v0.1.md (v0.2, reference-use).
+# Governance: docs/implementation/TradingWorkbench_EAD_DatasetTriage_v0.2.md (reference-use).
 # Route EAD events through app.altdata.reference_only (partition_reference_only / assert_usable_for_ranking).
 # Same shape as check_altdata_order_path_isolation.sh. Disabling this requires an ADR.
 set -euo pipefail

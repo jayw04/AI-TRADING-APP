@@ -10,7 +10,7 @@ plus a CI invariant (`scripts/check_reference_only_invariant.sh`) that keeps the
 ranking / selection modules clear of these labels, the way the single-router and no-LLM-in-order-path
 invariants are enforced structurally rather than by reviewer diligence.
 
-Governance: `docs/implementation/TradingWorkbench_EAD_DatasetTriage_v0.1.md` (v0.2, reference-use §).
+Governance: `docs/implementation/TradingWorkbench_EAD_DatasetTriage_v0.2.md` (reference-use §).
 Keep ``REFERENCE_ONLY_PROGRAMS`` in sync with the rejected EAD programs in
 ``app/research/programs.py`` — the test asserts each mapped program is ``status='rejected'``.
 """

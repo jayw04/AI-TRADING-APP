@@ -26,11 +26,11 @@ Score every candidate dataset against all gates **before** committing to a full 
 |---|---|---|---|
 | 1 | **PIT clarity** | A trustworthy, observable availability date (when the signal was *knowably* public). | **HARD VETO** |
 | 2 | **Distinct mechanism** | Not another beta / sector / size / public-disclosure-event proxy. A genuinely different economic channel. | **HARD VETO** |
-| 3 | **License path** | A license path exists for the *intended use* — available now, or a clearly-justified upgrade. A study you cannot act on is a dead-end eval. | **HARD VETO** |
+| 3 | **License path** | *Can we legally run the study for the intended internal/research use?* A license path exists for that use — available now, or a clearly-justified upgrade. A study you cannot legally run is a dead-end eval. | **HARD VETO** |
 | 4 | **Sample size** | Can plausibly reach **≥100 benchmarked** events/signals *after* PIT + materiality + universe filters. Below this the gate cannot hold the line. | **HARD — no full study** |
 | 5 | Identity resolution | Maps cleanly to tradable securities (Security-Master resolvable). | Soft |
 | 6 | Reusable harness | Fits an existing harness (event-study **or** cross-sectional signal), or the new harness is itself justified. | Soft |
-| 7 | Commercial path | If it proves out, the license supports future product use (not a dead-end eval). | Soft |
+| 7 | Commercial path | *If it works, can this become product/customer-facing later?* The license supports future product use, not only the internal study. Distinct from Gate 3: License path asks "may we **run the study**?"; Commercial path asks "may we **ship the result**?" | Soft |
 
 ### Decision rule
 
@@ -43,6 +43,20 @@ Score every candidate dataset against all gates **before** committing to a full 
 3. All gates pass → pre-register and run, with an explicit primary hypothesis and the gates recorded.
 
 Of the four, **distinct mechanism** is the sharpest given the prior: when in doubt whether a dataset is "just another disclosure-event proxy," treat it as a veto.
+
+### Triage outcomes (record one on every sheet)
+
+Every triage resolves to exactly one of five statuses — a fixed vocabulary so future reviews are fast and comparable:
+
+| Outcome | Meaning | Next action |
+|---|---|---|
+| **Go** | All gates pass. | Pre-register and run the full study. |
+| **No-Go** | A hard gate fails (or the mechanism prior vetoes it). | Do not study. Record the failing gate. |
+| **Reference-only** | Passes the hard gates but ≥2 soft gates fail, *or* it is a rejected dataset. | Ingest/display as context only — never ranking, sizing, or the order path (`rejected_reference_only`). |
+| **Reserved** | A plausible idea with no current counter-hypothesis or capability. | Record the idea and its trigger; take no action until the trigger fires. |
+| **Needs new harness** | Passes on mechanism/prior but requires a research capability the platform does not yet have (e.g. a cross-sectional signal harness). | Defer until the harness exists; do not force it into an existing framework. |
+
+Reserved and Needs-new-harness are *not* No-Go — they are parked, not rejected. OFX-001 is the canonical Needs-new-harness case; LOBBY-002 is Reserved.
 
 ---
 
@@ -57,7 +71,7 @@ Expected sample (benchmarked events after filters):
 Identity mapping (Security-Master coverage):
 Harness type (event-study / cross-sectional signal / new):
 Prior (is this the same mechanism class as the 4 rejections? strength of the counter-prior):
-Go / No-Go (+ which gates, if any, it fails):
+Outcome (Go / No-Go / Reference-only / Reserved / Needs-new-harness) (+ which gates, if any, it fails):
 ```
 
 Commit the filled sheet alongside the program's pre-registration. No sheet → no study.
