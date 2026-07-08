@@ -6,6 +6,7 @@ from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.db.models.audit_log import AuditLog
 from app.db.models.backtest_job import BacktestJob
 from app.db.models.backtest_result import BacktestResult
+from app.db.models.benchmark_snapshot import BenchmarkSnapshot
 from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.models.eval_harness import EvalHarness, EvalHarnessDecision
 from app.db.models.fill import Fill
@@ -44,6 +45,7 @@ __all__ = [
     "BacktestJob",
     "EquitySnapshot",
     "BacktestResult",
+    "BenchmarkSnapshot",
     "EvalHarness",
     "EvalHarnessDecision",
     "LLMOptIn",
