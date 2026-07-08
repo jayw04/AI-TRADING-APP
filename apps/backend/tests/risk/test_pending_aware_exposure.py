@@ -245,3 +245,86 @@ async def test_three_basket_stack_is_blocked(session_factory, seeded) -> None:
         _req(qty=Decimal("20"), reference_price=Decimal("1000")), trading_mode="paper"
     )
     assert ReasonCode.GROSS_EXPOSURE in out.reason_codes
+
+
+# ---------- gross-exposure: reducing-sell exemption (ADR 0038) ----------
+
+
+async def _seed_over_cap_positions(session_factory) -> None:
+    """90k MSFT + 20k AAPL = 110k settled gross, over the 100k cap. AAPL is the
+    symbol the reducing-sell tests exit (held qty 100 @ avg 200)."""
+    async with session_factory() as session:
+        session.add(
+            Position(user_id=1, account_id=1, symbol_id=2, qty=Decimal("100"),
+                     avg_entry_price=Decimal("900"), market_value=Decimal("90000"),
+                     updated_at=_now())
+        )
+        session.add(
+            Position(user_id=1, account_id=1, symbol_id=1, qty=Decimal("100"),
+                     avg_entry_price=Decimal("200"), market_value=Decimal("20000"),
+                     updated_at=_now())
+        )
+        await session.commit()
+
+
+async def test_reducing_sell_exempt_when_over_cap(session_factory, seeded) -> None:
+    """Settled gross is already OVER the cap (110k > 100k). A position-reducing
+    SELL (sell 50 of a held 100 AAPL) can only LOWER gross, so it is exempt from
+    the gross gate and passes. Pre-fix this rejected GROSS_EXPOSURE and trapped
+    the exit (incident 2026-07-07)."""
+    await _seed_over_cap_positions(session_factory)
+    eng = RiskEngine(session_factory)
+    out = await eng.evaluate(
+        _req(side=OrderSide.SELL, qty=Decimal("50")), trading_mode="paper"
+    )
+    assert out.passed
+    assert ReasonCode.GROSS_EXPOSURE not in out.reason_codes
+
+
+async def test_full_close_sell_exempt_when_over_cap(session_factory, seeded) -> None:
+    """Selling the ENTIRE held position (100 of 100 AAPL) when gross is over the
+    cap passes — a full exit is the maximal de-risk (ADR 0038)."""
+    await _seed_over_cap_positions(session_factory)
+    eng = RiskEngine(session_factory)
+    out = await eng.evaluate(
+        _req(side=OrderSide.SELL, qty=Decimal("100")), trading_mode="paper"
+    )
+    assert out.passed
+
+
+async def test_short_opening_sell_not_exempt_over_cap(session_factory, seeded) -> None:
+    """The exemption is scoped to REDUCING sells: a SELL exceeding the held long
+    (sell 50 of only 30 held) is not a reduce. With allow_short=false it is
+    rejected by the §6 short restriction — the exemption never lets a short
+    through (ADR 0038)."""
+    async with session_factory() as session:
+        session.add(
+            Position(user_id=1, account_id=1, symbol_id=1, qty=Decimal("30"),
+                     avg_entry_price=Decimal("100"), market_value=Decimal("3000"),
+                     updated_at=_now())
+        )
+        await session.commit()
+    eng = RiskEngine(session_factory)
+    out = await eng.evaluate(
+        _req(side=OrderSide.SELL, qty=Decimal("50")), trading_mode="paper"
+    )
+    assert ReasonCode.SHORT_NOT_ALLOWED in out.reason_codes
+
+
+async def test_buy_still_blocked_when_over_cap(session_factory, seeded) -> None:
+    """Regression: the reducing-sell exemption does not touch BUYs — a BUY while
+    gross is over the cap is still rejected GROSS_EXPOSURE (ADR 0038). The BUY is
+    in a fresh symbol (AAPL, 0 held) so the per-position qty cap is not the cause."""
+    async with session_factory() as session:
+        session.add(
+            Position(user_id=1, account_id=1, symbol_id=2, qty=Decimal("100"),
+                     avg_entry_price=Decimal("1100"), market_value=Decimal("110000"),
+                     updated_at=_now())
+        )
+        await session.commit()
+    eng = RiskEngine(session_factory)
+    out = await eng.evaluate(
+        _req(side=OrderSide.BUY, qty=Decimal("1"), reference_price=Decimal("100")),
+        trading_mode="paper",
+    )
+    assert ReasonCode.GROSS_EXPOSURE in out.reason_codes
