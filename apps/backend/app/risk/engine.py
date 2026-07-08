@@ -227,7 +227,7 @@ class RiskEngine:
                         reasons=[ReasonCode.SHORT_NOT_ALLOWED],
                     )
 
-            estimated_notional = self._estimate_notional(req)
+            estimated_notional = await self._estimate_notional(req)
 
             # 7. Position size cap (qty + notional).
             pos = (
@@ -485,15 +485,40 @@ class RiskEngine:
             market_open = market_open - timedelta(days=1)
         return market_open
 
-    def _estimate_notional(self, req: OrderRequest) -> Decimal | None:
+    async def _estimate_notional(self, req: OrderRequest) -> Decimal | None:
         if req.limit_price is not None:
             return req.qty * req.limit_price
-        # Market orders carry no fill price up front, but the caller may supply a
-        # reference price (the strategy passes the price it sized against) so the
-        # exposure gates can still value the order. None only when neither exists.
+        # Market orders carry no fill price up front. Prefer a caller-supplied
+        # reference price (the strategy passes the price it sized against); else
+        # fall back to the latest cached bar close. Pricing market orders is what
+        # makes the pending-BUY sum count them: without it a market BUY estimates
+        # to 0, and a burst each passes against the same settled snapshot and
+        # over-fills past the gross cap (the entry side of the 2026-07-07
+        # exit-trap; ADR 0040). None only when NO price source resolves (no bar
+        # cache / cold symbol) — the prior fail-open, now the rare exception
+        # rather than every market order.
         if req.reference_price is not None and req.reference_price > 0:
             return req.qty * req.reference_price
+        price = await self._latest_close(req.symbol_ticker)
+        if price is not None and price > 0:
+            return req.qty * price
         return None
+
+    async def _latest_close(self, symbol: str) -> Decimal | None:
+        """Latest cached bar close for ``symbol`` via ``bar_cache``, or None when
+        the cache is absent (unit tests, or before §7 wiring) or the symbol is
+        cold. Mirrors ``BuyingPowerChecker._fetch_latest_price`` so both exposure
+        gates value MARKET orders the same way."""
+        if self._bar_cache is None:
+            return None
+        try:
+            bar = await self._bar_cache.get_latest_bar(symbol)
+            if bar is None:
+                return None
+            close = bar.get("c") if isinstance(bar, dict) else getattr(bar, "close", None)
+            return Decimal(str(close)) if close is not None else None
+        except Exception:
+            return None
 
     async def _persist_and_return(
         self,

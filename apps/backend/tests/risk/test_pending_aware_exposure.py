@@ -112,6 +112,16 @@ async def _add_order(
         await session.commit()
 
 
+class _StubBarCache:
+    """Minimal bar cache: returns a fixed close (or None = cold symbol)."""
+
+    def __init__(self, price) -> None:
+        self._price = price
+
+    async def get_latest_bar(self, symbol: str):
+        return {"c": self._price} if self._price is not None else None
+
+
 # ---------- market-order valuation ----------
 
 
@@ -140,6 +150,37 @@ async def test_reference_price_ignored_when_limit_present(session_factory, seede
     )
     assert out.passed
     assert out.estimated_notional == Decimal("2000")  # 10 * limit 200, not the ref
+
+
+# ---------- market-order valuation from the bar cache (ADR 0040) ----------
+
+
+async def test_market_buy_valued_from_bar_cache(session_factory, seeded) -> None:
+    """A MARKET BUY with no limit/reference price is valued from the latest cached
+    bar close, so the exposure gates can count it (ADR 0040)."""
+    eng = RiskEngine(session_factory, bar_cache=_StubBarCache(Decimal("1000")))
+    out = await eng.evaluate(_req(qty=Decimal("10")), trading_mode="paper")
+    assert out.passed
+    assert out.estimated_notional == Decimal("10000")  # 10 × 1000
+
+
+async def test_market_buy_over_cap_via_bar_cache_rejected(session_factory, seeded) -> None:
+    """Entry-side fix: a MARKET BUY that prices (via the bar cache) above the gross
+    cap is now rejected GROSS_EXPOSURE. Pre-fix it estimated to 0 and slipped
+    through, over-filling the account (incident 2026-07-07; ADR 0040)."""
+    eng = RiskEngine(session_factory, bar_cache=_StubBarCache(Decimal("2000")))
+    # 100 × 2000 = 200k > the 100k cap; qty 100 is within the 100-share qty cap.
+    out = await eng.evaluate(_req(qty=Decimal("100")), trading_mode="paper")
+    assert ReasonCode.GROSS_EXPOSURE in out.reason_codes
+
+
+async def test_bar_cache_cold_symbol_contributes_zero(session_factory, seeded) -> None:
+    """Fail-open preserved: when the bar cache has no bar for the symbol, a MARKET
+    order still estimates to None (contributes 0) rather than erroring (ADR 0040)."""
+    eng = RiskEngine(session_factory, bar_cache=_StubBarCache(None))
+    out = await eng.evaluate(_req(qty=Decimal("10")), trading_mode="paper")
+    assert out.passed
+    assert out.estimated_notional is None
 
 
 # ---------- gross-exposure: in-flight orders count ----------

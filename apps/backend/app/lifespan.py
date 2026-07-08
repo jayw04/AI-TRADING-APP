@@ -208,12 +208,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await broker_registry.load_all()
             await broker_registry.adopt_startup_adapter(adapter)
 
+            # BarCache — constructed here (ahead of the StrategyEngine +
+            # BacktestWorker below, which also take it) so the RiskEngine can
+            # price MARKET orders from the latest cached close. Without a price
+            # source a market BUY contributes 0 to the in-flight pending-BUY sum,
+            # and a burst over-fills past the gross-exposure cap (the entry side
+            # of the 2026-07-07 exit-trap; ADR 0040).
+            bar_cache = BarCache(
+                adapter=adapter,
+                root=settings.bars_cache_root,
+                max_gb=settings.bars_cache_max_gb,
+            )
+
             # P5 §5: the engine now also runs the circuit breaker (publishes on
             # the bus when it trips) and the LIVE-only buying-power gate (uses
-            # the registry; dormant until §7). bar_cache is wired in §7 when
-            # live MARKET orders need a price estimate.
+            # the registry; dormant until §7). bar_cache (above) lets the gross
+            # and buying-power gates value MARKET orders (ADR 0040).
             risk_engine = RiskEngine(
-                session_factory, broker_registry=broker_registry, bus=bus
+                session_factory, broker_registry=broker_registry, bus=bus,
+                bar_cache=bar_cache,
             )
 
             order_router = OrderRouter(
@@ -230,16 +243,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             await trade_update_consumer.start()
 
-            # 8. BarCache + IndicatorComputer (P2 Session 1). These do not
-            # need the adapter for fetches (they call the historical data
-            # client directly via load_credentials), but we only construct
-            # them when alpaca_startup_enabled so tests don't write parquet
+            # 8. IndicatorComputer (P2 Session 1). BarCache is now constructed
+            # above (§6) so the RiskEngine can value MARKET orders; both live only
+            # in the alpaca_startup_enabled block so tests don't write parquet
             # files into the repo root.
-            bar_cache = BarCache(
-                adapter=adapter,
-                root=settings.bars_cache_root,
-                max_gb=settings.bars_cache_max_gb,
-            )
             indicator_computer = IndicatorComputer()
 
             # 8b. Factor accessor (P9 §2). Read-only PIT factor data for
