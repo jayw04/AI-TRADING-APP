@@ -28,6 +28,7 @@ from app.api.v1 import (
     orders,
     positions,
     proposals,
+    range_execution,
     range_insight,
     range_levels,
     range_template,
@@ -77,6 +78,8 @@ api_router.include_router(range_insight.router)
 # Live buy/sell/stop levels per range symbol (monitoring the Range Trader triggers).
 api_router.include_router(range_levels.router)
 api_router.include_router(range_template.router)
+# Range Trader daily buy/sell vs. daily high/low history (date-range window).
+api_router.include_router(range_execution.router)
 api_router.include_router(agent.router)
 # P6 §1a: agent cost-envelope check (prefix=/agent, route /budget). Distinct
 # sub-path from the P3 agent chat router above; coexists under the same prefix.

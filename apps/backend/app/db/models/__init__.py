@@ -15,6 +15,7 @@ from app.db.models.llm_opt_in import LLMOptIn
 from app.db.models.morning_brief import MorningBrief
 from app.db.models.order import Order
 from app.db.models.position import Position
+from app.db.models.range_execution_record import RangeExecutionRecord
 from app.db.models.reconciliation_run import ReconciliationRun
 from app.db.models.replay_run import ReplayRun
 from app.db.models.risk_check import RiskCheck
@@ -54,6 +55,7 @@ __all__ = [
     "MorningBrief",
     "Order",
     "Position",
+    "RangeExecutionRecord",
     "ReconciliationRun",
     "ReplayRun",
     "RiskCheck",
