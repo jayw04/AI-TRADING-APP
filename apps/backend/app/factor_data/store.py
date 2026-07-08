@@ -215,8 +215,15 @@ class FactorDataStore:
         df["isdelisted"] = _to_bool(df["isdelisted"])
         self.con.register("incoming", df)
         self.con.execute(
+            # Name the target columns explicitly. The live store's `tickers` table predates a DDL
+            # reorder (sector/industry moved earlier), so a POSITIONAL INSERT..SELECT lands the
+            # `sector` string ('Basic Materials') into the BOOLEAN `isdelisted` column and the whole
+            # daily factor refresh aborts — silently freezing the live factor store (found
+            # 2026-07-07). An explicit column list maps by name, immune to the physical column order.
             """
             INSERT OR REPLACE INTO tickers
+                (ticker, name, exchange, category, sector, industry,
+                 isdelisted, firstpricedate, lastpricedate, lastupdated)
             SELECT ticker, name, exchange, category, sector, industry,
                    TRY_CAST(isdelisted AS BOOLEAN),
                    TRY_CAST(firstpricedate AS DATE), TRY_CAST(lastpricedate AS DATE),
