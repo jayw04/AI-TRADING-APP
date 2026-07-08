@@ -238,6 +238,50 @@ def block_bootstrap_ci(
     return ConfidenceResult(point, lo, hi, p_value, n_resamples, block)
 
 
+def cluster_bootstrap_ci(
+    values: Returns,
+    cluster_ids: Sequence[Any],
+    metric: Callable[[Returns], float],
+    *,
+    n_resamples: int = 2000,
+    seed: int = 17,
+    alpha: float = 0.05,
+) -> ConfidenceResult:
+    """Cluster bootstrap CI + recentered-null one-sided p-value for ``metric > 0``.
+
+    Resamples whole CLUSTERS with replacement (not individual observations), so correlated units
+    — here event excesses that share a disclosure date — are drawn together. An i.i.d. bootstrap
+    over such units treats them as independent, understating the variance and OVERSTATING the
+    confidence (the RNG-001 lesson: pooled resampling of date-clustered events fabricates
+    significance). ``cluster_ids[i]`` labels ``values[i]``; observations with the same label form
+    one cluster. Reproducible from ``seed`` (Python ``random``, no clock)."""
+    if len(values) < 2:
+        return ConfidenceResult(_mean(values) if values else 0.0, 0.0, 0.0, 1.0, n_resamples, 1)
+    groups: dict[Any, list[float]] = {}
+    for v, c in zip(values, cluster_ids, strict=True):
+        groups.setdefault(c, []).append(v)
+    clusters = list(groups.values())
+    k = len(clusters)
+    point = metric(values)
+
+    def _resample(src: list[list[float]], rng: random.Random) -> list[float]:
+        out: list[float] = []
+        for _ in range(k):
+            out.extend(src[rng.randrange(k)])   # draw k clusters with replacement
+        return out
+
+    rng = random.Random(seed)
+    samples = sorted(metric(_resample(clusters, rng)) for _ in range(n_resamples))
+    lo = samples[max(0, int((alpha / 2) * n_resamples))]
+    hi = samples[min(n_resamples - 1, int((1 - alpha / 2) * n_resamples))]
+
+    mean = _mean(values)
+    centered = [[v - mean for v in c] for c in clusters]     # H0: true metric = 0
+    null_rng = random.Random(seed + 1)
+    ge = sum(1 for _ in range(n_resamples) if metric(_resample(centered, null_rng)) >= point)
+    return ConfidenceResult(point, lo, hi, ge / n_resamples, n_resamples, 1)
+
+
 @dataclass(frozen=True)
 class SharpeDiffCI:
     """A paired Sharpe-difference bootstrap result (strategy minus benchmark)."""

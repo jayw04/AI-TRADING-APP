@@ -178,7 +178,7 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
     ResearchProgram(
         "CONGRESS-001", "Event-Driven",
         "Does a disclosed congressional PURCHASE predict residual drift after controlling for "
-        "sector/size/liquidity/momentum?", "planned",
+        "sector/size/liquidity/momentum?", "rejected",
         "EAD's second event-driven program (Quiver Congressional Trading, DCAP-007; ADR 0037). "
         "Pre-registered (plan v0.2, owner-reviewed 9.8/10): PURCHASE-only long matched-control excess as the "
         "primary verdict (sales are liquidity/tax/rebalancing-driven -> diagnostic only, not assumed "
@@ -187,10 +187,36 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "calibration, unlike gov-contracts); DATE-CLUSTERED bootstrap (reports cluster -> pooled per-event "
         "resampling overstates confidence, the RNG false-positive lesson); >=100-benchmarked gate; BH-FDR "
         "one-directional; amendment PIT handling + short-side borrow caveat. Reuses the GOVCONTRACT-001 "
-        "matched-control engine + CAP-024 + batched momentum + throwaway-32GB-compute recipe. NEXT = build "
-        "(client congress endpoints + congress_trade ingest + run_congress001) -> run once on separate "
-        "compute -> registered verdict. Data access verified (license pulls congresstrading).",
+        "matched-control engine + CAP-024 + batched momentum + throwaway-32GB-compute recipe. "
+        "REGISTERED VERDICT 2026-07-07 (PR #379): Rejected (Evidenced) - 77,896 eligible events -> 2,234 "
+        "material Purchase clusters -> 314 benchmarked (>=100 gate CLEARED); net excess -0.34%, 95% "
+        "date-clustered CI [-1.54%, +0.92%] SPANS ZERO (gross +0.06% ~zero); robust across cost+holding "
+        "sensitivity (BH-FDR 0/4). Congressional purchases are beta not alpha - the matched-control design "
+        "rejecting a popular-but-hollow signal (3rd False-Positive-Reduction confirmation after "
+        "INSIDER-001/GOVCONTRACT-001).",
         "docs/implementation/TradingWorkbench_CONGRESS001_Plan_v0.1.md"),
+    ResearchProgram(
+        "LOBBY-001", "Event-Driven",
+        "Does a SPIKE in a firm's lobbying spend predict residual drift after controlling for "
+        "sector/size/liquidity/momentum?", "rejected",
+        "EAD's third event-driven program (Quiver Lobbying, DCAP-007; ADR 0037). Pre-registered "
+        "(plan v0.1): the EVENT is a spend SPIKE not the level (lobbying is recurring -> level is size, "
+        "already matched) = firm-quarter total >= 2.0x the trailing-4Q MEDIAN baseline (nonzero quarters "
+        "only) AND >= $100k AND >=4 prior NONZERO quarters; PIT rule = sum only filings Date<=deadline "
+        "(late/amended excluded) + aggregation-provenance fields; PIT entry = first trading day after the quarterly LDA filing "
+        "DEADLINE (Jan/Apr/Jul/Oct 20, observable, no lag); matched-control excess (sector/size/ADV/"
+        "momentum deciles, 20d, 10bps/side); DATE-CLUSTERED bootstrap MANDATORY + load-bearing (spikes "
+        "fire on only ~4 deadline dates/yr -> extreme clustering); >=100-benchmarked gate; BH-FDR "
+        "one-directional; amendments-after-deadline ignored. Data: per-ticker historical lobbying "
+        "(1999-2026 deep; no bulk endpoint, live caps ~18mo) ingested over the factor universe. Reuses "
+        "the CONGRESS-001/GOVCONTRACT-001 engine wholesale. REGISTERED VERDICT 2026-07-07 (PR #379): "
+        "Rejected (Evidenced) - 2,088 spike events -> 1,078 benchmarked (>=100 gate CLEARED); net "
+        "excess -0.62%, 95% date-clustered CI [-1.18%,+0.11%] SPANS ZERO (gross -0.22%, negative "
+        "pre-cost; some short-hold/high-cost rows sig NEGATIVE but wrong-signed -> NOT a short per "
+        "plan §5); robust (BH-FDR 0/4). Lobbying spikes carry no positive residual alpha (lean "
+        "slightly negative) - 4th False-Positive-Reduction confirmation. v1 caveat: currently-active "
+        "lobbyists only (full survivorship-free sweep throttled by Quiver).",
+        "docs/implementation/TradingWorkbench_LOBBY001_Plan_v0.1.md"),
 )
 
 

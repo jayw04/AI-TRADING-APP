@@ -18,7 +18,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from app.factor_data.evidence import ConfidenceResult, block_bootstrap_ci
+from app.factor_data.evidence import (
+    ConfidenceResult,
+    block_bootstrap_ci,
+    cluster_bootstrap_ci,
+)
 
 
 @dataclass(frozen=True)
@@ -143,7 +147,7 @@ def run_matched_excess_study(
     events: Sequence[EventPoint], *, price_fn: PriceFn, feature_fn: FeatureFn,
     exclude_fn: ExcludeFn | None = None, hold_days: int = 20, n_target: int = 20,
     min_controls: int = 10, decile_band: int = 1, cost_bps_per_side: float = 0.0,
-    seed: int = 17, n_resamples: int = 2000, block: int = 1,
+    seed: int = 17, n_resamples: int = 2000, block: int = 1, cluster_by_entry: bool = False,
 ) -> MatchedExcessResult:
     """Per event: build the matched control basket, compute (event return − equal-weight control
     return); net a transaction cost; bootstrap a CI on the cross-event NET excess-return series.
@@ -155,6 +159,7 @@ def run_matched_excess_study(
     ``4 × cost_bps_per_side`` per event (2 legs × 2 sides). Symmetric market-wide costs largely
     cancel in the excess; this charges the implementation cost of isolating the alpha."""
     gross: list[float] = []
+    keys: list[date] = []          # entry_date per benchmarked event, for the date-clustered CI
     n_thin = 0
     for ev in events:
         candidates = feature_fn(ev.entry_date)
@@ -172,13 +177,18 @@ def run_matched_excess_study(
             n_thin += 1
             continue
         gross.append(ev_ret - _mean(ctrl_rets))
+        keys.append(ev.entry_date)
 
     drag = 4.0 * cost_bps_per_side / 10_000.0            # long-short round-trip (2 legs × 2 sides)
     net = [g - drag for g in gross]
-    if len(net) >= 2:
-        ci = block_bootstrap_ci(net, _mean, n_resamples=n_resamples, seed=seed, block=block)
-    else:
+    if len(net) < 2:
         ci = ConfidenceResult(_mean(net), 0.0, 0.0, 1.0, n_resamples, block)
+    elif cluster_by_entry:
+        # events disclosed on the same date share market-day shocks — resample whole date
+        # clusters so the CI does not overstate confidence (the RNG-001 lesson).
+        ci = cluster_bootstrap_ci(net, keys, _mean, n_resamples=n_resamples, seed=seed)
+    else:
+        ci = block_bootstrap_ci(net, _mean, n_resamples=n_resamples, seed=seed, block=block)
     return MatchedExcessResult(
         n_events=len(events), n_benchmarked=len(net), n_thin=n_thin,
         mean_excess=ci.point, mean_excess_gross=_mean(gross), ci_low=ci.ci_low, ci_high=ci.ci_high,
