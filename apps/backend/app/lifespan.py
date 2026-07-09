@@ -491,7 +491,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             scheduler.scheduler.add_job(
                 run_daily_replay,
-                _ReplayCron(hour=3, minute=30),
+                _ReplayCron(hour=3, minute=30, timezone="America/New_York"),
                 id="replay",
                 max_instances=1,
                 coalesce=True,
@@ -509,7 +509,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             scheduler.scheduler.add_job(
                 run_daily_equity_snapshot,
-                _ReplayCron(hour=16, minute=10),
+                _ReplayCron(hour=16, minute=10, timezone="America/New_York"),
                 id="equity_snapshot",
                 max_instances=1,
                 coalesce=True,
@@ -526,7 +526,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             scheduler.scheduler.add_job(
                 run_daily_benchmark_snapshot,
-                _ReplayCron(hour=16, minute=10),
+                _ReplayCron(hour=16, minute=10, timezone="America/New_York"),
                 id="benchmark_snapshot",
                 max_instances=1,
                 coalesce=True,
@@ -545,7 +545,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             if factor_store is not None:
                 scheduler.scheduler.add_job(
                     run_premarket_scan_scheduled,
-                    _ReplayCron(day_of_week="mon-fri", hour=9, minute=25),
+                    _ReplayCron(day_of_week="mon-fri", hour=9, minute=25, timezone="America/New_York"),
                     id="premarket_scan",
                     max_instances=1,
                     coalesce=True,
@@ -568,7 +568,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             scheduler.scheduler.add_job(
                 run_premarket_backfill_scheduled,
-                _ReplayCron(day_of_week="mon-fri", hour=16, minute=30),
+                _ReplayCron(day_of_week="mon-fri", hour=16, minute=30, timezone="America/New_York"),
                 id="premarket_backfill",
                 max_instances=1,
                 coalesce=True,
@@ -587,7 +587,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
                 scheduler.scheduler.add_job(
                     run_gapper_intraday_cache_scheduled,
-                    _ReplayCron(day_of_week="mon-fri", hour=16, minute=35),
+                    _ReplayCron(day_of_week="mon-fri", hour=16, minute=35, timezone="America/New_York"),
                     id="gapper_intraday_cache",
                     max_instances=1,
                     coalesce=True,
@@ -608,7 +608,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
                 scheduler.scheduler.add_job(
                     run_gapper_shadow_ledger_scheduled,
-                    _ReplayCron(day_of_week="mon-fri", hour=16, minute=40),
+                    _ReplayCron(day_of_week="mon-fri", hour=16, minute=40, timezone="America/New_York"),
                     id="gapper_shadow_ledger",
                     max_instances=1,
                     coalesce=True,
@@ -639,7 +639,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 ):
                     scheduler.scheduler.add_job(
                         run_insider_reference_ingest,
-                        _InsiderCron(day_of_week="mon-fri", hour=_im_hour, minute=_im_min),
+                        _InsiderCron(day_of_week="mon-fri", hour=_im_hour, minute=_im_min, timezone="America/New_York"),
                         id=_im_id,
                         max_instances=1,
                         coalesce=True,
@@ -655,7 +655,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             scheduler.scheduler.add_job(
                 run_daily_backup,
-                CronTrigger(hour=2, minute=0),
+                CronTrigger(hour=2, minute=0, timezone="America/New_York"),
                 id="daily_backup",
                 max_instances=1,
                 coalesce=True,
@@ -672,7 +672,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             scheduler.scheduler.add_job(
                 run_morning_brief_generation,
-                CronTrigger(day_of_week="mon-fri", hour=9, minute=0),
+                CronTrigger(day_of_week="mon-fri", hour=9, minute=0, timezone="America/New_York"),
                 id="morning_brief_generation",
                 max_instances=1,
                 coalesce=True,
