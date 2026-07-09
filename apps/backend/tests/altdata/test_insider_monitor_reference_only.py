@@ -141,6 +141,38 @@ class _NoMcapFactorStore(_Sf1OnlyFactorStore):
     con = _NoMcapCon()
 
 
+class _StaleAsofCon(_Sf1OnlyCon):
+    def execute(self, sql: str, params: list | None = None):  # noqa: ANN001, ANN202
+        if "max(date) FROM sep" in sql:
+            self._rows = [(date(2026, 7, 8),)]
+            return self
+        return super().execute(sql, params or [])
+
+    def fetchone(self):  # noqa: ANN202
+        return self._rows[0]
+
+
+class _StaleAsofFactorStore(_Sf1OnlyFactorStore):
+    """dollar_volume_universe is EMPTY for today's as_of (lastpricedate = prior close) but
+    resolves for the store's own latest sep date - the live 2026-07-09 shape."""
+
+    def __init__(self) -> None:
+        self.calls: list[date] = []
+        self.con = _StaleAsofCon()
+
+    def dollar_volume_universe(self, as_of, n, lookback):  # noqa: ANN001, ARG002, ANN202
+        self.calls.append(as_of)
+        return ["FULT", "INDB", "UCBI"] if as_of <= date(2026, 7, 8) else []
+
+
+def test_universe_reanchors_asof_to_store_latest_when_empty() -> None:
+    store = _StaleAsofFactorStore()
+    tickers, reason = resolve_monitor_universe(store, as_of=date(2026, 7, 9))
+    assert tickers == ["FULT", "INDB", "UCBI"]  # NOT the 134 fallback
+    assert store.calls == [date(2026, 7, 9), date(2026, 7, 8)]  # retried at the store's date
+    assert reason.startswith("smallmid-dv-rank")
+
+
 def test_universe_uses_sf1_marketcap_when_metrics_missing() -> None:
     tickers, reason = resolve_monitor_universe(_Sf1OnlyFactorStore(), as_of=date(2026, 7, 9))
     assert tickers == ["FULT", "INDB", "UCBI"]
