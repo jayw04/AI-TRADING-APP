@@ -95,6 +95,18 @@ def resolve_monitor_universe(factor_store: Any, *, as_of: date, cap: int = _UNIV
     ranking ships unfiltered rather than collapsing the whole universe to the fallback."""
     try:
         dv = factor_store.dollar_volume_universe(as_of, cap * 2, _DV_LOOKBACK_DAYS)
+        if not dv:
+            # PIT eligibility requires tickers.lastpricedate >= as_of, but a store refreshed
+            # pre-market only ever reaches the PRIOR close -- an intraday/evening resolve with
+            # as_of=today therefore comes back EMPTY (found live 2026-07-09). Re-anchor to the
+            # store's own latest sep date; the universe is then "as of the last close", which
+            # is exactly what a daily-refreshed monitor means anyway.
+            row = factor_store.con.execute("SELECT max(date) FROM sep").fetchone()
+            latest = row[0] if row else None
+            if latest is not None:
+                eff = latest if isinstance(latest, date) else latest.date()
+                if eff < as_of:
+                    dv = factor_store.dollar_volume_universe(eff, cap * 2, _DV_LOOKBACK_DAYS)
         if dv:
             # small/mid filter: drop names with a KNOWN marketcap above the mega-cap floor; a
             # name with no marketcap stays (small-caps are exactly where metrics are sparse).
