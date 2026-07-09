@@ -124,6 +124,29 @@ buying power, computes worst-case notional, and rejects if insufficient.
 the authoritative buying-power gate (ADR-style rationale in the session doc
 Notes & Gotchas #14). The event is logged (`buying_power_check_failed_open`).
 
+## Gross-exposure cap — and the reducing-exit exemption (ADR 0038)
+
+`risk_limits.max_gross_exposure` caps the account's total notional. Projected gross =
+settled positions (Σ|market_value|) + in-flight BUY notional (routed, not yet filled) +
+this order's notional when it is a BUY. An order that pushes projected over the cap is
+rejected `GROSS_EXPOSURE`. In-flight BUYs are counted so a burst of baskets can't each pass
+against the same settled snapshot and stack leverage (incident 2026-06-22, CAP-014).
+
+**A position-reducing SELL is EXEMPT (ADR 0038).** A SELL fully covered by the current long
+(`current_qty >= order qty` — the same "not a short" test the short restriction uses) can only
+*lower* gross, so it skips this gate. An exposure cap must never block an exposure-*reducing*
+order: refusing a de-risking exit traps risk on a book already over the cap (incident
+2026-07-07 — a strategy over its $10k cap could not stop out; its stop-loss SELLs were rejected
+`GROSS_EXPOSURE` every 5-min cycle). Short-*opening* sells (qty beyond the held long) are NOT
+exempt and stay gated (and are rejected first by the short restriction when `allow_short` is
+false). BUYs are unaffected — the cap stays fully binding on every risk-increasing order.
+
+**Operator note.** A book that cannot exit while `GROSS_EXPOSURE` shows on its SELLs is the
+pre-ADR-0038 trap; on a patched build a reducing exit always passes. The separate causes of
+*getting* over the cap — a market-BUY over-fill via NULL `estimated_notional`, or sizing above
+the cap — are addressed by sizing the strategy to fit its `max_gross_exposure`
+(`per_position_budget × N ≤ cap`).
+
 ## Pattern Day Trader warning
 
 A "day trade" is opening and closing the same symbol within one US/Eastern

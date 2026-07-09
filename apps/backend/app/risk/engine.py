@@ -283,7 +283,16 @@ class RiskEngine:
             # 2026-06-22). Sells are not credited (a pending sell may not fill) —
             # the gate fails conservative. In-flight orders with no resolvable
             # price (estimated_notional NULL) contribute 0, the prior behavior.
-            if limits.max_gross_exposure is not None:
+            #
+            # A position-reducing SELL — one fully covered by the current long
+            # (`current_qty >= req.qty`, the same "not a short" condition §6 uses)
+            # — can only LOWER gross exposure, so it is EXEMPT from this cap.
+            # Refusing a de-risking exit is the dangerous failure: a book already
+            # over the cap could not stop out (incident 2026-07-07). Short-opening
+            # sells (qty beyond the held long) are NOT exempt and stay gated here
+            # (and are rejected by §6 first when allow_short is false). ADR 0038.
+            is_reducing_sell = req.side == OrderSide.SELL and current_qty >= req.qty
+            if limits.max_gross_exposure is not None and not is_reducing_sell:
                 gross_now = (
                     await session.execute(
                         select(
