@@ -96,6 +96,13 @@ before the 09:25 ET scan). Stale records corrected (07-02/06/07/08 regenerated f
 **20 same-day gappers files (2026-06-08 → 07-08)**; backfilling them (PIT-valid, real premarket
 snapshots) is the **next step, executed only AFTER this v0.2 freeze** so the metric was locked blind.
 
+**Backfill DONE (2026-07-08, after the freeze).** All 20 dates regenerated from their same-day files
+(store-as-of-that-day; marked `backfilled` + note) → **accrual = 20/40 valid dates, 72/100
+candidate-events** (1–6 candidates/day). ~20 more dates + ~28 events needed → forward accrual (~1
+gappers file per trading day, now landing before the 09:25 ET scan) ≈ early August. **Remaining replay
+blocker (§7): 0 candidates have intraday 1/5-min bars** — auto-caching those is the next infrastructure
+task, and it gates the eventual CAP-025 replay (not the candidate-set accrual).
+
 ## 10. Lifecycle
 
 No paper promotion unless §5 clears. Paper requires CEE from day one, the Week-3 paper protocol, and the
