@@ -77,7 +77,7 @@ if [ "${#PROBLEMS[@]}" -eq 0 ]; then
   exit 0
 fi
 
-BODY="Factor-store freshness check ${DATE_ET} - ${#PROBLEMS[@]} issue(s):
+BODY="${SUBJECT_PREFIX}Factor-store freshness check ${DATE_ET} - ${#PROBLEMS[@]} issue(s):
 
 $(printf -- '- %s\n' "${PROBLEMS[@]}")
 
