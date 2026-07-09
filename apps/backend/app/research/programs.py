@@ -82,6 +82,24 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "only if a sharper edge or lower correlation is wanted.",
         "docs/implementation/evidence/trend_001_trend_following/trend_following.md"),
     ResearchProgram(
+        "SCAN-001", "Platform Capability",
+        "Market Opportunity Discovery Engine (Candidate Engine) - Gap/RVOL/ATR morning scanner",
+        "validated",
+        "Platform CAPABILITY (not a tradable strategy), Capability Maturity L3 (Operating Envelope "
+        "Defined). The full Evidence-Engineering cycle ran THREE times. v0.2: candidates expand "
+        "1.18-1.49x their own ATR vs baseline ~0.94x (CI-separated, p~0 on both top-500/3y and "
+        "top-200/5y cuts); tradeable + ATR/Gap/RVOL all additive. v0.3: REGIME-ROBUST - positive + "
+        "CI-separated in every market/vol regime (best Bull+Low-vol, weakest Bear still +ve; "
+        "counter-prior low-vol>high-vol). v0.4 Confidence Model: CONFIDENCE-UNINFORMATIVE (ATR-blended "
+        "confidence does not predict ATR-normalized expansion E, mildly inverse) -> not shipped as a "
+        "ranking key. v0.5: ATR-DECOUPLED 'Discovery Confidence' (Gap+RVOL only) flips E to +0.89 "
+        "(CI-sep, monotone, both cuts), calibrates 3/3 ATR bands, lifts the book with top-K ATR = flat "
+        "-> ACCEPTED (CAP-012). Lesson: ATR belongs in SELECTION, not CONFIDENCE. Completes Discovery "
+        "Lab v1.0 (Selection v0.2 / Operating Envelope v0.3 / Discovery Confidence v0.5); research line "
+        "CLOSED (promote-or-close). NB 'Validated' is the CAPABILITY verdict, NOT a live-trading green "
+        "light - live use still needs the premarket-data gate + a live-data replication.",
+        "docs/implementation/evidence/scan_001_candidate_engine_v0_5/candidate_engine_v0_5_evidence.md"),
+    ResearchProgram(
         "PORT-001", "Portfolio Construction",
         "Multi-sleeve ERC: crash-protected equity momentum + cross-asset TSMOM", "validated",
         "'Risk-Balanced Multi-Asset Portfolio' (Combined Book), ONBOARDED from the sibling "
@@ -143,6 +161,21 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "confidence' be measured and used to gate allocation? Start only after enough live paper data "
         "accrues (per the FI-001 review) -- Continuous Evidence Engine is the higher priority first.",
         None),
+    ResearchProgram(
+        "FI-003", "Portfolio Engineering",
+        "Crash-Insurance / Tail-Hedge Overlay Validation - is the CAP-020 regime overlay a worthwhile "
+        "tail hedge?", "planned",
+        "PLANNED (charter frozen; not yet run). The constructive follow-on to the CAP-020 rejection: "
+        "the SAME 200d-trend gross de-risk mechanism that was Rejected as a Calmar/Sharpe/return "
+        "improver reproducibly cut COVID/2022 drawdowns ~13-15pp -> spun out as CAP-022 and validated "
+        "HERE under TAIL-RISK criteria, NOT Calmar. Acceptance = does it reduce crash/tail loss enough "
+        "to justify its cost-of-carry in normal markets? Primary metrics: stress-regime (2020/2022-like) "
+        "MaxDD reduction + CVaR/worst-month improvement vs calm/bull CAGR drag (cost-of-carry), "
+        "regime-timing false-pos/neg, deployability. Validated-as-insurance ONLY if it materially cuts "
+        "stress-regime drawdown + improves worst-month/CVaR + bounded calm-regime carry + robust across "
+        "sweeps + no curve-fit timing. Reuses the deepened survivorship-free store + "
+        "scripts/cap020_regime_validation.py primitives.",
+        "docs/implementation/evidence/cap_020/CAP022_CrashInsurance_Charter_v0.1.md"),
     ResearchProgram(
         "TV-001", "External Strategy Import",
         "Import test of popular TradingView community strategies", "rejected",
