@@ -585,6 +585,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 )
                 logger.info("gapper_intraday_cache_scheduled")
 
+                # 10c-oct. GAPPER-001 shadow ledger (pre-reg v0.2 §8). Weekdays at
+                # 16:40 ET (after the intraday cache). Applies the locked primary design
+                # to today's cached bars and persists per-candidate outcomes + the daily
+                # book. Forward observation only (Backtest Pending). Fail-soft.
+                from app.jobs.gapper_shadow_ledger import run_gapper_shadow_ledger_scheduled
+
+                scheduler.scheduler.add_job(
+                    run_gapper_shadow_ledger_scheduled,
+                    _ReplayCron(day_of_week="mon-fri", hour=16, minute=40),
+                    id="gapper_shadow_ledger",
+                    max_instances=1,
+                    coalesce=True,
+                    replace_existing=True,
+                    kwargs={
+                        "bar_cache": bar_cache,
+                        "factor_store": factor_store,
+                        "evidence_dir": settings.premarket_gate_evidence_dir,
+                        "ledger_dir": "data/gapper_shadow_ledger",
+                    },
+                )
+                logger.info("gapper_shadow_ledger_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't
