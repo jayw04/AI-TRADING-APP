@@ -1,0 +1,10 @@
+[Unit]
+Description=Continuous Evidence Engine live-book report -> SNS email
+After=docker.service
+Wants=docker.service
+[Service]
+Type=oneshot
+Environment=AWS_REGION=us-east-1
+WorkingDirectory=/opt/workbench/app
+ExecStart=/bin/bash /opt/workbench/app/deploy/aws/cee-report.sh
+SuccessExitStatus=0 1
