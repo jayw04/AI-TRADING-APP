@@ -1,0 +1,10 @@
+[Unit]
+Description=Factor-store freshness watchdog -> SNS alert
+After=docker.service
+Wants=docker.service
+[Service]
+Type=oneshot
+Environment=AWS_REGION=us-east-1
+WorkingDirectory=/opt/workbench/app
+ExecStart=/bin/bash /opt/workbench/app/deploy/aws/factor-freshness.sh
+SuccessExitStatus=0 1
