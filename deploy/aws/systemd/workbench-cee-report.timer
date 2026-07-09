@@ -1,0 +1,8 @@
+[Unit]
+Description=CEE report: 16:45 ET after close, weekdays
+[Timer]
+OnCalendar=Mon-Fri 16:45
+AccuracySec=1min
+Persistent=false
+[Install]
+WantedBy=timers.target
