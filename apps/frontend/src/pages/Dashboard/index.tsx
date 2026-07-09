@@ -6,6 +6,7 @@ import { benchmarksApi } from "@/api/benchmarks";
 import { ApiError } from "@/api/client";
 import OrderTicket from "@/components/ticket/OrderTicket";
 import MorningBriefCard from "@/components/morning-brief/MorningBriefCard";
+import InsiderActivityMonitorCard from "@/components/insider/InsiderActivityMonitorCard";
 import RecentProposalsCard from "@/components/proposals/RecentProposalsCard";
 import { VariantsCard } from "@/components/strategies/VariantsCard";
 import {
@@ -345,6 +346,8 @@ export default function Dashboard() {
       </section>
 
       <MorningBriefCard />
+
+      <InsiderActivityMonitorCard />
     </div>
   );
 }
