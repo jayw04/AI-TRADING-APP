@@ -66,22 +66,42 @@ def _manifest_dir(data_dir: str | Path = "data") -> Path:
     return Path(data_dir) / _MANIFEST_DIRNAME
 
 
+def _marketcap_map(factor_store: Any, tickers: list[str]) -> dict[str, float]:
+    """ticker -> latest known marketcap, from whichever table this store has: ``metrics``
+    (research stores) or ``sf1_fundamentals`` (the live box store carries marketcap there —
+    found at first deploy 2026-07-09). Empty map on any failure: marketcap is a best-effort
+    ENRICHMENT/FILTER input, never a reason to degrade the universe or the surface."""
+    if not tickers:
+        return {}
+    ph = ",".join("?" * len(tickers))
+    for sql in (
+        f"SELECT ticker, max(marketcap) FROM metrics WHERE ticker IN ({ph}) GROUP BY ticker",
+        "SELECT ticker, arg_max(marketcap, datekey) FROM sf1_fundamentals "
+        f"WHERE ticker IN ({ph}) GROUP BY ticker",
+    ):
+        try:
+            rows = factor_store.con.execute(sql, tickers).fetchall()
+            return {t: float(mc) for t, mc in rows if mc is not None}
+        except Exception:  # noqa: BLE001 — try the next source
+            continue
+    return {}
+
+
 def resolve_monitor_universe(factor_store: Any, *, as_of: date, cap: int = _UNIVERSE_CAP,
                              ) -> tuple[list[str], str]:
     """(tickers, inclusion_reason) — the small/mid-cap monitor universe from the PIT factor
-    store, or the vendored 134-name fallback when the store is unreadable (logged loudly)."""
+    store, or the vendored 134-name fallback when the store is unreadable (logged loudly).
+    The mega-cap filter is best-effort: if no marketcap source exists, the dollar-volume
+    ranking ships unfiltered rather than collapsing the whole universe to the fallback."""
     try:
         dv = factor_store.dollar_volume_universe(as_of, cap * 2, _DV_LOOKBACK_DAYS)
-        # small/mid filter: drop names with a known marketcap above the mega-cap floor; a name
-        # with NO marketcap row stays (small-caps are exactly where metrics are sparse).
-        rows = factor_store.con.execute(
-            "SELECT ticker, max(marketcap) FROM metrics WHERE ticker IN "
-            f"({','.join('?' * len(dv))}) GROUP BY ticker", dv,
-        ).fetchall()
-        too_big = {t for t, mc in rows if mc is not None and mc > _LARGE_CAP_FLOOR}
-        tickers = [t for t in dv if t not in too_big][:cap]
-        if tickers:
-            return tickers, f"smallmid-dv-rank<={cap}"
+        if dv:
+            # small/mid filter: drop names with a KNOWN marketcap above the mega-cap floor; a
+            # name with no marketcap stays (small-caps are exactly where metrics are sparse).
+            mcap = _marketcap_map(factor_store, dv)
+            tickers = [t for t in dv if mcap.get(t, 0.0) <= _LARGE_CAP_FLOOR][:cap]
+            reason = f"smallmid-dv-rank<={cap}" if mcap else f"dv-rank<={cap}-unfiltered"
+            return tickers, reason
     except Exception:  # noqa: BLE001 — degrade to the fallback, never break the monitor
         logger.warning("insider_monitor_universe_fallback", reason="factor store unreadable")
     return list(FALLBACK_UNIVERSE), "fallback-134"
@@ -204,16 +224,10 @@ def _context_maps(factor_store: Any, tickers: list[str]) -> tuple[dict, dict, di
     if not tickers:
         return {}, {}, {}
     ph = ",".join("?" * len(tickers))
-    mcap: dict[str, float] = {}
+    mcap = _marketcap_map(factor_store, tickers)
     adv: dict[str, float] = {}
     sector: dict[str, str] = {}
     try:
-        for t, mc in factor_store.con.execute(
-            f"SELECT ticker, max(marketcap) FROM metrics WHERE ticker IN ({ph}) GROUP BY ticker",
-            tickers,
-        ).fetchall():
-            if mc is not None:
-                mcap[t] = float(mc)
         for t, a in factor_store.con.execute(
             f"""SELECT ticker, avg(close * volume) FROM (
                     SELECT ticker, close, volume,
