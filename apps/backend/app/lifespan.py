@@ -614,6 +614,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 )
                 logger.info("gapper_shadow_ledger_scheduled")
 
+            # 10c-nov. Insider Reference Monitor daily EDGAR ingest (reference-only
+            # context surface; plan v1.0 2026-07-09). Weekdays 18:05 ET main pull +
+            # 08:05 ET premarket catch-up. DEFAULT OFF (conservative-defaults): the
+            # box flips WORKBENCH_INSIDER_MONITOR_ENABLED=1 explicitly, so tests/CI
+            # boots stay hermetic (no EDGAR calls). insider_buy is
+            # rejected_reference_only — this writes the PIT Event Store, never orders.
+            if os.environ.get("WORKBENCH_INSIDER_MONITOR_ENABLED", "").lower() in ("1", "true"):
+                from apscheduler.triggers.cron import CronTrigger as _InsiderCron
+
+                from app.jobs.insider_reference_monitor import run_insider_reference_ingest
+
+                for _im_id, _im_hour, _im_min in (
+                    ("insider_reference_ingest", 18, 5),
+                    ("insider_reference_catchup", 8, 5),
+                ):
+                    scheduler.scheduler.add_job(
+                        run_insider_reference_ingest,
+                        _InsiderCron(day_of_week="mon-fri", hour=_im_hour, minute=_im_min),
+                        id=_im_id,
+                        max_instances=1,
+                        coalesce=True,
+                        replace_existing=True,
+                    )
+                logger.info("insider_reference_monitor_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't
