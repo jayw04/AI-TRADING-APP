@@ -182,7 +182,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     max_instances=1,
                     coalesce=True,
                     replace_existing=True,
-                    kwargs={"session_factory": session_factory, "host_id": _host_id},
+                    kwargs={
+                        "session_factory": session_factory,
+                        "host_id": _host_id,
+                        # Lazy: the StrategyEngine is constructed later in this lifespan;
+                        # by the first 30s beat app.state.strategy_engine is set. Lets the
+                        # heartbeat stamp real dispatch liveness into the row the CloudWatch
+                        # MissedDispatch metric reads (it was a never-written NULL before).
+                        "engine_getter": lambda: getattr(app.state, "strategy_engine", None),
+                    },
                 )
                 logger.info("scheduler_heartbeat_scheduled", host_id=_host_id)
 
