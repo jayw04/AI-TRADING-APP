@@ -26,6 +26,7 @@ from app.db.enums import (
 )
 from app.db.models.account import Account, AccountMode
 from app.db.models.audit_log import AuditLog
+from app.db.models.position import Position
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
@@ -33,6 +34,7 @@ from app.db.models.user import User
 from app.orders.router import OrderRouter
 from app.risk.engine import RiskEngine
 from app.risk.types import OrderRequest
+from app.services.strategy_cooldown import StrategyCooldownService
 
 
 class _StubAdapter:
@@ -83,10 +85,11 @@ def _router(sf):
 
 
 def _req(*, account_id, source_type=OrderSourceType.MANUAL, source_id=None,
-         symbol="AAPL", confirmation_text=None) -> OrderRequest:
+         symbol="AAPL", confirmation_text=None,
+         side=OrderSide.BUY, qty=Decimal("1")) -> OrderRequest:
     return OrderRequest(
         user_id=1, account_id=account_id, symbol_ticker=symbol,
-        side=OrderSide.BUY, qty=Decimal("1"), type=OrderType.MARKET,
+        side=side, qty=qty, type=OrderType.MARKET,
         tif=TimeInForce.DAY, source_type=source_type, source_id=source_id,
         confirmation_text=confirmation_text,
     )
@@ -226,3 +229,34 @@ async def test_strategy_success_does_not_set_cooldown(seeded):
     async with seeded() as session:
         strat = await session.get(StrategyRow, 10)
     assert strat.cooldown_until is None
+
+
+async def test_reducing_exit_in_cooldown_passes(seeded):
+    """A position-reducing SELL (sell 5 of a held 10) is exempt from the cooldown
+    and proceeds to the risk engine → routes to the broker (ADR 0039). A de-risking
+    stop-out must not be blocked by the anti-spin cooldown."""
+    async with seeded() as session:
+        session.add(Position(user_id=1, account_id=1, symbol_id=1, qty=Decimal("10"),
+                             avg_entry_price=Decimal("100"),
+                             market_value=Decimal("1000"), updated_at=_now()))
+        await StrategyCooldownService(session).set_cooldown(10)
+    order = await _router(seeded).submit(
+        _req(account_id=1, source_type=OrderSourceType.STRATEGY, source_id="10",
+             side=OrderSide.SELL, qty=Decimal("5"))
+    )
+    assert order.rejection_reason != "STRATEGY_COOLDOWN"
+    assert order.status != OrderStatus.REJECTED
+
+
+async def test_short_opening_sell_in_cooldown_still_rejected(seeded):
+    """The exemption is scoped to REDUCING exits: a SELL exceeding the held long
+    (sell 5 with 0 held) is not a reduce, so it stays subject to the cooldown and
+    is rejected STRATEGY_COOLDOWN (ADR 0039)."""
+    async with seeded() as session:
+        await StrategyCooldownService(session).set_cooldown(10)
+    order = await _router(seeded).submit(
+        _req(account_id=1, source_type=OrderSourceType.STRATEGY, source_id="10",
+             side=OrderSide.SELL, qty=Decimal("5"))
+    )
+    assert order.status == OrderStatus.REJECTED
+    assert order.rejection_reason == "STRATEGY_COOLDOWN"

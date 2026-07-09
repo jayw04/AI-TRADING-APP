@@ -7,6 +7,10 @@ Alpaca'), the strategy enters a 60-second cooldown.
 During cooldown:
   - Subsequent STRATEGY-sourced orders for this strategy_id are rejected with
     STRATEGY_COOLDOWN (in the OrderRouter).
+  - EXCEPT a position-reducing exit (a SELL covered by the current long): it is
+    exempt and proceeds to the risk engine — a de-risking stop-out must never be
+    delayed by the anti-spin cooldown (ADR 0039, extending ADR 0038). The cooldown
+    is still SET by a failed exit; only the check is relaxed.
   - Other strategies are unaffected (per-strategy, not per-account).
   - Manual orders are NOT subject to strategy cooldown.
 

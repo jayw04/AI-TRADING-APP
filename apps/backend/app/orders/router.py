@@ -28,9 +28,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.audit import AuditAction, AuditActorType, AuditLogger
 from app.brokers.alpaca import AlpacaAdapter
 from app.brokers.alpaca.errors import PermanentAlpacaError, TransientAlpacaError
-from app.db.enums import OrderSourceType, OrderStatus, StrategyStatus
+from app.db.enums import OrderSide, OrderSourceType, OrderStatus, StrategyStatus
 from app.db.models.account import Account, AccountMode
 from app.db.models.order import Order
+from app.db.models.position import Position
 from app.db.models.risk_check import RiskCheck
 from app.db.models.strategy import Strategy
 from app.db.models.symbol import Symbol
@@ -190,6 +191,14 @@ class OrderRouter:
                     in_cd, until = await StrategyCooldownService(
                         session
                     ).is_in_cooldown(cooldown_strategy_id)
+                    # A position-reducing exit must never be delayed by the
+                    # anti-spin cooldown (ADR 0039, extending ADR 0038's principle
+                    # from the gross gate): a de-risking SELL fully covered by the
+                    # current long proceeds to the risk engine, which stays the
+                    # final gate. The cooldown still gates entries and short-opening
+                    # sells, and is still SET by any failed submit (below).
+                    if in_cd and await self._is_reducing_exit(session, req):
+                        in_cd = False
                 if in_cd:
                     logger.warning(
                         "order_rejected_cooldown",
@@ -620,6 +629,37 @@ class OrderRouter:
         await self._bus.publish(topic, {"order_id": order_id})
 
     # ---- P5 §6: live order safety helpers ----
+
+    async def _is_reducing_exit(
+        self, session: AsyncSession, req: OrderRequest
+    ) -> bool:
+        """True when ``req`` is a SELL fully covered by the current long position
+        (``current_qty >= req.qty``) — a pure de-risking exit that can only lower
+        exposure. Mirrors the risk engine's reducing-sell test (ADR 0038) so a
+        stop-loss / close is never blocked by the anti-spin cooldown (ADR 0039).
+        Short-opening sells (qty beyond the held long) are NOT reducing exits."""
+        if req.side != OrderSide.SELL:
+            return False
+        symbol = (
+            await session.execute(
+                select(Symbol).where(
+                    Symbol.ticker == req.symbol_ticker,
+                    Symbol.active.is_(True),
+                )
+            )
+        ).scalars().first()
+        if symbol is None:
+            return False
+        pos = (
+            await session.execute(
+                select(Position).where(
+                    Position.account_id == req.account_id,
+                    Position.symbol_id == symbol.id,
+                )
+            )
+        ).scalars().first()
+        current_qty = pos.qty if pos else Decimal(0)
+        return current_qty >= req.qty
 
     async def _maybe_set_cooldown(self, req: OrderRequest, order: Order) -> None:
         """Set the 60s cooldown when a STRATEGY-sourced order failed to submit
