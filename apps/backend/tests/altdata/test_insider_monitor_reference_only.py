@@ -109,6 +109,51 @@ def test_upsert_idempotent_by_accession(tmp_path: Path) -> None:
     assert len(rows) == 1
 
 
+class _Sf1OnlyCon:
+    """A store connection with NO metrics table but an sf1_fundamentals marketcap (the live
+    box store shape, found at first deploy 2026-07-09)."""
+
+    def execute(self, sql: str, params: list):  # noqa: ANN001, ANN202
+        if "FROM metrics" in sql:
+            raise RuntimeError("Table 'metrics' does not exist")
+        if "FROM sf1_fundamentals" in sql:
+            self._rows = [(t, 1e9) for t in params]  # everything $1B — none mega-cap
+            return self
+        raise RuntimeError("unexpected query")
+
+    def fetchall(self):  # noqa: ANN202
+        return self._rows
+
+
+class _Sf1OnlyFactorStore:
+    con = _Sf1OnlyCon()
+
+    def dollar_volume_universe(self, as_of, n, lookback):  # noqa: ANN001, ARG002, ANN202
+        return ["FULT", "INDB", "UCBI"]
+
+
+class _NoMcapCon(_Sf1OnlyCon):
+    def execute(self, sql: str, params: list):  # noqa: ANN001, ANN202
+        raise RuntimeError("no marketcap source at all")
+
+
+class _NoMcapFactorStore(_Sf1OnlyFactorStore):
+    con = _NoMcapCon()
+
+
+def test_universe_uses_sf1_marketcap_when_metrics_missing() -> None:
+    tickers, reason = resolve_monitor_universe(_Sf1OnlyFactorStore(), as_of=date(2026, 7, 9))
+    assert tickers == ["FULT", "INDB", "UCBI"]
+    assert reason.startswith("smallmid-dv-rank")
+
+
+def test_universe_ships_unfiltered_when_no_marketcap_source() -> None:
+    # the mega-cap FILTER degrades; the dv universe must NOT collapse to the 134 fallback
+    tickers, reason = resolve_monitor_universe(_NoMcapFactorStore(), as_of=date(2026, 7, 9))
+    assert tickers == ["FULT", "INDB", "UCBI"]
+    assert reason.endswith("-unfiltered")
+
+
 # ---- 8. factor store unavailable -> fallback universe + auditable manifest -----------------
 
 
