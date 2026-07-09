@@ -32,11 +32,11 @@ Sharpe improvement is now marginal.
 | **Power** | observed ΔSharpe ≥ MDE₉₅ | **0.02 < 0.43** → **under-powered** ❌ |
 | **Diversifier** | MaxDD-reduction ≥25% **AND** ΔCalmar CI excludes 0 | 50.4% ✓ **but** ΔCalmar +0.17, CI [−0.33, +0.60] spans 0 ❌ |
 
-## The key finding: the trend edge lives in the *wider* universe
+## The key finding: the trend benefit is stronger in the *wider* universe
 
 TREND-002's core-6 ΔSharpe (**+0.02**) is far below TREND-001's 10-ETF ΔSharpe (**+0.18**). Longer
 history did not add power — and narrowing to equity+bond actually **shrank the edge**. The
-pre-registered universe-expansion sensitivities confirm where the edge lives:
+pre-registered universe-expansion sensitivities are directionally consistent:
 
 | Universe (add-back) | ΔSharpe vs its benchmark |
 |---|---|
@@ -47,8 +47,15 @@ pre-registered universe-expansion sensitivities confirm where the edge lives:
 | **+ EEM + GLD + DBC (all 3)** | **+0.16** |
 
 Adding the diversifier sleeves (EM, gold, commodities) back recovers most of TREND-001's edge → **the
-trend benefit is concentrated in the commodity/gold/EM/FX sleeves**, not the equity+bond core. The wider
-universe (the TREND-001 form) is the better expression.
+observed trend benefit is stronger in the wider universe, especially when the commodity/gold/EM sleeves
+are included**. The direction is clear, but it remains **not statistically promotable** — so this is a
+directional read, not a claim that the edge "lives" only there.
+
+> **Staggered-inception caveat.** EEM (2003) / GLD (2004) / DBC (2006) start *after* the 2002 core-6
+> window, so each add-back is an **available-as-of** sensitivity (the add-back asset simply isn't held
+> until it exists; its benchmark starts at the common date too). The direction is robust across the
+> add-backs, but the windows differ slightly — this is a sensitivity signal, not a like-for-like
+> re-run. A clean common-start re-run would be part of any future TREND-003, not this brief.
 
 ## Cash-leg attribution (owner-required transparency)
 
