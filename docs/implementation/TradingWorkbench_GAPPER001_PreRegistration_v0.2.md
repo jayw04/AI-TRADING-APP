@@ -8,6 +8,9 @@
 are fixed **before** any additional candidate data is materialized (per the owner: lock the metric now so
 it can't appear chosen after seeing the accumulated candidate distribution). GAPPER-001 stays
 **ACTIVE-accruing, not validated**; verdict pending the ≥40-date / ≥100-event sample gate.
+*(Owner final-review edits folded 2026-07-08: precise top-5 tie-break; spread-missing + sector-unresolved
+replay exclusions; SPY + sector-ETF in the intraday cache set; account-level usability reporting; backfill
+manifest. These clarify execution — the locked §4 verdict metric is unchanged.)*
 
 > Unchanged from v0.1 (see that file): the hypothesis, SCAN-001 candidate source, the primary entry
 > design, the liquidity floor, the slippage grid, and the CAP-025 replay method. v0.2 **locks the
@@ -28,7 +31,9 @@ Sensitivities (never primary): 15-min break · 1/3/5-day hold · ATR trailing ·
 
 ## 3. Trading-book assumptions (v0.2 — LOCKED, so the replay can't become a portfolio search)
 
-- **Max positions per day: 5** (if >5 candidates trigger, take the top 5 by Discovery Confidence, then score).
+- **Max positions per day: 5.** If more than 5 candidates trigger, select the **top 5 by Discovery
+  Confidence**; **tie-breaker: higher RVOL, then higher dollar volume**. **No additional score** unless
+  pre-registered.
 - **Weighting: equal-weight** among the triggered candidates that day.
 - **Capital basis: deployed capital**; **idle capital = 0 return** (a 0-candidate or no-trigger day returns 0).
 - **Entry deadline: no new entries after 11:00 ET** (a candidate that hasn't broken the OR high by 11:00 is skipped).
@@ -72,6 +77,17 @@ this we will reach 40 dates but still lack replayable intraday data (currently *
 have intraday bars cached). This is a Week-2 infrastructure task, gating the eventual replay — not the
 accrual of candidate sets.
 
+**Cache set (LOCKED):** for each candidate, cache same-day intraday bars for the **candidate ticker,
+SPY, and the candidate's GICS sector SPDR** — all three are required (the entry rule needs SPY *and* the
+sector above prior close).
+
+**Replay data-handling rules (LOCKED — no silent defaults):**
+- If the **entry-time spread cannot be observed**, the candidate is **excluded from the primary replay**
+  — a missing spread is **never** defaulted to zero. A conservative spread-imputation run may be reported
+  as **sensitivity only**.
+- If the **sector ETF cannot be resolved**, the candidate is **excluded from the primary replay** — no
+  SPY-only fallback (that would change the rule after the fact).
+
 ## 8. Deliverable & product surface (v0.2 — status line + shadow-paper status)
 
 - **Morning Opportunities Candidate Report** (`scripts/reports/morning_opportunities.py`) — ADR-0037
@@ -88,6 +104,11 @@ accrual of candidate sets.
     strategy-performance lineup · imply it passed evidence gates.
   - **Do not tune** parameters before the ≥40-date / ≥100-event gate; promotion requires the §5 CI gate.
 
+**Account-level usability reporting (v0.2 — secondary to the deployed-capital verdict).** The §4 metric
+tests the *signal* (deployed capital); this answers *"would it help a user's account?"* — reported, not
+gated: **daily return on allocated capital · average capital deployed · candidate trigger rate ·
+0-trade-day frequency · monthly paper-equivalent CAGR · max drawdown of the shadow ledger.**
+
 ## 9. Data status (carried from v0.1 gate + the 2026-07-08 correction)
 
 Data-gated; **live-files-only** provenance. Sync-timing bug fixed (laptop sync 09:00 CT → 08:00 CT,
@@ -102,6 +123,11 @@ candidate-events** (1–6 candidates/day). ~20 more dates + ~28 events needed �
 gappers file per trading day, now landing before the 09:25 ET scan) ≈ early August. **Remaining replay
 blocker (§7): 0 candidates have intraday 1/5-min bars** — auto-caching those is the next infrastructure
 task, and it gates the eventual CAP-025 replay (not the candidate-set accrual).
+
+**Backfill manifest** (`evidence/gapper_001/backfill_manifest.md`) records every backfilled file — date ·
+source path · file timestamp · sha256 · candidate count · fresh/non-empty flag · included/excluded reason.
+Rule: the backfill includes **all** available same-day files, **not** a selected subset (no
+cherry-picking); any skipped date is listed with its reason.
 
 ## 10. Lifecycle
 
