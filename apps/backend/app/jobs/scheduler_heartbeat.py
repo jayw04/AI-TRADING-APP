@@ -14,8 +14,10 @@ from __future__ import annotations
 import os
 import socket
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -23,6 +25,22 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.db.models.scheduler_heartbeat import SchedulerHeartbeat
 
 logger = structlog.get_logger(__name__)
+
+
+def _latest_dispatch_at(engine: Any) -> datetime | None:
+    """The engine's most recent successful ``on_bar`` across running strategies, as an
+    aware UTC datetime — or ``None`` when nothing has dispatched this process yet."""
+    try:
+        epochs = [
+            r.last_dispatch_at
+            for r in engine.running_strategies()
+            if r.last_dispatch_at is not None
+        ]
+        if not epochs:
+            return None
+        return datetime.fromtimestamp(max(epochs), tz=UTC)
+    except Exception:  # noqa: BLE001 — telemetry is best-effort, never break the beat
+        return None
 
 
 def resolve_host_id() -> str:
@@ -64,7 +82,11 @@ def resolve_code_version() -> str:
 
 
 async def _upsert(
-    session_factory: async_sessionmaker[AsyncSession], host_id: str, *, armed: bool
+    session_factory: async_sessionmaker[AsyncSession],
+    host_id: str,
+    *,
+    armed: bool,
+    last_dispatch_at: datetime | None = None,
 ) -> None:
     code_version = resolve_code_version()
     async with session_factory() as session:
@@ -73,13 +95,18 @@ async def _upsert(
         if row is None:
             session.add(
                 SchedulerHeartbeat(
-                    host_id=host_id, armed=armed, last_beat_at=now, code_version=code_version
+                    host_id=host_id, armed=armed, last_beat_at=now, code_version=code_version,
+                    last_dispatch_at=last_dispatch_at,
                 )
             )
         else:
             row.armed = armed
             row.last_beat_at = now
             row.code_version = code_version
+            # Only advance the stamp — the in-memory engine value resets on restart, and
+            # clobbering the persisted stamp with None would fake a dispatch gap.
+            if last_dispatch_at is not None:
+                row.last_dispatch_at = last_dispatch_at
         await session.commit()
 
 
@@ -95,10 +122,21 @@ async def write_startup_heartbeat(
 
 
 async def run_scheduler_heartbeat(
-    session_factory: async_sessionmaker[AsyncSession], host_id: str
+    session_factory: async_sessionmaker[AsyncSession],
+    host_id: str,
+    engine_getter: Callable[[], Any] | None = None,
 ) -> None:
-    """Scheduler entrypoint (ACTIVE hosts only): refresh this host's heartbeat."""
+    """Scheduler entrypoint (ACTIVE hosts only): refresh this host's heartbeat.
+
+    ``engine_getter`` lazily resolves the StrategyEngine (it is constructed after this job
+    is registered); when available, the row also carries the engine's latest successful
+    ``on_bar`` time so the CloudWatch ``MissedDispatch`` metric reads real dispatch
+    liveness instead of a never-written NULL (which made the alarm fire every market
+    morning by construction).
+    """
     try:
-        await _upsert(session_factory, host_id, armed=True)
+        engine = engine_getter() if engine_getter is not None else None
+        stamp = _latest_dispatch_at(engine) if engine is not None else None
+        await _upsert(session_factory, host_id, armed=True, last_dispatch_at=stamp)
     except Exception:  # noqa: BLE001 — telemetry is best-effort, never break the schedule
         logger.exception("scheduler_heartbeat_failed", host_id=host_id)
