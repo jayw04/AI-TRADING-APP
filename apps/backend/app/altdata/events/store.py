@@ -250,6 +250,24 @@ class EventStore:
         ).fetchall()
         return [self._row_to_event(r) for r in rows]
 
+    def events_filed_since(
+        self, cutoff: datetime, *, event_type: str | None = None
+    ) -> list[CorporateEvent]:
+        """Recent-events read for DISPLAY surfaces (Insider Reference Monitor): events with
+        ``filed_at`` on/after ``cutoff``. Read-only and additive — the PIT research reads
+        (``events_asof*``) are unchanged. The cutoff is normalized like ingest timestamps."""
+        conds = ["filed_at >= ?"]
+        params: list[Any] = [_utc_naive(cutoff)]
+        if event_type is not None:
+            conds.append("event_type = ?")
+            params.append(event_type)
+        rows = self._con.execute(
+            f"SELECT {', '.join(_COLUMNS)} FROM corporate_events "
+            f"WHERE {' AND '.join(conds)} ORDER BY filed_at DESC",
+            params,
+        ).fetchall()
+        return [self._row_to_event(r) for r in rows]
+
     def events_asof_eligible(
         self, as_of: date, *, event_type: str | None = None, ticker: str | None = None,
     ) -> list[CorporateEvent]:

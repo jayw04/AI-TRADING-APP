@@ -17,6 +17,7 @@ from app.api.v1 import (
     eval_harness,
     evidence,
     indicators,
+    insider_reference,
     internal,
     journal,
     live_autodispatch,
@@ -69,6 +70,7 @@ api_router.include_router(strategies.router)
 api_router.include_router(signals.router)
 api_router.include_router(backtest_jobs.router)
 api_router.include_router(opportunities.router)
+api_router.include_router(insider_reference.router)
 # P11 §1: read-only operational state (/ops/state) — what's enabled/running today.
 api_router.include_router(ops.router)
 api_router.include_router(evidence.router)
