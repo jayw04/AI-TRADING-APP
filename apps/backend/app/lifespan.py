@@ -562,6 +562,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("premarket_backfill_scheduled")
 
+            # 10c-sept. GAPPER-001 intraday auto-cache (pre-reg v0.2 §7). Weekdays at
+            # 16:35 ET (after the close + the SCAN back-fill). Caches same-day 1/5-min
+            # bars for each candidate + SPY + its sector SPDR so the eventual CAP-025
+            # replay has data as evidence accrues. Needs the factor store (sector
+            # resolution). Read-only, fail-soft. max_instances=1 + coalesce.
+            if factor_store is not None:
+                from app.jobs.gapper_intraday_cache import run_gapper_intraday_cache_scheduled
+
+                scheduler.scheduler.add_job(
+                    run_gapper_intraday_cache_scheduled,
+                    _ReplayCron(day_of_week="mon-fri", hour=16, minute=35),
+                    id="gapper_intraday_cache",
+                    max_instances=1,
+                    coalesce=True,
+                    replace_existing=True,
+                    kwargs={
+                        "bar_cache": bar_cache,
+                        "factor_store": factor_store,
+                        "directory": settings.premarket_gate_evidence_dir,
+                    },
+                )
+                logger.info("gapper_intraday_cache_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't

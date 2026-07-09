@@ -77,6 +77,12 @@ this we will reach 40 dates but still lack replayable intraday data (currently *
 have intraday bars cached). This is a Week-2 infrastructure task, gating the eventual replay — not the
 accrual of candidate sets.
 
+**Status (2026-07-08): built + backfilled.** `app/factor_data/gapper_intraday.py` resolves each
+candidate's sector SPDR (factor-store `tickers.sector`) and caches same-day 1/5-min bars for the
+candidate + SPY + sector ETF. The 20-day backfill cached **72/72 candidate-events** (142 symbol-days;
+**0 sector-excluded, 0 intraday-missing**). Remaining: wire the same call into the daily scan so forward
+candidates auto-cache (a backend-rebuild hook).
+
 **Cache set (LOCKED):** for each candidate, cache same-day intraday bars for the **candidate ticker,
 SPY, and the candidate's GICS sector SPDR** — all three are required (the entry rule needs SPY *and* the
 sector above prior close).
