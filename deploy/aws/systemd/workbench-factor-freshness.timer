@@ -1,0 +1,8 @@
+[Unit]
+Description=Factor-store freshness watchdog: 07:00 ET weekdays (post-refresh, pre-open)
+[Timer]
+OnCalendar=Mon-Fri 07:00
+AccuracySec=1min
+Persistent=false
+[Install]
+WantedBy=timers.target
