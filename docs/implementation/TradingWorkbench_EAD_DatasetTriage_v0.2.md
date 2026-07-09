@@ -108,6 +108,16 @@ Enforced in code via a `rejected_reference_only` tag: any rejected event-label t
 | WSB / insiders / 13F (locked) | **Do not upgrade** just to test. |
 | Off-exchange / dark-pool | **Interesting, different harness — reserve as OFX-001 (below), not EAD.** |
 
+### Scope note — GAPPER-001 is NOT an EAD program
+
+**GAPPER-001** (morning gap-momentum, Running · Backtest Pending) is a **Discovery/SCAN
+forward-observation strategy program**, *not* EAD: it consumes the platform's **own** SCAN-001 gappers
+scanner feed — no external alt-data vendor, no corporate-disclosure event, no license question — so
+this triage gate does **not** apply to it, and it must not be confused with the rejected
+corporate-disclosure EAD group above (its events are price/volume gaps, a different mechanism class
+entirely). Its evidence discipline is governed by its own pre-registration
+(`TradingWorkbench_GAPPER001_PreRegistration_v0.2.md`) and the registry.
+
 ### Reserved programs (do NOT start yet)
 
 - **LOBBY-002 — New-Issue Lobbying Entry.** Reserved (a firm's *first* lobbying disclosure, a distinct event from a spend spike). Same mechanism class as LOBBY-001 → carries the low prior; start only if a specific counter-hypothesis justifies it.

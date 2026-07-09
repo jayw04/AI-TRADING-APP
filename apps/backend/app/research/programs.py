@@ -70,17 +70,34 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "defensive-sleeve / blend product, or a broader-universe V2 to chase the near-miss standalone edge.",
         "docs/implementation/evidence/low_001_low_volatility/low_volatility.md"),
     ResearchProgram(
-        "TREND-001", "Trend Following", "Time-series trend (per-name 200d SMA participation)",
-        "inconclusive",
-        "Verdict B (Diversifier/Defensive), full-cycle 2000-2026. A defensive participation sleeve: "
-        "Sharpe 0.46 (vs momentum 0.39, eqw 0.35), maxDD -46.2% (vs momentum -76.4%) by de-risking to "
-        "cash in downtrends (gross falls to 1.5%). H1 standalone +0.11 CI [-0.11, 0.33] spans zero (no "
-        "standalone edge); H2 corr 0.871 with momentum (NOT a low-corr diversifier). H3 is the signature "
-        "+ key result: per-name trend BEATS the platform's existing portfolio-level regime filter "
-        "(maxDD -46.2% vs -61.1%, +14.9pp; Sharpe +0.06), refuting the pre-registered modal "
-        "'subsumed -> Rejected' prior. Cost-robust to 50bps. Next: V2 inverse-vol / multi-window "
-        "only if a sharper edge or lower correlation is wanted.",
-        "docs/implementation/evidence/trend_001_trend_following/trend_following.md"),
+        "TREND-001", "Trend Following",
+        "Multi-asset time-series trend (10-ETF, 10m momentum, monthly)", "inconclusive",
+        "COMPLETED 2026-07-08 (Strategy Production Sprint): Power-Limited Inconclusive; secondary "
+        "Diversifier Candidate. NOT promoted to paper. 19.3yr / 233 monthly rebalances (2007-2026): "
+        "Sharpe 0.79 vs eqw buy-hold 0.61, maxDD -11.3% vs -30.5% (62.9% relative reduction at ~3/4 the "
+        "vol) - directionally favorable and economically meaningful, but Delta-Sharpe +0.18 CI "
+        "[-0.34,+0.71] spans zero and the observed effect is under the pre-registered MDE95 -> a POWER "
+        "failure, labelled as such per pre-reg section 9 (NOT an ordinary rejection). The Diversifier "
+        "path also missed (MaxDD-reduction cleared; Delta-Calmar CI spans zero). Related predecessor: "
+        "the 2026-06 per-name 200d-SMA participation study "
+        "(evidence/trend_001_trend_following/) reached the same Verdict-B shape on the equity universe "
+        "- a preliminary factor-study note, superseded by this program run. Follow-on TREND-002 "
+        "attacked the power problem with longer history; see its entry.",
+        "docs/implementation/evidence/trend_001/TREND001_Evidence_Brief.md"),
+    ResearchProgram(
+        "TREND-002", "Trend Following",
+        "Long-history core trend (equity+bond core-6, 24yr)", "inconclusive",
+        "COMPLETED 2026-07-08: Power-Limited Inconclusive; secondary Diversifier Candidate. NOT "
+        "promoted. Built to attack TREND-001's statistical power with a longer, cleaner equity+bond "
+        "core (2002-2026, 289 monthly rebalances): it did NOT resolve it - Delta-Sharpe +0.02 CI "
+        "[-0.40,+0.46] spans zero (observed 0.02 << MDE95 0.43) - and it surfaced the KEY finding that "
+        "the trend edge is THINNER on the core-6 than on TREND-001's wider 10-ETF universe (+0.02 vs "
+        "+0.18): longer history did not add power, and narrowing the universe shrank the edge. "
+        "Drawdown control persists (maxDD -17.2% vs -34.7% eqw, a 50.4% relative reduction; Calmar "
+        "0.42 vs 0.25) but Delta-Calmar CI [-0.33,+0.60] spans zero. Together the TREND pair is a "
+        "coherent diversifier-candidate story blocked on POWER, not hypothesis - revisit only with a "
+        "materially wider universe or a pre-registered diversifier-first (Calmar-primary) design.",
+        "docs/implementation/evidence/trend_002/TREND002_Evidence_Brief.md"),
     ResearchProgram(
         "SCAN-001", "Platform Capability",
         "Market Opportunity Discovery Engine (Candidate Engine) - Gap/RVOL/ATR morning scanner",
@@ -259,6 +276,25 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "slightly negative) - 4th False-Positive-Reduction confirmation. v1 caveat: currently-active "
         "lobbyists only (full survivorship-free sweep throttled by Quiver).",
         "docs/implementation/TradingWorkbench_LOBBY001_Plan_v0.1.md"),
+    ResearchProgram(
+        "GAPPER-001", "Intraday / Discovery",
+        "Morning gap-momentum continuation (from the SCAN-001 gappers feed)", "research",
+        "RUNNING - Active Accrual / Shadow Paper - Backtest Pending (NOT a validated signal; per the "
+        "owner review: do not promote, do not tune, do not open GAPPER-002). The first strategy "
+        "program born from the Discovery Lab: the v0.2 design was FROZEN BLIND (30-min OR-high break "
+        "by 11:00 ET + above VWAP + market & sector positive; equal-weight <=5, same-day close) before "
+        "any intraday outcome data was seen. PIT-valid backfill: 20 valid dates / 72 candidate events "
+        "(the manifest documents every included and skipped day). Forward pipeline complete and "
+        "user-visible: premarket candidate report (morning_opportunities.py, 'Backtest Pending' "
+        "surface) + intraday auto-cache and shadow-ledger daily jobs on the box. Early shadow read "
+        "(descriptive, NO verdict - sample gate unmet, no CI computed): 21/72 triggered (29%), mean "
+        "daily book gross ~21bps -> implied breakeven ~11bps/side, BELOW the promotion bar "
+        "(>=20bps/side); expect Rejected or Inconclusive. DECISION at >=40 valid dates / >=100 events "
+        "(~early Aug 2026) via the locked CI-gated replay: Approved needs CI excluding zero + breakeven "
+        ">=20bps/side + no single date >25% of P&L. Spread-based tests deferred to a quote-data source "
+        "(the pre-registered slippage grid is the cost model). NOT an EAD program (no external "
+        "alt-data vendor; it consumes the platform's own scanner feed) - see the Dataset Triage note.",
+        "docs/implementation/evidence/gapper_001/shadow_ledger_summary.md"),
 )
 
 
