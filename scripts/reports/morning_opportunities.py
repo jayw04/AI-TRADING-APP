@@ -51,7 +51,22 @@ def _records(directory: str) -> list[str]:
     return sorted(glob.glob(os.path.join(directory, "premarket_scan_*.json")))
 
 
-def render(record: dict, *, accrued_dates: int) -> str:
+def _accrual(directory: str) -> tuple[int, int]:
+    """(valid, total) evidence days. Valid = a FRESH (non-stale), non-empty candidate set — only these
+    count toward the minimum-sample gate; stale/empty days (e.g. a sync miss) do not."""
+    fresh = total = 0
+    for f in _records(directory):
+        total += 1
+        try:
+            d = json.load(open(f, encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not d.get("stale", True) and (d.get("funnel", {}).get("candidate_count", 0) or 0) > 0:
+            fresh += 1
+    return fresh, total
+
+
+def render(record: dict, *, fresh: int, total: int) -> str:
     f = record.get("funnel", {})
     cands = record.get("candidates", []) or []
     lines: list[str] = []
@@ -89,8 +104,9 @@ def render(record: dict, *, accrued_dates: int) -> str:
     lines.append("")
     lines.append("---")
     lines.append(
-        f"**Status:** GAPPER-001 is under evaluation — **{accrued_dates}/{SAMPLE_GATE_DATES}** trading "
-        f"days of gappers accrued toward the minimum-sample gate; no verdict yet. "
+        f"**Status:** GAPPER-001 is under evaluation — **{fresh}/{SAMPLE_GATE_DATES}** valid (fresh, "
+        f"non-empty) trading days accrued toward the minimum-sample gate ({total} records on disk); "
+        f"no verdict yet. "
     )
     lines.append(
         "_Advisory watchlist only. Candidates are **evidence, not a signal** (SCAN-001 §0a) and never "
@@ -109,10 +125,11 @@ def main() -> None:
     args = ap.parse_args()
 
     files = _records(args.evidence_dir)
-    accrued = len(files)
+    fresh, total = _accrual(args.evidence_dir)
     if args.accrual:
-        print(f"GAPPER-001 accrual: {accrued}/{SAMPLE_GATE_DATES} trading days of gappers evidence "
-              f"({'GATE MET' if accrued >= SAMPLE_GATE_DATES else 'accruing'})")
+        print(f"GAPPER-001 accrual: {fresh}/{SAMPLE_GATE_DATES} valid (fresh, non-empty) days "
+              f"[{total} records on disk] "
+              f"({'GATE MET' if fresh >= SAMPLE_GATE_DATES else 'accruing'})")
         return
     if not files:
         print(f"No evidence records in {args.evidence_dir!r} yet.")
@@ -124,7 +141,7 @@ def main() -> None:
         return
     with open(path, encoding="utf-8") as fh:
         record = json.load(fh)
-    print(render(record, accrued_dates=accrued))
+    print(render(record, fresh=fresh, total=total))
 
 
 if __name__ == "__main__":

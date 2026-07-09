@@ -109,6 +109,15 @@ forward-validation gate. **Interim deliverable SHIPPED:** the Morning Opportunit
 (`scripts/reports/morning_opportunities.py`) renders the daily SCAN candidates as an **ADR-0037-labelled
 watchlist (Backtest Pending)** with an **N/40 accrual counter** — user-visible now, no verdict claimed.
 
+**Data-quality correction (2026-07-08).** All early evidence records were **stale** — the laptop's
+gappers-sync task fired at 09:00 **CT (=10:00 ET)**, after the box's 09:25 ET scan, so each scan read the
+prior day's file. Fixed the sync to **08:00 CT (09:00 ET)** (before the scan). Corrected the historical
+records: **regenerated 07-02/06/07/08** from their real same-day gappers files (PIT-valid, marked
+`corrected`), **purged 07-01/07-03** (no same-day file). The accrual counter now counts only **fresh,
+non-empty** days → **4/40 valid**; forward accrual from 2026-07-09 uses same-day files. The SCAN-001
+premarket data is **file-based (JSON), not in the DB** — the `scanner_runs`/`scanner_definitions` tables
+are a separate custom-scanner feature and were unaffected.
+
 ## 10. Lifecycle & guardrails
 
 - No paper promotion unless §7 Approved. Paper requires **CEE from day one**, the **Week-3 paper
@@ -121,7 +130,8 @@ watchlist (Backtest Pending)** with an **N/40 accrual counter** — user-visible
    inputs before 2026-06-22).
 2. **Verdict metric (§7):** proposed net per-trade edge in bps (date-clustered) + breakeven ≥ 2× cost —
    **to CONFIRM before the replay** (≈ September); moot until the ≥40-date sample gate is met.
-3. **Data gate (§9): RAN** → data-gated; **accruing 6/40**. Interim Candidate Report shipped.
+3. **Data gate (§9): RAN** → data-gated; **accruing 4/40 valid** (fresh, non-empty). Interim Candidate
+   Report shipped; the sync-timing bug is fixed and the stale records corrected (see §9 result).
 
 *Next checkpoint: when accrual reaches ≥40 dates, confirm the verdict metric and run the CAP-025 replay.
 Until then GAPPER-001 stays ACTIVE-accruing; the Candidate Report is the user-visible surface.*
