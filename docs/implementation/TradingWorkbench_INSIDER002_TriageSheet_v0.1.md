@@ -40,7 +40,11 @@ Expected sample:    INSIDER-001 processed 2,148 Form 4 buy-events over the 134-n
                     plausible but NOT yet verified — the pre-registration must include a
                     sample-size feasibility check as its first (cheap, data-only) step, and the
                     study does not proceed if the intersection can't reach the gate. PASS
-                    (conditional on the feasibility step).
+                    (conditional on the feasibility step). OWNER-REQUIRED (2026-07-09 review):
+                    before ANY INSIDER-002 study begins, run a feasibility check estimating the
+                    intersection count between (1) the qualified NON-insider candidate pool and
+                    (2) the insider-confirmed subset; if it cannot plausibly reach >=100
+                    benchmarked observations, no full study runs.
 
 Identity mapping:   Security Master (CAP-024) resolution already wired into the Event Store
                     (resolved_security_id). PASS.

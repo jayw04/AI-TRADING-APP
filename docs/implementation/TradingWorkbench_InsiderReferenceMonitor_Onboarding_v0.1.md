@@ -57,7 +57,7 @@ reference-only):
 | **Full-universe coverage** | DCAP-008 broad small-cap SF1 (9,040 tickers) + Security Master (CAP-024) | insider activity across the whole tradable small/mid-cap space, not 134 names |
 | **Materiality context** | Sharadar METRICS/DAILY (marketcap, ADV) | transaction value as % of market cap and % of ADV — "large for this company," not just "$500k" |
 | **Cluster detection at scale** | PIT Event Store window queries | ≥2 distinct insiders within N days, across the full universe (the sibling's strongest filter, now universe-wide) |
-| **Role weighting** | Form 4 parser (already extracts officer/director/10% owner) | CEO/CFO purchases flagged distinctly from directors |
+| **Role context / role label** | Form 4 parser (already extracts officer/director/10% owner) | CEO/CFO purchases *labelled* distinctly from directors — context only, never a score or ordering input |
 | **Sector/size context** | Sharadar TICKERS + Security Master | sector tag + size bucket per event, so users read the event in context |
 | **Evidence-grounded expectations** | INSIDER-001 matched-control results | the honest note per event class: "events like this averaged +X% vs matched controls over 60d — not statistically distinguishable from zero" |
 | **PIT-true freshness** | Event Store `filed_at` acceptance timestamps | "filed 2h ago" vs "transaction 2 days ago, filed today" — the disclosure lag made visible |

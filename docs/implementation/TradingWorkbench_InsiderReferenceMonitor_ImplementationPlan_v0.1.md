@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 (draft for owner review — do not build against this version) |
+| Document version | **v1.0 — FROZEN for execution** (owner review folded from `Docs/implementation/comments.md`, 2026-07-09; OQ1–OQ3 resolved below) |
 | Date | 2026-07-09 |
 | Phase | Capability onboarding (product surface) — not a research program session |
 | Predecessor | `TradingWorkbench_InsiderReferenceMonitor_Onboarding_v0.1.md` (spec, PR #400) + INSIDER-001 §1 infra (PR #279, on main) |
@@ -15,33 +15,34 @@
 
 ---
 
-## 0. Open questions to resolve before v1.0 (owner review)
+## 0. Resolved decisions (v1.0 freeze — owner review 2026-07-09)
 
-**OQ1 — the user-3 role.** "We can use user 3 account for this" is implemented here as: **user 3
-(`momentum-conservative@globalcomplyai.com`, freed by the ADR-0036 consolidation) becomes the
-owning identity for the monitor** — the job writes global data, but the UI surface and any
-per-user scoping hang off user 3, the same way user 2 owns the range surfaces. Account 3
-(`Alpaca Paper (Conservative)`, fresh $100k) **stays flat forever under this feature: the monitor
-places no orders, and the `rejected_reference_only` invariant prohibits it structurally.**
-⚠ If you instead intended a *paper observation book that trades on insider events* — that is the
-already-rejected INSIDER-001 hypothesis and would violate the reference-only invariant; it is not
-buildable without an approved INSIDER-002 pre-registration. Per CLAUDE.md, flagging rather than
-assuming: **confirm identity/scoping-only is the intent.** (Also: user 3's display name/email still
-say "momentum-conservative" — OQ1b: rename the user label to "Insider Monitor" or leave as-is?)
+**OQ1 — user/account 3 (RESOLVED, owner wording adopted):** *"For Insider Reference Monitor v1,
+user 3 is identity/scoping only. Account 3 places no orders and remains flat **under this
+reference-monitor feature**."* The monitor's code path is display-only and structurally cannot
+order. If a future **INSIDER-002** program clears its pre-registered evidence gate and is
+Approved for paper, a separate paper book **may reuse account 3 only after**: an explicit
+governance decision · account rename · the paper protocol · CEE attachment · confirmation the
+reference-monitor code path remains display-only. (Deliberately NOT "flat forever" — flat under
+this feature; future use goes through the governed strategy path, never through the monitor.)
+**OQ1b (RESOLVED):** rename user 3's display label `momentum-conservative` → **"Insider Monitor"**
+(display label only; email/credentials untouched).
 
-**OQ2 — monitor universe size.** EDGAR ingestion is per-CIK polling (SEC fair-access: ~10 req/s,
-declared User-Agent). Options:
+**OQ2 — universe (RESOLVED): Option B** — factor-store PIT small/mid-cap slice, **cap ~1,500
+CIKs, refreshed weekly**, EDGAR daily per-CIK polling. **Required control added: a weekly
+monitor-universe manifest** persisted with `{date, ticker, CIK, company, inclusion_reason,
+source_universe, hash}` so coverage is auditable and reproducible (see §4.2a). Full DCAP-008
+(9,040 names, EDGAR daily-index ingest) stays v2.
 
-| Option | Universe | Daily cost | Recommendation |
-|---|---|---|---|
-| A | Sibling's 134 names | trivial | too small — wastes our data advantage |
-| B (**recommended v1**) | Factor-store PIT small/mid-cap slice, capped at **~1,500 CIKs**, refreshed weekly from `dollar_volume_universe` | ~3–5 min/day sharded | 10× the sibling with headroom under fair-access |
-| C | Full DCAP-008 pool (9,040) | ~15–20 min/day, needs sharding across hours | v2 — do it via EDGAR **daily full-index** files instead of per-CIK polling (a different ingest path; deferred) |
+**OQ3 — UI (RESOLVED): Dashboard card only** in v1 (benchmarks-card pattern); no dedicated page.
 
-**OQ3 — UI placement.** Recommended: a **dedicated card on the Dashboard** (visible to all users;
-it is context, not a per-book widget) + the required language block. Alternative: its own page
-under Research/Discovery. Card-first is less code and matches the "Performance vs Benchmarks"
-card pattern from `feat/dashboard-benchmarks`.
+**Wording rules (owner-required, apply everywhere incl. the onboarding spec):**
+- "Role **weighting**" is banned → **"role context / role label"**. CEO/CFO/director/10%-owner is
+  shown as context; "CEO buy = stronger" in any scored/ordered form is not allowed. Same for
+  clusters: a **cluster badge** is allowed; a cluster-based score is not.
+- **Sorting is `filed_at DESC` only** — never by value, cluster count, role, %-mktcap, or %-ADV
+  (context columns, but sorting by them reads as ranking). **Filters** (`window_days`,
+  `min_value`, `open_market_only`) are allowed as *display hygiene*, never described as selection.
 
 ---
 
@@ -119,6 +120,17 @@ async def run_insider_reference_ingest() -> None:
     daily report, never raise into the scheduler."""
 ```
 
+### §4.2a Weekly monitor-universe manifest (OQ2 required control)
+
+```python
+# data/insider_monitor/universe_manifest_<YYYY-MM-DD>.json  (written by the weekly refresh)
+{"date": "...", "source_universe": "factor_store.dollar_volume_universe(smallmid, cap=1500)",
+ "count": N, "hash": "<sha256 of the sorted ticker list>",
+ "rows": [{"ticker": ..., "cik": ..., "company": ..., "inclusion_reason": "smallmid-dv-rank<=1500 | fallback-134"}]}
+```
+The daily job loads the latest manifest (never recomputes intra-week); the fallback-universe path
+writes a manifest too (`inclusion_reason: "fallback-134"`) so degraded coverage is auditable.
+
 - Registered in `lifespan.py` next to the gapper jobs, behind `WORKBENCH_INSIDER_MONITOR_ENABLED`
   (**default OFF** — conservative-defaults convention; flipped ON via the box `.env` at deploy).
 - Cron: `5 18 * * mon-fri` + `5 8 * * mon-fri`, ET (engine schedules are ET per #366; these are
@@ -151,9 +163,14 @@ GET /api/v1/insider-reference?window_days=14&min_value=10000
 
 - Add the three new modules to `check_reference_only_invariant.sh`'s **display-side allowlist**
   (they legitimately name `insider_buy`); the order-path/ranking module scan stays untouched.
-- New test `tests/altdata/test_insider_monitor_reference_only.py`: (a) rows always flagged,
-  (b) module-import isolation, (c) `REFERENCE_ONLY_PROGRAMS["insider_buy"]` still maps to a
-  `rejected` program (drift guard with `programs.py`).
+- New test `tests/altdata/test_insider_monitor_reference_only.py` — the owner-required 8:
+  (1) every endpoint row `reference_only=true`; (2) envelope `reference_only=true`;
+  (3) monitor modules import nothing from orders/risk/ranking/sizing/strategy-selection/
+  OrderRouter; (4) `check_reference_only_invariant.sh` still fails on `insider_buy` in
+  order-path/ranking/sizing modules (invariant logic untouched — allowlist-only change);
+  (5) `REFERENCE_ONLY_PROGRAMS["insider_buy"]` still maps to rejected INSIDER-001;
+  (6) account-3 order count unchanged across an ingest run; (7) job idempotent by accession;
+  (8) factor-store-unavailable → fallback universe used and clearly logged (+ manifest written).
 
 ### §4.5 Frontend — Dashboard card `InsiderActivityMonitor.tsx`
 
@@ -198,7 +215,11 @@ explicit reviewer look (it touches an invariant's config, not its logic).
 
 ## 7. What this session does NOT do
 
-- **No orders, no paper book, no positions on account 3** — identity/scoping only (OQ1).
+- **No orders, no paper book, no positions on account 3 under this feature** — identity/scoping
+  only (OQ1; a future Approved INSIDER-002 may reuse the account only via the governed strategy
+  path — explicit governance decision, rename, paper protocol, CEE attachment).
+- User-3 display-label rename to "Insider Monitor" IS in scope (OQ1b) — label only, no
+  email/credential change.
 - No composite score, no ranked ordering, no "conviction" vocabulary anywhere.
 - No INSIDER-002 work (triage sheet is Reserved; pre-reg waits for the GAPPER-001 verdict).
 - No sibling swing-book port; the sibling system keeps running untouched.
