@@ -1,0 +1,161 @@
+{
+  "audit": "mkt_proj_001/v1",
+  "at": "2026-07-10T17:36:47.240651+00:00",
+  "daily_sip": {
+    "SPY": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "QQQ": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "IWM": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "DIA": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLK": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLF": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLV": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLE": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLI": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLY": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLP": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLU": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLB": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLRE": {
+      "ok": true,
+      "earliest": "2016-01-04",
+      "latest": "2026-07-09",
+      "rows": 2643
+    },
+    "XLC": {
+      "ok": true,
+      "earliest": "2018-06-19",
+      "latest": "2026-07-09",
+      "rows": 2024
+    }
+  },
+  "spy_minute_probe_sip": {
+    "2016": {
+      "rows": 4303,
+      "first": "2016-01-05T00:00:00+00:00"
+    },
+    "2017": {
+      "rows": 3380,
+      "first": "2017-01-05T00:00:00+00:00"
+    },
+    "2018": {
+      "rows": 3541,
+      "first": "2018-01-05T00:02:00+00:00"
+    },
+    "2020": {
+      "rows": 3931,
+      "first": "2020-01-06T09:00:00+00:00"
+    },
+    "2022": {
+      "rows": 4259,
+      "first": "2022-01-05T00:00:00+00:00"
+    },
+    "2024": {
+      "rows": 3893,
+      "first": "2024-01-05T00:00:00+00:00"
+    }
+  },
+  "preclose_window_coverage": {
+    "date": "2026-07-09",
+    "minute_rows_1530_1545_et": {
+      "SPY": 16,
+      "QQQ": 16,
+      "IWM": 16,
+      "DIA": 16,
+      "XLK": 16,
+      "XLF": 16,
+      "XLV": 16,
+      "XLE": 16,
+      "XLI": 16,
+      "XLY": 16,
+      "XLP": 16,
+      "XLU": 16,
+      "XLB": 16,
+      "XLRE": 16,
+      "XLC": 16
+    }
+  },
+  "iex_daily_ok": true,
+  "premarket_gap_sample_iex": {
+    "SPY": {
+      "latest_trade_ts": "2026-07-10T17:36:44.637724+00:00",
+      "gap_pct": 0.357
+    },
+    "IWM": {
+      "latest_trade_ts": "2026-07-10T17:36:25.939248+00:00",
+      "gap_pct": -0.367
+    },
+    "QQQ": {
+      "latest_trade_ts": "2026-07-10T17:36:43.567302+00:00",
+      "gap_pct": 0.375
+    }
+  },
+  "market_session": {
+    "now_session": "REGULAR",
+    "is_half_day": false
+  }
+}

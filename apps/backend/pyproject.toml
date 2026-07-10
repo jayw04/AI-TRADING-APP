@@ -29,6 +29,15 @@ dependencies = [
     # any regression if we bump.
     "pandas-ta>=0.4.71b0,<0.5.0",
     "pyarrow>=15.0.0,<20.0.0",
+    # MKT-PROJ-001 (§0, owner-approved 2026-07-10): calibrated classifiers +
+    # walk-forward validation for the Market Projection Engine. Pure library,
+    # no external service, no runtime network use (Q1 of the implementation plan).
+    "scikit-learn>=1.5,<2.0",
+    # MKT-PROJ-001 final review 2026-07-10: authoritative NYSE calendar so the
+    # historical labeler (§1) and production close-15m scheduling agree on
+    # holidays/half-days. MarketSession already prefers it when installed
+    # (curated fallback otherwise).
+    "pandas-market-calendars>=4.4,<6.0",
     # P4 §4: filesystem watcher for strategy hot-reload. Already pulled in
     # transitively by uvicorn[standard]; pin here so a future uvicorn bump
     # can't silently drop the dep the watcher service depends on.

@@ -295,6 +295,18 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "(the pre-registered slippage grid is the cost model). NOT an EAD program (no external "
         "alt-data vendor; it consumes the platform's own scanner feed) - see the Dataset Triage note.",
         "docs/implementation/evidence/gapper_001/shadow_ledger_summary.md"),
+    ResearchProgram(
+        "MKT-PROJ-001", "Market Projection",
+        "Probabilistic broad-market context: material-move risk + direction (display-only)", "planned",
+        "PLANNING (§0) — Market Projection Engine (CAP-027): daily UP/DOWN/NEUTRAL projection for SPY "
+        "with separate P(MATERIAL) move-risk, PRE_CLOSE_TOMORROW primary, PIT ATR threshold, "
+        "walk-forward vs best-of-6-baselines, calibrated logistic primary. Two independent gates "
+        "(Move-Risk / Direction; direction floor 50/50/100 non-neutral OOS calls). Research Preview "
+        "surface only — no ranking, sizing, orders, or order-path imports (NFR-001 CI-enforced). "
+        "Realistic prior: Rejected/Inconclusive on direction. Owner-gated: §1 starts only after the "
+        "pre-registration freeze is reviewed; §2 baseline-only evidence is a stop/go checkpoint "
+        "before any ML.",
+        "docs/implementation/TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.0.md"),
 )
 
 
