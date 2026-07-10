@@ -143,6 +143,18 @@ def test_sample_floor_blocks_directional_verdict() -> None:
     assert "directional_precision" not in d       # §14: nothing computed past the floor
 
 
+def test_auc_is_half_for_constant_predictions() -> None:
+    """Tied scores must midrank to 0.5 — ordinal ranks fabricated 0.89 for
+    always_neutral in the first live §2 run (found in evidence review)."""
+    probs = [{"UP": 0.0, "DOWN": 0.0, "NEUTRAL": 1.0}] * 100
+    labels = ["UP"] * 40 + ["NEUTRAL"] * 60
+    assert va.auc_material(probs, labels) == pytest.approx(0.5)
+    # and a perfect separator still scores 1.0
+    perfect = [{"UP": 0.9, "DOWN": 0.0, "NEUTRAL": 0.1}] * 40 + \
+              [{"UP": 0.1, "DOWN": 0.0, "NEUTRAL": 0.9}] * 60
+    assert va.auc_material(perfect, labels) == pytest.approx(1.0)
+
+
 def test_always_neutral_log_loss_is_finite_via_clipping() -> None:
     probs = bl.always_neutral([], [{}] * 10)
     labels = ["UP"] * 5 + ["NEUTRAL"] * 5
