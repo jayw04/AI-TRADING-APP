@@ -1,0 +1,10 @@
+[Unit]
+Description=Log watcher + ADR 0035 operational responder (5-min issue detection) - ADR 0032 ops
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/workbench/app
+ExecStart=/bin/bash /opt/workbench/app/deploy/aws/log-watcher.sh
+SuccessExitStatus=0 1
