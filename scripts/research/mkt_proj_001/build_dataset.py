@@ -19,10 +19,6 @@ import json
 from collections import Counter
 from datetime import date
 
-from sqlalchemy import delete
-
-from app.db.models.market_projection import MarketProjectionTrainingRow
-from app.db.session import get_sessionmaker
 from app.services.market_projection import dataset as ds
 from app.services.market_projection.schemas import FEATURE_VERSION
 
@@ -60,6 +56,13 @@ def build(start: date, end: date) -> list[dict]:
 
 
 async def persist(rows: list[dict]) -> None:
+    # Lazy imports: --dry-run must work in a container that predates the §1
+    # model/migration (the hot-copy research pattern).
+    from sqlalchemy import delete
+
+    from app.db.models.market_projection import MarketProjectionTrainingRow
+    from app.db.session import get_sessionmaker
+
     sf = get_sessionmaker()
     dates = sorted({r["date"] for r in rows})
     async with sf() as s:
