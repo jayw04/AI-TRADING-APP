@@ -1,0 +1,618 @@
+{
+  "folds": 15,
+  "oos_days": 1868,
+  "oos_start": "2019-02-01",
+  "oos_end": "2026-07-09",
+  "elevated_call_min_p": 0.5,
+  "predictors": {
+    "always_neutral": {
+      "brier_material": 0.4031049250535332,
+      "log_loss_material": 5.569100944939858,
+      "ece_material": 0.4031049250535332,
+      "auc_material": 0.5,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.8062098501070664,
+      "log_loss_three_class": 5.569100944939858,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "unconditional": {
+      "brier_material": 0.2458177847223824,
+      "log_loss_material": 0.6858099639056355,
+      "ece_material": 0.06054894027048134,
+      "auc_material": 0.4773551533775213,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5684079852603544,
+      "log_loss_three_class": 0.9605272194945981,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "prior_day_direction": {
+      "brier_material": 0.2458177847223824,
+      "log_loss_material": 0.6858099639056355,
+      "ece_material": 0.06054894027048134,
+      "auc_material": 0.4772866679768222,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5685137778300706,
+      "log_loss_three_class": 0.960793597930928,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "momentum_5d_direction": {
+      "brier_material": 0.2458177847223824,
+      "log_loss_material": 0.6858099639056355,
+      "ece_material": 0.06054894027048134,
+      "auc_material": 0.4773551533775213,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5684435392473518,
+      "log_loss_three_class": 0.9608018840719378,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "vol_clustering_move_risk": {
+      "brier_material": 0.24050893594557046,
+      "log_loss_material": 0.6745835564508025,
+      "ece_material": 0.01931373126859496,
+      "auc_material": 0.5396369678237721,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5603514710885488,
+      "log_loss_three_class": 0.949300812039765,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "model_logistic": {
+      "brier_material": 0.23381687299358642,
+      "log_loss_material": 0.6701606034753665,
+      "ece_material": 0.03118337073056047,
+      "auc_material": 0.6144772181825762,
+      "elevated_coverage": 0.14346895074946467,
+      "brier_three_class": 0.5581153422538624,
+      "log_loss_three_class": 0.9578666302609893,
+      "directional": {
+        "non_neutral_calls": 102,
+        "up_calls": 98,
+        "down_calls": 4,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5444887118193891,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "model_boosted": {
+      "brier_material": 0.2352190161676055,
+      "log_loss_material": 0.6992429389052583,
+      "ece_material": 0.02761219895479632,
+      "auc_material": 0.6048600813487455,
+      "elevated_coverage": 0.1707708779443255,
+      "brier_three_class": 0.5583199720623001,
+      "log_loss_three_class": 1.036150704225613,
+      "directional": {
+        "non_neutral_calls": 107,
+        "up_calls": 77,
+        "down_calls": 30,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5351925630810093,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "model_ensemble": {
+      "brier_material": 0.23076086784414004,
+      "log_loss_material": 0.6549422710108072,
+      "ece_material": 0.030868241031877162,
+      "auc_material": 0.623221910564022,
+      "elevated_coverage": 0.14989293361884368,
+      "brier_three_class": 0.5502168679049081,
+      "log_loss_three_class": 0.9380632342463822,
+      "directional": {
+        "non_neutral_calls": 81,
+        "up_calls": 78,
+        "down_calls": 3,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5365205843293492,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    }
+  },
+  "best_magnitude_baseline": "vol_clustering_move_risk",
+  "best_directional_baseline": null,
+  "regime_slices": {
+    "always_neutral": {
+      "trend_down": {
+        "days": 368,
+        "brier_material": 0.47554347826086957
+      },
+      "trend_up": {
+        "days": 1500,
+        "brier_material": 0.38533333333333336
+      },
+      "vol_high": {
+        "days": 934,
+        "brier_material": 0.43683083511777304
+      },
+      "vol_low": {
+        "days": 934,
+        "brier_material": 0.3693790149892934
+      },
+      "year_2019": {
+        "days": 231,
+        "brier_material": 0.36363636363636365
+      },
+      "year_2020": {
+        "days": 253,
+        "brier_material": 0.44664031620553357
+      },
+      "year_2021": {
+        "days": 252,
+        "brier_material": 0.4087301587301587
+      },
+      "year_2022": {
+        "days": 251,
+        "brier_material": 0.4820717131474104
+      },
+      "year_2023": {
+        "days": 250,
+        "brier_material": 0.432
+      },
+      "year_2024": {
+        "days": 252,
+        "brier_material": 0.373015873015873
+      },
+      "year_2025": {
+        "days": 250,
+        "brier_material": 0.344
+      },
+      "year_2026": {
+        "days": 129,
+        "brier_material": 0.34108527131782945
+      }
+    },
+    "unconditional": {
+      "trend_down": {
+        "days": 368,
+        "brier_material": 0.26823640663059856
+      },
+      "trend_up": {
+        "days": 1500,
+        "brier_material": 0.24031774948089998
+      },
+      "vol_high": {
+        "days": 934,
+        "brier_material": 0.25709795347257547
+      },
+      "vol_low": {
+        "days": 934,
+        "brier_material": 0.23453761597218933
+      },
+      "year_2019": {
+        "days": 231,
+        "brier_material": 0.2377528137062347
+      },
+      "year_2020": {
+        "days": 253,
+        "brier_material": 0.26673963794180977
+      },
+      "year_2021": {
+        "days": 252,
+        "brier_material": 0.247678583133633
+      },
+      "year_2022": {
+        "days": 251,
+        "brier_material": 0.26774619965294866
+      },
+      "year_2023": {
+        "days": 250,
+        "brier_material": 0.25001612918087524
+      },
+      "year_2024": {
+        "days": 252,
+        "brier_material": 0.23390307454936415
+      },
+      "year_2025": {
+        "days": 250,
+        "brier_material": 0.22641868277413682
+      },
+      "year_2026": {
+        "days": 129,
+        "brier_material": 0.2256590438622773
+      }
+    },
+    "prior_day_direction": {
+      "trend_down": {
+        "days": 368,
+        "brier_material": 0.26823640663059856
+      },
+      "trend_up": {
+        "days": 1500,
+        "brier_material": 0.24031774948089998
+      },
+      "vol_high": {
+        "days": 934,
+        "brier_material": 0.25709795347257547
+      },
+      "vol_low": {
+        "days": 934,
+        "brier_material": 0.23453761597218933
+      },
+      "year_2019": {
+        "days": 231,
+        "brier_material": 0.2377528137062347
+      },
+      "year_2020": {
+        "days": 253,
+        "brier_material": 0.26673963794180977
+      },
+      "year_2021": {
+        "days": 252,
+        "brier_material": 0.247678583133633
+      },
+      "year_2022": {
+        "days": 251,
+        "brier_material": 0.26774619965294866
+      },
+      "year_2023": {
+        "days": 250,
+        "brier_material": 0.25001612918087524
+      },
+      "year_2024": {
+        "days": 252,
+        "brier_material": 0.23390307454936415
+      },
+      "year_2025": {
+        "days": 250,
+        "brier_material": 0.22641868277413682
+      },
+      "year_2026": {
+        "days": 129,
+        "brier_material": 0.22565904386227728
+      }
+    },
+    "momentum_5d_direction": {
+      "trend_down": {
+        "days": 368,
+        "brier_material": 0.26823640663059856
+      },
+      "trend_up": {
+        "days": 1500,
+        "brier_material": 0.24031774948089998
+      },
+      "vol_high": {
+        "days": 934,
+        "brier_material": 0.25709795347257547
+      },
+      "vol_low": {
+        "days": 934,
+        "brier_material": 0.23453761597218933
+      },
+      "year_2019": {
+        "days": 231,
+        "brier_material": 0.2377528137062347
+      },
+      "year_2020": {
+        "days": 253,
+        "brier_material": 0.26673963794180977
+      },
+      "year_2021": {
+        "days": 252,
+        "brier_material": 0.247678583133633
+      },
+      "year_2022": {
+        "days": 251,
+        "brier_material": 0.26774619965294866
+      },
+      "year_2023": {
+        "days": 250,
+        "brier_material": 0.25001612918087524
+      },
+      "year_2024": {
+        "days": 252,
+        "brier_material": 0.23390307454936415
+      },
+      "year_2025": {
+        "days": 250,
+        "brier_material": 0.22641868277413682
+      },
+      "year_2026": {
+        "days": 129,
+        "brier_material": 0.22565904386227728
+      }
+    },
+    "vol_clustering_move_risk": {
+      "trend_down": {
+        "days": 368,
+        "brier_material": 0.25046133512134144
+      },
+      "trend_up": {
+        "days": 1500,
+        "brier_material": 0.23806728068111466
+      },
+      "vol_high": {
+        "days": 934,
+        "brier_material": 0.24653491584736972
+      },
+      "vol_low": {
+        "days": 934,
+        "brier_material": 0.23448295604377128
+      },
+      "year_2019": {
+        "days": 231,
+        "brier_material": 0.23172342593353215
+      },
+      "year_2020": {
+        "days": 253,
+        "brier_material": 0.2532797733629221
+      },
+      "year_2021": {
+        "days": 252,
+        "brier_material": 0.24194086244399934
+      },
+      "year_2022": {
+        "days": 251,
+        "brier_material": 0.25224668945608025
+      },
+      "year_2023": {
+        "days": 250,
+        "brier_material": 0.24337586560510596
+      },
+      "year_2024": {
+        "days": 252,
+        "brier_material": 0.2372035757758704
+      },
+      "year_2025": {
+        "days": 250,
+        "brier_material": 0.22697745899390434
+      },
+      "year_2026": {
+        "days": 129,
+        "brier_material": 0.2326833306994149
+      }
+    },
+    "model_logistic": {
+      "trend_down": {
+        "days": 368,
+        "brier_material": 0.2500856710143928
+      },
+      "trend_up": {
+        "days": 1500,
+        "brier_material": 0.22982559454581528
+      },
+      "vol_high": {
+        "days": 934,
+        "brier_material": 0.24258538473829241
+      },
+      "vol_low": {
+        "days": 934,
+        "brier_material": 0.2250483612488804
+      },
+      "year_2019": {
+        "days": 231,
+        "brier_material": 0.22402100188784346
+      },
+      "year_2020": {
+        "days": 253,
+        "brier_material": 0.24349992106064217
+      },
+      "year_2021": {
+        "days": 252,
+        "brier_material": 0.2211072591980247
+      },
+      "year_2022": {
+        "days": 251,
+        "brier_material": 0.2596842542145724
+      },
+      "year_2023": {
+        "days": 250,
+        "brier_material": 0.24448450856379628
+      },
+      "year_2024": {
+        "days": 252,
+        "brier_material": 0.2343908231431099
+      },
+      "year_2025": {
+        "days": 250,
+        "brier_material": 0.20681674953534349
+      },
+      "year_2026": {
+        "days": 129,
+        "brier_material": 0.2373954124416789
+      }
+    },
+    "model_boosted": {
+      "trend_down": {
+        "days": 368,
+        "brier_material": 0.25079929967885295
+      },
+      "trend_up": {
+        "days": 1500,
+        "brier_material": 0.23139665327951275
+      },
+      "vol_high": {
+        "days": 934,
+        "brier_material": 0.24653200392014707
+      },
+      "vol_low": {
+        "days": 934,
+        "brier_material": 0.2239060284150639
+      },
+      "year_2019": {
+        "days": 231,
+        "brier_material": 0.22758295220061334
+      },
+      "year_2020": {
+        "days": 253,
+        "brier_material": 0.2519887105665216
+      },
+      "year_2021": {
+        "days": 252,
+        "brier_material": 0.22322282056968332
+      },
+      "year_2022": {
+        "days": 251,
+        "brier_material": 0.26066792094719726
+      },
+      "year_2023": {
+        "days": 250,
+        "brier_material": 0.2458581232001376
+      },
+      "year_2024": {
+        "days": 252,
+        "brier_material": 0.2329380480633341
+      },
+      "year_2025": {
+        "days": 250,
+        "brier_material": 0.2062415308509554
+      },
+      "year_2026": {
+        "days": 129,
+        "brier_material": 0.22991640235174582
+      }
+    },
+    "model_ensemble": {
+      "trend_down": {
+        "days": 368,
+        "brier_material": 0.24214268986479076
+      },
+      "trend_up": {
+        "days": 1500,
+        "brier_material": 0.22796852750840704
+      },
+      "vol_high": {
+        "days": 934,
+        "brier_material": 0.23954906788183172
+      },
+      "vol_low": {
+        "days": 934,
+        "brier_material": 0.22197266780644834
+      },
+      "year_2019": {
+        "days": 231,
+        "brier_material": 0.2234560946182316
+      },
+      "year_2020": {
+        "days": 253,
+        "brier_material": 0.2372538370839343
+      },
+      "year_2021": {
+        "days": 252,
+        "brier_material": 0.218740887542743
+      },
+      "year_2022": {
+        "days": 251,
+        "brier_material": 0.255646673958291
+      },
+      "year_2023": {
+        "days": 250,
+        "brier_material": 0.24325119874544945
+      },
+      "year_2024": {
+        "days": 252,
+        "brier_material": 0.2325477762831792
+      },
+      "year_2025": {
+        "days": 250,
+        "brier_material": 0.20363879564279386
+      },
+      "year_2026": {
+        "days": 129,
+        "brier_material": 0.23103229030296457
+      }
+    }
+  },
+  "move_risk_gate": {
+    "vs": "vol_clustering_move_risk",
+    "brier_delta_ci": {
+      "delta": -0.006692062951984046,
+      "ci_low": -0.012964917420393776,
+      "ci_high": -0.00023905766676308172
+    },
+    "ece_guardrail_ok": true,
+    "coverage_in_band": true,
+    "passes": true
+  },
+  "direction_gate": {
+    "verdict": "insufficient_sample",
+    "model_floor_met": false,
+    "baseline_available": false
+  },
+  "permutation_importance_last_fold": {
+    "spy_intraday_ret": -0.00024,
+    "qqq_intraday_ret": 3e-05,
+    "iwm_intraday_ret": -0.00146,
+    "spy_late_day_ret": -0.00116,
+    "sector_breadth": 0.00014,
+    "up_sector_count": -0.00271,
+    "sector_coverage_count": 0.0,
+    "spy_volume_vs_20d_tod": -0.00221,
+    "spy_intraday_vol": 0.00307,
+    "spy_hl_range_pct": 0.00224,
+    "fade_recovery": 0.00592,
+    "spy_ret_1d": -0.00014,
+    "spy_ret_5d": -0.00214,
+    "spy_realized_vol_20d": -0.00081,
+    "atr20_pct": -0.00911,
+    "spy_dist_ma20": -0.0064,
+    "spy_dist_ma50": 0.00712,
+    "spy_dist_ma200": 0.00274,
+    "regime_trend": -0.00097,
+    "regime_vol": -0.00363
+  },
+  "registered_model": {
+    "model_version": "calibrated_logistic_primary-mktproj-fv1-2016-02-03_2026-07-09",
+    "model_type": "calibrated_logistic_primary",
+    "projection_type": "PRE_CLOSE_TOMORROW",
+    "artifact_path": "data/market_projection/models/calibrated_logistic_primary-mktproj-fv1-2016-02-03_2026-07-09.joblib",
+    "artifact_hash": "5ec687017d9b7d4fd8af99a87ab2dae4184b1691e420d08b098fb76129a3bd95",
+    "feature_version": "mktproj-fv1",
+    "label_version": "mktproj-lv1",
+    "training_window": "2016-02-03..2026-07-09",
+    "validation_window": "2019-02-01..2026-07-09",
+    "git_commit": null,
+    "status": "candidate"
+  },
+  "meta": {
+    "program": "MKT-PROJ-001",
+    "stage": "\u00a73 ML evidence (owner model-card review gates \u00a74)",
+    "projection_type": "PRE_CLOSE_TOMORROW",
+    "feature_version": "mktproj-fv1",
+    "label_version": "mktproj-lv1",
+    "pre_registration": "TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.2.md",
+    "git_commit": null,
+    "generated_at": "2026-07-10T22:56:15.344730+00:00"
+  }
+}
