@@ -3,7 +3,7 @@
 Display-only decision support: daily probabilistic UP/DOWN/NEUTRAL projection
 for the broad market with a separate material-move-risk probability. Governed
 by the FROZEN pre-registration
-(docs/implementation/TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.1.md):
+(docs/implementation/TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.2.md):
 primary = SPY / PRE_CLOSE_TOMORROW / PIT ATR threshold / walk-forward vs the
 best pre-registered baseline / calibrated logistic regression.
 

@@ -92,7 +92,7 @@ def main() -> int:
             "projection_type": ptype.value,
             "feature_version": FEATURE_VERSION,
             "label_version": LABEL_VERSION,
-            "pre_registration": "TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.1.md",
+            "pre_registration": "TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.2.md",
             "git_commit": commit,
             "generated_at": datetime.now(UTC).isoformat(),
         }

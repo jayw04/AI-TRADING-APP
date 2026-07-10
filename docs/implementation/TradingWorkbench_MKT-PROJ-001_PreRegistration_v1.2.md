@@ -1,4 +1,4 @@
-# MKT-PROJ-001 — Pre-Registration v1.1 (FROZEN)
+# MKT-PROJ-001 — Pre-Registration v1.2 (FROZEN)
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | Status | **FROZEN 2026-07-10 — owner final review (9.5/10) approved the freeze after its 7 pre-freeze edits. v1.1 amendment (owner-provided, same day, BEFORE any validation run existed): the §6a missing-value rule. §1 complete; §2 authorized.** |
 | Governing docs | Design v0.2 (`Docs/design/TradingWorkbench_MarketProjectionEngine_RequirementsDesign_v0.2.md`) · Implementation plan v0.2 · Owner reviews 2026-07-10 (plan 9.2/10, final 9.5/10 — both snapshotted alongside) |
 | Registered before | any model training, any validation run (v1.0 preceded the dataset build; v1.1 precedes any §2 run) |
-| Amendments | v1.0→v1.1 (2026-07-10): added §6a missing-value rule, owner-frozen verbatim. No validation output existed at amendment time — nothing invalidated (§10.3). |
+| Amendments | v1.0→v1.1 (2026-07-10): added §6a missing-value rule, owner-frozen verbatim. v1.1→v1.2 (2026-07-10, owner approval message): confirmed the expanded structurally-missing enumeration + unexpected-missingness-is-a-data-quality-failure clarification (§6a); froze the elevated-call definition P(MATERIAL) ≥ 0.5 with a no-later-tuning prohibition (§3); confirmed the §14 floor is unrescuable by the conditional diagnostic (§3). No validation output existed at any amendment time — nothing invalidated (§10.3). |
 
 Everything in this document is frozen **before** the first training row is built. Nothing here
 may change after validation results are seen; a change requires a new pre-registration version
@@ -70,7 +70,9 @@ dropped.
    diagnostic;
 4. **coverage (numeric):** elevated-move-risk calls on **10%–60% of OOS days**, otherwise the
    Move-Risk verdict is `Inconclusive / insufficient coverage` (a model that never calls risk,
-   or always calls it, cannot pass);
+   or always calls it, cannot pass). **Elevated move-risk call = P(MATERIAL) ≥ 0.5** (v1.2,
+   owner-frozen pre-evidence); this threshold **must not be tuned later to satisfy the
+   coverage gate**;
 5. no major regime failure (§7 slices reviewed).
 
 **Direction Gate — "Validated Direction Projection" requires ALL of:**
@@ -80,7 +82,10 @@ dropped.
 2. CI on the directional precision uplift excludes zero;
 3. sample floor met: ≥100 non-neutral OOS calls with ≥50 UP and ≥50 DOWN — otherwise the
    directional verdict is the literal `insufficient_sample` and no directional CI is computed
-   or displayed anywhere;
+   or displayed anywhere. Directional calls are argmax-based and therefore honestly sparse on
+   a majority-NEUTRAL target; **if the floor is not met, no directional skill claim is
+   allowed — the §7.2 conditional-direction diagnostic is reported for interpretation only
+   and cannot rescue a failed floor** (v1.2, owner-confirmed);
 4. false-positive rate bounded (reported vs baselines; reviewed);
 5. no major regime failure; model stable across time windows.
 
@@ -168,6 +173,11 @@ spy_volume_vs_20d_tod_missing                             (20-session baseline w
 
 The first three are the owner-named premarket-quality fields; the last two apply the same
 principle to the only other fields that are None *by design* rather than by data error.
+This enumeration was owner-confirmed (v1.2) with the clarification: **only these
+pre-enumerated structurally-missing fields are imputed this way; unexpected missingness in
+any other required feature is a data-quality failure** — the row is excluded
+(`valid_for_training=false` historically; "Projection unavailable" live), never silently
+imputed.
 
 ## 7. Frozen validation design
 
