@@ -1,0 +1,129 @@
+{
+  "folds": 15,
+  "oos_days": 1869,
+  "oos_start": "2019-02-01",
+  "oos_end": "2026-07-10",
+  "elevated_call_min_p": 0.5,
+  "predictors": {
+    "always_neutral": {
+      "brier_material": 0.29106474050294273,
+      "log_loss_material": 4.021208704405151,
+      "ece_material": 0.29106474050294273,
+      "auc_material": 0.5,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5821294810058855,
+      "log_loss_three_class": 4.021208704405151,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5073529411764706,
+        "material_days": 544,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "unconditional": {
+      "brier_material": 0.2104941037954706,
+      "log_loss_material": 0.6145266617364926,
+      "ece_material": 0.06055819956292194,
+      "auc_material": 0.49993548834628193,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.4613200425402426,
+      "log_loss_three_class": 0.8165351413712297,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5073529411764706,
+        "material_days": 544,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "prior_day_direction": {
+      "brier_material": 0.2104941037954706,
+      "log_loss_material": 0.6145266617364926,
+      "ece_material": 0.06055819956292196,
+      "auc_material": 0.49993548834628193,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.46143836043554587,
+      "log_loss_three_class": 0.8171308228626227,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.49264705882352944,
+        "material_days": 544,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "momentum_5d_direction": {
+      "brier_material": 0.2104941037954706,
+      "log_loss_material": 0.6145266617364926,
+      "ece_material": 0.06055819956292196,
+      "auc_material": 0.49993548834628193,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.46132398533940083,
+      "log_loss_three_class": 0.8166584989231931,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5,
+        "material_days": 544,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "vol_clustering_move_risk": {
+      "brier_material": 0.20498063290475135,
+      "log_loss_material": 0.6001815007437867,
+      "ece_material": 0.02665148895249693,
+      "auc_material": 0.5614872364039956,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.45306864325427526,
+      "log_loss_three_class": 0.8021899803785238,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5073529411764706,
+        "material_days": 544,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "premarket_gap_direction": {
+      "brier_material": 0.2104941037954706,
+      "log_loss_material": 0.6145266617364926,
+      "ece_material": 0.06055819956292196,
+      "auc_material": 0.49988970588235293,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.46133550546814334,
+      "log_loss_three_class": 0.8166857624589599,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5073529411764706,
+        "material_days": 544,
+        "verdict": "insufficient_sample"
+      }
+    }
+  },
+  "best_magnitude_baseline": "vol_clustering_move_risk",
+  "best_directional_baseline": null,
+  "meta": {
+    "program": "MKT-PROJ-001",
+    "stage": "\u00a72 baselines-only (owner checkpoint before \u00a73 ML)",
+    "projection_type": "PRE_OPEN_TODAY",
+    "feature_version": "mktproj-fv1",
+    "label_version": "mktproj-lv1",
+    "pre_registration": "TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.2.md",
+    "git_commit": null,
+    "generated_at": "2026-07-10T21:19:00.047914+00:00"
+  }
+}

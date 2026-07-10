@@ -1,0 +1,111 @@
+{
+  "folds": 15,
+  "oos_days": 1868,
+  "oos_start": "2019-02-01",
+  "oos_end": "2026-07-09",
+  "elevated_call_min_p": 0.5,
+  "predictors": {
+    "always_neutral": {
+      "brier_material": 0.4031049250535332,
+      "log_loss_material": 5.569100944939858,
+      "ece_material": 0.4031049250535332,
+      "auc_material": 0.5,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.8062098501070664,
+      "log_loss_three_class": 5.569100944939858,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "unconditional": {
+      "brier_material": 0.2458177847223824,
+      "log_loss_material": 0.6858099639056355,
+      "ece_material": 0.06054894027048134,
+      "auc_material": 0.4773551533775213,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5684079852603544,
+      "log_loss_three_class": 0.9605272194945981,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "prior_day_direction": {
+      "brier_material": 0.2458177847223824,
+      "log_loss_material": 0.6858099639056355,
+      "ece_material": 0.06054894027048134,
+      "auc_material": 0.4772866679768222,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5685137778300706,
+      "log_loss_three_class": 0.960793597930928,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "momentum_5d_direction": {
+      "brier_material": 0.2458177847223824,
+      "log_loss_material": 0.6858099639056355,
+      "ece_material": 0.06054894027048134,
+      "auc_material": 0.4773551533775213,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5684435392473518,
+      "log_loss_three_class": 0.9608018840719378,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    },
+    "vol_clustering_move_risk": {
+      "brier_material": 0.24050893594557046,
+      "log_loss_material": 0.6745835564508025,
+      "ece_material": 0.01931373126859496,
+      "auc_material": 0.5396369678237721,
+      "elevated_coverage": 0.0,
+      "brier_three_class": 0.5603514710885488,
+      "log_loss_three_class": 0.949300812039765,
+      "directional": {
+        "non_neutral_calls": 0,
+        "up_calls": 0,
+        "down_calls": 0,
+        "sample_floor_met": false,
+        "conditional_direction_accuracy_on_material": 0.5776892430278885,
+        "material_days": 753,
+        "verdict": "insufficient_sample"
+      }
+    }
+  },
+  "best_magnitude_baseline": "vol_clustering_move_risk",
+  "best_directional_baseline": null,
+  "meta": {
+    "program": "MKT-PROJ-001",
+    "stage": "\u00a72 baselines-only (owner checkpoint before \u00a73 ML)",
+    "projection_type": "PRE_CLOSE_TOMORROW",
+    "feature_version": "mktproj-fv1",
+    "label_version": "mktproj-lv1",
+    "pre_registration": "TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.2.md",
+    "git_commit": null,
+    "generated_at": "2026-07-10T21:18:59.572152+00:00"
+  }
+}
