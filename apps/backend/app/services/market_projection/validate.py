@@ -102,13 +102,24 @@ def ece_material(probs: Sequence[Probs], labels: Sequence[str], bins: int = ECE_
 
 
 def auc_material(probs: Sequence[Probs], labels: Sequence[str]) -> float | None:
-    """Rank-based (Mann-Whitney) AUC for the MATERIAL classification."""
+    """Rank-based (Mann-Whitney) AUC for the MATERIAL classification.
+
+    Uses MIDRANKS for ties — with tied scores (e.g. a constant-probability
+    baseline) ordinal ranks silently encode array order and fabricate
+    discrimination; midranks give the correct 0.5."""
     p = np.array([_p_material(q) for q in probs])
     y = np.array([_y_material(label) for label in labels])
     pos, neg = p[y == 1], p[y == 0]
     if not len(pos) or not len(neg):
         return None
-    ranks = np.argsort(np.argsort(np.concatenate([pos, neg]))) + 1
+    combined = np.concatenate([pos, neg])
+    order = combined.argsort(kind="mergesort")
+    ranks = np.empty(len(combined))
+    ranks[order] = np.arange(1, len(combined) + 1)
+    for val in np.unique(combined):
+        mask = combined == val
+        if mask.sum() > 1:
+            ranks[mask] = ranks[mask].mean()
     return float((ranks[: len(pos)].sum() - len(pos) * (len(pos) + 1) / 2)
                  / (len(pos) * len(neg)))
 
