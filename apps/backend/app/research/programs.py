@@ -306,7 +306,7 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "Realistic prior: Rejected/Inconclusive on direction. Owner-gated: §1 starts only after the "
         "pre-registration freeze is reviewed; §2 baseline-only evidence is a stop/go checkpoint "
         "before any ML.",
-        "docs/implementation/TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.0.md"),
+        "docs/implementation/TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.1.md"),
 )
 
 

@@ -1,13 +1,14 @@
-# MKT-PROJ-001 — Pre-Registration v1.0 (FROZEN)
+# MKT-PROJ-001 — Pre-Registration v1.1 (FROZEN)
 
 | Field | Value |
 |---|---|
 | Program | MKT-PROJ-001 — Market Projection Engine |
 | Capability | CAP-027 — Market Projection Engine (display-only decision support) |
 | Date | 2026-07-10 |
-| Status | **FROZEN 2026-07-10 — owner final review (9.5/10) approved the freeze after its 7 pre-freeze edits, all applied in this version. §1 authorized.** |
+| Status | **FROZEN 2026-07-10 — owner final review (9.5/10) approved the freeze after its 7 pre-freeze edits. v1.1 amendment (owner-provided, same day, BEFORE any validation run existed): the §6a missing-value rule. §1 complete; §2 authorized.** |
 | Governing docs | Design v0.2 (`Docs/design/TradingWorkbench_MarketProjectionEngine_RequirementsDesign_v0.2.md`) · Implementation plan v0.2 · Owner reviews 2026-07-10 (plan 9.2/10, final 9.5/10 — both snapshotted alongside) |
-| Registered before | any dataset build, any model training, any validation run |
+| Registered before | any model training, any validation run (v1.0 preceded the dataset build; v1.1 precedes any §2 run) |
+| Amendments | v1.0→v1.1 (2026-07-10): added §6a missing-value rule, owner-frozen verbatim. No validation output existed at amendment time — nothing invalidated (§10.3). |
 
 Everything in this document is frozen **before** the first training row is built. Nothing here
 may change after validation results are seen; a change requires a new pre-registration version
@@ -140,6 +141,33 @@ No other feature may influence displayed production probabilities. Adding a feat
   the earlier 80%, calibration fits on the final contiguous 20%; the test fold is strictly
   future. **Random/non-temporal K-fold calibration is forbidden for the primary evidence run.**
 - Seed 42 everywhere; artifacts hashed; git commit recorded (NFR-002).
+
+### 6a. Missing-value rule (v1.1 amendment — owner-frozen 2026-07-10, verbatim)
+
+> For numeric features with missing values, impute using the median fitted on the training
+> window only, then apply standardization fitted on the same training window only. The fitted
+> imputer and scaler are carried forward to the validation/test window. No validation/test data
+> may influence the imputation or scaling parameters.
+>
+> For structurally missing premarket-quality fields stored as None by design, add a
+> pre-registered binary missingness indicator per affected feature before imputation, so the
+> model can distinguish "median-like value" from "not observed / zero-quality premarket gap."
+> The imputed numeric value remains the train-window median.
+>
+> No target-aware, full-sample, cross-window, or post-hoc imputation is allowed.
+
+Pre-registered missingness indicators (the enumeration of "per affected feature" for the
+structurally-None-by-design fields; derived by the pipeline from observed None-ness at both
+train and inference time — not stored in `features_json`, so `feature_version` is unchanged):
+
+```text
+spy_gap_missing, qqq_gap_missing, iwm_gap_missing        (zero-quality premarket gap)
+spy_late_day_ret_missing                                  (half days: 14:30 > close−15m)
+spy_volume_vs_20d_tod_missing                             (20-session baseline warm-up)
+```
+
+The first three are the owner-named premarket-quality fields; the last two apply the same
+principle to the only other fields that are None *by design* rather than by data error.
 
 ## 7. Frozen validation design
 
