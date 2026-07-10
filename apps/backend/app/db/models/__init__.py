@@ -12,6 +12,7 @@ from app.db.models.eval_harness import EvalHarness, EvalHarnessDecision
 from app.db.models.fill import Fill
 from app.db.models.journal_note import JournalNote
 from app.db.models.llm_opt_in import LLMOptIn
+from app.db.models.market_projection import MarketProjectionTrainingRow
 from app.db.models.morning_brief import MorningBrief
 from app.db.models.order import Order
 from app.db.models.position import Position
@@ -52,6 +53,7 @@ __all__ = [
     "LLMOptIn",
     "Fill",
     "JournalNote",
+    "MarketProjectionTrainingRow",
     "MorningBrief",
     "Order",
     "Position",
