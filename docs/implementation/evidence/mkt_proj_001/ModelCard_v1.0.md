@@ -77,12 +77,59 @@ sensitivity, nothing more.
    runs with §4 if built.
 4. ~10 years of history; one bear year in OOS. 2022 is the only stress test we have.
 
-## Recommendation (the §4 decision this card gates)
+## OWNER DECISION — 2026-07-10 (gate item 5 adjudicated)
 
-If you accept the regime pattern as "no major failure": the **primary horizon qualifies as a
-Validated Move-Risk Projection** — badge and wording capped at *"Elevated move risk; direction
-uncertain"* — and §4 (jobs/API/Research-Preview card, LLM off) is worth building around that
-single validated claim, with the CEE rolling-calibration watch and the 30-day drift diagnostic
-as the guard rails. If you judge 2022 disqualifying: the honest close is **Inconclusive
-(regime-limited)** at §3, zero UI spend, with the §4 decision revisitable after more forward
-OOS accrues. Either answer is a clean Evidence Engineering outcome.
+**Accept item 5. Proceed to §4. Do not stop at §3. Do not switch to the ensemble. Do not make
+directional claims. Do not claim stress-regime validation.** The 2022 result is a warning, not
+disqualifying: the model is not catastrophically worse in stress, the down-trend slice is a
+wash, and the primary frozen gate passed with a real, pre-registered threshold that finally
+produced usable coverage. The correct response is limited validation, not rejection.
+
+### Approved claim (exact product/evidence framing)
+
+> **Validated Move-Risk Projection — Primary Horizon Only**
+>
+> The model identifies days with elevated probability of a material market move.
+> Direction is uncertain.
+> Evidence is strongest in benign/up-trending regimes.
+> Stress-regime reliability is not yet established.
+
+Forbidden wording (in addition to NFR-006): *predicts market direction · predicts crashes ·
+works in bear markets · trading signal · buy/sell indicator*.
+
+### Regime limitation (owner-required wording)
+
+> **Regime limitation:** The §3 validation pass is concentrated in benign/up-trending regimes.
+> The 2022 bear-year slice favored the baseline, and down-trend days were approximately a
+> wash. Therefore the model is validated only as a primary-horizon elevated move-risk
+> projection, not as a stress-regime or bear-market predictor.
+
+### Dispositions
+
+- **Ensemble** (Brier 0.2308 > primary): *Sensitivity only. Candidate for a future
+  pre-registered MKT-PROJ-002, not for MKT-PROJ-001 promotion.* Switching now would be tuning.
+- **Direction**: closed for v1. Failed the sample floor; no directional badge, no UP/DOWN UI,
+  no directional model-card claim. The conditional diagnostic stays in the evidence appendix
+  only.
+- **Secondary horizon (PRE_OPEN)**: no claim of any kind; not served.
+
+### §4 conditions (owner-frozen scope)
+
+Build only around: *"Elevated move risk; direction uncertain."*
+**Allowed:** inference job · API endpoint · Research Preview card · outcome tracking ·
+calibration-drift monitoring (CEE) · 30-day train/serve diagnostic · model card ·
+primary-horizon elevated move-risk label.
+**Not allowed:** order path · ranking · sizing · portfolio construction · directional call ·
+secondary-horizon claim · ensemble substitution · threshold tuning · LLM-generated market
+explanation (any narrative shown is templated and model-card-approved; LLM prose stays off).
+
+**§4 guardrails (owner-required):** (1) freeze the logistic artifact + threshold; (2) serve
+only the primary horizon; (3) show only "Elevated move risk; direction uncertain"; (4) track
+realized outcomes for every served prediction; (5) monitor calibration drift through CEE;
+(6) report regime slices monthly (uptrend/downtrend/high-vol/low-vol/stress-like);
+(7) stress-regime caution in the model card (above); (8) disable or downgrade the card if the
+train/serve diagnostic drifts materially.
+
+**Final verdict of record:** *Validated: primary-horizon elevated move-risk probability.
+Not validated: direction, secondary horizon, stress-regime prediction, trading use.*
+The §4 model-card/API/UI plan returns to the owner before any user-visible card is built.

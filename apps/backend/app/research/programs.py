@@ -297,16 +297,19 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "docs/implementation/evidence/gapper_001/shadow_ledger_summary.md"),
     ResearchProgram(
         "MKT-PROJ-001", "Market Projection",
-        "Probabilistic broad-market context: material-move risk + direction (display-only)", "planned",
-        "PLANNING (§0) — Market Projection Engine (CAP-027): daily UP/DOWN/NEUTRAL projection for SPY "
-        "with separate P(MATERIAL) move-risk, PRE_CLOSE_TOMORROW primary, PIT ATR threshold, "
-        "walk-forward vs best-of-6-baselines, calibrated logistic primary. Two independent gates "
-        "(Move-Risk / Direction; direction floor 50/50/100 non-neutral OOS calls). Research Preview "
-        "surface only — no ranking, sizing, orders, or order-path imports (NFR-001 CI-enforced). "
-        "Realistic prior: Rejected/Inconclusive on direction. Owner-gated: §1 starts only after the "
-        "pre-registration freeze is reviewed; §2 baseline-only evidence is a stop/go checkpoint "
-        "before any ML.",
-        "docs/implementation/TradingWorkbench_MKT-PROJ-001_PreRegistration_v1.2.md"),
+        "Probabilistic broad-market context: material-move risk + direction (display-only)", "research",
+        "§3 GATE PASSED WITH LIMITED VALIDATION (2026-07-10, owner-adjudicated) — 'Validated "
+        "Move-Risk Projection, Primary Horizon Only' (PRE_CLOSE_TOMORROW): calibrated logistic Brier "
+        "0.2338 vs best-baseline 0.2405, CI [-0.0130,-0.0002] excludes zero (marginal), ECE 0.0312 "
+        "within guardrail, elevated-call coverage 14% inside the frozen 10-60% band that zeroed every "
+        "baseline. Wording capped at 'Elevated move risk; direction uncertain.' NOT validated: "
+        "direction (insufficient_sample, closed for v1), secondary PRE_OPEN horizon (CI spans zero), "
+        "stress regimes (2022 favored the baseline; owner-required regime limitation in "
+        "ModelCard_v1.0). Ensemble beat the primary (0.2308) -> sensitivity only, candidate for a "
+        "future pre-registered MKT-PROJ-002. §4 (inference/API/Research-Preview card, LLM prose OFF, "
+        "8 owner guardrails) plan returns to the owner before any user-visible card; display-only "
+        "forever absent a separate MKT-PROJ-STRAT-001 (NFR-001 CI-enforced).",
+        "docs/implementation/evidence/mkt_proj_001/ModelCard_v1.0.md"),
 )
 
 
