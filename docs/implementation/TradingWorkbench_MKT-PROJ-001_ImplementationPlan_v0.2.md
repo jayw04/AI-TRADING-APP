@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | v0.1 (draft — for owner review; execution starts only after the §0 freeze) |
+| Document version | v0.2 — folds the owner plan review (9.2/10, 2026-07-10, `TradingWorkbench_MKT-PROJ-001_PlanReview_2026-07-10.md`): **approved to enter §0 only**; §1 does not start until the owner reviews the pre-registration freeze |
 | Date | 2026-07-10 |
 | Program | MKT-PROJ-001 (design: `Docs/design/TradingWorkbench_MarketProjectionEngine_RequirementsDesign_v0.2.md`) |
 | Capability | CAP-TBD — Market Projection Engine (id assigned at registry entry) |
@@ -98,13 +98,20 @@ inside a request path.
   "Projection unavailable — feature mismatch").
 - Shadow features live in a *separate* column namespace (`shadow_features_json`) and a separate
   shadow model id; the API never returns shadow model output. Promotion path per §8.4 only.
+  **Shadow track rules (plan-review §6):** shadow-model results appear only in internal
+  evidence reports, never on the user-facing card, until a separate forward-evidence gate is
+  met; expectation set now — SCAN/GAPPER shadow features likely need **6–12 months of forward
+  observations** before supporting any serious evidence claim.
 - Every feature function takes `(bars, as_of)` and is unit-tested for PIT: given data past
   `as_of`, output must be identical to data truncated at `as_of` (the leakage test pattern).
 
 ## Label construction (design §5.3, §6, FR-002)
 
-- `threshold_t = max(0.60%, 0.50 × ATR20_pct_t)`, ATR20 through **t−1** only (PIT), computed
-  from the same daily-bar series the features use.
+- Threshold naming made unambiguous (plan-review §4): `threshold_asof_forecast_date =
+  max(0.60%, 0.50 × ATR20_pct)` where ATR20 is computed **through the last fully completed
+  regular session before the forecast timestamp**. For PRE_OPEN_TODAY that is prior close; for
+  PRE_CLOSE_TOMORROW at 15:45 the conservative v1 rule is ATR **through t−1** (today's still-
+  forming bar is never used). Computed from the same daily-bar series the features use.
 - PRE_CLOSE_TOMORROW label: close(t+1) vs close(t). PRE_OPEN_TODAY label: close(t) vs
   regular-session open(t) — open-to-close, the v0.2 leakage fix.
 - Half days: label uses the actual early close; days where the market is closed produce no row.
@@ -113,6 +120,26 @@ inside a request path.
 - Sensitivity labeler: fixed ±0.75% behind the same interface (one parameter object, frozen
   in pre-registration; the dynamic threshold is primary).
 
+## Primary binding gates (plan-review §1 — this wording goes verbatim into the pre-registration)
+
+Primary configuration: **SPY · PRE_CLOSE_TOMORROW · close(t+1) vs close(t) · historically
+validated features only · primary model = calibrated logistic regression** (plan-review §2:
+boosted + ensemble are secondary/sensitivity only and never the gate model in v1).
+
+Two separate verdict gates:
+
+- **Move-Risk Gate** — *Validated Move-Risk Projection* requires statistically significant
+  improvement in P(MATERIAL) calibration/Brier or log-loss versus the **best** pre-registered
+  magnitude baseline (CI excluding zero).
+- **Direction Gate** — *Validated Direction Projection* requires directional precision uplift
+  versus the **best** pre-registered directional baseline, CI excluding zero, AND the §14
+  sample floor satisfied.
+
+Product rule (prevents a volatility model being marketed as directional skill): if only the
+Move-Risk Gate passes, the badge is *Validated Move-Risk Projection* and the strongest allowed
+wording is "Elevated move risk; direction uncertain" — never "Validated UP/DOWN projection".
+Only a passed Direction Gate permits the *Validated Direction Projection* badge.
+
 ## Model approach (design §10, FR-005/006)
 
 - **Baselines (all six, pre-registered):** Always-Neutral; unconditional class frequencies;
@@ -120,9 +147,13 @@ inside a request path.
   from recent realized vol quantile); premarket-gap direction (PRE_OPEN only). The binding gate
   compares against the **best** of these per metric (design §0.5).
 - **ML:** scikit-learn `LogisticRegression` (L2, standardized features) and
-  `HistGradientBoostingClassifier`, each wrapped in `CalibratedClassifierCV` (isotonic for the
-  boosted model, Platt for logistic) fitted walk-forward-safely (calibration split inside each
-  training window only). Three-class output; `P(MATERIAL) = P(UP)+P(DOWN)`.
+  `HistGradientBoostingClassifier`, each calibrated (Platt for logistic, isotonic for the
+  boosted model). Three-class output; `P(MATERIAL) = P(UP)+P(DOWN)`.
+- **Time-respecting calibration only (plan-review §3):** within each walk-forward training
+  window, the base model trains on the earlier portion and calibration fits on the final
+  contiguous slice; the test fold remains strictly future data. **Random/non-temporal K-fold
+  calibration is forbidden for the primary evidence run** (so no default `CalibratedClassifierCV`
+  cv splits — an explicit temporal split is passed).
 - **No deep nets, no SHAP dependency** in v1 (attribution below covers §10.2 with what sklearn
   provides). Simple average ensemble of the two calibrated models is computed and reported but
   is NOT the primary unless pre-registered as such — one primary model is frozen in §0.
@@ -188,16 +219,29 @@ queries; inference is a sklearn predict.
   P(MATERIAL), confidence chip, threshold, top drivers, evidence-status badge, last-updated,
   and the fixed two-line disclaimer. Wording passes the same advice-adjacent review as the
   Opportunity Report (NFR-006 vocabulary enforced by a frontend constant + a backend test that
-  scans display phrases against the forbidden list). Design must read naturally when confidence
-  is LOW every day (§18 reality check) and when the API returns "Projection unavailable".
+  scans display phrases against the forbidden list) — **and that review is a §4 merge gate**
+  (plan-review suggestion 4): the §4 PR does not merge until the card wording is signed off.
+  **LOW confidence must look normal, not like an error or failure state** (Q7 answer) — it will
+  be the everyday display; "Projection unavailable" is likewise a designed state, not a broken
+  one.
+- **Naming guardrail** (plan-review suggestion 5): components are named *Market Projection
+  Engine / Card / API* — never "Market Intelligence".
+- **Train/serve mismatch diagnostic** (plan-review §5): for the first 30 live days, `outcomes.py`
+  also records the live IEX feature vector and later re-computes the same features from
+  finalized SIP historical data for the same timestamps; the per-feature drift/source
+  discrepancy is reported in the evidence package (§5). Premarket gap features are the expected
+  worst case — this diagnostic decides whether they need quality-gating or removal.
 
 ## Storage (design §17.4)
 
 Three Alembic migrations (reviewed by hand per repo convention, `alembic heads` before writing —
 the 7/7 non-head gotcha): `market_projection_training_rows`, `market_projection_runs`,
-`market_projection_model_registry`, fields exactly as design §17.4 (runs.id as UUID pk;
-`(projection_type, market_proxy, as_of.date)` unique on runs; `(date, projection_type,
-market_proxy, feature_version)` unique on training rows). Projections are research artifacts,
+`market_projection_model_registry`, fields as design §17.4 plus (plan-review additions):
+`runs.run_status` (`SUCCESS | UNAVAILABLE | FAILED | SKIPPED`), `runs.unavailable_reason`, and
+`runs.attempt_number` — **multiple attempts are kept** (unique on `(projection_type,
+market_proxy, target_date, attempt_number)`); the API returns the latest SUCCESS for a
+projection/date and surfaces UNAVAILABLE only when no success exists. Training rows unique on
+`(date, projection_type, market_proxy, feature_version)`. Projections are research artifacts,
 not consequential actions — no audit-log entries for routine runs; model registry
 status changes (a new production model) ARE audit-logged (MODEL_REGISTERED action + runbook
 scenario, per the audit-log skill checklist).
@@ -232,33 +276,44 @@ Session sequence (each = its own PR(s), tagged, ≥1h walk-away; §1–§3 are r
 | **§0 Pre-registration + data audit** | Pre-registration doc (frozen labels/threshold/primary config/baselines/feature manifest/shadow list); data-audit script proving ETF daily+minute depth ~2016→now and gap quality; scikit-learn dependency added + pinned; program + capability registered (Planning) in `research/programs.py`/registry | 2–3h |
 | **§1 Dataset + labels** | `schemas/labels/features_*/dataset` + training-rows migration + builder script + PIT tests; dataset built on the box (SIP-historical) | 5–8h |
 | **§2 Baselines + walk-forward** | `baselines/validate` + metrics/floors/bootstrap + synthetic-data harness tests + baseline-only evidence run (this alone answers "how hard is the target") | 5–8h |
-| **§3 ML + calibration + attribution** | `train/attribution/model_registry` + registry migration + full walk-forward evidence package v1 + model card; **owner checkpoint: review evidence before building the surface** | 6–9h |
+| **§3 ML + calibration + attribution** | `train/attribution/model_registry` + registry migration + full walk-forward evidence package v1 + model card | 6–9h |
 | **§4 Inference + API + card** | `infer/explain/outcomes` + jobs + runs migration + endpoint + card + compliance review + isolation CI check + box deploy (flag on) | 6–9h |
 | **§5 Evidence review + lifecycle** | Verdict scripts (move-risk and direction separately, §15), registry status update, CEE hook for rolling calibration drift, decision summary | 3–5h |
+
+**Owner gates between sessions (plan-review, binding):**
+
+1. **§0 → §1:** §1 dataset/model work does not start until the owner reviews the
+   pre-registration and confirms the freeze (primary config, primary model, gates, binding
+   baseline, sample floors, calibration rule, feature manifest, shadow-only policy,
+   scikit-learn approval).
+2. **§2 → §3:** after the baseline-only evidence run, the **owner decides whether to continue
+   into §3 ML** (plan-review suggestion 3). If baselines show the target is pure noise or the
+   sample floors are poor, the program may stop before any ML/UI is built — a cheap, honest
+   early exit.
+3. **§4 merge gate:** compliance wording sign-off (above).
 
 Deploy per the standard box recipe (outside RTH, ≥60min from rebalances). After §4, the card
 runs as Research Preview regardless of §5's verdict — the verdict changes the *badge*, never
 retroactively the claims. Forward realized-outcome accrual starts the day §4 deploys.
 
-## Open questions (blocking §0 freeze — owner answers wanted)
+## Open questions — RESOLVED (owner plan review 2026-07-10; frozen into the pre-registration)
 
-1. **scikit-learn dependency** — pure-Python/compiled lib, no network, pinned. OK to add? (No
-   external *service*, so no ADR per the dependency rule; flagging because deps are curated.)
-2. **History start** — Alpaca gives ~2016+. With ~40% material days, the §14 directional floor
-   (50/50/100) will be met, but power for *uplift CIs* is modest. Accept ~10y, or source longer
-   daily history (pre-close intraday features would still cap the intraday-feature era)?
-3. **LLM explanation in v1** — build `explain.py` but ship flag-off (my recommendation:
-   drivers table reads fine without prose; zero LLM cost until wanted), or enable from day 1?
-4. **Sector basket freeze** — the 11 SPDR sector ETFs (XLK/XLF/XLV/XLE/XLI/XLY/XLP/XLU/XLB/
-   XLRE/XLC; XLRE/XLC only exist from 2015/2018 — breadth features must handle a changing
-   basket PIT). Confirm this basket for the freeze.
-5. **Primary model** — freeze which single model is *the* primary for the gate (my
-   recommendation: calibrated logistic — most transparent, exact attribution; boosted +
-   ensemble as pre-registered secondaries).
-6. **Secondary proxies/horizons in v1 build** — QQQ + fixed-threshold sensitivity are cheap to
-   run in §2/§3; DIA/IWM/sector-basket proxies deferred to §5 unless asked. Confirm.
-7. **Confidence mapping** (§18 thresholds) — accept as-is for v1 display? It is display-only,
-   so it can be frozen loosely, but freezing avoids later "tuning after seeing results" optics.
+1. **scikit-learn** — ✅ Approved: pinned, no external service, no runtime network. §0 verifies
+   the Docker image build / wheel compatibility.
+2. **History start** — ✅ Accept Alpaca ~2016+. Do not delay v1 for longer history. Caveat
+   adopted verbatim: if OOS fold count or the sample floor proves inadequate, Direction =
+   **Inconclusive / insufficient power** — data is never expanded after seeing results.
+3. **LLM explanation** — ✅ Build `explain.py`, ship `WORKBENCH_MKTPROJ_LLM_EXPLAIN=false`.
+   Card shows computed drivers without prose; prose enabled later only after review.
+4. **Sector basket** — ✅ The 11 SPDRs confirmed, with PIT availability handling: the feature
+   payload carries `sector_coverage_count` so XLRE/XLC's shorter histories never silently
+   distort breadth.
+5. **Primary model** — ✅ Calibrated logistic regression; boosted + ensemble are
+   secondary/sensitivity only.
+6. **Secondary proxies/horizons** — ✅ QQQ + fixed-threshold sensitivity in the research
+   reports; DIA/IWM/sector-basket proxies deferred; SPY is the only primary proxy.
+7. **Confidence mapping** — ✅ Accept §18 for v1; UI is designed for mostly-LOW confidence
+   (LOW must look normal, not like a failure state).
 
 ## Notes & gotchas (inherited platform lessons this plan must respect)
 
@@ -272,3 +327,12 @@ retroactively the claims. Forward realized-outcome accrual starts the day §4 de
 7. The realistic outcome is Rejected/Inconclusive on direction (design §3) — §2's
    baseline-only run lands *before* any ML is built, so expectations are calibrated early and
    cheaply.
+8. **§0 audit findings (2026-07-10, `evidence/mkt_proj_001/data_audit_2026-07-10.json`):**
+   daily SIP history for all 15 symbols from 2016-01-04 (XLC 2018-06-19 — the
+   `sector_coverage_count` handling is required, as frozen); SPY minute bars present in every
+   probe year 2016–2024; pre-close 15:30–15:45 window = full 16/16 minute coverage across the
+   basket; SIP-historical + IEX both entitled; scikit-learn 1.9.0 installs and imports the
+   frozen classes on Python 3.13. **One gap:** the prod image lacks
+   `pandas_market_calendars` — `MarketSession` runs on its curated half-day fallback
+   (best-effort). Add the package with the §4 jobs PR so close−15m scheduling is
+   calendar-authoritative.
