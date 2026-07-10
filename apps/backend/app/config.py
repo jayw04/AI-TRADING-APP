@@ -74,6 +74,13 @@ class Settings(BaseSettings):
     # container (see docker-compose). Read-only/advisory — never an order signal.
     premarket_gappers_dir: str = "/app/premarket_gappers"
 
+    # --- Box-native premarket gapper screener (GAP-NATIVE-001, ADR 0041) ---
+    # Output directory for box-produced premarket_gappers_<date>.json files. Under the
+    # gitignored data/ root so the existing volume persists it. Kept SEPARATE from the
+    # external (read-only) mount above: for today's date the native file is authoritative
+    # and the external one is catalyst enrichment only (owner directive 2026-07-10).
+    native_gappers_dir: str = "data/premarket_gappers_native"
+
     # --- SCAN-001 Production Validation Gate evidence (ADR 0024) ---
     # Persistent directory for the forward-evidence records the ~09:25 ET premarket
     # scan writes and the ~16:30 ET back-fill updates (one JSON per trading day).

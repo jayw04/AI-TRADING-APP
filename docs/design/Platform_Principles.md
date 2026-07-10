@@ -80,6 +80,7 @@ Evidence Engineering  →  Data Integrity  →  Portfolio / Strategy Research  �
 | **Quiet failures should become visible** | Silent degradation is the enemy; conditions that warrant a look are surfaced (alerts, the daily-report watchdog). | ADR 0035 (Level 3) · daily report |
 | **Self-heal only operational state** | Automation may auto-correct operational faults (Levels 1–2) but never trading decisions or risk gates. | ADR 0035 |
 | **Audit every automatic recovery** | Every automatic action leaves an append-only record of what was detected, what was done, and the before/after. | ADR 0035 · hash-chained audit log |
+| **Operational inputs are host-independent** | Every input a scheduled job consumes is produced on the armed host; other machines may enrich, never gate, daily operation. | Owner directive 2026-07-10 · ADR 0041 |
 
 *Separation of concerns, in one line:* **Evidence** determines *what should happen*; **automation** ensures *the machinery works*; **governance** determines *what is permitted*.
 
@@ -107,6 +108,7 @@ Data integrity and reproducibility are complementary: reproducibility guarantees
 Operational Governance
 ├── Deployment          — deterministic, infra-independent hosting   (ADR 0032)
 ├── Scheduler           — exactly one ARMED host                     (ADR 0032, Invariant 1)
+├── Input Independence  — operational inputs produced on the armed host (ADR 0041)
 ├── Risk Containment    — failures contained to the smallest scope   (ADR 0034)
 ├── Self-Healing        — auto-fix only what's provably safe (L1–L4) (ADR 0035)
 └── Continuous Evidence — verify live behavior vs the envelope       (CEE)

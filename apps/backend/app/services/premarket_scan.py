@@ -77,6 +77,10 @@ def run_premarket_scan(store: Any, *, asof: date, top_n: int = 15) -> dict[str, 
     return {
         "date": payload.get("date"),
         "scanned_at": payload.get("scanned_at"),
+        # input provenance (ADR 0041): "box_native_alpaca_v1" | "external_scanner" | None.
+        # Persisted with the gate record so the SCAN-001 verdict analysis can segment the
+        # accrual by source instead of silently mixing universes.
+        "gappers_source": payload.get("source"),
         "stale": bool(payload.get("stale", True)),
         # the §0b funnel — gappers in → store-covered → engine-eligible → selected
         "gappers_in": len(gappers),

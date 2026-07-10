@@ -42,6 +42,9 @@ def evidence_record(report: dict[str, Any], *, asof: date) -> dict[str, Any]:
         "asof": asof.isoformat(),
         "source_date": report.get("date"),
         "scanned_at": report.get("scanned_at"),
+        # additive (ADR 0041): which producer supplied the gappers — the verdict harness
+        # must segment by this rather than mixing Yahoo-sourced and Alpaca-sourced days.
+        "gappers_source": report.get("gappers_source"),
         "stale": bool(report.get("stale", True)),
         "funnel": {
             "gappers_in": report.get("gappers_in", 0),
