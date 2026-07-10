@@ -294,6 +294,14 @@ def run_walk_forward(
         "best_magnitude_baseline": best_magnitude,
         "best_directional_baseline": best_directional,
     }
+    # §7 regime slices (pre-reg v1.2: reported and REVIEWED, not numerically gated) —
+    # Brier(MATERIAL) by calendar year, realized-vol half, and trend regime, for
+    # every predictor. Gate item 5 ("no major regime failure") is adjudicated here.
+    out["regime_slices"] = {
+        name: _regime_slices(probs, labels, [rows[i] for i in oos_idx])
+        for name, probs in oos.items()
+    }
+
     if model_name is not None and model_name in per:
         gate = {
             "vs": best_magnitude,
@@ -332,6 +340,40 @@ def run_walk_forward(
                 # is interpretation-only and cannot rescue a failed floor.
             }
     return out
+
+
+def _regime_slices(
+    probs: Sequence[Probs], labels: Sequence[str], oos_rows: Sequence[Row]
+) -> dict[str, dict[str, Any]]:
+    """Per-slice Brier(MATERIAL) + day counts. Slices from PIT features/dates only:
+    calendar year; realized-vol half (spy_realized_vol_20d vs its OOS median);
+    trend regime (regime_trend feature)."""
+    def feat(r: Row, k: str) -> float | None:
+        v = (r.get("features_json") or {}).get(k)
+        return float(v) if v is not None else None
+
+    slices: dict[str, list[int]] = {}
+    for i, r in enumerate(oos_rows):
+        slices.setdefault(f"year_{r['date'].year}", []).append(i)
+        rt = feat(r, "regime_trend")
+        if rt is not None:
+            slices.setdefault("trend_up" if rt >= 0.5 else "trend_down", []).append(i)
+    vols = [feat(r, "spy_realized_vol_20d") for r in oos_rows]
+    known = sorted(v for v in vols if v is not None)
+    if known:
+        med = known[len(known) // 2]
+        for i, v in enumerate(vols):
+            if v is not None:
+                slices.setdefault("vol_high" if v >= med else "vol_low", []).append(i)
+
+    return {
+        name: {
+            "days": len(idx),
+            "brier_material": brier_material([probs[i] for i in idx], [labels[i] for i in idx]),
+        }
+        for name, idx in sorted(slices.items())
+        if len(idx) >= 30
+    }
 
 
 def _directional_precision_metric(probs: Sequence[Probs], labels: Sequence[str]) -> float:
