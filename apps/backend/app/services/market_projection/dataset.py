@@ -47,6 +47,19 @@ from app.services.market_projection.schemas import (
 
 ET = "America/New_York"
 ALL_SYMBOLS = tuple(dict.fromkeys((MARKET_PROXY, *GAP_SYMBOLS, *SECTOR_BASKET)))
+# Free-plan SIP historical excludes the most recent 15 minutes; every request's
+# end is clamped behind this margin or the whole request 403s (found live: the
+# current-month chunk of the first full-history build).
+SIP_RECENT_MARGIN_MIN = 16
+
+
+def _clamp_sip_end(end_dt: datetime) -> datetime:
+    from datetime import UTC as _UTC
+
+    limit = datetime.now(_UTC) - timedelta(minutes=SIP_RECENT_MARGIN_MIN)
+    if end_dt.tzinfo is None:
+        return min(end_dt, limit.replace(tzinfo=None))
+    return min(end_dt, limit)
 
 
 # --- calendar -----------------------------------------------------------------
@@ -87,7 +100,7 @@ def fetch_daily(client: Any, symbols: Iterable[str], start: date, end: date) -> 
     data = client.get_stock_bars(
         StockBarsRequest(symbol_or_symbols=list(symbols), timeframe=TimeFrame.Day,
                          start=datetime.combine(start, time.min),
-                         end=datetime.combine(end, time.max),
+                         end=_clamp_sip_end(datetime.combine(end, time.max)),
                          feed=DataFeed.SIP, adjustment=Adjustment.SPLIT)
     ).data
     out: dict[str, pd.DataFrame] = {}
@@ -118,7 +131,7 @@ def fetch_minute_month(client: Any, symbols: Iterable[str], year: int, month: in
         StockBarsRequest(symbol_or_symbols=list(symbols),
                          timeframe=TimeFrame(1, TimeFrameUnit.Minute),
                          start=datetime.combine(start, time.min),
-                         end=datetime.combine(end + timedelta(days=1), time.min),
+                         end=_clamp_sip_end(datetime.combine(end + timedelta(days=1), time.min)),
                          feed=DataFeed.SIP)
     ).data
     out: dict[str, pd.DataFrame] = {}
