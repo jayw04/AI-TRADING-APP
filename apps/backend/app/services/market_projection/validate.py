@@ -295,7 +295,7 @@ def run_walk_forward(
         "best_directional_baseline": best_directional,
     }
     if model_name is not None and model_name in per:
-        out["move_risk_gate"] = {
+        gate = {
             "vs": best_magnitude,
             "brier_delta_ci": block_bootstrap_delta_ci(
                 brier_material, oos[model_name], oos[best_magnitude], labels
@@ -304,4 +304,41 @@ def run_walk_forward(
             <= per[best_magnitude]["ece_material"] + 0.02,
             "coverage_in_band": 0.10 <= per[model_name]["elevated_coverage"] <= 0.60,
         }
+        ci = gate["brier_delta_ci"]
+        gate["passes"] = bool(
+            ci["ci_high"] < 0 and gate["ece_guardrail_ok"] and gate["coverage_in_band"]
+        )
+        out["move_risk_gate"] = gate
+
+        # Direction Gate (pre-reg v1.2 §3): only computable when the MODEL's own
+        # §14 floor is met AND a directional baseline made floor-worthy calls.
+        model_dir = per[model_name]["directional"]
+        if model_dir.get("sample_floor_met") and best_directional is not None:
+            dprec_ci = block_bootstrap_delta_ci(
+                lambda p, la: _directional_precision_metric(p, la),
+                oos[model_name], oos[best_directional], labels,
+            )
+            out["direction_gate"] = {
+                "vs": best_directional,
+                "precision_uplift_ci": dprec_ci,
+                "passes": bool(dprec_ci["ci_low"] > 0),
+            }
+        else:
+            out["direction_gate"] = {
+                "verdict": "insufficient_sample",
+                "model_floor_met": bool(model_dir.get("sample_floor_met")),
+                "baseline_available": best_directional is not None,
+                # v1.2: no directional skill claim; the §7.2 conditional diagnostic
+                # is interpretation-only and cannot rescue a failed floor.
+            }
     return out
+
+
+def _directional_precision_metric(probs: Sequence[Probs], labels: Sequence[str]) -> float:
+    """Precision over argmax non-neutral calls (0.0 when a resample has no calls —
+    conservative for uplift CIs; only used when the real floor is already met)."""
+    calls = [(c, y) for c, y in ((_called_class(p), y) for p, y in zip(probs, labels, strict=True))
+             if c in ("UP", "DOWN")]
+    if not calls:
+        return 0.0
+    return float(sum(1 for c, y in calls if c == y) / len(calls))
