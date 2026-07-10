@@ -84,6 +84,19 @@ def test_run_premarket_scan_funnel(monkeypatch: pytest.MonkeyPatch) -> None:
     assert report["candidates"][0]["reason"] == "Gap + RVOL + ATR"
 
 
+def test_run_premarket_scan_passes_gappers_source_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR 0041: the payload's source lands in the report as gappers_source."""
+    payload = {
+        "date": "2024-03-01", "scanned_at": "2024-03-01T13:05:00Z", "stale": False,
+        "source": "box_native_alpaca_v1", "gappers": [],
+    }
+    monkeypatch.setattr(ps, "read_latest_gappers", lambda: payload)
+    report = ps.run_premarket_scan(_FakeStore(_con_with_bars()), asof=date(2024, 3, 1))
+    assert report["gappers_source"] == "box_native_alpaca_v1"
+
+
 def test_run_premarket_scan_fail_soft_when_no_gappers(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         ps, "read_latest_gappers",
