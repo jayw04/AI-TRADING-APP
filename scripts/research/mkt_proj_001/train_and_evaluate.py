@@ -61,8 +61,17 @@ async def load_rows(ptype: ProjectionType) -> list[dict]:
 
 
 async def persist_registry_row(fields: dict) -> None:
+    """Idempotent per model_version: a deterministic re-run (e.g. after a
+    report-only harness addition) replaces its own candidate row."""
+    from sqlalchemy import delete
+
     sf = get_sessionmaker()
     async with sf() as s:
+        await s.execute(
+            delete(MarketProjectionModelRegistry).where(
+                MarketProjectionModelRegistry.model_version == fields["model_version"],
+            )
+        )
         s.add(MarketProjectionModelRegistry(**fields))
         await s.commit()
 
