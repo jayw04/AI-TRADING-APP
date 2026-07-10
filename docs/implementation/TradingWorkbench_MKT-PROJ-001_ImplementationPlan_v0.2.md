@@ -5,7 +5,7 @@
 | Document version | v0.2 — folds the owner plan review (9.2/10, 2026-07-10, `TradingWorkbench_MKT-PROJ-001_PlanReview_2026-07-10.md`): **approved to enter §0 only**; §1 does not start until the owner reviews the pre-registration freeze |
 | Date | 2026-07-10 |
 | Program | MKT-PROJ-001 (design: `Docs/design/TradingWorkbench_MarketProjectionEngine_RequirementsDesign_v0.2.md`) |
-| Capability | CAP-TBD — Market Projection Engine (id assigned at registry entry) |
+| Capability | CAP-027 — Market Projection Engine |
 | Sessions | §0–§5, one or more PRs each (~6 PRs total) |
 | Repository | github.com/jayw04/AI-TRADING-APP |
 | Scope | Build the v0.2 design end-to-end: PIT dataset → baselines → walk-forward → calibrated ML + attribution → scheduled inference → API + Research Preview card → realized-outcome tracking → evidence verdict |
@@ -128,9 +128,11 @@ boosted + ensemble are secondary/sensitivity only and never the gate model in v1
 
 Two separate verdict gates:
 
-- **Move-Risk Gate** — *Validated Move-Risk Projection* requires statistically significant
-  improvement in P(MATERIAL) calibration/Brier or log-loss versus the **best** pre-registered
-  magnitude baseline (CI excluding zero).
+- **Move-Risk Gate** — *Validated Move-Risk Projection* requires **Brier-score improvement**
+  (the single primary metric; log-loss/ECE/reliability are secondary) for P(MATERIAL) versus
+  the **best** pre-registered magnitude baseline, block-bootstrap CI excluding zero, the ECE
+  guardrail (not worse than the best baseline by >0.02), and elevated-call coverage on 10–60%
+  of OOS days (final review 2026-07-10 — all numeric, frozen in the pre-registration v1.0).
 - **Direction Gate** — *Validated Direction Projection* requires directional precision uplift
   versus the **best** pre-registered directional baseline, CI excluding zero, AND the §14
   sample floor satisfied.
@@ -286,11 +288,15 @@ Session sequence (each = its own PR(s), tagged, ≥1h walk-away; §1–§3 are r
    pre-registration and confirms the freeze (primary config, primary model, gates, binding
    baseline, sample floors, calibration rule, feature manifest, shadow-only policy,
    scikit-learn approval).
-2. **§2 → §3:** after the baseline-only evidence run, the **owner decides whether to continue
+2. **§1 → §2:** validation does not start until §1's PIT/leakage tests pass (final review).
+3. **§2 → §3:** after the baseline-only evidence run, the **owner decides whether to continue
    into §3 ML** (plan-review suggestion 3). If baselines show the target is pure noise or the
    sample floors are poor, the program may stop before any ML/UI is built — a cheap, honest
    early exit.
-3. **§4 merge gate:** compliance wording sign-off (above).
+4. **§3 → §4 (final review):** after the full ML evidence + model card, the **owner decides
+   whether the API/card surface gets built at all** — even a Research-Preview UI is not built
+   automatically if §3 shows no useful signal.
+5. **§4 merge gate:** compliance wording sign-off (above).
 
 Deploy per the standard box recipe (outside RTH, ≥60min from rebalances). After §4, the card
 runs as Research Preview regardless of §5's verdict — the verdict changes the *badge*, never
@@ -334,5 +340,6 @@ retroactively the claims. Forward realized-outcome accrual starts the day §4 de
    basket; SIP-historical + IEX both entitled; scikit-learn 1.9.0 installs and imports the
    frozen classes on Python 3.13. **One gap:** the prod image lacks
    `pandas_market_calendars` — `MarketSession` runs on its curated half-day fallback
-   (best-effort). Add the package with the §4 jobs PR so close−15m scheduling is
-   calendar-authoritative.
+   (best-effort). **Final-review change: the package is added in §0 (with this freeze), not
+   §4** — the historical labeler (§1) must use the same authoritative calendar as production
+   inference, so it ships before any dataset/label construction.
