@@ -86,7 +86,9 @@ def fetch_daily(client: Any, symbols: Iterable[str], start: date, end: date) -> 
 
     data = client.get_stock_bars(
         StockBarsRequest(symbol_or_symbols=list(symbols), timeframe=TimeFrame.Day,
-                         start=start, end=end, feed=DataFeed.SIP, adjustment=Adjustment.SPLIT)
+                         start=datetime.combine(start, time.min),
+                         end=datetime.combine(end, time.max),
+                         feed=DataFeed.SIP, adjustment=Adjustment.SPLIT)
     ).data
     out: dict[str, pd.DataFrame] = {}
     for sym, bars in data.items():
@@ -115,7 +117,9 @@ def fetch_minute_month(client: Any, symbols: Iterable[str], year: int, month: in
     data = client.get_stock_bars(
         StockBarsRequest(symbol_or_symbols=list(symbols),
                          timeframe=TimeFrame(1, TimeFrameUnit.Minute),
-                         start=start, end=end + timedelta(days=1), feed=DataFeed.SIP)
+                         start=datetime.combine(start, time.min),
+                         end=datetime.combine(end + timedelta(days=1), time.min),
+                         feed=DataFeed.SIP)
     ).data
     out: dict[str, pd.DataFrame] = {}
     for sym, bars in data.items():
@@ -183,13 +187,18 @@ def _row(
         reason = "insufficient_threshold_history"
     elif realized is None:
         reason = "label_not_matured" if ptype == ProjectionType.PRE_CLOSE_TOMORROW else "missing_daily_bar"
+    label = (
+        label_for(realized, threshold).value
+        if realized is not None and threshold is not None and valid
+        else None
+    )
     return {
         "date": day,
         "projection_type": ptype.value,
         "market_proxy": MARKET_PROXY,
         "features_json": features or None,
         "shadow_features_json": None,  # SCAN/GAPPER shadow rows are a separate later pass (§8.4)
-        "label": label_for(realized, threshold).value if valid else None,
+        "label": label,
         "realized_return": realized,
         "threshold": threshold,
         "valid_for_training": valid,
@@ -232,8 +241,8 @@ def build_rows_for_sessions(
         # --- PRE_CLOSE_TOMORROW (primary): close(t+1) vs close(t) ---------------
         rth = {sym: rth_slice(df, day, open_et, close_et) for sym, df in minute.items()}
         prior = [d for d in session_dates if d < day][-VOLUME_TOD_LOOKBACK:]
-        vols = [spy_cum_vol_at.get((d, cutoff.time())) for d in prior]
-        vols = [v for v in vols if v]
+        maybe_vols = (spy_cum_vol_at.get((d, cutoff.time())) for d in prior)
+        vols: list[float] = [v for v in maybe_vols if v is not None and v > 0]
         baseline = (sum(vols) / len(vols)) if len(vols) == VOLUME_TOD_LOOKBACK else None
         f_close = preclose_features(rth, spy_daily, day=day, cutoff=cutoff,
                                     spy_cum_vol_20d_tod_avg=baseline)
