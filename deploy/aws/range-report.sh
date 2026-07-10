@@ -10,7 +10,7 @@ REGION="${AWS_REGION:-us-east-1}"
 TOPIC="arn:aws:sns:us-east-1:219024422756:workbench-paper-alarms"
 DOCKER="docker"; command -v docker >/dev/null 2>&1 || DOCKER="sudo docker"
 
-BODY="$($DOCKER exec workbench-backend python - <<'PY' 2>/dev/null
+BODY="$($DOCKER exec -i workbench-backend python - <<'PY' 2>/dev/null
 import asyncio
 from datetime import datetime
 import pandas as pd
