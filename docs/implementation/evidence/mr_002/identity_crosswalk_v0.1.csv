@@ -1,0 +1,16 @@
+permaticker,ticker,cik,effective_from,effective_to,relationship_type,source,source_record_id,confidence,mapping_rationale,review_status
+119496,GOOG,1288776,2014-03-27,2015-10-01,predecessor_cik,manual_override_table,edgar:CIK0001288776,manual_pending_review,Class C shares issued 2014-03-27 as GOOG under Google Inc. until the Alphabet reorganization,pending_owner_review
+119496,GOOG,1652044,2015-10-02,,successor_cik,manual_override_table,edgar:CIK0001652044,manual_pending_review,Alphabet Inc. is the successor issuer for Class C (GOOG) from the 2015-10-02 reorganization,pending_owner_review
+187959,TWTR,1418091,2013-11-07,2022-10-27,direct,sharadar_tickers.secfilings,permaticker:187959,high,current symbol per Sharadar TICKERS; CIK from secfilings,auto_high_precedence
+194817,FB,1326801,2012-05-18,2022-06-08,ticker_rename,sharadar_tickers.secfilings,permaticker:194817,high,traded as FB until renamed 2022-06-09 (ACTIONS tickerchangefrom),auto_high_precedence
+194817,META,1326801,2022-06-09,,direct,sharadar_tickers.secfilings,permaticker:194817,high,current symbol per Sharadar TICKERS; CIK from secfilings,auto_high_precedence
+195146,GOOG,1288776,2004-08-19,2014-03-26,predecessor_cik,manual_override_table,edgar:CIK0001288776,manual_pending_review,Class A shares traded as GOOG under Google Inc. before the 2014-03-27 Class C issuance renamed Class A to GOOGL,pending_owner_review
+195146,GOOGL,1288776,2014-03-27,2015-10-01,predecessor_cik,manual_override_table,edgar:CIK0001288776,manual_pending_review,Class A as GOOGL under Google Inc. until the Alphabet holding-company reorganization effective 2015-10-02,pending_owner_review
+195146,GOOGL,1652044,2015-10-02,,successor_cik,manual_override_table,edgar:CIK0001652044,manual_pending_review,Alphabet Inc. is the successor issuer for Class A (GOOGL) from the 2015-10-02 reorganization,pending_owner_review
+196547,NFLX,1065280,2002-05-23,,direct,sharadar_tickers.secfilings,permaticker:196547,high,current symbol per Sharadar TICKERS; CIK from secfilings,auto_high_precedence
+196669,AMT,1053507,1998-02-27,,direct,sharadar_tickers.secfilings,permaticker:196669,high,current symbol per Sharadar TICKERS; CIK from secfilings,auto_high_precedence
+198739,BEL,732712,1986-01-01,2000-07-02,ticker_rename,sharadar_tickers.secfilings,permaticker:198739,high,traded as BEL until renamed 2000-07-03 (ACTIONS tickerchangefrom),auto_high_precedence
+198739,VZ,732712,2000-07-03,,direct,sharadar_tickers.secfilings,permaticker:198739,high,current symbol per Sharadar TICKERS; CIK from secfilings,auto_high_precedence
+199059,AAPL,320193,1986-01-01,,direct,sharadar_tickers.secfilings,permaticker:199059,high,current symbol per Sharadar TICKERS; CIK from secfilings,auto_high_precedence
+639312,GEHC,1932393,2023-01-04,,direct,sharadar_tickers.secfilings,permaticker:639312,high,current symbol per Sharadar TICKERS; CIK from secfilings,auto_high_precedence
+639999,KVUE,1944048,2023-05-04,,direct,sharadar_tickers.secfilings,permaticker:639999,high,current symbol per Sharadar TICKERS; CIK from secfilings,auto_high_precedence

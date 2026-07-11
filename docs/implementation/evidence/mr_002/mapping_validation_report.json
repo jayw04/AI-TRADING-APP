@@ -1,0 +1,23 @@
+{
+  "csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.2.csv",
+  "reconciliation_v01_v02": {
+    "v0.1_rows": 75,
+    "v0.2_rows": 75,
+    "added_in_v0.2": [],
+    "removed_in_v0.2": [],
+    "identical_key_sets": true,
+    "note": "v0.2 is a pure field-addition transform of v0.1 (same ranges, dates, sectors, ETFs). The earlier validation record's '74 rows' was a miscount in prose; both CSVs contain the same row set."
+  },
+  "confidence_counts": {
+    "HIGH": 27,
+    "MEDIUM": 41,
+    "LOW": 7
+  },
+  "errors": [],
+  "warnings": [],
+  "low_confidence_policy": "LOW rows are excluded from primary construction by the runner (Mapping.resolve returns None + logs EXCLUDED_LOW_CONFIDENCE hits; reported separately, never forced).",
+  "impact_review": "DEFERRED to the Data Availability Gate (needs the preliminary universe): securities/universe-months per confidence tier, top-20 MEDIUM-exposed securities, MEDIUM rows at XLC/XLRE boundaries, MEDIUM-removed coverage diagnostic (no strategy signals).",
+  "canonical_hash_provisional_sha256": "b0f9d6a2b192cf92c9e0db8f60a62580dbbcb61a1d7727116991405353ac4f5f",
+  "hash_note": "PROVISIONAL \u2014 final hash generated after owner countersign, sorted by the frozen canonical key.",
+  "result": "PASS"
+}

@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS earnings_anchors (
     cik BIGINT, ticker VARCHAR, permaticker BIGINT, accession VARCHAR,
     report_date VARCHAR, acceptance_utc TIMESTAMPTZ, acceptance_et VARCHAR,
     session_date DATE, availability_class VARCHAR, event_time_basis VARCHAR,
+    cooling_start_session DATE, cooling_end_session DATE,
     is_amendment_origin BOOLEAN, amended_by VARCHAR, collapsed_duplicates VARCHAR,
     built_at TIMESTAMPTZ,
     PRIMARY KEY (cik, accession)
@@ -176,10 +177,11 @@ def main() -> int:
         )
     for a in all_anchors:
         con.execute(
-            "INSERT INTO earnings_anchors VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO earnings_anchors VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [a.cik, a.ticker, a.permaticker, a.accession, a.report_date,
              a.acceptance_utc, a.acceptance_et.isoformat(), a.session_date,
-             a.availability_class, a.event_time_basis, a.is_amendment_origin,
+             a.availability_class, a.event_time_basis,
+             a.cooling_start_session, a.cooling_end_session, a.is_amendment_origin,
              json.dumps(a.amended_by), json.dumps(a.collapsed_duplicates), built_at],
         )
     for r in all_rejections:

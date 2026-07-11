@@ -1,0 +1,109 @@
+{
+  "built_at": "2026-07-11T14:15:50.127898+00:00",
+  "tickers": [
+    "TWTR",
+    "META",
+    "GOOG",
+    "GOOGL",
+    "GEHC",
+    "KVUE",
+    "AAPL",
+    "AMT",
+    "NFLX",
+    "VZ"
+  ],
+  "rows": 15,
+  "conflicts": [],
+  "notes": [
+    "delisted:TWTR@2022-10-27",
+    "acquisition:TWTR@2022-10-27:acquirer=N/A",
+    "rename_zero_window:GEHC:GEHCV@2023-01-04",
+    "spin_off:GEHC@2023-01-04:parent=GE"
+  ],
+  "identity_tests": {
+    "twtr_delisted_resolves_in_life": {
+      "pass": true,
+      "got": {
+        "permaticker": 187959,
+        "ticker": "TWTR",
+        "cik": 1418091,
+        "effective_from": "2013-11-07",
+        "effective_to": "2022-10-27",
+        "relationship_type": "direct",
+        "source": "sharadar_tickers.secfilings",
+        "source_record_id": "permaticker:187959",
+        "confidence": "high",
+        "mapping_rationale": "current symbol per Sharadar TICKERS; CIK from secfilings",
+        "review_status": "auto_high_precedence"
+      }
+    },
+    "twtr_excluded_after_delisting": {
+      "pass": true
+    },
+    "fb_retired_ticker_resolves_historically": {
+      "pass": true,
+      "got": {
+        "permaticker": 194817,
+        "ticker": "FB",
+        "cik": 1326801,
+        "effective_from": "2012-05-18",
+        "effective_to": "2022-06-08",
+        "relationship_type": "ticker_rename",
+        "source": "sharadar_tickers.secfilings",
+        "source_record_id": "permaticker:194817",
+        "confidence": "high",
+        "mapping_rationale": "traded as FB until renamed 2022-06-09 (ACTIONS tickerchangefrom)",
+        "review_status": "auto_high_precedence"
+      }
+    },
+    "fb_not_resolvable_after_rename": {
+      "pass": true
+    },
+    "meta_resolves_after_rename_same_permaticker": {
+      "pass": true
+    },
+    "google_predecessor_cik_pre_reorg": {
+      "pass": true
+    },
+    "alphabet_successor_cik_post_reorg": {
+      "pass": true
+    },
+    "goog_classC_predecessor_window": {
+      "pass": true
+    },
+    "goog_symbol_time_ambiguity_resolved": {
+      "pass": true,
+      "got": {
+        "2010": 195146,
+        "2020": 119496
+      }
+    },
+    "share_class_distinct_permatickers_same_cik": {
+      "pass": true
+    },
+    "gehc_spinoff_resolves_post_spin": {
+      "pass": true
+    },
+    "gehc_excluded_pre_spin": {
+      "pass": true
+    },
+    "gehc_spinoff_parent_evidence": {
+      "pass": true
+    },
+    "control_aapl_direct": {
+      "pass": true
+    },
+    "acquisition_no_successor_backfill": {
+      "pass": true
+    },
+    "unresolved_identity_explicit_exclusion": {
+      "pass": true
+    }
+  },
+  "integrity_errors": [],
+  "identity_tests_passed": "16/16",
+  "review_csv": "Docs\\implementation\\evidence\\mr_002\\identity_crosswalk_v0.1.csv",
+  "crosswalk_sha256_provisional": "e283e178638b626e36516456627e9e2c0bdb8c870ac5617f57cc495c4c07fdb4",
+  "overrides_sha256_provisional": "3fc319dca6be17b9403a7a86b6981f8cf477bcf7dfbd1f7c177017d0f62aa635",
+  "hash_note": "PROVISIONAL \u2014 frozen after owner countersign of override rows, before the gate"
+}

@@ -7,13 +7,12 @@ Condition), with the SEC **acceptance timestamp** as the PIT known-at instant.
 Registered semantics implemented here (owner sign-off 2026-07-11; v0.5 §1 timing
 correction folded — the earlier "in-session => BMO" rule was NOT PIT-safe):
 - acceptance timestamps normalized to **Eastern Time**; every anchor carries an
-  ``event_time_basis`` (``edgar_acceptance_proxy`` here; ``verified_release_timestamp``
-  reserved for independently verified release times — acceptance-based rows are never
-  labelled true BMO/AMC);
+  ``event_time_basis`` (VERIFIED_RELEASE_TIMESTAMP | EDGAR_ACCEPTANCE_PROXY |
+  DATE_ONLY_PROXY — acceptance-based rows are never labelled true BMO/AMC);
 - availability classes: ``PRE_OPEN`` (before 09:30 ET -> prohibited execution opens
   s and s+1), ``IN_SESSION`` / ``POST_CLOSE`` (-> prohibited opens s+1 and s+2),
-  ``DATE_ONLY_CONSERVATIVE`` (no clock time -> treated as available end-of-day s ->
-  prohibited opens s+1 and s+2, the PIT-safe direction). No execution that occurred
+  ``DATE_ONLY`` (no clock time, basis DATE_ONLY_PROXY -> treated as available
+  end-of-day s -> prohibited opens s+1 and s+2, the PIT-safe direction). No execution that occurred
   before the recorded availability timestamp is ever retroactively cancelled;
 - duplicate 2.02 filings for the same (CIK, report period) collapse to ONE anchor
   (earliest acceptance), later duplicates recorded, not dropped silently;
@@ -42,14 +41,19 @@ RTH_OPEN = dtime(9, 30)
 RTH_CLOSE = dtime(16, 0)
 ITEM_202 = "2.02"
 
-# availability classes (v0.5 §1 — NOT BMO/AMC labels; basis is the acceptance proxy)
-PRE_OPEN = "PRE_OPEN"                          # prohibited execution opens: s, s+1
-IN_SESSION = "IN_SESSION"                      # prohibited execution opens: s+1, s+2
-POST_CLOSE = "POST_CLOSE"                      # prohibited execution opens: s+1, s+2
-DATE_ONLY_CONSERVATIVE = "DATE_ONLY_CONSERVATIVE"  # no clock time -> s+1, s+2 (PIT-safe)
+# Owner terminology (2026-07-11 review): the availability CLASS describes when the
+# information became available; the event_time BASIS says what the timestamp is.
+# The class is never overloaded into an assertion about when the company actually
+# released earnings — only VERIFIED_RELEASE_TIMESTAMP basis rows may claim that.
+PRE_OPEN = "PRE_OPEN"          # prohibited execution opens: s, s+1
+IN_SESSION = "IN_SESSION"      # prohibited execution opens: s+1, s+2
+POST_CLOSE = "POST_CLOSE"      # prohibited execution opens: s+1, s+2
+DATE_ONLY = "DATE_ONLY"        # no clock time -> treated as end-of-day s -> s+1, s+2
 
-EDGAR_ACCEPTANCE_PROXY = "edgar_acceptance_proxy"
-VERIFIED_RELEASE_TIMESTAMP = "verified_release_timestamp"  # reserved for manual validation
+# event_time_basis values
+VERIFIED_RELEASE_TIMESTAMP = "VERIFIED_RELEASE_TIMESTAMP"  # reserved for manual validation
+EDGAR_ACCEPTANCE_PROXY = "EDGAR_ACCEPTANCE_PROXY"
+DATE_ONLY_PROXY = "DATE_ONLY_PROXY"                        # filing date only, no clock time
 
 
 class _Fetcher(Protocol):
@@ -86,11 +90,21 @@ class Anchor:
     acceptance_utc: datetime
     acceptance_et: datetime
     session_date: date             # the ET calendar date of availability
-    availability_class: str        # PRE_OPEN | IN_SESSION | POST_CLOSE | DATE_ONLY_CONSERVATIVE
-    event_time_basis: str = EDGAR_ACCEPTANCE_PROXY
+    availability_class: str        # PRE_OPEN | IN_SESSION | POST_CLOSE | DATE_ONLY
+    event_time_basis: str = EDGAR_ACCEPTANCE_PROXY  # VERIFIED_RELEASE_TIMESTAMP | EDGAR_ACCEPTANCE_PROXY | DATE_ONLY_PROXY
+    # populated at the gate stage once the frozen trading calendar is pinned
+    # (weekend/holiday placement needs the calendar):
+    cooling_start_session: date | None = None
+    cooling_end_session: date | None = None
     is_amendment_origin: bool = False
     amended_by: list[str] = field(default_factory=list)
     collapsed_duplicates: list[str] = field(default_factory=list)
+
+    @property
+    def event_time(self) -> datetime:
+        """The availability instant driving the blackout/cooling rules; what it IS
+        (verified release vs acceptance proxy vs date-only) is ``event_time_basis``."""
+        return self.acceptance_utc
 
 
 @dataclass
@@ -145,14 +159,14 @@ def classify_availability(acceptance_utc: datetime, *, has_clock_time: bool) -> 
     PRE_OPEN (before 09:30 ET on s): prohibited execution opens are s and s+1.
     IN_SESSION / POST_CLOSE (during or after the session on s): prohibited opens are
     s+1 and s+2 — the s open already traded before the information existed, so it is
-    never retroactively affected. DATE_ONLY_CONSERVATIVE (no clock time): treated as
+    never retroactively affected. DATE_ONLY (no clock time): treated as
     available end-of-day s -> s+1, s+2. Weekend/holiday placement onto trading
     sessions happens at signal-time against the frozen trading calendar; here we
     record the ET calendar date + availability class.
     """
     et = acceptance_utc.astimezone(ET)
     if not has_clock_time:
-        return et.date(), DATE_ONLY_CONSERVATIVE
+        return et.date(), DATE_ONLY
     t = et.time()
     if t < RTH_OPEN:
         return et.date(), PRE_OPEN
@@ -249,6 +263,7 @@ def build_anchors(
             report_date=c.report_date, acceptance_utc=acc_utc,
             acceptance_et=acc_utc.astimezone(ET), session_date=session_date,
             availability_class=availability,
+            event_time_basis=DATE_ONLY_PROXY if not has_time else EDGAR_ACCEPTANCE_PROXY,
         )
 
     # pass 2: amendments amend the matching original; no-match -> flagged anchor
@@ -270,6 +285,7 @@ def build_anchors(
             report_date=c.report_date, acceptance_utc=acc_utc,
             acceptance_et=acc_utc.astimezone(ET), session_date=session_date,
             availability_class=availability, is_amendment_origin=True,
+            event_time_basis=DATE_ONLY_PROXY if not has_time else EDGAR_ACCEPTANCE_PROXY,
         )
         exceptions.append(f"amendment_without_original:{c.ticker}:{c.accession}")
 
@@ -285,7 +301,7 @@ def anchor_metrics(result: AnchorBuildResult, *, n_securities_requested: int) ->
     s = sorted(intervals)
     counts = {
         cls: sum(1 for a in result.anchors if a.availability_class == cls)
-        for cls in (PRE_OPEN, IN_SESSION, POST_CLOSE, DATE_ONLY_CONSERVATIVE)
+        for cls in (PRE_OPEN, IN_SESSION, POST_CLOSE, DATE_ONLY)
     }
     basis_counts = _count([a.event_time_basis for a in result.anchors])
     return {
