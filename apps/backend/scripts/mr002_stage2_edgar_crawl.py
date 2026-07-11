@@ -97,6 +97,9 @@ class ProvenanceFetcher:
         self._disk_check_countdown = 50
         du = shutil.disk_usage(self.workdir)
         free_pct = 100.0 * du.free / du.total
+        forced = os.environ.get("MR002_DISKGUARD_FORCE_FREE_PCT")
+        if forced:                     # hardened-smoke hook: deliberate guard test
+            free_pct = float(forced)
         if free_pct < 20.0:
             # owner refinement: a controlled halt must be distinguishable from a
             # crash — record trigger state + explicit termination reason.
@@ -269,6 +272,21 @@ def main() -> int:
     ap.add_argument("--since", default="2010-01-01")
     ap.add_argument("--crosswalk-csv", default="identity_crosswalk_v0.1.csv")
     args = ap.parse_args()
+    try:
+        return _run(args)
+    except DiskGuard as dg:
+        wd = Path(args.workdir)
+        partial = {"generated": datetime.now(UTC).isoformat(),
+                   "termination_reason": "DISK_HEADROOM_GUARD",
+                   "detail": str(dg),
+                   "note": "controlled halt — state checkpointed; resume after "
+                           "expanding storage (owner ops directive)"}
+        (wd / "stage2_run_report.json").write_text(json.dumps(partial, indent=2))
+        print(f"DISK_HEADROOM_GUARD halt: {dg}", flush=True)
+        return 3
+
+
+def _run(args) -> int:
     wd = Path(args.workdir)
     wd.mkdir(parents=True, exist_ok=True)
     import os
