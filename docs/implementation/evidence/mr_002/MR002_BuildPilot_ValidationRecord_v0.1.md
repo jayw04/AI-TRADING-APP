@@ -69,11 +69,22 @@ frozen/hashed; v0.1 retained for lineage).
 | V2 genuine SIC-change case | 🔴 Not yet exercised |
 | Mapping-table approval | 🟡 Pending owner countersign (v0.2 CSV; LOW rows excluded from primary) |
 
+## Crosswalk implementation results (2026-07-11, post crosswalk-go review)
+
+**Implemented** (`app/altdata/mr002/crosswalk.py` + runner): **16/16 mandatory identity tests PASS,
+0 conflicts, 0 integrity errors** — TWTR resolved via Sharadar `secfilings` CIK; FB→META continuous;
+Google→Alphabet two-interval CIK chain via the reviewed override table (5 rows, pending countersign);
+GOOG symbol resolves time-dependently (perma 195146 in 2010 → 119496 in 2020); GEHC excluded pre-spin
+with parent-GE evidence; no acquisition backfill; unknown/pre-existence symbols → explicit None.
+Interval-integrity invariants enforced in code. Mapping validator: **PASS, 0 errors/warnings**;
+v0.1↔v0.2 row reconciliation = identical 75-row key sets (the "74 rows" earlier in this record was a
+prose miscount). Hashes remain provisional until owner countersign. See pre-reg v0.6.
+
 ## Open items before hashing / the gate
 
-1. **Historical CIK↔ticker crosswalk source** for delisted/renamed names (TWTR, FB) and reorg identity
-   chains (Google→Alphabet) — required for the survivorship-free universe; the current-day
-   `company_tickers.json` is not sufficient. Crosswalk becomes effective-dated per the owner control.
+1. ✅ **RESOLVED — historical CIK↔ticker crosswalk** implemented with frozen schema + source
+   precedence; mandatory identity tests 16/16. Remaining: owner countersign of the 5 override rows,
+   then reorg-case expansion during the full-universe build.
 2. **Owner countersign of `sic_sector_etf_mapping_v0.2.csv`** (75 rows with rationale + confidence /
    specificity / review fields; 7 LOW-confidence rows excluded from primary construction). Hash frozen
    only after that review; the owner reviews all rows affecting the actual preliminary universe.
