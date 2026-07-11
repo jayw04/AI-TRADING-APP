@@ -1,0 +1,224 @@
+{
+  "tickers_requested": 9,
+  "unresolved_tickers": [],
+  "filings_processed": 365,
+  "filings_missing_sic": 0,
+  "segments_total": 8,
+  "same_day_conflicts": [],
+  "mapping_csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.1.csv",
+  "mapping_sha256_provisional": "78ff200206864798ad2739dcacbfbcba843fdd8aaba6a3485d531e2aa0d86149",
+  "mapping_hash_note": "PROVISIONAL \u2014 frozen only after manual validation, before the gate",
+  "since": "2012-01-01",
+  "built_at": "2026-07-11T13:43:05.418353+00:00",
+  "per_ticker": {
+    "META": {
+      "filings_processed": 58,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "7370",
+          "sic_name": "SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.",
+          "effective_from": "2012-07-31",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Information Technology",
+            "XLK"
+          ]
+        },
+        {
+          "sic": "7370",
+          "boundary": "2018-06-19",
+          "mapped_before": [
+            "Information Technology",
+            "XLK"
+          ],
+          "mapped_after": [
+            "Communication Services",
+            "XLC"
+          ],
+          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+        }
+      ]
+    },
+    "AAPL": {
+      "filings_processed": 58,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "3571",
+          "sic_name": "ELECTRONIC COMPUTERS",
+          "effective_from": "2012-01-25",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Information Technology",
+            "XLK"
+          ]
+        }
+      ]
+    },
+    "GOOG/GOOGL": {
+      "filings_processed": 45,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "7370",
+          "sic_name": "SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.",
+          "effective_from": "2015-10-29",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Information Technology",
+            "XLK"
+          ]
+        },
+        {
+          "sic": "7370",
+          "boundary": "2018-06-19",
+          "mapped_before": [
+            "Information Technology",
+            "XLK"
+          ],
+          "mapped_after": [
+            "Communication Services",
+            "XLC"
+          ],
+          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+        }
+      ]
+    },
+    "GEHC": {
+      "filings_processed": 14,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "3844",
+          "sic_name": "X-RAY APPARATUS &amp; TUBES &amp; RELATED IRRADIATION APPARATUS",
+          "effective_from": "2023-02-15",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Health Care",
+            "XLV"
+          ]
+        }
+      ]
+    },
+    "KVUE": {
+      "filings_processed": 13,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "2844",
+          "sic_name": "PERFUMES, COSMETICS &amp; OTHER TOILET PREPARATIONS",
+          "effective_from": "2023-06-02",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Materials",
+            "XLB"
+          ]
+        }
+      ]
+    },
+    "AMT": {
+      "filings_processed": 58,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "6798",
+          "sic_name": "REAL ESTATE INVESTMENT TRUSTS",
+          "effective_from": "2012-02-29",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Financials",
+            "XLF"
+          ]
+        },
+        {
+          "sic": "6798",
+          "boundary": "2015-10-08",
+          "mapped_before": [
+            "Financials",
+            "XLF"
+          ],
+          "mapped_after": [
+            "Real Estate",
+            "XLRE"
+          ],
+          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+        }
+      ]
+    },
+    "NFLX": {
+      "filings_processed": 61,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "7841",
+          "sic_name": "SERVICES-VIDEO TAPE RENTAL",
+          "effective_from": "2012-02-10",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Consumer Discretionary",
+            "XLY"
+          ]
+        },
+        {
+          "sic": "7841",
+          "boundary": "2018-06-19",
+          "mapped_before": [
+            "Consumer Discretionary",
+            "XLY"
+          ],
+          "mapped_after": [
+            "Communication Services",
+            "XLC"
+          ],
+          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+        }
+      ]
+    },
+    "VZ": {
+      "filings_processed": 58,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "4813",
+          "sic_name": "TELEPHONE COMMUNICATIONS (NO RADIO TELEPHONE)",
+          "effective_from": "2012-02-24",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Information Technology",
+            "XLK"
+          ]
+        },
+        {
+          "sic": "4813",
+          "boundary": "2018-06-19",
+          "mapped_before": [
+            "Information Technology",
+            "XLK"
+          ],
+          "mapped_after": [
+            "Communication Services",
+            "XLC"
+          ],
+          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+        }
+      ]
+    }
+  }
+}

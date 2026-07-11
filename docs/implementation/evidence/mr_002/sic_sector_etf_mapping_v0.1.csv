@@ -1,0 +1,76 @@
+sic_start,sic_end,effective_from,effective_to,research_sector,sector_etf,mapping_rationale
+0100,0999,,,Materials,XLB,Agriculture/forestry/fishing - closest SPDR proxy is Materials
+1000,1299,,,Materials,XLB,Metal and coal mining - Materials
+1300,1399,,,Energy,XLE,Oil and gas extraction and field services - Energy
+1400,1499,,,Materials,XLB,Nonmetallic mineral mining - Materials
+1500,1799,,,Industrials,XLI,Construction - Industrials
+2000,2199,,,Consumer Staples,XLP,Food beverage and tobacco manufacturing - Staples
+2200,2399,,,Consumer Discretionary,XLY,Textiles and apparel - Discretionary
+2400,2699,,,Materials,XLB,Lumber furniture paper and allied products - Materials
+2700,2799,,2018-06-18,Consumer Discretionary,XLY,Printing/publishing - pre-2018 GICS media sat in Discretionary
+2700,2799,2018-06-19,,Communication Services,XLC,GICS 2018 restructure moved media to Communication Services (XLC inception)
+2800,2829,,,Materials,XLB,Industrial chemicals - Materials
+2830,2836,,,Health Care,XLV,Drugs pharma and biologicals - Health Care
+2840,2899,,,Materials,XLB,Specialty chemicals soaps paints - Materials
+2900,2999,,,Energy,XLE,Petroleum refining - Energy
+3000,3099,,,Materials,XLB,Rubber and plastic products - Materials
+3100,3199,,,Consumer Discretionary,XLY,Leather and footwear - Discretionary
+3200,3299,,,Materials,XLB,Stone clay and glass - Materials
+3300,3399,,,Materials,XLB,Primary metal industries - Materials
+3400,3499,,,Industrials,XLI,Fabricated metal products - Industrials
+3500,3569,,,Industrials,XLI,Industrial and commercial machinery - Industrials
+3570,3579,,,Information Technology,XLK,Computer and office equipment - Technology
+3580,3599,,,Industrials,XLI,Refrigeration and service machinery - Industrials
+3600,3629,,,Information Technology,XLK,Electronic components and equipment - Technology
+3630,3639,,,Consumer Discretionary,XLY,Household appliances - Discretionary
+3640,3699,,,Information Technology,XLK,Electronics incl semiconductors (3674) - Technology
+3700,3710,,,Industrials,XLI,Transportation equipment NEC - Industrials
+3711,3719,,,Consumer Discretionary,XLY,Motor vehicles and parts - Discretionary (GICS autos)
+3720,3749,,,Industrials,XLI,Aerospace rail and ship building - Industrials
+3750,3759,,,Consumer Discretionary,XLY,Motorcycles and bicycles - Discretionary
+3760,3799,,,Industrials,XLI,Guided missiles space and defense - Industrials
+3800,3839,,,Health Care,XLV,Instruments incl lab/analytical (coarse - refine at validation) - Health Care
+3840,3851,,,Health Care,XLV,Medical devices and supplies - Health Care
+3852,3899,,,Information Technology,XLK,Photographic/optical and misc instruments - Technology
+3900,3999,,,Consumer Discretionary,XLY,Miscellaneous manufacturing - Discretionary
+4000,4799,,,Industrials,XLI,Railroads trucking air and transport services - Industrials
+4800,4899,,2018-06-18,Information Technology,XLK,Telecom pre-2018 - original 1998 SPDR taxonomy carried telecom inside XLK (T/VZ were XLK members)
+4800,4899,2018-06-19,,Communication Services,XLC,GICS 2018 moved telecom to Communication Services (XLC inception)
+4900,4999,,,Utilities,XLU,Electric gas water and sanitary services - Utilities
+5000,5139,,,Industrials,XLI,Wholesale durable/nondurable distribution - Industrials (GICS trading companies/distributors)
+5140,5149,,,Consumer Staples,XLP,Food distribution wholesale - Staples
+5150,5199,,,Industrials,XLI,Wholesale nondurable NEC - Industrials
+5200,5399,,,Consumer Discretionary,XLY,General merchandise and apparel retail - Discretionary
+5400,5499,,,Consumer Staples,XLP,Food stores - Staples
+5500,5899,,,Consumer Discretionary,XLY,Auto dealers home furnishings eating and drinking - Discretionary
+5900,5911,,,Consumer Discretionary,XLY,Retail NEC - Discretionary
+5912,5912,,,Consumer Staples,XLP,Drug stores - Staples
+5913,5999,,,Consumer Discretionary,XLY,Retail NEC - Discretionary
+6000,6499,,,Financials,XLF,Banks credit insurance carriers and brokers - Financials
+6500,6599,,2015-10-07,Financials,XLF,Real estate pre-XLRE - REITs/real estate lived in XLF before XLRE inception
+6500,6599,2015-10-08,,Real Estate,XLRE,GICS 2016 real-estate sector (XLRE inception 2015-10-08)
+6600,6797,,,Financials,XLF,Investment offices and holding companies - Financials
+6798,6798,,2015-10-07,Financials,XLF,REITs pre-XLRE inception - Financials
+6798,6798,2015-10-08,,Real Estate,XLRE,REITs post-XLRE inception - Real Estate
+6799,6799,,,Financials,XLF,Investors NEC - Financials
+7000,7099,,,Consumer Discretionary,XLY,Hotels and lodging - Discretionary
+7200,7299,,,Consumer Discretionary,XLY,Personal services - Discretionary
+7300,7309,,,Industrials,XLI,Business services NEC - Industrials
+7310,7319,,2018-06-18,Consumer Discretionary,XLY,Advertising pre-2018 - Discretionary media
+7310,7319,2018-06-19,,Communication Services,XLC,GICS 2018 moved advertising to Communication Services
+7320,7369,,,Industrials,XLI,Credit reporting staffing and facility services - Industrials
+7370,7370,,2018-06-18,Information Technology,XLK,Computer programming/data processing incl internet content pre-2018 - Technology
+7370,7370,2018-06-19,,Communication Services,XLC,GICS 2018 moved internet content/search (META GOOGL class of SIC 7370) to Communication Services - the sector-change-without-SIC-change case
+7371,7379,,,Information Technology,XLK,Software IT services prepackaged software (MSFT 7372) - Technology
+7380,7399,,,Industrials,XLI,Miscellaneous business services - Industrials
+7500,7699,,,Consumer Discretionary,XLY,Auto repair rental and misc repair - Discretionary
+7800,7999,,2018-06-18,Consumer Discretionary,XLY,Movies entertainment and recreation pre-2018 - Discretionary
+7800,7999,2018-06-19,,Communication Services,XLC,GICS 2018 moved movies/entertainment (NFLX 7841 class) to Communication Services
+8000,8099,,,Health Care,XLV,Health services hospitals and clinics - Health Care
+8100,8199,,,Industrials,XLI,Legal services - Industrials (coarse)
+8200,8299,,,Consumer Discretionary,XLY,Educational services - Discretionary
+8300,8699,,,Industrials,XLI,Social and membership services (coarse) - Industrials
+8700,8730,,,Industrials,XLI,Engineering accounting and management services - Industrials
+8731,8731,,,Health Care,XLV,Commercial physical/biological research (biotech research) - Health Care
+8732,8799,,,Industrials,XLI,Research management and related services - Industrials
+8800,8999,,,Industrials,XLI,Services NEC - Industrials (coarse)

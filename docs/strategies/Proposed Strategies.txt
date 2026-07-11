@@ -1,0 +1,242 @@
+Recommended Mean-Reversion Candidates
+Priority	ID	Strategy	Main advantage
+1	MR-002	Sector-Neutral Residual Reversion	Highest probability of producing a diversified, scalable edge
+2	RNG-002	Regime-Gated Adaptive Range Reversion	Explicit range strategy with breakout protection
+Short-term equity reversal has substantial historical evidence, including a maintained daily reversal factor in Kenneth French’s research library. However, research also indicates that much of the return behaves like compensation for providing liquidity, meaning the opportunity varies significantly by market conditions. 
+________________________________________
+1. MR-002 — Sector-Neutral Residual Reversion
+Hypothesis
+After removing broad-market and sector movements, unusually large company-specific price moves frequently represent temporary liquidity pressure. Those residual moves should partially reverse over the following one to five trading days.
+This differs from the rejected strategy:
+	It does not fade price simply because it moved away from VWAP. 
+	It removes market and sector trends before measuring overextension. 
+	It creates many diversified trades rather than relying on a few range episodes. 
+	It excludes likely information-driven moves such as earnings gaps. 
+Residual statistical-arbitrage approaches have been studied using factor and principal-component models, while pairs-trading research has documented the broader relative-value mean-reversion mechanism. Those historical results do not guarantee that the edge remains profitable today, but they provide a stronger economic foundation than a standalone technical fade. 
+Initial universe
+Use a point-in-time universe consisting of approximately:
+	Top 200–300 US common stocks by 60-day median dollar volume 
+	Price above $10 
+	Median daily dollar volume above $25 million 
+	No ETFs, ADRs, preferred shares, SPACs, or recent IPOs 
+	Short-borrow availability required for short positions 
+	Exclude earnings and major corporate-event windows 
+Starting with liquid large-cap stocks is important because high-turnover strategies can lose their apparent edge after realistic trading costs. Research on anomaly implementation finds that large-cap, high-turnover implementations are more likely to survive costs than small, illiquid-stock versions. 
+Signal construction
+For every stock, estimate the following rolling 60-session model:
+r_(i,t)=α_i+β_(m,i) r_("SPY" ,t)+β_(s,i) r_("Sector" ,t)+ϵ_(i,t)
+
+Where:
+	r_(i,t)is the stock return. 
+	r_("SPY" ,t)is the market return. 
+	r_("Sector" ,t)is the corresponding sector ETF return. 
+	ϵ_(i,t)is the company-specific residual. 
+Then calculate:
+	Cumulative residual return over the previous five sessions. 
+	Rolling 60-day standard deviation of the five-day residual. 
+	Residual z-score. 
+z_(i,t)="Five-day cumulative residual" /"Rolling residual volatility" 
+
+Entry rules
+Long
+Enter long when all are true:
+	Residual z-score ≤ −2.0 
+	Stock is within the bottom 10% of eligible residual scores 
+	No earnings announcement from two sessions before through two sessions after entry 
+	No merger, split, delisting, or major corporate-action flag 
+	One-day opening gap is less than 6% 
+	Bid-ask spread and estimated impact are within the approved liquidity envelope 
+Short
+Enter short when all are true:
+	Residual z-score ≥ +2.0 
+	Stock is within the top 10% of eligible residual scores 
+	Same event and liquidity exclusions 
+	Borrow is available 
+	Estimated borrow cost is below the registered limit 
+Exit rules
+Close a position at the first occurrence of:
+	Residual z-score returns inside ±0.35 
+	Five trading sessions have elapsed 
+	Residual moves farther to ±3.5 and the market or sector confirms the move 
+	Earnings or another prohibited event enters the next-session window 
+	Portfolio risk limit requires reduction 
+Do not use a tight ordinary price stop. Mean-reversion trades often worsen temporarily before reverting. The stop should detect a likely hypothesis failure, not ordinary noise.
+Portfolio construction
+	Market beta approximately neutral 
+	Sector exposure approximately neutral 
+	Equal residual-risk contribution 
+	Maximum position: 1.5% of gross exposure 
+	Maximum sector gross exposure: 20% 
+	Initial gross exposure: 100% 
+	Initial portfolio volatility target: 8% 
+	Increase gross exposure only after validation and live-paper evidence 
+	No position should contribute more than 3% of projected portfolio risk 
+Why this is the primary candidate
+MR-002 has the strongest profit potential of the two because it obtains returns from:
+	Many independent stock-level opportunities 
+	Both long and short positions 
+	Market and sector neutralization 
+	Daily portfolio refresh 
+	Controlled portfolio-level scaling 
+The profit potential should come from breadth and repeatability, not from more leverage or wider entry thresholds.
+________________________________________
+2. RNG-002 — Regime-Gated Adaptive Range Reversion
+Hypothesis
+Highly liquid ETFs frequently oscillate within temporary, statistically stable ranges. A false break through a recently tested range boundary, followed by a close back inside the range, can identify a short-duration reversal.
+The strategy must trade only when there is evidence of an established range. It must stop immediately when the range changes into a directional breakout.
+Initial universe
+Start with liquid ETFs rather than individual stocks:
+	SPY 
+	QQQ 
+	IWM 
+	DIA 
+	XLK 
+	XLF 
+	XLE 
+	XLV 
+	XLI 
+	XLP 
+	XLY 
+	XLU 
+Use 30-minute bars during regular US trading hours.
+ETFs reduce several problems that damaged the original approach:
+	Individual-company earnings gaps 
+	Corporate-event contamination 
+	Difficult short-borrow conditions 
+	Point-in-time constituent bias 
+	Single-stock headline risk 
+Range definition
+For each ETF, use the preceding 60 completed 30-minute bars.
+Calculate:
+	Robust upper boundary: 90th percentile of closing prices 
+	Robust lower boundary: 10th percentile 
+	Centerline: median closing price 
+	ATR over 20 bars 
+	ADX over 14 bars 
+	Linear-regression slope over 40 bars 
+A valid range requires all of the following:
+	ADX below 20 
+	Absolute 40-bar slope below 0.10 ATR per bar 
+	Range width between 1.5 and 5.0 ATR 
+	At least two prior touches near both the upper and lower boundaries 
+	No close more than 0.5 ATR beyond either boundary during the lookback 
+	Current opening gap below 0.75 daily ATR 
+This avoids trading both extremely narrow pre-breakout compression and markets that are already trending.
+Long entry
+Enter long after a lower-boundary false break:
+	Current bar trades below the lower range boundary. 
+	Current bar closes back above the lower boundary. 
+	The close is in the upper 50% of the bar’s high-low range. 
+	ADX remains below 22. 
+	Volume is below 2.0 times its time-of-day median. 
+	There is no simultaneous downside breakout in SPY unless the instrument is SPY itself. 
+Enter at the next bar’s open.
+Short entry
+Use the inverse conditions:
+	Price trades above the upper boundary. 
+	The bar closes back inside the range. 
+	Close is in the lower 50% of the bar. 
+	Trend, volume, and market-confirmation vetoes remain satisfied. 
+Exit rules
+Take profit in two stages:
+	Exit 60% at the range centerline. 
+	Exit the remaining 40% at the opposite 75th or 25th percentile. 
+Close the entire position when:
+	Price closes 0.6 ATR outside the range 
+	ADX rises above 25 
+	Range slope exceeds its permitted limit 
+	Eight bars have elapsed 
+	The session reaches 3:45 p.m. Eastern Time 
+No overnight positions in the initial version.
+Position sizing
+	Risk 0.20% of capital per trade 
+	Maximum three simultaneous ETF positions 
+	Reduce correlated exposure when multiple index or sector ETFs signal together 
+	Combined SPY/QQQ/DIA/IWM risk capped at 0.35% 
+	One re-entry per instrument per session 
+	Initial portfolio volatility target: 6% 
+Why this is different from RNG-001
+RNG-002 is not another VWAP deviation fade.
+RNG-001 problem	RNG-002 response
+Price deviation treated as sufficient evidence	Requires an established, repeatedly tested range
+VWAP provided the primary anchor	Uses robust rolling range boundaries
+Weak breakout separation	Uses slope, ADX, range stability and false-break confirmation
+Single entry around an apparent extreme	Requires price to break and then reclaim the boundary
+Potential information-driven moves	Uses ETFs and rejects abnormal gaps and volume
+Apparent edge failed clustered resampling	Must pass the same clustered test before consideration
+________________________________________
+Backtest Design
+The strategy should not be optimized directly against the final test period.
+Frozen parameter policy
+Register only three configurations for each strategy:
+MR-002
+	Entry z-score: 1.75, 2.00, 2.25 
+	Maximum holding period: fixed at five sessions 
+	Exit z-score: fixed at 0.35 
+RNG-002
+	ADX ceiling: 18, 20, 22 
+	Boundary percentiles: fixed at 10/90 
+	Maximum holding period: fixed at eight bars 
+Do not run hundreds of parameter combinations. The probability of selecting a false winner increases as more strategy configurations are tested. PBO and Deflated Sharpe methods were specifically developed to detect this form of backtest selection bias. 
+Required testing sequence
+	Development sample: first 50% of history. 
+	Walk-forward validation: next 25%. 
+	Sealed out-of-sample test: final 25%. 
+	Block or date-clustered bootstrap. 
+	Bull, bear, sideways, high-volatility and low-volatility decomposition. 
+	Transaction-cost sensitivity. 
+	Parameter-neighborhood stability. 
+	Deflated Sharpe and PBO analysis. 
+	Paper-trading verification before production. 
+Transaction costs
+Use observed spread and volume-based impact where possible.
+Minimum stress tests:
+Strategy	Base model	Stress model
+MR-002	Spread + impact + borrow	2× spread/impact and 2× borrow
+RNG-002	Spread + 1-bar slippage	2× spread and 2-bar adverse slippage
+A short-horizon strategy that passes only with zero-cost or close-price execution must be rejected.
+________________________________________
+Proposed Pass Gates
+A strategy passes only when all mandatory gates are satisfied:
+Gate	Requirement
+Net out-of-sample Sharpe	≥ 0.70
+Net out-of-sample Calmar	≥ 0.75
+Maximum drawdown	≤ 15%
+Positive walk-forward folds	≥ 60%
+Bootstrap mean-return lower bound	Above zero
+Cost stress	Still profitable at 2× modeled costs
+Parameter stability	Adjacent configurations remain profitable
+PBO	Below 20%
+Deflated Sharpe significance	At least 95%
+Profit concentration	No single year contributes more than 35% of total P&L
+Regime concentration	No single market regime contributes more than 60% of total P&L
+Capacity	Positive after realistic volume participation limits
+These are deliberately harder than selecting the highest historical CAGR. Technical-rule research shows why data-snooping adjustments are necessary when many variants have been examined. 
+Final Recommendation
+Open both records, but validate them in this order:
+	MR-002 Sector-Neutral Residual Reversion — primary candidate 
+	RNG-002 Regime-Gated Adaptive Range Reversion — secondary candidate 
+MR-002 has the better chance of becoming a profitable standalone strategy because it has greater breadth, diversification and scalability. RNG-002 should initially be treated as a smaller complementary sleeve unless it independently passes every statistical and cost gate.
+The governance disposition should be:
+RNG-001 remains Completed · Rejected (Evidenced) · Archived. MR-002 and RNG-002 are new hypotheses, not continuations or parameter repairs of RNG-001.
+That is the right next step:
+Start with MR-002, then test RNG-002 separately. Before running either backtest, freeze:
+	Universe and point-in-time data rules 
+	Entry, exit, sizing, and exclusion rules 
+	Transaction-cost and short-borrow assumptions 
+	Development, validation, and sealed test periods 
+	Pass/fail thresholds 
+Do not adjust parameters after viewing the sealed out-of-sample results. Any change should create a new version, such as MR-002-v2, and require a new untouched test period.
+For the first review, capture these results:
+Area	Required output
+Performance	CAGR, Sharpe, Sortino, Calmar, max drawdown
+Trade quality	Win rate, payoff ratio, expectancy, trade count
+Robustness	Walk-forward folds, bootstrap confidence interval, parameter neighbors
+Costs	Gross versus net results, 1× and 2× cost stress
+Stability	Annual and market-regime attribution
+Concentration	Top trades, top dates, sectors, instruments
+Capacity	Turnover, volume participation, borrow costs
+Validation	PBO and Deflated Sharpe
+The key decision is not which strategy has the highest backtested CAGR. It is which one produces the highest credible net return after robustness and cost gates.
+Keep RNG-001 archived and unchanged so the new results remain clearly independent from the previously rejected hypothesis.
+

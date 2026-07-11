@@ -1,0 +1,82 @@
+{
+  "securities_requested": 10,
+  "securities_with_anchor": 9,
+  "pct_securities_with_anchor": 90.0,
+  "n_anchors": 363,
+  "n_amendment_origin": 0,
+  "n_amended": 2,
+  "n_duplicates_collapsed": 0,
+  "n_rejections": 0,
+  "rejection_reasons": {},
+  "interval_median_days": 91,
+  "interval_min_days": 5,
+  "interval_max_days": 124,
+  "pct_intervals_lt_60d": 1.97,
+  "pct_intervals_gt_110d": 3.94,
+  "session_assignment_counts": {
+    "BMO": 142,
+    "AMC": 221,
+    "BMO_CONSERVATIVE": 0
+  },
+  "exceptions": [],
+  "unresolved_tickers": [
+    "TWTR"
+  ],
+  "older_shards_fetched": 10,
+  "since": "2012-01-01",
+  "built_at": "2026-07-11T13:37:05.386800+00:00",
+  "events_code22_crosscheck": {
+    "META": {
+      "events_code22": 42,
+      "anchors": 56,
+      "matched_within_1d": 42,
+      "matched_pct": 100.0
+    },
+    "AAPL": {
+      "events_code22": 43,
+      "anchors": 59,
+      "matched_within_1d": 43,
+      "matched_pct": 100.0
+    },
+    "GOOGL": {
+      "events_code22": 43,
+      "anchors": 44,
+      "matched_within_1d": 43,
+      "matched_pct": 100.0
+    },
+    "GOOG": {
+      "events_code22": 0,
+      "matched_pct": null
+    },
+    "GEHC": {
+      "events_code22": 15,
+      "anchors": 15,
+      "matched_within_1d": 15,
+      "matched_pct": 100.0
+    },
+    "KVUE": {
+      "events_code22": 13,
+      "anchors": 13,
+      "matched_within_1d": 13,
+      "matched_pct": 100.0
+    },
+    "AMT": {
+      "events_code22": 42,
+      "anchors": 58,
+      "matched_within_1d": 42,
+      "matched_pct": 100.0
+    },
+    "NFLX": {
+      "events_code22": 44,
+      "anchors": 60,
+      "matched_within_1d": 44,
+      "matched_pct": 100.0
+    },
+    "VZ": {
+      "events_code22": 42,
+      "anchors": 58,
+      "matched_within_1d": 42,
+      "matched_pct": 100.0
+    }
+  }
+}
