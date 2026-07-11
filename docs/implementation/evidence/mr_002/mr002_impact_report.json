@@ -1,0 +1,256 @@
+{
+  "generated": "2026-07-11T15:28:06.607918+00:00",
+  "disclosure": "SECTOR SOURCE = CURRENT TICKERS siccode (APPROXIMATION for coverage planning only; recomputed from PIT SIC after the V2 crawl)",
+  "universe_months_total": 41000,
+  "distinct_securities": 755,
+  "months": [
+    "2013-01-01",
+    "2026-08-01"
+  ],
+  "universe_months_by_tier": {
+    "HIGH": 27063,
+    "MEDIUM": 12315,
+    "EXCLUDED_LOW_CONFIDENCE": 1328,
+    "SECURITY_OVERRIDE": 294
+  },
+  "pct_by_tier": {
+    "HIGH": 66.01,
+    "MEDIUM": 30.04,
+    "EXCLUDED_LOW_CONFIDENCE": 3.24,
+    "SECURITY_OVERRIDE": 0.72
+  },
+  "per_year_tier_counts": {
+    "2013": {
+      "HIGH": 2027,
+      "MEDIUM": 922,
+      "EXCLUDED_LOW_CONFIDENCE": 51
+    },
+    "2014": {
+      "HIGH": 2023,
+      "MEDIUM": 923,
+      "EXCLUDED_LOW_CONFIDENCE": 54
+    },
+    "2015": {
+      "HIGH": 2022,
+      "MEDIUM": 910,
+      "EXCLUDED_LOW_CONFIDENCE": 68
+    },
+    "2016": {
+      "HIGH": 2024,
+      "MEDIUM": 916,
+      "EXCLUDED_LOW_CONFIDENCE": 60
+    },
+    "2017": {
+      "HIGH": 1968,
+      "MEDIUM": 976,
+      "EXCLUDED_LOW_CONFIDENCE": 56
+    },
+    "2018": {
+      "HIGH": 1996,
+      "MEDIUM": 905,
+      "EXCLUDED_LOW_CONFIDENCE": 81,
+      "SECURITY_OVERRIDE": 18
+    },
+    "2019": {
+      "MEDIUM": 870,
+      "HIGH": 1979,
+      "SECURITY_OVERRIDE": 36,
+      "EXCLUDED_LOW_CONFIDENCE": 115
+    },
+    "2020": {
+      "HIGH": 1874,
+      "MEDIUM": 953,
+      "SECURITY_OVERRIDE": 36,
+      "EXCLUDED_LOW_CONFIDENCE": 137
+    },
+    "2021": {
+      "HIGH": 1862,
+      "MEDIUM": 962,
+      "SECURITY_OVERRIDE": 36,
+      "EXCLUDED_LOW_CONFIDENCE": 140
+    },
+    "2022": {
+      "HIGH": 1987,
+      "MEDIUM": 856,
+      "SECURITY_OVERRIDE": 36,
+      "EXCLUDED_LOW_CONFIDENCE": 121
+    },
+    "2023": {
+      "HIGH": 2018,
+      "MEDIUM": 832,
+      "SECURITY_OVERRIDE": 36,
+      "EXCLUDED_LOW_CONFIDENCE": 114
+    },
+    "2024": {
+      "HIGH": 1964,
+      "MEDIUM": 890,
+      "SECURITY_OVERRIDE": 36,
+      "EXCLUDED_LOW_CONFIDENCE": 110
+    },
+    "2025": {
+      "HIGH": 2009,
+      "MEDIUM": 826,
+      "SECURITY_OVERRIDE": 36,
+      "EXCLUDED_LOW_CONFIDENCE": 129
+    },
+    "2026": {
+      "HIGH": 1310,
+      "MEDIUM": 574,
+      "SECURITY_OVERRIDE": 24,
+      "EXCLUDED_LOW_CONFIDENCE": 92
+    }
+  },
+  "coverage_pct_with_MEDIUM_removed_by_year": {
+    "2013": 67.57,
+    "2014": 67.43,
+    "2015": 67.4,
+    "2016": 67.47,
+    "2017": 65.6,
+    "2018": 67.13,
+    "2019": 67.17,
+    "2020": 63.67,
+    "2021": 63.27,
+    "2022": 67.43,
+    "2023": 68.47,
+    "2024": 66.67,
+    "2025": 68.17,
+    "2026": 66.7
+  },
+  "top20_securities_by_MEDIUM_universe_months": [
+    {
+      "ticker": "GE",
+      "medium_months": 164,
+      "siccode": "3600"
+    },
+    {
+      "ticker": "AMZN",
+      "medium_months": 164,
+      "siccode": "5961"
+    },
+    {
+      "ticker": "WMT",
+      "medium_months": 164,
+      "siccode": "5331"
+    },
+    {
+      "ticker": "CAT",
+      "medium_months": 164,
+      "siccode": "3531"
+    },
+    {
+      "ticker": "MCD",
+      "medium_months": 164,
+      "siccode": "5812"
+    },
+    {
+      "ticker": "HD",
+      "medium_months": 164,
+      "siccode": "5211"
+    },
+    {
+      "ticker": "BKNG",
+      "medium_months": 164,
+      "siccode": "4700"
+    },
+    {
+      "ticker": "DIS",
+      "medium_months": 164,
+      "siccode": "7990"
+    },
+    {
+      "ticker": "SBUX",
+      "medium_months": 164,
+      "siccode": "5810"
+    },
+    {
+      "ticker": "V",
+      "medium_months": 164,
+      "siccode": "7389"
+    },
+    {
+      "ticker": "LOW",
+      "medium_months": 164,
+      "siccode": "5211"
+    },
+    {
+      "ticker": "MA",
+      "medium_months": 164,
+      "siccode": "7389"
+    },
+    {
+      "ticker": "BA",
+      "medium_months": 164,
+      "siccode": "3721"
+    },
+    {
+      "ticker": "RTX",
+      "medium_months": 164,
+      "siccode": "3724"
+    },
+    {
+      "ticker": "COST",
+      "medium_months": 164,
+      "siccode": "5331"
+    },
+    {
+      "ticker": "TGT",
+      "medium_months": 164,
+      "siccode": "5331"
+    },
+    {
+      "ticker": "UPS",
+      "medium_months": 164,
+      "siccode": "4210"
+    },
+    {
+      "ticker": "DE",
+      "medium_months": 164,
+      "siccode": "3523"
+    },
+    {
+      "ticker": "TJX",
+      "medium_months": 164,
+      "siccode": "5651"
+    },
+    {
+      "ticker": "NKE",
+      "medium_months": 164,
+      "siccode": "3021"
+    }
+  ],
+  "flagged_row_exposure": {
+    "5045-5045@open": {
+      "HPE": 26
+    },
+    "5200-5399@open": {
+      "WMT": 164,
+      "HD": 164,
+      "LOW": 164,
+      "COST": 164,
+      "TGT": 164,
+      "DG": 151,
+      "SHW": 147,
+      "DLTR": 111,
+      "M": 105,
+      "KSS": 56,
+      "TSCO": 20,
+      "CPPRQ": 12,
+      "BLDR": 7,
+      "BURL": 1
+    }
+  },
+  "medium_rows_at_XLC_boundary_securities": [
+    "OMC"
+  ],
+  "provenance": {
+    "run_started": "2026-07-11T15:26:38.452232+00:00",
+    "script_sha256": "ea77da03ef0935c3668b7bdc0c999bf5f2ec6ec51d8cda7574029dbcabb0e261",
+    "approximation_disclosure": "SECTOR SOURCE = CURRENT TICKERS siccode (APPROXIMATION for coverage planning only; recomputed from PIT SIC after the V2 crawl)",
+    "tickers_zip_sha256": "b5ae57284230956bc087ccf66a4c79a6e4a9ddbce67b4e06c4ef5b5435faf0f8",
+    "tickers_rows": 62454,
+    "sep_zip_sha256": "47d049ab1b010ea5298f3f1acc2e38434a7f7534913d55c1579996ff3d48605c",
+    "sep_rows": 46172468,
+    "universe_csv_sha256": "8f5110b482d1993732d043cee856d1a528143854229c2344fbbe91edef1f1c77",
+    "universe_rows": 41000
+  }
+}
