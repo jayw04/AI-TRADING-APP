@@ -25,8 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.6.csv"
-V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.7.csv"
+PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.7.csv"
+V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.8.csv"
 OUT = EVIDENCE_DIR / "mapping_validation_report.json"
 
 ETF_INCEPTION = {
@@ -64,7 +64,7 @@ def main() -> int:
     key = lambda r: tuple(r[k] for k in CANONICAL_KEY)  # noqa: E731
     v1_keys, v2_keys = {key(r) for r in v1_rows}, {key(r) for r in rows}
     recon = {
-        "prev_rows(v0.6)": len(v1_rows), "current_rows(v0.7)": len(rows),
+        "prev_rows(v0.7)": len(v1_rows), "current_rows(v0.8)": len(rows),
         "added": sorted(map(str, v2_keys - v1_keys)),
         "removed": sorted(map(str, v1_keys - v2_keys)),
         "note": "v0.5+v0.6 content changes are INTENTIONAL (owner countersign 2, "

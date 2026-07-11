@@ -163,8 +163,9 @@ def load_sec_overrides(path: Path) -> list[dict]:
     rows = []
     with path.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            if r.get("review_status", "").strip() == "pending_archive_evidence":
-                continue
+            if r.get("review_status", "").strip() in ("pending_archive_evidence",
+                                                       "needs_revision"):
+                continue  # unresolved rows are never applied
             rows.append({
                 "ticker": r["ticker"].upper(),
                 "permaticker": (r.get("permaticker") or "").strip() or None,
@@ -207,8 +208,8 @@ def main() -> int:
     ap.add_argument("--download", action="store_true")
     ap.add_argument("--start", default="2013-01-01",
                     help="first universe month (gate picks the real window later)")
-    ap.add_argument("--mapping-csv", default="sic_sector_etf_mapping_v0.7.csv")
-    ap.add_argument("--sec-overrides-csv", default="security_sector_overrides_v0.5.csv")
+    ap.add_argument("--mapping-csv", default="sic_sector_etf_mapping_v0.8.csv")
+    ap.add_argument("--sec-overrides-csv", default="security_sector_overrides_v0.6.csv")
     ap.add_argument("--universe-csv", default=None,
                     help="reuse an existing preliminary-universe CSV(.gz) — skips "
                          "SEP download/SQL; drops any universe month later than the "

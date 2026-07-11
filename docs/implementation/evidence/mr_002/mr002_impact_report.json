@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-11T16:04:43.663900+00:00",
+  "generated": "2026-07-11T16:21:36.567438+00:00",
   "disclosure": "SECTOR SOURCE = CURRENT TICKERS siccode (APPROXIMATION for coverage planning only; recomputed from PIT SIC after the V2 crawl)",
   "coverage_gate_check": {
     "eligible_universe_months(HIGH+MEDIUM+OVERRIDE)": 40287,
@@ -355,8 +355,8 @@
     "OMC"
   ],
   "provenance": {
-    "run_started": "2026-07-11T16:04:43.392838+00:00",
-    "script_sha256": "270a7b68a64a5140c3b1603c916b66e95886721b8811a6ec3cc56d255ece555c",
+    "run_started": "2026-07-11T16:21:36.303479+00:00",
+    "script_sha256": "a6052751b359b908a9ef22ce62e53e41893a35b6ea7ca0a2ee260ae8df4c9907",
     "approximation_disclosure": "SECTOR SOURCE = CURRENT TICKERS siccode (APPROXIMATION for coverage planning only; recomputed from PIT SIC after the V2 crawl)",
     "universe_csv_sha256": "7abb7af10ea6c50acee01ee5c91dc533338edeab22b36989214bd382df9f2a10",
     "universe_rows": 40750

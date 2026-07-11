@@ -1,21 +1,11 @@
 {
-  "csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.7.csv",
-  "artifact_sha256": "6ee7847c1666bf92e328804fcec5af3ce6ce2574dc0b16a7011bb21005d2994f",
+  "csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.8.csv",
+  "artifact_sha256": "857a86c26b87a2c8e0cf0a39bfeeefb810e742a125cdb37418e6cf21859a5cc3",
   "reconciliation_prev_to_current": {
-    "prev_rows(v0.6)": 106,
-    "current_rows(v0.7)": 110,
-    "added": [
-      "('4800', '4809', '', '', 'Communication Services', 'XLC')",
-      "('4810', '4829', '', '2018-09-28', 'Information Technology', 'XLK')",
-      "('4810', '4829', '2018-10-01', '', 'Communication Services', 'XLC')",
-      "('4830', '4849', '', '2018-09-28', 'Consumer Discretionary', 'XLY')",
-      "('4830', '4849', '2018-10-01', '', 'Communication Services', 'XLC')",
-      "('4850', '4899', '', '', 'Communication Services', 'XLC')"
-    ],
-    "removed": [
-      "('4800', '4899', '', '2018-09-28', 'Information Technology', 'XLK')",
-      "('4800', '4899', '2018-10-01', '', 'Communication Services', 'XLC')"
-    ],
+    "prev_rows(v0.7)": 110,
+    "current_rows(v0.8)": 110,
+    "added": [],
+    "removed": [],
     "note": "v0.5+v0.6 content changes are INTENTIONAL (owner countersign 2, 2026-07-11): CLASSIFICATION effective dates replace ETF-availability dates (XLC boundary -> 2018-10-01 after the 2018-09-28 close; XLRE -> 2016-09-01 after the 2016-08-31 close; ETF availability is a separate registered property) + the 3800-3839 instruments split for LOW-exclusion recovery (3812->XLI, 3826->XLV, 3827->XLK; residuals stay LOW). Every added/removed key listed above; pre-reg v0.9."
   },
   "confidence_counts": {
