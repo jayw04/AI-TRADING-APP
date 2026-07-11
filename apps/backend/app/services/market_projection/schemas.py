@@ -47,6 +47,24 @@ PREOPEN_FEATURES: tuple[str, ...] = (
     "regime_trend", "regime_vol",
 )
 
+# --- §4 serving constants (owner decision 2026-07-10; ModelCard v1.0) -----------
+# The ONLY validated claim. Wording is owner-approved verbatim; the API and card
+# may never emit directional fields, labels, tooltips, or hidden outputs.
+BADGE_VALIDATED = "Validated Move-Risk Projection — Primary Horizon Only"
+BADGE_DEGRADED = "Research Preview — data drift under review"
+PHRASE_ELEVATED = "Elevated move risk; direction uncertain."
+PHRASE_NOT_ELEVATED = "No elevated move-risk signal today."  # owner-approved (§4 Q2)
+REGIME_LIMITATION = (
+    "Regime limitation: The §3 validation pass is concentrated in benign/up-trending "
+    "regimes. The 2022 bear-year slice favored the baseline, and down-trend days were "
+    "approximately a wash. Therefore the model is validated only as a primary-horizon "
+    "elevated move-risk projection, not as a stress-regime or bear-market predictor."
+)
+DISCLAIMER = (
+    "Research Preview — not a validated trading signal. "
+    "Not used for ranking, sizing, portfolio construction, or orders."
+)
+
 PRECLOSE_FEATURES: tuple[str, ...] = (
     "spy_intraday_ret", "qqq_intraday_ret", "iwm_intraday_ret", "spy_late_day_ret",
     "sector_breadth", "up_sector_count", "sector_coverage_count",

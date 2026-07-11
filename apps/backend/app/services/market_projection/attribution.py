@@ -57,6 +57,35 @@ def logistic_drivers(
     ]
 
 
+def material_drivers(
+    calibrated_logistic: Any,
+    x_std_row: np.ndarray,
+    columns: list[str],
+    *,
+    top_n: int = TOP_N_DRIVERS,
+) -> list[dict[str, Any]]:
+    """Move-risk drivers for the SERVED surface (owner rule: nothing directional).
+
+    P(MATERIAL) rises exactly as the NEUTRAL logit falls, so the attribution is
+    the negated NEUTRAL-class contribution — exact for the multinomial logistic.
+    Direction values are ``raises_move_risk`` / ``lowers_move_risk`` only; no
+    UP/DOWN vocabulary can appear downstream of this payload."""
+    base = _base_logistic(calibrated_logistic)
+    classes = list(base.classes_)
+    contrib = -base.coef_[classes.index("NEUTRAL")] * x_std_row
+    order = np.argsort(-np.abs(contrib))[:top_n]
+    return [
+        {
+            "feature": columns[i],
+            "direction": "raises_move_risk" if contrib[i] > 0 else "lowers_move_risk",
+            "weight": round(float(abs(contrib[i])), 4),
+            "value": round(float(x_std_row[i]), 4),
+        }
+        for i in order
+        if abs(contrib[i]) > 0
+    ]
+
+
 def permutation_importance_material(
     predict_probs, rows: list[dict], columns_source, *, n_repeats: int = 5, seed: int = 42
 ) -> dict[str, float]:

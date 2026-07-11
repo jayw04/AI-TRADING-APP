@@ -43,7 +43,10 @@ def build(start: date, end: date) -> list[dict]:
         month_days = [d for d in sessions.index if d.year == y and d.month == m]
         if not month_days:
             continue
-        minute = ds.fetch_minute_month(client, ds.ALL_SYMBOLS, y, m)
+        from datetime import date as _date, timedelta as _td
+        m_start = _date(y, m, 1)
+        m_end = _date(y + (m == 12), (m % 12) + 1, 1) - _td(days=1)
+        minute = ds.fetch_minute_range(client, ds.ALL_SYMBOLS, m_start, m_end)
         month_sessions = sessions.loc[month_days]
         if "SPY" in minute:
             cum_vol.update(ds.spy_cum_volume_table(minute["SPY"], month_sessions))

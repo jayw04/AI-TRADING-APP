@@ -23,6 +23,7 @@ from app.api.v1 import (
     live_autodispatch,
     llm_opt_in,
     market_data,
+    market_projection,
     morning_brief,
     opportunities,
     ops,
@@ -58,6 +59,7 @@ api_router.include_router(positions.router)
 # Trade Journal: the user's filled trades + a free-text note per trade.
 api_router.include_router(journal.router)
 api_router.include_router(market_data.router)
+api_router.include_router(market_projection.router)
 api_router.include_router(indicators.router)
 api_router.include_router(users.router)
 # P5.5 §1: trading-profile router prefixes /users/me; the /api/v1 prefix is
