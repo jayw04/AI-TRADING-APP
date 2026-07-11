@@ -37,6 +37,7 @@ import csv
 import gzip
 import hashlib
 import json
+import os
 import shutil
 import time
 import urllib.error
@@ -85,6 +86,7 @@ class ProvenanceFetcher:
                          "compressed_bytes": 0, "uncompressed_bytes": 0}
         self._last = 0.0
         self._disk_check_countdown = 0
+        self.last_completed_url: str | None = None
 
     def _disk_guard(self) -> None:
         """Owner directive: <20% free = stop accepting new downloads (single-threaded
@@ -96,10 +98,16 @@ class ProvenanceFetcher:
         du = shutil.disk_usage(self.workdir)
         free_pct = 100.0 * du.free / du.total
         if free_pct < 20.0:
-            self._record(event="DISK_GUARD_TRIP", free_pct=round(free_pct, 1))
+            # owner refinement: a controlled halt must be distinguishable from a
+            # crash — record trigger state + explicit termination reason.
+            self._record(event="DISK_HEADROOM_GUARD", free_bytes=du.free,
+                         free_pct=round(free_pct, 1),
+                         last_completed_url=self.last_completed_url,
+                         counters=dict(self.counters))
             self.log.flush()
-            raise DiskGuard(f"free disk {free_pct:.1f}% < 20% — new downloads stopped; "
-                            "state is checkpointed, resume after expanding storage")
+            raise DiskGuard(f"DISK_HEADROOM_GUARD: free {free_pct:.1f}% < 20% — new "
+                            "downloads stopped; state checkpointed; resume after "
+                            "expanding storage")
 
     def _record(self, **kw) -> None:
         kw["ts"] = datetime.now(UTC).isoformat()
@@ -161,28 +169,62 @@ class ProvenanceFetcher:
                 last_err = e
                 time.sleep(2 * attempt)
                 continue
-            h = hashlib.sha256(body).hexdigest()
+            h = hashlib.sha256(body).hexdigest()          # content identity
             comp = gzip.compress(body, 6)
+            storage_h = hashlib.sha256(comp).hexdigest()  # storage integrity
             self.counters["compressed_bytes"] += len(comp)
             self.counters["uncompressed_bytes"] += len(body)
-            self._record(url=url, attempt=attempt, status=status, sha256=h,
+            self._record(url=url, attempt=attempt, status=status,
+                         content_sha256=h, storage_sha256=storage_h,
                          cached=False, compressed_bytes=len(comp),
                          uncompressed_bytes=len(body))
             prev = self.hashes.get(url)
-            if prev is not None and prev != h:
-                self._record(url=url, event="DUAL_HASH_STOP", first=prev, second=h)
+            if prev is not None and prev != h:            # identity = CONTENT hash;
+                self._record(url=url, event="DUAL_HASH_STOP",  # gzip metadata can
+                             first=prev, second=h)             # never trip this
                 raise StopForReview(f"{url}: {prev} != {h}")
             self.hashes[url] = h
             self.counters["hash_verified"] += 1
-            gz.write_bytes(comp)                     # compressed at rest
+            # append-safe ordering: tmp -> fsync -> atomic rename -> index -> fsync
+            tmp = gz.with_suffix(".gz.tmp")
+            with tmp.open("wb") as f:
+                f.write(comp)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, gz)
             self.index.write(json.dumps({"url": url, "key": gz.name,
+                                         "content_sha256": h,
+                                         "storage_sha256": storage_h,
                                          "compressed_bytes": len(comp),
                                          "uncompressed_bytes": len(body)}) + chr(10))
             self.index.flush()
+            os.fsync(self.index.fileno())
             self.counters["retrieved"] += 1
+            self.last_completed_url = url
             return body
         self.counters["failed"] += 1
         raise last_err or RuntimeError(f"fetch failed: {url}")
+
+    def worst_burst_bytes(self, window: int = 50) -> int:
+        """Owner refinement: the worst observed N-consecutive-response storage
+        burst (compressed on-disk bytes), for calibrating the disk-guard cadence:
+        free space must exceed burst + decompression allowance + DB/WAL allowance
+        + safety reserve."""
+        sizes = []
+        ipath = self.workdir / "cache_index.jsonl"
+        if ipath.exists():
+            for line in ipath.open(encoding="utf-8"):
+                try:
+                    sizes.append(int(json.loads(line).get("compressed_bytes") or 0))
+                except Exception:  # noqa: BLE001
+                    continue
+        if not sizes:
+            return 0
+        best = cur = sum(sizes[:window])
+        for i in range(window, len(sizes)):
+            cur += sizes[i] - sizes[i - window]
+            best = max(best, cur)
+        return best
 
     def largest_objects_report(self, n: int = 100) -> list[dict]:
         """Owner post-run requirement: largest cached objects by URL and size."""
@@ -376,6 +418,7 @@ def main() -> int:
         "generated": datetime.now(UTC).isoformat(),
         "since": args.since,
         "issuers": len(issuers),
+        "termination_reason": "COMPLETED",
         "controls": {"manifest_pinned_before_fetch": True,
                      "dual_hash_stop_rule": "armed (no trigger = clean)",
                      "retries_provenance_preserving": True},
@@ -392,6 +435,7 @@ def main() -> int:
                for t in ("anchors", "sic_observations", "sic_segments")},
             "raw_response_manifest_lines": sum(1 for _ in fetcher.log_path.open()),
             "largest_100_cache_objects": fetcher.largest_objects_report(100),
+            "worst_50_response_burst_compressed_bytes": fetcher.worst_burst_bytes(50),
             "extraction_code_sha256": hashlib.sha256(
                 Path(__file__).read_bytes()).hexdigest(),
         },
