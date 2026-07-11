@@ -1,0 +1,149 @@
+{
+  "tickers_requested": 5,
+  "unresolved_tickers": [],
+  "filings_processed": 249,
+  "filings_missing_sic": 0,
+  "segments_total": 7,
+  "same_day_conflicts": [],
+  "mapping_csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.3.csv",
+  "mapping_artifact_sha256": "d48e73c2d34b2992f55196421fc407379f8a1dc0d25e4b6ed35bff3ea25cd79f",
+  "security_overrides_csv": "Docs\\implementation\\evidence\\mr_002\\security_sector_overrides_v0.1.csv",
+  "security_overrides_artifact_sha256": "d24c50252812938a079b4143428bf3ea85718f3ad77490b1798f5c630001dc92",
+  "hash_note": "artifact hashes (raw bytes), PROVISIONAL \u2014 frozen only after owner countersign; canonical_data_sha256 lives in the validator report",
+  "low_confidence_hits": [],
+  "since": "2012-01-01",
+  "built_at": "2026-07-11T14:50:46.606703+00:00",
+  "per_ticker": {
+    "CVS": {
+      "filings_processed": 58,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "5912",
+          "sic_name": "RETAIL-DRUG STORES AND PROPRIETARY STORES",
+          "effective_from": "2012-02-17",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Consumer Staples",
+            "XLP"
+          ],
+          "resolution_source": "sic_mapping"
+        }
+      ]
+    },
+    "WBD": {
+      "filings_processed": 59,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "4841",
+          "sic_name": "CABLE & OTHER PAY TELEVISION SERVICES",
+          "effective_from": "2012-02-17",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Information Technology",
+            "XLK"
+          ],
+          "resolution_source": "sic_mapping"
+        },
+        {
+          "sic": "4841",
+          "boundary": "2018-06-19",
+          "mapped_before": [
+            "Information Technology",
+            "XLK"
+          ],
+          "mapped_after": [
+            "Communication Services",
+            "XLC"
+          ],
+          "resolution_source": "sic_mapping",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
+        }
+      ]
+    },
+    "BKNG": {
+      "filings_processed": 59,
+      "filings_missing_sic": 0,
+      "segments": 2,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "7389",
+          "sic_name": "SERVICES-BUSINESS SERVICES, NEC",
+          "effective_from": "2012-02-27",
+          "effective_to": "2019-11-07",
+          "mapped_at_start": [
+            "Industrials",
+            "XLI"
+          ],
+          "resolution_source": "sic_mapping"
+        },
+        {
+          "sic": "4700",
+          "sic_name": "TRANSPORTATION SERVICES",
+          "effective_from": "2019-11-07",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Industrials",
+            "XLI"
+          ],
+          "resolution_source": "sic_mapping"
+        }
+      ]
+    },
+    "UBER": {
+      "filings_processed": 29,
+      "filings_missing_sic": 0,
+      "segments": 2,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "7372",
+          "sic_name": "SERVICES-PREPACKAGED SOFTWARE",
+          "effective_from": "2019-06-04",
+          "effective_to": "2019-11-05",
+          "mapped_at_start": [
+            "Information Technology",
+            "XLK"
+          ],
+          "resolution_source": "sic_mapping"
+        },
+        {
+          "sic": "7389",
+          "sic_name": "SERVICES-BUSINESS SERVICES, NEC",
+          "effective_from": "2019-11-05",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Industrials",
+            "XLI"
+          ],
+          "resolution_source": "sic_mapping"
+        }
+      ]
+    },
+    "PYPL": {
+      "filings_processed": 44,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "7389",
+          "sic_name": "SERVICES-BUSINESS SERVICES, NEC",
+          "effective_from": "2015-07-29",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Industrials",
+            "XLI"
+          ],
+          "resolution_source": "sic_mapping"
+        }
+      ]
+    }
+  }
+}

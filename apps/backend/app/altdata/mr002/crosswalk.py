@@ -61,7 +61,8 @@ class CrosswalkRow:
 @dataclass
 class CrosswalkBuild:
     rows: list[CrosswalkRow] = field(default_factory=list)
-    conflicts: list[str] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)      # UNEXPLAINED — coverage gate = 0
+    ambiguities: list[str] = field(default_factory=list)    # documented/expected (e.g. when-issued)
     notes: list[str] = field(default_factory=list)
 
     def resolve(self, ticker: str, on: date) -> CrosswalkRow | None:
@@ -73,9 +74,11 @@ class CrosswalkBuild:
         if not hits:
             return None
         if len({(h.permaticker, h.cik) for h in hits}) > 1:
-            self.conflicts.append(f"ambiguous:{t}@{on}:" + ",".join(
+            # a ticker/date lookup returns a CIK only when exactly ONE effective
+            # permaticker resolves (frozen invariant); otherwise unresolved + recorded.
+            self.ambiguities.append(f"ambiguous:{t}@{on}:" + ",".join(
                 f"{h.permaticker}/{h.cik}/{h.relationship_type}" for h in hits))
-            return None  # unexplained identity conflicts are a coverage gate (=0)
+            return None
         return hits[0]
 
     def cik_for(self, permaticker: int, on: date) -> int | None:

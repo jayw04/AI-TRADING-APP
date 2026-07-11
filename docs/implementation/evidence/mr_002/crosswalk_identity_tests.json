@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-07-11T14:15:50.127898+00:00",
+  "built_at": "2026-07-11T14:44:50.764344+00:00",
   "tickers": [
     "TWTR",
     "META",
@@ -98,12 +98,56 @@
     },
     "unresolved_identity_explicit_exclusion": {
       "pass": true
+    },
+    "boundary_2014_04_02_goog_still_classA": {
+      "pass": true,
+      "note": "None allowed: GOOG is EXPECTEDLY ambiguous 2014-03-27..04-02 (Class A regular-way + Class C when-issued); ambiguity must be recorded",
+      "got": "unresolved"
+    },
+    "boundary_when_issued_ambiguity_recorded": {
+      "pass": true
+    },
+    "boundary_2014_04_03_goog_is_classC": {
+      "pass": true
+    },
+    "boundary_2014_04_03_googl_is_classA": {
+      "pass": true
+    },
+    "boundary_2015_10_01_predecessor": {
+      "pass": true
+    },
+    "boundary_2015_10_02_successor": {
+      "pass": true
+    },
+    "when_issued_window_cik_via_permaticker": {
+      "pass": true
     }
   },
   "integrity_errors": [],
-  "identity_tests_passed": "16/16",
+  "expected_ambiguities": [
+    "ambiguous:GOOG@2014-04-02:119496/1288776/predecessor_cik,195146/1288776/predecessor_cik"
+  ],
+  "identity_tests_passed": "23/23",
   "review_csv": "Docs\\implementation\\evidence\\mr_002\\identity_crosswalk_v0.1.csv",
-  "crosswalk_sha256_provisional": "e283e178638b626e36516456627e9e2c0bdb8c870ac5617f57cc495c4c07fdb4",
-  "overrides_sha256_provisional": "3fc319dca6be17b9403a7a86b6981f8cf477bcf7dfbd1f7c177017d0f62aa635",
-  "hash_note": "PROVISIONAL \u2014 frozen after owner countersign of override rows, before the gate"
+  "crosswalk_artifact_sha256": "554cfce1118bf135f9c76e42c1aeccccafe8c861ce10f72998b1580d814b64ef",
+  "overrides_artifact_sha256": "1f35d3c2078fbdc5a847a96b6d69845c12583308e21e555e8a25486aeb32c9f6",
+  "canonicalization": {
+    "canonicalization_version": 1,
+    "canonical_fields": [
+      "permaticker",
+      "ticker",
+      "cik",
+      "effective_from",
+      "effective_to",
+      "relationship_type"
+    ],
+    "canonical_sort_key": [
+      "permaticker",
+      "effective_from",
+      "ticker"
+    ],
+    "line_ending_policy": "LF, no trailing newline in the canonical payload"
+  },
+  "crosswalk_canonical_data_sha256": "89c6acf21bbbe726d4b9099a70e654d55727199b59af0d32674ef43e982d859e",
+  "hash_note": "artifact_sha256 = raw file bytes; canonical_data_sha256 = sorted canonical rows. Both PROVISIONAL \u2014 final hashes generated after owner countersign, before the gate"
 }

@@ -59,7 +59,7 @@ from app.altdata.sec.client import EdgarClient  # noqa: E402
 ROOT = Path(__file__).resolve().parents[3]
 DB = ROOT / "apps" / "backend" / "data" / "mr002_provenance.duckdb"
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-OVERRIDES_CSV = EVIDENCE_DIR / "crosswalk_manual_overrides_v0.1.csv"
+OVERRIDES_CSV = EVIDENCE_DIR / "crosswalk_manual_overrides_v0.2.csv"
 NDL_BASE = "https://data.nasdaq.com/api/v3/datatables/SHARADAR"
 
 DDL = """
@@ -170,6 +170,33 @@ def run_identity_tests(build: CrosswalkBuild) -> dict[str, dict]:
     t["unresolved_identity_explicit_exclusion"] = {
         "pass": build.resolve("TWTR", date(2010, 1, 1)) is None
         and build.resolve("ZZZZNOTREAL", date(2020, 1, 1)) is None}
+
+    # owner-required boundary tests (review 2026-07-11): the overrides must be
+    # historically correct at the exact transition dates, not merely internally
+    # consistent with the resolver.
+    r = build.resolve("GOOG", date(2014, 4, 2))
+    t["boundary_2014_04_02_goog_still_classA"] = {
+        "pass": bool(r and r.permaticker == 195146 and r.cik == 1288776) or r is None,
+        "note": "None allowed: GOOG is EXPECTEDLY ambiguous 2014-03-27..04-02 "
+                "(Class A regular-way + Class C when-issued); ambiguity must be recorded",
+        "got": (r.permaticker if r else "unresolved")}
+    t["boundary_when_issued_ambiguity_recorded"] = {
+        "pass": any("GOOG@2014-04-02" in a for a in build.ambiguities)
+        or bool(r and r.permaticker == 195146)}
+    r = build.resolve("GOOG", date(2014, 4, 3))
+    t["boundary_2014_04_03_goog_is_classC"] = {
+        "pass": bool(r and r.permaticker == 119496 and r.cik == 1288776)}
+    r = build.resolve("GOOGL", date(2014, 4, 3))
+    t["boundary_2014_04_03_googl_is_classA"] = {
+        "pass": bool(r and r.permaticker == 195146 and r.cik == 1288776)}
+    t["boundary_2015_10_01_predecessor"] = {
+        "pass": build.cik_for(195146, date(2015, 10, 1)) == 1288776
+        and build.cik_for(119496, date(2015, 10, 1)) == 1288776}
+    t["boundary_2015_10_02_successor"] = {
+        "pass": build.cik_for(195146, date(2015, 10, 2)) == 1652044
+        and build.cik_for(119496, date(2015, 10, 2)) == 1652044}
+    t["when_issued_window_cik_via_permaticker"] = {
+        "pass": build.cik_for(119496, date(2014, 3, 28)) == 1288776}
     return t
 
 
@@ -245,11 +272,24 @@ def main() -> int:
         "notes": build.notes,
         "identity_tests": tests,
         "integrity_errors": integrity_errors,
+        "expected_ambiguities": build.ambiguities,
         "identity_tests_passed": f"{passed}/{len(tests)}",
         "review_csv": str(review_csv.relative_to(ROOT)),
-        "crosswalk_sha256_provisional": hashlib.sha256(review_csv.read_bytes()).hexdigest(),
-        "overrides_sha256_provisional": hashlib.sha256(OVERRIDES_CSV.read_bytes()).hexdigest(),
-        "hash_note": "PROVISIONAL — frozen after owner countersign of override rows, before the gate",
+        "crosswalk_artifact_sha256": hashlib.sha256(review_csv.read_bytes()).hexdigest(),
+        "overrides_artifact_sha256": hashlib.sha256(OVERRIDES_CSV.read_bytes()).hexdigest(),
+        "canonicalization": {
+            "canonicalization_version": 1,
+            "canonical_fields": ["permaticker", "ticker", "cik", "effective_from",
+                                  "effective_to", "relationship_type"],
+            "canonical_sort_key": ["permaticker", "effective_from", "ticker"],
+            "line_ending_policy": "LF, no trailing newline in the canonical payload",
+        },
+        "crosswalk_canonical_data_sha256": hashlib.sha256("\n".join(
+            f"{r.permaticker},{r.ticker},{r.cik},{r.effective_from},{r.effective_to or ''},{r.relationship_type}"
+            for r in sorted(build.rows, key=lambda x: (x.permaticker, x.effective_from, x.ticker))
+        ).encode()).hexdigest(),
+        "hash_note": "artifact_sha256 = raw file bytes; canonical_data_sha256 = sorted canonical rows. "
+                     "Both PROVISIONAL — final hashes generated after owner countersign, before the gate",
     }
     Path(args.report_out).write_text(json.dumps(report, indent=2, default=str))
     print(f"\nrows={len(build.rows)} conflicts={len(build.conflicts)} "

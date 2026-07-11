@@ -25,8 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-V1_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.1.csv"
-V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.2.csv"
+PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.2.csv"
+V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.3.csv"
 OUT = EVIDENCE_DIR / "mapping_validation_report.json"
 
 ETF_INCEPTION = {
@@ -56,7 +56,7 @@ def windows_overlap(a_from, a_to, b_from, b_to) -> bool:
 
 def main() -> int:
     rows = load(V2_CSV)
-    v1_rows = load(V1_CSV)
+    v1_rows = load(PREV_CSV)
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -64,15 +64,15 @@ def main() -> int:
     key = lambda r: tuple(r[k] for k in CANONICAL_KEY)  # noqa: E731
     v1_keys, v2_keys = {key(r) for r in v1_rows}, {key(r) for r in rows}
     recon = {
-        "v0.1_rows": len(v1_rows), "v0.2_rows": len(rows),
-        "added_in_v0.2": sorted(map(str, v2_keys - v1_keys)),
-        "removed_in_v0.2": sorted(map(str, v1_keys - v2_keys)),
-        "identical_key_sets": v1_keys == v2_keys,
-        "note": ("v0.2 is a pure field-addition transform of v0.1 (same ranges, dates, "
-                 "sectors, ETFs). The earlier validation record's '74 rows' was a "
-                 "miscount in prose; both CSVs contain the same row set."
-                 if v1_keys == v2_keys else
-                 "ROW SET CHANGED — document each added/removed row before hashing."),
+        "prev_rows(v0.2)": len(v1_rows), "current_rows(v0.3)": len(rows),
+        "added": sorted(map(str, v2_keys - v1_keys)),
+        "removed": sorted(map(str, v1_keys - v2_keys)),
+        "note": "v0.3 content changes are INTENTIONAL (owner review 2026-07-11): "
+                "2840-2899 split (KVUE/XLP fix), 2400-2699 / 3600-3699 / 4000-4799 / "
+                "4900-4999 / 7800-7999 splits, 7370-post downgraded LOW (security "
+                "overrides carry META/Alphabet), 8731+7370-pre downgraded MEDIUM, "
+                "XLC/XLRE first-usable-return-date wording. Every added/removed key "
+                "is listed above; rationale lives in each row + pre-reg v0.7.",
     }
 
     # ---- structural checks ----
@@ -118,6 +118,9 @@ def main() -> int:
             errors.append(f"XLC row must start 2018-06-19: {key(r)}")
         if etf == "XLRE" and r["effective_from"] != "2015-10-08":
             errors.append(f"XLRE row must start 2015-10-08: {key(r)}")
+        if etf in ("XLC", "XLRE") and "first usable" not in r.get("source_reference", ""):
+            errors.append(f"{etf} row must describe the boundary as the first usable "
+                          f"return date, not the inception date: {key(r)}")
         if r["effective_to"] and r["effective_to"] not in ("2018-06-18", "2015-10-07"):
             errors.append(f"unexpected effective_to boundary: {key(r)}")
 
@@ -141,7 +144,8 @@ def main() -> int:
 
     report = {
         "csv": str(V2_CSV.relative_to(ROOT)),
-        "reconciliation_v01_v02": recon,
+        "artifact_sha256": hashlib.sha256(V2_CSV.read_bytes()).hexdigest(),
+        "reconciliation_prev_to_current": recon,
         "confidence_counts": n_conf,
         "errors": errors,
         "warnings": warnings,
@@ -150,14 +154,20 @@ def main() -> int:
                          "universe): securities/universe-months per confidence tier, top-20 "
                          "MEDIUM-exposed securities, MEDIUM rows at XLC/XLRE boundaries, "
                          "MEDIUM-removed coverage diagnostic (no strategy signals).",
-        "canonical_hash_provisional_sha256": canonical_hash,
-        "hash_note": "PROVISIONAL — final hash generated after owner countersign, "
-                     "sorted by the frozen canonical key.",
+        "canonical_data_sha256": canonical_hash,
+        "canonicalization": {
+            "canonicalization_version": 1,
+            "canonical_fields": list(CANONICAL_KEY) + ["mapping_confidence"],
+            "canonical_sort_key": list(CANONICAL_KEY),
+            "line_ending_policy": "LF join, no trailing newline",
+        },
+        "hash_note": "artifact_sha256 = raw file bytes; canonical_data_sha256 = "
+                     "canonically sorted rows. Both PROVISIONAL until owner countersign.",
         "result": "PASS" if not errors else "FAIL",
     }
     OUT.write_text(json.dumps(report, indent=2))
     print(json.dumps({k: report[k] for k in
-                      ("reconciliation_v01_v02", "confidence_counts", "errors",
+                      ("reconciliation_prev_to_current", "confidence_counts", "errors",
                        "warnings", "result")}, indent=2))
     print(f"-> {OUT}")
     return 0 if not errors else 1

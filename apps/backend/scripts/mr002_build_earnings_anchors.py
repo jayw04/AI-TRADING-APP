@@ -119,6 +119,30 @@ def events_code22_dates(ticker: str) -> set[str]:
     }
 
 
+def crosswalk_identities(db_path: Path, tickers: list[str]) -> dict[str, tuple[int, int | None]]:
+    """ticker -> (cik, permaticker) from the identity crosswalk (v0.5 §2) — the
+    PRIMARY identity source; resolves delisted/renamed names that the current-day
+    company_tickers.json drops (owner review: rerun anchors through the crosswalk).
+    Uses each ticker's latest effective interval; ambiguous tickers are skipped here
+    (the crosswalk runner already records them)."""
+    out: dict[str, tuple[int, int | None]] = {}
+    if not db_path.exists():
+        return out
+    con = duckdb.connect(str(db_path), read_only=True)
+    try:
+        for t in tickers:
+            rows = con.execute(
+                "SELECT cik, permaticker FROM identity_crosswalk WHERE ticker = ? "
+                "ORDER BY effective_from DESC LIMIT 1", [t]).fetchall()
+            if rows and rows[0][0] is not None:
+                out[t] = (int(rows[0][0]), int(rows[0][1]) if rows[0][1] is not None else None)
+    except Exception:  # noqa: BLE001 — table may not exist yet; fallback path handles it
+        pass
+    finally:
+        con.close()
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tickers", required=True, help="comma-separated")
@@ -132,11 +156,20 @@ def main() -> int:
     tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
     built_at = datetime.now(UTC)
 
+    xwalk = crosswalk_identities(Path(args.db), tickers)
     with EdgarClient() as edgar:
         cmap = load_cik_map(edgar)
-        resolved, unresolved = cmap.resolve_all(tickers)
-        print(f"CIK resolved: {len(resolved)}/{len(tickers)}; unresolved={unresolved}")
+        resolved, unresolved = cmap.resolve_all([t for t in tickers if t not in xwalk])
+        for t, (cik, _perma) in xwalk.items():
+            resolved[t] = cik
+        unresolved = [t for t in unresolved if t not in xwalk]
+        print(f"CIK resolved: {len(resolved)}/{len(tickers)} "
+              f"(crosswalk={len(xwalk)}, current-map={len(resolved) - len(xwalk)}); "
+              f"unresolved={unresolved}")
         permas = permatickers_for(tickers)
+        for t, (_cik, perma) in xwalk.items():
+            if permas.get(t) is None:
+                permas[t] = perma
 
         # anchors are ISSUER-level (per CIK); dual-class tickers share one anchor set
         # and map back to distinct permatickers via the crosswalk (pre-reg v0.4 §8 V2).

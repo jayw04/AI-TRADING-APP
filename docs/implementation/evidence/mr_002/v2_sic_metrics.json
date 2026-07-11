@@ -5,12 +5,14 @@
   "filings_missing_sic": 0,
   "segments_total": 8,
   "same_day_conflicts": [],
-  "mapping_csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.2.csv",
-  "mapping_sha256_provisional": "a71032281f4ce081087124b70e690f3b8223c1c9181123dc072efd21d64f5597",
-  "mapping_hash_note": "PROVISIONAL \u2014 frozen only after manual validation, before the gate",
+  "mapping_csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.3.csv",
+  "mapping_artifact_sha256": "d48e73c2d34b2992f55196421fc407379f8a1dc0d25e4b6ed35bff3ea25cd79f",
+  "security_overrides_csv": "Docs\\implementation\\evidence\\mr_002\\security_sector_overrides_v0.1.csv",
+  "security_overrides_artifact_sha256": "d24c50252812938a079b4143428bf3ea85718f3ad77490b1798f5c630001dc92",
+  "hash_note": "artifact hashes (raw bytes), PROVISIONAL \u2014 frozen only after owner countersign; canonical_data_sha256 lives in the validator report",
   "low_confidence_hits": [],
   "since": "2012-01-01",
-  "built_at": "2026-07-11T14:03:13.905843+00:00",
+  "built_at": "2026-07-11T14:48:49.208509+00:00",
   "per_ticker": {
     "META": {
       "filings_processed": 58,
@@ -26,7 +28,8 @@
           "mapped_at_start": [
             "Information Technology",
             "XLK"
-          ]
+          ],
+          "resolution_source": "sic_mapping"
         },
         {
           "sic": "7370",
@@ -39,7 +42,8 @@
             "Communication Services",
             "XLC"
           ],
-          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+          "resolution_source": "security_override",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
         }
       ]
     },
@@ -57,7 +61,8 @@
           "mapped_at_start": [
             "Information Technology",
             "XLK"
-          ]
+          ],
+          "resolution_source": "sic_mapping"
         }
       ]
     },
@@ -75,7 +80,8 @@
           "mapped_at_start": [
             "Information Technology",
             "XLK"
-          ]
+          ],
+          "resolution_source": "sic_mapping"
         },
         {
           "sic": "7370",
@@ -88,7 +94,8 @@
             "Communication Services",
             "XLC"
           ],
-          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+          "resolution_source": "security_override",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
         }
       ]
     },
@@ -106,7 +113,8 @@
           "mapped_at_start": [
             "Health Care",
             "XLV"
-          ]
+          ],
+          "resolution_source": "sic_mapping"
         }
       ]
     },
@@ -122,9 +130,10 @@
           "effective_from": "2023-06-02",
           "effective_to": null,
           "mapped_at_start": [
-            "Materials",
-            "XLB"
-          ]
+            "Consumer Staples",
+            "XLP"
+          ],
+          "resolution_source": "sic_mapping"
         }
       ]
     },
@@ -142,7 +151,8 @@
           "mapped_at_start": [
             "Financials",
             "XLF"
-          ]
+          ],
+          "resolution_source": "sic_mapping"
         },
         {
           "sic": "6798",
@@ -155,7 +165,8 @@
             "Real Estate",
             "XLRE"
           ],
-          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+          "resolution_source": "sic_mapping",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
         }
       ]
     },
@@ -173,7 +184,8 @@
           "mapped_at_start": [
             "Consumer Discretionary",
             "XLY"
-          ]
+          ],
+          "resolution_source": "sic_mapping"
         },
         {
           "sic": "7841",
@@ -186,7 +198,8 @@
             "Communication Services",
             "XLC"
           ],
-          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+          "resolution_source": "sic_mapping",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
         }
       ]
     },
@@ -204,7 +217,8 @@
           "mapped_at_start": [
             "Information Technology",
             "XLK"
-          ]
+          ],
+          "resolution_source": "sic_mapping"
         },
         {
           "sic": "4813",
@@ -217,7 +231,8 @@
             "Communication Services",
             "XLC"
           ],
-          "note": "sector change WITHOUT SIC change (mapping effective-dating)"
+          "resolution_source": "sic_mapping",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
         }
       ]
     }

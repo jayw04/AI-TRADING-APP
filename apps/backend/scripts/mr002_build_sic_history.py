@@ -54,7 +54,8 @@ from app.altdata.sec.client import EdgarClient  # noqa: E402
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DB = ROOT / "apps" / "backend" / "data" / "mr002_provenance.duckdb"
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-MAPPING_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.2.csv"
+MAPPING_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.3.csv"
+SEC_OVERRIDES_CSV = EVIDENCE_DIR / "security_sector_overrides_v0.1.csv"
 
 DDL = """
 CREATE TABLE IF NOT EXISTS sic_observations (
@@ -108,6 +109,46 @@ def sha256_file(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+class SecurityOverrides:
+    """Frozen effective-dated security-level sector overrides (owner review §F):
+    for issuers whose SIC cannot determine the sector reliably (e.g. post-2018 SIC
+    7370). An override WINS over the SIC mapping inside its window; names covered by
+    neither are excluded, never forced."""
+
+    def __init__(self, csv_path: Path) -> None:
+        self.rows: list[dict] = []
+        if not csv_path.exists():
+            return
+        with csv_path.open(newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                self.rows.append({
+                    "ticker": row["ticker"].upper(),
+                    "from": date.fromisoformat(row["effective_from"]) if row["effective_from"] else None,
+                    "to": date.fromisoformat(row["effective_to"]) if row["effective_to"] else None,
+                    "sector": row["research_sector"], "etf": row["sector_etf"],
+                })
+
+    def resolve(self, label_tickers: list[str], on: date) -> tuple[str, str] | None:
+        for r in self.rows:
+            if r["ticker"] in label_tickers and (r["from"] is None or on >= r["from"]) \
+                    and (r["to"] is None or on <= r["to"]):
+                return r["sector"], r["etf"]
+        return None
+
+
+def resolve_sector(sec_ovr: SecurityOverrides, mapping: Mapping,
+                   label_tickers: list[str], sic: str, on: date):
+    """security override > SIC mapping > None (excluded). Returns
+    (source, (sector, etf)) or (None, None)."""
+    hit = sec_ovr.resolve(label_tickers, on)
+    if hit is not None:
+        return "security_override", hit
+    hit = mapping.resolve(sic, on)
+    if hit is not None:
+        return "sic_mapping", hit
+    return None, None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tickers", required=True)
@@ -119,6 +160,7 @@ def main() -> int:
     tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
     built_at = datetime.now(UTC)
     mapping = Mapping(MAPPING_CSV)
+    sec_ovr = SecurityOverrides(SEC_OVERRIDES_CSV)
 
     with EdgarClient() as edgar:
         cmap = load_cik_map(edgar)
@@ -142,15 +184,16 @@ def main() -> int:
             missing_total += res.missing_sic
 
             # mapped timeline (for the validation write-up): sector at each segment start
+            label_tickers = sorted(cik_tickers)
             timeline = []
             for s in res.segments:
                 d0 = s.effective_from.date()
-                mapped0 = mapping.resolve(s.sic, d0)
+                src0, mapped0 = resolve_sector(sec_ovr, mapping, label_tickers, s.sic, d0)
                 timeline.append({
                     "sic": s.sic, "sic_name": s.sic_name,
                     "effective_from": str(d0),
                     "effective_to": str(s.effective_to.date()) if s.effective_to else None,
-                    "mapped_at_start": mapped0,
+                    "mapped_at_start": mapped0, "resolution_source": src0,
                 })
                 # mapping-driven sector changes INSIDE an unchanged-SIC segment
                 # (the META case: SIC constant, sector flips at a boundary date)
@@ -158,12 +201,15 @@ def main() -> int:
                 for boundary in (date(2015, 10, 8), date(2018, 6, 19)):
                     end = s.effective_to.date() if s.effective_to else date.today()
                     if d0 < boundary <= end:
-                        mapped_b = mapping.resolve(s.sic, boundary)
+                        src_b, mapped_b = resolve_sector(sec_ovr, mapping, label_tickers,
+                                                         s.sic, boundary)
                         if mapped_b != prev_mapped:
                             timeline.append({
                                 "sic": s.sic, "boundary": str(boundary),
                                 "mapped_before": prev_mapped, "mapped_after": mapped_b,
-                                "note": "sector change WITHOUT SIC change (mapping effective-dating)",
+                                "resolution_source": src_b,
+                                "note": "sector change WITHOUT SIC change "
+                                        "(mapping/override effective-dating)",
                             })
                             prev_mapped = mapped_b
             per_ticker[label] = {
@@ -204,8 +250,11 @@ def main() -> int:
         "segments_total": len(all_segs),
         "same_day_conflicts": all_conflicts,
         "mapping_csv": str(MAPPING_CSV.relative_to(ROOT)),
-        "mapping_sha256_provisional": sha256_file(MAPPING_CSV),
-        "mapping_hash_note": "PROVISIONAL — frozen only after manual validation, before the gate",
+        "mapping_artifact_sha256": sha256_file(MAPPING_CSV),
+        "security_overrides_csv": str(SEC_OVERRIDES_CSV.relative_to(ROOT)),
+        "security_overrides_artifact_sha256": sha256_file(SEC_OVERRIDES_CSV),
+        "hash_note": "artifact hashes (raw bytes), PROVISIONAL — frozen only after "
+                     "owner countersign; canonical_data_sha256 lives in the validator report",
         "low_confidence_hits": mapping.low_confidence_hits,
         "since": args.since,
         "built_at": built_at.isoformat(),

@@ -1,23 +1,74 @@
 {
-  "csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.2.csv",
-  "reconciliation_v01_v02": {
-    "v0.1_rows": 75,
-    "v0.2_rows": 75,
-    "added_in_v0.2": [],
-    "removed_in_v0.2": [],
-    "identical_key_sets": true,
-    "note": "v0.2 is a pure field-addition transform of v0.1 (same ranges, dates, sectors, ETFs). The earlier validation record's '74 rows' was a miscount in prose; both CSVs contain the same row set."
+  "csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.3.csv",
+  "artifact_sha256": "d48e73c2d34b2992f55196421fc407379f8a1dc0d25e4b6ed35bff3ea25cd79f",
+  "reconciliation_prev_to_current": {
+    "prev_rows(v0.2)": 75,
+    "current_rows(v0.3)": 87,
+    "added": [
+      "('2400', '2499', '', '', 'Materials', 'XLB')",
+      "('2500', '2599', '', '', 'Consumer Discretionary', 'XLY')",
+      "('2600', '2699', '', '', 'Materials', 'XLB')",
+      "('2840', '2844', '', '', 'Consumer Staples', 'XLP')",
+      "('2845', '2899', '', '', 'Materials', 'XLB')",
+      "('3600', '3629', '', '', 'Industrials', 'XLI')",
+      "('3640', '3649', '', '', 'Industrials', 'XLI')",
+      "('3650', '3659', '', '', 'Consumer Discretionary', 'XLY')",
+      "('3660', '3679', '', '', 'Information Technology', 'XLK')",
+      "('3680', '3699', '', '', 'Industrials', 'XLI')",
+      "('4000', '4609', '', '', 'Industrials', 'XLI')",
+      "('4610', '4619', '', '', 'Energy', 'XLE')",
+      "('4620', '4799', '', '', 'Industrials', 'XLI')",
+      "('4900', '4949', '', '', 'Utilities', 'XLU')",
+      "('4950', '4959', '', '', 'Industrials', 'XLI')",
+      "('4960', '4999', '', '', 'Utilities', 'XLU')",
+      "('7800', '7849', '', '2018-06-18', 'Consumer Discretionary', 'XLY')",
+      "('7800', '7849', '2018-06-19', '', 'Communication Services', 'XLC')",
+      "('7850', '7899', '', '', 'Consumer Discretionary', 'XLY')",
+      "('7900', '7999', '', '', 'Consumer Discretionary', 'XLY')"
+    ],
+    "removed": [
+      "('2400', '2699', '', '', 'Materials', 'XLB')",
+      "('2840', '2899', '', '', 'Materials', 'XLB')",
+      "('3600', '3629', '', '', 'Information Technology', 'XLK')",
+      "('3640', '3699', '', '', 'Information Technology', 'XLK')",
+      "('4000', '4799', '', '', 'Industrials', 'XLI')",
+      "('4900', '4999', '', '', 'Utilities', 'XLU')",
+      "('7800', '7999', '', '2018-06-18', 'Consumer Discretionary', 'XLY')",
+      "('7800', '7999', '2018-06-19', '', 'Communication Services', 'XLC')"
+    ],
+    "note": "v0.3 content changes are INTENTIONAL (owner review 2026-07-11): 2840-2899 split (KVUE/XLP fix), 2400-2699 / 3600-3699 / 4000-4799 / 4900-4999 / 7800-7999 splits, 7370-post downgraded LOW (security overrides carry META/Alphabet), 8731+7370-pre downgraded MEDIUM, XLC/XLRE first-usable-return-date wording. Every added/removed key is listed above; rationale lives in each row + pre-reg v0.7."
   },
   "confidence_counts": {
-    "HIGH": 27,
-    "MEDIUM": 41,
-    "LOW": 7
+    "HIGH": 26,
+    "MEDIUM": 52,
+    "LOW": 9
   },
   "errors": [],
   "warnings": [],
   "low_confidence_policy": "LOW rows are excluded from primary construction by the runner (Mapping.resolve returns None + logs EXCLUDED_LOW_CONFIDENCE hits; reported separately, never forced).",
   "impact_review": "DEFERRED to the Data Availability Gate (needs the preliminary universe): securities/universe-months per confidence tier, top-20 MEDIUM-exposed securities, MEDIUM rows at XLC/XLRE boundaries, MEDIUM-removed coverage diagnostic (no strategy signals).",
-  "canonical_hash_provisional_sha256": "b0f9d6a2b192cf92c9e0db8f60a62580dbbcb61a1d7727116991405353ac4f5f",
-  "hash_note": "PROVISIONAL \u2014 final hash generated after owner countersign, sorted by the frozen canonical key.",
+  "canonical_data_sha256": "9505c81e0a4ca2f266dd5a8ec73def4f15ebfbc7c461824833b9230314e61527",
+  "canonicalization": {
+    "canonicalization_version": 1,
+    "canonical_fields": [
+      "sic_start",
+      "sic_end",
+      "effective_from",
+      "effective_to",
+      "research_sector",
+      "sector_etf",
+      "mapping_confidence"
+    ],
+    "canonical_sort_key": [
+      "sic_start",
+      "sic_end",
+      "effective_from",
+      "effective_to",
+      "research_sector",
+      "sector_etf"
+    ],
+    "line_ending_policy": "LF join, no trailing newline"
+  },
+  "hash_note": "artifact_sha256 = raw file bytes; canonical_data_sha256 = canonically sorted rows. Both PROVISIONAL until owner countersign.",
   "result": "PASS"
 }
