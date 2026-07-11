@@ -13,10 +13,14 @@
   "interval_max_days": 124,
   "pct_intervals_lt_60d": 1.97,
   "pct_intervals_gt_110d": 3.94,
-  "session_assignment_counts": {
-    "BMO": 142,
-    "AMC": 221,
-    "BMO_CONSERVATIVE": 0
+  "availability_class_counts": {
+    "PRE_OPEN": 142,
+    "IN_SESSION": 0,
+    "POST_CLOSE": 221,
+    "DATE_ONLY_CONSERVATIVE": 0
+  },
+  "event_time_basis_counts": {
+    "edgar_acceptance_proxy": 363
   },
   "exceptions": [],
   "unresolved_tickers": [
@@ -24,7 +28,7 @@
   ],
   "older_shards_fetched": 10,
   "since": "2012-01-01",
-  "built_at": "2026-07-11T13:37:05.386800+00:00",
+  "built_at": "2026-07-11T14:01:02.590931+00:00",
   "events_code22_crosscheck": {
     "META": {
       "events_code22": 42,

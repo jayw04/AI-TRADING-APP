@@ -54,7 +54,7 @@ from app.altdata.sec.client import EdgarClient  # noqa: E402
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DB = ROOT / "apps" / "backend" / "data" / "mr002_provenance.duckdb"
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-MAPPING_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.1.csv"
+MAPPING_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.2.csv"
 
 DDL = """
 CREATE TABLE IF NOT EXISTS sic_observations (
@@ -78,6 +78,7 @@ class Mapping:
 
     def __init__(self, csv_path: Path) -> None:
         self.rows: list[dict] = []
+        self.low_confidence_hits: list[str] = []   # reported separately, never forced
         with csv_path.open(newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 self.rows.append({
@@ -85,13 +86,20 @@ class Mapping:
                     "from": date.fromisoformat(row["effective_from"]) if row["effective_from"] else None,
                     "to": date.fromisoformat(row["effective_to"]) if row["effective_to"] else None,
                     "sector": row["research_sector"], "etf": row["sector_etf"],
+                    "confidence": row.get("mapping_confidence", "MEDIUM"),
                 })
 
     def resolve(self, sic: str, on: date) -> tuple[str, str] | None:
+        """Primary resolution. LOW-confidence rows are EXCLUDED from the primary
+        construction (v0.5 §5) — a LOW match returns None (stock unmapped-excluded
+        for that period) and is logged for the separate low-confidence report."""
         code = int(sic)
         for r in self.rows:
             if r["lo"] <= code <= r["hi"] and (r["from"] is None or on >= r["from"]) \
                     and (r["to"] is None or on <= r["to"]):
+                if r["confidence"] == "LOW":
+                    self.low_confidence_hits.append(f"{sic}@{on}:{r['sector']}/{r['etf']}")
+                    return None
                 return r["sector"], r["etf"]
         return None  # unmapped -> excluded downstream, never defaulted
 
@@ -198,6 +206,7 @@ def main() -> int:
         "mapping_csv": str(MAPPING_CSV.relative_to(ROOT)),
         "mapping_sha256_provisional": sha256_file(MAPPING_CSV),
         "mapping_hash_note": "PROVISIONAL — frozen only after manual validation, before the gate",
+        "low_confidence_hits": mapping.low_confidence_hits,
         "since": args.since,
         "built_at": built_at.isoformat(),
         "per_ticker": per_ticker,

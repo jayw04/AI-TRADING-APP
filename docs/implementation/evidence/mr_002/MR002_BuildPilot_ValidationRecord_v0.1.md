@@ -9,22 +9,28 @@ runners `apps/backend/scripts/mr002_build_{earnings_anchors,sic_history}.py` ·
 store `apps/backend/data/mr002_provenance.duckdb` (tables: `earnings_anchors`, `anchor_rejections`,
 `cik_permaticker_crosswalk`, `sic_observations`, `sic_segments`, `sic_conflicts`) ·
 metrics `v1_anchor_metrics.json`, `v2_sic_metrics.json` ·
-mapping `sic_sector_etf_mapping_v0.1.csv` (DRAFT — not yet frozen/hashed).
+mapping `sic_sector_etf_mapping_v0.2.csv` (DRAFT — review fields added per the build-pilot review:
+confidence HIGH 27 / MEDIUM 41 / LOW 7 rows, LOW excluded from primary construction; not yet
+frozen/hashed; v0.1 retained for lineage).
 
 ## V1 pilot — earnings anchors (10-ticker sample, since 2012)
 
 - **363 anchors** across 8 issuers (9 securities — GOOG/GOOGL share one issuer); TWTR explicitly
   unresolved (below). 2 anchors amended by 8-K/A (folded, no new anchors); 0 duplicates collapsed;
   0 rejections; 0 amendment-without-original exceptions.
-- **Item-2.02 ≡ earnings release — quantitatively confirmed:** **100% of Sharadar EVENTS code-22 dates
-  matched an EDGAR anchor within ±1 day for every ticker with EVENTS coverage** (META 42/42, AAPL
-  43/43, GOOGL 43/43, GEHC 15/15, KVUE 13/13, AMT 42/42, NFLX 44/44, VZ 42/42). Our anchor counts
-  exceed EVENTS counts because EDGAR reaches **pre-2016** — confirming the anchors relieve the EVENTS
-  depth floor and can extend the research window.
+- **Date agreement (owner-corrected wording, v0.5 §1):** *Item 2.02 anchor dates show complete
+  agreement with Sharadar code-22 dates in the pilot* (META 42/42, AAPL 43/43, GOOGL 43/43, GEHC
+  15/15, KVUE 13/13, AMT 42/42, NFLX 44/44, VZ 42/42, ±1 day); *exact earnings-event identification
+  and market-session timing remain subject to independent manual validation* against archived release
+  timestamps (both records may derive from the same 8-K). Our anchor counts exceed EVENTS counts
+  because EDGAR reaches **pre-2016** — the anchors relieve the EVENTS depth floor.
 - **Interval distribution (the false-anchor detector):** median **91 days** (clean quarterly cadence);
   1.97% of intervals < 60d and 3.94% > 110d — small tails, to be itemized per-case in the full-universe
-  run report. Session assignment: **142 BMO / 221 AMC / 0 conservative** (every acceptance timestamp
-  carried a clock time in this sample).
+  run report.
+- **Availability classes (re-run under the v0.5 §1 PIT-safe semantics):** **142 PRE_OPEN / 0
+  IN_SESSION / 221 POST_CLOSE / 0 DATE_ONLY_CONSERVATIVE**; every anchor's `event_time_basis` =
+  `edgar_acceptance_proxy` — acceptance-based rows are never labelled true BMO/AMC. The stratified
+  manual timing validation and its error rate remain owed (a v0.5 §4 coverage gate).
 
 ## V2 pilot — effective-dated SIC history (9 tickers, 365 filings, since 2012)
 
@@ -50,13 +56,27 @@ mapping `sic_sector_etf_mapping_v0.1.csv` (DRAFT — not yet frozen/hashed).
 | **Ticker change** | META (was FB, 2022) | ✅ Current map resolves META to the same CIK; anchors/SIC continuous across the rename (CIK-keyed, ticker-independent). A reverse lookup of retired tickers (FB) has the same gap as TWTR — folded into the historical-crosswalk item. |
 | **SIC-change company** | — | ❌ **Not yet exercised** — no sampled issuer changed SIC. The full-universe run must surface and manually verify ≥1 genuine SIC-change case. |
 
+## Pilot verdicts (registered in pre-reg v0.5 §7 — the pilot is NOT V1/V2 closure)
+
+| Component | Status |
+|---|---|
+| V1 extraction pipeline | ✅ Technical pilot passed |
+| V1 event identification | 🟡 Preliminary validation passed |
+| V1 exact session timing | 🟡 Not yet validated |
+| V2 SIC extraction pipeline | ✅ Technical pilot passed |
+| V2 effective-dated mapping | 🟡 Pilot cases passed |
+| Historical identity crosswalk | 🔴 Unresolved |
+| V2 genuine SIC-change case | 🔴 Not yet exercised |
+| Mapping-table approval | 🟡 Pending owner countersign (v0.2 CSV; LOW rows excluded from primary) |
+
 ## Open items before hashing / the gate
 
 1. **Historical CIK↔ticker crosswalk source** for delisted/renamed names (TWTR, FB) and reorg identity
    chains (Google→Alphabet) — required for the survivorship-free universe; the current-day
    `company_tickers.json` is not sufficient. Crosswalk becomes effective-dated per the owner control.
-2. **Owner countersign of `sic_sector_etf_mapping_v0.1.csv`** (74 rows, rationale column filled; the
-   coarse rows are flagged in their rationale). Hash frozen only after that review.
+2. **Owner countersign of `sic_sector_etf_mapping_v0.2.csv`** (75 rows with rationale + confidence /
+   specificity / review fields; 7 LOW-confidence rows excluded from primary construction). Hash frozen
+   only after that review; the owner reviews all rows affecting the actual preliminary universe.
 3. **A genuine SIC-change validation case** from the full-universe run.
 4. **Full-universe builds** (top-250/150 monthly universe → issuer list → anchors + SIC histories) —
    after universe construction at the gate stage; laptop pilot throughput ≈ 8 req/s suggests the full

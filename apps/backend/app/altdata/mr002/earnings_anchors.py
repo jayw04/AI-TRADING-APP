@@ -4,10 +4,17 @@ Derives per-security confirmed earnings-release anchors from EDGAR submissions:
 every 8-K whose ``items`` include Item 2.02 (Results of Operations and Financial
 Condition), with the SEC **acceptance timestamp** as the PIT known-at instant.
 
-Registered semantics implemented here (owner sign-off 2026-07-11):
-- acceptance timestamps normalized to **Eastern Time**;
-- session assignment: acceptance before the regular-session open = BMO, after the
-  close = AMC, in-session or time-less = **BMO_CONSERVATIVE**;
+Registered semantics implemented here (owner sign-off 2026-07-11; v0.5 §1 timing
+correction folded — the earlier "in-session => BMO" rule was NOT PIT-safe):
+- acceptance timestamps normalized to **Eastern Time**; every anchor carries an
+  ``event_time_basis`` (``edgar_acceptance_proxy`` here; ``verified_release_timestamp``
+  reserved for independently verified release times — acceptance-based rows are never
+  labelled true BMO/AMC);
+- availability classes: ``PRE_OPEN`` (before 09:30 ET -> prohibited execution opens
+  s and s+1), ``IN_SESSION`` / ``POST_CLOSE`` (-> prohibited opens s+1 and s+2),
+  ``DATE_ONLY_CONSERVATIVE`` (no clock time -> treated as available end-of-day s ->
+  prohibited opens s+1 and s+2, the PIT-safe direction). No execution that occurred
+  before the recorded availability timestamp is ever retroactively cancelled;
 - duplicate 2.02 filings for the same (CIK, report period) collapse to ONE anchor
   (earliest acceptance), later duplicates recorded, not dropped silently;
 - an 8-K/A **amends** the matching original anchor (same CIK + report period) and
@@ -35,9 +42,14 @@ RTH_OPEN = dtime(9, 30)
 RTH_CLOSE = dtime(16, 0)
 ITEM_202 = "2.02"
 
-BMO = "BMO"
-AMC = "AMC"
-BMO_CONSERVATIVE = "BMO_CONSERVATIVE"  # in-session, ambiguous, or time-less acceptance
+# availability classes (v0.5 §1 — NOT BMO/AMC labels; basis is the acceptance proxy)
+PRE_OPEN = "PRE_OPEN"                          # prohibited execution opens: s, s+1
+IN_SESSION = "IN_SESSION"                      # prohibited execution opens: s+1, s+2
+POST_CLOSE = "POST_CLOSE"                      # prohibited execution opens: s+1, s+2
+DATE_ONLY_CONSERVATIVE = "DATE_ONLY_CONSERVATIVE"  # no clock time -> s+1, s+2 (PIT-safe)
+
+EDGAR_ACCEPTANCE_PROXY = "edgar_acceptance_proxy"
+VERIFIED_RELEASE_TIMESTAMP = "verified_release_timestamp"  # reserved for manual validation
 
 
 class _Fetcher(Protocol):
@@ -73,8 +85,9 @@ class Anchor:
     report_date: str | None
     acceptance_utc: datetime
     acceptance_et: datetime
-    session_date: date             # the ET session the release is assigned to
-    session_assignment: str        # BMO | AMC | BMO_CONSERVATIVE
+    session_date: date             # the ET calendar date of availability
+    availability_class: str        # PRE_OPEN | IN_SESSION | POST_CLOSE | DATE_ONLY_CONSERVATIVE
+    event_time_basis: str = EDGAR_ACCEPTANCE_PROXY
     is_amendment_origin: bool = False
     amended_by: list[str] = field(default_factory=list)
     collapsed_duplicates: list[str] = field(default_factory=list)
@@ -126,24 +139,26 @@ def _parse_acceptance(raw: str | None, filing_date: str | None) -> tuple[datetim
     return None, False
 
 
-def assign_session(acceptance_utc: datetime, *, has_clock_time: bool) -> tuple[date, str]:
-    """Frozen session semantics (pre-reg v0.4 §4).
+def classify_availability(acceptance_utc: datetime, *, has_clock_time: bool) -> tuple[date, str]:
+    """Frozen availability semantics (pre-reg v0.5 §1 — PIT-safe).
 
-    BMO: accepted before 09:30 ET -> the release belongs to that ET calendar date's
-    session. AMC: accepted after 16:00 ET -> belongs to that date, flagged AMC (the
-    next session is the first post-release open). In-session / time-less -> BMO_CONSERVATIVE.
-    Weekend/holiday placement onto trading sessions happens at signal-time against the
-    frozen trading calendar; here we record the ET calendar date + class.
+    PRE_OPEN (before 09:30 ET on s): prohibited execution opens are s and s+1.
+    IN_SESSION / POST_CLOSE (during or after the session on s): prohibited opens are
+    s+1 and s+2 — the s open already traded before the information existed, so it is
+    never retroactively affected. DATE_ONLY_CONSERVATIVE (no clock time): treated as
+    available end-of-day s -> s+1, s+2. Weekend/holiday placement onto trading
+    sessions happens at signal-time against the frozen trading calendar; here we
+    record the ET calendar date + availability class.
     """
     et = acceptance_utc.astimezone(ET)
     if not has_clock_time:
-        return et.date(), BMO_CONSERVATIVE
+        return et.date(), DATE_ONLY_CONSERVATIVE
     t = et.time()
     if t < RTH_OPEN:
-        return et.date(), BMO
+        return et.date(), PRE_OPEN
     if t >= RTH_CLOSE:
-        return et.date(), AMC
-    return et.date(), BMO_CONSERVATIVE
+        return et.date(), POST_CLOSE
+    return et.date(), IN_SESSION
 
 
 def iter_8k202_rows(rows: dict[str, Any]) -> list[tuple[str, str, str | None, str | None, str | None, str]]:
@@ -228,12 +243,12 @@ def build_anchors(
             anchors[key].collapsed_duplicates.append(c.accession)
             rejections.append(Rejection(c.cik, c.ticker, c.accession, "duplicate_collapsed"))
             continue
-        session_date, assignment = assign_session(acc_utc, has_clock_time=has_time)
+        session_date, availability = classify_availability(acc_utc, has_clock_time=has_time)
         anchors[key] = Anchor(
             cik=c.cik, ticker=c.ticker, permaticker=permaticker, accession=c.accession,
             report_date=c.report_date, acceptance_utc=acc_utc,
             acceptance_et=acc_utc.astimezone(ET), session_date=session_date,
-            session_assignment=assignment,
+            availability_class=availability,
         )
 
     # pass 2: amendments amend the matching original; no-match -> flagged anchor
@@ -249,12 +264,12 @@ def build_anchors(
             rejections.append(Rejection(c.cik, c.ticker, c.accession,
                                         "amendment_unmatchable_and_undated"))
             continue
-        session_date, assignment = assign_session(acc_utc, has_clock_time=has_time)
+        session_date, availability = classify_availability(acc_utc, has_clock_time=has_time)
         anchors[(c.cik, key_val)] = Anchor(
             cik=c.cik, ticker=c.ticker, permaticker=permaticker, accession=c.accession,
             report_date=c.report_date, acceptance_utc=acc_utc,
             acceptance_et=acc_utc.astimezone(ET), session_date=session_date,
-            session_assignment=assignment, is_amendment_origin=True,
+            availability_class=availability, is_amendment_origin=True,
         )
         exceptions.append(f"amendment_without_original:{c.ticker}:{c.accession}")
 
@@ -269,10 +284,10 @@ def anchor_metrics(result: AnchorBuildResult, *, n_securities_requested: int) ->
     n = len(intervals)
     s = sorted(intervals)
     counts = {
-        BMO: sum(1 for a in result.anchors if a.session_assignment == BMO),
-        AMC: sum(1 for a in result.anchors if a.session_assignment == AMC),
-        BMO_CONSERVATIVE: sum(1 for a in result.anchors if a.session_assignment == BMO_CONSERVATIVE),
+        cls: sum(1 for a in result.anchors if a.availability_class == cls)
+        for cls in (PRE_OPEN, IN_SESSION, POST_CLOSE, DATE_ONLY_CONSERVATIVE)
     }
+    basis_counts = _count([a.event_time_basis for a in result.anchors])
     return {
         "securities_requested": n_securities_requested,
         "securities_with_anchor": secs_with_anchor,
@@ -288,7 +303,8 @@ def anchor_metrics(result: AnchorBuildResult, *, n_securities_requested: int) ->
         "interval_max_days": (s[-1] if n else None),
         "pct_intervals_lt_60d": round(100.0 * sum(1 for d in intervals if d < 60) / n, 2) if n else None,
         "pct_intervals_gt_110d": round(100.0 * sum(1 for d in intervals if d > 110) / n, 2) if n else None,
-        "session_assignment_counts": counts,
+        "availability_class_counts": counts,
+        "event_time_basis_counts": basis_counts,
         "exceptions": result.exceptions,
     }
 

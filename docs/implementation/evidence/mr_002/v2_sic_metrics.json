@@ -5,11 +5,12 @@
   "filings_missing_sic": 0,
   "segments_total": 8,
   "same_day_conflicts": [],
-  "mapping_csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.1.csv",
-  "mapping_sha256_provisional": "78ff200206864798ad2739dcacbfbcba843fdd8aaba6a3485d531e2aa0d86149",
+  "mapping_csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.2.csv",
+  "mapping_sha256_provisional": "a71032281f4ce081087124b70e690f3b8223c1c9181123dc072efd21d64f5597",
   "mapping_hash_note": "PROVISIONAL \u2014 frozen only after manual validation, before the gate",
+  "low_confidence_hits": [],
   "since": "2012-01-01",
-  "built_at": "2026-07-11T13:43:05.418353+00:00",
+  "built_at": "2026-07-11T14:03:13.905843+00:00",
   "per_ticker": {
     "META": {
       "filings_processed": 58,
