@@ -54,8 +54,8 @@ from app.altdata.sec.client import EdgarClient  # noqa: E402
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DB = ROOT / "apps" / "backend" / "data" / "mr002_provenance.duckdb"
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-MAPPING_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.4.csv"
-SEC_OVERRIDES_CSV = EVIDENCE_DIR / "security_sector_overrides_v0.2.csv"
+MAPPING_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.6.csv"
+SEC_OVERRIDES_CSV = EVIDENCE_DIR / "security_sector_overrides_v0.4.csv"
 
 DDL = """
 CREATE TABLE IF NOT EXISTS sic_observations (
@@ -198,7 +198,7 @@ def main() -> int:
                 # mapping-driven sector changes INSIDE an unchanged-SIC segment
                 # (the META case: SIC constant, sector flips at a boundary date)
                 prev_mapped = mapped0
-                for boundary in (date(2015, 10, 8), date(2018, 6, 19)):
+                for boundary in (date(2016, 9, 1), date(2018, 10, 1)):
                     end = s.effective_to.date() if s.effective_to else date.today()
                     if d0 < boundary <= end:
                         src_b, mapped_b = resolve_sector(sec_ovr, mapping, label_tickers,

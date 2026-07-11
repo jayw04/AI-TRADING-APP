@@ -25,8 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.3.csv"
-V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.4.csv"
+PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.4.csv"
+V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.6.csv"
 OUT = EVIDENCE_DIR / "mapping_validation_report.json"
 
 ETF_INCEPTION = {
@@ -64,16 +64,16 @@ def main() -> int:
     key = lambda r: tuple(r[k] for k in CANONICAL_KEY)  # noqa: E731
     v1_keys, v2_keys = {key(r) for r in v1_rows}, {key(r) for r in rows}
     recon = {
-        "prev_rows(v0.3)": len(v1_rows), "current_rows(v0.4)": len(rows),
+        "prev_rows(v0.4)": len(v1_rows), "current_rows(v0.6)": len(rows),
         "added": sorted(map(str, v2_keys - v1_keys)),
         "removed": sorted(map(str, v1_keys - v2_keys)),
-        "note": "v0.4 content changes are INTENTIONAL (owner countersign review "
-                "2026-07-11): coal 1200-1299->XLE (1100-1199 explicitly unmapped), "
-                "homebuilders 1520-1539->XLY, health-care distributors 5122->XLV "
-                "(+5045/5047/5171 carved for impact review), commercial printing "
-                "2750-2799->XLI (2700-2749 media, MEDIUM), 7375 LOW / 7371-7374 HIGH "
-                "/ 7376-7379 MEDIUM. Every added/removed key listed above; rationale "
-                "per row + pre-reg v0.8.",
+        "note": "v0.5+v0.6 content changes are INTENTIONAL (owner countersign 2, "
+                "2026-07-11): CLASSIFICATION effective dates replace ETF-availability "
+                "dates (XLC boundary -> 2018-10-01 after the 2018-09-28 close; XLRE "
+                "-> 2016-09-01 after the 2016-08-31 close; ETF availability is a "
+                "separate registered property) + the 3800-3839 instruments split for "
+                "LOW-exclusion recovery (3812->XLI, 3826->XLV, 3827->XLK; residuals "
+                "stay LOW). Every added/removed key listed above; pre-reg v0.9.",
     }
 
     # ---- structural checks ----
@@ -115,14 +115,18 @@ def main() -> int:
     # XLC / XLRE transition consistency
     for r in rows:
         etf = r["sector_etf"].strip()
-        if etf == "XLC" and r["effective_from"] != "2018-06-19":
-            errors.append(f"XLC row must start 2018-06-19: {key(r)}")
-        if etf == "XLRE" and r["effective_from"] != "2015-10-08":
-            errors.append(f"XLRE row must start 2015-10-08: {key(r)}")
-        if etf in ("XLC", "XLRE") and "first usable" not in r.get("source_reference", ""):
-            errors.append(f"{etf} row must describe the boundary as the first usable "
-                          f"return date, not the inception date: {key(r)}")
-        if r["effective_to"] and r["effective_to"] not in ("2018-06-18", "2015-10-07"):
+        # taxonomy boundaries are CLASSIFICATION effective dates (owner countersign
+        # 2): GICS 2018 -> first session 2018-10-01; Real Estate -> 2016-09-01.
+        # ETF availability (XLC 2018-06-19 / XLRE 2015-10-08 first usable returns)
+        # is a SEPARATE registered property enforced by the universe rule.
+        if etf == "XLC" and r["effective_from"] != "2018-10-01":
+            errors.append(f"XLC row must start at the classification date 2018-10-01: {key(r)}")
+        if etf == "XLRE" and r["effective_from"] != "2016-09-01":
+            errors.append(f"XLRE row must start at the classification date 2016-09-01: {key(r)}")
+        if etf in ("XLC", "XLRE") and "classification" not in (
+                r.get("source_reference", "") + r.get("mapping_rationale", "")).lower():
+            errors.append(f"{etf} row must cite the classification effective date: {key(r)}")
+        if r["effective_to"] and r["effective_to"] not in ("2018-09-28", "2016-08-31"):
             errors.append(f"unexpected effective_to boundary: {key(r)}")
 
     # MEDIUM rationale specificity; LOW policy

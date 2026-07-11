@@ -30,7 +30,7 @@ import os
 import time
 import urllib.request
 import zipfile
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import duckdb
@@ -43,7 +43,7 @@ ETF_LIVE_FROM = {"XLC": date(2018, 6, 19), "XLRE": date(2015, 10, 8)}
 
 
 def log(msg: str) -> None:
-    print(f"[{datetime.now(timezone.utc).isoformat(timespec='seconds')}] {msg}", flush=True)
+    print(f"[{datetime.now(UTC).isoformat(timespec='seconds')}] {msg}", flush=True)
 
 
 # ---------------- bulk download & ingest ----------------
@@ -109,10 +109,14 @@ feat AS (
     WINDOW w60 AS (PARTITION BY ticker ORDER BY date ROWS BETWEEN 59 PRECEDING AND CURRENT ROW),
            wall AS (PARTITION BY ticker ORDER BY date ROWS UNBOUNDED PRECEDING)
 ),
-month_ends AS (  -- last trading day of each month = the reconstitution as-of
+month_ends AS (  -- last trading day of each COMPLETE month = the reconstitution
+    -- as-of. The month containing the newest SEP date is incomplete: using its
+    -- mid-month max(date) would future-date a universe (the 2026-08 bug caught by
+    -- the owner review) — the registered rule requires the PRIOR MONTH-END close.
     SELECT max(date) AS asof, date_trunc('month', date) + INTERVAL 1 MONTH AS eff_month
     FROM (SELECT DISTINCT date FROM sep WHERE date >= DATE '{warmup_start}')
     GROUP BY date_trunc('month', date)
+    HAVING date_trunc('month', max(date)) < (SELECT date_trunc('month', max(date)) FROM sep)
 ),
 candidates AS (
     SELECT m.eff_month, f.ticker, f.close, f.med_dv_60, f.n_hist
@@ -195,13 +199,17 @@ def main() -> int:
     ap.add_argument("--download", action="store_true")
     ap.add_argument("--start", default="2013-01-01",
                     help="first universe month (gate picks the real window later)")
-    ap.add_argument("--mapping-csv", default="sic_sector_etf_mapping_v0.4.csv")
-    ap.add_argument("--sec-overrides-csv", default="security_sector_overrides_v0.2.csv")
+    ap.add_argument("--mapping-csv", default="sic_sector_etf_mapping_v0.6.csv")
+    ap.add_argument("--sec-overrides-csv", default="security_sector_overrides_v0.4.csv")
+    ap.add_argument("--universe-csv", default=None,
+                    help="reuse an existing preliminary-universe CSV(.gz) — skips "
+                         "SEP download/SQL; drops any universe month later than the "
+                         "last complete month implied by the data")
     args = ap.parse_args()
     wd = Path(args.workdir)
     wd.mkdir(parents=True, exist_ok=True)
     db = duckdb.connect(str(wd / "mr002_sep.duckdb"))
-    prov = {"run_started": datetime.now(timezone.utc).isoformat(),
+    prov = {"run_started": datetime.now(UTC).isoformat(),
             "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "approximation_disclosure": APPROX_LABEL}
 
@@ -209,11 +217,17 @@ def main() -> int:
         key = os.environ["NASDAQ_DATA_LINK_API_KEY"]
         prov.update(ingest(db, wd, key))
 
-    warmup = "2010-01-01" if args.start <= "2013-01-01" else str(
-        date.fromisoformat(args.start).replace(year=date.fromisoformat(args.start).year - 3))
-    log("constructing monthly preliminary universe…")
-    db.execute("CREATE OR REPLACE TABLE preliminary_universe AS " +
-               UNIVERSE_SQL.format(warmup_start=warmup, start=args.start))
+    if args.universe_csv:
+        log(f"reusing universe from {args.universe_csv} (complete-month guard applied)")
+        db.execute("CREATE OR REPLACE TABLE preliminary_universe AS "
+                   f"SELECT * FROM read_csv_auto('{args.universe_csv}', header=true) "
+                   "WHERE universe_month <= date_trunc('month', current_date)")
+    else:
+        warmup = "2010-01-01" if args.start <= "2013-01-01" else str(
+            date.fromisoformat(args.start).replace(year=date.fromisoformat(args.start).year - 3))
+        log("constructing monthly preliminary universe…")
+        db.execute("CREATE OR REPLACE TABLE preliminary_universe AS " +
+                   UNIVERSE_SQL.format(warmup_start=warmup, start=args.start))
     uni = db.execute("SELECT * FROM preliminary_universe").fetchall()
     cols = [d[0] for d in db.description]
     log(f"universe rows: {len(uni):,} "
@@ -227,8 +241,10 @@ def main() -> int:
     # ---------------- impact report ----------------
     mapping = load_mapping(wd / args.mapping_csv)
     sec_ovr = load_sec_overrides(wd / args.sec_overrides_csv)
-    i_month = cols.index("universe_month"); i_tick = cols.index("ticker")
-    i_sic = cols.index("siccode"); i_short = cols.index("in_short_universe")
+    i_month = cols.index("universe_month")
+    i_tick = cols.index("ticker")
+    i_sic = cols.index("siccode")
+    i_short = cols.index("in_short_universe")
 
     tier_months: dict[str, int] = {}
     by_security: dict[str, dict] = {}
@@ -237,7 +253,9 @@ def main() -> int:
     boundary_medium: set[str] = set()
 
     for row in uni:
-        m = row[i_month]; t = row[i_tick]; sic = row[i_sic]
+        m = row[i_month]
+        t = row[i_tick]
+        sic = row[i_sic]
         on = m if isinstance(m, date) else date.fromisoformat(str(m)[:10])
         tier, etf, rkey = classify(mapping, sec_ovr, t, sic, on)
         tier_months[tier] = tier_months.get(tier, 0) + 1
@@ -252,6 +270,9 @@ def main() -> int:
             s["MEDIUM"] += 1
         if rkey in flagged:
             flagged[rkey][t] = flagged[rkey].get(t, 0) + 1
+        if tier == "EXCLUDED_LOW_CONFIDENCE":
+            s.setdefault("LOW", 0)
+            s["LOW"] += 1
         # MEDIUM row driving a boundary change (XLC/XLRE)
         if tier == "MEDIUM" and etf in ("XLC",) :
             boundary_medium.add(t)
@@ -264,9 +285,21 @@ def main() -> int:
                  max(1, sum(v.values())), 2)
         for y, v in sorted(by_year.items())
     }
+    eligible = (tier_months.get("HIGH", 0) + tier_months.get("MEDIUM", 0)
+                + tier_months.get("SECURITY_OVERRIDE", 0))
+    top_low = sorted(((t, s.get("LOW", 0), s["sic"]) for t, s in by_security.items()
+                      if s.get("LOW")), key=lambda x: -x[1])[:25]
     report = {
-        "generated": datetime.now(timezone.utc).isoformat(),
+        "generated": datetime.now(UTC).isoformat(),
         "disclosure": APPROX_LABEL,
+        "coverage_gate_check": {
+            "eligible_universe_months(HIGH+MEDIUM+OVERRIDE)": eligible,
+            "max_primary_coverage_pct": round(100.0 * eligible / max(1, total), 2),
+            "registered_v2_gate_pct": 98.0,
+            "gate_met_if_all_MEDIUM_approved": bool(100.0 * eligible / max(1, total) >= 98.0),
+        },
+        "top_securities_by_LOW_excluded_months": [
+            {"ticker": t, "low_months": n, "siccode": sic} for t, n, sic in top_low],
         "universe_months_total": total,
         "distinct_securities": len(by_security),
         "months": db.execute(
