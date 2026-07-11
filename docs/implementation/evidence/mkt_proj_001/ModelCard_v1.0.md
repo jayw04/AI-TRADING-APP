@@ -6,6 +6,7 @@
 | Model | `calibrated_logistic_primary-mktproj-fv1-2016-02-03_2026-07-09` (status **candidate**) |
 | Artifact | joblib, sha256 `5ec687017d9b7d4f…`, hash-verified loads |
 | Pre-registration | v1.2 (FROZEN) — one run, nothing tuned after this output existed |
+| Amendments | 2026-07-11 owner evidence review (approved with documentation/provenance corrections; NO model/threshold/artifact/scope change): direction-gate wording corrected (the model made 102 non-neutral calls, 98 UP/4 DOWN — floor unmet; the original text wrongly said zero); ensemble comparison wording fixed (0.2308 is lower/better); attribution marked last-fold-diagnostic-only; production promotion now requires the full provenance manifest (`promote_model.py`) — git_commit:null is acceptable for draft evidence only |
 | Pipeline | manifest `mktproj-fv1` → §6a missingness indicators (5 enumerated fields) → train-window median impute → train-fit standardize → LogisticRegression(C=1.0, L2, max_iter=1000) → Platt on the final contiguous 20% of each training window |
 | Secondaries (sensitivity only) | HistGBT+isotonic · average ensemble — **never the gate model** |
 | Validation | 15 anchored walk-forward folds; OOS 1,868/1,869 days (2019-02 → 2026-07); block-bootstrap CIs (10-day blocks, 2,000 resamples, seed 42) |
@@ -23,10 +24,14 @@
 | 4. Coverage | elevated calls (P≥0.5) on 10–60% of OOS days | **14%** ✅ — the wall the baselines couldn't touch |
 | 5. No major regime failure | §7 slices reviewed | ⚠ **see below — owner judgment** |
 
-**Direction Gate: `insufficient_sample`** — the model makes no argmax directional calls
-(floor 0/100 required non-neutral). Per v1.2, no directional skill claim is allowed, and the
-conditional diagnostic cannot rescue this. Directional verdict: **Inconclusive (insufficient
-sample)**, exactly the design's prior.
+**Direction Gate: `insufficient_sample`.** The model produced 102 non-neutral argmax
+directional calls (98 UP, 4 DOWN), but the pre-registered sample floor was not met (DOWN
+calls 4 < 50) and no valid directional baseline is available. Therefore no directional skill
+claim is allowed. Direction remains closed for v1; no UP/DOWN UI, no directional badge, and
+the conditional diagnostic remains evidence-appendix only. *(Corrected 2026-07-11 per the
+owner evidence review — the original card wrongly said "no argmax directional calls"; the
+baselines made zero calls, the model made 102. Documentation correction only; the gate
+outcome is unchanged.)*
 
 ## Gate item 5 — the regime slices (the honest caveat)
 
@@ -57,9 +62,10 @@ claim of any kind.
 Batch permutation importance (last fold, primary): `spy_dist_ma50` (+0.0071),
 `fade_recovery` (+0.0059), `spy_intraday_vol` (+0.0031), `spy_dist_ma200` (+0.0027),
 `spy_hl_range_pct` (+0.0022) — trend-distance and intraday-stress features, consistent with a
-volatility/regime model rather than a directional one. Per-projection drivers are exact
-coefficient×value attributions (FR-008); the LLM formatter does not exist until §4 and is
-flag-off by design.
+volatility/regime model rather than a directional one. **Attribution is last-fold diagnostic
+only, not a stable global feature-importance claim** (owner evidence review, 2026-07-11).
+Per-projection drivers are exact coefficient×value attributions (FR-008); the LLM formatter
+does not exist until §4 and is flag-off by design.
 
 ## Sensitivity notes (reported, never the gate)
 
@@ -106,8 +112,9 @@ works in bear markets · trading signal · buy/sell indicator*.
 
 ### Dispositions
 
-- **Ensemble** (Brier 0.2308 > primary): *Sensitivity only. Candidate for a future
-  pre-registered MKT-PROJ-002, not for MKT-PROJ-001 promotion.* Switching now would be tuning.
+- **Ensemble**: Brier 0.2308, lower (better) than the primary logistic's 0.2338. *Sensitivity
+  only. Candidate for a future pre-registered MKT-PROJ-002, not for MKT-PROJ-001 promotion.*
+  Switching now would be tuning.
 - **Direction**: closed for v1. Failed the sample floor; no directional badge, no UP/DOWN UI,
   no directional model-card claim. The conditional diagnostic stays in the evidence appendix
   only.
