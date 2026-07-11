@@ -135,10 +135,18 @@ def build_security(
 
     # precedence-2 cross-check: for LIVE names, the EDGAR submissions ticker list
     # should contain the current ticker; a mismatch is logged, never silently kept.
-    if edgar_tickers_now is not None and not delisted \
-            and current not in [t.upper() for t in edgar_tickers_now]:
-        build.conflicts.append(
-            f"edgar_ticker_mismatch:{current}:cik{cik}:{edgar_tickers_now}")
+    # Separator differences (Sharadar BRK.A vs EDGAR BRK-A) are normalized away, and
+    # an EMPTY EDGAR ticker list means "cross-check unavailable" (a note, not a
+    # conflict) — the full-universe run proved both cases benign; the precedence-1
+    # secfilings CIK stands (owner stage-1 criteria 2026-07-11).
+    if edgar_tickers_now is not None and not delisted:
+        def _norm(x: str) -> str:
+            return "".join(ch for ch in x.upper() if ch.isalnum())
+        if not edgar_tickers_now:
+            build.notes.append(f"edgar_tickers_unavailable:{current}:cik{cik}")
+        elif _norm(current) not in [_norm(t) for t in edgar_tickers_now]:
+            build.conflicts.append(
+                f"edgar_ticker_mismatch:{current}:cik{cik}:{edgar_tickers_now}")
 
     ovr = sorted(overrides or [], key=lambda r: r.effective_from)
     for r in ovr:

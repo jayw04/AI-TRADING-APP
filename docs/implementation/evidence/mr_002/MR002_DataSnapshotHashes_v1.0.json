@@ -1,0 +1,19 @@
+{
+  "title": "MR-002 data-snapshot hashes v1.0 (crawl-side; governance manifest stays immutable)",
+  "generated": "2026-07-11T17:05:33.649933+00:00",
+  "preliminary_universe_csv_gz_sha256": "6c8a5e54475a1335c85e015e015092922a5e93c0bed3e225c1f556f99cae02a6",
+  "identity_crosswalk_canonical_sha256": "f9a8f1077ff823c8d5ba80d6c47d530d803c357182dbdbd44cb49e3073e0e80b",
+  "identity_crosswalk_rows": 1068,
+  "sep_bulk_zip_sha256": null,
+  "tickers_bulk_zip_sha256": null,
+  "stage1_report": "MR002_CrosswalkStage1_Report_v1.0.json",
+  "pending": [
+    "v1_anchors_snapshot",
+    "v2_sic_observations_snapshot",
+    "raw_edgar_response_manifest",
+    "retry_error_log",
+    "actions_snapshot",
+    "etf_snapshot",
+    "extraction_code_commit"
+  ]
+}
