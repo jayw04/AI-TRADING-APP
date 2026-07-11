@@ -59,7 +59,7 @@ from app.altdata.sec.client import EdgarClient  # noqa: E402
 ROOT = Path(__file__).resolve().parents[3]
 DB = ROOT / "apps" / "backend" / "data" / "mr002_provenance.duckdb"
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-OVERRIDES_CSV = EVIDENCE_DIR / "crosswalk_manual_overrides_v0.2.csv"
+OVERRIDES_CSV = EVIDENCE_DIR / "crosswalk_manual_overrides_v0.3.csv"
 NDL_BASE = "https://data.nasdaq.com/api/v3/datatables/SHARADAR"
 
 DDL = """
@@ -104,7 +104,7 @@ def load_overrides(path: Path) -> dict[int, list[CrosswalkRow]]:
                 relationship_type=r["relationship_type"], source=r["source"],
                 source_record_id=r["source_record_id"], confidence=r["confidence"],
                 mapping_rationale=r["mapping_rationale"],
-                review_status="pending_owner_review",
+                review_status=r.get("review_status") or "pending_owner_review",
             )
             by_perma.setdefault(row.permaticker, []).append(row)
     return by_perma

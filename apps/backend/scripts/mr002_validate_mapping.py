@@ -25,8 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.2.csv"
-V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.3.csv"
+PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.3.csv"
+V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.4.csv"
 OUT = EVIDENCE_DIR / "mapping_validation_report.json"
 
 ETF_INCEPTION = {
@@ -64,15 +64,16 @@ def main() -> int:
     key = lambda r: tuple(r[k] for k in CANONICAL_KEY)  # noqa: E731
     v1_keys, v2_keys = {key(r) for r in v1_rows}, {key(r) for r in rows}
     recon = {
-        "prev_rows(v0.2)": len(v1_rows), "current_rows(v0.3)": len(rows),
+        "prev_rows(v0.3)": len(v1_rows), "current_rows(v0.4)": len(rows),
         "added": sorted(map(str, v2_keys - v1_keys)),
         "removed": sorted(map(str, v1_keys - v2_keys)),
-        "note": "v0.3 content changes are INTENTIONAL (owner review 2026-07-11): "
-                "2840-2899 split (KVUE/XLP fix), 2400-2699 / 3600-3699 / 4000-4799 / "
-                "4900-4999 / 7800-7999 splits, 7370-post downgraded LOW (security "
-                "overrides carry META/Alphabet), 8731+7370-pre downgraded MEDIUM, "
-                "XLC/XLRE first-usable-return-date wording. Every added/removed key "
-                "is listed above; rationale lives in each row + pre-reg v0.7.",
+        "note": "v0.4 content changes are INTENTIONAL (owner countersign review "
+                "2026-07-11): coal 1200-1299->XLE (1100-1199 explicitly unmapped), "
+                "homebuilders 1520-1539->XLY, health-care distributors 5122->XLV "
+                "(+5045/5047/5171 carved for impact review), commercial printing "
+                "2750-2799->XLI (2700-2749 media, MEDIUM), 7375 LOW / 7371-7374 HIGH "
+                "/ 7376-7379 MEDIUM. Every added/removed key listed above; rationale "
+                "per row + pre-reg v0.8.",
     }
 
     # ---- structural checks ----

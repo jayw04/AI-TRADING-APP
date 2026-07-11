@@ -54,8 +54,8 @@ from app.altdata.sec.client import EdgarClient  # noqa: E402
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DB = ROOT / "apps" / "backend" / "data" / "mr002_provenance.duckdb"
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-MAPPING_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.3.csv"
-SEC_OVERRIDES_CSV = EVIDENCE_DIR / "security_sector_overrides_v0.1.csv"
+MAPPING_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.4.csv"
+SEC_OVERRIDES_CSV = EVIDENCE_DIR / "security_sector_overrides_v0.2.csv"
 
 DDL = """
 CREATE TABLE IF NOT EXISTS sic_observations (

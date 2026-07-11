@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-07-11T14:44:50.764344+00:00",
+  "built_at": "2026-07-11T15:09:37.263363+00:00",
   "tickers": [
     "TWTR",
     "META",
@@ -129,8 +129,8 @@
   ],
   "identity_tests_passed": "23/23",
   "review_csv": "Docs\\implementation\\evidence\\mr_002\\identity_crosswalk_v0.1.csv",
-  "crosswalk_artifact_sha256": "554cfce1118bf135f9c76e42c1aeccccafe8c861ce10f72998b1580d814b64ef",
-  "overrides_artifact_sha256": "1f35d3c2078fbdc5a847a96b6d69845c12583308e21e555e8a25486aeb32c9f6",
+  "crosswalk_artifact_sha256": "f134d162364f82d04b2523360f15dc740b69608379ffdfa88e93d6d98e603736",
+  "overrides_artifact_sha256": "ce14823c2f612659a17bed0193e6d59f585f1c2e61c01c48b3e4e3960c9c889a",
   "canonicalization": {
     "canonicalization_version": 1,
     "canonical_fields": [
