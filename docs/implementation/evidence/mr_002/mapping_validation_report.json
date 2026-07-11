@@ -1,60 +1,33 @@
 {
-  "csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.6.csv",
-  "artifact_sha256": "73e9eb323ffd0615e816aaf9603daf9b4e1c9a72bd6aaba3cb301237b71248bd",
+  "csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.7.csv",
+  "artifact_sha256": "6ee7847c1666bf92e328804fcec5af3ce6ce2574dc0b16a7011bb21005d2994f",
   "reconciliation_prev_to_current": {
-    "prev_rows(v0.4)": 101,
-    "current_rows(v0.6)": 106,
+    "prev_rows(v0.6)": 106,
+    "current_rows(v0.7)": 110,
     "added": [
-      "('2700', '2749', '', '2018-09-28', 'Consumer Discretionary', 'XLY')",
-      "('2700', '2749', '2018-10-01', '', 'Communication Services', 'XLC')",
-      "('3800', '3811', '', '', 'Industrials', 'XLI')",
-      "('3812', '3812', '', '', 'Industrials', 'XLI')",
-      "('3813', '3825', '', '', 'Industrials', 'XLI')",
-      "('3826', '3826', '', '', 'Health Care', 'XLV')",
-      "('3827', '3827', '', '', 'Information Technology', 'XLK')",
-      "('3828', '3839', '', '', 'Industrials', 'XLI')",
-      "('4800', '4899', '', '2018-09-28', 'Information Technology', 'XLK')",
-      "('4800', '4899', '2018-10-01', '', 'Communication Services', 'XLC')",
-      "('6500', '6599', '', '2016-08-31', 'Financials', 'XLF')",
-      "('6500', '6599', '2016-09-01', '', 'Real Estate', 'XLRE')",
-      "('6798', '6798', '', '2016-08-31', 'Financials', 'XLF')",
-      "('6798', '6798', '2016-09-01', '', 'Real Estate', 'XLRE')",
-      "('7310', '7319', '', '2018-09-28', 'Consumer Discretionary', 'XLY')",
-      "('7310', '7319', '2018-10-01', '', 'Communication Services', 'XLC')",
-      "('7370', '7370', '', '2018-09-28', 'Information Technology', 'XLK')",
-      "('7370', '7370', '2018-10-01', '', 'Communication Services', 'XLC')",
-      "('7800', '7849', '', '2018-09-28', 'Consumer Discretionary', 'XLY')",
-      "('7800', '7849', '2018-10-01', '', 'Communication Services', 'XLC')"
+      "('4800', '4809', '', '', 'Communication Services', 'XLC')",
+      "('4810', '4829', '', '2018-09-28', 'Information Technology', 'XLK')",
+      "('4810', '4829', '2018-10-01', '', 'Communication Services', 'XLC')",
+      "('4830', '4849', '', '2018-09-28', 'Consumer Discretionary', 'XLY')",
+      "('4830', '4849', '2018-10-01', '', 'Communication Services', 'XLC')",
+      "('4850', '4899', '', '', 'Communication Services', 'XLC')"
     ],
     "removed": [
-      "('2700', '2749', '', '2018-06-18', 'Consumer Discretionary', 'XLY')",
-      "('2700', '2749', '2018-06-19', '', 'Communication Services', 'XLC')",
-      "('3800', '3839', '', '', 'Health Care', 'XLV')",
-      "('4800', '4899', '', '2018-06-18', 'Information Technology', 'XLK')",
-      "('4800', '4899', '2018-06-19', '', 'Communication Services', 'XLC')",
-      "('6500', '6599', '', '2015-10-07', 'Financials', 'XLF')",
-      "('6500', '6599', '2015-10-08', '', 'Real Estate', 'XLRE')",
-      "('6798', '6798', '', '2015-10-07', 'Financials', 'XLF')",
-      "('6798', '6798', '2015-10-08', '', 'Real Estate', 'XLRE')",
-      "('7310', '7319', '', '2018-06-18', 'Consumer Discretionary', 'XLY')",
-      "('7310', '7319', '2018-06-19', '', 'Communication Services', 'XLC')",
-      "('7370', '7370', '', '2018-06-18', 'Information Technology', 'XLK')",
-      "('7370', '7370', '2018-06-19', '', 'Communication Services', 'XLC')",
-      "('7800', '7849', '', '2018-06-18', 'Consumer Discretionary', 'XLY')",
-      "('7800', '7849', '2018-06-19', '', 'Communication Services', 'XLC')"
+      "('4800', '4899', '', '2018-09-28', 'Information Technology', 'XLK')",
+      "('4800', '4899', '2018-10-01', '', 'Communication Services', 'XLC')"
     ],
     "note": "v0.5+v0.6 content changes are INTENTIONAL (owner countersign 2, 2026-07-11): CLASSIFICATION effective dates replace ETF-availability dates (XLC boundary -> 2018-10-01 after the 2018-09-28 close; XLRE -> 2016-09-01 after the 2016-08-31 close; ETF availability is a separate registered property) + the 3800-3839 instruments split for LOW-exclusion recovery (3812->XLI, 3826->XLV, 3827->XLK; residuals stay LOW). Every added/removed key listed above; pre-reg v0.9."
   },
   "confidence_counts": {
     "HIGH": 29,
-    "MEDIUM": 65,
-    "LOW": 12
+    "MEDIUM": 66,
+    "LOW": 15
   },
   "errors": [],
   "warnings": [],
   "low_confidence_policy": "LOW rows are excluded from primary construction by the runner (Mapping.resolve returns None + logs EXCLUDED_LOW_CONFIDENCE hits; reported separately, never forced).",
   "impact_review": "DEFERRED to the Data Availability Gate (needs the preliminary universe): securities/universe-months per confidence tier, top-20 MEDIUM-exposed securities, MEDIUM rows at XLC/XLRE boundaries, MEDIUM-removed coverage diagnostic (no strategy signals).",
-  "canonical_data_sha256": "924ecc3b638e2a636578435346eac9931895ed09bbf622d25f862cf8aac64a4a",
+  "canonical_data_sha256": "5f34a4221acf18fe63b86c049d328aeb134bf43237c94b6aae514b1c187cb33e",
   "canonicalization": {
     "canonicalization_version": 1,
     "canonical_fields": [

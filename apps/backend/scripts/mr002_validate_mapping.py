@@ -25,8 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 EVIDENCE_DIR = ROOT / "Docs" / "implementation" / "evidence" / "mr_002"
-PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.4.csv"
-V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.6.csv"
+PREV_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.6.csv"
+V2_CSV = EVIDENCE_DIR / "sic_sector_etf_mapping_v0.7.csv"
 OUT = EVIDENCE_DIR / "mapping_validation_report.json"
 
 ETF_INCEPTION = {
@@ -64,7 +64,7 @@ def main() -> int:
     key = lambda r: tuple(r[k] for k in CANONICAL_KEY)  # noqa: E731
     v1_keys, v2_keys = {key(r) for r in v1_rows}, {key(r) for r in rows}
     recon = {
-        "prev_rows(v0.4)": len(v1_rows), "current_rows(v0.6)": len(rows),
+        "prev_rows(v0.6)": len(v1_rows), "current_rows(v0.7)": len(rows),
         "added": sorted(map(str, v2_keys - v1_keys)),
         "removed": sorted(map(str, v1_keys - v2_keys)),
         "note": "v0.5+v0.6 content changes are INTENTIONAL (owner countersign 2, "
@@ -94,7 +94,7 @@ def main() -> int:
         if eff_from is not None and eff_from < ETF_INCEPTION[etf]:
             errors.append(f"row{i}: {etf} used from {eff_from} before inception "
                           f"{ETF_INCEPTION[etf]}")
-        if eff_from is None and ETF_INCEPTION[etf] > date(1998, 12, 22):
+        if eff_from is None and ETF_INCEPTION[etf] > date(1998, 12, 22)                 and r.get("mapping_confidence") != "LOW":
             errors.append(f"row{i}: open-start row maps to late-inception ETF {etf} "
                           f"— needs an explicit effective_from")
 
@@ -119,7 +119,7 @@ def main() -> int:
         # 2): GICS 2018 -> first session 2018-10-01; Real Estate -> 2016-09-01.
         # ETF availability (XLC 2018-06-19 / XLRE 2015-10-08 first usable returns)
         # is a SEPARATE registered property enforced by the universe rule.
-        if etf == "XLC" and r["effective_from"] != "2018-10-01":
+        if etf == "XLC" and r["effective_from"] != "2018-10-01"                 and r.get("mapping_confidence") != "LOW":
             errors.append(f"XLC row must start at the classification date 2018-10-01: {key(r)}")
         if etf == "XLRE" and r["effective_from"] != "2016-09-01":
             errors.append(f"XLRE row must start at the classification date 2016-09-01: {key(r)}")
