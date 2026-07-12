@@ -277,6 +277,27 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "lobbyists only (full survivorship-free sweep throttled by Quiver).",
         "docs/implementation/TradingWorkbench_LOBBY001_Plan_v0.1.md"),
     ResearchProgram(
+        "MR-002", "Mean Reversion (residual)",
+        "Sector-neutral residual reversion (market+sector removed; 1-5 day horizon)", "research",
+        "RUNNING - Research-Design Freeze v1.0 SIGNED 2026-07-11 (Planning -> Running). NOT a "
+        "verdict: no signals or backtests have been run. A NEW hypothesis, not a repair of RNG-001 "
+        "(which stays Archived/Rejected): after removing market and orthogonalized sector returns, "
+        "large 5-day residual z-scores (entry |z|>=2.00 primary; A 1.75 / C 2.25 as neighbours) "
+        "partially revert; beta- and sector-neutral book, 1.5%-of-NAV cap, 5-session max hold. The "
+        "frozen data layer is the milestone: 163-month PIT universe (40,750 universe-months, 754 "
+        "securities), a 1,068-interval identity crosswalk (23/23 identity tests) with 21/21 "
+        "owner-countersigned predecessor-CIK overrides, a PIT estimated earnings-risk blackout "
+        "(40,153 EDGAR 8-K Item-2.02 anchors; 100.000%% deterministic reproduction), and PIT-SIC "
+        "sector history (V2 coverage 98.48%% >= the registered 98%% gate; every year >= 95%%; V1 "
+        "97.40%%) - achieved WITHOUT relaxing the denominator, the gates, the annual floor, or the "
+        "pre-observation forward-fill prohibition. Sealed §8a: 3,400 sessions 2013-01-02..2026-07-10, "
+        "development / validation / SEALED-OOS (config B, opened once) boundaries fixed. Reusable "
+        "assets: the PIT identity/predecessor registry, the estimated-blackout method, the hardened "
+        "provenance crawler + required pre-flight smoke gate, and the architectural lesson that a "
+        "successful reconciliation is NOT proof that cached data are complete (non-atomic cache writes "
+        "survived replay; atomic writes eliminate the defect class).",
+        "docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md"),
+    ResearchProgram(
         "GAPPER-001", "Intraday / Discovery",
         "Morning gap-momentum continuation (from the SCAN-001 gappers feed)", "research",
         "RUNNING - Active Accrual / Shadow Paper - Backtest Pending (NOT a validated signal; per the "
