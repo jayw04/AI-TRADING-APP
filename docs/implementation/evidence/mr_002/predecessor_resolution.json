@@ -1,0 +1,1236 @@
+[
+  {
+    "ticker": "BLK",
+    "permaticker": 194456,
+    "gap_months": 143,
+    "successor_cik": 2012383,
+    "successor": {
+      "cik": 2012383,
+      "name": "BlackRock, Inc.",
+      "sic": "6211",
+      "sicDescription": "Security Brokers, Dealers & Flotation Companies",
+      "formerNames": [
+        [
+          "BlackRock, Inc.",
+          "2024-10-01",
+          "2026-07-08"
+        ],
+        [
+          "BlackRock Funding, Inc. /DE",
+          "2024-02-20",
+          "2024-10-01"
+        ]
+      ],
+      "first_domestic_filing": "2024-11-06",
+      "last_domestic_filing": "2026-05-06",
+      "n_domestic_filings": 7,
+      "reorg_filings": [
+        {
+          "form": "8-K12B",
+          "filed": "2024-10-01",
+          "event_date": "2024-10-01"
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {
+      "1326003": {
+        "cik": 1326003,
+        "name": "BlackRock Capital Investment Corp",
+        "sic": "",
+        "sicDescription": "",
+        "formerNames": [
+          [
+            "BlackRock Kelso Capital CORP",
+            "2005-05-24",
+            "2015-03-05"
+          ]
+        ],
+        "first_domestic_filing": "2005-11-14",
+        "last_domestic_filing": "2024-03-05",
+        "n_domestic_filings": 77,
+        "reorg_filings": []
+      }
+    },
+    "search_stem": "blackrock"
+  },
+  {
+    "ticker": "PSKY",
+    "permaticker": 198331,
+    "gap_months": 100,
+    "successor_cik": 2041610,
+    "successor": {
+      "cik": 2041610,
+      "name": "Paramount Skydance Corp",
+      "sic": "4833",
+      "sicDescription": "Television Broadcasting Stations",
+      "formerNames": [
+        [
+          "New Pluto Global, Inc.",
+          "2024-11-04",
+          "2025-08-01"
+        ]
+      ],
+      "first_domestic_filing": "2025-05-14",
+      "last_domestic_filing": "2026-05-04",
+      "n_domestic_filings": 6,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2024-11-04",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2024-12-17",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2025-01-14",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "paramount skydance"
+  },
+  {
+    "ticker": "DIS",
+    "permaticker": 197197,
+    "gap_months": 77,
+    "successor_cik": 1744489,
+    "successor": {
+      "cik": 1744489,
+      "name": "Walt Disney Co",
+      "sic": "7990",
+      "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+      "formerNames": [
+        [
+          "TWDC Holdco 613 Corp",
+          "2018-06-25",
+          "2018-06-28"
+        ],
+        [
+          "TWDC Holdco 613 Corp.",
+          "2018-06-27",
+          "2018-06-27"
+        ]
+      ],
+      "first_domestic_filing": "2019-05-08",
+      "last_domestic_filing": "2026-05-06",
+      "n_domestic_filings": 31,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2018-06-25",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2018-06-28",
+          "event_date": null
+        },
+        {
+          "form": "8-K12B",
+          "filed": "2019-03-20",
+          "event_date": "2019-03-15"
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "walt disney"
+  },
+  {
+    "ticker": "VTRS",
+    "permaticker": 168145,
+    "gap_months": 64,
+    "successor_cik": 1792044,
+    "successor": {
+      "cik": 1792044,
+      "name": "Viatris Inc",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "formerNames": [
+        [
+          "Upjohn Inc",
+          "2019-10-25",
+          "2020-11-10"
+        ]
+      ],
+      "first_domestic_filing": "2020-05-07",
+      "last_domestic_filing": "2026-05-07",
+      "n_domestic_filings": 31,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2019-10-25",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2019-12-13",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2020-01-21",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "viatris"
+  },
+  {
+    "ticker": "APA",
+    "permaticker": 199952,
+    "gap_months": 61,
+    "successor_cik": 1841666,
+    "successor": {
+      "cik": 1841666,
+      "name": "APA Corp",
+      "sic": "1311",
+      "sicDescription": "Crude Petroleum & Natural Gas",
+      "formerNames": [],
+      "first_domestic_filing": "2021-05-07",
+      "last_domestic_filing": "2026-05-07",
+      "n_domestic_filings": 21,
+      "reorg_filings": [
+        {
+          "form": "8-K12B",
+          "filed": "2021-03-01",
+          "event_date": "2021-03-01"
+        },
+        {
+          "form": "S-4",
+          "filed": "2024-02-01",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2024-02-13",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "apa"
+  },
+  {
+    "ticker": "DD",
+    "permaticker": 199776,
+    "gap_months": 59,
+    "successor_cik": 1666700,
+    "successor": {
+      "cik": 1666700,
+      "name": "DuPont de Nemours, Inc.",
+      "sic": "2821",
+      "sicDescription": "Plastic Materials, Synth Resins & Nonvulcan Elastomers",
+      "formerNames": [
+        [
+          "DowDuPont Inc.",
+          "2016-03-01",
+          "2019-05-31"
+        ]
+      ],
+      "first_domestic_filing": "2017-11-06",
+      "last_domestic_filing": "2026-05-05",
+      "n_domestic_filings": 35,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2016-03-01",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2016-04-18",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2016-05-23",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "dupont de"
+  },
+  {
+    "ticker": "CI",
+    "permaticker": 198962,
+    "gap_months": 50,
+    "successor_cik": 1739940,
+    "successor": {
+      "cik": 1739940,
+      "name": "Cigna Group",
+      "sic": "6324",
+      "sicDescription": "Hospital & Medical Service Plans",
+      "formerNames": [
+        [
+          "Cigna Corp",
+          "2018-12-26",
+          "2023-02-09"
+        ],
+        [
+          "Halfmoon Parent, Inc.",
+          "2018-05-16",
+          "2018-12-20"
+        ]
+      ],
+      "first_domestic_filing": "2019-02-28",
+      "last_domestic_filing": "2026-04-30",
+      "n_domestic_filings": 30,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2018-05-16",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2018-06-20",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2018-07-09",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {
+      "701221": {
+        "cik": 701221,
+        "name": "Cigna Holding Co",
+        "sic": "6324",
+        "sicDescription": "Hospital & Medical Service Plans",
+        "formerNames": [
+          [
+            "CIGNA CORP",
+            "1994-12-23",
+            "2018-12-19"
+          ]
+        ],
+        "first_domestic_filing": "1994-03-25",
+        "last_domestic_filing": "2018-11-01",
+        "n_domestic_filings": 104,
+        "reorg_filings": [
+          {
+            "form": "S-4",
+            "filed": "2019-06-21",
+            "event_date": null
+          },
+          {
+            "form": "S-4/A",
+            "filed": "2019-07-23",
+            "event_date": null
+          }
+        ]
+      }
+    },
+    "search_stem": "cigna"
+  },
+  {
+    "ticker": "AVGO",
+    "permaticker": 193427,
+    "gap_months": 42,
+    "successor_cik": 1730168,
+    "successor": {
+      "cik": 1730168,
+      "name": "Broadcom Inc.",
+      "sic": "3674",
+      "sicDescription": "Semiconductors & Related Devices",
+      "formerNames": [
+        [
+          "Broadcom Ltd",
+          "2018-02-06",
+          "2018-03-09"
+        ]
+      ],
+      "first_domestic_filing": "2018-06-14",
+      "last_domestic_filing": "2026-06-09",
+      "n_domestic_filings": 33,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2018-02-06",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2018-02-23",
+          "event_date": null
+        },
+        {
+          "form": "8-K12B",
+          "filed": "2018-04-04",
+          "event_date": "2018-04-02"
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {
+      "1649345": {
+        "cik": 1649345,
+        "name": "Broadcom Cayman L.P.",
+        "sic": "3674",
+        "sicDescription": "Semiconductors & Related Devices",
+        "formerNames": [
+          [
+            "Safari Cayman L.P.",
+            "2015-07-29",
+            "2015-12-23"
+          ]
+        ],
+        "first_domestic_filing": "2015-12-23",
+        "last_domestic_filing": "2018-03-15",
+        "n_domestic_filings": 10,
+        "reorg_filings": [
+          {
+            "form": "S-4",
+            "filed": "2015-07-29",
+            "event_date": null
+          },
+          {
+            "form": "S-4/A",
+            "filed": "2015-08-28",
+            "event_date": null
+          },
+          {
+            "form": "S-4/A",
+            "filed": "2015-09-18",
+            "event_date": null
+          }
+        ]
+      }
+    },
+    "search_stem": "broadcom"
+  },
+  {
+    "ticker": "MRVL",
+    "permaticker": 196626,
+    "gap_months": 34,
+    "successor_cik": 1835632,
+    "successor": {
+      "cik": 1835632,
+      "name": "Marvell Technology, Inc.",
+      "sic": "3674",
+      "sicDescription": "Semiconductors & Related Devices",
+      "formerNames": [],
+      "first_domestic_filing": "2021-06-09",
+      "last_domestic_filing": "2026-05-28",
+      "n_domestic_filings": 21,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2020-12-22",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2021-02-03",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2021-02-26",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {
+      "1058057": {
+        "cik": 1058057,
+        "name": "MARVELL TECHNOLOGY GROUP LTD",
+        "sic": "3674",
+        "sicDescription": "Semiconductors & Related Devices",
+        "formerNames": [],
+        "first_domestic_filing": "2000-09-12",
+        "last_domestic_filing": "2021-03-16",
+        "n_domestic_filings": 86,
+        "reorg_filings": [
+          {
+            "form": "S-4",
+            "filed": "2000-11-17",
+            "event_date": null
+          },
+          {
+            "form": "S-4/A",
+            "filed": "2000-12-12",
+            "event_date": null
+          },
+          {
+            "form": "S-4",
+            "filed": "2017-12-21",
+            "event_date": null
+          }
+        ]
+      }
+    },
+    "search_stem": "marvell technology"
+  },
+  {
+    "ticker": "MDT",
+    "permaticker": 170416,
+    "gap_months": 26,
+    "successor_cik": 1613103,
+    "successor": {
+      "cik": 1613103,
+      "name": "Medtronic plc",
+      "sic": "3845",
+      "sicDescription": "Electromedical & Electrotherapeutic Apparatus",
+      "formerNames": [
+        [
+          "Medtronic Ltd",
+          "2015-01-15",
+          "2015-01-15"
+        ],
+        [
+          "Medtronic Holdings Ltd",
+          "2014-07-14",
+          "2014-11-21"
+        ]
+      ],
+      "first_domestic_filing": "2015-02-27",
+      "last_domestic_filing": "2026-06-18",
+      "n_domestic_filings": 46,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2014-07-14",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2014-08-27",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2014-09-19",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "medtronic"
+  },
+  {
+    "ticker": "WBA",
+    "permaticker": 179780,
+    "gap_months": 24,
+    "successor_cik": 1618921,
+    "successor": {
+      "cik": 1618921,
+      "name": "Walgreens Boots Alliance, Inc.",
+      "sic": "5912",
+      "sicDescription": "Retail-Drug Stores and Proprietary Stores",
+      "formerNames": [],
+      "first_domestic_filing": "2014-12-30",
+      "last_domestic_filing": "2025-06-26",
+      "n_domestic_filings": 46,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2014-09-16",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2014-10-29",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2014-11-18",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "walgreens boots"
+  },
+  {
+    "ticker": "DKNG",
+    "permaticker": 110813,
+    "gap_months": 23,
+    "successor_cik": 1883685,
+    "successor": {
+      "cik": 1883685,
+      "name": "DraftKings Inc.",
+      "sic": "7990",
+      "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+      "formerNames": [
+        [
+          "New Duke Holdco, Inc.",
+          "2021-10-08",
+          "2022-05-05"
+        ]
+      ],
+      "first_domestic_filing": "2022-05-06",
+      "last_domestic_filing": "2026-05-08",
+      "n_domestic_filings": 17,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2021-10-08",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2021-11-16",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2021-12-06",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {
+      "1772757": {
+        "cik": 1772757,
+        "name": "DraftKings Holdings Inc.",
+        "sic": "7990",
+        "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+        "formerNames": [
+          [
+            "DraftKings Inc.",
+            "2020-04-27",
+            "2022-05-05"
+          ],
+          [
+            "Diamond Eagle Acquisition Corp. \\ DE",
+            "2019-04-05",
+            "2020-04-24"
+          ]
+        ],
+        "first_domestic_filing": "2019-08-12",
+        "last_domestic_filing": "2022-02-18",
+        "n_domestic_filings": 15,
+        "reorg_filings": [
+          {
+            "form": "S-4",
+            "filed": "2020-01-06",
+            "event_date": null
+          },
+          {
+            "form": "S-4/A",
+            "filed": "2020-02-13",
+            "event_date": null
+          },
+          {
+            "form": "S-4/A",
+            "filed": "2020-03-12",
+            "event_date": null
+          }
+        ]
+      }
+    },
+    "search_stem": "draftkings"
+  },
+  {
+    "ticker": "RTX",
+    "permaticker": 199251,
+    "gap_months": 19,
+    "successor_cik": 101829,
+    "successor": {
+      "cik": 101829,
+      "name": "RTX Corp",
+      "sic": "3724",
+      "sicDescription": "Aircraft Engines & Engine Parts",
+      "formerNames": [
+        [
+          "RAYTHEON TECHNOLOGIES CORP",
+          "2020-04-07",
+          "2023-06-29"
+        ],
+        [
+          "UNITED TECHNOLOGIES CORP /DE/",
+          "1994-01-24",
+          "2020-04-06"
+        ]
+      ],
+      "first_domestic_filing": "1994-03-31",
+      "last_domestic_filing": "2026-04-21",
+      "n_domestic_filings": 135,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "1999-05-07",
+          "event_date": null
+        },
+        {
+          "form": "S-4",
+          "filed": "2017-10-10",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2017-11-17",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "rtx"
+  },
+  {
+    "ticker": "DINO",
+    "permaticker": 199647,
+    "gap_months": 16,
+    "successor_cik": 1915657,
+    "successor": {
+      "cik": 1915657,
+      "name": "HF Sinclair Corp",
+      "sic": "4610",
+      "sicDescription": "Pipe Lines (No Natural Gas)",
+      "formerNames": [],
+      "first_domestic_filing": "2022-05-09",
+      "last_domestic_filing": "2026-05-01",
+      "n_domestic_filings": 17,
+      "reorg_filings": [
+        {
+          "form": "8-K12B",
+          "filed": "2022-03-14",
+          "event_date": "2022-03-14"
+        },
+        {
+          "form": "S-4",
+          "filed": "2022-09-12",
+          "event_date": null
+        },
+        {
+          "form": "S-4",
+          "filed": "2023-09-22",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "hf sinclair"
+  },
+  {
+    "ticker": "LBTYA",
+    "permaticker": 191556,
+    "gap_months": 7,
+    "successor_cik": 1570585,
+    "successor": {
+      "cik": 1570585,
+      "name": "Liberty Global Ltd.",
+      "sic": "4841",
+      "sicDescription": "Cable & Other Pay Television Services",
+      "formerNames": [
+        [
+          "Liberty Global plc",
+          "2013-04-04",
+          "2023-11-22"
+        ],
+        [
+          "Liberty Global Corp Ltd",
+          "2013-03-07",
+          "2013-05-01"
+        ]
+      ],
+      "first_domestic_filing": "2013-08-01",
+      "last_domestic_filing": "2026-05-01",
+      "n_domestic_filings": 64,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2013-03-07",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2013-04-12",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2013-04-24",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "liberty global"
+  },
+  {
+    "ticker": "ZG",
+    "permaticker": 179220,
+    "gap_months": 7,
+    "successor_cik": 1617640,
+    "successor": {
+      "cik": 1617640,
+      "name": "ZILLOW GROUP, INC.",
+      "sic": "7389",
+      "sicDescription": "Services-Business Services, NEC",
+      "formerNames": [
+        [
+          "Zebra Holdco Inc.",
+          "2014-09-12",
+          "2014-11-18"
+        ]
+      ],
+      "first_domestic_filing": "2015-05-12",
+      "last_domestic_filing": "2026-05-06",
+      "n_domestic_filings": 45,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2014-09-12",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2014-10-20",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2014-11-10",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "zillow"
+  },
+  {
+    "ticker": "OVV",
+    "permaticker": 189743,
+    "gap_months": 5,
+    "successor_cik": 1792580,
+    "successor": {
+      "cik": 1792580,
+      "name": "Ovintiv Inc.",
+      "sic": "1311",
+      "sicDescription": "Crude Petroleum & Natural Gas",
+      "formerNames": [
+        [
+          "1847432 Alberta ULC",
+          "2019-11-06",
+          "2019-12-18"
+        ]
+      ],
+      "first_domestic_filing": "2020-02-21",
+      "last_domestic_filing": "2026-05-11",
+      "n_domestic_filings": 26,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2019-11-06",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2019-12-05",
+          "event_date": null
+        },
+        {
+          "form": "8-K12B",
+          "filed": "2020-01-24",
+          "event_date": "2020-01-24"
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "ovintiv"
+  },
+  {
+    "ticker": "AGN",
+    "permaticker": 191420,
+    "gap_months": 4,
+    "successor_cik": 1578845,
+    "successor": {
+      "cik": 1578845,
+      "name": "Allergan plc",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "formerNames": [
+        [
+          "Actavis plc",
+          "2013-09-30",
+          "2015-06-15"
+        ],
+        [
+          "Actavis Ltd",
+          "2013-06-18",
+          "2013-07-31"
+        ]
+      ],
+      "first_domestic_filing": "2013-10-31",
+      "last_domestic_filing": "2020-05-07",
+      "n_domestic_filings": 30,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2013-06-18",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2013-07-31",
+          "event_date": null
+        },
+        {
+          "form": "8-K12G3",
+          "filed": "2013-10-02",
+          "event_date": "2013-10-01"
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "allergan"
+  },
+  {
+    "ticker": "QDEL",
+    "permaticker": 199012,
+    "gap_months": 4,
+    "successor_cik": 1906324,
+    "successor": {
+      "cik": 1906324,
+      "name": "QuidelOrtho Corp",
+      "sic": "2835",
+      "sicDescription": "In Vitro & In Vivo Diagnostic Substances",
+      "formerNames": [
+        [
+          "Coronado Topco, Inc.",
+          "2022-01-31",
+          "2022-04-11"
+        ]
+      ],
+      "first_domestic_filing": "2022-08-05",
+      "last_domestic_filing": "2026-05-06",
+      "n_domestic_filings": 17,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2022-01-31",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2022-03-14",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2022-04-04",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "quidelortho"
+  },
+  {
+    "ticker": "ICE",
+    "permaticker": 191531,
+    "gap_months": 2,
+    "successor_cik": 1571949,
+    "successor": {
+      "cik": 1571949,
+      "name": "Intercontinental Exchange, Inc.",
+      "sic": "6200",
+      "sicDescription": "Security & Commodity Brokers, Dealers, Exchanges & Services",
+      "formerNames": [
+        [
+          "IntercontinentalExchange Group, Inc.",
+          "2013-03-20",
+          "2014-05-29"
+        ]
+      ],
+      "first_domestic_filing": "2013-08-07",
+      "last_domestic_filing": "2026-04-30",
+      "n_domestic_filings": 57,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2013-03-21",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2013-04-09",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2013-04-30",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "intercontinental exchange"
+  },
+  {
+    "ticker": "XRX",
+    "permaticker": 199200,
+    "gap_months": 2,
+    "successor_cik": 1770450,
+    "successor": {
+      "cik": 1770450,
+      "name": "Xerox Holdings Corp",
+      "sic": "3577",
+      "sicDescription": "Computer Peripheral Equipment, NEC",
+      "formerNames": [],
+      "first_domestic_filing": "2019-08-06",
+      "last_domestic_filing": "2026-05-07",
+      "n_domestic_filings": 28,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2019-03-15",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2019-04-18",
+          "event_date": null
+        },
+        {
+          "form": "8-K12B",
+          "filed": "2019-07-31",
+          "event_date": "2019-07-31"
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "xerox"
+  },
+  {
+    "ticker": "PRGO",
+    "permaticker": 191345,
+    "gap_months": 1,
+    "successor_cik": 1585364,
+    "successor": {
+      "cik": 1585364,
+      "name": "PERRIGO Co plc",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "formerNames": [
+        [
+          "PERRIGO Co Ltd",
+          "2013-08-28",
+          "2013-11-12"
+        ]
+      ],
+      "first_domestic_filing": "2013-11-04",
+      "last_domestic_filing": "2026-05-06",
+      "n_domestic_filings": 53,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "2013-08-28",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2013-09-13",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "2013-09-26",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "perrigo"
+  },
+  {
+    "ticker": "S2",
+    "permaticker": 199250,
+    "gap_months": 1,
+    "successor_cik": 101830,
+    "successor": {
+      "cik": 101830,
+      "name": "SPRINT LLC",
+      "sic": "4813",
+      "sicDescription": "Telephone Communications (No Radiotelephone)",
+      "formerNames": [
+        [
+          "SPRINT CORP",
+          "2013-06-27",
+          "2021-04-23"
+        ],
+        [
+          "SPRINT Corp",
+          "2013-06-27",
+          "2021-04-23"
+        ],
+        [
+          "SPRINT NEXTEL CORP",
+          "2005-04-22",
+          "2013-07-10"
+        ]
+      ],
+      "first_domestic_filing": "1994-03-15",
+      "last_domestic_filing": "2020-01-27",
+      "n_domestic_filings": 116,
+      "reorg_filings": [
+        {
+          "form": "S-4",
+          "filed": "1998-10-01",
+          "event_date": null
+        },
+        {
+          "form": "S-4/A",
+          "filed": "1998-10-05",
+          "event_date": null
+        },
+        {
+          "form": "S-4",
+          "filed": "2001-12-20",
+          "event_date": null
+        }
+      ]
+    },
+    "security_price_history": {
+      "name": null,
+      "firstpricedate": null,
+      "lastpricedate": null,
+      "isdelisted": null
+    },
+    "candidate_predecessors": {},
+    "search_stem": "sprint"
+  }
+]

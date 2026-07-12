@@ -1,0 +1,823 @@
+{
+  "securities_with_gaps": 33,
+  "total_gap_months": 985,
+  "findings": [
+    {
+      "permaticker": 194456,
+      "ticker": "BLK",
+      "gap_months": 143,
+      "successor_cik": 2012383,
+      "successor_entity": {
+        "name": "BlackRock, Inc.",
+        "sic": "6211",
+        "sicDescription": "Security Brokers, Dealers & Flotation Companies",
+        "formerNames": [
+          [
+            "BlackRock, Inc.",
+            "2024-10-01",
+            "2026-07-08"
+          ],
+          [
+            "BlackRock Funding, Inc. /DE",
+            "2024-02-20",
+            "2024-10-01"
+          ]
+        ],
+        "earliest_filing": "2024-02-20"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 198331,
+      "ticker": "PSKY",
+      "gap_months": 100,
+      "successor_cik": 2041610,
+      "successor_entity": {
+        "name": "Paramount Skydance Corp",
+        "sic": "4833",
+        "sicDescription": "Television Broadcasting Stations",
+        "formerNames": [
+          [
+            "New Pluto Global, Inc.",
+            "2024-11-04",
+            "2025-08-01"
+          ]
+        ],
+        "earliest_filing": "2024-11-04"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 197197,
+      "ticker": "DIS",
+      "gap_months": 77,
+      "successor_cik": 1744489,
+      "successor_entity": {
+        "name": "Walt Disney Co",
+        "sic": "7990",
+        "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+        "formerNames": [
+          [
+            "TWDC Holdco 613 Corp",
+            "2018-06-25",
+            "2018-06-28"
+          ],
+          [
+            "TWDC Holdco 613 Corp.",
+            "2018-06-27",
+            "2018-06-27"
+          ]
+        ],
+        "earliest_filing": "2018-06-25"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "1382085": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 190485,
+      "ticker": "NXPI",
+      "gap_months": 68,
+      "successor_cik": 1413447,
+      "successor_entity": {
+        "name": "NXP Semiconductors N.V.",
+        "sic": "3674",
+        "sicDescription": "Semiconductors & Related Devices",
+        "formerNames": [
+          [
+            "KASLION Acquisition B.V.",
+            "2007-09-26",
+            "2010-04-16"
+          ]
+        ],
+        "earliest_filing": "2007-09-26"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 168145,
+      "ticker": "VTRS",
+      "gap_months": 64,
+      "successor_cik": 1792044,
+      "successor_entity": {
+        "name": "Viatris Inc",
+        "sic": "2834",
+        "sicDescription": "Pharmaceutical Preparations",
+        "formerNames": [
+          [
+            "Upjohn Inc",
+            "2019-10-25",
+            "2020-11-10"
+          ]
+        ],
+        "earliest_filing": "2019-10-25"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 189782,
+      "ticker": "TEVA",
+      "gap_months": 62,
+      "successor_cik": 818686,
+      "successor_entity": {
+        "name": "TEVA PHARMACEUTICAL INDUSTRIES LTD",
+        "sic": "2834",
+        "sicDescription": "Pharmaceutical Preparations",
+        "formerNames": [
+          [
+            "TEVA PHARMACEUTICAL INDUSTRIES LIMITED",
+            "1996-02-02",
+            "2001-01-16"
+          ]
+        ],
+        "earliest_filing": "1996-02-02"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 199952,
+      "ticker": "APA",
+      "gap_months": 61,
+      "successor_cik": 1841666,
+      "successor_entity": {
+        "name": "APA Corp",
+        "sic": "1311",
+        "sicDescription": "Crude Petroleum & Natural Gas",
+        "formerNames": [],
+        "earliest_filing": "2021-03-01"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 199776,
+      "ticker": "DD",
+      "gap_months": 59,
+      "successor_cik": 1666700,
+      "successor_entity": {
+        "name": "DuPont de Nemours, Inc.",
+        "sic": "2821",
+        "sicDescription": "Plastic Materials, Synth Resins & Nonvulcan Elastomers",
+        "formerNames": [
+          [
+            "DowDuPont Inc.",
+            "2016-03-01",
+            "2019-05-31"
+          ]
+        ],
+        "earliest_filing": "2016-03-01"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "1643194": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 198962,
+      "ticker": "CI",
+      "gap_months": 50,
+      "successor_cik": 1739940,
+      "successor_entity": {
+        "name": "Cigna Group",
+        "sic": "6324",
+        "sicDescription": "Hospital & Medical Service Plans",
+        "formerNames": [
+          [
+            "Cigna Corp",
+            "2018-12-26",
+            "2023-02-09"
+          ],
+          [
+            "Halfmoon Parent, Inc.",
+            "2018-05-16",
+            "2018-12-20"
+          ]
+        ],
+        "earliest_filing": "2018-05-16"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "1079368": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 193427,
+      "ticker": "AVGO",
+      "gap_months": 42,
+      "successor_cik": 1730168,
+      "successor_entity": {
+        "name": "Broadcom Inc.",
+        "sic": "3674",
+        "sicDescription": "Semiconductors & Related Devices",
+        "formerNames": [
+          [
+            "Broadcom Ltd",
+            "2018-02-06",
+            "2018-03-09"
+          ]
+        ],
+        "earliest_filing": "2018-02-06"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 165452,
+      "ticker": "TEAM",
+      "gap_months": 41,
+      "successor_cik": 1650372,
+      "successor_entity": {
+        "name": "Atlassian Corp",
+        "sic": "7372",
+        "sicDescription": "Services-Prepackaged Software",
+        "formerNames": [
+          [
+            "Atlassian Corp Plc",
+            "2015-08-21",
+            "2022-08-24"
+          ]
+        ],
+        "earliest_filing": "2015-08-21"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "1700357": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 196626,
+      "ticker": "MRVL",
+      "gap_months": 34,
+      "successor_cik": 1835632,
+      "successor_entity": {
+        "name": "Marvell Technology, Inc.",
+        "sic": "3674",
+        "sicDescription": "Semiconductors & Related Devices",
+        "formerNames": [],
+        "earliest_filing": "2020-12-22"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 170416,
+      "ticker": "MDT",
+      "gap_months": 26,
+      "successor_cik": 1613103,
+      "successor_entity": {
+        "name": "Medtronic plc",
+        "sic": "3845",
+        "sicDescription": "Electromedical & Electrotherapeutic Apparatus",
+        "formerNames": [
+          [
+            "Medtronic Ltd",
+            "2015-01-15",
+            "2015-01-15"
+          ],
+          [
+            "Medtronic Holdings Ltd",
+            "2014-07-14",
+            "2014-11-21"
+          ]
+        ],
+        "earliest_filing": "2014-07-14"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "806089": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 179780,
+      "ticker": "WBA",
+      "gap_months": 24,
+      "successor_cik": 1618921,
+      "successor_entity": {
+        "name": "Walgreens Boots Alliance, Inc.",
+        "sic": "5912",
+        "sicDescription": "Retail-Drug Stores and Proprietary Stores",
+        "formerNames": [],
+        "earliest_filing": "2014-09-16"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 124354,
+      "ticker": "HTZGQ",
+      "gap_months": 23,
+      "successor_cik": 1657853,
+      "successor_entity": {
+        "name": "HERTZ GLOBAL HOLDINGS, INC",
+        "sic": "7510",
+        "sicDescription": "Services-Auto Rental & Leasing (No Drivers)",
+        "formerNames": [
+          [
+            "Hertz Rental Car Holding Company, Inc.",
+            "2015-12-21",
+            "2016-06-27"
+          ]
+        ],
+        "earliest_filing": "2015-12-21"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": [
+        "possible_bankruptcy_era_ticker(Q_suffix)"
+      ]
+    },
+    {
+      "permaticker": 110813,
+      "ticker": "DKNG",
+      "gap_months": 23,
+      "successor_cik": 1883685,
+      "successor_entity": {
+        "name": "DraftKings Inc.",
+        "sic": "7990",
+        "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+        "formerNames": [
+          [
+            "New Duke Holdco, Inc.",
+            "2021-10-08",
+            "2022-05-05"
+          ]
+        ],
+        "earliest_filing": "2021-10-08"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 199251,
+      "ticker": "RTX",
+      "gap_months": 19,
+      "successor_cik": 101829,
+      "successor_entity": {
+        "name": "RTX Corp",
+        "sic": "3724",
+        "sicDescription": "Aircraft Engines & Engine Parts",
+        "formerNames": [
+          [
+            "RAYTHEON TECHNOLOGIES CORP",
+            "2020-04-07",
+            "2023-06-29"
+          ],
+          [
+            "UNITED TECHNOLOGIES CORP /DE/",
+            "1994-01-24",
+            "2020-04-06"
+          ]
+        ],
+        "earliest_filing": "1994-01-24"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 199647,
+      "ticker": "DINO",
+      "gap_months": 16,
+      "successor_cik": 1915657,
+      "successor_entity": {
+        "name": "HF Sinclair Corp",
+        "sic": "4610",
+        "sicDescription": "Pipe Lines (No Natural Gas)",
+        "formerNames": [],
+        "earliest_filing": "2022-03-14"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "1534263": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 191556,
+      "ticker": "LBTYA",
+      "gap_months": 7,
+      "successor_cik": 1570585,
+      "successor_entity": {
+        "name": "Liberty Global Ltd.",
+        "sic": "4841",
+        "sicDescription": "Cable & Other Pay Television Services",
+        "formerNames": [
+          [
+            "Liberty Global plc",
+            "2013-04-04",
+            "2023-11-22"
+          ],
+          [
+            "Liberty Global Corp Ltd",
+            "2013-03-07",
+            "2013-05-01"
+          ]
+        ],
+        "earliest_filing": "2013-03-07"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 187742,
+      "ticker": "WFTIQ",
+      "gap_months": 7,
+      "successor_cik": 1170565,
+      "successor_entity": {
+        "name": "WEATHERFORD INTERNATIONAL LTD",
+        "sic": "1381",
+        "sicDescription": "Drilling Oil & Gas Wells",
+        "formerNames": [],
+        "earliest_filing": "2002-04-05"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": [
+        "possible_bankruptcy_era_ticker(Q_suffix)"
+      ]
+    },
+    {
+      "permaticker": 179220,
+      "ticker": "ZG",
+      "gap_months": 7,
+      "successor_cik": 1617640,
+      "successor_entity": {
+        "name": "ZILLOW GROUP, INC.",
+        "sic": "7389",
+        "sicDescription": "Services-Business Services, NEC",
+        "formerNames": [
+          [
+            "Zebra Holdco Inc.",
+            "2014-09-12",
+            "2014-11-18"
+          ]
+        ],
+        "earliest_filing": "2014-09-12"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 192178,
+      "ticker": "CPRI",
+      "gap_months": 5,
+      "successor_cik": 1530721,
+      "successor_entity": {
+        "name": "Capri Holdings Ltd",
+        "sic": "3100",
+        "sicDescription": "Leather & Leather Products",
+        "formerNames": [
+          [
+            "Michael Kors Holdings Ltd",
+            "2011-12-02",
+            "2018-12-21"
+          ]
+        ],
+        "earliest_filing": "2011-12-02"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 189743,
+      "ticker": "OVV",
+      "gap_months": 5,
+      "successor_cik": 1792580,
+      "successor_entity": {
+        "name": "Ovintiv Inc.",
+        "sic": "1311",
+        "sicDescription": "Crude Petroleum & Natural Gas",
+        "formerNames": [
+          [
+            "1847432 Alberta ULC",
+            "2019-11-06",
+            "2019-12-18"
+          ]
+        ],
+        "earliest_filing": "2019-11-06"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "915337": "BANCORP ENERGY INC  (0000915337)"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 191420,
+      "ticker": "AGN",
+      "gap_months": 4,
+      "successor_cik": 1578845,
+      "successor_entity": {
+        "name": "Allergan plc",
+        "sic": "2834",
+        "sicDescription": "Pharmaceutical Preparations",
+        "formerNames": [
+          [
+            "Actavis plc",
+            "2013-09-30",
+            "2015-06-15"
+          ],
+          [
+            "Actavis Ltd",
+            "2013-06-18",
+            "2013-07-31"
+          ]
+        ],
+        "earliest_filing": "2013-06-18"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "1423689": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 199012,
+      "ticker": "QDEL",
+      "gap_months": 4,
+      "successor_cik": 1906324,
+      "successor_entity": {
+        "name": "QuidelOrtho Corp",
+        "sic": "2835",
+        "sicDescription": "In Vitro & In Vivo Diagnostic Substances",
+        "formerNames": [
+          [
+            "Coronado Topco, Inc.",
+            "2022-01-31",
+            "2022-04-11"
+          ]
+        ],
+        "earliest_filing": "2022-01-31"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 119398,
+      "ticker": "CRON",
+      "gap_months": 3,
+      "successor_cik": 1656472,
+      "successor_entity": {
+        "name": "Cronos Group Inc.",
+        "sic": "2833",
+        "sicDescription": "Medicinal Chemicals & Botanical Products",
+        "formerNames": [
+          [
+            "PharmaCan Capital Corp.",
+            "2015-10-23",
+            "2016-05-27"
+          ]
+        ],
+        "earliest_filing": "2015-10-23"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "1696411": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 191531,
+      "ticker": "ICE",
+      "gap_months": 2,
+      "successor_cik": 1571949,
+      "successor_entity": {
+        "name": "Intercontinental Exchange, Inc.",
+        "sic": "6200",
+        "sicDescription": "Security & Commodity Brokers, Dealers, Exchanges & Services",
+        "formerNames": [
+          [
+            "IntercontinentalExchange Group, Inc.",
+            "2013-03-20",
+            "2014-05-29"
+          ]
+        ],
+        "earliest_filing": "2013-03-20"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "811868": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 199200,
+      "ticker": "XRX",
+      "gap_months": 2,
+      "successor_cik": 1770450,
+      "successor_entity": {
+        "name": "Xerox Holdings Corp",
+        "sic": "3577",
+        "sicDescription": "Computer Peripheral Equipment, NEC",
+        "formerNames": [],
+        "earliest_filing": "2019-03-15"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 187636,
+      "ticker": "ENDPQ",
+      "gap_months": 2,
+      "successor_cik": 1593034,
+      "successor_entity": {
+        "name": "Endo International plc",
+        "sic": "2834",
+        "sicDescription": "Pharmaceutical Preparations",
+        "formerNames": [
+          [
+            "Endo International Ltd",
+            "2013-12-11",
+            "2014-01-27"
+          ]
+        ],
+        "earliest_filing": "2013-12-11"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": [
+        "possible_bankruptcy_era_ticker(Q_suffix)"
+      ]
+    },
+    {
+      "permaticker": 115953,
+      "ticker": "CGC",
+      "gap_months": 2,
+      "successor_cik": 1737927,
+      "successor_entity": {
+        "name": "Canopy Growth Corp",
+        "sic": "2833",
+        "sicDescription": "Medicinal Chemicals & Botanical Products",
+        "formerNames": [],
+        "earliest_filing": "2018-05-16"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 191345,
+      "ticker": "PRGO",
+      "gap_months": 1,
+      "successor_cik": 1585364,
+      "successor_entity": {
+        "name": "PERRIGO Co plc",
+        "sic": "2834",
+        "sicDescription": "Pharmaceutical Preparations",
+        "formerNames": [
+          [
+            "PERRIGO Co Ltd",
+            "2013-08-28",
+            "2013-11-12"
+          ]
+        ],
+        "earliest_filing": "2013-08-28"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 199250,
+      "ticker": "S2",
+      "gap_months": 1,
+      "successor_cik": 101830,
+      "successor_entity": {
+        "name": "SPRINT LLC",
+        "sic": "4813",
+        "sicDescription": "Telephone Communications (No Radiotelephone)",
+        "formerNames": [
+          [
+            "SPRINT CORP",
+            "2013-06-27",
+            "2021-04-23"
+          ],
+          [
+            "SPRINT Corp",
+            "2013-06-27",
+            "2021-04-23"
+          ],
+          [
+            "SPRINT NEXTEL CORP",
+            "2005-04-22",
+            "2013-07-10"
+          ]
+        ],
+        "earliest_filing": "1994-02-18"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {
+        "782126": "Company Search Feed"
+      },
+      "continuity_flags": []
+    },
+    {
+      "permaticker": 119256,
+      "ticker": "FRCB",
+      "gap_months": 1,
+      "successor_cik": 1132979,
+      "successor_entity": {
+        "name": "FIRST REPUBLIC BANK",
+        "sic": "",
+        "sicDescription": "",
+        "formerNames": [],
+        "earliest_filing": "2004-01-05"
+      },
+      "security_facts": {
+        "error": "TypeError(\"ndl() got multiple values for argument 'table'\")"
+      },
+      "candidate_predecessor_ciks": {},
+      "continuity_flags": []
+    }
+  ]
+}
