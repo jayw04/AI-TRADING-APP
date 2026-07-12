@@ -1,0 +1,550 @@
+{
+  "generated": "2026-07-12T01:19:54.715620Z",
+  "failure_reconciliation": {
+    "distinct_failed_urls": 10290,
+    "recovered_or_fallback_satisfied": 10290,
+    "unresolved": 0,
+    "unresolved_detail_first_50": [],
+    "disk_window_failed_urls": 0,
+    "disk_window_recovered": 0,
+    "note": "-index-headers.html 404s are the expected pre-2014 pattern; each is satisfied by its ranged .txt fallback (counted recovered only when the fallback succeeded)"
+  },
+  "db_verification": {
+    "anchors": {
+      "rows": 40153,
+      "duplicate_keys": 0
+    },
+    "sic_observations": {
+      "rows": 39748,
+      "duplicate_keys": 0
+    },
+    "sic_segments": {
+      "rows": 867,
+      "duplicate_keys": 0
+    },
+    "distinct_anchor_issuers": 742,
+    "distinct_sic_issuers": 744,
+    "multi_segment_issuers(SIC changes)": 89
+  },
+  "zero_duplicate_rows": true,
+  "cache_report": {
+    "objects": 41276,
+    "total_bytes": 141185920884,
+    "top_100": [
+      {
+        "bytes_on_disk": 422424674,
+        "url": "https://www.sec.gov/Archives/edgar/data/65984/000006598414000065/0000065984-14-000065.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 266530084,
+        "url": "https://www.sec.gov/Archives/edgar/data/65984/000006598413000050/0000065984-13-000050.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 228990227,
+        "url": "https://www.sec.gov/Archives/edgar/data/726728/000110465914010697/0001104659-14-010697.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 175664604,
+        "url": "https://www.sec.gov/Archives/edgar/data/726728/000110465913010950/0001104659-13-010950.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 159839654,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961713000354/0000019617-13-000354.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 153073699,
+        "url": "https://www.sec.gov/Archives/edgar/data/65984/000006598413000181/0000065984-13-000181.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 152723747,
+        "url": "https://www.sec.gov/Archives/edgar/data/922224/000092222413000025/0000922224-13-000025.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 150635017,
+        "url": "https://www.sec.gov/Archives/edgar/data/1393311/000139331111000011/0001393311-11-000011.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 147207628,
+        "url": "https://www.sec.gov/Archives/edgar/data/922224/000092222414000024/0000922224-14-000024.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 144263664,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085813000216/0000070858-13-000216.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 142367336,
+        "url": "https://www.sec.gov/Archives/edgar/data/922224/000092222411000029/0000922224-11-000029.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 140816629,
+        "url": "https://www.sec.gov/Archives/edgar/data/1326160/000132616013000009/0001326160-13-000009.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 140699891,
+        "url": "https://www.sec.gov/Archives/edgar/data/4904/000000490413000072/0000004904-13-000072.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 134977407,
+        "url": "https://www.sec.gov/Archives/edgar/data/1099219/000095012311018077/0000950123-11-018077.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 134470738,
+        "url": "https://www.sec.gov/Archives/edgar/data/1116132/000114420413047469/0001144204-13-047469.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 126965657,
+        "url": "https://www.sec.gov/Archives/edgar/data/740260/000074026013000047/0000740260-13-000047.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 124038930,
+        "url": "https://www.sec.gov/Archives/edgar/data/831001/000110465914015152/0001104659-14-015152.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 123255890,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085814000012/0000070858-14-000012.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 123106925,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085813000097/0000070858-13-000097.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 122213276,
+        "url": "https://www.sec.gov/Archives/edgar/data/726728/000114036112007480/0001140361-12-007480.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 120860690,
+        "url": "https://www.sec.gov/Archives/edgar/data/1031296/000103129612000012/0001031296-12-000012.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 120739670,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961714000289/0000019617-14-000289.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 119811113,
+        "url": "https://www.sec.gov/Archives/edgar/data/788784/000078878414000004/0000788784-14-000004.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 119537911,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085812000155/0000070858-12-000155.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 118043769,
+        "url": "https://www.sec.gov/Archives/edgar/data/318154/000119312512115245/0001193125-12-115245.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 117703580,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961712000163/0000019617-12-000163.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 117494884,
+        "url": "https://www.sec.gov/Archives/edgar/data/1507385/000150738514000004/0001507385-14-000004.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 116724221,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961713000221/0000019617-13-000221.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 116095780,
+        "url": "https://www.sec.gov/Archives/edgar/data/65984/000006598413000220/0000065984-13-000220.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 116016480,
+        "url": "https://www.sec.gov/Archives/edgar/data/788784/000078878413000003/0000788784-13-000003.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 114844608,
+        "url": "https://www.sec.gov/Archives/edgar/data/1099219/000093783414000011/0000937834-14-000011.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 113089051,
+        "url": "https://www.sec.gov/Archives/edgar/data/1326160/000132616014000003/0001326160-14-000003.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 111296246,
+        "url": "https://www.sec.gov/Archives/edgar/data/831001/000104746913008011/0001047469-13-008011.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 110199083,
+        "url": "https://www.sec.gov/Archives/edgar/data/922224/000092222412000023/0000922224-12-000023.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 109278844,
+        "url": "https://www.sec.gov/Archives/edgar/data/1326160/000119312512085533/0001193125-12-085533.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 109055013,
+        "url": "https://www.sec.gov/Archives/edgar/data/72971/000119312513323232/0001193125-13-323232.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 107245352,
+        "url": "https://www.sec.gov/Archives/edgar/data/1109357/000119312511030543/0001193125-11-030543.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 106685998,
+        "url": "https://www.sec.gov/Archives/edgar/data/92122/000009212213000014/0000092122-13-000014.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 106583442,
+        "url": "https://www.sec.gov/Archives/edgar/data/65984/000006598412000214/0000065984-12-000214.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 105433516,
+        "url": "https://www.sec.gov/Archives/edgar/data/1109357/000119312513324857/0001193125-13-324857.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 103371323,
+        "url": "https://www.sec.gov/Archives/edgar/data/1326160/000132616013000032/0001326160-13-000032.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 101636065,
+        "url": "https://www.sec.gov/Archives/edgar/data/1109357/000119312514051838/0001193125-14-051838.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 101526300,
+        "url": "https://www.sec.gov/Archives/edgar/data/831001/000120677411000316/0001206774-11-000316.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 100729040,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961713000400/0000019617-13-000400.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 99978477,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961712000308/0000019617-12-000308.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 99716085,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085813000248/0000070858-13-000248.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 97566506,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961712000264/0000019617-12-000264.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 97425577,
+        "url": "https://www.sec.gov/Archives/edgar/data/922224/000092222413000076/0000922224-13-000076.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 96805297,
+        "url": "https://www.sec.gov/Archives/edgar/data/1032208/000008652111000017/0000086521-11-000017.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 96576022,
+        "url": "https://www.sec.gov/Archives/edgar/data/72971/000007297114000337/0000072971-14-000337.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 95833729,
+        "url": "https://www.sec.gov/Archives/edgar/data/1140536/000114053614000004/0001140536-14-000004.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 95711515,
+        "url": "https://www.sec.gov/Archives/edgar/data/713676/000119312513326063/0001193125-13-326063.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 95336447,
+        "url": "https://www.sec.gov/Archives/edgar/data/831001/000110465914033774/0001104659-14-033774.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 94989881,
+        "url": "https://www.sec.gov/Archives/edgar/data/37996/000003799612000007/0000037996-12-000007.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 94460460,
+        "url": "https://www.sec.gov/Archives/edgar/data/1099219/000095012310070688/0000950123-10-070688.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 94280435,
+        "url": "https://www.sec.gov/Archives/edgar/data/1099219/000095012310100992/0000950123-10-100992.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 94168397,
+        "url": "https://www.sec.gov/Archives/edgar/data/1137774/000119312511047467/0001193125-11-047467.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 93764501,
+        "url": "https://www.sec.gov/Archives/edgar/data/4904/000000490413000083/0000004904-13-000083.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 93619908,
+        "url": "https://www.sec.gov/Archives/edgar/data/4904/000000490412000077/0000004904-12-000077.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 93515780,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085812000308/0000070858-12-000308.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 93453817,
+        "url": "https://www.sec.gov/Archives/edgar/data/65984/000006598412000161/0000065984-12-000161.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 93415776,
+        "url": "https://www.sec.gov/Archives/edgar/data/4904/000000490411000023/0000004904-11-000023.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 93377382,
+        "url": "https://www.sec.gov/Archives/edgar/data/1137774/000119312512078116/0001193125-12-078116.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 92487208,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085812000362/0000070858-12-000362.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 92277688,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085811000140/0000070858-11-000140.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 92112816,
+        "url": "https://www.sec.gov/Archives/edgar/data/1137774/000119312514073074/0001193125-14-073074.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 91926511,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000095012311018743/0000950123-11-018743.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 91842309,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000095012311019773/0000950123-11-019773.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 91760224,
+        "url": "https://www.sec.gov/Archives/edgar/data/788784/000078878413000010/0000788784-13-000010.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 91684230,
+        "url": "https://www.sec.gov/Archives/edgar/data/4904/000000490412000054/0000004904-12-000054.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 90993656,
+        "url": "https://www.sec.gov/Archives/edgar/data/1393311/000139331114000009/0001393311-14-000009.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 90377660,
+        "url": "https://www.sec.gov/Archives/edgar/data/1109357/000119312513069749/0001193125-13-069749.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 89769421,
+        "url": "https://www.sec.gov/Archives/edgar/data/65984/000006598414000149/0000065984-14-000149.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 88672265,
+        "url": "https://www.sec.gov/Archives/edgar/data/37996/000115752311001210/0001157523-11-001210.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 88594965,
+        "url": "https://www.sec.gov/Archives/edgar/data/740260/000074026014000063/0000740260-14-000063.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 88050247,
+        "url": "https://www.sec.gov/Archives/edgar/data/18230/000001823014000058/0000018230-14-000058.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 87298945,
+        "url": "https://www.sec.gov/Archives/edgar/data/1137774/000119312513071582/0001193125-13-071582.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 84151555,
+        "url": "https://www.sec.gov/Archives/edgar/data/1099219/000119312512085720/0001193125-12-085720.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 83156430,
+        "url": "https://www.sec.gov/Archives/edgar/data/37996/000003799613000014/0000037996-13-000014.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 82995905,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961711000264/0000019617-11-000264.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 82869734,
+        "url": "https://www.sec.gov/Archives/edgar/data/1137774/000119312513326827/0001193125-13-326827.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 81330635,
+        "url": "https://www.sec.gov/Archives/edgar/data/1270400/000127040013000106/0001270400-13-000106.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 81171524,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000095012310074181/0000950123-10-074181.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 80870597,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000119312511212045/0001193125-11-212045.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 80429809,
+        "url": "https://www.sec.gov/Archives/edgar/data/49196/000119312513307251/0001193125-13-307251.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 80325366,
+        "url": "https://www.sec.gov/Archives/edgar/data/72971/000007297113000576/0000072971-13-000576.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 79738341,
+        "url": "https://www.sec.gov/Archives/edgar/data/5272/000104746913001390/0001047469-13-001390.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 79735489,
+        "url": "https://www.sec.gov/Archives/edgar/data/5272/000104746914001096/0001047469-14-001096.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 79551930,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961713000300/0000019617-13-000300.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 79373307,
+        "url": "https://www.sec.gov/Archives/edgar/data/4977/000000497713000084/0000004977-13-000084.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 78766567,
+        "url": "https://www.sec.gov/Archives/edgar/data/96021/000009602112000062/0000096021-12-000062.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 78490601,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961714000339/0000019617-14-000339.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 78324341,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085813000147/0000070858-13-000147.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 77626824,
+        "url": "https://www.sec.gov/Archives/edgar/data/1390777/000144530513002040/0001445305-13-002040.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 77418626,
+        "url": "https://www.sec.gov/Archives/edgar/data/750556/000075055613000143/0000750556-13-000143.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 77312316,
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000001961712000262/0000019617-12-000262.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 77170631,
+        "url": "https://www.sec.gov/Archives/edgar/data/70858/000007085814000056/0000070858-14-000056.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 76993314,
+        "url": "https://www.sec.gov/Archives/edgar/data/1109357/000119312512049043/0001193125-12-049043.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 76955602,
+        "url": "https://www.sec.gov/Archives/edgar/data/4904/000000490411000140/0000004904-11-000140.txt",
+        "compressed": false
+      },
+      {
+        "bytes_on_disk": 76937810,
+        "url": "https://www.sec.gov/Archives/edgar/data/4977/000000497714000052/0000004977-14-000052.txt",
+        "compressed": false
+      }
+    ],
+    "endpoint_distribution": {
+      "full-txt": {
+        "n": 10289,
+        "bytes": 140194166298
+      },
+      "submissions": {
+        "n": 1528,
+        "bytes": 317426342
+      },
+      "index-headers": {
+        "n": 29459,
+        "bytes": 674328244
+      }
+    }
+  }
+}
