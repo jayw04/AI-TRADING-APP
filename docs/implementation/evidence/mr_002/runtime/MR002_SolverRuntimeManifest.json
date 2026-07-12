@@ -11,8 +11,8 @@
     "market_data_websocket": false,
     "research_store_mount": "read-only"
   },
-  "image_digest": "sha256:1b0939e563d010ea96df50c7f07c5a5015c96c8e521352f3a0aa862a25212758",
-  "image_tag": "mr002-research:v1.1",
+  "image_digest": "sha256:ad2e68f81113858e848bc3c70f769a69181259f53a762b3755ea781f5092a412",
+  "image_tag": "mr002-research:v1.1e",
   "base_image_digest": "python@sha256:fcbd8dfc2605ba7c2eca646846c5e892b2931e41f6227985154a596f26ab8ed7",
   "platform": {
     "system": "Linux",

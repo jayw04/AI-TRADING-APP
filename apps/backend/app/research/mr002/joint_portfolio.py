@@ -33,6 +33,8 @@ registered exit or a combined-book coupling-constraint reduction.
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
+import json
 import struct
 import warnings
 from dataclasses import dataclass, field
@@ -97,6 +99,74 @@ NO_TRADABLE_HOLDINGS_NO_CANDIDATES = "NO_TRADABLE_HOLDINGS_NO_CANDIDATES"
 
 class InvalidRun(RuntimeError):
     """FATAL. Stops the run. A solver failure is NEVER converted into a no-trade day."""
+
+
+# --------------------------------------------------------------------------------------
+# Stage-3 Equivalent-Formulation Retry -- countersigned implementation erratum
+# (2026-07-12, artifact sha256 9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb)
+# --------------------------------------------------------------------------------------
+RAW = "RAW"
+SCALED_RESCUE = "SCALED_RESCUE"
+
+# The rescue trigger is EXACT and FAIL-CLOSED. A reworded message, a different exception
+# type, a package-version drift or an artifact mismatch is immediately fatal -- NEVER
+# eligible for rescue. In particular "matrix G is not positive definite" must not trigger.
+FALSE_INCONSISTENCY = "constraints are inconsistent, no solution"
+
+REGISTERED_QUADPROG_VERSION = "0.1.13"
+REGISTERED_QUADPROG_SHA256 = (
+    "cc1996a0e3de1d423f8662fe21368948afdc91d851910b77320caaf7c15357ff"
+)
+_PIP_REPORT = "/manifest/pip_report.json"
+
+_solver_pin_checked = False
+
+
+def _assert_registered_solver() -> None:
+    """The cascade trigger is a version-pinned exact-message match, so a silent version
+    drift could otherwise reinterpret a DIFFERENT failure as a rescuable one. Verify both
+    the version and the installed Linux artifact against the frozen runtime manifest."""
+    global _solver_pin_checked
+    if _solver_pin_checked:
+        return
+
+    # NOTE: the quadprog MODULE exposes no __version__ attribute. The installed
+    # DISTRIBUTION metadata is the authoritative version record and is what the frozen
+    # runtime manifest reports, so the pin is read from there.
+    try:
+        got = importlib.metadata.version("quadprog")
+    except importlib.metadata.PackageNotFoundError as exc:
+        raise InvalidRun("quadprog distribution metadata not found") from exc
+    if got != REGISTERED_QUADPROG_VERSION:
+        raise InvalidRun(
+            f"quadprog version {got!r} != registered {REGISTERED_QUADPROG_VERSION!r}"
+        )
+
+    try:
+        with open(_PIP_REPORT, encoding="utf-8") as fh:
+            report = json.load(fh)
+    except OSError as exc:
+        # The registered runtime is the frozen Linux research image, which always carries
+        # the in-image pip report. Its absence means we are NOT in the frozen runtime.
+        raise InvalidRun(
+            f"frozen-runtime manifest {_PIP_REPORT} not readable ({exc}); MR-002 v1.1 "
+            "must run inside the frozen mr002-research image"
+        ) from exc
+
+    for item in report.get("install", []):
+        meta = item.get("metadata", {})
+        if meta.get("name") == "quadprog":
+            sha = (item.get("download_info", {}).get("archive_info", {})
+                   .get("hashes", {}).get("sha256"))
+            if sha != REGISTERED_QUADPROG_SHA256:
+                raise InvalidRun(
+                    f"installed quadprog artifact sha256 {sha!r} != registered "
+                    f"{REGISTERED_QUADPROG_SHA256!r}"
+                )
+            _solver_pin_checked = True
+            return
+
+    raise InvalidRun("quadprog not found in the frozen-runtime manifest")
 
 
 # --------------------------------------------------------------------------------------
@@ -295,6 +365,57 @@ def _solve_lp(
     return z, info
 
 
+def _qp_matrices(A_ub, b_ub, A_eq, b_eq, upper, n):
+    """quadprog form: C' z >= b, first meq rows equalities.
+        equalities : A_eq z = b_eq
+        inequality : A_ub z <= b_ub   ->   -A_ub z >= -b_ub
+        bounds     : z >= 0 ; -z >= -upper
+    """
+    C = np.vstack([A_eq, -A_ub, np.eye(n), -np.eye(n)]).T
+    b = np.concatenate([b_eq, -b_ub, np.zeros(n), -upper])
+    return C, b
+
+
+def _qp_call(H, a, C, b, meq):
+    """Every solve executes under the frozen fatal-warning policy."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        return quadprog.solve_qp(H, a, C, b, meq)
+
+
+def _acceptance(z, lam, meq, H, a, C, b, A_ub, b_ub, A_eq, b_eq, upper):
+    """ALL residuals, in ORIGINAL z coordinates. Registered as the ONLY basis for
+    acceptance (erratum §4) -- scaled-coordinate residuals are diagnostic only."""
+    n = len(z)
+    primal = _primal_residual(z, A_ub, b_ub, A_eq, b_eq, upper)
+    ineq = lam[meq:]
+    dual = float(np.max(np.maximum(-ineq, 0.0))) if ineq.size else 0.0
+    stat = float(np.max(np.abs(H @ z - a - C @ lam))) if n else 0.0
+    slack = C.T @ z - b
+    comp = float(np.max(np.abs(ineq * slack[meq:]))) if ineq.size else 0.0
+    kkt = max(primal, dual, stat, comp)
+    return {
+        "primal_residual": primal,
+        "dual_residual": dual,
+        "stationarity_residual": stat,
+        "complementarity_residual": comp,
+        "kkt_residual": kkt,
+    }
+
+
+def _enforce(checks: dict, where: str) -> None:
+    limits = {
+        "primal_residual": PRIMAL_RESIDUAL_MAX,
+        "dual_residual": DUAL_RESIDUAL_MAX,
+        "stationarity_residual": STATIONARITY_RESIDUAL_MAX,
+        "complementarity_residual": COMPLEMENTARITY_RESIDUAL_MAX,
+        "kkt_residual": KKT_RESIDUAL_MAX,
+    }
+    for name, lim in limits.items():
+        if checks[name] > lim:
+            raise InvalidRun(f"{where}: {name} {checks[name]:.3e} > {lim:.0e}")
+
+
 def _solve_qp(
     H_diag: np.ndarray,
     targets: np.ndarray,
@@ -304,14 +425,27 @@ def _solve_qp(
     b_eq: np.ndarray,
     upper: np.ndarray,
 ) -> tuple[np.ndarray, dict]:
-    """Stage 3. quadprog is a NUMERICAL Goldfarb-Idnani dual active-set solver -- never
-    an exact one. Acceptance rests on the registered residual checks below."""
-    n = len(targets)
+    """Stage 3 — the COUNTERSIGNED raw -> feasibility-probe -> scaled-rescue cascade.
 
-    # D = sum (z-t)^2 / t = sum z^2/t - 2 sum z + const
-    # quadprog minimizes 1/2 z' H z - a' z   =>   H = diag(2/t), a = 2 * 1
-    H = np.diag(H_diag)
+    Implementation Erratum "Stage-3 Equivalent-Formulation Retry", countersigned
+    2026-07-12, artifact sha256 9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb.
+
+    quadprog is a NUMERICAL Goldfarb-Idnani dual active-set solver -- never an exact one.
+    It falsely reports "constraints are inconsistent, no solution" on regions that are
+    provably feasible (4 of 1,275 solves; 52/52 proven feasible by HiGHS; 0 infeasible).
+
+    The rescue is the SAME solver under a positive-diagonal coordinate transformation, so
+    the feasible set and the unique minimizer are IDENTICAL. It is not a fallback solver,
+    not regularization, and not a tolerance change.
+    """
+    _assert_registered_solver()
+    n = len(targets)
+    t = np.asarray(targets, dtype=float)
+
+    H = np.diag(H_diag)                      # diag(2 / t)
     a = 2.0 * np.ones(n)
+    C, b = _qp_matrices(A_ub, b_ub, A_eq, b_eq, upper, n)
+    meq = A_eq.shape[0]
 
     kappa = float(np.linalg.cond(H)) if n else 1.0
     if kappa > HESSIAN_CONDITION_MAX:
@@ -319,52 +453,114 @@ def _solve_qp(
             f"hessian_condition_number kappa(H)={kappa:.3e} > {HESSIAN_CONDITION_MAX:.0e}"
         )
 
-    # quadprog form: C' z >= b, first meq rows are equalities.
-    #   equalities : A_eq z = b_eq
-    #   inequality : A_ub z <= b_ub   ->   -A_ub z >= -b_ub
-    #   bounds     : z >= 0 ; -z >= -upper
-    C_rows = [A_eq, -A_ub, np.eye(n), -np.eye(n)]
-    b_rows = [b_eq, -b_ub, np.zeros(n), -upper]
-    C = np.vstack([r for r in C_rows if r.size]).T
-    b = np.concatenate([r for r in b_rows if r.size])
-    meq = A_eq.shape[0]
+    # ---- STEP 1: the REGISTERED RAW formulation, always attempted first -----------------
+    try:
+        out = _qp_call(H, a, C, b, meq)
+        z = np.asarray(out[0], dtype=float)
+        lam = np.asarray(out[4], dtype=float)
+        checks = _acceptance(z, lam, meq, H, a, C, b, A_ub, b_ub, A_eq, b_eq, upper)
+        _enforce(checks, "stage3(raw)")
+        info = dict(checks)
+        info.update({
+            "stage3_formulation": RAW,
+            "raw_exception_class": None,
+            "raw_exception_message": None,
+            "feasibility_probe_status": None,
+            "scaled_solver_status": None,
+            "raw_coordinate_objective": float(np.sum((z - t) ** 2 / t)),
+            "hessian_condition_number": kappa,
+            "qp_iterations": [int(i) for i in np.asarray(out[3]).ravel()],
+        })
+        return z, info
 
+    # ---- STEP 2: the trigger is EXACT and FAIL-CLOSED -----------------------------------
+    # A warning is raised as a Warning (fatal-warning policy) -- a DIFFERENT exception type
+    # from the registered ValueError -- so it can never reach the cascade. Likewise
+    # "matrix G is not positive definite" must never trigger a rescue.
+    except ValueError as exc:
+        if type(exc) is not ValueError or str(exc) != FALSE_INCONSISTENCY:
+            raise InvalidRun(f"stage3: fatal raw exception (not the registered "
+                             f"rescue trigger): {type(exc).__name__}: {exc}") from exc
+        raw_exc_class, raw_exc_msg = type(exc).__name__, str(exc)
+    except Warning as w:
+        raise InvalidRun(f"stage3: solver warning is fatal, never a rescue trigger: "
+                         f"{w!r}") from w
+
+    # ---- STEP 3.1: transformation guards (bitwise, not approximate) ---------------------
+    if not np.all(np.isfinite(t)):
+        raise InvalidRun("stage3(rescue): non-finite target -> T not invertible")
+    if not np.all(t > EPS_INCLUDE):
+        raise InvalidRun("stage3(rescue): target <= eps_include -> T not invertible")
+    if t.tobytes() != np.asarray(upper, dtype=float).tobytes():
+        raise InvalidRun("stage3(rescue): t_i is not BITWISE IDENTICAL to the registered "
+                         "upper bound -- the transformation 0<=z<=t <=> 0<=u<=1 is invalid")
+
+    # ---- STEP 3-4: zero-objective HiGHS feasibility probe on the ORIGINAL region --------
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            out = quadprog.solve_qp(H, a, C, b, meq)
+            probe = linprog(c=np.zeros(n), A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
+                            bounds=[(0.0, float(u)) for u in upper],
+                            method="highs-ds", options=LP_OPTIONS)
     except Warning as w:
-        raise InvalidRun(f"stage3: solver warning is fatal: {w!r}") from w
+        raise InvalidRun(f"stage3(probe): solver warning is fatal: {w!r}") from w
+    if not (probe.success and probe.status == 0):
+        raise InvalidRun(f"stage3(probe): not optimal (status {probe.status}) -> INVALID_RUN")
+    probe_pr = _primal_residual(np.asarray(probe.x, dtype=float),
+                                A_ub, b_ub, A_eq, b_eq, upper)
+    if probe_pr > PRIMAL_RESIDUAL_MAX:
+        raise InvalidRun(f"stage3(probe): primal feasibility {probe_pr:.3e} > "
+                         f"{PRIMAL_RESIDUAL_MAX:.0e} -> INVALID_RUN")
+
+    # ---- STEP 5: ONE scaled retry, same solver ------------------------------------------
+    #   u = T^-1 z ;  H_s = T H T = diag(2t) ;  a_s = T a = 2t ;  A_s = A T ;  0 <= u <= 1
+    T = np.diag(t)
+    H_s = np.diag(2.0 * t)
+    a_s = 2.0 * t
+    A_s = A_ub @ T
+    Aeq_s = A_eq @ T
+    up_s = upper / t                          # == 1.0 exactly, by the bitwise guard above
+    C_s, b_s = _qp_matrices(A_s, b_ub, Aeq_s, b_eq, up_s, n)
+
+    try:
+        out = _qp_call(H_s, a_s, C_s, b_s, meq)
+    except Warning as w:
+        raise InvalidRun(f"stage3(rescue): solver warning is fatal: {w!r}") from w
     except ValueError as exc:
-        # Both registered fatal exceptions. "constraints are inconsistent" MUST NOT occur
-        # here: stages 1 and 2 already proved the region non-empty.
-        raise InvalidRun(f"stage3: quadprog failed: {exc}") from exc
+        raise InvalidRun(f"stage3(rescue): quadprog failed: {exc}") from exc
 
-    z = np.asarray(out[0], dtype=float)
-    lam = np.asarray(out[4], dtype=float)
+    u = np.asarray(out[0], dtype=float)
+    lam_u = np.asarray(out[4], dtype=float)
 
-    primal = _primal_residual(z, A_ub, b_ub, A_eq, b_eq, upper)
-    ineq_lam = lam[meq:]
-    dual = float(np.max(np.maximum(-ineq_lam, 0.0))) if ineq_lam.size else 0.0
-    stationarity = float(np.max(np.abs(H @ z - a - C @ lam))) if n else 0.0
-    slack = C.T @ z - b
-    comp = float(np.max(np.abs(ineq_lam * slack[meq:]))) if ineq_lam.size else 0.0
-    kkt = max(primal, dual, stationarity, comp)
+    # ---- STEP 6: map back ---------------------------------------------------------------
+    z = T @ u
 
-    checks = {
-        "primal_residual": (primal, PRIMAL_RESIDUAL_MAX),
-        "dual_residual": (dual, DUAL_RESIDUAL_MAX),
-        "stationarity_residual": (stationarity, STATIONARITY_RESIDUAL_MAX),
-        "complementarity_residual": (comp, COMPLEMENTARITY_RESIDUAL_MAX),
-        "kkt_residual": (kkt, KKT_RESIDUAL_MAX),
-    }
-    for name, (val, lim) in checks.items():
-        if val > lim:
-            raise InvalidRun(f"stage3: {name} {val:.3e} > {lim:.0e}")
+    # ---- multiplier transform: ROWS keep their association; BOUNDS divide by t_i --------
+    n_rows = meq + A_ub.shape[0]
+    lam_z = lam_u.copy()
+    lam_z[n_rows:n_rows + n] /= t             # lower-bound multipliers
+    lam_z[n_rows + n:] /= t                   # upper-bound multipliers
 
-    info = {k: v[0] for k, v in checks.items()}
-    info["hessian_condition_number"] = kappa
-    info["qp_iterations"] = [int(i) for i in np.asarray(out[3]).ravel()]
+    # ---- STEP 7: EVERY acceptance check, in ORIGINAL coordinates ------------------------
+    checks = _acceptance(z, lam_z, meq, H, a, C, b, A_ub, b_ub, A_eq, b_eq, upper)
+    _enforce(checks, "stage3(rescue)")        # STEP 8: any failure -> INVALID_RUN
+
+    scaled_diag = _acceptance(u, lam_u, meq, H_s, a_s, C_s, b_s,
+                              A_s, b_ub, Aeq_s, b_eq, up_s)   # diagnostic ONLY
+
+    info = dict(checks)
+    info.update({
+        "stage3_formulation": SCALED_RESCUE,
+        "raw_exception_class": raw_exc_class,
+        "raw_exception_message": raw_exc_msg,
+        "feasibility_probe_status": int(probe.status),
+        "scaled_solver_status": "returned",
+        "raw_coordinate_objective": float(np.sum((z - t) ** 2 / t)),
+        "hessian_condition_number": kappa,
+        "qp_iterations": [int(i) for i in np.asarray(out[3]).ravel()],
+        "scaled_coordinate_residuals_DIAGNOSTIC_ONLY": scaled_diag,
+    })
+    # STEP 9: no third attempt, no alternate solver, no regularization -- the function ends.
     return z, info
 
 

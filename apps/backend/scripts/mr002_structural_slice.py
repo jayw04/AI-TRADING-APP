@@ -97,6 +97,9 @@ class DayReport:
     normalized_beta: float
     normalized_net: float
     zero_entry_reason: str | None
+    stage3_formulation: str | None
+    raw_exception_message: str | None
+    feasibility_probe_status: int | None
     session_determinism_hash: str
     binding_constraints: list
     max_homogeneous_violation: float | None
@@ -326,6 +329,9 @@ def main() -> int:
             session=str(inp.session),
             outcome=outcome,
             zero_entry_reason=diag.get("zero_entry_reason"),
+            stage3_formulation=s3.get("stage3_formulation"),
+            raw_exception_message=s3.get("raw_exception_message"),
+            feasibility_probe_status=s3.get("feasibility_probe_status"),
             session_determinism_hash=session_hash,
             n_candidates=n_cands,
             n_orders=n_orders,
@@ -400,6 +406,13 @@ def main() -> int:
     summary = {
         "label": LABEL,
         "session_funnel": funnel,
+        "stage3_cascade": {
+            "raw_solves": sum(1 for r in reports if r.stage3_formulation == "RAW"),
+            "scaled_rescues": sum(1 for r in reports
+                                  if r.stage3_formulation == "SCALED_RESCUE"),
+            "erratum_sha256":
+                "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+        },
         "determinism_hash_coverage": {
             "session_level_hashes": n_session_hashes,
             "of_sessions": len(reports),

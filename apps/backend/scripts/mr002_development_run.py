@@ -114,6 +114,9 @@ class Acc:
     exit_reasons: Counter = field(default_factory=Counter)
     adv_clipped: int = 0
     over_cap_days: int = 0
+    raw_solves: int = 0
+    scaled_rescues: int = 0
+    rescue_detail: list = field(default_factory=list)
 
 
 def _weights(positions, prices, nav):
@@ -315,6 +318,25 @@ def run_config(days, cfg) -> Acc:
         if diag.get("total_gross", 0.0) > 1e-6:
             a.gross.append(diag["total_gross"])
         s3 = diag.get("stage3", {})
+        f3 = s3.get("stage3_formulation")
+        if f3 == "RAW":
+            a.raw_solves += 1
+        elif f3 == "SCALED_RESCUE":
+            a.scaled_rescues += 1
+            a.rescue_detail.append({
+                "session": str(inp.session),
+                "raw_exception_class": s3.get("raw_exception_class"),
+                "raw_exception_message": s3.get("raw_exception_message"),
+                "feasibility_probe_status": s3.get("feasibility_probe_status"),
+                "scaled_solver_status": s3.get("scaled_solver_status"),
+                "raw_coordinate_objective": s3.get("raw_coordinate_objective"),
+                "primal_residual": s3.get("primal_residual"),
+                "dual_residual": s3.get("dual_residual"),
+                "stationarity_residual": s3.get("stationarity_residual"),
+                "complementarity_residual": s3.get("complementarity_residual"),
+                "kkt_residual": s3.get("kkt_residual"),
+                "max_homogeneous_violation": diag.get("max_homogeneous_violation"),
+            })
         a.max_kkt = max(a.max_kkt, s3.get("kkt_residual", 0.0) or 0.0)
         a.max_kappa = max(a.max_kappa, s3.get("hessian_condition_number", 0.0) or 0.0)
         a.max_violation = max(a.max_violation, diag.get("max_homogeneous_violation", 0.0) or 0.0)
@@ -438,6 +460,13 @@ def metrics(a: Acc, name: str, n_sessions: int) -> dict:
             "kappa_limit": 1e10,
             "lp_statuses_observed": sorted(a.lp_statuses),
             "invalid_runs": 0,
+        },
+        "stage3_cascade": {
+            "erratum_sha256":
+                "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+            "raw_solves": a.raw_solves,
+            "scaled_rescues": a.scaled_rescues,
+            "rescue_detail": a.rescue_detail,
         },
     }
 
