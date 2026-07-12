@@ -1,0 +1,14 @@
+# MR-002 v1.1 frozen research runtime — pinned direct dependencies.
+# Registered solver stack (Pre-Registration v1.1 rev 3, Appendix B):
+#   LP stages 1-2 : scipy.optimize.linprog(method="highs-ds")   [HiGHS, vendored by SciPy]
+#   QP stage 3    : quadprog.solve_qp                            [Goldfarb-Idnani dual active-set]
+#
+# Exact resolved versions and artifact sha256 hashes for these AND every transitive
+# dependency are captured INSIDE the image at /manifest/pip_report.json and
+# /manifest/requirements.lock. Those files — not this one — are the authoritative record.
+numpy==2.2.6
+scipy==1.18.0
+quadprog==0.1.13
+duckdb==1.1.3
+pytz==2024.2      # required by duckdb for TIMESTAMPTZ conversion of accepted_utc
+pytest==8.3.4
