@@ -58,6 +58,9 @@ EPS_INCLUDE = 1e-8
 EPS_ACTIVE_SECTOR = 1e-6         # reporting threshold only; never a constraint input
 
 PRIMAL_RESIDUAL_MAX = 1e-9
+TAU_PRIMAL = PRIMAL_RESIDUAL_MAX  # the lexicographic-band audit inherits the primal
+#   feasibility tolerance, because the retention/deployment bands are ROWS OF THE PRIMAL
+#   SYSTEM. Owner erratum 2026-07-12 (non-economic; changes no objective and no exposure).
 DUAL_RESIDUAL_MAX = 1e-9
 STATIONARITY_RESIDUAL_MAX = 1e-8
 COMPLEMENTARITY_RESIDUAL_MAX = 1e-8
@@ -82,6 +85,14 @@ FEASIBLE = "FEASIBLE"
 # fixed_reason
 NO_EXECUTABLE_OPEN = "NO_EXECUTABLE_OPEN"
 BELOW_NUMERICAL_INCLUSION_FLOOR = "BELOW_NUMERICAL_INCLUSION_FLOOR"
+
+# zero_entry_reason -- sub-classification of VALID_ZERO_ENTRY_OUTCOME, so that every
+# session reconciles to a mutually exclusive registered state (owner audit, 2026-07-12).
+SOLVED_ZERO_DEPLOYMENT = "SOLVED_ZERO_DEPLOYMENT"                 # LP ran; Q* = 0
+NO_MATCHED_INCREMENT = "NO_MATCHED_INCREMENT"                     # one-sided pool: the
+#   dollar-neutrality equality admits no positive new increment, so there are no decision
+#   variables. Inherited from v1.0 sizing; NOT a solver outcome.
+NO_TRADABLE_HOLDINGS_NO_CANDIDATES = "NO_TRADABLE_HOLDINGS_NO_CANDIDATES"
 
 
 class InvalidRun(RuntimeError):
@@ -449,11 +460,23 @@ def build_joint(
             if (A_ub[i] @ zero - b_ub[i]) > PRIMAL_RESIDUAL_MAX
         ]
         diag["unavoidable_coupling_breaches"] = breaches
+        diag.update(_topology(fixed, tradable, cands, zero, n_y))
+        diag["determinism_hash"] = _determinism_hash({}, {})
         return JointResult(EXECUTION_CONSTRAINED_INFEASIBLE, {}, {}, diag)
 
     if n == 0:
+        # No decision variables at all. Sub-classified so the session funnel can be
+        # reconciled to mutually exclusive registered states with no residual bucket.
+        if not tradable and not cands:
+            reason = (NO_TRADABLE_HOLDINGS_NO_CANDIDATES if not candidates
+                      else NO_MATCHED_INCREMENT)
+        else:                                   # unreachable, kept explicit
+            reason = NO_MATCHED_INCREMENT
         diag["R_star"] = 0.0
         diag["Q_star"] = 0.0
+        diag["zero_entry_reason"] = reason
+        diag.update(_topology(fixed, tradable, cands, np.zeros(0), 0))
+        diag["determinism_hash"] = _determinism_hash({}, {})
         return JointResult(VALID_ZERO_ENTRY_OUTCOME, {}, {}, diag)
 
     # ---- Stage 1: maximize R = sum(y) -------------------------------------------------
@@ -494,10 +517,14 @@ def build_joint(
     # formulation permits it to do), landing ON the boundary; auditing that boundary with
     # ZERO tolerance would contradict the registered acceptance rule primal_residual <=
     # PRIMAL_RESIDUAL_MAX and would fail on floating-point noise of order 1e-19.
-    band = EPS_RETENTION + PRIMAL_RESIDUAL_MAX
+    # FROZEN AUDIT (owner erratum, 2026-07-12):
+    #   R* - eps_retention - tau_primal <= realized_R <= R* + eps_retention + tau_primal
+    #   Q* - eps_new       - tau_primal <= realized_Q <= Q* + eps_new       + tau_primal
+    #   tau_primal = PRIMAL_RESIDUAL_MAX = 1e-9
+    band = EPS_RETENTION + TAU_PRIMAL
     if not (R_star - band <= R <= R_star + band):
         raise InvalidRun(f"retention band violated: R={R!r} vs R*={R_star!r}")
-    band_q = EPS_NEW + PRIMAL_RESIDUAL_MAX
+    band_q = EPS_NEW + TAU_PRIMAL
     if not (Q_star - band_q <= Q <= Q_star + band_q):
         raise InvalidRun(f"deployment band violated: Q={Q!r} vs Q*={Q_star!r}")
 
@@ -552,8 +579,10 @@ def build_joint(
     diag.update(_topology(fixed, tradable, cands, z3, n_y))
     diag["determinism_hash"] = _determinism_hash(y, x)
 
-    outcome = VALID_ZERO_ENTRY_OUTCOME if Q <= EPS_NEW else FEASIBLE
-    return JointResult(outcome, y, x, diag)
+    if Q <= EPS_NEW:
+        diag["zero_entry_reason"] = SOLVED_ZERO_DEPLOYMENT
+        return JointResult(VALID_ZERO_ENTRY_OUTCOME, y, x, diag)
+    return JointResult(FEASIBLE, y, x, diag)
 
 
 def _topology(
@@ -567,8 +596,10 @@ def _topology(
     book: list[tuple[str, float, int, float]] = [
         (p.sector, p.f, p.d, p.beta) for p in fixed
     ]
-    book += [(h.sector, float(z[i]), h.d, h.beta) for i, h in enumerate(tradable)]
-    book += [(c.sector, float(z[n_y + i]), c.d, c.beta) for i, c in enumerate(cands)]
+    book += [(h.sector, float(z[i]), h.d, h.beta)
+             for i, h in enumerate(tradable) if i < len(z)]
+    book += [(c.sector, float(z[n_y + i]), c.d, c.beta)
+             for i, c in enumerate(cands) if n_y + i < len(z)]
 
     G = sum(w for _s, w, _d, _b in book)
     sg: dict[str, float] = {}

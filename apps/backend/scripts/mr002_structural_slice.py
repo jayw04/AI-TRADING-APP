@@ -19,8 +19,10 @@ Runs ONLY inside the frozen Linux/amd64 mr002-research image.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import struct
 import sys
 from dataclasses import dataclass
 from datetime import date
@@ -40,6 +42,8 @@ from app.research.mr002.execution import (  # noqa: E402
 from app.research.mr002.joint_portfolio import (  # noqa: E402
     EXECUTION_CONSTRAINED_INFEASIBLE,
     NEW_ENTRY_CAP,
+    NO_MATCHED_INCREMENT,
+    NO_TRADABLE_HOLDINGS_NO_CANDIDATES,
     VALID_ZERO_ENTRY_OUTCOME,
     Holding,
     InvalidRun,
@@ -52,7 +56,15 @@ from app.research.mr002.runner import CONFIGS, ADV_PARTICIPATION, _candidates  #
 # ---- the registered structural slice: the SAME 124 sessions v1.0 destroyed ----------
 SLICE_START = date(2013, 1, 2)
 SLICE_END = date(2013, 6, 28)
+
+# The slice's LAST session has no t+1 open INSIDE the window, so no execution decision
+# is made. A window-boundary artifact, not a market condition -- named, not hidden.
+TERMINAL_SESSION_NO_EXECUTION_OPEN = "TERMINAL_SESSION_NO_EXECUTION_OPEN"
 DEV_END = date(2019, 10, 2)          # the development window bound -- never exceeded
+
+def _f64_hex(x: float) -> str:
+    return struct.pack(">d", float(x)).hex()
+
 
 PROHIBITED = (
     "pnl", "p_and_l", "return", "returns", "sharpe", "hit_rate", "drawdown",
@@ -84,6 +96,8 @@ class DayReport:
     max_sector_net_ratio: float
     normalized_beta: float
     normalized_net: float
+    zero_entry_reason: str | None
+    session_determinism_hash: str
     binding_constraints: list
     max_homogeneous_violation: float | None
     gross_is_material: bool
@@ -168,7 +182,7 @@ def main() -> int:
                       for p in positions if p.side < 0)
             borrow = borrow_accrual(smv, (inp.session - prev).days, 50.0)
 
-        outcome = "NO_EXECUTION_SESSION"
+        outcome = TERMINAL_SESSION_NO_EXECUTION_OPEN
         diag: dict = {}
         n_cands = 0
 
@@ -235,6 +249,15 @@ def main() -> int:
 
             outcome = res.outcome
             diag = res.diagnostics
+            diag["_y"], diag["_x"] = res.y, res.x
+
+            # The slice filters zero-weight candidates BEFORE the solver, so build_joint
+            # cannot distinguish "no candidates existed" from "candidates existed but the
+            # dollar-neutrality equality admitted no matched increment". Only the caller
+            # knows. Correct the label here rather than let the solver mis-report it.
+            if (diag.get("zero_entry_reason") == NO_TRADABLE_HOLDINGS_NO_CANDIDATES
+                    and n_cands > 0):
+                diag["zero_entry_reason"] = NO_MATCHED_INCREMENT
 
             # ---- 3) apply: reductions to existing, then new entries -----------------
             for p in list(positions):
@@ -286,9 +309,24 @@ def main() -> int:
 
         s3 = diag.get("stage3", {})
         binding = diag.get("unavoidable_coupling_breaches", [])
+
+        # CANONICAL SESSION-LEVEL DETERMINISM HASH -- emitted for EVERY session, including
+        # terminal, empty and infeasible ones. IEEE-754 hex, permanent-identifier order.
+        # The per-solve hash covers only the solver's output; this covers the session's
+        # entire executable decision, so hash coverage is 124/124 by construction.
+        h = hashlib.sha256()
+        h.update(f"{inp.session}|{outcome}|{diag.get('zero_entry_reason') or ''}".encode())
+        for tag, bk in (("y", diag.get("_y", {})), ("x", diag.get("_x", {}))):
+            for pt in sorted(bk):
+                h.update(f"|{tag}:{pt}:{_f64_hex(bk[pt])}".encode())
+        h.update(f"|exits:{n_exits}|red:{n_reductions}|ord:{n_orders}".encode())
+        session_hash = h.hexdigest()
+
         reports.append(DayReport(
             session=str(inp.session),
             outcome=outcome,
+            zero_entry_reason=diag.get("zero_entry_reason"),
+            session_determinism_hash=session_hash,
             n_candidates=n_cands,
             n_orders=n_orders,
             n_reductions=n_reductions,
@@ -329,8 +367,50 @@ def main() -> int:
     kappa = [r.hessian_condition_number for r in reports
              if r.hessian_condition_number is not None]
 
+    from collections import Counter
+    oc = Counter(r.outcome for r in reports)
+    zr = Counter(r.zero_entry_reason for r in reports if r.zero_entry_reason)
+    funnel = {
+        "total_scheduled_sessions": len(reports),
+        "terminal_session_no_execution_open": oc.get(TERMINAL_SESSION_NO_EXECUTION_OPEN, 0),
+        "feasible_positive_entry_sessions": oc.get("FEASIBLE", 0),
+        "valid_zero_entry_outcome_sessions": oc.get(VALID_ZERO_ENTRY_OUTCOME, 0),
+        "valid_zero_entry_reasons": dict(zr),
+        "execution_constrained_infeasible_sessions": oc.get(
+            EXECUTION_CONSTRAINED_INFEASIBLE, 0),
+        "invalid_run_sessions": 0,
+        "unclassified_sessions": 0,
+    }
+    funnel["sum_of_states"] = (
+        funnel["terminal_session_no_execution_open"]
+        + funnel["feasible_positive_entry_sessions"]
+        + funnel["valid_zero_entry_outcome_sessions"]
+        + funnel["execution_constrained_infeasible_sessions"]
+    )
+    assert funnel["sum_of_states"] == len(reports), (
+        f"SESSION FUNNEL DOES NOT RECONCILE: {funnel['sum_of_states']} != {len(reports)}"
+    )
+    assert oc.get("FEASIBLE", 0) == sum(1 for r in reports if r.n_orders > 0),         "FEASIBLE sessions must be exactly the sessions with new orders"
+    assert sum(zr.values()) == oc.get(VALID_ZERO_ENTRY_OUTCOME, 0),         "every zero-entry session must carry exactly one registered reason"
+
+    n_session_hashes = sum(1 for r in reports if r.session_determinism_hash)
+    n_solve_hashes = sum(1 for r in reports if r.determinism_hash)
+    assert n_session_hashes == len(reports), "every session must carry a determinism hash"
+
     summary = {
         "label": LABEL,
+        "session_funnel": funnel,
+        "determinism_hash_coverage": {
+            "session_level_hashes": n_session_hashes,
+            "of_sessions": len(reports),
+            "per_solve_hashes": n_solve_hashes,
+            "note": (
+                "The canonical SESSION-level hash covers every session by construction, "
+                "including terminal, zero-variable and execution-constrained ones. The "
+                "per-solve hash is emitted only where a solve occurred; the two are "
+                "reported separately rather than conflated."
+            ),
+        },
         "preregistration_artifact_sha256":
             "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5",
         "config": "B (sole verdict configuration)",
