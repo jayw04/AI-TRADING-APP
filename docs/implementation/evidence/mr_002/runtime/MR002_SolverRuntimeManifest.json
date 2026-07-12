@@ -1,0 +1,196 @@
+{
+  "record_type": "MR002_SOLVER_RUNTIME_MANIFEST",
+  "registered_by": "MR-002 Pre-Registration v1.1 rev 3, Appendix B.6",
+  "preregistration_artifact_sha256": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5",
+  "authoritative": "This manifest, emitted from inside the frozen image, is the execution record. Developer-workstation values are provenance only and establish nothing.",
+  "runtime_boundary": {
+    "standalone_research_image": true,
+    "is_workbench_compose_stack": false,
+    "live_database": false,
+    "broker_connection": false,
+    "market_data_websocket": false,
+    "research_store_mount": "read-only"
+  },
+  "image_digest": "sha256:1b0939e563d010ea96df50c7f07c5a5015c96c8e521352f3a0aa862a25212758",
+  "image_tag": "mr002-research:v1.1",
+  "base_image_digest": "python@sha256:fcbd8dfc2605ba7c2eca646846c5e892b2931e41f6227985154a596f26ab8ed7",
+  "platform": {
+    "system": "Linux",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "machine": "x86_64",
+    "distribution": "Debian GNU/Linux 12 (bookworm)",
+    "libc": "glibc 2.36"
+  },
+  "versions": {
+    "python": "3.13.14",
+    "python_full": "3.13.14 (main, Jun 24 2026, 02:07:54) [GCC 12.2.0]",
+    "numpy": "2.2.6",
+    "scipy": "1.18.0",
+    "highs": "1.12.0",
+    "quadprog": "0.1.13"
+  },
+  "blas_lapack": {
+    "numpy_blas": {
+      "name": "scipy-openblas",
+      "version": "0.3.29",
+      "detection": "pkgconfig"
+    },
+    "numpy_lapack": {
+      "name": "scipy-openblas",
+      "version": "0.3.29"
+    }
+  },
+  "determinism_controls": {
+    "thread_env_asserted": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1",
+      "BLIS_NUM_THREADS": "1",
+      "NUMEXPR_NUM_THREADS": "1"
+    },
+    "pythonhashseed": "0",
+    "warm_starts": "disabled",
+    "canonical_ordering": "permanent identifier (permaticker)",
+    "warning_policy": "warnings.simplefilter(\"error\") around every solve \u2014 ANY warning is FATAL",
+    "byte_identical_scope": "same frozen image + dependency set + CPU architecture + input snapshot; cross-platform runs must be numerically equivalent within frozen tolerances, not byte-identical"
+  },
+  "frozen_lp_options": {
+    "presolve": true,
+    "primal_feasibility_tolerance": 1e-10,
+    "dual_feasibility_tolerance": 1e-10,
+    "simplex_dual_edge_weight_strategy": "devex",
+    "time_limit": 60.0,
+    "maxiter": 100000,
+    "disp": false
+  },
+  "accepted_lp_result": {
+    "success": true,
+    "status": 0
+  },
+  "tolerance_verification": {
+    "method": "Discriminating pair. SciPy does not echo the applied tolerance, so the verification is behavioral: the registered value must be accepted SILENTLY while a below-floor value must WARN (and, under the frozen policy, raise). Observing both proves the option reached HiGHS and was honored at 1e-10.",
+    "registered_value_1e-10": {
+      "tolerance": 1e-10,
+      "success": true,
+      "status": 0,
+      "warnings": []
+    },
+    "below_floor_control_1e-11": {
+      "tolerance": 1e-11,
+      "success": true,
+      "status": 0,
+      "warnings": [
+        "Invalid option value."
+      ]
+    },
+    "verdict": "HONORED"
+  },
+  "qp_contract": {
+    "method": "Goldfarb-Idnani dual active-set (numerical, NOT exact)",
+    "normal_return_arity": 6,
+    "normal_return_fields": [
+      "x",
+      "f",
+      "xu",
+      "iterations",
+      "lagrangian",
+      "iact"
+    ],
+    "success_signal": "returns without raising (quadprog has no status code)",
+    "registered_fatal_exceptions": {
+      "not_positive_definite": "matrix G is not positive definite",
+      "inconsistent_constraints": "constraints are inconsistent, no solution"
+    },
+    "hessian_symbol": "H  (NEVER 'G' \u2014 G is reserved for total gross exposure)",
+    "hessian_condition_number_limit": 10000000000.0,
+    "no_fallback_solver": true,
+    "no_matrix_regularization": true,
+    "no_external_watchdog": true
+  },
+  "frozen_tolerances": {
+    "eps_retention": 1e-08,
+    "eps_new": 1e-08,
+    "eps_include": 1e-08,
+    "eps_active_sector": 1e-06,
+    "primal_residual_max": 1e-09,
+    "dual_residual_max": 1e-09,
+    "stationarity_residual_max": 1e-08,
+    "complementarity_residual_max": 1e-08,
+    "kkt_residual_max": 1e-08,
+    "hessian_condition_number_max": 10000000000.0
+  },
+  "serialization": {
+    "convention": "IEEE-754 big-endian hexadecimal; never platform-dependent decimal",
+    "examples": {
+      "0.0": "0000000000000000",
+      "0.015": "3f8eb851eb851eb8",
+      "0.0619123456789": "3fafb2f997d1acec",
+      "1e-08": "3e45798ee2308c3a"
+    },
+    "roundtrip_exact": true
+  },
+  "dependencies": {
+    "requirements_lock_sha256": "f593604200fa681b8ab51988c7f14a8b04e514cc2cd13a78de4400f07d6dddc8",
+    "requirements_lock": [
+      "duckdb==1.1.3",
+      "iniconfig==2.3.0",
+      "numpy==2.2.6",
+      "packaging==26.2",
+      "pip==26.1.2",
+      "pluggy==1.6.0",
+      "pytest==8.3.4",
+      "pytz==2024.2",
+      "quadprog==0.1.13",
+      "scipy==1.18.0"
+    ],
+    "artifact_hashes": {
+      "numpy": {
+        "version": "2.2.6",
+        "url": "https://files.pythonhosted.org/packages/19/49/4df9123aafa7b539317bf6d342cb6d227e49f7a35b99c287a6109b13dd93/numpy-2.2.6-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "sha256": "1bc23a79bfabc5d056d106f9befb8d50c31ced2fbc70eedb8155aec74a45798f"
+      },
+      "scipy": {
+        "version": "1.18.0",
+        "url": "https://files.pythonhosted.org/packages/f6/af/e8fe5fb136f51e2b01678b92cb4106d10d8cd68ec147ead2e7cb0ac75398/scipy-1.18.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+        "sha256": "a46f9273dbd0eb1cefba61c9b8648b4dfe3cbc14a080176f9a73e44b8336dc7f"
+      },
+      "quadprog": {
+        "version": "0.1.13",
+        "url": "https://files.pythonhosted.org/packages/7e/1a/b4c66c5ace71f886b61c0f1dde38dbd3a08041959dd52e728b16c2b85940/quadprog-0.1.13-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "sha256": "cc1996a0e3de1d423f8662fe21368948afdc91d851910b77320caaf7c15357ff"
+      },
+      "duckdb": {
+        "version": "1.1.3",
+        "url": "https://files.pythonhosted.org/packages/cf/66/d0be7c9518b1b92185018bacd851f977a101c9818686f667bbf884abcfbc/duckdb-1.1.3-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "sha256": "d5724fd8a49e24d730be34846b814b98ba7c304ca904fbdc98b47fa95c0b0cee"
+      },
+      "pytz": {
+        "version": "2024.2",
+        "url": "https://files.pythonhosted.org/packages/11/c3/005fcca25ce078d2cc29fd559379817424e94885510568bc1bc53d7d5846/pytz-2024.2-py2.py3-none-any.whl",
+        "sha256": "31c7c1817eb7fae7ca4b8c7ee50c72f93aa2dd863de768e1ef4245d426aa0725"
+      },
+      "pytest": {
+        "version": "8.3.4",
+        "url": "https://files.pythonhosted.org/packages/11/92/76a1c94d3afee238333bc0a42b82935dd8f9cf8ce9e336ff87ee14d9e1cf/pytest-8.3.4-py3-none-any.whl",
+        "sha256": "50e16d954148559c9a74109af1eaf0c945ba2d8f30f0a3d3335edde19788b6f6"
+      },
+      "pluggy": {
+        "version": "1.6.0",
+        "url": "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl",
+        "sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746"
+      },
+      "iniconfig": {
+        "version": "2.3.0",
+        "url": "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl",
+        "sha256": "f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12"
+      },
+      "packaging": {
+        "version": "26.2",
+        "url": "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl",
+        "sha256": "5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e"
+      }
+    }
+  },
+  "fatal": [],
+  "verdict": "VALID"
+}
