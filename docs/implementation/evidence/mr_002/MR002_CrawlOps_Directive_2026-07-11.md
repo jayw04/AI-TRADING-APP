@@ -41,3 +41,50 @@ run will confirm empirically; the checklist of accidental-storage patterns from 
 **Current run:** proceeding on the old fetcher per the owner's explicit instruction; its provenance
 manifest fully records the disk-full window. The upgraded fetcher reads the existing cache, so any
 future resume benefits immediately.
+
+## Acceptance refinements (owner, 2026-07-11) — APPLIED
+
+Commit 7355995 accepted for current-crawler hardening, **validation pending from the completed run
+report**. Refinements implemented in the follow-up commit:
+
+- **Hash identity split:** `content_sha256` = canonical uncompressed bytes (drives identity + the
+  dual-hash rule — gzip metadata can never trip it); `storage_sha256` = compressed object bytes
+  (storage integrity / ETag analogue). Both recorded per response and in the cache index.
+- **Controlled-halt evidence:** the disk-guard trip record is `DISK_HEADROOM_GUARD` with free bytes +
+  percentage, last completed URL, and a counter snapshot; the run report carries an explicit
+  `termination_reason` (COMPLETED vs guard/stop) so a controlled halt is distinguishable from a crash.
+- **Burst calibration:** the run report computes the worst observed 50-consecutive-response compressed
+  burst; the check cadence must satisfy free > burst + decompression allowance + DB/WAL allowance +
+  safety reserve (re-evaluated against the top-100 report; per-download checks if a few large objects
+  dominate).
+- **Append-safe cache writes:** tmp object → fsync → atomic rename → index append → index fsync — a
+  crash cannot leave a valid cache object without an index entry (nor a torn object).
+- **Task #9 re-sequenced per the owner:** checkpoints → S3 cache → bulk-ZIP baseline → staged pipeline
+  (fetch workers share ONE global SEC limiter) → local LRU. Checkpointing precedes concurrency. The
+  future manifest is SQLite/PG for lookups with JSONL exported as the audit artifact.
+
+**Completion-evidence checklist for the run report (owner):** no further disk-headroom breaches ·
+compressed-vs-uncompressed byte ratio · top cache objects + endpoint distribution · successful
+legacy-cache replay · failure bodies capped at 4KB · final issuer/accession counts · zero duplicate
+database rows · every disk-full-window failure recovered or explicitly unresolved.
+
+## Validation-scope correction (owner, 2026-07-11) + post-completion sequence
+
+**Correction accepted:** the in-flight run executes the PRE-hardening fetcher, so it cannot validate
+the 4KB error-body cap or DISK_HEADROOM_GUARD behavior — historical failure artifacts are inspectable
+but are NOT presented as validation of the new controls. **Those two items belong to the first
+hardened-run acceptance test.**
+
+**Post-completion sequence (owner-ordered):** 1) reconcile every failure in the disk-full window ·
+2) verify final database counts + uniqueness (zero duplicate rows) · 3) generate the reconstructed
+top-100 report (URL keys recomputed from the response manifest) · 4) terminate the expanded instance
+only after artifacts are durably copied · 5) run the **hardened smoke crawl**
+(`mr002_hardened_smoke.py`) before the next full production crawl.
+
+**Smoke coverage (deliberate tests, per the owner):** gzip cache creation · legacy cache reading ·
+content-vs-storage hash separation · capped (≤4KB) error retention · controlled disk-guard
+termination (forced via the MR002_DISKGUARD_FORCE_FREE_PCT hook → exit 3 + partial run report with
+termination_reason=DISK_HEADROOM_GUARD — plumbing added so a controlled halt is distinguishable from
+a crash IN THE ARTIFACTS) · resumption from cache, with exact request-level resumption recorded as
+PENDING_TASK9 until the checkpoint table lands (checkpoints precede concurrency). The smoke run
+shares the single SEC limiter budget — never run concurrently with a production crawl.
