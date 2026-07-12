@@ -32,6 +32,13 @@ Run (self-contained; needs the mini app tree + identity_crosswalk CSV beside it)
 
 from __future__ import annotations
 
+try:  # ADR 0017 — OS trust store before any HTTPS (Norton on the laptop; no-op
+    import truststore  # on EC2 where the package is absent or inspection is off)
+
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
+
 import argparse
 import csv
 import gzip
@@ -57,6 +64,10 @@ from app.altdata.sec.ingest import older_shard_urls, submissions_url
 
 RATE = 8.0  # req/s, under the SEC 10/s ceiling
 V2_FORMS = ("10-K", "10-K/A", "10-Q", "10-Q/A")
+# Permanent transport controls (owner, 2026-07-11): Range is an optimization
+# request, NOT a storage guarantee — keep all three: Range header + identity
+# encoding on ranged requests + this hard client-side read cap.
+RANGED_READ_CAP = 262144
 
 
 class StopForReview(RuntimeError):
@@ -155,10 +166,32 @@ class ProvenanceFetcher:
                 **(headers or {})})
             try:
                 with urllib.request.urlopen(req, timeout=90) as r:
-                    raw = r.read(262144) if ranged else r.read()
+                    raw = r.read(RANGED_READ_CAP) if ranged else r.read()
                     status = r.status
                     enc = (r.headers.get("Content-Encoding") or "").lower()
+                    content_range = r.headers.get("Content-Range")
+                    content_length = r.headers.get("Content-Length")
+                # short-read guard (smoke T5 finding): a server that closes early
+                # after promising Content-Length must be a recorded, retryable
+                # failure — never a silently truncated "success".
+                if content_length:
+                    try:
+                        expected = int(content_length)
+                        want = min(expected, RANGED_READ_CAP) if ranged else expected
+                        if len(raw) < want:
+                            raise OSError(f"SHORT_READ {len(raw)} < {want} "
+                                          f"(Content-Length {expected})")
+                    except ValueError:
+                        pass
                 body = gzip.decompress(raw) if "gzip" in enc else raw
+                # transport telemetry (owner smoke acceptance, 2026-07-11): the
+                # authoritative protection is BYTES READ, never response headers.
+                range_honored = ranged and (status == 206 or content_range is not None)
+                truncated = ranged and len(raw) >= RANGED_READ_CAP
+                telemetry = {"range_requested": ranged, "range_honored": range_honored,
+                             "http_status": status, "content_range": content_range,
+                             "content_length_header": content_length,
+                             "bytes_read": len(raw), "truncated": truncated}
             except urllib.error.HTTPError as e:
                 # error bodies: hash + first 4KB only (owner tier-3 retention)
                 try:
@@ -186,7 +219,8 @@ class ProvenanceFetcher:
             self._record(url=url, attempt=attempt, status=status,
                          content_sha256=h, storage_sha256=storage_h,
                          cached=False, compressed_bytes=len(comp),
-                         uncompressed_bytes=len(body))
+                         uncompressed_bytes=len(body),
+                         bytes_persisted=len(comp), **telemetry)
             prev = self.hashes.get(url)
             if prev is not None and prev != h:            # identity = CONTENT hash;
                 self._record(url=url, event="DUAL_HASH_STOP",  # gzip metadata can
@@ -311,7 +345,7 @@ def _run(args) -> int:
         for i, (cik, label) in enumerate(sorted(issuers.items()), 1):
             try:
                 subs = fetcher.get_json(submissions_url(cik))
-            except StopForReview:
+            except (StopForReview, DiskGuard):
                 raise
             except Exception as e:  # noqa: BLE001 — recorded; issuer marked failed
                 manifest["ciks"][str(cik)] = {"label": label, "error": repr(e)[:120]}
@@ -320,7 +354,7 @@ def _run(args) -> int:
             for u in older_shard_urls(subs, since=args.since):
                 try:
                     blocks.append(fetcher.get_json(u))
-                except StopForReview:
+                except (StopForReview, DiskGuard):
                     raise
                 except Exception as e:  # noqa: BLE001
                     manifest["ciks"].setdefault(str(cik), {}).setdefault(
@@ -366,7 +400,7 @@ def _run(args) -> int:
         try:
             cands, _sh = collect_candidates(fetcher, cik, label, since=args.since)
             res = build_anchors(cands)
-        except StopForReview:
+        except (StopForReview, DiskGuard):
             raise
         except Exception:  # noqa: BLE001 — recorded in fetch log; counted
             counters["v1_issuer_errors"] += 1
@@ -413,7 +447,7 @@ def _run(args) -> int:
         try:
             res = collect_sic_observations(fetcher, cik, label, since=args.since)
             res = build_segments(res)
-        except StopForReview:
+        except (StopForReview, DiskGuard):
             raise
         except Exception:  # noqa: BLE001
             counters["v2_issuer_errors"] += 1
