@@ -1,0 +1,379 @@
+{
+  "record_type": "MR002_DEVELOPMENT_EVIDENCE_PACKAGE",
+  "authorized": "2026-07-12 \u2014 full A/B/C development run",
+  "preregistration_sha256": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5",
+  "structural_adjudication_sha256": "ba980c4398b51d4ef4a0a3b77f687e62817b18beb5b3c281a7ab0fd1de3b947e",
+  "window": {
+    "start": "2013-01-02",
+    "end": "2019-10-02",
+    "sessions": 1700,
+    "note": "DEVELOPMENT ONLY. Validation and sealed OOS were not read."
+  },
+  "verdict_configuration": "B",
+  "configs": {
+    "A": {
+      "config": "A",
+      "z_entry": 1.75,
+      "session_funnel": {
+        "total_scheduled_sessions": 1700,
+        "terminal_session_no_execution_open": 1,
+        "feasible_positive_entry_sessions": 59,
+        "valid_zero_entry_outcome_sessions": 269,
+        "valid_zero_entry_reasons": {
+          "SOLVED_ZERO_DEPLOYMENT": 216,
+          "NO_MATCHED_INCREMENT": 51,
+          "NO_TRADABLE_HOLDINGS_NO_CANDIDATES": 2
+        },
+        "execution_constrained_infeasible_sessions": 1371,
+        "invalid_run_sessions": 0,
+        "unclassified_sessions": 0,
+        "sum_of_states": 1700
+      },
+      "determinism": {
+        "session_level_hashes": 1700,
+        "of_sessions": 1700,
+        "per_solve_hashes": 1699,
+        "run_hash": "93e2362b49089a17b63e31e64b99b7dac7abcfd2627cd928f1013e47d53420e0"
+      },
+      "breadth_gates": {
+        "trades": 668,
+        "gate_trades": 500,
+        "trades_pass": true,
+        "long_entries": 414,
+        "gate_long": 100,
+        "long_pass": true,
+        "short_entries": 255,
+        "gate_short": 100,
+        "short_pass": true,
+        "all_breadth_gates_pass": true
+      },
+      "performance": {
+        "total_return": -0.005013124213978037,
+        "final_nav": 9949868.75786022,
+        "annualized_sharpe": -0.43798350817022336,
+        "annualized_return": -0.0007447134355443863,
+        "annualized_vol": 0.0016976657648430085,
+        "max_drawdown": -0.006368967185505583,
+        "hit_rate": 0.5104790419161677,
+        "winning_trades": 341,
+        "losing_trades": 327,
+        "basis": "sqrt(252); rf = 0; daily return on PRIOR-DAY NAV (frozen)"
+      },
+      "execution": {
+        "new_orders": 669,
+        "coupling_reductions": 434,
+        "exits": 600,
+        "exit_reasons": {
+          "exit_z_reverted": 238,
+          "exit_time_stop": 341,
+          "exit_earnings_blackout": 21,
+          "reduce_to_zero_coupling": 68
+        },
+        "adv_clipped_orders": 0,
+        "total_traded_notional": 63458212.1114173,
+        "total_costs": 63458.21211141734,
+        "total_borrow": 952.2140137218265,
+        "cost_bps_per_side": 10.0,
+        "borrow_bps_per_year": 50.0
+      },
+      "risk": {
+        "sessions_with_material_gross": 1453,
+        "gross_min": 0.0006934836650998893,
+        "gross_median": 0.001442233522080885,
+        "gross_max": 0.33159959400901795,
+        "existing_position_over_entry_cap_days": 17
+      },
+      "solver": {
+        "max_homogeneous_violation": 3.4190098563901674e-16,
+        "violation_limit": 1e-09,
+        "max_kkt_residual": 1.459987686303066e-11,
+        "kkt_limit": 1e-08,
+        "max_hessian_condition_number": 1574299.9113179646,
+        "kappa_limit": 10000000000.0,
+        "lp_statuses_observed": [
+          0
+        ],
+        "invalid_runs": 0
+      },
+      "stage3_cascade": {
+        "erratum_sha256": "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+        "raw_solves": 272,
+        "scaled_rescues": 3,
+        "rescue_detail": [
+          {
+            "session": "2014-02-11",
+            "raw_exception_class": "ValueError",
+            "raw_exception_message": "constraints are inconsistent, no solution",
+            "feasibility_probe_status": 0,
+            "scaled_solver_status": "returned",
+            "raw_coordinate_objective": 0.015803055689870987,
+            "primal_residual": 2.7755575615628914e-17,
+            "dual_residual": 0.0,
+            "stationarity_residual": 1.3060663661690342e-12,
+            "complementarity_residual": 9.11556549645445e-17,
+            "kkt_residual": 1.3060663661690342e-12,
+            "max_homogeneous_violation": 3.903127820947816e-18
+          },
+          {
+            "session": "2014-02-12",
+            "raw_exception_class": "ValueError",
+            "raw_exception_message": "constraints are inconsistent, no solution",
+            "feasibility_probe_status": 0,
+            "scaled_solver_status": "returned",
+            "raw_coordinate_objective": 0.0213911943409584,
+            "primal_residual": 3.496552006265752e-18,
+            "dual_residual": 0.0,
+            "stationarity_residual": 1.0591527654923993e-12,
+            "complementarity_residual": 1.6726078503523535e-17,
+            "kkt_residual": 1.0591527654923993e-12,
+            "max_homogeneous_violation": 3.496552006265752e-18
+          },
+          {
+            "session": "2016-06-17",
+            "raw_exception_class": "ValueError",
+            "raw_exception_message": "constraints are inconsistent, no solution",
+            "feasibility_probe_status": 0,
+            "scaled_solver_status": "returned",
+            "raw_coordinate_objective": 0.02873313907176938,
+            "primal_residual": 4.44659697348318e-18,
+            "dual_residual": 0.0,
+            "stationarity_residual": 2.1045387654794467e-12,
+            "complementarity_residual": 1.5393569396963214e-16,
+            "kkt_residual": 2.1045387654794467e-12,
+            "max_homogeneous_violation": 4.44659697348318e-18
+          }
+        ]
+      }
+    },
+    "B": {
+      "config": "B",
+      "z_entry": 2.0,
+      "session_funnel": {
+        "total_scheduled_sessions": 1700,
+        "terminal_session_no_execution_open": 1,
+        "feasible_positive_entry_sessions": 47,
+        "valid_zero_entry_outcome_sessions": 620,
+        "valid_zero_entry_reasons": {
+          "SOLVED_ZERO_DEPLOYMENT": 478,
+          "NO_MATCHED_INCREMENT": 126,
+          "NO_TRADABLE_HOLDINGS_NO_CANDIDATES": 16
+        },
+        "execution_constrained_infeasible_sessions": 1032,
+        "invalid_run_sessions": 0,
+        "unclassified_sessions": 0,
+        "sum_of_states": 1700
+      },
+      "determinism": {
+        "session_level_hashes": 1700,
+        "of_sessions": 1700,
+        "per_solve_hashes": 1699,
+        "run_hash": "33b9659c9e8339cc7da7edc5578637093127d5005660a54f0ac284668c79b69a"
+      },
+      "breadth_gates": {
+        "trades": 397,
+        "gate_trades": 500,
+        "trades_pass": false,
+        "long_entries": 237,
+        "gate_long": 100,
+        "long_pass": true,
+        "short_entries": 161,
+        "gate_short": 100,
+        "short_pass": true,
+        "all_breadth_gates_pass": false
+      },
+      "performance": {
+        "total_return": -0.005086468273881595,
+        "final_nav": 9949135.317261184,
+        "annualized_sharpe": -0.8024258009941185,
+        "annualized_return": -0.0007556325973684386,
+        "annualized_vol": 0.0009414876835169242,
+        "max_drawdown": -0.0052478086166387015,
+        "hit_rate": 0.5188916876574308,
+        "winning_trades": 206,
+        "losing_trades": 191,
+        "basis": "sqrt(252); rf = 0; daily return on PRIOR-DAY NAV (frozen)"
+      },
+      "execution": {
+        "new_orders": 398,
+        "coupling_reductions": 320,
+        "exits": 322,
+        "exit_reasons": {
+          "exit_z_reverted": 145,
+          "exit_time_stop": 171,
+          "reduce_to_zero_coupling": 75,
+          "exit_earnings_blackout": 6
+        },
+        "adv_clipped_orders": 0,
+        "total_traded_notional": 30348807.70662115,
+        "total_costs": 30348.807706621177,
+        "total_borrow": 452.60276505772424,
+        "cost_bps_per_side": 10.0,
+        "borrow_bps_per_year": 50.0
+      },
+      "risk": {
+        "sessions_with_material_gross": 1162,
+        "gross_min": 1.978083728795912e-06,
+        "gross_median": 0.0012044685858573815,
+        "gross_max": 0.20203854053442463,
+        "existing_position_over_entry_cap_days": 6
+      },
+      "solver": {
+        "max_homogeneous_violation": 2.8627177039357986e-16,
+        "violation_limit": 1e-09,
+        "max_kkt_residual": 1.7998935675223038e-12,
+        "kkt_limit": 1e-08,
+        "max_hessian_condition_number": 268966.37476142595,
+        "kappa_limit": 10000000000.0,
+        "lp_statuses_observed": [
+          0
+        ],
+        "invalid_runs": 0
+      },
+      "stage3_cascade": {
+        "erratum_sha256": "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+        "raw_solves": 525,
+        "scaled_rescues": 0,
+        "rescue_detail": []
+      }
+    },
+    "C": {
+      "config": "C",
+      "z_entry": 2.25,
+      "session_funnel": {
+        "total_scheduled_sessions": 1700,
+        "terminal_session_no_execution_open": 1,
+        "feasible_positive_entry_sessions": 6,
+        "valid_zero_entry_outcome_sessions": 796,
+        "valid_zero_entry_reasons": {
+          "SOLVED_ZERO_DEPLOYMENT": 469,
+          "NO_MATCHED_INCREMENT": 280,
+          "NO_TRADABLE_HOLDINGS_NO_CANDIDATES": 47
+        },
+        "execution_constrained_infeasible_sessions": 897,
+        "invalid_run_sessions": 0,
+        "unclassified_sessions": 0,
+        "sum_of_states": 1700
+      },
+      "determinism": {
+        "session_level_hashes": 1700,
+        "of_sessions": 1700,
+        "per_solve_hashes": 1699,
+        "run_hash": "bf8cc040edaa183cfc8219a1df3a2925341193b6aea0d027a51f8aee3ec46068"
+      },
+      "breadth_gates": {
+        "trades": 67,
+        "gate_trades": 500,
+        "trades_pass": false,
+        "long_entries": 45,
+        "gate_long": 100,
+        "long_pass": false,
+        "short_entries": 23,
+        "gate_short": 100,
+        "short_pass": false,
+        "all_breadth_gates_pass": false
+      },
+      "performance": {
+        "total_return": -0.0015871612615188102,
+        "final_nav": 9984128.387384811,
+        "annualized_sharpe": -0.5002737132311541,
+        "annualized_return": -0.00023543250397062288,
+        "annualized_vol": 0.00047044144088016277,
+        "max_drawdown": -0.001920445137443021,
+        "hit_rate": 0.43283582089552236,
+        "winning_trades": 29,
+        "losing_trades": 38,
+        "basis": "sqrt(252); rf = 0; daily return on PRIOR-DAY NAV (frozen)"
+      },
+      "execution": {
+        "new_orders": 68,
+        "coupling_reductions": 48,
+        "exits": 40,
+        "exit_reasons": {
+          "exit_z_reverted": 18,
+          "reduce_to_zero_coupling": 27,
+          "exit_earnings_blackout": 5,
+          "exit_time_stop": 17
+        },
+        "adv_clipped_orders": 0,
+        "total_traded_notional": 5228297.503417928,
+        "total_costs": 5228.29750341793,
+        "total_borrow": 81.31190990610506,
+        "cost_bps_per_side": 10.0,
+        "borrow_bps_per_year": 50.0
+      },
+      "risk": {
+        "sessions_with_material_gross": 1120,
+        "gross_min": 0.0002031125115667332,
+        "gross_median": 0.00020314101925930782,
+        "gross_max": 0.13592178421939635,
+        "existing_position_over_entry_cap_days": 0
+      },
+      "solver": {
+        "max_homogeneous_violation": 1.8985588632923972e-16,
+        "violation_limit": 1e-09,
+        "max_kkt_residual": 8.307354804060196e-12,
+        "kkt_limit": 1e-08,
+        "max_hessian_condition_number": 1123163.8451139275,
+        "kappa_limit": 10000000000.0,
+        "lp_statuses_observed": [
+          0
+        ],
+        "invalid_runs": 0
+      },
+      "stage3_cascade": {
+        "erratum_sha256": "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+        "raw_solves": 474,
+        "scaled_rescues": 1,
+        "rescue_detail": [
+          {
+            "session": "2014-07-28",
+            "raw_exception_class": "ValueError",
+            "raw_exception_message": "constraints are inconsistent, no solution",
+            "feasibility_probe_status": 0,
+            "scaled_solver_status": "returned",
+            "raw_coordinate_objective": 0.0491648527790317,
+            "primal_residual": 4.480388027159182e-18,
+            "dual_residual": 0.0,
+            "stationarity_residual": 8.307354804060196e-12,
+            "complementarity_residual": 3.024547903797789e-16,
+            "kkt_residual": 8.307354804060196e-12,
+            "max_homogeneous_violation": 4.480388027159182e-18
+          }
+        ]
+      }
+    }
+  },
+  "configuration_comparison": {
+    "A": {
+      "z_entry": 1.75,
+      "trades": 668,
+      "all_breadth_gates_pass": true,
+      "total_return": -0.005013124213978037,
+      "annualized_sharpe": -0.43798350817022336,
+      "max_drawdown": -0.006368967185505583,
+      "hit_rate": 0.5104790419161677,
+      "gross_median": 0.001442233522080885
+    },
+    "B": {
+      "z_entry": 2.0,
+      "trades": 397,
+      "all_breadth_gates_pass": false,
+      "total_return": -0.005086468273881595,
+      "annualized_sharpe": -0.8024258009941185,
+      "max_drawdown": -0.0052478086166387015,
+      "hit_rate": 0.5188916876574308,
+      "gross_median": 0.0012044685858573815
+    },
+    "C": {
+      "z_entry": 2.25,
+      "trades": 67,
+      "all_breadth_gates_pass": false,
+      "total_return": -0.0015871612615188102,
+      "annualized_sharpe": -0.5002737132311541,
+      "max_drawdown": -0.001920445137443021,
+      "hit_rate": 0.43283582089552236,
+      "gross_median": 0.00020314101925930782
+    }
+  },
+  "immutability_note": "No signal, threshold, risk limit, gate, cost assumption, universe rule or construction rule may be changed in response to these results."
+}
