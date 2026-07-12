@@ -143,13 +143,19 @@ class ProvenanceFetcher:
             if wait > 0:
                 time.sleep(wait)
             self._last = time.monotonic()
-            # SEC fair-access recommended headers: declared UA + gzip transfer
+            # SEC fair-access recommended headers: declared UA + gzip transfer.
+            # RANGED requests use identity encoding + a hard read-cap (stage-2
+            # finding: EDGAR served FULL archives, up to 422MB, despite Range —
+            # 140GB of that run's cache was full-txt bodies where only 4KB
+            # headers were needed; a capped gzip stream would be undecodable).
+            ranged = bool(headers and "Range" in headers)
             req = urllib.request.Request(url, headers={
-                "User-Agent": self.ua, "Accept-Encoding": "gzip, deflate",
+                "User-Agent": self.ua,
+                "Accept-Encoding": "identity" if ranged else "gzip, deflate",
                 **(headers or {})})
             try:
                 with urllib.request.urlopen(req, timeout=90) as r:
-                    raw = r.read()
+                    raw = r.read(262144) if ranged else r.read()
                     status = r.status
                     enc = (r.headers.get("Content-Encoding") or "").lower()
                 body = gzip.decompress(raw) if "gzip" in enc else raw
