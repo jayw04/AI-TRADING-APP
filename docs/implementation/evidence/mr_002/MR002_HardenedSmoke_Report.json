@@ -1,0 +1,18 @@
+{
+  "results": {
+    "T1_server_honors_range": "PASS",
+    "T1_parse_succeeded": "PASS",
+    "T2_server_ignores_range_read_capped": "PASS",
+    "T2_parse_succeeded_from_capped_body": "PASS",
+    "T3_gzip_despite_identity": "PASS",
+    "T4_chunked_no_content_length": "PASS",
+    "T5_early_close_failure_recorded": "PASS (attempts recorded, last attempt=3)",
+    "T6_html_error_body_capped_4KB": "PASS",
+    "CRITICAL_max_persisted_bytes_for_ranged_request": "PASS (305 <= 262144)",
+    "L1_gzip_cache_creation": "PASS (32 .gz objects)",
+    "L2_hash_separation": "PASS (32 indexed)",
+    "L3_legacy_cache_replay_and_resume": "PASS (rerun rc=0, no DUAL_HASH_STOP)",
+    "L4_request_level_resumption": "PENDING_TASK9 (checkpoints not yet built)",
+    "L5_disk_guard_controlled_halt": "PASS (exit 3 + termination_reason recorded)"
+  }
+}
