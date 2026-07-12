@@ -88,3 +88,12 @@ termination_reason=DISK_HEADROOM_GUARD — plumbing added so a controlled halt i
 a crash IN THE ARTIFACTS) · resumption from cache, with exact request-level resumption recorded as
 PENDING_TASK9 until the checkpoint table lands (checkpoints precede concurrency). The smoke run
 shares the single SEC limiter budget — never run concurrently with a production crawl.
+
+## Pre-flight gate designation (owner, 2026-07-11)
+
+**`mr002_hardened_smoke.py` is a REQUIRED PRE-FLIGHT GATE before any future full EDGAR crawl.**
+A production crawl may not launch unless the latest smoke run reports PASS on every check
+(PENDING_TASK9 markers excepted until the checkpoint increment lands). The smoke report
+(`MR002_HardenedSmoke_Report.json`) is archived as permanent regression evidence; the crawl-hardening
+increment is CLOSED (owner acceptance). Validated by catching three real defects pre-production:
+missing truststore injection, DiskGuard swallowed by per-issuer handlers, silent short-read acceptance.
