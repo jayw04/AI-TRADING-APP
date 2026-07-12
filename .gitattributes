@@ -7,3 +7,10 @@
 *.sh      text eol=lf
 *.service text eol=lf
 *.timer   text eol=lf
+
+# COUNTERSIGNED RESEARCH ARTIFACTS — the owner's countersign binds an exact SHA-256 of
+# the file BYTES. With core.autocrlf=true a fresh clone would materialize these as CRLF
+# (e.g. MR-002 v1.1 rev 3: 35,053 B LF -> 35,688 B CRLF), producing a different hash and
+# silently voiding the binding. eol=lf pins LF in the working tree and in `git archive`.
+docs/implementation/TradingWorkbench_MR002_PreRegistration_*.md text eol=lf
+docs/implementation/evidence/mr_002/**                          text eol=lf
