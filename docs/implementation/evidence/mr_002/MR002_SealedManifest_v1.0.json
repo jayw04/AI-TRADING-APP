@@ -1,0 +1,89 @@
+{
+  "title": "MR-002 sealed identity + coverage manifest v1.0 (owner countersigned 2026-07-11)",
+  "countersign": "approved \u2014 owner countersigned 21/21 predecessor-override rows; scrutiny flags and limitations RETAINED (countersign does not erase annotations)",
+  "scope_limit": "applies to the identity registry and its use in the recomputed PIT-SIC gate; does NOT retroactively approve broader ticker-history linking beyond the registered intervals",
+  "predecessor_registry": {
+    "file": "predecessor_override_registry_v1.0.csv",
+    "rows": 21,
+    "artifact_sha256": "667af36e30b0c1181f824a62e88c915676cf12267c569abc4d11adaebfef671c",
+    "canonical_data_sha256": "93df8c465e23d4406ffd6613709b86f74ca9080d9ee57b5214bd68343ce95bd5",
+    "canonical_fields": [
+      "permaticker",
+      "ticker",
+      "predecessor_cik",
+      "successor_cik",
+      "effective_from",
+      "effective_to",
+      "event_date",
+      "review_status"
+    ],
+    "canonical_sort_key": [
+      "permaticker",
+      "event_date"
+    ],
+    "baton_test": "21/21 PASS",
+    "flagged_rows_with_permanent_limitations": [
+      "PSKY",
+      "DD",
+      "AGN",
+      "OVV"
+    ]
+  },
+  "gates": {
+    "V1_data_availability_gate": "MET \u2014 39,690/40,750 = 97.40% (>=95%); every year >= 90% (min 94.50%)",
+    "V2_pitsic_data_availability_gate": "MET \u2014 40,132/40,750 = 98.48% (>=98%); every year >= 95% (min 97.14%)",
+    "denominator": 40750,
+    "denominator_unchanged": true,
+    "gates_unchanged": true,
+    "forward_fill": "prohibited \u2014 none applied"
+  },
+  "accepted_exclusions": {
+    "DHR_needs_revision": 163,
+    "excluded_low": 353,
+    "identity_unresolved": 9,
+    "residual_no_sic_or_pre_observation": 93
+  },
+  "deterministic_rebuild": "gate v2 re-run from archived artifacts reproduces 98.48% exactly",
+  "artifact_hashes": {
+    "MR002_PITSIC_Gate_v2.0.json": "2001958c73e430dda3889d4b8099bba588e5f0d12885ba434102821f320685b2",
+    "MR002_V1_ReVerification_v1.0.json": "c84e83cc7075635543ace44d9bbc3fe5f44e5d4db529d39220ac7d0babbfc312",
+    "MR002_HardenedSmoke_Report.json": "1dcd38d08201e22d33f492a53ad7898caefc0b6a1b65e751ac10486c3dc3a78b",
+    "sic_sector_etf_mapping_v0.8.csv": "857a86c26b87a2c8e0cf0a39bfeeefb810e742a125cdb37418e6cf21859a5cc3",
+    "security_sector_overrides_v0.6.csv": "d506c35e84a53ab32ee8d3fd65a6729873678f793749537c52282664f6688da9",
+    "identity_crosswalk_v0.1.csv": "570fab37caa2891bc5f48a47a836b6a23a602199fcfe84b5385491ad8328b529",
+    "crosswalk_manual_overrides_v0.3.csv": "ce14823c2f612659a17bed0193e6d59f585f1c2e61c01c48b3e4e3960c9c889a",
+    "mr002_preliminary_universe.csv.gz": "6c8a5e54475a1335c85e015e015092922a5e93c0bed3e225c1f556f99cae02a6",
+    "supplemental/supplemental_manifest.json": "ed95d2b0be50b114b9ee185ea6c11166e91fea10e82c22ec5ff812476174ea2e",
+    "supplemental/sic_observations.csv.gz": "dcfbf968e68081c8b9ba33f90ab997cdb7cbee757d5c0fcef6ae0d0c33e6d34f",
+    "supplemental/sic_segments.csv.gz": "f6f9ee0656a0098e93b95ba930f3e6ae3e099d15a86bd99bf360edd08022139d",
+    "stage2/anchors.csv.gz": "a393f6a9f181938023ebd68f404f1e35130d1eb64de4f6c2b5ceafc3f9edb3bc",
+    "stage2/sic_observations.csv.gz": "a9084afe6fee479efd11fea48896ce57cc48fc2a033cc683bfa616373a94a7ee",
+    "stage2/sic_segments.csv.gz": "db2cb701706d0981f9f53629944162c312614130a8dc1d82addac92027add3b0",
+    "stage2/accession_manifest.json.gz": "363a74f2a15236aff8541c02cc6d08be51b202317d32f39e0e941549df21db36",
+    "freeze_candidate_doc": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc"
+  },
+  "sealed_at": "2026-07-12T02:47:20.575780+00:00",
+  "section_8a_frozen_window": {
+    "trading_calendar": "Sharadar SEP session dates (AAPL, continuously listed) \u2014 registered proxy for the NYSE session sequence",
+    "eligible_sessions": 3400,
+    "first_session": "2013-01-02",
+    "last_session": "2026-07-10",
+    "development": {
+      "start": "2013-01-02",
+      "end": "2019-10-02",
+      "sessions": 1700
+    },
+    "validation": {
+      "start": "2019-10-03",
+      "end": "2023-02-16",
+      "sessions": 850
+    },
+    "sealed_oos": {
+      "start": "2023-02-17",
+      "end": "2026-07-10",
+      "sessions": 850
+    }
+  },
+  "section_8a_status": "COMPLETE \u2014 no empty fields",
+  "freeze_candidate": "TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md"
+}
