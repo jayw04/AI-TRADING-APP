@@ -153,6 +153,20 @@ class StrategyContext:
         self._bus = bus
         self._factor_accessor = factor_accessor
 
+        # Which cron dispatch we are inside. The engine bumps this ONCE per
+        # ``_dispatch_bar_tick`` and then calls ``on_bar`` once per symbol (200+ times), so a
+        # portfolio strategy needs to know "these 209 calls are all the SAME rebalance slot".
+        #
+        # It cannot infer that from the bars: each call carries that symbol's own latest bar,
+        # and symbols routinely DISAGREE on how recent that is (a stale cached month-bucket, a
+        # thin ETF that has not printed yet). A guard keyed on ``bar.t``'s ISO week therefore
+        # oscillates — Friday is week 28, Monday is week 29 — and re-runs the whole rebalance
+        # against stale holdings. That is what fired the combined book 5× on 2026-07-13.
+        #
+        # None in backtests (bars are replayed with no engine dispatch), where the bar-derived
+        # week IS the correct cadence signal.
+        self.dispatch_seq: int | None = None
+
     # ---- factor data (P9 §2) ----
 
     @property

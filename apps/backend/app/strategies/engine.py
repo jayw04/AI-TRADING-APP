@@ -842,6 +842,16 @@ class StrategyEngine:
         if not self._dispatch_allowed(running):
             return
 
+        # Stamp a fresh dispatch identity BEFORE the per-symbol fan-out below. on_bar is about
+        # to be called once per symbol (209 times for the combined book), and a portfolio
+        # strategy must be able to tell "these are all the same cron slot" from "this is next
+        # week's slot". It cannot infer that from the bars — each call carries that symbol's
+        # own latest bar, and symbols disagree on how recent that is. See
+        # StrategyContext.dispatch_seq. Guarded: telemetry must never break a dispatch.
+        with contextlib.suppress(Exception):
+            ctx = running.instance.ctx
+            ctx.dispatch_seq = (ctx.dispatch_seq or 0) + 1
+
         for symbol in running.symbols:
             try:
                 df = await running.instance.ctx.get_recent_bars(
