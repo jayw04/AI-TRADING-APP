@@ -24,7 +24,13 @@ the solver.
 | Rev | Change |
 |---|---|
 | rev 1 | First draft (11,625 B, sha256 `3c72406a…`) — **SUPERSEDED, not countersigned.** |
-| **rev 2** | **Resolves the price-availability vs numerical-floor contradiction.** rev 1 asserted *"valid registered open ⇔ position is executable"*, which would have flagged a **registered** v1.1 case as a Defect-A failure: a `BELOW_NUMERICAL_INCLUSION_FLOOR` position **has a valid open** yet is deliberately excluded from the `y` variables — **price-executable but not solver-reducible.** rev 2 registers the three distinct concepts (§1.1), the frozen classification sequence (§1.2), the corrected preflight equivalences and three new required-zero counters (§6), the per-ECI fixed-exposure breakdown by reason, and the corrected delayed-execution wording. |
+| rev 2 | Resolved the price-availability vs numerical-floor contradiction in §1 and the preflight (14,856 B, sha256 `423ae7d9…`) — **SUPERSEDED, not countersigned.** |
+| **rev 3** | **Removes the last three places where the same conflation survived.** rev 2 registered the three concepts correctly but then re-asserted the wrong equivalence in **fixture 5** (*"…is classified executable"*), left **fixture 2** loose (*"reduction executes"* without the `ε_include` condition), and kept the over-broad summary line (*"price availability determines what may be EXITED or REDUCED"* — true for exits, but reduction **also** requires exposure > `ε_include`). All three now state the separation explicitly. **This is textual only: no rule, counter, threshold or classification changes.** |
+
+> **Why this mattered.** The wrong equivalence, left in the *fixture list*, is precisely where it would have
+> re-entered the implementation: a fixture asserting *"valid bar ⇒ executable"* would **fail against a
+> correct implementation** of the registered numerical floor, and the natural next move would be to "fix"
+> the floor logic to satisfy it — corrupting a registered rule to satisfy a wrong test.
 
 ---
 
@@ -55,8 +61,9 @@ It must **not** depend on any of:
 or discretionary delay is authorized. A hard exit may remain pending ONLY when the registered
 execution-open bar is genuinely absent, under the inherited missing-open rule.**
 
-> **Eligibility determines what may be ENTERED. Price availability determines what may be EXITED or
-> REDUCED.**
+> **Eligibility determines what may be ENTERED. Price availability determines whether a held position has
+> an execution open and whether a due hard exit can execute. Solver-reduction eligibility ADDITIONALLY
+> requires post-exit exposure greater than `ε_include`.**
 
 ### 1.1 THREE DISTINCT CONCEPTS (registered — they must never be conflated)
 
@@ -216,10 +223,13 @@ onto its LOWER bound, where the multiplier is nonzero and the ~1e8 amplification
 ## 5. Required new fixtures — **10**, bringing the minimum suite to **55**
 
 1. Held position **leaves the ranking universe** but has a valid open ⇒ **hard exit executes**.
-2. Held position has a **non-finite z** but a valid open ⇒ **reduction executes**.
+2. A held position with a **non-finite z**, a **valid open**, and **post-exit exposure > `ε_include`** is
+   **`solver_reduction_eligible`**; a constructed required reduction **executes**.
 3. Held position is **not entry-sector-resolved** but has a valid open ⇒ **a scheduled exit is not blocked**.
 4. **Genuine missing open** ⇒ `NO_EXECUTABLE_OPEN`, and the exit **stays pending**.
-5. **Every** held-position day with a valid registered bar is classified **executable**.
+5. **Every** held-position day with a valid registered bar has **`execution_open_available = true`** and is
+   **never** classified `NO_EXECUTABLE_OPEN`. For a **remaining post-exit** position,
+   **`solver_reduction_eligible` ADDITIONALLY requires exposure greater than `ε_include`.**
 6. Fixed-only `z = 0` book **breaches**, but Stage 1 finds a **feasible diversifying** solution ⇒ the day
    is **NOT** ECI.
 7. Stage-1 **status 2 with fixed exposures** ⇒ **ECI**.
