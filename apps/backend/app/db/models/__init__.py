@@ -23,6 +23,7 @@ from app.db.models.replay_run import ReplayRun
 from app.db.models.risk_check import RiskCheck
 from app.db.models.risk_decision import RiskDecision
 from app.db.models.risk_limits import RiskLimits
+from app.db.models.risk_reservation import RiskReservation
 from app.db.models.scanner_definition import ScannerDefinition
 from app.db.models.scanner_run import ScannerRun
 from app.db.models.scheduler_heartbeat import SchedulerHeartbeat
@@ -66,6 +67,7 @@ __all__ = [
     "ReplayRun",
     "RiskCheck",
     "RiskDecision",
+    "RiskReservation",
     "RiskLimits",
     "ScannerDefinition",
     "ScannerRun",
