@@ -1,0 +1,105 @@
+{
+  "record_type": "MR002_QP_CANDIDATE_CAPABILITY_MANIFEST_CLARABEL_REMEDIATION",
+  "record_status": "IMMUTABLE",
+  "date": "2026-07-12",
+  "purpose": "Single authorized Clarabel dependency-remediation discovery: locate a Clarabel Python distribution whose INSTALLED Settings object exposes BOTH static_regularization_eps AND static_regularization_proportional.",
+  "binds_original_capability_manifest": {
+    "path": "docs/implementation/evidence/mr_002/runtime/MR002_QP_CandidateCapabilityManifest.json",
+    "sha256": "5f42217533c1ae3fc099b8e773a6c30862da7a45911de93698a35256e4f08b5e",
+    "bytes": 14642,
+    "unmodified": true
+  },
+  "original_invalid_clarabel": {
+    "version": "0.11.1",
+    "artifact_sha256": "c8c41aaa6f3f8c0f3bd9d86c3e568dca",
+    "reason_invalid": "required field static_regularization_eps ABSENT from the installed Settings object"
+  },
+  "remediation_search": {
+    "method": "API-CAPABILITY discovery only \u2014 field existence on the INSTALLED Settings object. NOT dependency shopping: no corpus was solved, no residual, speed or economic result influenced this search.",
+    "releases_probed": [
+      "0.11.1",
+      "0.10.0",
+      "0.9.0",
+      "0.8.1",
+      "0.7.1",
+      "0.6.0"
+    ],
+    "results": [
+      {
+        "version": "0.11.1",
+        "static_regularization_eps": false,
+        "static_regularization_constant": true,
+        "static_regularization_proportional": true
+      },
+      {
+        "version": "0.10.0",
+        "static_regularization_eps": false,
+        "static_regularization_constant": true,
+        "static_regularization_proportional": true
+      },
+      {
+        "version": "0.9.0",
+        "static_regularization_eps": false,
+        "static_regularization_constant": true,
+        "static_regularization_proportional": true
+      },
+      {
+        "version": "0.8.1",
+        "static_regularization_eps": false,
+        "static_regularization_constant": true,
+        "static_regularization_proportional": true
+      },
+      {
+        "version": "0.7.1",
+        "static_regularization_eps": false,
+        "static_regularization_constant": true,
+        "static_regularization_proportional": true
+      },
+      {
+        "version": "0.6.0",
+        "static_regularization_eps": false,
+        "static_regularization_constant": true,
+        "static_regularization_proportional": true
+      }
+    ],
+    "finding": "NO Clarabel Python release exposes `static_regularization_eps`. Across the entire probed release history (0.6.0 -> 0.11.1) the base static-regularization control is uniformly named `static_regularization_constant`, and `static_regularization_proportional` exists SEPARATELY in every release.",
+    "conclusion": "The authorized remediation \u2014 find a build exposing static_regularization_eps \u2014 CANNOT SUCCEED. No such Python distribution exists."
+  },
+  "capability_assessment": {
+    "are_the_two_controls_distinct_and_both_present": true,
+    "base_control": {
+      "documented_name": "static_regularization_eps",
+      "installed_python_field": "static_regularization_constant",
+      "installed_default": 1e-08,
+      "installed_default_hex": "0x1.5798ee2308c3ap-27",
+      "note": "the installed default is ALREADY exactly the 1e-8 requested for pinning"
+    },
+    "proportional_control": {
+      "installed_python_field": "static_regularization_proportional",
+      "installed_default": 4.930380657631324e-32,
+      "installed_default_hex": "0x1.0000000000000p-104"
+    },
+    "is_this_the_REJECTED_substitution": false,
+    "why_not": "The rejected substitution was using `static_regularization_proportional` IN PLACE OF `static_regularization_eps`, collapsing two distinct controls into one. That is NOT the situation: BOTH controls exist as separate fields and would be pinned separately. The divergence is a Python-BINDING NAME for the base control, stable across every release. `static_regularization_eps` is the Rust/Julia field name."
+  },
+  "disposition": "AWAITING OWNER RULING \u2014 the authorized remediation is provably unavailable.",
+  "options_for_owner": [
+    {
+      "option": "A",
+      "action": "Register `static_regularization_constant = 1e-8` as the base static-regularization control, pinned separately from `static_regularization_proportional`.",
+      "effect": "Clarabel becomes VALID; the independent cross-verifier is retained.",
+      "risk": "None identified: both controls are pinned separately and read back; no control is omitted, aliased or collapsed."
+    },
+    {
+      "option": "B",
+      "action": "Declare Clarabel permanently INVALID for this adjudication; proceed HiGHS-only under the registered selection rule (\u00a79).",
+      "effect": "No independent Clarabel verifier qualifies. HiGHS must solve all 3,895 alone.",
+      "risk": "Loss of the algorithmically independent cross-check."
+    }
+  ],
+  "recommendation": "A \u2014 the owner's stated concern (two distinct controls must not be conflated) is fully satisfied; the obstacle is a binding-level field name, not a missing capability.",
+  "corpus_instances_solved_under_remediation": 0,
+  "performance_computed": false,
+  "validation": "SEALED AND UNREAD",
+  "sealed_oos": "SEALED AND UNREAD"
+}
