@@ -1,31 +1,30 @@
-"""MR-002 v1.1 — NATIVE HiGHS-QP and CLARABEL CHARACTERIZATION.
+"""MR-002 v1.1 — NATIVE HiGHS-QP and CLARABEL CHARACTERIZATION (immutable 3,895 corpus).
 
-Authorized 2026-07-12 (quadprog retired). OFFLINE, IMMUTABLE-CORPUS CHARACTERIZATION ONLY.
-No performance is computed. Preflight and development run remain stopped.
+Authorized after capability discovery. OFFLINE ONLY. No performance is computed. Preflight
+and development run remain stopped. Validation and sealed OOS remain sealed and unread.
 
-Canonical MR-002 Stage-3 problem, in ORIGINAL coordinates:
+Bound records:
+  MR002_QP_CandidateCapabilityManifest.json                       5f422175…  (HiGHS VALID)
+  MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json   8c1d83ec…
+  MR002_QP_CapabilityManifest_Amendment_ClarabelFieldMapping.json cc3de7db…  (Clarabel VALID)
 
-    minimize  D(z) = sum_i (z_i - t_i)^2 / t_i
-                   = (1/2) z' P z + q' z + const ,   P = diag(2/t) ,  q = -2 * 1
-    s.t.      A_ub z <= b_ub          (homogeneous coupling + lexicographic bands)
-              A_eq z  = b_eq          (new-entry dollar neutrality)
-              0 <= z <= upper
+PREDECLARED before the first instance is solved:
+  * HiGHS tolerance configuration = H1  (kkt_tolerance = 1e-10; individual tolerances left at
+    documented defaults). HiGHS documents that a NON-DEFAULT kkt_tolerance is used for ALL KKT
+    measures, so H1 is the unambiguous configuration. H1 and H2 are NOT combined.
+  * qp_regularization_value = 0        (default 1e-7 WOULD alter the submitted objective)
+  * small_matrix_value = 1e-12         (corpus min |nonzero| = 2.93e-4, safely above)
+  * Selection rule: HiGHS has precedence, fixed BEFORE characterization.
 
-Canonical multiplier convention (the one the registered acceptance battery uses):
-
-    grad D = P z + q = H z - a          (H = P, a = -q = 2*1)
-    C = [A_eq ; -A_ub ; I ; -I]'   and   H z - a - C.lam = 0
-    => lam = [ nu_eq ; lam_ineq >= 0 ; lam_lo >= 0 ; lam_hi >= 0 ]
-
-Each candidate's native duals are mapped into that convention and then judged by the
-UNCHANGED registered battery. No native dual certificate is ever reconstructed from another
-solver.
+REVISED AGREEMENT GATES (strong convexity). Coordinate distance is a DIAGNOSTIC, not a
+qualification gate: for D(z) = (1/2)z'Hz + q'z with H = diag(2/t), the strong-convexity
+modulus is m = 2/max(t) ~ 133, so an objective gap g certifies only ||z - z*|| <= sqrt(2g/m)
+~ 1.2e-6 at g = 1e-10 -- NOT 1e-8.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 import warnings
 from collections import Counter
@@ -42,13 +41,10 @@ LIMITS = {
     "stationarity_residual": 1e-8, "complementarity_residual": 1e-8,
     "kkt_residual": 1e-8,
 }
-AGREE = 1e-8
 TOL = 1e-10
+GAP_MAX = 1e-10
 TIME_LIMIT = 60.0
-
-CORPUS_NPZ = "/out/MR002_Stage3_Corpus.npz"
-CORPUS_HASHES = "/out/MR002_Stage3_Corpus_Hashes.json"
-SIDECAR = "/out/MR002_Stage3_Corpus_Symbolic.jsonl"
+CLARABEL_PROPORTIONAL = 4.930380657631324e-32
 
 
 def _hash_instance(t, A_ub, b_ub, A_eq, b_eq, upper) -> str:
@@ -60,8 +56,29 @@ def _hash_instance(t, A_ub, b_ub, A_eq, b_eq, upper) -> str:
     return h.hexdigest()
 
 
-# ======================================================================================
-# CANDIDATE A — native HiGHS QP (qpasm)
+def external_gap(z, lam, meq, m_ub, t, A_ub, b_ub, A_eq, b_eq, upper) -> float:
+    """External original-coordinate primal-dual gap.
+
+    f(z) = (1/2) z'Pz + q'z ,  P = diag(2/t), q = -2*1
+    Standard Lagrangian: Pz + q + G'lam + A_eq'nu_std = 0 with G = [A_ub; -I; I],
+    h = [b_ub; 0; upper], lam >= 0.  At a KKT point w = q + G'lam + A_eq'nu_std = -Pz, so
+        gap = f(z) - dual(lam, nu) = z'Pz + q'z + h'lam + b_eq'nu_std
+    Our canonical convention has nu_std = -nu.
+    """
+    n = len(t)
+    P_z = (2.0 / t) * z
+    nu = lam[:meq]
+    lam_ineq = lam[meq:meq + m_ub]
+    lam_lo = lam[meq + m_ub:meq + m_ub + n]
+    lam_hi = lam[meq + m_ub + n:]
+    f_quad = float(z @ P_z)                      # z'Pz
+    q_z = float(-2.0 * np.sum(z))                # q'z
+    h_lam = float(b_ub @ lam_ineq) + 0.0 + float(np.asarray(upper, float) @ lam_hi)
+    b_nu = float(b_eq @ (-nu))
+    _ = lam_lo                                   # h component is exactly 0
+    return f_quad + q_z + h_lam + b_nu
+
+
 # ======================================================================================
 def solve_highs(t, A_ub, b_ub, A_eq, b_eq, upper):
     import highspy
@@ -69,37 +86,34 @@ def solve_highs(t, A_ub, b_ub, A_eq, b_eq, upper):
     n = len(t)
     m_ub, meq = A_ub.shape[0], A_eq.shape[0]
     h = highspy.Highs()
-    for k, v in (("output_flag", False), ("solver", "qpasm"), ("threads", 1),
-                 ("parallel", "off"), ("presolve", "off")):
-        h.setOptionValue(k, v)
-    h.setOptionValue("random_seed", 0)
-    for k in ("kkt_tolerance", "primal_feasibility_tolerance",
-              "dual_feasibility_tolerance", "primal_residual_tolerance",
-              "dual_residual_tolerance", "optimality_tolerance"):
-        h.setOptionValue(k, TOL)
-    h.setOptionValue("small_matrix_value", 1e-12)
-    h.setOptionValue("time_limit", TIME_LIMIT)
+    for k, v in (("output_flag", False), ("log_to_console", False),
+                 ("solver", "qpasm"), ("presolve", "off"), ("parallel", "off"),
+                 ("threads", 1), ("random_seed", 0), ("time_limit", TIME_LIMIT),
+                 ("qp_allow_hot_start", False),
+                 ("qp_regularization_value", 0.0),      # default 1e-7 WOULD alter the QP
+                 ("small_matrix_value", 1e-12),
+                 ("kkt_tolerance", TOL)):               # H1 -- NOT combined with H2
+        st = h.setOptionValue(k, v)
+        if "kOk" not in str(st):
+            raise RuntimeError(f"option {k} rejected: {st}")
 
     inf = highspy.kHighsInf
     A = np.vstack([A_eq, A_ub]) if m_ub else A_eq
-    row_lo = np.concatenate([b_eq, np.full(m_ub, -inf)])
-    row_hi = np.concatenate([b_eq, b_ub])
-
     lp = highspy.HighsLp()
     lp.num_col_ = n
     lp.num_row_ = A.shape[0]
-    lp.col_cost_ = -2.0 * np.ones(n)                     # q
+    lp.col_cost_ = -2.0 * np.ones(n)
     lp.col_lower_ = np.zeros(n)
     lp.col_upper_ = np.asarray(upper, float)
-    lp.row_lower_ = row_lo
-    lp.row_upper_ = row_hi
+    lp.row_lower_ = np.concatenate([b_eq, np.full(m_ub, -inf)])
+    lp.row_upper_ = np.concatenate([b_eq, b_ub])
     S = sp.csr_matrix(A)
     lp.a_matrix_.format_ = highspy.MatrixFormat.kRowwise
     lp.a_matrix_.start_ = S.indptr.tolist()
     lp.a_matrix_.index_ = S.indices.tolist()
     lp.a_matrix_.value_ = S.data.tolist()
 
-    hess = highspy.HighsHessian()                        # P = diag(2/t), UPPER triangle
+    hess = highspy.HighsHessian()
     hess.dim_ = n
     hess.format_ = highspy.HessianFormat.kTriangular
     hess.start_ = list(range(n + 1))
@@ -109,38 +123,37 @@ def solve_highs(t, A_ub, b_ub, A_eq, b_eq, upper):
     model = highspy.HighsModel()
     model.lp_ = lp
     model.hessian_ = hess
-    st = h.passModel(model)
-    if str(st) != "HighsStatus.kOk":
-        raise RuntimeError(f"passModel status {st}")
-    st = h.run()
-    if str(st) != "HighsStatus.kOk":
-        raise RuntimeError(f"run status {st}")
-    ms = h.getModelStatus()
-    if "kOptimal" not in str(ms):
+    if "kOk" not in str(h.passModel(model)):
+        raise RuntimeError("passModel failed")
+    if "kOk" not in str(h.run()):
+        raise RuntimeError("run status not kOk")
+    ms = str(h.getModelStatus())
+    if "kOptimal" not in ms:
         raise RuntimeError(f"model status {ms}")
 
     sol = h.getSolution()
     z = np.asarray(sol.col_value, float)
-    row_dual = np.asarray(sol.row_dual, float)
-    col_dual = np.asarray(sol.col_dual, float)
+    rd = np.asarray(sol.row_dual, float)
+    cd = np.asarray(sol.col_dual, float)
 
-    # ---- map native duals into the canonical convention ------------------------------
-    # HiGHS (minimization): grad + A' y_row + y_col = 0, with y_col the reduced cost.
-    #   => H z - a = -A' y_row - y_col
-    # canonical: H z - a = A_eq' nu - A_ub' lam_ineq + lam_lo - lam_hi
-    #   => nu = -y_row[:meq] ; lam_ineq = y_row[meq:]  (>=0 for an active <= row)
-    #      lam_lo = max(-y_col, 0) ; lam_hi = max(y_col, 0)
-    nu = -row_dual[:meq]
-    lam_ineq = row_dual[meq:]
-    lam_lo = np.maximum(-col_dual, 0.0)
-    lam_hi = np.maximum(col_dual, 0.0)
-    lam = np.concatenate([nu, lam_ineq, lam_lo, lam_hi])
+    # HiGHS QP dual convention, ESTABLISHED EMPIRICALLY on a hand-solvable problem
+    # (min (1/2)z'diag(2/t)z - 2'z s.t. z1+z2 <= 0.01, 0<=z<=0.02; optimum z=(0.005,0.005),
+    #  grad = (-0.75,-0.75), row_dual = -0.75):
+    #
+    #       H z - a  =  A' y_row  +  y_col
+    #
+    # i.e. the dual of an ACTIVE `<=` row is NEGATIVE. Canonical MR-002 convention is
+    #       H z - a  =  A_eq' nu  -  A_ub' lam_ineq  +  lam_lo  -  lam_hi      (lam >= 0)
+    # Matching term by term:
+    #       nu       =  y_eq                    (NOT -y_eq)
+    #       lam_ineq = -y_ub                    (NOT +y_ub)   -- y_ub <= 0 for active rows
+    #       lam_lo   =  max(+y_col, 0)          (NOT max(-y_col, 0))
+    #       lam_hi   =  max(-y_col, 0)          (NOT max(+y_col, 0))
+    lam = np.concatenate([rd[:meq], -rd[meq:],
+                          np.maximum(cd, 0.0), np.maximum(-cd, 0.0)])
     return z, lam
 
 
-# ======================================================================================
-# CANDIDATE B — native Clarabel
-# ======================================================================================
 def solve_clarabel(t, A_ub, b_ub, A_eq, b_eq, upper):
     import clarabel
 
@@ -166,152 +179,160 @@ def solve_clarabel(t, A_ub, b_ub, A_eq, b_eq, upper):
     s.presolve_enable = False
     s.direct_kkt_solver = True
     s.direct_solve_method = "qdldl"
+    # AMENDED FIELD MAPPING (owner-approved): the Python binding's base static-regularization
+    # control is `static_regularization_constant` (documented as `static_regularization_eps`).
+    # It is pinned SEPARATELY from `static_regularization_proportional` -- neither is aliased.
     s.static_regularization_enable = True
+    s.static_regularization_constant = 1e-8
+    s.static_regularization_proportional = CLARABEL_PROPORTIONAL
     s.dynamic_regularization_enable = True
+    s.dynamic_regularization_eps = 1e-13
+    s.dynamic_regularization_delta = 2e-7
     s.iterative_refinement_enable = True
 
     sol = clarabel.DefaultSolver(P, q, A, b, cones, s).solve()
     if str(sol.status) != "Solved":
-        raise RuntimeError(f"clarabel status {sol.status}")
-
+        raise RuntimeError(f"status {sol.status}")
     z = np.asarray(sol.x, float)
-    y = np.asarray(sol.z, float)                          # cone duals
-    # Clarabel: P x + q + A' y = 0  =>  H z - a = -A' y
-    # canonical: H z - a = A_eq' nu - A_ub' lam_ineq + lam_lo - lam_hi
-    #   A = [A_eq ; A_ub ; -I ; I]
-    #   -A'y = -A_eq' y_eq - A_ub' y_ub + y_lo - y_hi
-    #   => nu = -y_eq ; lam_ineq = y_ub ; lam_lo = y_lo ; lam_hi = y_hi
-    nu = -y[:meq]
-    lam_ineq = y[meq:meq + m_ub]
-    lam_lo = y[meq + m_ub:meq + m_ub + n]
-    lam_hi = y[meq + m_ub + n:]
-    lam = np.concatenate([nu, lam_ineq, lam_lo, lam_hi])
+    y = np.asarray(sol.z, float)
+    # Clarabel: Px + q + A'y = 0, A = [A_eq; A_ub; -I; I]
+    lam = np.concatenate([-y[:meq], y[meq:meq + m_ub],
+                          y[meq + m_ub:meq + m_ub + n], y[meq + m_ub + n:]])
     return z, lam
 
 
 # ======================================================================================
-def evaluate(name, fn, t, A_ub, b_ub, A_eq, b_eq, upper):
+def evaluate(fn, t, A_ub, b_ub, A_eq, b_eq, upper):
     n = len(t)
     H = np.diag(2.0 / t)
     a = 2.0 * np.ones(n)
     C, b = jp._qp_matrices(A_ub, b_ub, A_eq, b_eq, upper, n)
-    meq = A_eq.shape[0]
+    meq, m_ub = A_eq.shape[0], A_ub.shape[0]
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         z, lam = fn(t, A_ub, b_ub, A_eq, b_eq, upper)
     if not (np.all(np.isfinite(z)) and np.all(np.isfinite(lam))):
         raise RuntimeError("non-finite primal or dual")
     ck = jp._acceptance(z, lam, meq, H, a, C, b, A_ub, b_ub, A_eq, b_eq, upper)
+    g = external_gap(z, lam, meq, m_ub, t, A_ub, b_ub, A_eq, b_eq, upper)
+    ck["external_primal_dual_gap"] = g
     bad = sorted(k for k, lim in LIMITS.items() if ck[k] > lim)
-    return z, ck, bad
+    if g < -1e-9:
+        bad.append("gap_negative")
+    if g > GAP_MAX:
+        bad.append("gap_exceeds_1e-10")
+    return z, ck, bad, g
 
 
 def main() -> int:
-    # ---- corpus verification (immutable; the code cannot mutate it) --------------------
-    with open(CORPUS_HASHES, encoding="utf-8") as fh:
-        H = json.load(fh)
-    npz = np.load(CORPUS_NPZ)
-    N = len(H["instance_hashes"])
-    side = {}
-    with open(SIDECAR, encoding="utf-8") as fh:
-        for line in fh:
-            r = json.loads(line)
-            side[r["instance_hash"]] = r
-
-    print(f"corpus: {N} instances")
-    ok_hash, ok_link = 0, 0
-    inst = []
+    with open("/out/MR002_Stage3_Corpus_Hashes.json", encoding="utf-8") as fh:
+        HH = json.load(fh)
+    npz = np.load("/out/MR002_Stage3_Corpus.npz")
+    N = len(HH["instance_hashes"])
+    inst, ok = [], 0
     for i in range(N):
-        t = npz[f"{i}_t"]
-        A_ub, b_ub = npz[f"{i}_A_ub"], npz[f"{i}_b_ub"]
-        A_eq, b_eq = npz[f"{i}_A_eq"], npz[f"{i}_b_eq"]
-        upper = npz[f"{i}_upper"]
-        hh = _hash_instance(t, A_ub, b_ub, A_eq, b_eq, upper)
-        if hh == H["instance_hashes"][i]:
-            ok_hash += 1
-        if hh in side:
-            ok_link += 1
-        inst.append((t, A_ub, b_ub, A_eq, b_eq, upper))
-    corpus_hash = hashlib.sha256(
-        "|".join(H["instance_hashes"]).encode()).hexdigest()
-    print(f"  global corpus hash matches : {corpus_hash == H['corpus_hash']}")
-    print(f"  per-instance hashes match  : {ok_hash}/{N}")
-    print(f"  symbolic sidecar linkage   : {ok_link}/{N}")
-    if not (corpus_hash == H["corpus_hash"] and ok_hash == N == ok_link == N):
+        rec = tuple(npz[f"{i}_{k}"] for k in ("t", "A_ub", "b_ub", "A_eq", "b_eq", "upper"))
+        if _hash_instance(*rec) == HH["instance_hashes"][i]:
+            ok += 1
+        inst.append(rec)
+    print(f"corpus {N} instances | per-instance hashes verified: {ok}/{N}")
+    if ok != N:
         print("CORPUS VERIFICATION FAILED", file=sys.stderr)
         return 1
 
-    R = {"instances": N, "corpus_hash": corpus_hash,
-         "corpus_verified": True, "candidates": {}}
-    prim = {}
+    R = {"instances": N, "corpus_verified": True,
+         "predeclared": {"highs_tolerance_config": "H1 (kkt_tolerance=1e-10)",
+                         "qp_regularization_value": 0.0,
+                         "selection_rule": "HiGHS precedence, fixed before characterization"},
+         "candidates": {}}
+    P = {}
 
     for name, fn in (("HIGHS_QPASM", solve_highs), ("CLARABEL", solve_clarabel)):
         print(f"\n=== {name} ===", flush=True)
-        c = {"solved": 0, "failed": 0, "failure_kinds": Counter(),
-             "worst_kkt": 0.0, "worst_stationarity": 0.0, "worst_primal": 0.0}
-        zs = {}
-        for i, (t, A_ub, b_ub, A_eq, b_eq, upper) in enumerate(inst):
+        c = {"qualified_instances": 0, "failed": 0, "failure_kinds": Counter(),
+             "worst_kkt": 0.0, "worst_stationarity": 0.0, "worst_primal": 0.0,
+             "worst_gap": 0.0}
+        zs, gs = {}, {}
+        for i, rec in enumerate(inst):
             try:
-                z, ck, bad = evaluate(name, fn, t.copy(), A_ub.copy(), b_ub.copy(),
-                                      A_eq.copy(), b_eq.copy(), upper.copy())
-                if bad:
-                    c["failed"] += 1
-                    c["failure_kinds"]["+".join(bad)] += 1
-                else:
-                    c["solved"] += 1
-                    zs[i] = z
+                z, ck, bad, g = evaluate(fn, *(x.copy() for x in rec))
                 c["worst_kkt"] = max(c["worst_kkt"], ck["kkt_residual"])
                 c["worst_stationarity"] = max(c["worst_stationarity"],
                                               ck["stationarity_residual"])
                 c["worst_primal"] = max(c["worst_primal"], ck["primal_residual"])
+                c["worst_gap"] = max(c["worst_gap"], abs(g))
+                if bad:
+                    c["failed"] += 1
+                    c["failure_kinds"]["+".join(bad)] += 1
+                else:
+                    c["qualified_instances"] += 1
+                    zs[i], gs[i] = z, g
             except Exception as e:
                 c["failed"] += 1
-                c["failure_kinds"][f"{type(e).__name__}:{str(e)[:70]}"] += 1
-            if (i + 1) % 500 == 0:
-                print(f"  {i+1}/{N}  solved={c['solved']} failed={c['failed']}", flush=True)
+                c["failure_kinds"][f"{type(e).__name__}:{str(e)[:60]}"] += 1
+            if (i + 1) % 1000 == 0:
+                print(f"  {i+1}/{N} qualified={c['qualified_instances']} "
+                      f"failed={c['failed']}", flush=True)
         c["failure_kinds"] = dict(c["failure_kinds"])
+        c["solves_all"] = c["failed"] == 0
         R["candidates"][name] = c
-        prim[name] = zs
-        print(f"  SOLVED {c['solved']}/{N}   FAILED {c['failed']}")
-        print(f"  worst KKT {c['worst_kkt']:.3e} | stationarity {c['worst_stationarity']:.3e}")
+        P[name] = (zs, gs)
+        print(f"  QUALIFIED {c['qualified_instances']}/{N}  FAILED {c['failed']}")
+        print(f"  worst KKT {c['worst_kkt']:.3e} | stationarity {c['worst_stationarity']:.3e} "
+              f"| gap {c['worst_gap']:.3e}")
 
-    # ---- candidate-to-candidate agreement ---------------------------------------------
-    both = set(prim["HIGHS_QPASM"]) & set(prim["CLARABEL"])
-    dz = max((float(np.max(np.abs(prim["HIGHS_QPASM"][i] - prim["CLARABEL"][i])))
-              for i in both), default=0.0)
-    dobj = 0.0
+    # ---- strong-convexity consistency envelope ----------------------------------------
+    hz, hg = P["HIGHS_QPASM"]
+    cz, cg = P["CLARABEL"]
+    both = sorted(set(hz) & set(cz))
+    env_ok = obj_ok = True
+    worst_ratio = worst_dz = worst_dobj = 0.0
     for i in both:
         t = inst[i][0]
-        o1 = float(np.sum((prim["HIGHS_QPASM"][i] - t) ** 2 / t))
-        o2 = float(np.sum((prim["CLARABEL"][i] - t) ** 2 / t))
-        dobj = max(dobj, abs(o1 - o2))
-    R["candidate_agreement"] = {
-        "instances_both_solved": len(both),
-        "max_primal_disagreement": dz,
-        "max_objective_disagreement": dobj,
-        "within_1e-8": dz <= AGREE and dobj <= AGREE,
+        m = 2.0 / float(np.max(t))
+        r1 = np.sqrt(2.0 * max(hg[i], 0.0) / m)
+        r2 = np.sqrt(2.0 * max(cg[i], 0.0) / m)
+        dz = float(np.linalg.norm(hz[i] - cz[i]))
+        bound = r1 + r2 + 1e-10
+        worst_dz = max(worst_dz, dz)
+        worst_ratio = max(worst_ratio, dz / bound if bound > 0 else 0.0)
+        if dz > bound:
+            env_ok = False
+        d1 = float(np.sum((hz[i] - t) ** 2 / t))
+        d2 = float(np.sum((cz[i] - t) ** 2 / t))
+        dobj = abs(d1 - d2)
+        worst_dobj = max(worst_dobj, dobj)
+        if dobj > hg[i] + cg[i] + 1e-12:
+            obj_ok = False
+    R["agreement"] = {
+        "instances_both_qualified": len(both),
+        "strong_convexity_envelope_satisfied": env_ok,
+        "worst_dz_over_envelope_bound": worst_ratio,
+        "worst_L2_primal_disagreement_DIAGNOSTIC": worst_dz,
+        "objective_agreement_satisfied": obj_ok,
+        "worst_objective_disagreement": worst_dobj,
     }
 
-    R["gates"] = {
-        "highs_solves_all": R["candidates"]["HIGHS_QPASM"]["failed"] == 0,
-        "clarabel_solves_all": R["candidates"]["CLARABEL"]["failed"] == 0,
-        "candidates_agree_within_1e-8": R["candidate_agreement"]["within_1e-8"],
-    }
-    q = [k for k, v in (("HIGHS_QPASM", R["gates"]["highs_solves_all"]),
-                        ("CLARABEL", R["gates"]["clarabel_solves_all"])) if v]
+    q = [k for k in ("HIGHS_QPASM", "CLARABEL") if R["candidates"][k]["solves_all"]]
     R["qualified"] = q
-    R["selection"] = ("HIGHS_QPASM (precedence: already the registered LP technology)"
-                      if "HIGHS_QPASM" in q else
-                      ("CLARABEL" if "CLARABEL" in q else "NEITHER — STOP FOR ADJUDICATION"))
-    R["VERDICT"] = "PASS" if q else "FAIL"
+    if len(q) == 2 and env_ok and obj_ok:
+        sel = "HIGHS_QPASM — both qualify and agree; Clarabel retained as offline verifier"
+    elif "HIGHS_QPASM" in q:
+        sel = "HIGHS_QPASM"
+    elif "CLARABEL" in q:
+        sel = "CLARABEL"
+    else:
+        sel = "NEITHER — STOP FOR ADJUDICATION"
+    R["selection"] = sel
+    R["VERDICT"] = "PASS" if q and env_ok and obj_ok else "FAIL"
 
     dst = "/out/MR002_NativeQP_Characterization.json"
     with open(dst, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(R, fh, indent=2, default=str)
         fh.write("\n")
     print("\n" + json.dumps({k: R[k] for k in
-          ("candidates", "candidate_agreement", "gates", "qualified", "selection",
-           "VERDICT")}, indent=2, default=str))
+          ("candidates", "agreement", "qualified", "selection", "VERDICT")},
+          indent=2, default=str))
     print(f"\nreport: {dst}")
     return 0
 
