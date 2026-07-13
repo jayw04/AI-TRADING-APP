@@ -15,7 +15,7 @@ this leaves the evidence ledger clean — the noise lands in `orders`, where it 
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal as D
 
 from sqlalchemy import text
@@ -30,8 +30,13 @@ from app.risk import OrderRequest, RiskEngine
 USER, ACCT = 3, 3
 CAP = D("-3000")
 # Wide-spread names cost the most per round trip; F/MSFT add turnover cheaply.
-NAMES = [("IEUS", D("24000")), ("KOKU", D("24000")), ("F", D("6000")), ("MSFT", D("7500"))]
-DEADLINE_UTC = datetime(2026, 7, 13, 19, 50, tzinfo=UTC)   # 15:50 ET — abort, do not overrun
+# CHURN instruments only. The test LEGS (F, MSFT) are bought and HELD by the canary and must
+# NEVER be cycled here — on the 2026-07-13 run this script flattened everything each cycle, so
+# by the time the lock armed the account was flat and there was nothing left to reduce. That is
+# what made the canary RED for a reason that had nothing to do with the risk engine.
+CHURN_NAMES = [("IEUS", D("24000")), ("KOKU", D("24000"))]
+PROTECTED = {"F", "MSFT"}   # the legs — hands off
+DEADLINE_MINUTES = 25   # abort rather than overrun the session; never lower the limit instead
 
 
 async def day_change(sf) -> D:
@@ -59,7 +64,8 @@ async def main() -> int:
         ad, RiskEngine(sf, broker_registry=reg, bus=bus), sf, bus, broker_registry=reg
     )
 
-    print(f"churn to breach — cap {CAP} — deadline {DEADLINE_UTC:%H:%M} UTC", flush=True)
+    deadline = datetime.now(UTC) + timedelta(minutes=DEADLINE_MINUTES)
+    print(f"churn to breach — cap {CAP} — deadline {deadline:%H:%M} UTC", flush=True)
     cycle = 0
     while True:
         dc = await day_change(sf)
@@ -67,10 +73,12 @@ async def main() -> int:
         if dc <= CAP:
             print(f"\nBREACHED: ${dc:,.2f} <= ${CAP:,.2f}")
             return 0
-        if datetime.now(UTC) >= DEADLINE_UTC:
+        if datetime.now(UTC) >= deadline:
             print(f"\nDEADLINE. day_change ${dc:,.2f} did NOT reach ${CAP:,.2f}.")
-            print("NOT lowering the limit — that is forbidden. Flattening.")
+            print("NOT lowering the limit — that is forbidden. Closing the churn positions.")
             for p in ad.get_positions():
+                if p["symbol"] in PROTECTED:
+                    continue
                 await router.submit(req(p["symbol"], OrderSide.SELL, D(str(p["qty"]))))
                 await asyncio.sleep(1)
             return 1
@@ -78,7 +86,7 @@ async def main() -> int:
         cycle += 1
         # BUY leg
         prices = {p["symbol"]: D(str(p.get("current_price") or 0)) for p in ad.get_positions()}
-        for sym, notional in NAMES:
+        for sym, notional in CHURN_NAMES:
             px = prices.get(sym) or D("0")
             if px <= 0:
                 q = ad.get_account()  # noqa: F841 — force a broker touch; price comes from quote below
@@ -104,8 +112,10 @@ async def main() -> int:
 
         await asyncio.sleep(5)
 
-        # SELL leg — flatten everything back
+        # SELL leg — close ONLY the churn instruments. The legs are protected.
         for p in ad.get_positions():
+            if p["symbol"] in PROTECTED:
+                continue
             await router.submit(req(p["symbol"], OrderSide.SELL, D(str(p["qty"]))))
             await asyncio.sleep(1.5)
         await asyncio.sleep(6)

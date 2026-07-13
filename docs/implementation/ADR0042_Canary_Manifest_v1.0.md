@@ -18,11 +18,43 @@ not to be changed mid-run.
 | User | 3 |
 | Account | 3 — `Alpaca Paper (Conservative)` |
 | Broker account | `PA34USW0Q8UO` (paper) |
-| Baseline equity | **$100,000.00** |
-| Baseline cash | **$100,000.00** |
-| Baseline positions | **none (flat)** |
-| Baseline open orders | **none** |
-| Breaker at baseline | **clear** (`circuit_breaker_tripped_at = NULL`) |
+| Baseline equity | $100,000.00 *at the first run (2026-07-13)* — **not a precondition**, see below |
+| Baseline cash | $100,000.00 at first run |
+| Baseline positions | **none (flat)** ← precondition |
+| Baseline open orders | **none** ← precondition |
+| Breaker at baseline | **clear** (`circuit_breaker_tripped_at = NULL`) ← precondition |
+
+> **Equity is NOT a precondition.** This is a permanent verification account: its equity drifts
+> with every canary, because reaching the breach costs real money by design. The harness checks
+> **flat / no open orders / breaker clear / limit frozen** — never a specific equity. Do **not**
+> "reset the balance" to $100k: an Alpaca paper reset rotates the API keys (as on 2026-07-07,
+> which cost a full credential re-sync) and buys nothing.
+>
+> Run history: 2026-07-13 start $100,000.00 → end **$96,912.33** (the −$3,087 breach was real
+> realized loss).
+
+### Reaching the breach — what actually works (MEASURED 2026-07-13)
+
+**Alpaca paper fills at the MID, not the ask.** IEUS was quoted bid 67.59 / ask 71.75 and
+**filled at 69.57**. So there is *no spread cost in paper*, which kills two mechanisms at once:
+
+* the "buy a wide-spread instrument and take the instant mark-to-bid loss" idea — **void**;
+* the churn cost estimate derived from spreads — **also wrong**.
+
+What genuinely costs money is the **real round trip**: measured **−$297 realized across ~$76k of
+turnover (~0.4% per cycle)**, flowing through the true `equity − last_equity` path. Roughly ten
+cycles reaches −$3,000.
+
+Two properties make this the right mechanism:
+
+* it is a **genuine realized loss** — nothing is fabricated, and the frozen limit is never moved;
+* churning while **unlocked writes ZERO risk-decision rows** (ADR 0042 is not in the unlocked
+  path), so the evidence ledger — the thing the canary exists to produce — stays clean. The
+  noise lands in `orders`, where it belongs.
+
+⚠ **The churn must NOT flatten the test legs.** On the first run it sold every position each
+cycle, so by the time the lock armed the account was flat and there was nothing left to reduce.
+Buy and **hold** the legs; cycle only the churn instruments.
 | Strategy 4 (`momentum-conservative`) | **IDLE** — not in `ENGINE_RUNNABLE_STATUSES`, therefore not resumed on boot, no cron job, no overlay job |
 | Authorised submitter | **the canary harness only** |
 | Spare | user 4 / account 4 (`PA32AC6G1HB2`) — held in reserve, untouched |
