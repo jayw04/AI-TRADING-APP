@@ -36,11 +36,15 @@ formally closed. It is not to be traded, reset, or re-armed for any purpose, inc
 
 | Parameter | Frozen value |
 |---|---|
-| `max_daily_loss` | **TBD — set once, here, before the first order** |
+| `max_daily_loss` | **$3,000.00** — owner-set 2026-07-13, **before any activity on this account** |
 | `max_gross_exposure` | 100,000.00 |
 | `risk_policy_version` | `0042.1` |
 | Ledger capture | **enabled before the first trade** |
 | Broker-event capture | **enabled before the first trade** |
+
+The $3,000 figure is recorded here **first** and is not to be touched again for the duration of
+the canary. If the breach proves hard to reach, the answer is more churn — **not** a smaller
+limit. Moving the limit to meet the account is the very thing § 2 forbids.
 
 ### The breach must be REAL — not manufactured by moving the limit
 
