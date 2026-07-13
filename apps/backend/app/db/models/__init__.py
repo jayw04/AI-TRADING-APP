@@ -21,6 +21,7 @@ from app.db.models.range_execution_record import RangeExecutionRecord
 from app.db.models.reconciliation_run import ReconciliationRun
 from app.db.models.replay_run import ReplayRun
 from app.db.models.risk_check import RiskCheck
+from app.db.models.risk_decision import RiskDecision
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.scanner_definition import ScannerDefinition
 from app.db.models.scanner_run import ScannerRun
@@ -64,6 +65,7 @@ __all__ = [
     "ReconciliationRun",
     "ReplayRun",
     "RiskCheck",
+    "RiskDecision",
     "RiskLimits",
     "ScannerDefinition",
     "ScannerRun",
