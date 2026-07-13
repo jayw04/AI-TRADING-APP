@@ -1,0 +1,8 @@
+[Unit]
+Description=Pipeline health DAILY: 16:50 ET, weekdays (after close + the daily/CEE reports)
+[Timer]
+OnCalendar=Mon-Fri 16:50
+AccuracySec=1min
+Persistent=false
+[Install]
+WantedBy=timers.target

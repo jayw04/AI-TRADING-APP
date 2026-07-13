@@ -15,6 +15,11 @@ from app.db.models.llm_opt_in import LLMOptIn
 from app.db.models.market_projection import MarketProjectionTrainingRow
 from app.db.models.market_projection_model import MarketProjectionModelRegistry
 from app.db.models.morning_brief import MorningBrief
+from app.db.models.ops_health import (
+    DataHealthSnapshot,
+    OpsCheckRun,
+    StrategyDispatchRun,
+)
 from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.range_execution_record import RangeExecutionRecord
@@ -57,6 +62,9 @@ __all__ = [
     "MarketProjectionModelRegistry",
     "MarketProjectionTrainingRow",
     "MorningBrief",
+    "DataHealthSnapshot",
+    "OpsCheckRun",
+    "StrategyDispatchRun",
     "Order",
     "Position",
     "RangeExecutionRecord",

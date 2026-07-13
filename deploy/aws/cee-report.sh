@@ -19,14 +19,25 @@ OUTDIR="/opt/workbench/app/reports/cee"
 [ -f "$SCRIPT" ] || { echo "generator missing: $SCRIPT"; exit 1; }
 
 # Feed the generator into the container over stdin; the container needs no on-disk copy.
-RAW="$($DOCKER exec -i workbench-backend python - < "$SCRIPT" 2>/dev/null)"
+# Keep stderr: discarding it made a failed run report a GUESSED cause ("transient hiccup")
+# with the real traceback gone, so a repeat was undiagnosable (2026-07-13).
+ERRLOG="$(mktemp)"
+trap 'rm -f "$ERRLOG"' EXIT
+RAW="$($DOCKER exec -i workbench-backend python - < "$SCRIPT" 2>"$ERRLOG")"
 RC=$?
 # The container's structlog init writes to STDOUT before the report — strip the preamble.
 BODY="$(printf '%s\n' "$RAW" | sed -n '/^=== Continuous Evidence Engine/,$p')"
 
 DATE_ET="$(TZ=America/New_York date '+%Y-%m-%d')"
 if [ -z "$BODY" ]; then
-  BODY="CEE report ${DATE_ET} - this run could not gather data (likely a transient container/DB hiccup). No action needed unless several in a row come back empty."
+  ERRTAIL="$(grep -v '^[0-9-]\{10\} [0-9:]\{8\} \[' "$ERRLOG" 2>/dev/null | tail -25)"
+  BODY="CEE report ${DATE_ET} - GENERATION FAILED.
+
+The CEE generator ran but produced no report. This control is the drift alarm — a repeat
+means the alarm itself is down. Investigate.
+
+Error output:
+${ERRTAIL:-(no stderr captured)}"
   SUBJECT="CEE report ${DATE_ET} - GENERATION FAILED"
 else
   # Persist a dated copy on the box (reports/ is git-ignored; handy for drift history).

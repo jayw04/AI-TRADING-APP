@@ -10,7 +10,13 @@ REGION="${AWS_REGION:-us-east-1}"
 TOPIC="arn:aws:sns:us-east-1:219024422756:workbench-paper-alarms"
 DOCKER="docker"; command -v docker >/dev/null 2>&1 || DOCKER="sudo docker"
 
-BODY="$($DOCKER exec -i workbench-backend python - <<'PY' 2>/dev/null
+# Keep stderr: an empty BODY used to be reported as a generic "transient hiccup" with the
+# real exception discarded to /dev/null, so a repeat was undiagnosable after the fact
+# (2026-07-13 10:15 recap came back empty and left no trace). Capture it instead.
+ERRLOG="$(mktemp)"
+trap 'rm -f "$ERRLOG"' EXIT
+
+BODY="$($DOCKER exec -i workbench-backend python - <<'PY' 2>"$ERRLOG"
 import asyncio
 from datetime import datetime
 import pandas as pd
@@ -65,7 +71,10 @@ async def main():
     if pos:
         L.append(f"Open positions ({len(pos)}):")
         for p in pos:
-            L.append(f"  {p.get('symbol')} {p.get('qty')}  uPnL ${float(p.get('unrealized_pl', 0)):,.2f}")
+            # Alpaca returns null unrealized_pl for a position whose fill has just landed;
+            # `float(None)` raised and blanked the whole recap. `or 0` also absorbs "".
+            upl = float(p.get("unrealized_pl") or 0)
+            L.append(f"  {p.get('symbol')} {p.get('qty')}  uPnL ${upl:,.2f}")
     else:
         L.append("Open positions: none (flat)")
     L.append(f"Filled orders today: {len(filled)}  ({len(buys)} buy / {len(sells)} sell)")
@@ -81,7 +90,16 @@ PY
 )"
 
 if [ -z "$BODY" ]; then
-  BODY="Range recap - this run could not gather data, likely a transient broker/API hiccup. No action needed: the next scheduled recap (10:15 / 16:15 ET) will retry automatically. Only worth a look if several in a row come back empty."
+  # Drop structlog's own INFO lines (they go to stderr on the happy path too) and keep the
+  # traceback, so the email SAYS what broke instead of guessing "transient hiccup".
+  ERRTAIL="$(grep -v '^[0-9-]\{10\} [0-9:]\{8\} \[' "$ERRLOG" 2>/dev/null | tail -25)"
+  BODY="Range recap - COULD NOT GATHER DATA.
+
+The recap script ran but the data-collection step produced no output. The next scheduled
+recap (10:15 / 16:15 ET) retries automatically; investigate if several in a row are empty.
+
+Error output:
+${ERRTAIL:-(no stderr captured)}"
 fi
 SUBJECT="Range recap $(TZ=America/New_York date '+%Y-%m-%d %H:%M ET')"
 aws sns publish --region "$REGION" --topic-arn "$TOPIC" --subject "$SUBJECT" --message "$BODY" >/dev/null \
