@@ -17,3 +17,6 @@ pytest==8.3.4
 # NOTE: highspy ships HiGHS 1.15.1 — NOT the 1.12.0 that SciPy vendors. Different builds.
 highspy==1.15.1
 clarabel==0.11.1
+
+# Final open-source Stage-3 QP candidate (owner-authorized 2026-07-13).
+piqp==0.6.3
