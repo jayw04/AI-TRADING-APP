@@ -3,9 +3,15 @@
 | Field | Value |
 |---|---|
 | Date | 2026-07-13 |
-| Status | **Proposed — release blocker. Awaiting owner approval BEFORE risk-engine implementation begins.** |
+| Status | **Accepted — Release Blocker** (approved with binding amendments, 2026-07-13; rev 2) |
 | Phase | Cross-phase (risk engine; P5 §5 daily-loss + circuit breaker) |
 | Related | 0002 (single OrderRouter), 0004 (circuit breaker), 0034 (per-account risk containment), **0038** (reducing exits exempt from gross-exposure gate), **0039** (reducing exits exempt from strategy cooldown), 0043 (loss-control architecture — *separate*), incident 2026-07-13 |
+
+> **Revision note (rev 2).** Approved with binding amendments. The owner's three answers and one
+> added concurrency requirement are incorporated below as §§ A–D and are **normative**, not
+> commentary. Implementation authorisation is granted *by* this revision. The strategy remains
+> halted until implementation, migration, decision-ledger verification, concurrency controls,
+> and the full acceptance suite have passed.
 
 > **Principle: a risk control may stop trading, but it must not prevent verified reduction of the risk it is intended to control.**
 >
@@ -169,10 +175,16 @@ Every stage persisted or reconstructible.
 - Broker state and market data sufficiently fresh.
 - Proposal and decision durably recorded.
 
+A sell is eligible **only to the extent that it reduces an existing long position without
+crossing through zero**, and only up to `available_reducible_quantity` (§ D).
+
+**Also in v1:** `ORDER_CANCEL`, through the dedicated cancellation path (§ B) — classified, not
+waved through.
+
 **Explicitly deferred:** buy-to-cover on short books. It is *conceptually* risk-reducing and the
-architecture must express it — but it stays **blocked** until the classifier safely supports
-shorts. The rule is about risk effect; the v1 *implementation* is long-only. Those are different
-statements and the ADR keeps them apart on purpose.
+architecture must express it — but it stays **blocked** until short-position handling is
+separately implemented and approved. The rule is about risk effect; the v1 *implementation* is
+long-only. Those are different statements and the ADR keeps them apart on purpose.
 
 **Not in this ADR:** the loss-control architecture (separated controls, persisted session
 baseline, trip classification, reconciliation, recovery preflight, hysteresis, thresholds) — that
@@ -239,6 +251,16 @@ re-enables buys, not merely reductions.
 7. Ledger evidence for **every** test case.
 8. **Determinism:** replaying the same snapshot + proposal under the same policy version yields
    the same classification.
+9. **Snapshot coherence (§ A):** a cached snapshot is refused while locked; a snapshot behind an
+   already-observed broker event is `INDETERMINATE`; a state change between classification and
+   submission forces one fresh re-evaluation and never reuses the prior decision.
+10. **Concurrency (§ D):** two concurrent reducing sells against the same long **cannot** both be
+    approved and cross through zero. Version conflict forces reclassification.
+11. **Cancellation (§ B):** cancelling a pending buy-to-open passes; cancelling a pending
+    **sell-to-close** is REJECTED while locked (it removes a protective reduction); a cancel with
+    unresolved partial fills is `INDETERMINATE`.
+12. **Source neutrality (§ C):** an identical reducing sell classifies identically from
+    `STRATEGY` and `MANUAL`, and a manual order cannot self-assert a risk effect.
 
 The replay must demonstrate:
 
@@ -254,13 +276,139 @@ BEFORE                                   AFTER
 
 ---
 
-## Open questions for the owner
+## Binding amendments (normative — owner ruling, 2026-07-13)
 
-1. **Freshness bound.** How stale may the broker snapshot be before a reduction is
-   `INDETERMINATE`? (Proposed: reject if broker positions are older than N seconds — N to be set
-   by you, not guessed by me.)
-2. **Cancellation.** Rule 2's "cancel an unfilled risk-increasing order" is a *cancel*, not an
-   order — it does not traverse the risk engine today. Confirm it is in scope for 0042 rather
-   than a separate path.
-3. **Manual orders.** A human-submitted reducing sell hits the same gates. Confirm the exemption
-   applies to `source_type=MANUAL`, not only `STRATEGY`.
+### § A — Snapshot rule: no stale-cache allowance while locked
+
+**There is no "N seconds old" threshold.** Registering one would have been the wrong shape of
+answer: it treats staleness as a tunable when the requirement is *causal completeness*.
+
+While a daily-loss or circuit-breaker lock is active, a reducing-order exemption requires a
+**new broker reconciliation initiated for that decision**. A previously cached positions object
+is **insufficient regardless of its nominal age**.
+
+The snapshot must contain:
+
+- positions and quantities
+- open orders and **remaining** quantities
+- partial fills and pending executions
+- the prices used for projected exposure
+- cash, margin and buying power where relevant
+- the broker **event cursor / sequence / reconciliation timestamp**
+
+It must be **causally at or beyond every broker event already observed locally**. A snapshot
+that is merely *recent* but behind a fill we have already seen is not coherent — it is a
+different account.
+
+Before submission, require **either**:
+
+- an **unchanged broker/account version token**, or
+- an **account-level serialization lock** plus an immediate consistency check.
+
+If the broker read fails, reconciliation is incomplete, an order or fill is unresolved, or the
+state changes between classification and submission:
+
+```
+risk_effect = INDETERMINATE
+decision    = FAIL_CLOSED
+```
+
+**One** fresh re-evaluation may occur. The previous decision is **never** reused.
+
+### § B — Cancellation rule: in scope, dedicated path, no blanket pass
+
+Cancellation is **not automatically reducing**, and must not be waved through.
+
+A first action type is introduced:
+
+```
+ORDER_SUBMIT | ORDER_CANCEL | ORDER_REPLACE
+```
+
+A cancellation is `RISK_REDUCING` **only when** removing that open order *weakly reduces the
+account's worst-case projected exposure* **and** improves at least one relevant risk dimension.
+
+| Cancel of a pending… | Classification |
+|---|---|
+| buy-to-open | normally **REDUCING** |
+| sell-to-open | normally **REDUCING** |
+| **sell-to-close** | potentially **RISK-INCREASING** — it removes a protective reduction |
+| **buy-to-cover** | potentially **RISK-INCREASING** — same reason |
+| anything with unresolved partial fills | **INDETERMINATE** |
+
+Cancelling a protective reduction is exactly the move that traps risk on the book. It stays
+blocked while locked.
+
+Cancellations route through the **same shared classifier and the same append-only ledger**, via
+a dedicated cancellation execution path — they do not travel steps 9/13 as ordinary orders.
+
+### § C — Manual-order rule: source-neutral
+
+The exemption applies to `source_type = STRATEGY` **and** `source_type = MANUAL`.
+
+**Trapped risk is equally dangerous regardless of who initiated the reduction.**
+
+Manual actions receive **no broader privilege**. They must use the same coherent snapshot, pass
+the same long-only v1 reduction rules, be recorded in the same ledger, fail closed when
+indeterminate, and remain blocked when neutral or increasing.
+
+> A human operator **cannot** label an order "reducing" and bypass classification. There is no
+> operator-asserted risk effect.
+
+### § D — Concurrency and exposure reservations (added requirement)
+
+The classifier must evaluate projected state **including all open orders and already-approved
+exposure reservations**.
+
+Without this, **two concurrent sell reductions can each look safe against the same long position
+and together cross through zero, creating a short** — the precise failure the zero-crossing rule
+exists to prevent, arrived at by a route the single-order check cannot see.
+
+For long-only v1:
+
+```
+available_reducible_quantity =
+      current_long_quantity
+    - filled_but_not_reconciled_reductions
+    - open_reducing_sell_quantity
+    - reserved_reducing_quantity
+```
+
+An approved sell quantity **must not exceed** that amount.
+
+**Classification, reservation and ledger insertion must be atomic**, under either a per-account
+transactional lock or optimistic concurrency on the snapshot/account version. A version conflict
+**forces reclassification** — it must never proceed on the earlier approval.
+
+Broker-native `reduce_only` may be used where genuinely supported and verified, but it **does
+not replace** the account-level classifier and ledger.
+
+### Required locked-mode behaviour
+
+```
+REDUCING       ALLOW through the daily-loss and circuit-breaker gates,
+               subject to all absolute post-trade hard limits
+INCREASING     REJECT
+NEUTRAL        REJECT while locked, unless separately registered
+INDETERMINATE  FAIL_CLOSED
+```
+
+The daily-loss value is a **historical lock trigger**. A permitted reduction is **not** required
+to improve already-realised P&L.
+
+---
+
+## Approval record
+
+| | |
+|---|---|
+| **Decision** | **APPROVED WITH BINDING AMENDMENTS** |
+| **Status after amendment** | Accepted — Release Blocker |
+| **Implementation authorisation** | Granted, conditional on this revision incorporating §§ A–D |
+| **Approved by** | Jay Wang (owner), 2026-07-13 |
+| **Strategy state** | momentum-portfolio remains **HALTED** until implementation, migration, durable decision ledger, concurrency controls and the full acceptance suite have passed |
+
+Daily-loss and circuit-breaker controls may prohibit new or increased exposure, but **must not
+trap existing exposure by rejecting a verified risk reduction.** Classification is on projected
+post-action account risk — not BUY/SELL terminology, not strategy identity, not human-versus-
+automated origin.
