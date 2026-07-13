@@ -18,11 +18,21 @@ OUTDIR="/opt/workbench/app/reports"
 # Feed the generator into the container over stdin; the container needs no on-disk copy.
 # The container's structlog init writes to STDOUT (broker-adapter load, factor-store open),
 # so it precedes the Markdown — strip everything before the report header.
-BODY="$($DOCKER exec -i workbench-backend python - < "$SCRIPT" 2>/dev/null | sed -n '/^# Daily Report/,$p')"
+# Keep stderr: discarding it made a failed run report a GUESSED cause ("transient hiccup")
+# with the real traceback gone, so a repeat was undiagnosable (2026-07-13).
+ERRLOG="$(mktemp)"
+trap 'rm -f "$ERRLOG"' EXIT
+BODY="$($DOCKER exec -i workbench-backend python - < "$SCRIPT" 2>"$ERRLOG" | sed -n '/^# Daily Report/,$p')"
 
 DATE_ET="$(TZ=America/New_York date '+%Y-%m-%d')"
 if [ -z "$BODY" ] || ! printf '%s' "$BODY" | grep -q '^# Daily Report'; then
-  BODY="Daily report ${DATE_ET} - this run could not gather data (likely a transient broker/API hiccup). No action needed unless several in a row come back empty."
+  ERRTAIL="$(grep -v '^[0-9-]\{10\} [0-9:]\{8\} \[' "$ERRLOG" 2>/dev/null | tail -25)"
+  BODY="Daily report ${DATE_ET} - GENERATION FAILED.
+
+The report generator ran but produced no digest. Investigate if several in a row fail.
+
+Error output:
+${ERRTAIL:-(no stderr captured)}"
   SUBJECT="Daily report ${DATE_ET} - GENERATION FAILED"
 else
   # Persist a dated copy on the box (reports/*.md is git-ignored; handy for history).

@@ -1,0 +1,10 @@
+[Unit]
+Description=Pipeline health checklist (DAILY): data freshness + rebalance status -> DB + SNS
+After=docker.service
+Wants=docker.service
+[Service]
+Type=oneshot
+Environment=AWS_REGION=us-east-1
+WorkingDirectory=/opt/workbench/app
+ExecStart=/bin/bash /opt/workbench/app/deploy/aws/pipeline-health.sh DAILY
+SuccessExitStatus=0 1 2

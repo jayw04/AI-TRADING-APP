@@ -46,7 +46,7 @@ from zoneinfo import ZoneInfo
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
@@ -58,7 +58,9 @@ from app.db.enums import (
 from app.db.enums import (
     SignalType as SignalTypeEnum,
 )
+from app.db.models import ops_health
 from app.db.models.account import Account, AccountMode
+from app.db.models.order import Order
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.strategy_run import StrategyRun
 from app.events.bus import EventBus
@@ -141,8 +143,12 @@ class RunningStrategy:
     symbols: list[str]
     timeframe: str  # for periodic on_bar dispatch
     schedule: str  # cron expression or "event" — drives WS vs cron path
-    overlay_job_id: str | None = None  # P10 §2: APScheduler id for the daily overlay tick (None = no overlay)
-    last_dispatch_at: float | None = None  # epoch secs of the last successful on_bar (P11 dispatch-liveness)
+    overlay_job_id: str | None = (
+        None  # P10 §2: APScheduler id for the daily overlay tick (None = no overlay)
+    )
+    last_dispatch_at: float | None = (
+        None  # epoch secs of the last successful on_bar (P11 dispatch-liveness)
+    )
 
 
 class StrategyEngine:
@@ -212,9 +218,7 @@ class StrategyEngine:
             try:
                 await self.unregister(sid, reason="engine_shutdown")
             except Exception:
-                logger.exception(
-                    "strategy_unregister_failed_on_shutdown", strategy_id=sid
-                )
+                logger.exception("strategy_unregister_failed_on_shutdown", strategy_id=sid)
 
         for task in (self._fill_task, self._signal_task):
             task.cancel()
@@ -265,7 +269,9 @@ class StrategyEngine:
             for r in self._running.values()
         ]
         return evaluate_dispatch_health(
-            snaps, now=now, is_regular_session=is_regular,
+            snaps,
+            now=now,
+            is_regular_session=is_regular,
             engine_uptime_s=now - self._started_at,
         )
 
@@ -310,19 +316,21 @@ class StrategyEngine:
             # with no live account cannot dispatch → ERROR (not a silent paper
             # fallback, which would place orders on the wrong account).
             account_mode = (
-                AccountMode.live
-                if row.status == StrategyStatus.LIVE
-                else AccountMode.paper
+                AccountMode.live if row.status == StrategyStatus.LIVE else AccountMode.paper
             )
             account = (
-                await session.execute(
-                    select(Account).where(
-                        Account.user_id == row.user_id,
-                        Account.broker == "alpaca",
-                        Account.mode == account_mode,
+                (
+                    await session.execute(
+                        select(Account).where(
+                            Account.user_id == row.user_id,
+                            Account.broker == "alpaca",
+                            Account.mode == account_mode,
+                        )
                     )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if account is None:
                 await self._mark_error(session, row, f"no_{account_mode.value}_account")
                 await session.commit()
@@ -354,12 +362,16 @@ class StrategyEngine:
                 from app.services.eval_harness.gate import make_harness_submit_fn
 
                 harness = (
-                    await session.execute(
-                        select(EvalHarness)
-                        .where(EvalHarness.mode_a_strategy_id == row.id)
-                        .where(EvalHarness.state != HARNESS_TERMINATED)
+                    (
+                        await session.execute(
+                            select(EvalHarness)
+                            .where(EvalHarness.mode_a_strategy_id == row.id)
+                            .where(EvalHarness.state != HARNESS_TERMINATED)
+                        )
                     )
-                ).scalars().first()
+                    .scalars()
+                    .first()
+                )
                 if harness is not None:
                     submit_order_fn = make_harness_submit_fn(
                         harness_id=harness.id,
@@ -495,9 +507,8 @@ class StrategyEngine:
         # (max_instances=1 + coalesce) so a slow/duplicate fire can't stack — the
         # idempotency half of ADR 0021's recurring-action contract.
         overlay_job_id: str | None = None
-        overlay_schedule = (
-            merged_params.get("daily_overlay_schedule")
-            or getattr(cls, "daily_overlay_schedule", None)
+        overlay_schedule = merged_params.get("daily_overlay_schedule") or getattr(
+            cls, "daily_overlay_schedule", None
         )
         if merged_params.get("use_daily_overlay") and overlay_schedule:
             overlay_job_id = f"strategy:{strategy_id}:overlay"
@@ -579,16 +590,12 @@ class StrategyEngine:
             try:
                 self._scheduler.remove_job(jid)
             except Exception:
-                logger.exception(
-                    "strategy_remove_job_failed", strategy_id=strategy_id, job_id=jid
-                )
+                logger.exception("strategy_remove_job_failed", strategy_id=strategy_id, job_id=jid)
 
         try:
             await running.instance.on_shutdown()
         except Exception:
-            logger.exception(
-                "strategy_on_shutdown_failed", strategy_id=strategy_id
-            )
+            logger.exception("strategy_on_shutdown_failed", strategy_id=strategy_id)
 
         closed_run_id: int | None = None
         closed_started_at: datetime | None = None
@@ -632,9 +639,7 @@ class StrategyEngine:
                     if closed_started_at.tzinfo is not None
                     else closed_started_at.replace(tzinfo=UTC)
                 )
-                duration_seconds = int(
-                    (ended_aware - started_aware).total_seconds()
-                )
+                duration_seconds = int((ended_aware - started_aware).total_seconds())
             await self._bus.publish(
                 "strategy.run_ended",
                 {
@@ -654,9 +659,7 @@ class StrategyEngine:
                 "reason": reason,
             },
         )
-        logger.info(
-            "strategy_unregistered", strategy_id=strategy_id, reason=reason
-        )
+        logger.info("strategy_unregistered", strategy_id=strategy_id, reason=reason)
         await self._notify_bar_stream_changed()
 
     # ---- bar stream integration (P4 §8) ----
@@ -701,9 +704,7 @@ class StrategyEngine:
             except Exception as exc:
                 await self._handle_user_exception(sid, "on_bar", exc)
 
-    async def start_event_fallback(
-        self, *, interval_seconds: int = 60
-    ) -> str:
+    async def start_event_fallback(self, *, interval_seconds: int = 60) -> str:
         """Activate a recurring fallback that fires ``on_bar`` for every
         event-scheduled strategy at ``interval_seconds``. Used while the
         WS bar stream is disconnected. Returns the APScheduler job id."""
@@ -735,9 +736,7 @@ class StrategyEngine:
                     latest = await self._bar_cache.get_latest_bar(symbol)
                     if latest is None:
                         continue
-                    event_bar = self._coerce_to_bar(
-                        symbol, running.timeframe, latest
-                    )
+                    event_bar = self._coerce_to_bar(symbol, running.timeframe, latest)
                     if event_bar is None:
                         continue
                 except Exception:
@@ -819,9 +818,7 @@ class StrategyEngine:
         session? REGULAR always; pre/after only when its params opt in via
         ``allow_extended_hours``; CLOSED never. Out-of-session ticks are
         skipped (logged, not an error) so open/close guards are enforceable."""
-        allow_extended = bool(
-            running.instance.params.get("allow_extended_hours", False)
-        )
+        allow_extended = bool(running.instance.params.get("allow_extended_hours", False))
         info = self._market_session.classify()
         if info.dispatchable(allow_extended=allow_extended):
             return True
@@ -835,20 +832,38 @@ class StrategyEngine:
 
     async def _dispatch_bar_tick(self, *, strategy_id: int) -> None:
         """APScheduler-invoked: fetch the latest bar for each of this
-        strategy's symbols and call ``on_bar``."""
+        strategy's symbols and call ``on_bar``.
+
+        Every dispatch writes a ``strategy_dispatch_runs`` row — INCLUDING one that
+        submits no orders. A rebalance that legitimately trades nothing and a rebalance
+        that never fired are indistinguishable in ``orders`` (a no-op leaves no orders to
+        derive a window from); recording the dispatch itself is what separates them. A
+        missing row is the alarm.
+
+        The telemetry NEVER interferes with dispatch: recording is fully guarded, and a
+        failure to record is logged and swallowed.
+        """
+        started = datetime.now(UTC)
         running = self._running.get(strategy_id)
         if running is None:
+            await self._record_dispatch(strategy_id, None, started, ops_health.DISPATCH_NOT_RUNNING)
             return
         if not self._dispatch_allowed(running):
+            await self._record_dispatch(
+                strategy_id,
+                running,
+                started,
+                ops_health.DISPATCH_SKIPPED_OUT_OF_SESSION,
+            )
             return
 
+        symbols_with_bars = 0
         for symbol in running.symbols:
             try:
-                df = await running.instance.ctx.get_recent_bars(
-                    symbol, running.timeframe, n=1
-                )
+                df = await running.instance.ctx.get_recent_bars(symbol, running.timeframe, n=1)
                 if df.empty:
                     continue
+                symbols_with_bars += 1
                 last = df.iloc[-1]
                 bar = Bar(
                     symbol=symbol.upper(),
@@ -872,8 +887,100 @@ class StrategyEngine:
                 await running.instance.on_bar(bar)
                 running.last_dispatch_at = time.time()
             except Exception as exc:
+                await self._record_dispatch(
+                    strategy_id,
+                    running,
+                    started,
+                    ops_health.DISPATCH_ERROR,
+                    symbols_with_bars=symbols_with_bars,
+                    error_text=f"{type(exc).__name__}: {exc}"[:2000],
+                )
                 await self._handle_user_exception(strategy_id, "on_bar", exc)
                 return  # stop dispatching to a broken strategy this tick
+
+        await self._record_dispatch(
+            strategy_id,
+            running,
+            started,
+            ops_health.DISPATCH_COMPLETED,
+            symbols_with_bars=symbols_with_bars,
+        )
+
+    async def _record_dispatch(
+        self,
+        strategy_id: int,
+        running: RunningStrategy | None,
+        started: datetime,
+        outcome: str,
+        *,
+        symbols_with_bars: int = 0,
+        error_text: str | None = None,
+    ) -> None:
+        """Persist one ``strategy_dispatch_runs`` row. FULLY GUARDED: telemetry must never
+        be able to break or delay a trading dispatch, so every failure here is logged and
+        swallowed."""
+        try:
+            finished = datetime.now(UTC)
+            symbols_total = len(running.symbols) if running else 0
+            try:
+                session_name = self._market_session.classify().session.value
+            except Exception:
+                session_name = None
+
+            async with self._session_factory() as session:
+                account_id: int | None = None
+                orders_submitted = 0
+                user_id = (
+                    await session.execute(
+                        select(StrategyRow.user_id).where(StrategyRow.id == strategy_id)
+                    )
+                ).scalar_one_or_none()
+                if user_id is not None:
+                    account_id = (
+                        await session.execute(
+                            select(Account.id)
+                            .where(Account.user_id == user_id)
+                            .order_by(Account.id)
+                            .limit(1)
+                        )
+                    ).scalar_one_or_none()
+                if account_id is not None:
+                    orders_submitted = int(
+                        (
+                            await session.execute(
+                                select(func.count(Order.id)).where(
+                                    Order.account_id == account_id,
+                                    Order.created_at >= started,
+                                    Order.created_at <= finished,
+                                )
+                            )
+                        ).scalar_one()
+                        or 0
+                    )
+
+                session.add(
+                    ops_health.StrategyDispatchRun(
+                        strategy_id=strategy_id,
+                        account_id=account_id,
+                        started_at=started,
+                        finished_at=finished,
+                        duration_ms=int((finished - started).total_seconds() * 1000),
+                        schedule=(running.schedule if running else None),
+                        market_session=session_name,
+                        outcome=outcome,
+                        symbols_total=symbols_total,
+                        symbols_with_bars=symbols_with_bars,
+                        orders_submitted=orders_submitted,
+                        error_text=error_text,
+                    )
+                )
+                await session.commit()
+        except Exception:
+            logger.warning(
+                "strategy_dispatch_telemetry_failed",
+                strategy_id=strategy_id,
+                exc_info=True,
+            )
 
     async def _dispatch_health_monitor_tick(self) -> None:
         """Recurring P11 ops check: WARN-log any active bar-driven strategy that has gone
@@ -920,15 +1027,11 @@ class StrategyEngine:
                 try:
                     await handler(event)
                 except Exception:
-                    logger.exception(
-                        "strategy_engine_handler_error", topic=topic
-                    )
+                    logger.exception("strategy_engine_handler_error", topic=topic)
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception(
-                "strategy_engine_consumer_crashed", topic=topic
-            )
+            logger.exception("strategy_engine_consumer_crashed", topic=topic)
 
     async def _on_fill_event(self, payload: dict[str, Any]) -> None:
         """Route fill events to the originating strategy.
@@ -989,9 +1092,7 @@ class StrategyEngine:
         try:
             signal_id = int(payload.get("signal_id") or 0)
             type_value = payload.get("type")
-            sig_type = (
-                SignalTypeEnum(type_value) if type_value else SignalTypeEnum.INFO
-            )
+            sig_type = SignalTypeEnum(type_value) if type_value else SignalTypeEnum.INFO
         except Exception:
             return
 
@@ -1037,16 +1138,20 @@ class StrategyEngine:
                 )
                 # Close any open run for this strategy
                 open_run = (
-                    await session.execute(
-                        select(StrategyRun)
-                        .where(
-                            StrategyRun.strategy_id == strategy_id,
-                            StrategyRun.ended_at.is_(None),
+                    (
+                        await session.execute(
+                            select(StrategyRun)
+                            .where(
+                                StrategyRun.strategy_id == strategy_id,
+                                StrategyRun.ended_at.is_(None),
+                            )
+                            .order_by(StrategyRun.id.desc())
+                            .limit(1)
                         )
-                        .order_by(StrategyRun.id.desc())
-                        .limit(1)
                     )
-                ).scalars().first()
+                    .scalars()
+                    .first()
+                )
                 if open_run is not None:
                     open_run.ended_at = datetime.now(UTC)
                     open_run.status = StrategyStatus.ERROR
@@ -1090,9 +1195,7 @@ class StrategyEngine:
         """
         AuditLogger.write(
             session,
-            actor_type=(
-                AuditActorType.USER if user_id is not None else AuditActorType.SYSTEM
-            ),
+            actor_type=(AuditActorType.USER if user_id is not None else AuditActorType.SYSTEM),
             actor_id=str(user_id) if user_id is not None else None,
             action=action,
             target_type="strategy",
