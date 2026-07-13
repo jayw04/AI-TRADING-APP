@@ -36,7 +36,7 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.order import Order
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
-from app.orders.router import BrokerModeError
+from app.orders.router import BrokerModeError, CancelRejectedByRisk
 from app.risk import OrderRequest
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -310,6 +310,11 @@ async def cancel_order(
     order_router = _get_router(request)
     try:
         await order_router.cancel(order_id, actor_user_id=current_user.id)
+    except CancelRejectedByRisk as exc:
+        # ADR 0042 § B. The account is locked and removing this order would NOT reduce risk —
+        # most commonly, it is a pending sell-to-close and cancelling it would trap the
+        # exposure on the book. A human cannot assert otherwise; there is no override.
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except TransientAlpacaError as exc:
         raise HTTPException(
             status_code=503, detail=f"Broker temporarily unavailable: {exc}"
