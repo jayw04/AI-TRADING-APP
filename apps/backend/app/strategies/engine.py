@@ -47,6 +47,7 @@ import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
@@ -58,6 +59,7 @@ from app.db.enums import (
 from app.db.enums import (
     SignalType as SignalTypeEnum,
 )
+from app.db.models import strategy_slot_claim as slot_claim
 from app.db.models.account import Account, AccountMode
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.strategy_run import StrategyRun
@@ -682,6 +684,11 @@ class StrategyEngine:
                 continue
             if symbol not in {s.upper() for s in running.symbols}:
                 continue
+            # P0: HALTED stops DISPATCH on every path, not just the cron one. An event-driven
+            # strategy would otherwise keep firing proposals on each streamed bar — the
+            # "spinning at maximum rate" ADR 0004 names, at websocket cadence.
+            if not await self._is_dispatchable_now(sid):
+                continue
             if not self._dispatch_allowed(running):
                 continue
             try:
@@ -839,7 +846,34 @@ class StrategyEngine:
         running = self._running.get(strategy_id)
         if running is None:
             return
+
+        # ---- P0 (incident 2026-07-13): HALTED must prevent DISPATCH, not merely reject the
+        # orders that follow. ADR 0004 says so explicitly ("a strategy that submits an order,
+        # gets a CIRCUIT_BREAKER rejection, and tries again on the next bar tick is not
+        # actually stopped — it's spinning at maximum rate") — but nothing implemented it. The
+        # breaker flipped strategies.status to HALTED and NOTHING removed the strategy from
+        # ``_running``, so momentum-portfolio was halted at 09:30 ET, dispatched anyway at
+        # 10:00, and fired 18 order proposals into the risk engine. Every one was rejected.
+        #
+        # The persisted status is the safety boundary. Read it immediately before dispatch —
+        # NOT ``_running`` — because the status can change between the job being queued and
+        # the job starting (exactly what happened: the breaker tripped 30 minutes after the
+        # scheduler had already armed the 10:00 slot). Fail CLOSED: a status we cannot read is
+        # not a licence to trade.
+        if not await self._is_dispatchable_now(strategy_id):
+            return
+
         if not self._dispatch_allowed(running):
+            return
+
+        # ---- P0: one run per scheduled slot, enforced in DURABLE storage.
+        # ``ctx.dispatch_seq`` (below) closes the intra-dispatch hole, but process memory is
+        # not a safety boundary — it does not survive a restart or a second scheduler. The
+        # UNIQUE (account, strategy, slot, version) constraint is what actually stops the
+        # second run. A slot is claimed by being ATTEMPTED, not by succeeding: a run whose
+        # every proposal was risk-rejected is COMPLETE, not "nothing happened, try again".
+        claim = await self._claim_slot(strategy_id, running)
+        if claim is None:
             return
 
         # Stamp a fresh dispatch identity BEFORE the per-symbol fan-out below. on_bar is about
@@ -882,8 +916,135 @@ class StrategyEngine:
                 await running.instance.on_bar(bar)
                 running.last_dispatch_at = time.time()
             except Exception as exc:
+                await self._close_slot(claim, slot_claim.SLOT_ERROR, f"{type(exc).__name__}: {exc}")
                 await self._handle_user_exception(strategy_id, "on_bar", exc)
                 return  # stop dispatching to a broken strategy this tick
+
+        # The slot is COMPLETE. Note this is reached even when every order the strategy
+        # proposed was rejected by a risk gate — an all-rejected run HAPPENED, it was simply
+        # refused, and treating it as "nothing happened" is what let 2026-07-13 re-run 6x.
+        await self._close_slot(claim, slot_claim.SLOT_COMPLETED, None)
+
+    async def _is_dispatchable_now(self, strategy_id: int) -> bool:
+        """Is this strategy's PERSISTED status still runnable, right now?
+
+        The authoritative check, read immediately before dispatch. ``_running`` is an
+        in-memory cache that a circuit-breaker trip does not invalidate — the breaker writes
+        ``strategies.status = HALTED`` and nothing evicts the strategy from the engine's map.
+        Consulting only ``_running`` is therefore how a HALTED strategy kept being dispatched.
+
+        FAILS CLOSED: if the status cannot be read, we do not dispatch. A database we cannot
+        query is not permission to trade.
+        """
+        try:
+            async with self._session_factory() as session:
+                status = (
+                    await session.execute(
+                        select(StrategyRow.status).where(StrategyRow.id == strategy_id)
+                    )
+                ).scalar_one_or_none()
+        except Exception:
+            logger.exception("strategy_dispatch_status_check_failed", strategy_id=strategy_id)
+            return False  # fail closed
+
+        if status in ENGINE_RUNNABLE_STATUSES:
+            return True
+
+        logger.warning(
+            "strategy_dispatch_skipped_not_runnable",
+            strategy_id=strategy_id,
+            status=str(status),
+            detail=(
+                "persisted status is not runnable (ADR 0004: HALTED must stop DISPATCH, not "
+                "merely reject the resulting orders)"
+            ),
+        )
+        return False
+
+    async def _claim_slot(
+        self, strategy_id: int, running: RunningStrategy
+    ) -> int | None:
+        """Claim this scheduled slot in DURABLE storage. Returns the claim id, or None if the
+        slot is already claimed (in which case the caller must not run).
+
+        The UNIQUE (account, strategy, slot, version, retry_generation) constraint is the
+        control; this is not advisory. FAILS CLOSED: if the claim cannot be written we do not
+        dispatch, because we cannot then prove the slot is unclaimed.
+        """
+        try:
+            slot = self._slot_key(running.schedule)
+            async with self._session_factory() as session:
+                row = (
+                    await session.execute(
+                        select(StrategyRow).where(StrategyRow.id == strategy_id)
+                    )
+                ).scalar_one_or_none()
+                if row is None:
+                    return None
+                account_id = (
+                    await session.execute(
+                        select(Account.id)
+                        .where(Account.user_id == row.user_id)
+                        .order_by(Account.id)
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+
+                claim = slot_claim.StrategySlotClaim(
+                    account_id=account_id,
+                    strategy_id=strategy_id,
+                    scheduled_slot=slot,
+                    strategy_version=str(row.version or "0"),
+                    retry_generation=0,
+                    claimed_at=datetime.now(UTC),
+                    outcome=slot_claim.SLOT_RUNNING,
+                )
+                session.add(claim)
+                try:
+                    await session.commit()
+                except IntegrityError:
+                    await session.rollback()
+                    logger.warning(
+                        "strategy_slot_already_claimed",
+                        strategy_id=strategy_id,
+                        scheduled_slot=slot,
+                        detail=(
+                            "this scheduled slot has already been run. A run whose orders were "
+                            "all risk-rejected is still a COMPLETED run — retry requires an "
+                            "explicit retry_generation, not a re-dispatch."
+                        ),
+                    )
+                    return None
+                return claim.id
+        except Exception:
+            logger.exception("strategy_slot_claim_failed", strategy_id=strategy_id)
+            return None  # fail closed
+
+    def _slot_key(self, schedule: str) -> str:  # noqa: ARG002 — schedule kept for future granularity
+        """The scheduled slot this dispatch belongs to, as an ET wall-clock key.
+
+        Truncated to the MINUTE: the six 2026-07-13 runs all landed inside 14:00:03-14:00:52,
+        so a second-resolution key would have let every one of them claim a distinct slot and
+        proved nothing. Strategy schedules are ET (see _STRATEGY_SCHEDULE_TZ), and cron slots
+        are minute-granular, so the minute IS the slot.
+        """
+        return f"{datetime.now(_STRATEGY_SCHEDULE_TZ):%Y-%m-%dT%H:%M}"
+
+    async def _close_slot(self, claim_id: int | None, outcome: str, error: str | None) -> None:
+        """Mark the claimed slot finished. Guarded — bookkeeping must never break a dispatch."""
+        if claim_id is None:
+            return
+        try:
+            async with self._session_factory() as session:
+                row = await session.get(slot_claim.StrategySlotClaim, claim_id)
+                if row is None:
+                    return
+                row.outcome = outcome
+                row.finished_at = datetime.now(UTC)
+                row.error_text = (error or None) and error[:2000]
+                await session.commit()
+        except Exception:
+            logger.warning("strategy_slot_close_failed", claim_id=claim_id, exc_info=True)
 
     async def _dispatch_health_monitor_tick(self) -> None:
         """Recurring P11 ops check: WARN-log any active bar-driven strategy that has gone
@@ -910,6 +1071,12 @@ class StrategyEngine:
         scheduler."""
         running = self._running.get(strategy_id)
         if running is None:
+            return
+        # Same P0 gate as _dispatch_bar_tick: a HALTED strategy must not be dispatched at all.
+        # momentum-portfolio runs this overlay daily at 15:00 ET — so on 2026-07-13 it would
+        # have fired a SECOND wave of order proposals into the risk engine, hours after the
+        # breaker had already halted it.
+        if not await self._is_dispatchable_now(strategy_id):
             return
         if not self._dispatch_allowed(running):
             return
