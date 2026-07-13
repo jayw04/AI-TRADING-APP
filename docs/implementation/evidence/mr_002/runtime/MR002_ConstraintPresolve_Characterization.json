@@ -1,0 +1,242 @@
+{
+  "instances": 3895,
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "corpus_hash_matches_persisted": true,
+  "per_instance_matrix_hash_match": true,
+  "symbolic_sidecar_sha256": "bbc73b03c16e06e3da542ccaee12a30849d0b04f82f82e14ce1bea37b8971210",
+  "matrix_corpus_unmodified": true,
+  "rows_total": 96085,
+  "rows_removed": 31249,
+  "certificates": {
+    "SAME_DIRECTION_SECTOR_DOMINANCE": 28044,
+    "ZERO_ROW": 3164,
+    "SAME_LHS_WEAKER_BOUND": 15,
+    "EXACT_DUPLICATE": 26
+  },
+  "raw_presolve_failed": 70,
+  "sqrt_presolve_failed": 5,
+  "raw_presolve_failure_kinds": {
+    "RAISED:constraints are inconsistent, no solution": 62,
+    "kkt_residual+stationarity_residual": 8
+  },
+  "sqrt_presolve_failure_kinds": {
+    "RAISED:constraints are inconsistent, no solution": 5
+  },
+  "raw_failed": 70,
+  "sqrt_failed": 5,
+  "max_orig_row_violation": 4.857472727807466e-16,
+  "worst_sqrt_presolve_stationarity": 1.887112688336856e-10,
+  "max_z_disagreement_vs_raw_clean": 3.8326980478231576e-14,
+  "max_obj_disagreement_vs_raw_clean": 6.995792833919268e-14,
+  "removed_by_numerical_threshold": 0,
+  "audit_sample": [
+    [
+      {
+        "removed_row_id": 9,
+        "removed_row_label": "sector_gross[XLY]",
+        "dominating_row_id": 10,
+        "sector_id": "XLY",
+        "common_direction": 1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          194033
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLY have direction +1 -> sector_gross = |sector_net|; the 5%-of-gross net row implies the 20%-of-gross gross row for G >= 0",
+        "original_coefficients_sha256": "04b923f3587fa43397ff05c55d8edc9bdc1be8f96d05ddd056f5db4c7c0dd615",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      },
+      {
+        "removed_row_id": 11,
+        "removed_row_label": "sector_net-[XLY]",
+        "dominating_row_id": null,
+        "sector_id": "XLY",
+        "common_direction": 1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          194033
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLY have direction +1 -> the opposite-sign net row is -gross_k - 0.05G <= 0, always true (both terms non-negative)",
+        "original_coefficients_sha256": "3f6e865a52c9cbf0a9ae32b64d10a6731d551e5da7a0e7497d5706a37b4e85c3",
+        "original_rhs_ieee754_hex": "0x0.0p+0"
+      },
+      {
+        "removed_row_id": 3,
+        "removed_row_label": "sector_gross[XLP]",
+        "dominating_row_id": 5,
+        "sector_id": "XLP",
+        "common_direction": -1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          196115
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLP have direction -1 -> sector_gross = |sector_net|; the 5%-of-gross net row implies the 20%-of-gross gross row for G >= 0",
+        "original_coefficients_sha256": "b2ba4dfcf9bed2d9c6c50c39fec58f0a837994e207271a35f6f65eb5e99b8354",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      },
+      {
+        "removed_row_id": 4,
+        "removed_row_label": "sector_net+[XLP]",
+        "dominating_row_id": null,
+        "sector_id": "XLP",
+        "common_direction": -1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          196115
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLP have direction -1 -> the opposite-sign net row is -gross_k - 0.05G <= 0, always true (both terms non-negative)",
+        "original_coefficients_sha256": "44f3c0e92ae641301aa51cc0794f4f3ca7d06c3324c75a3d1d349565392dfe9a",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      }
+    ],
+    [
+      {
+        "removed_row_id": 0,
+        "removed_row_label": "sector_gross[XLF]",
+        "dominating_row_id": 1,
+        "sector_id": "XLF",
+        "common_direction": 1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          195763,
+          199642
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLF have direction +1 -> sector_gross = |sector_net|; the 5%-of-gross net row implies the 20%-of-gross gross row for G >= 0",
+        "original_coefficients_sha256": "fca47080649359adabb800f0e1ec26a706a8ef40140835a7229615118bdce6e2",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      },
+      {
+        "removed_row_id": 2,
+        "removed_row_label": "sector_net-[XLF]",
+        "dominating_row_id": null,
+        "sector_id": "XLF",
+        "common_direction": 1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          195763,
+          199642
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLF have direction +1 -> the opposite-sign net row is -gross_k - 0.05G <= 0, always true (both terms non-negative)",
+        "original_coefficients_sha256": "065d3c54352f47c36a5d4b28ad7182e7ce46f940dec967b42cbea35226e9daa6",
+        "original_rhs_ieee754_hex": "0x0.0p+0"
+      },
+      {
+        "removed_row_id": 3,
+        "removed_row_label": "sector_gross[XLP]",
+        "dominating_row_id": 5,
+        "sector_id": "XLP",
+        "common_direction": -1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          196115
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLP have direction -1 -> sector_gross = |sector_net|; the 5%-of-gross net row implies the 20%-of-gross gross row for G >= 0",
+        "original_coefficients_sha256": "9db30c85608531ae3dc0f4220c4fe4a49c04c95aff544c560b8101872e4fd707",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      },
+      {
+        "removed_row_id": 4,
+        "removed_row_label": "sector_net+[XLP]",
+        "dominating_row_id": null,
+        "sector_id": "XLP",
+        "common_direction": -1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          196115
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLP have direction -1 -> the opposite-sign net row is -gross_k - 0.05G <= 0, always true (both terms non-negative)",
+        "original_coefficients_sha256": "6b917d2910961059646c0fcc4b324ffbbdcaa52b5fb372bb74c76cf25181cdfb",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      }
+    ],
+    [
+      {
+        "removed_row_id": 3,
+        "removed_row_label": "sector_gross[XLP]",
+        "dominating_row_id": 5,
+        "sector_id": "XLP",
+        "common_direction": -1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          196115
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLP have direction -1 -> sector_gross = |sector_net|; the 5%-of-gross net row implies the 20%-of-gross gross row for G >= 0",
+        "original_coefficients_sha256": "875f142dc210466d26d5a61e57aa7d3618accee1ef6fae26e7b9ad8bb5579b65",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      },
+      {
+        "removed_row_id": 4,
+        "removed_row_label": "sector_net+[XLP]",
+        "dominating_row_id": null,
+        "sector_id": "XLP",
+        "common_direction": -1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          196115
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLP have direction -1 -> the opposite-sign net row is -gross_k - 0.05G <= 0, always true (both terms non-negative)",
+        "original_coefficients_sha256": "7e0613afa915459be75dc76afec64688318d0c3f7bb72558fee0dbdc53f55648",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      },
+      {
+        "removed_row_id": 6,
+        "removed_row_label": "sector_gross[XLU]",
+        "dominating_row_id": 8,
+        "sector_id": "XLU",
+        "common_direction": -1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          199337
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLU have direction -1 -> sector_gross = |sector_net|; the 5%-of-gross net row implies the 20%-of-gross gross row for G >= 0",
+        "original_coefficients_sha256": "d410c20c5ef93d91f1800ea5efb8de266b0ab422a852dac64f78445326ee2aec",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      },
+      {
+        "removed_row_id": 7,
+        "removed_row_label": "sector_net+[XLU]",
+        "dominating_row_id": null,
+        "sector_id": "XLU",
+        "common_direction": -1,
+        "fixed_support_ids": [],
+        "variable_support_ids": [
+          199337
+        ],
+        "symbolic_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "redundancy_certificate": "SAME_DIRECTION_SECTOR_DOMINANCE",
+        "symbolic_evidence": "all exposures in XLU have direction -1 -> the opposite-sign net row is -gross_k - 0.05G <= 0, always true (both terms non-negative)",
+        "original_coefficients_sha256": "bd977b3a3d97f100a3e22f68476f15d18f17f079868a5cc52e6c282b687fc316",
+        "original_rhs_ieee754_hex": "-0x0.0p+0"
+      }
+    ]
+  ],
+  "gates": {
+    "sqrt_presolve_solves_all_instances": false,
+    "every_original_row_passes_direct_reevaluation": true,
+    "z_agreement_vs_raw_clean_within_1e-8": true,
+    "objective_agreement_within_1e-8": true,
+    "zero_rows_removed_by_numerical_threshold": true
+  },
+  "VERDICT": "FAIL"
+}
