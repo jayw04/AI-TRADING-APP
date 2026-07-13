@@ -109,7 +109,13 @@ class CombinedBook(Strategy):
         "market_filter_symbol": "SPY",   # proxy for the MA filter (also a held cross-asset ETF)
         "market_ma_days": 200,
         # --- governance & sizing ---
-        "max_position_pct": 0.04,        # per-name cap (the sibling equity sleeve's 4%)
+        "max_position_pct": 0.04,        # per-name cap for the ~200-stock EQUITY sleeve
+        # Separate per-name cap for the 9-ETF CROSS-ASSET sleeve. The 4% figure above is a
+        # single-STOCK concentration control; the cross-asset sleeve carries 60% of the book
+        # across 9 macro ETFs, so its legitimate per-name weight is ~6-15%. Capping it at 4%
+        # made the sleeve structurally unable to reach its mandate (9 x 4% = a 36% ceiling
+        # against a 60% target) and silently stranded the overflow as cash.
+        "cross_asset_max_position_pct": 0.15,
         "fractional_shares": True,  # fractional deploys ~fully; whole shares under-deploy (default ON)
         "cash_buffer_pct": 0.02,
         "initial_equity_estimate": 100_000,
@@ -226,7 +232,16 @@ class CombinedBook(Strategy):
         },
         "max_position_pct": {
             "type": "number", "min": 0, "max": 1, "default": 0.04,
-            "description": "Hard cap on any single position as a fraction of equity."
+            "description": "Hard cap on any single EQUITY-sleeve position as a fraction of equity."
+        },
+        "cross_asset_max_position_pct": {
+            "type": "number", "min": 0, "max": 1, "default": 0.15,
+            "description": (
+                "Hard cap on any single CROSS-ASSET (ETF) position as a fraction of equity. "
+                "Separate from max_position_pct because the 9-ETF sleeve carries 60% of the "
+                "book: a 4% single-stock cap would put a 36% ceiling on a 60% mandate and "
+                "silently strand the difference as cash."
+            ),
         },
         "fractional_shares": {
             "type": "boolean", "default": True,
@@ -519,13 +534,28 @@ class CombinedBook(Strategy):
             return
 
         equity = await self._investable_equity()
-        cap = Decimal(str(self.params.get("max_position_pct", 0.04)))
+        eq_cap = Decimal(str(self.params.get("max_position_pct", 0.04)))
+        ca_cap = Decimal(str(self.params.get("cross_asset_max_position_pct", 0.15)))
+        ca_set = {s.upper() for s in self._cross_asset_symbols()}
         min_trade = Decimal(str(self.params.get("min_trade_pct", 0.03)))
         fractional = bool(self.params.get("fractional_shares", True))
 
+        # What the book DECIDED to hold vs what the per-name caps will actually let it hold.
+        # These used to diverge silently: `min(weight, cap)` quietly drops the overflow to cash
+        # and nothing reconciled the two, so the beta-cap governor could report "deploying
+        # 65.9%" while the executor deployed 32.3% and left 34% of equity idle for weeks.
+        intended_gross = sum((Decimal(str(w)) for w in target.values()), Decimal(0))
+        applied_gross = Decimal(0)
+        capped: list[str] = []
+
         buys: list[tuple[str, Decimal, float, Decimal]] = []
         for sym, weight in sorted(target.items()):
-            notional = min(equity * Decimal(str(weight)), equity * cap)
+            cap = ca_cap if sym.upper() in ca_set else eq_cap
+            want = equity * Decimal(str(weight))
+            notional = min(want, equity * cap)
+            if notional < want:
+                capped.append(sym)
+            applied_gross += notional / equity if equity > 0 else Decimal(0)
             price = await self._price(sym)
             if price is None or price <= 0:
                 await self.ctx.log_signal(sym, SignalType.ENTRY,
@@ -552,6 +582,26 @@ class CombinedBook(Strategy):
         for sym, qty, price, target_qty in buys:
             await self._submit(sym, OrderSide.BUY, qty, reason=f"{reason}_entry",
                                payload={"price": price, "target_qty": str(target_qty)})
+
+        # Reconcile DECIDED vs DEPLOYED. A book that quietly holds half of what it resolved to
+        # hold is broken no matter which of the two numbers is "right", so make the gap loud.
+        # Threshold is 2% of equity — below that it is rounding, not a stranded sleeve.
+        stranded = intended_gross - applied_gross
+        if stranded > Decimal("0.02"):
+            await self.ctx.log_signal(
+                "PORTFOLIO", SignalType.INFO,
+                payload={
+                    "reason": "position_cap_truncation",
+                    "intended_gross": float(round(intended_gross, 4)),
+                    "applied_gross": float(round(applied_gross, 4)),
+                    "stranded_pct_of_equity": float(round(stranded, 4)),
+                    "capped_names": capped[:20],
+                    "note": (
+                        "per-name position caps held the book below its resolved target; "
+                        "the difference is sitting in cash"
+                    ),
+                },
+            )
 
     async def _current_holdings(self) -> dict[str, Decimal]:
         """Long quantities currently held across every registered symbol (equity + ETFs)."""
