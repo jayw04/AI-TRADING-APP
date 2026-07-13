@@ -323,7 +323,7 @@ def discovery() -> dict:
     return M
 
 
-if __name__ == "__main__":
+def discovery_main() -> int:
     M = discovery()
     out = "/out/MR002_PIQP_CandidateCapabilityManifest.json"
     with open(out, "w", encoding="utf-8", newline="\n") as fh:
@@ -334,3 +334,109 @@ if __name__ == "__main__":
         "preconditioning_microproblem", "fatal", "verdict")}, indent=2, default=str))
     print(f"\nmanifest: {out}")
     raise SystemExit(0 if M["verdict"] == "VALID" else 1)
+
+
+# ======================================================================================
+# CORPUS CHARACTERIZATION — frozen sequential rule: P1 first, P2 only if P1 fails
+# ======================================================================================
+def _hash_instance(t, A_ub, b_ub, A_eq, b_eq, upper) -> str:
+    h = hashlib.sha256()
+    for arr in (t, A_ub, b_ub, A_eq, b_eq, upper):
+        a = np.ascontiguousarray(np.asarray(arr, dtype=np.float64))
+        h.update(str(a.shape).encode())
+        h.update(a.tobytes())
+    return h.hexdigest()
+
+
+def run_corpus(profile: str, inst, ids) -> dict:
+    from collections import Counter
+    sc = PROFILES[profile]
+    c = {"profile": profile, "preconditioner_scale_cost": sc,
+         "qualified": 0, "failed": 0, "failure_kinds": Counter(),
+         "worst_kkt": 0.0, "worst_stationarity": 0.0, "worst_primal": 0.0,
+         "worst_gap": 0.0, "failed_instances": []}
+    zs, gs = {}, {}
+    for i, rec in enumerate(inst):
+        try:
+            z, ck, bad, g = evaluate(sc, *(x.copy() for x in rec))
+            c["worst_kkt"] = max(c["worst_kkt"], ck["kkt_residual"])
+            c["worst_stationarity"] = max(c["worst_stationarity"], ck["stationarity_residual"])
+            c["worst_primal"] = max(c["worst_primal"], ck["primal_residual"])
+            c["worst_gap"] = max(c["worst_gap"], abs(g))
+            if bad:
+                c["failed"] += 1
+                c["failure_kinds"]["+".join(bad)] += 1
+                if len(c["failed_instances"]) < 20:
+                    c["failed_instances"].append({"index": i, "hash": ids[i], "why": bad})
+            else:
+                c["qualified"] += 1
+                zs[i], gs[i] = z, g
+        except Exception as e:
+            c["failed"] += 1
+            c["failure_kinds"][f"{type(e).__name__}:{str(e)[:60]}"] += 1
+            if len(c["failed_instances"]) < 20:
+                c["failed_instances"].append({"index": i, "hash": ids[i],
+                                              "why": [f"{type(e).__name__}: {e}"]})
+        if (i + 1) % 1000 == 0:
+            print(f"  [{profile}] {i+1}/{len(inst)} qualified={c['qualified']} "
+                  f"failed={c['failed']}", flush=True)
+    c["failure_kinds"] = dict(c["failure_kinds"])
+    c["qualifies_all"] = c["failed"] == 0
+    return c, zs, gs
+
+
+def corpus_main() -> int:
+    with open("/out/MR002_Stage3_Corpus_Hashes.json", encoding="utf-8") as fh:
+        HH = json.load(fh)
+    npz = np.load("/out/MR002_Stage3_Corpus.npz")
+    N = len(HH["instance_hashes"])
+    inst, ok = [], 0
+    for i in range(N):
+        rec = tuple(npz[f"{i}_{k}"] for k in ("t", "A_ub", "b_ub", "A_eq", "b_eq", "upper"))
+        if _hash_instance(*rec) == HH["instance_hashes"][i]:
+            ok += 1
+        inst.append(rec)
+    print(f"corpus {N} | per-instance hashes re-verified {ok}/{N}")
+    if ok != N:
+        return 1
+
+    R = {"record_type": "MR002_PIQP_CORPUS_CHARACTERIZATION",
+         "capability_manifest_sha256": "f9a615ad01e524ec09452bf959f7a0f597fdd8200a02a80383c7fa1b51ea0c74",
+         "instances": N, "corpus_verified": True, "profiles": {}}
+
+    print("\n=== P1 (preconditioner_scale_cost = false, vendor default) ===", flush=True)
+    p1, z1, g1 = run_corpus("P1", inst, HH["instance_hashes"])
+    R["profiles"]["P1"] = p1
+    print(f"  P1 QUALIFIED {p1['qualified']}/{N}  FAILED {p1['failed']}")
+    print(f"  worst KKT {p1['worst_kkt']:.3e} | gap {p1['worst_gap']:.3e}")
+
+    if p1["qualifies_all"]:
+        R["selected_profile"] = "P1"
+        R["p2_run"] = False
+        R["note"] = "P1 qualified on every instance; P2 corpus results are NOT used for selection."
+        sel_z, sel_g = z1, g1
+    else:
+        print("\n=== P2 (preconditioner_scale_cost = true) — P1 failed, running independently ===",
+              flush=True)
+        p2, z2, g2 = run_corpus("P2", inst, HH["instance_hashes"])
+        R["profiles"]["P2"] = p2
+        R["p2_run"] = True
+        print(f"  P2 QUALIFIED {p2['qualified']}/{N}  FAILED {p2['failed']}")
+        print(f"  worst KKT {p2['worst_kkt']:.3e} | gap {p2['worst_gap']:.3e}")
+        R["selected_profile"] = "P2" if p2["qualifies_all"] else None
+        sel_z, sel_g = (z2, g2) if p2["qualifies_all"] else (None, None)
+
+    R["VERDICT"] = "PASS" if R["selected_profile"] else "FAIL — STOP FOR ADJUDICATION"
+    dst = "/out/MR002_PIQP_Corpus_Characterization.json"
+    with open(dst, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(R, fh, indent=2, default=str)
+        fh.write("\n")
+    print("\n" + json.dumps({k: R[k] for k in
+          ("instances", "profiles", "selected_profile", "VERDICT")}, indent=2, default=str))
+    print(f"\nreport: {dst}")
+    return 0
+
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else "discovery"
+    raise SystemExit(discovery_main() if mode == "discovery" else corpus_main())
