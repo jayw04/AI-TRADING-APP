@@ -291,12 +291,22 @@ def classify(snap: AccountSnapshot, action: ProposedAction) -> RiskEffectDecisio
             [RiskEffectReason.NON_POSITIVE_QUANTITY],
         )
 
+    # A price is only needed to QUANTIFY an exposure change, never to CLASSIFY one. A MARKET
+    # order carries no limit_price, so requiring a price up-front made every market order on an
+    # un-held symbol collapse to INDETERMINATE/NO_PRICE — including a buy that is plainly
+    # RISK_INCREASING and a naked sell that is plainly NO_POSITION.
+    #
+    # The outcome was safe (fail-closed), but the RECORDED REASON was wrong, and the reason IS
+    # the evidence. A ledger that says "I could not price it" when the truth is "you do not own
+    # it" makes the next investigation harder, not easier — the exact failure this ADR exists to
+    # end. Caught by the 2026-07-13 canary, which is what a canary is for.
+    #
+    # So: classify from POSITION and SIDE first. Demand a price only on the path that actually
+    # needs one — a permitted reduction, where the held position always carries its own mark.
     price = action.price or (pos.price if pos else None)
-    if price is None or price <= ZERO:
-        return _out(RiskEffect.INDETERMINATE, Decision.FAIL_CLOSED, [RiskEffectReason.NO_PRICE])
 
     # A BUY can only add long exposure on a long-only book. (Buy-to-cover a short is
-    # conceptually reducing — and explicitly out of v1 scope.)
+    # conceptually reducing — and explicitly out of v1 scope.) No price required to know that.
     if action.side == OrderSide.BUY:
         if qty_before < ZERO:
             return _out(
@@ -315,7 +325,7 @@ def classify(snap: AccountSnapshot, action: ProposedAction) -> RiskEffectDecisio
             Decision.REJECT,
             reasons,
             qty_after=qty_after,
-            gross_after=gross_before + action.qty * price,
+            gross_after=(gross_before + action.qty * price) if price else None,
         )
 
     # --- a SELL. The verb tells us nothing; the projected state does. -------------------
@@ -330,7 +340,7 @@ def classify(snap: AccountSnapshot, action: ProposedAction) -> RiskEffectDecisio
                 else RiskEffectReason.INCREASES_INSTRUMENT_EXPOSURE
             ],
             qty_after=qty_before - action.qty,
-            gross_after=gross_before + action.qty * price,
+            gross_after=(gross_before + action.qty * price) if price else None,
         )
 
     qty_after = qty_before - action.qty
@@ -351,6 +361,19 @@ def classify(snap: AccountSnapshot, action: ProposedAction) -> RiskEffectDecisio
             RiskEffect.INDETERMINATE,
             Decision.FAIL_CLOSED,
             [RiskEffectReason.EXCEEDS_REDUCIBLE_QUANTITY],
+            qty_after=qty_after,
+            reducible=reducible,
+        )
+
+    # HERE a price is genuinely required: permitting a reduction means PROVING gross exposure
+    # falls, and that is a quantity. A held position always carries its own mark, so a missing
+    # price at this point means the snapshot is not trustworthy — INDETERMINATE, not "probably
+    # fine".
+    if price is None or price <= ZERO:
+        return _out(
+            RiskEffect.INDETERMINATE,
+            Decision.FAIL_CLOSED,
+            [RiskEffectReason.NO_PRICE],
             qty_after=qty_after,
             reducible=reducible,
         )

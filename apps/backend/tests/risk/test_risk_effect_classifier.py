@@ -287,3 +287,52 @@ def test_zero_and_negative_quantities_fail_closed():
     for q in (D("0"), D("-5")):
         d = classify(snap, ProposedAction(ActionType.ORDER_SUBMIT, "AAPL", OrderSide.SELL, q))
         assert d.decision is Decision.FAIL_CLOSED
+
+
+# ============================================================ CANARY REGRESSION (2026-07-13)
+# A MARKET order carries no limit_price. Requiring a price BEFORE classifying made every market
+# order on an un-held symbol collapse to INDETERMINATE/NO_PRICE — safe, but the recorded REASON
+# was wrong, and the reason IS the evidence. Found by the live canary, which is what it is for.
+
+
+def test_a_market_BUY_on_an_unheld_symbol_is_classified_not_priced_out():
+    """It is RISK_INCREASING / OPENS_NEW_POSITION. Not 'I could not price it'."""
+    snap = _snap([SnapshotPosition("AAPL", D("500"), D("100"))])
+    d = classify(
+        snap, ProposedAction(ActionType.ORDER_SUBMIT, "TSLA", OrderSide.BUY, D("10"))
+    )  # no price, no position
+    assert d.risk_effect is RiskEffect.RISK_INCREASING
+    assert d.decision is Decision.REJECT
+    assert RiskEffectReason.OPENS_NEW_POSITION in d.reasons
+    assert RiskEffectReason.NO_PRICE not in d.reasons
+
+
+def test_a_market_SELL_on_an_unheld_symbol_says_NO_POSITION_not_NO_PRICE():
+    """The truth is 'you do not own it', and that is what the ledger must say. A ledger that
+    claims it could not price the order makes the next investigation harder, not easier."""
+    snap = _snap([SnapshotPosition("AAPL", D("500"), D("100"))])
+    d = classify(
+        snap, ProposedAction(ActionType.ORDER_SUBMIT, "TSLA", OrderSide.SELL, D("10"))
+    )
+    assert d.risk_effect is RiskEffect.RISK_INCREASING
+    assert RiskEffectReason.NO_POSITION in d.reasons
+    assert RiskEffectReason.NO_PRICE not in d.reasons
+
+
+def test_a_market_reduction_prices_itself_from_the_held_position():
+    """A MARKET sell carries no price — but a held position always carries its own mark, so the
+    reduction is still fully quantified and allowed."""
+    snap = _snap([SnapshotPosition("AAPL", D("500"), D("100"))])
+    d = classify(snap, ProposedAction(ActionType.ORDER_SUBMIT, "AAPL", OrderSide.SELL, D("100")))
+    assert d.is_verified_reduction
+    assert d.gross_exposure_after == D("40000")  # 50,000 - 100 x 100
+
+
+def test_an_unpriceable_held_position_still_fails_closed():
+    """A price IS required to PROVE gross exposure falls. A held position with no usable mark
+    means the snapshot cannot be trusted — INDETERMINATE, never 'probably fine'."""
+    snap = _snap([SnapshotPosition("AAPL", D("500"), D("0"))])
+    d = classify(snap, ProposedAction(ActionType.ORDER_SUBMIT, "AAPL", OrderSide.SELL, D("100")))
+    assert d.risk_effect is RiskEffect.INDETERMINATE
+    assert d.decision is Decision.FAIL_CLOSED
+    assert RiskEffectReason.NO_PRICE in d.reasons
