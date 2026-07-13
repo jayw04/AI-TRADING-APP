@@ -46,7 +46,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.enums import StrategyStatus
 from app.db.models.account import Account
@@ -65,7 +65,21 @@ from app.market.session import is_trading_day
 from app.utils.time import EASTERN
 
 FACTOR_DB = Path("/app/data/factor_data.duckdb")
-BAR_CACHE_ROOT = Path("/app/data/bar_cache")
+
+
+def _bar_cache_root() -> Path:
+    """The bar cache the ENGINE actually uses — resolved from settings, never hardcoded.
+
+    Hardcoding cost me a real false alarm: I pointed this at ``/app/data/bar_cache``, which is
+    a stale legacy directory holding 5 fixture symbols, while the live cache is ``bars_cache``
+    (312 symbols, 59 MB). The check would have reported "5/209 covered — FAIL" on every single
+    run. A monitor that cries wolf is worse than no monitor, so read the same setting the
+    engine reads.
+    """
+    from app.config import get_settings
+
+    root = Path(get_settings().bars_cache_root)
+    return root if root.is_absolute() else Path.cwd() / root
 
 # A store one session behind is NORMAL intraday (today's close isn't published yet). Two is a
 # missed refresh worth a warning; three-plus means the books are ranking on stale prices.
@@ -241,59 +255,68 @@ def check_factor_store(last_session: date) -> tuple[list[Check], list[DataHealth
 def check_bar_cache(
     universe: set[str], last_session: date
 ) -> tuple[Check, DataHealthSnapshot | None]:
-    """D3: does the on-disk bar cache carry the last completed session for the live universe?
+    """D3: are there live symbols that resolve to NO BARS AT ALL?
 
-    The order path prices from bars, so a cold/stale cache is an execution problem even when
-    the factor store is perfect.
+    NOT "is every symbol cached". The bar cache is populated LAZILY — a symbol absent from
+    disk is fetched on demand, so absence is normal and alarming on it would cry wolf.
+
+    The failure that actually bites is a symbol the strategy still ranks but that no longer
+    prints: the engine sees ``df.empty``, skips it, and the name is silently dropped from the
+    book. Nothing errors. SATS went dead on 2026-06-23 and sat in all four live universes for
+    three weeks without a peep — the cache had marked its current bucket ``.empty`` (which is
+    CORRECT: Alpaca genuinely returns nothing) and every ranking quietly excluded it.
+
+    So: flag symbols whose current bucket is marked empty. That is a stale-universe finding,
+    not a cache finding.
     """
     now = datetime.now(UTC)
-    if not BAR_CACHE_ROOT.exists():
-        return Check("D3", "Bar cache currency", STATUS_FAIL, f"missing: {BAR_CACHE_ROOT}"), None
+    root = _bar_cache_root()
+    if not root.exists():
+        return Check("D3", "Live universe has bars", STATUS_FAIL, f"cache missing: {root}"), None
 
-    # The cache is parquet buckets under <root>/<SYMBOL>/<timeframe>/...; freshness is
-    # measured by the newest file mtime per symbol. Reading every parquet would be far too
-    # slow for a check that runs on a timer, and mtime answers the question we are asking.
-    covered, stale_syms, missing = 0, [], []
+    # A zero-byte ``<bucket>.empty`` marker next to a bucket means "this period genuinely has
+    # no bars". On the CURRENT bucket for a live symbol, that means the ticker is dead.
+    dead: list[str] = []
+    cached = 0
+    month = f"{last_session:%Y-%m}"
     for sym in sorted(universe):
-        sym_dir = BAR_CACHE_ROOT / sym.upper()
-        files = list(sym_dir.rglob("*.parquet")) if sym_dir.exists() else []
-        if not files:
-            missing.append(sym)
-            continue
-        newest = max(f.stat().st_mtime for f in files)
-        newest_d = datetime.fromtimestamp(newest, tz=UTC).astimezone(EASTERN).date()
-        if _sessions_between(newest_d, last_session) >= SEP_FAIL_SESSIONS:
-            stale_syms.append(sym)
-        else:
-            covered += 1
+        sym_dir = root / sym.upper()
+        if not sym_dir.exists():
+            continue  # not cached yet — fetched on demand, not a fault
+        cached += 1
+        if (sym_dir / "1Day" / f"{month}.empty").exists() and not (
+            sym_dir / "1Day" / f"{month}.parquet"
+        ).exists():
+            dead.append(sym)
 
     expected = len(universe)
-    if missing or stale_syms:
-        status = STATUS_FAIL if (len(missing) + len(stale_syms)) > expected * 0.05 else STATUS_WARN
+    if dead:
+        status = STATUS_FAIL if len(dead) > expected * 0.05 else STATUS_WARN
         detail = (
-            f"{covered}/{expected} symbols current. "
-            f"missing={len(missing)} {missing[:8]}  stale={len(stale_syms)} {stale_syms[:8]}"
+            f"{len(dead)} live symbol(s) print NO bars for {month} and are being silently "
+            f"dropped from every ranking: {dead[:10]}. Delisted/halted names should be removed "
+            f"from the strategy universe."
         )
     else:
         status = STATUS_OK
-        detail = f"{covered}/{expected} symbols current through {last_session}"
+        detail = f"every live symbol prints bars for {month} ({cached}/{expected} warm in cache)"
 
     return (
         Check(
             "D3",
-            "Bar cache currency",
+            "Live universe has bars",
             status,
             detail,
-            {"covered": covered, "expected": expected, "missing": missing[:20]},
+            {"dead": dead[:20], "cached": cached, "expected": expected, "root": str(root)},
         ),
         DataHealthSnapshot(
             captured_at=now,
             source="BAR_CACHE",
             as_of_date=str(last_session),
-            symbols_covered=covered,
+            symbols_covered=expected - len(dead),
             symbols_expected=expected,
             status=status,
-            detail_json=json.dumps({"missing": missing[:50], "stale": stale_syms[:50]}),
+            detail_json=json.dumps({"dead": dead[:50], "cached": cached, "root": str(root)}),
         ),
     )
 
@@ -369,12 +392,26 @@ async def check_dispatches(session, since: datetime) -> tuple[list[Check], list[
     A strategy that is scheduled but has NO dispatch row in the window never ran. That is the
     single question the ``orders`` table structurally cannot answer, and it is the reason this
     whole table exists.
+
+    COLD START. "No row" only means "did not run" once the telemetry is actually recording.
+    Before the engine instrumentation ships, the table is empty and EVERY strategy looks like
+    a missed fire — a monitor that reports five phantom failures on day one teaches you to
+    ignore it. So absence of evidence is treated as absence of evidence until the first
+    dispatch row exists.
+
+    (This is the same mistake I made by hand on 2026-07-13: I read an empty ``orders`` table
+    for 2026-07-06 and concluded the books never fired. They had — the rows were deleted by
+    the 07-07 baseline reset. The audit log showed 322 ORDER_SUBMITTED that day.)
     """
     strategies = (
         (await session.execute(select(Strategy).where(Strategy.status == StrategyStatus.PAPER)))
         .scalars()
         .all()
     )
+    telemetry_live = (
+        await session.execute(select(func.count(StrategyDispatchRun.id)))
+    ).scalar_one() > 0
+
     rows: list[dict] = []
     missing: list[str] = []
     errored: list[str] = []
@@ -421,19 +458,40 @@ async def check_dispatches(session, since: datetime) -> tuple[list[Check], list[
             bad = {r.outcome for r in runs if r.outcome != "COMPLETED"}
             errored.append(f"{st.name}: {', '.join(sorted(bad))}")
 
-    checks = [
-        Check(
+    if not telemetry_live:
+        r1 = Check(
             "R1",
             "Scheduled dispatch fired",
-            STATUS_FAIL if missing else STATUS_OK,
+            STATUS_WARN,
+            (
+                "dispatch telemetry has not recorded anything yet — the engine instrumentation "
+                "is not deployed, or no cron slot has come round since it was. Cannot verify "
+                "that anything fired. This is NOT a missed dispatch; it is a blind spot."
+            ),
+            {"cold_start": True},
+        )
+    elif missing:
+        r1 = Check(
+            "R1",
+            "Scheduled dispatch fired",
+            STATUS_FAIL,
             (
                 "NO DISPATCH RECORDED for: " + "; ".join(missing) + ". The strategy did not "
                 "run — this is NOT the same as running and trading nothing."
-                if missing
-                else f"all {len(strategies)} live strategies dispatched in the window"
             ),
             {"missing": missing},
-        ),
+        )
+    else:
+        r1 = Check(
+            "R1",
+            "Scheduled dispatch fired",
+            STATUS_OK,
+            f"all {len(strategies)} live strategies dispatched in the window",
+            {},
+        )
+
+    checks = [
+        r1,
         Check(
             "R2",
             "Dispatch outcomes healthy",

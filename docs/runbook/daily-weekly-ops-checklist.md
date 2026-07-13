@@ -52,7 +52,7 @@ they follow the `reconciliation_runs` precedent):
 |---|---|---|
 | **D1** | Factor store `sep` freshness | `sep` is ≥3 **sessions** behind the last completed session. The factor books *rank* on this store — they are selecting on stale prices. |
 | **D2** | Factor store `tickers`/`sep` lockstep | `tickers.lastpricedate` is **behind** `sep`. The PIT universe resolves **EMPTY** and every factor book **silently HOLDs without erroring** — this is the 2026-07-06 incident class, and it is the most dangerous failure here because nothing looks broken. |
-| **D3** | Bar cache currency | The live universe is missing bars for the last session. The order path prices from bars, so this is an *execution* problem even when the factor store is perfect. |
+| **D3** | Live universe has bars | A symbol the strategies still rank **prints no bars at all** — a delisted/halted ticker. The engine sees `df.empty`, skips it, and the name is silently dropped from every ranking without raising anything. `SATS` went dead on 2026-06-23 and sat in all four live universes for three weeks unnoticed. Fix by removing it from the strategy universe. (Note: a symbol merely *absent from the cache* is **not** a fault — the cache is lazy and fetches on demand.) |
 | **D4** | Universe coverage | A live strategy's symbols are absent from the store. A coverage hole looks exactly like "the factor said no". |
 
 Staleness is measured in **trading sessions**, not calendar days — "3 days old" over a holiday
@@ -104,6 +104,22 @@ ORDER BY started_at DESC LIMIT 20;
 ```
 
 ---
+
+## ⚠️ The `orders` table is not a history of what the system did
+
+Two independent things make it unreliable as a record of the past, and both have already
+caused a wrong conclusion:
+
+1. **It gets purged.** The 2026-07-07 performance-baseline reset deleted every order, fill and
+   risk_check before that date. Reading it for 2026-07-06 shows *zero orders* — and it is very
+   tempting to conclude the books never fired. They did: the immutable `audit_log` records
+   **322 `ORDER_SUBMITTED`** that day. The audit log is append-only and survives the resets;
+   the `orders` table does not.
+2. **A no-op leaves no trace.** A rebalance that correctly decides to trade nothing writes no
+   orders at all, so it is indistinguishable from a rebalance that never happened.
+
+**For "did it run?", read `strategy_dispatch_runs`. For "what did it do, historically?", read
+`audit_log`.** Use `orders` for current state, not for history.
 
 ## Responding to a finding
 
