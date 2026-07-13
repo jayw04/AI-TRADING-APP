@@ -237,6 +237,24 @@ class FrozenDataset:
             if nxt is None or nxt > end:
                 nxt = None                      # never execute beyond the window
             members = self._uni_at(d)
+
+            # ---- EXECUTION-PRICE SERIES (erratum, Defect A) ------------------------
+            # Built from the price store for EVERY security with a bar, BEFORE and
+            # INDEPENDENT of the entry-eligibility funnel below. A held position must
+            # never lose its execution price because its symbol left the ranking
+            # universe, its z went non-finite, or its entry sector failed to resolve.
+            exec_open, exec_close_next, exec_close_t = {}, {}, {}
+            for pt_all, (_tk, idx_all) in px.items():
+                rt = idx_all.get(d)
+                if rt is not None and rt[2]:
+                    exec_close_t[pt_all] = float(rt[2])
+                rn = idx_all.get(nxt) if nxt else None
+                if rn is not None:
+                    if rn[1] and float(rn[1]) > 0:
+                        exec_open[pt_all] = float(rn[1])
+                    if rn[2]:
+                        exec_close_next[pt_all] = float(rn[2])
+
             z, sigma, beta, sector, tickers = {}, {}, {}, {}, {}
             long_e, short_e = set(), set()
             open_next, close_t, close_next, dist_next, adv = {}, {}, {}, {}, {}
@@ -288,5 +306,6 @@ class FrozenDataset:
                         short_e.discard(pt)
             out.append(DayInputs(d, nxt, z, sigma, beta, sector, long_e, short_e,
                                  open_next, close_t, close_next, dist_next, adv,
-                                 tickers, bo_exit, ac_exit, confirm))
+                                 tickers, bo_exit, ac_exit, confirm,
+                                 exec_open, exec_close_next, exec_close_t))
         return out

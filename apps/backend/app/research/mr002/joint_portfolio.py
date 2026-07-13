@@ -648,26 +648,55 @@ def build_joint(
     # ---- fixed-only coupling feasibility probe (y = 0, x = 0) -------------------------
     # EXECUTION_CONSTRAINED_INFEASIBLE is defined EXCLUSIVELY against the coupling
     # constraints. The 1.5% entry cap can never halt a day.
+    # ---- the y = 0, x = 0 probe is a DIAGNOSTIC ONLY (erratum, Defect B) ---------------
+    # It shows whether the FIXED BOOK ALONE breaches. It has NO classification authority:
+    # z = 0 infeasible does NOT imply the LP is infeasible, because new entries INCREASE
+    # gross and DIVERSIFY a fixed exposure, lowering every ratio. Using it to classify the
+    # day falsely suppressed 261 of 1,371 ECI sessions.
+    # NOTE: with n == 0 the matrix has ZERO COLUMNS, so `A_ub.size` is 0 even though the
+    # rows still carry the fixed-book constants in b_ub. The guard must therefore key on
+    # the ROW COUNT, never on the element count -- otherwise a fixed-only book is silently
+    # treated as unconstrained. (A_ub @ zero == 0, so the test reduces to -b_ub > tol.)
     zero = np.zeros(n)
-    if A_ub.size and float(np.max(A_ub @ zero - b_ub)) > PRIMAL_RESIDUAL_MAX:
-        breaches = [
-            labels[i]
-            for i in range(len(labels))
-            if (A_ub[i] @ zero - b_ub[i]) > PRIMAL_RESIDUAL_MAX
-        ]
-        diag["unavoidable_coupling_breaches"] = breaches
-        diag.update(_topology(fixed, tradable, cands, zero, n_y))
+    fixed_breaches = (
+        [labels[i] for i in range(len(labels))
+         if (float(A_ub[i] @ zero) - b_ub[i]) > PRIMAL_RESIDUAL_MAX]
+        if A_ub.shape[0] else []
+    )
+    diag["fixed_book_breaches_at_zero_DIAGNOSTIC"] = fixed_breaches
+    diag["fixed_by_reason"] = {
+        "fixed_no_open_count": sum(1 for p in fixed if p.fixed_reason == NO_EXECUTABLE_OPEN),
+        "fixed_no_open_weight": sum(p.f for p in fixed
+                                    if p.fixed_reason == NO_EXECUTABLE_OPEN),
+        "fixed_below_floor_count": sum(
+            1 for p in fixed if p.fixed_reason == BELOW_NUMERICAL_INCLUSION_FLOOR),
+        "fixed_below_floor_weight": sum(
+            p.f for p in fixed if p.fixed_reason == BELOW_NUMERICAL_INCLUSION_FLOOR),
+    }
+
+    def _eci_or_fatal(z_for_topology, where: str) -> JointResult:
+        """FROZEN (erratum §2): Stage-1 status 2 WITH a fixed exposure -> ECI.
+        Stage-1 status 2 with NO fixed exposure -> INVALID_RUN, because with no fixed
+        exposure y=0,x=0 MUST satisfy the homogeneous constraints, the bounds and the
+        neutrality equality. Infeasibility there is a malformed model or a numerical
+        defect -- never an execution-constrained market state."""
+        if not fixed:
+            raise InvalidRun(
+                f"{where}: LP infeasible with NO fixed exposure -- y=0,x=0 must be "
+                "feasible, so this is a malformed model or a numerical defect"
+            )
+        diag["unavoidable_coupling_breaches"] = fixed_breaches
+        diag.update(_topology(fixed, tradable, cands, z_for_topology, n_y))
         diag["determinism_hash"] = _determinism_hash({}, {})
         return JointResult(EXECUTION_CONSTRAINED_INFEASIBLE, {}, {}, diag)
 
     if n == 0:
-        # No decision variables at all. Sub-classified so the session funnel can be
-        # reconciled to mutually exclusive registered states with no residual bucket.
-        if not tradable and not cands:
-            reason = (NO_TRADABLE_HOLDINGS_NO_CANDIDATES if not candidates
-                      else NO_MATCHED_INCREMENT)
-        else:                                   # unreachable, kept explicit
-            reason = NO_MATCHED_INCREMENT
+        # No decision variables. Feasibility is then decided by the fixed book alone.
+        if fixed_breaches:
+            return _eci_or_fatal(np.zeros(0), "stage1(no variables)")
+        # Sub-classified so the funnel reconciles to mutually exclusive registered states.
+        reason = (NO_TRADABLE_HOLDINGS_NO_CANDIDATES if not candidates
+                  else NO_MATCHED_INCREMENT)
         diag["R_star"] = 0.0
         diag["Q_star"] = 0.0
         diag["zero_entry_reason"] = reason
@@ -675,13 +704,12 @@ def build_joint(
         diag["determinism_hash"] = _determinism_hash({}, {})
         return JointResult(VALID_ZERO_ENTRY_OUTCOME, {}, {}, diag)
 
-    # ---- Stage 1: maximize R = sum(y) -------------------------------------------------
+    # ---- Stage 1: maximize R = sum(y) -- AND the sole authority on ECI ------------------
     c1 = np.concatenate([-np.ones(n_y), np.zeros(n_x)])
     z1, i1 = _solve_lp(c1, A_ub, b_ub, A_eq, b_eq, upper, "stage1")
-    if z1 is None:
-        # The zero probe above already proved a feasible point exists, so the LP cannot
-        # be infeasible here. This is a defect, not a market condition.
-        raise InvalidRun("stage1: LP infeasible although z=0 satisfies every constraint")
+    diag["stage1_status"] = i1["status"]
+    if z1 is None:                               # HiGHS status 2 -- genuinely infeasible
+        return _eci_or_fatal(zero, "stage1")
     R_star = float(np.sum(z1[:n_y]))
 
     # ---- Stage 2: maximize Q = sum(x)  s.t.  R >= R* - eps ----------------------------

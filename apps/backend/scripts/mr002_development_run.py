@@ -114,6 +114,9 @@ class Acc:
     exit_reasons: Counter = field(default_factory=Counter)
     adv_clipped: int = 0
     over_cap_days: int = 0
+    hard_exits_due: int = 0
+    hard_exits_executed: int = 0
+    hard_exits_pending_missing_open: int = 0
     raw_solves: int = 0
     scaled_rescues: int = 0
     rescue_detail: list = field(default_factory=list)
@@ -171,7 +174,7 @@ def run_config(days, cfg) -> Acc:
         n_exits = n_orders = n_red = 0
 
         if prev is not None and positions:
-            smv = sum(abs(p.shares) * inp.close_t.get(p.permaticker, p.last_mark)
+            smv = sum(abs(p.shares) * inp.exec_close_t.get(p.permaticker, p.last_mark)
                       for p in positions if p.side < 0)
             borrow = borrow_accrual(smv, (inp.session - prev).days, BORROW_BPS)
 
@@ -191,9 +194,13 @@ def run_config(days, cfg) -> Acc:
                     inp.confirm.get(p.permaticker, False))
                 if reason is None:
                     continue
-                px = inp.open_next.get(p.permaticker)
+                a.hard_exits_due += 1
+                px = inp.exec_open.get(p.permaticker)      # execution series
                 if px is None or px <= 0:
+                    # ONLY a genuinely absent registered bar may leave an exit pending
+                    a.hard_exits_pending_missing_open += 1
                     continue                                    # exit stays PENDING
+                a.hard_exits_executed += 1
                 notional = abs(p.shares) * px
                 c = execution_cost(notional, COST_BPS)
                 realized += (px - p.last_mark) * p.shares
@@ -213,13 +220,13 @@ def run_config(days, cfg) -> Acc:
                 n_exits += 1
 
             # ---- 2) JOINT CONSTRUCTION -------------------------------------------------
-            prices = {p.permaticker: inp.open_next.get(p.permaticker, p.last_mark)
+            prices = {p.permaticker: inp.exec_open.get(p.permaticker, p.last_mark)
                       for p in positions}
             wmap = _weights(positions, prices, a.nav)
             holdings = [
                 Holding(p.permaticker, p.side, wmap[p.permaticker][0], p.sector_etf,
                         p.beta, entry_w.get(p.permaticker, 0.0),
-                        (inp.open_next.get(p.permaticker) or 0) > 0)
+                        (inp.exec_open.get(p.permaticker) or 0) > 0)
                 for p in positions
             ]
             raw = [c for c in _candidates(inp, cfg) if c.permaticker not in exited]
@@ -295,8 +302,8 @@ def run_config(days, cfg) -> Acc:
         # ---- mark to market ------------------------------------------------------------
         unreal = 0.0
         for p in positions:
-            px = inp.close_next.get(p.permaticker,
-                                    inp.close_t.get(p.permaticker, p.last_mark))
+            px = inp.exec_close_next.get(
+                p.permaticker, inp.exec_close_t.get(p.permaticker, p.last_mark))
             unreal += (px - p.last_mark) * p.shares
             p.last_mark = px
         net = realized + unreal - costs - borrow

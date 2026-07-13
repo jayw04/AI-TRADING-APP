@@ -19,7 +19,7 @@ windows are NOT read.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 import numpy as np
@@ -77,6 +77,18 @@ class DayInputs:
     blackout_exit: set[int]              # positions the blackout forces out
     action_exit: set[int]                # announced corporate action
     confirm: dict[int, bool]             # market/sector confirmation for the ±3.5 stop
+
+    # ---- EXECUTION-PRICE SERIES (erratum, Defect A) --------------------------------
+    # Sourced DIRECTLY from the frozen price store, keyed by permanent identity and
+    # execution date, for EVERY security with a bar -- NOT filtered by universe
+    # membership, z availability, entry percentile, candidate status or entry-sector
+    # resolution. `open_next` above is the ENTRY series and remains eligibility-scoped.
+    #
+    #   Eligibility determines what may be ENTERED.
+    #   These determine whether a HELD position has an execution open.
+    exec_open: dict[int, float] = field(default_factory=dict)
+    exec_close_next: dict[int, float] = field(default_factory=dict)
+    exec_close_t: dict[int, float] = field(default_factory=dict)
 
 
 def _candidates(inp: DayInputs, cfg: Config) -> list[Candidate]:

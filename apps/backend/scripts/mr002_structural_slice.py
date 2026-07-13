@@ -181,7 +181,7 @@ def main() -> int:
         n_exits = n_orders = n_reductions = 0
 
         if prev is not None and positions:
-            smv = sum(abs(p.shares) * inp.close_t.get(p.permaticker, p.last_mark)
+            smv = sum(abs(p.shares) * inp.exec_close_t.get(p.permaticker, p.last_mark)
                       for p in positions if p.side < 0)
             borrow = borrow_accrual(smv, (inp.session - prev).days, 50.0)
 
@@ -201,7 +201,7 @@ def main() -> int:
                     inp.confirm.get(p.permaticker, False))
                 if reason is None:
                     continue
-                px = inp.open_next.get(p.permaticker)
+                px = inp.exec_open.get(p.permaticker)      # execution series
                 if px is None or px <= 0:
                     continue                                   # exit stays PENDING
                 pnl = (px - p.last_mark) * p.shares
@@ -216,14 +216,14 @@ def main() -> int:
 
             # ---- 2) JOINT CONSTRUCTION (the drift band is now a COUPLING CONSTRAINT;
             #         the separate v1.0 drift-reduction pass is superseded) -----------
-            prices = {p.permaticker: inp.open_next.get(p.permaticker, p.last_mark)
+            prices = {p.permaticker: inp.exec_open.get(p.permaticker, p.last_mark)
                       for p in positions}
             wmap = _weights(positions, prices, nav)
 
             holdings = []
             for p in positions:
                 w, px = wmap[p.permaticker]
-                tradable = (inp.open_next.get(p.permaticker) or 0) > 0
+                tradable = (inp.exec_open.get(p.permaticker) or 0) > 0
                 holdings.append(Holding(
                     p.permaticker, p.side, w, p.sector_etf, p.beta,
                     entry_weights.get(p.permaticker, 0.0), tradable))
@@ -303,8 +303,8 @@ def main() -> int:
         # ---- mark to market (accounting only; never inspected) -----------------------
         unreal = 0.0
         for p in positions:
-            px = inp.close_next.get(p.permaticker,
-                                    inp.close_t.get(p.permaticker, p.last_mark))
+            px = inp.exec_close_next.get(
+                p.permaticker, inp.exec_close_t.get(p.permaticker, p.last_mark))
             unreal += (px - p.last_mark) * p.shares
             p.last_mark = px
         nav = nav_open + realized + unreal - costs - borrow
