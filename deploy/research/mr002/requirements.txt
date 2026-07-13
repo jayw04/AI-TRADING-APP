@@ -12,3 +12,8 @@ quadprog==0.1.13
 duckdb==1.1.3
 pytz==2024.2      # required by duckdb for TIMESTAMPTZ conversion of accepted_utc
 pytest==8.3.4
+
+# Stage-3 replacement-solver characterization (quadprog retired 2026-07-12).
+# NOTE: highspy ships HiGHS 1.15.1 — NOT the 1.12.0 that SciPy vendors. Different builds.
+highspy==1.15.1
+clarabel==0.11.1
