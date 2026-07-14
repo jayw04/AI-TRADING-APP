@@ -27,6 +27,11 @@ model order, so a column's index IS its canonical identity. No floating magnitud
 tie, no hash iteration order and no solver-supplied priority may influence a pivot. Bland's rule is
 binding even where another policy would be faster: it is what makes the pivot sequence reproducible
 and free of cycling.
+
+COST. Each basis is decomposed ONCE and the decomposition serves all three of its solves. See
+`decompose` for why the transpose is the reason that matters. The decomposition is an ACCELERATION
+and carries no authority: every solve it produces is verified against the FULL UNREDUCED system
+before it is used.
 """
 
 from __future__ import annotations
@@ -35,6 +40,7 @@ import hashlib
 import time
 from dataclasses import dataclass, field
 from fractions import Fraction
+from math import lcm
 
 # ======================================================================================
 # FROZEN RESOURCE CEILINGS. Operational stop limits — NOT mathematical tolerances.
@@ -103,102 +109,301 @@ class SimplexResult:
     solve_seconds: float = 0.0
     core_seconds: float = 0.0
     certificate_seconds: float = 0.0
+    # ---- §8 resource characterization -------------------------------------------------------
+    decomposition_seconds: float = 0.0     # singleton discovery + integerising, per basis
+    core_factor_seconds: float = 0.0       # the fraction-free core factorization
+    primal_solve_seconds: float = 0.0      # B x_B = h
+    direction_solve_seconds: float = 0.0   # B d  = a_enter
+    dual_solve_seconds: float = 0.0        # B' y = c_B
+    verify_seconds: float = 0.0            # exact verification against the unreduced systems
+    n_decompositions: int = 0
 
 
 # ======================================================================================
-# Structure-aware exact solve: singleton-first, then a fraction-free core.
-# The reduction is an ACCELERATION. The full unreduced system is the certificate authority.
+# ONE DETERMINISTIC EXACT DECOMPOSITION PER BASIS  (owner ruling §6)
+#
+# The previous implementation solved each of the three systems at a basis by rediscovering the
+# structure from scratch:
+#
+#     B x_B = h          singleton-first + fraction-free core        (cheap: the core is small)
+#     B d   = a_enter    singleton-first + fraction-free core        (cheap: same structure)
+#     B' y  = c_B        singleton-first + fraction-free core   <--- THE BOTTLENECK
+#
+# The transpose was the defect. Singleton discovery run INDEPENDENTLY on B' looks for columns of B'
+# with exactly one nonzero — but the columns of B' are the ROWS of B, which carry 2-3 nonzeros each.
+# So no singleton is ever found, the reduction eliminates nothing, and the solve falls through to a
+# dense Bareiss elimination on the FULL basis with several-hundred-bit integers. Measured: a core of
+# 115 in a 116-row basis. The structure was there. The transpose solve simply could not see it,
+# because it was looking for it in the wrong matrix.
+#
+# The fix is not a better search. It is to stop searching twice. The singleton eliminations of B ARE
+# a permutation of B to block-triangular form, and that form transposes for free:
+#
+#     rows [core | r_1 ... r_s]                      B_perm = [ A_core   0  ]
+#     cols [core | j_1 ... j_s]                               [   X      U  ]
+#
+#   * when column j_q is eliminated, its only nonzero among the LIVE rows is at r_q. Core rows are
+#     live throughout, so B[r][j_q] = 0 for every core row r. And r_p for p > q was still live at
+#     step q, so B[r_p][j_q] = 0 there too. Hence U is upper triangular with the pivots B[r_q][j_q]
+#     on its diagonal, and the block above it is exactly zero.
+#
+# Transposing:  B_perm' = [ A_core'   X' ]   — block upper triangular, with U' LOWER triangular.
+#                         [   0       U' ]
+#
+# So the dual solve reuses the SAME eliminations, walked in the opposite direction:
+#
+#     primal   core solve, then the singletons by BACK substitution     (reverse elimination order)
+#     dual     the singletons by FORWARD substitution (elimination order), then the core on A'
+#
+# No second singleton discovery. No second factorization. The core is factored once per basis and
+# its factors are used transposed. This is a reuse of structure, not a new method: every value the
+# decomposition produces is still checked against the full unreduced system before it is used, so a
+# defect in the reuse cannot reach a certificate — it can only stop the run.
 # ======================================================================================
-def _bareiss(A, b):
-    """Fraction-free (Bareiss) elimination. Deterministic pivoting: the first EXACTLY nonzero
-    entry in canonical row order — never a floating magnitude, which does not exist here.
+def _bareiss_factor(A):
+    """Fraction-free elimination of the AUGMENTED [A | I], yielding (U, T) with  T @ A = U  exactly,
+    U upper triangular. A must be INTEGER.
 
-    Fraction-free keeps intermediate integers determinant-bounded instead of letting rational
-    numerators and denominators compound at every elimination step.
+    Augmenting with the identity is what makes the factorization reusable: T accumulates the row
+    operations, so a later right-hand side is transformed by a matrix-vector product instead of a
+    re-elimination — and T' serves the transpose solve without any new pivoting.
+
+    Every intermediate stays an integer (each is a minor determinant of the augmented matrix), so
+    numerators remain determinant-bounded instead of letting rational denominators compound at every
+    step. The exactness of the one-step division is NOT assumed: it is checked. A nonzero remainder
+    would mean the fraction-free invariant had been broken — a defect, not a rounding.
+
+    Pivoting: the first EXACTLY nonzero entry in canonical row order — never a magnitude, which does
+    not exist here. The Bareiss-reduced entries are nonzero-scalar multiples of the Gaussian ones, so
+    this selects exactly the pivots the unaugmented reduction would.
     """
-    rows = len(A)
-    ncols = len(A[0]) if rows else 0
-    Ab = [list(A[i]) + [b[i]] for i in range(rows)]
-    prev = ONE
-    for k in range(ncols):
-        cand = next((i for i in range(k, rows) if Ab[i][k] != 0), None)
-        if cand is None:
+    k = len(A)
+    W = [list(A[i]) + [1 if j == i else 0 for j in range(k)] for i in range(k)]
+    prev = 1
+    for p in range(k):
+        piv = next((i for i in range(p, k) if W[i][p] != 0), None)
+        if piv is None:
             raise SimplexUnavailable("EXACT_SIMPLEX_SINGULAR: exactly singular core")
-        if cand != k:
-            Ab[k], Ab[cand] = Ab[cand], Ab[k]
-        for i in range(k + 1, rows):
-            for j in range(k + 1, ncols + 1):
-                Ab[i][j] = (Ab[i][j] * Ab[k][k] - Ab[i][k] * Ab[k][j]) / prev
-            Ab[i][k] = ZERO
-        prev = Ab[k][k]
+        if piv != p:
+            W[p], W[piv] = W[piv], W[p]
+        Wp = W[p]
+        pk = Wp[p]
+        for i in range(p + 1, k):
+            Wi = W[i]
+            mi = Wi[p]
+            for j in range(p + 1, 2 * k):
+                q, rem = divmod(Wi[j] * pk - mi * Wp[j], prev)
+                if rem:
+                    raise SimplexUnavailable(
+                        "EXACT_SIMPLEX_SINGULAR: fraction-free division left a remainder — the "
+                        "Bareiss integrality invariant is broken")
+                Wi[j] = q
+            Wi[p] = 0
+        prev = pk
+    return [row[:k] for row in W], [row[k:] for row in W]
 
-    x = [ZERO] * ncols
-    for i in range(ncols - 1, -1, -1):
-        acc = Ab[i][ncols]
-        for j in range(i + 1, ncols):
-            acc -= Ab[i][j] * x[j]
-        x[i] = acc / Ab[i][i]
-    return x
+
+@dataclass(frozen=True)
+class BasisDecomposition:
+    """The single exact decomposition of one simplex basis B, reused for all three of its solves.
+
+    `cols[i]` is the column of B for basis POSITION i, indexed by row: B[r][i] = cols[i][r].
+    """
+
+    nrows: int
+    cols: tuple                 # the unreduced basis — the certificate authority
+    order: tuple                # ((basis_pos, row), ...) singleton eliminations, ELIMINATION order
+    core_pos: tuple             # basis positions surviving into the core
+    core_rows: tuple
+    scale: tuple                # per-core-row multiplier that integerises the core
+    U: tuple                    # k x k integer, upper triangular:  T @ A_int = U
+    T: tuple                    # k x k integer, the accumulated row operations
+
+    # ---- primal:  B x = rhs  (also serves  B d = a_enter — same factors, another RHS) ---------
+    def solve(self, rhs, stats=None, bucket="primal_solve_seconds"):
+        t0 = time.perf_counter()
+        k = len(self.core_pos)
+        x: list = [None] * self.nrows
+
+        if k:
+            #  A_core x_core = rhs_core, via  U x_core = T (diag(scale) rhs_core)
+            b = [rhs[self.core_rows[a]] * self.scale[a] for a in range(k)]
+            w = [sum(self.T[i][j] * b[j] for j in range(k)) for i in range(k)]
+            xc = [ZERO] * k
+            for i in range(k - 1, -1, -1):                # back substitution through U
+                acc = w[i]
+                Ui = self.U[i]
+                for j in range(i + 1, k):
+                    if Ui[j]:
+                        acc -= Ui[j] * xc[j]
+                xc[i] = acc / Ui[i]
+            for b_i, pos in enumerate(self.core_pos):
+                x[pos] = xc[b_i]
+
+        for pos, r in reversed(self.order):              # singletons, REVERSE elimination order
+            acc = rhs[r]
+            col_r = [self.cols[j][r] for j in range(self.nrows)]
+            for j in range(self.nrows):
+                if j != pos and x[j] is not None and col_r[j] != 0:
+                    acc -= col_r[j] * x[j]
+            x[pos] = acc / self.cols[pos][r]
+
+        if any(v is None for v in x):
+            raise SimplexUnavailable("EXACT_SIMPLEX_SINGULAR: reconstruction incomplete")
+        if stats is not None:
+            stats[bucket] = stats.get(bucket, 0.0) + (time.perf_counter() - t0)
+        self._verify(rhs, x, stats)
+        return x
+
+    # ---- dual:  B' y = c_B, through the TRANSPOSED factors, reverse substitution order --------
+    def solve_transpose(self, c_B, stats=None):
+        t0 = time.perf_counter()
+        k = len(self.core_pos)
+        y: list = [None] * self.nrows
+
+        # U' is LOWER triangular, so the singleton rows resolve by FORWARD substitution — in the
+        # SAME order they were eliminated, the mirror of the primal's reverse walk. Column j_q has
+        # nonzeros only at rows r_1..r_q, so its equation never references a y that is not yet known.
+        for pos, r_q in self.order:
+            acc = c_B[pos]
+            col = self.cols[pos]
+            for r in range(self.nrows):
+                if r == r_q or col[r] == 0:
+                    continue
+                if y[r] is None:
+                    raise SimplexUnavailable(
+                        f"EXACT_SIMPLEX_SINGULAR: basis column {pos} has a nonzero at row {r}, "
+                        f"which the singleton elimination order requires to be zero — the "
+                        f"block-triangular structure the decomposition rests on does not hold")
+                acc -= col[r] * y[r]
+            y[r_q] = acc / col[r_q]
+
+        if k:
+            # A_core' y_core = c_core - X' y_sing, then the SAME factors, transposed:
+            #   A_int = T^-1 U   =>   A_int' = U' T^-'   =>   U' w = d,  y' = T' w
+            d = []
+            for pos in self.core_pos:
+                acc = c_B[pos]
+                col = self.cols[pos]
+                for _p, r in self.order:
+                    if col[r] != 0:
+                        acc -= col[r] * y[r]
+                d.append(acc)
+            w = [ZERO] * k
+            for i in range(k):                           # forward substitution through U' (lower)
+                acc = d[i]
+                for j in range(i):
+                    if self.U[j][i]:
+                        acc -= self.U[j][i] * w[j]
+                w[i] = acc / self.U[i][i]
+            for a in range(k):                           # y' = T' w, then undo the row integerising
+                y[self.core_rows[a]] = sum(
+                    self.T[j][a] * w[j] for j in range(k)) * self.scale[a]
+
+        if any(v is None for v in y):
+            raise SimplexUnavailable("EXACT_SIMPLEX_SINGULAR: dual reconstruction incomplete")
+        if stats is not None:
+            stats["dual_solve_seconds"] = stats.get("dual_solve_seconds", 0.0) + (
+                time.perf_counter() - t0)
+        self._verify_transpose(c_B, y, stats)
+        return y
+
+    # ---- the FULL UNREDUCED system is the authority, for EVERY solve -------------------------
+    def _verify(self, rhs, x, stats=None):
+        t0 = time.perf_counter()
+        for r in range(self.nrows):
+            acc = ZERO
+            for j in range(self.nrows):
+                v = self.cols[j][r]
+                if v != 0:
+                    acc += v * x[j]
+            if acc != rhs[r]:
+                raise SimplexUnavailable(
+                    f"EXACT_SIMPLEX_SINGULAR: unreduced equation {r} not satisfied exactly")
+        if stats is not None:
+            stats["verify_seconds"] = stats.get("verify_seconds", 0.0) + (
+                time.perf_counter() - t0)
+
+    def _verify_transpose(self, c_B, y, stats=None):
+        t0 = time.perf_counter()
+        for i in range(self.nrows):
+            acc = ZERO
+            col = self.cols[i]
+            for r in range(self.nrows):
+                if col[r] != 0:
+                    acc += col[r] * y[r]
+            if acc != c_B[i]:
+                raise SimplexUnavailable(
+                    f"EXACT_SIMPLEX_SINGULAR: unreduced transposed equation {i} not satisfied "
+                    f"exactly")
+        if stats is not None:
+            stats["verify_seconds"] = stats.get("verify_seconds", 0.0) + (
+                time.perf_counter() - t0)
 
 
-def solve_exact(cols, rhs, stats=None):
-    """Solve A x = rhs exactly; `cols` are A's columns. A may have more rows than columns.
+def decompose(cols, nrows, stats=None) -> BasisDecomposition:
+    """The ONE decomposition of basis B. It is built from B alone — it holds no right-hand side,
+    which is precisely why the same object serves the primal RHS, the pivot direction and the dual.
 
-    Singleton-column elimination first: a column with exactly one nonzero among the live rows lives
-    in only that row, so that row DEFINES its variable and constrains nothing else. Remove both,
-    repeat to a fixed point. Canonical order throughout: ascending column identity, then ascending
-    row identity — never incoming indices or hash iteration order.
+    Singleton-column elimination: a column with exactly one nonzero among the live rows lives in only
+    that row, so that row DEFINES its variable and constrains nothing else. Remove both, repeat to a
+    fixed point. Canonical order throughout — ascending basis position, then ascending row — never
+    incoming indices or hash iteration order.
     """
     t0 = time.perf_counter()
-    nrows, ncols = len(rhs), len(cols)
-    if ncols > nrows:
-        raise SimplexUnavailable(f"EXACT_SIMPLEX_SINGULAR: {ncols} columns for {nrows} rows")
+    live = {j: {r for r in range(nrows) if cols[j][r] != 0} for j in range(nrows)}
+    live_rows = set(range(nrows))
 
-    live_rows, live_cols = set(range(nrows)), set(range(ncols))
     order = []
-    changed = True
-    while changed:
-        changed = False
-        for j in sorted(live_cols):
-            nz = [r for r in sorted(live_rows) if cols[j][r] != 0]
-            if len(nz) == 1:
-                order.append((j, nz[0]))
-                live_cols.discard(j)
-                live_rows.discard(nz[0])
-                changed = True
-                break
+    while True:
+        pick = next((j for j in sorted(live) if len(live[j]) == 1), None)
+        if pick is None:
+            break
+        r = next(iter(live[pick]))
+        order.append((pick, r))
+        del live[pick]
+        live_rows.discard(r)
+        for j in live:
+            live[j].discard(r)
 
-    core_cols, core_rows = sorted(live_cols), sorted(live_rows)
-    x = [None] * ncols
-    if core_cols:
-        A = [[cols[j][r] for j in core_cols] for r in core_rows]
-        for j, val in zip(core_cols, _bareiss(A, [rhs[r] for r in core_rows]), strict=True):
-            x[j] = val
+    core_pos = tuple(sorted(live))
+    core_rows = tuple(sorted(live_rows))
+    k = len(core_pos)
 
-    for j, r in reversed(order):
-        acc = rhs[r]
-        for k in range(ncols):
-            if k != j and x[k] is not None and cols[k][r] != 0:
-                acc -= cols[k][r] * x[k]
-        x[j] = acc / cols[j][r]
+    # Integerise each core ROW. Bareiss's determinant bound is an INTEGER-matrix property; handing it
+    # rationals would let denominators compound exactly where the bound was supposed to stop them.
+    scale: list[int] = []
+    A_int: list[list[int]] = []
+    for r in core_rows:
+        mult = 1
+        for j in core_pos:
+            mult = lcm(mult, cols[j][r].denominator)
+        row = []
+        for j in core_pos:
+            v = cols[j][r] * mult
+            if v.denominator != 1:
+                raise SimplexUnavailable("EXACT_SIMPLEX_SINGULAR: integerising the core failed")
+            row.append(v.numerator)
+        scale.append(mult)
+        A_int.append(row)
+    t1 = time.perf_counter()
 
-    if any(v is None for v in x):
-        raise SimplexUnavailable("EXACT_SIMPLEX_SINGULAR: reconstruction incomplete")
-
-    for r in range(nrows):                       # the ORIGINAL unreduced system IS the authority
-        acc = ZERO
-        for j in range(ncols):
-            if cols[j][r] != 0:
-                acc += cols[j][r] * x[j]
-        if acc != rhs[r]:
-            raise SimplexUnavailable(
-                f"EXACT_SIMPLEX_SINGULAR: unreduced equation {r} not satisfied exactly")
+    U, T = _bareiss_factor(A_int) if k else ([], [])
+    t2 = time.perf_counter()
 
     if stats is not None:
-        stats["core_seconds"] = stats.get("core_seconds", 0.0) + (time.perf_counter() - t0)
-        stats["core_dim_max"] = max(stats.get("core_dim_max", 0), len(core_cols))
+        stats["decomposition_seconds"] = stats.get("decomposition_seconds", 0.0) + (t1 - t0)
+        stats["core_factor_seconds"] = stats.get("core_factor_seconds", 0.0) + (t2 - t1)
+        stats["core_seconds"] = stats.get("core_seconds", 0.0) + (t2 - t0)
+        stats["n_decompositions"] = stats.get("n_decompositions", 0) + 1
+        stats["core_dim_max"] = max(stats.get("core_dim_max", 0), k)
         stats["singletons_max"] = max(stats.get("singletons_max", 0), len(order))
-    return x
+
+    return BasisDecomposition(
+        nrows=nrows, cols=tuple(cols), order=tuple(order), core_pos=core_pos,
+        core_rows=core_rows, scale=tuple(scale),
+        U=tuple(tuple(r) for r in U), T=tuple(tuple(r) for r in T),
+    )
 
 
 # ======================================================================================
@@ -221,6 +426,14 @@ def _check_limits(t0, stats):
             f"{stats['max_num_bits']}/{stats['max_den_bits']} bits")
 
 
+def _new_stats():
+    return {"max_num_bits": 0, "max_den_bits": 0, "core_seconds": 0.0,
+            "core_dim_max": 0, "singletons_max": 0, "decomposition_seconds": 0.0,
+            "core_factor_seconds": 0.0, "primal_solve_seconds": 0.0,
+            "direction_solve_seconds": 0.0, "dual_solve_seconds": 0.0,
+            "verify_seconds": 0.0, "n_decompositions": 0}
+
+
 def _iterate(M, h, c, basis, nrows, ncols, allowed, max_pivots, t0, stats, phase, trace=None):
     """Exact revised simplex from a feasible `basis`. Returns (basis, x, y, pivots).
 
@@ -233,15 +446,15 @@ def _iterate(M, h, c, basis, nrows, ncols, allowed, max_pivots, t0, stats, phase
     pivots = 0
     while True:
         cols = [[M[r][j] for r in range(nrows)] for j in basis]
-        x_B = solve_exact(cols, list(h), stats)
+        dec = decompose(cols, nrows, stats)          # ONE decomposition; three solves below
+
+        x_B = dec.solve(list(h), stats)
         if any(v < 0 for v in x_B):
             raise SimplexUnavailable(
                 f"EXACT_SIMPLEX_SINGULAR: phase {phase} basis is not primal feasible")
 
         c_B = [c[j] for j in basis]
-        # B' y = c_B — the same structure-aware exact solve, applied to the transpose.
-        tcols = [[cols[i][r] for i in range(nrows)] for r in range(nrows)]
-        y = solve_exact(tcols, c_B, stats)
+        y = dec.solve_transpose(c_B, stats)          # the SAME factors, transposed
 
         nb, nd = _bits(x_B + y)
         stats["max_num_bits"] = max(stats["max_num_bits"], nb)
@@ -267,7 +480,7 @@ def _iterate(M, h, c, basis, nrows, ncols, allowed, max_pivots, t0, stats, phase
         if entering is None:
             return basis, x_B, y, pivots                 # exactly optimal: all reduced costs >= 0
 
-        d = solve_exact(cols, [M[r][entering] for r in range(nrows)], stats)
+        d = dec.solve([M[r][entering] for r in range(nrows)], stats, "direction_solve_seconds")
         pos = [i for i in range(nrows) if d[i] > 0]
         if not pos:
             raise SimplexUnavailable(f"EXACT_SIMPLEX_UNBOUNDED: phase {phase}")
@@ -303,8 +516,7 @@ def solve_lp(M, h, c, trace=None):
     """
     t0 = time.perf_counter()
     nrows, ncols = len(M), len(c)
-    stats = {"max_num_bits": 0, "max_den_bits": 0, "core_seconds": 0.0,
-             "core_dim_max": 0, "singletons_max": 0}
+    stats = _new_stats()
     pivots_i: list = []
     pivots_ii: list = []
 
@@ -340,16 +552,20 @@ def solve_lp(M, h, c, trace=None):
             f"numerical failure — stop for adjudication.")
 
     # ---- Artificial cleanup: no artificial may enter Phase II. -------------------------------
+    # ONE decomposition per basis, reused across every candidate entering column. The previous
+    # version re-factorized for each candidate j, which is the same defect as the transpose: the
+    # basis did not change between candidates, so neither did its decomposition.
     redundant = []
     for i in range(nrows):
         if basis[i] < ncols:
             continue
         cols = [[Mi[r][j] for r in range(nrows)] for j in basis]
+        dec = decompose(cols, nrows, stats)
         swapped = False
         for j in range(ncols):                              # canonical entering order
             if j in basis:
                 continue
-            d = solve_exact(cols, [Mi[r][j] for r in range(nrows)], stats)
+            d = dec.solve([Mi[r][j] for r in range(nrows)], stats, "direction_solve_seconds")
             if d[i] != 0:                                   # exact nonzero pivot element
                 basis[i] = j
                 swapped = True
@@ -440,6 +656,13 @@ def solve_lp(M, h, c, trace=None):
         max_num_bits=stats["max_num_bits"], max_den_bits=stats["max_den_bits"],
         solve_seconds=time.perf_counter() - t0, core_seconds=stats["core_seconds"],
         certificate_seconds=cert_seconds,
+        decomposition_seconds=stats["decomposition_seconds"],
+        core_factor_seconds=stats["core_factor_seconds"],
+        primal_solve_seconds=stats["primal_solve_seconds"],
+        direction_solve_seconds=stats["direction_solve_seconds"],
+        dual_solve_seconds=stats["dual_solve_seconds"],
+        verify_seconds=stats["verify_seconds"],
+        n_decompositions=stats["n_decompositions"],
     )
 
 

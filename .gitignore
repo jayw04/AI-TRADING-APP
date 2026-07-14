@@ -84,3 +84,6 @@ docker-compose.override.yml
 # never track build/scratch artifacts under scripts/
 apps/backend/scripts/__pycache__/
 apps/backend/scripts/.sweep_cache/
+
+# MR-002 research container scratch output (never evidence; evidence is written deliberately)
+.mr002out/
