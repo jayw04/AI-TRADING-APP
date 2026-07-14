@@ -63,7 +63,17 @@ def check(name: str, ok: bool, detail: str) -> bool:
 
 
 def _sha(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Hash the file's CONTENT, with line endings normalised.
+
+    ⚠ The deployed container's files carry CRLF: `git archive` run on a Windows host applies
+    `core.autocrlf` on the way into the tarball. The source is LF. Normalised, the bytes are
+    identical — so a raw-byte hash would report all nine harness files as "differing from the
+    manifest" and block the canary over a transport artifact.
+
+    Provenance asks whether this is the same SOURCE, not whether it survived the same filesystem.
+    Both sides of the check normalise, so both sides answer that question.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 async def main() -> int:
