@@ -1,0 +1,85 @@
+{
+  "schema": "MR002_DirectedRounding_ImmutableRecord/v1",
+  "authorization": "owner ruling 2026-07-14 \u00a76 (source binding)",
+  "decision": "DIRECTED-ROUNDING CORRECTION \u2014 PASS. 27,265 verdicts, 0 changes.",
+  "branch": "research/mr002-preregistration",
+  "correction_run_commit": "347f398d73648f33f18d2145d747b4c91b001624",
+  "container_image": "mr002-research@sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a",
+  "source_module_sha256": {
+    "app/research/mr002/directed.py": "7f8d44d252512f7665c720a94644c50bd122ed86727fdbdc7023f8a7d1e47fc1",
+    "app/research/mr002/certificate.py": "c679eb39bcabd90089dfaa2f3f149996e5cfcf4fc1582e58513c91b0703e31ec",
+    "app/research/mr002/joint_portfolio.py": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+    "scripts/mr002_directed_rounding_correction.py": "aa4794f65072f6b5f0193036999c795afde2e50a41e5456f5bef700c181f6d37",
+    "scripts/mr002_coverage_signed_gap.py": "66118bc787bb8590700bcdc08e33521c402c76baec2a59948bd7230fdde5cc3b",
+    "scripts/mr002_solver_intersection.py": "ee1aacf37c1a81ecfe566b5262b9db67b9e86a04715f97ed12e76073b4767437",
+    "tests/research/test_mr002_directed_rounding.py": "31039480dac0f44734f749a3b5fe9124485c8be40d5ca61b02293230674beeba"
+  },
+  "artifacts": {
+    "correction": {
+      "path": "MR002_DirectedRounding_Correction.json",
+      "sha256": "93666948d3a0156833ce7dcf399640915a4283b2269ae65e465b2f10d46bd822"
+    },
+    "inventory": {
+      "path": "MR002_DirectedRounding_Inventory.jsonl.gz",
+      "sha256": "7d9ae937e62330b7dc0fe5703d01b585cdf7c8e9e270ea29ff8788536c88987c",
+      "records": 264550
+    },
+    "report": {
+      "path": "MR002_DirectedRounding_Correction_Report.md",
+      "sha256": "2ce5a45b1a253b4aac293420d44d7389737973048cb81ad420b07926a561c969"
+    },
+    "archive_integrity": {
+      "path": "MR002_BinaryArchiveIntegrity.json",
+      "sha256": "c8c4a52d77f2f2bfba75c3dddaecd5d5bce42ba6fb66affb04a33489e36ef7f3"
+    },
+    "lineage_annotation": {
+      "path": "MR002_ComplementaryCoverage_LineageAnnotation.md",
+      "sha256": "4cacb25f657d32e9507beefd98bf994487b2453373997bbe18b01e9292fc5b70"
+    },
+    "sample_a": {
+      "path": "MR002_SampleA.json",
+      "sha256": "573f0e80b97011e9a084345756a29eb5e08cabb3095432bb0eff8ba246a12779"
+    }
+  },
+  "fixture_results": {
+    "test_mr002_directed_rounding.py": "37 passed",
+    "test_mr002_correction_regression.py": "5 passed (\u00a73 guards: precision-loss and predicate-scope both pinned)",
+    "test_mr002_exact_repair.py": "29 passed",
+    "test_mr002_exact_simplex.py": "16 passed (2 skipped)",
+    "test_mr002_certificate.py": "58 passed",
+    "test_gitattributes_binary_integrity.py": "5 passed"
+  },
+  "population": {
+    "instances": 3895,
+    "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+    "corpus_verified": true,
+    "solvers": [
+      "CLARABEL",
+      "HIGHS_QPASM",
+      "PIQP_P1",
+      "PIQP_P2",
+      "QUADPROG_RAW",
+      "QUADPROG_SQRT",
+      "QUADPROG_TSCALED"
+    ],
+    "instance_solver_pairs": 27265,
+    "certificates_rebuilt": 26455,
+    "solver_exceptions": 810,
+    "serialized_field_records": 264550,
+    "unclassified_records": 0,
+    "non_finite_corrections": 0,
+    "certificates_failing_a_kkt_limit": 157,
+    "complete": true,
+    "smoke_truncated": false
+  },
+  "verdict_changes": {
+    "L_vs_D": 0,
+    "N_vs_D": 0,
+    "D_vs_EXACT": 0
+  },
+  "no_performance_computed": true,
+  "validation_and_sealed_oos": "SEALED AND UNREAD",
+  "evidence_commit_sha": "c0615e2e34e723d25f4c501adae73a2c689885fe",
+  "evidence_git_tree": "3148683d4b53507e49939c9a54937c9dbe12d254",
+  "sample_a_commit_sha": "44280b82d67bd56ebbc43b002235d684f4c3f48d"
+}
