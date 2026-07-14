@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-07-14T17:33:48.462517+00:00",
+  "commit_sha": "224012342c9ee063176e9ab84c8a71f359e54973",
+  "image_digest": "sha256:930ea7ba1d7b76c04a6f981bfab72c35651c59f7c641e45b8f8e07e5381e3c76",
+  "working_tree_clean": true,
+  "dirty_files": [],
+  "source_sha256": {
+    "scripts/adr0042_canary_lib.py": "0cc89eff5efb06d88def31c87f90c9f88479389c8ec6809047f480d9aa076877",
+    "scripts/adr0042_churn_to_breach.py": "63f0c09b0f9cb7705c007ee0c07a387b222dc98cb01f166d2282ef427dbd0b6e",
+    "scripts/adr0042_canary_run.py": "ec2f8b7caac0d38332bc623d16e3127d457e82ea4f2f57c548842941d6033d3d",
+    "scripts/adr0042_concurrency_worker.py": "2830b63decfc74e36b573740f323defc69d7fae66b90815cf17c4c81aec0f23d",
+    "scripts/adr0042_preflight.py": "2cc89575fa1239b678ba697c9e3594390195db0e459c8c3ce61f22bf54f40146",
+    "app/risk/decision_service.py": "5ca28d9ffa9e89a6959c5c6457d1ce20ad90a9dbecdd47f85e2f02d4a60c4052",
+    "app/risk/risk_effect.py": "2950cf8ff44b5bd95ec34520da9640266586bf5300a5be664be2cf4cc8b0ffcd",
+    "app/risk/account_snapshot.py": "a9d981ac4c1f276386c349e58325487073501f27e43a43ca480d821f5862e382",
+    "app/db/models/risk_capacity_state.py": "7a7e0704fdb2b1a54de7b56a484683e2069ec97b48a58bba9fe213e1794aabfd"
+  }
+}
