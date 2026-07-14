@@ -86,7 +86,17 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 
 class MomentumPortfolio(Strategy):
     name: ClassVar[str] = "momentum-portfolio"
-    version: ClassVar[str] = "0.8.0"  # + P10 §2 daily gross-exposure overlay (ADR 0020, default off)
+    # v0.9.0 — Workstream A correctness fixes (Momentum_Portfolio_Update_Proposal v1.1 §4).
+    #   A1  dual momentum filter        raw momentum > 0 AND z-score >= 0
+    #   A2  absolute-rank hysteresis    enter <= 5, hold <= 10, exit > 10 on N consecutive closes
+    #   A3  pinned 12-1 window          252/21, with an effective-parameter startup assertion
+    #   A5  bounded regime fallback     no more fail-OPEN on missing market data
+    # A4 (attempted/completed rebalance states + same-day retries) is NOT here: it needs durable
+    # per-strategy state, which the platform does not have. It ships separately with that mechanism.
+    #
+    # ⚠ v0.8 and v0.9 paper history are NOT directly comparable (proposal §2.1). The corrected v0.9
+    # is the honest live baseline; the v0.8 track record is retired as a benchmark.
+    version: ClassVar[str] = "0.9.0"
     # Set at registration = top-200 liquidity candidates (§4 §3.3). Include the
     # market_filter_symbol (SPY) here too, or the regime filter fails open.
     symbols: ClassVar[list[str]] = []
@@ -100,16 +110,43 @@ class MomentumPortfolio(Strategy):
         # 252/0 = 12-month total return, the OOS-dominant variant (Sharpe 1.85 vs
         # 6-1's 1.40, lower drawdown AND lower turnover). 105/21 = the old 6-1.
         "momentum_lookback_days": 252,
-        "momentum_skip_days": 0,
-        "top_quantile": 0.20,  # hold the top 20% by momentum score…
+        # A3 — 12-1, PINNED. Was 0 (i.e. 252/0), which includes the most recent month and
+        # contaminates the signal with short-term reversal, earnings gaps and spike noise. The 252/0
+        # window was never intended: `default_params` merged silently at registration and the stored
+        # row did not override it. `_assert_effective_params` now LOGS the merged window every run,
+        # so an intended-vs-running divergence is visible rather than archaeological.
+        "momentum_skip_days": 21,
+        "top_quantile": 0.20,  # eligibility floor only — the book is capped at `max_names`
         "max_names": 10,  # …capped at this many names
-        "min_score": 0.0,  # z-score floor — default 0 avoids buying negative momentum
+        # A1 — the DUAL momentum filter. `score` == `zscore` in the factor engine, so `min_score`
+        # was only ever a CROSS-SECTIONAL floor: a stock down 8% while the universe is down 20% has
+        # a positive z-score and passed it. In a broad bear market — or whenever the regime filter
+        # failed open — the book could be fully long names with NEGATIVE absolute momentum. The raw
+        # filter is the absolute one, and it is a separate condition, not a tighter z-score.
+        "min_score": 0.0,  # z-score floor (relative)
+        "min_raw_momentum": 0.0,  # RAW trailing-return floor (absolute) — A1
         "min_trade_pct": 0.03,  # skip adjustments smaller than this fraction of target notional
-        "rebalance_buffer_rank_pct": 0.05,  # keep a held name within (q + this) of the cut (hysteresis)
+        # A2 — ABSOLUTE-RANK hysteresis. The old percentage buffer (top_quantile + 5% ≈ top 25%)
+        # permitted a "top-5" holding to be retained down to rank ~50 in a ~200-name universe. With
+        # no per-name stops, rank decay is the ONLY exit discipline in this strategy, so that buffer
+        # was roughly 10x too wide. Bands are now absolute ranks.
+        "entry_rank": 5,  # enter only at rank <= this
+        "hold_rank": 10,  # keep a held name while rank <= this
+        "exit_confirm_closes": 2,  # exit only after rank > hold_rank on this many consecutive closes
+        "replace_score_advantage": 0.30,  # a challenger must beat the held name by this much z
+        "rebalance_buffer_rank_pct": 0.05,  # DEPRECATED by A2 (retained for schema compatibility)
         "pricing_timeframe": "1Day",  # daily close for sizing (intraday open bar is incomplete)
         "use_market_regime_filter": True,  # risk-off to cash when the market is below its MA
         "market_filter_symbol": "SPY",  # must be in `symbols` for the filter to work
         "market_ma_days": 200,  # MA window for the regime filter
+        # A5 — BOUNDED fallback for missing/stale market data. The old behaviour was fail-OPEN:
+        # trade fully exposed when the regime series was unavailable. That compounds with A1 in
+        # exactly the worst conditions — a data outage during a drawdown produced a fully-long,
+        # possibly negative-momentum book. Now: reuse the last valid regime while it is fresh, then
+        # step gross DOWN, then go flat. It never fails open again.
+        "regime_stale_max_days": 2,  # reuse the last valid regime state for up to this many days
+        "regime_degraded_gross": 0.50,  # gross multiplier once the data is staler than that
+        "regime_degraded_max_days": 4,  # beyond this, gross goes to zero (no new risk on blind data)
         "max_position_pct": 0.10,  # hard cap on any one name's weight
         "max_sector_pct": None,  # cap per-sector book weight (None = disabled; P10 §3, opt-in)
         "fractional_shares": True,  # fractional deploys ~fully; whole shares under-deploy (P10 §7 — default ON)
@@ -145,19 +182,29 @@ class MomentumPortfolio(Strategy):
 
     params_schema: ClassVar[dict[str, Any]] = {
         "momentum_lookback_days": {"type": "integer", "min": 1, "default": 252,
-                                   "description": "Momentum lookback (trading days). 252 = 12-month; 105 = the old 6-1 window."},
-        "momentum_skip_days": {"type": "integer", "min": 0, "default": 0,
-                               "description": "Trading days skipped before the lookback (short-term reversal guard). 0 = 12m; 21 = the old 6-1 skip."},
+                                   "description": "Momentum lookback (trading days). 252 = 12-month."},
+        "momentum_skip_days": {"type": "integer", "min": 0, "default": 21,
+                               "description": "Trading days skipped before the lookback (short-term reversal guard). 21 = the 12-1 skip. 0 contaminates the signal with the most recent month."},
         "top_quantile": {"type": "number", "min": 0, "max": 1, "default": 0.20,
-                         "description": "Hold the top fraction of the universe by momentum score."},
+                         "description": "Eligibility floor only — the book is capped at max_names, so a 5-name book out of ~200 holds the top 2.5%, not the top quintile."},
         "max_names": {"type": "integer", "min": 1, "default": 10,
                       "description": "Hard cap on the number of names held."},
         "min_score": {"type": "number", "nullable": True, "default": 0.0,
-                      "description": "z-score floor; names below it are not held. Empty/None = no floor."},
+                      "description": "z-score floor (RELATIVE). Note: a positive z-score does NOT imply positive absolute momentum — see min_raw_momentum."},
+        "min_raw_momentum": {"type": "number", "nullable": True, "default": 0.0,
+                             "description": "Raw trailing-return floor (ABSOLUTE). Names whose raw momentum is below this are never held, however good their cross-sectional rank. Empty/None = no floor (NOT recommended)."},
         "min_trade_pct": {"type": "number", "min": 0, "max": 1, "default": 0.03,
                           "description": "Skip rebalance adjustments smaller than this fraction of target notional."},
+        "entry_rank": {"type": "integer", "min": 1, "default": 5,
+                       "description": "Enter a name only when its momentum rank is at or above this (rank 1 = strongest)."},
+        "hold_rank": {"type": "integer", "min": 1, "default": 10,
+                      "description": "Keep a held name while its rank is at or above this. Must be >= entry_rank."},
+        "exit_confirm_closes": {"type": "integer", "min": 1, "default": 2,
+                                "description": "Exit a held name only after its rank is worse than hold_rank on this many consecutive closes (confirmation, damps single-day noise)."},
+        "replace_score_advantage": {"type": "number", "min": 0, "default": 0.30,
+                                    "description": "A challenger at rank <= entry_rank displaces a held name only if its z-score exceeds the held name's by at least this much."},
         "rebalance_buffer_rank_pct": {"type": "number", "min": 0, "max": 1, "default": 0.05,
-                                      "description": "Keep a held name if still within (top_quantile + this) of the cut."},
+                                      "description": "DEPRECATED (v0.9.0, superseded by entry_rank/hold_rank). Retained for schema compatibility with existing rows; no longer read."},
         "pricing_timeframe": {"type": "enum", "choices": ["5Min", "15Min", "1Hour", "1Day"],
                               "default": "1Day", "description": "Bar timeframe used to price names for sizing."},
         "use_market_regime_filter": {"type": "boolean", "default": True,
@@ -166,6 +213,12 @@ class MomentumPortfolio(Strategy):
                                  "description": "Market proxy for the regime filter (must be in the registered symbols)."},
         "market_ma_days": {"type": "integer", "min": 20, "default": 200,
                            "description": "Moving-average window (trading days) for the regime filter."},
+        "regime_stale_max_days": {"type": "integer", "min": 0, "default": 2,
+                                  "description": "Reuse the last valid regime state for up to this many days when market data is missing. Beyond it, gross is stepped down — the filter never fails open."},
+        "regime_degraded_gross": {"type": "number", "min": 0, "max": 1, "default": 0.50,
+                                  "description": "Gross-exposure multiplier once market data is staler than regime_stale_max_days."},
+        "regime_degraded_max_days": {"type": "integer", "min": 1, "default": 4,
+                                     "description": "Beyond this staleness, gross goes to zero: no new risk is taken on blind regime data."},
         "max_position_pct": {"type": "number", "min": 0, "max": 1, "default": 0.10,
                              "description": "Hard cap on any single position as a fraction of equity."},
         "fractional_shares": {"type": "boolean", "default": True,
@@ -205,6 +258,38 @@ class MomentumPortfolio(Strategy):
         # (ISO year, ISO week) of the last ATTEMPTED rebalance — guards once/week.
         self._last_rebalance_week: tuple[int, int] | None = None  # backtest cadence
         self._last_dispatch_seq: int | None = None  # live cadence: one rebalance per dispatch
+        await self._assert_effective_params()
+
+    async def _assert_effective_params(self) -> None:
+        """A3 — log the EFFECTIVE merged parameters, and refuse an incoherent band configuration.
+
+        The 252/0 drift happened because `default_params` merges silently at registration: the
+        strategy row did not override the window, the template default won, and nothing ever said
+        so. The divergence was only discoverable by archaeology. Now the window the strategy will
+        ACTUALLY rank on is logged on every load, so intended-vs-running is visible at a glance.
+        """
+        eff = {
+            "version": self.version,
+            "momentum_lookback_days": int(self.params.get("momentum_lookback_days", 252)),
+            "momentum_skip_days": int(self.params.get("momentum_skip_days", 21)),
+            "min_score": self.params.get("min_score"),
+            "min_raw_momentum": self.params.get("min_raw_momentum"),
+            "entry_rank": int(self.params.get("entry_rank", 5)),
+            "hold_rank": int(self.params.get("hold_rank", 10)),
+            "exit_confirm_closes": int(self.params.get("exit_confirm_closes", 2)),
+            "replace_score_advantage": float(self.params.get("replace_score_advantage", 0.30)),
+            "max_names": int(self.params.get("max_names", 10)),
+            "regime_stale_max_days": int(self.params.get("regime_stale_max_days", 2)),
+        }
+        # A hold band TIGHTER than the entry band would exit a name the moment it is bought. That is
+        # not a preference, it is incoherent — refuse it rather than trade it.
+        if eff["hold_rank"] < eff["entry_rank"]:
+            raise ValueError(
+                f"incoherent rank bands: hold_rank={eff['hold_rank']} < "
+                f"entry_rank={eff['entry_rank']} — a name would be sold the week it is bought"
+            )
+        await self.ctx.log_signal("PORTFOLIO", SignalType.INFO,
+                                  payload={"reason": "effective_params", **eff})
 
     async def on_bar(self, bar: Any) -> None:
         """The engine calls this ONCE PER SYMBOL on every cron tick (200+ calls per slot), so
@@ -231,6 +316,10 @@ class MomentumPortfolio(Strategy):
             if wk == self._last_rebalance_week:
                 return
             self._last_rebalance_week = wk
+        # A5 — the tick's date is the reference point for market-data STALENESS. Taken from the bar
+        # rather than the wall clock so a backtest and a live run judge staleness identically. It is
+        # set AFTER the cadence guard (once per dispatch/week), before the rebalance reads it.
+        self._tick_date = bar.t.date() if hasattr(bar.t, "date") else bar.t
         try:
             await self._rebalance()
         except Exception as exc:  # noqa: BLE001 - contain user-path failures
@@ -244,10 +333,18 @@ class MomentumPortfolio(Strategy):
     async def _rebalance(self) -> None:
         """Compute the target book and trade the diff toward it."""
         # 1. Market-regime gate: risk-off to cash in a downtrend.
+        #
+        # A5 — this NO LONGER FAILS OPEN. `_market_regime` returns a gross multiplier alongside the
+        # regime, so degraded data reduces exposure instead of ignoring the filter. Fail-open here
+        # compounded with the A1 defect in exactly the worst conditions: a market-data outage during
+        # a drawdown produced a fully-invested, possibly negative-momentum book.
+        self._regime_gross = 1.0
         if self.params.get("use_market_regime_filter", True):
-            below = await self._market_below_ma()  # None = unavailable → fail open (trade)
-            if below is True:
-                await self._apply_targets([], reason="regime_bear_cash")
+            below, gross = await self._market_regime()
+            self._regime_gross = gross
+            if below is True or gross <= 0.0:
+                await self._apply_targets(
+                    [], reason="regime_bear_cash" if below else "regime_data_blind_flat")
                 return
 
         # 2. Factor scores over the registered universe (Finding 2: standardize over
@@ -269,6 +366,10 @@ class MomentumPortfolio(Strategy):
             return
 
         held = await self._current_holdings()
+        # A2 — rank the CURRENT eligible cross-section, then the prior closes needed to confirm an
+        # exit. Both are pure functions of the PIT store; nothing is remembered between runs.
+        self._current_order = {t: i + 1 for i, t in enumerate(self._eligible(scores).index)}
+        await self._load_prior_closes()
         target = self._select_targets(scores, held)
         await self._apply_targets(target, held=held, reason="rebalance")
 
@@ -353,40 +454,170 @@ class MomentumPortfolio(Strategy):
                                ref_price=price,
                                payload={"price": price, "target_qty": str(target_qty)})
 
-    def _select_targets(self, scores: Any, held: dict[str, Decimal]) -> list[str]:
-        """Top-quintile tickers within the candidate universe, with rank hysteresis.
+    def _eligible(self, scores: Any) -> Any:
+        """A1 — the DUAL momentum filter, over the tradeable candidate set.
 
-        Selects the top `top_quantile` by score (≥ min_score, capped at max_names);
-        additionally KEEPS a currently-held name if it is still within
-        (top_quantile + rebalance_buffer_rank_pct) of the cut, to damp churn from
-        names hovering at the boundary."""
-        # Exclude the market proxy (SPY) — it may be registered ONLY so the regime
-        # filter can read it; it must never be selected as a portfolio holding.
+        Two INDEPENDENT conditions, because they answer different questions:
+
+            zscore >= min_score        is this name strong RELATIVE to the cross-section?
+            momentum > min_raw         is this name going UP at all?
+
+        The factor engine sets `score == zscore`, so the v0.8 `min_score` floor was purely the
+        relative one. A stock down 8% while the universe is down 20% has a positive z-score and
+        passed it. The whole book could therefore be long names with negative absolute momentum —
+        and precisely in a broad drawdown, which is when it matters most.
+        """
         market_sym = str(self.params.get("market_filter_symbol", "SPY")).upper()
         allowed = {s.upper() for s in self.ctx.symbols if s.upper() != market_sym}
         eligible = scores[scores.index.isin(allowed)]
+
         floor = self.params.get("min_score")
         if floor is not None and floor != "":
-            eligible = eligible[eligible["score"] >= float(floor)]
+            eligible = eligible[eligible["zscore"] >= float(floor)]
+
+        raw_floor = self.params.get("min_raw_momentum")
+        if raw_floor is not None and raw_floor != "":
+            eligible = eligible[eligible["momentum"] > float(raw_floor)]
+
+        return eligible.sort_values("score", ascending=False)  # defensive re-sort
+
+    def _select_targets(self, scores: Any, held: dict[str, Decimal]) -> list[str]:
+        """A2 — ABSOLUTE-RANK bands, replacing the percentage buffer.
+
+            enter    rank <= entry_rank                    (default 5)
+            hold     rank <= hold_rank                     (default 10)
+            exit     rank > hold_rank on N consecutive closes  (default 2)
+            replace  a challenger at rank <= entry_rank displaces the weakest holding only if it
+                     beats it by >= replace_score_advantage in z-score
+
+        The v0.8 buffer was `top_quantile + 5%` ≈ the top 25% ≈ rank ~50 in a ~200-name universe.
+        Since this strategy has no per-name stops, rank decay is its ONLY exit discipline, so a
+        "top-5" book could legally hold a rank-50 name indefinitely. The bands are absolute now.
+
+        The exit CONFIRMATION is read from the point-in-time factor store, not from a counter held in
+        memory. That is deliberate: an in-memory breach count is silently reset by every strategy
+        reload, and reloads are routine — so a decaying name would have its count zeroed and be
+        re-held, defeating the only exit discipline the book has, exactly when it is churning enough
+        to warrant a reload. Querying the store makes the rule a pure function of the data:
+        deterministic, restart-safe, and identical in backtest and live.
+        """
+        eligible = self._eligible(scores)
         if eligible.empty:
             return []
-        eligible = eligible.sort_values("score", ascending=False)  # defensive (Finding 6/sort)
 
-        q = float(self.params.get("top_quantile", 0.20))
         cap = int(self.params.get("max_names", 10))
-        buf = float(self.params.get("rebalance_buffer_rank_pct", 0.05))
-        ranked = list(eligible.index)
+        entry_rank = int(self.params.get("entry_rank", 5))
+        hold_rank = int(self.params.get("hold_rank", 10))
+        advantage = float(self.params.get("replace_score_advantage", 0.30))
 
-        core_k = min(cap, max(1, math.ceil(len(ranked) * q)))
-        core = ranked[:core_k]
-        buf_k = min(len(ranked), max(core_k, math.ceil(len(ranked) * (q + buf))))
-        buffer_zone = set(ranked[:buf_k])
+        ranked = list(eligible.index)                 # best-first among the ELIGIBLE names
+        pos = {t: i + 1 for i, t in enumerate(ranked)}   # 1-based rank within the eligible set
+        score_of = eligible["score"].to_dict()
 
-        keep_held = [h for h in held if h in buffer_zone and h not in core]
-        chosen = set(core) | set(keep_held)
-        # Order by score, cap at max_names.
-        final = [t for t in ranked if t in chosen][:cap]
+        # 1. Keep held names that are still inside the hold band — or that have breached it but not
+        #    yet on enough consecutive closes to confirm the exit.
+        keep: list[str] = []
+        for h in held:
+            r = pos.get(h)
+            if r is None:
+                continue                              # no longer eligible at all (A1) -> exit
+            if r <= hold_rank or not self._exit_confirmed(h, hold_rank):
+                keep.append(h)
+
+        # 2. Entries: only from the entry band, and only into a free slot...
+        entrants = [t for t in ranked[:entry_rank] if t not in keep]
+        book = list(keep)
+        for t in entrants:
+            if len(book) >= cap:
+                break
+            book.append(t)
+
+        # 3. ...or by DISPLACEMENT. A challenger inside the entry band takes a full book's weakest
+        #    holding only if it is materially better — otherwise ranks 5 and 6 swapping on noise
+        #    would churn the book every week, which is the outcome this rule exists to prevent.
+        for t in entrants:
+            if t in book:
+                continue
+            weakest = max((b for b in book if b in score_of), key=lambda b: -score_of[b],
+                          default=None)
+            if weakest is None:
+                break
+            if score_of[t] >= score_of[weakest] + advantage:
+                book[book.index(weakest)] = t
+
+        final = [t for t in ranked if t in set(book)][:cap]   # score order, capped
         return self._apply_sector_cap(final, ranked, cap)
+
+    def _exit_confirmed(self, ticker: str, hold_rank: int) -> bool:
+        """True when `ticker` ranked WORSE than `hold_rank` on `exit_confirm_closes` consecutive
+        closes, counting back from the latest — read from the point-in-time factor store.
+
+        `self._prior_frames` holds the eligible-and-ranked cross-section at each prior close; it is
+        built once per rebalance by `_load_prior_closes` (a per-name query would re-rank the whole
+        universe once per holding).
+
+        FAILS CLOSED. If a prior close cannot be scored, the exit is NOT confirmed — a data gap
+        holds the position rather than liquidating it on a single unconfirmed reading.
+        """
+        need = int(self.params.get("exit_confirm_closes", 2))
+        if need <= 1:
+            return True                                # the current close is breach #1, and enough
+        frames = getattr(self, "_prior_frames", None)
+        if not frames or len(frames) < need - 1:
+            return False                               # cannot confirm -> do not exit
+        for order in frames[: need - 1]:
+            r = order.get(ticker)
+            if r is None or r <= hold_rank:
+                # Inside the band at that close (or unrankable) -> the breach is not consecutive.
+                return False
+        return True
+
+    async def _load_prior_closes(self) -> None:
+        """Rank the eligible universe at each of the prior trading closes needed to CONFIRM an exit.
+
+        The trading calendar comes from the market proxy's daily BAR timestamps — real closes, so no
+        market-calendar dependency and no weekend arithmetic. Each date is then handed to the PIT
+        factor store, which reads no data after it.
+
+        ⚠ The bars and the factor store are different sources and can be out of step. If a prior
+        close resolves to the SAME cross-section as the current one, the two closes are not actually
+        distinct and confirming an exit from them would be comparing a close against itself. That is
+        detected and the frame is dropped, which fails closed (no exit confirmed).
+        """
+        self._prior_frames: list[dict[str, int]] = []
+        need = int(self.params.get("exit_confirm_closes", 2))
+        if need <= 1:
+            return
+        sym = str(self.params.get("market_filter_symbol", "SPY"))
+        bars = await self.ctx.get_recent_bars(sym, "1Day", n=need + 4)
+        if bars is None or bars.empty or len(bars) < 2:
+            return                                     # no calendar -> cannot confirm -> fail closed
+        try:
+            idx = bars.index if getattr(bars.index, "name", None) == "t" else bars["t"]
+            dates = [d.date() if hasattr(d, "date") else d for d in list(idx)]
+        except Exception:  # noqa: BLE001
+            return
+        prior = [d for d in dates[:-1]][::-1]          # most recent PRIOR close first
+
+        mom_kw = {
+            "lookback_days": int(self.params.get("momentum_lookback_days", 252)),
+            "skip_days": int(self.params.get("momentum_skip_days", 21)),
+        }
+        n = len(self.ctx.symbols) or None
+        current = getattr(self, "_current_order", None)
+        for as_of in prior[: need - 1]:
+            try:
+                prev = (self.ctx.factors.momentum_scores(as_of=as_of, n=n, **mom_kw) if n
+                        else self.ctx.factors.momentum_scores(as_of=as_of, **mom_kw))
+            except _HOLD_ON:
+                return                                 # fail closed
+            order = {t: i + 1 for i, t in enumerate(self._eligible(prev).index)}
+            if current is not None and order == current:
+                await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                    "reason": "exit_confirm_close_not_distinct", "as_of": str(as_of),
+                    "effect": "exit NOT confirmed (fail closed)"})
+                return
+            self._prior_frames.append(order)
 
     def _apply_sector_cap(self, final: list[str], ranked: list[str], cap: int) -> list[str]:
         """Enforce a per-sector cap on the selected book (review #7, P10 §3).
@@ -459,27 +690,85 @@ class MomentumPortfolio(Strategy):
         # down in high-vol regimes. min(1.0, ...) caps at full investment (no
         # leverage); 1.0 when disabled or the proxy series is unavailable.
         scale = await self._gross_scale()
-        return base * Decimal(str(scale))
+        # A5 — the degraded-regime multiplier. Stale market data reduces exposure; it no longer
+        # leaves the book fully invested with the regime filter silently disabled.
+        regime = float(getattr(self, "_regime_gross", 1.0))
+        return base * Decimal(str(scale)) * Decimal(str(regime))
 
-    async def _market_below_ma(self) -> bool | None:
-        """True/False if the market proxy is below/above its MA; None if the series
-        is unavailable (→ fail open: trade). The proxy must be in `ctx.symbols`."""
+    async def _market_regime(self) -> tuple[bool | None, float]:
+        """A5 — the regime, plus a BOUNDED gross multiplier. Returns (below_ma, gross).
+
+        The v0.8 behaviour was fail-OPEN: no market data meant `None`, which the caller read as
+        "trade fully exposed". That is the most dangerous possible default, and it compounds with
+        the A1 defect: during a data outage in a drawdown the book would be fully long, potentially
+        holding negative-momentum names, with the one safety filter silently disabled.
+
+        The replacement is a bounded ladder, and it is STATELESS — staleness is read from the bar
+        timestamps, not from a remembered "last good" value that a restart would lose:
+
+            fresh (<= regime_stale_max_days)   trust the regime as computed        gross 1.0
+            stale                              REUSE the last valid regime,         gross 0.5
+                                               but stop taking full risk on it
+            very stale (> degraded_max_days)   we are blind                         gross 0.0
+            no data at all                     we are blind                         gross 0.0
+
+        Reusing a stale regime is sound: the 200-day MA moves slowly, so a two-day-old reading is
+        still informative. Trusting it INDEFINITELY is not, which is what the ladder bounds.
+        """
         sym = str(self.params.get("market_filter_symbol", "SPY"))
         days = int(self.params.get("market_ma_days", 200))
-        # Fetch days+1 bars: the MA is over the `days` COMPLETED bars (iloc[:-1]),
-        # compared against the latest bar (iloc[-1]) — so the current/forming bar
-        # never contaminates its own MA.
+        stale_max = int(self.params.get("regime_stale_max_days", 2))
+        degraded_gross = float(self.params.get("regime_degraded_gross", 0.50))
+        degraded_max = int(self.params.get("regime_degraded_max_days", 4))
+
+        # Fetch days+1 bars: the MA is over the `days` COMPLETED bars (iloc[:-1]), compared against
+        # the latest bar (iloc[-1]) — so the current/forming bar never contaminates its own MA.
         bars = await self.ctx.get_recent_bars(sym, "1Day", n=days + 1)
         if bars is None or bars.empty or len(bars) < days + 1:
+            # NO regime can be computed. We are blind. v0.8 traded anyway; v0.9 does not.
             await self.ctx.log_signal(
                 sym, SignalType.EXIT,
-                payload={"reason": "regime_filter_unavailable_failopen",
-                         "have_bars": 0 if bars is None else int(len(bars)), "need": days + 1},
+                payload={"reason": "regime_data_unavailable_flat",
+                         "have_bars": 0 if bars is None else int(len(bars)), "need": days + 1,
+                         "gross": 0.0},
             )
+            return None, 0.0
+
+        ma = float(bars["c"].iloc[:-1].mean())
+        last = float(bars["c"].iloc[-1])
+        below = last < ma
+
+        stale_days = self._staleness_days(bars)
+        if stale_days is None or stale_days <= stale_max:
+            return below, 1.0
+        if stale_days <= degraded_max:
+            await self.ctx.log_signal(
+                sym, SignalType.INFO,
+                payload={"reason": "regime_stale_degraded_gross", "stale_days": stale_days,
+                         "below_ma": below, "gross": degraded_gross},
+            )
+            return below, degraded_gross
+        await self.ctx.log_signal(
+            sym, SignalType.EXIT,
+            payload={"reason": "regime_stale_blind_flat", "stale_days": stale_days, "gross": 0.0},
+        )
+        return below, 0.0
+
+    def _staleness_days(self, bars: Any) -> int | None:
+        """Calendar days between the newest market bar and the bar driving this tick.
+
+        Derived from the DATA, so it survives a restart — unlike a remembered "last good" timestamp,
+        which a reload would silently reset to None and thereby report perfectly fresh data.
+        """
+        now = getattr(self, "_tick_date", None)
+        if now is None:
             return None
-        ma = float(bars["c"].iloc[:-1].mean())  # the `days` completed bars
-        last = float(bars["c"].iloc[-1])        # the latest bar
-        return last < ma
+        try:
+            last_t = bars.index[-1] if getattr(bars.index, "name", None) == "t" else bars["t"].iloc[-1]
+            last_date = last_t.date() if hasattr(last_t, "date") else last_t
+        except Exception:  # noqa: BLE001 — no usable timestamp → cannot judge staleness
+            return None
+        return max(0, (now - last_date).days)
 
     async def _gross_scale(self) -> float:
         """Portfolio gross-exposure multiplier in [0, 1] from EWMA-vol targeting.
