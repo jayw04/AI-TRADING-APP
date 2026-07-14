@@ -7,7 +7,7 @@ StrategyContext (no engine, no DB)."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
@@ -29,9 +29,51 @@ def _bar(ts: datetime, symbol: str = "AAA") -> Bar:
     return Bar(symbol=symbol, timeframe="1Day", t=ts, o=1, h=1, l=1, c=1, v=1)
 
 
-def _scores(order: list[tuple[str, float]]) -> pd.DataFrame:
-    df = pd.DataFrame({"score": [s for _, s in order]}, index=[t for t, _ in order])
+def _scores(
+    order: list[tuple[str, float]],
+    raw: dict[str, float] | None = None,
+) -> pd.DataFrame:
+    """The factor frame as the ENGINE actually returns it: [momentum, winsorized, zscore, rank,
+    score], with `score == zscore`.
+
+    ⚠ Until v0.9.0 this helper produced a `score` column and NOTHING ELSE. The real engine has
+    always returned a `momentum` column too — the RAW trailing return. Because the mock omitted it,
+    no test in this file could express, let alone catch, the A1 defect: that a positive z-score
+    never implied positive absolute momentum, so the book could go fully long names that were
+    falling. The mock was not merely incomplete; it made the bug invisible.
+
+    `raw` overrides the raw momentum per ticker. It defaults to a small POSITIVE value so the
+    pre-existing tests, which only ever cared about ranking, keep meaning what they meant.
+    """
+    tickers = [t for t, _ in order]
+    z = [s for _, s in order]
+    raw = raw or {}
+    momentum = [raw.get(t, 0.10 + 0.01 * i) for i, t in enumerate(reversed(tickers))][::-1]
+    df = pd.DataFrame(
+        {
+            "momentum": momentum,
+            "winsorized": z,
+            "zscore": z,
+            "rank": list(range(1, len(tickers) + 1)),
+            "score": z,
+        },
+        index=tickers,
+    )
     df.index.name = "ticker"
+    return df
+
+
+def _spy_dated(*, above: bool = True, n: int = 201, stale_days: int = 0) -> pd.DataFrame:
+    """A market-proxy series with REAL timestamps, ending `stale_days` before the tick.
+
+    The timestamps are the point: A5 judges staleness from the DATA, not from a remembered
+    "last good" value that a restart would silently reset to "perfectly fresh".
+    """
+    closes = [100.0] * (n - 1) + [110.0 if above else 90.0]
+    end = WK1_A.date() - timedelta(days=stale_days)
+    idx = pd.to_datetime([end - timedelta(days=n - 1 - i) for i in range(n)])
+    df = pd.DataFrame({"c": closes}, index=idx)
+    df.index.name = "t"
     return df
 
 
@@ -111,16 +153,44 @@ async def test_rebalances_once_per_iso_week() -> None:
     assert ctx.factors.momentum_scores.call_count == 2
 
 
-async def test_momentum_window_defaults_to_12m() -> None:
-    """R1: the book defaults to the 12-month window (252/0), the OOS-dominant
-    variant — see research/momentum_12m_backtest.md."""
+async def test_momentum_window_defaults_to_12_MINUS_1() -> None:
+    """A3: the book ranks on 12-1 (252/21), not 252/0.
+
+    252/0 includes the most recent month, contaminating the signal with short-term reversal,
+    earnings gaps and spike noise. It was never the intended window: `default_params` merged
+    silently at registration and the stored strategy row did not override it, so the documented
+    window and the running one diverged with nothing to say so.
+    """
     ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]))
     strat = _strat(ctx)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     _, kwargs = ctx.factors.momentum_scores.call_args
     assert kwargs["lookback_days"] == 252
-    assert kwargs["skip_days"] == 0
+    assert kwargs["skip_days"] == 21
+
+
+async def test_the_effective_merged_parameters_are_LOGGED_on_load() -> None:
+    """A3: the 252/0 drift was only ever discoverable by archaeology. The window the strategy will
+    actually rank on is now stated out loud every time it loads."""
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]))
+    strat = _strat(ctx)
+    await strat.on_init()
+    eff = [c.kwargs.get("payload", {}) for c in ctx.log_signal.call_args_list
+           if c.kwargs.get("payload", {}).get("reason") == "effective_params"]
+    assert eff, "the effective parameters were not logged"
+    assert eff[0]["momentum_lookback_days"] == 252
+    assert eff[0]["momentum_skip_days"] == 21
+    assert eff[0]["version"] == "0.9.0"
+
+
+async def test_an_incoherent_rank_band_is_REFUSED_not_traded() -> None:
+    """hold_rank < entry_rank would sell a name the very week it was bought. That is not a
+    preference to be honoured — it is incoherent, and it stops the strategy loading."""
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]))
+    strat = _strat(ctx, entry_rank=5, hold_rank=3)
+    with pytest.raises(ValueError, match="incoherent rank bands"):
+        await strat.on_init()
 
 
 async def test_momentum_window_is_parametrized() -> None:
@@ -156,15 +226,17 @@ async def test_unexpected_failure_marks_week_and_does_not_retry_same_week() -> N
 # ---- selection / diff ----------------------------------------------------------
 
 async def test_selection_diff_buys_targets_sells_leavers() -> None:
+    """A2: entry is by ABSOLUTE RANK now. entry_rank=2 -> {AAA, BBB}; CCC is held but ranks 3, which
+    is outside hold_rank=2, and its exit confirms, so it is sold."""
     scores = _scores([("AAA", 2.0), ("BBB", 1.0), ("CCC", 0.0), ("DDD", -1.0), ("EEE", -2.0)])
     ctx = _ctx(["AAA", "BBB", "CCC", "DDD", "EEE"], scores,
                holdings={"CCC": 10, "AAA": 5}, price=100.0, equity=100_000)
-    strat = _strat(ctx, top_quantile=0.4, max_names=10)  # ceil(5*0.4)=2 → {AAA,BBB}
+    strat = _strat(ctx, entry_rank=2, hold_rank=2, exit_confirm_closes=1, max_names=10)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     orders = _orders(ctx)
     # equity 100k / k=2 = 50k per name; price 100 → 500 target
-    assert orders["CCC"] == ("sell", Decimal(10))   # dropped out → flat
+    assert orders["CCC"] == ("sell", Decimal(10))   # rank 3 > hold_rank 2 → exit
     assert orders["AAA"] == ("buy", Decimal(495))   # 500 - 5 held
     assert orders["BBB"] == ("buy", Decimal(500))
     assert "DDD" not in orders and "EEE" not in orders
@@ -329,14 +401,22 @@ async def test_regime_bullish_trades_normally() -> None:
     assert _orders(ctx)["AAA"][0] == "buy"  # bull → trades
 
 
-async def test_regime_unavailable_fails_open() -> None:
-    # SPY not in symbols → get_recent_bars returns 1 row < threshold → fail open (trade)
+async def test_regime_unavailable_goes_FLAT_and_no_longer_fails_open() -> None:
+    """A5: the regime filter must NEVER fail open again.
+
+    v0.8 traded FULLY EXPOSED when the market series was missing. That compounds with the A1 defect
+    in exactly the worst conditions: a data outage during a drawdown produced a fully-invested,
+    possibly negative-momentum book with the one safety filter silently disabled. Blind now means
+    flat, not bold.
+    """
     ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), equity=100_000)  # no SPY, no spy_bars
-    strat = _strat(ctx, use_market_regime_filter=True, top_quantile=1.0)
+    strat = _strat(ctx, use_market_regime_filter=True, entry_rank=1)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
-    assert _orders(ctx)["AAA"][0] == "buy"  # filter unavailable → fail open, still trades
-    assert any("regime_filter_unavailable_failopen" in str(c.kwargs.get("payload", {}))
+    orders = _orders(ctx)
+    assert "AAA" not in orders or orders["AAA"][0] != "buy", (
+        "no regime data, yet the book still bought — this is the fail-open defect")
+    assert any("regime_data_unavailable_flat" in str(c.kwargs.get("payload", {}))
                for c in ctx.log_signal.call_args_list)
 
 
@@ -741,3 +821,131 @@ async def test_reactivation_does_not_duplicate_basket() -> None:
     await strat2.on_init()              # weekly guard reset to None
     await strat2.on_bar(_bar(WK1_B))    # same ISO week, different instance
     assert _orders(ctx) == {}           # nothing re-ordered
+
+
+# =====================================================================================
+# v0.9.0 — Workstream A. Each of these FAILS on v0.8.0. They are the fixes, stated as
+# assertions rather than as intentions.
+# =====================================================================================
+async def test_A1_a_positive_zscore_with_NEGATIVE_raw_momentum_is_not_bought() -> None:
+    """A1. The whole defect in one test.
+
+    In a broad drawdown every name can be falling, yet the cross-sectional z-score is relative, so
+    the least-bad name still scores +2.0 and cleared the v0.8 `min_score = 0` floor. The book would
+    then go fully long a stock that is DOWN 30%. `min_score` was never a momentum filter; it was a
+    ranking floor wearing one's clothes.
+    """
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0)], raw={"AAA": -0.30, "BBB": -0.10})
+    ctx = _ctx(["AAA", "BBB"], scores, equity=100_000, spy_bars=_spy_dated(above=True))
+    strat = _strat(ctx, entry_rank=2, hold_rank=2)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    orders = _orders(ctx)
+    assert not [s for s, (side, _) in orders.items() if side == "buy"], (
+        f"bought {list(orders)} — every candidate has NEGATIVE absolute momentum")
+
+
+async def test_A1_the_raw_filter_is_INDEPENDENT_of_the_zscore_floor() -> None:
+    """Two separate questions: is it strong relative to its peers, and is it going up at all. A name
+    can pass one and fail the other, which is exactly why they cannot be collapsed into one gate."""
+    scores = _scores([("AAA", 2.0), ("BBB", 1.5)], raw={"AAA": -0.05, "BBB": 0.20})
+    ctx = _ctx(["AAA", "BBB"], scores, equity=100_000, spy_bars=_spy_dated(above=True))
+    strat = _strat(ctx, entry_rank=2, hold_rank=2)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    orders = _orders(ctx)
+    assert "AAA" not in orders                       # best z-score, but falling -> refused
+    assert orders["BBB"][0] == "buy"                 # weaker z-score, but actually rising
+
+
+async def test_A2_a_held_name_that_has_decayed_far_past_the_band_is_SOLD() -> None:
+    """A2. v0.8's buffer was top_quantile + 5% ≈ the top 25% ≈ rank ~50 of ~200. Since this book has
+    no per-name stops, rank decay is its ONLY exit discipline — so a "top-5" strategy could hold a
+    rank-30 name indefinitely and call it hysteresis."""
+    order = [(f"T{i:02d}", 3.0 - 0.1 * i) for i in range(40)]
+    ctx = _ctx([t for t, _ in order], _scores(order), holdings={"T30": 10},
+               equity=100_000, price=100.0, spy_bars=_spy_dated(above=True))
+    strat = _strat(ctx, entry_rank=5, hold_rank=10, exit_confirm_closes=1, max_names=5)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["T30"] == ("sell", Decimal(10)), "a rank-31 name was retained"
+
+
+async def test_A2_one_breach_is_not_enough___the_exit_needs_CONFIRMATION() -> None:
+    """A single bad close is noise; the exit confirms over consecutive closes.
+
+    The confirmation is read from the PIT factor store, NOT from a counter in memory. That is the
+    whole point: an in-memory breach count is silently reset by every strategy reload, and reloads
+    are routine — so a decaying name would have its count zeroed and be re-held, defeating the only
+    exit discipline this book has, precisely when it is churning enough to warrant a reload.
+
+    The book is left with free slots here, so the DISPLACEMENT rule (a separate trigger) cannot
+    evict T30 and confuse what is being tested.
+    """
+    order = [(f"T{i:02d}", 3.0 - 0.1 * i) for i in range(40)]
+    ctx = _ctx([t for t, _ in order], _scores(order), holdings={"T30": 10},
+               equity=100_000, price=100.0, spy_bars=_spy_dated(above=True))
+    ctx.factors.momentum_scores.side_effect = [
+        _scores(order),                                                        # now: T30 rank 31
+        _scores([("T30", 3.0)] + [(k, s) for k, s in order if k != "T30"]),    # prior: T30 rank 1
+    ]
+    strat = _strat(ctx, entry_rank=5, hold_rank=10, exit_confirm_closes=2, max_names=10)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    sells = {s for s, (side, _) in _orders(ctx).items() if side == "sell"}
+    assert "T30" not in sells, "sold on a single unconfirmed breach"
+
+
+async def test_A2_a_CONFIRMED_breach_across_both_closes_does_exit() -> None:
+    """The other half: confirmation must not become a way to never sell anything."""
+    order = [(f"T{i:02d}", 3.0 - 0.1 * i) for i in range(40)]
+    ctx = _ctx([t for t, _ in order], _scores(order), holdings={"T30": 10},
+               equity=100_000, price=100.0, spy_bars=_spy_dated(above=True))
+    # The prior frame must be a DISTINCT close (an identical one is not two closes, and the
+    # not-distinct guard correctly refuses to confirm from it). So perturb two other names while
+    # leaving T30 outside the hold band on both.
+    prior = [("T01", 5.0), *[(k, s) for k, s in order if k != "T01"]]   # a different RANKING
+    ctx.factors.momentum_scores.side_effect = [_scores(order), _scores(prior)]  # T30 rank 31 twice
+    strat = _strat(ctx, entry_rank=5, hold_rank=10, exit_confirm_closes=2, max_names=10)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx)["T30"] == ("sell", Decimal(10)), "a twice-confirmed breach was not sold"
+
+
+async def test_A2_a_challenger_needs_a_MATERIAL_edge_to_displace_a_holding() -> None:
+    """Ranks 5 and 6 swap constantly on noise. Without the z-score advantage, every such swap would
+    churn the book — which is the outcome the rule exists to prevent, not a side effect of it."""
+    order = [("AAA", 2.00), ("BBB", 1.99), ("CCC", 1.98)]
+    ctx = _ctx(["AAA", "BBB", "CCC"], _scores(order), holdings={"BBB": 10, "CCC": 10},
+               equity=100_000, price=100.0, spy_bars=_spy_dated(above=True))
+    strat = _strat(ctx, entry_rank=3, hold_rank=3, exit_confirm_closes=1,
+                   max_names=2, replace_score_advantage=0.30)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    sells = {s for s, (side, _) in _orders(ctx).items() if side == "sell"}
+    assert not sells, "AAA displaced a holding on a 0.01 z-score edge"
+
+
+async def test_A5_stale_regime_data_REDUCES_gross_rather_than_ignoring_the_filter() -> None:
+    """A5. Between 'perfectly fine' and 'unknown' there is a middle, and v0.8 had no name for it: it
+    either trusted the regime or ignored it entirely. Stale data now buys a smaller book."""
+    scores = _scores([("AAA", 2.0)])
+    fresh = _ctx(["AAA", "SPY"], scores, equity=100_000, price=100.0,
+                 spy_bars=_spy_dated(above=True))
+    s1 = _strat(fresh, entry_rank=1, max_names=1, cash_buffer_pct=0.0,
+                use_market_regime_filter=True)
+    await s1.on_init()
+    await s1.on_bar(_bar(WK1_A))
+    full = _orders(fresh)["AAA"][1]
+
+    stale = _ctx(["AAA", "SPY"], scores, equity=100_000, price=100.0,
+                 spy_bars=_spy_dated(above=True, stale_days=3))
+    s2 = _strat(stale, entry_rank=1, max_names=1, cash_buffer_pct=0.0,
+                use_market_regime_filter=True,
+                regime_stale_max_days=2, regime_degraded_gross=0.5)
+    await s2.on_init()
+    await s2.on_bar(_bar(WK1_A))
+    degraded = _orders(stale)["AAA"][1]
+
+    assert degraded < full, "stale regime data bought the same size as fresh data"
+    assert abs(float(degraded) / float(full) - 0.5) < 0.02
