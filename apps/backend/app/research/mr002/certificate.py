@@ -59,13 +59,13 @@ midpoint, a rounded scalar, or one endpoint.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from fractions import Fraction
 
 import numpy as np
 from mpmath import iv
 
+from app.research.mr002.directed import to_binary64_dn, to_binary64_up
 from app.research.mr002.joint_portfolio import _qp_matrices
 
 # >= 100 decimal digits of working precision.
@@ -142,22 +142,29 @@ def _vec(a) -> list:
 
 
 def _width(x) -> float:
-    return float(x.delta)
+    """The interval's width, rounded UP.
+
+    This is a serialized bound like any other, and it GATES (`fw <= MAX_INTERVAL_WIDTH`). Rounded to
+    nearest it could come out below the true width and admit an interval wider than the limit allows
+    — the same defect as on the gap endpoints, in a quantity that is easy to overlook because it
+    looks like a diagnostic rather than a bound.
+    """
+    return to_binary64_up(x.delta)
 
 
 def f_up(x) -> float:
-    """An interval's upper endpoint as a double, rounded OUTWARD (up).
+    """An interval's upper endpoint as a double, CORRECTLY ROUNDED toward +infinity.
 
-    ⚠ `float(x)` rounds to NEAREST, which can round a rigorous upper bound DOWN below the true
-    value — at which point it is no longer an upper bound and the certificate quietly stops being
-    conservative. `nextafter` restores the guarantee at a cost of one ulp.
+    Delegated to `app.research.mr002.directed` — the ONE serializer. See that module for why
+    `float(x)` (nearest) and `nextafter(float(x), inf)` (rigorous but loose, and it turns an exact
+    zero into a spurious subnormal) are both wrong, and what "correctly rounded" costs.
     """
-    return math.nextafter(float(x.b), math.inf)
+    return to_binary64_up(x)
 
 
 def f_dn(x) -> float:
-    """An interval's lower endpoint as a double, rounded OUTWARD (down)."""
-    return math.nextafter(float(x.a), -math.inf)
+    """An interval's lower endpoint as a double, CORRECTLY ROUNDED toward -infinity."""
+    return to_binary64_dn(x)
 
 
 # ======================================================================================

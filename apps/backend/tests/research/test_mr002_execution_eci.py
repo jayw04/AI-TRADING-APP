@@ -24,7 +24,6 @@ from app.research.mr002.joint_portfolio import (
     BELOW_NUMERICAL_INCLUSION_FLOOR,
     EXECUTION_CONSTRAINED_INFEASIBLE,
     NO_EXECUTABLE_OPEN,
-    VALID_ZERO_ENTRY_OUTCOME,
     InvalidRun,
     build_joint,
 )

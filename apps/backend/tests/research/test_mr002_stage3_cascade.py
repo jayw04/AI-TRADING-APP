@@ -25,7 +25,7 @@ from app.research.mr002.joint_portfolio import (
     build_joint,
 )
 
-from .test_mr002_joint_solve import assert_constraints, cand, diversified, hold
+from .test_mr002_joint_solve import assert_constraints, diversified, hold
 
 TOL = 1e-9
 

@@ -172,7 +172,7 @@ def test_07_low_gross_existing_book_uses_combined_gross():
     res = build_joint(hs, cs)
     G = assert_constraints(res, hs, cs)
     assert G < 1.0
-    assert G > sum(h.c for h in hs), "diversifying orders must raise gross"
+    assert sum(h.c for h in hs) < G, "diversifying orders must raise gross"
 
 
 def test_08_entry_cap_and_adv_clip_preserved():
@@ -180,7 +180,7 @@ def test_08_entry_cap_and_adv_clip_preserved():
     ADV clip and the cap are embedded in w upstream)."""
     cs = diversified(6)
     res = build_joint([], cs)
-    for pt, w in res.x.items():
+    for w in res.x.values():
         assert w <= NEW_ENTRY_CAP + TOL
     with pytest.raises(InvalidRun, match="1.5% entry cap"):
         build_joint([], [cand(1, 1, 0.02, "XLK")])
@@ -445,10 +445,9 @@ def test_26_below_floor_tolerance_warns_and_stops_and_1e10_is_verified_honored()
     bad = dict(jp.LP_OPTIONS)
     bad["primal_feasibility_tolerance"] = 1e-11
     bad["dual_feasibility_tolerance"] = 1e-11
-    with pytest.raises(Warning):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            linprog(**lp, options=bad)
+    with pytest.raises(Warning), warnings.catch_warnings():
+        warnings.simplefilter("error")
+        linprog(**lp, options=bad)
 
     # ...and the silent-fallback it would otherwise permit is real: success DESPITE
     # the option being rejected. This is what the fatal policy exists to catch.
