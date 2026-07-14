@@ -14,3 +14,23 @@
 # silently voiding the binding. eol=lf pins LF in the working tree and in `git archive`.
 docs/implementation/TradingWorkbench_MR002_PreRegistration_*.md text eol=lf
 docs/implementation/evidence/mr_002/**                          text eol=lf
+
+# ⚠ BINARY ARTIFACTS MUST NEVER BE EOL-CONVERTED.
+#
+# The `evidence/mr_002/**` rule above matches EVERYTHING in that tree — including the gzipped
+# data archives. Git then treats them as text, and its clean filter STRIPS the CR from any CRLF
+# byte pair that happens to occur inside the compressed stream. `anchors.csv.gz` contains 8 such
+# pairs; a single `git add` would delete those bytes and destroy the archive. They have shown as
+# permanently "modified" while being byte-identical to HEAD, which is the symptom of exactly this.
+#
+# Listed after the rules above so these win.
+*.gz      binary
+*.parquet binary
+*.duckdb  binary
+*.sqlite  binary
+*.xlsx    binary
+*.docx    binary
+*.pptx    binary
+*.pdf     binary
+*.png     binary
+*.jpg     binary
