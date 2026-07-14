@@ -41,10 +41,11 @@ from collections import defaultdict
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.risk_capacity_state import RiskCapacityState
@@ -275,7 +276,9 @@ class RiskDecisionService:
         version = snap.state_hash()
         now = datetime.now(UTC)
 
-        updated = await self._session.execute(
+        # `Session.execute` is statically typed as returning `Result`, but a DML statement yields
+        # a `CursorResult` at runtime — and `rowcount` is the entire point here.
+        stmt = (
             update(RiskCapacityState)
             .where(
                 RiskCapacityState.account_id == account_id,
@@ -287,6 +290,7 @@ class RiskDecisionService:
                 updated_at=now,
             )
         )
+        updated = cast("CursorResult[Any]", await self._session.execute(stmt))
         if updated.rowcount == 0:
             self._session.add(
                 RiskCapacityState(
@@ -311,12 +315,15 @@ class RiskDecisionService:
         == someone else took it, or the snapshot moved. There is no third outcome, and no reading
         beforehand can turn a refusal into an approval.
         """
-        res = await self._session.execute(
+        stmt = (
             update(RiskCapacityState)
             .where(
                 RiskCapacityState.account_id == account_id,
                 RiskCapacityState.symbol == symbol,
                 RiskCapacityState.snapshot_version == expected_version,
+                # THE GUARD. It lives in the WHERE clause, not in Python — that is what makes this
+                # a compare-and-swap the database adjudicates, rather than a read-then-write two
+                # processes can both win.
                 RiskCapacityState.reserved_qty + qty <= RiskCapacityState.reducible_capacity_qty,
             )
             .values(
@@ -325,6 +332,7 @@ class RiskDecisionService:
                 updated_at=datetime.now(UTC),
             )
         )
+        res = cast("CursorResult[Any]", await self._session.execute(stmt))
         if res.rowcount != 1:
             return None
         row = await self._session.scalar(
@@ -373,7 +381,7 @@ class RiskDecisionService:
             result,
             risk_effect=RiskEffect.RISK_INCREASING,
             decision=Decision.REJECT,
-            reasons=(*result.reasons, RiskEffectReason.EXCEEDS_REDUCIBLE_CAPACITY),
+            reasons=[*result.reasons, RiskEffectReason.EXCEEDS_REDUCIBLE_CAPACITY],
         )
 
     # ---------------------------------------------------------------- internals

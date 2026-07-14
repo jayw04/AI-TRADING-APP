@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import StrEnum
@@ -238,6 +239,12 @@ def available_reducible_quantity(snap: AccountSnapshot, symbol: str) -> Decimal:
 # ---------------------------------------------------------------------------------------
 # The classifier
 # ---------------------------------------------------------------------------------------
+# The emit callback that `classify()` threads into its helpers. Naming the type lets the
+# helper signatures be CHECKED, instead of silenced with a blanket `no-untyped-def` ignore
+# that had quietly gone stale and was failing mypy on this branch before it was touched.
+_Emit = Callable[..., RiskEffectDecision]
+
+
 def classify(snap: AccountSnapshot, action: ProposedAction) -> RiskEffectDecision:
     """Classify ``action`` by its projected effect on ``snap``.
 
@@ -422,7 +429,9 @@ def classify(snap: AccountSnapshot, action: ProposedAction) -> RiskEffectDecisio
     )
 
 
-def _classify_cancel(snap: AccountSnapshot, action: ProposedAction, _out):  # type: ignore[no-untyped-def]
+def _classify_cancel(
+    snap: AccountSnapshot, action: ProposedAction, _out: _Emit
+) -> RiskEffectDecision:
     """ADR 0042 § B — a cancellation is NOT automatically reducing.
 
     Cancelling a pending *protective* reduction (a sell-to-close) REMOVES a de-risking action.
