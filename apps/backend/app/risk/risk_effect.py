@@ -70,6 +70,10 @@ class RiskEffectReason(StrEnum):
     INCREASES_LEVERAGE = "INCREASES_LEVERAGE"
     OPENS_NEW_POSITION = "OPENS_NEW_POSITION"
     EXCEEDS_REDUCIBLE_QUANTITY = "EXCEEDS_REDUCIBLE_QUANTITY"
+    # Distinct from the static check above: the quantity WAS available when this decision was
+    # classified, and a CONCURRENT decision took it first. The durable capacity claim refused
+    # (ADR 0042 § D). This is a determinate rejection, never a fail-closed.
+    EXCEEDS_REDUCIBLE_CAPACITY = "EXCEEDS_REDUCIBLE_CAPACITY"
     SHORT_NOT_SUPPORTED_V1 = "SHORT_NOT_SUPPORTED_V1"
     NO_POSITION = "NO_POSITION"
     NON_POSITIVE_QUANTITY = "NON_POSITIVE_QUANTITY"

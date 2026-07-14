@@ -16,7 +16,7 @@ A blanket "cancels always pass" exemption would have shipped that hole deliberat
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock
 
@@ -98,9 +98,17 @@ def _router(session_factory, *, held="500", open_side="sell", filled="0"):
     ad.get_positions.return_value = [
         {"symbol": "AAPL", "qty": held, "side": "long", "current_price": "100"}
     ]
+    # ⚠ The broker cursor must be RELATIVE to the seeded local rows, never a fixed date.
+    #
+    # This previously read "2026-07-13T20:00:00Z". The local orders/positions are seeded with
+    # `_now()`, so from 2026-07-14 onward the LOCAL rows became newer than the hard-coded broker
+    # timestamp — `observed_cursor > broker_cursor` — and the causal-completeness guard correctly
+    # reported SNAPSHOT_STALE, failing both tests. The engine was right; the fixture was a time
+    # bomb, of exactly the same species as the canary's hard-coded deadline.
+    broker_cursor = (datetime.now(UTC) + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     ad.list_orders.return_value = [{
         "id": "bo-1", "symbol": "AAPL", "side": open_side, "qty": "50",
-        "filled_qty": filled, "updated_at": "2026-07-13T20:00:00Z",
+        "filled_qty": filled, "updated_at": broker_cursor,
     }]
     reg = MagicMock()
     reg.get.return_value = ad

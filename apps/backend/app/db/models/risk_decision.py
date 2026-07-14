@@ -112,3 +112,7 @@ class RiskDecision(Base):
         ForeignKey("risk_decisions.id", ondelete="SET NULL"), nullable=True
     )
     retry_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # ADR 0042 § D — the capacity-state version this decision consumed. NULL for decisions that
+    # claimed nothing (rejections, fail-closed, and non-reducing actions).
+    capacity_state_version: Mapped[int | None] = mapped_column(Integer, nullable=True)

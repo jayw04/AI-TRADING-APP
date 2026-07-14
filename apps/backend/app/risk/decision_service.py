@@ -7,12 +7,19 @@ the defect ADR 0042 exists to close.
 
 What ``decide()`` guarantees, atomically (§ D):
 
-    per-account lock
-      → live causally-complete broker snapshot (§ A; never a cache)
-      → classify against reservations already held
-      → if ALLOW: RESERVE the quantity
-      → write the ledger row (ALLOW **and** REJECT alike)
+    live causally-complete broker snapshot (§ A; never a cache)
+      → refresh the DURABLE capacity row for (account, symbol)
+      → classify
+      → if a verified reduction: CLAIM the quantity with an atomic conditional UPDATE
+          (compare-and-swap in the DATABASE — see app.db.models.risk_capacity_state)
+      → write the ledger row (ALLOW **and** REJECT alike), bound to the capacity version
       → commit
+
+⚠ THE AUTHORITY IS THE DATABASE, NOT A LOCK. The original implementation guarded this with a
+per-account ``asyncio.Lock``, which is process-local. On 2026-07-14 two independent Python
+processes each read ``reserved = 0`` and each received ALLOW for the same 183 shares; only the
+broker stopped the second order. The broker is not a safety mechanism. The lock survives here
+purely as a contention optimisation — correctness may not depend on it, and does not.
 
 and, before the order is actually sent (§ A):
 
@@ -31,14 +38,16 @@ import asyncio
 import json
 import uuid
 from collections import defaultdict
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.risk_capacity_state import RiskCapacityState
 from app.db.models.risk_decision import RiskDecision
 from app.db.models.risk_reservation import (
     RESERVATION_HELD,
@@ -52,6 +61,8 @@ from app.risk.risk_effect import (
     ProposedAction,
     RiskEffect,
     RiskEffectDecision,
+    RiskEffectReason,
+    available_reducible_quantity,
     classify,
 )
 
@@ -98,7 +109,11 @@ class RiskDecisionService:
         never existed because a gate refused it is exactly the event you most need a record of.
         """
         corr = correlation_id or uuid.uuid4().hex
+        symbol = action.symbol.upper()
 
+        # The lock is a CONTENTION OPTIMISATION ONLY. It removes needless database round-trips
+        # between coroutines in this process. It is not the safety control, and nothing below
+        # depends on holding it — the conditional UPDATE is what enforces the invariant.
         async with _ACCOUNT_LOCKS[account_id]:
             reserved = await self._reserved_by_symbol(account_id)
             snap = await fetch_snapshot(
@@ -110,17 +125,36 @@ class RiskDecisionService:
             result = classify(snap, action)
 
             reservation_id: int | None = None
+            capacity_version: int | None = None
+
             if result.is_verified_reduction and action.qty is not None:
-                reservation = RiskReservation(
-                    account_id=account_id,
-                    symbol=action.symbol.upper(),
-                    qty=action.qty,
-                    state=RESERVATION_HELD,
-                    created_at=datetime.now(UTC),
+                # § D — DURABLE, CROSS-PROCESS CAPACITY CLAIM.
+                #
+                # The refresh below is this transaction's first WRITE, so SQLite takes the write
+                # lock here and holds it through the claim, the inserts and the commit. Any other
+                # writer — another coroutine, another process, another worker — blocks until we
+                # commit and then sees our claim. The claim's guard lives in the WHERE clause, so
+                # the decision is a compare-and-swap rather than a read-then-write.
+                await self._refresh_capacity(account_id, symbol, snap)
+                claimed = await self._claim_capacity(
+                    account_id, symbol, action.qty, snap.state_hash()
                 )
-                self._session.add(reservation)
-                await self._session.flush()
-                reservation_id = reservation.id
+                if claimed is None:
+                    # Zero rows updated: the capacity was consumed by someone else, or the
+                    # snapshot moved under us. It CANNOT become an ALLOW.
+                    result = self._deny_for_capacity(result, account_id, symbol, corr)
+                else:
+                    capacity_version = claimed
+                    reservation = RiskReservation(
+                        account_id=account_id,
+                        symbol=symbol,
+                        qty=action.qty,
+                        state=RESERVATION_HELD,
+                        created_at=datetime.now(UTC),
+                    )
+                    self._session.add(reservation)
+                    await self._session.flush()
+                    reservation_id = reservation.id
 
             ledger = self._to_ledger_row(
                 account_id=account_id,
@@ -137,6 +171,7 @@ class RiskDecisionService:
                 correlation_id=corr,
                 supersedes_id=supersedes_id,
                 retry_generation=retry_generation,
+                capacity_state_version=capacity_version,
             )
             self._session.add(ledger)
             await self._session.flush()
@@ -219,7 +254,127 @@ class RiskDecisionService:
         res.state = RESERVATION_RELEASED
         res.released_at = datetime.now(UTC)
         res.release_reason = reason[:64]
+        # Return the capacity in the SAME transaction as the state change. If these could
+        # diverge, a released reservation would keep consuming capacity forever and the account
+        # would slowly lose the ability to de-risk — the exact failure ADR 0042 exists to prevent.
+        await self._return_capacity(res.account_id, res.symbol, Decimal(str(res.qty)))
         await self._session.commit()
+
+    # ------------------------------------------------- § D durable capacity claim
+    async def _refresh_capacity(
+        self, account_id: int, symbol: str, snap: AccountSnapshot
+    ) -> None:
+        """Point the capacity row at the CURRENT broker snapshot.
+
+        ⚠ This updates ``reducible_capacity_qty`` and ``snapshot_version`` ONLY. It must never
+        touch ``reserved_qty``. Recomputing the accumulator here — say from ``SUM(HELD)`` — would
+        let two processes each reset it to zero before the other commits, which is precisely the
+        race the capacity row exists to close. The accumulator moves only on claim and release.
+        """
+        capacity = available_reducible_quantity(snap, symbol)
+        version = snap.state_hash()
+        now = datetime.now(UTC)
+
+        updated = await self._session.execute(
+            update(RiskCapacityState)
+            .where(
+                RiskCapacityState.account_id == account_id,
+                RiskCapacityState.symbol == symbol,
+            )
+            .values(
+                reducible_capacity_qty=capacity,
+                snapshot_version=version,
+                updated_at=now,
+            )
+        )
+        if updated.rowcount == 0:
+            self._session.add(
+                RiskCapacityState(
+                    account_id=account_id,
+                    symbol=symbol,
+                    snapshot_version=version,
+                    reducible_capacity_qty=capacity,
+                    reserved_qty=ZERO,
+                    state_version=0,
+                    updated_at=now,
+                )
+            )
+            await self._session.flush()
+
+    async def _claim_capacity(
+        self, account_id: int, symbol: str, qty: Decimal, expected_version: str
+    ) -> int | None:
+        """The atomic conditional claim. Returns the new capacity version, or None if refused.
+
+        The guard is entirely in the WHERE clause, so this is a compare-and-swap: the database
+        decides, and it decides once. Exactly one row updated == the capacity is ours. Zero rows
+        == someone else took it, or the snapshot moved. There is no third outcome, and no reading
+        beforehand can turn a refusal into an approval.
+        """
+        res = await self._session.execute(
+            update(RiskCapacityState)
+            .where(
+                RiskCapacityState.account_id == account_id,
+                RiskCapacityState.symbol == symbol,
+                RiskCapacityState.snapshot_version == expected_version,
+                RiskCapacityState.reserved_qty + qty <= RiskCapacityState.reducible_capacity_qty,
+            )
+            .values(
+                reserved_qty=RiskCapacityState.reserved_qty + qty,
+                state_version=RiskCapacityState.state_version + 1,
+                updated_at=datetime.now(UTC),
+            )
+        )
+        if res.rowcount != 1:
+            return None
+        row = await self._session.scalar(
+            select(RiskCapacityState).where(
+                RiskCapacityState.account_id == account_id,
+                RiskCapacityState.symbol == symbol,
+            )
+        )
+        return int(row.state_version) if row is not None else None
+
+    async def _return_capacity(self, account_id: int, symbol: str, qty: Decimal) -> None:
+        """Give capacity back. The accumulator's only other legal movement."""
+        await self._session.execute(
+            update(RiskCapacityState)
+            .where(
+                RiskCapacityState.account_id == account_id,
+                RiskCapacityState.symbol == symbol,
+            )
+            .values(
+                reserved_qty=func.max(RiskCapacityState.reserved_qty - qty, ZERO),
+                state_version=RiskCapacityState.state_version + 1,
+                updated_at=datetime.now(UTC),
+            )
+        )
+
+    def _deny_for_capacity(
+        self, result: RiskEffectDecision, account_id: int, symbol: str, corr: str
+    ) -> RiskEffectDecision:
+        """A refused claim is a DETERMINATE rejection, not a fail-closed.
+
+        The account state is known; the capacity simply is not there, because a concurrent
+        decision already took it. A sell beyond available reducible capacity would cross zero,
+        which is a risk-INCREASING action, so it is rejected on its merits.
+        """
+        logger.warning(
+            "risk_capacity_claim_refused",
+            account_id=account_id,
+            symbol=symbol,
+            correlation_id=corr,
+            detail=(
+                "the reducible capacity was already claimed by another decision, or the broker "
+                "snapshot moved; this decision cannot be ALLOW"
+            ),
+        )
+        return replace(
+            result,
+            risk_effect=RiskEffect.RISK_INCREASING,
+            decision=Decision.REJECT,
+            reasons=(*result.reasons, RiskEffectReason.EXCEEDS_REDUCIBLE_CAPACITY),
+        )
 
     # ---------------------------------------------------------------- internals
     async def _reserved_by_symbol(
@@ -256,6 +411,7 @@ class RiskDecisionService:
         correlation_id: str,
         supersedes_id: int | None,
         retry_generation: int,
+        capacity_state_version: int | None = None,
     ) -> RiskDecision:
         return RiskDecision(
             account_id=account_id,
@@ -286,6 +442,7 @@ class RiskDecisionService:
             correlation_id=correlation_id,
             supersedes_id=supersedes_id,
             retry_generation=retry_generation,
+            capacity_state_version=capacity_state_version,
         )
 
 
