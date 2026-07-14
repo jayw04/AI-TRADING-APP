@@ -114,6 +114,21 @@ class StateSnapshot:
         }
 
 
+# `list_orders()` returns RECENT orders, not open ones. Counting them all reported 100 "open"
+# orders on an account whose orders were every one of them FILLED — which would have blocked a
+# perfectly valid canary. Only these statuses actually hold capacity at the broker.
+_OPEN_STATUSES = {"new", "accepted", "pending_new", "partially_filled",
+                  "accepted_for_bidding", "pending_replace", "replaced"}
+
+
+def _count_open(adapter) -> int:
+    return sum(
+        1
+        for o in (adapter.list_orders() or [])
+        if str(o.get("status", "")).lower() in _OPEN_STATUSES
+    )
+
+
 async def snapshot_state(sf, adapter) -> StateSnapshot:
     """The pre-order record. Ambiguity about whether the lock was engaged is not acceptable
     evidence, so it is measured rather than inferred."""
@@ -154,7 +169,7 @@ async def snapshot_state(sf, adapter) -> StateSnapshot:
         lock_active=bool(cap_d is not None and dc <= -cap_d),
         breaker_tripped_at=str(tripped) if tripped else None,
         positions={p["symbol"]: D(str(p["qty"])) for p in adapter.get_positions()},
-        open_orders=len(adapter.list_orders() or []),
+        open_orders=_count_open(adapter),
     )
 
 
