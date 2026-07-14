@@ -177,16 +177,9 @@ def run_case(case):
                 "seconds": r["seconds"]}
 
 
-def main() -> int:  # noqa: PLR0915
-    print("FROZEN RESOURCE CEILINGS:", json.dumps(ceilings(), indent=2)[:300], "...\n")
-    print("=== Analytic capability cases (predeclared) ===")
-    results, all_ok = [], True
-    for case in (A1(), A2(), A3(), A4(), A5()):
-        ok, rec = run_case(case)
-        all_ok &= ok
-        results.append(rec)
-
-    # ---------------------------------------------------------------- corpus cases
+def select_corpus():
+    """The FROZEN corpus selection. Extracted verbatim so the equivalence replay runs the SAME eight
+    instances as the reference gate — a replay that reselected its own cases would prove nothing."""
     jp._solve_qp = capture
     from app.research.mr002.dataset import FrozenDataset
     from app.research.mr002.runner import CONFIGS
@@ -209,7 +202,19 @@ def main() -> int:  # noqa: PLR0915
             break
     # FROZEN selection rule: ascending lowercase SHA-256 content hash.
     qualifying.sort(key=lambda q: fixture_hash(CORPUS[q[0]]))
-    chosen = qualifying[:N_CORPUS]
+    return qualifying[:N_CORPUS]
+
+
+def main() -> int:  # noqa: PLR0915
+    print("FROZEN RESOURCE CEILINGS:", json.dumps(ceilings(), indent=2)[:300], "...\n")
+    print("=== Analytic capability cases (predeclared) ===")
+    results, all_ok = [], True
+    for case in (A1(), A2(), A3(), A4(), A5()):
+        ok, rec = run_case(case)
+        all_ok &= ok
+        results.append(rec)
+
+    chosen = select_corpus()
 
     print(f"\n=== {len(chosen)} corpus repairs (ascending lowercase SHA-256 content hash) ===")
     n_rho_pos = 0

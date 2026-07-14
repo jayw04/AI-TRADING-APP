@@ -265,13 +265,17 @@ def lp_content_hash(M, h, c) -> str:
 # ======================================================================================
 # The certificate. The exact simplex IS the optimizer; HiGHS is retired from this path.
 # ======================================================================================
-def exact_repair(z_s, A_ub, b_ub, A_eq, b_eq, upper):
-    """The exactly certified minimum-L-infinity repair. Raises on any failure."""
+def exact_repair(z_s, A_ub, b_ub, A_eq, b_eq, upper, trace=None):
+    """The exactly certified minimum-L-infinity repair. Raises on any failure.
+
+    `trace`, when a dict is supplied, is filled with the full equivalence record (pivot sequences,
+    per-pivot basis hashes, every exact output). Recording only — it changes no decision.
+    """
     t0 = time.perf_counter()
     empties = empty_rows_of(A_ub, b_ub)
     M, h, c, n, m, perm, _rows = build_standard_form(z_s, A_ub, b_ub, A_eq, b_eq, upper)
 
-    res = solve_lp(M, h, c)          # exact Phase I + Phase II; certificates verified inside
+    res = solve_lp(M, h, c, trace)   # exact Phase I + Phase II; certificates verified inside
 
     rho = res.objective
     zhat = [Fraction(0)] * n

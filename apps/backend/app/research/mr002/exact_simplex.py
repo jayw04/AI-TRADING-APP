@@ -31,6 +31,7 @@ and free of cycling.
 
 from __future__ import annotations
 
+import hashlib
 import time
 from dataclasses import dataclass, field
 from fractions import Fraction
@@ -48,6 +49,32 @@ MAX_PEAK_MEMORY_MB = 4096
 
 ZERO = Fraction(0)
 ONE = Fraction(1)
+
+
+# ======================================================================================
+# EQUIVALENCE TRACE. Pure recording. It observes the pivot sequence; it never influences it.
+#
+# The acceleration is only accepted if it reproduces the reference pivot-for-pivot and value-for-
+# value, so the comparison needs a record with no room to hide in: the entering and leaving
+# identities at every pivot, the basis content after every pivot, and every exact output. Anything
+# summarised (a pivot COUNT, a float) could agree while the underlying computation diverged.
+# ======================================================================================
+def basis_hash(basis) -> str:
+    """The basis CONTENT, positionally. Position is carried by the algorithm (it indexes x_B and the
+    ratio test's tie-break), so hashing the ordered tuple is strictly stronger than hashing the set:
+    it detects a divergence that permuted the basis without changing its membership."""
+    d = hashlib.sha256(b"MR002|simplex-basis|v1")
+    for j in basis:
+        d.update(f"|{j}".encode())
+    return d.hexdigest()
+
+
+def _fr(v: Fraction) -> str:
+    return f"{v.numerator}/{v.denominator}"
+
+
+def _frs(vs) -> list[str]:
+    return [_fr(v) for v in vs]
 
 
 class SimplexUnavailable(RuntimeError):
@@ -194,11 +221,14 @@ def _check_limits(t0, stats):
             f"{stats['max_num_bits']}/{stats['max_den_bits']} bits")
 
 
-def _iterate(M, h, c, basis, nrows, ncols, allowed, max_pivots, t0, stats, phase):
+def _iterate(M, h, c, basis, nrows, ncols, allowed, max_pivots, t0, stats, phase, trace=None):
     """Exact revised simplex from a feasible `basis`. Returns (basis, x, y, pivots).
 
     `allowed` restricts the entering columns (Phase II excludes artificials — they are gone by
     then, but the guard is explicit).
+
+    `trace`, when supplied, RECORDS the pivot sequence. It is appended to after each decision has
+    already been made, so it cannot influence one.
     """
     pivots = 0
     while True:
@@ -251,19 +281,32 @@ def _iterate(M, h, c, basis, nrows, ncols, allowed, max_pivots, t0, stats, phase
                 best = (key, i)
         leaving = best[1]
         basis = list(basis)
+        leaving_id = basis[leaving]
         basis[leaving] = entering
         pivots += 1
+        if trace is not None:
+            trace.append({
+                "phase": phase, "pivot": pivots,
+                "entering": entering, "leaving_pos": leaving, "leaving": leaving_id,
+                "ratio": _fr(best[0][0]), "basis_sha256": basis_hash(basis),
+            })
         if pivots > max_pivots:
             raise SimplexUnavailable(
                 f"EXACT_SIMPLEX_RESOURCE_LIMIT: phase {phase} exceeded {max_pivots} pivots")
 
 
-def solve_lp(M, h, c):
-    """Exact Phase-I / Phase-II simplex on  min c'x  s.t.  Mx = h,  x >= 0."""
+def solve_lp(M, h, c, trace=None):
+    """Exact Phase-I / Phase-II simplex on  min c'x  s.t.  Mx = h,  x >= 0.
+
+    `trace`, when a dict is supplied, is filled with the complete equivalence record: the Phase-I and
+    Phase-II pivot sequences, the basis content after every pivot, and every exact output.
+    """
     t0 = time.perf_counter()
     nrows, ncols = len(M), len(c)
     stats = {"max_num_bits": 0, "max_den_bits": 0, "core_seconds": 0.0,
              "core_dim_max": 0, "singletons_max": 0}
+    pivots_i: list = []
+    pivots_ii: list = []
 
     # ---- PHASE I: canonical artificial basis. No floating-point warm start. -----------------
     # Normalize each row so its exact right-hand side is nonnegative, then give it one artificial
@@ -282,9 +325,14 @@ def solve_lp(M, h, c):
 
     basis, x_B, _y, piv1 = _iterate(
         Mi, hi, c_I, basis, nrows, ncols + nrows, range(ncols + nrows),
-        MAX_PIVOTS_PHASE_I, t0, stats, "I")
+        MAX_PIVOTS_PHASE_I, t0, stats, "I", pivots_i if trace is not None else None)
 
     phase1_obj = sum(x_B[i] for i in range(nrows) if basis[i] >= ncols)
+    if trace is not None:
+        trace["phase_i_pivots"] = pivots_i
+        trace["phase_i_optimum"] = _fr(phase1_obj)
+        trace["phase_i_basis"] = list(basis)
+        trace["phase_i_basis_sha256"] = basis_hash(basis)
     if phase1_obj != 0:
         raise SimplexUnavailable(
             f"EXACT_PHASE_I_POSITIVE: exact Phase-I optimum is {float(phase1_obj):.3e} != 0, so "
@@ -322,9 +370,16 @@ def solve_lp(M, h, c):
     if any(j >= ncols for j in basis2):
         raise SimplexUnavailable("ARTIFICIAL_BASIS_CLEANUP_FAILED: artificial survived into II")
 
+    if trace is not None:
+        trace["cleanup_basis"] = list(basis)
+        trace["cleanup_basis_sha256"] = basis_hash(basis)
+        trace["redundant_rows"] = list(redundant)
+
     basis2, x_B2, y2, piv2 = _iterate(
         M2, h2, c, basis2, len(keep), ncols, range(ncols),
-        MAX_PIVOTS_PHASE_II, t0, stats, "II")
+        MAX_PIVOTS_PHASE_II, t0, stats, "II", pivots_ii if trace is not None else None)
+    if trace is not None:
+        trace["phase_ii_pivots"] = pivots_ii
 
     x = [ZERO] * ncols
     for i, j in enumerate(basis2):
@@ -349,12 +404,15 @@ def solve_lp(M, h, c):
     if any(v < 0 for v in x):
         raise SimplexUnavailable("EXACT_SIMPLEX_SINGULAR: negative standard-form variable")
 
+    reduced = []
     for j in range(ncols):                                  # M'y <= c: THE optimality proof
         acc = ZERO
         for r in range(nrows):
             if M[r][j] != 0:
                 acc += M[r][j] * y[r]
-        if c[j] - acc < 0:
+        rc = c[j] - acc
+        reduced.append(rc)
+        if rc < 0:
             raise SimplexUnavailable(
                 f"EXACT_SIMPLEX_SINGULAR: reduced cost of column {j} is negative at termination")
 
@@ -363,6 +421,16 @@ def solve_lp(M, h, c):
     if primal != dual:                                      # identity — consistency check only
         raise SimplexUnavailable("EXACT_SIMPLEX_SINGULAR: exact objectives disagree")
     cert_seconds = time.perf_counter() - tc
+
+    if trace is not None:
+        trace["final_basis"] = list(basis2)
+        trace["final_basis_sha256"] = basis_hash(basis2)
+        trace["x"] = _frs(x)
+        trace["y"] = _frs(y)
+        trace["reduced_costs"] = _frs(reduced)
+        trace["objective_primal"] = _fr(primal)
+        trace["objective_dual"] = _fr(dual)
+        trace["objective_identity"] = primal == dual
 
     return SimplexResult(
         x=tuple(x), y=tuple(y), basis=tuple(basis2), objective=primal,
