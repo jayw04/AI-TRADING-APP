@@ -209,6 +209,8 @@ def main() -> int:  # noqa: PLR0915
 
     n_cert = n_records = 0
     n_solver_exc = 0
+    n_kkt_fail = 0
+    gap_only: dict[str, dict[int, bool]] = {s: {} for s in SOLVERS}
     unclassified = 0
     non_finite = 0
     flips = {"L_vs_D": [], "N_vs_D": [], "D_vs_EXACT": []}
@@ -247,9 +249,25 @@ def main() -> int:  # noqa: PLR0915
                 meq = rec[3].shape[0]
                 lam_bar, _clip, _cl = project_dual(lam, meq)
                 verify_canonical_hessian(np.diag(2.0 / rec[0]), rec[0])
+
+                # THE REGISTERED VERDICT is canonical_qualify = (no KKT limit violated) AND (the
+                # signed-gap gate passes). Evaluating only the signed-gap half would be reporting a
+                # SUB-COMPONENT of the verdict and calling it the verdict — and the counts would not
+                # reconcile against what the predecessor artifacts actually recorded (measured: 454
+                # vs 592 for HIGHS_QPASM). The KKT half never touches the serializer, so it cannot
+                # flip under rounding; it is carried here so that what is compared is the REGISTERED
+                # Boolean, not a piece of it.
+                n = len(rec[0])
+                C, b = jp._qp_matrices(rec[1], rec[2], rec[3], rec[4], rec[5], n)
+                ck = jp._acceptance(z, lam, meq, np.diag(2.0 / rec[0]), 2.0 * np.ones(n),
+                                    C, b, *rec[1:])
+                kkt_bad = sorted(k for k, lim in LIMITS.items() if ck[k] > lim)
+
                 f_iv, d_iv, slag_iv, energy_iv = gap_intervals(z, lam_bar, *rec)
                 eps = endpoints(f_iv, d_iv, slag_iv, energy_iv)
                 n_cert += 1
+                if kkt_bad:
+                    n_kkt_fail += 1
 
                 exact_vals, ser = {}, {"L": {}, "N": {}, "D": {}}
                 bad_field = False
@@ -326,10 +344,14 @@ def main() -> int:  # noqa: PLR0915
                         verdicts[h][sname][i] = False
                     continue
 
-                v_exact = gate(exact_vals, exact=True)
-                v_l, v_n, v_d = (gate(ser[h], exact=False) for h in ("L", "N", "D"))
+                # The REGISTERED verdict: both halves. `kkt_bad` is identical across serializers by
+                # construction, so any flip that appears below is attributable to rounding ALONE.
+                ok_kkt = not kkt_bad
+                v_exact = ok_kkt and gate(exact_vals, exact=True)
+                v_l, v_n, v_d = (ok_kkt and gate(ser[h], exact=False) for h in ("L", "N", "D"))
                 for h, v in (("L", v_l), ("N", v_n), ("D", v_d), ("EXACT", v_exact)):
                     verdicts[h][sname][i] = v
+                gap_only[sname][i] = gate(ser["D"], exact=False)
 
                 if v_l != v_d:
                     flips["L_vs_D"].append({"i": i, "ch": chash, "solver": sname,
@@ -369,6 +391,8 @@ def main() -> int:  # noqa: PLR0915
     print(f"  solver exceptions          : {n_solver_exc}  (no value serialized; rounding cannot "
           f"affect the outcome)")
     print(f"  serialized field records   : {n_records}")
+    print(f"  certificates failing a KKT limit : {n_kkt_fail}  (rounding-independent; the KKT half "
+          f"of the registered verdict never touches the serializer)")
     print(f"  unclassified               : {unclassified}")
     print(f"  non-finite corrections     : {non_finite}")
 
@@ -434,6 +458,7 @@ def main() -> int:  # noqa: PLR0915
             "serialized_field_records": n_records,
             "unclassified_records": unclassified,
             "non_finite_corrections": non_finite,
+            "certificates_failing_a_kkt_limit": n_kkt_fail,
             "complete": complete,
             "smoke_truncated": bool(smoke),
         },
@@ -441,6 +466,15 @@ def main() -> int:  # noqa: PLR0915
         "nonqualifications": {h: {s: nonqual[h][s] for s in SOLVERS}
                               for h in ("L", "N", "D", "EXACT")},
         "cascade_unresolved": {h: cascade[h] for h in ("L", "N", "D", "EXACT")},
+        "signed_gap_gate_only_nonqualifications": {
+            s: sorted(i for i, v in gap_only[s].items() if not v) for s in SOLVERS},
+        "verdict_definition": (
+            "the REGISTERED verdict is canonical_qualify = (no KKT limit violated) AND (the "
+            "signed-gap interval lies wholly in the band AND the interval widths are within limit). "
+            "`nonqualifications` is that verdict. `signed_gap_gate_only_nonqualifications` is the "
+            "signed-gap half ALONE, recorded separately so the two can never be confused: reporting "
+            "the half as if it were the whole is what made an earlier pass of this correction fail "
+            "to reconcile with the predecessor artifacts."),
         "margins": {
             g: {
                 "records": st["records"],
