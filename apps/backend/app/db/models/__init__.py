@@ -21,7 +21,9 @@ from app.db.models.range_execution_record import RangeExecutionRecord
 from app.db.models.reconciliation_run import ReconciliationRun
 from app.db.models.replay_run import ReplayRun
 from app.db.models.risk_check import RiskCheck
+from app.db.models.risk_decision import RiskDecision
 from app.db.models.risk_limits import RiskLimits
+from app.db.models.risk_reservation import RiskReservation
 from app.db.models.scanner_definition import ScannerDefinition
 from app.db.models.scanner_run import ScannerRun
 from app.db.models.scheduler_heartbeat import SchedulerHeartbeat
@@ -31,6 +33,7 @@ from app.db.models.strategy import Strategy
 from app.db.models.strategy_proposal import ProposalState, StrategyProposal
 from app.db.models.strategy_revision import StrategyRevision
 from app.db.models.strategy_run import StrategyRun
+from app.db.models.strategy_slot_claim import StrategySlotClaim
 from app.db.models.symbol import Symbol
 from app.db.models.system_config import SystemConfig
 from app.db.models.trading_profile import TradingProfile
@@ -63,6 +66,8 @@ __all__ = [
     "ReconciliationRun",
     "ReplayRun",
     "RiskCheck",
+    "RiskDecision",
+    "RiskReservation",
     "RiskLimits",
     "ScannerDefinition",
     "ScannerRun",
@@ -74,6 +79,7 @@ __all__ = [
     "StrategyProposal",
     "StrategyRevision",
     "StrategyRun",
+    "StrategySlotClaim",
     "Symbol",
     "SystemConfig",
     "TradingProfile",

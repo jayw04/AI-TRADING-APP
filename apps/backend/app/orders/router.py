@@ -37,7 +37,10 @@ from app.db.models.strategy import Strategy
 from app.db.models.symbol import Symbol
 from app.events.bus import EventBus
 from app.risk import OrderRequest, RiskEngine, RiskOutcome
+from app.risk.decision_service import RiskDecisionService, permits_while_locked
+from app.risk.lock_state import LOCK_UNLOCKED, current_lock_state
 from app.risk.reason_codes import ReasonCode
+from app.risk.risk_effect import ActionType, ProposedAction
 from app.services.strategy_cooldown import StrategyCooldownService
 from app.utils.time import ensure_aware
 
@@ -50,6 +53,22 @@ logger = structlog.get_logger(__name__)
 # Shared token between router and adapter — guardrail against accidental bypass,
 # not a security boundary. See ADR 0002 and the CI grep test.
 ROUTER_TOKEN = "ADR_0002_ONLY_ORDERROUTER_MAY_CALL_THIS"
+
+
+class CancelRejectedByRisk(RuntimeError):
+    """ADR 0042 § B — the cancellation was refused by the risk-effect classifier.
+
+    Raised when a LOCKED account tries to cancel an order whose removal would raise worst-case
+    projected exposure: most importantly, cancelling a pending SELL-TO-CLOSE, which removes a
+    protective reduction and traps risk on the book.
+    """
+
+    def __init__(self, reasons: list[str]) -> None:
+        self.reasons = reasons
+        super().__init__(
+            "cancellation refused: it would not reduce risk on a locked account "
+            f"({', '.join(reasons)})"
+        )
 
 
 class BrokerModeError(RuntimeError):
@@ -373,6 +392,66 @@ class OrderRouter:
         )
         return order
 
+    async def _gate_cancellation(self, session: AsyncSession, order: Order) -> None:
+        """ADR 0042 § B — classify a cancellation before it reaches the broker.
+
+        On an UNLOCKED account this is a no-op: no classifier, no broker read, no ledger row.
+        Normal cancellation is completely unchanged.
+
+        On a LOCKED account the cancel is classified by the SAME classifier as an order, on a
+        dedicated action path (``ORDER_CANCEL``), and written to the SAME append-only ledger.
+        There is no blanket "cancels always pass" exemption — that would hand an operator the
+        ability to cancel the very protective reduction that is de-risking the book.
+        """
+        account = await session.get(Account, order.account_id)
+        if account is None:
+            return
+
+        lock_state, lock_reason, daily_pnl = await current_lock_state(
+            session,
+            account_id=order.account_id,
+            user_id=order.user_id,
+            broker_mode=account.mode,
+        )
+        if lock_state == LOCK_UNLOCKED:
+            return  # unchanged path
+
+        if self._broker_registry is None:
+            # We cannot obtain a causally-complete snapshot, so we cannot PROVE the cancel is
+            # reducing. Unproven is not permitted (fail closed).
+            raise CancelRejectedByRisk(["SNAPSHOT_INCOMPLETE"])
+        adapter = self._broker_registry.get(order.user_id)
+
+        symbol = await session.get(Symbol, order.symbol_id)
+        action = ProposedAction(
+            action=ActionType.ORDER_CANCEL,
+            symbol=(symbol.ticker if symbol else "").upper(),
+            target_order_id=order.broker_order_id,
+        )
+        source = str(getattr(order.source_type, "value", order.source_type)).upper()
+
+        async with self._session_factory() as decision_session:
+            result, _ledger_id, _res_id = await RiskDecisionService(decision_session).decide(
+                account_id=order.account_id,
+                adapter=adapter,
+                action=action,
+                lock_state=lock_state,
+                lock_reason=lock_reason,
+                daily_pnl=daily_pnl,
+                source_type=source,
+            )
+
+        if not permits_while_locked(result):
+            logger.warning(
+                "cancel_rejected_by_risk",
+                order_id=order.id,
+                account_id=order.account_id,
+                lock_state=lock_state,
+                risk_effect=str(result.risk_effect),
+                reasons=[str(r) for r in result.reasons],
+            )
+            raise CancelRejectedByRisk([str(r) for r in result.reasons])
+
     async def cancel(self, order_id: int, *, actor_user_id: int | None = None) -> Order:  # noqa: ARG002
         async with self._session_factory() as session:
             order = (
@@ -380,6 +459,17 @@ class OrderRouter:
             ).scalars().first()
             if order is None:
                 raise ValueError(f"Order {order_id} not found")
+
+            # ---- ADR 0042 § B: a cancellation is NOT automatically risk-reducing ----------
+            # Cancelling a pending SELL-TO-CLOSE removes a protective reduction. That is
+            # literally the trapped-risk move ADR 0042 was written to prevent, so on a LOCKED
+            # account it must be refused — and until now the cancel path reached the broker with
+            # no risk evaluation of any kind, which meant an operator could do it freely.
+            #
+            # Dedicated action path: a cancel does NOT travel steps 9/13 as an ordinary order.
+            # Same classifier, same append-only ledger.
+            await self._gate_cancellation(session, order)
+
             if not order.broker_order_id:
                 # Local-only cancel (order never made it to broker).
                 order.status = OrderStatus.CANCELED

@@ -38,8 +38,15 @@ from app.db.models.symbol import Symbol
 from app.market.session import MarketSession, default_market_session
 from app.risk.buying_power import BuyingPowerChecker
 from app.risk.circuit_breaker import CircuitBreakerError, CircuitBreakerService
+from app.risk.decision_service import (
+    LOCK_BREAKER,
+    LOCK_DAILY_LOSS,
+    RiskDecisionService,
+    permits_while_locked,
+)
 from app.risk.halt import is_halted
 from app.risk.reason_codes import ReasonCode
+from app.risk.risk_effect import ActionType, ProposedAction
 from app.risk.types import OrderRequest, RiskOutcome
 
 logger = structlog.get_logger(__name__)
@@ -96,6 +103,10 @@ class RiskEngine:
         paper-scoped. It defaults to PAPER — the conservative scope — but the
         order path always passes the account's actual mode explicitly.
         """
+        # ADR 0042: one classification per ORDER. Steps 9 and 13 share it — step 9 trips the
+        # breaker, so step 13 would otherwise re-ask for the same order and reserve twice.
+        reduction_cache: dict[str, bool] = {}
+
         async with self._session_factory() as session:
             # 0. Halt short-circuit.
             if await is_halted(session):
@@ -333,6 +344,9 @@ class RiskEngine:
                     )
                 ).scalars().first()
                 if state is not None and state.day_change <= -limits.max_daily_loss:
+                    # The breach is a HISTORICAL fact and the lock still trips — a permitted
+                    # reduction is not required to repair already-realised P&L (ADR 0042,
+                    # lock_trigger vs permitted_effect). What changes is what may pass.
                     await CircuitBreakerService(
                         session=session, bus=self._bus
                     ).trip(
@@ -344,11 +358,22 @@ class RiskEngine:
                             "source": "risk_engine_daily_loss",
                         },
                     )
-                    return await self._persist_and_return(
-                        session,
-                        decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.CIRCUIT_BREAKER],
-                    )
+                    # ADR 0042: a control may stop trading, but it must not prevent VERIFIED
+                    # reduction of the risk it exists to control. On 2026-07-13 this gate
+                    # refused the momentum book's own SNDK and LITE trims while the book bled
+                    # from -$5,504 to -$7,501 at 98% invested.
+                    if not await self._permits_verified_reduction(
+                        req,
+                        lock_state=LOCK_DAILY_LOSS,
+                        lock_reason="daily_loss_exceeded",
+                        daily_pnl=state.day_change,
+                        cache=reduction_cache,
+                    ):
+                        return await self._persist_and_return(
+                            session,
+                            decision=RiskDecision.REJECT,
+                            reasons=[ReasonCode.CIRCUIT_BREAKER],
+                        )
 
             # 10. Rate limit (per minute).
             if limits.max_orders_per_minute is not None:
@@ -412,11 +437,22 @@ class RiskEngine:
             try:
                 await cb.check(req.account_id)
             except CircuitBreakerError:
-                return await self._persist_and_return(
-                    session,
-                    decision=RiskDecision.REJECT,
-                    reasons=[ReasonCode.CIRCUIT_BREAKER],
-                )
+                # Same rule, same classifier (ADR 0042). Steps 9 and 13 do NOT implement
+                # similar logic separately — implementing it twice is exactly how the
+                # gross-exposure gate got the reducing-order exemption (ADR 0038) while these
+                # two did not.
+                if not await self._permits_verified_reduction(
+                    req,
+                    lock_state=LOCK_BREAKER,
+                    lock_reason="circuit_breaker_tripped",
+                    daily_pnl=None,
+                    cache=reduction_cache,
+                ):
+                    return await self._persist_and_return(
+                        session,
+                        decision=RiskDecision.REJECT,
+                        reasons=[ReasonCode.CIRCUIT_BREAKER],
+                    )
 
             # Pass.
             return await self._persist_and_return(
@@ -528,6 +564,92 @@ class RiskEngine:
             return Decimal(str(close)) if close is not None else None
         except Exception:
             return None
+
+    async def _permits_verified_reduction(
+        self,
+        req: OrderRequest,
+        *,
+        lock_state: str,
+        lock_reason: str,
+        daily_pnl: Any | None,
+        cache: dict[str, bool],
+    ) -> bool:
+        """ADR 0042 — may this action pass a LOCKED account's gate?
+
+        True only for a VERIFIED risk reduction: proven, from current broker-confirmed
+        positions and projected post-trade state, to reduce risk without opening, increasing or
+        reversing exposure.
+
+        Called by step 9 (daily loss) and step 13 (circuit breaker). ONE classifier, so the two
+        gates cannot drift apart the way step 8 already had.
+
+        Every call writes a ledger row — ALLOW and REJECT alike. On 2026-07-13 eighteen
+        proposals were refused and NOTHING durable recorded them; the ``orders`` table showed
+        zero rows all day and the investigation twice reached the wrong conclusion.
+
+        FAILS CLOSED. No broker registry, no adapter, an unreadable broker, a snapshot behind an
+        event we have already seen — none of these are permission to trade. The unlocked path
+        never reaches here, so normal trading pays nothing for this.
+
+        CLASSIFIED EXACTLY ONCE PER ORDER. Step 9 TRIPS the breaker, so step 13 then finds it
+        tripped and would ask again for the very same order — producing a second ledger row and,
+        far worse, a SECOND RESERVATION. One 100-share sell would consume 200 of reducible
+        capacity and wrongly block the next legitimate reduction. The per-evaluation ``cache``
+        is what prevents that; it is a correctness mechanism, not an optimisation.
+        """
+        if "result" in cache:
+            return cache["result"]
+
+        # Source-NEUTRAL (§ C): a MANUAL reduction is classified by exactly the same code as a
+        # STRATEGY one. The source is recorded so neutrality is auditable, not privileged.
+        source = str(getattr(req.source_type, "value", req.source_type)).upper()
+
+        if self._broker_registry is None:
+            logger.warning(
+                "risk_reduction_classifier_unavailable",
+                account_id=req.account_id,
+                detail="no broker registry — cannot obtain a causally-complete snapshot; "
+                "failing closed",
+            )
+            cache["result"] = False
+            return False
+        try:
+            adapter = self._broker_registry.get(req.user_id)
+        except Exception:
+            logger.exception(
+                "risk_reduction_adapter_unavailable", account_id=req.account_id
+            )
+            cache["result"] = False
+            return False
+
+        action = ProposedAction(
+            action=ActionType.ORDER_SUBMIT,
+            symbol=req.symbol_ticker.upper(),
+            side=req.side,
+            qty=req.qty,
+            price=req.limit_price,
+        )
+
+        # The decision service opens its OWN session: the ledger row and the reservation must
+        # commit even when the caller's risk transaction goes on to reject for another reason.
+        async with self._session_factory() as decision_session:
+            svc = RiskDecisionService(decision_session)
+            result, _ledger_id, _reservation_id = await svc.decide(
+                account_id=req.account_id,
+                adapter=adapter,
+                action=action,
+                lock_state=lock_state,
+                lock_reason=lock_reason,
+                daily_pnl=daily_pnl,
+                source_type=source,
+                strategy_id=(
+                    int(req.source_id)
+                    if req.source_id and str(req.source_id).isdigit()
+                    else None
+                ),
+            )
+        cache["result"] = permits_while_locked(result)
+        return cache["result"]
 
     async def _persist_and_return(
         self,

@@ -203,22 +203,37 @@ class MomentumPortfolio(Strategy):
     async def on_init(self) -> None:
         self._equity_estimate = Decimal(str(self.params.get("initial_equity_estimate", 100_000)))
         # (ISO year, ISO week) of the last ATTEMPTED rebalance — guards once/week.
-        self._last_rebalance_week: tuple[int, int] | None = None
+        self._last_rebalance_week: tuple[int, int] | None = None  # backtest cadence
+        self._last_dispatch_seq: int | None = None  # live cadence: one rebalance per dispatch
 
     async def on_bar(self, bar: Any) -> None:
-        wk = bar.t.isocalendar()[:2]  # (iso_year, iso_week)
-        if wk == self._last_rebalance_week:
-            return  # already attempted this week; ignore the per-symbol tick calls
-        # ★ Mark the week BEFORE rebalancing. The engine dispatches on_bar PER SYMBOL
-        # (once for each of the ~200 registered symbols) on every cron tick, so a
-        # rebalance that raises would otherwise re-run on the *next symbol in the
-        # same tick* — up to 200× — flooding the OrderRouter (this caused a live
-        # cooldown storm 2026-06-15). Marking first guarantees at most one attempt
-        # per ISO week; a failure logs and waits for next week's tick, not next symbol.
-        self._last_rebalance_week = wk
+        """The engine calls this ONCE PER SYMBOL on every cron tick (200+ calls per slot), so
+        the first thing on_bar must do is decide whether this tick's rebalance already ran.
+
+        Live: key on the DISPATCH (``ctx.dispatch_seq``), not on the bar. The cron schedule
+        already IS the weekly cadence, and a bar-derived key is unsafe here: each call carries
+        that symbol's own latest bar, and symbols routinely disagree on how recent it is (a
+        stale cached month-bucket, a thin ETF that has not printed yet). Friday is ISO week 28
+        and Monday is week 29, so ONE lagging symbol flips a week-keyed guard back and re-runs
+        the whole rebalance against stale holdings. That fired the combined book 5x in a single
+        slot on 2026-07-13: it double-bought and then double-sold the same names.
+
+        Backtest: there is no engine dispatch (``dispatch_seq is None``) and bars are replayed
+        one at a time, so the bar's ISO week IS the correct cadence signal. Keep it there.
+        """
+        seq = getattr(self.ctx, "dispatch_seq", None)
+        if isinstance(seq, int):  # a real engine dispatch id; absent in backtests
+            if seq == self._last_dispatch_seq:
+                return  # already offered this dispatch; ignore the other N-1 symbol ticks
+            self._last_dispatch_seq = seq
+        else:
+            wk = bar.t.isocalendar()[:2]
+            if wk == self._last_rebalance_week:
+                return
+            self._last_rebalance_week = wk
         try:
             await self._rebalance()
-        except Exception as exc:  # noqa: BLE001 — contain user-path failures; retry is next week
+        except Exception as exc:  # noqa: BLE001 - contain user-path failures
             await self.ctx.log_signal(
                 "PORTFOLIO", SignalType.EXIT,
                 payload={"reason": "rebalance_failed", "error": str(exc)[:160]},
