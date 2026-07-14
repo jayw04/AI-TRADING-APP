@@ -1,75 +1,61 @@
-"""ADR 0042 canary — the executing harness. Places REAL PAPER ORDERS on account 3.
+"""ADR 0042 canary — POST-LOCK phase: the assertion sequence, run exactly once.
 
-Manifest v1.0. ``max_daily_loss`` FROZEN at $3,000 before any activity (audited).
+Preconditions, REFUSED rather than worked around:
+  * the account must be genuinely locked (measured, not assumed);
+  * the protected legs must be present — a locked account cannot buy, so if the legs are gone the
+    assertions cannot run and any RED would say nothing about the risk engine.
 
-THE BREACH IS REAL. A buy of a wide-spread instrument marks to the BID immediately, so crossing
-that spread is a genuine mark-to-market loss which arms the lock through the same
-``day_change = equity - last_equity`` path that tripped account 1 at 09:30:25 ET on 2026-07-13.
-The limit is never moved to meet the account.
+Every order records a PRE-ORDER SNAPSHOT (day_change, max_daily_loss, lock state, breaker state,
+positions) so no assertion rests on an assumption about the account's condition. Every rejection is
+verified to have left an immutable ledger record.
 
-THREE breach positions, not one, because user 3's ``max_position_notional`` is $25,000 — and the
-answer to a cap that blocks the test is NOT to raise the cap. That is the same error as moving
-the daily-loss limit to meet the account.
-
-Ordering is forced by the system under test: the long legs are opened BEFORE the lock, because
-once locked no buy passes.
+⚠ THE CONCURRENCY ASSERTION USES TWO OS PROCESSES. The previous version used `asyncio.gather` in
+one process, where the per-account `asyncio.Lock` serialised the callers — so it PASSED while the
+cross-process hole stayed open, which is how two ALLOW decisions came to consume the same 183
+shares with only the broker stopping the second. A broker rejection is NOT the safety mechanism and
+may never be counted as one.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-from datetime import UTC, datetime
-from decimal import Decimal
+import subprocess
+import sys
+import time
+from decimal import Decimal as D
+from pathlib import Path
 
-import httpx
-from sqlalchemy import select, text
-
-from app.brokers.alpaca.credentials import credentials_for_mode
 from app.brokers.registry import BrokerRegistry
 from app.db.enums import OrderSide, OrderSourceType, OrderType, TimeInForce
-from app.db.models.account import Account
-from app.db.models.risk_decision import RiskDecision as LedgerRow
-from app.db.models.risk_reservation import RESERVATION_HELD, RiskReservation
 from app.db.session import get_sessionmaker
 from app.events.bus import EventBus
 from app.orders.router import CancelRejectedByRisk, OrderRouter
 from app.risk import OrderRequest, RiskEngine
-from app.risk.decision_service import RiskDecisionService
-from app.risk.risk_effect import ActionType, ProposedAction
+from scripts.adr0042_canary_lib import (
+    ACCT,
+    LEGS,
+    USER,
+    CanaryRefused,
+    Checkpoint,
+    Evidence,
+    SingleInstance,
+    ledger_rows_for,
+    load_limits,
+    max_ledger_id,
+    snapshot_state,
+)
 
-D = Decimal
-
-USER = 3
-ACCT = 3
-LEG = "F"
-LEG_QTY = D("500")
-LEG2 = "MSFT"
-LEG2_QTY = D("20")
-BREACH_SYMS = ["JJC", "IEUS", "KOKU"]
-BREACH_NOTIONAL = D("24000")
-CAP = D("-3000")
-
-R: list[dict] = []
-
-
-def rec(step: str, ok: bool, detail: str) -> None:
-    R.append({"step": step, "status": "PASS" if ok else "FAIL", "detail": detail})
-    print(f"  [{'PASS' if ok else 'FAIL'}] {step}: {detail}", flush=True)
+OUT = Path("/app/data/adr0042_evidence_post_lock.json")
+WORK = Path("/app/data")
+LEG = LEGS[0][0]                      # the reduction target (F)
+LEG2 = LEGS[1][0] if len(LEGS) > 1 else LEGS[0][0]
 
 
-async def day_change(sf) -> Decimal:
-    async with sf() as s:
-        r = (
-            await s.execute(text("SELECT day_change FROM accounts_state WHERE account_id=3"))
-        ).scalar_one_or_none()
-    return D(str(r or 0))
-
-
-def mk(sym: str, side: OrderSide, qty: Decimal, src=OrderSourceType.STRATEGY) -> OrderRequest:
+def mk(sym, side, qty, src=OrderSourceType.STRATEGY, **kw) -> OrderRequest:
     return OrderRequest(
         user_id=USER, account_id=ACCT, symbol_ticker=sym, side=side, qty=qty,
-        type=OrderType.MARKET, tif=TimeInForce.DAY, source_type=src,
+        type=kw.pop("type", OrderType.MARKET), tif=TimeInForce.DAY, source_type=src, **kw,
     )
 
 
@@ -81,188 +67,249 @@ def _rejected(o) -> bool:
     return str(getattr(o, "status", "")).endswith("rejected")
 
 
-async def main() -> int:  # noqa: PLR0915 — a linear canary reads better as one sequence
-    sf = get_sessionmaker()
-    reg = BrokerRegistry(sf)
-    await reg.load_all()
-    ad = reg.get(USER)
-    bus = EventBus()
-    engine = RiskEngine(sf, broker_registry=reg, bus=bus)
-    router = OrderRouter(ad, engine, sf, bus, broker_registry=reg)
+async def _submit(router, ev, sf, ad, step, request, order_req):
+    """Every order: snapshot the state first, record request and response, return both."""
+    pre = await snapshot_state(sf, ad)
+    o = await router.submit(order_req)
+    ev.record_order(step=step, snapshot=pre, request=request, response=o)
+    return o, pre
 
-    print(f"ADR 0042 CANARY - account {ACCT} - {datetime.now(UTC):%H:%M UTC}")
-    print("=" * 78)
 
-    print("\nStep 1 - controlled exposure (must precede the lock: once locked, no buy passes)")
-    have = {p["symbol"]: D(str(p["qty"])) for p in ad.get_positions()}
-    for sym, want in ((LEG, LEG_QTY), (LEG2, LEG2_QTY)):
-        short = want - have.get(sym, D(0))
-        if short <= 0:
-            rec(f"1.leg_{sym}", True, f"already held x{have.get(sym)}")
-            continue
-        o = await router.submit(mk(sym, OrderSide.BUY, short))
-        rec(f"1.leg_{sym}", _sent(o), f"BUY {short} -> {o.status}")
-    await asyncio.sleep(4)
-
-    print("\nStep 2 - enter daily-loss breach via a REAL mark-to-market loss")
-    creds = await credentials_for_mode("paper", user_id=USER, session_factory=sf)
-    h = {"APCA-API-KEY-ID": creds.api_key, "APCA-API-SECRET-KEY": creds.api_secret}
-    async with httpx.AsyncClient(timeout=20) as c:
-        resp = await c.get(
-            "https://data.alpaca.markets/v2/stocks/quotes/latest",
-            params={"symbols": ",".join(BREACH_SYMS)}, headers=h,
-        )
-    quotes = resp.json()["quotes"]
-
-    for sym in BREACH_SYMS:
-        if await day_change(sf) <= D("-3200"):
-            print(f"  breach already reached; skipping {sym}")
-            break
-        q = quotes.get(sym) or {}
-        bid, ask = D(str(q.get("bp") or 0)), D(str(q.get("ap") or 0))
-        if bid <= 0 or ask <= 0:
-            print(f"  {sym}: no quote; skipping")
-            continue
-        shares = (BREACH_NOTIONAL / ask).quantize(D("1"))
-        mark = shares * (ask - bid)
-        print(
-            f"  {sym}: bid {bid} / ask {ask} - spread {(ask - bid) / ask * 100:.2f}% "
-            f"-> BUY {shares} sh (${shares * ask:,.0f}), expected mark ~-${mark:,.0f}",
-            flush=True,
-        )
-        o = await router.submit(mk(sym, OrderSide.BUY, shares))
-        rec(f"2.buy_{sym}", _sent(o), f"BUY {shares} -> {o.status}")
-        await asyncio.sleep(7)
-
-    for _ in range(20):
-        dc = await day_change(sf)
-        if dc <= CAP:
-            break
-        await asyncio.sleep(3)
-    dc = await day_change(sf)
-    rec("2.breached", dc <= CAP, f"day_change = ${dc:,.2f} vs cap ${CAP:,.2f}")
-    if dc > CAP:
-        print("\nABORT: breach not reached. NOT lowering the limit - that is forbidden.")
-        return 1
-
-    print("\nStep 3 - a new BUY must be rejected while locked")
-    o = await router.submit(mk(LEG, OrderSide.BUY, D("1")))
-    rec("3.buy_rejected", _rejected(o), f"BUY 1 {LEG} -> {o.status}")
-
-    print("\nStep 4 - a verified partial reduction must pass BOTH step 9 and step 13")
-    async with sf() as s:
-        tripped = (await s.get(Account, ACCT)).circuit_breaker_tripped_at
-    print(f"  breaker tripped_at = {tripped}  (so step 13 is live too)")
-    o = await router.submit(mk(LEG, OrderSide.SELL, D("50")))
-    rec("4.reduction_allowed", _sent(o), f"SELL 50 {LEG} -> {o.status} (broker {o.broker_order_id})")
-    rec("4.lock_not_reset", tripped is not None, "the breaker was NOT reset to let it through")
-
-    print("\nStep 5 - an oversell that would cross zero must be rejected")
-    o = await router.submit(mk(LEG, OrderSide.SELL, D("100000")))
-    rec("5.oversell_rejected", _rejected(o), f"SELL 100000 {LEG} -> {o.status}")
-
-    print("\nStep 6 - two concurrent reductions must not consume the same capacity")
-    await asyncio.sleep(4)
-    held = next((D(str(p["qty"])) for p in ad.get_positions() if p["symbol"] == LEG), D(0))
-    each = (held * D("0.7")).quantize(D("1"))
-    print(f"  holding {held} {LEG}; firing 2 x SELL {each} concurrently")
-    a, b = await asyncio.gather(
-        router.submit(mk(LEG, OrderSide.SELL, each)),
-        router.submit(mk(LEG, OrderSide.SELL, each)),
-        return_exceptions=True,
+async def _audit_trail_for(sf, since: int, ev, step: str) -> list[dict]:
+    """§ audit — a rejected order must leave an immutable record. Debugging a refusal that left no
+    trace is the situation the ledger exists to prevent."""
+    rows = await ledger_rows_for(sf, since_id=since)
+    ok = bool(rows) and all(
+        r["risk_policy_version"] and r["decision"] and r["reason_codes"] and r["decided_at"]
+        for r in rows
     )
-    outcomes = [str(getattr(x, "status", type(x).__name__)) for x in (a, b)]
-    n_sent = sum(1 for x in (a, b) if _sent(x))
-    rec("6.exactly_one", n_sent == 1, f"{outcomes} -> {n_sent} submitted (must be exactly 1)")
+    ev.assert_(
+        f"{step}.audit_trail",
+        ok,
+        f"{len(rows)} ledger row(s): "
+        + ", ".join(f"#{r['id']} {r['decision']}/{r['risk_effect']} {r['reason_codes']}"
+                    for r in rows[:4]),
+    )
+    return rows
+
+
+async def _concurrency_assertion(sf, ad, ev) -> None:
+    """TWO REAL PROCESSES. Exactly one may claim the capacity."""
+    held = next((D(str(p["qty"])) for p in ad.get_positions() if p["symbol"] == LEG), D(0))
+    if held <= 0:
+        ev.assert_("concurrency.setup", False, f"no {LEG} position to contend for")
+        return
+
+    before = await max_ledger_id(sf)
+    barrier = time.time() + 6.0
+    outs = [WORK / "adr0042_conc_a.json", WORK / "adr0042_conc_b.json"]
+    for p in outs:
+        p.unlink(missing_ok=True)
+
+    procs = [
+        subprocess.Popen(          # noqa: S603 — fixed argv, no shell
+            [sys.executable, "scripts/adr0042_concurrency_worker.py",
+             LEG, str(held), str(barrier), str(out)],
+            cwd="/app",
+        )
+        for out in outs
+    ]
+    for p in procs:
+        p.wait(timeout=120)
+
+    results = [json.loads(p.read_text(encoding="utf-8")) for p in outs if p.exists()]
+    ev.doc["concurrency"] = {"held": str(held), "barrier": barrier, "workers": results}
+
+    if len(results) != 2:
+        ev.assert_("concurrency.both_ran", False, f"only {len(results)} worker(s) reported")
+        return
+    ev.assert_(
+        "concurrency.distinct_processes",
+        results[0]["pid"] != results[1]["pid"],
+        f"pids {results[0]['pid']} and {results[1]['pid']}",
+    )
+    overlap = abs(results[0]["submitted_at"] - results[1]["submitted_at"])
+    ev.assert_("concurrency.actually_raced", overlap < 2.0,
+               f"submissions {overlap:.3f}s apart (a non-overlapping pass would be vacuous)")
+
+    submitted = [r for r in results if r["status"].endswith("submitted")]
+    ev.assert_(
+        "concurrency.exactly_one_submitted",
+        len(submitted) == 1,
+        f"statuses {[r['status'] for r in results]} — two submissions would mean two decisions "
+        f"consumed the same reducible capacity",
+    )
+
+    rows = await ledger_rows_for(sf, since_id=before)
+    allows = [r for r in rows if r["decision"] == "ALLOW"]
+    ev.assert_(
+        "concurrency.exactly_one_ALLOW_in_ledger",
+        len(allows) == 1,
+        f"{len(allows)} ALLOW row(s) of {len(rows)}: "
+        + ", ".join(f"#{r['id']} {r['decision']}/{r['risk_effect']} cap_v="
+                    f"{r['capacity_state_version']}" for r in rows[:4]),
+    )
+    refused = [r for r in rows if "EXCEEDS_REDUCIBLE_CAPACITY" in (r["reason_codes"] or "")]
+    ev.assert_(
+        "concurrency.loser_refused_on_capacity",
+        len(refused) == 1,
+        f"{len(refused)} row(s) carrying EXCEEDS_REDUCIBLE_CAPACITY — the loser must be refused "
+        f"by the CLAIM, not by the broker",
+    )
+    ev.assert_(
+        "concurrency.no_broker_backstop_needed",
+        all(not (r.get("rejection_reason") or "").lower().count("insufficient")
+            for r in results),
+        "no broker insufficient-quantity rejection — the broker may never be the safety mechanism",
+    )
+
     await asyncio.sleep(6)
     after = next((D(str(p["qty"])) for p in ad.get_positions() if p["symbol"] == LEG), D(0))
-    rec("6.never_short", after >= 0, f"{LEG} position after = {after} (must be >= 0)")
+    ev.assert_("concurrency.never_crossed_zero", after >= 0, f"{LEG} position after = {after}")
 
-    print("\nStep 7 - cancellation is classified, not waved through")
-    resting = await router.submit(OrderRequest(
-        user_id=USER, account_id=ACCT, symbol_ticker=LEG2, side=OrderSide.SELL, qty=D("1"),
-        type=OrderType.LIMIT, tif=TimeInForce.DAY, limit_price=D("9999"),
-        source_type=OrderSourceType.MANUAL,
-    ))
-    if _sent(resting):
-        try:
-            await router.cancel(resting.id)
-            rec("7.cancel_protective_refused", False, "the protective sell-to-close WAS cancelled")
-        except CancelRejectedByRisk as exc:
-            rec("7.cancel_protective_refused", True, f"refused: {', '.join(exc.reasons)}")
-    else:
-        rec("7.cancel_protective_refused", False, f"could not rest a sell: {resting.status}")
 
-    print("\nStep 8 - source neutrality (MANUAL treated exactly like STRATEGY)")
-    m = await router.submit(mk(LEG2, OrderSide.SELL, D("1"), OrderSourceType.MANUAL))
-    rec("8.manual_reduction", _sent(m), f"MANUAL SELL 1 {LEG2} -> {m.status}")
-
-    print("\nStep 9 - a state change before submission VOIDS the approval")
-    async with sf() as s:
-        svc = RiskDecisionService(s)
-        held = next((D(str(p["qty"])) for p in ad.get_positions() if p["symbol"] == LEG), D(0))
-        act = ProposedAction(ActionType.ORDER_SUBMIT, LEG, OrderSide.SELL, max(D("1"), held))
-        prior, lid, rid = await svc.decide(
-            account_id=ACCT, adapter=ad, action=act, lock_state="DAILY_LOSS",
-            lock_reason="daily_loss_exceeded", daily_pnl=dc, source_type="STRATEGY",
+async def main() -> int:  # noqa: PLR0915 — a linear assertion sequence reads better as one block
+    with SingleInstance():
+        sf = get_sessionmaker()
+        reg = BrokerRegistry(sf)
+        await reg.load_all()
+        ad = reg.get(USER)
+        bus = EventBus()
+        router = OrderRouter(
+            ad, RiskEngine(sf, broker_registry=reg, bus=bus), sf, bus, broker_registry=reg
         )
-        print(f"  classified {prior.risk_effect}/{prior.decision}, reservation {rid}")
-        await router.submit(mk(LEG, OrderSide.SELL, D("1")))
+
+        cp = Checkpoint.load()
+        ev = Evidence(phase="POST_LOCK")
+        limits = await load_limits(sf)
+        ev.doc["risk_limits"] = limits.as_dict()
+
+        snap = await snapshot_state(sf, ad)
+        ev.doc["initial"] = snap.as_dict()
+        print(f"ADR 0042 canary — POST-LOCK — account {ACCT}")
+        print(f"  day_change     : ${snap.day_change:,.2f}")
+        print(f"  max_daily_loss : ${snap.max_daily_loss:,.2f}")
+        print(f"  lock active    : {snap.lock_active}")
+        print(f"  breaker        : {snap.breaker_tripped_at}")
+        print(f"  positions      : { {k: str(v) for k, v in snap.positions.items()} }\n")
+
+        # ---- preconditions: refuse rather than produce a meaningless RED --------------------
+        if not snap.lock_active:
+            raise CanaryRefused(
+                f"the account is NOT locked (day_change ${snap.day_change:,.2f} vs cap "
+                f"${snap.max_daily_loss:,.2f}). Run the PRE-LOCK phase first. The limit is NOT "
+                f"to be lowered to manufacture a lock."
+            )
+        missing = [s for s, q in LEGS if snap.positions.get(s, D(0)) < q]
+        if missing:
+            raise CanaryRefused(
+                f"protected legs missing while LOCKED: {missing}. A locked account cannot buy, "
+                f"so the reduction assertions cannot run. This would be a structurally invalid "
+                f"RED — refusing instead."
+            )
+        cp.phase = "ASSERTING"
+        cp.save()
+
+        # ---- 1: the lock genuinely refuses a new buy ----------------------------------------
+        print("1 — a risk-INCREASING order must be rejected while locked")
+        n0 = await max_ledger_id(sf)
+        o, _ = await _submit(router, ev, sf, ad, "buy_rejected",
+                             {"symbol": LEG, "side": "BUY", "qty": "1"},
+                             mk(LEG, OrderSide.BUY, D("1")))
+        ev.assert_("1.buy_rejected", _rejected(o), f"BUY 1 {LEG} -> {o.status}")
+        await _audit_trail_for(sf, n0, ev, "1")
+
+        # ---- 2: a verified reduction passes BOTH gates, breaker still tripped ----------------
+        print("\n2 — a VERIFIED REDUCTION must pass the loss gate AND the breaker gate")
+        n0 = await max_ledger_id(sf)
+        pre = await snapshot_state(sf, ad)
+        o, _ = await _submit(router, ev, sf, ad, "reduction_allowed",
+                             {"symbol": LEG, "side": "SELL", "qty": "50"},
+                             mk(LEG, OrderSide.SELL, D("50")))
+        ev.assert_("2.reduction_allowed", _sent(o), f"SELL 50 {LEG} -> {o.status}")
+        ev.assert_("2.breaker_not_reset", pre.breaker_tripped_at is not None,
+                   f"the breaker was tripped at {pre.breaker_tripped_at} and was NOT reset")
+        ev.assert_("2.limit_not_moved", pre.max_daily_loss == limits.max_daily_loss,
+                   f"max_daily_loss still ${pre.max_daily_loss:,.2f}")
+        rows = await _audit_trail_for(sf, n0, ev, "2")
+        ev.assert_("2.ledger_says_verified_reduction",
+                   any(r["decision"] == "ALLOW" and r["risk_effect"] == "RISK_REDUCING"
+                       for r in rows),
+                   "ledger records ALLOW/RISK_REDUCING")
+
+        # ---- 3: an oversell that would cross zero is refused ---------------------------------
+        print("\n3 — an oversell crossing zero must be rejected")
+        n0 = await max_ledger_id(sf)
+        o, _ = await _submit(router, ev, sf, ad, "oversell_rejected",
+                             {"symbol": LEG, "side": "SELL", "qty": "100000"},
+                             mk(LEG, OrderSide.SELL, D("100000")))
+        ev.assert_("3.oversell_rejected", _rejected(o), f"SELL 100000 {LEG} -> {o.status}")
+        await _audit_trail_for(sf, n0, ev, "3")
+
+        # ---- 4: TWO PROCESSES may not consume the same reducible capacity --------------------
+        print("\n4 — CROSS-PROCESS: two independent processes, one capacity")
         await asyncio.sleep(5)
-        _res, lid2, _ = await svc.confirm_unchanged_or_reclassify(
-            account_id=ACCT, adapter=ad, action=act, prior=prior, prior_ledger_id=lid,
-            reservation_id=rid, lock_state="DAILY_LOSS", lock_reason="daily_loss_exceeded",
-            daily_pnl=dc, source_type="STRATEGY",
+        await _concurrency_assertion(sf, ad, ev)
+
+        # ---- 5: cancelling a protective sell-to-close is refused -----------------------------
+        print("\n5 — cancellation is classified, not waved through")
+        n0 = await max_ledger_id(sf)
+        resting, _ = await _submit(
+            router, ev, sf, ad, "resting_protective_sell",
+            {"symbol": LEG2, "side": "SELL", "qty": "1", "type": "LIMIT", "limit": "9999"},
+            mk(LEG2, OrderSide.SELL, D("1"), OrderSourceType.MANUAL,
+               type=OrderType.LIMIT, limit_price=D("9999")),
         )
-        rec("9.conflict_detected", lid2 != lid,
-            f"ledger {lid} superseded by {lid2} - the approval was NOT reused")
-        rr = (
-            await s.execute(select(RiskReservation).where(RiskReservation.id == rid))
-        ).scalars().first()
-        rec("9.reservation_rolled_back", rr is not None and rr.state != RESERVATION_HELD,
-            f"reservation {rid} -> {rr.state if rr else '?'} ({rr.release_reason if rr else ''})")
+        if _sent(resting):
+            try:
+                await router.cancel(resting.id)
+                ev.assert_("5.cancel_protective_refused", False,
+                           "the protective sell-to-close WAS cancelled")
+            except CancelRejectedByRisk as exc:
+                ev.assert_("5.cancel_protective_refused", True,
+                           f"refused: {', '.join(exc.reasons)}")
+        else:
+            ev.assert_("5.cancel_protective_refused", False,
+                       f"could not rest a protective sell: {resting.status}")
+        await _audit_trail_for(sf, n0, ev, "5")
 
-    print("\n" + "=" * 78)
-    async with sf() as s:
-        rows = (
-            await s.execute(
-                select(LedgerRow).where(LedgerRow.account_id == ACCT).order_by(LedgerRow.id)
-            )
-        ).scalars().all()
-        held_res = (
-            await s.execute(
-                select(RiskReservation).where(
-                    RiskReservation.account_id == ACCT,
-                    RiskReservation.state == RESERVATION_HELD,
-                )
-            )
-        ).scalars().all()
+        # ---- 6: source neutrality ------------------------------------------------------------
+        print("\n6 — MANUAL is classified exactly like STRATEGY")
+        n0 = await max_ledger_id(sf)
+        o, _ = await _submit(router, ev, sf, ad, "manual_reduction",
+                             {"symbol": LEG2, "side": "SELL", "qty": "1", "source": "MANUAL"},
+                             mk(LEG2, OrderSide.SELL, D("1"), OrderSourceType.MANUAL))
+        ev.assert_("6.manual_reduction_allowed", _sent(o), f"MANUAL SELL 1 {LEG2} -> {o.status}")
+        rows = await _audit_trail_for(sf, n0, ev, "6")
+        ev.assert_("6.source_recorded_not_privileged",
+                   any(r["decision"] == "ALLOW" and r["risk_effect"] == "RISK_REDUCING"
+                       for r in rows),
+                   "a MANUAL reduction is ALLOW/RISK_REDUCING on its merits")
 
-    print(f"\nDECISION LEDGER - {len(rows)} rows")
-    for r in rows:
-        print(f"  #{r.id:3} {r.action_type:13} {r.symbol:5} {str(r.side or '-'):4} "
-              f"{str(r.qty or ''):>9} {r.lock_state:11} {r.risk_effect:16} {r.decision:12} "
-              f"{json.loads(r.reason_codes)}")
+        # ---- final reconciliation ------------------------------------------------------------
+        await asyncio.sleep(6)
+        final = await snapshot_state(sf, ad)
+        ev.doc["final"] = final.as_dict()
+        ev.doc["ledger"] = await ledger_rows_for(sf, since_id=0)
+        ev.assert_("final.no_short_position",
+                   all(q >= 0 for q in final.positions.values()),
+                   str({k: str(v) for k, v in final.positions.items()}))
+        ev.assert_("final.limit_unchanged", final.max_daily_loss == limits.max_daily_loss,
+                   f"max_daily_loss ${final.max_daily_loss:,.2f}")
 
-    increasing_allowed = [
-        r for r in rows if r.risk_effect == "RISK_INCREASING" and r.decision == "ALLOW"
-    ]
-    gate = [
-        ("no unclassified decision", all(r.risk_effect and r.decision for r in rows)),
-        ("no increasing order allowed", not increasing_allowed),
-        ("every decision carries a policy version + state hash",
-         all(r.risk_policy_version and r.before_state_hash for r in rows)),
-        ("no orphan held reservations", len(held_res) == 0),
-        ("all steps passed", all(x["status"] == "PASS" for x in R)),
-    ]
-    print("\nRELEASE GATE")
-    for name, ok in gate:
-        print(f"  [{'PASS' if ok else 'FAIL'}] {name}")
-
-    green = all(ok for _, ok in gate)
-    print("\n" + ("*** CANARY GREEN ***" if green else "*** CANARY RED ***"))
-    return 0 if green else 1
+        cp.phase = "DONE"
+        cp.save()
+        digest = ev.write(OUT)
+        print("\n" + "=" * 72)
+        print(f"  ADR 0042 CANARY: {'PASS' if ev.passed() else 'FAIL'}")
+        print(f"  evidence: {OUT}  sha256 {digest}")
+        print("=" * 72)
+        return 0 if ev.passed() else 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(asyncio.run(main()))
+    try:
+        raise SystemExit(asyncio.run(main()))
+    except CanaryRefused as exc:
+        print(f"\nCanaryRefused: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
