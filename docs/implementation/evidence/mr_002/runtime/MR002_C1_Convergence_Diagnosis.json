@@ -1,0 +1,89 @@
+{
+  "overlaps": 20,
+  "eta": 1e-12,
+  "grid": {
+    "C1 as frozen        (tol 1e-14, static 1e-8)": {
+      "tol": 1e-14,
+      "static_reg": 1e-08,
+      "solved": 0,
+      "usable": 0,
+      "median_violation": 3.724113808956878e+17,
+      "worst_violation": 8.261016476856528e+155,
+      "statuses": {
+        "AlmostSolved": 8,
+        "InsufficientProgress": 2,
+        "NumericalError": 6,
+        "AlmostPrimalInfeasible": 1,
+        "MaxIterations": 3
+      }
+    },
+    "H2: identity-scale  (tol 1e-14, static 1e-12)": {
+      "tol": 1e-14,
+      "static_reg": 1e-12,
+      "solved": 0,
+      "usable": 0,
+      "median_violation": 3.448095405771015e-12,
+      "worst_violation": 3.881539816216134e+156,
+      "statuses": {
+        "AlmostSolved": 12,
+        "NumericalError": 8
+      }
+    },
+    "H2: identity-scale  (tol 1e-14, static 1e-14)": {
+      "tol": 1e-14,
+      "static_reg": 1e-14,
+      "solved": 0,
+      "usable": 0,
+      "median_violation": 5.0137854087378005e-11,
+      "worst_violation": 7.378585932044054e+124,
+      "statuses": {
+        "InsufficientProgress": 2,
+        "AlmostSolved": 10,
+        "AlmostPrimalInfeasible": 7,
+        "MaxIterations": 1
+      }
+    },
+    "H2: no static reg   (tol 1e-14, static OFF)": {
+      "tol": 1e-14,
+      "static_reg": null,
+      "solved": 0,
+      "usable": 0,
+      "median_violation": 3.8419893070186524e+40,
+      "worst_violation": 1.0674106744369539e+155,
+      "statuses": {
+        "MaxIterations": 3,
+        "AlmostPrimalInfeasible": 9,
+        "InsufficientProgress": 4,
+        "NumericalError": 1,
+        "AlmostSolved": 3
+      }
+    },
+    "H1: looser tol      (tol 1e-12, static 1e-8)": {
+      "tol": 1e-12,
+      "static_reg": 1e-08,
+      "solved": 0,
+      "usable": 0,
+      "median_violation": 3.724113808956878e+17,
+      "worst_violation": 8.261016476856528e+155,
+      "statuses": {
+        "AlmostSolved": 8,
+        "InsufficientProgress": 2,
+        "NumericalError": 6,
+        "AlmostPrimalInfeasible": 1,
+        "MaxIterations": 3
+      }
+    },
+    "H1: looser tol      (tol 1e-10, static 1e-8)": {
+      "tol": 1e-10,
+      "static_reg": 1e-08,
+      "solved": 20,
+      "usable": 0,
+      "median_violation": 2.8670024723493e-12,
+      "worst_violation": 9.05561954331678e-12,
+      "statuses": {
+        "Solved": 20
+      }
+    }
+  },
+  "note": "DIAGNOSTIC ONLY. No output used as a proposal or in any certificate."
+}

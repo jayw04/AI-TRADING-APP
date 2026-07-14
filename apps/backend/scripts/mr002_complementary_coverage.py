@@ -16,16 +16,25 @@ Produces every item §13 requires before countersign:
   * strong-convexity agreement                       (§9)
   * explicit correction of the "2765 requires HiGHS" statement (§1, §13)
 
-THE CANONICAL PREDICATE (§7 + §8). ONE implementation governs primary, fallback, offline
-characterization, fixtures and preflight:
+THE CANONICAL PREDICATE (owner ruling §7 + §9). ONE implementation — `app.research.mr002.
+certificate` — governs primary, fallback, offline characterization, fixtures and preflight:
 
     primal / dual / stationarity / complementarity / aggregate-KKT   <= registered LIMITS
-    external original-coordinate primal-dual gap                     <= 1e-10 (and not < -1e-9)
+    CERTIFIED dual-lower-bound gap  G = upper(f) - lower(d_cert)     in [0, 1e-10]
+    interval widths of f and d_cert                                  <= 1e-30
 
-⚠ The earlier intersection report scored WITHOUT the gap gate. §8 forbids comparing counts
-produced under differing predicates as though the gates were identical, so every count here is
-recomputed under the FULL predicate. The headline numbers may therefore differ from that report;
-these supersede it.
+⚠ THIS SUPERSEDES THE SIGNED-GAP PREDICATE, which was INVALIDATED. That quantity came from
+approximate solver duals and could be NEGATIVE; `max(g, 0)` then assigned zero uncertainty and
+collapsed the agreement radius to a bare 1e-10, demanding that an active-set and an interior-point
+method agree below double-precision reproducibility. It was never a certificate. The replacement
+is a rigorous dual lower bound from weak duality, valid for ANY dual-feasible multipliers.
+
+The KKT gates and the certified gap are SEPARATE hard conditions. The gap does not replace KKT
+verification, and the KKT tolerance does not inflate the gap.
+
+The prior artifact (`MR002_ComplementaryCoverage.json`, sha256 790002c0…) is IMMUTABLE and keeps
+its disposition: CASCADE COVERAGE PASSED / AGREEMENT GATE FAILED / SPECIFICATION INVALIDATED /
+NOT COUNTERSIGNED. This run writes a NEW file.
 
 DIAGNOSTIC ONLY. No performance computed, printed or persisted. Preflight and the development
 run remain STOPPED. Validation and sealed OOS remain sealed and unread.
@@ -46,11 +55,23 @@ sys.path.insert(0, "/work/apps/backend")
 
 import app.research.mr002.joint_portfolio as jp  # noqa: E402
 
-# ---- IMPORTED, never re-derived (§8). This discipline is not decorative: a hand-rolled
+# ---- IMPORTED, never re-derived (§9). This discipline is not decorative: a hand-rolled
 # ---- Clarabel produced a false "structural, close v1.1" verdict earlier in this program.
+from app.research.mr002.certificate import (  # noqa: E402
+    CERTIFIED_GAP_MAX,
+    MAX_INTERVAL_WIDTH,
+    CertificateDefect,
+    agreement,
+    bound_intervals,
+    certify,
+    objective_agreement,
+    project_dual,
+    verify_canonical_hessian,
+)
 from scripts.mr002_characterize_native_qp import (  # noqa: E402
-    external_gap,
     solve_clarabel as _clarabel_raw,
+)
+from scripts.mr002_characterize_native_qp import (
     solve_highs as _highs_raw,
 )
 from scripts.mr002_piqp import solve_piqp as _piqp_raw  # noqa: E402
@@ -63,30 +84,41 @@ from scripts.mr002_solver_intersection import (  # noqa: E402
     solve_tscaled,
 )
 
-GAP_MAX = 1e-10
-GAP_MIN = -1e-9
-
 CORPUS: list[dict] = []
 
 
 # ======================================================================================
-# §8 — the ONE canonical predicate
+# §9 — the ONE canonical predicate
+#
+# ⚠ SUPERSEDES the signed external gap. That quantity was formed from approximate solver duals
+# and could come out NEGATIVE — at which point max(g, 0) assigned zero uncertainty and collapsed
+# the agreement radius. It was never a certificate. The replacement is the certified dual LOWER
+# BOUND (weak duality, interval endpoints, >= 100 digits), which is valid for ANY dual-feasible
+# multipliers and does not borrow validity from the solver's own optimality claim.
+#
+# The KKT gates and the certified gap are SEPARATE hard conditions. The gap does not replace KKT
+# verification, and the KKT tolerance does not inflate the gap — the rejected proposal did exactly
+# that, treating a residual norm as an objective error.
 # ======================================================================================
-def canonical_qualify(z, lam, t, A_ub, b_ub, A_eq, b_eq, upper) -> tuple[bool, list[str], dict]:
+def canonical_qualify(z, lam, t, A_ub, b_ub, A_eq, b_eq, upper):
     n = len(t)
     H = np.diag(2.0 / t)
+    verify_canonical_hessian(H, t)                      # §3 — the registered 2/t objective
     a = 2.0 * np.ones(n)
     C, b = jp._qp_matrices(A_ub, b_ub, A_eq, b_eq, upper, n)
-    meq, m_ub = A_eq.shape[0], A_ub.shape[0]
+    meq = A_eq.shape[0]
     ck = jp._acceptance(z, lam, meq, H, a, C, b, A_ub, b_ub, A_eq, b_eq, upper)
-    g = external_gap(z, lam, meq, m_ub, t, A_ub, b_ub, A_eq, b_eq, upper)
-    ck["external_primal_dual_gap"] = g
     bad = sorted(k for k, lim in LIMITS.items() if ck[k] > lim)
-    if g > GAP_MAX:
-        bad.append("gap_exceeds_1e-10")
-    if g < GAP_MIN:
-        bad.append("gap_negative")
-    return (not bad), bad, ck
+
+    cert = certify(z, lam, t, A_ub, b_ub, A_eq, b_eq, upper)   # raises on a defective construction
+    if not cert.qualifies:
+        if cert.certified_gap < 0.0:
+            bad.append("certified_gap_negative")
+        elif cert.certified_gap > CERTIFIED_GAP_MAX:
+            bad.append("certified_gap_exceeds_1e-10")
+        else:
+            bad.append("interval_width_too_wide")
+    return (not bad), bad, ck, cert
 
 
 def _lam_of(fn_raw):
@@ -169,7 +201,7 @@ def fixture_hash(inst: dict) -> str:
         h.update(a.tobytes())
     h.update(b"|acceptance-policy|")
     h.update(json.dumps(LIMITS, sort_keys=True).encode())
-    h.update(f"|gap<={GAP_MAX}|gap>={GAP_MIN}".encode())
+    h.update(f"|certified_gap<={CERTIFIED_GAP_MAX}|width<={MAX_INTERVAL_WIDTH}".encode())
     return h.hexdigest()
 
 
@@ -217,8 +249,10 @@ def capture(H_diag, targets, A_ub, b_ub, A_eq, b_eq, upper):
 def try_solve(name, rec):
     try:
         z, lam = SOLVERS[name](*(x.copy() for x in rec))
-        ok, bad, ck = canonical_qualify(z, lam, *rec)
-        return ok, ("+".join(bad) if bad else ""), z, lam, ck
+        ok, bad, _ck, cert = canonical_qualify(z, lam, *rec)
+        return ok, ("+".join(bad) if bad else ""), z, lam, cert
+    except CertificateDefect:
+        raise                       # a broken CERTIFICATE is not a solver failure — STOP
     except Exception as e:  # noqa: BLE001 — a raise IS a nonqualification
         return False, f"{type(e).__name__}: {str(e)[:70]}", None, None, None
 
@@ -242,22 +276,44 @@ def main() -> int:  # noqa: PLR0915
         return 1
     print("[ok] corpus reproduced EXACTLY\n")
 
-    print("CANONICAL PREDICATE = LIMITS + external gap <= 1e-10   (§7/§8)\n")
+    print("CANONICAL PREDICATE = registered LIMITS + CERTIFIED dual-lower-bound gap in "
+          "[0, 1e-10]   (§7/§9)\n")
 
     matrix: dict[str, dict[int, str]] = {k: {} for k in SOLVERS}
     fails: dict[str, set[int]] = {k: set() for k in SOLVERS}
     zs: dict[str, dict[int, np.ndarray]] = {k: {} for k in SOLVERS}
-    gaps: dict[str, dict[int, float]] = {k: {} for k in SOLVERS}
+    certs: dict[str, dict[int, object]] = {k: {} for k in SOLVERS}
+    clip_log: list[dict] = []
+    neg_log: list[dict] = []
+    worst_width = 0.0
 
     for i, inst in enumerate(CORPUS):
         rec = (inst["t"], inst["A_ub"], inst["b_ub"],
                inst["A_eq"], inst["b_eq"], inst["upper"])
         for name in SOLVERS:
-            ok, why, z, _lam, ck = try_solve(name, rec)
+            ok, why, z, _lam, cert = try_solve(name, rec)
             matrix[name][i] = "QUALIFIES" if ok else why
+            if cert is not None:
+                worst_width = max(worst_width, cert.primal_interval_width,
+                                  cert.dual_interval_width)
+                if cert.n_multipliers_clipped:                     # §2 — recorded, not laundered
+                    clip_log.append({"instance": i, "solver": name,
+                                     "n_clipped": cert.n_multipliers_clipped,
+                                     "max_clip": cert.max_multiplier_clip,
+                                     "clipped": [list(c) for c in cert.clipped[:12]]})
+                if cert.certified_gap < 0.0:
+                    # A gap a few ulps below zero is a submitted point that is feasible only to
+                    # within rounding — NOT a broken certificate (that would violate the
+                    # Lagrangian floor and raise). It still NONQUALIFIES, per the ruling. Record
+                    # every one, with its derived floor and whether the NEGATIVE GAP WAS THE ONLY
+                    # thing wrong with it, so the disposition is decided on evidence.
+                    neg_log.append({"instance": i, "solver": name,
+                                    "G": cert.certified_gap,
+                                    "lagrangian_floor": cert.lagrangian_slack,
+                                    "sole_failure_reason": (why == "certified_gap_negative")})
             if ok:
                 zs[name][i] = z
-                gaps[name][i] = ck["external_primal_dual_gap"]
+                certs[name][i] = cert
             else:
                 fails[name].add(i)
         if (i + 1) % 500 == 0:
@@ -324,55 +380,85 @@ def main() -> int:  # noqa: PLR0915
     print(f"--- §10 shuffle invariance: {'PASS' if shuf_ok else 'FAIL'} "
           f"(worst |Δallocation| = {worst_shuf:.3e})")
 
-    # ---- §9 strong-convexity agreement -------------------------------------------------
-    agree_ok, worst_ratio = True, 0.0
+    # ---- §8 agreement, under the CERTIFIED radius (no KKT inflation term) ---------------
+    agree_ok, obj_ok = True, True
+    worst_ratio = worst_obj_ratio = worst_dz_abs = 0.0
     both = sorted(set(zs[PRIMARY]) & set(zs[FALLBACK]))
-    viol = []
-    worst_dz_abs = 0.0
+    viol, obj_viol = [], []
     for i in both:
-        t = CORPUS[i]["t"]
-        m = 2.0 / float(np.max(t))                        # lambda_min(H), H = diag(2/t)
-        g1, g2 = gaps[PRIMARY][i], gaps[FALLBACK][i]
-        r1 = np.sqrt(2.0 * max(g1, 0.0) / m)
-        r2 = np.sqrt(2.0 * max(g2, 0.0) / m)
-        dz = float(np.linalg.norm(zs[PRIMARY][i] - zs[FALLBACK][i]))
-        bound = r1 + r2 + 1e-10
+        c1, c2 = certs[PRIMARY][i], certs[FALLBACK][i]
+        ok_a, dz, bound = agreement(c1, c2, zs[PRIMARY][i], zs[FALLBACK][i])
+        ok_o, df, obound = objective_agreement(c1, c2)
         worst_dz_abs = max(worst_dz_abs, dz)
-        ratio = dz / bound if bound > 0 else 0.0
-        worst_ratio = max(worst_ratio, ratio)
-        if dz > bound:
+        worst_ratio = max(worst_ratio, dz / bound if bound > 0 else 0.0)
+        worst_obj_ratio = max(worst_obj_ratio, df / obound if obound > 0 else 0.0)
+        if not ok_a:
             agree_ok = False
-            viol.append({"i": i, "dz": dz, "bound": bound, "ratio": ratio,
-                         "gap_primary": g1, "gap_fallback": g2,
-                         "z_scale": float(np.max(np.abs(zs[PRIMARY][i])))})
+            viol.append({"i": i, "dz": dz, "bound": bound, "ratio": dz / bound,
+                         "G_primary": c1.certified_gap, "G_fallback": c2.certified_gap,
+                         "r_primary": c1.radius, "r_fallback": c2.radius})
+        if not ok_o:
+            obj_ok = False
+            obj_viol.append({"i": i, "df": df, "bound": obound})
     viol.sort(key=lambda v: -v["ratio"])
-    print(f"--- §9 strong-convexity agreement over {len(both)} overlap instances: "
-          f"{'PASS' if agree_ok else 'FAIL'} (worst dz/bound = {worst_ratio:.3f})")
-    print(f"    violations: {len(viol)} / {len(both)}   worst ABSOLUTE |z1-z2| = {worst_dz_abs:.3e}")
+    print(f"\n--- §8 certified-radius agreement over {len(both)} overlap instances: "
+          f"{'PASS' if agree_ok else 'FAIL'}   worst dz/bound = {worst_ratio:.3e}")
+    print(f"    violations: {len(viol)}   worst ABSOLUTE |z1-z2| = {worst_dz_abs:.3e}")
     for v in viol[:5]:
         print(f"      i={v['i']:>4}  dz={v['dz']:.3e}  bound={v['bound']:.3e}  "
-              f"ratio={v['ratio']:.2f}  gaps=({v['gap_primary']:.2e}, {v['gap_fallback']:.2e})  "
-              f"|z|max={v['z_scale']:.3e}")
+              f"G=({v['G_primary']:.2e}, {v['G_fallback']:.2e})")
+    print(f"--- §8 objective agreement: {'PASS' if obj_ok else 'FAIL'}   "
+          f"worst |f1-f2|/bound = {worst_obj_ratio:.3e}   violations: {len(obj_viol)}")
+    print(f"--- §7 worst interval width across every certificate: {worst_width:.3e} "
+          f"(limit {MAX_INTERVAL_WIDTH:.0e})")
+    print(f"--- §2 certificates needing a multiplier clip: {len(clip_log)}")
 
-    # ---- §8 module + wrapper hashes ----------------------------------------------------
+    sole = [r for r in neg_log if r["sole_failure_reason"]]
+    worst_neg = min((r["G"] for r in neg_log), default=0.0)
+    print(f"--- §7 NEGATIVE certified gaps: {len(neg_log)}  (worst {worst_neg:.3e})   "
+          f"of which the negative gap was the SOLE failure: {len(sole)}")
+    if sole:
+        by_solver: dict[str, int] = {}
+        for r in sole:
+            by_solver[r["solver"]] = by_solver.get(r["solver"], 0) + 1
+        print(f"    solvers disqualified ONLY by a negative gap: {by_solver}")
+        print("    ⚠ these are points feasible only to within rounding, not broken certificates "
+              "(every one clears its Lagrangian floor). Disposition is the owner's.")
+
+    # ---- §9 module + wrapper hashes ----------------------------------------------------
     hashes = {
         "canonical_acceptance_module": _src_hash(jp._acceptance, canonical_qualify),
+        "certificate_module": _src_hash(certify, bound_intervals, project_dual, agreement,
+                                        objective_agreement, verify_canonical_hessian),
         "LIMITS_object": hashlib.sha256(
             json.dumps(LIMITS, sort_keys=True).encode()).hexdigest(),
-        "external_gap": _src_hash(external_gap),
         "quadprog_sqrt_wrapper_and_dual_mapping": _src_hash(_quadprog_variant),
         "piqp_wrapper_and_dual_mapping": _src_hash(_piqp_raw),
-        "strong_convexity_agreement": _src_hash(main),
+        "coverage_driver": _src_hash(main),
     }
 
-    ok_gate = (len(unresolved) == 0) and det_ok and shuf_ok and agree_ok
+    ok_gate = (len(unresolved) == 0) and det_ok and shuf_ok and agree_ok and obj_ok
     print("\n" + "=" * 74)
     print("  §13 COMPLEMENTARY-COVERAGE GATE: " + ("PASS" if ok_gate else "FAIL"))
     print("=" * 74)
 
     out = {
         "cascade": [PRIMARY, FALLBACK],
-        "canonical_predicate": {"LIMITS": LIMITS, "gap_max": GAP_MAX, "gap_min": GAP_MIN},
+        "supersedes": {
+            "artifact": "MR002_ComplementaryCoverage.json",
+            "sha256": "790002c05c45e685a5126b6a2a5707689460486ad16800c7ea3be960f9c7a1c7",
+            "disposition": ("CASCADE COVERAGE PASSED / AGREEMENT GATE FAILED / SIGNED-GAP "
+                            "AGREEMENT SPECIFICATION INVALIDATED / NOT COUNTERSIGNED — retained "
+                            "immutable"),
+        },
+        "canonical_predicate": {
+            "LIMITS": LIMITS,
+            "certified_gap_max": CERTIFIED_GAP_MAX,
+            "max_interval_width": MAX_INTERVAL_WIDTH,
+            "definition": ("G = upper(f(z)) - lower(d_cert), weak duality, folded C/b/lambda, "
+                           "outward-rounded intervals at >= 100 decimal digits, exact "
+                           "as_integer_ratio conversion. NO cushion, NO max(G,0), NO KKT term."),
+        },
         "instances": n_inst,
         "corpus_hash": ch,
         "corpus_verified": True,
@@ -384,11 +470,27 @@ def main() -> int:  # noqa: PLR0915
         "fixtures_by_content_hash": fixtures,
         "same_image_determinism": det_ok,
         "shuffle_invariance": {"pass": shuf_ok, "worst_delta": worst_shuf},
-        "strong_convexity_agreement": {"pass": agree_ok, "overlap_instances": len(both),
+        "certified_radius_agreement": {"pass": agree_ok, "overlap_instances": len(both),
                                        "worst_ratio": worst_ratio,
                                        "violations": len(viol),
                                        "worst_absolute_dz": worst_dz_abs,
                                        "top_violations": viol[:20]},
+        "objective_agreement": {"pass": obj_ok, "worst_ratio": worst_obj_ratio,
+                                "violations": len(obj_viol), "top_violations": obj_viol[:20]},
+        "interval_arithmetic": {"worst_width": worst_width, "limit": MAX_INTERVAL_WIDTH},
+        "multiplier_clipping": {"certificates_with_clips": len(clip_log),
+                                "records": clip_log[:200]},
+        "negative_certified_gaps": {
+            "count": len(neg_log),
+            "worst": worst_neg,
+            "sole_failure_reason_count": len(sole),
+            "note": ("A gap a few ulps below zero is a submitted point that is feasible only to "
+                     "within rounding, not a broken certificate: every one clears its derived "
+                     "Lagrangian floor G >= lam'(C'z - b), which a sign/conversion defect could "
+                     "not. Per the ruling G >= 0 is required to qualify, so they NONQUALIFY here. "
+                     "Where that is the SOLE failure reason the disposition is the owner's."),
+            "records": neg_log[:200],
+        },
         "implementation_hashes": hashes,
         "correction_2765": (
             "WITHDRAWN: the prior statement that instance 2765 is certified only by HiGHS is "
@@ -405,9 +507,10 @@ def main() -> int:  # noqa: PLR0915
         "no_performance_computed": True,
         "gate_pass": ok_gate,
     }
-    with open("/out/MR002_ComplementaryCoverage.json", "w", encoding="utf-8") as fh:
+    # A NEW artifact. The prior one is immutable and keeps its failed-agreement disposition (§10).
+    with open("/out/MR002_ComplementaryCoverage_Certified.json", "w", encoding="utf-8") as fh:
         json.dump(out, fh, indent=2)
-    print("wrote /out/MR002_ComplementaryCoverage.json")
+    print("wrote /out/MR002_ComplementaryCoverage_Certified.json")
     return 0 if ok_gate else 1
 
 

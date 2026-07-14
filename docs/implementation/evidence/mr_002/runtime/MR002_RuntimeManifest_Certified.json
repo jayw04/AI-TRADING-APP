@@ -1,0 +1,65 @@
+{
+  "image": {
+    "note": "linux/amd64 image digest is stamped by the build host \u2014 see the evidence report"
+  },
+  "packages": {
+    "clarabel": {
+      "installed_files": 9,
+      "installed_tree_sha256": "6ab82a8c7e8e23a80ad028a7ccaf3db6950f572be9117b0ad1d0a5a1eb4dbd62",
+      "present": true,
+      "record_sha256": "0a59419c546746176bafa8409684d533da33369aaa607b2ee9bcbc7b43d5053e",
+      "version": "0.11.1"
+    },
+    "highspy": {
+      "installed_files": 19,
+      "installed_tree_sha256": "dfe0f13964e245c7cf3cb9f839adb6c782bf6c7c3397967ea4e783b3546908e5",
+      "present": true,
+      "record_sha256": "3bf5946855566c0126143f6254f33a1f516cec824e03f3be59665e0eb63ebc2d",
+      "version": "1.15.1"
+    },
+    "mpmath": {
+      "installed_files": 181,
+      "installed_tree_sha256": "6d26b2b547a48e2ada2c176df2f85d5f99fbf6146c7431d31ed6798d8d729564",
+      "present": true,
+      "record_sha256": "2a3ce58d2f028b8156fca4c43d127065010b8004c7b96e8f9ceaf43dfc23e750",
+      "version": "1.3.0"
+    },
+    "numpy": {
+      "installed_files": 1291,
+      "installed_tree_sha256": "0491725f620d0b51508aaae3ae73bf4ec9d8fde3baa7777239c4bf586f5182de",
+      "present": true,
+      "record_sha256": "7fa71129e8e4319acedb61bf6329ae65acf56d6d897136fd8c41b76321a6cdda",
+      "version": "2.2.6"
+    },
+    "piqp": {
+      "installed_files": 13,
+      "installed_tree_sha256": "2c4a71590e62fbc4d9fd6502111f3d894311078305fe85fae3895b3cf3882863",
+      "present": true,
+      "record_sha256": "f4f453fc78eeaa107ddc40be5c6e7884a9716d9622e05cf60a0175a7eb5ab613",
+      "version": "0.6.3"
+    },
+    "quadprog": {
+      "installed_files": 8,
+      "installed_tree_sha256": "96644d88d9f8a5d6df892098202352be7314337504affcfe6296cf9cacbd52d2",
+      "present": true,
+      "record_sha256": "c3adaac717f2d9b3043eb42e3dfe4db5330e692a5b1cc4d278a4d234a6753df7",
+      "version": "0.1.13"
+    },
+    "scipy": {
+      "installed_files": 2422,
+      "installed_tree_sha256": "07c813c169f2a8c7a43bb16a92f15baec5aa4f2283f4c048768657e62a6dad95",
+      "present": true,
+      "record_sha256": "86320bc4418be016a157d6b2e4f0dc2db689fccd0aea9b7f96d6c4826e2a61e4",
+      "version": "1.18.0"
+    }
+  },
+  "purpose": "MR-002 v1.1 Stage-3 certified dual-lower-bound gap",
+  "python": {
+    "abi": "cpython-313-x86_64-linux-gnu",
+    "ext_suffix": ".cpython-313-x86_64-linux-gnu.so",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "version": "3.13.14"
+  }
+}

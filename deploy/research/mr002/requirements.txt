@@ -20,3 +20,7 @@ clarabel==0.11.1
 
 # Final open-source Stage-3 QP candidate (owner-authorized 2026-07-13).
 piqp==0.6.3
+
+# Certified dual-lower-bound gap (owner ruling 2026-07-13 §4): >= 80-decimal-digit
+# arithmetic from exact conversions of the submitted IEEE-754 values.
+mpmath==1.3.0

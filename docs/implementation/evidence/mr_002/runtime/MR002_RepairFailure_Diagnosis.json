@@ -1,0 +1,1704 @@
+{
+  "overlaps_examined": 40,
+  "pooled_candidate_outcomes": {
+    "bound": 163,
+    "inequality": 271,
+    "ok": 7
+  },
+  "overlaps_with_pre_absorber_violation": 39,
+  "worst_exact_pre_violation": 4.6787138935807776e-17,
+  "records": [
+    {
+      "n": 5,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          2,
+          4.828195994074016e-19,
+          5
+        ],
+        [
+          3,
+          2.046842988136804e-18,
+          5
+        ],
+        [
+          5,
+          2.552775505645645e-18,
+          5
+        ],
+        [
+          13,
+          2.0547481285527246e-18,
+          5
+        ],
+        [
+          15,
+          3.2042392775559934e-18,
+          5
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 5,
+      "candidate_outcomes": {
+        "bound": 3,
+        "inequality": 2,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0,
+        2
+      ],
+      "instance": 0
+    },
+    {
+      "n": 5,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          1.8976451571564876e-18,
+          5
+        ],
+        [
+          1,
+          4.5146340945320536e-18,
+          5
+        ],
+        [
+          5,
+          2.5270202429844403e-18,
+          5
+        ],
+        [
+          6,
+          5.170960703569482e-18,
+          5
+        ],
+        [
+          7,
+          7.787949640945047e-18,
+          5
+        ],
+        [
+          9,
+          1.0200352292709853e-17,
+          5
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 3,
+        "inequality": 2,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1
+      ],
+      "instance": 1
+    },
+    {
+      "n": 9,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          2.137089529209781e-18,
+          9
+        ],
+        [
+          1,
+          2.8564828680093922e-18,
+          9
+        ],
+        [
+          9,
+          7.404838259886657e-19,
+          9
+        ],
+        [
+          10,
+          1.4598771647882773e-18,
+          9
+        ],
+        [
+          12,
+          4.649559682436295e-18,
+          9
+        ],
+        [
+          14,
+          4.55615781239754e-18,
+          9
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 6,
+      "candidate_outcomes": {
+        "bound": 4,
+        "inequality": 5,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0
+      ],
+      "instance": 2
+    },
+    {
+      "n": 10,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          9.386986566050881e-20,
+          10
+        ],
+        [
+          1,
+          1.8750393689344326e-18,
+          10
+        ],
+        [
+          6,
+          4.737844579746873e-18,
+          10
+        ],
+        [
+          8,
+          5.890939136568437e-18,
+          10
+        ],
+        [
+          10,
+          3.626061748091375e-19,
+          10
+        ],
+        [
+          13,
+          2.991737977231417e-20,
+          10
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 2,
+        "inequality": 8,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0,
+        1
+      ],
+      "instance": 3
+    },
+    {
+      "n": 15,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          4,
+          2.0413697556016253e-18,
+          15
+        ],
+        [
+          6,
+          3.9750720139694674e-18,
+          15
+        ],
+        [
+          7,
+          8.94640358530632e-18,
+          15
+        ],
+        [
+          12,
+          1.2211773991997373e-17,
+          15
+        ],
+        [
+          13,
+          1.3473423150613172e-17,
+          15
+        ],
+        [
+          15,
+          3.146815762963715e-17,
+          15
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 9,
+        "inequality": 6,
+        "ok": 0
+      },
+      "blocking_rows": [
+        3,
+        4
+      ],
+      "instance": 4
+    },
+    {
+      "n": 4,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [],
+      "n_rows_violated_pre_absorber": 0,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 0,
+        "ok": 4
+      },
+      "blocking_rows": [],
+      "instance": 5
+    },
+    {
+      "n": 3,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          1.2155231422832996e-18,
+          3
+        ],
+        [
+          1,
+          1.443433731461418e-18,
+          3
+        ],
+        [
+          9,
+          2.3604446176901785e-18,
+          3
+        ],
+        [
+          11,
+          1.443433731461418e-18,
+          3
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 4,
+      "candidate_outcomes": {
+        "bound": 1,
+        "inequality": 1,
+        "ok": 1
+      },
+      "blocking_rows": [
+        0
+      ],
+      "instance": 6
+    },
+    {
+      "n": 4,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          2.6463598180755223e-19,
+          4
+        ],
+        [
+          1,
+          1.399362571818303e-18,
+          4
+        ],
+        [
+          3,
+          9.444174632439654e-20,
+          4
+        ],
+        [
+          4,
+          1.2291683363351473e-18,
+          4
+        ],
+        [
+          7,
+          8.271552825615459e-19,
+          4
+        ],
+        [
+          9,
+          1.4614623659982577e-18,
+          4
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 9,
+      "candidate_outcomes": {
+        "bound": 2,
+        "inequality": 2,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1,
+        3
+      ],
+      "instance": 7
+    },
+    {
+      "n": 6,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          3,
+          2.895591065430899e-18,
+          6
+        ],
+        [
+          5,
+          3.438514390199192e-18,
+          6
+        ],
+        [
+          19,
+          3.798597895383851e-18,
+          6
+        ],
+        [
+          21,
+          3.438514390199192e-18,
+          6
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 4,
+      "candidate_outcomes": {
+        "bound": 3,
+        "inequality": 2,
+        "ok": 1
+      },
+      "blocking_rows": [
+        3
+      ],
+      "instance": 8
+    },
+    {
+      "n": 5,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          4,
+          8.01875443849233e-20,
+          5
+        ],
+        [
+          9,
+          1.804705131564883e-18,
+          5
+        ],
+        [
+          10,
+          2.8015080419279564e-18,
+          5
+        ],
+        [
+          12,
+          1.7700513287147966e-18,
+          5
+        ],
+        [
+          14,
+          2.76685423907787e-18,
+          5
+        ],
+        [
+          16,
+          3.499308449024692e-20,
+          5
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 1,
+        "inequality": 4,
+        "ok": 0
+      },
+      "blocking_rows": [
+        2,
+        4
+      ],
+      "instance": 9
+    },
+    {
+      "n": 4,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          3.922334778682014e-18,
+          4
+        ],
+        [
+          2,
+          4.6577725496848914e-18,
+          4
+        ],
+        [
+          10,
+          5.153869032650311e-18,
+          4
+        ],
+        [
+          12,
+          4.6577725496848914e-18,
+          4
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 4,
+      "candidate_outcomes": {
+        "bound": 2,
+        "inequality": 1,
+        "ok": 1
+      },
+      "blocking_rows": [
+        0
+      ],
+      "instance": 10
+    },
+    {
+      "n": 4,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          2,
+          3.8649532917427645e-19,
+          4
+        ],
+        [
+          6,
+          1.783301035031019e-18,
+          4
+        ],
+        [
+          7,
+          1.4082597247050852e-19,
+          4
+        ],
+        [
+          10,
+          6.269749239941176e-19,
+          4
+        ],
+        [
+          12,
+          1.0101626575674808e-19,
+          4
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 5,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 4,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0,
+        2
+      ],
+      "instance": 11
+    },
+    {
+      "n": 4,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          3.1326506458401747e-18,
+          4
+        ],
+        [
+          2,
+          4.766775812369765e-18,
+          4
+        ],
+        [
+          3,
+          5.1989809136656576e-20,
+          4
+        ],
+        [
+          4,
+          1.6861149756662473e-18,
+          4
+        ],
+        [
+          8,
+          7.286579257206932e-19,
+          4
+        ],
+        [
+          10,
+          1.5337855077344447e-18,
+          4
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 8,
+      "candidate_outcomes": {
+        "bound": 1,
+        "inequality": 3,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0
+      ],
+      "instance": 12
+    },
+    {
+      "n": 9,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          1.1702082797331836e-18,
+          9
+        ],
+        [
+          1,
+          4.839403768394253e-19,
+          9
+        ],
+        [
+          6,
+          1.8646160595200657e-19,
+          9
+        ],
+        [
+          7,
+          8.01013104413981e-19,
+          9
+        ],
+        [
+          9,
+          2.821341102134087e-19,
+          9
+        ],
+        [
+          10,
+          8.966856086753832e-19,
+          9
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 8,
+      "candidate_outcomes": {
+        "bound": 5,
+        "inequality": 4,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0
+      ],
+      "instance": 13
+    },
+    {
+      "n": 8,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          2,
+          5.440417183817743e-18,
+          8
+        ],
+        [
+          3,
+          1.2542001907941383e-17,
+          8
+        ],
+        [
+          4,
+          2.2944931771177856e-18,
+          8
+        ],
+        [
+          7,
+          4.0357433546392784e-18,
+          8
+        ],
+        [
+          9,
+          6.30382128908222e-20,
+          8
+        ],
+        [
+          10,
+          6.68739841067759e-18,
+          8
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 8,
+      "candidate_outcomes": {
+        "bound": 4,
+        "inequality": 4,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0,
+        2
+      ],
+      "instance": 14
+    },
+    {
+      "n": 12,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          3,
+          1.5087101412365974e-17,
+          12
+        ],
+        [
+          5,
+          3.6095543906603205e-18,
+          12
+        ],
+        [
+          9,
+          6.1208927807540956e-18,
+          12
+        ],
+        [
+          11,
+          1.5233852434317965e-17,
+          12
+        ],
+        [
+          12,
+          3.0932315497169227e-18,
+          12
+        ],
+        [
+          13,
+          1.2206191203280794e-17,
+          12
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 8,
+      "candidate_outcomes": {
+        "bound": 3,
+        "inequality": 9,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1,
+        3
+      ],
+      "instance": 15
+    },
+    {
+      "n": 15,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          3,
+          1.0991939884212241e-17,
+          15
+        ],
+        [
+          9,
+          2.433537932691887e-18,
+          15
+        ],
+        [
+          11,
+          2.579936418539858e-18,
+          15
+        ],
+        [
+          16,
+          3.8810366089006975e-18,
+          15
+        ],
+        [
+          18,
+          1.099790282704399e-18,
+          15
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 5,
+      "candidate_outcomes": {
+        "bound": 5,
+        "inequality": 10,
+        "ok": 0
+      },
+      "blocking_rows": [
+        2,
+        3
+      ],
+      "instance": 16
+    },
+    {
+      "n": 13,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          6,
+          1.4243573841969022e-18,
+          13
+        ],
+        [
+          7,
+          9.840627850478244e-18,
+          13
+        ],
+        [
+          9,
+          1.0834518852394659e-17,
+          13
+        ],
+        [
+          11,
+          3.0915784016835007e-18,
+          13
+        ],
+        [
+          17,
+          7.265273819394938e-18,
+          13
+        ],
+        [
+          21,
+          1.0253517125885002e-17,
+          13
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 3,
+        "inequality": 10,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1,
+        4,
+        6
+      ],
+      "instance": 17
+    },
+    {
+      "n": 16,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          1,
+          3.0252398031960387e-18,
+          16
+        ],
+        [
+          7,
+          7.244213656273503e-18,
+          16
+        ],
+        [
+          9,
+          7.008152019651033e-18,
+          16
+        ],
+        [
+          11,
+          1.0320638408584393e-17,
+          16
+        ],
+        [
+          12,
+          2.6548726597707424e-18,
+          16
+        ],
+        [
+          14,
+          1.185128380780154e-17,
+          16
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 9,
+      "candidate_outcomes": {
+        "bound": 4,
+        "inequality": 12,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1
+      ],
+      "instance": 18
+    },
+    {
+      "n": 15,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          1,
+          3.944614533125844e-19,
+          15
+        ],
+        [
+          9,
+          6.7766401165506515e-18,
+          15
+        ],
+        [
+          10,
+          8.656906422548593e-18,
+          15
+        ],
+        [
+          13,
+          1.6034745247938296e-18,
+          15
+        ],
+        [
+          24,
+          1.3138137342501383e-17,
+          15
+        ],
+        [
+          26,
+          1.1908353271320302e-17,
+          15
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 6,
+      "candidate_outcomes": {
+        "bound": 11,
+        "inequality": 4,
+        "ok": 0
+      },
+      "blocking_rows": [
+        3,
+        9
+      ],
+      "instance": 19
+    },
+    {
+      "n": 19,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          3,
+          8.723450608224609e-18,
+          19
+        ],
+        [
+          5,
+          2.501922955789463e-17,
+          19
+        ],
+        [
+          7,
+          1.575078307490142e-17,
+          19
+        ],
+        [
+          10,
+          7.479869786462982e-18,
+          19
+        ],
+        [
+          12,
+          9.763705606162698e-18,
+          19
+        ],
+        [
+          13,
+          3.963710278786797e-18,
+          19
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 7,
+        "inequality": 12,
+        "ok": 0
+      },
+      "blocking_rows": [
+        2,
+        3
+      ],
+      "instance": 20
+    },
+    {
+      "n": 21,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          2.1099326258559718e-18,
+          21
+        ],
+        [
+          1,
+          1.7852590984425553e-17,
+          21
+        ],
+        [
+          3,
+          8.246219469902974e-18,
+          21
+        ],
+        [
+          4,
+          9.707565153239563e-18,
+          21
+        ],
+        [
+          7,
+          1.3461973655012459e-17,
+          21
+        ],
+        [
+          10,
+          1.246052869393646e-17,
+          21
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 9,
+      "candidate_outcomes": {
+        "bound": 13,
+        "inequality": 8,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1
+      ],
+      "instance": 21
+    },
+    {
+      "n": 18,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          2,
+          1.4057206890808173e-17,
+          18
+        ],
+        [
+          3,
+          1.7911182003110624e-17,
+          18
+        ],
+        [
+          5,
+          4.4826296708698896e-17,
+          18
+        ],
+        [
+          8,
+          4.625694653242424e-18,
+          18
+        ],
+        [
+          10,
+          1.1331565007347696e-17,
+          18
+        ],
+        [
+          12,
+          8.891539590952449e-18,
+          18
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 10,
+      "candidate_outcomes": {
+        "bound": 2,
+        "inequality": 16,
+        "ok": 0
+      },
+      "blocking_rows": [
+        2
+      ],
+      "instance": 22
+    },
+    {
+      "n": 14,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          6,
+          5.082981456080422e-18,
+          14
+        ],
+        [
+          8,
+          7.659973245235966e-18,
+          14
+        ],
+        [
+          9,
+          2.0962477119385524e-18,
+          14
+        ],
+        [
+          10,
+          4.673239501094096e-18,
+          14
+        ],
+        [
+          19,
+          3.2126453621108817e-19,
+          14
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 5,
+      "candidate_outcomes": {
+        "bound": 4,
+        "inequality": 10,
+        "ok": 0
+      },
+      "blocking_rows": [
+        6
+      ],
+      "instance": 23
+    },
+    {
+      "n": 12,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          2,
+          9.811059181547706e-18,
+          12
+        ],
+        [
+          3,
+          4.873568956583209e-18,
+          12
+        ],
+        [
+          5,
+          1.5490213198432644e-17,
+          12
+        ],
+        [
+          12,
+          1.225937611800353e-17,
+          12
+        ],
+        [
+          13,
+          2.2876020359852966e-17,
+          12
+        ],
+        [
+          16,
+          8.444809883363682e-18,
+          12
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 8,
+      "candidate_outcomes": {
+        "bound": 6,
+        "inequality": 6,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0,
+        2
+      ],
+      "instance": 24
+    },
+    {
+      "n": 14,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          3,
+          5.8436993596310895e-19,
+          14
+        ],
+        [
+          5,
+          3.9632933021743914e-18,
+          14
+        ],
+        [
+          9,
+          2.050486685397298e-18,
+          14
+        ],
+        [
+          10,
+          5.42941005160858e-18,
+          14
+        ],
+        [
+          15,
+          2.3586604696295035e-18,
+          14
+        ],
+        [
+          16,
+          5.737583835840785e-18,
+          14
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 9,
+      "candidate_outcomes": {
+        "bound": 10,
+        "inequality": 4,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0,
+        3,
+        5
+      ],
+      "instance": 25
+    },
+    {
+      "n": 10,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          7,
+          2.681216635140078e-19,
+          10
+        ],
+        [
+          9,
+          2.539169623770034e-18,
+          10
+        ],
+        [
+          10,
+          3.4622586534443205e-18,
+          10
+        ],
+        [
+          12,
+          4.1834453588634902e-19,
+          10
+        ],
+        [
+          13,
+          1.3414335655606356e-18,
+          10
+        ],
+        [
+          18,
+          4.8483088153111585e-18,
+          10
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 7,
+        "inequality": 3,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0,
+        9
+      ],
+      "instance": 26
+    },
+    {
+      "n": 12,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          0,
+          2.1739388235775585e-18,
+          12
+        ],
+        [
+          1,
+          9.273129724711857e-18,
+          12
+        ],
+        [
+          3,
+          4.4368567989696976e-18,
+          12
+        ],
+        [
+          4,
+          1.1536047700103996e-17,
+          12
+        ],
+        [
+          6,
+          5.521680336258283e-18,
+          12
+        ],
+        [
+          8,
+          1.0544882438092238e-18,
+          12
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 9,
+      "candidate_outcomes": {
+        "bound": 7,
+        "inequality": 5,
+        "ok": 0
+      },
+      "blocking_rows": [
+        0,
+        1
+      ],
+      "instance": 27
+    },
+    {
+      "n": 17,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          1,
+          4.7815091041335927e-20,
+          17
+        ],
+        [
+          3,
+          4.6787138935807776e-17,
+          17
+        ],
+        [
+          4,
+          2.6427946596519557e-17,
+          17
+        ],
+        [
+          10,
+          1.4748111246823486e-17,
+          17
+        ],
+        [
+          14,
+          7.102261523380077e-18,
+          17
+        ],
+        [
+          17,
+          4.6824993791915235e-18,
+          17
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 9,
+      "candidate_outcomes": {
+        "bound": 8,
+        "inequality": 9,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1,
+        3
+      ],
+      "instance": 28
+    },
+    {
+      "n": 15,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          1,
+          1.1016016328858802e-17,
+          15
+        ],
+        [
+          6,
+          4.514345024817257e-19,
+          15
+        ],
+        [
+          8,
+          2.122916539771556e-17,
+          15
+        ],
+        [
+          11,
+          2.0268888811799087e-17,
+          15
+        ],
+        [
+          12,
+          1.4585763846117323e-17,
+          15
+        ],
+        [
+          13,
+          3.5363494741351154e-17,
+          15
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 6,
+      "candidate_outcomes": {
+        "bound": 5,
+        "inequality": 10,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1
+      ],
+      "instance": 29
+    },
+    {
+      "n": 22,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          6,
+          3.3851782655995527e-18,
+          22
+        ],
+        [
+          7,
+          1.789602762479795e-17,
+          22
+        ],
+        [
+          9,
+          1.2639975952252087e-17,
+          22
+        ],
+        [
+          12,
+          7.451270960892559e-19,
+          22
+        ],
+        [
+          14,
+          1.5255976455287656e-17,
+          22
+        ],
+        [
+          22,
+          3.2380820142962362e-18,
+          22
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 15,
+        "inequality": 7,
+        "ok": 0
+      },
+      "blocking_rows": [
+        6,
+        7
+      ],
+      "instance": 30
+    },
+    {
+      "n": 18,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          7,
+          4.528788760802463e-18,
+          18
+        ],
+        [
+          11,
+          7.345878983572108e-19,
+          18
+        ],
+        [
+          16,
+          4.799858207476185e-18,
+          18
+        ],
+        [
+          20,
+          4.1589884628443307e-19,
+          18
+        ],
+        [
+          24,
+          7.992581774983982e-18,
+          18
+        ],
+        [
+          26,
+          2.105182714087736e-18,
+          18
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 8,
+      "candidate_outcomes": {
+        "bound": 13,
+        "inequality": 5,
+        "ok": 0
+      },
+      "blocking_rows": [
+        6,
+        7
+      ],
+      "instance": 31
+    },
+    {
+      "n": 25,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          1,
+          1.0242051372986276e-18,
+          25
+        ],
+        [
+          5,
+          3.626290351263838e-18,
+          25
+        ],
+        [
+          7,
+          6.336795782477599e-18,
+          25
+        ],
+        [
+          9,
+          2.0925101928970236e-18,
+          25
+        ],
+        [
+          13,
+          1.5684339931022417e-19,
+          25
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 5,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 25,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1
+      ],
+      "instance": 32
+    },
+    {
+      "n": 34,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          17,
+          4.010391080220121e-18,
+          34
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 1,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 9,
+        "ok": 0
+      },
+      "blocking_rows": [
+        17
+      ],
+      "instance": 33
+    },
+    {
+      "n": 43,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          6,
+          6.613633252161578e-19,
+          43
+        ],
+        [
+          21,
+          5.1499603193061464e-20,
+          43
+        ],
+        [
+          32,
+          6.708500942254059e-18,
+          30
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 3,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 13,
+        "ok": 0
+      },
+      "blocking_rows": [
+        6,
+        21
+      ],
+      "instance": 34
+    },
+    {
+      "n": 49,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          1,
+          1.491590723203533e-19,
+          49
+        ],
+        [
+          21,
+          2.4297501159908428e-18,
+          49
+        ],
+        [
+          23,
+          1.0982788230993173e-17,
+          49
+        ],
+        [
+          25,
+          1.6196082687538186e-18,
+          49
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 4,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 10,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1,
+        12,
+        23
+      ],
+      "instance": 35
+    },
+    {
+      "n": 40,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          6,
+          7.882149793969618e-18,
+          40
+        ],
+        [
+          32,
+          2.392021043046144e-18,
+          29
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 2,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 11,
+        "ok": 0
+      },
+      "blocking_rows": [
+        6
+      ],
+      "instance": 37
+    },
+    {
+      "n": 27,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          1,
+          4.224420937793072e-20,
+          27
+        ],
+        [
+          10,
+          8.858890248432138e-19,
+          27
+        ],
+        [
+          15,
+          6.257683372509596e-18,
+          27
+        ],
+        [
+          23,
+          1.15693956796459e-18,
+          27
+        ],
+        [
+          24,
+          4.2268929301459714e-22,
+          27
+        ],
+        [
+          26,
+          4.387219805828939e-18,
+          27
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 7,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 2,
+        "ok": 0
+      },
+      "blocking_rows": [
+        1
+      ],
+      "instance": 38
+    },
+    {
+      "n": 21,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          21,
+          3.46759759740108e-18,
+          21
+        ],
+        [
+          23,
+          1.8800819428945965e-19,
+          21
+        ],
+        [
+          29,
+          1.2061749168901237e-18,
+          16
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 3,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 5,
+        "ok": 0
+      },
+      "blocking_rows": [
+        12,
+        21
+      ],
+      "instance": 39
+    },
+    {
+      "n": 21,
+      "proposal_source": "quadprog_projection",
+      "clipped_proposal_already_violates_rows": [
+        [
+          5,
+          6.324933397888454e-19,
+          21
+        ],
+        [
+          7,
+          7.601678085523409e-18,
+          21
+        ],
+        [
+          10,
+          1.4617830705857791e-18,
+          21
+        ],
+        [
+          12,
+          3.302296489377199e-21,
+          21
+        ],
+        [
+          14,
+          3.2062425465093365e-18,
+          21
+        ],
+        [
+          16,
+          3.334750027320177e-18,
+          21
+        ]
+      ],
+      "n_rows_violated_pre_absorber": 9,
+      "candidate_outcomes": {
+        "bound": 0,
+        "inequality": 8,
+        "ok": 0
+      },
+      "blocking_rows": [
+        5
+      ],
+      "instance": 40
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "verdict": "STOP FOR ADJUDICATION (owner ruling \u00a76): cascade unresolved != 0",
+  "cascade": [
+    "QUADPROG_SQRT",
+    "PIQP_P2"
+  ],
+  "unresolved": [
+    36,
+    58,
+    86,
+    201,
+    308,
+    365,
+    454,
+    475,
+    506,
+    727,
+    773,
+    856,
+    951,
+    1044,
+    1115,
+    1137,
+    1231,
+    1241,
+    1393,
+    1686,
+    1858,
+    2030,
+    2133,
+    2435,
+    2516,
+    2757,
+    2901,
+    2904,
+    2905,
+    2920,
+    2951,
+    3389,
+    3436,
+    3863,
+    3891
+  ],
+  "unresolved_reasons": {
+    "QUADPROG_SQRT:CERTIFIED_GAP_NEGATIVE_APPROX_PRIMAL": 35,
+    "PIQP_P2:raised": 27,
+    "PIQP_P2:CERTIFIED_GAP_NEGATIVE_APPROX_PRIMAL": 8
+  },
+  "gap_distribution": {
+    "QUADPROG_SQRT": {
+      "certificates": 3890,
+      "kkt_clean": 3890,
+      "G_negative": 2049,
+      "G_negative_and_kkt_clean": 2049,
+      "abs_G_within_1e-10": 3890,
+      "kkt_clean_and_absG_within_1e-10": 3890,
+      "kkt_clean_and_G_in_[0,1e-10]": 1841,
+      "worst_negative": -6.89598796739445e-14,
+      "n_abs_G_above_1e-10": 0
+    },
+    "PIQP_P2": {
+      "certificates": 3846,
+      "kkt_clean": 3846,
+      "G_negative": 12,
+      "G_negative_and_kkt_clean": 12,
+      "abs_G_within_1e-10": 3844,
+      "kkt_clean_and_absG_within_1e-10": 3844,
+      "kkt_clean_and_G_in_[0,1e-10]": 3834,
+      "worst_negative": -1.449654526038929e-09,
+      "n_abs_G_above_1e-10": 2
+    }
+  },
+  "determinism": {
+    "rechecked": 2019,
+    "differed": 0
+  },
+  "shuffle_invariance": {
+    "rechecked": 2015,
+    "violations": 0,
+    "worst_delta": 6.388445452078321e-10
+  },
+  "diagnostic_counterfactual_two_sided_gate": {
+    "note": "NOT a proposed change. Recorded so the adjudication is made on evidence. Every other tolerance, solver setting and the cascade order held fixed.",
+    "nonqualifications": {
+      "QUADPROG_SQRT": 5,
+      "PIQP_P2": 51
+    },
+    "cascade_unresolved": 0,
+    "unresolved_instances": []
+  },
+  "no_performance_computed": true
+}

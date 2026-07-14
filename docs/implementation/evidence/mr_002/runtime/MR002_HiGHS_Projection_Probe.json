@@ -1,0 +1,57 @@
+{
+  "overlaps": 20,
+  "grid": [
+    {
+      "eta": 1e-12,
+      "optimal": 20,
+      "repaired": 0,
+      "median_r_eq": 1.0000000000000002e-12,
+      "median_r_ineq": 3.7e-12,
+      "statuses": {
+        "HighsModelStatus.kOptimal": 20
+      }
+    },
+    {
+      "eta": 1e-11,
+      "optimal": 20,
+      "repaired": 0,
+      "median_r_eq": 1.0000000000000001e-11,
+      "median_r_ineq": 3.6999999999999995e-11,
+      "statuses": {
+        "HighsModelStatus.kOptimal": 20
+      }
+    },
+    {
+      "eta": 1e-10,
+      "optimal": 20,
+      "repaired": 0,
+      "median_r_eq": 9.999999999999999e-11,
+      "median_r_ineq": 3.7e-10,
+      "statuses": {
+        "HighsModelStatus.kOptimal": 20
+      }
+    },
+    {
+      "eta": 1e-09,
+      "optimal": 0,
+      "repaired": 0,
+      "median_r_eq": NaN,
+      "median_r_ineq": NaN,
+      "statuses": {
+        "run_not_ok": 20
+      }
+    },
+    {
+      "eta": 1e-08,
+      "optimal": 0,
+      "repaired": 0,
+      "median_r_eq": NaN,
+      "median_r_ineq": NaN,
+      "statuses": {
+        "run_not_ok": 19,
+        "HighsModelStatus.kInfeasible": 1
+      }
+    }
+  ],
+  "note": "DIAGNOSTIC ONLY. Not used as a proposal; enters no certificate."
+}

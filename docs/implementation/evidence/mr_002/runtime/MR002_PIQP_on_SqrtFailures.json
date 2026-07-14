@@ -1,0 +1,32 @@
+{
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "fixtures": {
+    "800": {
+      "instance_hash": "0db411d4045ab6dcf29ed6ee1498d448a7bf1fed7db7c453b5b2137c2fce618b",
+      "P1": "QUALIFIES",
+      "P2": "QUALIFIES"
+    },
+    "1328": {
+      "instance_hash": "ee8e8551bd1d0507aa2ddab77822435ac8c929534df6d9f913612f3aea46b96f",
+      "P1": "QUALIFIES",
+      "P2": "QUALIFIES"
+    },
+    "2140": {
+      "instance_hash": "555e82e8fc18f5a0028865fd417a378b96372eb933040e9dedc3f5793f3a9c42",
+      "P1": "QUALIFIES",
+      "P2": "QUALIFIES"
+    },
+    "2296": {
+      "instance_hash": "e54e6f351ce2648da7001cce108fdfc41a6689336938c66e550dc629896dfb1a",
+      "P1": "QUALIFIES",
+      "P2": "QUALIFIES"
+    },
+    "2765": {
+      "instance_hash": "1a645c349c837aa8e2eb7ff9c29eafeba9a668f230f60e08421e9c909a033a12",
+      "P1": "QUALIFIES",
+      "P2": "QUALIFIES"
+    }
+  },
+  "highs_is_sole_certifier_of_2765": false,
+  "no_performance_computed": true
+}
