@@ -21,7 +21,7 @@ import asyncio
 import hashlib
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal as D
 from pathlib import Path
 
@@ -29,13 +29,13 @@ from app.brokers.registry import BrokerRegistry
 from app.db.session import get_sessionmaker
 from scripts.adr0042_canary_lib import (
     ACCT,
+    BUDGET_MINUTES,
     CHECKPOINT,
     CHURN_SYMBOLS,
     LEGS,
     LOCKFILE,
     PROTECTED,
     USER,
-    Checkpoint,
     admissible_shares,
     load_limits,
     snapshot_state,
@@ -123,12 +123,12 @@ async def main() -> int:
     except Exception as exc:  # noqa: BLE001
         check("checkpoint_writable", False, f"{type(exc).__name__}: {exc}")
 
-    cp = Checkpoint()
-    deadline = datetime.fromisoformat(
-        cp.deadline_at or (datetime.now(UTC)).isoformat()
-    )
+    # ⚠ Construct the deadline the way the RUN does. A bare `Checkpoint()` leaves `deadline_at`
+    # empty, and the earlier version then fell back to "now" — so the check compared now > now and
+    # always failed. The preflight was refusing a perfectly good configuration.
+    deadline = datetime.now(UTC) + timedelta(minutes=BUDGET_MINUTES)
     check("deadline_resolves_to_future", deadline > datetime.now(UTC),
-          f"{deadline.isoformat()} (relative budget — NOT a hard-coded calendar date)")
+          f"{deadline.isoformat()} (relative budget of {BUDGET_MINUTES} min — NOT a calendar date)")
 
     check("no_stale_lock", not LOCKFILE.exists(),
           f"{LOCKFILE} absent" if not LOCKFILE.exists()
