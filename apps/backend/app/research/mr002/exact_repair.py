@@ -152,18 +152,29 @@ def canonical_order(z_s, A_ub, b_ub, A_eq, b_eq, upper):
     z_s is part of the variable key because it appears in the repair objective's proximity rows:
     two variables identical in the model but carrying different z_s are NOT interchangeable, and a
     key that ignored z_s would fail to define a unique order.
+
+    ⚠ EVERY equality row is in the key. An earlier version read only `A_eq[0, i]`, which made the
+    "canonical" order LAYOUT-defined the moment a model carried a second equality: two variables
+    identical in row 0, in `upper`, in `z_s` and in the inequality rows but differing in row 1 would
+    tie, and the tie would then be broken by Python's stable sort on the INCOMING POSITION. Relabel
+    the variables and the order changes — so canonical shuffle invariance held only because `meq = 1`
+    on every instance in the corpus, not because the key was canonical. That is an accident, not a
+    property, and it is exactly the kind of unstated assumption that survives until the model grows
+    a second constraint. `meq = 1` remains true; the key no longer depends on it.
     """
     A_ub = np.asarray(A_ub, dtype=np.float64)
     A_eq = np.asarray(A_eq, dtype=np.float64)
     b_ub = np.asarray(b_ub, dtype=np.float64).ravel()
     n = A_eq.shape[1]
+    meq = A_eq.shape[0]
 
     def var_key(i):
         rows = sorted(
             (to_fraction(A_ub[r, i]), to_fraction(b_ub[r]))
             for r in range(A_ub.shape[0]) if A_ub[r, i] != 0.0
         )
-        return (to_fraction(A_eq[0, i]), to_fraction(upper[i]), to_fraction(z_s[i]), tuple(rows))
+        eq = tuple(to_fraction(A_eq[e, i]) for e in range(meq))
+        return (eq, to_fraction(upper[i]), to_fraction(z_s[i]), tuple(rows))
 
     p = sorted(range(n), key=var_key)
     keep = [r for r in range(A_ub.shape[0]) if np.any(A_ub[r] != 0.0)]
@@ -283,13 +294,18 @@ def exact_repair(z_s, A_ub, b_ub, A_eq, b_eq, upper, trace=None):
         zhat[i] = res.x[k]
 
     # Independent verification against the ORIGINAL Stage-3 constraints — not the standard form.
+    # ⚠ EVERY equality row, not just row 0. The standard form does encode them all, so a point that
+    # passes `Mx = h` inside solve_lp already satisfies them; but the whole purpose of this block is
+    # to re-derive feasibility from the ORIGINAL float arrays rather than trust the form we built.
+    # Checking only row 0 left that independent check blind to any further equality.
     A_ubf = np.asarray(A_ub, dtype=np.float64)
     A_eqf = np.asarray(A_eq, dtype=np.float64)
+    B_eqf = np.asarray(b_eq, dtype=np.float64).ravel()
     Z = [to_fraction(v) for v in np.asarray(z_s, dtype=np.float64).ravel()]
     U = [to_fraction(v) for v in np.asarray(upper, dtype=np.float64).ravel()]
-    if sum(to_fraction(A_eqf[0, i]) * zhat[i] for i in range(n)) != to_fraction(
-            np.asarray(b_eq, dtype=np.float64).ravel()[0]):
-        raise SimplexUnavailable("EXACT_REPAIR_ORIGINAL_EQUALITY_FAILED")
+    for e in range(A_eqf.shape[0]):
+        if sum(to_fraction(A_eqf[e, i]) * zhat[i] for i in range(n)) != to_fraction(B_eqf[e]):
+            raise SimplexUnavailable(f"EXACT_REPAIR_ORIGINAL_EQUALITY_FAILED row {e}")
     for r in range(A_ubf.shape[0]):
         lhs = sum(to_fraction(A_ubf[r, i]) * zhat[i] for i in range(n))
         if lhs > to_fraction(np.asarray(b_ub, dtype=np.float64).ravel()[r]):
@@ -330,6 +346,30 @@ def certify_repair(z_s, cert, t, A_ub, b_ub, A_eq, b_eq, upper) -> ExactRepair:
         raise CertificateDefect(
             f"repaired gap {ghat_u:.6e} is negative at an EXACTLY feasible point. Weak duality "
             f"forbids this — a certificate or interval-direction defect. INVALID_RUN.")
+
+    # `iv.sqrt` below has a DOMAIN, and nothing here had been checking it. An interval that straddles
+    # zero raises mpmath's ComplexResult — an uncaught traceback, not a reason code.
+    #
+    # It cannot straddle, and the reason is worth writing down rather than rediscovering:
+    #
+    #   * f_zhat_iv is `rational_iv` of an EXACT rational, so its width is ~1e-100 relative;
+    #   * cert.dual_lower is a float64, a POINT, whose granularity at these magnitudes is ~1e-16
+    #     relative — eighty-odd orders of magnitude coarser than that width.
+    #
+    # So ghat_iv lands wholly on one side of zero: non-negative (fine), or wholly negative (the guard
+    # above rejects it as a weak-duality violation). A straddle would require dual_lower to fall
+    # inside a 1e-100-wide window around f(zhat), which no float can do.
+    #
+    # That argument depends on IV_DPS and on dual_lower being a float. Both are true today; neither is
+    # guaranteed forever. So assert the domain instead of assuming it — if the premise ever changes,
+    # this stops with a reason code rather than an mpmath traceback. It is NOT a clamp: silently
+    # widening the interval to make sqrt succeed would be manufacturing a bound rather than proving
+    # one.
+    if ghat_iv.a < 0 <= ghat_iv.b:
+        raise CertificateDefect(
+            f"the repaired-gap enclosure [{float(ghat_iv.a):.3e}, {float(ghat_iv.b):.3e}] straddles "
+            f"zero, so sqrt has no real value on it. This is unreachable while f(zhat) is enclosed "
+            f"exactly and dual_lower is a float — if it fired, that premise changed. INVALID_RUN.")
 
     d2 = sum((zhat[i] - Z[i]) ** 2 for i in range(n))       # exact rational
     if d2 > n * r["rho_star"] ** 2:                         # L-inf -> L-2 consistency (diagnostic)

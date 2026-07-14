@@ -71,10 +71,7 @@ class EarningsBlackout:
         s = self._session_index(a.session_date)
         if s < 0:
             return set()
-        if a.availability_class == "PRE_OPEN":
-            start = s
-        else:
-            start = s + 1
+        start = s if a.availability_class == "PRE_OPEN" else s + 1
         return {start + k for k in range(COOLING_SESSIONS)}
 
     def entry_allowed(self, decision_close: date, exec_open: date) -> tuple[bool, str]:

@@ -97,8 +97,8 @@ def test_factorization_identity_T_A_equals_U(n, ns):
 
     A_int = [[(cols[j][r] * dec.scale[a]).numerator for j in dec.core_pos]
              for a, r in enumerate(dec.core_rows)]
-    TA = [[sum(dec.T[i][t] * A_int[t][j] for t in range(k)) for j in range(k)] for i in range(k)]
-    assert TA == [list(row) for row in dec.U]
+    t_a = [[sum(dec.T[i][t] * A_int[t][j] for t in range(k)) for j in range(k)] for i in range(k)]
+    assert t_a == [list(row) for row in dec.U]
     for i in range(k):
         for j in range(i):
             assert dec.U[i][j] == 0
