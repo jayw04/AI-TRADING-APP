@@ -49,6 +49,12 @@ class RiskOutcome:
     # Computed context the router might want without re-querying:
     resolved_symbol_id: int | None = None
     estimated_notional: Decimal | None = None
+    # ADR 0042: id of the HELD reservation created for a permitted locked-account
+    # reduction (None otherwise). The router back-links it to the order it reserved
+    # for (RiskReservation.order_id), so the reservation can be CONSUMED on fill and
+    # RELEASED on cancel/reject instead of leaking HELD forever. Appended last so
+    # existing positional construction is unaffected.
+    reservation_id: int | None = None
 
     @property
     def passed(self) -> bool:

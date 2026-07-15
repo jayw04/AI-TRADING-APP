@@ -34,6 +34,7 @@ from app.db.enums import TERMINAL_ORDER_STATUSES, OrderStatus
 from app.db.models.fill import Fill
 from app.db.models.order import Order
 from app.events.bus import EventBus
+from app.risk.decision_service import RiskDecisionService
 
 if TYPE_CHECKING:
     from app.orders.positions import PositionRecomputer
@@ -208,6 +209,14 @@ class TradeUpdateConsumer:
         )
         await session.commit()
 
+        # ADR 0042: on the terminal fill the reduction is now real in the position — CONSUME the
+        # reservation so it stops holding reducible capacity (a HELD reservation left after the
+        # fill double-counts against the now-lower position and blocks further de-risking).
+        if order.status == OrderStatus.FILLED:
+            await RiskDecisionService(session).settle_reservation_for_order(
+                order.id, filled=True, reason="ORDER_FILLED"
+            )
+
         await self._bus.publish(
             "fill.created",
             {
@@ -264,6 +273,11 @@ class TradeUpdateConsumer:
             user_id=order.user_id,
         )
         await session.commit()
+        # ADR 0042: a canceled / expired / rejected / replaced reduction never filled — release
+        # its reservation so it stops holding reducible capacity.
+        await RiskDecisionService(session).settle_reservation_for_order(
+            order.id, filled=False, reason=f"ORDER_{new_status.value.upper()}"
+        )
         await self._bus.publish(
             f"order.{new_status.value}", {"order_id": order.id}
         )
