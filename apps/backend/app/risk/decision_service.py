@@ -39,18 +39,21 @@ import json
 import uuid
 from collections import defaultdict
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 
 import structlog
 from sqlalchemy import func, select, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.db.enums import TERMINAL_ORDER_STATUSES
+from app.db.models.order import Order
 from app.db.models.risk_capacity_state import RiskCapacityState
 from app.db.models.risk_decision import RiskDecision
 from app.db.models.risk_reservation import (
+    RESERVATION_CONSUMED,
     RESERVATION_HELD,
     RESERVATION_RELEASED,
     RiskReservation,
@@ -261,6 +264,87 @@ class RiskDecisionService:
         await self._return_capacity(res.account_id, res.symbol, Decimal(str(res.qty)))
         await self._session.commit()
 
+    async def settle_reservation_for_order(
+        self, order_id: int, *, filled: bool, reason: str
+    ) -> bool:
+        """Settle the HELD reservation an order was reserved against, when that order reaches
+        a terminal state.
+
+        A HELD reservation consumes reducible capacity between the moment a reduction is
+        APPROVED and the moment its order is FILLED (so two concurrent sells cannot each promise
+        the same shares). Once the order is terminal the reservation must stop consuming capacity
+        — otherwise it leaks HELD forever and the account slowly loses the ability to de-risk,
+        the exact failure ADR 0042 exists to prevent (and the one the 2026-07-15 canary caught).
+
+        FILLED  → CONSUMED (the reduction is now real in the position).
+        CANCELED/REJECTED/EXPIRED → RELEASED (the reduction did not happen).
+
+        Either way the capacity is returned in the SAME transaction as the state change.
+        No-op (returns False) if the order has no HELD reservation.
+        """
+        res = (
+            await self._session.execute(
+                select(RiskReservation).where(
+                    RiskReservation.order_id == order_id,
+                    RiskReservation.state == RESERVATION_HELD,
+                )
+            )
+        ).scalars().first()
+        if res is None:
+            return False
+        res.state = RESERVATION_CONSUMED if filled else RESERVATION_RELEASED
+        res.released_at = datetime.now(UTC)
+        res.release_reason = reason[:64]
+        await self._return_capacity(res.account_id, res.symbol, Decimal(str(res.qty)))
+        await self._session.commit()
+        return True
+
+    async def reap_orphaned_reservations(self, *, older_than_seconds: int = 300) -> int:
+        """Release HELD reservations that no live order justifies — the safety net for a missed
+        event-driven settle (e.g. a process killed between ALLOW and the order reaching terminal,
+        which is exactly how acct 3 accumulated the leak on 2026-07-14).
+
+        A HELD reservation is orphaned when:
+          * its order is terminal (a fill/cancel/reject we failed to settle at the time); or
+          * its order row is gone; or
+          * it was never linked to an order and is older than ``older_than_seconds`` (the
+            approval committed but the order was never created — the grace window avoids racing
+            an order still mid-creation).
+
+        Returns the number released.
+        """
+        cutoff = datetime.now(UTC) - timedelta(seconds=older_than_seconds)
+        held = (
+            await self._session.execute(
+                select(RiskReservation).where(RiskReservation.state == RESERVATION_HELD)
+            )
+        ).scalars().all()
+        reaped = 0
+        for res in held:
+            reason: str | None = None
+            if res.order_id is None:
+                created = res.created_at
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=UTC)
+                if created < cutoff:
+                    reason = "REAP_NO_ORDER"
+            else:
+                order = await self._session.get(Order, res.order_id)
+                if order is None:
+                    reason = "REAP_ORDER_MISSING"
+                elif order.status in TERMINAL_ORDER_STATUSES:
+                    reason = "REAP_ORDER_TERMINAL"
+            if reason is None:
+                continue
+            res.state = RESERVATION_RELEASED
+            res.released_at = datetime.now(UTC)
+            res.release_reason = reason
+            await self._return_capacity(res.account_id, res.symbol, Decimal(str(res.qty)))
+            reaped += 1
+        if reaped:
+            await self._session.commit()
+        return reaped
+
     # ------------------------------------------------- § D durable capacity claim
     async def _refresh_capacity(
         self, account_id: int, symbol: str, snap: AccountSnapshot
@@ -466,3 +550,21 @@ def permits_while_locked(result: RiskEffectDecision) -> bool:
         result.risk_effect is RiskEffect.RISK_REDUCING
         and result.decision is Decision.ALLOW
     )
+
+
+async def run_reservation_reaper_pass(
+    session_factory: async_sessionmaker[AsyncSession], *, older_than_seconds: int = 300
+) -> int:
+    """Scheduled safety net (ADR 0042 § D): release orphaned HELD reservations so a missed
+    event-driven settle can never permanently starve an account's reducible capacity.
+
+    Runs in its own session; touches only ``risk_reservations`` + the capacity accumulator —
+    never the order path. Returns the count released.
+    """
+    async with session_factory() as session:
+        reaped = await RiskDecisionService(session).reap_orphaned_reservations(
+            older_than_seconds=older_than_seconds
+        )
+    if reaped:
+        logger.info("reservation_reaper_released", count=reaped)
+    return reaped

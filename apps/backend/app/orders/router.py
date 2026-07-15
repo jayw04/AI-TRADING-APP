@@ -33,6 +33,7 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.risk_check import RiskCheck
+from app.db.models.risk_reservation import RiskReservation
 from app.db.models.strategy import Strategy
 from app.db.models.symbol import Symbol
 from app.events.bus import EventBus
@@ -477,6 +478,10 @@ class OrderRouter:
                 order.updated_at = order.terminal_at
                 await session.commit()
                 await session.refresh(order)
+                # ADR 0042: a canceled reduction never happened — release its reservation.
+                await RiskDecisionService(session).settle_reservation_for_order(
+                    order.id, filled=False, reason="ORDER_CANCELED_LOCAL"
+                )
                 await self._audit(session, order, AuditAction.ORDER_CANCELED_LOCAL, {})
                 await self._emit(order, "order.canceled", {"local_only": True})
                 return order
@@ -655,6 +660,15 @@ class OrderRouter:
                 rc.order_id = order.id
                 await session.commit()
 
+        # ADR 0042: back-link the HELD reservation (created in a separate session by the
+        # decision service) to the order it was reserved for, so the trade-update / cancel /
+        # reject paths — and the reaper — can settle it by order_id instead of leaking it HELD.
+        if outcome.reservation_id is not None:
+            res = await session.get(RiskReservation, outcome.reservation_id)
+            if res is not None and res.order_id is None:
+                res.order_id = order.id
+                await session.commit()
+
         return order
 
     async def _mark_broker_rejected(self, order_id: int, reason: str) -> Order:
@@ -668,6 +682,10 @@ class OrderRouter:
             order.updated_at = order.terminal_at
             await session.commit()
             await session.refresh(order)
+            # ADR 0042: a broker-rejected reduction never happened — release its reservation.
+            await RiskDecisionService(session).settle_reservation_for_order(
+                order.id, filled=False, reason="ORDER_REJECTED_BY_BROKER"
+            )
             await self._audit(
                 session,
                 order,

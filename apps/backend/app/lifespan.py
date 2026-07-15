@@ -472,6 +472,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("reconciliation_scheduled")
 
+            # 10c-quater. ADR 0042 reservation reaper. 300s interval. Releases orphaned HELD
+            # reducing-reservations (order terminal/missing, or approved-but-order-never-created
+            # past a grace window) so a missed event-driven settle can never permanently starve
+            # an account's reducible capacity — the leak the 2026-07-15 canary caught. Its own
+            # session; only risk_reservations + the capacity accumulator; never the order path.
+            from app.risk.decision_service import run_reservation_reaper_pass
+
+            scheduler.scheduler.add_job(
+                run_reservation_reaper_pass,
+                trigger="interval",
+                seconds=300,
+                id="reservation_reaper",
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+                kwargs={"session_factory": session_factory},
+            )
+            logger.info("reservation_reaper_scheduled")
+
             # 10c-ter. Decision replay verifier (P11 §4, ADR 0021). Daily (03:30
             # in the scheduler's timezone). Replays the last 24h of automated
             # decisions from their audit fingerprints, re-verifying each decision

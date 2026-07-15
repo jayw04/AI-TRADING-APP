@@ -105,7 +105,7 @@ class RiskEngine:
         """
         # ADR 0042: one classification per ORDER. Steps 9 and 13 share it — step 9 trips the
         # breaker, so step 13 would otherwise re-ask for the same order and reserve twice.
-        reduction_cache: dict[str, bool] = {}
+        reduction_cache: dict[str, Any] = {}
 
         async with self._session_factory() as session:
             # 0. Halt short-circuit.
@@ -461,6 +461,9 @@ class RiskEngine:
                 reasons=[ReasonCode.OK],
                 resolved_symbol_id=resolved_symbol_id,
                 estimated_notional=estimated_notional,
+                # A permitted locked-account reduction carries its reservation id here so the
+                # router can back-link it to the order (empty/None for unlocked orders).
+                reservation_id=reduction_cache.get("reservation_id"),
             )
 
     # ---- internals ----
@@ -572,7 +575,7 @@ class RiskEngine:
         lock_state: str,
         lock_reason: str,
         daily_pnl: Any | None,
-        cache: dict[str, bool],
+        cache: dict[str, Any],
     ) -> bool:
         """ADR 0042 — may this action pass a LOCKED account's gate?
 
@@ -634,7 +637,7 @@ class RiskEngine:
         # commit even when the caller's risk transaction goes on to reject for another reason.
         async with self._session_factory() as decision_session:
             svc = RiskDecisionService(decision_session)
-            result, _ledger_id, _reservation_id = await svc.decide(
+            result, _ledger_id, reservation_id = await svc.decide(
                 account_id=req.account_id,
                 adapter=adapter,
                 action=action,
@@ -649,6 +652,9 @@ class RiskEngine:
                 ),
             )
         cache["result"] = permits_while_locked(result)
+        # Carry the reservation id out so the PASS outcome can back-link it to the order it was
+        # reserved for. Only a permitted reduction created a HELD reservation; otherwise None.
+        cache["reservation_id"] = reservation_id if cache["result"] else None
         return cache["result"]
 
     async def _persist_and_return(
@@ -659,6 +665,7 @@ class RiskEngine:
         reasons: list[ReasonCode],
         resolved_symbol_id: int | None = None,
         estimated_notional: Decimal | None = None,
+        reservation_id: int | None = None,
     ) -> RiskOutcome:
         rc = RiskCheck(
             order_id=None,
@@ -681,4 +688,5 @@ class RiskEngine:
             risk_check_id=rc.id,
             resolved_symbol_id=resolved_symbol_id,
             estimated_notional=estimated_notional,
+            reservation_id=reservation_id,
         )
