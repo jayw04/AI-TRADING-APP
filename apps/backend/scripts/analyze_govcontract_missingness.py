@@ -36,7 +36,14 @@ from typing import Any
 _RECONCILED = frozenset({"RECONCILED", "AMBIGUOUS_CANDIDATE"})
 _SEMANTIC = frozenset({"RECONCILED", "AMBIGUOUS_CANDIDATE", "VALID_NON_RECONCILIATION"})
 CATEGORICAL = ["year", "size", "recency_bucket", "name_quality", "agency_normalized"]
-CONTINUOUS = ["award_amount", "event_density", "candidate_count"]
+# Pre-event covariates only — knowable BEFORE the reconciliation attempt. These are the legitimate
+# predictors of missingness.
+CONTINUOUS = ["award_amount", "event_density"]
+# OUTCOME-DERIVED quantities are produced BY the reconciliation query, so they separate reconciled
+# from unreconciled almost tautologically (candidate_count is 0 for a VALID_NON_RECONCILIATION by
+# construction). They must NEVER enter the missingness model (target leakage) — reported only as a
+# labelled diagnostic.
+OUTCOME_DERIVED = ["candidate_count"]
 ABS_SMD_THRESHOLD = 0.20
 RATE_GAP_PP_THRESHOLD = 10.0
 MIN_LEVEL_N = 20  # a stratum level below this is folded into "(small)" so gaps aren't noise-driven
@@ -193,12 +200,19 @@ def _missingness_model(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "best_covariate": best, "per_covariate_auc": uni_aucs,
                 "note": "install scikit-learn for the multivariate CV-AUC"}
 
-    cat_levels = {c: sorted({str(r.get(c)) for r in rows}) for c in CATEGORICAL}
+    # Pre-event continuous only (NO candidate_count — outcome-derived, target leakage). Categoricals
+    # are one-hot ONLY if low-cardinality (<=12 levels); high-cardinality identity fields like
+    # agency_normalized would let logistic regression memorise the label and inflate CV-AUC toward
+    # 1.0. Their association is still measured honestly by the chi-square / Cramer's V above.
+    MAX_MODEL_CARDINALITY = 12
+    model_cats = [c for c in CATEGORICAL
+                  if len({str(r.get(c)) for r in rows}) <= MAX_MODEL_CARDINALITY]
+    excluded_high_card = [c for c in CATEGORICAL if c not in model_cats]
+    cat_levels = {c: sorted({str(r.get(c)) for r in rows}) for c in model_cats}
     feats = []
     for r in rows:
-        row = [math.log1p(float(r.get("award_amount") or 0)), float(r.get("event_density") or 0),
-               float(r.get("candidate_count") or 0)]
-        for c in CATEGORICAL:
+        row = [math.log1p(float(r.get("award_amount") or 0)), float(r.get("event_density") or 0)]
+        for c in model_cats:
             row.extend(1.0 if str(r.get(c)) == lvl else 0.0 for lvl in cat_levels[c])
         feats.append(row)
     y = labels
@@ -213,7 +227,11 @@ def _missingness_model(rows: list[dict[str, Any]]) -> dict[str, Any]:
             aucs.append(roc_auc_score([y[i] for i in te], proba))
     return {"method": "logistic_5fold_cv", "auc": round(sum(aucs) / len(aucs), 4) if aucs else None,
             "n_folds_scored": len(aucs),
-            "note": "AUC near 0.5 => missingness ~ignorable; high AUC => structured (MNAR) missingness"}
+            "model_covariates": ["award_amount", "event_density", *model_cats],
+            "excluded_high_cardinality": excluded_high_card,
+            "excluded_outcome_derived": OUTCOME_DERIVED,
+            "note": "AUC near 0.5 => missingness ~ignorable; high AUC => structured (MNAR) missingness. "
+                    "Pre-event covariates only; outcome-derived + high-cardinality identity fields excluded"}
 
 
 def analyze(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -227,6 +245,11 @@ def analyze(rows: list[dict[str, Any]]) -> dict[str, Any]:
     cont_diff = {k: _continuous_diff(adjudicated, k) for k in CONTINUOUS}
     flags = [f"categorical:{k}" for k, v in cat_assoc.items() if v["material_imbalance"]]
     flags += [f"continuous:{k}" for k, v in cont_diff.items() if v["material_imbalance"]]
+    # outcome-derived quantities: reported for transparency but EXCLUDED from the model + the flags
+    # (they separate reconciled/unreconciled by construction, not because missingness is structured).
+    outcome_diag = {k: {**_continuous_diff(adjudicated, k),
+                        "note": "OUTCOME-DERIVED — excluded from missingness model + flags (target leakage)"}
+                    for k in OUTCOME_DERIVED}
 
     return {
         "source": "govcontract per-event reconciliation JSONL",
@@ -240,6 +263,7 @@ def analyze(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "reconciliation_rate_by_stratum": {k: _by_stratum(adjudicated, k) for k in CATEGORICAL},
         "categorical_association": cat_assoc,
         "continuous_standardized_difference": cont_diff,
+        "outcome_derived_diagnostic": outcome_diag,
         "missingness_model_performance": _missingness_model(adjudicated),
         "thresholds": {"abs_smd": ABS_SMD_THRESHOLD, "rate_gap_pp": RATE_GAP_PP_THRESHOLD,
                        "rule": "governance rule, NOT proof smaller differences are harmless"},
@@ -273,8 +297,10 @@ def main() -> None:
     for k, v in result["continuous_standardized_difference"].items():
         flag = " *MATERIAL*" if v["material_imbalance"] else ""
         print(f"  cont {k:19} SMD={v['smd']}  KS={v['ks']}{flag}")
+    for k, v in result["outcome_derived_diagnostic"].items():
+        print(f"  [diag] {k:16} SMD={v['smd']}  KS={v['ks']}  (outcome-derived, excluded from model)")
     m = result["missingness_model_performance"]
-    print(f"  missingness model [{m['method']}] AUC={m['auc']}")
+    print(f"  missingness model [{m['method']}] AUC={m['auc']}  (pre-event covariates only)")
     print(f"  VERDICT: {result['verdict']}")
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:

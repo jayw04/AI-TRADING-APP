@@ -68,6 +68,18 @@ def test_analyze_reports_no_imbalance_when_reconciliation_is_independent():
     assert out["verdict"].startswith("NO_MATERIAL_IMBALANCE")
 
 
+def test_candidate_count_is_a_diagnostic_not_a_missingness_flag():
+    # candidate_count separates reconciled/unreconciled BY CONSTRUCTION (0 for a non-reconciliation).
+    # With every PRE-EVENT covariate identical, it must NOT drive a material-imbalance verdict.
+    rows = ([_row("RECONCILED", 500_000, "100K-1M", candidate_count=3) for _ in range(40)] +
+            [_row("VALID_NON_RECONCILIATION", 500_000, "100K-1M", candidate_count=0) for _ in range(40)])
+    out = analyze(rows)
+    assert "candidate_count" in out["outcome_derived_diagnostic"]
+    assert not any("candidate_count" in f for f in out["material_imbalance_flags"])
+    assert "candidate_count" not in out["continuous_standardized_difference"]
+    assert out["verdict"].startswith("NO_MATERIAL_IMBALANCE")
+
+
 def test_operational_rows_are_excluded_from_adjudicated():
     rows = ([_row("RECONCILED", 300_000, "100K-1M") for _ in range(10)] +
             [_row("HTTP_429", 300_000, "100K-1M") for _ in range(5)])
