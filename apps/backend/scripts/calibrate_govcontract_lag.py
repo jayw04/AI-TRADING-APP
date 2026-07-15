@@ -39,6 +39,8 @@ from app.altdata.quiver.usaspending import (
     SEMANTIC_OUTCOMES,
     ReconcileOutcome,
     USAspendingClient,
+    _agency_tokens,
+    _norm,
     reconcile_event,
 )
 from app.altdata.sec.cik_map import CikMap, load_cik_map
@@ -122,6 +124,26 @@ def _size_bucket(amount: float | None) -> str:
         if amount < hi:
             return name
     return ">10M"
+
+
+def _name_quality(name: str) -> str:
+    """Coarse recipient-name quality — a covariate for the missingness analysis. A short or
+    all-stopword name reconciles poorly for a matching reason, not a disclosure reason."""
+    toks = [t for t in _norm(name).split() if len(t) >= 3]
+    if len(_norm(name)) < 4 or not toks:
+        return "low"
+    return "high" if len(toks) >= 2 else "medium"
+
+
+def _recency_bucket(event_date: date, today: date) -> str:
+    d = (today - event_date).days
+    if d < 90:
+        return "<90d"
+    if d < 365:
+        return "90-365d"
+    if d < 730:
+        return "1-2y"
+    return ">2y"
 
 
 def _reason_code(row: dict[str, Any]) -> str:
@@ -209,11 +231,13 @@ class Calibration:
     proxy_status: str = "descriptive_only"
     proxy_scope: str = "reconciled_subpopulation"
     policy_status: str = "not_frozen"
-    # strategy-eligibility coverage down-payment: reconciliation rate within the $-materiality floor
-    # subset. A 75.3% BROAD rate may still be usable if the strategy-eligible universe reconciles far
-    # better; conversely unusable if failure concentrates on award size. Full gate needs mktcap.
-    reconciliation_rate_amount_ge_250k: float = 0.0
-    n_amount_ge_250k: int = 0
+    # strategy-eligibility coverage. `material_award_reconciliation_rate_ge_250k` is the computable
+    # DOWN-PAYMENT ($-materiality floor only). `strategy_eligible_reconciliation_rate` is RESERVED
+    # for the fully PIT-joined eligible population (adds 0.25%-of-mktcap + temporal eligibility) and
+    # stays None here — it must NOT be labelled strategy-eligible until every condition is applied.
+    material_award_reconciliation_rate_ge_250k: float = 0.0
+    n_material_award_ge_250k: int = 0
+    strategy_eligible_reconciliation_rate: float | None = None
 
 
 def _gate_components(cal: Calibration) -> dict[str, dict[str, str]]:
@@ -291,8 +315,9 @@ def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
     except Exception:
         cmap = None
 
+    today = date.today()
     with EventStore(None, read_only=True) as store:
-        eligible = store.events_asof_eligible(date.today(), event_type="gov_contract_award")
+        eligible = store.events_asof_eligible(today, event_type="gov_contract_award")
     rng = random.Random(seed)
     picks = [e for e in (eligible if len(eligible) <= sample else rng.sample(eligible, sample))
              if e.event_date]
@@ -306,19 +331,20 @@ def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
     def _one(ev: Any) -> dict[str, Any]:
         payload = ev.payload or {}
         agency = payload.get("agency")
+        name = (cmap.titles.get(ev.cik) if cmap else None) or ev.ticker or ""
         ck = ((ev.ticker or "").upper() + "|" + str(ev.cik), ev.event_date.isoformat())
         with cache_lock:
             cached = cache.get(ck)
         if cached is not None:
             res = cached
         else:
-            name = (cmap.titles.get(ev.cik) if cmap else None) or ev.ticker or ""
             res = reconcile_event(ticker=ev.ticker or "", company_name=name, agency=agency,
                                   action_date=ev.event_date, usa_client=usa, window_days=window_days)
             with cache_lock:
                 cache[ck] = res
         amt = payload.get("amount")
         return {
+            # --- internal keys the aggregate calibration reads ---
             "ticker": ev.ticker, "agency": agency or "(none)", "amount": amt,
             "size": _size_bucket(amt), "year": ev.event_date.year,
             "action_date": ev.event_date.isoformat(), "outcome": res.outcome,
@@ -327,12 +353,37 @@ def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
             # $-materiality floor (the computable part of the strategy-eligibility gate; the
             # 0.25%-of-mktcap component needs mktcap not present here)
             "amount_ge_250k": (amt is not None and amt >= MATERIALITY_USD_FLOOR),
+            # --- provenance fields (owner disposition 2026-07-15): enough to reproduce every
+            # missingness cut WITHOUT another source call. Do not store only the final boolean —
+            # candidate_count / failure_reason / ambiguity explain apparent missingness. ---
+            "sample_event_id": f"{ev.cik}:{(ev.ticker or '').upper()}:{ev.event_date.isoformat()}",
+            "sample_seed": seed,
+            "recipient_raw": name,
+            "recipient_normalized": _norm(name),
+            "agency_raw": agency,
+            "agency_normalized": " ".join(sorted(_agency_tokens(agency))),
+            "award_amount": amt,
+            "recency_bucket": _recency_bucket(ev.event_date, today),
+            "name_quality": _name_quality(name),
+            "reconcile_outcome": str(res.outcome),
+            "failure_reason": res.note,
+            "candidate_count": res.n_candidates,
+            "reconciliation_lag_proxy_days": res.availability_lag_days,
+            "source_request_key": f"recipient={_norm(name)}|window=±{window_days}d|action={ev.event_date.isoformat()}",
+            "source_snapshot_or_retrieval_time": datetime.now(UTC).isoformat(),
+            "matcher_version": MATCHER_VERSION,
         }
 
     with USAspendingClient(rate_gate=limiter.gate, on_429=limiter.note_429,
                            on_success=limiter.note_success) as usa, \
             ThreadPoolExecutor(max_workers=workers) as ex:
         rows = list(ex.map(_one, picks))
+
+    # event_density = how many sampled events share this ticker (clustering covariate for the
+    # missingness analysis) — needs the full sample, so it is a post-pass.
+    density = collections.Counter(r["ticker"] for r in rows)
+    for r in rows:
+        r["event_density"] = density[r["ticker"]]
 
     counts = collections.Counter(str(r["outcome"]) for r in rows)
     op_fail = sum(counts[str(o)] for o in OPERATIONAL_OUTCOMES)
@@ -396,8 +447,9 @@ def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
             json.dumps([[r["ticker"], r["action_date"], str(r["outcome"]), r["lag"]]
                        for r in rows], sort_keys=True).encode()).hexdigest(),
         run_role=run_role,
-        reconciliation_rate_amount_ge_250k=round(elig_recon / len(elig_adj), 4) if elig_adj else 0.0,
-        n_amount_ge_250k=len(elig_adj),
+        material_award_reconciliation_rate_ge_250k=round(elig_recon / len(elig_adj), 4) if elig_adj else 0.0,
+        n_material_award_ge_250k=len(elig_adj),
+        strategy_eligible_reconciliation_rate=None,  # reserved: needs the full PIT + mktcap join
     )
     cal.gate = _gate(cal)
 
@@ -430,9 +482,10 @@ def _report(cal: Calibration, current: int) -> None:
           ", ".join(f"{s['key']}={s['reconciled_share']}(n{s['n']})" for s in cal.missingness_by_year[:6]))
     print(f"  outliers(>180d): {len(cal.outliers)} " +
           ", ".join(f"{o['ticker']}/{o['lag']}d/{o['reason_code']}" for o in cal.outliers[:4]))
-    print(f"  strategy-eligibility ($>=250k) reconciliation: "
-          f"{cal.reconciliation_rate_amount_ge_250k:.1%} (n={cal.n_amount_ge_250k}) "
-          f"vs broad {cal.recipient_reconciliation_rate:.1%} — full eligibility needs mktcap join")
+    print(f"  material-award ($>=250k) reconciliation: "
+          f"{cal.material_award_reconciliation_rate_ge_250k:.1%} (n={cal.n_material_award_ge_250k}) "
+          f"vs broad {cal.recipient_reconciliation_rate:.1%}  "
+          f"[strategy_eligible_reconciliation_rate reserved — needs PIT mktcap join]")
     print(f"  run_role={cal.run_role}  proxy_status={cal.proxy_status}  "
           f"scope={cal.proxy_scope}  policy_status={cal.policy_status}")
     print("\n  --- Availability Assumption gate (10 checks + data-quality) ---")

@@ -83,28 +83,45 @@ conservative values (45/60), and the representative proxy p90 (56).
 
 ## 6. Next steps (decision-gating analyses — do these before any lag decision)
 
-### 6.1 Missingness & strategy-coverage analysis  *(prerequisite: per-event rows)*
+### 6.1 Missingness & strategy-coverage analysis  *(tool built: `scripts/analyze_govcontract_missingness.py`)*
 
 The Run C artifact holds **aggregates only**; the additional cuts require a re-run that
-persists per-event reconciliation rows (now supported via `--events-out`). Compare reconciled
-vs unreconciled across: **year, ticker, agency, award size, recipient-name quality, event
-recency, event density, strategy eligibility.**
+persists per-event reconciliation rows (now supported via `--events-out`, with full provenance:
+`recipient_raw/_normalized`, `agency_raw/_normalized`, `award_amount`, `recency_bucket`,
+`event_density`, `name_quality`, `candidate_count`, `failure_reason`, `source_request_key`,
+`source_snapshot_or_retrieval_time`, `matcher_version`, `sample_event_id/_seed` — enough to
+reproduce every cut without another source call). The analyzer compares reconciled vs
+unreconciled across: **year, agency, award size, recipient-name quality, event recency, event
+density** — reporting, per the disposition:
 
-The decisive metric is **`strategy_eligible_reconciliation_rate`**: a 75.3% broad rate may
-still be usable if the GOVCONTRACT-001 eligible universe reconciles much better and failures
-concentrate outside it — and is unusable if failure correlates with award size / agency /
-recency (variables connected to expected returns). A **$-materiality-floor down-payment**
-(`reconciliation_rate_amount_ge_250k`) is now computed inline; the full gate additionally needs
-the 0.25%-of-mktcap join.
+- categorical: absolute reconciliation-rate pp gaps **and** a global association test (chi² +
+  Cramér's V), not p-values alone;
+- continuous (amount, event density, candidate count): **standardized mean differences** + KS
+  distributional comparison;
+- `missingness_model_performance`: a multivariate logistic CV-AUC (AUC≈0.5 ⇒ missingness
+  ~ignorable; high AUC ⇒ structured/MNAR).
 
-### 6.2 Lag-fragility probe  *(re-run the identical study over the grid)*
+**Material imbalance** is the pre-declared governance rule **|SMD| > 0.20 OR rate gap > 10pp**
+(a rule, not proof smaller differences are harmless).
 
-Interpretation:
+The decisive metric is **`strategy_eligible_reconciliation_rate`** — reserved and returned
+**null** until the full PIT + 0.25%-of-mktcap join is applied. The computable down-payment is
+now named **`material_award_reconciliation_rate_ge_250k`** ($-floor only), deliberately renamed
+from the earlier provisional label so it is never mistaken for the fully-joined figure. A 75.3%
+broad rate may still be usable if the eligible universe reconciles much better and failures
+concentrate outside it — unusable if failure correlates with award size / agency / recency.
 
-- Robust through 56–60d → economic conclusion **not** dependent on precise lag calibration.
-- Survives 30d but fails 45–56d → PIT assumption is **decision-critical**.
-- Only survives 21–27d → **strong leakage concern**.
-- Fails at every lag → economic rejection reachable **without** deeper calibration.
+### 6.2 Lag-fragility probe  *(aggregator built: `scripts/aggregate_lag_fragility.py`)*
+
+Re-run the identical study at each grid lag; the aggregator collapses the per-lag runs into
+**one** comparison artifact aligned by lag (effect size, CI, n, survives) — never six
+disconnected reports — records **un-run lags explicitly** (no silent pass), and classifies:
+
+- Robust through 56–60d → `lag_not_decision_critical` (conclusion independent of calibration).
+- Survives 30d but fails 45–56d → `pit_decision_critical` (PIT assumption load-bearing).
+- Only survives 21–27d → `leakage_concern`.
+- Fails at every lag → `economic_rejection_reachable` — recorded as an **economic** rejection,
+  **separate** from the calibration-policy FAIL (distinct findings, never collapsed).
 
 ### 6.3 Then decide among
 
