@@ -476,3 +476,73 @@ class StrategyContext:
             except Exception:
                 logger.exception("signal_publish_failed", signal_id=signal_id)
         return signal_id
+
+    # ---- durable per-strategy state (Workstream B) ----
+
+    async def get_state(self, key: str, default: Any = None) -> Any:
+        """The stored JSON value for ``key``, or ``default`` if unset.
+
+        Durable and restart-safe — this is the mechanism an in-memory counter is NOT. A strategy
+        that reads its rebalance lifecycle or a backstop date from here sees the same value after a
+        reload; an instance attribute would silently reset to its initial value and defeat the very
+        discipline it was meant to enforce.
+        """
+        from app.db.models.strategy_state import StrategyState
+
+        async with self._session_factory() as session:
+            row = (
+                await session.execute(
+                    select(StrategyState).where(
+                        StrategyState.strategy_id == self.strategy_id,
+                        StrategyState.key == key,
+                    )
+                )
+            ).scalars().first()
+            return row.value if row is not None else default
+
+    async def set_state(self, key: str, value: Any) -> None:
+        """Upsert the JSON ``value`` for ``key`` (one row per (strategy, key)).
+
+        A single strategy instance is dispatched serially, so a read-modify-write here does not race
+        itself; the unique constraint on (strategy_id, key) is the backstop against a duplicate row
+        if two instances ever overlap during a reload handoff.
+        """
+        from app.db.models.strategy_state import StrategyState
+
+        async with self._session_factory() as session, session.begin():
+            row = (
+                await session.execute(
+                    select(StrategyState).where(
+                        StrategyState.strategy_id == self.strategy_id,
+                        StrategyState.key == key,
+                    )
+                )
+            ).scalars().first()
+            if row is None:
+                session.add(
+                    StrategyState(
+                        strategy_id=self.strategy_id,
+                        key=key,
+                        value=value,
+                        updated_at=datetime.now(UTC),
+                    )
+                )
+            else:
+                row.value = value
+                row.updated_at = datetime.now(UTC)
+
+    async def clear_state(self, key: str) -> None:
+        """Remove ``key`` entirely (so a subsequent ``get_state`` returns its default)."""
+        from app.db.models.strategy_state import StrategyState
+
+        async with self._session_factory() as session, session.begin():
+            row = (
+                await session.execute(
+                    select(StrategyState).where(
+                        StrategyState.strategy_id == self.strategy_id,
+                        StrategyState.key == key,
+                    )
+                )
+            ).scalars().first()
+            if row is not None:
+                await session.delete(row)

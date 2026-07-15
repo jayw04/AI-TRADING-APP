@@ -34,6 +34,7 @@ from app.db.models.strategy_proposal import ProposalState, StrategyProposal
 from app.db.models.strategy_revision import StrategyRevision
 from app.db.models.strategy_run import StrategyRun
 from app.db.models.strategy_slot_claim import StrategySlotClaim
+from app.db.models.strategy_state import StrategyState
 from app.db.models.symbol import Symbol
 from app.db.models.system_config import SystemConfig
 from app.db.models.trading_profile import TradingProfile
@@ -80,6 +81,7 @@ __all__ = [
     "StrategyRevision",
     "StrategyRun",
     "StrategySlotClaim",
+    "StrategyState",
     "Symbol",
     "SystemConfig",
     "TradingProfile",
