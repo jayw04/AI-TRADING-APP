@@ -6,11 +6,50 @@ size bucketing, and the operational-completeness discipline of the gate."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from scripts.calibrate_govcontract_lag import (
+    EXCEEDANCE_THRESHOLDS,
     AdaptiveRateLimiter,
+    _gate_components,
     _reason_code,
     _size_bucket,
 )
+
+
+def _cal(**kw):
+    """Minimal stand-in exposing only the attributes _gate_components reads."""
+    base = dict(operational_failures=0, operational_completion_rate=1.0,
+                recipient_reconciliation_rate=0.753, proxy_n=697,
+                reconciliation_lag_proxy_days_p90=56, proxy_scope="reconciled_subpopulation",
+                proxy_status="descriptive_only", policy_status="not_frozen")
+    base.update(kw)
+    return SimpleNamespace(**base)
+
+
+def test_sensitivity_grid_includes_measured_proxy_p90_of_56():
+    # owner disposition: the grid must carry the measured reconciled-subpopulation proxy p90
+    assert 56 in EXCEEDANCE_THRESHOLDS
+    for conventional in (21, 27, 30, 45, 60):  # legacy + pilot + conservative all retained
+        assert conventional in EXCEEDANCE_THRESHOLDS
+
+
+def test_gate_components_split_operational_pass_from_policy_fail():
+    # the whole point: hardening PASSED even though the research-policy gate FAILED
+    comps = _gate_components(_cal())
+    assert comps["operational_completeness"]["status"] == "PASS"
+    assert comps["true_disclosure_interpretation"]["status"] == "FAIL"
+    assert comps["global_lag_policy_freeze"]["status"] == "FAIL"
+    assert comps["missingness_validity"]["status"] == "PENDING"
+
+
+def test_recipient_quality_is_conditional_at_75pct_not_a_flat_fail():
+    assert _gate_components(_cal(recipient_reconciliation_rate=0.753))[
+        "recipient_reconciliation_quality"]["status"] == "CONDITIONAL"
+    assert _gate_components(_cal(recipient_reconciliation_rate=0.92))[
+        "recipient_reconciliation_quality"]["status"] == "PASS"
+    assert _gate_components(_cal(recipient_reconciliation_rate=0.55))[
+        "recipient_reconciliation_quality"]["status"] == "FAIL"
 
 
 def test_rate_limiter_backs_off_on_429_and_relaxes_on_success():

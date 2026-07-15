@@ -48,7 +48,16 @@ from app.altdata.sec.client import EdgarClient
 # USAspending recipient_search_text; agency = distinctive-token overlap; window = ±N days; lag
 # proxy = min(Last Modified − action_date). Bump on any matcher-logic change.
 MATCHER_VERSION = "usaspending-plausibility/v1"
-EXCEEDANCE_THRESHOLDS = [21, 27, 30, 45, 60, 90]
+# Sensitivity/exceedance grid (owner disposition 2026-07-15): legacy assumption (21), prior pilot
+# estimates (27/30), conventional conservative values (45/60), the MEASURED reconciled-subpopulation
+# proxy p90 (56), and a distribution tail marker (90). If the bootstrap CI upper endpoint on p90 is
+# materially above 60 it is added dynamically in calibrate() as the stronger-conservative boundary.
+EXCEEDANCE_THRESHOLDS = [21, 27, 30, 45, 56, 60, 90]
+CI_UPPER_MATERIAL_ABOVE = 60
+# The GOVCONTRACT-001 pre-reg $-materiality floor. The full strategy-eligibility gate is
+# (amount >= this) AND (amount >= 0.25% of market cap); only the $-floor is computable here (no
+# mktcap in this context), so the reported rate is a strategy-eligibility LOWER-bound proxy.
+MATERIALITY_USD_FLOOR = 250_000
 
 
 class AdaptiveRateLimiter:
@@ -193,11 +202,63 @@ class Calibration:
     proxy_semantics_note: str
     results_hash: str
     gate: dict[str, Any] = field(default_factory=dict)
+    # run taxonomy + policy status (owner disposition 2026-07-15). run_role distinguishes the
+    # primary representative run from the operationally-contaminated diagnostics (Run A/B) which must
+    # NEVER enter a pooled estimate. The proxy is retained descriptively; no global lag is frozen.
+    run_role: str = "primary_representative"
+    proxy_status: str = "descriptive_only"
+    proxy_scope: str = "reconciled_subpopulation"
+    policy_status: str = "not_frozen"
+    # strategy-eligibility coverage down-payment: reconciliation rate within the $-materiality floor
+    # subset. A 75.3% BROAD rate may still be usable if the strategy-eligible universe reconciles far
+    # better; conversely unusable if failure concentrates on award size. Full gate needs mktcap.
+    reconciliation_rate_amount_ge_250k: float = 0.0
+    n_amount_ge_250k: int = 0
+
+
+def _gate_components(cal: Calibration) -> dict[str, dict[str, str]]:
+    """Component-differentiated outcomes (owner disposition 2026-07-15). One undifferentiated FAIL
+    under-reports what happened: the OPERATIONAL hardening succeeded even though the research-policy
+    gate correctly held. Each component is graded independently so the record shows both."""
+    rate = cal.recipient_reconciliation_rate
+    return {
+        "operational_completeness": {
+            "status": "PASS" if cal.operational_failures == 0 else "FAIL",
+            "detail": f"{cal.operational_completion_rate:.1%} adjudicated, "
+                      f"{cal.operational_failures} operational failures — the taxonomy/retry hardening",
+        },
+        "recipient_reconciliation_quality": {
+            "status": "PASS" if rate >= 0.90 else "CONDITIONAL" if rate >= 0.70 else "FAIL",
+            "detail": f"{rate:.1%} < 0.90 broad-coverage threshold — usable ONLY if the "
+                      f"strategy-eligible universe reconciles materially better (missingness analysis pending)",
+        },
+        "lag_proxy_computability": {
+            "status": "PASS" if cal.proxy_n > 0 else "FAIL",
+            "detail": f"p90={cal.reconciliation_lag_proxy_days_p90}d on reconciled subset n={cal.proxy_n}; "
+                      f"scope={cal.proxy_scope}, status={cal.proxy_status}",
+        },
+        "missingness_validity": {
+            "status": "PENDING",
+            "detail": "reconciled-vs-unreconciled selection analysis across year/agency/size/recency/"
+                      "eligibility not yet adjudicated; strategy_eligible_reconciliation_rate not yet computed",
+        },
+        "true_disclosure_interpretation": {
+            "status": "FAIL",
+            "detail": "proxy = min(action_date -> earliest USAspending LastModified); NOT "
+                      "first-public-disclosure; Level-B publication-cycle cross-check unbuilt",
+        },
+        "global_lag_policy_freeze": {
+            "status": "FAIL",
+            "detail": f"DISCLOSURE_LAG_DAYS NOT changed; {cal.reconciliation_lag_proxy_days_p90}d retained "
+                      f"as {cal.proxy_scope} proxy only (policy_status={cal.policy_status})",
+        },
+    }
 
 
 def _gate(cal: Calibration) -> dict[str, Any]:
     """The 10-check Availability Assumption gate. Data-quality thresholds are pre-registered here;
-    a FAIL is preserved as evidence, not tuned away."""
+    a FAIL is preserved as evidence, not tuned away. Component-differentiated outcomes accompany the
+    single boolean so a policy FAIL never obscures that the operational hardening succeeded."""
     ci_lo, ci_hi = cal.proxy_ci95
     checks = {
         "1_population_and_funnel_reported": cal.eligible_events > 0 and cal.sampled > 0,
@@ -214,14 +275,16 @@ def _gate(cal: Calibration) -> dict[str, Any]:
         "dq_recipient_rate_ge_0_90": cal.recipient_reconciliation_rate >= 0.90,
         "dq_bootstrap_ci_width_le_8": (ci_hi - ci_lo) <= 8,
     }
-    return {"pass": all(checks.values()), "checks": checks,
+    return {"pass": all(checks.values()), "checks": checks, "components": _gate_components(cal),
             "note": "checks 9-10 require the publication-cycle cross-check and the fragility "
                     "probe; a data-quality FAIL is evidence the reconciliation architecture is "
-                    "not yet adequate — not that the economic signal is null."}
+                    "not yet adequate — not that the economic signal is null. See 'components' for "
+                    "the differentiated outcome: operational hardening PASSED, research-policy gate FAILED."}
 
 
 def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
-              bootstrap: int, seed: int) -> Calibration:
+              bootstrap: int, seed: int, run_role: str = "primary_representative",
+              events_out: str | None = None) -> Calibration:
     try:
         with EdgarClient() as ec:
             cmap: CikMap | None = load_cik_map(ec)
@@ -254,12 +317,16 @@ def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
                                   action_date=ev.event_date, usa_client=usa, window_days=window_days)
             with cache_lock:
                 cache[ck] = res
+        amt = payload.get("amount")
         return {
-            "ticker": ev.ticker, "agency": agency or "(none)", "amount": payload.get("amount"),
-            "size": _size_bucket(payload.get("amount")), "year": ev.event_date.year,
+            "ticker": ev.ticker, "agency": agency or "(none)", "amount": amt,
+            "size": _size_bucket(amt), "year": ev.event_date.year,
             "action_date": ev.event_date.isoformat(), "outcome": res.outcome,
             "agency_matched": res.agency_matched, "lag": res.availability_lag_days,
             "attempts": res.attempts,
+            # $-materiality floor (the computable part of the strategy-eligibility gate; the
+            # 0.25%-of-mktcap component needs mktcap not present here)
+            "amount_ge_250k": (amt is not None and amt >= MATERIALITY_USD_FLOOR),
         }
 
     with USAspendingClient(rate_gate=limiter.gate, on_429=limiter.note_429,
@@ -277,6 +344,14 @@ def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
 
     lags = [r["lag"] for r in reconciled if r["lag"] is not None]
     p90 = _pctile(lags, percentile)
+    proxy_ci = _bootstrap_ci(lags, percentile, reps=bootstrap, seed=seed)
+    # dynamic exceedance grid: add the CI upper endpoint only if it is materially above 60 (owner
+    # disposition — the stronger-conservative boundary). For Run C (CI [52,59]) this adds nothing.
+    thresholds = sorted(set(EXCEEDANCE_THRESHOLDS +
+                            ([proxy_ci[1]] if proxy_ci[1] > CI_UPPER_MATERIAL_ABOVE else [])))
+    # strategy-eligibility coverage down-payment: reconciliation rate within the $-materiality floor
+    elig_adj = [r for r in adjudicated if r["amount_ge_250k"]]
+    elig_recon = sum(1 for r in elig_adj if r["outcome"] == ReconcileOutcome.RECONCILED)
     by_agency = _strata_lag(reconciled, "agency", percentile, min_n=30)
     ag_p90s = [s["p90"] for s in by_agency if s["n"] >= 50]
     bias_spread = (max(ag_p90s) - min(ag_p90s)) if len(ag_p90s) >= 2 else 0
@@ -301,12 +376,12 @@ def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
         agency_consistency_rate=round(len(reconciled) / len(recip), 4) if recip else 0.0,
         plausible_award_reconciliation_rate=round(len(reconciled) / nadj, 4) if nadj else 0.0,
         reconciliation_lag_proxy_days_p90=p90,
-        proxy_ci95=_bootstrap_ci(lags, percentile, reps=bootstrap, seed=seed),
+        proxy_ci95=proxy_ci,
         proxy_median=int(statistics.median(lags)) if lags else 0,
         proxy_p75=_pctile(lags, 0.75), proxy_p95=_pctile(lags, 0.95),
         proxy_max=max(lags) if lags else 0, proxy_n=len(lags),
         exceedance_share={str(t): round(sum(x > t for x in lags) / len(lags), 4) if lags else 0.0
-                          for t in EXCEEDANCE_THRESHOLDS},
+                          for t in thresholds},
         by_agency=by_agency, by_size=_strata_lag(reconciled, "size", percentile, min_n=20),
         by_year=_strata_lag(reconciled, "year", percentile, min_n=20), agency_bias_spread=bias_spread,
         missingness_by_year=_missingness(adjudicated, "year"),
@@ -320,8 +395,19 @@ def calibrate(*, sample: int, workers: int, percentile: float, window_days: int,
         results_hash=hashlib.sha256(
             json.dumps([[r["ticker"], r["action_date"], str(r["outcome"]), r["lag"]]
                        for r in rows], sort_keys=True).encode()).hexdigest(),
+        run_role=run_role,
+        reconciliation_rate_amount_ge_250k=round(elig_recon / len(elig_adj), 4) if elig_adj else 0.0,
+        n_amount_ge_250k=len(elig_adj),
     )
     cal.gate = _gate(cal)
+
+    # Persist per-event reconciliation rows so the missingness / strategy-coverage analysis (owner's
+    # next step 1) can run offline — the aggregate artifact alone cannot support those cuts.
+    if events_out:
+        with open(events_out, "w", encoding="utf-8") as fh:
+            for r in rows:
+                fh.write(json.dumps({**r, "outcome": str(r["outcome"])}, default=str) + "\n")
+        print(f"  per-event rows -> {events_out}  ({len(rows)} rows)")
     return cal
 
 
@@ -344,9 +430,17 @@ def _report(cal: Calibration, current: int) -> None:
           ", ".join(f"{s['key']}={s['reconciled_share']}(n{s['n']})" for s in cal.missingness_by_year[:6]))
     print(f"  outliers(>180d): {len(cal.outliers)} " +
           ", ".join(f"{o['ticker']}/{o['lag']}d/{o['reason_code']}" for o in cal.outliers[:4]))
+    print(f"  strategy-eligibility ($>=250k) reconciliation: "
+          f"{cal.reconciliation_rate_amount_ge_250k:.1%} (n={cal.n_amount_ge_250k}) "
+          f"vs broad {cal.recipient_reconciliation_rate:.1%} — full eligibility needs mktcap join")
+    print(f"  run_role={cal.run_role}  proxy_status={cal.proxy_status}  "
+          f"scope={cal.proxy_scope}  policy_status={cal.policy_status}")
     print("\n  --- Availability Assumption gate (10 checks + data-quality) ---")
     for k, v in cal.gate["checks"].items():
         print(f"    [{'PASS' if v else 'FAIL'}] {k}")
+    print("  --- component outcomes (differentiated) ---")
+    for name, comp in cal.gate["components"].items():
+        print(f"    [{comp['status']:>11}] {name}")
     print(f"  GATE: {'PASS' if cal.gate['pass'] else 'FAIL — preserve as evidence; do NOT freeze or re-derive'}")
 
 
@@ -359,10 +453,16 @@ def main() -> None:
     ap.add_argument("--bootstrap", type=int, default=5000)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--events-out", default=None,
+                    help="write per-event reconciliation rows (JSONL) for the missingness analysis")
+    ap.add_argument("--run-role", default="primary_representative",
+                    choices=["primary_representative", "diagnostic_contaminated"],
+                    help="taxonomy: the authoritative run vs an operationally-contaminated diagnostic")
     args = ap.parse_args()
 
     cal = calibrate(sample=args.sample, workers=args.workers, percentile=args.percentile,
-                    window_days=args.window_days, bootstrap=args.bootstrap, seed=args.seed)
+                    window_days=args.window_days, bootstrap=args.bootstrap, seed=args.seed,
+                    run_role=args.run_role, events_out=args.events_out)
     _report(cal, DISCLOSURE_LAG_DAYS)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:
