@@ -1,0 +1,254 @@
+{
+  "schema": "mr_momentum_daily.stage3.v1",
+  "prereg": "PREREG_Stage3_Construction_v1.0.md",
+  "inherits_stage2_winner": "C_daily_conditional",
+  "window": {
+    "start": "2005-01-03",
+    "end": "2026-06-12",
+    "trading_days": 5395,
+    "usable_score_days": 5395
+  },
+  "sector_note": "tickers.sector is static-current (not PIT); see PREREG \u00a75",
+  "configs": [
+    {
+      "name_count": 5,
+      "sizing": "equal_weight",
+      "sector_cap": false,
+      "label": "N5/ew/nocap",
+      "cagr": 0.14522618587149094,
+      "sharpe": 0.5232858692202428,
+      "calmar": 0.19575887898988267,
+      "max_drawdown": -0.7418625741057528,
+      "annualized_turnover": 12.80454619497439,
+      "avg_holding_days": 31.193625498007968,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1384,
+      "final_equity": 1830096.6940907908,
+      "crash_windows": {
+        "2008_gfc": -0.566504214633413,
+        "2020_covid": 0.3946847130595643,
+        "2022_drawdown": -0.2483991558328551
+      }
+    },
+    {
+      "name_count": 5,
+      "sizing": "equal_weight",
+      "sector_cap": true,
+      "label": "N5/ew/cap",
+      "cagr": 0.17293425082493097,
+      "sharpe": 0.577052195870284,
+      "calmar": 0.2212708827763757,
+      "max_drawdown": -0.7815499656125318,
+      "annualized_turnover": 11.185108007730122,
+      "avg_holding_days": 38.5993756503642,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1243,
+      "final_equity": 3055240.29804868,
+      "crash_windows": {
+        "2008_gfc": -0.640012620598243,
+        "2020_covid": 0.14551596811752954,
+        "2022_drawdown": -0.3659150958746674
+      }
+    },
+    {
+      "name_count": 5,
+      "sizing": "hybrid_50_50",
+      "sector_cap": false,
+      "label": "N5/hyb/nocap",
+      "cagr": 0.14783241200020414,
+      "sharpe": 0.5281673679569503,
+      "calmar": 0.19938749587947163,
+      "max_drawdown": -0.7414327129599331,
+      "annualized_turnover": 12.816886102348667,
+      "avg_holding_days": 31.193625498007968,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1378,
+      "final_equity": 1921486.4058577747,
+      "crash_windows": {
+        "2008_gfc": -0.5703426488348077,
+        "2020_covid": 0.39593415366573703,
+        "2022_drawdown": -0.2475942687331062
+      }
+    },
+    {
+      "name_count": 5,
+      "sizing": "hybrid_50_50",
+      "sector_cap": true,
+      "label": "N5/hyb/cap",
+      "cagr": 0.1752486759377414,
+      "sharpe": 0.5814328550187395,
+      "calmar": 0.2245116330182867,
+      "max_drawdown": -0.7805772626644573,
+      "annualized_turnover": 11.197113107572969,
+      "avg_holding_days": 38.5993756503642,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1241,
+      "final_equity": 3187116.6302589765,
+      "crash_windows": {
+        "2008_gfc": -0.6414378862143648,
+        "2020_covid": 0.1542092299451694,
+        "2022_drawdown": -0.3669185816536845
+      }
+    },
+    {
+      "name_count": 8,
+      "sizing": "equal_weight",
+      "sector_cap": false,
+      "label": "N8/ew/nocap",
+      "cagr": 0.12389946348925052,
+      "sharpe": 0.48759060134204196,
+      "calmar": 0.172185109920921,
+      "max_drawdown": -0.7195713005970928,
+      "annualized_turnover": 11.64590466512345,
+      "avg_holding_days": 35.48013620885357,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1723,
+      "final_equity": 1223104.311586863,
+      "crash_windows": {
+        "2008_gfc": -0.6424422956184355,
+        "2020_covid": 0.3211028765546722,
+        "2022_drawdown": -0.1828122571408416
+      }
+    },
+    {
+      "name_count": 8,
+      "sizing": "equal_weight",
+      "sector_cap": true,
+      "label": "N8/ew/cap",
+      "cagr": 0.10190640473096724,
+      "sharpe": 0.44325260451794374,
+      "calmar": 0.13140022868293785,
+      "max_drawdown": -0.775542065279523,
+      "annualized_turnover": 9.251670210441992,
+      "avg_holding_days": 53.97924528301887,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1388,
+      "final_equity": 800703.5528022024,
+      "crash_windows": {
+        "2008_gfc": -0.6797571754460487,
+        "2020_covid": 0.048232432764946376,
+        "2022_drawdown": -0.28385423942706156
+      }
+    },
+    {
+      "name_count": 8,
+      "sizing": "hybrid_50_50",
+      "sector_cap": false,
+      "label": "N8/hyb/nocap",
+      "cagr": 0.14253836757093263,
+      "sharpe": 0.5290964285660552,
+      "calmar": 0.20015750936900734,
+      "max_drawdown": -0.7121310013313119,
+      "annualized_turnover": 12.174206866016446,
+      "avg_holding_days": 35.48013620885357,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1722,
+      "final_equity": 1740194.1267079974,
+      "crash_windows": {
+        "2008_gfc": -0.6402077096096087,
+        "2020_covid": 0.30393798088778956,
+        "2022_drawdown": -0.14236314997536836
+      }
+    },
+    {
+      "name_count": 8,
+      "sizing": "hybrid_50_50",
+      "sector_cap": true,
+      "label": "N8/hyb/cap",
+      "cagr": 0.11239932487671789,
+      "sharpe": 0.4677043089610436,
+      "calmar": 0.1460043003351085,
+      "max_drawdown": -0.769835714555937,
+      "annualized_turnover": 9.390107086093794,
+      "avg_holding_days": 53.97924528301887,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1383,
+      "final_equity": 981088.4783460193,
+      "crash_windows": {
+        "2008_gfc": -0.6830628879562093,
+        "2020_covid": 0.051576803070533694,
+        "2022_drawdown": -0.2630158246551487
+      }
+    },
+    {
+      "name_count": 10,
+      "sizing": "equal_weight",
+      "sector_cap": false,
+      "label": "N10/ew/nocap",
+      "cagr": 0.11270372120445682,
+      "sharpe": 0.4668661352201504,
+      "calmar": 0.15969587469992289,
+      "max_drawdown": -0.7057397156703838,
+      "annualized_turnover": 11.513296578704807,
+      "avg_holding_days": 36.74611398963731,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1984,
+      "final_equity": 986859.7730260418,
+      "crash_windows": {
+        "2008_gfc": -0.6497713407656838,
+        "2020_covid": 0.2642782415450733,
+        "2022_drawdown": -0.15034199042100516
+      }
+    },
+    {
+      "name_count": 10,
+      "sizing": "equal_weight",
+      "sector_cap": true,
+      "label": "N10/ew/cap",
+      "cagr": 0.1285400932000269,
+      "sharpe": 0.5074162004568136,
+      "calmar": 0.16921328807485558,
+      "max_drawdown": -0.7596335646120421,
+      "annualized_turnover": 8.410851464850264,
+      "avg_holding_days": 64.78605089538172,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1442,
+      "final_equity": 1336061.012560757,
+      "crash_windows": {
+        "2008_gfc": -0.6635233461170282,
+        "2020_covid": 0.003123138705990902,
+        "2022_drawdown": -0.3144022103007684
+      }
+    },
+    {
+      "name_count": 10,
+      "sizing": "hybrid_50_50",
+      "sector_cap": false,
+      "label": "N10/hyb/nocap",
+      "cagr": 0.1269646407657279,
+      "sharpe": 0.5017727509421652,
+      "calmar": 0.18058511229279237,
+      "max_drawdown": -0.7030736872698192,
+      "annualized_turnover": 12.106320928864832,
+      "avg_holding_days": 36.74611398963731,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1976,
+      "final_equity": 1296642.2831992032,
+      "crash_windows": {
+        "2008_gfc": -0.6505110777583425,
+        "2020_covid": 0.25691434077405795,
+        "2022_drawdown": -0.10729906470246786
+      }
+    },
+    {
+      "name_count": 10,
+      "sizing": "hybrid_50_50",
+      "sector_cap": true,
+      "label": "N10/hyb/cap",
+      "cagr": 0.1396086834857022,
+      "sharpe": 0.5374188950482158,
+      "calmar": 0.19383617666935943,
+      "max_drawdown": -0.7202405963869323,
+      "annualized_turnover": 8.496768179874197,
+      "avg_holding_days": 64.78605089538172,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1438,
+      "final_equity": 1647001.9069210533,
+      "crash_windows": {
+        "2008_gfc": -0.6698621496769055,
+        "2020_covid": 0.00871516283431939,
+        "2022_drawdown": -0.2778060913452943
+      }
+    }
+  ]
+}
