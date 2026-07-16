@@ -1,0 +1,90 @@
+{
+  "schema": "mr_momentum_daily.stage4.v1",
+  "prereg": "PREREG_Stage4_Regime_v1.0.md",
+  "inherits_stage3_winner": "N5_hybrid_nocap",
+  "regime_gauge": "broad equal-weight market proxy (SPY substitution, PREREG \u00a72)",
+  "window": {
+    "start": "2005-01-03",
+    "end": "2026-06-12",
+    "trading_days": 5395,
+    "proxy_ma_days": 5196
+  },
+  "variants": [
+    {
+      "variant": "A",
+      "label": "Binary (SPY-proxy 200d)",
+      "cagr": 0.1064416011601752,
+      "sharpe": 0.4525900007567156,
+      "calmar": 0.12809017365029035,
+      "max_drawdown": -0.8309895921507632,
+      "annualized_turnover": 17.501155852130992,
+      "avg_holding_days": 22.513748191027496,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 2265,
+      "pct_days_risk_off": 0.20537534754402223,
+      "final_equity": 874402.7311828125,
+      "crash_windows": {
+        "2008_gfc": 0.11404073736868026,
+        "2020_covid": 0.10182938006676245,
+        "2022_drawdown": -0.28559933960094896
+      }
+    },
+    {
+      "variant": "B",
+      "label": "Buffered binary (\u00b11%/2d)",
+      "cagr": 0.1392525008514378,
+      "sharpe": 0.524345498584994,
+      "calmar": 0.18153092511934385,
+      "max_drawdown": -0.7671007061738326,
+      "annualized_turnover": 12.317531652258717,
+      "avg_holding_days": 28.229864253393664,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 2207,
+      "pct_days_risk_off": 0.20389249304911955,
+      "final_equity": 1636001.8188640766,
+      "crash_windows": {
+        "2008_gfc": 0.1647137880911329,
+        "2020_covid": -0.015324820689300966,
+        "2022_drawdown": -0.17780293164260363
+      }
+    },
+    {
+      "variant": "C",
+      "label": "Graduated (0.98/0.60/0.15)",
+      "cagr": 0.16914959714231537,
+      "sharpe": 0.5965389159263783,
+      "calmar": 0.2618641359938403,
+      "max_drawdown": -0.6459441133485121,
+      "annualized_turnover": 14.882232676872897,
+      "avg_holding_days": 31.193625498007968,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1539,
+      "pct_days_risk_off": 0.9631139944392957,
+      "final_equity": 2850730.898728463,
+      "crash_windows": {
+        "2008_gfc": -0.07465803470662213,
+        "2020_covid": 0.19761805144176603,
+        "2022_drawdown": -0.08830018449732413
+      }
+    },
+    {
+      "variant": "D",
+      "label": "None (control)",
+      "cagr": 0.14783241200020525,
+      "sharpe": 0.5281673679569521,
+      "calmar": 0.19938749587947313,
+      "max_drawdown": -0.7414327129599331,
+      "annualized_turnover": 12.81688610234867,
+      "avg_holding_days": 31.193625498007968,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1378,
+      "pct_days_risk_off": 0.0,
+      "final_equity": 1921486.4058578091,
+      "crash_windows": {
+        "2008_gfc": -0.5703426488348073,
+        "2020_covid": 0.3959341536657386,
+        "2022_drawdown": -0.24759426873310564
+      }
+    }
+  ]
+}

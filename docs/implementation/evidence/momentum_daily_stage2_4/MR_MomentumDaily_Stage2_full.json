@@ -1,0 +1,110 @@
+{
+  "schema": "mr_momentum_daily.stage2.v1",
+  "prereg": "PREREG_Stage2_RebalancePolicy_v1.0.md",
+  "window": {
+    "start": "2005-01-03",
+    "end": "2026-06-12",
+    "trading_days": 5395,
+    "usable_score_days": 5395
+  },
+  "controls": {
+    "universe_n": 200,
+    "lookback_days": 252,
+    "skip_days": 21,
+    "z_floor": 0.0,
+    "raw_floor": 0.0,
+    "max_names": 5,
+    "entry_rank": 5,
+    "hold_rank": 10,
+    "replace_advantage": 0.3,
+    "exit_confirm_closes": 2,
+    "weight_drift_pct": 0.04,
+    "backstop_days": 10,
+    "turnover_cost_bps": 10.0,
+    "initial_equity": 100000.0,
+    "sector_cap": null,
+    "regime_filter": "off"
+  },
+  "variants": [
+    {
+      "variant": "A",
+      "label": "Weekly (v0.9 baseline)",
+      "total_return": 22.019375620661137,
+      "cagr": 0.15754603430280167,
+      "sharpe": 0.5454082856034289,
+      "calmar": 0.20688234522514864,
+      "max_drawdown": -0.7615247890357459,
+      "annualized_turnover": 10.920665668184439,
+      "avg_holding_days": 36.570093457943926,
+      "n_completed_holdings": 1070,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1119,
+      "final_equity": 2301937.5620661136,
+      "crash_windows": {
+        "2008_gfc": -0.5962280798894464,
+        "2020_covid": 0.37156819004494923,
+        "2022_drawdown": -0.18556729537384276
+      }
+    },
+    {
+      "variant": "B",
+      "label": "Trade-on-change",
+      "total_return": 18.67236121981899,
+      "cagr": 0.14909301053794222,
+      "sharpe": 0.5301762001827045,
+      "calmar": 0.20229711790526636,
+      "max_drawdown": -0.7370001712419894,
+      "annualized_turnover": 23.235297596923445,
+      "avg_holding_days": 16.567075751163774,
+      "n_completed_holdings": 2363,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 2205,
+      "final_equity": 1967236.1219818988,
+      "crash_windows": {
+        "2008_gfc": -0.5991789121296678,
+        "2020_covid": 0.3773663811694765,
+        "2022_drawdown": -0.2520390120655527
+      }
+    },
+    {
+      "variant": "C",
+      "label": "Daily conditional (\u00a75.1)",
+      "total_return": 17.30096694090791,
+      "cagr": 0.14522618587149094,
+      "sharpe": 0.5232858692202428,
+      "calmar": 0.19575887898988267,
+      "max_drawdown": -0.7418625741057528,
+      "annualized_turnover": 12.80454619497439,
+      "avg_holding_days": 31.193625498007968,
+      "n_completed_holdings": 1255,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 1384,
+      "final_equity": 1830096.6940907908,
+      "crash_windows": {
+        "2008_gfc": -0.566504214633413,
+        "2020_covid": 0.3946847130595643,
+        "2022_drawdown": -0.2483991558328551
+      }
+    },
+    {
+      "variant": "D",
+      "label": "Biweekly",
+      "total_return": 19.74231895880941,
+      "cagr": 0.15193537124838752,
+      "sharpe": 0.5359713011094142,
+      "calmar": 0.19597149428270885,
+      "max_drawdown": -0.7752932221316089,
+      "annualized_turnover": 7.449955609028774,
+      "avg_holding_days": 53.16576086956522,
+      "n_completed_holdings": 736,
+      "worst_single_name_gap": -0.7025974516994972,
+      "trades": 560,
+      "final_equity": 2074231.8958809408,
+      "crash_windows": {
+        "2008_gfc": -0.6602633663877535,
+        "2020_covid": 0.3838960258145101,
+        "2022_drawdown": -0.189356050769097
+      }
+    }
+  ]
+}
