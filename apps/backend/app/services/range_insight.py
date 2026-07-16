@@ -340,8 +340,10 @@ def _qualify_reason(insight: RangeInsight, f: HardFilters) -> str | None:
 @dataclass(frozen=True)
 class CandidateEvidence:
     """Realized range-trading performance for a symbol, taken from its most recent range
-    backtest. When present this *overrides* the structural prior in the ranking — the
-    candidate ranks by win rate (then Sharpe) above any name without a backtest."""
+    backtest. When present AND good enough to clear the evidence-priority guard
+    (``_evidence_grants_priority``: win rate ≥ floor AND Sharpe > floor) this *overrides* the
+    structural prior — the candidate ranks by win rate (then Sharpe) above any name without
+    qualifying evidence. A weak/losing backtest does not override structure (ADR 0028 §Open items)."""
 
     win_rate: float | None        # [0, 1]
     sharpe: float | None
@@ -366,8 +368,10 @@ class RangeCandidate:
     suitable: bool                 # range_bound + a usable atr20_pct
     score: float                   # composite Range Score (higher = better range candidate)
     rank: int                      # 1-based, after sorting
-    # Realized backtest evidence (None when the symbol has no range backtest). Evidenced
-    # names sort above structural-only ones, by win_rate then sharpe.
+    # Realized backtest evidence (None when the symbol has no range backtest). A name whose
+    # evidence clears the priority guard (win_rate >= floor AND sharpe > floor) sorts above
+    # structural-only names, by win_rate then sharpe; weak evidence ranks on structure.
+    # ``backtested`` stays descriptive ("a backtest exists"), independent of the guard.
     win_rate: float | None = None
     sharpe: float | None = None
     n_trades: int | None = None
@@ -402,16 +406,44 @@ def _candidate_score(insight: RangeInsight) -> float:
     return insight.atr20_pct * _oscillation(insight)
 
 
+# Interim evidence-priority guard (ADR 0028 §Open items). A realized range backtest grants a
+# name top-tier ranking (above structural-only names) ONLY when it clears BOTH floors below;
+# otherwise the name ranks purely on its structural Range Score, like any unbacktested name.
+# Conservative by design: a weak/losing backtest must NOT pin a name (the lone-backtest "NVDA at
+# 27% win" failure). Superseded by ADR 0029 §6's evidence-weighted composite once it is built and
+# calibrated. Defaults are the conservative values; tightening (higher floors) is the safe edge.
+EVIDENCE_PRIORITY_MIN_WIN_RATE = 0.50
+EVIDENCE_PRIORITY_MIN_SHARPE = 0.0
+
+
+def _evidence_grants_priority(ev: CandidateEvidence | None) -> bool:
+    """Whether a backtest is good enough to lift the name into the evidenced tier (above
+    structural-only names). Requires a realized win rate ``>= EVIDENCE_PRIORITY_MIN_WIN_RATE``
+    **AND** a Sharpe ``> EVIDENCE_PRIORITY_MIN_SHARPE`` (both, not either). A missing win_rate or
+    Sharpe fails the guard (we can't confirm the evidence is good), so the name ranks on structure.
+    This is the AND-guard from ADR 0028 §Open items; ``backtested`` (descriptive: "has a backtest")
+    is tracked separately so the audit trail still records that a backtest existed."""
+    if ev is None or ev.win_rate is None or ev.sharpe is None:
+        return False
+    return (
+        ev.win_rate >= EVIDENCE_PRIORITY_MIN_WIN_RATE
+        and ev.sharpe > EVIDENCE_PRIORITY_MIN_SHARPE
+    )
+
+
 def rank_candidates(
     insights: Iterable[RangeInsight],
     *,
     evidence: dict[str, CandidateEvidence] | None = None,
     hard_filters: HardFilters | None = None,
 ) -> list[RangeCandidate]:
-    """Pure ranking over already-computed insights. Evidence-first (design §8.4): a symbol
-    with a realized range backtest (``evidence`` carrying a non-null ``win_rate``) ranks by
-    that win rate then Sharpe, ABOVE any name without one; the rest fall back to the
-    structural Range Score. ``evidence`` is keyed by uppercased symbol.
+    """Pure ranking over already-computed insights. Evidence-first *with a guard* (design §8.4;
+    ADR 0028 §Open items): a symbol whose realized range backtest CLEARS the evidence-priority
+    guard (``_evidence_grants_priority`` — win rate ≥ floor AND Sharpe > floor) ranks by win rate
+    then Sharpe, ABOVE any name without qualifying evidence. A backtest that exists but is weak or
+    losing does NOT jump the queue — it falls back to the structural Range Score like an
+    unbacktested name. ``evidence`` is keyed by uppercased symbol. (The guard is the interim step
+    toward ADR 0029 §6's evidence-weighted composite.)
 
     When ``hard_filters`` is given, each candidate is also tagged ``qualified`` (passed the
     price/ADV/ATR% screen) with a ``qualify_reason`` on failure; ranking order is unchanged
@@ -433,15 +465,20 @@ def rank_candidates(
         qualified = qreason is None
         ev = ev_by_symbol.get(ins.symbol.upper())
         has_ev = ev is not None and ev.win_rate is not None
-        rows.append((score, ins, suitable, ev, has_ev, qualified, qreason))
+        ev_priority = _evidence_grants_priority(ev)
+        rows.append((score, ins, suitable, ev, has_ev, qualified, qreason, ev_priority))
 
-    # Evidenced names first (group 0), ranked by win_rate desc then sharpe desc; the rest
-    # (group 1) by structural score desc. Ties: atr20_pct desc, then symbol (deterministic).
+    # Two tiers. Group 0 = names whose backtest CLEARS the evidence-priority guard
+    # (win_rate >= floor AND sharpe > floor); ranked by win_rate desc then sharpe desc. Group 1 =
+    # everyone else — unbacktested names AND backtested-but-weak names (e.g. a 27%-win, ~0-Sharpe
+    # name) — ranked purely by structural Range Score. The win_rate/sharpe sort terms are gated on
+    # ``ev_priority`` (t[7]) so a guard-failed backtest contributes NOTHING to order: it must not
+    # leak a partial boost into group 1. Ties: atr20_pct desc, then symbol (deterministic).
     rows.sort(
         key=lambda t: (
-            0 if t[4] else 1,
-            -((t[3].win_rate if t[3] else None) or 0.0),
-            -((t[3].sharpe if t[3] else None) or 0.0),
+            0 if t[7] else 1,
+            -((t[3].win_rate if (t[7] and t[3]) else None) or 0.0),
+            -((t[3].sharpe if (t[7] and t[3]) else None) or 0.0),
             -t[0],
             -(t[1].atr20_pct or 0.0),
             t[1].symbol,
@@ -461,7 +498,7 @@ def rank_candidates(
             adv=ins.adv, cs_spread_pct=ins.cs_spread_pct,
             qualified=qualified, qualify_reason=qreason,
         )
-        for i, (score, ins, suitable, ev, has_ev, qualified, qreason) in enumerate(rows)
+        for i, (score, ins, suitable, ev, has_ev, qualified, qreason, _ev_priority) in enumerate(rows)
     ]
 
 
