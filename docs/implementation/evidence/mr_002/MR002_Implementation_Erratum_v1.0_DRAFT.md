@@ -91,7 +91,10 @@ All returned from the c6a instance and verified **byte-identical** (md5 diff emp
 | `MR002_Row2307_Adjudication.json` | `179d571d5c6b1db201fda235198c10aaff5623a348f3b31e263f711ad1a3cdef` |
 | `MR002_Row2307_Lineage.json` | `dac050347aff1d50f0eef97a17cdc3c49b399a606c6805f8aa51e29c220cd860` |
 
-⚠ **These are now single-copy.** The c6a instance is terminated. See §11.
+**Preservation: COMPLETE.** These are **no longer single-copy**. All six — with every other
+load-bearing artifact, the source as run, and the pinned image — are preserved durably and were
+**verified by retrieval** (downloaded from the durable copy and re-hashed; an upload response alone
+was not accepted as evidence). See **§15**.
 
 ## 6. Final counters — all zero
 
@@ -321,8 +324,87 @@ matched. This does not affect any evidence in this erratum.
 
 ---
 
-## STOP — countersignature required
+## 15. Evidence preservation — the countersignature gate
 
-Per the authorization of 2026-07-16, work **stops here**. After this draft's evidence bindings are
-verified, **countersignature is required before preflight**. Preflight, development performance,
-validation and sealed OOS remain CLOSED.
+**Preservation manifest sha256: `66e1e18c8a31a22e3104b33ec577e5bbfebfa59ecf33523ff79c5e742774c95d`**
+(`MR002_EvidencePreservation_Manifest.json`, S3 version `x045XoE90ADA83648_Mfhp8U2SZ3P5Eh`).
+
+No computation and no evidence rerun was performed. Preservation only.
+
+```
+required files present            : 30
+unclassified or missing           :  0
+local hashes verified             : 30
+remote-retrieved hashes identical : 30
+mismatches                        :  0
+exact image preserved durably     : True
+```
+
+| | |
+|---|---|
+| Copy 1 | laptop `.mr002out/preservation_20260716/` |
+| Copy 2 | `s3://workbench-backups-219024422756/mr002/evidence/20260716/` — **versioning Enabled**, so an overwrite cannot silently replace the evidence |
+
+**Verification method.** Every item was **downloaded back from the durable copy and re-hashed**; a
+successful upload response was not accepted. All 30 retrieved hashes are identical to local. The
+manifest records per item: relative path, byte length, sha256, artifact role, source commit/tree
+where applicable, raw-byte EOL form, remote key + version id, upload timestamp, post-upload download
+sha256, and verification result.
+
+**Contents.** The six full-population artifacts (original bytes) · run logs · Sample A · Sample B-C1
+· duplicate census · equivalence replay · directed-rounding correction · frozen specification v1.1 ·
+the four source files **as run** · image archive + inspect + full id · this erratum · the amendment ·
+the provenance/adjudication/census/lineage records · the supervisor-fix record.
+
+### 15.1 Image preservation
+
+| Item | Value |
+|---|---|
+| Legacy image Id | `sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a` |
+| OCI config digest | `sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6` |
+| Image archive sha256 | `5d5d1f9032cc5b2f2a4ed03b63e7ff8cff00f3f195e851de06f9ab2fc423352e` (141,499,131 bytes) |
+| Local-only | **No** — preserved as a versioned S3 object |
+
+⚠ **The two image ids are the SAME image under two id schemes**, proven by the 8 identical rootfs
+`diff_ids` recorded in the manifest. The artifact recorded the **legacy** id (truncated to
+`aa930021`); c6a's containerd-backed docker reported the **OCI config** digest `770553aeae6c`.
+Without this, a reviewer comparing the artifact's `aa930021` against c6a's logged `770553ae` would
+wrongly conclude a different image ran.
+
+### 15.2 Recovered provenance (bound in the manifest)
+
+- `repair_manifest_source_sha256` = **`aa2877e13c4fbb6346b03d816d71ff8b31b104ec3dbb8d53bd62f5e7aba3772e`**
+  — recomputed in the pinned image and **independently corroborated** by Sample A
+  (`573f0e80…`) and Sample B-C1 (`850e8ad6…`), which both record the identical value under the
+  frozen specification.
+- **All four raw source-byte hashes** — reproduce the artifact's recorded binding exactly.
+- **All four LF-normalized source hashes** — recorded alongside, so the delivery-path dependence
+  (§11) is checkable without the archive.
+
+### 15.3 Environment reproducibility, preserved
+
+The AVX2-only constraint (§11.2) is now backed by the preserved image archive rather than a local
+Docker store. A reproduction still requires an **AVX2-only host** (`c6a`/`m6a`/`r6a`) **and**
+`OPENBLAS_CORETYPE=HASWELL`; the image alone is not sufficient.
+
+---
+
+## STOP — countersignature
+
+| | |
+|---|---|
+| ERRATUM CONTENT | **ACCEPTED** (owner, 2026-07-16) |
+| EVIDENCE PRESERVATION | **COMPLETE** — manifest `66e1e18c…`, 30/30 verified by retrieval, 0 mismatches |
+| COUNTERSIGNATURE | **AWAITING OWNER** — the preservation gate is met; no further numerical run is required |
+| PREFLIGHT | **CLOSED** |
+| PERFORMANCE | **NOT COMPUTED** |
+| VALIDATION | **SEALED AND UNREAD** |
+| OOS | **SEALED AND UNREAD** |
+
+Work **stops here**. Countersignature is the owner's act and is not recorded by this draft.
+Preflight remains CLOSED until it is given.
+
+**Commit identity of the reviewed draft:** the content the owner independently identified as sha256
+`3639670d2c3703809dc0ed68a8615f00e47c21ac6da923d621d44e22873e4610` (19,475 bytes, 328 lines, LF)
+was committed at `178c657` and is the exact byte-stream preserved in the manifest. **This section is
+the only change since**; the scientific findings and predecessor artifacts are unaltered.
