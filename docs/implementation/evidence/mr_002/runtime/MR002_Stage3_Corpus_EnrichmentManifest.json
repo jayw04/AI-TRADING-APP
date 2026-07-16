@@ -1,0 +1,11 @@
+{
+  "record_type": "MR002_STAGE3_CORPUS_ENRICHMENT_MANIFEST",
+  "matrix_corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "matrix_corpus_unmodified": true,
+  "symbolic_sidecar_sha256": "bbc73b03c16e06e3da542ccaee12a30849d0b04f82f82e14ce1bea37b8971210",
+  "instances": 3895,
+  "per_instance_matrix_hash_match": true,
+  "linkage": "each symbolic record is keyed by the immutable matrix instance hash",
+  "capture_image": "mr002-research:v1.1f",
+  "verification_verdict": "IDENTICAL \u2014 the symbolic capture was observational only and did not alter the numerical path"
+}

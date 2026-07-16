@@ -80,3 +80,10 @@ docker-compose.override.yml
 # but the dated outputs are regenerable and contain account numbers — keep them local.
 /reports/*.md
 !/reports/README.md
+
+# never track build/scratch artifacts under scripts/
+apps/backend/scripts/__pycache__/
+apps/backend/scripts/.sweep_cache/
+
+# MR-002 research container scratch output (never evidence; evidence is written deliberately)
+.mr002out/

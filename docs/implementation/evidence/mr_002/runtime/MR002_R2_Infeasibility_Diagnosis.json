@@ -1,0 +1,235 @@
+{
+  "examined": 12,
+  "tightened_feasible_count": 12,
+  "eta": 1e-12,
+  "records": [
+    {
+      "instance": 0,
+      "n": 5,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 3,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -7.53021854251996e-18,
+      "n_rows_with_slack_below_eta": 16,
+      "n_nonzero_rows": 18,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.028531276838700582,
+        0.029789422207528594
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 1,
+      "n": 5,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 2,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -1.6327729509827226e-17,
+      "n_rows_with_slack_below_eta": 13,
+      "n_nonzero_rows": 15,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.026075327087333608,
+        0.029999999995
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 2,
+      "n": 9,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 7,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -1.5884998229702453e-17,
+      "n_rows_with_slack_below_eta": 16,
+      "n_nonzero_rows": 18,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.04906894738528541,
+        0.05580526565728241
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 3,
+      "n": 10,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 5,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -1.3999356646503294e-17,
+      "n_rows_with_slack_below_eta": 16,
+      "n_nonzero_rows": 18,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.03927651109556769,
+        0.04499999999
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 4,
+      "n": 15,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 7,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -5.773797323898268e-17,
+      "n_rows_with_slack_below_eta": 19,
+      "n_nonzero_rows": 21,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.07979071689503743,
+        0.089999999985
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 5,
+      "n": 4,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 4,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -3.2647051590898514e-18,
+      "n_rows_with_slack_below_eta": 16,
+      "n_nonzero_rows": 18,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.014999999995999998,
+        0.014999999996
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 6,
+      "n": 3,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 2,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -2.7949416708871902e-18,
+      "n_rows_with_slack_below_eta": 13,
+      "n_nonzero_rows": 15,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.014999999996999998,
+        0.014999999996999996
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 7,
+      "n": 4,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 0,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -2.5961889560090088e-18,
+      "n_rows_with_slack_below_eta": 16,
+      "n_nonzero_rows": 18,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.014999999995999998,
+        0.014999999996000001
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 8,
+      "n": 6,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 5,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -1.3393034619635837e-17,
+      "n_rows_with_slack_below_eta": 22,
+      "n_nonzero_rows": 24,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.029999999994000003,
+        0.024232621013460614
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 9,
+      "n": 5,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 2,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -2.9583044802670986e-18,
+      "n_rows_with_slack_below_eta": 19,
+      "n_nonzero_rows": 21,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.027717339244145326,
+        0.024045092191590074
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 10,
+      "n": 4,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 3,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -6.1842495914586655e-18,
+      "n_rows_with_slack_below_eta": 13,
+      "n_nonzero_rows": 15,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.014999999996,
+        0.014999999995999998
+      ],
+      "b_eq_inside_tightened_range": true
+    },
+    {
+      "instance": 11,
+      "n": 4,
+      "tightened_feasible": true,
+      "tightened_status": "Optimization terminated successfully. (HiGHS Status 7: Optim",
+      "original_feasible": true,
+      "coords_at_zero": 1,
+      "coords_at_upper": 0,
+      "coords_with_upper_le_2eta": 0,
+      "min_nonzero_row_slack": -1.783301035031019e-18,
+      "n_rows_with_slack_below_eta": 13,
+      "n_nonzero_rows": 15,
+      "b_eq": 0.0,
+      "tightened_eq_range": [
+        -0.020596750233203398,
+        0.02409779567326855
+      ],
+      "b_eq_inside_tightened_range": true
+    }
+  ]
+}

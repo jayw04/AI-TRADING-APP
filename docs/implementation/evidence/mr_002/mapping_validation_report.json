@@ -1,0 +1,44 @@
+{
+  "csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.8.csv",
+  "artifact_sha256": "857a86c26b87a2c8e0cf0a39bfeeefb810e742a125cdb37418e6cf21859a5cc3",
+  "reconciliation_prev_to_current": {
+    "prev_rows(v0.7)": 110,
+    "current_rows(v0.8)": 110,
+    "added": [],
+    "removed": [],
+    "note": "v0.5+v0.6 content changes are INTENTIONAL (owner countersign 2, 2026-07-11): CLASSIFICATION effective dates replace ETF-availability dates (XLC boundary -> 2018-10-01 after the 2018-09-28 close; XLRE -> 2016-09-01 after the 2016-08-31 close; ETF availability is a separate registered property) + the 3800-3839 instruments split for LOW-exclusion recovery (3812->XLI, 3826->XLV, 3827->XLK; residuals stay LOW). Every added/removed key listed above; pre-reg v0.9."
+  },
+  "confidence_counts": {
+    "HIGH": 29,
+    "MEDIUM": 66,
+    "LOW": 15
+  },
+  "errors": [],
+  "warnings": [],
+  "low_confidence_policy": "LOW rows are excluded from primary construction by the runner (Mapping.resolve returns None + logs EXCLUDED_LOW_CONFIDENCE hits; reported separately, never forced).",
+  "impact_review": "DEFERRED to the Data Availability Gate (needs the preliminary universe): securities/universe-months per confidence tier, top-20 MEDIUM-exposed securities, MEDIUM rows at XLC/XLRE boundaries, MEDIUM-removed coverage diagnostic (no strategy signals).",
+  "canonical_data_sha256": "5f34a4221acf18fe63b86c049d328aeb134bf43237c94b6aae514b1c187cb33e",
+  "canonicalization": {
+    "canonicalization_version": 1,
+    "canonical_fields": [
+      "sic_start",
+      "sic_end",
+      "effective_from",
+      "effective_to",
+      "research_sector",
+      "sector_etf",
+      "mapping_confidence"
+    ],
+    "canonical_sort_key": [
+      "sic_start",
+      "sic_end",
+      "effective_from",
+      "effective_to",
+      "research_sector",
+      "sector_etf"
+    ],
+    "line_ending_policy": "LF join, no trailing newline"
+  },
+  "hash_note": "artifact_sha256 = raw file bytes; canonical_data_sha256 = canonically sorted rows. Both PROVISIONAL until owner countersign.",
+  "result": "PASS"
+}

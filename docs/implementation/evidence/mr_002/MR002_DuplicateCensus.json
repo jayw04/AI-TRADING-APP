@@ -1,0 +1,440 @@
+{
+  "schema": "MR002_DuplicateCensus/v1",
+  "authorization": "owner ruling 2026-07-14 \u00a75 (reading (a): content-hash disjointness)",
+  "selection_only": true,
+  "no_repair_executed": true,
+  "no_performance_computed": true,
+  "corpus_immutable": "corpus NOT deduplicated/renumbered; both indices of every duplicate class are preserved and recorded as one canonical-problem class (\u00a74)",
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+  "totals": {
+    "total_corpus_rows": 3895,
+    "unique_canonical_hashes": 3875,
+    "duplicate_equivalence_classes": 20,
+    "rows_in_duplicate_classes": 40,
+    "maximum_multiplicity": 2
+  },
+  "selection": {
+    "qualifying_overlaps": 3839,
+    "sample_a_size": 50,
+    "original_sample_b_size": 100,
+    "preregistration_prospective_n": 100,
+    "preregistration_regression_n": 50
+  },
+  "within_sample_a_duplicates": {},
+  "within_original_sample_b_duplicates": {},
+  "a_to_original_b_overlaps": {
+    "02d95fbf0478414711714202e0007fe63cb68e557012ad846f4be1f6452608fe": {
+      "A_index": 7,
+      "B_indices": [
+        1434
+      ]
+    }
+  },
+  "index_7_1434_pair_reproduced": true,
+  "duplicate_classes": [
+    {
+      "canonical_content_hash": "02d95fbf0478414711714202e0007fe63cb68e557012ad846f4be1f6452608fe",
+      "corpus_indices": [
+        7,
+        1434
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [
+        7
+      ],
+      "in_original_sample_b": [
+        1434
+      ]
+    },
+    {
+      "canonical_content_hash": "08bbf668cadb0a0db4e337b4698c9a9754d35b82529fe9c998779365d7af9b5e",
+      "corpus_indices": [
+        16,
+        1441
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [
+        16
+      ],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "0f680b67c683c4555f73c04402d1db99f160972e6648f7f8054cf44bdb757f44",
+      "corpus_indices": [
+        1535,
+        3066
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "19fad3d2ff8bc3e5d01fe80e48bee5e74d1f0bf4bf1164e6ea3dab56523c5565",
+      "corpus_indices": [
+        1544,
+        3073
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "1e7a43837ef955e750c5bca76c097c257a29d01138f8ac3f7a60ea8ecc74c65c",
+      "corpus_indices": [
+        9,
+        1436
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [
+        9
+      ],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "212c1d5f242b198d474f50528fc1839cc64a475a7635490db320106b82a00eec",
+      "corpus_indices": [
+        930,
+        2337
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "3812803305d9c02c1014b1988f6e3c454c076895aff6f2d82c543980ab51503b",
+      "corpus_indices": [
+        1448,
+        2983
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "3d78d1cd5c9c4a9f99af323b831c3f41c0dbf19696570b8f2fc0504586e566d1",
+      "corpus_indices": [
+        1778,
+        3281
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "4ead504609eaf837b4103046e8ba6497345a2a5c23b8931118cc26a5507eb911",
+      "corpus_indices": [
+        1887,
+        3380
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "597d9ed0ed969ba55e752ad4a6c3a5d7b88d1f390c078410f6e84992756c4180",
+      "corpus_indices": [
+        2118,
+        3586
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "8192ee6d937b9fa5c51ae3204dbf3e34975ddbff8b1f418f4f9c2fb0e2011a5f",
+      "corpus_indices": [
+        1433,
+        2968
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "9218c8e8418508eb4aabea6bc6063377096006c3a134f0ecc1418273baf0cf08",
+      "corpus_indices": [
+        1692,
+        3205
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "94a9bc2fd30d856de0b3552ebebb251cfdb2e9cd22500f95ef6193448eac321b",
+      "corpus_indices": [
+        1430,
+        2965
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "9950faa5bb89ac8c112fa6f4a92820f0dd228ea7e2e7de4402be653ba8ab2592",
+      "corpus_indices": [
+        1888,
+        3381
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "9f3ce19da30c8bad9f4b8f2132d5e0ebc6f62bbabdab8b075f469fbc6309c449",
+      "corpus_indices": [
+        1437,
+        2972
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "a8bf465dbb177ae122ac1bb9c4899f4ad55176f1467e59448d89f80269c02088",
+      "corpus_indices": [
+        519,
+        1944
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "ae1e4c114e2ad2d24cfce84c6766a759e0ac3363e840ce3f60f991a884317dec",
+      "corpus_indices": [
+        1546,
+        3075
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "cbbb68657f1e6673ba2bdc6fa44de83a565070c803e3cca4291997f4c9ae8a47",
+      "corpus_indices": [
+        1663,
+        3181
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "ea6139cb519f263adc18e99ca2e9b5803480669c6ccd899d8629968d3af4a52a",
+      "corpus_indices": [
+        1723,
+        3230
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    },
+    {
+      "canonical_content_hash": "ff4ba0f639f83aacfb09a2a3dad73250f002bb77aa26e4134b90b954b559cdd2",
+      "corpus_indices": [
+        1548,
+        3076
+      ],
+      "multiplicity": 2,
+      "byte_identical": true,
+      "canonical_serialization_version": "MR002|stage3|canonical-original-problem|v1",
+      "in_sample_a": [],
+      "in_original_sample_b": []
+    }
+  ],
+  "sample_a": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51
+  ],
+  "original_sample_b": [
+    817,
+    2195,
+    2554,
+    3058,
+    3817,
+    3249,
+    1187,
+    384,
+    1985,
+    2288,
+    990,
+    1401,
+    970,
+    1476,
+    946,
+    2534,
+    737,
+    2405,
+    2185,
+    2263,
+    3616,
+    2163,
+    2911,
+    1068,
+    1558,
+    3604,
+    1211,
+    2932,
+    1895,
+    3708,
+    136,
+    1221,
+    3420,
+    2255,
+    177,
+    1101,
+    3865,
+    121,
+    797,
+    1049,
+    1562,
+    606,
+    1434,
+    2889,
+    736,
+    3837,
+    1733,
+    2456,
+    869,
+    3484,
+    2248,
+    2376,
+    3112,
+    615,
+    3136,
+    875,
+    3241,
+    1699,
+    2079,
+    2321,
+    3721,
+    3657,
+    1868,
+    2164,
+    3084,
+    2727,
+    596,
+    743,
+    3224,
+    1927,
+    3263,
+    2077,
+    3470,
+    3658,
+    3769,
+    2704,
+    857,
+    3889,
+    2582,
+    860,
+    1355,
+    2429,
+    3778,
+    1575,
+    1252,
+    758,
+    2533,
+    3151,
+    2396,
+    2439,
+    818,
+    2624,
+    319,
+    3676,
+    1609,
+    2038,
+    3609,
+    2326,
+    1748,
+    1275
+  ],
+  "cardinality_note": "the ruling \u00a76/\u00a78 specifies Sample B-C1 cardinality = 50, but the preregistration set PROSPECTIVE_N = 100, so the original Sample B was 100. This discrepancy is SURFACED, not resolved here \u2014 B-C1 construction awaits the owner's target cardinality."
+}

@@ -1,0 +1,56 @@
+{
+  "instances": 3895,
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "raw_clean": 3825,
+  "raw_raised": 62,
+  "raw_dual_certificate_failure": 8,
+  "raw_primal_failure": 0,
+  "raw_other_failure": 0,
+  "tscaled_ok": 3710,
+  "tscaled_failed": 185,
+  "sqrt_ok": 3890,
+  "sqrt_failed": 5,
+  "sqrt_failure_kinds": {
+    "RAISED:constraints are inconsistent, no solution": 5
+  },
+  "class_counts": {
+    "RAW_CLEAN": 3643,
+    "RAW_CLEAN|TSCALED_FAILED": 182,
+    "RAW_FALSE_INCONSISTENCY": 59,
+    "RAW_DUAL_CERTIFICATE_FAILURE": 8,
+    "RAW_FALSE_INCONSISTENCY|TSCALED_FAILED": 3
+  },
+  "gate_raw_exception_rescued_by_sqrt": [
+    59,
+    62
+  ],
+  "gate_dual_corrupt_rescued_by_sqrt": [
+    8,
+    8
+  ],
+  "gate_double_failure_rescued_by_sqrt": [
+    1,
+    3
+  ],
+  "max_sqrt_vs_raw_z_disagreement_on_raw_clean": 3.8326980478231576e-14,
+  "max_sqrt_vs_raw_obj_disagreement_on_raw_clean": 6.995792833919268e-14,
+  "worst_sqrt_stationarity": 1.887112688336856e-10,
+  "max_hessian_entry_seen": 199860065.0872654,
+  "min_target_seen": 1.0007001644509297e-08,
+  "capture_path_formulations": {
+    "RAW": 3825,
+    "SQRT": 67,
+    "DIAGNOSTIC_FALLBACK": 2,
+    "TSCALED": 1
+  },
+  "capture_path_note": "The capture ladder raw->sqrt->tscaled->HiGHS is a DEVICE to complete the path, NOT a proposed remedy. The proposed raw->sqrt cascade CANNOT complete the path: sqrt raises on at least one instance.",
+  "gates": {
+    "all_instances_sqrt_ok": false,
+    "raw_exception_instances_rescued": false,
+    "dual_corrupt_instances_rescued": true,
+    "double_failure_instances_rescued": false,
+    "z_agreement_on_raw_clean_within_1e-8": true,
+    "objective_agreement_on_raw_clean_within_1e-8": true
+  },
+  "VERDICT": "FAIL"
+}

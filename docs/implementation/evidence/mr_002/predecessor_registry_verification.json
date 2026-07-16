@@ -1,0 +1,527 @@
+[
+  {
+    "ticker": "BLK",
+    "predecessor": {
+      "cik": 1364742,
+      "name": "BlackRock Finance, Inc.",
+      "sic": "6211",
+      "sicDescription": "Security Brokers, Dealers & Flotation Companies",
+      "first_domestic": "2006-11-14",
+      "last_domestic": "2024-08-06",
+      "n_domestic": 73
+    },
+    "successor": {
+      "cik": 2012383,
+      "name": "BlackRock, Inc.",
+      "sic": "6211",
+      "sicDescription": "Security Brokers, Dealers & Flotation Companies",
+      "first_domestic": "2024-11-06",
+      "last_domestic": "2026-05-06",
+      "n_domestic": 7
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2024-10-01",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "PSKY",
+    "predecessor": {
+      "cik": 813828,
+      "name": "Paramount Global",
+      "sic": "4833",
+      "sicDescription": "Television Broadcasting Stations",
+      "first_domestic": "1994-03-31",
+      "last_domestic": "2025-07-31",
+      "n_domestic": 125
+    },
+    "successor": {
+      "cik": 2041610,
+      "name": "Paramount Skydance Corp",
+      "sic": "4833",
+      "sicDescription": "Television Broadcasting Stations",
+      "first_domestic": "2025-05-14",
+      "last_domestic": "2026-05-04",
+      "n_domestic": 6
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": true,
+    "event_date": "2025-08-07",
+    "type": "merger_new_control"
+  },
+  {
+    "ticker": "DIS",
+    "predecessor": {
+      "cik": 1001039,
+      "name": "TWDC Enterprises 18 Corp.",
+      "sic": "7990",
+      "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+      "first_domestic": "1996-02-14",
+      "last_domestic": "2019-02-05",
+      "n_domestic": 110
+    },
+    "successor": {
+      "cik": 1744489,
+      "name": "Walt Disney Co",
+      "sic": "7990",
+      "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+      "first_domestic": "2019-05-08",
+      "last_domestic": "2026-05-06",
+      "n_domestic": 31
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2019-03-20",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "VTRS",
+    "predecessor": {
+      "cik": 1623613,
+      "name": "Mylan II B.V.",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "first_domestic": "2015-05-08",
+      "last_domestic": "2020-11-06",
+      "n_domestic": 28
+    },
+    "successor": {
+      "cik": 1792044,
+      "name": "Viatris Inc",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "first_domestic": "2020-05-07",
+      "last_domestic": "2026-05-07",
+      "n_domestic": 31
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": true,
+    "event_date": "2020-11-16",
+    "type": "combination"
+  },
+  {
+    "ticker": "APA",
+    "predecessor": {
+      "cik": 6769,
+      "name": "APACHE CORP",
+      "sic": "1311",
+      "sicDescription": "Crude Petroleum & Natural Gas",
+      "first_domestic": "1994-03-21",
+      "last_domestic": "2024-11-07",
+      "n_domestic": 140
+    },
+    "successor": {
+      "cik": 1841666,
+      "name": "APA Corp",
+      "sic": "1311",
+      "sicDescription": "Crude Petroleum & Natural Gas",
+      "first_domestic": "2021-05-07",
+      "last_domestic": "2026-05-07",
+      "n_domestic": 21
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": true,
+    "event_date": "2021-03-01",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "DD",
+    "predecessor": {
+      "cik": 30554,
+      "name": "EIDP, Inc.",
+      "sic": "2820",
+      "sicDescription": "Plastic Material, Synth Resin/Rubber, Cellulos (No Glass)",
+      "first_domestic": "1994-03-21",
+      "last_domestic": "2026-05-06",
+      "n_domestic": 132
+    },
+    "successor": {
+      "cik": 1666700,
+      "name": "DuPont de Nemours, Inc.",
+      "sic": "2821",
+      "sicDescription": "Plastic Materials, Synth Resins & Nonvulcan Elastomers",
+      "first_domestic": "2017-11-06",
+      "last_domestic": "2026-05-05",
+      "n_domestic": 35
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": true,
+    "event_date": "2017-08-31",
+    "type": "merger_then_spinoffs"
+  },
+  {
+    "ticker": "CI",
+    "predecessor": {
+      "cik": 701221,
+      "name": "Cigna Holding Co",
+      "sic": "6324",
+      "sicDescription": "Hospital & Medical Service Plans",
+      "first_domestic": "1994-03-25",
+      "last_domestic": "2018-11-01",
+      "n_domestic": 104
+    },
+    "successor": {
+      "cik": 1739940,
+      "name": "Cigna Group",
+      "sic": "6324",
+      "sicDescription": "Hospital & Medical Service Plans",
+      "first_domestic": "2019-02-28",
+      "last_domestic": "2026-04-30",
+      "n_domestic": 30
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2018-12-20",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "AVGO",
+    "predecessor": {
+      "cik": 1649338,
+      "name": "Broadcom Pte. Ltd.",
+      "sic": "3674",
+      "sicDescription": "Semiconductors & Related Devices",
+      "first_domestic": "2016-03-10",
+      "last_domestic": "2018-03-15",
+      "n_domestic": 9
+    },
+    "successor": {
+      "cik": 1730168,
+      "name": "Broadcom Inc.",
+      "sic": "3674",
+      "sicDescription": "Semiconductors & Related Devices",
+      "first_domestic": "2018-06-14",
+      "last_domestic": "2026-06-09",
+      "n_domestic": 33
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2018-04-04",
+    "type": "redomiciliation"
+  },
+  {
+    "ticker": "MRVL",
+    "predecessor": {
+      "cik": 1058057,
+      "name": "MARVELL TECHNOLOGY GROUP LTD",
+      "sic": "3674",
+      "sicDescription": "Semiconductors & Related Devices",
+      "first_domestic": "2000-09-12",
+      "last_domestic": "2021-03-16",
+      "n_domestic": 86
+    },
+    "successor": {
+      "cik": 1835632,
+      "name": "Marvell Technology, Inc.",
+      "sic": "3674",
+      "sicDescription": "Semiconductors & Related Devices",
+      "first_domestic": "2021-06-09",
+      "last_domestic": "2026-05-28",
+      "n_domestic": 21
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2021-04-20",
+    "type": "redomiciliation"
+  },
+  {
+    "ticker": "MDT",
+    "predecessor": {
+      "cik": 64670,
+      "name": "MEDTRONIC INC",
+      "sic": "3845",
+      "sicDescription": "Electromedical & Electrotherapeutic Apparatus",
+      "first_domestic": "1994-03-04",
+      "last_domestic": "2015-02-27",
+      "n_domestic": 99
+    },
+    "successor": {
+      "cik": 1613103,
+      "name": "Medtronic plc",
+      "sic": "3845",
+      "sicDescription": "Electromedical & Electrotherapeutic Apparatus",
+      "first_domestic": "2015-02-27",
+      "last_domestic": "2026-06-18",
+      "n_domestic": 46
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2015-01-26",
+    "type": "redomiciliation"
+  },
+  {
+    "ticker": "WBA",
+    "predecessor": {
+      "cik": 104207,
+      "name": "WALGREEN CO",
+      "sic": "5912",
+      "sicDescription": "Retail-Drug Stores and Proprietary Stores",
+      "first_domestic": "1994-01-13",
+      "last_domestic": "2014-12-30",
+      "n_domestic": 95
+    },
+    "successor": {
+      "cik": 1618921,
+      "name": "Walgreens Boots Alliance, Inc.",
+      "sic": "5912",
+      "sicDescription": "Retail-Drug Stores and Proprietary Stores",
+      "first_domestic": "2014-12-30",
+      "last_domestic": "2025-06-26",
+      "n_domestic": 46
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2014-12-31",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "DKNG",
+    "predecessor": {
+      "cik": 1772757,
+      "name": "DraftKings Holdings Inc.",
+      "sic": "7990",
+      "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+      "first_domestic": "2019-08-12",
+      "last_domestic": "2022-02-18",
+      "n_domestic": 15
+    },
+    "successor": {
+      "cik": 1883685,
+      "name": "DraftKings Inc.",
+      "sic": "7990",
+      "sicDescription": "Services-Miscellaneous Amusement & Recreation",
+      "first_domestic": "2022-05-06",
+      "last_domestic": "2026-05-08",
+      "n_domestic": 17
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2022-05-05",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "DINO",
+    "predecessor": {
+      "cik": 48039,
+      "name": "HollyFrontier Corp",
+      "sic": "2911",
+      "sicDescription": "Petroleum Refining",
+      "first_domestic": "1994-03-11",
+      "last_domestic": "2022-04-28",
+      "n_domestic": 116
+    },
+    "successor": {
+      "cik": 1915657,
+      "name": "HF Sinclair Corp",
+      "sic": "4610",
+      "sicDescription": "Pipe Lines (No Natural Gas)",
+      "first_domestic": "2022-05-09",
+      "last_domestic": "2026-05-01",
+      "n_domestic": 17
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2022-03-14",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "LBTYA",
+    "predecessor": {
+      "cik": 1316631,
+      "name": "Liberty Global, Inc.",
+      "sic": "4841",
+      "sicDescription": "Cable & Other Pay Television Services",
+      "first_domestic": "2005-08-11",
+      "last_domestic": "2013-05-06",
+      "n_domestic": 37
+    },
+    "successor": {
+      "cik": 1570585,
+      "name": "Liberty Global Ltd.",
+      "sic": "4841",
+      "sicDescription": "Cable & Other Pay Television Services",
+      "first_domestic": "2013-08-01",
+      "last_domestic": "2026-05-01",
+      "n_domestic": 64
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2013-06-07",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "ZG",
+    "predecessor": {
+      "cik": 1334814,
+      "name": "ZILLOW INC",
+      "sic": "7389",
+      "sicDescription": "Services-Business Services, NEC",
+      "first_domestic": "2011-08-25",
+      "last_domestic": "2015-04-16",
+      "n_domestic": 16
+    },
+    "successor": {
+      "cik": 1617640,
+      "name": "ZILLOW GROUP, INC.",
+      "sic": "7389",
+      "sicDescription": "Services-Business Services, NEC",
+      "first_domestic": "2015-05-12",
+      "last_domestic": "2026-05-06",
+      "n_domestic": 45
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2015-02-17",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "OVV",
+    "predecessor": {
+      "cik": 1157806,
+      "name": "ENCANA CORP",
+      "sic": "1311",
+      "sicDescription": "Crude Petroleum & Natural Gas",
+      "first_domestic": "2017-02-27",
+      "last_domestic": "2019-11-04",
+      "n_domestic": 12
+    },
+    "successor": {
+      "cik": 1792580,
+      "name": "Ovintiv Inc.",
+      "sic": "1311",
+      "sicDescription": "Crude Petroleum & Natural Gas",
+      "first_domestic": "2020-02-21",
+      "last_domestic": "2026-05-11",
+      "n_domestic": 26
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2020-01-24",
+    "type": "redomiciliation"
+  },
+  {
+    "ticker": "AGN",
+    "predecessor": {
+      "cik": 884629,
+      "name": "Allergan Finance LLC",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "first_domestic": "1995-11-13",
+      "last_domestic": "2013-10-31",
+      "n_domestic": 76
+    },
+    "successor": {
+      "cik": 1578845,
+      "name": "Allergan plc",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "first_domestic": "2013-10-31",
+      "last_domestic": "2020-05-07",
+      "n_domestic": 30
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2013-10-01",
+    "type": "redomiciliation"
+  },
+  {
+    "ticker": "QDEL",
+    "predecessor": {
+      "cik": 353569,
+      "name": "QUIDEL CORP /DE/",
+      "sic": "2835",
+      "sicDescription": "In Vitro & In Vivo Diagnostic Substances",
+      "first_domestic": "1995-08-14",
+      "last_domestic": "2022-05-05",
+      "n_domestic": 117
+    },
+    "successor": {
+      "cik": 1906324,
+      "name": "QuidelOrtho Corp",
+      "sic": "2835",
+      "sicDescription": "In Vitro & In Vivo Diagnostic Substances",
+      "first_domestic": "2022-08-05",
+      "last_domestic": "2026-05-06",
+      "n_domestic": 17
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2022-05-27",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "ICE",
+    "predecessor": {
+      "cik": 1174746,
+      "name": "Intercontinental Exchange Holdings, Inc.",
+      "sic": "6200",
+      "sicDescription": "Security & Commodity Brokers, Dealers, Exchanges & Services",
+      "first_domestic": "2006-03-10",
+      "last_domestic": "2013-11-05",
+      "n_domestic": 33
+    },
+    "successor": {
+      "cik": 1571949,
+      "name": "Intercontinental Exchange, Inc.",
+      "sic": "6200",
+      "sicDescription": "Security & Commodity Brokers, Dealers, Exchanges & Services",
+      "first_domestic": "2013-08-07",
+      "last_domestic": "2026-04-30",
+      "n_domestic": 57
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": true,
+    "event_date": "2013-11-13",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "XRX",
+    "predecessor": {
+      "cik": 108772,
+      "name": "XEROX CORP",
+      "sic": "3577",
+      "sicDescription": "Computer Peripheral Equipment, NEC",
+      "first_domestic": "1995-03-30",
+      "last_domestic": "2026-05-07",
+      "n_domestic": 150
+    },
+    "successor": {
+      "cik": 1770450,
+      "name": "Xerox Holdings Corp",
+      "sic": "3577",
+      "sicDescription": "Computer Peripheral Equipment, NEC",
+      "first_domestic": "2019-08-06",
+      "last_domestic": "2026-05-07",
+      "n_domestic": 28
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": true,
+    "event_date": "2019-07-31",
+    "type": "holdco_reorg"
+  },
+  {
+    "ticker": "PRGO",
+    "predecessor": {
+      "cik": 820096,
+      "name": "PERRIGO CO",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "first_domestic": "1996-05-09",
+      "last_domestic": "2013-11-04",
+      "n_domestic": 69
+    },
+    "successor": {
+      "cik": 1585364,
+      "name": "PERRIGO Co plc",
+      "sic": "2834",
+      "sicDescription": "Pharmaceutical Preparations",
+      "first_domestic": "2013-11-04",
+      "last_domestic": "2026-05-06",
+      "n_domestic": 53
+    },
+    "baton_test_passed": true,
+    "predecessor_still_files_after_event": false,
+    "event_date": "2013-12-18",
+    "type": "redomiciliation"
+  }
+]

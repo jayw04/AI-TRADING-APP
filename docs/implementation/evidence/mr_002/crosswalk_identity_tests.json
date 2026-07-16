@@ -1,0 +1,153 @@
+{
+  "built_at": "2026-07-11T15:09:37.263363+00:00",
+  "tickers": [
+    "TWTR",
+    "META",
+    "GOOG",
+    "GOOGL",
+    "GEHC",
+    "KVUE",
+    "AAPL",
+    "AMT",
+    "NFLX",
+    "VZ"
+  ],
+  "rows": 15,
+  "conflicts": [],
+  "notes": [
+    "delisted:TWTR@2022-10-27",
+    "acquisition:TWTR@2022-10-27:acquirer=N/A",
+    "rename_zero_window:GEHC:GEHCV@2023-01-04",
+    "spin_off:GEHC@2023-01-04:parent=GE"
+  ],
+  "identity_tests": {
+    "twtr_delisted_resolves_in_life": {
+      "pass": true,
+      "got": {
+        "permaticker": 187959,
+        "ticker": "TWTR",
+        "cik": 1418091,
+        "effective_from": "2013-11-07",
+        "effective_to": "2022-10-27",
+        "relationship_type": "direct",
+        "source": "sharadar_tickers.secfilings",
+        "source_record_id": "permaticker:187959",
+        "confidence": "high",
+        "mapping_rationale": "current symbol per Sharadar TICKERS; CIK from secfilings",
+        "review_status": "auto_high_precedence"
+      }
+    },
+    "twtr_excluded_after_delisting": {
+      "pass": true
+    },
+    "fb_retired_ticker_resolves_historically": {
+      "pass": true,
+      "got": {
+        "permaticker": 194817,
+        "ticker": "FB",
+        "cik": 1326801,
+        "effective_from": "2012-05-18",
+        "effective_to": "2022-06-08",
+        "relationship_type": "ticker_rename",
+        "source": "sharadar_tickers.secfilings",
+        "source_record_id": "permaticker:194817",
+        "confidence": "high",
+        "mapping_rationale": "traded as FB until renamed 2022-06-09 (ACTIONS tickerchangefrom)",
+        "review_status": "auto_high_precedence"
+      }
+    },
+    "fb_not_resolvable_after_rename": {
+      "pass": true
+    },
+    "meta_resolves_after_rename_same_permaticker": {
+      "pass": true
+    },
+    "google_predecessor_cik_pre_reorg": {
+      "pass": true
+    },
+    "alphabet_successor_cik_post_reorg": {
+      "pass": true
+    },
+    "goog_classC_predecessor_window": {
+      "pass": true
+    },
+    "goog_symbol_time_ambiguity_resolved": {
+      "pass": true,
+      "got": {
+        "2010": 195146,
+        "2020": 119496
+      }
+    },
+    "share_class_distinct_permatickers_same_cik": {
+      "pass": true
+    },
+    "gehc_spinoff_resolves_post_spin": {
+      "pass": true
+    },
+    "gehc_excluded_pre_spin": {
+      "pass": true
+    },
+    "gehc_spinoff_parent_evidence": {
+      "pass": true
+    },
+    "control_aapl_direct": {
+      "pass": true
+    },
+    "acquisition_no_successor_backfill": {
+      "pass": true
+    },
+    "unresolved_identity_explicit_exclusion": {
+      "pass": true
+    },
+    "boundary_2014_04_02_goog_still_classA": {
+      "pass": true,
+      "note": "None allowed: GOOG is EXPECTEDLY ambiguous 2014-03-27..04-02 (Class A regular-way + Class C when-issued); ambiguity must be recorded",
+      "got": "unresolved"
+    },
+    "boundary_when_issued_ambiguity_recorded": {
+      "pass": true
+    },
+    "boundary_2014_04_03_goog_is_classC": {
+      "pass": true
+    },
+    "boundary_2014_04_03_googl_is_classA": {
+      "pass": true
+    },
+    "boundary_2015_10_01_predecessor": {
+      "pass": true
+    },
+    "boundary_2015_10_02_successor": {
+      "pass": true
+    },
+    "when_issued_window_cik_via_permaticker": {
+      "pass": true
+    }
+  },
+  "integrity_errors": [],
+  "expected_ambiguities": [
+    "ambiguous:GOOG@2014-04-02:119496/1288776/predecessor_cik,195146/1288776/predecessor_cik"
+  ],
+  "identity_tests_passed": "23/23",
+  "review_csv": "Docs\\implementation\\evidence\\mr_002\\identity_crosswalk_v0.1.csv",
+  "crosswalk_artifact_sha256": "f134d162364f82d04b2523360f15dc740b69608379ffdfa88e93d6d98e603736",
+  "overrides_artifact_sha256": "ce14823c2f612659a17bed0193e6d59f585f1c2e61c01c48b3e4e3960c9c889a",
+  "canonicalization": {
+    "canonicalization_version": 1,
+    "canonical_fields": [
+      "permaticker",
+      "ticker",
+      "cik",
+      "effective_from",
+      "effective_to",
+      "relationship_type"
+    ],
+    "canonical_sort_key": [
+      "permaticker",
+      "effective_from",
+      "ticker"
+    ],
+    "line_ending_policy": "LF, no trailing newline in the canonical payload"
+  },
+  "crosswalk_canonical_data_sha256": "89c6acf21bbbe726d4b9099a70e654d55727199b59af0d32674ef43e982d859e",
+  "hash_note": "artifact_sha256 = raw file bytes; canonical_data_sha256 = sorted canonical rows. Both PROVISIONAL \u2014 final hashes generated after owner countersign, before the gate"
+}

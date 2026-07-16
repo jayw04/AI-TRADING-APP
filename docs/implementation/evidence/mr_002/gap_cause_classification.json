@@ -1,0 +1,487 @@
+{
+  "total_gap_securities": 33,
+  "total_gap_months": 985,
+  "by_cause": {
+    "A_predecessor_cik_chain": {
+      "securities": 23,
+      "months": 771,
+      "tickers": [
+        "BLK",
+        "PSKY",
+        "DIS",
+        "VTRS",
+        "APA",
+        "DD",
+        "CI",
+        "AVGO",
+        "MRVL",
+        "MDT",
+        "WBA",
+        "DKNG",
+        "RTX",
+        "DINO",
+        "LBTYA",
+        "ZG",
+        "OVV",
+        "AGN",
+        "QDEL",
+        "ICE",
+        "XRX",
+        "PRGO",
+        "S2"
+      ]
+    },
+    "B_form_coverage_gap_FPI": {
+      "securities": 6,
+      "months": 181,
+      "tickers": [
+        "NXPI",
+        "TEVA",
+        "TEAM",
+        "CPRI",
+        "CRON",
+        "CGC"
+      ]
+    },
+    "C_bankruptcy_or_failure_scrutiny": {
+      "securities": 4,
+      "months": 33,
+      "tickers": [
+        "HTZGQ",
+        "WFTIQ",
+        "ENDPQ",
+        "FRCB"
+      ]
+    }
+  },
+  "detail": [
+    {
+      "ticker": "BLK",
+      "permaticker": 194456,
+      "gap_months": 143,
+      "successor_cik": 2012383,
+      "entity_name": "BlackRock, Inc.",
+      "earliest_filing_by_family": {
+        "any": "2024-02-20",
+        "domestic": "2024-11-06",
+        "reorg": "2024-10-01"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "PSKY",
+      "permaticker": 198331,
+      "gap_months": 100,
+      "successor_cik": 2041610,
+      "entity_name": "Paramount Skydance Corp",
+      "earliest_filing_by_family": {
+        "any": "2024-11-04",
+        "domestic": "2025-05-14",
+        "reorg": "2024-11-04"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "DIS",
+      "permaticker": 197197,
+      "gap_months": 77,
+      "successor_cik": 1744489,
+      "entity_name": "Walt Disney Co",
+      "earliest_filing_by_family": {
+        "any": "2018-06-25",
+        "domestic": "2019-05-08",
+        "reorg": "2018-06-25"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "NXPI",
+      "permaticker": 190485,
+      "gap_months": 68,
+      "successor_cik": 1413447,
+      "entity_name": "NXP Semiconductors N.V.",
+      "earliest_filing_by_family": {
+        "any": "2007-09-26",
+        "domestic": "2019-10-29",
+        "reorg": "2022-03-21",
+        "fpi": "2011-03-09"
+      },
+      "cause": "B_form_coverage_gap_FPI"
+    },
+    {
+      "ticker": "VTRS",
+      "permaticker": 168145,
+      "gap_months": 64,
+      "successor_cik": 1792044,
+      "entity_name": "Viatris Inc",
+      "earliest_filing_by_family": {
+        "any": "2019-10-25",
+        "domestic": "2020-05-07",
+        "reorg": "2019-10-25"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "TEVA",
+      "permaticker": 189782,
+      "gap_months": 62,
+      "successor_cik": 818686,
+      "entity_name": "TEVA PHARMACEUTICAL INDUSTRIES LTD",
+      "earliest_filing_by_family": {
+        "any": "1996-02-02",
+        "domestic": "2018-02-12",
+        "reorg": "2018-04-02",
+        "fpi": "2002-03-18"
+      },
+      "cause": "B_form_coverage_gap_FPI"
+    },
+    {
+      "ticker": "APA",
+      "permaticker": 199952,
+      "gap_months": 61,
+      "successor_cik": 1841666,
+      "entity_name": "APA Corp",
+      "earliest_filing_by_family": {
+        "any": "2021-03-01",
+        "domestic": "2021-05-07",
+        "reorg": "2021-03-01"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "DD",
+      "permaticker": 199776,
+      "gap_months": 59,
+      "successor_cik": 1666700,
+      "entity_name": "DuPont de Nemours, Inc.",
+      "earliest_filing_by_family": {
+        "any": "2016-03-01",
+        "domestic": "2017-11-06",
+        "reorg": "2016-03-01"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "CI",
+      "permaticker": 198962,
+      "gap_months": 50,
+      "successor_cik": 1739940,
+      "entity_name": "Cigna Group",
+      "earliest_filing_by_family": {
+        "any": "2018-05-16",
+        "domestic": "2019-02-28",
+        "reorg": "2018-05-16"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "AVGO",
+      "permaticker": 193427,
+      "gap_months": 42,
+      "successor_cik": 1730168,
+      "entity_name": "Broadcom Inc.",
+      "earliest_filing_by_family": {
+        "any": "2018-02-06",
+        "reorg": "2018-02-06",
+        "domestic": "2018-06-14"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "TEAM",
+      "permaticker": 165452,
+      "gap_months": 41,
+      "successor_cik": 1650372,
+      "entity_name": "Atlassian Corp",
+      "earliest_filing_by_family": {
+        "any": "2015-08-21",
+        "domestic": "2022-11-04",
+        "fpi": "2016-08-18"
+      },
+      "cause": "B_form_coverage_gap_FPI"
+    },
+    {
+      "ticker": "MRVL",
+      "permaticker": 196626,
+      "gap_months": 34,
+      "successor_cik": 1835632,
+      "entity_name": "Marvell Technology, Inc.",
+      "earliest_filing_by_family": {
+        "any": "2020-12-22",
+        "domestic": "2021-06-09",
+        "reorg": "2020-12-22"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "MDT",
+      "permaticker": 170416,
+      "gap_months": 26,
+      "successor_cik": 1613103,
+      "entity_name": "Medtronic plc",
+      "earliest_filing_by_family": {
+        "any": "2014-07-14",
+        "domestic": "2015-02-27",
+        "reorg": "2014-07-14"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "WBA",
+      "permaticker": 179780,
+      "gap_months": 24,
+      "successor_cik": 1618921,
+      "entity_name": "Walgreens Boots Alliance, Inc.",
+      "earliest_filing_by_family": {
+        "any": "2014-09-16",
+        "domestic": "2014-12-30",
+        "reorg": "2014-09-16"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "HTZGQ",
+      "permaticker": 124354,
+      "gap_months": 23,
+      "successor_cik": 1657853,
+      "entity_name": "HERTZ GLOBAL HOLDINGS, INC",
+      "earliest_filing_by_family": {
+        "any": "2015-12-21",
+        "domestic": "2016-08-08"
+      },
+      "cause": "C_bankruptcy_or_failure_scrutiny"
+    },
+    {
+      "ticker": "DKNG",
+      "permaticker": 110813,
+      "gap_months": 23,
+      "successor_cik": 1883685,
+      "entity_name": "DraftKings Inc.",
+      "earliest_filing_by_family": {
+        "any": "2021-10-08",
+        "domestic": "2022-05-06",
+        "reorg": "2021-10-08"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "RTX",
+      "permaticker": 199251,
+      "gap_months": 19,
+      "successor_cik": 101829,
+      "entity_name": "RTX Corp",
+      "earliest_filing_by_family": {
+        "any": "1994-01-24",
+        "domestic": "1994-03-31",
+        "reorg": "1999-05-07"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "DINO",
+      "permaticker": 199647,
+      "gap_months": 16,
+      "successor_cik": 1915657,
+      "entity_name": "HF Sinclair Corp",
+      "earliest_filing_by_family": {
+        "any": "2022-03-14",
+        "domestic": "2022-05-09",
+        "reorg": "2022-03-14"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "LBTYA",
+      "permaticker": 191556,
+      "gap_months": 7,
+      "successor_cik": 1570585,
+      "entity_name": "Liberty Global Ltd.",
+      "earliest_filing_by_family": {
+        "any": "2013-03-07",
+        "domestic": "2013-08-01",
+        "reorg": "2013-03-07"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "WFTIQ",
+      "permaticker": 187742,
+      "gap_months": 7,
+      "successor_cik": 1170565,
+      "entity_name": "WEATHERFORD INTERNATIONAL LTD",
+      "earliest_filing_by_family": {
+        "any": "2002-04-05",
+        "reorg": "2002-04-05",
+        "domestic": "2002-08-14"
+      },
+      "cause": "C_bankruptcy_or_failure_scrutiny"
+    },
+    {
+      "ticker": "ZG",
+      "permaticker": 179220,
+      "gap_months": 7,
+      "successor_cik": 1617640,
+      "entity_name": "ZILLOW GROUP, INC.",
+      "earliest_filing_by_family": {
+        "any": "2014-09-12",
+        "domestic": "2015-05-12",
+        "reorg": "2014-09-12"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "CPRI",
+      "permaticker": 192178,
+      "gap_months": 5,
+      "successor_cik": 1530721,
+      "entity_name": "Capri Holdings Ltd",
+      "earliest_filing_by_family": {
+        "any": "2011-12-02",
+        "domestic": "2013-05-29",
+        "fpi": "2012-06-12"
+      },
+      "cause": "B_form_coverage_gap_FPI"
+    },
+    {
+      "ticker": "OVV",
+      "permaticker": 189743,
+      "gap_months": 5,
+      "successor_cik": 1792580,
+      "entity_name": "Ovintiv Inc.",
+      "earliest_filing_by_family": {
+        "any": "2019-11-06",
+        "domestic": "2020-02-21",
+        "reorg": "2019-11-06"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "AGN",
+      "permaticker": 191420,
+      "gap_months": 4,
+      "successor_cik": 1578845,
+      "entity_name": "Allergan plc",
+      "earliest_filing_by_family": {
+        "any": "2013-06-18",
+        "domestic": "2013-10-31",
+        "reorg": "2013-06-18"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "QDEL",
+      "permaticker": 199012,
+      "gap_months": 4,
+      "successor_cik": 1906324,
+      "entity_name": "QuidelOrtho Corp",
+      "earliest_filing_by_family": {
+        "any": "2022-01-31",
+        "domestic": "2022-08-05",
+        "reorg": "2022-01-31"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "CRON",
+      "permaticker": 119398,
+      "gap_months": 3,
+      "successor_cik": 1656472,
+      "entity_name": "Cronos Group Inc.",
+      "earliest_filing_by_family": {
+        "any": "2015-10-23",
+        "domestic": "2020-03-02",
+        "fpi": "2018-04-30"
+      },
+      "cause": "B_form_coverage_gap_FPI"
+    },
+    {
+      "ticker": "ICE",
+      "permaticker": 191531,
+      "gap_months": 2,
+      "successor_cik": 1571949,
+      "entity_name": "Intercontinental Exchange, Inc.",
+      "earliest_filing_by_family": {
+        "any": "2013-03-20",
+        "domestic": "2013-08-07",
+        "reorg": "2013-03-21"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "XRX",
+      "permaticker": 199200,
+      "gap_months": 2,
+      "successor_cik": 1770450,
+      "entity_name": "Xerox Holdings Corp",
+      "earliest_filing_by_family": {
+        "any": "2019-03-15",
+        "domestic": "2019-08-06",
+        "reorg": "2019-03-15"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "ENDPQ",
+      "permaticker": 187636,
+      "gap_months": 2,
+      "successor_cik": 1593034,
+      "entity_name": "Endo International plc",
+      "earliest_filing_by_family": {
+        "any": "2013-12-11",
+        "domestic": "2014-05-09",
+        "reorg": "2013-12-11"
+      },
+      "cause": "C_bankruptcy_or_failure_scrutiny"
+    },
+    {
+      "ticker": "CGC",
+      "permaticker": 115953,
+      "gap_months": 2,
+      "successor_cik": 1737927,
+      "entity_name": "Canopy Growth Corp",
+      "earliest_filing_by_family": {
+        "any": "2018-05-16",
+        "domestic": "2020-06-01",
+        "fpi": "2018-06-28"
+      },
+      "cause": "B_form_coverage_gap_FPI"
+    },
+    {
+      "ticker": "PRGO",
+      "permaticker": 191345,
+      "gap_months": 1,
+      "successor_cik": 1585364,
+      "entity_name": "PERRIGO Co plc",
+      "earliest_filing_by_family": {
+        "any": "2013-08-28",
+        "domestic": "2013-11-04",
+        "reorg": "2013-08-28"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "S2",
+      "permaticker": 199250,
+      "gap_months": 1,
+      "successor_cik": 101830,
+      "entity_name": "SPRINT LLC",
+      "earliest_filing_by_family": {
+        "any": "1994-02-18",
+        "reorg": "1998-10-01",
+        "domestic": "1994-03-15"
+      },
+      "cause": "A_predecessor_cik_chain"
+    },
+    {
+      "ticker": "FRCB",
+      "permaticker": 119256,
+      "gap_months": 1,
+      "successor_cik": 1132979,
+      "entity_name": "FIRST REPUBLIC BANK",
+      "earliest_filing_by_family": {
+        "any": "2004-01-05"
+      },
+      "cause": "C_bankruptcy_or_failure_scrutiny"
+    }
+  ]
+}

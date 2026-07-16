@@ -1,0 +1,88 @@
+{
+  "generated": "2026-07-12T02:35:03.269338+00:00",
+  "termination_reason": "COMPLETED",
+  "manifest_sha256": "e67d682bd1c2e4b38a326d537faf9d907340c540c8797327a96269969e5e18ad",
+  "fetch_counters": {
+    "requested": 1491,
+    "retrieved": 1092,
+    "failed": 398,
+    "cached_hits": 1,
+    "hash_verified": 1092,
+    "compressed_bytes": 12699336,
+    "uncompressed_bytes": 133677239
+  },
+  "extraction_counters": {
+    "A_obs": 738,
+    "B_obs": 39,
+    "D_obs": 244,
+    "missing_sic": 3,
+    "errors": 0
+  },
+  "snapshots": {
+    "sic_observations_csv_sha256": "5b4902e89e6396bdb281f884e12102e85d7eff1d2df34dba50b368f8057954db",
+    "sic_segments_csv_sha256": "0ef83841d707ca19d13be9d48af61fed98004437aec3941e85d3c62c20ed8160"
+  },
+  "worst_50_response_burst_compressed_bytes": 1290731,
+  "largest_10_cache_objects": [
+    {
+      "key": "531a51b4135e908432f3a2c75b47d46d1518360d80ae7d13128ed390259128a5.gz",
+      "bytes_on_disk": 55267,
+      "url": "https://data.sec.gov/submissions/CIK0000818686-submissions-001.json",
+      "uncompressed_bytes": 283216
+    },
+    {
+      "key": "8b86f2f634dffd38febfae6662a8237996f6ad56761a7d2d435e4d02ca63140e.gz",
+      "bytes_on_disk": 55204,
+      "url": "https://www.sec.gov/Archives/edgar/data/820096/000119312510186936/0001193125-10-186936.txt",
+      "uncompressed_bytes": 262144
+    },
+    {
+      "key": "c141741b215b73f5e648c2aabb8bb53025c9ded1e5b5ba071c477c78200d4f4b.gz",
+      "bytes_on_disk": 53676,
+      "url": "https://www.sec.gov/Archives/edgar/data/1058057/000119312510073247/0001193125-10-073247.txt",
+      "uncompressed_bytes": 262144
+    },
+    {
+      "key": "24e0c9f37c9b0acde6370f0a30cad4c4161a75546e4eeb62cc437dc4149a70b3.gz",
+      "bytes_on_disk": 51662,
+      "url": "https://www.sec.gov/Archives/edgar/data/1058057/000119312511078410/0001193125-11-078410.txt",
+      "uncompressed_bytes": 262144
+    },
+    {
+      "key": "d59fbe27d7bce1f884db25520d2b4d997fae4debb7e3f2c742074b15c79363a3.gz",
+      "bytes_on_disk": 50691,
+      "url": "https://data.sec.gov/submissions/CIK0000101830-submissions-001.json",
+      "uncompressed_bytes": 323474
+    },
+    {
+      "key": "2dce9be9efda48173975bdd6347a45b12960e6b1adf3657a8cb003383ffb4771.gz",
+      "bytes_on_disk": 50542,
+      "url": "https://www.sec.gov/Archives/edgar/data/701221/000095012310016612/0000950123-10-016612.txt",
+      "uncompressed_bytes": 262144
+    },
+    {
+      "key": "ea77456a498e69c836ef29302d517c17f170f772dbeb5120686af58d4cb7b6ed.gz",
+      "bytes_on_disk": 50414,
+      "url": "https://www.sec.gov/Archives/edgar/data/1174746/000119312510026625/0001193125-10-026625.txt",
+      "uncompressed_bytes": 262144
+    },
+    {
+      "key": "bc955b89085769cf27edd7728476794c0926a46f3d511eff2a7be4b8d6e8df23.gz",
+      "bytes_on_disk": 50374,
+      "url": "https://www.sec.gov/Archives/edgar/data/1058057/000119312514118715/0001193125-14-118715.txt",
+      "uncompressed_bytes": 262144
+    },
+    {
+      "key": "ce505f1f4fe9c403b061b57d0ea71290b66bb6211e504bcbdd1f54bc3d83848f.gz",
+      "bytes_on_disk": 50122,
+      "url": "https://www.sec.gov/Archives/edgar/data/353569/000095012311018919/0000950123-11-018919.txt",
+      "uncompressed_bytes": 262144
+    },
+    {
+      "key": "69ddabd34b68d2ab42f791c5dcdb5c1f99dd5da8111265dc578eabfa623e4d2e.gz",
+      "bytes_on_disk": 50001,
+      "url": "https://www.sec.gov/Archives/edgar/data/1058057/000119312513134707/0001193125-13-134707.txt",
+      "uncompressed_bytes": 262144
+    }
+  ]
+}

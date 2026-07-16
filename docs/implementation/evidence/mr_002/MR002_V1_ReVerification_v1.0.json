@@ -1,0 +1,81 @@
+{
+  "result_label": "Approved alternative implemented: PIT estimated earnings-risk blackout",
+  "generated": "2026-07-11T21:05:10.991056-05:00",
+  "issuers_requested": 746,
+  "issuer_fetch_errors": 0,
+  "candidate_anchors": 40956,
+  "accepted_anchors": 40153,
+  "not_accepted_taxonomy(534-class records)": {
+    "duplicate_anchors_collapsed(same_period_2.02, earliest_acceptance_kept)": 534,
+    "amendments_folded_into_original(8-K/A, no_new_anchor)": 269,
+    "amendment_without_original(first_PIT_knowledge, kept_as_anchor_flagged)": 52,
+    "missing_dates_or_unmatchable": 0,
+    "other": 0,
+    "note": "complete taxonomy: 534 + 269 = 803 = candidates(40,956) - accepted(40,153). The initial report double-counted the 534 collapse records from two ledgers (anchor-side lists + rejection reasons) - corrected here; economically justified: every collapse is a same-(cik,period) duplicate 2.02 filing, and same-period duplicates AFTER collapse = 0"
+  },
+  "issuers_with_anchor": 742,
+  "issuers_without_anchor": 4,
+  "temporal_consistency_violations": {
+    "report_period_after_acceptance": 408,
+    "report_period_over_1y_stale": 5,
+    "note": "report_period_after_acceptance (408, 1.0%) = 8-Ks furnished the evening before a release dated the next morning - the label date trails the acceptance; NO leakage risk because the blackout/cooling rules key on the ACCEPTANCE availability instant, never the label. 5 stale-period labels flagged for the manual sample."
+  },
+  "same_period_duplicate_events_after_collapse": 0,
+  "period_ordering_anomalies(acceptance_vs_period)": 26,
+  "late_information_exceptions": 52,
+  "pct_event_time_basis_acceptance_proxy": 100.0,
+  "interval_stats_days": {
+    "n": 39411,
+    "median": 91,
+    "pct_lt_60": 9.47,
+    "pct_gt_110": 5.15
+  },
+  "reproduction_vs_stage2": {
+    "stage2_anchors": 40153,
+    "rebuilt_anchors": 40153,
+    "matched": 40153,
+    "only_in_stage2": 0,
+    "only_in_rebuild(new_filings_since_crawl)": 0,
+    "match_pct_of_stage2": 100.0
+  },
+  "v1_coverage_gate": {
+    "denominator_universe_months": 40750,
+    "covered_with_valid_prior_anchor": 39690,
+    "coverage_pct": 97.4,
+    "registered_overall_gate": ">= 95% of universe-months after warm-up",
+    "annual_coverage_pct": {
+      "2013": 94.5,
+      "2014": 94.67,
+      "2015": 95.6,
+      "2016": 95.47,
+      "2017": 95.27,
+      "2018": 97.17,
+      "2019": 98.0,
+      "2020": 98.0,
+      "2021": 98.03,
+      "2022": 98.87,
+      "2023": 99.5,
+      "2024": 99.67,
+      "2025": 99.93,
+      "2026": 100.0
+    },
+    "registered_annual_minimum_90_met_every_year": true,
+    "top_securities_without_prior_anchor": {
+      "194456": 142,
+      "198331": 100,
+      "197197": 77,
+      "190485": 68,
+      "168145": 64,
+      "189782": 62,
+      "199952": 61,
+      "199776": 58,
+      "198962": 53,
+      "193427": 42,
+      "165452": 40,
+      "196626": 34,
+      "170416": 29,
+      "179780": 28,
+      "193510": 28
+    }
+  }
+}

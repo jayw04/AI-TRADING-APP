@@ -1,0 +1,17 @@
+# MR-002 frozen research image — build context hygiene.
+#
+# Registered by the Execution-Availability / ECI-Semantics erratum (§7): build/scratch
+# artifacts must never enter the container build context, the image digest, the runtime
+# manifest, or the frozen evidence.
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.sweep_cache/
+**/.sweep_cache/
+*.parquet
+*.duckdb
+.pytest_cache/
+.git/
+.venv/

@@ -1,0 +1,107 @@
+{
+  "title": "MR-002 FINAL countersigned artifact hashes v1.0 (one-event, 2026-07-11)",
+  "authority": "Owner countersign reviews 1-4 (archived in this directory); reviewer=Jay Wang, review_date=2026-07-11 stamped per the owner's item-7 instruction after all corrections",
+  "canonicalization_version": 1,
+  "line_ending_policy": "LF join, no trailing newline in canonical payloads",
+  "artifacts": {
+    "sic_sector_etf_mapping_v0.8.csv": {
+      "rows": 110,
+      "artifact_sha256": "857a86c26b87a2c8e0cf0a39bfeeefb810e742a125cdb37418e6cf21859a5cc3",
+      "canonical_data_sha256": "b05267c4dc2f30625d78fa5db292696f04ecd258555960bd8ed691226b2a6ef5",
+      "canonical_fields": [
+        "sic_start",
+        "sic_end",
+        "effective_from",
+        "effective_to",
+        "research_sector",
+        "sector_etf",
+        "mapping_confidence",
+        "review_status"
+      ],
+      "canonical_sort_key": [
+        "sic_start",
+        "sic_end",
+        "effective_from"
+      ]
+    },
+    "security_sector_overrides_v0.6.csv": {
+      "rows": 33,
+      "artifact_sha256": "d506c35e84a53ab32ee8d3fd65a6729873678f793749537c52282664f6688da9",
+      "canonical_data_sha256": "c8acb4464589c8cb7920f2f452c48a460e9ece149c65462ad2462eade038c09a",
+      "canonical_fields": [
+        "permaticker",
+        "ticker",
+        "cik",
+        "effective_from",
+        "effective_to",
+        "research_sector",
+        "sector_etf",
+        "review_status"
+      ],
+      "canonical_sort_key": [
+        "permaticker",
+        "effective_from",
+        "ticker"
+      ]
+    },
+    "crosswalk_manual_overrides_v0.3.csv": {
+      "rows": 5,
+      "artifact_sha256": "ce14823c2f612659a17bed0193e6d59f585f1c2e61c01c48b3e4e3960c9c889a",
+      "canonical_data_sha256": "939f17fdb4d396fbf646611f19c2f6b51e5f640addf5befde0aadd2ee0653610",
+      "canonical_fields": [
+        "permaticker",
+        "ticker",
+        "cik",
+        "effective_from",
+        "effective_to",
+        "relationship_type",
+        "review_status"
+      ],
+      "canonical_sort_key": [
+        "permaticker",
+        "effective_from",
+        "ticker"
+      ]
+    },
+    "identity_crosswalk_v0.1.csv": {
+      "rows": 15,
+      "artifact_sha256": "f134d162364f82d04b2523360f15dc740b69608379ffdfa88e93d6d98e603736",
+      "canonical_data_sha256": "89c6acf21bbbe726d4b9099a70e654d55727199b59af0d32674ef43e982d859e",
+      "canonical_fields": [
+        "permaticker",
+        "ticker",
+        "cik",
+        "effective_from",
+        "effective_to",
+        "relationship_type"
+      ],
+      "canonical_sort_key": [
+        "permaticker",
+        "effective_from",
+        "ticker"
+      ]
+    }
+  },
+  "exceptions": [
+    "DHR override = needs_revision (archive evidence owed) \u2014 EXCLUDED from coverage; recover via owner evidence or amended effective_from"
+  ],
+  "crosswalk_module_sha256": "fba7190d8df6d3d2bd5428a0c32567ce1bde33c74d2e3bdcbe2b1342b0b2544b",
+  "identity_test_result": "23/23 PASS, 0 conflicts, 0 integrity errors (crosswalk_identity_tests.json)",
+  "source_precedence_version": 1,
+  "provenance": {
+    "pr": 422,
+    "commits": [
+      "1848b25",
+      "494cfd0",
+      "11ea8fa",
+      "68d3e3f",
+      "a347a36",
+      "a560789",
+      "1d389df",
+      "10576b1",
+      "27b2641"
+    ]
+  },
+  "coverage_statement": "The frozen mapping and countersigned security overrides achieve 98.86% provisional coverage on the preliminary universe under current-SIC planning data (40,287/40,750). Final V2 coverage remains subject to the full PIT-SIC crawl and must independently clear 98%.",
+  "crawl_status": "RELEASED per the owner's required-final-sequence step 10 (all corrections complete, statuses stamped, hashes final)"
+}

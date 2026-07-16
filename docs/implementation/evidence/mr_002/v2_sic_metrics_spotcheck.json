@@ -1,0 +1,136 @@
+{
+  "tickers_requested": 4,
+  "unresolved_tickers": [],
+  "filings_processed": 187,
+  "filings_missing_sic": 0,
+  "segments_total": 4,
+  "same_day_conflicts": [],
+  "mapping_csv": "Docs\\implementation\\evidence\\mr_002\\sic_sector_etf_mapping_v0.6.csv",
+  "mapping_artifact_sha256": "73e9eb323ffd0615e816aaf9603daf9b4e1c9a72bd6aaba3cb301237b71248bd",
+  "security_overrides_csv": "Docs\\implementation\\evidence\\mr_002\\security_sector_overrides_v0.4.csv",
+  "security_overrides_artifact_sha256": "c5ea0a60fee8e5c3eeaad51c92e9dadc3c7835f908dfe925710a43d602de7b44",
+  "hash_note": "artifact hashes (raw bytes), PROVISIONAL \u2014 frozen only after owner countersign; canonical_data_sha256 lives in the validator report",
+  "low_confidence_hits": [],
+  "since": "2012-01-01",
+  "built_at": "2026-07-11T15:48:03.003474+00:00",
+  "per_ticker": {
+    "META": {
+      "filings_processed": 58,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "7370",
+          "sic_name": "SERVICES-COMPUTER PROGRAMMING, DATA PROCESSING, ETC.",
+          "effective_from": "2012-07-31",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Information Technology",
+            "XLK"
+          ],
+          "resolution_source": "sic_mapping"
+        },
+        {
+          "sic": "7370",
+          "boundary": "2018-10-01",
+          "mapped_before": [
+            "Information Technology",
+            "XLK"
+          ],
+          "mapped_after": [
+            "Communication Services",
+            "XLC"
+          ],
+          "resolution_source": "security_override",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
+        }
+      ]
+    },
+    "AMT": {
+      "filings_processed": 58,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "6798",
+          "sic_name": "REAL ESTATE INVESTMENT TRUSTS",
+          "effective_from": "2012-02-29",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Financials",
+            "XLF"
+          ],
+          "resolution_source": "sic_mapping"
+        },
+        {
+          "sic": "6798",
+          "boundary": "2016-09-01",
+          "mapped_before": [
+            "Financials",
+            "XLF"
+          ],
+          "mapped_after": [
+            "Real Estate",
+            "XLRE"
+          ],
+          "resolution_source": "sic_mapping",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
+        }
+      ]
+    },
+    "KVUE": {
+      "filings_processed": 13,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "2844",
+          "sic_name": "PERFUMES, COSMETICS &amp; OTHER TOILET PREPARATIONS",
+          "effective_from": "2023-06-02",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Consumer Staples",
+            "XLP"
+          ],
+          "resolution_source": "sic_mapping"
+        }
+      ]
+    },
+    "VZ": {
+      "filings_processed": 58,
+      "filings_missing_sic": 0,
+      "segments": 1,
+      "conflicts": 0,
+      "timeline": [
+        {
+          "sic": "4813",
+          "sic_name": "TELEPHONE COMMUNICATIONS (NO RADIO TELEPHONE)",
+          "effective_from": "2012-02-24",
+          "effective_to": null,
+          "mapped_at_start": [
+            "Information Technology",
+            "XLK"
+          ],
+          "resolution_source": "sic_mapping"
+        },
+        {
+          "sic": "4813",
+          "boundary": "2018-10-01",
+          "mapped_before": [
+            "Information Technology",
+            "XLK"
+          ],
+          "mapped_after": [
+            "Communication Services",
+            "XLC"
+          ],
+          "resolution_source": "sic_mapping",
+          "note": "sector change WITHOUT SIC change (mapping/override effective-dating)"
+        }
+      ]
+    }
+  }
+}

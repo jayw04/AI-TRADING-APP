@@ -1,0 +1,54 @@
+{
+  "overlaps": 20,
+  "grid": [
+    {
+      "eta": 1e-12,
+      "tol": 1e-10,
+      "solved": 20,
+      "repaired": 10,
+      "median_r_eq": 1.3187685523544444e-13,
+      "median_r_ineq": 2.8670024723493e-12
+    },
+    {
+      "eta": 1e-11,
+      "tol": 1e-10,
+      "solved": 18,
+      "repaired": 6,
+      "median_r_eq": 9.676300643226743e-13,
+      "median_r_ineq": 1.454840366630547e-11
+    },
+    {
+      "eta": 1e-10,
+      "tol": 1e-10,
+      "solved": 0,
+      "repaired": 0,
+      "median_r_eq": NaN,
+      "median_r_ineq": NaN
+    },
+    {
+      "eta": 1e-09,
+      "tol": 1e-10,
+      "solved": 0,
+      "repaired": 0,
+      "median_r_eq": NaN,
+      "median_r_ineq": NaN
+    },
+    {
+      "eta": 1e-08,
+      "tol": 1e-10,
+      "solved": 0,
+      "repaired": 0,
+      "median_r_eq": NaN,
+      "median_r_ineq": NaN
+    },
+    {
+      "eta": 1e-07,
+      "tol": 1e-10,
+      "solved": 0,
+      "repaired": 0,
+      "median_r_eq": NaN,
+      "median_r_ineq": NaN
+    }
+  ],
+  "note": "DIAGNOSTIC ONLY. No output used as a proposal or in any certificate. eta and the frozen profile are UNCHANGED."
+}

@@ -1,0 +1,121 @@
+{
+  "V1": {
+    "sharadar_events_columns": [
+      "date",
+      "eventcodes",
+      "ticker"
+    ],
+    "sharadar_events_rows_aapl": 118,
+    "sharadar_events_date_range": "2016-01-25 .. 2026-04-30",
+    "sharadar_events_distinct_codes_sample": [
+      "22",
+      "34",
+      "52",
+      "53",
+      "57",
+      "71",
+      "81",
+      "91"
+    ],
+    "sharadar_events_future_rows": 0,
+    "fmp_hist_earning_calendar_status": 403
+  },
+  "V2": {
+    "tickers_columns": [
+      "category",
+      "companysite",
+      "currency",
+      "cusips",
+      "exchange",
+      "famaindustry",
+      "figi",
+      "firstadded",
+      "firstpricedate",
+      "firstquarter",
+      "industry",
+      "isdelisted",
+      "lastpricedate",
+      "lastquarter",
+      "lastupdated",
+      "location",
+      "name",
+      "permaticker",
+      "relatedtickers",
+      "scalemarketcap",
+      "scalerevenue",
+      "secfilings",
+      "sector",
+      "siccode",
+      "sicindustry",
+      "sicsector",
+      "table",
+      "ticker"
+    ],
+    "tickers_rows_for_aapl": 1,
+    "aapl_classification": {
+      "sector": "Technology",
+      "industry": "Consumer Electronics",
+      "sicsector": "Manufacturing",
+      "siccode": "3571",
+      "famaindustry": "Computers"
+    },
+    "aapl_rows_per_table_param": {
+      "SEP": 1,
+      "SF1": 1
+    },
+    "tickers_has_effective_date_fields": false,
+    "meta_current_classification": {
+      "sector": "Communication Services",
+      "industry": "Internet Content & Information",
+      "siccode": "7370"
+    }
+  },
+  "V3": {
+    "sep_columns": [
+      "close",
+      "closeadj",
+      "closeunadj",
+      "date",
+      "high",
+      "lastupdated",
+      "low",
+      "open",
+      "ticker",
+      "volume"
+    ],
+    "pre_split_close_vs_closeunadj": 4.0,
+    "post_split_close_vs_closeunadj": 1.0,
+    "median_volume_pre_vs_post_split_ratio": 1.02,
+    "closeadj_over_close_before_exdiv": 0.96827,
+    "closeadj_over_close_after_exdiv": 0.97007,
+    "dividend_step_in_closeadj_ratio": true,
+    "actions_columns": [
+      "action",
+      "contraname",
+      "contraticker",
+      "date",
+      "name",
+      "ticker",
+      "value"
+    ],
+    "actions_types_aapl": [
+      "acquisitionof",
+      "dividend",
+      "initiated",
+      "split"
+    ],
+    "dividend_rows_have_value": "True",
+    "twtr_action_types": [
+      "acquisitionby",
+      "delisted",
+      "listed"
+    ],
+    "twtr_last_sep_date": "2022-10-27",
+    "vendor_delisting_return_field": "none in SEP/ACTIONS schema (priority-1 unavailable)"
+  },
+  "V4": {
+    "sharadar_bundle": "Core US Equities Bundle (SEP/SF1/DAILY/METRICS/TICKERS/ACTIONS/EVENTS/INDICATORS/SP500 + SF3/SF3A); NO SF2, no borrow/short-interest table with PIT availability",
+    "fmp_short_interest_status": 403,
+    "alpaca_easy_to_borrow": "current-snapshot only (asset.easy_to_borrow); not historical/PIT"
+  }
+}

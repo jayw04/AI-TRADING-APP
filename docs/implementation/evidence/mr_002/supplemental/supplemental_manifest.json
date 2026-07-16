@@ -1,0 +1,48 @@
+{
+ "generated": "2026-07-12T02:27:46.354817+00:00",
+ "track_A_predecessor_ciks": {
+  "1364742": "BLK",
+  "813828": "PSKY",
+  "1001039": "DIS",
+  "1623613": "VTRS",
+  "6769": "APA",
+  "30554": "DD",
+  "701221": "CI",
+  "1649338": "AVGO",
+  "1058057": "MRVL",
+  "64670": "MDT",
+  "104207": "WBA",
+  "1772757": "DKNG",
+  "48039": "DINO",
+  "1316631": "LBTYA",
+  "1334814": "ZG",
+  "1157806": "OVV",
+  "884629": "AGN",
+  "353569": "QDEL",
+  "1174746": "ICE",
+  "108772": "XRX",
+  "820096": "PRGO"
+ },
+ "track_B_fpi_ciks": {
+  "NXPI": 1413447,
+  "TEVA": 818686,
+  "TEAM": 1650372,
+  "CPRI": 1530721,
+  "CRON": 1656472,
+  "CGC": 1737927
+ },
+ "track_B_forms": [
+  "20-F",
+  "40-F",
+  "20-F/A",
+  "40-F/A"
+ ],
+ "track_D_truncated_cache_ciks": [
+  101829,
+  101830,
+  101778,
+  1466258
+ ],
+ "since": "2010-01-01",
+ "scope_note": "predecessor + FPI-form + truncated-repair only; no unrelated issuer refresh"
+}

@@ -1,0 +1,75 @@
+{
+  "record_type": "MR002_IMPLEMENTATION_ERRATUM_COUNTERSIGN",
+  "record_status": "IMMUTABLE",
+  "erratum": "Stage-3 Equivalent-Formulation Retry",
+  "program": "MR-002 — Mean Reversion (Residual)",
+  "artifact_path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_EquivalentFormulationRetry.md",
+  "artifact_sha256": "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+  "artifact_bytes": 13764,
+  "artifact_line_endings": "LF",
+  "countersigned_by": "Jay Wang (owner)",
+  "countersign_date": "2026-07-12",
+  "decision": "APPROVED AND COUNTERSIGNED",
+
+  "classification": "Numerical-implementation correction. NOT a research-design change.",
+  "does_not_alter": [
+    "registered research design",
+    "feasible portfolio set",
+    "lexicographic objectives",
+    "unique economic solution",
+    "signal",
+    "risk limits",
+    "position bounds",
+    "costs",
+    "gates",
+    "data windows",
+    "blindness controls"
+  ],
+  "requires_v1_2": false,
+  "requires_research_design_refreeze": false,
+
+  "bound_predecessor_hashes": {
+    "preregistration_v1_1_rev3": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5",
+    "structural_executability_adjudication": "ba980c4398b51d4ef4a0a3b77f687e62817b18beb5b3c281a7ab0fd1de3b947e",
+    "stage3_solver_robustness_defect": "41da8b0890b265ed5021c4afe83fe366a4ebdc3adc0fb72da193d161062053ed",
+    "all_recompute_exactly": true
+  },
+
+  "authorized_cascade_conditions": [
+    "The raw quadprog formulation is ALWAYS attempted first.",
+    "Rescue is permitted ONLY for the exact registered ValueError and message.",
+    "The original Stage-3 region must FIRST be independently confirmed feasible by the registered HiGHS probe.",
+    "The retry uses the SAME solver under the registered positive-diagonal coordinate transformation.",
+    "Every rescued result is accepted or rejected EXCLUSIVELY through checks performed in the ORIGINAL coordinates.",
+    "No alternate optimizer, fallback solver, third attempt, regularization, jitter, tolerance relaxation, or inclusion-floor change is permitted.",
+    "Every other solver exception or warning remains IMMEDIATELY FATAL."
+  ],
+
+  "aborted_run_classification": [
+    "ABORTED — INVALID_RUN",
+    "STAGE3_RAW_QUADPROG_FALSE_INFEASIBILITY",
+    "NO PERFORMANCE INSPECTED",
+    "VALIDATION UNREAD",
+    "SEALED OOS UNREAD"
+  ],
+  "aborted_run_disposition": "Must not be resumed. No state from diagnostic or floor-sweep runs may be reused. The development run restarts from session 1 on clean immutable state.",
+
+  "authorized_restart_sequence": [
+    "1. Rebuild and hash the Linux/amd64 research image.",
+    "2. Update and hash the solver-runtime manifest and dependency records.",
+    "3. Run all 43 registered fixtures.",
+    "4. Rerun the 124-session structural slice and confirm all 124 executable-decision hashes remain unchanged.",
+    "5. Restart the complete A/B/C 1,700-session development run from session 1 on clean immutable state.",
+    "6. Produce the registered byte-identical same-image rerun.",
+    "7. Stop for Implementation Freeze review."
+  ],
+
+  "blindness_state_at_countersign": {
+    "development_performance_inspected": false,
+    "validation_window": "SEALED AND UNREAD",
+    "sealed_oos_window": "SEALED AND UNREAD",
+    "note": "Performance inspection remains prohibited until the clean development run completes."
+  },
+
+  "amendment_rule": "Any change to this countersigned artifact or to the registered cascade requires a new artifact hash and explicit adjudication. This countersign is stored as a separate immutable record because appending it to the Markdown would change the artifact bytes and invalidate the hash above."
+}

@@ -1,0 +1,267 @@
+{
+  "generated": "2026-07-11T21:37:55.705409-05:00",
+  "status": "PROVISIONAL \u2014 pending owner countersign of the predecessor override registry",
+  "sector_source": "PIT SIC (stage-2 + supplemental), never current-SIC",
+  "integrity_checks_rerun": {
+    "same_day_conflicts": 0,
+    "duplicate_observation_keys_after_dedupe": 0,
+    "merge_collisions_deduped(stage2_x_supplemental)": 66
+  },
+  "overrides_applied": [
+    {
+      "ticker": "BLK",
+      "permaticker": 194456,
+      "predecessor_cik": 1364742,
+      "successor_cik": 2012383,
+      "boundary": "2024-10-01",
+      "flags": ""
+    },
+    {
+      "ticker": "PSKY",
+      "permaticker": 198331,
+      "predecessor_cik": 813828,
+      "successor_cik": 2041610,
+      "boundary": "2025-08-07",
+      "flags": "OWNER_SCRUTINY_merger_new_control"
+    },
+    {
+      "ticker": "DIS",
+      "permaticker": 197197,
+      "predecessor_cik": 1001039,
+      "successor_cik": 1744489,
+      "boundary": "2019-03-20",
+      "flags": ""
+    },
+    {
+      "ticker": "VTRS",
+      "permaticker": 168145,
+      "predecessor_cik": 1623613,
+      "successor_cik": 1792044,
+      "boundary": "2020-11-16",
+      "flags": ""
+    },
+    {
+      "ticker": "APA",
+      "permaticker": 199952,
+      "predecessor_cik": 6769,
+      "successor_cik": 1841666,
+      "boundary": "2021-03-01",
+      "flags": ""
+    },
+    {
+      "ticker": "DD",
+      "permaticker": 199776,
+      "predecessor_cik": 30554,
+      "successor_cik": 1666700,
+      "boundary": "2017-08-31",
+      "flags": "OWNER_SCRUTINY_merger_with_subsequent_spinoffs"
+    },
+    {
+      "ticker": "CI",
+      "permaticker": 198962,
+      "predecessor_cik": 701221,
+      "successor_cik": 1739940,
+      "boundary": "2018-12-20",
+      "flags": ""
+    },
+    {
+      "ticker": "AVGO",
+      "permaticker": 193427,
+      "predecessor_cik": 1649338,
+      "successor_cik": 1730168,
+      "boundary": "2018-04-04",
+      "flags": ""
+    },
+    {
+      "ticker": "MRVL",
+      "permaticker": 196626,
+      "predecessor_cik": 1058057,
+      "successor_cik": 1835632,
+      "boundary": "2021-04-20",
+      "flags": ""
+    },
+    {
+      "ticker": "MDT",
+      "permaticker": 170416,
+      "predecessor_cik": 64670,
+      "successor_cik": 1613103,
+      "boundary": "2015-01-26",
+      "flags": ""
+    },
+    {
+      "ticker": "WBA",
+      "permaticker": 179780,
+      "predecessor_cik": 104207,
+      "successor_cik": 1618921,
+      "boundary": "2014-12-31",
+      "flags": ""
+    },
+    {
+      "ticker": "DKNG",
+      "permaticker": 110813,
+      "predecessor_cik": 1772757,
+      "successor_cik": 1883685,
+      "boundary": "2022-05-05",
+      "flags": ""
+    },
+    {
+      "ticker": "DINO",
+      "permaticker": 199647,
+      "predecessor_cik": 48039,
+      "successor_cik": 1915657,
+      "boundary": "2022-03-14",
+      "flags": ""
+    },
+    {
+      "ticker": "LBTYA",
+      "permaticker": 191556,
+      "predecessor_cik": 1316631,
+      "successor_cik": 1570585,
+      "boundary": "2013-06-07",
+      "flags": ""
+    },
+    {
+      "ticker": "ZG",
+      "permaticker": 179220,
+      "predecessor_cik": 1334814,
+      "successor_cik": 1617640,
+      "boundary": "2015-02-17",
+      "flags": ""
+    },
+    {
+      "ticker": "OVV",
+      "permaticker": 189743,
+      "predecessor_cik": 1157806,
+      "successor_cik": 1792580,
+      "boundary": "2020-01-24",
+      "flags": "OWNER_SCRUTINY_predecessor_is_FPI_filer"
+    },
+    {
+      "ticker": "AGN",
+      "permaticker": 191420,
+      "predecessor_cik": 884629,
+      "successor_cik": 1578845,
+      "boundary": "2013-10-01",
+      "flags": "OWNER_SCRUTINY_ticker_reused_after_target_acquisition"
+    },
+    {
+      "ticker": "QDEL",
+      "permaticker": 199012,
+      "predecessor_cik": 353569,
+      "successor_cik": 1906324,
+      "boundary": "2022-05-27",
+      "flags": ""
+    },
+    {
+      "ticker": "ICE",
+      "permaticker": 191531,
+      "predecessor_cik": 1174746,
+      "successor_cik": 1571949,
+      "boundary": "2013-11-13",
+      "flags": ""
+    },
+    {
+      "ticker": "XRX",
+      "permaticker": 199200,
+      "predecessor_cik": 108772,
+      "successor_cik": 1770450,
+      "boundary": "2019-07-31",
+      "flags": ""
+    },
+    {
+      "ticker": "PRGO",
+      "permaticker": 191345,
+      "predecessor_cik": 820096,
+      "successor_cik": 1585364,
+      "boundary": "2013-12-18",
+      "flags": ""
+    }
+  ],
+  "coverage_funnel_fixed_denominator": {
+    "denominator_universe_months": 40750,
+    "high": 26696,
+    "medium": 10816,
+    "security_override": 2620,
+    "excluded_low": 353,
+    "needs_revision": 163,
+    "pre_first_observation_or_no_SIC": 93,
+    "identity_unresolved": 9,
+    "final_v2_eligible": 40132
+  },
+  "final_v2_coverage": {
+    "covered_over_denominator": "40132 / 40750",
+    "coverage_pct": 98.48,
+    "gate_98pct_met": true,
+    "annual_coverage_pct": {
+      "2013": 97.47,
+      "2014": 97.67,
+      "2015": 98.33,
+      "2016": 99.2,
+      "2017": 99.07,
+      "2018": 98.8,
+      "2019": 98.8,
+      "2020": 98.87,
+      "2021": 98.67,
+      "2022": 99.1,
+      "2023": 99.17,
+      "2024": 98.47,
+      "2025": 97.47,
+      "2026": 97.14
+    },
+    "annual_minimum_95_met_every_year": true
+  },
+  "months_recovered_by_security": {
+    "RTX": 163,
+    "MDT": 162,
+    "DIS": 161,
+    "BLK": 161,
+    "NXPI": 149,
+    "CI": 136,
+    "ICE": 134,
+    "WBA": 132,
+    "AVGO": 122,
+    "MRO": 103,
+    "PSKY": 100,
+    "DD": 99,
+    "MRVL": 93,
+    "TEAM": 85,
+    "AGN": 82,
+    "APA": 75,
+    "TEVA": 75,
+    "DKNG": 60,
+    "TT": 37,
+    "CPRI": 36,
+    "VTRS": 35,
+    "PRGO": 30,
+    "LBTYA": 19,
+    "DINO": 16,
+    "ZG": 7,
+    "OVV": 5,
+    "QDEL": 4,
+    "CRON": 3,
+    "XRX": 2,
+    "CGC": 2,
+    "S2": 1
+  },
+  "residual_uncovered_by_security": {
+    "VTRS": 29,
+    "HTZGQ": 23,
+    "AVGO": 17,
+    "WFTIQ": 7,
+    "DD": 3,
+    "ENDPQ": 2,
+    "CI": 2,
+    "DIS": 2,
+    "MRVL": 2,
+    "BLK": 2,
+    "LBTYA": 1,
+    "AGN": 1,
+    "MDT": 1,
+    "FRCB": 1
+  },
+  "unchanged_treatments": {
+    "DHR": "needs_revision \u2014 still excluded (archive evidence owed)",
+    "excluded_low": "still excluded by policy",
+    "identity_unresolved": "delisting tails, unchanged"
+  }
+}

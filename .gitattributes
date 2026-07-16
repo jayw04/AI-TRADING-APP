@@ -7,3 +7,57 @@
 *.sh      text eol=lf
 *.service text eol=lf
 *.timer   text eol=lf
+
+# Repo-wide binary formats. Never EOL-converted anywhere.
+*.gz      binary
+*.zip     binary
+*.npz     binary
+*.parquet binary
+*.duckdb  binary
+*.sqlite  binary
+*.xlsx    binary
+*.docx    binary
+*.pptx    binary
+*.pdf     binary
+*.png     binary
+*.jpg     binary
+
+# ======================================================================================
+# MR-002 EVIDENCE TREE — text is a WHITELIST, not a default.
+#
+# The previous policy was a single line:
+#
+#     docs/implementation/evidence/mr_002/**   text eol=lf
+#
+# written to protect the countersigned markdown, whose SHA-256 binding is over LF bytes. But `**`
+# matches EVERYTHING in the tree, including the gzipped archives. Git marked them text, and its
+# clean filter strips the CR from any CRLF byte pair occurring inside the COMPRESSED STREAM — where
+# 0d 0a is data, not a line ending. Seven of the nine archives carry such pairs (anchors.csv.gz has
+# 8; raw_response_manifest.jsonl.gz has 48). A single `git add` would have deleted those bytes and
+# destroyed the archive. They showed as permanently "modified" while being byte-identical to HEAD,
+# which is the symptom of precisely this.
+#
+# Blacklisting the binary extensions fixes today's tree and re-arms the trap for tomorrow's: the
+# next `.zip`, `.npz` or `.pkl` dropped in here would be matched by `**` and by no binary rule.
+#
+# So the default for this tree is NO CONVERSION, and the text formats are named explicitly. A new
+# binary format is then safe by default, and a new TEXT format simply is not normalized until
+# someone adds it here — which is the failure that costs nothing.
+# ======================================================================================
+docs/implementation/evidence/mr_002/**              -text
+
+docs/implementation/evidence/mr_002/*.md            text eol=lf
+docs/implementation/evidence/mr_002/*.json          text eol=lf
+docs/implementation/evidence/mr_002/*.csv           text eol=lf
+docs/implementation/evidence/mr_002/*.txt           text eol=lf
+docs/implementation/evidence/mr_002/*.sha256        text eol=lf
+docs/implementation/evidence/mr_002/**/*.md         text eol=lf
+docs/implementation/evidence/mr_002/**/*.json       text eol=lf
+docs/implementation/evidence/mr_002/**/*.csv        text eol=lf
+docs/implementation/evidence/mr_002/**/*.txt        text eol=lf
+docs/implementation/evidence/mr_002/**/*.sha256     text eol=lf
+
+# The countersigned pre-registration: the owner's countersign binds an exact SHA-256 of the file
+# BYTES. With core.autocrlf=true a fresh clone would materialize these as CRLF (MR-002 v1.1 rev 3:
+# 35,053 B LF -> 35,688 B CRLF), producing a different hash and silently voiding the binding.
+docs/implementation/TradingWorkbench_MR002_PreRegistration_*.md text eol=lf

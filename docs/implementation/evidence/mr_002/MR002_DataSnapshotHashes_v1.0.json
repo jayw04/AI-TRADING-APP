@@ -1,0 +1,23 @@
+{
+  "title": "MR-002 data-snapshot hashes v1.0 (crawl-side; governance manifest stays immutable)",
+  "generated": "2026-07-11T17:05:33.649933+00:00",
+  "preliminary_universe_csv_gz_sha256": "6c8a5e54475a1335c85e015e015092922a5e93c0bed3e225c1f556f99cae02a6",
+  "identity_crosswalk_canonical_sha256": "f9a8f1077ff823c8d5ba80d6c47d530d803c357182dbdbd44cb49e3073e0e80b",
+  "identity_crosswalk_rows": 1068,
+  "sep_bulk_zip_sha256": null,
+  "tickers_bulk_zip_sha256": null,
+  "stage1_report": "MR002_CrosswalkStage1_Report_v1.0.json",
+  "pending": [
+    "extraction of final V1/V2 gate computations (task 5)"
+  ],
+  "stage2/accession_manifest.json.gz_sha256": "363a74f2a15236aff8541c02cc6d08be51b202317d32f39e0e941549df21db36",
+  "stage2/accession_manifest.sha256_sha256": "e1d0579b74c3b4fecd41162326c1f79fd4d44982a4b7bcfaf1286d0739fef8db",
+  "stage2/anchors.csv.gz_sha256": "a393f6a9f181938023ebd68f404f1e35130d1eb64de4f6c2b5ceafc3f9edb3bc",
+  "stage2/postrun_reconciliation.json_sha256": "3fec9023fab0a2a07d584c61f219dc123d1e0f295079c71f1be22f50c97a8e7d",
+  "stage2/raw_response_manifest.jsonl.gz_sha256": "6d4da7cbd43cfc276b6a6c2de92f8129bd47fb7e05dd716219b13037587d33ca",
+  "stage2/sic_observations.csv.gz_sha256": "a9084afe6fee479efd11fea48896ce57cc48fc2a033cc683bfa616373a94a7ee",
+  "stage2/sic_segments.csv.gz_sha256": "db2cb701706d0981f9f53629944162c312614130a8dc1d82addac92027add3b0",
+  "stage2/stage2_run_report.json_sha256": "6854f1521d92878778cd957ddfad0be422286b57422539104ae54e8f8debb745",
+  "stage2_completed": "2026-07-12T01:11:38.818382+00:00",
+  "stage2_termination_reason": "COMPLETED (pre-hardening crawler; the termination_reason field postdates this run's launch \u2014 completion evidenced by the STAGE2 COMPLETE log line + the full run report)"
+}

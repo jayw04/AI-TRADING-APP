@@ -1,0 +1,89 @@
+{
+  "generated": "2026-07-11T20:59:13.514714-05:00",
+  "sector_source": "PIT SIC (stage-2 EDGAR crawl) \u2014 NOT the current-SIC planning approximation",
+  "integrity_checks": {
+    "same_day_conflicts": 0
+  },
+  "stratified_sic_change_review": {
+    "total_changing_issuers": 89,
+    "one_change": 68,
+    "multiple_changes": 21,
+    "changes_near_taxonomy_boundaries_180d": 7,
+    "change_established_by_amendment": 10,
+    "same_quarter_conflicting_filings": 9,
+    "case_UBER": [
+      {
+        "sic": "7372",
+        "from": "2019-06-03",
+        "to": "2019-11-05"
+      },
+      {
+        "sic": "7389",
+        "from": "2019-11-05",
+        "to": "None"
+      }
+    ],
+    "case_BKNG": [
+      {
+        "sic": "7389",
+        "from": "2010-02-18",
+        "to": "2019-11-07"
+      },
+      {
+        "sic": "4700",
+        "from": "2019-11-07",
+        "to": "None"
+      }
+    ]
+  },
+  "coverage_funnel_fixed_denominator": {
+    "denominator_universe_months": 40750,
+    "high": 25992,
+    "medium": 10703,
+    "security_override": 2545,
+    "pre_first_observation_gap_or_no_SIC": 985,
+    "excluded_low": 353,
+    "needs_revision": 163,
+    "identity_unresolved": 9,
+    "final_v2_eligible": 39240
+  },
+  "final_v2_coverage": {
+    "covered_over_denominator": "39240 / 40750",
+    "coverage_pct": 96.29,
+    "registered_gate_98pct_met": false,
+    "annual_coverage_pct": {
+      "2013": 92.83,
+      "2014": 93.47,
+      "2015": 94.97,
+      "2016": 95.27,
+      "2017": 95.2,
+      "2018": 96.4,
+      "2019": 97.07,
+      "2020": 96.93,
+      "2021": 96.93,
+      "2022": 97.93,
+      "2023": 98.7,
+      "2024": 98.17,
+      "2025": 97.47,
+      "2026": 97.14
+    },
+    "registered_annual_minimum_95_met_every_year": false
+  },
+  "top_securities_pre_first_observation_or_noSIC": {
+    "194456": 143,
+    "198331": 100,
+    "197197": 77,
+    "190485": 68,
+    "168145": 64,
+    "189782": 62,
+    "199952": 61,
+    "199776": 59,
+    "198962": 50,
+    "193427": 42,
+    "165452": 41,
+    "196626": 34,
+    "170416": 26,
+    "179780": 24,
+    "124354": 23
+  }
+}

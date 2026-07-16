@@ -1,0 +1,76 @@
+sic_start,sic_end,effective_from,effective_to,research_sector,sector_etf,mapping_rationale,mapping_confidence,mapping_specificity,review_status,reviewer,review_date,source_reference
+0100,0999,,,Materials,XLB,Agriculture/forestry/fishing - closest SPDR proxy is Materials,LOW,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+1000,1299,,,Materials,XLB,Metal and coal mining - Materials,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+1300,1399,,,Energy,XLE,Oil and gas extraction and field services - Energy,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+1400,1499,,,Materials,XLB,Nonmetallic mineral mining - Materials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+1500,1799,,,Industrials,XLI,Construction - Industrials,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+2000,2199,,,Consumer Staples,XLP,Food beverage and tobacco manufacturing - Staples,HIGH,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+2200,2399,,,Consumer Discretionary,XLY,Textiles and apparel - Discretionary,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+2400,2699,,,Materials,XLB,Lumber furniture paper and allied products - Materials,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+2700,2799,,2018-06-18,Consumer Discretionary,XLY,Printing/publishing - pre-2018 GICS media sat in Discretionary,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+2700,2799,2018-06-19,,Communication Services,XLC,GICS 2018 restructure moved media to Communication Services (XLC inception),HIGH,narrow_range,pending,,,GICS 2018 restructure / XLC inception
+2800,2829,,,Materials,XLB,Industrial chemicals - Materials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+2830,2836,,,Health Care,XLV,Drugs pharma and biologicals - Health Care,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+2840,2899,,,Materials,XLB,Specialty chemicals soaps paints - Materials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+2900,2999,,,Energy,XLE,Petroleum refining - Energy,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3000,3099,,,Materials,XLB,Rubber and plastic products - Materials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3100,3199,,,Consumer Discretionary,XLY,Leather and footwear - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3200,3299,,,Materials,XLB,Stone clay and glass - Materials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3300,3399,,,Materials,XLB,Primary metal industries - Materials,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3400,3499,,,Industrials,XLI,Fabricated metal products - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3500,3569,,,Industrials,XLI,Industrial and commercial machinery - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3570,3579,,,Information Technology,XLK,Computer and office equipment - Technology,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3580,3599,,,Industrials,XLI,Refrigeration and service machinery - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3600,3629,,,Information Technology,XLK,Electronic components and equipment - Technology,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3630,3639,,,Consumer Discretionary,XLY,Household appliances - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3640,3699,,,Information Technology,XLK,Electronics incl semiconductors (3674) - Technology,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3700,3710,,,Industrials,XLI,Transportation equipment NEC - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3711,3719,,,Consumer Discretionary,XLY,Motor vehicles and parts - Discretionary (GICS autos),HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3720,3749,,,Industrials,XLI,Aerospace rail and ship building - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3750,3759,,,Consumer Discretionary,XLY,Motorcycles and bicycles - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3760,3799,,,Industrials,XLI,Guided missiles space and defense - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3800,3839,,,Health Care,XLV,Instruments incl lab/analytical (coarse - refine at validation) - Health Care,LOW,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3840,3851,,,Health Care,XLV,Medical devices and supplies - Health Care,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3852,3899,,,Information Technology,XLK,Photographic/optical and misc instruments - Technology,LOW,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+3900,3999,,,Consumer Discretionary,XLY,Miscellaneous manufacturing - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+4000,4799,,,Industrials,XLI,Railroads trucking air and transport services - Industrials,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+4800,4899,,2018-06-18,Information Technology,XLK,Telecom pre-2018 - original 1998 SPDR taxonomy carried telecom inside XLK (T/VZ were XLK members),HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+4800,4899,2018-06-19,,Communication Services,XLC,GICS 2018 moved telecom to Communication Services (XLC inception),HIGH,narrow_range,pending,,,GICS 2018 restructure / XLC inception
+4900,4999,,,Utilities,XLU,Electric gas water and sanitary services - Utilities,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+5000,5139,,,Industrials,XLI,Wholesale durable/nondurable distribution - Industrials (GICS trading companies/distributors),MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+5140,5149,,,Consumer Staples,XLP,Food distribution wholesale - Staples,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+5150,5199,,,Industrials,XLI,Wholesale nondurable NEC - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+5200,5399,,,Consumer Discretionary,XLY,General merchandise and apparel retail - Discretionary,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+5400,5499,,,Consumer Staples,XLP,Food stores - Staples,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+5500,5899,,,Consumer Discretionary,XLY,Auto dealers home furnishings eating and drinking - Discretionary,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+5900,5911,,,Consumer Discretionary,XLY,Retail NEC - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+5912,5912,,,Consumer Staples,XLP,Drug stores - Staples,HIGH,single_sic,pending,,,SIC division structure + SPDR select-sector definitions
+5913,5999,,,Consumer Discretionary,XLY,Retail NEC - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+6000,6499,,,Financials,XLF,Banks credit insurance carriers and brokers - Financials,HIGH,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+6500,6599,,2015-10-07,Financials,XLF,Real estate pre-XLRE - REITs/real estate lived in XLF before XLRE inception,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+6500,6599,2015-10-08,,Real Estate,XLRE,GICS 2016 real-estate sector (XLRE inception 2015-10-08),HIGH,narrow_range,pending,,,GICS 2016 real-estate sector / XLRE inception
+6600,6797,,,Financials,XLF,Investment offices and holding companies - Financials,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+6798,6798,,2015-10-07,Financials,XLF,REITs pre-XLRE inception - Financials,HIGH,single_sic,pending,,,SIC division structure + SPDR select-sector definitions
+6798,6798,2015-10-08,,Real Estate,XLRE,REITs post-XLRE inception - Real Estate,HIGH,single_sic,pending,,,GICS 2016 real-estate sector / XLRE inception
+6799,6799,,,Financials,XLF,Investors NEC - Financials,MEDIUM,single_sic,pending,,,SIC division structure + SPDR select-sector definitions
+7000,7099,,,Consumer Discretionary,XLY,Hotels and lodging - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+7200,7299,,,Consumer Discretionary,XLY,Personal services - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+7300,7309,,,Industrials,XLI,Business services NEC - Industrials,LOW,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+7310,7319,,2018-06-18,Consumer Discretionary,XLY,Advertising pre-2018 - Discretionary media,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+7310,7319,2018-06-19,,Communication Services,XLC,GICS 2018 moved advertising to Communication Services,MEDIUM,narrow_range,pending,,,GICS 2018 restructure / XLC inception
+7320,7369,,,Industrials,XLI,Credit reporting staffing and facility services - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+7370,7370,,2018-06-18,Information Technology,XLK,Computer programming/data processing incl internet content pre-2018 - Technology,HIGH,single_sic,pending,,,SIC division structure + SPDR select-sector definitions
+7370,7370,2018-06-19,,Communication Services,XLC,GICS 2018 moved internet content/search (META GOOGL class of SIC 7370) to Communication Services - the sector-change-without-SIC-change case,HIGH,single_sic,pending,,,GICS 2018 restructure / XLC inception
+7371,7379,,,Information Technology,XLK,Software IT services prepackaged software (MSFT 7372) - Technology,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+7380,7399,,,Industrials,XLI,Miscellaneous business services - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+7500,7699,,,Consumer Discretionary,XLY,Auto repair rental and misc repair - Discretionary,MEDIUM,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+7800,7999,,2018-06-18,Consumer Discretionary,XLY,Movies entertainment and recreation pre-2018 - Discretionary,HIGH,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+7800,7999,2018-06-19,,Communication Services,XLC,GICS 2018 moved movies/entertainment (NFLX 7841 class) to Communication Services,HIGH,division_range,pending,,,GICS 2018 restructure / XLC inception
+8000,8099,,,Health Care,XLV,Health services hospitals and clinics - Health Care,HIGH,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+8100,8199,,,Industrials,XLI,Legal services - Industrials (coarse),LOW,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+8200,8299,,,Consumer Discretionary,XLY,Educational services - Discretionary,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+8300,8699,,,Industrials,XLI,Social and membership services (coarse) - Industrials,LOW,division_range,pending,,,SIC division structure + SPDR select-sector definitions
+8700,8730,,,Industrials,XLI,Engineering accounting and management services - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+8731,8731,,,Health Care,XLV,Commercial physical/biological research (biotech research) - Health Care,HIGH,single_sic,pending,,,SIC division structure + SPDR select-sector definitions
+8732,8799,,,Industrials,XLI,Research management and related services - Industrials,MEDIUM,narrow_range,pending,,,SIC division structure + SPDR select-sector definitions
+8800,8999,,,Industrials,XLI,Services NEC - Industrials (coarse),LOW,division_range,pending,,,SIC division structure + SPDR select-sector definitions
