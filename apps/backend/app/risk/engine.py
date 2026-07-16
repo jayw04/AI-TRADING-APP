@@ -36,6 +36,7 @@ from app.db.models.risk_check import RiskCheck
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.symbol import Symbol
 from app.market.session import MarketSession, default_market_session
+from app.risk.account_snapshot import fetch_snapshot
 from app.risk.buying_power import BuyingPowerChecker
 from app.risk.circuit_breaker import CircuitBreakerError, CircuitBreakerService
 from app.risk.decision_service import (
@@ -220,17 +221,13 @@ class RiskEngine:
                 )
 
             # 6. Short restriction. A SELL is "opening a short" if we don't
-            # already hold >= qty long shares.
+            # already hold >= qty long shares — measured at the BROKER, because a
+            # short is opened at the broker, not in our ledger (see
+            # _long_qty_for_short_gate).
             if req.side == OrderSide.SELL and not limits.allow_short:
-                pos = (
-                    await session.execute(
-                        select(Position).where(
-                            Position.account_id == req.account_id,
-                            Position.symbol_id == symbol.id,
-                        )
-                    )
-                ).scalars().first()
-                current_qty = pos.qty if pos else Decimal(0)
+                current_qty, _qty_source = await self._long_qty_for_short_gate(
+                    session, req, symbol
+                )
                 if current_qty < req.qty:
                     return await self._persist_and_return(
                         session,
@@ -656,6 +653,82 @@ class RiskEngine:
         # reserved for. Only a permitted reduction created a HELD reservation; otherwise None.
         cache["reservation_id"] = reservation_id if cache["result"] else None
         return cache["result"]
+
+    async def _long_qty_for_short_gate(
+        self, session: AsyncSession, req: OrderRequest, symbol: Symbol
+    ) -> tuple[Decimal, str]:
+        """The long the SHORT gate may sell against. Returns (qty, source).
+
+        **A short is opened at the BROKER, not in our ledger**, so the ledger's opinion of the
+        position is not the quantity this gate is about. Returns the broker's SIGNED position
+        (negative when already short) whenever it can be read.
+
+        ⚠ 2026-07-16 — account 2 held an AMD -4 SHORT with `allow_short = 0`. The gate was never
+        bypassed; it was TOLD THE WRONG POSITION. An Alpaca paper-account reset wiped the broker's
+        positions while the ledger kept every pre-reset fill, leaving the local view +7 long of
+        reality. `SELL 7` read as a legal flatten (7 -> 0) and opened a real -7 short. The ledger
+        was also wrong in the OTHER direction: when it lags BEHIND the broker it refuses genuine
+        reductions. See docs/incidents/2026-07-16-account2-ghost-positions-short-gate-escape.md.
+
+        DEGRADATION (owner-approved 2026-07-16). When the broker cannot be read we fall back to the
+        ledger and record it — we do NOT reject. That is a deliberate departure from "the risk
+        engine fails closed", for a specific reason: `OrderRouter.submit` runs this gate BEFORE
+        `RiskDecisionService.decide`, so a fail-closed rejection here would block a locked
+        account's de-risking SELL *upstream of the ADR-0042 path built to allow it* — reproducing
+        the 2026-07-13 incident, whose whole subject was risk gates trapping de-risking. Broker
+        outages are measured, not hypothetical: account 3's /v2/positions timed out >15s on
+        2026-07-15. Falling back is strictly better than the status quo (it fixes the ghost escape
+        whenever the broker is reachable) and introduces no new blocking. The residual — a short
+        slipping through only if an outage AND a ghost AND a zero-crossing sell coincide — is
+        narrow, and ghosts belong fixed at the source.
+        """
+        pos = (
+            await session.execute(
+                select(Position).where(
+                    Position.account_id == req.account_id,
+                    Position.symbol_id == symbol.id,
+                )
+            )
+        ).scalars().first()
+        local_qty = pos.qty if pos else Decimal(0)
+
+        adapter = (
+            self._broker_registry.get(req.account_id)
+            if self._broker_registry is not None
+            else None
+        )
+        if adapter is None:
+            # Production always wires a registry (lifespan.py); this is pre-§5 call sites and
+            # unit tests. "No registry" must not mean "reject every SELL".
+            logger.warning(
+                "short_gate_unverified_no_broker_registry",
+                account_id=req.account_id, symbol=symbol.ticker, local_qty=str(local_qty),
+            )
+            return local_qty, "local_no_registry"
+
+        snap = await fetch_snapshot(
+            session=session, account_id=req.account_id, adapter=adapter
+        )
+        if not snap.complete:
+            logger.warning(
+                "short_gate_unverified_broker_unreadable",
+                account_id=req.account_id, symbol=symbol.ticker, local_qty=str(local_qty),
+                detail="falling back to the ledger; rejecting here would trap de-risking",
+            )
+            return local_qty, "local_broker_unreadable"
+
+        bp = snap.positions.get(symbol.ticker.upper())
+        broker_qty = bp.qty if bp else Decimal(0)      # SIGNED: <0 when already short
+        if broker_qty != local_qty:
+            # The account-2 signature. Loud, because it means the ledger and the broker disagree
+            # about what we own — and every ledger-derived position number is suspect until fixed.
+            logger.warning(
+                "short_gate_ledger_broker_divergence",
+                account_id=req.account_id, symbol=symbol.ticker,
+                local_qty=str(local_qty), broker_qty=str(broker_qty),
+                delta=str(local_qty - broker_qty),
+            )
+        return broker_qty, "broker"
 
     async def _persist_and_return(
         self,

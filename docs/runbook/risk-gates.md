@@ -110,6 +110,44 @@ account since 09:30 US/Eastern today count (fixed -5h UTC offset; 1-hour DST
 drift accepted for MVP). NULL means unlimited. Edit at Settings → Risk Limits;
 changes are audit-logged.
 
+## Short restriction — is BROKER-verified (`SHORT_NOT_ALLOWED`)
+
+When `risk_limits.allow_short` is false, a SELL is refused if it would leave a **short at the
+broker**. The gate compares the order against the **broker's signed position**, fetched live for
+that decision (ADR 0042 `fetch_snapshot`) — **not** against the local `positions` row.
+
+**Why it must be the broker's number.** On 2026-07-16 account 2 was found holding an AMD **−4
+short** with `allow_short = 0`. The gate had not been bypassed — it had been *told the wrong
+position*. An Alpaca paper-account reset (07-07 15:36) wiped the broker's positions while the local
+order ledger kept every pre-reset fill, leaving the local view **+7 long of reality**; `SELL 7` read
+as a legal flatten and opened a real −7 short. The ledger can also be wrong the *other* way — when
+it lags behind the broker it refuses genuine reductions. See
+`docs/incidents/2026-07-16-account2-ghost-positions-short-gate-escape.md`.
+
+### Operator response to the two warnings
+
+**`short_gate_ledger_broker_divergence`** — *the loud one.* The ledger and the broker disagree about
+what the account owns (`local_qty`, `broker_qty`, `delta` are logged). The order was decided
+correctly against the broker, so **nothing is broken right now** — but every ledger-derived position
+number for that account is suspect until the cause is found. Usual cause: a paper-account reset
+orphaning pre-reset fills. Confirm by partitioning the order ledger at the account's Alpaca
+`created_at` — if post-reset orders reconcile to the broker but all-time orders don't, the
+difference is the ghosts. A `GET /v2/orders/{broker_order_id}` returning **404** for a pre-reset
+order is decisive. ⚠ Reconciliation will not surface this: it compares *local positions* vs broker
+(which agree), never *ledger-implied* vs broker.
+
+**`short_gate_unverified_broker_unreadable`** — the broker could not be read, so the gate fell back
+to the ledger for this decision and **allowed** what the ledger permits. This is deliberate, not an
+oversight: `OrderRouter.submit` runs this gate *before* `RiskDecisionService.decide`, so rejecting
+here would block a locked account's de-risking SELL upstream of the ADR-0042 path built to allow it
+— the 2026-07-13 incident. Falling back is strictly better than the pre-2026-07-16 behaviour and
+adds no new blocking. **Action:** none for the order; investigate broker health if it repeats
+(account 3's `/v2/positions` timed out >15s on 2026-07-15). The residual exposure — a short slipping
+through — needs an outage *and* a ghost *and* a zero-crossing sell at once.
+
+**`short_gate_unverified_no_broker_registry`** — no registry wired. Production always wires one
+(`lifespan.py`); seeing this in production means the engine was constructed wrong.
+
 ## Pre-trade buying power (LIVE only)
 
 For LIVE submissions, the workbench calls `BrokerAdapter.get_account()` for live
