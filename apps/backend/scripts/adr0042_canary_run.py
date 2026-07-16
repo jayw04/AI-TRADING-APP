@@ -158,38 +158,66 @@ def _mark_price(ad, symbol: str) -> D | None:
     return None
 
 
-async def _settle_open_orders(ad, ev, step: str, budget_s: float = 90.0) -> bool:
-    """Wait until nothing is in flight at the broker, bounded.
+async def _held_reservations(sf, symbol: str) -> int:
+    """HELD (unreleased) reservation quantity for `symbol` on the canary account."""
+    async with sf() as s:
+        v = (await s.execute(
+            text("SELECT COALESCE(SUM(qty), 0) FROM risk_reservations "
+                 "WHERE account_id = :a AND symbol = :s AND state = 'HELD' "
+                 "AND released_at IS NULL"),
+            {"a": ACCT, "s": symbol.upper()},
+        )).scalar()
+    return int(v or 0)
 
-    2026-07-16: assertion 2's own SELL 50 was still working when the race began, so reducible was
-    450 - 50 = 400 while the workers each asked for the raw 450 position. Both were refused by the
-    QUANTITY gate (EXCEEDS_REDUCIBLE_QUANTITY) before the cross-process CAPACITY claim was ever
-    reached — the load-bearing test silently measured nothing, and reported FAIL for a reason that
-    had nothing to do with the property. The engine was right to refuse: you cannot sell shares you
-    have already committed to selling.
 
-    Settling first makes reducible == the position, so a request for the whole position is
-    individually satisfiable and jointly contended — which is the race the assertion exists to run.
+async def _settle_before_race(sf, ad, ev, step: str, symbol: str, budget_s: float = 900.0) -> bool:
+    """Wait until reducible == position for `symbol`: nothing in flight AND nothing reserved.
+
+    `available_reducible_quantity` (risk_effect.py) is
+        current - open_reducing_sell_qty - reserved_reducing_qty
+    so BOTH subtrahends must be zero before the workers can each request the whole position and
+    contend for it. Waiting on only one of them is not settling.
+
+    ⚠ 2026-07-16, TWICE-LEARNED. First: the race was fired 5s after assertion 2's own SELL 50, so
+    reducible was 450-50=400 while both workers asked for the raw 450 -> both refused by the
+    QUANTITY gate before the cross-process CAPACITY claim was ever reached; the load-bearing test
+    measured NOTHING and reported FAIL for an unrelated reason. Then the first fix (poll the
+    BROKER's open orders) was ALSO wrong: Alpaca fills in seconds, but the DB order took
+    8m57s to reach terminal_at (order 1350: created 14:11:47, terminal 14:20:44 — the
+    trade-updates sync lag), and the RESERVATION only clears on DB-terminal. So the broker looked
+    quiescent within seconds while reservation #5 stayed HELD for nine minutes, and the race would
+    have been refused on QUANTITY exactly as before.
+
+    Hence: poll BOTH, and budget for the RESERVATION path (the reaper runs every 300s; the observed
+    settle took ~537s), not the broker path.
     """
     t0 = time.time()
-    n = _count_open(ad)
-    while n and time.time() - t0 < budget_s:
-        await asyncio.sleep(2.0)
-        n = _count_open(ad)
-    ok = n == 0
-    ev.assert_(f"{step}.settled_before_race", ok,
-               f"{n} order(s) still open after {time.time()-t0:.0f}s — a race against in-flight "
-               f"capacity would refuse both workers on QUANTITY and never test the CAPACITY claim")
-    return ok
+    while time.time() - t0 < budget_s:
+        n_open = _count_open(ad)
+        n_held = await _held_reservations(sf, symbol)
+        if n_open == 0 and n_held == 0:
+            ev.assert_(f"{step}.settled_before_race", True,
+                       f"quiescent after {time.time()-t0:.0f}s: 0 open orders AND 0 HELD "
+                       f"reservation qty for {symbol} -> reducible == position")
+            return True
+        await asyncio.sleep(5.0)
+    n_open, n_held = _count_open(ad), await _held_reservations(sf, symbol)
+    ev.assert_(
+        f"{step}.settled_before_race", False,
+        f"NOT quiescent after {budget_s:.0f}s: {n_open} open order(s), {n_held} HELD reserved qty "
+        f"for {symbol}. Racing now would leave reducible < position, so both workers would be "
+        f"refused on QUANTITY and the CAPACITY claim would go untested — refuse rather than "
+        f"report a FAIL that measures nothing.")
+    return False
 
 
 async def _concurrency_assertion(sf, ad, ev) -> None:
     """TWO REAL PROCESSES. Exactly one may claim the capacity."""
-    # Nothing may be in flight: the workers must contend for the WHOLE position, or they are
-    # refused on quantity before the capacity claim is exercised (see _settle_open_orders).
-    if not await _settle_open_orders(ad, ev, "concurrency"):
+    # reducible must equal the position: nothing in flight AND nothing reserved. Otherwise both
+    # workers are refused on QUANTITY before the CAPACITY claim is reached (see _settle_before_race).
+    if not await _settle_before_race(sf, ad, ev, "concurrency", LEG):
         ev.assert_("concurrency.setup", False,
-                   "could not reach a quiescent book; refusing to run a vacuous race")
+                   "could not reach reducible == position; refusing to run a vacuous race")
         return
 
     held = next((D(str(p["qty"])) for p in ad.get_positions() if p["symbol"] == LEG), D(0))
