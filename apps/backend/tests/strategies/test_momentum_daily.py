@@ -18,6 +18,7 @@ import pytest
 from app.strategies.context import Bar
 from strategies_user.templates.momentum_daily import (
     _K_LAST_EVAL,
+    _K_REGIME,
     MomentumDaily,
 )
 
@@ -224,9 +225,46 @@ async def test_graduated_gross_change_is_a_regime_change_flip():
     ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), spy_bars=_spy_at(110.0))
     s = _strat(ctx, use_market_regime_filter=True)
     await s.on_init()
-    s._prev_regime_gross = 0.60                       # was in the buffer zone last eval
+    await ctx.set_state(_K_REGIME, {"gross": 0.60})   # was in the buffer zone last eval
     _, gross, flipped = await s._regime()
     assert gross == pytest.approx(0.98) and flipped is True
+
+
+async def test_graduated_regime_flip_survives_a_restart():
+    """REGRESSION — the prior gross must be DURABLE, not an instance attribute.
+
+    Graduated has no equivalent of binary's `below is True` branch, which re-flattens on every eval
+    regardless of `flipped` and so self-corrects after a restart for free. Graduated re-grosses ONLY
+    when `flipped` fires. With an in-memory latch a reloaded instance reads None -> flipped=False ->
+    the book is stranded at its pre-restart gross until an unrelated trigger or the backstop review.
+    Here: the book was at 0.98, the market fell into the mid band, and the process restarted.
+    """
+    scores = _scores([("AAA", 2.0)])
+    ctx = _ctx(["AAA", "SPY"], scores, spy_bars=_spy_at(101.0))   # now the ±2% mid band -> 0.60
+    s1 = _strat(ctx, use_market_regime_filter=True)
+    await s1.on_init()
+    await ctx.set_state(_K_REGIME, {"gross": 0.98})               # last eval, before the restart
+
+    s2 = _strat(ctx, use_market_regime_filter=True)               # a FRESH instance = the restart
+    await s2.on_init()
+    _, gross, flipped = await s2._regime()
+
+    assert gross == pytest.approx(0.60)
+    assert flipped is True, "restart lost the prior gross — the book would stay at 0.98"
+
+
+async def test_binary_regime_flip_also_survives_a_restart():
+    """The same durability for binary mode: a fresh instance still sees the prior below-MA state."""
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), spy_bars=_spy(above=False))
+    s1 = _strat(ctx, use_market_regime_filter=True, regime_mode="binary")
+    await s1.on_init()
+    await ctx.set_state(_K_REGIME, {"below": False})              # was risk-on before the restart
+
+    s2 = _strat(ctx, use_market_regime_filter=True, regime_mode="binary")
+    await s2.on_init()
+    below, _, flipped = await s2._regime()
+
+    assert below is True and flipped is True
 
 
 async def test_retries_are_bounded_within_the_day():

@@ -33,9 +33,13 @@ STORM GUARD. The engine dispatches per symbol per tick (~200x). A durable once-p
 the tick date makes at most one evaluation per day; a failed evaluation is retried a bounded number
 of times WITHIN the day rather than re-run on the next symbol in the same tick.
 
-CONSTRUCTION / REGIME / UNIVERSE knobs (§6/§7/§8) are present as parameters DEFAULTED TO THE BASELINE
-(5 names, equal weight, no sector cap, binary regime, fixed universe). They are the Stage 3-4
-experiments; they are wired but off, so promotion is earned by evidence, not turned on by default.
+CONSTRUCTION / REGIME / UNIVERSE knobs (§6/§7/§8) are parameters DEFAULTED TO THE STAGE 2-4 VALIDATED
+CONFIG (5 names, equal weight, no sector cap, GRADUATED regime, fixed universe) — see
+`docs/implementation/evidence/momentum_daily_stage2_4/`. Stage 3 REFUTED both widening priors (8-10
+names and the sector cap each cost Sharpe), so those defaults are unchanged from the baseline by
+EVIDENCE, not by inertia; Stage 4 replaced the binary regime default with `graduated` (binary scored
+worse than no filter at all — whipsaw). The losing variants stay wired and off. Defaults move only
+when a stage says so; validation is not activation (promotion is separately gated).
 
 No broker/DB/network access beyond the sandboxed ctx; no LLM (ADR 0006 v2). Every order flows through
 ctx.submit_order -> OrderRouter + the risk engine (ADR 0002).
@@ -61,6 +65,7 @@ _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
 _K_LAST_EVAL = "last_eval_date"          # ISO date of the last completed daily evaluation (the latch)
 _K_LAST_REVIEW = "last_review_date"      # ISO date of the last completed review (backstop clock)
 _K_LIFECYCLE = "rebalance_lifecycle"     # {signal_date, attempted_at, completed_at, attempts}
+_K_REGIME = "prev_regime"                # {"gross": float} | {"below": bool} — last regime state seen
 
 
 class MomentumDaily(Strategy):
@@ -456,6 +461,14 @@ class MomentumDaily(Strategy):
         ``regime_gross_below`` clearly below — so the book de-grosses (via ``_investable_equity``)
         rather than flipping fully to cash, avoiding the binary filter's whipsaw. A gross-level change
         is itself a ``regime_change`` trigger. The A5 staleness fallback caps gross in both modes.
+
+        The previous regime lives in DURABLE state (``_K_REGIME``), not on the instance. Graduated has
+        no equivalent of binary's ``below is True`` re-entry — that branch re-flattens on every eval
+        regardless of ``flipped``, so binary self-corrects after a restart for free. Graduated only
+        re-grosses when ``flipped`` fires, so an in-memory latch would read ``None`` after a reload,
+        report ``flipped=False``, and strand the book at its pre-restart gross until an unrelated
+        trigger or the ``backstop_max_days`` review. A deep bear hides this (``raw_momentum_negative``
+        fires anyway); a mild 0.98 -> 0.60 pullback does not.
         """
         if not self.params.get("use_market_regime_filter", True):
             return False, 1.0, False
@@ -473,6 +486,7 @@ class MomentumDaily(Strategy):
         ma = float(bars["c"].iloc[:-1].mean())
         last = float(bars["c"].iloc[-1])
 
+        prev_state = await self.ctx.get_state(_K_REGIME, {}) or {}
         mode = str(self.params.get("regime_mode", "graduated"))
         if mode == "graduated":
             # Variant C: distance-from-MA sets gross; never fully to cash while data is fresh.
@@ -482,9 +496,9 @@ class MomentumDaily(Strategy):
                      else float(self.params.get("regime_gross_below", 0.15)) if rel < -band
                      else float(self.params.get("regime_gross_mid", 0.60)))
             below = False  # graduated de-grosses via the multiplier, not a hard cash flip
-            prev = getattr(self, "_prev_regime_gross", None)
-            flipped = prev is not None and abs(prev - gross) > 1e-9
-            self._prev_regime_gross = gross
+            prev = prev_state.get("gross")
+            flipped = prev is not None and abs(float(prev) - gross) > 1e-9
+            await self.ctx.set_state(_K_REGIME, {"gross": gross})
         else:
             # Variant A/B: binary (optional buffer + confirmation).
             buffer_pct = float(self.params.get("regime_buffer_pct", 0.0))
@@ -495,9 +509,9 @@ class MomentumDaily(Strategy):
             else:
                 below = last < ma
             gross = 1.0
-            prev = getattr(self, "_prev_regime_below", None)
-            flipped = prev is not None and prev != below
-            self._prev_regime_below = below
+            prev = prev_state.get("below")
+            flipped = prev is not None and bool(prev) != below
+            await self.ctx.set_state(_K_REGIME, {"below": below})
 
         stale = self._staleness_days(bars)
         if stale is None or stale <= stale_max:
