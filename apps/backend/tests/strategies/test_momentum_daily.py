@@ -172,7 +172,8 @@ async def test_regime_flip_to_risk_off_trades_to_cash_and_logs_regime_change():
     scores = _scores([("AAA", 2.0)])
     ctx = _ctx(["AAA", "SPY"], scores, holdings={"AAA": 5},
                spy_bars=_spy(above=False), equity=100_000)
-    s = _strat(ctx, use_market_regime_filter=True, entry_rank=1, max_names=1)
+    s = _strat(ctx, use_market_regime_filter=True, regime_mode="binary",
+               entry_rank=1, max_names=1)
     await s.on_init()
     # seed the "previous regime" as risk-on so this close is a flip
     s._prev_regime_below = False
@@ -180,6 +181,52 @@ async def test_regime_flip_to_risk_off_trades_to_cash_and_logs_regime_change():
     orders = _orders(ctx)
     assert orders.get("AAA", ("", 0))[0] == "sell"          # flattened to cash
     assert any("regime" in r for r in _reasons(ctx))
+
+
+def _spy_at(last: float, ma: float = 100.0, n: int = 201):
+    """SPY bars whose 200d MA == ``ma`` and whose last close == ``last``."""
+    closes = [ma] * (n - 1) + [last]
+    idx = pd.to_datetime([datetime(2026, 6, 8).date()] * n)
+    df = pd.DataFrame({"c": closes}, index=idx)
+    df.index.name = "t"
+    return df
+
+
+@pytest.mark.parametrize(("last", "expected_gross"), [
+    (110.0, 0.98),   # rel +10% > +2% band  -> clearly above
+    (101.0, 0.60),   # rel  +1% within ±2%  -> mid buffer zone
+    (90.0, 0.15),    # rel −10% < −2% band  -> clearly below
+])
+async def test_graduated_regime_steps_gross_with_distance_from_ma(last, expected_gross):
+    """Stage-4 winner: graduated gross = 0.98 / 0.60 / 0.15 by distance from the 200d MA."""
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), spy_bars=_spy_at(last))
+    s = _strat(ctx, use_market_regime_filter=True)   # default regime_mode == "graduated"
+    await s.on_init()
+    below, gross, _ = await s._regime()
+    assert below is False                            # graduated never hard-flips to cash while fresh
+    assert gross == pytest.approx(expected_gross)
+
+
+async def test_graduated_regime_degrosses_below_ma_without_going_flat():
+    """Below the MA, graduated stays PARTIALLY invested (gross 0.15) — not fully to cash like binary."""
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), holdings={},
+               spy_bars=_spy_at(90.0), equity=100_000)
+    s = _strat(ctx, use_market_regime_filter=True, entry_rank=1, max_names=1)
+    await s.on_init()
+    s._regime_gross = (await s._regime())[1]
+    inv = await s._investable_equity()
+    # ~ equity * (1 - cash_buffer 0.02) * gross 0.15  ->  clearly > 0 and well below full
+    assert Decimal("10000") < inv < Decimal("20000")
+
+
+async def test_graduated_gross_change_is_a_regime_change_flip():
+    """A move across a gross boundary flips the regime (fires the regime_change trigger)."""
+    ctx = _ctx(["AAA", "SPY"], _scores([("AAA", 2.0)]), spy_bars=_spy_at(110.0))
+    s = _strat(ctx, use_market_regime_filter=True)
+    await s.on_init()
+    s._prev_regime_gross = 0.60                       # was in the buffer zone last eval
+    _, gross, flipped = await s._regime()
+    assert gross == pytest.approx(0.98) and flipped is True
 
 
 async def test_retries_are_bounded_within_the_day():

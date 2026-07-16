@@ -65,7 +65,7 @@ _K_LIFECYCLE = "rebalance_lifecycle"     # {signal_date, attempted_at, completed
 
 class MomentumDaily(Strategy):
     name: ClassVar[str] = "momentum-daily"
-    version: ClassVar[str] = "0.1.0"     # Workstream B — daily-evaluation policy (paper, unvalidated)
+    version: ClassVar[str] = "0.2.0"     # Workstream B — Stage 2-4 validated config (graduated regime); paper, promotion-gated
     symbols: ClassVar[list[str]] = []
     # Post-close daily evaluation. Day names (the dow off-by-one bites numeric cron). ~16:10 ET.
     schedule: ClassVar[str] = "10 21 * * mon-fri"
@@ -91,13 +91,18 @@ class MomentumDaily(Strategy):
         "max_sector_pct": None,          # sector cap OFF (Stage 3 turns it on under test)
         "weighting": "equal",            # "equal" | "invvol_hybrid" (Stage 3)
         "min_weight_pct": 0.075,
-        # ---- regime (§7 — Stage 4, binary baseline + optional buffer) ----
+        # ---- regime (§7 — Stage-4 VALIDATED: graduated wins decisively; binary is worst) ----
         "use_market_regime_filter": True,
         "market_filter_symbol": "SPY",
         "market_ma_days": 200,
-        "regime_buffer_pct": 0.0,        # 0 = binary (baseline); >0 = §7 variant B buffer
-        "regime_confirm_days": 1,        # 1 = baseline; 2 = §7 variant B confirmation
-        "regime_stale_max_days": 2,      # A5 bounded fallback
+        "regime_mode": "graduated",      # "graduated" (Stage-4 winner) | "binary" (variant A/B)
+        "regime_graduated_band_pct": 0.02,   # ±band around the MA (graduated)
+        "regime_gross_above": 0.98,      # gross clearly above the MA
+        "regime_gross_mid": 0.60,        # gross inside the ±band
+        "regime_gross_below": 0.15,      # gross clearly below the MA
+        "regime_buffer_pct": 0.0,        # binary mode only: 0 = plain binary; >0 = §7 variant B buffer
+        "regime_confirm_days": 1,        # binary mode only
+        "regime_stale_max_days": 2,      # A5 bounded fallback (both modes)
         "regime_degraded_gross": 0.50,
         "regime_degraded_max_days": 4,
         # ---- universe (§8 — Stage, fixed baseline) ----
@@ -146,13 +151,23 @@ class MomentumDaily(Strategy):
         "min_weight_pct": {"type": "number", "min": 0, "max": 1, "default": 0.075,
                            "description": "Per-name floor for the inverse-vol hybrid (Stage 3)."},
         "use_market_regime_filter": {"type": "boolean", "default": True,
-                                     "description": "Move the book to cash when the market is below its MA."},
+                                     "description": "Apply the market-trend regime filter (de-gross in a downtrend)."},
         "market_filter_symbol": {"type": "string", "default": "SPY",
                                  "description": "Market proxy (must be in the registered symbols)."},
         "market_ma_days": {"type": "integer", "min": 20, "default": 200,
                            "description": "Regime moving-average window."},
+        "regime_mode": {"type": "enum", "choices": ["graduated", "binary"], "default": "graduated",
+                        "description": "graduated (Stage-4 winner: gross steps with distance from MA) | binary (100/0 above/below; whipsaws — Stage-4 worst)."},
+        "regime_graduated_band_pct": {"type": "number", "min": 0, "max": 1, "default": 0.02,
+                                      "description": "Graduated: ±band around the MA defining the mid-gross zone."},
+        "regime_gross_above": {"type": "number", "min": 0, "max": 1, "default": 0.98,
+                               "description": "Graduated gross when clearly above the MA."},
+        "regime_gross_mid": {"type": "number", "min": 0, "max": 1, "default": 0.60,
+                             "description": "Graduated gross inside the ±band."},
+        "regime_gross_below": {"type": "number", "min": 0, "max": 1, "default": 0.15,
+                               "description": "Graduated gross when clearly below the MA."},
         "regime_buffer_pct": {"type": "number", "min": 0, "max": 1, "default": 0.0,
-                              "description": "Regime crossing buffer (§7 variant B). 0 = binary baseline."},
+                              "description": "Binary mode only: crossing buffer (§7 variant B). 0 = plain binary."},
         "regime_confirm_days": {"type": "integer", "min": 1, "default": 1,
                                 "description": "Consecutive closes required to flip regime (§7 variant B). 1 = baseline."},
         "regime_stale_max_days": {"type": "integer", "min": 0, "default": 2,
@@ -432,12 +447,20 @@ class MomentumDaily(Strategy):
     # ---- regime (A5 bounded fallback + §7 buffer/confirmation) ----
 
     async def _regime(self) -> tuple[bool | None, float, bool]:
-        """(below_ma, gross_multiplier, flipped_since_last_eval). Never fails open."""
+        """(below_ma, gross_multiplier, flipped_since_last_eval). Never fails open.
+
+        Two modes (§7, Stage-4-validated). ``binary`` (variant A): 100% above the MA, cash below
+        (optional buffer/confirmation = variant B). ``graduated`` (variant C — the Stage-4 winner,
+        `Stage4_Evidence_Report_v1.0`): gross steps with distance from the MA — ``regime_gross_above``
+        clearly above, ``regime_gross_mid`` inside the ±``regime_graduated_band_pct`` band,
+        ``regime_gross_below`` clearly below — so the book de-grosses (via ``_investable_equity``)
+        rather than flipping fully to cash, avoiding the binary filter's whipsaw. A gross-level change
+        is itself a ``regime_change`` trigger. The A5 staleness fallback caps gross in both modes.
+        """
         if not self.params.get("use_market_regime_filter", True):
             return False, 1.0, False
         sym = str(self.params.get("market_filter_symbol", "SPY"))
         days = int(self.params.get("market_ma_days", 200))
-        buffer_pct = float(self.params.get("regime_buffer_pct", 0.0))
         stale_max = int(self.params.get("regime_stale_max_days", 2))
         degraded_gross = float(self.params.get("regime_degraded_gross", 0.50))
         degraded_max = int(self.params.get("regime_degraded_max_days", 4))
@@ -449,26 +472,41 @@ class MomentumDaily(Strategy):
             return None, 0.0, False
         ma = float(bars["c"].iloc[:-1].mean())
         last = float(bars["c"].iloc[-1])
-        # §7 buffer: risk-off only when clearly below (1 - buffer)*MA; risk-on only above (1+buffer)*MA.
-        if buffer_pct > 0:
-            below = last < ma * (1.0 - buffer_pct)
-            if last > ma * (1.0 + buffer_pct):
-                below = False
-        else:
-            below = last < ma
 
-        prev = getattr(self, "_prev_regime_below", None)
-        flipped = prev is not None and prev != below
-        self._prev_regime_below = below
+        mode = str(self.params.get("regime_mode", "graduated"))
+        if mode == "graduated":
+            # Variant C: distance-from-MA sets gross; never fully to cash while data is fresh.
+            band = float(self.params.get("regime_graduated_band_pct", 0.02))
+            rel = last / ma - 1.0
+            gross = (float(self.params.get("regime_gross_above", 0.98)) if rel > band
+                     else float(self.params.get("regime_gross_below", 0.15)) if rel < -band
+                     else float(self.params.get("regime_gross_mid", 0.60)))
+            below = False  # graduated de-grosses via the multiplier, not a hard cash flip
+            prev = getattr(self, "_prev_regime_gross", None)
+            flipped = prev is not None and abs(prev - gross) > 1e-9
+            self._prev_regime_gross = gross
+        else:
+            # Variant A/B: binary (optional buffer + confirmation).
+            buffer_pct = float(self.params.get("regime_buffer_pct", 0.0))
+            if buffer_pct > 0:
+                below = last < ma * (1.0 - buffer_pct)
+                if last > ma * (1.0 + buffer_pct):
+                    below = False
+            else:
+                below = last < ma
+            gross = 1.0
+            prev = getattr(self, "_prev_regime_below", None)
+            flipped = prev is not None and prev != below
+            self._prev_regime_below = below
 
         stale = self._staleness_days(bars)
         if stale is None or stale <= stale_max:
-            return below, 1.0, flipped
+            return below, gross, flipped
         if stale <= degraded_max:
             await self.ctx.log_signal(sym, SignalType.INFO, payload={
                 "reason": "regime_stale_degraded_gross", "stale_days": stale,
-                "gross": degraded_gross})
-            return below, degraded_gross, flipped
+                "gross": min(gross, degraded_gross)})
+            return below, min(gross, degraded_gross), flipped
         await self.ctx.log_signal(sym, SignalType.EXIT, payload={
             "reason": "regime_stale_blind_flat", "stale_days": stale, "gross": 0.0})
         return below, 0.0, flipped
