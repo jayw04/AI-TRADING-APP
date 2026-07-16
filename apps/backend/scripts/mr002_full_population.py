@@ -81,6 +81,84 @@ SOLVER_PATH = ("app/research/mr002/directed.py", "app/research/mr002/certificate
                "app/research/mr002/joint_portfolio.py", "scripts/mr002_coverage_signed_gap.py",
                "scripts/mr002_solver_intersection.py")
 
+# ---------------------------------------------------------------------------- AMENDMENT v1.0
+# Countersigned 2026-07-16 after the row-2307 adjudication (disposition A) and the completed
+# population exact-feasibility census (3,838 feasible / 1 infeasible / 0 unresolved).
+# See docs/implementation/evidence/mr_002/MR002_FullPopulation_Amendment_v1.0.md
+AMENDMENT_ID = "MR002_FullPopulation_Amendment_v1.0"
+AMENDED_INFEASIBLE = "EXACTLY_INFEASIBLE_REGISTERED_MODEL"
+
+# §2 — the SOLE authorized exactly-infeasible identity. BOTH must match: the index guards against
+# substitution, the content hash against index drift. Anything else is a mandatory STOP.
+COUNTERSIGNED_INFEASIBLE_INDEX = 2307
+COUNTERSIGNED_INFEASIBLE_HASH = (
+    "cfdc115e46f16226fafbe59b73890adca2f0c2f27b6f42c3ebebdce4d18ea30f"
+)
+# Bound evidence for the amendment's factual basis.
+ADJUDICATION_ARTIFACT_SHA = "179d571d5c6b1db201fda235198c10aaff5623a348f3b31e263f711ad1a3cdef"
+CENSUS_ARTIFACT_SHA = "2dd7a6c0f9dac24b2ae686a82550727091b6ce5c8ed8122b298992596f8ee1e3"
+EXACTLY_FEASIBLE_POPULATION = 3838      # §4 — the repair PASS denominator
+EXACTLY_INFEASIBLE_MODELS = 1
+DISTINCT_MODELS = 3819
+
+
+def is_countersigned_infeasible(i: int, content_hash: str) -> bool:
+    """§2 — row 2307 ONLY, by index AND content hash together."""
+    return i == COUNTERSIGNED_INFEASIBLE_INDEX and content_hash == COUNTERSIGNED_INFEASIBLE_HASH
+
+
+def amendment_exact_path_binding() -> dict:
+    """§3 — bind the exact evidentiary authority and this runner.
+
+    The qualification manifest binds the SELECTION/floating path but not the exact repair authority:
+    `build_manifest` keeps only `repair_manifest()["method"]` and DISCARDS the source hash that
+    `repair_manifest()` computes. So the implementation that produced the exact evidence was
+    unidentified, as was this runner. This block is an additive, countersigned COMPANION — the
+    original manifest is preserved and never revised.
+    """
+    import platform
+    import sysconfig
+
+    import app.research.mr002.certificate as _cert
+    import app.research.mr002.exact_repair as _er
+    import app.research.mr002.exact_simplex as _es
+
+    def _sha(path: str) -> str:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+
+    root = "/work/apps/backend"
+    files = {
+        "scripts/mr002_full_population.py": f"{root}/scripts/mr002_full_population.py",
+        "app/research/mr002/exact_repair.py": f"{root}/app/research/mr002/exact_repair.py",
+        "app/research/mr002/exact_simplex.py": f"{root}/app/research/mr002/exact_simplex.py",
+        "app/research/mr002/certificate.py": f"{root}/app/research/mr002/certificate.py",
+    }
+    return {
+        "amendment_id": AMENDMENT_ID,
+        "runner_commit_sha": os.environ.get("MR002_COMMIT_SHA"),
+        "source_sha256": {k: _sha(v) for k, v in files.items()},
+        # the hash build_manifest threw away
+        "repair_manifest_source_sha256": repair_manifest().get("source_sha256"),
+        "container_image_digest": os.environ.get("MR002_IMAGE_DIGEST"),
+        "python_version": sys.version.split()[0],
+        "python_abi": sysconfig.get_config_var("SOABI"),
+        "platform": platform.platform(),
+        # callable provenance: module PRESENT is not the same as function INVOKED
+        "callable_provenance": {
+            "certify_repair.__module__": certify_repair.__module__,
+            "agreement.__module__": agreement.__module__,
+            "objective_agreement.__module__": objective_agreement.__module__,
+            "exact_repair.solve_lp is exact_simplex.solve_lp": _er.solve_lp is _es.solve_lp,
+            "certificate.to_fraction is exact_repair.to_fraction": _cert.to_fraction
+            is _er.to_fraction,
+        },
+        "bound_evidence": {
+            "row_2307_adjudication_sha256": ADJUDICATION_ARTIFACT_SHA,
+            "feasibility_census_sha256": CENSUS_ARTIFACT_SHA,
+        },
+    }
+
 
 def vec_hash(v) -> str:
     h = hashlib.sha256(b"MR002|repaired-point|v1")
@@ -279,8 +357,26 @@ def main() -> int:  # noqa: PLR0912, PLR0915
             peak = tracemalloc.get_traced_memory()[1] / 1e6
             tracemalloc.stop()
             reason = str(e).split(":")[0]
+            if "PHASE_I_POSITIVE" in reason and is_countersigned_infeasible(i, chash):
+                # AMENDMENT v1.0 §2 — the ONE countersigned exactly-infeasible registered model.
+                # Terminal and recorded; not a pass, not a repair failure, not a defect.
+                row.update({"exact_repair_status": AMENDED_INFEASIBLE, "detail": str(e)[:200],
+                            "amendment_id": AMENDMENT_ID, "repair_status": "NOT_APPLICABLE",
+                            "agreement_certificates": "NOT_APPLICABLE",
+                            "population_inclusion": "INCLUDED",
+                            "feasible_population_inclusion": "EXCLUDED",
+                            "reason": "verified exact Farkas certificate"})
+                _flush_row(ck, row)
+                continue
             if "RESOURCE_LIMIT" in reason or "PHASE_I_POSITIVE" in reason:
-                # unexpected on a qualifying overlap -> §12 stop
+                # §12 stop. For a Phase-I positive OUTSIDE the row-2307 identity this is mandatory
+                # and NOT recordable under the amendment (§2): the census certified every other
+                # registered row FEASIBLE with a verified primal witness, so a Farkas certificate
+                # here would contradict it. Two contradicting verified certificates mean a broken
+                # verifier/constructor, not a model property — recording it would launder a harness
+                # failure into a model finding. A candidate certificate does NOT rescue it.
+                if "PHASE_I_POSITIVE" in reason:
+                    reason = "PHASE_I_POSITIVE_CONTRADICTS_FEASIBILITY_CENSUS"
                 row.update({"exact_repair_status": reason, "detail": str(e)[:200]})
                 stops.append({"stop": reason, "corpus_index": i, "content_hash": chash})
                 _flush_row(ck, row)
@@ -362,18 +458,45 @@ def finalize(qualifying, done, manifest_hash, corpus_hash, dup_classes, secs) ->
     recs = [done[i] for i in qualifying if i in done]
     ok = [r for r in recs if r.get("exact_repair_status") == "EXACT_REPAIR_OK"]
 
+    # AMENDMENT §2/§4. Row 2307's ORIGINAL record is preserved byte-identical and is NOT rewritten;
+    # it is reclassified here, at aggregate time, from the record the frozen run wrote. `ok` already
+    # excludes it (its status is not EXACT_REPAIR_OK), so every distribution and pass-rate below —
+    # agreement, objective agreement, runtime, pivots, determinism, shuffle — is computed over `ok`
+    # and therefore excludes it by construction, as §4 requires.
+    def _is_amended_infeasible(r: dict) -> bool:
+        if not is_countersigned_infeasible(r.get("i"), r.get("content_hash", "")):
+            return False
+        st = str(r.get("exact_repair_status"))
+        # accept BOTH the frozen run's original wording and the amended terminal, so the preserved
+        # 2,269-record checkpoint reclassifies without being rewritten
+        return "PHASE_I_POSITIVE" in st or st == AMENDED_INFEASIBLE
+
+    infeasible_recs = [r for r in recs if _is_amended_infeasible(r)]
+    feasible_population = [i for i in qualifying
+                           if not is_countersigned_infeasible(
+                               i, done.get(i, {}).get("content_hash", ""))]
+
     def rho_zero(r):
         return any(r.get(f"repair_{t}", {}).get("rho_star_is_zero") for t in (PRIMARY, FALLBACK))
 
     agg = {
-        "expected_records": len(qualifying),
+        # §4 — TWO DENOMINATORS, never collapsed into one success rate.
+        "expected_records": len(qualifying),                       # 3839 floating-qualified
+        "exactly_feasible_repair_population": len(feasible_population),   # 3838 = PASS denominator
+        "exactly_infeasible_registered_models": len(infeasible_recs),     # 1 (row 2307)
         "evaluated_records": len(recs),
         "successful_exact_repairs": len(ok),
         "rho_star_zero_count": sum(1 for r in ok if rho_zero(r)),
         "rho_star_positive_count": sum(1 for r in ok if not rho_zero(r)),
-        "exactly_infeasible_repairs": sum(1 for r in recs if "PHASE_I_POSITIVE" in str(r.get("exact_repair_status"))),
-        "invalid_runs": sum(1 for r in recs if r.get("exact_repair_status") not in
-                            ("EXACT_REPAIR_OK",) and "PHASE_I_POSITIVE" not in str(r.get("exact_repair_status"))),
+        # AMENDMENT: the amended terminal is a RECOGNISED outcome, not an invalid run. The
+        # checkpoint currently carries the frozen run's original `EXACT_PHASE_I_POSITIVE` wording,
+        # but the amended path WRITES `EXACTLY_INFEASIBLE_REGISTERED_MODEL` — so a later resume
+        # would have re-read it, scored it `invalid_runs=1`, and made `passed` unreachable forever.
+        # Both spellings must be excluded here; `_is_amended_infeasible` is the single source of
+        # truth for "is this the countersigned row 2307".
+        "invalid_runs": sum(1 for r in recs
+                            if r.get("exact_repair_status") != "EXACT_REPAIR_OK"
+                            and not _is_amended_infeasible(r)),
         "resource_ceiling_breaches": sum(1 for r in recs if "RESOURCE_LIMIT" in str(r.get("exact_repair_status"))),
         "agreement_passes": sum(1 for r in ok if r["agreement"]["pass"]),
         "agreement_failures": sum(1 for r in ok if not r["agreement"]["pass"]),
@@ -400,10 +523,26 @@ def finalize(qualifying, done, manifest_hash, corpus_hash, dup_classes, secs) ->
 
     complete = (agg["evaluated_records"] == agg["expected_records"]
                 and agg["unclassified_records"] == 0)
-    passed = (complete and agg["successful_exact_repairs"] == agg["expected_records"]
+    # §4 — the PASS denominator is the EXACTLY FEASIBLE population (3,838), not the floating-
+    # qualified population (3,839). Row 2307 is neither a success nor a failure: a repair cannot
+    # exist for it, because its feasible set is empty. Comparing against 3,839 would make PASS
+    # unreachable and would misattribute a property of the MODEL to the METHOD.
+    passed = (complete
+              and agg["successful_exact_repairs"] == agg["exactly_feasible_repair_population"]
+              and agg["exactly_infeasible_registered_models"] == EXACTLY_INFEASIBLE_MODELS
               and agg["agreement_failures"] == 0 and agg["objective_agreement_failures"] == 0
               and agg["determinism_failures"] == 0 and agg["shuffle_invariance_failures"] == 0
               and agg["resource_ceiling_breaches"] == 0 and agg["invalid_runs"] == 0)
+    rates = {
+        "exact_repair_success_rate": (
+            f"{agg['successful_exact_repairs']}/{agg['exactly_feasible_repair_population']}"),
+        "floating_predicate_exact_feasibility_admission_rate":
+            f"{EXACTLY_FEASIBLE_POPULATION}/{len(qualifying)}",
+        "floating_predicate_exact_infeasibility_false_admission_rate":
+            f"{EXACTLY_INFEASIBLE_MODELS}/{len(qualifying)}",
+        "false_admission_rate_by_distinct_model":
+            f"{EXACTLY_INFEASIBLE_MODELS}/{DISTINCT_MODELS}",
+    }
 
     print("\n=== §11 population aggregate ===")
     for k, v in agg.items():
@@ -417,13 +556,70 @@ def finalize(qualifying, done, manifest_hash, corpus_hash, dup_classes, secs) ->
             print(f"  {name:14} min {d['min']:.3g} p50 {d['p50']:.3g} p90 {d['p90']:.3g} "
                   f"p99 {d['p99']:.3g} max {d['max']:.3g}")
 
+    # §5 — NEVER an unqualified "FULL POPULATION: PASS". This run completed under a countersigned
+    # amendment after the original frozen run correctly STOPPED at row 2307, and its PASS
+    # denominator is 3,838 (exactly feasible), not the 3,839 the original protocol froze. A reader
+    # who saw a bare PASS would reasonably assume the original denominator and the original
+    # protocol. The banner travels with the result; a detached amendment doc is not enough.
     print("\n" + "=" * 74)
-    print("  FULL POPULATION: " + ("PASS" if passed else "INCOMPLETE / STOP"))
+    print("  FULL POPULATION — " + ("AMENDED PASS" if passed else "INCOMPLETE / STOP"))
+    print("=" * 74)
+    print(f"  Completed under {AMENDMENT_ID} after the original frozen run correctly stopped at")
+    print(f"  row {COUNTERSIGNED_INFEASIBLE_INDEX}. Repair PASS denominator: "
+          f"{agg['exactly_feasible_repair_population']:,} exactly feasible rows "
+          f"(NOT the {agg['expected_records']:,} floating-qualified).")
+    print(f"  Row {COUNTERSIGNED_INFEASIBLE_INDEX} is separately recorded as a certified exactly")
+    print("  infeasible registered model — counted as NEITHER a repair success nor a failure.")
+    print("\n  --- the two denominators (§4) ---")
+    for k, v in rates.items():
+        print(f"  {k:58} {v}")
     print("=" * 74)
 
     doc = {
-        "schema": "MR002_FullPopulation/v1",
-        "authorization": "owner ruling 2026-07-14 §7-§13 (full overlap population)",
+        "schema": "MR002_FullPopulation/v1.1",
+        # §5 — the amendment banner travels INSIDE the artifact. A future reader must not be able
+        # to mistake this result for the originally frozen protocol/denominator.
+        "protocol_status": "AMENDED_AFTER_AUTHORIZED_STOP",
+        "amendment_id": AMENDMENT_ID,
+        "amendment_reason": "Certified exact infeasibility of registered row 2307",
+        "amendment_doc": ("docs/implementation/evidence/mr_002/"
+                          "MR002_FullPopulation_Amendment_v1.0.md"),
+        "original_stop_remains_valid": (
+            "The frozen protocol stopped CORRECTLY at row 2307: certified exact infeasibility was "
+            "not an anticipated terminal category. This amendment does not retroactively remove or "
+            "redefine that STOP, and row 2307's original checkpoint record is preserved "
+            "byte-identical (never rewritten; reclassified only at aggregate time)."),
+        "denominator_change": {
+            "original_expected_records": len(qualifying),
+            "exactly_feasible_repair_population": len(feasible_population),
+            "exactly_infeasible_registered_models": len(infeasible_recs),
+            "note": ("the repair PASS denominator is the EXACTLY FEASIBLE population; row 2307 is "
+                     "counted as NEITHER a repair success nor a repair failure — no repair exists "
+                     "for it because its feasible set is empty"),
+        },
+        "rates": rates,
+        "row_2307_disposition": {
+            "index": COUNTERSIGNED_INFEASIBLE_INDEX,
+            "content_hash": COUNTERSIGNED_INFEASIBLE_HASH,
+            "status": AMENDED_INFEASIBLE,
+            "repair_status": "NOT_APPLICABLE",
+            "agreement_certificates": "NOT_APPLICABLE",
+            "population_inclusion": "INCLUDED",
+            "feasible_population_inclusion": "EXCLUDED",
+            "reason": "verified exact Farkas certificate (M'y <= 0 on every column, h'y > 0)",
+            "excluded_from": ["agreement", "objective_agreement", "wall_clock", "pivots",
+                              "determinism", "shuffle_invariance"],
+        },
+        "amendment_exact_path_binding": amendment_exact_path_binding(),
+        "predicate_conclusion": (
+            "The registered floating-point qualification predicate is NOT an exact-feasibility "
+            "test. It admitted one certified exactly infeasible binary64 model among 3,839 "
+            "qualifying overlaps. The observed incidence is contained but nonzero. Exact "
+            "feasibility must therefore be established by the exact evidentiary path, not inferred "
+            "from floating KKT and signed-gap qualification. The predicate is NOT invalid in "
+            "general — it remains useful as a solver-overlap selection rule; what is disproved is "
+            "its SUFFICIENCY as exact-feasibility evidence."),
+        "authorization": "owner ruling 2026-07-14 §7-§13 + countersigned amendment 2026-07-16",
         "scope_boundary": ("a full-population pass authorizes only submission of its evidence for "
                            "adjudication — NOT preflight, development performance, validation, sealed "
                            "OOS, economic conclusions, erratum, or production registration"),
