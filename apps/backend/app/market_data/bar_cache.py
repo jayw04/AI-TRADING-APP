@@ -27,6 +27,7 @@ Key properties:
 from __future__ import annotations
 
 import asyncio
+import functools
 import os
 import time
 from collections import defaultdict
@@ -53,6 +54,14 @@ TIMEFRAME_GRANULARITY: dict[str, str] = {
     "1Hour": "fine",
     "1Day": "daily",
 }
+
+# Alpaca returns at most this many bars per request. A response of *exactly* this
+# size means the span was (possibly) truncated at the page boundary and must be
+# continued — never assumed complete (ADR 0033, Historical Data Integrity).
+_PAGE_LIMIT = 10000
+# Safety cap on a single cold fetch (≤ _MAX_PAGES × _PAGE_LIMIT bars). If hit, we
+# stop and leave the un-fetched tail *missing* (re-fetchable), never poisoned.
+_MAX_PAGES = 500
 
 
 class BarCache:
@@ -264,6 +273,13 @@ class BarCache:
                 cur = next_month
         return out
 
+    def _write_empty_marker(self, symbol: str, timeframe: str, bucket_key: str) -> None:
+        """Write a zero-byte ``.empty`` marker so a genuinely-empty bucket
+        (holiday, inactive symbol) is not re-fetched forever."""
+        marker = self._bucket_file(symbol, timeframe, bucket_key).with_suffix(".empty")
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+
     async def _fetch_and_write(
         self,
         symbol: str,
@@ -271,7 +287,18 @@ class BarCache:
         missing: list[tuple[str, datetime, datetime]],
         granularity: str,
     ) -> pd.DataFrame:
-        """Fetch missing buckets in one Alpaca call, split locally, write."""
+        """Fetch the missing span from Alpaca, split into buckets, and write.
+
+        ADR 0033 (Historical Data Integrity). Alpaca caps a response at
+        ``_PAGE_LIMIT`` bars, so a cold multi-year intraday span comes back
+        truncated. We therefore **paginate**: a full page (== ``_PAGE_LIMIT``)
+        is treated as *possibly truncated* and the fetch continues from just
+        after the last returned bar until a short/empty page proves the span is
+        exhausted. ``.empty`` markers are written only for genuinely-empty
+        buckets **within the range the provider actually covered** — a bucket
+        beyond an incomplete fetch is left *missing* (re-fetchable), never
+        poisoned.
+        """
         if not missing:
             return _empty_bars_frame()
 
@@ -279,40 +306,80 @@ class BarCache:
         overall_end = max(m[2] for m in missing)
 
         loop = asyncio.get_running_loop()
-        try:
-            df = await loop.run_in_executor(
-                None,
-                lambda: _alpaca_fetch_bars(symbol, timeframe, overall_start, overall_end),
-            )
-        except Exception:
-            logger.exception(
-                "bar_cache_fetch_failed",
-                symbol=symbol,
-                timeframe=timeframe,
-                start=overall_start.isoformat(),
-                end=overall_end.isoformat(),
-            )
-            return _empty_bars_frame()
+        frames: list[pd.DataFrame] = []
+        cursor = overall_start
+        covered_end = overall_end  # optimistic; narrowed only if we stop early
+        incomplete = False  # True ⇒ the tail past ``covered_end`` was NOT confirmed
+        pages = 0
+
+        while cursor <= overall_end:
+            if pages >= _MAX_PAGES:
+                logger.warning(
+                    "bar_cache_fetch_page_cap",
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    pages=pages,
+                    covered_through=cursor.isoformat(),
+                )
+                covered_end = frames[-1]["t"].max() if frames else overall_start
+                incomplete = True
+                break
+            try:
+                page = await loop.run_in_executor(
+                    None,
+                    functools.partial(
+                        _alpaca_fetch_bars, symbol, timeframe, cursor, overall_end
+                    ),
+                )
+            except Exception:
+                logger.exception(
+                    "bar_cache_fetch_failed",
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    start=cursor.isoformat(),
+                    end=overall_end.isoformat(),
+                )
+                if not frames:
+                    return _empty_bars_frame()  # first page failed → nothing to write
+                # A continuation failed: keep what we have, but do NOT claim the
+                # unfetched tail is empty — leave it missing (ADR 0033 point 1).
+                covered_end = frames[-1]["t"].max()
+                incomplete = True
+                break
+            pages += 1
+            if page.empty:
+                break  # provider has no (more) data in [cursor, overall_end] → exhausted
+            frames.append(page)
+            last_ts = page["t"].max()
+            if len(page) < _PAGE_LIMIT or last_ts >= overall_end:
+                break  # short page or reached the end → span fully covered
+            nxt = last_ts + timedelta(microseconds=1)
+            if nxt <= cursor:  # no forward progress (defensive)
+                covered_end = last_ts
+                incomplete = True
+                break
+            cursor = nxt
+
+        df = (
+            pd.concat(frames).drop_duplicates(subset=["t"]).sort_values("t").reset_index(drop=True)
+            if frames
+            else _empty_bars_frame()
+        )
 
         if df.empty:
-            # Write zero-byte markers so we don't re-fetch the same empty days
-            # over and over (holidays, inactive symbols).
+            # No data anywhere in the span → authoritative "empty" for a bounded
+            # past range (holidays, inactive symbol); mark every requested bucket.
             for bucket_key, _, _ in missing:
-                marker = self._bucket_file(symbol, timeframe, bucket_key).with_suffix(
-                    ".empty"
-                )
-                marker.parent.mkdir(parents=True, exist_ok=True)
-                marker.touch()
+                self._write_empty_marker(symbol, timeframe, bucket_key)
             return df
 
         for bucket_key, b_start, b_end in missing:
             bucket_df = df[(df["t"] >= b_start) & (df["t"] <= b_end)].reset_index(drop=True)
             if bucket_df.empty:
-                marker = self._bucket_file(symbol, timeframe, bucket_key).with_suffix(
-                    ".empty"
-                )
-                marker.parent.mkdir(parents=True, exist_ok=True)
-                marker.touch()
+                # Mark empty ONLY if the whole bucket lies within the covered range.
+                # A bucket beyond an incomplete fetch stays missing → re-fetchable.
+                if not incomplete or b_end <= covered_end:
+                    self._write_empty_marker(symbol, timeframe, bucket_key)
                 continue
             f = self._bucket_file(symbol, timeframe, bucket_key)
             f.parent.mkdir(parents=True, exist_ok=True)
@@ -426,7 +493,7 @@ def _alpaca_fetch_bars(
         start=start,
         end=end,
         feed=DataFeed.IEX,
-        limit=10000,
+        limit=_PAGE_LIMIT,
     )
     result = client.get_stock_bars(req)
     bars = result.data.get(symbol, []) if hasattr(result, "data") else []
