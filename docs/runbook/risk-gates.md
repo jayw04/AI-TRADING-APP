@@ -127,26 +127,51 @@ it lags behind the broker it refuses genuine reductions. See
 ### Operator response to the two warnings
 
 **`short_gate_ledger_broker_divergence`** — *the loud one.* The ledger and the broker disagree about
-what the account owns (`local_qty`, `broker_qty`, `delta` are logged). The order was decided
-correctly against the broker, so **nothing is broken right now** — but every ledger-derived position
-number for that account is suspect until the cause is found. Usual cause: a paper-account reset
-orphaning pre-reset fills. Confirm by partitioning the order ledger at the account's Alpaca
-`created_at` — if post-reset orders reconcile to the broker but all-time orders don't, the
-difference is the ghosts. A `GET /v2/orders/{broker_order_id}` returning **404** for a pre-reset
-order is decisive. ⚠ Reconciliation will not surface this: it compares *local positions* vs broker
-(which agree), never *ledger-implied* vs broker.
+what the account owns (`local_qty`, `broker_qty`, `delta` are logged).
+
+> The current short-gate decision was made against the broker position and is therefore protected.
+> The account remains **operationally degraded**: ledger-derived positions and any control depending
+> on them are **untrusted** until the account-reset boundary is identified and reconciled.
+
+Do **not** read this as "nothing is broken" — the *decision* is protected, the *account* is not.
+
+Usual cause: a broker-account reset or recreation orphaning pre-reset fills. **A `GET
+/v2/orders/{broker_order_id}` returning 404 is decisive only in COMBINATION with:**
+
+1. the order **predating** the broker account's `created_at`;
+2. **post-reset** ledger fills reproducing the current broker positions;
+3. **post-reset** orders remaining retrievable.
+
+A standalone 404 is **not** universally proof of a reset (an order can 404 for other reasons).
+Confirm by partitioning the ledger at the account's Alpaca `created_at`: if post-reset orders
+reconcile to the broker but all-time orders do not, the difference is the ghosts.
+
+⚠ Reconciliation will not surface this: the only implemented domain is `position`, which compares
+*local positions* vs broker (they agree), never *ledger-implied* vs broker.
 
 **`short_gate_unverified_broker_unreadable`** — the broker could not be read, so the gate fell back
-to the ledger for this decision and **allowed** what the ledger permits. This is deliberate, not an
-oversight: `OrderRouter.submit` runs this gate *before* `RiskDecisionService.decide`, so rejecting
-here would block a locked account's de-risking SELL upstream of the ADR-0042 path built to allow it
-— the 2026-07-13 incident. Falling back is strictly better than the pre-2026-07-16 behaviour and
-adds no new blocking. **Action:** none for the order; investigate broker health if it repeats
-(account 3's `/v2/positions` timed out >15s on 2026-07-15). The residual exposure — a short slipping
-through — needs an outage *and* a ghost *and* a zero-crossing sell at once.
+to the ledger for this decision and **allowed** what the ledger permits. This is deliberate:
+`OrderRouter.submit` runs this gate *before* `RiskDecisionService.decide`, so rejecting here would
+block a locked account's de-risking SELL upstream of the ADR-0042 path built to allow it — the
+2026-07-13 incident.
+
+> The fallback preserves the registered ability to reduce risk, but the sell decision is
+> **unverified**. Restore broker readability and reconcile the account **before allowing continued
+> autonomous sell activity.**
+
+**This warning is not a successful verification.** The residual exposure — a short slipping through —
+needs an outage *and* a ghost *and* a zero-crossing sell at once, but the decision itself carries no
+broker evidence. Investigate broker health (account 3's `/v2/positions` timed out >15s on
+2026-07-15).
 
 **`short_gate_unverified_no_broker_registry`** — no registry wired. Production always wires one
-(`lifespan.py`); seeing this in production means the engine was constructed wrong.
+(`lifespan.py`), so in production this is **not** a warning to investigate at leisure:
+
+> **Treat as a service-construction or deployment failure. Disable affected autonomous order
+> submission and escalate immediately.**
+
+Every SELL on an `allow_short = 0` account is being decided with **no broker evidence at all**.
+Follow-up: this should become a **readiness/startup failure** rather than a runtime warning.
 
 ## Pre-trade buying power (LIVE only)
 

@@ -3,7 +3,9 @@
 **Date raised:** 2026-07-16 (owner, from the user-2 dashboard)
 **Severity:** Medium — a risk limit (`allow_short = 0`) is **violated at the broker** on a live paper
 book. Financial exposure is small (−$1,984); the *class* of defect is not.
-**Status:** Diagnosed, root cause confirmed. **No remediation applied** — awaiting owner decision.
+**Status:** Diagnosed, root cause confirmed. **Short covered 2026-07-16 (owner-directed) — account 2
+is FLAT and compliant.** The **ghost records remain** and the **control defect is unfixed in the
+deployed build**; the gate fix is PR #438. See §8.
 **Class:** Same family as [[incident_2026_07_13_risk_gate_traps_risk]] and the ADR-0042 reservation
 leak — **the risk engine acting correctly on a view of the world that had drifted from reality.**
 
@@ -107,6 +109,21 @@ still carried the ghost. At the broker the position was 0, so the order opened a
 
 > **The gate was not bypassed. It was told the wrong position.**
 
+### 4.1 How the local position changed — the transition
+
+§4 says the gate saw **≥ +7** at 14:15; §3 shows the local `Position` row now reads **−4**, agreeing
+with the broker. Both are true, and the transition is the point:
+
+> At decision time, the local `Position` row still represented **+7 AMD** and allowed `SELL 7`.
+> After the broker fill and the subsequent `BUY 3`, the position-synchronisation path updated the
+> local `Position` row to the broker state of **−4**. The historical **order ledger** still implies
+> **+3**, because it retains the pre-reset ghost `BUY 7`.
+
+So the `Position` row **self-corrected** (it is periodically overwritten from the broker); the
+**ledger did not** (it is append-only history). The window in which the two disagreed is exactly the
+window in which the gate could be misled — and the gate read the row *before* it was corrected. The
+ledger remains corrupted today; only the derived row was healed.
+
 This is the recurring theme: on 07-13 the daily-loss gate blocked de-risking because its view was
 wrong; the ADR-0042 reservation leak starved reducible capacity because its view was wrong; here the
 short gate authorised a short because its view was wrong.
@@ -114,19 +131,41 @@ short gate authorised a short because its view was wrong.
 ## 5. Why reconciliation did not catch it
 
 Position-domain reconciliation compares the **local `positions` table** against the **broker**. Those
-now agree (both −4), so it reports `pass` — 23,106 runs, `n_discrepancies: 0`. It is working as
-specified.
+now agree (both −4), so it reports `pass`. It is working as specified.
+
+**Measured, for account 2 specifically** (not inferred from a table-wide total):
+
+```
+account 2, domain=position : 2,082 runs, result=pass, sum(n_discrepancies)=0
+                             first 2026-06-30 14:17:54 → last 2026-07-16 20:02:32
+                           + 4 runs result=unavailable (earliest 2026-07-07 15:51:52)
+```
+
+Those 2,082 passing runs **span the entire ghost window** (the reset was 07-07 15:36). Reconciliation
+ran across it more than two thousand times and never saw it — because it was never looking at the
+thing that was wrong.
+
+⚠ Scope of that claim, stated precisely: it is **account 2 / domain `position`**. Table-wide the
+store holds 23,401 runs of which **5 did fail with a discrepancy** (accounts 3, 5, 6 — unrelated to
+this incident). This document does **not** assert that all historical reconciliation runs observed
+zero divergence.
 
 The divergence lives between the **order ledger's implied position** and reality — a relationship no
-current reconciliation domain covers (domains today: Position + Intent; Order/Account/Cash are
-future work per ADR 0021). **This is a coverage gap, not a reconciliation failure.**
+implemented reconciliation domain covers. **`position` is the only domain that has ever run**
+(ADR 0021 designs Intent, and lists Order/Account/Cash as future work, but the run store contains
+`position` only). **This is a coverage gap, not a reconciliation failure.**
 
 Note also that reconciliation is **alert-only by design** (ADR 0021 prop. 4 — it never auto-corrects),
 so even detection would not have prevented this.
 
 ## 6. Scope
 
-- **Confined to account 2.** The ghosts arise only from that account's 07-07 reset.
+- **The observed ghost data and resulting short are confined to account 2.** The ghosts arise only
+  from that account's 07-07 reset.
+- ⚠ **The control defect is systemic.** Any broker-account reset or recreation can produce the same
+  failure unless local state is bound to the **broker-account epoch**. Nothing about the mechanism is
+  specific to account 2, to AMD, or to the Range book — it requires only a reset plus a later
+  zero-crossing sell.
 - **Three ghosted symbols**; only AMD converted into an actual short, because only AMD saw a
   post-reset SELL large enough to cross zero at the broker.
 - **Not a strategy defect.** Range Trader is long-only and every order it placed was legal against
@@ -137,27 +176,73 @@ so even detection would not have prevented this.
 
 ## 7. Recommendations (owner decision — none applied)
 
-**Immediate — cover the short.** BUY 4 AMD on account 2 to restore `allow_short = 0` compliance.
-Small and reversible. Left undone, the live strategy keeps trading around a position the risk policy
-forbids.
+**Immediate — cover the short, in this order.** Range Trader remains scheduled every five minutes,
+so the account must stop trading itself before anything is measured or submitted:
 
-**Structural — the short gate must not trust a ledger-derived position.** Test against a
-broker-verified position (or refuse when the local view is unreconciled). Otherwise **any future
-paper-account reset silently re-arms this identical trap**, and resets are routine (a reset also
-rotates the API keys — noted in the ADR-0042 canary manifest).
+1. **Pause autonomous trading for account 2.**
+2. **Read and record the current broker position.**
+3. **Submit the broker-verified risk-reducing BUY** needed to cover the short.
+4. **Confirm the fill and reconcile the final position.**
+5. **Preserve and annotate the pre-reset ghost records — do not silently delete them.**
 
-**Hygiene — the ghost rows remain.** AMD +7 / INTC +35 / MU +4 are still `FILLED` in the ledger and
-will skew any ledger-derived position math indefinitely. They should be reconciled against the
-broker or explicitly annotated as pre-reset, not silently deleted (they are historical record).
+The cover is **small and risk-reducing**. It is *not* "reversible": selling again would recreate the
+prohibited exposure, so reversal is precisely the wrong operational message.
+
+**Structural — the short gate must not rely on a local position whose broker-account generation and
+freshness have not been verified.** The durable issue is **not merely ledger-versus-broker**: it is
+the **absence of an account-generation boundary** after the Alpaca account was recreated. Local state
+carried across an epoch change it had no way to represent. Otherwise **any future account reset
+silently re-arms this identical trap**, and resets are routine (a reset also rotates the API keys —
+noted in the ADR-0042 canary manifest).
+
+**Hygiene — bind the ghost records to an epoch; do not purge them.** AMD +7 / INTC +35 / MU +4 are
+still `FILLED` in the ledger. They are **historical record and must be preserved**. The remedy is to
+bind orders to the broker-account epoch, e.g.:
+
+```
+broker_account_id
+broker_account_created_at
+account_generation
+valid_for_position_reconstruction
+```
 
 **Detection — close the coverage gap.** A reconciliation domain comparing *ledger-implied* vs
-*broker* position would have caught this on 07-07, eight days before it mattered. Cheap: the query in
-§3(b) is the whole check.
+*broker* position would have caught this on 07-07, eight days before it mattered. The query in §3(b)
+is the whole check. It must compute ledger-implied positions **only within the active broker-account
+generation** — otherwise it would simply re-derive the ghosts and report a permanent false
+discrepancy.
 
-## 8. What was NOT done
+## 8. What was done, and what was not
 
-No orders placed. No positions changed. No limits altered. No ledger rows edited. Account 2 is
-exactly as found. This document is diagnosis only.
+**Done — the short was covered (owner-directed, 2026-07-16 16:02 ET).** Order **#1355**,
+`BUY 4 AMD LIMIT 505.00`, extended-hours, submitted through the **product path**
+(OrderRouter + risk engine → `risk_check #3586 PASS`), **filled 4/4 @ $502.50**. Account 2 is now
+**FLAT**: `cash 100,225.19 = equity 100,225.19`, `short_market_value 0`, `allow_short = 0`
+**compliant**, 0 HELD reservations.
+
+Two notes on that cover. It was placed **after the 16:00 close**, so the `MARKET_SESSION_CLOSED`
+gate required an **extended-hours LIMIT** order (Alpaca forbids market orders in extended hours);
+it was priced above the closing print rather than at a synthetic level. And it went through the
+**audited product path**, not a broker bypass — which also demonstrated that a risk-reducing order
+on this account is legal, in contrast to the 07-13 incident where de-risking had to bypass the app.
+
+**NOT done — deliberately:**
+
+- **The ghost records were not touched.** AMD +7 / INTC +35 / MU +4 remain `FILLED` in the ledger.
+  They are historical record; the remedy is epoch-binding (§7), not deletion.
+- **No limits altered. No ledger rows edited. No positions changed** beyond the authorised cover.
+- **The control defect is not fixed in the deployed build.** The account is compliant *today*, but
+  the deployed short gate still reads the local position, so the next post-reset zero-crossing sell
+  would re-open a short by the same mechanism. The fix is **PR #438** (short gate → broker-verified
+  position), which is separate from this diagnosis.
+
+### 8.1 Tracked follow-ups (deliberately out of PR #438)
+
+| # | Item | Why deferred |
+|---|---|---|
+| 1 | **Epoch-bind the order ledger** — add `broker_account_id`, `broker_account_created_at`, `account_generation`, `valid_for_position_reconstruction`; preserve, do not purge | schema change; independent of the gate fix |
+| 2 | **Ledger-implied-vs-broker reconciliation domain**, computed **only within the active broker-account generation** | new domain; depends on (1) to avoid re-deriving the ghosts as a permanent false discrepancy |
+| 3 | **`no_broker_registry` as a readiness/startup failure** rather than a runtime warning | changes service startup semantics |
 
 ## 9. Evidence
 
