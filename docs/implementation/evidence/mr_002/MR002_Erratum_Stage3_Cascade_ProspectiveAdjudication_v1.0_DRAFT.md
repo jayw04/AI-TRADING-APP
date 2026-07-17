@@ -107,7 +107,20 @@ Frozen audit result (`MR002_Stage3FallbackSelection_Audit_v1.0.json`, committed 
 
 Both profiles rescue all five characterized `QUADPROG_SQRT` nonqualifications (tie on the primary criterion). **`PIQP_P2` wins the frozen tie-break** on the lower authoritative standalone nonqualification count (51 < 59).
 
-> `PIQP_P2` is prospectively selected as the fixed rescue profile because it ties for complete conditional coverage of the characterized `QUADPROG_SQRT` nonqualification set and wins the frozen standalone-qualification tie-break. This selection is derived from the authoritative solver-characterization evidence and is **not** based on the quarantined full-population result.
+**Closed candidate universe.** The selection is closed over **every** previously-characterized solver profile, not only the two PIQP profiles (`MR002_Stage3FallbackCandidateUniverse_v1.0.json`; existing pre-quarantine evidence only, no new solver runs):
+
+| profile | family | admissible? | rescues F_Q | standalone |
+|---|---|---|---|---|
+| CLARABEL | interior-point (conic) | **no** | 4/5 (U=1) | 29 |
+| HIGHS_QPASM | active-set | no (family) | 5/5 (U=0) | 592 |
+| PIQP_P1 | interior-point | yes | 5/5 (U=0) | 59 |
+| **PIQP_P2** | interior-point | **yes** | **5/5 (U=0)** | **51** |
+| QUADPROG_RAW | active-set | no (family) | 2/5 (U=3) | 70 |
+| QUADPROG_TSCALED | active-set | no (family) | 1/5 (U=4) | 185 |
+
+Two points are load-bearing. First, **CLARABEL has the lowest standalone count (29 < 51) yet does not win**: it is eliminated on the **primary** criterion — it rescues only 4 of the 5 primary failures (`|F_Q ∩ F_Clarabel| = 1`), so it never reaches the standalone tie-break. Its low standalone count is correctly overridden by incomplete conditional coverage. Second, CLARABEL is **independently inadmissible**: its exact-conic dual mapping cannot survive the `1/√t` scaling (commit `18c55f5`, "discovery INVALID"; remediation manifest `MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json`) — the primal is correct to `1.7e-13` but the dual certificate collapses (amplification up to `~1e4`), so it fails the "valid primal **and** dual mappings" / common-certifier eligibility filter. The active-set family (`QUADPROG_RAW/TSCALED`, `HIGHS_QPASM`) is excluded because it is not algorithmically distinct from the active-set primary; `HIGHS_QPASM` also loses the tie-break (592). Among the admissible interior-point profiles that rescue all five (`PIQP_P1`, `PIQP_P2`), **`PIQP_P2` wins (51 < 59)**. No admissible candidate beats `PIQP_P2`; had one done so, this draft would STOP rather than preserve the observed cascade.
+
+> `PIQP_P2` is prospectively selected as the fixed rescue profile because, over the **closed candidate universe** of previously-characterized profiles, it ties for complete conditional coverage of the characterized `QUADPROG_SQRT` nonqualification set and wins the frozen standalone-qualification tie-break, while every lower-standalone or otherwise-distinct profile is eliminated on the primary criterion or on admissibility. This selection is derived from the authoritative solver-characterization evidence and is **not** based on the quarantined full-population result.
 
 The **common external certifier** — the two-sided signed-gap + KKT predicate of §7 — not either solver's status string, is the acceptance authority for every accepted point, primary or fallback.
 
@@ -144,7 +157,11 @@ An unrecognized raw result maps to `INTEGRITY_DEFECT`, **never** to fallback eli
 
 **B — Eligible numerical nonqualification.** All model, provenance, invocation, and certifier-integrity checks pass, **and** either (i) the primary returns a normalized outcome on the frozen allowlist of numerical nonqualification codes, or (ii) it returns a finite, correctly dimensioned, correctly mapped candidate, the certifier completes normally, but the complete registered predicate is false.
 → `PRIMARY_NUMERICAL_NONQUALIFICATION`; invoke the one frozen fallback **exactly once**.
-The allowlist is governed by **normalized reason codes**, not substring matching. The registered `QUADPROG_SQRT` numerical code is the caught `ValueError: constraints are inconsistent, no solution` (`mr002_solver_intersection.py:240-246`), classified numerical because ≥1 independent registered solver certifies the same region feasible (as for all five `F_Q` rows, §6). Unknown or newly appearing statuses are **not** eligible by analogy.
+The allowlist is governed by **exact normalized reason codes**, never substring matching (frozen operationally in `MR002_Stage3EligibilityStatusMapping_v1.0.json`). The one registered `QUADPROG_SQRT` numerical mapping is:
+
+  exact class `ValueError` + **exact complete message** `"constraints are inconsistent, no solution"` (`mr002_solver_intersection.py:240-246`) → `QUADPROG_CONSTRAINTS_INCONSISTENT` → `NUMERICAL_STATUS_NONQUALIFICATION` → invoke `PIQP_P2` once.
+
+**Historical proof vs future eligibility (kept strictly separate).** That the *five characterized* `F_Q` instances were numerical *false*-infeasibilities is established for **those five rows only**, by five independent solvers certifying them feasible (§6). On a newly encountered instance this normalized status is **fallback-eligible but is not itself evidence that the model is feasible**; feasibility or qualification remains to be established by the fallback and the common certifier (→ D). An unknown exception class **or** an unknown message maps to `INTEGRITY_DEFECT` (§7-C), never to fallback eligibility, and never by analogy.
 
 **C — `INVALID_RUN` (no fallback; STOP).** Source/commit/image/config mismatch; problem or manifest identity mismatch; dimension/shape mismatch; non-finite model input; non-finite solver output; invalid transformed-to-original mapping; unexpected exception or unregistered solver status; certifier exception or incomplete certificate; dual-mapping or sign-convention failure; internal invariant violation; contradictory/malformed result state; any `tᵢ ≤ 0`.
 
@@ -172,7 +189,7 @@ Everything numerical in §3–§7 derives from the registered model and the immu
 
 ## §10. Clean successor-rerun protocol (post-countersignature only)
 
-Upon countersignature, and not before, a complete clean rerun is authorized under:
+**Countersignature of this adjudication authorizes the successor Stage-3 design only. Execution remains closed.** A complete clean rerun may begin **only after a separate execution countersignature** binding the finalized implementation, the eligibility fixtures, the source manifest, the image digest, the runtime configuration, and the clean-run protocol below. Subject to that separate execution countersignature, the clean rerun runs under:
 - fresh checkout at the countersigned commit + a fresh source manifest; fresh container/runtime binding recorded;
 - **no** checkpoint, record, certificate, aggregate, or artifact reused from the quarantine; no quarantined row disposition copied into the successor evidence path;
 - the complete corpus and all overlap/coverage manifests **regenerated anew** and re-verified against the registered corpus hash;
@@ -188,7 +205,7 @@ The successor run generates all manifests, solver records, checkpoints, certific
 - Acceptance is the frozen registered predicate only: `KKT-qualified ∧ two-sided signed-gap-qualified` at the §6 tolerances; no `max(Γ,0)`, no cushion, no KKT-to-objective conversion.
 - Determinism (same-image) and canonical shuffle invariance are required and checked.
 - Complete record accounting: every instance resolves to exactly one §7 category; counts reconcile to the regenerated corpus.
-- No unexpected Phase-I-positive (or any new nonqualification) category is carried over automatically; any anomaly, any `UNRESOLVED_NUMERICAL_FAILURE`, any `INVALID_RUN` **STOPS** the run for adjudication.
+- **No prior row disposition or unregistered category is carried into the successor run.** A newly observed primary outcome that maps exactly to §7-B invokes the frozen fallback (this preserves the 0/5/500 invariance — a matching numerical nonqualification is *rescued*, not stopped, whatever its count). An unregistered status, a §7-C integrity defect, both solvers nonqualifying (`UNRESOLVED_NUMERICAL_FAILURE`), an unexpected Phase-I-positive result, or **any** outcome outside the total decision table causes **STOP**.
 
 ---
 
@@ -202,6 +219,9 @@ Bound artifacts (companion machine-readable manifest: `MR002_Stage3ProspectiveAd
 | superseded countersign | `MR002_Erratum_Countersign_Stage3Retry.json` | `7deae8c4…` @ `b972f72` |
 | preservation census | `MR002_Stage3Countersign_PreservationCensus_v1.0.json` | @ `87fd05c` |
 | fallback-selection audit | `MR002_Stage3FallbackSelection_Audit_v1.0.json` | `c90b0556…` @ `5ded766` |
+| closed candidate universe | `MR002_Stage3FallbackCandidateUniverse_v1.0.json` | `676e3be1…` |
+| eligibility status mapping | `MR002_Stage3EligibilityStatusMapping_v1.0.json` | (hash in manifest) |
+| Clarabel exclusion evidence | `MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json` + commit `18c55f5` | `8c1d83ec…` |
 | characterization corpus | corpus hash | `1d231930…` (3,895 instances) |
 | authoritative solver results | `MR002_R2_RegressionSampleA.json`, `MR002_RepairSizingSample.json` | agree row-for-row |
 | solver-robustness defect | `MR002_DEFECT_Stage3_Solver_Robustness.md` | `41da8b08…` |
