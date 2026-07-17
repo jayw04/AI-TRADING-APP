@@ -2,23 +2,30 @@
   "record_type": "MR002_STAGE3_PROSPECTIVE_ADJUDICATION_EVIDENCE_BINDING",
   "record_status": "IMMUTABLE",
   "version": "1.0",
-  "revision_note": "v1.0 revised per owner review (docs/review/comments.md): closed candidate universe added; eligibility status mapping frozen; sec.10/sec.11/sec.7-B corrected; binding extended with census hash, EOL forms, full commit IDs + tree hashes.",
+  "revision_note": "Revised per owner review rounds 1-3 (docs/review/comments.md): closed candidate universe; frozen eligibility status mapping; sec.10/sec.11/sec.7-B corrected; execution-boundary wording; CLARABEL corrected to ADMISSIBLE QP-form profile eliminated on the primary criterion (the prior 'inadmissible/invalid-dual' framing conflated it with the retired exact-conic experiment and is withdrawn); accurate per-row full-qualification feasibility; binding extended.",
   "binds_document": {
     "path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md",
-    "sha256": "45c6c1519adef13701e3d202d9cf91ae7b81819361c4051ea9a1b0413e7b6571",
-    "byte_length": 28458,
+    "sha256": "3d1ba0449e3cb160fd8eb6f7bcd2f3d7db6b381bae1aea5dd21c34f0413f4870",
+    "byte_length": 30253,
     "line_endings": "LF",
     "status": "DRAFT (revised) — awaiting owner countersignature"
   },
-  "authorization_basis": "docs/review/comments.md — Disposition A; conditional-coverage fallback rule; total eligibility decision table; four review corrections.",
+  "authorization_basis": "docs/review/comments.md — Disposition A; conditional-coverage fallback rule; total eligibility decision table; review corrections rounds 1-3.",
   "document_only": true,
   "execution_authorized": false,
+
+  "external_commit_binding": "Correction 1, Option A: the Git commit and tree containing these final bytes are intentionally bound by the SUBSEQUENT EXTERNAL COUNTERSIGNATURE, not recursively inside this manifest (a file cannot contain the hash of the commit/tree that contains it). This manifest binds the final ARTIFACT BYTES (below). The final commit SHA and tree SHA are supplied from a clean committed state and verified by the countersigner before signature. The acyclic chain is: prior evidence -> final adjudication commit and tree -> external countersignature.",
 
   "commit_provenance": {
     "P1_preservation_census": {"commit": "87fd05cf5a6ab20fbc91f744dfccaf2231eb40f9", "tree": "a620a4f9e756f7db7afa6d4f42cb5da4b24b6751"},
     "P2_P3_fallback_audit":   {"commit": "5ded766a5bab488433825d3ee68fa48a17bc5a1a", "tree": "b9463a0cb469bf9202c325ebbe0ff10f1a7908eb"},
-    "P4_initial_draft":       {"commit": "08861d5de2dd5f654bf11ed41c5157278b9376fc", "tree": "6bbbc7a6a7116baf6240be37543eb69d24e2d410",
-                               "note": "superseded by the review-amendment commit; the revised draft+manifest are bound by content hash above and the amendment commit is recorded in git history."}
+    "final_adjudication_commit": "supplied externally with the returned commit/tree/parent/timestamp; bound by the countersignature per external_commit_binding above."
+  },
+
+  "final_artifact_bytes": {
+    "adjudication_draft": {"path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md", "sha256": "3d1ba0449e3cb160fd8eb6f7bcd2f3d7db6b381bae1aea5dd21c34f0413f4870", "byte_length": 30253, "line_endings": "LF"},
+    "candidate_universe": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3FallbackCandidateUniverse_v1.0.json", "sha256": "d0eb33c052097328da43af18988a8e22cea2b2bdd769c58352e0129b77d86c57", "byte_length": 7605, "line_endings": "LF"},
+    "eligibility_status_mapping": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3EligibilityStatusMapping_v1.0.json", "sha256": "f9926d4a35ccba8f691fcfef2c62238867885197227784f21b0c05d23ca37b42", "byte_length": 3393, "line_endings": "LF"}
   },
 
   "superseded_authority": {
@@ -39,8 +46,7 @@
     "path": "docs/implementation/evidence/mr_002/MR002_Stage3FallbackSelection_Audit_v1.0.json",
     "sha256": "c90b055641fa86827f4fa5b536fa583ecdc3eccbd6ada716c5883c25a6a188f5",
     "byte_length": 4072, "line_endings": "CRLF", "committed_at": "5ded766a5bab488433825d3ee68fa48a17bc5a1a",
-    "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
-    "corpus_instances": 3895,
+    "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b", "corpus_instances": 3895,
     "authoritative_sources": ["runtime/MR002_R2_RegressionSampleA.json", "runtime/MR002_RepairSizingSample.json"],
     "authoritative_agree_row_for_row": true,
     "F_Q": {"solver": "QUADPROG_SQRT", "count": 5, "rows": [800, 1328, 2140, 2296, 2765], "fingerprint": "2ae80e55b291"},
@@ -53,17 +59,23 @@
 
   "closed_candidate_universe": {
     "path": "docs/implementation/evidence/mr_002/MR002_Stage3FallbackCandidateUniverse_v1.0.json",
-    "sha256": "676e3be118cd6b28dea5ce98bae6b0c2d78acd6546196f1da70d285868d470f5",
-    "byte_length": 5387, "line_endings": "LF",
+    "sha256": "d0eb33c052097328da43af18988a8e22cea2b2bdd769c58352e0129b77d86c57",
+    "byte_length": 7605, "line_endings": "LF",
+    "selection_order": ["admissibility filter", "primary criterion (minimize U)", "standalone tie-break"],
     "closed_over": ["CLARABEL", "HIGHS_QPASM", "PIQP_P1", "PIQP_P2", "QUADPROG_RAW", "QUADPROG_TSCALED"],
+    "admissible": ["CLARABEL", "PIQP_P1", "PIQP_P2"],
+    "excluded_before_ranking": {"HIGHS_QPASM": "not algorithmically distinct from the active-set primary", "QUADPROG_RAW": "not algorithmically distinct from the active-set primary", "QUADPROG_TSCALED": "not algorithmically distinct from the active-set primary"},
+    "eliminated_on_primary_criterion": ["CLARABEL"],
+    "tie_break_pool_U0": [["PIQP_P2", 51], ["PIQP_P1", 59]],
     "winner": "PIQP_P2",
-    "clarabel_disposition": "ELIMINATED on the primary criterion (rescues 4/5, U=1) despite the lowest standalone count (29); ALSO inadmissible (invalid conic dual mapping under 1/sqrt(t)).",
-    "clarabel_exclusion_evidence": {
-      "commit": "18c55f5",
-      "remediation_manifest": "docs/implementation/evidence/mr_002/runtime/MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json",
-      "remediation_manifest_sha256": "8c1d83ec657156901b5670ff5f807dfc06e14246ab30b48887f7f47f76da9efe"},
-    "active_set_family_excluded": ["HIGHS_QPASM", "QUADPROG_RAW", "QUADPROG_TSCALED"],
-    "admissible_U0_by_standalone": [["PIQP_P2", 51], ["PIQP_P1", 59]],
+    "clarabel_qp_profile": {
+      "admissible": true, "U_intersection_with_FQ": 1, "conditional_coverage": "4/5", "standalone_nonqualifications": 29,
+      "valid_primal_and_dual_under_common_certifier": true,
+      "row_2765": "numerical certificate nonqualification (kkt_residual+stationarity_residual) — NOT an integrity or dual-mapping defect",
+      "disposition": "eliminated_on_primary_criterion"},
+    "clarabel_exact_conic_experiment": {
+      "status": "retired", "disposition": "not_a_candidate", "associated_commit": "18c55f5",
+      "reason": "invalid dual transformation in the abandoned conic formulation (a DIFFERENT implementation from the QP-form profile). The conic-remediation manifest (MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json, sha 8c1d83ec...) is historical evidence about a Clarabel dependency/API field, NOT exclusion evidence against the admissible QP-form profile."},
     "stop_condition_not_triggered": true
   },
 
@@ -77,10 +89,12 @@
     "future_row_semantics": "fallback-eligible is NOT evidence of feasibility; feasibility established by fallback + common certifier; no substring matching; no eligibility by analogy"
   },
 
-  "failures_are_numerical_not_economic": {
-    "primary_outcome_on_all_5_FQ": "ValueError: constraints are inconsistent, no solution",
-    "each_FQ_certified_feasible_by": ["CLARABEL", "HIGHS_QPASM", "PIQP_P1", "PIQP_P2", "QUADPROG_RAW"],
-    "conclusion": "false-infeasibility (numerical), not economic infeasibility; scoped to these 5 rows only"
+  "feasibility_of_the_5_FQ": {
+    "predicate": "complete registered KKT + two-sided signed-gap (requires a valid dual)",
+    "statement": "Each of the five QUADPROG_SQRT nonqualification instances is FULLY QUALIFIED (not merely primal-witnessed) under the complete registered predicate by multiple independent solver implementations, establishing that all five registered problems are feasible and the QUADPROG_SQRT outcomes are numerical false-infeasibilities.",
+    "full_qualifiers_by_row": {"800": 5, "1328": 5, "2140": 4, "2296": 5, "2765": 3},
+    "bound_to": ["runtime/MR002_R2_RegressionSampleA.json", "runtime/MR002_RepairSizingSample.json"],
+    "clarabel": "one of the full qualifiers on 4 of the 5 rows; row-2765 is a numerical certificate nonqualification, not an integrity/dual defect. NO blanket claim that every named solver qualifies every row."
   },
 
   "predicate": {
@@ -106,7 +120,7 @@
 
   "authorization_boundary": {
     "authorized_on_countersignature": ["successor Stage-3 implementation DESIGN only"],
-    "execution": "CLOSED — requires a SEPARATE execution countersignature binding the finalized implementation, eligibility fixtures, source manifest, image digest, runtime configuration, and clean-run protocol (adjudication sec.10)",
-    "not_authorized": ["countersigning suspended MR002_Implementation_Erratum_v1.0", "any Stage-3 execution before a separate execution countersignature", "reuse of quarantined artifacts/row dispositions", "preflight (CLOSED)", "performance (NOT COMPUTED)", "validation (SEALED AND UNREAD)", "sealed OOS (SEALED AND UNREAD)"]
+    "execution": "CLOSED — Stage-3 execution remains prohibited until a SEPARATE EXECUTION COUNTERSIGNATURE binds the finalized implementation, eligibility fixtures, source manifest, image digest, runtime configuration, and clean-run protocol (adjudication sec.10)",
+    "not_authorized": ["countersigning suspended MR002_Implementation_Erratum_v1.0", "any Stage-3 execution before the separate execution countersignature", "reuse of quarantined artifacts/row dispositions", "preflight (CLOSED)", "performance (NOT COMPUTED)", "validation (SEALED AND UNREAD)", "sealed OOS (SEALED AND UNREAD)"]
   }
 }

@@ -1,14 +1,15 @@
 {
   "record_type": "MR002_STAGE3_FALLBACK_CANDIDATE_UNIVERSE",
   "record_status": "IMMUTABLE",
-  "version": "1.0",
-  "purpose": "Close the fallback candidate universe over EVERY previously-characterized solver profile (owner review correction 1). Existing pre-quarantine characterization evidence only; NO new solver runs.",
+  "version": "1.1",
+  "revision_note": "v1.1 corrects v1.0: the QP-form CLARABEL profile is ADMISSIBLE (valid primal+dual under the common certifier; fully qualifies 4/5 F_Q). It is eliminated on the PRIMARY criterion (U=1), not at admissibility. v1.0 wrongly conflated it with the retired exact-conic experiment (commit 18c55f5). Owner ruling.",
   "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
   "instances": 3895,
   "authoritative_sources": [
     "runtime/MR002_R2_RegressionSampleA.json",
     "runtime/MR002_RepairSizingSample.json"
   ],
+  "authoritative_agree_row_for_row": true,
   "F_Q": {
     "solver": "QUADPROG_SQRT (the primary; not a fallback candidate)",
     "count": 5,
@@ -20,102 +21,114 @@
       2765
     ]
   },
+  "selection_order": [
+    "admissibility filter",
+    "primary criterion (minimize U = |F_Q cap F_candidate|)",
+    "tie-break (lower standalone nonqualification)"
+  ],
   "eligibility_filter": [
     "algorithmically distinct from the active-set primary",
     "one globally fixed configuration",
-    "valid primal AND dual mappings",
+    "valid primal AND dual mappings under the common certifier",
     "no integrity defects",
     "deterministic",
     "canonically shuffle-invariant",
     "judged by the identical external certifier",
     "no per-instance adjustment"
   ],
-  "selection_rule": "among admissible profiles: minimize |F_Q cap F_Pj| (primary); tie-break lower standalone |F_Pj|; then resource; then deterministic id",
   "candidate_table": [
-    {
-      "profile": "CLARABEL",
-      "algorithm_family": "interior-point (conic)",
-      "algorithmically_distinct_from_primary": true,
-      "standalone_nonqualifications": 29,
-      "two_authoritative_artifacts_agree_row_for_row": true,
-      "covers_F_Q": "4/5",
-      "U_intersection_with_FQ": 1,
-      "meets_primary_criterion_U_eq_0": false,
-      "admissible_fallback": false,
-      "exclusion_reasons": [
-        "EXCLUDED: invalid dual mapping \u2014 conic dual cannot survive 1/sqrt(t) (commit 18c55f5; remediation manifest MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json). Primal correct to 1.7e-13 but the dual certificate collapses (amplification up to ~1e4) -> fails 'valid primal AND dual mappings' / common-certifier eligibility"
-      ]
-    },
-    {
-      "profile": "HIGHS_QPASM",
-      "algorithm_family": "active-set (QP active-set method)",
-      "algorithmically_distinct_from_primary": false,
-      "standalone_nonqualifications": 592,
-      "two_authoritative_artifacts_agree_row_for_row": true,
-      "covers_F_Q": "5/5",
-      "U_intersection_with_FQ": 0,
-      "meets_primary_criterion_U_eq_0": true,
-      "admissible_fallback": false,
-      "exclusion_reasons": [
-        "EXCLUDED: not algorithmically distinct from the active-set primary QUADPROG_SQRT (same solver family)"
-      ]
-    },
-    {
-      "profile": "PIQP_P1",
-      "algorithm_family": "interior-point (proximal)",
-      "algorithmically_distinct_from_primary": true,
-      "standalone_nonqualifications": 59,
-      "two_authoritative_artifacts_agree_row_for_row": true,
-      "covers_F_Q": "5/5",
-      "U_intersection_with_FQ": 0,
-      "meets_primary_criterion_U_eq_0": true,
-      "admissible_fallback": true,
-      "exclusion_reasons": []
-    },
-    {
-      "profile": "PIQP_P2",
-      "algorithm_family": "interior-point (proximal)",
-      "algorithmically_distinct_from_primary": true,
-      "standalone_nonqualifications": 51,
-      "two_authoritative_artifacts_agree_row_for_row": true,
-      "covers_F_Q": "5/5",
-      "U_intersection_with_FQ": 0,
-      "meets_primary_criterion_U_eq_0": true,
-      "admissible_fallback": true,
-      "exclusion_reasons": []
-    },
     {
       "profile": "QUADPROG_RAW",
       "algorithm_family": "active-set (quadprog)",
       "algorithmically_distinct_from_primary": false,
       "standalone_nonqualifications": 70,
-      "two_authoritative_artifacts_agree_row_for_row": true,
       "covers_F_Q": "2/5",
       "U_intersection_with_FQ": 3,
-      "meets_primary_criterion_U_eq_0": false,
       "admissible_fallback": false,
-      "exclusion_reasons": [
-        "EXCLUDED: not algorithmically distinct from the active-set primary QUADPROG_SQRT (same solver family)"
-      ]
+      "exclusion_reason": "not algorithmically distinct from the active-set primary QUADPROG_SQRT"
     },
     {
       "profile": "QUADPROG_TSCALED",
       "algorithm_family": "active-set (quadprog)",
       "algorithmically_distinct_from_primary": false,
       "standalone_nonqualifications": 185,
-      "two_authoritative_artifacts_agree_row_for_row": true,
       "covers_F_Q": "1/5",
       "U_intersection_with_FQ": 4,
-      "meets_primary_criterion_U_eq_0": false,
       "admissible_fallback": false,
-      "exclusion_reasons": [
-        "EXCLUDED: not algorithmically distinct from the active-set primary QUADPROG_SQRT (same solver family)"
-      ]
+      "exclusion_reason": "not algorithmically distinct from the active-set primary QUADPROG_SQRT"
+    },
+    {
+      "profile": "CLARABEL",
+      "algorithm_family": "interior-point (conic solver, QP-form)",
+      "algorithmically_distinct_from_primary": true,
+      "standalone_nonqualifications": 29,
+      "covers_F_Q": "4/5",
+      "U_intersection_with_FQ": 1,
+      "admissible_fallback": true,
+      "exclusion_reason": null
+    },
+    {
+      "profile": "HIGHS_QPASM",
+      "algorithm_family": "active-set (QP active-set method)",
+      "algorithmically_distinct_from_primary": false,
+      "standalone_nonqualifications": 592,
+      "covers_F_Q": "5/5",
+      "U_intersection_with_FQ": 0,
+      "admissible_fallback": false,
+      "exclusion_reason": "not algorithmically distinct from the active-set primary QUADPROG_SQRT"
+    },
+    {
+      "profile": "PIQP_P1",
+      "algorithm_family": "interior-point (proximal)",
+      "algorithmically_distinct_from_primary": true,
+      "standalone_nonqualifications": 59,
+      "covers_F_Q": "5/5",
+      "U_intersection_with_FQ": 0,
+      "admissible_fallback": true,
+      "exclusion_reason": null
+    },
+    {
+      "profile": "PIQP_P2",
+      "algorithm_family": "interior-point (proximal)",
+      "algorithmically_distinct_from_primary": true,
+      "standalone_nonqualifications": 51,
+      "covers_F_Q": "5/5",
+      "U_intersection_with_FQ": 0,
+      "admissible_fallback": true,
+      "exclusion_reason": null
     }
   ],
-  "resolution": {
-    "clarabel_note": "CLARABEL has the LOWEST standalone count (29 < 51) but is eliminated on the PRIMARY criterion: it rescues only 4/5 of F_Q (U=1), so it never reaches the tie-break. It is ALSO inadmissible (invalid dual mapping). Its low standalone count is correctly overridden by incomplete conditional coverage.",
-    "admissible_U0_candidates_by_standalone": [
+  "admissibility_result": {
+    "admissible": [
+      "CLARABEL",
+      "PIQP_P1",
+      "PIQP_P2"
+    ],
+    "excluded_before_ranking": {
+      "QUADPROG_RAW": "not algorithmically distinct from the active-set primary QUADPROG_SQRT",
+      "QUADPROG_TSCALED": "not algorithmically distinct from the active-set primary QUADPROG_SQRT",
+      "HIGHS_QPASM": "not algorithmically distinct from the active-set primary QUADPROG_SQRT"
+    }
+  },
+  "selection_result": {
+    "primary_criterion": {
+      "CLARABEL": {
+        "U": 1,
+        "coverage": "4/5"
+      },
+      "PIQP_P1": {
+        "U": 0,
+        "coverage": "5/5"
+      },
+      "PIQP_P2": {
+        "U": 0,
+        "coverage": "5/5"
+      }
+    },
+    "eliminated_on_primary_criterion": [
+      "CLARABEL"
+    ],
+    "tie_break_pool_U0": [
       [
         "PIQP_P2",
         51
@@ -126,7 +139,94 @@
       ]
     ],
     "winner": "PIQP_P2",
-    "winner_basis": "among admissible interior-point profiles that rescue all 5 F_Q (U=0), PIQP_P2 (51) < PIQP_P1 (59) on the standalone tie-break",
-    "stop_condition_not_triggered": "no admissible candidate beats PIQP_P2 on the frozen rule; the outcome holds over the closed universe, not merely the two PIQP profiles"
-  }
+    "winner_basis": "among admissible profiles that rescue all 5 F_Q (U=0): PIQP_P2 (51) < PIQP_P1 (59) on standalone tie-break. CLARABEL (standalone 29) does NOT enter the tie-break because it fails the primary criterion (U=1)."
+  },
+  "clarabel_qp_profile": {
+    "admissible": true,
+    "algorithm_family": "interior-point (conic solver, QP-form)",
+    "valid_primal_and_dual_under_common_certifier": true,
+    "conditional_coverage": "4/5",
+    "U_intersection_with_FQ": 1,
+    "standalone_nonqualifications": 29,
+    "row_2765": "numerical certificate nonqualification (kkt_residual+stationarity_residual) \u2014 NOT an integrity or dual-mapping defect",
+    "disposition": "eliminated_on_primary_criterion"
+  },
+  "clarabel_exact_conic_experiment": {
+    "status": "retired",
+    "disposition": "not_a_candidate",
+    "associated_commit": "18c55f5",
+    "reason": "invalid dual transformation in the abandoned conic reformulation (the conic dual cannot survive 1/sqrt(t)); a DIFFERENT implementation from the QP-form profile above",
+    "note": "MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json is historical evidence about a Clarabel dependency/API field (static_regularization_eps) \u2014 it is NOT exclusion evidence against the admissible QP-form profile."
+  },
+  "per_row_feasibility": {
+    "predicate": "complete registered KKT + two-sided signed-gap; full-qualifier = QUALIFIES under it (requires valid dual)",
+    "statement": "Each of the five QUADPROG_SQRT nonqualification instances is fully qualified by multiple independent solver implementations, establishing that all five registered problems are feasible and the QUADPROG_SQRT outcomes are numerical false-infeasibilities.",
+    "table": [
+      {
+        "row": 800,
+        "full_qualifiers": [
+          "CLARABEL",
+          "HIGHS_QPASM",
+          "PIQP_P1",
+          "PIQP_P2",
+          "QUADPROG_RAW"
+        ],
+        "count": 5,
+        "clarabel": "QUALIFIES"
+      },
+      {
+        "row": 1328,
+        "full_qualifiers": [
+          "CLARABEL",
+          "HIGHS_QPASM",
+          "PIQP_P1",
+          "PIQP_P2",
+          "QUADPROG_RAW"
+        ],
+        "count": 5,
+        "clarabel": "QUALIFIES"
+      },
+      {
+        "row": 2140,
+        "full_qualifiers": [
+          "CLARABEL",
+          "HIGHS_QPASM",
+          "PIQP_P1",
+          "PIQP_P2"
+        ],
+        "count": 4,
+        "clarabel": "QUALIFIES"
+      },
+      {
+        "row": 2296,
+        "full_qualifiers": [
+          "CLARABEL",
+          "HIGHS_QPASM",
+          "PIQP_P1",
+          "PIQP_P2",
+          "QUADPROG_TSCALED"
+        ],
+        "count": 5,
+        "clarabel": "QUALIFIES"
+      },
+      {
+        "row": 2765,
+        "full_qualifiers": [
+          "HIGHS_QPASM",
+          "PIQP_P1",
+          "PIQP_P2"
+        ],
+        "count": 3,
+        "clarabel": "kkt_residual+stationarity_residual"
+      }
+    ],
+    "counts_by_row": {
+      "800": 5,
+      "1328": 5,
+      "2140": 4,
+      "2296": 5,
+      "2765": 3
+    }
+  },
+  "stop_condition_not_triggered": true
 }

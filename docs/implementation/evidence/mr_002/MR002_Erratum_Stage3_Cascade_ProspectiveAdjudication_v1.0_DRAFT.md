@@ -1,7 +1,7 @@
 # MR-002 Stage-3 — Prospective Implementation Adjudication of the Cascade `QUADPROG_SQRT → PIQP_P2`
 
 **Version:** v1.0 — **DRAFT FOR OWNER COUNTERSIGNATURE.**
-**Status of this document:** document-only. It authorizes nothing by itself. No Stage-3 instance, preflight, performance, validation, or sealed-OOS access is permitted before this adjudication is countersigned, and only then under the successor-run protocol in §10.
+**Status of this document:** document-only. Countersignature of this document authorizes the successor Stage-3 **design only**. Stage-3 execution remains prohibited until a **separate execution countersignature** binds the finalized implementation, fixtures, source manifest, image digest, runtime configuration, and clean-run protocol (§10). No preflight, performance computation, validation access, or sealed-OOS access is authorized.
 **Classification:** numerical-implementation adjudication. It does **not** alter the registered MR-002 research design, the feasible portfolio set, the lexicographic objectives, the unique economic solution, the signal, risk limits, position bounds, costs, gates, data windows, or blindness controls.
 
 ---
@@ -107,20 +107,28 @@ Frozen audit result (`MR002_Stage3FallbackSelection_Audit_v1.0.json`, committed 
 
 Both profiles rescue all five characterized `QUADPROG_SQRT` nonqualifications (tie on the primary criterion). **`PIQP_P2` wins the frozen tie-break** on the lower authoritative standalone nonqualification count (51 < 59).
 
-**Closed candidate universe.** The selection is closed over **every** previously-characterized solver profile, not only the two PIQP profiles (`MR002_Stage3FallbackCandidateUniverse_v1.0.json`; existing pre-quarantine evidence only, no new solver runs):
+**Closed candidate universe.** The selection is closed over **every** previously-characterized solver profile, not only the two PIQP profiles (`MR002_Stage3FallbackCandidateUniverse_v1.0.json`; existing pre-quarantine evidence only, no new solver runs). The frozen rule applies in a strict order: **admissibility filter → primary criterion (minimize `U = |F_Q ∩ F_candidate|`) → standalone tie-break.**
 
 | profile | family | admissible? | rescues F_Q | standalone |
 |---|---|---|---|---|
-| CLARABEL | interior-point (conic) | **no** | 4/5 (U=1) | 29 |
-| HIGHS_QPASM | active-set | no (family) | 5/5 (U=0) | 592 |
+| CLARABEL (QP-form) | interior-point | **yes** | 4/5 (U=1) | 29 |
 | PIQP_P1 | interior-point | yes | 5/5 (U=0) | 59 |
 | **PIQP_P2** | interior-point | **yes** | **5/5 (U=0)** | **51** |
+| HIGHS_QPASM | active-set | no (family) | 5/5 (U=0) | 592 |
 | QUADPROG_RAW | active-set | no (family) | 2/5 (U=3) | 70 |
 | QUADPROG_TSCALED | active-set | no (family) | 1/5 (U=4) | 185 |
 
-Two points are load-bearing. First, **CLARABEL has the lowest standalone count (29 < 51) yet does not win**: it is eliminated on the **primary** criterion — it rescues only 4 of the 5 primary failures (`|F_Q ∩ F_Clarabel| = 1`), so it never reaches the standalone tie-break. Its low standalone count is correctly overridden by incomplete conditional coverage. Second, CLARABEL is **independently inadmissible**: its exact-conic dual mapping cannot survive the `1/√t` scaling (commit `18c55f5`, "discovery INVALID"; remediation manifest `MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json`) — the primal is correct to `1.7e-13` but the dual certificate collapses (amplification up to `~1e4`), so it fails the "valid primal **and** dual mappings" / common-certifier eligibility filter. The active-set family (`QUADPROG_RAW/TSCALED`, `HIGHS_QPASM`) is excluded because it is not algorithmically distinct from the active-set primary; `HIGHS_QPASM` also loses the tie-break (592). Among the admissible interior-point profiles that rescue all five (`PIQP_P1`, `PIQP_P2`), **`PIQP_P2` wins (51 < 59)**. No admissible candidate beats `PIQP_P2`; had one done so, this draft would STOP rather than preserve the observed cascade.
+**Admissibility filter.** Admits the three algorithmically-distinct interior-point profiles with valid primal-and-dual mappings under the common certifier: **`CLARABEL` (QP-form), `PIQP_P1`, `PIQP_P2`**. Excludes the active-set family (`QUADPROG_RAW`, `QUADPROG_TSCALED`, `HIGHS_QPASM`) — not algorithmically distinct from the active-set primary.
 
-> `PIQP_P2` is prospectively selected as the fixed rescue profile because, over the **closed candidate universe** of previously-characterized profiles, it ties for complete conditional coverage of the characterized `QUADPROG_SQRT` nonqualification set and wins the frozen standalone-qualification tie-break, while every lower-standalone or otherwise-distinct profile is eliminated on the primary criterion or on admissibility. This selection is derived from the authoritative solver-characterization evidence and is **not** based on the quarantined full-population result.
+**Primary criterion.** Among the admissible set: `CLARABEL` `U=1` (rescues 4/5 — it numerically nonqualifies row 2765 on a KKT/stationarity residual) → **eliminated**; `PIQP_P1` `U=0`; `PIQP_P2` `U=0`.
+
+**Tie-break** among the `U=0` admissible profiles: `PIQP_P2` (51) `<` `PIQP_P1` (59) → **`PIQP_P2` wins.** Note `CLARABEL`'s lower standalone count (29) never enters the tie-break, because it already failed the primary criterion — the ordering (filter, then coverage, then count) is what excludes it, not its count. Had any admissible candidate rescued all five *and* carried a lower standalone count than `PIQP_P2`, this draft would STOP rather than preserve the observed cascade.
+
+**Clarabel lineage — two distinct implementations (do not conflate).**
+- **QP-form `CLARABEL` profile** — the one in the authoritative 3,895-instance corpus. Valid primal **and** dual mapping under the common certifier; fully qualifies 4 of the 5 `F_Q` rows; its row-2765 result is a *numerical* certificate nonqualification (KKT/stationarity residual), **not** an integrity or dual-mapping defect. **Admissible**; eliminated on the primary criterion.
+- **Abandoned exact-conic Clarabel reformulation** (commit `18c55f5`) — a *different* implementation that rewrote the QP as a conic program; its dual transformation could not survive `1/√t` and it was **retired**. It is **not** the profile characterized above, and the conic-remediation manifest (`MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json`) is historical evidence about a Clarabel dependency/API field only — **not** exclusion evidence against the admissible QP-form profile.
+
+> `PIQP_P2` is prospectively selected as the fixed rescue profile because, over the **closed candidate universe**, it survives the admissibility filter, ties for complete conditional coverage of the characterized `QUADPROG_SQRT` nonqualification set, and wins the frozen standalone-qualification tie-break. This selection is derived from the authoritative solver-characterization evidence and is **not** based on the quarantined full-population result.
 
 The **common external certifier** — the two-sided signed-gap + KKT predicate of §7 — not either solver's status string, is the acceptance authority for every accepted point, primary or fallback.
 
@@ -139,7 +147,9 @@ One global configuration (`mr002_piqp.py` `BASE`), `preconditioner_scale_cost = 
 
 Source: the immutable 3,895-instance solver-characterization corpus, corpus hash `1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b`, verified. Authoritative per-solver results: `runtime/MR002_R2_RegressionSampleA.json` and `runtime/MR002_RepairSizingSample.json` (post-dual-mapping-fix), which **agree row-for-row**. Predicate: KKT-qualified **and** two-sided signed-gap-qualified (band `[-1e-10, +1e-10]`, exact `as_integer_ratio` inputs, outward-rounded ≥100-digit intervals, no `max(Γ,0)`, no cushion, no KKT-to-objective conversion).
 
-- `F_Q` (`QUADPROG_SQRT` nonqualifications): **5** rows `{800, 1328, 2140, 2296, 2765}`, five distinct content hashes (fingerprint `2ae80e55…`). On every one the primary outcome is the registered defect `ValueError: constraints are inconsistent, no solution`, and each instance is independently certified feasible by five solvers (`CLARABEL, HIGHS_QPASM, PIQP_P1, PIQP_P2, QUADPROG_RAW`). The failures are therefore **numerical false-infeasibility, not economic infeasibility.**
+- `F_Q` (`QUADPROG_SQRT` nonqualifications): **5** rows `{800, 1328, 2140, 2296, 2765}`, five distinct content hashes (fingerprint `2ae80e55…`). On every one the primary outcome is the registered defect `ValueError: constraints are inconsistent, no solution`.
+
+  **Feasibility (full qualification, not merely a primal witness).** Each of the five instances is **fully qualified under the complete registered KKT + two-sided signed-gap predicate** (which requires a valid dual) by multiple independent solver implementations. The number of full qualifiers per row, bound to the authoritative artifacts, is: **row 800 = 5, row 1328 = 5, row 2140 = 4, row 2296 = 5, row 2765 = 3** (the qualifying sets are enumerated in `MR002_Stage3FallbackCandidateUniverse_v1.0.json → per_row_feasibility.table`). This establishes that all five registered problems are **feasible** and that the `QUADPROG_SQRT` outcomes are **numerical false-infeasibilities, not economic infeasibilities.** `CLARABEL` is one of the full qualifiers on four of the five rows; its row-2765 result is a numerical certificate nonqualification, not an integrity or dual-mapping defect. (No blanket claim is made that every named solver qualifies every row — the per-row sets differ.)
 - `F_P1` = **59**; `F_P2` = **51**. `|F_Q ∩ F_P1| = |F_Q ∩ F_P2| = 0` at both the row level and the unique-content-hash level.
 
 **Marginal-count correction (must be stated so no later summary revives the obsolete counts).** Earlier direction and summaries quoted `PIQP_P2 = 50`, `PIQP_P1 = 58`. Those are the counts of `runtime/MR002_ComplementaryCoverage.json`, which the owner ruled **NON-authoritative on 2026-07-14 §5** (a hand-rolled Clarabel dual-mapping defect, since corrected and centralised in `app/research/mr002/certificate.py`). The **authoritative** counts are `QUADPROG_SQRT = 5`, `PIQP_P1 = 59`, `PIQP_P2 = 51`. The selection **ranking is robust** to this correction (`PIQP_P2` wins under both); this document uses `5 / 51 / 59` throughout, and reliance on `50 / 58` is withdrawn.
@@ -219,9 +229,9 @@ Bound artifacts (companion machine-readable manifest: `MR002_Stage3ProspectiveAd
 | superseded countersign | `MR002_Erratum_Countersign_Stage3Retry.json` | `7deae8c4…` @ `b972f72` |
 | preservation census | `MR002_Stage3Countersign_PreservationCensus_v1.0.json` | @ `87fd05c` |
 | fallback-selection audit | `MR002_Stage3FallbackSelection_Audit_v1.0.json` | `c90b0556…` @ `5ded766` |
-| closed candidate universe | `MR002_Stage3FallbackCandidateUniverse_v1.0.json` | `676e3be1…` |
+| closed candidate universe | `MR002_Stage3FallbackCandidateUniverse_v1.0.json` (v1.1) | `d0eb33c0…` |
 | eligibility status mapping | `MR002_Stage3EligibilityStatusMapping_v1.0.json` | (hash in manifest) |
-| Clarabel exclusion evidence | `MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json` + commit `18c55f5` | `8c1d83ec…` |
+| Clarabel conic lineage (retired, historical) | `MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json` + commit `18c55f5` | `8c1d83ec…` |
 | characterization corpus | corpus hash | `1d231930…` (3,895 instances) |
 | authoritative solver results | `MR002_R2_RegressionSampleA.json`, `MR002_RepairSizingSample.json` | agree row-for-row |
 | solver-robustness defect | `MR002_DEFECT_Stage3_Solver_Robustness.md` | `41da8b08…` |
@@ -235,7 +245,7 @@ Bound artifacts (companion machine-readable manifest: `MR002_Stage3ProspectiveAd
 
 **This document, once countersigned, authorizes:** the *design* of the successor Stage-3 implementation (primary §4, fallback §5, eligibility §7) and, under §10, a clean successor rerun **when a separate execution countersignature is given.**
 
-**It does not authorize, and nothing here permits:** countersigning the suspended `MR002_Implementation_Erratum_v1.0`; any Stage-3 execution before countersignature; reuse of any quarantined artifact or row disposition; preflight (CLOSED); performance (NOT COMPUTED); validation (SEALED AND UNREAD); sealed OOS (SEALED AND UNREAD).
+**It does not authorize, and nothing here permits:** countersigning the suspended `MR002_Implementation_Erratum_v1.0`; **any Stage-3 execution before the separate execution countersignature**; reuse of any quarantined artifact or row disposition; preflight (CLOSED); performance (NOT COMPUTED); validation (SEALED AND UNREAD); sealed OOS (SEALED AND UNREAD).
 
 **The judgment requested of the owner** is not whether the quarantined cascade passed. It is whether the frozen successor design here is mathematically equivalent (§3), numerically principled (§4–§5), independently certifiable (§7, §11), honestly derived from admissible evidence (§6, §8), strictly severed from the quarantine (§9), and fixed before execution (§10).
 
