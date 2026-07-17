@@ -20,6 +20,22 @@ machine happened to be on"):
 2. No native today, external today → external (transition safety).
 3. Neither → newest file from either directory, ``stale: true``.
 
+Two readers apply that order, differing only in *which day* they resolve and in
+whether rule 3 applies. Pick by what the caller means:
+
+* :func:`read_latest_gappers` — *"the operational payload right now"*: resolves
+  today's NY date and, failing that, falls back to the newest file from either
+  directory (rule 3, ``stale: true``). This is what the advisory Opportunities
+  widget wants — show the most recent scan and flag it when it is not today's.
+* :func:`read_gappers_for` — *"that day's payload, or nothing"*: point-in-time.
+  Same rules 1–2 keyed to the requested date, **but no rule 3** — it never
+  substitutes a neighbouring day's file. This is what the SCAN-001 gate wants,
+  because an evidence record keyed to ``asof`` must contain ``asof``'s premarket
+  data or none at all. Recording a different day's gappers under today's date
+  would inject a duplicate into the gate's forward series (it back-fills to
+  ``filled`` and counts toward the verdict), which is strictly worse than an
+  honest empty record (which back-fills to ``uncovered`` and is excluded).
+
 Boundaries (unchanged from the #221 reader): this module opens no network
 connection and imports no LLM SDK; gappers are advisory Opportunities-page
 context and never feed the OrderRouter. Fail-soft — a missing directory, absent
@@ -33,6 +49,7 @@ import json
 import os
 import re
 from datetime import UTC, datetime
+from datetime import date as date_cls
 from typing import Any
 
 from app.config import get_settings
@@ -172,3 +189,43 @@ def read_latest_gappers() -> dict[str, Any]:
         if payload is not None:
             return _result(date, payload, _gapper_list(payload), stale=True, source=source)
     return _empty(candidates[0][0] if candidates else None)
+
+
+def read_gappers_for(day: date_cls | str) -> dict[str, Any]:
+    """Resolve the gappers payload **for ``day``** — point-in-time, never another date.
+
+    Applies the ADR 0041 precedence (rules 1–2) keyed to ``day`` rather than today:
+
+    1. Native file for ``day`` → authoritative; ``day``'s external file contributes
+       catalyst/headlines onto matching symbols only.
+    2. No native for ``day``, external for ``day`` → external (transition safety).
+    3. **Deliberately absent.** Where :func:`read_latest_gappers` falls back to the newest
+       file from either directory, this returns the empty payload — ``date: None``,
+       ``stale: True``, ``source: None``. That is the honest answer: *no premarket snapshot
+       exists for that day.* A neighbouring day's scan is not a substitute; for the gate it
+       would record the previous day's candidates under today's ``asof``.
+
+    Shape matches :func:`read_latest_gappers` (``{date, scanned_at, count, gappers, stale,
+    source}``). ``stale`` is False whenever ``day``'s own file was found — by construction the
+    payload is that day's data, so the "is it today's?" question :func:`read_latest_gappers`
+    answers does not apply here. Never raises.
+    """
+    iso = day.isoformat() if isinstance(day, date_cls) else str(day)
+    native_dir, external_dir = _native_directory(), _directory()
+
+    # 1. Native for `day` is authoritative; that same day's external enriches catalysts only.
+    payload = _load_payload(native_dir, iso)
+    if payload is not None:
+        gappers = _gapper_list(payload)
+        external = _load_payload(external_dir, iso)
+        if external is not None:
+            gappers = _enrich_catalysts(gappers, _gapper_list(external))
+        return _result(iso, payload, gappers, stale=False, source="native")
+
+    # 2. External for `day` (native missing or unparseable): transition safety.
+    payload = _load_payload(external_dir, iso)
+    if payload is not None:
+        return _result(iso, payload, _gapper_list(payload), stale=False, source=SOURCE_EXTERNAL)
+
+    # 3. No file for `day` in either directory → empty. No cross-date fallback, by design.
+    return _empty()
