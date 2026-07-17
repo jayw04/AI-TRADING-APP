@@ -95,19 +95,28 @@ async def run_daily_benchmark_snapshot(session_factory: async_sessionmaker[Async
         logger.exception("benchmark_snapshot_failed")
 
 
-async def benchmark_returns(session: AsyncSession) -> list[dict[str, Any]]:
-    """Per benchmark: inception (earliest snapshot) + current (latest snapshot) + return-since-
-    inception — the same 'earliest → latest' window the accounts' total_return uses. Symbols with
-    no snapshot yet are returned with nulls (so the dashboard can show 'pending first snapshot')."""
+async def benchmark_returns(
+    session: AsyncSession, *, since: datetime | None = None
+) -> list[dict[str, Any]]:
+    """Per benchmark: inception + current + return-since-inception, over the SAME window the
+    account's ``total_return`` uses.
+
+    ``since`` scopes the window to a specific account's inception (its ``performance_inception_at``
+    or earliest equity snapshot). The inception row is then the first benchmark snapshot on/after
+    ``since`` — so an account that started today is compared to the index from today, not from the
+    global earliest snapshot. ``since=None`` keeps the prior behaviour (global earliest → latest).
+    Symbols with no snapshot in the window are returned with nulls (dashboard shows 'pending first
+    snapshot')."""
     out: list[dict[str, Any]] = []
     for symbol, name in BENCHMARKS.items():
-        rows = (
-            await session.execute(
-                select(BenchmarkSnapshot.ts, BenchmarkSnapshot.close)
-                .where(BenchmarkSnapshot.symbol == symbol)
-                .order_by(BenchmarkSnapshot.ts.asc())
-            )
-        ).all()
+        stmt = (
+            select(BenchmarkSnapshot.ts, BenchmarkSnapshot.close)
+            .where(BenchmarkSnapshot.symbol == symbol)
+            .order_by(BenchmarkSnapshot.ts.asc())
+        )
+        if since is not None:
+            stmt = stmt.where(BenchmarkSnapshot.ts >= since)
+        rows = (await session.execute(stmt)).all()
         if not rows:
             out.append({"symbol": symbol, "name": name, "inception_date": None,
                         "inception_price": None, "current_price": None, "return_pct": None})
