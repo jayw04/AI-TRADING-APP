@@ -171,7 +171,7 @@ The allowlist is governed by **exact normalized reason codes**, never substring 
 
   exact class `ValueError` + **exact complete message** `"constraints are inconsistent, no solution"` (`mr002_solver_intersection.py:240-246`) → `QUADPROG_CONSTRAINTS_INCONSISTENT` → `NUMERICAL_STATUS_NONQUALIFICATION` → invoke `PIQP_P2` once.
 
-**Historical proof vs future eligibility (kept strictly separate).** That the *five characterized* `F_Q` instances were numerical *false*-infeasibilities is established for **those five rows only**, by five independent solvers certifying them feasible (§6). On a newly encountered instance this normalized status is **fallback-eligible but is not itself evidence that the model is feasible**; feasibility or qualification remains to be established by the fallback and the common certifier (→ D). An unknown exception class **or** an unknown message maps to `INTEGRITY_DEFECT` (§7-C), never to fallback eligibility, and never by analogy.
+**Historical proof vs future eligibility (kept strictly separate).** That the *five characterized* `F_Q` instances were numerical *false*-infeasibilities is established for **those five rows only** by multiple independent solver implementations fully qualifying them under the complete registered predicate; the exact per-row qualifying sets are enumerated in §6 and the candidate-universe artifact. On a newly encountered instance this normalized status is **fallback-eligible but is not itself evidence that the model is feasible**; feasibility or qualification remains to be established by the fallback and the common certifier (→ D). An unknown exception class **or** an unknown message maps to `INTEGRITY_DEFECT` (§7-C), never to fallback eligibility, and never by analogy.
 
 **C — `INVALID_RUN` (no fallback; STOP).** Source/commit/image/config mismatch; problem or manifest identity mismatch; dimension/shape mismatch; non-finite model input; non-finite solver output; invalid transformed-to-original mapping; unexpected exception or unregistered solver status; certifier exception or incomplete certificate; dual-mapping or sign-convention failure; internal invariant violation; contradictory/malformed result state; any `tᵢ ≤ 0`.
 
@@ -231,7 +231,8 @@ Bound artifacts (companion machine-readable manifest: `MR002_Stage3ProspectiveAd
 | fallback-selection audit | `MR002_Stage3FallbackSelection_Audit_v1.0.json` | `c90b0556…` @ `5ded766` |
 | closed candidate universe | `MR002_Stage3FallbackCandidateUniverse_v1.0.json` (v1.1) | `d0eb33c0…` |
 | eligibility status mapping | `MR002_Stage3EligibilityStatusMapping_v1.0.json` | (hash in manifest) |
-| Clarabel conic lineage (retired, historical) | `MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json` + commit `18c55f5` | `8c1d83ec…` |
+| Retired exact-conic Clarabel experiment | commit `18c55f5` (different implementation; not a candidate) | — |
+| QP-form Clarabel dependency remediation | `MR002_QP_CandidateCapabilityManifest_ClarabelRemediation.json` (historical capability evidence; not exclusion evidence) | `8c1d83ec…` |
 | characterization corpus | corpus hash | `1d231930…` (3,895 instances) |
 | authoritative solver results | `MR002_R2_RegressionSampleA.json`, `MR002_RepairSizingSample.json` | agree row-for-row |
 | solver-robustness defect | `MR002_DEFECT_Stage3_Solver_Robustness.md` | `41da8b08…` |
@@ -249,4 +250,4 @@ Bound artifacts (companion machine-readable manifest: `MR002_Stage3ProspectiveAd
 
 **The judgment requested of the owner** is not whether the quarantined cascade passed. It is whether the frozen successor design here is mathematically equivalent (§3), numerically principled (§4–§5), independently certifiable (§7, §11), honestly derived from admissible evidence (§6, §8), strictly severed from the quarantine (§9), and fixed before execution (§10).
 
-*— Draft ends. Awaiting owner review and countersignature. No code or Stage-3 instance may run before that countersignature.*
+*— Draft ends. Awaiting owner review and countersignature. No successor implementation work may begin before this design countersignature. No Stage-3 instance may run until the separate execution countersignature required by §10.*

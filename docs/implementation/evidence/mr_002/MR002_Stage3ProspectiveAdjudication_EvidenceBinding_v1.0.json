@@ -5,8 +5,8 @@
   "revision_note": "Revised per owner review rounds 1-3 (docs/review/comments.md): closed candidate universe; frozen eligibility status mapping; sec.10/sec.11/sec.7-B corrected; execution-boundary wording; CLARABEL corrected to ADMISSIBLE QP-form profile eliminated on the primary criterion (the prior 'inadmissible/invalid-dual' framing conflated it with the retired exact-conic experiment and is withdrawn); accurate per-row full-qualification feasibility; binding extended.",
   "binds_document": {
     "path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md",
-    "sha256": "3d1ba0449e3cb160fd8eb6f7bcd2f3d7db6b381bae1aea5dd21c34f0413f4870",
-    "byte_length": 30253,
+    "sha256": "54aff48b7a5b7f5b39a4aca469c9746e9bc819ce44c3e40bf376aa79423b0d95",
+    "byte_length": 30647,
     "line_endings": "LF",
     "status": "DRAFT (revised) — awaiting owner countersignature"
   },
@@ -23,7 +23,7 @@
   },
 
   "final_artifact_bytes": {
-    "adjudication_draft": {"path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md", "sha256": "3d1ba0449e3cb160fd8eb6f7bcd2f3d7db6b381bae1aea5dd21c34f0413f4870", "byte_length": 30253, "line_endings": "LF"},
+    "adjudication_draft": {"path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md", "sha256": "54aff48b7a5b7f5b39a4aca469c9746e9bc819ce44c3e40bf376aa79423b0d95", "byte_length": 30647, "line_endings": "LF"},
     "candidate_universe": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3FallbackCandidateUniverse_v1.0.json", "sha256": "d0eb33c052097328da43af18988a8e22cea2b2bdd769c58352e0129b77d86c57", "byte_length": 7605, "line_endings": "LF"},
     "eligibility_status_mapping": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3EligibilityStatusMapping_v1.0.json", "sha256": "f9926d4a35ccba8f691fcfef2c62238867885197227784f21b0c05d23ca37b42", "byte_length": 3393, "line_endings": "LF"}
   },
