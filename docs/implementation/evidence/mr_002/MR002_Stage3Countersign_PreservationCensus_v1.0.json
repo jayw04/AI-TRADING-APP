@@ -1,0 +1,69 @@
+{
+  "record_type": "MR002_STAGE3_COUNTERSIGN_PRESERVATION_CENSUS",
+  "record_status": "IMMUTABLE",
+  "version": "1.0",
+  "purpose": "Establish the authoritative bytes of the 2026-07-12 Stage-3 Equivalent-Formulation Retry countersign (and its bound erratum) BEFORE a successor Design-A prospective adjudication may claim to supersede it. Governance ruling docs/review/comments.md (final), section 5.",
+  "authored_context": "Executed under the owner's final ruling. Document-only; no Stage-3 execution.",
+
+  "bound_erratum": {
+    "artifact_path_committed": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_EquivalentFormulationRetry.md",
+    "sha256": "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+    "byte_length": 13764,
+    "line_endings": "LF",
+    "git_tracked": true,
+    "preserved_by_commit": "f3d0d15",
+    "recovery_provenance": "Rescued byte-exact from local git stash e7774f6 ('untracked files on research/mr002-preregistration') per commit f3d0d15; had existed only inside that stash prior. Bytes at the committed lowercase path resolve exactly to the countersign's bound hash.",
+    "determination": "AUTHORITATIVE — committed bytes, hash matches the countersign binding."
+  },
+
+  "countersign_candidates": [
+    {
+      "id": "candidate_1_committed",
+      "origin": "git-committed (authoritative)",
+      "path": "docs/implementation/evidence/mr_002/MR002_Erratum_Countersign_Stage3Retry.json",
+      "sha256": "7deae8c471bc4910415fa6619cc1526868de7e33f87c2ae52c84690830b87b4a",
+      "byte_length": 3694,
+      "line_endings": "LF",
+      "json_valid": true,
+      "embedded_erratum_path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_EquivalentFormulationRetry.md",
+      "embedded_erratum_sha256": "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+      "embedded_erratum_bytes": 13764,
+      "embedded_erratum_line_endings": "LF",
+      "countersigned_by": "Jay Wang (owner)",
+      "countersign_date": "2026-07-12",
+      "decision": "APPROVED AND COUNTERSIGNED",
+      "git_provenance": {
+        "introduced_by_commit": "b972f72",
+        "commit_date": "2026-07-12 18:51:29 -0500",
+        "commit_author": "Jay Wang",
+        "commit_subject": "docs(mr-002): combined erratum — Execution Availability (A) + ECI Semantics (B), FOR SIGNATURE",
+        "diff_filter": "A (added at b972f72)",
+        "history": "single commit; the bytes 7deae8c4... have never been modified since b972f72",
+        "note": "Committed the SAME DAY as the countersign_date (2026-07-12), by the countersigner, within a multi-artifact FOR-SIGNATURE bundle whose subject line names two OTHER errata (Execution Availability / ECI) but which also added this Stage-3 Retry countersign."
+      }
+    },
+    {
+      "id": "candidate_2_untracked_duplicate",
+      "origin": "working tree (untracked, review-package copy)",
+      "path": "docs/review/MR002_Erratum_Countersign_Stage3Retry.json",
+      "sha256": "7deae8c471bc4910415fa6619cc1526868de7e33f87c2ae52c84690830b87b4a",
+      "byte_length": 3694,
+      "line_endings": "LF",
+      "json_valid": true,
+      "relationship_to_candidate_1": "BYTE-IDENTICAL to the committed authoritative copy (same sha256, same length). Non-authoritative working duplicate."
+    }
+  ],
+
+  "methodological_note": {
+    "initial_error_corrected": "A first pass mistakenly concluded the countersign was 'never committed'. Cause: `git log`/`git ls-files` queried with UPPERCASE `Docs/...` pathspecs, which return empty because git tracks the file at LOWERCASE `docs/...` (case-insensitive Windows filesystem; the known capital-Docs pathspec trap). Re-querying with the lowercase pathspec surfaced commit b972f72. This census reflects the corrected finding."
+  },
+
+  "determination": {
+    "unique_byte_identity": "YES — sha256 7deae8c4..., 3694 bytes, LF, JSON-valid; the committed copy and the untracked review copy are byte-identical.",
+    "contemporaneous_provenance": "ESTABLISHED — committed 2026-07-12 18:51:29 (commit b972f72), same day as the countersign date, by the countersigner (Jay Wang), added and never modified. This is an independent dated chain-of-custody, not merely owner attestation.",
+    "binding_resolution": "The candidate's embedded erratum hash (9ce8f53a...), path, byte length (13764) and line endings (LF) resolve EXACTLY to the AUTHORITATIVE committed erratum (preserved at f3d0d15). The countersign binds a preserved, hash-verified artifact.",
+    "disposition": "AUTHORITATIVE. The 2026-07-12 Stage-3 Equivalent-Formulation Retry countersign is uniquely identified by its bytes sha256 7deae8c4..., committed contemporaneously at b972f72, binding erratum 9ce8f53a."
+  },
+
+  "supersession_precondition_status": "MET. The superseded authority is precisely identified (countersign 7deae8c4 @ b972f72, 2026-07-12; bound erratum 9ce8f53a @ f3d0d15). A successor Design-A prospective adjudication may reference and supersede it by these bound identities. Supersession affects only the SUCCESSOR execution; it does not retroactively validate the quarantined 2026-07-13 cascade change."
+}
