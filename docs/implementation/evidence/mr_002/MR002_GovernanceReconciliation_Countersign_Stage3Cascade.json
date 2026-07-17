@@ -1,0 +1,138 @@
+{
+  "record_type": "MR002_GOVERNANCE_RECONCILIATION_COUNTERSIGN",
+  "record_status": "IMMUTABLE",
+  "program": "MR-002 — Mean Reversion (Residual)",
+  "reconciliation": "Unrecorded Stage-3 Solver-Cascade Change",
+  "record_id": "MR002_GOVERNANCE_RECONCILIATION_STAGE3_CASCADE_V1.0",
+
+  "artifact_path": "docs/implementation/evidence/mr_002/MR002_Governance_Reconciliation_Stage3_Cascade_v1.0.md",
+  "artifact_sha256": "f54174f590950c29702428386c1428bcabcbdba49e3ca2abd18c37ded2ad1c94",
+  "artifact_bytes": 28165,
+  "artifact_line_endings": "LF",
+  "artifact_commit": "e506069",
+  "artifact_branch_at_countersign": "research/mr002-preregistration",
+
+  "external_preservation": {
+    "provider": "Amazon S3",
+    "bucket": "workbench-backups-219024422756",
+    "prefix": "mr002/governance/20260716/",
+    "version_id": "gzElvxpoomvRWNSehWvPkghrkBtIBCDX",
+    "retrieval_verification": "BYTE_EXACT",
+    "retrieved_sha256": "f54174f590950c29702428386c1428bcabcbdba49e3ca2abd18c37ded2ad1c94",
+    "retrieved_bytes": 28165
+  },
+
+  "bound_predecessor": {
+    "record": "MR002_IMPLEMENTATION_ERRATUM_COUNTERSIGN",
+    "artifact": "MR002_Erratum_Stage3_EquivalentFormulationRetry.md",
+    "artifact_path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_EquivalentFormulationRetry.md",
+    "artifact_sha256": "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+    "artifact_bytes": 13764,
+    "preservation_commit": "f3d0d15",
+    "verification": "BYTE_EXACT"
+  },
+
+  "countersigned_by": "Jay Wang (owner)",
+  "countersign_date": "2026-07-16",
+  "decision": "APPROVED AND COUNTERSIGNED",
+
+  "findings_accepted": [
+    "The live Stage-3 cascade diverged from the countersigned cascade by replacing QUADPROG_RAW as primary with QUADPROG_SQRT.",
+    "The live implementation replaced the countersigned T = diag(t) transformation with S = diag(sqrt(t)).",
+    "The live implementation introduced PIQP_P2 as a fallback optimizer despite the preserved prohibition against an alternate optimizer or fallback solver.",
+    "No preserved adjudication artifact, artifact hash, countersign, amendment, or formal supersession authorizing the live cascade was found.",
+    "Commit 7bcb4eb and the code comment FALLBACK (adjudicated) assert an authorization but do not preserve or bind the required ruling.",
+    "The evidence manifests bind implementation code and solver-path commits but bind no adjudication, ruling, countersign, supersession, or governing decision hash.",
+    "The cascade constituted the qualifying population through the QUADPROG_SQRT and PIQP_P2 overlap predicate rather than merely solving a population fixed independently of the cascade.",
+    "The governance nonconformance therefore propagates to all artifacts whose subject, denominator, lineage, scope, or conclusion depends on membership in the cascade-defined population.",
+    "The record appropriately distinguishes failure to preserve the required adjudication from proof that no informal owner direction ever occurred."
+  ],
+
+  "effective_statuses": {
+    "stage3_retry_countersign": [
+      "HISTORICALLY_VALID",
+      "BYTE_PRESERVED",
+      "NOT_SUPERSEDED_AS_OF_ITS_ORIGINAL_DATE",
+      "NOT_APPLICABLE_TO_THE_LIVE_CASCADE"
+    ],
+    "live_cascade": [
+      "IMPLEMENTED_BEFORE_AFFECTED_RUNS",
+      "NO_PRESERVED_FORMAL_ADJUDICATION_FOUND",
+      "NOT_RETROACTIVELY_AUTHORIZED"
+    ],
+    "affected_runs_and_population_artifacts": "GOVERNANCE_QUARANTINED",
+    "mr002_implementation_erratum_v1_0": [
+      "COUNTERSIGNATURE_SUSPENDED",
+      "GOVERNANCE_QUARANTINED",
+      "NOT_FINAL"
+    ],
+    "successor_implementation_erratum": "NOT_YET_AUTHORIZED"
+  },
+
+  "quarantined_scope": [
+    "Sample A",
+    "Sample B-C1",
+    "full-population run",
+    "3,839-member qualifying population",
+    "3,819-distinct-model population",
+    "population-selection predicate based on the QUADPROG_SQRT and PIQP_P2 qualifying overlap",
+    "row-2307 adjudication",
+    "row-2307 lineage",
+    "feasibility census and all associated numerators, denominators, classifications, and conclusions",
+    "every report, table, certificate, or summary whose scope depends on the cascade-defined population",
+    "MR002_Implementation_Erratum_v1.0"
+  ],
+
+  "explicitly_suspended": {
+    "artifact": "MR002_Implementation_Erratum_v1.0",
+    "reason": "It binds QUADPROG_SQRT to PIQP_P2 as the final cascade and marks Stage-3 cascade coverage PASS, which would ratify the unpreserved cascade change inside the closing implementation instrument.",
+    "permitted_use": "Historical unsigned draft only",
+    "prohibited_representations": [
+      "approved implementation erratum",
+      "final implementation erratum",
+      "countersigned authorization of the live cascade"
+    ]
+  },
+
+  "rejected_dispositions": [
+    {
+      "name": "ADJUDICATE_THEN_REPLAY",
+      "status": "PROHIBITED",
+      "reason": "Bit-identical replay would prove reproducibility of a result already known. It would not restore the missing pre-result governance commitment."
+    },
+    {
+      "name": "RERUN_UNDER_OBSOLETE_COUNTERSIGNED_CASCADE",
+      "status": "PROHIBITED_AS_DEFAULT_DISPOSITION",
+      "reason": "Surviving paperwork does not justify rerunning under a formulation displaced because of a material numerical defect. Formally cleaner but substantively weaker evidence is not acceptable."
+    }
+  ],
+
+  "directed_disposition": {
+    "selection": "DISPOSITION_A",
+    "description": "Clean rerun under a new prospective implementation adjudication.",
+    "conditions": [
+      "The successor cascade must be selected and mathematically defined before any successor evidence run.",
+      "The successor adjudication must not use the quarantined AMENDED PASS performance result as its basis for accepting the cascade.",
+      "The already-known quarantined result must be disclosed explicitly.",
+      "The cascade must be justified using numerical-method evidence independent of the quarantined performance result.",
+      "The exact primary formulation, fallback formulation and optimizer if any, qualifying-population rule, triggers, warning policy, original-coordinate checks, audit fields, code hashes, configuration hashes, solver versions, runtime image, and blindness state must be bound directly.",
+      "Any necessary supersession of the Stage-3 Equivalent-Formulation Retry countersign must be explicit.",
+      "All affected samples, population construction, census, adjudications, lineage, and final implementation evidence must be regenerated from clean immutable state."
+    ]
+  },
+
+  "does_not_authorize": [
+    "a successor implementation erratum",
+    "QUADPROG_SQRT as primary",
+    "PIQP_P2 as fallback",
+    "any specific future solver cascade",
+    "any sample, partial, representative, or hash-equivalence replay as a cure",
+    "any rerun",
+    "reuse of quarantined evidence for final MR-002 acceptance",
+    "MR002_Implementation_Erratum_v1.0"
+  ],
+
+  "non_retroactivity": "This countersign documents and governs the present quarantine and reconciliation state. It does not retroactively authorize the 2026-07-13 cascade change or convert any unpreserved historical direction into a countersigned amendment.",
+
+  "amendment_rule": "Any modification to the countersigned reconciliation artifact, its quarantine scope, its effective statuses, or its directed disposition requires a new artifact, a new hash, and an explicit countersign or supersession record. This countersign must remain separate from the Markdown artifact so that the bound artifact bytes remain unchanged."
+}
