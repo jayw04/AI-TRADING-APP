@@ -15,7 +15,7 @@
       "normalized_code": "QUADPROG_CONSTRAINTS_INCONSISTENT",
       "enum_category": "NUMERICAL_STATUS_NONQUALIFICATION",
       "disposition": "invoke PIQP_P2 exactly once (decision-table B -> D)",
-      "future_row_semantics": "On a newly encountered instance, this normalized status is FALLBACK-ELIGIBLE but is NOT evidence that the original model is feasible. Feasibility or qualification remains to be established by the fallback and the common certifier. The historical proof that the five characterized F_Q instances were numerical false-infeasibilities (five independent solvers certified them feasible) applies to THOSE FIVE ROWS ONLY and does not transfer to unseen rows."
+      "future_row_semantics": "On a newly encountered instance, this normalized status is FALLBACK-ELIGIBLE but is NOT evidence that the original model is feasible. Feasibility or qualification remains to be established by the fallback and the common certifier. The historical proof that the five characterized F_Q instances were numerical false-infeasibilities applies to those five rows only and is established by multiple independent solver implementations fully qualifying each row under the complete registered predicate; the exact per-row qualifying sets are bound in the candidate-universe artifact. It does not transfer to unseen rows."
     },
     {
       "raw": {"outcome": "finite, correctly dimensioned, correctly mapped candidate; external certifier completes normally; the complete registered predicate (KKT AND two-sided signed-gap) is FALSE"},

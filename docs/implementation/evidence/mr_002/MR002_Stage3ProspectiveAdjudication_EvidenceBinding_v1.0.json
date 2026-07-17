@@ -25,7 +25,7 @@
   "final_artifact_bytes": {
     "adjudication_draft": {"path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md", "sha256": "54aff48b7a5b7f5b39a4aca469c9746e9bc819ce44c3e40bf376aa79423b0d95", "byte_length": 30647, "line_endings": "LF"},
     "candidate_universe": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3FallbackCandidateUniverse_v1.0.json", "sha256": "d0eb33c052097328da43af18988a8e22cea2b2bdd769c58352e0129b77d86c57", "byte_length": 7605, "line_endings": "LF"},
-    "eligibility_status_mapping": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3EligibilityStatusMapping_v1.0.json", "sha256": "f9926d4a35ccba8f691fcfef2c62238867885197227784f21b0c05d23ca37b42", "byte_length": 3393, "line_endings": "LF"}
+    "eligibility_status_mapping": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3EligibilityStatusMapping_v1.0.json", "sha256": "08e666946b4c77b5d55b45c4121de179edfda2d64e3241ddee27d31d85f23488", "byte_length": 3554, "line_endings": "LF"}
   },
 
   "superseded_authority": {
@@ -81,8 +81,8 @@
 
   "eligibility_status_mapping": {
     "path": "docs/implementation/evidence/mr_002/MR002_Stage3EligibilityStatusMapping_v1.0.json",
-    "sha256": "f9926d4a35ccba8f691fcfef2c62238867885197227784f21b0c05d23ca37b42",
-    "byte_length": 3393, "line_endings": "LF",
+    "sha256": "08e666946b4c77b5d55b45c4121de179edfda2d64e3241ddee27d31d85f23488",
+    "byte_length": 3554, "line_endings": "LF",
     "closed_enum": ["QUALIFIED", "NUMERICAL_STATUS_NONQUALIFICATION", "CERTIFICATE_NONQUALIFICATION", "INTEGRITY_DEFECT"],
     "registered_numerical_mapping": "exact class ValueError + exact message 'constraints are inconsistent, no solution' -> QUADPROG_CONSTRAINTS_INCONSISTENT -> NUMERICAL_STATUS_NONQUALIFICATION -> invoke PIQP_P2 once",
     "unknown_maps_to": "INTEGRITY_DEFECT",
