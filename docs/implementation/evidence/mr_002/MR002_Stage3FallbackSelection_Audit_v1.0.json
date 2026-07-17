@@ -1,0 +1,192 @@
+{
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "instances": 3895,
+  "authoritative_sources": [
+    "runtime/MR002_R2_RegressionSampleA.json",
+    "runtime/MR002_RepairSizingSample.json"
+  ],
+  "authoritative_agree_row_for_row": true,
+  "predicate": "KKT-qualified AND two-sided signed-gap-qualified (LIMITS + gap band)",
+  "F_Q": {
+    "solver": "QUADPROG_SQRT",
+    "count": 5,
+    "rows": [
+      800,
+      1328,
+      2140,
+      2296,
+      2765
+    ],
+    "content_hashes": [
+      "0db411d4045ab6dcf29ed6ee1498d448a7bf1fed7db7c453b5b2137c2fce618b",
+      "ee8e8551bd1d0507aa2ddab77822435ac8c929534df6d9f913612f3aea46b96f",
+      "555e82e8fc18f5a0028865fd417a378b96372eb933040e9dedc3f5793f3a9c42",
+      "e54e6f351ce2648da7001cce108fdfc41a6689336938c66e550dc629896dfb1a",
+      "1a645c349c837aa8e2eb7ff9c29eafeba9a668f230f60e08421e9c909a033a12"
+    ],
+    "fingerprint": "2ae80e55b291b0ed88655756c109010e86b1e5a37bc32fe2469930fda7f228ea"
+  },
+  "F_P1": {
+    "solver": "PIQP_P1",
+    "count": 59,
+    "rows": [
+      46,
+      54,
+      58,
+      86,
+      254,
+      308,
+      311,
+      365,
+      440,
+      475,
+      478,
+      506,
+      594,
+      598,
+      604,
+      605,
+      650,
+      718,
+      727,
+      773,
+      828,
+      1007,
+      1018,
+      1021,
+      1044,
+      1115,
+      1117,
+      1137,
+      1175,
+      1180,
+      1231,
+      1241,
+      1363,
+      1382,
+      1393,
+      1396,
+      1414,
+      1462,
+      1628,
+      1903,
+      2030,
+      2074,
+      2401,
+      2435,
+      2516,
+      2686,
+      2757,
+      2781,
+      2901,
+      2904,
+      2905,
+      2916,
+      2920,
+      2925,
+      2927,
+      3436,
+      3863,
+      3876,
+      3891
+    ],
+    "fingerprint": "d71e0c5c8f1e241e9544ae0c95e37f8d313a28af14b220e54362ecdfeb25d177"
+  },
+  "F_P2": {
+    "solver": "PIQP_P2",
+    "count": 51,
+    "rows": [
+      36,
+      46,
+      54,
+      58,
+      86,
+      308,
+      311,
+      365,
+      440,
+      475,
+      506,
+      594,
+      598,
+      604,
+      611,
+      650,
+      727,
+      773,
+      831,
+      951,
+      1017,
+      1018,
+      1044,
+      1115,
+      1137,
+      1175,
+      1231,
+      1241,
+      1393,
+      1462,
+      1628,
+      1686,
+      1903,
+      2030,
+      2074,
+      2401,
+      2425,
+      2435,
+      2516,
+      2520,
+      2757,
+      2901,
+      2904,
+      2905,
+      2916,
+      2920,
+      2951,
+      3436,
+      3853,
+      3863,
+      3891
+    ],
+    "fingerprint": "500d5d9985098a4ae1eb0f392a5772058f0946397334b8ccd7cf47c6576a683b"
+  },
+  "intersections": {
+    "row_level": {
+      "U_P1": 0,
+      "U_P2": 0,
+      "C_P1": 5,
+      "C_P2": 5
+    },
+    "hash_level": {
+      "U_P1": 0,
+      "U_P2": 0,
+      "uniq_hash_FQ": 5
+    }
+  },
+  "selection": {
+    "rule": "minimize |F_Q cap F_Pj| (max conditional coverage of the primary failure set); tie-break lower standalone |F_Pj|",
+    "P1": {
+      "U": 0,
+      "standalone": 59
+    },
+    "P2": {
+      "U": 0,
+      "standalone": 51
+    },
+    "winner": "PIQP_P2",
+    "basis": "conditional-coverage tie (U_P1=U_P2=0; both PIQP profiles rescue all 5 QUADPROG_SQRT failures on the corpus); P2 wins the tie-break on lower standalone nonqualification (51 < 59)",
+    "row_and_hash_views_agree": true
+  },
+  "marginal_count_correction": {
+    "note": "The final ruling quoted 50/58 for PIQP_P2/PIQP_P1; those are the NON-authoritative MR002_ComplementaryCoverage.json counts (owner ruling 2026-07-14 sec.5 marked it non-authoritative: hand-rolled Clarabel dual-mapping bug). Authoritative counts are 51/59. The selection RANKING (P2) is robust to this correction; the exact standalone counts differ.",
+    "ruling_quoted": {
+      "PIQP_P2": 50,
+      "PIQP_P1": 58
+    },
+    "authoritative": {
+      "PIQP_P2": 51,
+      "PIQP_P1": 59,
+      "QUADPROG_SQRT": 5
+    }
+  }
+}
