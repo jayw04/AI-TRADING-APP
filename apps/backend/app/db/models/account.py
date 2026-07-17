@@ -38,6 +38,15 @@ class Account(Base):
     circuit_breaker_tripped_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Performance-tracking inception (dashboard). NULL = the account's inception is
+    # the earliest equity snapshot (prior behaviour). When set, the account's
+    # total-return window and the per-account benchmark comparison both start here —
+    # an audited one-way "production inception" marker, not a history rewrite. Used
+    # when a book's meaningful live history begins after the account row (e.g. a
+    # strategy activated onto a previously-idle account).
+    performance_inception_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

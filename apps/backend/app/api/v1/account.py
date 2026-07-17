@@ -50,14 +50,15 @@ async def get_account(
         )
 
     # Inception-to-date: earliest equity snapshot for THIS account (per-user, never
-    # aggregated). Fallback to current equity when no history exists → 0% return.
+    # aggregated), on/after the account's performance-inception marker when one is set
+    # (so a book that started live after its account row measures from then, not from
+    # the earliest snapshot). Fallback to current equity when no history exists in the
+    # window → 0% return, which is exactly right for a just-started book.
+    eq_stmt = select(EquitySnapshot.equity).where(EquitySnapshot.account_id == account.id)
+    if account.performance_inception_at is not None:
+        eq_stmt = eq_stmt.where(EquitySnapshot.ts >= account.performance_inception_at)
     starting_equity = (
-        await session.execute(
-            select(EquitySnapshot.equity)
-            .where(EquitySnapshot.account_id == account.id)
-            .order_by(EquitySnapshot.ts.asc())
-            .limit(1)
-        )
+        await session.execute(eq_stmt.order_by(EquitySnapshot.ts.asc()).limit(1))
     ).scalars().first()
     if starting_equity is None or starting_equity <= 0:
         starting_equity = state.equity
