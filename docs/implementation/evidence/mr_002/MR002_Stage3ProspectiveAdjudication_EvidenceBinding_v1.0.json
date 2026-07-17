@@ -1,0 +1,79 @@
+{
+  "record_type": "MR002_STAGE3_PROSPECTIVE_ADJUDICATION_EVIDENCE_BINDING",
+  "record_status": "IMMUTABLE",
+  "version": "1.0",
+  "binds_document": {
+    "path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md",
+    "sha256": "e8d56eea5024bb5cff9707656a56ea13d2323b107538af58f9a2de4b85a28613",
+    "byte_length": 24621,
+    "line_endings": "LF",
+    "status": "DRAFT — awaiting owner countersignature"
+  },
+  "authorization_basis": "docs/review/comments.md (final ruling) — Disposition A; conditional-coverage fallback rule; total eligibility decision table.",
+  "document_only": true,
+  "execution_authorized": false,
+
+  "superseded_authority": {
+    "erratum": {"path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_EquivalentFormulationRetry.md",
+                "sha256": "9ce8f53a4367c5817881cab55d9550db058a171e8ee504f57ad6a7060fe378fb",
+                "byte_length": 13764, "line_endings": "LF", "preserved_by_commit": "f3d0d15"},
+    "countersign": {"path": "docs/implementation/evidence/mr_002/MR002_Erratum_Countersign_Stage3Retry.json",
+                    "sha256": "7deae8c471bc4910415fa6619cc1526868de7e33f87c2ae52c84690830b87b4a",
+                    "byte_length": 3694, "line_endings": "LF", "committed_at": "b972f72",
+                    "commit_date": "2026-07-12 18:51:29 -0500"},
+    "preservation_census": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3Countersign_PreservationCensus_v1.0.json",
+                            "committed_at": "87fd05c"},
+    "supersession_scope": "forward-only, successor execution only; the prior authority is preserved unchanged and is not retroactively validated."
+  },
+
+  "fallback_selection_audit": {
+    "path": "docs/implementation/evidence/mr_002/MR002_Stage3FallbackSelection_Audit_v1.0.json",
+    "sha256": "c90b055641fa86827f4fa5b536fa583ecdc3eccbd6ada716c5883c25a6a188f5",
+    "committed_at": "5ded766",
+    "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+    "corpus_instances": 3895,
+    "authoritative_sources": ["runtime/MR002_R2_RegressionSampleA.json", "runtime/MR002_RepairSizingSample.json"],
+    "authoritative_agree_row_for_row": true,
+    "F_Q": {"solver": "QUADPROG_SQRT", "count": 5, "rows": [800, 1328, 2140, 2296, 2765], "fingerprint": "2ae80e55b291"},
+    "F_P1_count": 59,
+    "F_P2_count": 51,
+    "intersections": {"row_and_hash": {"U_P1": 0, "U_P2": 0, "distinct_content_hashes_FQ": 5}},
+    "selected_fallback": "PIQP_P2",
+    "selection_basis": "conditional-coverage tie (U_P1=U_P2=0, both rescue all 5 primary failures); tie-break on lower authoritative standalone count (51 < 59).",
+    "row_and_hash_views_agree": true,
+    "marginal_count_correction": {"ruling_quoted": {"PIQP_P2": 50, "PIQP_P1": 58}, "authoritative": {"PIQP_P2": 51, "PIQP_P1": 59, "QUADPROG_SQRT": 5},
+      "note": "50/58 are from the non-authoritative MR002_ComplementaryCoverage.json (owner ruling 2026-07-14 sec.5). Ranking robust; 5/51/59 used throughout."}
+  },
+
+  "failures_are_numerical_not_economic": {
+    "primary_outcome_on_all_5_FQ": "ValueError: constraints are inconsistent, no solution",
+    "each_FQ_certified_feasible_by": ["CLARABEL", "HIGHS_QPASM", "PIQP_P1", "PIQP_P2", "QUADPROG_RAW"],
+    "conclusion": "false-infeasibility (numerical), not economic infeasibility"
+  },
+
+  "predicate": {
+    "LIMITS": {"primal_residual": 1e-09, "dual_residual": 1e-09, "stationarity_residual": 1e-08, "complementarity_residual": 1e-08, "kkt_residual": 1e-08},
+    "signed_gap_band": [-1e-10, 1e-10],
+    "rules": "exact as_integer_ratio inputs, outward-rounded >=100-digit intervals, NO max(Gamma,0), NO cushion, NO KKT-to-objective conversion"
+  },
+
+  "frozen_config": {
+    "primary": "QUADPROG_SQRT (active-set quadprog under z=diag(sqrt(t)) v; S^T H S = 2I exactly)",
+    "fallback": "PIQP_P2 (proximal interior-point; mr002_piqp.py BASE settings; preconditioner_scale_cost=true; fresh solver per instance; no warm start)",
+    "cascade": "QUADPROG_SQRT -> (eligible numerical nonqualification) -> PIQP_P2 once; both-fail -> UNRESOLVED_NUMERICAL_FAILURE -> STOP; no third attempt / jitter / tolerance change / row-specific routing",
+    "eligibility_enum": ["QUALIFIED", "NUMERICAL_STATUS_NONQUALIFICATION", "CERTIFICATE_NONQUALIFICATION", "INTEGRITY_DEFECT"],
+    "unknown_status_maps_to": "INTEGRITY_DEFECT (never fallback-eligible)"
+  },
+
+  "quarantine_non_reuse": {
+    "governing_records": ["e506069", "13453b6"],
+    "disclosed_as": "governance history only",
+    "reuse": "PROHIBITED for primary/fallback/eligibility/certificate/population/threshold; clean successor rerun regenerates all evidence anew.",
+    "future_unresolved_set": "unknown until executed; NOT asserted zero; the quarantined 3839/3839 is inadmissible."
+  },
+
+  "authorization_boundary": {
+    "authorized_on_countersignature": ["successor Stage-3 implementation DESIGN", "clean successor rerun under sec.10 given a separate execution countersignature"],
+    "not_authorized": ["countersigning suspended MR002_Implementation_Erratum_v1.0", "any Stage-3 execution before countersignature", "reuse of quarantined artifacts/row dispositions", "preflight (CLOSED)", "performance (NOT COMPUTED)", "validation (SEALED AND UNREAD)", "sealed OOS (SEALED AND UNREAD)"]
+  }
+}
