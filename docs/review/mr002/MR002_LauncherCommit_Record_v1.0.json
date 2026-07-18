@@ -1,0 +1,135 @@
+{
+ "record_type": "MR002_STAGE3_LAUNCHER_COMMIT_RECORD",
+ "version": "1.0",
+ "record_status": "IMMUTABLE",
+ "date": "2026-07-18",
+ "authorization": "Owner final review verdict 2026-07-18: blockers 1-8 CLOSED; launcher-tool commit AUTHORIZED (scope: exactly the 4 launcher files + v1.4 governance evidence)",
+ "repository": "jayw04/AI-TRADING-APP",
+ "branch": "research/mr002-preregistration",
+ "commit": "595b9c1e1e3dff8f2cc8f65b49886ea14c5b5747",
+ "tree": "0ebc25d6357f633b0d407bc3a89a008378db4ba4",
+ "parent": "cd51628d0aa9516f428fadc8318168b1a915ba5c",
+ "git_status_porcelain": {
+  "tracked_modifications": 0,
+  "untracked_entries": 24,
+  "note": "Zero tracked-file modifications at and after commit time. The 24 untracked entries are unrelated working files (momentum docs/scripts, acct4 ops files, prior-cycle v1.1-v1.3 review records, review-dir source copies, the Phase-B submission set) - none staged, none touched by this commit.",
+  "untracked_list": [
+   "apps/backend/scripts/backfill_range_execution_levels.py",
+   "apps/backend/scripts/repair_premarket_gate_provenance.py",
+   "docs/Strategies/Momentum Portfolio Strategy - update suggestions.txt",
+   "docs/Strategies/Momentum Portfolio Strategy.md",
+   "docs/Strategies/Momentum_Portfolio_Update_Proposal_v1.1.md",
+   "docs/Strategies/Recommended Mean Strategy.docx",
+   "docs/incidents/2026-07-13-risk-gate-traps-risk-CLOSED.md",
+   "docs/review/mr002/MR002_LauncherCommit_Record_v1.0.json",
+   "docs/review/mr002/MR002_LauncherTools_Delta_v1.1.patch",
+   "docs/review/mr002/MR002_LauncherTools_Delta_v1.2.patch",
+   "docs/review/mr002/MR002_LauncherTools_Delta_v1.3.patch",
+   "docs/review/mr002/MR002_LauncherTools_Resubmission_v1.1.md",
+   "docs/review/mr002/MR002_LauncherTools_Resubmission_v1.2.md",
+   "docs/review/mr002/MR002_LauncherTools_Resubmission_v1.3.md",
+   "docs/review/mr002/MR002_Stage3_FinalTestReport_v1.0.json",
+   "docs/review/mr002/MR002_Stage3_PhaseB_Submission_v1.0.md",
+   "docs/review/mr002/mr002_stage3_attestation_verify.py",
+   "docs/review/mr002/mr002_stage3_final_test_report.py",
+   "docs/review/mr002/mr002_stage3_launch_attestation.py",
+   "docs/review/mr002/test_mr002_stage3_launcher_tools.py",
+   "docs/runbook/account4_momentum_daily_daily_ops.md",
+   "reports/strategy page.jpg",
+   "scripts/acct4_daily_check_run.ps1",
+   "scripts/register_acct4_daily_check_task.ps1",
+   "scripts/reports/acct4_daily_check.py"
+  ]
+ },
+ "name_status": [
+  "A apps/backend/scripts/mr002_stage3_attestation_verify.py",
+  "A apps/backend/scripts/mr002_stage3_final_test_report.py",
+  "A apps/backend/scripts/mr002_stage3_launch_attestation.py",
+  "A apps/backend/tests/research/test_mr002_stage3_launcher_tools.py",
+  "A docs/review/mr002/MR002_LauncherTools_79Tests_v1.4.log",
+  "A docs/review/mr002/MR002_LauncherTools_Delta_v1.4.patch",
+  "A docs/review/mr002/MR002_LauncherTools_Resubmission_v1.4.md",
+  "A docs/review/mr002/MR002_LauncherTools_Ruff_v1.4.log"
+ ],
+ "binary_safe_diff": {
+  "note": "All 8 files are pure additions (A) - the complete binary-safe diff content IS the committed blobs, each independently identified below by git blob + sha256 + byte length. The full 'git show --no-color 595b9c1' output was additionally captured and hashed.",
+  "git_show_sha256": "b99340d925eea96640cfddfde35f1e0622b3a1916038616584fcf434c9add7de",
+  "git_show_bytes": 168988
+ },
+ "launcher_files": [
+  {
+   "path": "apps/backend/scripts/mr002_stage3_launch_attestation.py",
+   "role": "launch producer - reviewed v1.4 bytes",
+   "committed_git_blob": "cf42b9124d38cadf83e57ba1a71468992783c99d",
+   "committed_lf_sha256": "c6c8e84182cd36ce2f3246e0b287ddb6abc4b2ef53afa4834f091cee1b1c0d68",
+   "committed_bytes": 40501,
+   "review_identity_sha256": "c6c8e84182cd36ce2f3246e0b287ddb6abc4b2ef53afa4834f091cee1b1c0d68",
+   "committed_equals_review_identity": true
+  },
+  {
+   "path": "apps/backend/scripts/mr002_stage3_attestation_verify.py",
+   "role": "frozen verification tool - unchanged accepted v1.2 bytes",
+   "committed_git_blob": "687588513d5e7527129b7857886d613e393a9a95",
+   "committed_lf_sha256": "33d08fe345b3b88f49cc85ee50cf6a53233d3523164bb7f927eb7333c4464e94",
+   "committed_bytes": 9834,
+   "review_identity_sha256": "33d08fe345b3b88f49cc85ee50cf6a53233d3523164bb7f927eb7333c4464e94",
+   "committed_equals_review_identity": true,
+   "confirmation": "committed blob MATCHES the accepted v1.2 identity"
+  },
+  {
+   "path": "apps/backend/scripts/mr002_stage3_final_test_report.py",
+   "role": "final-test-report generator - unchanged accepted bytes",
+   "committed_git_blob": "44a993b9aed42a6b5dfd45688b46e5c0cb00a51e",
+   "committed_lf_sha256": "4b9ffb4de0ddc90d26d6d5b46539731b943dbb94aa8079ccf9328ecf0a25fca2",
+   "committed_bytes": 6019,
+   "review_identity_sha256": "4b9ffb4de0ddc90d26d6d5b46539731b943dbb94aa8079ccf9328ecf0a25fca2",
+   "committed_equals_review_identity": true,
+   "confirmation": "committed blob MATCHES the accepted identity (the same bytes that produced the ACCEPTED in-image final test report 26bbdff8...)"
+  },
+  {
+   "path": "apps/backend/tests/research/test_mr002_stage3_launcher_tools.py",
+   "role": "launcher tests - reviewed 79-test version",
+   "committed_git_blob": "ed56f67272305e29f1935dfd63a374558bcb1ff9",
+   "committed_lf_sha256": "1400c896e71288ef6eee0bf3c9779f028ec403fbd3373b5c9518975f0d0dd5a2",
+   "committed_bytes": 47961,
+   "review_identity_sha256": "1400c896e71288ef6eee0bf3c9779f028ec403fbd3373b5c9518975f0d0dd5a2",
+   "committed_equals_review_identity": true
+  }
+ ],
+ "governance_records": [
+  {
+   "path": "docs/review/mr002/MR002_LauncherTools_Resubmission_v1.4.md",
+   "committed_git_blob": "d911c8279ab9e21afe6da29ba09c25ae13e2135f",
+   "committed_lf_sha256": "aaabd12f6926580765dfe0f4f18d2b8d10620394b1d0ec53a76eb9e8ce0c8497",
+   "committed_bytes": 7725
+  },
+  {
+   "path": "docs/review/mr002/MR002_LauncherTools_Delta_v1.4.patch",
+   "committed_git_blob": "56ab62abf3b9c1f97acd0a92308596862c95bbcb",
+   "committed_lf_sha256": "4303108ed4e6b263bd6a8153685534c6d7aef1da2677aba4490a9e82e5500c87",
+   "committed_bytes": 31283,
+   "committed_equals_review_identity": true
+  },
+  {
+   "path": "docs/review/mr002/MR002_LauncherTools_79Tests_v1.4.log",
+   "committed_git_blob": "0b08f1b4519295715163ec53f14e9c5d5da72a5c",
+   "committed_lf_sha256": "d2824f97314bba52b526c3b48b52a3c1b73f26cdb0e57bcfd45a63e08eca6bd9",
+   "committed_bytes": 18563,
+   "review_identity_sha256_crlf_working_copy": "29187206903276f956f2b47749435b75c7bedc441a5848b9de066505c488a2af",
+   "disclosure": "the working-copy review identity was CRLF (bash redirect on Windows); git LF-normalized it on commit. VERIFIED: sha256(CRLF-working-copy with CRLF->LF) == committed blob sha256 exactly - same content, line endings only."
+  },
+  {
+   "path": "docs/review/mr002/MR002_LauncherTools_Ruff_v1.4.log",
+   "committed_git_blob": "ddb85368a13a05873bcbb4737861eaa08c1d4816",
+   "committed_lf_sha256": "1e64f47e120b351f69f575e792e193575e03dc3fed0d20714a899fd40300f1f5",
+   "committed_bytes": 478,
+   "committed_equals_review_identity": true
+  }
+ ],
+ "scope_confirmations": {
+  "four_launcher_files_lf_working_copies": "all four launcher source files were LF in the working tree, so their committed blobs are BYTE-IDENTICAL to the reviewed working-tree bytes - the review identities ARE the committed LF identities",
+  "no_frozen_artifact_changed": "no numerical implementation, frozen population-runner, solver, certificate, fixture, corpus, tolerance, expected-pin, realism, or qualification artifact changed (all 8 paths are additions; zero tracked modifications)",
+  "launch_chain_binding": "the launch chain binds the committed LF bytes as checked out on the Linux launch host; a Linux checkout of 595b9c1 yields these exact blob bytes natively (no CRLF smudge)"
+ },
+ "held_state": "Real keypair generation gated on this record's review. Execution authorization NOT countersigned; attestation NOT produced; receipt NOT produced; Phase-B binding NOT countersigned; registered 3,895-row execution NOT authorized; performance NOT computed; validation/OOS SEALED AND UNREAD."
+}
