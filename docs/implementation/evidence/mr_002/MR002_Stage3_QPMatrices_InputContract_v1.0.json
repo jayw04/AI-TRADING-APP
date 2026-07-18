@@ -1,0 +1,73 @@
+{
+  "clauses": [
+    {
+      "enforced_by": "MODEL_ARITY",
+      "id": "ARITY6",
+      "requires": "rec is a 6-tuple/list (t, A_ub, b_ub, A_eq, b_eq, upper)"
+    },
+    {
+      "enforced_by": "MODEL_UNCONVERTIBLE",
+      "id": "CONVERTIBLE",
+      "requires": "every component converts to float64 (no ragged/object/str)"
+    },
+    {
+      "enforced_by": "MODEL_T_SHAPE",
+      "id": "T_1D_NONEMPTY",
+      "requires": "t is 1-D with n >= 1"
+    },
+    {
+      "enforced_by": "MODEL_A_UB_SHAPE",
+      "id": "AUB_2D_NCOLS",
+      "requires": "A_ub is 2-D with exactly n columns (m_ub >= 0 rows allowed)"
+    },
+    {
+      "enforced_by": "MODEL_A_EQ_SHAPE",
+      "id": "AEQ_2D_NCOLS",
+      "requires": "A_eq is 2-D with exactly n columns (meq >= 0 rows allowed)"
+    },
+    {
+      "enforced_by": "MODEL_B_UB_SHAPE",
+      "id": "BUB_MATCH",
+      "requires": "b_ub is 1-D of length m_ub"
+    },
+    {
+      "enforced_by": "MODEL_B_EQ_SHAPE",
+      "id": "BEQ_MATCH",
+      "requires": "b_eq is 1-D of length meq"
+    },
+    {
+      "enforced_by": "MODEL_UPPER_SHAPE",
+      "id": "UPPER_1D_N",
+      "requires": "upper is 1-D of length n"
+    },
+    {
+      "enforced_by": "NON_FINITE_MODEL_INPUT",
+      "id": "ALL_FINITE",
+      "requires": "every entry of every component is finite"
+    },
+    {
+      "enforced_by": "MODEL_T_NONPOSITIVE",
+      "id": "T_POSITIVE",
+      "requires": "t > 0 strictly (H=2/t, S=sqrt(t), dual /s scaling)"
+    },
+    {
+      "enforced_by": "MODEL_UPPER_NEGATIVE",
+      "id": "UPPER_NONNEG",
+      "requires": "upper >= 0 (bounds are 0 <= z <= upper)"
+    }
+  ],
+  "derived_from": [
+    "joint_portfolio._qp_matrices",
+    "solver_intersection.solve_sqrt (S=diag(sqrt(t)))",
+    "dual unscaling lam[nr:nr+n]/=s",
+    "mr002_piqp.solve_piqp (P=diag(2/t), 0<=z<=upper)",
+    "certificate/canonical_qualify lam layout meq+m_ub+2n"
+  ],
+  "derived_properties": {
+    "dtype": "float64 canonical (canonicalize() coerces + freezes)",
+    "empty_constraint_convention": "meq == 0 and/or m_ub == 0 are VALID (zero-row 2-D matrices)",
+    "lam_layout": "meq + m_ub + 2n (equalities, inequalities, lower bounds, upper bounds)"
+  },
+  "record_type": "MR002_STAGE3_QP_MATRICES_INPUT_CONTRACT",
+  "version": "1.0"
+}

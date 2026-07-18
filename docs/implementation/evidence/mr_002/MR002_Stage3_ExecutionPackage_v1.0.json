@@ -1,0 +1,173 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.0",
+  "status": "DRAFT — awaiting the SEPARATE execution countersignature (adjudication §10). No Stage-3 instance has been run.",
+  "classification": "numerical-implementation package. Binds the IMPLEMENTED successor Stage-3 cascade to the countersigned DESIGN. It does not alter the registered MR-002 research design, feasible set, objectives, signal, risk limits, gates, or data windows.",
+  "prepared": "2026-07-17",
+
+  "purpose": "Bind the finalized implementation of the countersigned `QUADPROG_SQRT -> PIQP_P2 (once)` cascade — its source, its complete §7 eligibility fixtures, the container image, the runtime configuration, the regenerated-population protocol, the quarantine non-reuse checks, and the stop behavior — into one artifact submitted for the execution countersignature that adjudication §10 requires before any Stage-3 instance may be resolved.",
+
+  "authorization_basis": {
+    "design_adjudication": {
+      "path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md",
+      "sha256": "54aff48b7a5b7f5b39a4aca469c9746e9bc819ce44c3e40bf376aa79423b0d95",
+      "byte_length": 30647, "committed_at": "3548a2dbe9a8574449542f98e9b914c56596a7b5", "tree": "686f4aa30599502ee59b029ea1fce1b25d98c965"
+    },
+    "design_countersign": {
+      "path": "docs/implementation/evidence/mr_002/MR002_Stage3ProspectiveAdjudication_Countersign_v1.0.json",
+      "committed_at": "b8e95e1b9ebbd97887c46c8a923f97436117d0d9",
+      "decision": "APPROVED — DESIGN ONLY",
+      "reproduced": {"primary": "QUADPROG_SQRT", "eligible_fallback": "PIQP_P2, invoked exactly once",
+        "fallback_trigger": "only a registered NUMERICAL_STATUS_NONQUALIFICATION or CERTIFICATE_NONQUALIFICATION",
+        "unknown_or_integrity": "INVALID_RUN; STOP; no fallback",
+        "both_nonqualifying": "UNRESOLVED_NUMERICAL_FAILURE; STOP"}
+    },
+    "eligibility_status_mapping": {
+      "path": "docs/implementation/evidence/mr_002/MR002_Stage3EligibilityStatusMapping_v1.0.json",
+      "sha256": "08e666946b4c77b5d55b45c4121de179edfda2d64e3241ddee27d31d85f23488"
+    },
+    "candidate_universe": {
+      "path": "docs/implementation/evidence/mr_002/MR002_Stage3FallbackCandidateUniverse_v1.0.json",
+      "sha256": "d0eb33c052097328da43af18988a8e22cea2b2bdd769c58352e0129b77d86c57"
+    }
+  },
+
+  "execution_authorized": false,
+  "design_countersignature_authorizes": ["successor Stage-3 DESIGN", "successor IMPLEMENTATION work (this package)"],
+  "design_countersignature_does_not_authorize": ["Stage-3 numerical execution", "preflight", "performance", "validation access", "sealed-OOS access", "reuse of any quarantined artifact/row disposition", "countersigning the suspended MR002_Implementation_Erratum_v1.0"],
+
+  "package_binds": {
+
+    "1_implemented_cascade_source_and_tree_identity": {
+      "note": "The finalized cascade is a NEW module that adds ONLY the §7 decision table over the frozen numerical paths. It introduces no new numerical method: the primary/fallback/certifier are the frozen implementations, imported (not re-derived).",
+      "prepared_on_branch": "research/mr002-preregistration",
+      "prepared_at_head": {"commit": "b8e95e1b9ebbd97887c46c8a923f97436117d0d9", "tree": "5b02a924db18ad04d405ef88b2cc4b108c9d466b",
+        "note": "The files below are working-tree artifacts prepared at this HEAD; the implementation commit + tree that contains their final bytes is supplied to, and bound by, the execution countersignature (external binding, per the design's Correction-1 Option-A pattern — a file cannot contain the hash of the commit that contains it)."},
+      "source_files": [
+        {"role": "finalized cascade (production module + §7 decision table + injection seam)",
+         "path": "apps/backend/app/research/mr002/stage3_cascade.py",
+         "sha256": "d6ee58d64f5149b0f90bd8fa379cf8b83230bfdb489fcbf075db89165e23acdd",
+         "byte_length": 19333, "git_blob": "a6604ad8812a203c2bc5871197fb5d0fb9cdd55a", "line_endings": "LF"},
+        {"role": "complete §7 eligibility fixtures (decision table; stub-driven; laptop-runnable)",
+         "path": "apps/backend/tests/research/test_mr002_stage3_cascade_dispA.py",
+         "sha256": "0affaec5c27a7b304485e1b50bae4fd490657c4721063bdda51781c5157b6daf",
+         "byte_length": 21659, "git_blob": "1438bb605d987c24da008c16bc9f2e767183bc6f", "line_endings": "LF"},
+        {"role": "in-image realism harness (binds the REAL primary/fallback/certifier on tiny hand-solvable problems)",
+         "path": "apps/backend/scripts/mr002_stage3_cascade_fixtures.py",
+         "sha256": "ac5a2849e6e0f4ad5a2906504bc18fc8bf018adf09ff25d6e4a2ba15d14a4347",
+         "byte_length": 5053, "git_blob": "3a7d61a5808a85f33674627e2b9373bab57636ce", "line_endings": "LF"}
+      ],
+      "entry_points": {
+        "production": "app.research.mr002.stage3_cascade.resolve_instance(rec) -> Outcome",
+        "test_seam": "app.research.mr002.stage3_cascade.resolve(rec, *, primary, fallback, certify_fn) -> Outcome"
+      },
+      "frozen_numerical_paths_bound": {
+        "primary_QUADPROG_SQRT": "scripts.mr002_coverage_signed_gap.SOLVERS['QUADPROG_SQRT'] (_quadprog_variant(solve_sqrt); S^T H S = 2I exactly)",
+        "fallback_PIQP_P2": "scripts.mr002_coverage_signed_gap.SOLVERS['PIQP_P2'] (mr002_piqp.solve_piqp(True, ...); BASE settings; fresh solver per instance; no warm start)",
+        "certifier": "scripts.mr002_coverage_signed_gap.canonical_qualify (registered KKT LIMITS + two-sided signed Lagrangian gap; CertificateDefect re-raised as an integrity defect)"
+      }
+    },
+
+    "2_eligibility_fixtures": {
+      "requirement": "adjudication §7 'Required test fixtures (every branch exercised)'; every §7 category reached; a PRIMARY integrity defect proven never to invoke the fallback.",
+      "design_of_fixtures": "The decision table is validated in isolation from the numerical stack: fixtures inject stub solvers / a stub certifier and assert routing + the fallback-invocation invariant. This makes each branch deterministic and reproducible without quadprog/piqp/mpmath. The numerical PRODUCIBILITY of each enum against the real solvers on tiny hand-solvable problems is exercised by the in-image realism harness (run under the clean rerun).",
+      "nine_required_branches": [
+        {"branch": "valid solver exception eligible for rescue", "primary_enum": "NUMERICAL_STATUS_NONQUALIFICATION", "disposition": "FALLBACK_QUALIFIED", "test": "test_branch1_registered_valueerror_rescued"},
+        {"branch": "finite candidate failing one KKT gate", "primary_enum": "CERTIFICATE_NONQUALIFICATION", "disposition": "fallback invoked (FALLBACK_QUALIFIED / UNRESOLVED)", "test": "test_branch2_* / test_branch2b_*"},
+        {"branch": "finite candidate failing only the signed-gap gate", "primary_enum": "CERTIFICATE_NONQUALIFICATION", "disposition": "fallback invoked", "test": "test_branch3_primary_fails_signed_gap_only_*"},
+        {"branch": "non-finite candidate", "primary_enum": "INTEGRITY_DEFECT", "disposition": "INVALID_RUN (no fallback)", "test": "test_branch4_* / test_branch4b_*"},
+        {"branch": "wrong-sized candidate", "primary_enum": "INTEGRITY_DEFECT", "disposition": "INVALID_RUN (no fallback)", "test": "test_branch5_* / test_branch5b_*"},
+        {"branch": "unknown status -> INTEGRITY_DEFECT (exact class AND message; no substring/analogy)", "primary_enum": "INTEGRITY_DEFECT", "disposition": "INVALID_RUN (no fallback)", "test": "test_branch6_* / test_branch6b_* / test_branch6c_* / test_branch6d_*"},
+        {"branch": "certifier exception", "primary_enum": "INTEGRITY_DEFECT", "disposition": "INVALID_RUN (no fallback)", "test": "test_branch7_* / test_branch7b_*"},
+        {"branch": "both solvers numerically nonqualify", "primary_enum": "NUMERICAL_STATUS_NONQUALIFICATION", "disposition": "UNRESOLVED_NUMERICAL_FAILURE (STOP)", "test": "test_branch8_* / test_branch8b_* / test_branch8c_*"},
+        {"branch": "PRIMARY integrity failure — PROOF the fallback was not called", "primary_enum": "INTEGRITY_DEFECT", "disposition": "INVALID_RUN; fallback_invoked=False AND the fallback callable is never constructed (Spy.calls==0)", "test": "test_branch9_* (parametrized over 3 defect kinds) / test_branch9b_model_input_*"}
+      ],
+      "additional_invariants_tested": [
+        "PRIMARY_QUALIFIED does not invoke the fallback",
+        "a §7-C model-input defect (t_i <= 0) STOPs before either solver is constructed",
+        "every outcome is one of the four terminal dispositions and every enum is in the closed set",
+        "only the two QUALIFIED dispositions accept a point; STOP dispositions accept none",
+        "Outcome.summary() is JSON-safe"
+      ],
+      "run_evidence": {
+        "command": "python -m pytest tests/research/test_mr002_stage3_cascade_dispA.py",
+        "environment": "backend .venv (numpy 2.2.6; no quadprog/piqp/mpmath needed — decision table is stub-driven)",
+        "result": "24 passed",
+        "date": "2026-07-17",
+        "note": "These are laptop-runnable and were run in this session. The in-image realism harness was NOT run here (piqp/mpmath absent locally; real-solver realism is deferred to the clean rerun in the pinned image)."
+      }
+    },
+
+    "3_container_image": {
+      "image": "mr002-research:v1.4",
+      "platform": "linux/amd64",
+      "image_digest": "sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a",
+      "oci_config_digest": "sha256:770553aeae6c",
+      "note": "This is the known-good frozen research image that produced the immutable characterization corpus (1d231930...). The clean successor rerun (§10) records a FRESH container/runtime binding and re-verifies the image identity anew; it is not imported from any quarantined run. The execution countersignature pins the exact image digest used for execution.",
+      "digest_provenance": "docs/implementation/evidence/mr_002/MR002_DirectedRounding_ImmutableRecord.json ('container_image'); MR002_CertifiedGap_Replay_Report.md."
+    },
+
+    "4_runtime_configuration": {
+      "cpu_requirement": "AVX2-only CPU (AWS c6a / m6a / r6a — AMD Zen 3, no AVX-512). ⚠ NEVER an AVX-512 instance: AVX-512 lives inside the QP solvers and changes the corpus/qualification manifest even with env knobs set.",
+      "env": {"OPENBLAS_CORETYPE": "HASWELL", "OPENBLAS_NUM_THREADS": 1, "OMP_NUM_THREADS": 1, "MKL_NUM_THREADS": 1},
+      "why_env": "Single-threaded BLAS + the AVX2 (Haswell) OpenBLAS kernel reproduce the laptop numerical profile bit-for-bit (IEEE-754 AVX2/FMA3 is identical across Intel/AMD). This is the equivalence proof, not a tuning choice.",
+      "registered_acceptance_LIMITS": {"primal_residual": 1e-09, "dual_residual": 1e-09, "stationarity_residual": 1e-08, "complementarity_residual": 1e-08, "kkt_residual": 1e-08},
+      "signed_gap_band": [-1e-10, 1e-10],
+      "max_interval_width": 1e-30,
+      "certifier_precision": ">= 100 decimal digits (mpmath iv.dps=100); exact as_integer_ratio inputs; outward rounding; NO max(Gamma,0), NO cushion, NO KKT-to-objective conversion",
+      "primary_construction": "QUADPROG_SQRT: z = diag(sqrt(t)) v; H_v = 2I exactly; lam recovered and unscaled back to original coordinates.",
+      "fallback_config_PIQP_P2": {"preconditioner_scale_cost": true, "eps_abs": 1e-10, "eps_rel": 1e-11, "check_duality_gap": true, "eps_duality_gap_abs": 1e-11, "eps_duality_gap_rel": 1e-11, "max_iter": 1000, "preconditioner_reuse_on_update": false, "iterative_refinement_always_enabled": true, "iterative_refinement_eps_abs": 1e-13, "iterative_refinement_eps_rel": 1e-13, "iterative_refinement_max_iter": 20, "kkt_solver": "sparse_ldlt", "fresh_solver_object_per_instance": true, "warm_start_or_update": false},
+      "config_source_of_truth": "apps/backend/scripts/mr002_piqp.py (BASE) and scripts.mr002_solver_intersection.solve_sqrt — bound, not re-specified."
+    },
+
+    "5_regenerated_population_protocol": {
+      "requirement": "adjudication §10 clean successor-rerun protocol; performed ONLY after the execution countersignature.",
+      "steps": [
+        "fresh checkout at the countersigned implementation commit + a fresh source manifest; fresh container/runtime binding recorded",
+        "NO checkpoint, record, certificate, aggregate, or artifact reused from the quarantine; no quarantined row disposition copied into the successor evidence path",
+        "the complete corpus and all overlap/coverage manifests regenerated anew and re-verified against the registered corpus hash 1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+        "the population is resolved by the finalized §7 cascade (primary; fallback only on an eligible numerical nonqualification; exactly once), NOT by an intersection over both solvers on every row (the quarantined population-constitution defect is not reproduced)",
+        "validation and sealed-OOS windows remain inaccessible (sealed and unread)",
+        "deterministic checkpoint/resume permitted ONLY within the new run"
+      ],
+      "future_unresolved_set": "unknown until executed; NOT asserted zero; UNRESOLVED_NUMERICAL_FAILURE -> STOP remains a live successor-run outcome (adjudication §5.6)."
+    },
+
+    "6_quarantine_non_reuse_checks": {
+      "quarantined_non_reusable": ["Sample A", "Sample B-C1", "the full-population AMENDED PASS", "MR002_FullPopulation*", "the 3,839-member qualifying population", "the row-2307 disposition and lineage", "the feasibility census", "MR002_Implementation_Erratum_v1.0 (SUSPENDED)"],
+      "governing_records": ["e50606995266c2f83055dbf09d0f3ec11f8d6c09", "13453b617454d44614d56d1723df2713e4e5b7f5"],
+      "mechanical_checks_embedded_in_this_package": [
+        "the finalized cascade module imports NONE of: scripts.mr002_full_population, app.research.mr002.dataset.FrozenDataset, app.research.mr002.runner.CONFIGS, the corpus, or the frozen duckdb — verified by source scan (only the frozen primary/fallback/certifier are imported)",
+        "no quarantined content-hash, row index (2307), population count (3839), corpus hash, checkpoint, or AMENDED-PASS token appears anywhere in the finalized source, fixtures, or realism harness — verified by grep (CLEAN)",
+        "the fixtures and realism harness operate ONLY on tiny hand-built problems; they never open the registered corpus, the frozen dataset, or a population-selection loop"
+      ],
+      "reuse": "PROHIBITED for primary/fallback/eligibility/certificate/population/threshold. The clean successor rerun regenerates all evidence anew."
+    },
+
+    "7_stop_behavior": {
+      "requirement": "adjudication §7 (§7-C INVALID_RUN, §7-D fallback dispositions) and §11 stop gates.",
+      "closed_enum": ["QUALIFIED", "NUMERICAL_STATUS_NONQUALIFICATION", "CERTIFICATE_NONQUALIFICATION", "INTEGRITY_DEFECT"],
+      "default_for_unrecognized": "INTEGRITY_DEFECT (never fallback-eligible, never by analogy)",
+      "terminal_dispositions": {
+        "PRIMARY_QUALIFIED": "accept primary; fallback NOT invoked; continue",
+        "FALLBACK_QUALIFIED": "eligible primary nonqualification, fallback qualifies; accept fallback; continue",
+        "UNRESOLVED_NUMERICAL_FAILURE": "eligible primary nonqualification, fallback completes but does not qualify; STOP",
+        "INVALID_RUN": "any integrity defect in model inputs / primary / fallback; STOP; on a PRIMARY integrity defect the fallback is never invoked"
+      },
+      "matching_discipline": "the numerical allowlist is keyed on EXACT exception class AND EXACT complete message; the sole registered entry is (ValueError, 'constraints are inconsistent, no solution') -> QUADPROG_CONSTRAINTS_INCONSISTENT. No substring/regex/partial match; any deviation is INTEGRITY_DEFECT.",
+      "prohibited": ["third attempt", "jitter", "tolerance change", "profile change", "per-instance routing", "eligibility by analogy", "reuse of quarantined evidence"],
+      "population_level_stops (clean rerun)": "corpus-hash mismatch, source mismatch, any INVALID_RUN, any UNRESOLVED_NUMERICAL_FAILURE, an unexpected Phase-I-positive result, or any outcome outside the total decision table -> STOP and preserve the partial evidence (adjudication §11)."
+    }
+  },
+
+  "execution_countersignature_must_bind": [
+    "the finalized implementation commit + tree containing the source bytes above",
+    "the complete eligibility fixtures and their passing run",
+    "the source manifest of the implemented cascade",
+    "the container image digest used for execution",
+    "the runtime configuration (AVX2-only CPU + OPENBLAS_CORETYPE=HASWELL + single-threaded BLAS + registered LIMITS/PIQP BASE)",
+    "the regenerated-population protocol",
+    "the clean-run stop gates"
+  ],
+  "scope_boundary": "This package authorizes NOTHING to execute. It is submitted so the owner can grant (or withhold) the separate execution countersignature that adjudication §10 requires. Until then: no Stage-3 instance is run; MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}

@@ -1,0 +1,97 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.1",
+  "supersedes": "MR002_Stage3_ExecutionPackage_v1.0 (review verdict 2026-07-17: WITHHELD, 30 findings). This revision is the first repair cycle.",
+  "status": "DRAFT — implementation component, stub fixtures, provenance validator, population runner, and source manifest are prepared and tested. Real-stack pre-execution harness PASS artifact, final commit binding, full OCI config digest, and pinned expected-identities are still required before the execution countersignature. No Stage-3 instance has been run.",
+  "classification": "numerical-implementation package. Does not alter the registered MR-002 research design, feasible set, objectives, signal, risk limits, gates, or data windows.",
+  "prepared": "2026-07-17",
+
+  "authorization_basis": {
+    "design_adjudication": {"path": "docs/implementation/evidence/mr_002/MR002_Erratum_Stage3_Cascade_ProspectiveAdjudication_v1.0_DRAFT.md", "sha256": "54aff48b7a5b7f5b39a4aca469c9746e9bc819ce44c3e40bf376aa79423b0d95", "committed_at": "3548a2dbe9a8574449542f98e9b914c56596a7b5"},
+    "design_countersign": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3ProspectiveAdjudication_Countersign_v1.0.json", "committed_at": "b8e95e1b9ebbd97887c46c8a923f97436117d0d9", "decision": "APPROVED — DESIGN ONLY"},
+    "review": {"path": "docs/review/comments.md", "verdict": "WITHHELD — 30 findings; address blockers 1-6 before secondary hardening"}
+  },
+
+  "execution_authorized": false,
+
+  "corrections_from_review_v1": {
+    "1_quadprog_allowlist_applied_to_piqp": {"status": "FIXED", "where": "stage3_cascade.NUMERICAL_ALLOWLIST is SOLVER-SCOPED, keyed (solver_id, class, message); PIQP has no registered numerical status so a PIQP raise -> INTEGRITY_DEFECT", "tests": ["test_branch8b_piqp_raising_quadprog_message_is_integrity_not_unresolved"]},
+    "2_class_name_not_exact_class": {"status": "FIXED", "where": "match_registered_numerical uses type(exc) (class OBJECT identity), keyed on builtins.ValueError; subclasses and same-named user classes do not match", "tests": ["test_branch6e_user_defined_class_named_valueerror_not_matched", "test_branch6f_valueerror_subclass_not_matched"]},
+    "3_provenance_integrity_gates_not_implemented": {"status": "ADDED", "where": "scripts/mr002_stage3_preflight.py — pure evaluate(env, expected, source_defects), fail-closed; run_preflight is the runner's HARD GATE", "tests": ["tests/research/test_mr002_stage3_preflight.py (20)"]},
+    "4_population_stop_not_enforced": {"status": "ADDED", "where": "scripts/mr002_stage3_population_runner.py — halts immediately on any stop-class/outside-table outcome; marks checkpoint FAILED/non-resumable; no aggregate PASS after a stop", "tests": ["tests/research/test_mr002_stage3_population_runner.py (16)"]},
+    "5_no_final_implementation_commit": {"status": "OPEN — this repair cycle ends with the final commit; the execution countersignature binds that commit+tree externally"},
+    "6_dependencies_not_byte_bound": {"status": "ADDED", "where": "scripts/mr002_stage3_source_manifest.py + MR002_Stage3_SourceManifest_v1.0.json byte-binds all 19 load-bearing files (git blob + sha256 + bytes); preflight verifies the working tree against it"},
+    "7_malformed_inputs_crash": {"status": "FIXED", "where": "validate_model_inputs: isinstance/arity guard, try-guarded conversion, ndim-before-index, upper>=0", "tests": ["test_malformed_model_inputs_map_to_invalid_run"]},
+    "8_candidate_conversion_escapes": {"status": "FIXED", "where": "normalize guards arity unpack + np.asarray of candidate; NON_NUMERIC_CANDIDATE / SOLVER_RETURN_NOT_A_PAIR", "tests": ["test_solver_returns_nonnumeric_candidate_is_integrity", "test_solver_returns_three_values_is_integrity"]},
+    "9_certifier_contract_not_validated": {"status": "FIXED", "where": "_validate_certifier_result (3-tuple, ok is real bool, bad is list[str], cert present, ok<->empty-bad) + production SignedGapCertificate isinstance check", "tests": ["test_malformed_certifier_result_is_integrity", "test_numpy_bool_ok_is_rejected"]},
+    "10_baseexception_too_broad": {"status": "FIXED", "where": "normalize catches Exception, not BaseException; KeyboardInterrupt/SystemExit/GeneratorExit propagate"},
+    "11_assertions_for_integrity": {"status": "FIXED", "where": "resolve replaces assert with an explicit INVALID_RUN branch; _default_primary/_fallback raise Stage3IntegrityError on solver-identity drift"},
+    "12_model_validation_incomplete": {"status": "FIXED (enumerated)", "where": "validate_model_inputs now enforces t>0, upper>=0, shapes/ndim, finiteness; the constructor invariants are enumerated"},
+    "13_accepted_arrays_mutable": {"status": "FIXED", "where": "_frozen_copy returns a read-only copy; accepted_z is not writeable and is decoupled from the caller's array", "tests": ["test_accepted_z_is_read_only_copy"]},
+    "14_branch8_wrong_rule": {"status": "FIXED", "where": "Branch-8 rewritten: UNRESOLVED only via fallback CERTIFICATE nonqualification; PIQP raising the QUADPROG message -> INTEGRITY"},
+    "15_exactly_once_not_proven": {"status": "FIXED", "where": "CountingSolver asserts fallback calls==1 on every eligible branch and ==0 on every non-eligible branch"},
+    "16_missing_malformed_contract_tests": {"status": "ADDED", "where": "malformed-contract battery: non-iterable rec, scalar t, unconvertible, None/too-many returns, non-numeric candidate, malformed/ non-bool certifier, negative upper, input+output mutation"},
+    "17_no_production_binding_test": {"status": "ADDED", "where": "test_production_binding_uses_frozen_solvers (importorskip piqp/mpmath; runs in the pinned image)"},
+    "18_realism_harness_deferred_too_late": {"status": "FIXED", "where": "harness reframed as a PRE-EXECUTION GATE; its PASS artifact MUST be produced in-image and included before the countersignature"},
+    "19_producibility_claim_overstated": {"status": "NARROWED + EXPANDED", "where": "harness now states it exercises PRIMARY_QUALIFIED, FALLBACK_QUALIFIED, and a REAL CERTIFICATE_NONQUALIFICATION (real certifier rejects a suboptimal candidate); it explicitly does NOT synthesize the real QUADPROG ValueError, real UNRESOLVED, or real certifier-exception INTEGRITY"},
+    "20_output_write_failure_silent": {"status": "FIXED", "where": "harness returns exit 3 if it cannot persist its artifact"},
+    "21_harness_runtime_binding": {"status": "ADDED", "where": "harness runtime_block records commit/tree, image+OCI digest, versions, CPU flags, env, fingerprints, per-case rec+outcome hashes"},
+    "22_oci_config_digest_truncated": {"status": "OPEN — full 64-hex OCI config digest must be captured in-image; preflight._is_full_digest FAILS a truncated/placeholder digest"},
+    "23_mutable_tag_in_command": {"status": "FIXED", "where": "container_execution_spec + harness command use mr002-research@sha256:<full-digest>, and the pulled image ID is verified before running"},
+    "24_equivalence_proof_overstated": {"status": "FIXED", "where": "runtime_configuration.empirical_equivalence_requirement replaces the 'bit-for-bit proof' with an empirical protocol (exact image, same-image repeatability, shuffle invariance, manifest comparison, stop-on-divergence)"},
+    "25_container_hardening_unspecified": {"status": "ADDED", "where": "container_execution_spec (ro mount, --network none, fresh out dir, fixed UID, read-only rootfs, no creds, resource limits, atomic writes)"},
+    "26_component_not_complete_runner": {"status": "ADDED", "where": "the clean successor runner (preflight gate -> corpus regen -> population resolve via §7 cascade -> records -> reconcile -> STOP -> checkpoint -> OOS lockout)"},
+    "27_test_evidence_asserted_not_preserved": {"status": "ADDED", "where": "MR002_Stage3_TestReport_v1.0.json (command, exit, counts, env, source commit, stdout hash, file hashes). ⚠ MUST be regenerated at the final committed implementation"},
+    "28_quarantine_checks_too_weak": {"status": "STRENGTHENED", "where": "preflight cascade_import_hygiene positively checks the loaded module set contains no quarantined module; the clean-run launcher spec requires fresh-directory attestation + positive input-path allowlisting (see quarantine_non_reuse)"},
+    "29_source_manifest_not_bound": {"status": "ADDED", "where": "MR002_Stage3_SourceManifest_v1.0.json is the complete source manifest; generator + verifier included"},
+    "30_status_internally_premature": {"status": "FIXED", "where": "this record's `status` states DRAFT accurately and lists the remaining pre-countersignature items"}
+  },
+
+  "package_binds": {
+    "source_manifest": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "2e50dd9806dd925c36d7b64d0ad0577141d447c3432f16bb4e0c9b24f6ec3cda", "byte_length": 7569, "note": "byte-binds all 19 load-bearing files (cascade numerical path 9, corpus-regeneration path 3, execution-package components 7)"},
+    "test_report": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json", "sha256": "6ff0797cc9a7c120074a2527a97ec358db2381c6c5ff8b81070f7acdf41b384e", "byte_length": 1576, "result": "83 passed, 1 skipped, exit 0", "caveat": "generated against a DIRTY working tree; regenerate at the final commit"},
+    "components": {
+      "finalized_cascade": "apps/backend/app/research/mr002/stage3_cascade.py",
+      "eligibility_fixtures": "apps/backend/tests/research/test_mr002_stage3_cascade_dispA.py (47 + 1 skipped)",
+      "preflight_validator": "apps/backend/scripts/mr002_stage3_preflight.py (+ tests, 20)",
+      "population_runner": "apps/backend/scripts/mr002_stage3_population_runner.py (+ tests, 16)",
+      "source_manifest_generator": "apps/backend/scripts/mr002_stage3_source_manifest.py",
+      "realism_harness": "apps/backend/scripts/mr002_stage3_cascade_fixtures.py (in-image pre-execution gate)"
+    }
+  },
+
+  "runtime_configuration": {
+    "cpu_requirement": "AVX2-only CPU (c6a/m6a/r6a). NEVER AVX-512. Enforced by preflight cpu_avx2_present + cpu_avx512_absent.",
+    "env": {"OPENBLAS_CORETYPE": "HASWELL", "OPENBLAS_NUM_THREADS": 1, "OMP_NUM_THREADS": 1, "MKL_NUM_THREADS": 1},
+    "registered_acceptance_LIMITS": {"primal_residual": 1e-09, "dual_residual": 1e-09, "stationarity_residual": 1e-08, "complementarity_residual": 1e-08, "kkt_residual": 1e-08},
+    "signed_gap_band": [-1e-10, 1e-10], "max_interval_width": 1e-30, "certifier_precision_dps": 100,
+    "empirical_equivalence_requirement": {
+      "note": "The prior 'AVX2/FMA3 is bit-for-bit identical across Intel/AMD — equivalence proof' claim is WITHDRAWN as overstated (finding 24). Numerical results can depend on library build, dispatch, compiler flags, solver code paths, denormal handling, and reduction order even at the same nominal ISA.",
+      "protocol": ["execute on the exact pinned image + target platform", "same-image determinism (repeat run byte-identical)", "canonical shuffle invariance", "regenerate the corpus and compare the full manifest + qualification set against the registered corpus hash 1d231930...", "STOP on any divergence"]
+    }
+  },
+
+  "container_execution_spec": {
+    "image_reference": "mr002-research@sha256:<FULL-DIGEST>  (immutable digest, NOT a tag; verify the pulled image ID before running — finding 23)",
+    "known_image_digest": "sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a",
+    "oci_config_digest": "OPEN — full 64-hex digest to be captured in-image; the recorded sha256:770553aeae6c is a truncated prefix and is NOT bindable (finding 22)",
+    "hardening": ["repository mount read-only (-v <repo>:/work:ro)", "dedicated fresh output directory", "--network none", "fixed non-root user/UID", "--read-only root filesystem + tmpfs /tmp", "no inherited credentials/env secrets", "explicit locale/timezone", "resource limits", "exact working directory + command", "atomic output writes"]
+  },
+
+  "quarantine_non_reuse": {
+    "quarantined_non_reusable": ["Sample A", "Sample B-C1", "the full-population AMENDED PASS", "MR002_FullPopulation*", "the 3,839 population", "row-2307 disposition/lineage", "feasibility census", "MR002_Implementation_Erratum_v1.0 (SUSPENDED)"],
+    "negative_checks": "no quarantined token (2307/3839/corpus hash/AMENDED-PASS) in the finalized source, fixtures, harness, preflight, or runner (grep-clean)",
+    "positive_checks": "preflight cascade_import_hygiene asserts the loaded module set contains none of {full_population, dataset, runner, exact_repair, exact_simplex}; exact_repair/exact_simplex are deliberately NOT on the cascade path",
+    "clean_run_launcher_requirements": ["fresh-directory attestation for the output path", "positive allowlisting of input paths (not only negative grep)", "no reused checkpoint (a FAILED terminal marker is non-resumable)", "no symlinked/contaminated output directory", "validation/OOS windows refused (WindowAccessError)"]
+  },
+
+  "remaining_before_execution_countersignature": [
+    "the final implementation commit + tree containing every file above (finding 5)",
+    "the full 64-hex OCI config digest captured in-image (finding 22)",
+    "the pinned ExpectedPins: package versions, callable fingerprints, material config (from a clean in-image gather_env)",
+    "a preserved PASS artifact from the in-image realism harness at that image (finding 18)",
+    "the test report regenerated at the final committed implementation (finding 27)"
+  ],
+
+  "scope_boundary": "This package authorizes NOTHING to execute. Until the separate execution countersignature: no Stage-3 instance runs (run_clean_successor refuses without MR002_EXECUTION_COUNTERSIGN); MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}

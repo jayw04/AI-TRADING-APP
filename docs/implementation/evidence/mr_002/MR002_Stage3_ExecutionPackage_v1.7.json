@@ -1,0 +1,40 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.7",
+  "supersedes": "v1.6 (review cycle 7, 2026-07-17: WITHHELD, 14 findings — recurrences: provenance placeholder, dir-fsync silence).",
+  "status": "DRAFT. No Stage-3 instance has been run.",
+  "prepared": "2026-07-17",
+  "execution_authorized": false,
+
+  "package_binds": {
+    "source_manifest": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "8d64ea5f94eec39cec13885185a7e8eb3e495f6bb3d9f861b0dedb1a285bb28d"},
+    "test_report": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json", "sha256": "1426c17333ebded0fcbc5caf8d15210b4256a8cc5538dfe85b0c062ff593cc03", "result": "153 passed, 1 skipped, exit 0", "admissible_as_final": false},
+    "input_contract": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_QPMatrices_InputContract_v1.0.json", "sha256": "0eca052cbd15c44b9e034ee69044198dff4fd182513dd4898b70655b1026c9a0"}
+  },
+
+  "corrections_from_review_v7": {
+    "1_provenance_placeholder_in_manifest": "CLOSED_BY_DEVELOPMENT_TEST (recurrence fixed properly) — corpus_source now RETURNS (rows, hash, row_manifest, corpus_provenance); _orchestrate_inner refuses BEFORE any manifest exists if provenance is incomplete, and inserts the ACTUAL pre-capture observations into the manifest document before the bytes are generated; no post-hoc patching; no stdout-only path",
+    "2_artifacts_not_semantically_qualified": "CLOSED_BY_DEVELOPMENT_TEST — load_realism_pass (record_type, verdict PASS, preflight_passed, cases_pass, evidence_persisted) + load_final_test_report (record_type, exit 0, ZERO skips, clean tree, admissible_as_final) are mandatory entry preconditions; a Phase-B-bound FAIL or skipped-test report is refused",
+    "3_crypto_boundary_unenforced": "PARTIALLY CLOSED / OPEN_IN_LAUNCH_ATTESTATION — the entry now REQUIRES a launcher verification RECEIPT (load_verification_receipt: record type, verification_exit_status==0, tool hash, key id, bound to the ACTUAL attestation bytes; receipt hash bound in Phase B via launch_verification_receipt_sha256); producing the signed attestation + receipt with the trusted key remains launcher-side",
+    "4_payload_hash_not_verified": "CLOSED_BY_DEVELOPMENT_TEST — canonical_signed_payload_sha256 is format-validated AND recomputed from the FROZEN canonical unsigned payload (all fields minus {signature, canonical_signed_payload_sha256}, sort_keys separators-compact utf-8); mismatch refused",
+    "5_attested_claims_unobserved": "OPEN_IN_LAUNCH_ATTESTATION — command/mount/nonce/launcher-identity verification against observed runtime state belongs to the launcher-generated attestation + receipt",
+    "6_schema_not_closed": "CLOSED_BY_DEVELOPMENT_TEST — binding rejects unexpected keys (closed allowed set)",
+    "7_flat_hashes": "PARTIALLY ADDRESSED — semantic requirements now enforced by the loaders (which is what the structured entries were for); full structured per-artifact entries deferred to the countersigned Phase-B instance",
+    "8_binding_decision_implicit": "CLOSED_BY_DEVELOPMENT_TEST — decision==EXECUTION_PACKAGE_COUNTERSIGNED, execution_authorized true, scope==MR002_STAGE3_CLEAN_SUCCESSOR_ONLY required",
+    "9_stale_last_provenance": "CLOSED_IN_CODE — function-global state ELIMINATED; provenance is an explicit return value",
+    "10_late_provenance_check": "CLOSED_BY_DEVELOPMENT_TEST — checked before the manifest is written; a missing provenance leaves NO manifest behind",
+    "11_run_manifest_indirection": "CLOSED_IN_CODE — realism_pass_sha256, final_test_report_sha256, launch_verification_receipt_sha256 recorded directly in run provenance",
+    "12_env_snapshot": "OPEN_IN_IMAGE (acknowledged) — single-observation Env preservation ships with the in-image run",
+    "13_derivation_document": "OPEN_AT_COUNTERSIGNATURE — expression-level map (2/t_i→T_POSITIVE, sqrt→T_POSITIVE, A_ub@z→AUB_2D_NCOLS, dual slices→BUB/BEQ/UPPER, bounds→UPPER_NONNEG) accompanies final adjudication",
+    "14_dir_fsync_silent": "ACKNOWLEDGED (dev-Windows limitation) — honest note retained; in-image Linux runs perform true directory fsync; durability flags deferred to the in-image writer"
+  },
+
+  "remaining_before_execution_countersignature": [
+    "OPEN_IN_LAUNCH_ATTESTATION: signed attestation + verification receipt produced by the launcher (trusted key, frozen tool); observed-state claims (command/mount/nonce)",
+    "OPEN_AT_COMMIT: final commit + tree; Phase-A manifest + test report regenerated there",
+    "OPEN_IN_IMAGE: full OCI digest; realism PASS; final report with production-binding RUN + zero skips; single-snapshot Env",
+    "OPEN_AT_COUNTERSIGNATURE: countersigned pins/authorization/Phase-B instances; expression-level contract derivation"
+  ],
+
+  "scope_boundary": "This package authorizes NOTHING to execute. MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}

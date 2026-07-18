@@ -1,0 +1,44 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.5",
+  "supersedes": "v1.4 (review cycle 5, 2026-07-17: WITHHELD, 18 findings).",
+  "status": "DRAFT. Closure taxonomy per finding 18: CLOSED_IN_CODE / CLOSED_BY_DEVELOPMENT_TEST / OPEN_IN_IMAGE / OPEN_AT_COMMIT / OPEN_AT_COUNTERSIGNATURE / OPEN_IN_LAUNCH_ATTESTATION. No Stage-3 instance has been run.",
+  "prepared": "2026-07-17",
+  "execution_authorized": false,
+
+  "package_binds": {
+    "source_manifest": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "dce083442d827aef", "note": "prefix; full hash in the artifact set; phase PRE_EXECUTION_SOURCE; now includes the input-contract test file (20 source files)"},
+    "test_report": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json", "result": "147 passed, 1 skipped, exit 0", "admissible_as_final": false},
+    "input_contract": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_QPMatrices_InputContract_v1.0.json", "note": "the formal derived contract (finding 4): 11 clauses, each with an enforced_by code and a boundary fixture; conformance test proves contract<->validator one-to-one"}
+  },
+
+  "corrections_from_review_v5": {
+    "1_preflight_fail_artifact_not_preserved": "CLOSED_IN_CODE — the FAIL path uses the identical byte-binding protocol (atomic write + byte verification + canonical hash), prints persistence failures, tries the emergency sidecar, returns distinct code 4 on persistence failure",
+    "2_manifest_harness_circularity": "CLOSED_IN_CODE (design + validators) — two-phase closure: Phase-A manifest carries manifest_phase=PRE_EXECUTION_SOURCE (realism artifact may be absent); Phase-B MR002_STAGE3_EXECUTION_BINDING artifact externally enumerates implementation-manifest/realism-PASS/final-test-report/package/pins/authorization/attestation hashes; load_execution_binding enforces the schema; the countersignature binds Phase B; Phase A is never regenerated in-container",
+    "3_authorization_hash_operator_controlled": "OPEN_IN_LAUNCH_ATTESTATION — the attestation schema is now DEFINED and enforced (ATTESTATION_REQUIRED_FIELDS: authorization/pins/manifest/package hashes, commit/tree, image/OCI, launcher identity, exact command, output mount identity, run nonce, signature; load_launch_attestation validates); producing + signing it is the launcher's, outside this process",
+    "4_qp_matrices_contract": "CLOSED_BY_DEVELOPMENT_TEST — INPUT_CONTRACT (11 clauses derived from _qp_matrices/SQRT/dual/PIQP/certifier), the JSON artifact, and the conformance suite: every clause has a boundary fixture validate_model_inputs must reject; a one-to-one test forbids silent clause/validator drift; empty-constraint conventions covered",
+    "5_days_reusability": "CLOSED_IN_CODE — days = tuple(...) materialized before the config loop; n_days/first/last/sequence-hash bound as day provenance; empty-days refused",
+    "6_dataset_db_lifecycle": "CLOSED_IN_CODE — DB must be a regular non-symlink file and hash successfully BEFORE capture (refusal, not a manifest note); dataset closed in finally",
+    "7_replay_cert_incomplete": "CLOSED_BY_DEVELOPMENT_TEST — _replay_certificate_defect enforces the full serialized schema + value invariants (fields, types, finiteness, interval ordering, int clip count, qualifies)",
+    "8_replay_no_model_validation": "CLOSED_BY_DEVELOPMENT_TEST — replay runs validate_model_inputs on the rebuilt record (REPLAY_MODEL_INPUT_DEFECT)",
+    "9_replay_disposition_relationships": "CLOSED_BY_DEVELOPMENT_TEST — _replay_disposition_defect replays the serialized equivalent of validate_outcome (enums, invocation flags, accepted_by, stop, solver identities)",
+    "10_sidecar_not_atomic": "CLOSED_BY_DEVELOPMENT_TEST — sequence-numbered (never overwrites), atomic staged write, self-describing record_type/version, checkpoint hash, post-write byte verification",
+    "11_stop_catches_only_oserror": "CLOSED_IN_CODE — every persistence boundary (open/write/mark_failed/mark_complete/close) catches Exception; BaseException propagates",
+    "12_manifest_comparison_not_byte_exact": "CLOSED_BY_DEVELOPMENT_TEST — _atomic_write_json serializes ONCE, returns the precomputed sha; callers compare observed file bytes; shared by all governance JSON",
+    "13_governance_absent_at_final": "CLOSED_IN_CODE — explicit manifest_phase; finality never inferred from version; the FINAL closure is the Phase-B binding artifact",
+    "14_no_single_binding_record": "CLOSED_IN_CODE — BINDING_REQUIRED_FIELDS enumerates the closed top-level set by sha256; validator enforces",
+    "15_date_nonempty_only": "CLOSED_BY_DEVELOPMENT_TEST — authorized_date must be ISO-8601 (YYYY-MM-DD)",
+    "16_runtime_gathered_twice": "PARTIALLY_CLOSED — the gate's observed env is serialized inside preflight_gate report; the display runtime is labelled a fresh snapshot; full single-snapshot refactor noted for the in-image run",
+    "17_fail_path_no_canonical_hash": "CLOSED_IN_CODE — FAIL artifacts follow the identical byte-binding protocol with exposed sha",
+    "18_closure_taxonomy": "ADOPTED — this map uses the required vocabulary"
+  },
+
+  "remaining_before_execution_countersignature": [
+    "OPEN_IN_LAUNCH_ATTESTATION: produce + sign the attestation (schema now enforced by load_launch_attestation)",
+    "OPEN_AT_COMMIT: final implementation commit + tree; regenerate Phase-A manifest + test report at that commit",
+    "OPEN_IN_IMAGE: full 64-hex OCI digest; realism-harness PASS (preflight-first); final test report with the production-binding test RUN",
+    "OPEN_AT_COUNTERSIGNATURE: countersigned pins + authorization + Phase-B execution-binding artifacts (all schemas enforced in code)"
+  ],
+
+  "scope_boundary": "This package authorizes NOTHING to execute. MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}

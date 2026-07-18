@@ -1,0 +1,62 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.3",
+  "supersedes": "v1.2 (review cycle 3, 2026-07-17: WITHHELD, 30 findings, prioritized 1-12).",
+  "status": "DRAFT — all 30 cycle-3 findings were processed: most are closed in code+tests; the operator-supplied authorization hash (5), native-binary binding (22 residual), the formal _qp_matrices contract (30), and everything requiring the pinned image or the final commit remain explicitly open. No Stage-3 instance has been run.",
+  "prepared": "2026-07-17",
+
+  "authorization_basis": {
+    "design_countersign": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3ProspectiveAdjudication_Countersign_v1.0.json", "committed_at": "b8e95e1b9ebbd97887c46c8a923f97436117d0d9", "decision": "APPROVED — DESIGN ONLY"},
+    "review_cycle_3": {"path": "docs/review/comments.md", "verdict": "WITHHELD — 30 findings; prioritize 1-12"}
+  },
+  "execution_authorized": false,
+
+  "package_binds": {
+    "source_manifest": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "37bff1ba2cb904bd3f3da5f8a79e6a769dcaf82ccf6860de81f2016428dbcfba", "note": "19 source files + governance artifacts (test report bound; realism-harness PASS pending in-image); verify_source now also checks record_type/version/files_missing/governance hashes (finding 23)"},
+    "test_report": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json", "sha256": "9cff6aa55b77bc6de4b007fba4beb8b653247915dad3578ddf64f330fe64d050", "result": "113 passed, 1 skipped, exit 0", "admissible_as_final": false}
+  },
+
+  "corrections_from_review_v3": {
+    "1_entry_point_not_executing": {"status": "IMPLEMENTED", "where": "run_clean_successor now constructs production_corpus_source, calls orchestrate() with resolve_instance, and emits the clean-run manifest + disposition exit code; the corpus-regeneration code EXISTS and is reviewable (finding 29) — executing it stays gated on the verified authorization artifact"},
+    "2_corpus_not_actually_hashed": {"status": "FIXED", "where": "orchestrate derives the corpus hash ITSELF from the actual row bytes (derive_corpus_hash, the registered scheme) before any solve; a lying source is caught; the source's claimed hash must also agree", "tests": ["test_orchestration_derives_hash_itself_lying_source_caught", "test_orchestration_source_claimed_hash_inconsistency_caught", "test_derive_corpus_hash_matches_registered_scheme"]},
+    "3_authorization_not_cross_validated": {"status": "FIXED", "where": "cross_validate_authorization(auth, pins): bound_commit/tree/image/oci must EQUAL the pins identities; the artifact must also bind row_manifest_protocol + execution_package_sha256", "tests": ["test_authorization_cross_validation_against_pins"]},
+    "4_authorization_semantics_not_validated": {"status": "FIXED", "where": "load_authorization enforces record_type, version, decision=='AUTHORIZED', execution_authorized is True, countersigned_by, repository — all fail closed", "tests": ["test_authorization_semantic_fields_enforced"]},
+    "5_hash_operator_supplied": {"status": "OPEN (acknowledged)", "where": "the artifact hash channel is still launcher-controlled; the signed launch attestation remains a pre-countersignature item"},
+    "6_harness_no_pins_comparison": {"status": "FIXED", "where": "harness verdict now requires a FULL preflight evaluate() PASS against the countersigned pins + static manifest (loaded and hash-verified); pins absent → the harness CANNOT pass"},
+    "7_validate_outcome_incomplete": {"status": "FIXED", "where": "validate_outcome now enforces solver identities, accepted_z byte-equal to the attempt z, finiteness, the complete REQUIRED_CERT_FIELDS set with qualifies exactly True, z/lam lengths vs the problem (rec param), and STOP-state consistency (UNRESOLVED/INVALID_RUN structural invariants)", "tests": ["test_wrong_solver_id_outcome_is_rejected", "test_certificate_not_qualifying_outcome_is_rejected"]},
+    "8_evidence_not_recertifiable": {"status": "FIXED", "where": "numerical_evidence preserves the COMPLETE input problem (every component as exact rationals + shape); _certificate_fields RAISES on any missing registered field", "tests": ["test_all_qualified_passes_and_preserves_full_evidence"]},
+    "9_canonicalize_stops_inside_cascade": {"status": "FIXED", "where": "the runner canonicalizes ONCE per row and uses that immutable record for manifest comparison, resolution, and evidence"},
+    "10_io_failure_not_preserved": {"status": "FIXED", "where": "sink-open/mark_failed/mark_complete/close failures → emergency sidecar (<checkpoint>.emergency.json) + evidence_persisted flag; 'the terminal always is' claim withdrawn", "tests": ["test_terminal_write_failure_writes_sidecar"]},
+    "11_iterator_failures": {"status": "FIXED", "where": "iter(rows) creation AND the post-population drain are guarded; non-StopIteration exceptions → ROW_ITERATOR_ERROR terminal", "tests": ["test_row_iterator_creation_failure_preserved", "test_drain_iterator_failure_preserved"]},
+    "12_checkpoint_not_reverified": {"status": "FIXED", "where": "aggregate_verdict re-verifies every record_sha256, every input_content_hash vs the manifest, class/order/count, single COMPLETE terminal as final event, terminal n_records, zero corruption", "tests": ["test_tampered_record_hash_fails_aggregate", "test_terminal_count_mismatch_fails_aggregate"]},
+    "13_silent_corruption_tolerance": {"status": "FIXED", "where": "read_checkpoint is STRICT: malformed non-final lines, unknown event kinds, duplicate terminals, events after the terminal → corruption; precheck refuses corrupt checkpoints", "tests": ["test_midfile_malformed_line_is_corruption", "test_unknown_event_kind_is_corruption", "test_record_after_terminal_is_corruption"]},
+    "14_row_manifest_schema_weak": {"status": "FIXED", "where": "RowIdentityManifest.defect(): dict entries with exactly {row_id, content_hash}, int/str ids, 64-lowercase-hex hashes (rows AND corpus), nonempty, unique", "tests": ["test_short_corpus_hash_refused", "test_malformed_row_entry_refused", "test_short_content_hash_refused"]},
+    "15_run_manifest_omits_provenance": {"status": "FIXED", "where": "OrchestrationConfig.provenance (auth/pins/manifest/package hashes, commit/tree, digests, preflight-report hash) is bound into the clean-run manifest; run_clean_successor populates it"},
+    "16_manifest_not_tied_to_checkpoint": {"status": "FIXED", "where": "the run manifest binds checkpoint_sha256 (final bytes) + row_manifest_sha256", "tests": ["test_orchestration_dry_run_pass_binds_checkpoint_and_provenance"]},
+    "17_orchestrate_not_fail_closed": {"status": "FIXED", "where": "orchestrate wraps the full body; any exception → governed STOP with a failure fingerprint, never an escaping traceback", "tests": ["test_orchestration_fails_closed_on_source_exception"]},
+    "18_output_dir_controls_absent": {"status": "FIXED", "where": "_output_root_defect: out_dir exists/non-symlink/EMPTY; checkpoint realpath inside the root", "tests": ["test_orchestration_refuses_nonempty_out_dir", "test_orchestration_refuses_checkpoint_outside_root"]},
+    "19_registry_not_fully_sealed": {"status": "FIXED (honestly bounded)", "where": "_SealableRegistry blocks setitem/delitem/clear/pop/popitem/update/setdefault for ALL keys after seal; documented as accidental-mutation protection, not a cryptographic boundary — one-shot container + fingerprints carry the rest"},
+    "20_fingerprint_pinning_not_closed": {"status": "FIXED", "where": "REQUIRED_FINGERPRINT_KEYS is a closed 5-key set enforced by BOTH seal_implementations and preflight (missing or extra keys fail)", "tests": ["test_partial_fingerprint_pin_set_fails_closed"]},
+    "21_material_config_one_way": {"status": "FIXED", "where": "material sections are compared TWO-WAY (_dict_diff_exact): extra observed keys inside a material subtree fail", "tests": ["test_extra_material_config_key_fails_two_way"]},
+    "22_package_set_not_exactly_closed": {"status": "FIXED (version layer) / OPEN (native binaries)", "where": "extra names in the pin map are rejected; native shared-object binding is explicitly delegated to the image digest + launch attestation", "tests": ["test_extra_package_pin_fails_closed"]},
+    "23_verify_source_ignores_governance": {"status": "FIXED", "where": "verify_source checks record_type, version, files_missing, and hash-verifies present governance artifacts"},
+    "24_manifest_omits_package_itself": {"status": "ADDRESSED (by design)", "where": "the package/manifest cannot bind their own bytes; the AUTHORIZATION artifact binds execution_package_sha256 + source_manifest_sha256 + expected_pins_sha256 (enforced by load_authorization), closing the loop one level up"},
+    "25_harness_cert_test_weak": {"status": "FIXED (relabelled)", "where": "the case is renamed certifier_classification, states its claim (primary enum only), and records — without asserting — the real-fallback disposition"},
+    "26_persistence_verification_incomplete": {"status": "FIXED", "where": "post-write verification compares the FULL canonical document hash of the persisted bytes, not just the verdict string"},
+    "27_production_binding_still_skipped": {"status": "OPEN (pinned image required)"},
+    "28_all_35_addressed_too_strong": {"status": "FIXED (wording)", "where": "this record and the .md say: all findings processed; most closed; several partial; execution-critical portions open"},
+    "29_corpus_regen_code_must_exist_first": {"status": "IMPLEMENTED", "where": "production_corpus_source is real, reviewable code (frozen capture over the DEV window, canonical rows, derived hashes) — only its EXECUTION is gated"},
+    "30_input_contract_open": {"status": "OPEN", "where": "the formal _qp_matrices-derived input contract remains to be enumerated and diffed against validate_model_inputs before countersignature"}
+  },
+
+  "remaining_before_execution_countersignature": [
+    "signed launch attestation for image/OCI identity + the authorization-hash channel (findings 5, 22-native)",
+    "the final implementation commit + tree; full 64-hex OCI config digest",
+    "the countersigned expected-pins + execution-authorization artifacts (schemas now enforced in code)",
+    "an in-image realism-harness PASS artifact (now preflight-gated) at the pinned image",
+    "a final test report: clean tree, pinned image, production-binding test RUN (finding 27)",
+    "the formally-enumerated _qp_matrices input contract vs validate_model_inputs (finding 30)"
+  ],
+
+  "scope_boundary": "This package authorizes NOTHING to execute. run_clean_successor refuses without a verified, semantically-valid, cross-validated countersigned authorization artifact. MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}

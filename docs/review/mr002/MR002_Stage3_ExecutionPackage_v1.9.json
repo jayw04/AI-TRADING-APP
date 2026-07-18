@@ -1,0 +1,24 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.9",
+  "supersedes": "v1.8 (review cycle 9, 2026-07-18: WITHHELD, 15 findings, prioritize blockers 1-7).",
+  "status": "DRAFT. Development-side blocker classes are believed exhausted; every remaining open item requires the final commit, the pinned image, or the launcher (see remaining list). No Stage-3 instance has been run.",
+  "prepared": "2026-07-18",
+  "execution_authorized": false,
+  "package_binds": {
+    "source_manifest": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "ad595c4a94eff1748e2879966aac2dd44fa9524995afe56a142dc0f6defced26"},
+    "test_report": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json", "sha256": "5fa0fb55928def4493001eed39539fc6764ad7955908f01792b51acbea8bd835", "result": "167 passed, 1 skipped, exit 0", "admissible_as_final": false},
+    "input_contract": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_QPMatrices_InputContract_v1.0.json", "sha256": "0eca052cbd15c44b9e034ee69044198dff4fd182513dd4898b70655b1026c9a0"}
+  },
+  "corrections_from_review_v9": {
+    "1_binds_real_not_validated": "CLOSED_BY_DEVELOPMENT_TEST — exact closed identities required: primary QUADPROG_SQRT, fallback PIQP_P2, certifier canonical_qualify*. Test: test_cycle9_blocker1_binds_real_identities_enforced PASSED",
+    "2_case_semantics_generic": "CLOSED_BY_DEVELOPMENT_TEST — validate_realism_case derives each group verdict from durable fields (disposition, enums, solver ids, invocation flags, accepted_by, stop) per the reviewer's exact tables; a mislabeled case refuses. Test: test_cycle9_blocker2_case_semantics_derived_per_group PASSED",
+    "3_no_per_test_evidence": "CLOSED_BY_DEVELOPMENT_TEST — a per-test result map is REQUIRED: one record per collected id, no duplicates, all passed, collected_passed DERIVED (scalar disagreement refuses), production-binding record itself passed. Test: test_cycle9_blocker3_per_test_results_required_and_derived PASSED",
+    "4_report_not_identity_bound": "CLOSED_BY_DEVELOPMENT_TEST — the report must STATE commit/tree/image/OCI/manifest/pins/package and match Phase B (loader receives the binding; entry passes it). Test: test_cycle9_blocker4_report_identity_must_match_phase_b PASSED",
+    "5_nonce_optional": "CLOSED_BY_DEVELOPMENT_TEST — run_nonce + verified_at mandatory; receipt.run_nonce must equal attestation.run_nonce. Test: test_cycle9_blocker5_receipt_nonce_mandatory_and_matched PASSED",
+    "6_receipt_version_unenforced": "CLOSED_BY_DEVELOPMENT_TEST — version 1.0 + record_status IMMUTABLE required, closed key set. Test: test_cycle9_blocker6_receipt_version_and_status_enforced PASSED",
+    "7_tool_identity_unbound": "CLOSED_BY_DEVELOPMENT_TEST — attestation now REQUIRES a 64-hex verification_tool_sha256; the receipt's tool hash must equal it. Test: test_cycle9_blocker7_verification_tool_bound_to_attestation PASSED",
+    "8_to_15": "UNCHANGED-ACKNOWLEDGED — PASS-path persistence parity, single-snapshot runtime, dir-fsync durability (OPEN_IN_IMAGE); observed command/mount comparison, signed attestation+receipt (OPEN_IN_LAUNCH_ATTESTATION); structured Phase B + direct input-contract binding, expression-level derivation (OPEN_AT_COUNTERSIGNATURE); final commit + clean-tree Phase-A regeneration (OPEN_AT_COMMIT). Entry now retains parsed receipt/realism/report records and binds a semantic_summary into the run manifest (finding 10 partially closed)."
+  },
+  "scope_boundary": "This package authorizes NOTHING to execute. MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}

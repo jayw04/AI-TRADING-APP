@@ -1,0 +1,24 @@
+{
+  "record_type": "MR002_STAGE3_TEST_REPORT",
+  "version": "1.0",
+  "note": "DEVELOPMENT evidence only (dirty tree; production-binding SKIPPED). Regenerate at the final commit in the pinned image.",
+  "exit_code": 0,
+  "collected_passed": 167,
+  "collected_skipped": 1,
+  "stdout_sha256": "04cddf9104a6bfabc1489287ecc5f4e1ebbdec34ddaec0f2bc98dc67c5b8c992",
+  "environment": {
+    "python": "3.13.14",
+    "pytest": "9.0.3",
+    "numpy": "2.2.6"
+  },
+  "source_commit": "b8e95e1b9ebbd97887c46c8a923f97436117d0d9",
+  "working_tree_dirty": true,
+  "admissible_as_final": false,
+  "module_under_test_sha256": {
+    "app/research/mr002/stage3_cascade.py": "8c151d4b029f8e61bc2d4044d145c125468294c5fb6ae9b111a08efb691c750e",
+    "scripts/mr002_stage3_preflight.py": "6368925c5990f9c3e94aa2d2a8ff40f79299ab9cf4ea2b7ef3cb88b514ded9f6",
+    "scripts/mr002_stage3_population_runner.py": "9228ebd5cf3ae8f4a5ed17df7e22150019b423292539d22e48c499fef53c9075",
+    "scripts/mr002_stage3_source_manifest.py": "9bacbca47fcb44a8eecde3300ebb295919c55e5f1f046aa2e405e8785bdc9cd1",
+    "scripts/mr002_stage3_cascade_fixtures.py": "b3da5c5c2efde8eecde4c56f278d0d1586c43d6e802dd041952d558ed9660874"
+  }
+}

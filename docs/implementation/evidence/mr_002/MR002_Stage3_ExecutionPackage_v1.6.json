@@ -1,0 +1,42 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.6",
+  "supersedes": "v1.5 (review cycle 6, 2026-07-17: WITHHELD, 16 findings — central gap: Phase B + attestation not wired into the executable path).",
+  "status": "DRAFT. Closure taxonomy: CLOSED_IN_CODE / CLOSED_BY_DEVELOPMENT_TEST / OPEN_IN_IMAGE / OPEN_AT_COMMIT / OPEN_AT_COUNTERSIGNATURE / OPEN_IN_LAUNCH_ATTESTATION. No Stage-3 instance has been run.",
+  "prepared": "2026-07-17",
+  "execution_authorized": false,
+
+  "package_binds": {
+    "source_manifest": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "c839176534287456e3e91b42e3b76df1a3d636642030e893bbac47e190c9b20b"},
+    "test_report": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json", "sha256": "ef6b6171be689fb6c398f4b1d86677ede46b9e9f1cdaad54444be78f844ace26", "result": "148 passed, 1 skipped, exit 0", "admissible_as_final": false},
+    "input_contract": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_QPMatrices_InputContract_v1.0.json", "sha256": "0eca052cbd15c44b9e034ee69044198dff4fd182513dd4898b70655b1026c9a0", "note": "now a bound governance artifact with semantic-equivalence verification vs stage3_cascade.INPUT_CONTRACT"}
+  },
+
+  "corrections_from_review_v6": {
+    "1_entry_never_loads_phase_b": "CLOSED_IN_CODE — run_clean_successor REQUIRES MR002_EXECUTION_BINDING(+_SHA256), MR002_LAUNCH_ATTESTATION, MR002_REALISM_PASS, MR002_FINAL_TEST_REPORT before preflight; loads + cross-validates all of them; the designed boundary is now the enforced boundary",
+    "2_attestation_loader_unused": "CLOSED_IN_CODE — load_launch_attestation is a mandatory entry precondition; its hash comes from the BINDING (not a separate operator channel)",
+    "3_no_cross_validation": "CLOSED_BY_DEVELOPMENT_TEST — cross_validate_binding compares every binding hash against the ACTUAL artifact bytes (authorization/pins/Phase-A manifest/attestation/package/realism-PASS/final-test-report) and requires binding==authorization==attestation identity equality (commit/tree/image/OCI)",
+    "4_phase_b_schema_incomplete": "CLOSED_BY_DEVELOPMENT_TEST — version 1.0, record_status IMMUTABLE, countersigner exact, ISO countersigned_date (real calendar), repository enforced",
+    "5_signature_not_verified": "PARTIALLY CLOSED / OPEN_IN_LAUNCH_ATTESTATION — the signature ENVELOPE (signature_algorithm, signing_key_id, canonical_signed_payload_sha256, verification_tool) is now required + validated; cryptographic verification by the named frozen tool against the trusted key remains the launcher-side deliverable",
+    "6_contract_json_not_bound": "CLOSED_IN_CODE — the contract JSON is a governance artifact (sha256+blob+length) AND verify_source checks it is semantically EQUAL to stage3_cascade.INPUT_CONTRACT (INPUT_CONTRACT_ARTIFACT_DRIFT)",
+    "7_truncated_hash_in_package": "CLOSED — this package carries complete 64-hex hashes only",
+    "8_day_provenance_unbound": "CLOSED_IN_CODE — the entry consumes production_corpus_source.last_provenance (pre-capture observation) and REFUSES a PASS verdict if it is missing",
+    "9_db_reobserved": "CLOSED_IN_CODE — the pre-capture db_prov is what reaches the evidence; the re-observing _database_provenance call was removed from the provenance path",
+    "10_lifecycle_undocumented": "DOCUMENTED — the frozen 9-step Phase-A→Phase-B lifecycle is recorded in the review README + binding docstrings; steps 8-9 are now executable because the entry enforces Phase B",
+    "11_harness_double_observation": "OPEN_IN_IMAGE (acknowledged) — the single-snapshot refactor of gather_env is scheduled with the in-image run; the gate report remains the authoritative pass basis",
+    "12_fail_doc_claims_persistence_early": "CLOSED_IN_CODE — the FAIL document starts evidence_persisted=false and flips to true only inside the exact persisted payload",
+    "13_dir_fsync_silent": "ACKNOWLEDGED — directory-fsync is best-effort on Windows dev; the in-image (Linux) runs get true dir-fsync; honesty note retained rather than a false flag",
+    "14_hashes_not_format_checked": "CLOSED_BY_DEVELOPMENT_TEST — _require_hex64: 64-hex for hashes, 40-hex for commit/tree, sha256:<64hex> for image/OCI, in binding AND attestation",
+    "15_dates_regex_only": "CLOSED_BY_DEVELOPMENT_TEST — datetime.date.fromisoformat; 2026-02-31 refused",
+    "16_derivation_evidence": "OPEN_AT_COUNTERSIGNATURE (documentation) — the expression-level derivation artifact mapping code locations to clauses accompanies the final adjudication package"
+  },
+
+  "remaining_before_execution_countersignature": [
+    "OPEN_IN_LAUNCH_ATTESTATION: produce + cryptographically sign the attestation with the frozen tool/key registry",
+    "OPEN_AT_COMMIT: final implementation commit + tree; regenerate Phase-A manifest + test report there",
+    "OPEN_IN_IMAGE: full OCI digest; realism-harness PASS; final test report with the production-binding test RUN; single-snapshot harness runtime",
+    "OPEN_AT_COUNTERSIGNATURE: countersigned pins + authorization + Phase-B binding artifacts; the expression-level contract-derivation document"
+  ],
+
+  "scope_boundary": "This package authorizes NOTHING to execute. MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}

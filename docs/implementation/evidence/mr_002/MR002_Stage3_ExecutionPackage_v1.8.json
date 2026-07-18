@@ -1,0 +1,24 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.8",
+  "supersedes": "v1.7 (review cycle 8, 2026-07-18: WITHHELD, 16 findings, prioritize 1-7).",
+  "status": "DRAFT. No Stage-3 instance has been run.",
+  "prepared": "2026-07-18",
+  "execution_authorized": false,
+  "package_binds": {
+    "source_manifest": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "a684222af506762762c6a8c5117de503af2fd282f79660bf53d0282bf1ccaeaf"},
+    "test_report": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json", "sha256": "35b392cced7e25df3848ba7aec02d807dae4ac94afba6d5e40c8d1b6d29b97c7", "result": "160 passed, 1 skipped, exit 0", "admissible_as_final": false},
+    "input_contract": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_QPMatrices_InputContract_v1.0.json", "sha256": "0eca052cbd15c44b9e034ee69044198dff4fd182513dd4898b70655b1026c9a0"}
+  },
+  "corrections_from_review_v8": {
+    "1_evidence_persisted_default_true": "CLOSED_BY_DEVELOPMENT_TEST — d.get('evidence_persisted') is not True (no default); the harness PASS payload carries evidence_persisted, flipped true only in the exact persisted bytes. Test: test_cycle8_issue1_missing_evidence_persisted_refused PASSED",
+    "2_aggregate_booleans_trusted": "CLOSED_BY_DEVELOPMENT_TEST — load_realism_pass derives qualification from the CASES: nonempty, unique names, all three required groups (primary_qualified/fallback_qualified/certifier_classification), every case pass true, 64-hex rec+outcome hashes, binds_real present, aggregate must agree. Test: test_cycle8_issue2_cases_derived_not_trusted PASSED",
+    "3_production_binding_not_proven": "CLOSED_BY_DEVELOPMENT_TEST — the final report must carry a collected-test manifest (>=100 ids, all four required modules) CONTAINING the exact production-binding test id with production_binding_outcome=='passed'. Test: test_cycle8_issue3_production_binding_must_have_run PASSED",
+    "4_receipt_not_cross_validated": "CLOSED_BY_DEVELOPMENT_TEST — the receipt must match the PARSED attestation on signing_key_id, signature_algorithm, canonical_signed_payload_sha256; 64-hex tool hash; closed receipt schema. Test: test_cycle8_issue4_receipt_must_match_attestation_key_and_payload PASSED",
+    "5_receipt_record_discarded": "CLOSED_BY_DEVELOPMENT_TEST — the entry passes the parsed attestation into load_verification_receipt (attestation=attestation). Test: test_cycle8_issue5_entry_retains_attestation_for_receipt PASSED",
+    "6_regex_date_recurrence": "CLOSED_BY_DEVELOPMENT_TEST — load_authorization uses _validate_iso_date (date.fromisoformat); 2026-02-31 and 2026-99-99 refused. Test: test_cycle8_issue6_invalid_calendar_authorization_date_refused PASSED",
+    "7_attestation_schema_open": "CLOSED_BY_DEVELOPMENT_TEST — closed key set + version '1.0' + record_status IMMUTABLE required. Test: test_cycle8_issue7_attestation_closed_schema PASSED",
+    "8_to_16": "UNCHANGED-ACKNOWLEDGED — single-snapshot runtime (OPEN_IN_IMAGE), PASS-path persistence parity (partially improved via issue-1 payload change), summary-only preflight evidence (OPEN_IN_IMAGE), artifact identity self-declaration (OPEN_AT_COUNTERSIGNATURE), structured Phase-B table + input_contract_sha256 in Phase B (OPEN_AT_COUNTERSIGNATURE), dir-fsync durability record (OPEN_IN_IMAGE), expression-level derivation (OPEN_AT_COUNTERSIGNATURE)"
+  },
+  "scope_boundary": "This package authorizes NOTHING to execute. MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}

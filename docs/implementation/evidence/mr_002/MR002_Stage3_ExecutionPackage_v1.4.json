@@ -1,0 +1,50 @@
+{
+  "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+  "version": "1.4",
+  "supersedes": "v1.3 (review cycle 4, 2026-07-17: WITHHELD, 24 findings + test gaps, prioritized 1-12).",
+  "status": "DRAFT — all 24 cycle-4 findings processed; most closed in code+tests; explicitly open: the signed launch attestation (5, 16, 23), the in-image/production-binding runs, the final commit, and the formal _qp_matrices contract (24). No Stage-3 instance has been run.",
+  "prepared": "2026-07-17",
+  "execution_authorized": false,
+
+  "package_binds": {
+    "source_manifest": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "ffccd625f048cc6e5077880f1320c5a6ba50eabd1f0501d157d068656b8c9563"},
+    "test_report": {"path": "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json", "sha256": "98ae856898dcef969214bb2d80116c2764873c6c36667ed6c3d4491ba7727a3a", "result": "124 passed, 1 skipped, exit 0", "admissible_as_final": false}
+  },
+
+  "corrections_from_review_v4": {
+    "1_harness_ran_numerics_before_preflight": "FIXED (highest priority) — the harness runs the preflight gate FIRST; on failure it persists a FAIL artifact and executes NO numerical case",
+    "2_invalid_run_accepts_qualified_primary": "FIXED — pre-fallback INVALID_RUN requires primary.enum == INTEGRITY_DEFECT; test covers every inadmissible primary enum",
+    "3_orchestration_toctou": "FIXED — orchestrate canonicalizes every row ONCE before hashing; the resolver provably receives read-only records (test asserts writeable is False)",
+    "4_capture_corpus_not_proven_fresh": "FIXED — CORPUS must be empty (never silently cleared); jp._solve_qp saved/restored in try/finally",
+    "5_execution_package_hash_never_verified": "FIXED — verify_execution_package hashes the ACTUAL package bytes vs authorization.execution_package_sha256 + record_type + exact supported version; the artifact-hash CHANNEL remains operator-supplied until the launch attestation (open)",
+    "6_row_manifest_protocol_not_enforced": "FIXED — frozen ROW_MANIFEST_PROTOCOL='MR002_STAGE3_ROW_IDENTITY_V1', exact-matched in authorization + recorded in run provenance",
+    "7_authorization_version_countersigner_weak": "FIXED — exact version '1.0', record_status IMMUTABLE, authorized_date, countersigned_by == 'Jay Wang (owner)', execution_package_version exact",
+    "8_pins_no_semantic_schema": "FIXED — record_type/version/IMMUTABLE/repository enforced; corpus_hash MANDATORY (source-code default removed)",
+    "9_record_hashes_not_semantic": "FIXED — verify_numerical_evidence_record replays ratios→arrays→nested hashes→invariants for every record; aggregate_verdict calls it (tampered-ratio test passes the checksum but fails the replay)",
+    "10_record_sha_not_authentication": "FIXED (wording) — record_sha256=consistency checksum; checkpoint_sha256=whole-file binding; externally preserved run manifest=authenticity boundary",
+    "11_close_failure_could_pass": "FIXED — PASS additionally requires evidence_persisted and not stopped; close failure → stopped+sidecar (test pins passed=False/stopped=True/persisted=False)",
+    "12_partial_write_reported_persisted": "FIXED — record-write failures get their own handler: evidence_persisted=False + sidecar ALWAYS, regardless of the terminal append",
+    "13_orchestration_exceptions_not_persisted": "FIXED — _orchestration_emergency writes a run-level artifact (with checkpoint hash + corruption state) for every orchestration exception; OrchestrationResult.evidence_persisted reports it",
+    "14_window_error_escapes": "FIXED — WindowAccessError becomes a governed REFUSED with a preserved emergency artifact",
+    "15_run_manifest_not_verified": "FIXED — post-write full-canonical-hash verification + run_manifest_sha256 exposed on the result",
+    "16_output_root_races": "ACKNOWLEDGED — controls documented as not race-proof; descriptor-held launcher hardening belongs to the launch attestation",
+    "17_population_size_not_enforced": "FIXED — EXPECTED_CORPUS_INSTANCES=3895 pinned; production_corpus_source refuses on count mismatch before hashing",
+    "18_cert_presence_not_value": "FIXED — finiteness, interval ordering, nonnegative-int clip count enforced in validate_outcome; full re-certification remains the replay function",
+    "19_cert_mutable": "FIXED — accepted certificates snapshotted into frozen CertSnapshot at normalization; missing fields cannot be accepted",
+    "20_declared_config_not_verified": "FIXED — verify_source checks declared_config, pending list, and governance key-set equality",
+    "21_governance_verification_incomplete": "FIXED — governance artifacts checked for sha256 + git blob + byte length; exact allowed path set",
+    "22_corpus_db_not_bound": "FIXED — _database_provenance (sha256/bytes/path) recorded in run provenance; the derived corpus hash remains the authority",
+    "23_native_binaries": "OPEN — image digest + signed launch attestation",
+    "24_qp_matrices_contract": "OPEN — required before countersignature, not optional documentation"
+  },
+
+  "remaining_before_execution_countersignature": [
+    "signed launch attestation (authorization-hash channel, image/OCI identity, native binaries, output-root descriptor hardening) — findings 5, 16, 23",
+    "final implementation commit + tree; full 64-hex OCI config digest",
+    "countersigned expected-pins + execution-authorization artifacts (exact schemas now enforced in code)",
+    "in-image realism-harness PASS (preflight-first) + final in-image test report with the production-binding test RUN",
+    "the formally-enumerated _qp_matrices input contract vs validate_model_inputs — finding 24"
+  ],
+
+  "scope_boundary": "This package authorizes NOTHING to execute. MR002_Implementation_Erratum_v1.0 remains SUSPENDED; the quarantined AMENDED PASS remains non-reusable; preflight CLOSED; performance NOT COMPUTED; validation and sealed OOS SEALED AND UNREAD."
+}
