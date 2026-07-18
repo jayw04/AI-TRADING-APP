@@ -16,16 +16,16 @@
     },
     "apps/backend/scripts/mr002_coverage_signed_gap.py": {
       "role": "cascade_numerical_path",
-      "sha256": "e66f273c2007b1dc746116a4757368a9dc81f575eb0fe55da7fac7cc0ad3769c",
-      "git_blob": "9ec8f984181c30f41d8aa8d4357af20d6b6fc646",
-      "byte_length": 26926,
+      "sha256": "66118bc787bb8590700bcdc08e33521c402c76baec2a59948bd7230fdde5cc3b",
+      "git_blob": "409b6c812d9b1abd3109dfa32854b30521880e6a",
+      "byte_length": 26379,
       "present": true
     },
     "apps/backend/scripts/mr002_piqp.py": {
       "role": "cascade_numerical_path",
-      "sha256": "6e3274a38f9f8c200c32df0e4e49dde1d0e2f6daeadd77562c46fc9ea9d0041e",
-      "git_blob": "f849bb7f0dd3f98c05dfcbdd415fc65e8dcbcded",
-      "byte_length": 20457,
+      "sha256": "06f730895fdf160ba0d15a57d49effee7ffdd2f32f19bb4fb94f40ae15cabfc8",
+      "git_blob": "cda8b9622fb0c75b7015d677332a7e800dcc3a81",
+      "byte_length": 20015,
       "present": true
     },
     "apps/backend/scripts/mr002_solver_intersection.py": {
@@ -37,16 +37,16 @@
     },
     "apps/backend/scripts/mr002_characterize_native_qp.py": {
       "role": "cascade_numerical_path",
-      "sha256": "42ac49275cc1fb4b8831ede5e94521ddc6aa4876a42737288e6ef42a0121dfcb",
-      "git_blob": "2f2c74618d77e20356cb05216a1c24e1687bb681",
-      "byte_length": 14419,
+      "sha256": "bba6fbb4901f21361d2c1c1b84c624d0299921536883cfad93244182c9cc6244",
+      "git_blob": "d88b49e192603fc824c42bf6f8f12514e470f911",
+      "byte_length": 14078,
       "present": true
     },
     "apps/backend/app/research/mr002/certificate.py": {
       "role": "cascade_numerical_path",
-      "sha256": "1ba6aef49d0483fbccd6571dc2d51a5d785079d9ae2d4766b0d0b292c5b55e69",
-      "git_blob": "c0d57c3538632401c945ecb2a0dfe3c5d8f58529",
-      "byte_length": 15145,
+      "sha256": "c679eb39bcabd90089dfaa2f3f149996e5cfcf4fc1582e58513c91b0703e31ec",
+      "git_blob": "c3375b017cc70895f402d5f546e0631c61728143",
+      "byte_length": 14804,
       "present": true
     },
     "apps/backend/app/research/mr002/directed.py": {
@@ -58,37 +58,37 @@
     },
     "apps/backend/app/research/mr002/joint_portfolio.py": {
       "role": "cascade_numerical_path",
-      "sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b",
-      "git_blob": "ef2ef3b117d594ff1927b20e01c925b014ee582f",
-      "byte_length": 38415,
+      "sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+      "git_blob": "71eb60520a0c5117f0ee4f00ceb9108b47e56b55",
+      "byte_length": 37543,
       "present": true
     },
     "apps/backend/app/research/mr002/repair.py": {
       "role": "cascade_numerical_path",
-      "sha256": "2133b7450c0fd1fb150eace8ecdb2bfd23c50fd303bfe6a604667887c6c35f27",
-      "git_blob": "e8eeddf6acc16085ae63aa000c3da6d01c5e2e8b",
-      "byte_length": 30288,
+      "sha256": "ddb62ffc026024e0de7063b1b0416b64a20af6d26ea29541681567bdd92a9a71",
+      "git_blob": "1c322269b160b5d3b3332bbe0e873cc30df2ba89",
+      "byte_length": 29679,
       "present": true
     },
     "apps/backend/app/research/mr002/dataset.py": {
       "role": "corpus_regeneration_path",
-      "sha256": "2a3dc918885b9a26d26b13d12428ed3cf654de0a694da20db3475e3692b0ab22",
-      "git_blob": "838ebfbfa3a97cab144f4033046d78d04da71bb9",
-      "byte_length": 14511,
+      "sha256": "a8a11c0c2b5e9ddefb87eb0ebcc9e659eff5104115d5493685707597e157c957",
+      "git_blob": "68626046d559e1ef4c8222255f8214a527d9a0ab",
+      "byte_length": 14200,
       "present": true
     },
     "apps/backend/app/research/mr002/runner.py": {
       "role": "corpus_regeneration_path",
-      "sha256": "d16106f5c4f900b1ba4982359cda0ee4ef7bce987d6d43b1508d31228f47d354",
-      "git_blob": "998e833f5265b647e3edc2825da8ee3bd5d96d78",
-      "byte_length": 11668,
+      "sha256": "87dd6e71a60ba89297ed4653eb1abf94052f34f927e8865b8ea41515e290b34f",
+      "git_blob": "a75eeeb3d3b25fd824b049652642d4ff49ee78c5",
+      "byte_length": 11418,
       "present": true
     },
     "apps/backend/scripts/mr002_development_run.py": {
       "role": "corpus_regeneration_path",
-      "sha256": "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9",
-      "git_blob": "51eab671ec76138b49985887c0fd6785aba97ea0",
-      "byte_length": 24002,
+      "sha256": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9",
+      "git_blob": "884cf8cf524a1f88a7675d95dff72ac8d5f38f1b",
+      "byte_length": 23453,
       "present": true
     },
     "apps/backend/scripts/mr002_stage3_preflight.py": {
