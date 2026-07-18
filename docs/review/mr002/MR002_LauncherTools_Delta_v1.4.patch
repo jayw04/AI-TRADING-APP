@@ -1,0 +1,507 @@
+diff --git a/docs/review/mr002/mr002_stage3_launch_attestation.py b/apps/backend/scripts/mr002_stage3_launch_attestation.py
+index ec2f1a7..cf42b91 100644
+--- a/docs/review/mr002/mr002_stage3_launch_attestation.py
++++ b/apps/backend/scripts/mr002_stage3_launch_attestation.py
+@@ -28,8 +28,10 @@ identity "<src>:/out:rw" must equal the signed output_mount_identity; every OTHE
+ explicitly ro (governed inputs are read-only); no duplicate mount destination; a FINITE
+ environment set (blocker 6 — no MR002_* wildcard: the four numerical vars pinned exactly,
+ PYTHONPATH required and pinned to /work/apps/backend, the nine governed MR002_* keys
+-pinned to their fixed /inputs paths, the two 64-hex hash channels, and NOTHING else —
+-MR002_OUT is deliberately absent so the runner uses its default under the governed /out);
++pinned to their fixed /inputs paths, the 64-hex countersign hash channel, and NOTHING
++else — MR002_OUT is deliberately absent so the runner uses its default under the governed
++/out, and MR002_EXECUTION_BINDING_SHA256 is FORBIDDEN in the attested template: it is the
++one LAUNCHER-DERIVED field, injected at exec from the actual binding bytes — blocker 8);
+ the container command CLOSED to exactly `(python|python3) scripts/
+ mr002_stage3_population_runner.py` with no arguments (blocker 7 — the runner is
+ environment-driven; -c/-m, other scripts, extra options, and validation/OOS window
+@@ -53,9 +55,21 @@ verification receipt, realism PASS, final test report) are likewise pinned to fi
+ /inputs paths with mandatory read-only mounts; their integrity is enforced IN-CONTAINER
+ by the runner's fail-closed loaders against the countersigned Phase-B binding chain (an
+ attestation cannot bind its own hash, nor the receipt's, which is produced after it).
+-The two env hash channels get semantic checks where possible: the countersign channel
+-must equal the observed authorization hash (produce AND exec); the binding channel must
+-equal the actual binding bytes at its attested mount source (exec, when it exists).
++The countersign hash channel must equal the observed authorization hash (produce AND
++exec — no cycle, the authorization pre-exists the attestation).
++
++Blocker-8 phase-ordering resolution: the Phase-B binding contains the attestation and
++receipt hashes, so the binding's own hash cannot appear inside the signed command
++(attestation → binding hash → binding → attestation hash is a fixed-point cycle). The
++attestation therefore signs an attested_command_template WITHOUT the binding hash; after
++Phase B is assembled the launcher's `exec` receives the binding path explicitly
++(--binding), DERIVES its sha256 from the actual bytes, verifies it through the frozen
++`load_execution_binding`, cross-validates it against the attestation + receipt, proves
++the attested /inputs mount source carries the same bytes, and injects exactly one
++derived field:  executed argv = attested_command_template +
++--env=MR002_EXECUTION_BINDING_SHA256=<observed>.  No other field may be added, removed,
++or rewritten (the executed argv is re-validated in executed mode, where the derived key
++is REQUIRED; in template mode it is refused).
+ 
+ `validate_launch_argv` structurally requires all four mounts (ro, fixed destinations, no
+ duplicates, no mount shadowing /inputs, sources not under the writable /out source).
+@@ -148,11 +162,23 @@ GOVERNED_ARTIFACT_ENV = {
+     "MR002_REALISM_PASS": "/inputs/realism_pass.json",
+     "MR002_FINAL_TEST_REPORT": "/inputs/final_test_report.json",
+ }
+-# Hash channels the runner reads from env: 64-hex format at grammar level; additionally
+-# MR002_EXECUTION_COUNTERSIGN_SHA256 must equal the OBSERVED authorization hash (checked
+-# at produce AND exec) and MR002_EXECUTION_BINDING_SHA256 must equal the bytes at the
+-# binding's attested mount source (checked at exec, when the binding exists).
+-HEX64_ENV_KEYS = ("MR002_EXECUTION_COUNTERSIGN_SHA256", "MR002_EXECUTION_BINDING_SHA256")
++# Hash channel the runner reads from env AND that the attested template may carry:
++# MR002_EXECUTION_COUNTERSIGN_SHA256 — 64-hex, and must equal the OBSERVED authorization
++# hash (checked at produce AND exec). No cycle: the authorization exists before the
++# attestation is produced.
++HEX64_ENV_KEYS = ("MR002_EXECUTION_COUNTERSIGN_SHA256",)
++# MR002_EXECUTION_BINDING_SHA256 is the ONE LAUNCHER-DERIVED field (owner review
++# 2026-07-18, blocker 8): the Phase-B binding must contain the attestation and receipt
++# hashes, so its own hash CANNOT appear inside the signed command (a fixed-point/preimage
++# cycle). The attested exact_command is therefore a TEMPLATE that must NOT contain this
++# key (operator-supplied values are refused as unknown keys); at exec time the launcher
++# derives it from the ACTUAL binding bytes, cross-validates the binding through the
++# frozen loader against the attestation + receipt, proves the bytes match the attested
++# /inputs mount source, and injects EXACTLY ONE `--env=` token:
++#     executed argv = attested_command_template + this one derived field
++# No other field may be added, removed, or rewritten (enforced by re-validating the
++# executed argv in executed mode, where the key is REQUIRED).
++DERIVED_BINDING_ENV_KEY = "MR002_EXECUTION_BINDING_SHA256"
+ _HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+ # NOT allowed (deliberately): MR002_OUT — the runner then uses its default /out/cleanrun
+ # inside the governed rw /out mount; alternate output/checkpoint locations are refused.
+@@ -214,9 +240,16 @@ def _parse_mount_spec(spec: str) -> dict:
+     return mount
+ 
+ 
+-def _parse_launch_argv(argv, *, image_digest: str) -> dict:
++def _parse_launch_argv(argv, *, image_digest: str, executed: bool = False) -> dict:
+     """Parse + fully validate the closed launch grammar (blockers 2-3 + the structural
+-    half of blocker 5). Returns {"output_identity", "mounts", "env", "governed_srcs"}."""
++    half of blocker 5 + the blocker-8 template/executed distinction).
++
++    executed=False validates the ATTESTED TEMPLATE, in which the launcher-derived
++    DERIVED_BINDING_ENV_KEY must be ABSENT (an operator-supplied value is refused as an
++    unknown key). executed=True validates the EXECUTED argv, in which that key is
++    REQUIRED and 64-hex — so template + exactly the one derived field is the only shape
++    that passes both modes. Returns {"output_identity", "mounts", "env", "governed_srcs",
++    "artifact_srcs", "image_index"}."""
+     if not (isinstance(argv, list) and argv and all(isinstance(a, str) for a in argv)):
+         raise LaunchValidationError("LAUNCH_ARGV_NOT_STRING_LIST")
+     if not _IMAGE_DIGEST_RE.match(str(image_digest)):
+@@ -228,6 +261,7 @@ def _parse_launch_argv(argv, *, image_digest: str) -> dict:
+     env: dict[str, str] = {}
+     network_none = False
+     image = None
++    image_index = -1
+     command: list[str] = []
+ 
+     def _env_kv(kv: str) -> None:
+@@ -285,6 +319,7 @@ def _parse_launch_argv(argv, *, image_digest: str) -> dict:
+             raise LaunchValidationError(f"OPTION_NOT_IN_CLOSED_GRAMMAR:{tok}")
+         else:
+             image = tok
++            image_index = i
+             command = argv[i + 1:]
+             break
+     else:
+@@ -300,6 +335,12 @@ def _parse_launch_argv(argv, *, image_digest: str) -> dict:
+     governed_env_exact = {k: dst for _, k, dst, _ in GOVERNED_INPUTS} | GOVERNED_ARTIFACT_ENV
+     allowed_keys = (set(REQUIRED_LAUNCH_ENV) | {"PYTHONPATH"} | set(governed_env_exact)
+                     | set(HEX64_ENV_KEYS))
++    if executed:
++        # blocker 8: the executed argv carries exactly the one launcher-derived field
++        allowed_keys.add(DERIVED_BINDING_ENV_KEY)
++        if not _HEX64_RE.match(env.get(DERIVED_BINDING_ENV_KEY, "")):
++            raise LaunchValidationError(
++                f"ENV_NOT_HEX64:{DERIVED_BINDING_ENV_KEY}={env.get(DERIVED_BINDING_ENV_KEY)}")
+     for k in sorted(set(env) - allowed_keys):
+         raise LaunchValidationError(f"ENV_KEY_NOT_ALLOWED:{k}")
+     for k, v in REQUIRED_LAUNCH_ENV.items():
+@@ -374,7 +415,7 @@ def _parse_launch_argv(argv, *, image_digest: str) -> dict:
+ 
+     return {"output_identity": f"{out['src']}:{OUTPUT_MOUNT_DST}:rw",
+             "mounts": mounts, "env": env, "governed_srcs": governed_srcs,
+-            "artifact_srcs": artifact_srcs}
++            "artifact_srcs": artifact_srcs, "image_index": image_index}
+ 
+ 
+ def validate_launch_argv(argv, *, image_digest: str) -> str:
+@@ -544,11 +585,21 @@ def produce(args: argparse.Namespace) -> int:
+ 
+ 
+ def exec_attested(args: argparse.Namespace) -> int:
+-    """Verify attestation + receipt via the FROZEN loaders, RE-VALIDATE the attested argv
+-    against the closed launch grammar, RE-HASH every governed input from its attested
+-    mount source (blockers 3 + 5 — a signed but operationally unsafe or substituted-input
+-    command is refused here even though its signature verifies), then exec it EXACTLY."""
++    """Verify attestation + receipt via the FROZEN loaders, RE-VALIDATE the attested
++    template against the closed launch grammar, RE-HASH every governed input from its
++    attested mount source (blockers 3 + 5), then resolve the blocker-8 cycle: derive the
++    Phase-B binding hash from the ACTUAL bytes at --binding (assembled AFTER attestation
++    + receipt), verify the binding through the frozen loader, cross-validate it against
++    the attestation and receipt, prove the attested /inputs mount source carries the same
++    bytes, inject EXACTLY ONE derived env field, and exec:
++
++        executed argv = attested_command_template + one launcher-derived binding-hash field
++
++    A signed but operationally unsafe or substituted-input command is refused here even
++    though its signature verifies."""
+     from scripts.mr002_stage3_population_runner import (
++        Stage3RunRefused,
++        load_execution_binding,
+         load_launch_attestation,
+         load_verification_receipt,
+     )
+@@ -556,9 +607,9 @@ def exec_attested(args: argparse.Namespace) -> int:
+     attestation = load_launch_attestation(args.attestation, att_sha)
+     load_verification_receipt(args.receipt, _sha256_file(args.receipt), att_sha,
+                               attestation=attestation)
+-    argv = json.loads(attestation["exact_command"])
++    template = json.loads(attestation["exact_command"])
+     try:
+-        parsed = _parse_launch_argv(argv, image_digest=attestation["image_digest"])
++        parsed = _parse_launch_argv(template, image_digest=attestation["image_digest"])
+         if parsed["output_identity"] != attestation["output_mount_identity"]:
+             raise LaunchValidationError(
+                 f"OUTPUT_MOUNT_IDENTITY_MISMATCH:signed={attestation['output_mount_identity']}"
+@@ -576,28 +627,61 @@ def exec_attested(args: argparse.Namespace) -> int:
+                 raise LaunchValidationError(
+                     f"GOVERNED_INPUT_BYTES_MISMATCH:{env_key}:signed="
+                     f"{attestation[hash_field]}:observed={got}")
+-        # blocker 6 rules at the exec boundary: the runner's two env hash channels must
+-        # agree with the attested authorization hash and the actual binding bytes
++        # blocker 6 at the exec boundary: the countersign env channel must agree with the
++        # attested authorization hash
+         if parsed["env"]["MR002_EXECUTION_COUNTERSIGN_SHA256"] != attestation["authorization_sha256"]:
+             raise LaunchValidationError(
+                 f"ENV_COUNTERSIGN_SHA_MISMATCH:env="
+                 f"{parsed['env']['MR002_EXECUTION_COUNTERSIGN_SHA256']}"
+                 f":signed={attestation['authorization_sha256']}")
++        # blocker 8: derive the binding hash from ACTUAL bytes — never operator-supplied
++        try:
++            derived_binding_sha = _sha256_file(args.binding)
++        except OSError as exc:
++            raise LaunchValidationError(f"BINDING_UNREADABLE:{args.binding}") from exc
++        binding = load_execution_binding(args.binding, derived_binding_sha)
++        cross = {
++            "launch_attestation_sha256": att_sha,
++            "launch_verification_receipt_sha256": _sha256_file(args.receipt),
++            "authorization_sha256": attestation["authorization_sha256"],
++            "expected_pins_sha256": attestation["expected_pins_sha256"],
++            "implementation_manifest_sha256": attestation["source_manifest_sha256"],
++            "execution_package_sha256": attestation["execution_package_sha256"],
++            "bound_commit": attestation["bound_commit"],
++            "bound_tree": attestation["bound_tree"],
++            "image_digest": attestation["image_digest"],
++            "oci_config_digest": attestation["oci_config_digest"],
++        }
++        mism = [k for k, v in cross.items() if binding.get(k) != v]
++        if mism:
++            raise LaunchValidationError(f"BINDING_CROSS_VALIDATION_MISMATCH:{mism}")
++        # the injected hash must correspond to the bytes mounted at the attested source
+         binding_src = parsed["artifact_srcs"]["MR002_EXECUTION_BINDING"]
+         try:
+-            binding_got = _sha256_file(binding_src)
++            mounted_sha = _sha256_file(binding_src)
+         except OSError as exc:
+             raise LaunchValidationError(
+                 f"GOVERNED_INPUT_UNREADABLE:MR002_EXECUTION_BINDING:{binding_src}") from exc
+-        if binding_got != parsed["env"]["MR002_EXECUTION_BINDING_SHA256"]:
++        if mounted_sha != derived_binding_sha:
+             raise LaunchValidationError(
+-                f"ENV_BINDING_SHA_MISMATCH:env={parsed['env']['MR002_EXECUTION_BINDING_SHA256']}"
+-                f":observed={binding_got}")
+-    except LaunchValidationError as exc:
++                f"BINDING_MOUNT_BYTES_MISMATCH:mounted={mounted_sha}"
++                f":derived={derived_binding_sha}")
++        # inject exactly the one derived field, then re-validate in executed mode: the
++        # executed argv may differ from the template ONLY by this token
++        idx = parsed["image_index"]
++        executed = (template[:idx]
++                    + [f"--env={DERIVED_BINDING_ENV_KEY}={derived_binding_sha}"]
++                    + template[idx:])
++        executed_parsed = _parse_launch_argv(
++            executed, image_digest=attestation["image_digest"], executed=True)
++        if executed_parsed["env"][DERIVED_BINDING_ENV_KEY] != derived_binding_sha:
++            raise LaunchValidationError("DERIVED_FIELD_INJECTION_INCONSISTENT")
++    except (LaunchValidationError, Stage3RunRefused) as exc:
+         print(f"REFUSED: attested command failed launch validation: {exc}", file=sys.stderr)
+         return 2
+-    print(f"exec (attested, receipt-verified, grammar-validated, inputs re-hashed): {argv}")
+-    return subprocess.run(argv, check=False).returncode  # noqa: S603 - the attested argv
++    print(f"exec (attested, receipt-verified, grammar-validated, inputs re-hashed, "
++          f"binding-derived): {executed}")
++    return subprocess.run(executed, check=False).returncode  # noqa: S603 - template + derived field
+ 
+ 
+ def main() -> int:
+@@ -629,9 +713,14 @@ def main() -> int:
+     p.add_argument("--run-nonce", default=None)
+     p.add_argument("--out", required=True)
+ 
+-    e = sub.add_parser("exec", help="verify attestation + receipt + grammar + input bytes, exec")
++    e = sub.add_parser("exec", help="verify attestation + receipt + grammar + input bytes, "
++                                    "derive the binding hash, inject it, exec")
+     e.add_argument("--attestation", required=True)
+     e.add_argument("--receipt", required=True)
++    e.add_argument("--binding", required=True,
++                   help="the assembled Phase-B execution binding (produced AFTER the "
++                        "attestation and receipt); its hash is DERIVED from these bytes "
++                        "and injected as the one launcher-derived env field")
+ 
+     args = ap.parse_args()
+     if args.cmd == "generate-key":
+diff --git a/docs/review/mr002/test_mr002_stage3_launcher_tools.py b/apps/backend/tests/research/test_mr002_stage3_launcher_tools.py
+index ecceb35..ed56f67 100644
+--- a/docs/review/mr002/test_mr002_stage3_launcher_tools.py
++++ b/apps/backend/tests/research/test_mr002_stage3_launcher_tools.py
+@@ -74,11 +74,12 @@ def good_argv(*, image: str = IMAGE, out_spec: str | None = None,
+               input_srcs: dict[str, str] | None = None, drop_input: str | None = None,
+               input_mode: str = "ro", artifact_srcs: dict[str, str] | None = None,
+               drop_artifact: str | None = None, governed_env: dict[str, str] | None = None,
+-              countersign_sha: str = "e" * 64, binding_sha: str = "e" * 64,
++              countersign_sha: str = "e" * 64,
+               pythonpath: str | None = att.PYTHONPATH_APPROVED,
+               env_extra: list[str] | None = None, command: list[str] | None = None,
+               extra_opts: list[str] | None = None) -> list[str]:
+-    """The canonical closed-grammar launch argv, with targeted override points."""
++    """The canonical closed-grammar ATTESTED TEMPLATE argv (blocker 8: it must NOT carry
++    the launcher-derived MR002_EXECUTION_BINDING_SHA256), with targeted override points."""
+     out_spec = out_spec if out_spec is not None else f"type=bind,src={OUT_SRC},dst=/out,rw"
+     argv = ["docker", "run", "--rm", "--network=none",
+             "--mount", repo_spec, "--mount", out_spec]
+@@ -87,8 +88,7 @@ def good_argv(*, image: str = IMAGE, out_spec: str | None = None,
+     argv += ["--env=OPENBLAS_CORETYPE=HASWELL", "--env=OPENBLAS_NUM_THREADS=1",
+              "--env=OMP_NUM_THREADS=1", "--env=MKL_NUM_THREADS=1"]
+     argv += governed_env_tokens(governed_env)
+-    argv += [f"--env=MR002_EXECUTION_COUNTERSIGN_SHA256={countersign_sha}",
+-             f"--env=MR002_EXECUTION_BINDING_SHA256={binding_sha}"]
++    argv += [f"--env=MR002_EXECUTION_COUNTERSIGN_SHA256={countersign_sha}"]
+     if pythonpath is not None:
+         argv += [f"--env=PYTHONPATH={pythonpath}"]
+     argv += ["--workdir=/work/apps/backend"]
+@@ -130,14 +130,46 @@ def _stub_input_srcs(arts) -> dict[str, str]:
+ 
+ 
+ def argv_for(arts, **kw) -> list[str]:
+-    """Canonical argv wired to the stub artifacts (real srcs + real hash channels)."""
++    """Canonical template argv wired to the stub artifacts (real srcs + real countersign
++    hash channel; no binding hash — that field is launcher-derived at exec)."""
+     kw.setdefault("input_srcs", _stub_input_srcs(arts))
+     kw.setdefault("countersign_sha", _sha(arts["authorization"]))
+     kw.setdefault("artifact_srcs", {"MR002_EXECUTION_BINDING": _posix(arts["binding"])})
+-    kw.setdefault("binding_sha", _sha(arts["binding"]))
+     return good_argv(**kw)
+ 
+ 
++def _make_binding(produced, receipt_path):
++    """Assemble the Phase-B execution binding AFTER the attestation and receipt exist —
++    the real construction order — with real artifact hashes, written to the attested
++    mount source. Accepted by the frozen `load_execution_binding`."""
++    arts = produced["arts"]
++    b = {
++        "record_type": "MR002_STAGE3_EXECUTION_BINDING", "version": "1.0",
++        "record_status": "IMMUTABLE", "countersigned_by": "Jay Wang (owner)",
++        "countersigned_date": "2026-07-18", "repository": "jayw04/AI-TRADING-APP",
++        "decision": "EXECUTION_PACKAGE_COUNTERSIGNED", "execution_authorized": True,
++        "scope": "MR002_STAGE3_CLEAN_SUCCESSOR_ONLY",
++        "implementation_manifest_sha256": _sha(arts["manifest"]),
++        "realism_pass_sha256": "1" * 64,
++        "final_test_report_sha256": "2" * 64,
++        "execution_package_sha256": _sha(arts["package"]),
++        "expected_pins_sha256": _sha(arts["pins"]),
++        "authorization_sha256": _sha(arts["authorization"]),
++        "launch_attestation_sha256": _sha(produced["path"]),
++        "launch_verification_receipt_sha256": _sha(receipt_path),
++        "bound_commit": "a" * 40, "bound_tree": "b" * 40,
++        "image_digest": IMAGE, "oci_config_digest": IMAGE,
++    }
++    data = (json.dumps(b, indent=1, sort_keys=True) + "\n").encode("utf-8")
++    arts["binding"].write_bytes(data)  # the attested /inputs mount source
++    return arts["binding"]
++
++
++def _exec_args(produced, receipt, binding):
++    return type("A", (), {"attestation": str(produced["path"]), "receipt": str(receipt),
++                          "binding": str(binding)})()
++
++
+ def _build(tmp_path, priv, *, argv=None, arts=None, output_mount=OUT_IDENTITY,
+            image_digest=IMAGE):
+     arts = arts if arts is not None else _stub_artifacts(tmp_path)
+@@ -493,21 +525,27 @@ def test_blocker3_exec_refuses_signed_but_unsafe_command(produced, monkeypatch):
+     def _no_spawn(*a, **k):
+         raise AssertionError("exec_attested spawned a process for an unsafe command")
+     monkeypatch.setattr(att.subprocess, "run", _no_spawn)
+-    args = type("A", (), {"attestation": str(unsafe), "receipt": str(receipt)})()
+-    assert att.exec_attested(args) == 2
++    unsafe_args = type("A", (), {"attestation": str(unsafe), "receipt": str(receipt),
++                                 "binding": str(produced["arts"]["binding"])})()
++    assert att.exec_attested(unsafe_args) == 2
+ 
+ 
+ def test_blocker3_exec_runs_validated_command(produced, monkeypatch):
+     receipt = produced["tmp"] / "receipt_exec.json"
+     assert _run_verify(produced["path"], produced["pub"], receipt).returncode == 0
++    binding = _make_binding(produced, receipt)
+     seen = {}
+     def _spawn(argv, check):
+         seen["argv"] = argv
+         return type("R", (), {"returncode": 0})()
+     monkeypatch.setattr(att.subprocess, "run", _spawn)
+-    args = type("A", (), {"attestation": str(produced["path"]), "receipt": str(receipt)})()
+-    assert att.exec_attested(args) == 0
+-    assert seen["argv"] == json.loads(produced["doc"]["exact_command"])  # EXACT argv
++    assert att.exec_attested(_exec_args(produced, receipt, binding)) == 0
++    # the executed argv is the attested template + exactly the one derived field
++    template = json.loads(produced["doc"]["exact_command"])
++    derived = f"--env={att.DERIVED_BINDING_ENV_KEY}={_sha(binding)}"
++    assert seen["argv"].count(derived) == 1
++    idx = seen["argv"].index(derived)
++    assert seen["argv"][:idx] + seen["argv"][idx + 1:] == template
+ 
+ 
+ # ── blocker 5: governed-input binding (signed hashes ↔ mounts ↔ env ↔ consumed bytes) ────────────
+@@ -597,12 +635,12 @@ def test_blocker5_exec_refuses_substituted_input_bytes(produced, monkeypatch):
+     re-hash the attested mount source and refuse — the signature alone is not enough."""
+     receipt = produced["tmp"] / "receipt_subst.json"
+     assert _run_verify(produced["path"], produced["pub"], receipt).returncode == 0
++    binding = _make_binding(produced, receipt)
+     produced["arts"]["pins"].write_text("{\"stub\": \"SUBSTITUTED\"}", encoding="utf-8")
+     def _no_spawn(*a, **k):
+         raise AssertionError("exec_attested spawned despite substituted input bytes")
+     monkeypatch.setattr(att.subprocess, "run", _no_spawn)
+-    args = type("A", (), {"attestation": str(produced["path"]), "receipt": str(receipt)})()
+-    assert att.exec_attested(args) == 2
++    assert att.exec_attested(_exec_args(produced, receipt, binding)) == 2
+ 
+ 
+ # ── blocker 6: finite environment grammar (no MR002_* wildcard) ──────────────────────────────────
+@@ -645,9 +683,9 @@ def test_blocker6_sha_channel_not_hex_refused():
+     with pytest.raises(att.LaunchValidationError,
+                        match="ENV_NOT_HEX64:MR002_EXECUTION_COUNTERSIGN_SHA256"):
+         att.validate_launch_argv(argv, image_digest=IMAGE)
+-    argv2 = good_argv(binding_sha="E" * 64)  # uppercase is not canonical hex
++    argv2 = good_argv(countersign_sha="E" * 64)  # uppercase is not canonical hex
+     with pytest.raises(att.LaunchValidationError,
+-                       match="ENV_NOT_HEX64:MR002_EXECUTION_BINDING_SHA256"):
++                       match="ENV_NOT_HEX64:MR002_EXECUTION_COUNTERSIGN_SHA256"):
+         att.validate_launch_argv(argv2, image_digest=IMAGE)
+ 
+ 
+@@ -675,19 +713,107 @@ def test_blocker6_produce_countersign_sha_mismatch_refused(tmp_path, keypair):
+         _build(tmp_path, priv, argv=argv, arts=arts)
+ 
+ 
+-def test_blocker6_exec_refuses_substituted_binding_bytes(produced, monkeypatch):
+-    """The binding env hash channel is checked against the ACTUAL binding bytes at its
+-    attested mount source before exec — substituted binding bytes refuse."""
+-    receipt = produced["tmp"] / "receipt_binding.json"
+-    assert _run_verify(produced["path"], produced["pub"], receipt).returncode == 0
+-    produced["arts"]["binding"].write_text("{\"stub\": \"SUBSTITUTED\"}", encoding="utf-8")
++# ── blocker 8: the binding-hash cycle — template + one launcher-derived field ────────────────────
++def test_blocker8_attestation_template_carries_no_binding_hash(produced):
++    """Attestation production requires no binding hash: the signed template must not
++    contain the launcher-derived key, and supplying one is refused as an unknown key."""
++    template = json.loads(produced["doc"]["exact_command"])
++    assert not any(att.DERIVED_BINDING_ENV_KEY in t for t in template)
++    argv = good_argv(env_extra=[f"--env={att.DERIVED_BINDING_ENV_KEY}={'e' * 64}"])
++    with pytest.raises(att.LaunchValidationError,
++                       match=f"ENV_KEY_NOT_ALLOWED:{att.DERIVED_BINDING_ENV_KEY}"):
++        att.validate_launch_argv(argv, image_digest=IMAGE)
++
++
++def test_blocker8_operator_supplied_binding_hash_refused_at_produce(tmp_path, keypair):
++    priv, _, _ = keypair
++    arts = _stub_artifacts(tmp_path)
++    argv = argv_for(arts, env_extra=[f"--env={att.DERIVED_BINDING_ENV_KEY}={'e' * 64}"])
++    with pytest.raises(att.LaunchValidationError,
++                       match=f"ENV_KEY_NOT_ALLOWED:{att.DERIVED_BINDING_ENV_KEY}"):
++        _build(tmp_path, priv, argv=argv, arts=arts)
++
++
++def test_blocker8_operator_supplied_binding_hash_refused_at_exec(produced, monkeypatch):
++    """A cryptographically VALID attestation whose template smuggles an operator-supplied
++    binding hash is refused at exec before any spawn."""
++    from cryptography.hazmat.primitives import serialization
++    d = dict(produced["doc"])
++    template = json.loads(d["exact_command"])
++    idx = template.index("--workdir=/work/apps/backend")
++    template.insert(idx, f"--env={att.DERIVED_BINDING_ENV_KEY}={'e' * 64}")
++    d["exact_command"] = json.dumps(template)
++    for k in ("signature", "canonical_signed_payload_sha256"):
++        d.pop(k)
++    key = serialization.load_pem_private_key(produced["priv"].read_bytes(), password=None)
++    payload = att.canonical_payload(d)
++    d["canonical_signed_payload_sha256"] = hashlib.sha256(payload).hexdigest()
++    d["signature"] = base64.b64encode(key.sign(payload)).decode("ascii")
++    smuggled = produced["tmp"] / "smuggled_attestation.json"
++    smuggled.write_text(json.dumps(d, indent=1, sort_keys=True) + "\n", encoding="utf-8")
++    receipt = produced["tmp"] / "receipt_smuggled.json"
++    assert _run_verify(smuggled, produced["pub"], receipt).returncode == 0
+     def _no_spawn(*a, **k):
+-        raise AssertionError("exec_attested spawned despite substituted binding bytes")
++        raise AssertionError("exec spawned despite operator-supplied binding hash")
+     monkeypatch.setattr(att.subprocess, "run", _no_spawn)
+-    args = type("A", (), {"attestation": str(produced["path"]), "receipt": str(receipt)})()
++    args = type("A", (), {"attestation": str(smuggled), "receipt": str(receipt),
++                          "binding": str(produced["arts"]["binding"])})()
+     assert att.exec_attested(args) == 2
+ 
+ 
++def test_blocker8_end_to_end_construction_order(produced, monkeypatch):
++    """The real sequence with real artifact hashes: authorization (pre-existing stub) →
++    attestation → receipt → execution binding (assembled AFTER both, binding their actual
++    hashes) → exec validation. The derived hash comes from the actual mounted bytes and
++    is injected exactly once; the executed argv differs from the attested template by
++    only that field."""
++    receipt = produced["tmp"] / "receipt_e2e.json"
++    assert _run_verify(produced["path"], produced["pub"], receipt).returncode == 0
++    binding = _make_binding(produced, receipt)  # only NOW constructible — no cycle
++    seen = {}
++    def _spawn(argv, check):
++        seen["argv"] = argv
++        return type("R", (), {"returncode": 0})()
++    monkeypatch.setattr(att.subprocess, "run", _spawn)
++    assert att.exec_attested(_exec_args(produced, receipt, binding)) == 0
++    template = json.loads(produced["doc"]["exact_command"])
++    derived = f"--env={att.DERIVED_BINDING_ENV_KEY}={_sha(binding)}"
++    assert seen["argv"].count(derived) == 1                       # injected exactly once
++    idx = seen["argv"].index(derived)
++    assert seen["argv"][:idx] + seen["argv"][idx + 1:] == template  # only that field
++
++
++def test_blocker8_substituted_binding_mount_bytes_refused(produced, monkeypatch):
++    """The injected hash must correspond to the bytes at the attested mount source: if
++    the mounted copy diverges from the --binding bytes, exec refuses."""
++    receipt = produced["tmp"] / "receipt_bsub.json"
++    assert _run_verify(produced["path"], produced["pub"], receipt).returncode == 0
++    binding = _make_binding(produced, receipt)
++    real_bytes = binding.read_bytes()
++    aside = produced["tmp"] / "binding_aside.json"
++    aside.write_bytes(real_bytes)                      # --binding keeps the real bytes
++    binding.write_text("{\"stub\": \"SUBSTITUTED\"}", encoding="utf-8")  # mounted copy diverges
++    def _no_spawn(*a, **k):
++        raise AssertionError("exec spawned despite substituted mounted binding bytes")
++    monkeypatch.setattr(att.subprocess, "run", _no_spawn)
++    assert att.exec_attested(_exec_args(produced, receipt, aside)) == 2
++
++
++def test_blocker8_tampered_binding_cross_validation_refused(produced, monkeypatch):
++    """A binding whose attestation hash does not match the actual attestation bytes is
++    refused by the exec cross-validation (the frozen loader's schema alone would pass)."""
++    receipt = produced["tmp"] / "receipt_btamper.json"
++    assert _run_verify(produced["path"], produced["pub"], receipt).returncode == 0
++    binding = _make_binding(produced, receipt)
++    b = json.loads(binding.read_text(encoding="utf-8"))
++    b["launch_attestation_sha256"] = "f" * 64
++    binding.write_text(json.dumps(b, indent=1, sort_keys=True) + "\n", encoding="utf-8")
++    def _no_spawn(*a, **k):
++        raise AssertionError("exec spawned despite tampered binding cross-hashes")
++    monkeypatch.setattr(att.subprocess, "run", _no_spawn)
++    assert att.exec_attested(_exec_args(produced, receipt, binding)) == 2
++
++
+ # ── blocker 7: the container command is closed to the exact registered entrypoint ────────────────
+ def test_blocker7_exact_registered_command_accepted():
+     assert att.validate_launch_argv(good_argv(), image_digest=IMAGE) == OUT_IDENTITY

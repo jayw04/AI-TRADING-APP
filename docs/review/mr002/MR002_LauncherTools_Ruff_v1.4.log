@@ -1,0 +1,8 @@
+=== MR-002 Stage-3 launcher-tools ruff log v1.4 (blocker 8 remediation resubmission) ===
+date_utc: 2026-07-18T23:09:56Z
+cwd: C:/LLM-RAG-APP/ai-trading-app/apps/backend
+ruff version: ruff 0.15.13
+command: .venv/Scripts/python -m ruff check scripts/mr002_stage3_launch_attestation.py scripts/mr002_stage3_attestation_verify.py scripts/mr002_stage3_final_test_report.py tests/research/test_mr002_stage3_launcher_tools.py
+=== ruff output ===
+All checks passed!
+=== exit code: 0 ===
