@@ -202,3 +202,46 @@ def test_cascade_import_hygiene_detects_quarantined_import():
 
 def test_empty_report_is_not_passed():
     assert pf.Report().passed is False
+
+
+# ── 2026-07-18 authorized allowlist delta — bare parent package "app.research.mr002" ──
+# Importing any approved submodule necessarily loads its parent package namespace, so the
+# bare package appears in sys.modules on every legitimate in-image run; treating it as
+# unapproved refused the realism preflight (preserved FAIL artifact sha256 18437f3c…).
+# The delta approves the bare package NAME only: exact-name set membership must be
+# preserved — no wildcard, no prefix rule, and parent approval implies no child approval.
+
+
+def _imports_env(imports: list[str]) -> pf.Env:
+    return dataclasses.replace(
+        good_env(),
+        live_config={**good_env().live_config, "cascade_module_imports": list(imports)})
+
+
+def test_delta_bare_parent_package_accepted():
+    env = _imports_env(["app.research.mr002", "app.research.mr002.stage3_cascade"])
+    rep = pf.evaluate(env, good_expected(), [])
+    assert rep.passed, rep.summary()["failed"]
+
+
+def test_delta_all_previously_approved_submodules_still_accepted():
+    prior = sorted(pf.ExpectedPins().approved_modules - {"app.research.mr002"})
+    assert len(prior) == 12  # the exact pre-delta allowlist, none dropped
+    rep = pf.evaluate(_imports_env(prior), good_expected(), [])
+    assert rep.passed, rep.summary()["failed"]
+
+
+def test_delta_unknown_sibling_under_parent_rejected():
+    # parent-namespace approval must NOT approve children: the positive allowlist stands
+    _fails(env=_imports_env(["app.research.mr002", "app.research.mr002.unexpected_helper"]),
+           check="cascade_import_hygiene")
+
+
+def test_delta_similarly_prefixed_packages_rejected():
+    _fails(env=_imports_env(["app.research.mr002_shadow"]), check="cascade_import_hygiene")
+    _fails(env=_imports_env(["app.research.mr002x.stage3_cascade"]),
+           check="cascade_import_hygiene")
+
+
+def test_delta_arbitrary_app_research_module_rejected():
+    _fails(env=_imports_env(["app.research.other_program"]), check="cascade_import_hygiene")

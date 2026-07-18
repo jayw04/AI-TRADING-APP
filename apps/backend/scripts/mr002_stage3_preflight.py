@@ -88,6 +88,9 @@ class ExpectedPins:
         {"numpy", "scipy", "quadprog", "piqp", "clarabel", "highspy", "mpmath"})
     # the positive allowlist of MR-002 modules the cascade path may load (finding 16)
     approved_modules: frozenset[str] = frozenset({
+        # bare parent package: auto-loaded by importing any approved submodule; approving the
+        # namespace itself approves NO child module (exact-name membership, no prefix rule)
+        "app.research.mr002",
         "app.research.mr002.stage3_cascade", "app.research.mr002.certificate",
         "app.research.mr002.directed", "app.research.mr002.joint_portfolio",
         "app.research.mr002.repair", "scripts.mr002_coverage_signed_gap",
