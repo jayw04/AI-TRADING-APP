@@ -1,0 +1,3 @@
+command: ./.venv/Scripts/python.exe -m ruff check scripts/mr002_coverage_signed_gap.py tests/research/test_mr002_sqrt_upper_transform.py
+All checks passed!
+exit_code: 0

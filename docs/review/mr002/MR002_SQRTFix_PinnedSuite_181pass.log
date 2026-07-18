@@ -1,0 +1,10 @@
+........................................................................ [ 39%]
+........................................................................ [ 79%]
+.....................................                                    [100%]
+============================== warnings summary ===============================
+..\..\..\mr002-audit-venv\Lib\site-packages\_pytest\config\__init__.py:1464
+  C:\LLM-RAG-APP\mr002-audit-venv\Lib\site-packages\_pytest\config\__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

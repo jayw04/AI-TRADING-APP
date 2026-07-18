@@ -1,0 +1,29 @@
+{
+  "record_type": "MR002_CORPUS_AUDIT_SIDECAR",
+  "version": "1.0",
+  "record_status": "IMMUTABLE",
+  "binds": "external hash binding for the corpus structural audit (a record cannot contain its own hash)",
+  "artifact_path": "MR002_CorpusStructuralAudit_v1.0.json",
+  "artifact_sha256": "519375fb1aeca8eb92515585cb02d83f525971959f243d01ecada19166a85dc6",
+  "artifact_byte_length": 1671780,
+  "reconstruction_manifest_sha256": "e86cbe95a1cc84ad0e7a21d3fc70a326aaf6633354d41fe1bcebf09fa8ec091a",
+  "manifest_byte_length": 275071,
+  "driver_sha256": "38d488feadd000e6d2a972e9e514dcfbb9497cbe4a2b5ddd5366f8293706254d",
+  "run_log_sha256": "07119bd52fc5e4ed84262cc1e70ca7342b5fde0e09740592a1b5ae17061a2386",
+  "failed_windows_attempt_manifest_sha256": "996025e637c0d206ffbff1e9a61f7fb6d731e8117079656ce8b869888fe586b9",
+  "reconstruction_invocation": "docker run --rm --network=none -e OPENBLAS_CORETYPE=HASWELL -e OPENBLAS_NUM_THREADS=1 -e OMP_NUM_THREADS=1 -e MKL_NUM_THREADS=1 -v <worktree>:/wt:ro -v <data>:/data:ro -v <scratch>:/diag:ro -v <out>:/out mr002-research:v1.4 python /diag/mr002_corpus_audit_driver.py /wt /data/mr002_research.duckdb /out",
+  "image": "mr002-research:v1.4 (Id sha256:aa930021c072...)",
+  "created_utc": "2026-07-18T18:28:26.175060+00:00",
+  "preservation_destinations": [
+    "laptop C:/LLM-RAG-APP/mr002-audit-out2 (read-only)",
+    "repo docs/review/mr002/ review copies"
+  ],
+  "headline": {
+    "gate": "PASS 1d231930... / 3895",
+    "masked_by_identity": 3895,
+    "mismatch_present": 0,
+    "bitwise_zero_discrepancy_rows": 156,
+    "max_abs_bound_discrepancy_ulp_level": 2.7755575615628914e-17,
+    "max_rel_bound_discrepancy": 2.2203836828715635e-16
+  }
+}

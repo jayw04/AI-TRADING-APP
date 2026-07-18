@@ -1,0 +1,15 @@
+diff --git a/apps/backend/scripts/mr002_coverage_signed_gap.py b/apps/backend/scripts/mr002_coverage_signed_gap.py
+index 409b6c8..a6e2199 100644
+--- a/apps/backend/scripts/mr002_coverage_signed_gap.py
++++ b/apps/backend/scripts/mr002_coverage_signed_gap.py
+@@ -140,7 +140,9 @@ def _quadprog_variant(fn_checks):
+         if fn_checks is solve_sqrt:
+             s = np.sqrt(t)
+             S = np.diag(s)
+-            C_v, b_v = jp._qp_matrices(A_ub @ S, b_ub, A_eq @ S, b_eq, s, n)
++            # z = S v ⇒ z <= upper ⇔ v <= upper/s. Passing `s` here (the historical form) is
++            # correct only when upper == t elementwise (authorized fix, delta review 2026-07-18).
++            C_v, b_v = jp._qp_matrices(A_ub @ S, b_ub, A_eq @ S, b_eq, upper / s, n)
+             with warnings.catch_warnings():
+                 warnings.simplefilter("ignore")
+                 out = quadprog.solve_qp(2.0 * np.eye(n), 2.0 * s, C_v, b_v, meq)

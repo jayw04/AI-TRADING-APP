@@ -1,0 +1,19 @@
+command: C:/LLM-RAG-APP/mr002-audit-venv/Scripts/python.exe -m pytest --noconftest tests/research/test_mr002_sqrt_upper_transform.py -v
+environment: pinned-package venv C:/LLM-RAG-APP/mr002-audit-venv (py3.13.14, numpy 2.2.6, scipy 1.18.0, quadprog 0.1.13, piqp 0.6.3, mpmath 1.3.0, clarabel 0.11.1, highspy 1.15.1) on Windows — development evidence, NOT Linux image qualification
+============================= test session starts =============================
+platform win32 -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\LLM-RAG-APP\ai-trading-app\apps\backend
+configfile: pyproject.toml
+collected 9 items
+
+tests\research\test_mr002_sqrt_upper_transform.py .........              [100%]
+
+============================== warnings summary ===============================
+..\..\..\mr002-audit-venv\Lib\site-packages\_pytest\config\__init__.py:1464
+  C:\LLM-RAG-APP\mr002-audit-venv\Lib\site-packages\_pytest\config\__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 9 passed, 1 warning in 1.66s =========================
+exit_code: 0
