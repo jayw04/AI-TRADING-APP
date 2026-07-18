@@ -1,0 +1,105 @@
+{
+ "record_type": "MR002_STAGE3_LAUNCH_HOST_QUALIFICATION_RECORD",
+ "version": "1.0",
+ "record_status": "IMMUTABLE",
+ "date": "2026-07-18",
+ "authorization": "Owner launcher-commit-record verdict 2026-07-18: fresh c6a provisioning + Linux launcher-byte verification + Ed25519 keypair generation on qualified host + public-key commit AUTHORIZED",
+ "host": {
+  "instance_id": "i-0f3ceafdd4294c572",
+  "instance_type": "c6a.large",
+  "region": "us-east-1",
+  "ami": "ami-0fd6240f599091088 (al2023-ami-2023.12.20260710.0-kernel-6.1-x86_64)",
+  "architecture": "x86_64",
+  "cpu_model": "AMD EPYC 7R13 Processor (Zen 3)",
+  "avx2_present": true,
+  "avx512_absent": true,
+  "avx512_flag_count_in_cpuinfo": 0,
+  "linux_kernel": "6.1.176-221.360.amzn2023.x86_64",
+  "docker_version": "Docker version 25.0.14, build 0bab007",
+  "docker_storage_driver": "overlayfs (io.containerd.snapshotter.v1) - containerd-snapshotter ENABLED via /etc/docker/daemon.json",
+  "python_for_launcher_tools": "Python 3.11.15 (python3.11; system python3 is 3.9.25 which lacks datetime.UTC required by the frozen verifier - launcher operations MUST use python3.11)",
+  "cryptography_version": "49.0.0 (pip3.11 --user)",
+  "provisioned_utc": "2026-07-18T23:30:28+00:00",
+  "provisioned_utc_source": "AWS EC2 DescribeInstances LaunchTime for i-0f3ceafdd4294c572 (authoritative)",
+  "security_group": "sg-073f16fd939e31e67 (mr002-launch-sg)"
+ },
+ "required_thread_environment": {
+  "note": "per-run container env, validated by the committed launcher's closed grammar; sanity-verified in-image this session",
+  "OPENBLAS_CORETYPE": "HASWELL",
+  "OPENBLAS_NUM_THREADS": "1",
+  "OMP_NUM_THREADS": "1",
+  "MKL_NUM_THREADS": "1"
+ },
+ "checkout": {
+  "method": "git bundle created from the dev machine (md5-verified identical after transfer: df115b747272ca1e4603508d83de65df), cloned to /home/ec2-user/mr002/repo, checked out DETACHED at the launcher commit",
+  "commit": "595b9c1e1e3dff8f2cc8f65b49886ea14c5b5747",
+  "tree": "0ebc25d6357f633b0d407bc3a89a008378db4ba4",
+  "git_status_porcelain": "empty (clean)",
+  "line_endings": "native LF Linux checkout"
+ },
+ "launcher_file_verification_on_linux_checkout": [
+  {"path": "apps/backend/scripts/mr002_stage3_launch_attestation.py",
+   "sha256": "c6c8e84182cd36ce2f3246e0b287ddb6abc4b2ef53afa4834f091cee1b1c0d68",
+   "matches_accepted_committed_identity": true},
+  {"path": "apps/backend/scripts/mr002_stage3_attestation_verify.py",
+   "sha256": "33d08fe345b3b88f49cc85ee50cf6a53233d3523164bb7f927eb7333c4464e94",
+   "matches_accepted_committed_identity": true},
+  {"path": "apps/backend/scripts/mr002_stage3_final_test_report.py",
+   "sha256": "4b9ffb4de0ddc90d26d6d5b46539731b943dbb94aa8079ccf9328ecf0a25fca2",
+   "matches_accepted_committed_identity": true},
+  {"path": "apps/backend/tests/research/test_mr002_stage3_launcher_tools.py",
+   "sha256": "1400c896e71288ef6eee0bf3c9779f028ec403fbd3373b5c9518975f0d0dd5a2",
+   "matches_accepted_committed_identity": true}
+ ],
+ "image": {
+  "tag": "mr002-stage3-qual:3.0",
+  "loaded_image_id_and_oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "matches_qual3_pinned_identity": true,
+  "transfer": "docker save (gzip) from the dev machine, md5-verified identical after transfer (7670c9f79233c93ee6052bbab9fbcaa9), docker load on host",
+  "layer_diffids_verified": "all 11 RootFS diffIDs identical dev-machine vs host (checked before AND independent of the config-digest question)",
+  "storage_driver_disclosure": "FIRST load under the host's default classic overlay2 store re-serialized the OCI config and reported Id sha256:77b568630ceb... (layers identical 11/11). RESOLVED CLEANLY: enabled the containerd snapshotter ({\"features\":{\"containerd-snapshotter\":true}}), removed that copy, reloaded the SAME archive - the host now reports EXACTLY the pinned qualification identity 81e8d7a7. A host re-provision MUST re-enable the containerd snapshotter BEFORE loading the image; the bound identity is the pinned one.",
+  "in_image_sanity": "network=none run with the four thread vars: in-image python 3.13.14, numpy 2.2.6 (matches pins draft v1.2 package_versions)"
+ },
+ "staging_layout": {
+  "repository": "/home/ec2-user/mr002/repo - read-only (chmod -R a-w AFTER checkout + hash verification; dr-xr-xr-x)",
+  "governed_artifact_directory": "/home/ec2-user/mr002/inputs - read-only (dr-xr-xr-x; files -r--r--r--)",
+  "staged_artifacts_extracted_from_committed_blobs": [
+   {"file": "expected_pins.json", "source": "cd51628:docs/review/mr002/MR002_Stage3_ExpectedPins_DRAFT_v1.2.json", "sha256": "ddfa43d0766ba12e7ac1816e1d67962e1edb56c75524a6a25265d982861dad3c", "matches_bound_identity": true},
+   {"file": "source_manifest.json", "source": "d26bd9e:docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json", "sha256": "27d2819bb116d7b00e0a8e78a9bcce3b4a07930eddfbe7e67f802579ee7010fe", "matches_bound_identity": true},
+   {"file": "execution_package.json", "source": "d26bd9e:docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.9.json", "sha256": "66c8d42fb39d2afdc996f5be98676786aaceb0af3160850bd303b68d0bd52a60", "matches_bound_identity": true}
+  ],
+  "pending_staging": "authorization.json (after owner countersign), execution_binding.json / launch_attestation.json / launch_verification_receipt.json / realism_pass.json / final_test_report.json (as the chain produces them) - each staged into the read-only directory then re-locked",
+  "output_directory": "/home/ec2-user/mr002/out - empty, writable (drwxrwxr-x)",
+  "symlink_scan": "find /home/ec2-user/mr002 -type l -> EMPTY (zero symlinks)",
+  "concurrent_writer_policy": "single interactive operator (ec2-user via SSH); no scheduled tasks, no daemons writing to the staging tree; TOCTOU control: no artifact replacement between launcher verification and Docker bind-mount open"
+ },
+ "network_policy": {
+  "host_ingress": "SSH tcp/22 from 107.209.255.152/32 ONLY (sg-073f16fd939e31e67); no other ingress",
+  "container_network": "--network=none REQUIRED by the committed launcher's closed grammar for any attested run"
+ },
+ "keypair": {
+  "generated_by": "the COMMITTED launcher tool (595b9c1) 'generate-key', run with python3.11 ON the qualified host",
+  "private_key": {
+   "path": "/home/ec2-user/keys/mr002_launcher_ed25519.pem (OUTSIDE the repository)",
+   "mode": "0600 (created O_CREAT|O_EXCL with mode 0600 by the tool; verified via stat)",
+   "custody": "remains on the launch host only; never transferred"
+  },
+  "public_key": {
+   "host_path": "/home/ec2-user/keys/mr002_launcher_ed25519.pub.pem",
+   "sha256": "1fd0af4efb6c7608684378d90f734c40cb57a59612982180c2331b5b0d1e225f",
+   "byte_length": 113,
+   "key_id": "ed25519:86c48f8f19affc3a81b8b263f0244c03379e9a03593a86ae1bcd4c851cb35a87",
+   "key_id_independent_verification": "re-derived on the dev machine from the transferred bytes via the committed key_id_for_public_pem - MATCHES the host derivation exactly",
+   "committed_as": "docs/implementation/evidence/mr_002/MR002_Stage3_LauncherTrustedKey_ed25519.pub.pem",
+   "commit": "a7f4a0c",
+   "committed_git_blob": "7b19b81a4c7df8c89ffc7de7e09b3ca78b0f32aa",
+   "committed_sha256_equals_host_bytes": true
+  }
+ },
+ "governance_commits_this_session": {
+  "launcher_commit": "595b9c1e1e3dff8f2cc8f65b49886ea14c5b5747 (ACCEPTED)",
+  "record_only_commit": "4ea3316 (MR002_LauncherCommit_Record_v1.0.json, sha dd13c34534b8401bf0c397a6e16713911a336f09766c9ea3e7df7ae663b90e9c, unchanged bytes)",
+  "public_key_commit": "a7f4a0c"
+ },
+ "held_state": "This record covers infrastructure preparation + key generation ONLY. Execution authorization NOT countersigned; launch attestation NOT produced; verification receipt NOT produced; Phase-B binding NOT countersigned; registered 3,895-row execution NOT authorized; performance NOT computed; validation/OOS SEALED AND UNREAD. Host left RUNNING awaiting the authorization/countersignature chain (terminate + delete SG only on owner direction)."
+}
