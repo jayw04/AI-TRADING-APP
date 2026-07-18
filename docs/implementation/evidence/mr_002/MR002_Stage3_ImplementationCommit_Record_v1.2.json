@@ -1,0 +1,138 @@
+{
+  "record_type": "MR002_STAGE3_IMPLEMENTATION_COMMIT_RECORD",
+  "version": "1.2",
+  "record_status": "IMMUTABLE",
+  "authorization": "Combined review + addendum v1.1 ACCEPTED 2026-07-18: 'The implementation commit is authorized' \u2014 one-expression QUADPROG_SQRT upper-transform correction (upper/s) + the reviewed 9-test file + associated governance/evidence artifacts",
+  "commit": "9813db3f55b7b102206306c427ea2cf46d81c629",
+  "tree": "351dabb9496d853bb4c16ff0655aa35ee9d10737",
+  "parent": "3a37545e2dcf201542a5fca6fca29bade828f9c0",
+  "committed_at": "2026-07-18T13:51:48-05:00",
+  "changed_files": {
+    "apps/backend/scripts/mr002_coverage_signed_gap.py": {
+      "git_blob": "a6e21991c769c1b4902d8d1d952b7bd901d2811a",
+      "sha256": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+      "byte_length": 26582
+    },
+    "apps/backend/tests/research/test_mr002_sqrt_upper_transform.py": {
+      "git_blob": "a3dfd153cd614329a1d7264b4a9eeab5ef1f8201",
+      "sha256": "0e2670e01a7a1c21c1240b5f8f329ff57a433218227f058e178ab4773f5913fe",
+      "byte_length": 10088
+    },
+    "docs/review/comments.md": {
+      "git_blob": "6d4cef3436f29d81a20f654883f3a993eae4a89f",
+      "sha256": "1e4865c64f3d0ba9c697a53ad5c87cc9b2bc44a65b9cb748c56932ec81195a1c",
+      "byte_length": 4512
+    },
+    "docs/review/mr002/MR002_CorpusAudit_Sidecar_v1.0.json": {
+      "git_blob": "4cbbf916700ab771853009928471a0925e972ee2",
+      "sha256": "f36069186bd413bdb673fb239c8f3c145957d6e027aa8031f8e55ba134ecbe84",
+      "byte_length": 1694
+    },
+    "docs/review/mr002/MR002_CorpusReconstruction_FailedWindowsAttempt_Manifest.json": {
+      "git_blob": "49859efaeecf936320813136357783c5acc0ffd6",
+      "sha256": "996025e637c0d206ffbff1e9a61f7fb6d731e8117079656ce8b869888fe586b9",
+      "byte_length": 275353
+    },
+    "docs/review/mr002/MR002_CorpusReconstruction_Manifest_v1.0.json": {
+      "git_blob": "83e77066a497c61b1a58ebe07b4ada7ad8a26b93",
+      "sha256": "e86cbe95a1cc84ad0e7a21d3fc70a326aaf6633354d41fe1bcebf09fa8ec091a",
+      "byte_length": 275071
+    },
+    "docs/review/mr002/MR002_CorpusStructuralAudit_v1.0.json": {
+      "git_blob": "efe4b2732add2df1bfb78769c49e238168d1226e",
+      "sha256": "519375fb1aeca8eb92515585cb02d83f525971959f243d01ecada19166a85dc6",
+      "byte_length": 1671780
+    },
+    "docs/review/mr002/MR002_SQRTFix_DevSuite.log": {
+      "git_blob": "fcb866978f5e379e4eab2423bbb0ffb27ab18c85",
+      "sha256": "393b2b030c4301ef868c4d583831dd213141157c92e4016e5d362649e1ee894e",
+      "byte_length": 240
+    },
+    "docs/review/mr002/MR002_SQRTFix_DevSuite_v1.1.log": {
+      "git_blob": "52763f617e9cdb0e9da0d2081e28a507bd507882",
+      "sha256": "7bf50ee935ed93aeb37893c579bb33dd437bca9c2241aa8a96baeaeb7c1e0ce6",
+      "byte_length": 1468
+    },
+    "docs/review/mr002/MR002_SQRTFix_FocusedTests_v1.1.log": {
+      "git_blob": "94de7445600ba310c2a85c6dfdf5ada586164254",
+      "sha256": "15a47576c4f21a757367b6637f211fc9fc5ec62966523da9c48492c5af5546ed",
+      "byte_length": 1238
+    },
+    "docs/review/mr002/MR002_SQRTFix_PinnedSuite_181pass.log": {
+      "git_blob": "8aa1307222016fb098502b894bf4052dd367f3b9",
+      "sha256": "ce836e0eb9ac900306cada2b20f159e97b8eefc118073d069c1cdc3ffef18a1e",
+      "byte_length": 682
+    },
+    "docs/review/mr002/MR002_SQRTFix_PinnedSuite_v1.1.log": {
+      "git_blob": "d466e05ec32337ee9ca5ba11e4aed502777b1032",
+      "sha256": "5d7d90f426890ac7aa4ed41f7985326bf60428916f11f63d86a8f8ecc55d8f11",
+      "byte_length": 1861
+    },
+    "docs/review/mr002/MR002_SQRTFix_Ruff_v1.1.log": {
+      "git_blob": "8fe453037c8ce9094c803dab9f7c3d598e93c686",
+      "sha256": "3df9191e509c398913b24476c0361ea009c4a12b184a93a4c97aaec5e6c88b7e",
+      "byte_length": 169
+    },
+    "docs/review/mr002/MR002_SQRTWrapperFix_20260718.patch": {
+      "git_blob": "c3afff1c6b018915fc80cbbc065fc047a204f07d",
+      "sha256": "fa2fc883c673779e157418c33d55d2e2b212aa311ba0772fd95818f327e0f974",
+      "byte_length": 941
+    },
+    "docs/review/mr002/MR002_Stage3_CombinedSubmission_Addendum_v1.1.md": {
+      "git_blob": "776fe97e263d9baf9b0d3a04d613d76425605a28",
+      "sha256": "4221a155f74336b8ebd3fb2756eea7f85dc2c048683f6b8520a1d6dc918a1de5",
+      "byte_length": 3372
+    },
+    "docs/review/mr002/MR002_Stage3_CombinedSubmission_AuditAndFix_v1.0.md": {
+      "git_blob": "d643926ea9ddeceb2b17a4a9b6705f5445c2e9e5",
+      "sha256": "876f5131f5849ec5fde6d643a143f94bffc6697359a97affe541adc633edef67",
+      "byte_length": 9172
+    },
+    "docs/review/mr002/audit_run_inimage.log": {
+      "git_blob": "b2bb373f29910d60cd73ab486fa07d09512c081d",
+      "sha256": "07119bd52fc5e4ed84262cc1e70ca7342b5fde0e09740592a1b5ae17061a2386",
+      "byte_length": 2925
+    },
+    "docs/review/mr002/mr002_corpus_audit_driver.py": {
+      "git_blob": "5add92e2dc2e4ad01a3418fd2b784c19b417102c",
+      "sha256": "38d488feadd000e6d2a972e9e514dcfbb9497cbe4a2b5ddd5366f8293706254d",
+      "byte_length": 9740
+    },
+    "docs/review/mr002/mr002_coverage_signed_gap.py": {
+      "git_blob": "a6e21991c769c1b4902d8d1d952b7bd901d2811a",
+      "sha256": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+      "byte_length": 26582
+    },
+    "docs/review/mr002/test_mr002_sqrt_upper_transform.py": {
+      "git_blob": "a3dfd153cd614329a1d7264b4a9eeab5ef1f8201",
+      "sha256": "0e2670e01a7a1c21c1240b5f8f329ff57a433218227f058e178ab4773f5913fe",
+      "byte_length": 10088
+    }
+  },
+  "executable_delta": {
+    "apps/backend/scripts/mr002_coverage_signed_gap.py": "ONE functional change at the SQRT transformed-upper-bound expression (blob 409b6c8 -> a6e2199)",
+    "apps/backend/tests/research/test_mr002_sqrt_upper_transform.py": "NEW 9-test focused file (blob a3dfd15, sha256 0e2670e0..., the exact reviewed hash)"
+  },
+  "fingerprint_delta": {
+    "primary_wrapper": [
+      "5212a77e5f8797051a3ceab3bc810fd76efbeee51dac9e48c88b623e0101c124",
+      "b2b5c41e19b66a323db3d6be73f022f97c747caf54e97957f337531ef8cd9b6c"
+    ],
+    "unchanged": [
+      "piqp_solve",
+      "canonical_qualify",
+      "certify",
+      "resolve"
+    ]
+  },
+  "deferred_sites_byte_unchanged": [
+    "mr002_coverage_signed_gap.py T-scaled branch",
+    "mr002_solver_intersection.py::solve_sqrt",
+    "mr002_solver_intersection.py::solve_tscaled"
+  ],
+  "supersedes": {
+    "commit_39c0dec": "SUPERSEDED FOR QUALIFICATION",
+    "commit_3a37545": "SUPERSEDED FOR QUALIFICATION"
+  },
+  "no_change_rule": "no implementation or test-code change is permitted after this commit without invalidating the approval and requiring a delta review"
+}
