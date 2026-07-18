@@ -1,0 +1,19 @@
+{
+ "authorized_date": "2026-07-18",
+ "bound_commit": "d26bd9edbd875d2e3e11d4a6f6e06bad933b168e",
+ "bound_tree": "c0e52d8ec61f881a2058c9c9686fde1ec33123a0",
+ "countersigned_by": "Jay Wang (owner)",
+ "decision": "AUTHORIZED",
+ "execution_authorized": true,
+ "execution_package_sha256": "66c8d42fb39d2afdc996f5be98676786aaceb0af3160850bd303b68d0bd52a60",
+ "execution_package_version": "1.9",
+ "expected_pins_sha256": "ddfa43d0766ba12e7ac1816e1d67962e1edb56c75524a6a25265d982861dad3c",
+ "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_EXECUTION_AUTHORIZATION",
+ "repository": "jayw04/AI-TRADING-APP",
+ "row_manifest_protocol": "MR002_STAGE3_ROW_IDENTITY_V1",
+ "source_manifest_sha256": "27d2819bb116d7b00e0a8e78a9bcce3b4a07930eddfbe7e67f802579ee7010fe",
+ "version": "1.0"
+}

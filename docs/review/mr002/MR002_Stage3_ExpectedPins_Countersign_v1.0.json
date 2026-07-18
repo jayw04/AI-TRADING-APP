@@ -1,0 +1,23 @@
+{
+ "artifact_bytes": 1602,
+ "artifact_committed_ref": "cd51628d0aa9516f428fadc8318168b1a915ba5c",
+ "artifact_path": "docs/review/mr002/MR002_Stage3_ExpectedPins_DRAFT_v1.2.json",
+ "artifact_record_type": "MR002_STAGE3_EXPECTED_PINS",
+ "artifact_sha256": "ddfa43d0766ba12e7ac1816e1d67962e1edb56c75524a6a25265d982861dad3c",
+ "artifact_version": "1.0",
+ "binds_summary": {
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "git_commit": "d26bd9edbd875d2e3e11d4a6f6e06bad933b168e",
+  "git_tree": "c0e52d8ec61f881a2058c9c9686fde1ec33123a0",
+  "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea"
+ },
+ "bound_technical_values_unaltered": true,
+ "countersign_date": "2026-07-18",
+ "countersigned_by": "Jay Wang (owner)",
+ "decision": "COUNTERSIGNED",
+ "note": "Countersigns the QUAL3 expected-pins bytes exactly as committed (cd51628); no bound technical value altered. The 'DRAFT' in the filename is historical - these bytes are the countersigned pins.",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_EXPECTED_PINS_COUNTERSIGN",
+ "version": "1.0"
+}
