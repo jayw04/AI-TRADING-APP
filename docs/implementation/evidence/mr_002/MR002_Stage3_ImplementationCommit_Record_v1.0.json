@@ -1,0 +1,213 @@
+{
+  "authorization": "Owner review 2026-07-18: 'Final implementation commit is authorized' (v1.9 ACCEPTED)",
+  "changed_files": {
+    "apps/backend/app/research/mr002/stage3_cascade.py": {
+      "byte_length": 43926,
+      "git_blob": "3551206c46053056102b7bf45737c897a2257803",
+      "sha256": "8c151d4b029f8e61bc2d4044d145c125468294c5fb6ae9b111a08efb691c750e"
+    },
+    "apps/backend/scripts/mr002_stage3_cascade_fixtures.py": {
+      "byte_length": 14556,
+      "git_blob": "79e694dca37762cee18facbc432c17342bb15e9b",
+      "sha256": "b3da5c5c2efde8eecde4c56f278d0d1586c43d6e802dd041952d558ed9660874"
+    },
+    "apps/backend/scripts/mr002_stage3_population_runner.py": {
+      "byte_length": 78836,
+      "git_blob": "a3d472a8f7e20f286e46d91fb93b573e7dea1309",
+      "sha256": "9228ebd5cf3ae8f4a5ed17df7e22150019b423292539d22e48c499fef53c9075"
+    },
+    "apps/backend/scripts/mr002_stage3_preflight.py": {
+      "byte_length": 20102,
+      "git_blob": "06f83ddf0af42c408bfcd483a6404c85ff926be9",
+      "sha256": "6368925c5990f9c3e94aa2d2a8ff40f79299ab9cf4ea2b7ef3cb88b514ded9f6"
+    },
+    "apps/backend/scripts/mr002_stage3_source_manifest.py": {
+      "byte_length": 14141,
+      "git_blob": "01ff417a1518925f65787ae0f470184e8cc099e0",
+      "sha256": "9bacbca47fcb44a8eecde3300ebb295919c55e5f1f046aa2e405e8785bdc9cd1"
+    },
+    "apps/backend/tests/research/test_mr002_stage3_cascade_dispA.py": {
+      "byte_length": 28716,
+      "git_blob": "7a87eb2046822ebd2036c88ffbde75677dc38fec",
+      "sha256": "448da57e0fed3b6d885652de5cfeb3d6da9dd3153cffaf13429d1d405d04e101"
+    },
+    "apps/backend/tests/research/test_mr002_stage3_input_contract.py": {
+      "byte_length": 3344,
+      "git_blob": "b40020d675832825b0cbdac03882f51dcce18239",
+      "sha256": "eb52dcde80110c714f41e41d03f8d41bba57cc60ba1148c57de3f2cbeb266e9f"
+    },
+    "apps/backend/tests/research/test_mr002_stage3_population_runner.py": {
+      "byte_length": 58976,
+      "git_blob": "898f5151867935f729bd48ebbcede68589dbf817",
+      "sha256": "b833a0555e4f74abb2ae97ced1d6dfd7184f4740ff5a59946f216f24c4ed0354"
+    },
+    "apps/backend/tests/research/test_mr002_stage3_preflight.py": {
+      "byte_length": 8277,
+      "git_blob": "3467697f651ded8c2bd381c2594f93a228bb04fa",
+      "sha256": "b30e4108d8be6d5430717f51928fa1b091553f72fb5bb70afc3458a300728c61"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.0.json": {
+      "byte_length": 17245,
+      "git_blob": "445fbf3870d9e9f0504b9c2c3434c771f20aba7c",
+      "sha256": "53e7bbe06143a157b97096b0731ae482ba2177294059bb4e075743a865f9b2f0"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.0.md": {
+      "byte_length": 9922,
+      "git_blob": "ff97ef7f5ee8c111d228f57ba9e2b82187cc0601",
+      "sha256": "91bb1216c74330e87bff0c714f986b17803f382b3e61508e2cb46ed665f46522"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.1.json": {
+      "byte_length": 13872,
+      "git_blob": "799bb7988a8e4e0026e5a220a30c8289ddeeb88b",
+      "sha256": "b08b9970656e7868315874353069f8f7d615a2fa8673410d2343e1042b961d51"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.1.md": {
+      "byte_length": 5953,
+      "git_blob": "d7e780825d2b1847674483a27f4d779dc3dbada5",
+      "sha256": "afe567900266808c1fecd4782c960bdde3864ba4d12cb415b39e69bf12bcd108"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.2.json": {
+      "byte_length": 12867,
+      "git_blob": "26b2f07d775265d7c252c72d840d9ac9f615ada3",
+      "sha256": "408fe48b20a73299e45e6c527fee5c31890819f6e8eb72e989089a5dcad40956"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.2.md": {
+      "byte_length": 5619,
+      "git_blob": "2dfc043653565c01384ceca6a4465c021c2cb1e7",
+      "sha256": "ea5e238ba49cd6c5d06bda6c23f3247264c3644b152fee3301a4351472d42275"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.3.json": {
+      "byte_length": 10957,
+      "git_blob": "11cb51948c17404730bad6e260667d90a56cfe9c",
+      "sha256": "71dfee911249130210bb6e5cd990c2d8815c543cd25084375dc41e39ddd178da"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.3.md": {
+      "byte_length": 4183,
+      "git_blob": "7f6d4276948305122ca0c20c10aff4221e316507",
+      "sha256": "34e7f242f722c13a311df2e583fee52eebb6726b73c0ba822c886a5909509a94"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.4.json": {
+      "byte_length": 5992,
+      "git_blob": "6eee225a9bb3ce3ad4b224629dddb5a51e2af444",
+      "sha256": "9edfb6a391866e29fb9727207a9f330fc35512c7abf018180127eb967a3029e7"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.5.json": {
+      "byte_length": 6034,
+      "git_blob": "ca62dbe8ab142661141058e06595babb5467f2f9",
+      "sha256": "b29b91550708387ac6b587b9f425a7cabc6e6d2ff8c1b45a4ad9fa041f1f5ccc"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.6.json": {
+      "byte_length": 5454,
+      "git_blob": "64fdcf9fbeb1595fe7726a7a2d60c4b31641bdc4",
+      "sha256": "9e690c72f45fe7e2949127217d9393a8627dc9ed7f8106b5cf91bbf9577c4f0f"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.7.json": {
+      "byte_length": 5100,
+      "git_blob": "ebaca6713bd746474449d2e6640181b23c48ef15",
+      "sha256": "84d91426e94161158272f962bf9ac7fe369f856a5e565fc892273dda4631eb23"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.8.json": {
+      "byte_length": 3697,
+      "git_blob": "e019e999442bfb9701e49169fff0d2a1e4c99f4c",
+      "sha256": "a189f8cf0c186e996ce024816c9fa9b6be1cf577efc99b35206590127674c327"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v1.9.json": {
+      "byte_length": 3781,
+      "git_blob": "e0db98eaa4a0188b02b9577f3d0c8ee58d2832eb",
+      "sha256": "66c8d42fb39d2afdc996f5be98676786aaceb0af3160850bd303b68d0bd52a60"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_QPMatrices_InputContract_v1.0.json": {
+      "byte_length": 2240,
+      "git_blob": "a35bca54534d66ec285e3992d12d410a79859c59",
+      "sha256": "0eca052cbd15c44b9e034ee69044198dff4fd182513dd4898b70655b1026c9a0"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json": {
+      "byte_length": 9130,
+      "git_blob": "a7e1afbaa6dba9d0fce43ffb63da18cea6ea4787",
+      "sha256": "ad595c4a94eff1748e2879966aac2dd44fa9524995afe56a142dc0f6defced26"
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json": {
+      "byte_length": 1182,
+      "git_blob": "9206844cd4dcc640170b293857ec56d911d8d937",
+      "sha256": "5fa0fb55928def4493001eed39539fc6764ad7955908f01792b51acbea8bd835"
+    },
+    "docs/review/mr002/MR002_Stage3_ExecutionPackage_v1.9.json": {
+      "byte_length": 3781,
+      "git_blob": "e0db98eaa4a0188b02b9577f3d0c8ee58d2832eb",
+      "sha256": "66c8d42fb39d2afdc996f5be98676786aaceb0af3160850bd303b68d0bd52a60"
+    },
+    "docs/review/mr002/MR002_Stage3_QPMatrices_InputContract_v1.0.json": {
+      "byte_length": 2240,
+      "git_blob": "a35bca54534d66ec285e3992d12d410a79859c59",
+      "sha256": "0eca052cbd15c44b9e034ee69044198dff4fd182513dd4898b70655b1026c9a0"
+    },
+    "docs/review/mr002/MR002_Stage3_SourceManifest_v1.0.json": {
+      "byte_length": 9130,
+      "git_blob": "a7e1afbaa6dba9d0fce43ffb63da18cea6ea4787",
+      "sha256": "ad595c4a94eff1748e2879966aac2dd44fa9524995afe56a142dc0f6defced26"
+    },
+    "docs/review/mr002/MR002_Stage3_TestReport_v1.0.json": {
+      "byte_length": 1182,
+      "git_blob": "9206844cd4dcc640170b293857ec56d911d8d937",
+      "sha256": "5fa0fb55928def4493001eed39539fc6764ad7955908f01792b51acbea8bd835"
+    },
+    "docs/review/mr002/README.md": {
+      "byte_length": 2784,
+      "git_blob": "3c8ef37a00d6a9ccade3fe09722bfa2b14d57ebd",
+      "sha256": "2b4b10a5cb28cd8b7cc86493c70b00c88e73fdf821963c52f38dec1e75ef5807"
+    },
+    "docs/review/mr002/mr002_stage3_cascade_fixtures.py": {
+      "byte_length": 14556,
+      "git_blob": "79e694dca37762cee18facbc432c17342bb15e9b",
+      "sha256": "b3da5c5c2efde8eecde4c56f278d0d1586c43d6e802dd041952d558ed9660874"
+    },
+    "docs/review/mr002/mr002_stage3_population_runner.py": {
+      "byte_length": 78836,
+      "git_blob": "a3d472a8f7e20f286e46d91fb93b573e7dea1309",
+      "sha256": "9228ebd5cf3ae8f4a5ed17df7e22150019b423292539d22e48c499fef53c9075"
+    },
+    "docs/review/mr002/mr002_stage3_preflight.py": {
+      "byte_length": 20102,
+      "git_blob": "06f83ddf0af42c408bfcd483a6404c85ff926be9",
+      "sha256": "6368925c5990f9c3e94aa2d2a8ff40f79299ab9cf4ea2b7ef3cb88b514ded9f6"
+    },
+    "docs/review/mr002/mr002_stage3_source_manifest.py": {
+      "byte_length": 14141,
+      "git_blob": "01ff417a1518925f65787ae0f470184e8cc099e0",
+      "sha256": "9bacbca47fcb44a8eecde3300ebb295919c55e5f1f046aa2e405e8785bdc9cd1"
+    },
+    "docs/review/mr002/stage3_cascade.py": {
+      "byte_length": 43926,
+      "git_blob": "3551206c46053056102b7bf45737c897a2257803",
+      "sha256": "8c151d4b029f8e61bc2d4044d145c125468294c5fb6ae9b111a08efb691c750e"
+    },
+    "docs/review/mr002/test_mr002_stage3_cascade_dispA.py": {
+      "byte_length": 28716,
+      "git_blob": "7a87eb2046822ebd2036c88ffbde75677dc38fec",
+      "sha256": "448da57e0fed3b6d885652de5cfeb3d6da9dd3153cffaf13429d1d405d04e101"
+    },
+    "docs/review/mr002/test_mr002_stage3_input_contract.py": {
+      "byte_length": 3344,
+      "git_blob": "b40020d675832825b0cbdac03882f51dcce18239",
+      "sha256": "eb52dcde80110c714f41e41d03f8d41bba57cc60ba1148c57de3f2cbeb266e9f"
+    },
+    "docs/review/mr002/test_mr002_stage3_population_runner.py": {
+      "byte_length": 58976,
+      "git_blob": "898f5151867935f729bd48ebbcede68589dbf817",
+      "sha256": "b833a0555e4f74abb2ae97ced1d6dfd7184f4740ff5a59946f216f24c4ed0354"
+    },
+    "docs/review/mr002/test_mr002_stage3_preflight.py": {
+      "byte_length": 8277,
+      "git_blob": "3467697f651ded8c2bd381c2594f93a228bb04fa",
+      "sha256": "b30e4108d8be6d5430717f51928fa1b091553f72fb5bb70afc3458a300728c61"
+    }
+  },
+  "commit": "8a87280071936bf23ad82c648968e810e832d12a",
+  "committed_at": "2026-07-18T08:46:46-05:00",
+  "no_change_rule": "no implementation or test-code change is permitted after this commit without invalidating the approval and requiring a delta review",
+  "parent": "b8e95e1b9ebbd97887c46c8a923f97436117d0d9",
+  "record_status": "IMMUTABLE",
+  "record_type": "MR002_STAGE3_IMPLEMENTATION_COMMIT_RECORD",
+  "tree": "1a0144d979c68d79088744f8ba064d68b9d6239f",
+  "version": "1.0"
+}
