@@ -1,0 +1,10 @@
+command: python -m pytest --noconftest tests/research/test_mr002_stage3_cascade_dispA.py tests/research/test_mr002_stage3_preflight.py tests/research/test_mr002_stage3_population_runner.py tests/research/test_mr002_stage3_input_contract.py tests/research/test_mr002_sqrt_upper_transform.py -v (in-image, --network=none)
+  /usr/local/lib/python3.13/site-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 182 passed, 1 warning in 1.19s ========================
+exit_code: 0
+== production-binding explicit ==
+========================= 1 passed, 1 warning in 0.43s =========================

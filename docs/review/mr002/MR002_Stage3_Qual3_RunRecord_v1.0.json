@@ -1,0 +1,53 @@
+{
+  "record_type": "MR002_STAGE3_QUAL3_RUN_RECORD",
+  "version": "1.0",
+  "record_status": "IMMUTABLE",
+  "date": "2026-07-18",
+  "authorization": "Combined review + addendum ACCEPTED 2026-07-18; implementation commit AUTHORIZED; qualification sequence steps 1-9 executed",
+  "implementation_commit": {
+    "commit": "9813db3f55b7b102206306c427ea2cf46d81c629",
+    "tree": "351dabb9496d853bb4c16ff0655aa35ee9d10737",
+    "parent": "3a37545e2dcf201542a5fca6fca29bade828f9c0",
+    "record": "MR002_Stage3_ImplementationCommit_Record_v1.2.json sha256 a5326594747fa48f652468d2bb75e87f44e0f73ae3b47064770e995f45629296 (commit bd0d263)"
+  },
+  "qualification_commit": {
+    "commit": "d26bd9edbd875d2e3e11d4a6f6e06bad933b168e",
+    "tree": "c0e52d8ec61f881a2058c9c9686fde1ec33123a0",
+    "executable_delta_vs_9813db3": "NONE (commit record + regenerated Phase-A manifest only)"
+  },
+  "phase_a": {
+    "manifest_sha256": "27d2819bb116d7b00e0a8e78a9bcce3b4a07930eddfbe7e67f802579ee7010fe",
+    "regenerated": "inside mr002-research:v1.4, pristine standalone LF clone, porcelain empty",
+    "drift": "EXACTLY mr002_coverage_signed_gap.py (409b6c8/66118bc7 -> a6e2199/f9e440c6); new test file bound via commit record v1.2, not the manifest",
+    "raw_byte_identity_in_image": "PASS",
+    "note": "sha256 919f496c... quoted for the fixed file in the combined submission was the Windows CRLF working-copy hash; the committed blob a6e2199's true LF bytes are f9e440c6... (recorded correctly in commit record v1.2)"
+  },
+  "image": {
+    "tag": "mr002-stage3-qual:3.0",
+    "image_id_and_oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+    "base": "mr002-research:v1.4 Id sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a (laptop-loaded archive; same layer lineage as the box's rebuilt base 770553aeae6c \u2014 different config-digest metadata, disclosed)",
+    "dockerfile_sha256": "fac918444f2214044c370dfb6548388fcf97ce3d21e6b9b60762e9cfdf2562aa",
+    "build_log_sha256": "cfeeec9b7ac7e6e2e6e7a9fdd10e7afa1a8c7bf5dec30e3decce6a9c7255fa77",
+    "host": "developer laptop, Docker Desktop (WSL2), Intel i7-12700H \u2014 avx2 present, avx512 ABSENT (CPU gates PASS)"
+  },
+  "verify_source": "ZERO defects in-image (root=/work); in-image git HEAD/tree = qual commit, porcelain empty",
+  "in_image_suite": {
+    "result": "182 passed, 0 failed, 0 SKIPPED, exit 0 (5 modules incl. the 9 new focused tests)",
+    "production_binding": "test_production_binding_uses_frozen_solvers PASSED explicitly (separate verbose invocation, 1 passed)",
+    "log_sha256": "fe472b55df11cb4063b927704a52ceacac2a3822b6beb66e63ef79c4336d4c10"
+  },
+  "expected_pins_draft_v1_2": {
+    "sha256": "ddfa43d0766ba12e7ac1816e1d67962e1edb56c75524a6a25265d982861dad3c",
+    "delta_vs_v1_1": "git_commit/git_tree/image/oci identities + fingerprints.primary_wrapper (5212a77e -> b2b5c41e) ONLY; all fields verified == in-image gather_env (gather_env_qual3.json sha256 2437b00fa55cb7b3aa5045627d6d7ff79311a2c8d64bd5f5a23678830a9d6535)"
+  },
+  "realism_harness": {
+    "verdict": "PASS",
+    "preflight": "ALL 17 checks PASS",
+    "cases": "9/9 PASS incl. primary_qualified/active_upper_bound (previously FAIL)",
+    "artifact_sha256": "f7cccd6522f05f175c11fa481e3672aeb1b518d1ef58fe2b2ada81d2d75a0242",
+    "stdout_log_sha256": "df84882350b02672371136ed7c763307836f8faf6175e3741f637e3faf3f113e",
+    "output_dir": "FRESH C:/LLM-RAG-APP/mr002-realism-out3 (prior FAIL artifacts 18437f3c/e717deac preserved untouched)",
+    "semantic_validation": "load_realism_pass (hash-verified) accepted the artifact: verdict PASS, 9 cases"
+  },
+  "next": "Phase B assembly for execution countersignature review (now unblocked). NOT authorized: registered Stage-3 execution, performance, validation/OOS."
+}
