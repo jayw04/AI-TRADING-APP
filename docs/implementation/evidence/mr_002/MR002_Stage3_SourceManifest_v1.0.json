@@ -93,9 +93,9 @@
     },
     "apps/backend/scripts/mr002_stage3_preflight.py": {
       "role": "execution_package_component",
-      "sha256": "6368925c5990f9c3e94aa2d2a8ff40f79299ab9cf4ea2b7ef3cb88b514ded9f6",
-      "git_blob": "06f83ddf0af42c408bfcd483a6404c85ff926be9",
-      "byte_length": 20102,
+      "sha256": "9c749d73415baa9220a5c348b6c845c179ed007739f9d48ca3517bd71f94e6a7",
+      "git_blob": "1425f5ef7cb42f6a74347fc3a5602b1a8418b7f9",
+      "byte_length": 20318,
       "present": true
     },
     "apps/backend/scripts/mr002_stage3_population_runner.py": {
@@ -128,9 +128,9 @@
     },
     "apps/backend/tests/research/test_mr002_stage3_preflight.py": {
       "role": "execution_package_component",
-      "sha256": "b30e4108d8be6d5430717f51928fa1b091553f72fb5bb70afc3458a300728c61",
-      "git_blob": "3467697f651ded8c2bd381c2594f93a228bb04fa",
-      "byte_length": 8277,
+      "sha256": "deafe0b0f77f7e6e8191c109b4f9984b9b4f310e7d12bf75928b2c6f6d549ecd",
+      "git_blob": "844d335c007066ea67a07ee577da6c67092f5ebb",
+      "byte_length": 10270,
       "present": true
     },
     "apps/backend/tests/research/test_mr002_stage3_population_runner.py": {
