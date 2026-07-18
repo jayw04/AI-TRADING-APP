@@ -1,0 +1,57 @@
+{
+  "authorization": "Delta review 2026-07-18: single allowlist correction AUTHORIZED — add exactly \"app.research.mr002\" to ExpectedPins.approved_modules plus the five required focused regression tests; no wildcard, prefix, or recursive-package rule; no other module",
+  "changed_files": {
+    "apps/backend/scripts/mr002_stage3_preflight.py": {
+      "byte_length": 20318,
+      "git_blob": "1425f5ef7cb42f6a74347fc3a5602b1a8418b7f9",
+      "sha256": "9c749d73415baa9220a5c348b6c845c179ed007739f9d48ca3517bd71f94e6a7"
+    },
+    "apps/backend/tests/research/test_mr002_stage3_preflight.py": {
+      "byte_length": 10270,
+      "git_blob": "844d335c007066ea67a07ee577da6c67092f5ebb",
+      "sha256": "deafe0b0f77f7e6e8191c109b4f9984b9b4f310e7d12bf75928b2c6f6d549ecd"
+    },
+    "docs/review/comments.md": {
+      "byte_length": 15316,
+      "git_blob": "9a9c7a0cb6759b3e9ba0f0850b9752c8d5f78ceb",
+      "sha256": "630e2bf07b9e259ac8c1ddb5e5de7f53f93c8324b139905916ca1c753b499856"
+    },
+    "docs/review/mr002/MR002_Stage3_AllowlistDelta_20260718.patch": {
+      "byte_length": 3450,
+      "git_blob": "b83afb1ddab440fe26599bfe3da71be26ed73240",
+      "sha256": "c08b5dfa37796fae680ff2e825db1ee8d257c9006db5ba40c45da62401b38603"
+    },
+    "docs/review/mr002/MR002_Stage3_AllowlistDelta_Submission_v1.0.md": {
+      "byte_length": 4487,
+      "git_blob": "78fb3b3a4fa7ee16bac974c5b5e64bb9e1ee1013",
+      "sha256": "8b183f6df01345c5643e31662c0f4c023334bad223d38292a18a669a89eed1f2"
+    },
+    "docs/review/mr002/mr002_stage3_preflight.py": {
+      "byte_length": 20318,
+      "git_blob": "1425f5ef7cb42f6a74347fc3a5602b1a8418b7f9",
+      "sha256": "9c749d73415baa9220a5c348b6c845c179ed007739f9d48ca3517bd71f94e6a7"
+    },
+    "docs/review/mr002/test_mr002_stage3_preflight.py": {
+      "byte_length": 10270,
+      "git_blob": "844d335c007066ea67a07ee577da6c67092f5ebb",
+      "sha256": "deafe0b0f77f7e6e8191c109b4f9984b9b4f310e7d12bf75928b2c6f6d549ecd"
+    }
+  },
+  "commit": "39c0decf2dd5f5c12f72c09bcce22e0b296b41b9",
+  "committed_at": "2026-07-18T10:43:14-05:00",
+  "delta_scope": "executable-code change limited to one allowlist member and its focused tests; solver, certifier, cascade, tolerances, and corpus logic untouched (verified by the reviewed diff c08b5dfa37796fae680ff2e825db1ee8d257c9006db5ba40c45da62401b38603)",
+  "development_suite": "172 passed, 1 skipped, exit 0 (baseline 167+1s, +5 delta tests); ruff clean",
+  "evidence_preservation": "pre-delta manifest .mr002out/imagequal_20260718/MR002_EvidencePreservation_PreDelta_v1.0.json sha256 8d5ca0e7867fd29d5501388b8f6c3e5da9d1ff16e7902f3bde13eea18d236317; prior realism FAIL artifact sha256 18437f3c… preserved immutably, never to be overwritten",
+  "no_change_rule": "no implementation or test-code change is permitted after this commit without invalidating the approval and requiring a delta review",
+  "parent": "68a270ece71a69b5db9d525bead0ad9b90a91d1c",
+  "record_status": "IMMUTABLE",
+  "record_type": "MR002_STAGE3_IMPLEMENTATION_COMMIT_RECORD",
+  "supersedes": {
+    "commit_8a87280_freeze": "SUPERSEDED FOR QUALIFICATION",
+    "commit_68a270e_phase_a_evidence": "SUPERSEDED",
+    "images_qual_1_0_and_1_1": "DIAGNOSTIC ONLY",
+    "in_image_168_pass_report": "VALID DIAGNOSTIC EVIDENCE, NOT FINAL"
+  },
+  "tree": "e18933676f49d6044457e9a2529d6f8beededcb2",
+  "version": "1.1"
+}
