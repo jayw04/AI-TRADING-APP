@@ -1,0 +1,104 @@
+{
+ "date": "2026-07-19",
+ "disposition": "PASS",
+ "governance_commits": {
+  "attestation_receipt_commit": "d99308fe5ef0a264b8532352641c65cd5727e1cb",
+  "binding_commit": "8a47d1bbddf6053357585a79742d59a7387e53d8",
+  "countersignature_commit": "a654d44520c857cb4da3e3ea9484c0e288212470",
+  "qualification_commit": "ccca22033859b71ec4d1e67e39d63afe08358062",
+  "run5_evidence_commit": "73ac6da55d0248daea24b831fd9480819307fc81"
+ },
+ "no_retry_statement": "Exactly one exec, one container, one checkpoint, one manifest. The v5 nonce/attestation/receipt/binding/authorization/countersignature are CONSUMED and CLOSED; no rerun is authorized.",
+ "one_run_closure": {
+  "authorized": 1,
+  "checkpoint_reuse": 0,
+  "container_id": "02e8584e",
+  "containers": 1,
+  "observed": 1,
+  "resumes": 0,
+  "retries": 0,
+  "start_utc": "2026-07-19T21:36:06.461Z",
+  "terminal_utc": "2026-07-19T21:43:19.7Z"
+ },
+ "output_evidence": {
+  "checkpoint": {
+   "bytes": 49612687,
+   "lines": 3896,
+   "sha256": "511d11f52ce2751aacbbe78c2b96d7ce712b5dbf3161fa7b2ed0da5df5bb02ae"
+  },
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "row_manifest_sha256": "699b17dffd222c06392842f58841f185e74132331e67f40df26817a94d7ac7eb",
+  "run_manifest": {
+   "bytes": 130845,
+   "sha256": "27fe7624a1a3b4e8328833f28f605eb2d636ea6d34513a75c1f396101431fa1f"
+  },
+  "sidecars": 0,
+  "terminal_line": "{\"kind\":\"terminal\",\"status\":\"COMPLETE\",\"n_records\":3895}"
+ },
+ "performance_boundary": "PASS proves execution + evidence integrity ONLY. Performance interpretation NOT authorized; production promotion NOT authorized.",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_RUN5_PUBLICATION",
+ "remote_archive": {
+  "checkpoint": {
+   "bucket_versioning": "Enabled",
+   "checksum_sha256_base64": "UR0R9SzidRqsu+eMK5bXznErXb8xYfp7LtDaXfW7Aq4=",
+   "content_length": 49612687,
+   "local_remote_bytes_equal": true,
+   "local_remote_sha256_equal": true,
+   "sse": "AES256",
+   "uri": "s3://workbench-backups-219024422756/mr002/run5/MR002_Stage3_CleanRun_checkpoint.jsonl",
+   "version_id": "Zz_TSuBsU.sMT7q8lpoaJieWbETfZdtq"
+  },
+  "run_manifest": {
+   "checksum_sha256_base64": "J/52JKGjtOgyiDPyj2BestY26m00UTp1wfOWEBQx+h8=",
+   "uri": "s3://workbench-backups-219024422756/mr002/run5/MR002_Stage3_CleanRun_Manifest.json",
+   "version_id": "kOdvCn5Ygsq2WvxfRE9XfbyfnY9UtXUj"
+  }
+ },
+ "run_counts": {
+  "evidence_persisted": true,
+  "n_expected": 3895,
+  "n_processed": 3895,
+  "n_qualified": 3895,
+  "n_stopped": 0,
+  "passed": true,
+  "windows": [
+   "dev"
+  ]
+ },
+ "schema2_replay": {
+  "aggregate_replay_passed": true,
+  "evidence_schema_version_markers": 3895,
+  "exact_hex_fields": 23370,
+  "legacy_exact_ratio_fields": 0,
+  "records_accepted": 3895,
+  "run4_replay_defect": "RESOLVED"
+ },
+ "solver_split": {
+  "PIQP_P2": 5,
+  "QUADPROG_SQRT": 3890
+ },
+ "terminal_status": "COMPLETE",
+ "v5_chain_identities": {
+  "authorization_sha256": "167b1b6e2b15fcce5f1e7f68a95a237184b94892f69867a8bec90c701f818c37",
+  "evidence_schema_version": "2.0",
+  "execution_binding_sha256": "f4fb3c74ab7c1df4d0b6c7556d357f284bd83f350d832d1b42294b9026971167",
+  "execution_package_sha256": "846c6418c3b23b36c61da260fcf0953b5245a0967df8187355887d51d5c9ea24",
+  "expected_pins_sha256": "59a23fc092b5e0ccdf4dfedc2873f584f722aaa71f62a3d3c19990da916a6e13",
+  "final_test_report_sha256": "e51a49202076c2e8005e90ffc9a087f0f3b5a9c33d0a926a95f3cd8550a0b093",
+  "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "implementation_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+  "implementation_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+  "launch_attestation_sha256": "e82468c3f94ea90f2f7c8d23c8a8abfde16f7aa5717004e3eac7efdf084d4fb2",
+  "launch_verification_receipt_sha256": "d69b95bef7e106db97a616a242ca071b8404bd0c029740b7d7f2b92e42baab56",
+  "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "one_run_countersignature_sha256": "7f6e3c82e3cf1a21ed803298b9583dae82656af41a2cd9f6f9d2eb18dd18532e",
+  "pins_countersign_sha256": "4a1203cf4ad542dc4fe38e150d3d68591e4e246277392db7c55ad5611781437b",
+  "realism_pass_sha256": "490e168af94d443e2985025f4887e3c1939d3ab9f0068521e98d8b1d401512dd",
+  "run_nonce": "f3e0edf795a6998eb99fb1eca45ea9f9501ca1c9e9389e6a711db4be392594fc",
+  "scope": "MR002_STAGE3_CLEAN_SUCCESSOR_ONLY",
+  "source_manifest_sha256": "9798302a868724ac92fab57274100bef928bb0ccdf29f393dcaf65850bbf76f8"
+ },
+ "validation_oos": "SEALED AND UNREAD \u2014 the frozen corpus source read the DEV window only (windows=[dev]); no validation/OOS path was accessed.",
+ "version": "1.0"
+}

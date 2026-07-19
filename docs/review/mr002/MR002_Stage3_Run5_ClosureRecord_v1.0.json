@@ -1,0 +1,15 @@
+{
+ "checkpoint_disposition": "RETAINED pending verified archive confirmation \u2014 remote byte-exact archive DEMONSTRATED (s3 versionId Zz_TSuBsU.sMT7q8lpoaJieWbETfZdtq, ContentLength+ChecksumSHA256 equal); host copy PRESERVED; host deletion HELD pending a later explicit cleanup ruling",
+ "date": "2026-07-19",
+ "instance_disposition": "stop (not terminate) authorized after closeout + verified archive; termination HELD until final closeout package review",
+ "performance_interpretation": "HELD (not authorized)",
+ "publication_record_sha256": "b73f2957131d4322fb2fede3da0c7e3f5e1516b56a84c318d83bb15faccf4e05",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_RUN5_CLOSURE",
+ "rerun": "NOT AUTHORIZED (any second execution forbidden for any outcome)",
+ "run4_replay_defect": "RESOLVED (negative-zero evidence-serialization defect; schema 2.0 exact_hex; qualified against the actual run-4 archive then proven on the full population)",
+ "run5": "PASS",
+ "v5_chain": "CONSUMED AND CLOSED",
+ "validation_oos": "SEALED AND UNREAD",
+ "version": "1.0"
+}
