@@ -1,0 +1,35 @@
+{
+ "binds": {
+  "authorization_sha256": "167b1b6e2b15fcce5f1e7f68a95a237184b94892f69867a8bec90c701f818c37",
+  "binding_commit": "8a47d1bbddf6053357585a79742d59a7387e53d8",
+  "bound_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+  "bound_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+  "evidence_schema_version": "2.0",
+  "execution_binding_sha256": "f4fb3c74ab7c1df4d0b6c7556d357f284bd83f350d832d1b42294b9026971167",
+  "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "launch_attestation_sha256": "e82468c3f94ea90f2f7c8d23c8a8abfde16f7aa5717004e3eac7efdf084d4fb2",
+  "launch_verification_receipt_sha256": "d69b95bef7e106db97a616a242ca071b8404bd0c029740b7d7f2b92e42baab56",
+  "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "qualification_commit": "ccca22033859b71ec4d1e67e39d63afe08358062",
+  "run_nonce": "f3e0edf795a6998eb99fb1eca45ea9f9501ca1c9e9389e6a711db4be392594fc",
+  "scope": "MR002_STAGE3_CLEAN_SUCCESSOR_ONLY"
+ },
+ "countersigned_by": "Jay Wang (owner)",
+ "countersigned_date": "2026-07-19",
+ "decision": "ONE_RUN_EXECUTION_AUTHORIZED",
+ "execution_terms": {
+  "authorized_executions": "exactly one",
+  "checkpoint_reuse": "forbidden",
+  "output_root": "exactly one empty cleanrun directory (/home/ec2-user/mr002/out/cleanrun)",
+  "performance_interpretation": "not authorized",
+  "prior_chain_reuse": "forbidden (no v1-v4 attestation/receipt/binding/nonce/countersignature; supersedes authorization 487c6ecb)",
+  "resume": "forbidden",
+  "start": "row zero",
+  "validation_oos": "sealed and unread"
+ },
+ "note": "Authorizes exactly ONE registered Stage-3 clean-successor run under the v5 chain. This record does NOT itself execute the launcher; execution is the separate exec step. The run's disposition (PASS=0/STOP=1/REFUSED=2) is adjudicated separately; a PASS authorizes ONLY submission of its evidence for adjudication.",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_ONE_RUN_EXECUTION_COUNTERSIGNATURE",
+ "repository": "jayw04/AI-TRADING-APP",
+ "version": "1.0"
+}
