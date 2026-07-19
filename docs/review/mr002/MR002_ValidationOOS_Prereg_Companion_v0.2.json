@@ -1,0 +1,184 @@
+{
+ "authorizes_execution": false,
+ "bootstrap": {
+  "block_sessions": 21,
+  "confidence": 0.95,
+  "construction": "percentile",
+  "incomplete_block": "kept_short_no_wraparound",
+  "method": "date_clustered_block",
+  "resamples": 2000,
+  "rng": "numpy_PCG64",
+  "same_for_validation_and_oos": true,
+  "seed": 42,
+  "sided": "one_sided_lower"
+ },
+ "boundary": "Validation/OOS SEALED AND UNREAD; performance interpretation + production promotion NOT AUTHORIZED; no development performance computed.",
+ "cost_model_frozen_values": {
+  "adv_cap_policy": "clip_never_delay",
+  "adv_participation_cap": 0.02,
+  "artifact_bind": "PENDING_EVALUATOR_BIND (D-COST: bind committed cost-model impl file+version+sha256 in evaluator qualification)",
+  "borrow_bps_per_year": 50,
+  "borrow_day_count": 360,
+  "commission_slippage_bps_per_side": 10,
+  "execution": "next_open_t_plus_1",
+  "forward_fill": "prohibited",
+  "nav_usd": 10000000,
+  "new_entry_cap_fraction_of_nav": 0.015,
+  "price_policy": "registered_four_series"
+ },
+ "date": "2026-07-19",
+ "evaluator": {
+  "binds_before_access": [
+   "code_commit",
+   "code_tree",
+   "container_digest",
+   "dependency_lock",
+   "data_manifest_identity",
+   "benchmark_impl",
+   "cost_model_impl",
+   "metric_impl",
+   "bootstrap_impl",
+   "report_schema",
+   "expected_output_paths"
+  ],
+  "exists": false,
+  "requirement": "qualify a frozen MR-002 validation/OOS evaluator on synthetic + development-free fixtures BEFORE any unsealing"
+ },
+ "exposure_limits_frozen": {
+  "beta_band": "registered LP limit (0.0052 demonstrated feasible; pin exact limit from LP constraint set at finalization)",
+  "breach_policy": "hard_refusal REFUSED_EXPOSURE_LIMIT",
+  "dollar_neutral": "long_gross == short_gross",
+  "sector_gross_max": 0.2,
+  "sector_net_max": 0.05,
+  "single_name_max": "<= registered start weight"
+ },
+ "governing_frozen_sources": {
+  "data_snapshot": {
+   "path": "apps/backend/data/mr002_research.duckdb",
+   "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+  },
+  "dev_boundary_code": "apps/backend/scripts/mr002_stage3_population_runner.py:1043 day_inputs(2013-01-02, 2019-10-02)",
+  "gate_table": {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.1.md"
+  },
+  "sealed_manifest": {
+   "file": "docs/implementation/evidence/mr_002/MR002_SealedManifest_v1.0.json",
+   "sha256": "96f7b3f96c61abb2d146ca25a58698471ae61454af13882ea15c9be9000112cd"
+  },
+  "windows_and_sessions": {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.1_REFREEZE_CANDIDATE.md",
+   "sha256": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5"
+  }
+ },
+ "hard_stops": [
+  "REFUSED_DATA_COVERAGE",
+  "REFUSED_PRICE_INTEGRITY",
+  "REFUSED_CORPORATE_ACTION",
+  "REFUSED_UNIVERSE_RECONSTRUCTION",
+  "REFUSED_COST_MODEL",
+  "REFUSED_EXPOSURE_LIMIT",
+  "REFUSED_REPLAY_INTEGRITY",
+  "REFUSED_CODE_OR_DATA_IDENTITY",
+  "INTEGRITY_STOP"
+ ],
+ "oos_comparator": {
+  "default": "absolute (no comparator)",
+  "if_D_NI": "jointly resampled Sharpe_OOS - Sharpe_VALIDATION under same bootstrap; non-inferiority one-sided"
+ },
+ "owner_decisions_open": [
+  "D-NI (non-inferiority overlay + Delta_NI)",
+  "D-PURGE (seam exclusion vs boundary shift)",
+  "D-BENCH (cash-zero vs matched neutral reference)",
+  "D-COST (bind cost-model artifact)",
+  "S_min tier (Approved 0.70 vs Diversifier 0.40 headline)"
+ ],
+ "purge_embargo": {
+  "application": "seam scoring-exclusions (D-PURGE: contiguous 1700/850/850 fixed; seam sessions excluded from scoring)",
+  "embargo_validation_to_oos_sessions_applied": 69,
+  "embargo_validation_to_oos_sessions_min": 6,
+  "execution_lag_sessions": 1,
+  "hold_sessions": 5,
+  "literal_seam_dates": "PENDING \u2014 pin from the frozen NYSE session list (calendar metadata read, no returns) at v1.0 finalization",
+  "max_lookback_sessions": 64,
+  "purge_dev_to_validation_sessions": 69,
+  "signal_formation_lag": "windows ending at t-1 (0 same-day leakage)"
+ },
+ "record_type": "MR002_VALIDATIONOOS_PREREG_COMPANION",
+ "secondary_family": "descriptive_only (no inferential secondary family; no post-hoc multiplicity)",
+ "sequencing": {
+  "oos_config": "B_only",
+  "oos_openings": 1,
+  "oos_requires_separate_authorization_after_validation_PASS": true,
+  "validation_first": true
+ },
+ "sharpe_estimator": {
+  "annualization": "sqrt(252)",
+  "frequency": "daily",
+  "mean": "arithmetic",
+  "min_obs": "window_sessions - purge/embargo",
+  "precision": "float64",
+  "report_dp": 4,
+  "returns": "simple_net_excess",
+  "std_ddof": 1,
+  "zero_vol": "INTEGRITY_STOP"
+ },
+ "status": "DRAFT \u2014 prepared, not executed; no sealed data read; owner decisions D-* open",
+ "terminal_dispositions": [
+  "PASS",
+  "FAIL",
+  "REFUSED",
+  "INTEGRITY_STOP"
+ ],
+ "thresholds_frozen": {
+  "S_min_approved_net_oos_sharpe": 0.7,
+  "S_min_diversifier_net_oos_sharpe": 0.4,
+  "alpha": 0.05,
+  "bootstrap_mean_return_ci_lower_bound": "> 0",
+  "capacity": "positive net edge under 2% ADV participation cap",
+  "cost_stress_multiplier": 2.0,
+  "delta_ni": null,
+  "diversifier_abs_corr_vs_mom001_max": 0.3,
+  "dsr_significance_min": 0.95,
+  "min_long": 100,
+  "min_short": 100,
+  "min_trades": 500,
+  "net_max_drawdown_max": 0.15,
+  "net_oos_calmar_min": 0.75,
+  "parameter_stability": "configs A and C both net-profitable",
+  "pbo_max": 0.2,
+  "positive_folds_fraction_min": 0.6,
+  "positive_folds_min_of_5": 3,
+  "profit_concentration_single_year_max": 0.35,
+  "regime_concentration_single_regime_max": 0.6
+ },
+ "version": "0.2",
+ "windows": {
+  "development": {
+   "end": "2019-10-02",
+   "sessions": 1700,
+   "start": "2013-01-02",
+   "status": "in_use_no_performance"
+  },
+  "membership_key": "decision_session_t (signal formed from windows ending at t-1; execution t+1; return realized from t+1 open)",
+  "oos": {
+   "config": "B_only",
+   "end": "2026-07-10",
+   "openings_allowed": 1,
+   "sessions": 850,
+   "start": "2023-02-17",
+   "status": "SEALED_AND_UNREAD"
+  },
+  "realized": {
+   "calendar": "NYSE",
+   "end": "2026-07-10",
+   "sessions": 3400,
+   "start": "2013-01-02"
+  },
+  "validation": {
+   "end": "2023-02-16",
+   "sessions": 850,
+   "start": "2019-10-03",
+   "status": "SEALED_AND_UNREAD"
+  }
+ }
+}
