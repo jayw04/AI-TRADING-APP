@@ -1,0 +1,63 @@
+{
+ "record_type": "MR002_STAGE3_CORRECTED_LAUNCHER_COMMIT_RECORD",
+ "version": "1.0",
+ "record_status": "IMMUTABLE",
+ "date": "2026-07-19",
+ "authorization": "v1.5 recovery review verdict 2026-07-19: ro=false remediation ACCEPTED; corrected launcher commit AUTHORIZED (producer + tests + governance records; frozen verifier and report generator byte-identical)",
+ "repository": "jayw04/AI-TRADING-APP",
+ "branch": "research/mr002-preregistration",
+ "commit": "d8992ac68af261606ce33c5e8b743f4be0e6817b",
+ "tree": "06090b54570715e3db1fc938a9c0010b04c521e8",
+ "parent": "f56ddd5cbafcfe4dd6b366948c1a40b0561bf15b",
+ "name_status": [
+  "M apps/backend/scripts/mr002_stage3_launch_attestation.py",
+  "M apps/backend/tests/research/test_mr002_stage3_launcher_tools.py",
+  "A docs/review/mr002/MR002_HostDockerMetadata_v1.0.log",
+  "A docs/review/mr002/MR002_LauncherTools_Delta_v1.5.patch",
+  "A docs/review/mr002/MR002_LauncherTools_DevSuite_v1.5.log",
+  "A docs/review/mr002/MR002_LauncherTools_HostSuite86_v1.5.log",
+  "A docs/review/mr002/MR002_LauncherTools_Resubmission_v1.5.md",
+  "A docs/review/mr002/MR002_LauncherTools_Ruff_v1.5.log",
+  "A docs/review/mr002/MR002_RealCLI_ParseEvidence_v1.5.log"
+ ],
+ "launcher_files": [
+  {"path": "apps/backend/scripts/mr002_stage3_launch_attestation.py",
+   "change": "MODIFIED (ro=false remediation, reviewed v1.5 bytes)",
+   "committed_git_blob": "1ae1092bd83f0b9f3fd8a25165fca474114ec709",
+   "committed_lf_sha256": "0fe474aa7d092d9f6eec9217ccb67d2123e259ba497f6a447bc5174186109288",
+   "committed_bytes": 41884,
+   "committed_equals_reviewed_identity": true},
+  {"path": "apps/backend/tests/research/test_mr002_stage3_launcher_tools.py",
+   "change": "MODIFIED (86-test suite incl. real-CLI test, reviewed v1.5 bytes)",
+   "committed_git_blob": "002589df6084d10708f6a26d0f37fd53751f04a8",
+   "committed_lf_sha256": "9bdffc701c4deb2ca7b5f99567153dfdc99587fc948cb5ce4a3efbaf2c6407d7",
+   "committed_bytes": 52730,
+   "committed_equals_reviewed_identity": true},
+  {"path": "apps/backend/scripts/mr002_stage3_attestation_verify.py",
+   "change": "UNCHANGED",
+   "committed_git_blob": "687588513d5e7527129b7857886d613e393a9a95",
+   "committed_lf_sha256": "33d08fe345b3b88f49cc85ee50cf6a53233d3523164bb7f927eb7333c4464e94",
+   "committed_bytes": 9834,
+   "confirmation": "frozen verifier blob IDENTICAL to the accepted committed identity (same blob as 595b9c1)"},
+  {"path": "apps/backend/scripts/mr002_stage3_final_test_report.py",
+   "change": "UNCHANGED",
+   "committed_git_blob": "44a993b9aed42a6b5dfd45688b46e5c0cb00a51e",
+   "committed_lf_sha256": "4b9ffb4de0ddc90d26d6d5b46539731b943dbb94aa8079ccf9328ecf0a25fca2",
+   "committed_bytes": 6019,
+   "confirmation": "final-report generator blob IDENTICAL to the accepted committed identity (same blob as 595b9c1)"}
+ ],
+ "binary_safe_diff": {
+  "git_show_sha256": "57e81dadb93071b6fea4abb67839b6ac1e7f35bf6b22c7f6842c15b3ffb6d413",
+  "git_show_bytes": 79029,
+  "note": "full 'git show --no-color d8992ac' captured and hashed; the two modified files' deltas equal the committed MR002_LauncherTools_Delta_v1.5.patch content; the seven governance-record additions' content IS their committed blobs"
+ },
+ "tracked_status_after_commit": "CLEAN — zero tracked modifications (git status --porcelain shows only pre-existing unrelated untracked files)",
+ "qualified_host_verification": {
+  "method": "fresh bundle (includes d8992ac) fetched into the SEPARATE delta-test clone on i-0f3ceafdd4294c572; clean forced checkout of d8992ac (porcelain empty); qualified launch checkout NOT touched (still at 595b9c1 pending the replacement-chain step 1)",
+  "checkout_commit": "d8992ac68af261606ce33c5e8b743f4be0e6817b",
+  "checkout_tree": "06090b54570715e3db1fc938a9c0010b04c521e8",
+  "linux_sha256_all_four_match_committed_identities": true
+ },
+ "docker_metadata_correction": "MR002_HostDockerMetadata_v1.0.log (committed; sha256 4c56b8237bcba98407e060108dc4d6bb34d0a762a700bb6e60871f8b726ac6d1, 751 B) supersedes the defective storage-driver capture in the two Linux evidence logs FOR METADATA ONLY: Driver=overlayfs, DriverStatus=[[driver-type, io.containerd.snapshotter.v1]], Plugins recorded. The original logs are preserved unedited (committed as-is, shell errors visible).",
+ "held_state": "Prior attestation f845cbbd / receipt e3a202b6 / binding efbd290c / execution countersignature REMAIN REVOKED; old nonce never reused. Expected-pins countersignature and execution authorization (487c6ecb) REMAIN VALID. Replacement chain (qualified-checkout update to d8992ac, full recheck, NEW attestation/receipt/binding, NEW execution countersignature) begins after this record is confirmed. Registered-run authorization PAUSED; performance interpretation NOT authorized; validation/OOS SEALED AND UNREAD."
+}
