@@ -617,9 +617,23 @@ def _accepted_evidence_defect(o: Outcome, acc: Attempt, rec: Rec | None) -> str 
     return None
 
 
-def _exact_ratio_list(v: np.ndarray) -> list[list[int]]:
-    """Each float as its EXACT binary rational [numerator, denominator] — lossless, replayable."""
-    return [list(float(x).as_integer_ratio()) for x in np.asarray(v, dtype=float).ravel()]
+# Evidence schema 2.0 (delta v1.8, run-4 governing finding): version is EXPLICIT and CLOSED.
+# Schema 1.x encoded floats as as_integer_ratio() pairs under `exact_ratio` fields; that encoding
+# cannot represent the sign of negative zero ((-0.0).as_integer_ratio() == (0, 1)), so a canonical
+# array containing -0.0 could never replay to its own registered content hash. Schema 2.0 encodes
+# every float64 as float.hex() under `*_exact_hex` fields — hex strings are NEVER stored under a
+# ratio-named field, and replay refuses missing/unknown versions and any mixed v1/v2 fields.
+EVIDENCE_SCHEMA_VERSION = "2.0"
+
+
+def _exact_hex_list(v: np.ndarray) -> list[str]:
+    """Each float64 as float.hex() — lossless textual binary64 (preserves ±0.0, subnormals, and
+    every finite value bit-exactly through float.fromhex). Non-finite values REFUSE at publication
+    (delta v1.8 canonical encoding rules): they never become durable evidence."""
+    a = np.asarray(v, dtype=np.float64).ravel()
+    if a.size and not np.all(np.isfinite(a)):
+        raise Stage3IntegrityError("EVIDENCE_NON_FINITE_VALUE")
+    return [float(x).hex() for x in a]
 
 
 def rec_content_hash(rec: Rec) -> str:
@@ -636,17 +650,20 @@ def rec_content_hash(rec: Rec) -> str:
 def numerical_evidence(o: Outcome, rec: Rec) -> dict:
     """Complete, independently re-certifiable per-row numerical evidence (cycle-3 finding 8).
 
-    Preserves the COMPLETE input problem (every component as exact rationals + its shape) alongside
-    the input content hash, so a reviewer can re-run the certifier from ONE record alone — no separate
-    corpus access needed. For a qualified row it adds the accepted primal z and dual lam as exact
-    rationals plus the complete certificate field set (enforced — a missing registered field raises,
-    it is never silently dropped). Arrays are hashed so the evidence is self-verifying.
+    Preserves the COMPLETE input problem (every component as exact float.hex() encodings + its
+    shape, evidence schema 2.0) alongside the input content hash, so a reviewer can re-run the
+    certifier from ONE record alone — no separate corpus access needed. For a qualified row it adds
+    the accepted primal z and dual lam as exact hex plus the complete certificate field set
+    (enforced — a missing registered field raises, it is never silently dropped). Arrays are hashed
+    so the evidence is self-verifying, and the hash covers raw float64 bytes including the sign of
+    zero — which is why the encoding must be bit-lossless (delta v1.8).
     """
     keys = ("t", "A_ub", "b_ub", "A_eq", "b_eq", "upper")
     ev: dict = {
+        "evidence_schema_version": EVIDENCE_SCHEMA_VERSION,
         "input_content_hash": rec_content_hash(rec),
         "input": {k: {"shape": list(np.asarray(v, float).shape),
-                      "exact_ratio": _exact_ratio_list(np.asarray(v, float))}
+                      "exact_hex": _exact_hex_list(np.asarray(v, float))}
                   for k, v in zip(keys, rec, strict=True)},
         **o.summary(),
     }
@@ -660,8 +677,8 @@ def numerical_evidence(o: Outcome, rec: Rec) -> dict:
         lam = np.asarray(acc.lam, float)
         ev["accepted"] = {
             "solver": acc.solver_id,
-            "z_exact_ratio": _exact_ratio_list(z),
-            "lam_exact_ratio": _exact_ratio_list(lam),
+            "z_exact_hex": _exact_hex_list(z),
+            "lam_exact_hex": _exact_hex_list(lam),
             "z_sha256": hashlib.sha256(np.ascontiguousarray(z).tobytes()).hexdigest(),
             "lam_sha256": hashlib.sha256(np.ascontiguousarray(lam).tobytes()).hexdigest(),
             "certificate": _certificate_fields(acc.cert),

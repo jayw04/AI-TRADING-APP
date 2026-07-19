@@ -10,6 +10,8 @@ orchestration — all without the solver stack.
 from __future__ import annotations
 
 import json
+import math as _math
+import struct as _struct
 from types import SimpleNamespace
 
 import numpy as np
@@ -131,7 +133,8 @@ def test_all_qualified_passes_and_preserves_full_evidence(tmp_path):
     rec0 = state["records"][0]
     assert rec0["input_content_hash"] == m.rows[0]["content_hash"]
     assert set(rec0["input"].keys()) == {"t", "A_ub", "b_ub", "A_eq", "b_eq", "upper"}
-    assert rec0["input"]["t"]["exact_ratio"]                  # complete input preserved
+    assert rec0["evidence_schema_version"] == sc.EVIDENCE_SCHEMA_VERSION == "2.0"
+    assert rec0["input"]["t"]["exact_hex"]                    # complete input preserved (v1.8 hex)
     assert rec0["accepted"]["certificate"]["qualifies"] is True
     assert rec0["record_sha256"] == run._record_hash(rec0)
 
@@ -535,19 +538,20 @@ def test_pins_corpus_hash_mandatory(tmp_path):
         run.load_expected_pins(pth, run._sha256_file(pth))
 
 
-def test_evidence_replay_catches_tampered_ratios(tmp_path):
-    # cycle-4 finding 9 — the attacker recomputes record_sha256 after tampering the ratios; the
-    # outer checksum verifies but the semantic replay catches the input/content-hash mismatch
+def test_evidence_replay_catches_tampered_hex(tmp_path):
+    # cycle-4 finding 9 — the attacker recomputes record_sha256 after tampering the hex encoding;
+    # the outer checksum verifies but the semantic replay catches the input/content-hash mismatch
     cp = ckpt(tmp_path)
     rows, m = rows_and_manifest(1)
     _run(rows, [qualified_outcome()], cp, m)
 
     def tamper(o):
-        o["input"]["t"]["exact_ratio"][0] = [1, 2]
+        o["input"]["t"]["exact_hex"][0] = (0.5).hex()
         o["record_sha256"] = run._record_hash(o)
     _edit_line(cp, 0, tamper)
     state = run.read_checkpoint(cp)
-    assert run.verify_numerical_evidence_record(state["records"][0]) is not None
+    assert (run.verify_numerical_evidence_record(state["records"][0])
+            == "INPUT_EXACT_HEX_DOES_NOT_MATCH_CONTENT_HASH")
     assert run.aggregate_verdict(state, m) is False
 
 
@@ -640,9 +644,9 @@ def test_replay_runs_model_input_validation(tmp_path):
 
     def tamper(o):
         # make t contain a zero (violates T_POSITIVE) and recompute BOTH hashes consistently
-        o["input"]["t"]["exact_ratio"][0] = [0, 1]
+        o["input"]["t"]["exact_hex"][0] = (0.0).hex()
         import numpy as _np
-        comps = {k: _np.array([n / d for n, d in v["exact_ratio"]],
+        comps = {k: _np.array([float.fromhex(s) for s in v["exact_hex"]],
                               dtype=_np.float64).reshape(v["shape"])
                  for k, v in o["input"].items()}
         rebuilt = tuple(comps[k] for k in ("t", "A_ub", "b_ub", "A_eq", "b_eq", "upper"))
@@ -1169,3 +1173,405 @@ def test_cycle9_blocker7_verification_tool_bound_to_attestation(tmp_path):
         run.load_verification_receipt(pb, run._sha256_file(pb), "b" * 64, attestation=att)
     # attestation itself now REQUIRES a 64-hex verification_tool_sha256
     assert "verification_tool_sha256" in run.ATTESTATION_REQUIRED_FIELDS
+
+
+# ═══════════════════ delta v1.8: evidence schema 2.0 (exact hex) — run-4 governing finding ═══════
+# Run 4 completed all 3,895 rows and STOPped at the final replay gate because
+# (-0.0).as_integer_ratio() == (0, 1) destroys the IEEE-754 sign bit while the registered content
+# hash covers raw float64 bytes. Schema 2.0 encodes float.hex()/float.fromhex under *_exact_hex.
+# (imports live at the top of the module)
+
+
+def _bits(x: float) -> int:
+    return _struct.unpack("<Q", _struct.pack("<d", x))[0]
+
+
+def _from_bits(u: int) -> float:
+    return _struct.unpack("<d", _struct.pack("<Q", u))[0]
+
+
+def _roundtrip(x: float) -> float:
+    return float.fromhex(float(x).hex())
+
+
+NEG_ZERO_BITS = 0x8000000000000000
+POS_ZERO_BITS = 0x0000000000000000
+
+
+def custom_rows_and_manifest(raw_recs):
+    recs = [sc.canonicalize(r) for r in raw_recs]
+    rows = [(i, recs[i]) for i in range(len(recs))]
+    manifest = run.RowIdentityManifest(
+        corpus_hash=run.derive_corpus_hash(recs),
+        rows=tuple({"row_id": i, "content_hash": sc.rec_content_hash(recs[i])}
+                   for i in range(len(recs))))
+    return rows, manifest
+
+
+# rec replicating the run-4 defect signature: mixed +0.0 / -0.0 in b_ub (the component that
+# carried the negative zeros in every sampled run-4 failing record)
+def rec_mixed_zero():
+    return (np.array([0.008, 0.008]), np.array([[1.0, 1.0], [1.0, 0.0]]),
+            np.array([0.0, -0.0]), np.zeros((0, 2)), np.zeros(0), np.array([0.02, 0.02]))
+
+
+def qualified_outcome_for(r, z=None, lam=None):
+    z = Z if z is None else z
+    if lam is None:
+        lam = np.zeros(np.asarray(r[3]).shape[0] + np.asarray(r[1]).shape[0]
+                       + 2 * np.asarray(r[0]).shape[0])
+    return sc.resolve(r, primary=lambda *_a: (z, lam), fallback=lambda *_a: (z, lam),
+                      certify_fn=lambda *_a: (True, [], good_cert()))
+
+
+# ── canonical encoding: bit-exact round-trips ───────────────────────────────────────────────────
+def test_v18_negative_zero_roundtrips_bit_exact():
+    assert _bits(-0.0) == NEG_ZERO_BITS
+    assert _bits(_roundtrip(-0.0)) == NEG_ZERO_BITS
+    # the defective v1 encoding, for contrast: the sign bit is destroyed
+    n, d = (-0.0).as_integer_ratio()
+    assert _bits(n / d) == POS_ZERO_BITS
+
+
+def test_v18_positive_zero_roundtrips_bit_exact():
+    assert _bits(0.0) == POS_ZERO_BITS
+    assert _bits(_roundtrip(0.0)) == POS_ZERO_BITS
+
+
+@pytest.mark.parametrize("value", [
+    5e-324, -5e-324,                                     # smallest subnormals
+    1.5e-310, -1.5e-310,                                 # mid-range subnormals
+    2.2250738585072014e-308, -2.2250738585072014e-308,   # min normal
+    1.7976931348623157e+308, -1.7976931348623157e+308,   # max finite
+    1.0, -1.0, 0.1, -0.1, 1 / 3, -1 / 3, 0.008, 6.02214076e23, -2.5e-7,
+])
+def test_v18_finite_values_roundtrip_bit_exact(value):
+    assert _bits(_roundtrip(value)) == _bits(value)
+
+
+def test_v18_property_uint64_bit_patterns_roundtrip():
+    # deterministic property sweep (no randomness — resume-safe): fixed LCG over uint64 patterns
+    # plus corner patterns; every finite pattern must round-trip bit-exactly, every non-finite
+    # pattern must REFUSE at the encoder
+    patterns = [POS_ZERO_BITS, NEG_ZERO_BITS, 1, NEG_ZERO_BITS | 1,        # ±0, ±min subnormal
+                0x000FFFFFFFFFFFFF, 0x8010000000000000,                     # subnormal/normal edge
+                0x7FEFFFFFFFFFFFFF, 0xFFEFFFFFFFFFFFFF,                     # ±max finite
+                0x7FF0000000000000, 0xFFF0000000000000,                     # ±inf
+                0x7FF8000000000000, 0xFFF8000000000000]                     # NaNs
+    x = 0x9E3779B97F4A7C15
+    for _ in range(5000):
+        x = (x * 6364136223846793005 + 1442695040888963407) % (1 << 64)
+        patterns.append(x)
+    n_finite = n_nonfinite = 0
+    for u in patterns:
+        v = _from_bits(u)
+        if _math.isfinite(v):
+            n_finite += 1
+            assert _bits(_roundtrip(v)) == u
+        else:
+            n_nonfinite += 1
+            with pytest.raises(sc.Stage3IntegrityError):
+                sc._exact_hex_list(np.array([v]))
+    assert n_finite > 4000 and n_nonfinite >= 4
+
+
+# ── publication refusals (encoder side) ─────────────────────────────────────────────────────────
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_v18_non_finite_refuses_at_publication(bad):
+    with pytest.raises(sc.Stage3IntegrityError, match="EVIDENCE_NON_FINITE_VALUE"):
+        sc._exact_hex_list(np.array([1.0, bad]))
+
+
+# ── whole-record round-trips through the REAL run loop ──────────────────────────────────────────
+def test_v18_run4_replica_mixed_zero_input_passes(tmp_path):
+    # the run-4 failing-record REPLICA: canonical input carries mixed +0.0/-0.0 in b_ub — the
+    # exact signature that failed 3,639 records under schema v1 — and must now replay clean.
+    # (Byte-identity replay of an ACTUAL archived run-4 record is a host-phase check: the
+    # checkpoint is immutable evidence on the stopped launch host.)
+    cp = ckpt(tmp_path)
+    rows, m = custom_rows_and_manifest([rec_mixed_zero()])
+    res = run.run_population(rows, ScriptedResolver([qualified_outcome_for(rec_mixed_zero())]),
+                             cp, preflight_passed=True, row_manifest=m)
+    assert res.passed is True
+    state = run.read_checkpoint(cp)
+    r0 = state["records"][0]
+    hexes = r0["input"]["b_ub"]["exact_hex"]
+    assert hexes[0] != hexes[1]                       # +0.0 and -0.0 are DISTINCT in the evidence
+    assert run.verify_numerical_evidence_record(r0) is None
+    assert run.aggregate_verdict(state, m) is True
+
+
+def test_v18_clean_record_remains_successful(tmp_path):
+    # the run-4 clean-record analogue: zeros all +0.0 replayed clean under v1 and must still pass
+    cp = ckpt(tmp_path)
+    r = (np.array([0.008, 0.008]), np.array([[1.0, 1.0], [1.0, 0.0]]),
+         np.array([0.0, 0.0]), np.zeros((0, 2)), np.zeros(0), np.array([0.02, 0.02]))
+    rows, m = custom_rows_and_manifest([r])
+    res = run.run_population(rows, ScriptedResolver([qualified_outcome_for(r)]),
+                             cp, preflight_passed=True, row_manifest=m)
+    assert res.passed is True
+    assert run.verify_numerical_evidence_record(run.read_checkpoint(cp)["records"][0]) is None
+
+
+def test_v18_accepted_z_with_negative_zero_replays(tmp_path):
+    cp = ckpt(tmp_path)
+    z_neg = np.array([-0.0, 0.005])
+    rows, m = rows_and_manifest(1)
+    res = run.run_population(
+        rows, ScriptedResolver([qualified_outcome_for(rec(0), z=z_neg, lam=LAM.copy())]),
+        cp, preflight_passed=True, row_manifest=m)
+    assert res.passed is True
+    r0 = run.read_checkpoint(cp)["records"][0]
+    assert r0["accepted"]["z_exact_hex"][0] == (-0.0).hex()
+    assert run.verify_numerical_evidence_record(r0) is None
+
+
+def test_v18_accepted_lam_with_negative_zero_replays(tmp_path):
+    cp = ckpt(tmp_path)
+    lam_neg = np.array([-0.0, 0.0, -0.0, 0.0, 0.0])
+    rows, m = rows_and_manifest(1)
+    res = run.run_population(
+        rows, ScriptedResolver([qualified_outcome_for(rec(0), z=Z, lam=lam_neg)]),
+        cp, preflight_passed=True, row_manifest=m)
+    assert res.passed is True
+    r0 = run.read_checkpoint(cp)["records"][0]
+    assert r0["accepted"]["lam_exact_hex"][0] == (-0.0).hex()
+    assert run.verify_numerical_evidence_record(r0) is None
+
+
+# ── decoder-side refusals on the durable record ─────────────────────────────────────────────────
+def _tampered_first_record(tmp_path, mutate):
+    cp = ckpt(tmp_path)
+    rows, m = rows_and_manifest(1)
+    _run(rows, [qualified_outcome()], cp, m)
+
+    def t(o):
+        mutate(o)
+        o["record_sha256"] = run._record_hash(o)      # attacker keeps the checksum consistent
+    _edit_line(cp, 0, t)
+    state = run.read_checkpoint(cp)
+    return state, m, state["records"][0]
+
+
+def test_v18_malformed_hex_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["input"]["t"]["exact_hex"].__setitem__(0, "0xZZ.0p+0"))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_MALFORMED_HEX"
+
+
+def test_v18_non_finite_hex_refuses_at_decode(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["input"]["t"]["exact_hex"].__setitem__(0, "inf"))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_NON_FINITE_VALUE"
+
+
+def test_v18_non_string_hex_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["input"]["t"]["exact_hex"].__setitem__(0, [1, 2]))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_EXACT_HEX_NOT_A_STRING"
+
+
+def test_v18_missing_schema_version_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o.__delitem__("evidence_schema_version"))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_SCHEMA_VERSION_MISSING"
+
+
+def test_v18_unknown_schema_version_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o.__setitem__("evidence_schema_version", "1.0"))
+    assert str(run.verify_numerical_evidence_record(r0)).startswith(
+        "EVIDENCE_SCHEMA_VERSION_UNKNOWN")
+
+
+def test_v18_mixed_v1_input_field_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["input"]["t"].__setitem__("exact_ratio", [[1, 2]]))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_MIXED_SCHEMA_FIELDS"
+
+
+def test_v18_mixed_v1_accepted_field_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["accepted"].__setitem__("z_exact_ratio", [[0, 1]]))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_MIXED_SCHEMA_FIELDS"
+
+
+def test_v18_unknown_input_entry_field_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["input"]["t"].__setitem__("note", "x"))
+    assert str(run.verify_numerical_evidence_record(r0)).startswith(
+        "EVIDENCE_INPUT_ENTRY_KEYS_INVALID")
+
+
+def test_v18_shape_change_refuses_with_valid_scalars(tmp_path):
+    # same element count, valid floats, different shape — the content hash covers the shape
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["input"]["A_ub"].__setitem__("shape", [2, 1]))
+    assert (run.verify_numerical_evidence_record(r0)
+            == "INPUT_EXACT_HEX_DOES_NOT_MATCH_CONTENT_HASH")
+
+
+def test_v18_one_bit_mutation_still_fails_replay(tmp_path):
+    def flip_lsb(o):
+        orig = float.fromhex(o["input"]["t"]["exact_hex"][0])
+        o["input"]["t"]["exact_hex"][0] = _from_bits(_bits(orig) ^ 1).hex()
+    _s, _m, r0 = _tampered_first_record(tmp_path, flip_lsb)
+    assert (run.verify_numerical_evidence_record(r0)
+            == "INPUT_EXACT_HEX_DOES_NOT_MATCH_CONTENT_HASH")
+
+
+def test_v18_ordering_and_dtype_changes_fail_content_hash():
+    a = np.array([[0.1, 0.2], [0.3, 0.4]])
+    base = (np.array([0.008, 0.008]), a, np.array([0.01, 0.01]),
+            np.zeros((0, 2)), np.zeros(0), np.array([0.02, 0.02]))
+    transposed = (base[0], a.T.copy(), base[2], base[3], base[4], base[5])
+    as32 = (base[0], a.astype(np.float32).astype(np.float64), base[2], base[3], base[4], base[5])
+    assert sc.rec_content_hash(base) != sc.rec_content_hash(transposed)   # ordering
+    assert sc.rec_content_hash(base) != sc.rec_content_hash(as32)         # dtype round-trip drift
+
+
+# ── aggregate verdict: deterministic nonempty STOP detail ───────────────────────────────────────
+def test_v18_aggregate_defect_reports_first_row_and_count(tmp_path):
+    cp = ckpt(tmp_path)
+    rows, m = rows_and_manifest(3)
+    _run(rows, [qualified_outcome() for _ in range(3)], cp, m)
+
+    def tamper(o):
+        o["input"]["t"]["exact_hex"][0] = (0.5).hex()
+        o["record_sha256"] = run._record_hash(o)
+    _edit_line(cp, 1, tamper)
+    _edit_line(cp, 2, tamper)
+    state = run.read_checkpoint(cp)
+    assert run.aggregate_verdict(state, m) is False
+    assert run.aggregate_verdict_defect(state, m) == (
+        "EVIDENCE_REPLAY_FAILED:INPUT_EXACT_HEX_DOES_NOT_MATCH_CONTENT_HASH:"
+        "first_row_id=1:failed_records=2")
+
+
+def test_v18_aggregate_defect_none_when_all_replay(tmp_path):
+    cp = ckpt(tmp_path)
+    rows, m = rows_and_manifest(2)
+    _run(rows, [qualified_outcome() for _ in range(2)], cp, m)
+    state = run.read_checkpoint(cp)
+    assert run.aggregate_verdict_defect(state, m) is None
+    assert run.aggregate_verdict(state, m) is True
+
+
+def test_v18_stop_detail_nonempty_end_to_end(tmp_path, monkeypatch):
+    # run 4 emitted {"disposition": "STOP", "detail": ""} — a verdict failure must now carry a
+    # deterministic reason through the RunResult, the run manifest, AND the orchestration result
+    rows, m = rows_and_manifest(1)
+    original_write = run.CheckpointSink.write_record
+
+    def corrupting_write(self, rec_):
+        bad = json.loads(json.dumps(rec_))
+        bad["input"]["t"]["exact_hex"][0] = (0.5).hex()
+        bad["record_sha256"] = run._record_hash(bad)
+        original_write(self, bad)
+    monkeypatch.setattr(run.CheckpointSink, "write_record", corrupting_write)
+    result = run.orchestrate(_cfg(tmp_path, rows, m))
+    assert result.disposition == "STOP"
+    assert result.detail == ("EVIDENCE_REPLAY_FAILED:INPUT_EXACT_HEX_DOES_NOT_MATCH_CONTENT_HASH:"
+                             "first_row_id=0:failed_records=1")
+    with open(result.run_manifest_path, encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    assert manifest["run"]["stop_reason"] == result.detail    # nonempty in the durable manifest
+    assert manifest["run"]["passed"] is False
+
+
+# ═══════════════ delta v1.8a: accepted-block CLOSED schema (review blocking finding) ═════════════
+# The accepted block is an encoding-bearing structure: its key set is frozen exactly to the
+# registered producer contract, unknown fields beside z_exact_hex/lam_exact_hex refuse, and a
+# missing registered key refuses deterministically — never as a generic replay exception.
+def test_v18a_unknown_field_beside_z_exact_hex_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["accepted"].__setitem__("alternate_exact_hex", [(-0.0).hex()]))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_ACCEPTED_KEYS_INVALID"
+
+
+def test_v18a_unknown_field_beside_lam_exact_hex_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["accepted"].__setitem__("lam_shadow_exact_hex", [(0.0).hex()]))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_ACCEPTED_KEYS_INVALID"
+
+
+@pytest.mark.parametrize("missing", ["z_exact_hex", "lam_exact_hex", "z_sha256", "lam_sha256"])
+def test_v18a_missing_registered_accepted_key_refuses_deterministically(tmp_path, missing):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["accepted"].__delitem__(missing))
+    defect = run.verify_numerical_evidence_record(r0)
+    assert defect == "EVIDENCE_ACCEPTED_KEYS_INVALID"          # a schema defect, never a
+    assert not str(defect).startswith("EVIDENCE_MALFORMED")     # generic replay exception
+
+
+def test_v18a_non_dict_accepted_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o.__setitem__("accepted", ["not", "a", "dict"]))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_ACCEPTED_NOT_A_DICT"
+
+
+def test_v18a_non_list_z_exact_hex_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["accepted"].__setitem__("z_exact_hex", (0.005).hex()))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_ACCEPTED_Z_EXACT_HEX_NOT_A_LIST"
+
+
+def test_v18a_non_list_lam_exact_hex_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["accepted"].__setitem__("lam_exact_hex", {"0": (0.0).hex()}))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_ACCEPTED_LAM_EXACT_HEX_NOT_A_LIST"
+
+
+def test_v18a_exact_registered_accepted_key_set_passes(tmp_path):
+    cp = ckpt(tmp_path)
+    rows, m = rows_and_manifest(1)
+    res = _run(rows, [qualified_outcome()], cp, m)
+    assert res.passed is True
+    r0 = run.read_checkpoint(cp)["records"][0]
+    assert set(r0["accepted"].keys()) == set(run._ACCEPTED_BLOCK_KEYS)
+    assert run.verify_numerical_evidence_record(r0) is None
+
+
+def test_v18a_stop_record_accepted_rules_unchanged(tmp_path):
+    # a non-qualified record is NEVER required to carry a qualified-only accepted block, and a
+    # stray block on it stays governed by the existing disposition rules (ignored by replay);
+    # the aggregate gate still refuses the stop record itself, with the deterministic category
+    cp = ckpt(tmp_path)
+    rows, m = rows_and_manifest(2)
+    res = _run(rows, [qualified_outcome(), stop_outcome()], cp, m)
+    assert res.stopped is True
+    state = run.read_checkpoint(cp)
+    stop_rec = state["records"][1]
+    assert stop_rec["class"] == "stop" and "accepted" not in stop_rec
+    assert run.verify_numerical_evidence_record(stop_rec) is None
+    _edit_line(cp, 1, lambda o: (o.__setitem__("accepted", {"stray": 1}),
+                                 o.__setitem__("record_sha256", run._record_hash(
+                                     {**o, "accepted": {"stray": 1}}))))
+    state = run.read_checkpoint(cp)
+    assert run.verify_numerical_evidence_record(state["records"][1]) is None
+    # the aggregate still refuses the stopped run deterministically — the FAILED terminal is
+    # checked before record classes, so that is the surfaced category (registered order)
+    assert str(run.aggregate_verdict_defect(state, m)) == (
+        "EVIDENCE_REPLAY_FAILED:TERMINAL_NOT_COMPLETE")
+
+
+def test_v18a_nested_legacy_lam_exact_ratio_still_refuses(tmp_path):
+    _s, _m, r0 = _tampered_first_record(
+        tmp_path, lambda o: o["accepted"].__setitem__("lam_exact_ratio", [[0, 1]]))
+    assert run.verify_numerical_evidence_record(r0) == "EVIDENCE_MIXED_SCHEMA_FIELDS"
+
+
+def test_v18a_aggregate_detail_surfaces_accepted_schema_defect(tmp_path):
+    cp = ckpt(tmp_path)
+    rows, m = rows_and_manifest(2)
+    _run(rows, [qualified_outcome() for _ in range(2)], cp, m)
+
+    def tamper(o):
+        o["accepted"]["alternate_exact_hex"] = [(-0.0).hex()]
+        o["record_sha256"] = run._record_hash(o)
+    _edit_line(cp, 0, tamper)
+    state = run.read_checkpoint(cp)
+    assert run.aggregate_verdict(state, m) is False
+    assert run.aggregate_verdict_defect(state, m) == (
+        "EVIDENCE_REPLAY_FAILED:EVIDENCE_ACCEPTED_KEYS_INVALID:"
+        "first_row_id=0:failed_records=1")

@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import traceback
@@ -48,6 +49,7 @@ import numpy as np
 
 from app.research.mr002.stage3_cascade import (
     CERTIFICATE_NONQUALIFICATION,
+    EVIDENCE_SCHEMA_VERSION,
     FALLBACK_QUALIFIED,
     INVALID_RUN,
     NUMERICAL_STATUS_NONQUALIFICATION,
@@ -425,8 +427,12 @@ def run_population(
 
     state = read_checkpoint(checkpoint_path)
     # a governed PASS additionally requires a fully persisted evidence stream (cycle-4 finding 11)
-    res.passed = (aggregate_verdict(state, row_manifest)
-                  and res.evidence_persisted and not res.stopped)
+    vdefect = aggregate_verdict_defect(state, row_manifest)
+    res.passed = (vdefect is None and res.evidence_persisted and not res.stopped)
+    # delta v1.8: a verdict failure must surface a deterministic nonempty reason — run 4 emitted
+    # {"disposition": "STOP", "detail": ""} and the manifest carried no stop_reason
+    if vdefect is not None and not res.stopped and not res.refused:
+        res.stop_reason = vdefect
     res.resumable = is_resumable(state["terminal"]) and not state["corruption"]
     return res
 
@@ -517,19 +523,108 @@ def _replay_disposition_defect(rec: dict, acc: dict) -> str | None:
     return None
 
 
+_EVIDENCE_INPUT_KEYS = ("t", "A_ub", "b_ub", "A_eq", "b_eq", "upper")
+_EVIDENCE_INPUT_ENTRY_KEYS = frozenset({"shape", "exact_hex"})
+# the registered accepted-block contract, frozen EXACTLY as the producer emits it (v1.8a review
+# finding: every structure carrying schema-2 numerical encodings must be a CLOSED set — an unknown
+# field beside z_exact_hex/lam_exact_hex must refuse, and a missing registered key must refuse
+# deterministically, never as a generic replay exception). The nested certificate dict keeps its
+# OWN registered contract (REQUIRED_CERT_FIELDS presence, replayed by _replay_certificate_defect)
+# and is deliberately not narrowed here.
+_ACCEPTED_BLOCK_KEYS = frozenset({"solver", "z_exact_hex", "lam_exact_hex",
+                                  "z_sha256", "lam_sha256", "certificate"})
+
+
+def _decode_exact_hex(values: object) -> np.ndarray | str:
+    """Decode a schema-2.0 `*_exact_hex` list back to a float64 array (delta v1.8 canonical rules:
+    decoder is float.fromhex; finite binary64 only). Returns a defect string on any refusal.
+    float.fromhex accepts 'inf'/'nan' spellings, so finiteness is re-checked AFTER decode — a
+    non-finite element can never have been published and is refused here too."""
+    if not isinstance(values, list):
+        return "EVIDENCE_EXACT_HEX_NOT_A_LIST"
+    out = []
+    for s in values:
+        if not isinstance(s, str):
+            return "EVIDENCE_EXACT_HEX_NOT_A_STRING"
+        try:
+            v = float.fromhex(s)
+        except (ValueError, OverflowError):
+            return "EVIDENCE_MALFORMED_HEX"
+        if not math.isfinite(v):
+            return "EVIDENCE_NON_FINITE_VALUE"
+        out.append(v)
+    return np.array(out, dtype=np.float64)
+
+
+def _contains_ratio_fields(node: object) -> bool:
+    """True if any schema-1.x ratio field (`exact_ratio` / `*_exact_ratio`) survives anywhere in
+    the record tree — mixed v1/v2 representations REFUSE (delta v1.8)."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if isinstance(k, str) and (k == "exact_ratio" or k.endswith("_exact_ratio")):
+                return True
+            if _contains_ratio_fields(v):
+                return True
+    elif isinstance(node, list):
+        return any(_contains_ratio_fields(x) for x in node)
+    return False
+
+
+def _evidence_schema_defect(rec: dict) -> str | None:
+    """Closed-schema gate (delta v1.8): version explicit and exact; no legacy ratio fields anywhere;
+    the encoding-bearing structures carry EXACTLY their registered keys — unknown fields refuse."""
+    ver = rec.get("evidence_schema_version")
+    if ver is None:
+        return "EVIDENCE_SCHEMA_VERSION_MISSING"
+    if ver != EVIDENCE_SCHEMA_VERSION:
+        return f"EVIDENCE_SCHEMA_VERSION_UNKNOWN:{ver!r}"
+    if _contains_ratio_fields(rec):
+        return "EVIDENCE_MIXED_SCHEMA_FIELDS"
+    inp = rec.get("input")
+    if not isinstance(inp, dict) or set(inp.keys()) != set(_EVIDENCE_INPUT_KEYS):
+        return "EVIDENCE_INPUT_KEYS_INVALID"
+    for k in _EVIDENCE_INPUT_KEYS:
+        entry = inp[k]
+        if not isinstance(entry, dict) or set(entry.keys()) != _EVIDENCE_INPUT_ENTRY_KEYS:
+            return f"EVIDENCE_INPUT_ENTRY_KEYS_INVALID:{k}"
+    # accepted-block closure applies to QUALIFIED records only (v1.8a): a stop/non-qualified
+    # record keeps the existing disposition rules — it is never required to carry the block, and
+    # a MISSING/empty block on a qualified record keeps its registered defect code
+    # (QUALIFIED_WITHOUT_ACCEPTED_BLOCK, raised by the replay proper).
+    if rec.get("class") == "qualified":
+        acc = rec.get("accepted")
+        if acc is not None and not isinstance(acc, dict):
+            return "EVIDENCE_ACCEPTED_NOT_A_DICT"
+        if isinstance(acc, dict) and acc:
+            if set(acc.keys()) != set(_ACCEPTED_BLOCK_KEYS):
+                return "EVIDENCE_ACCEPTED_KEYS_INVALID"
+            if not isinstance(acc["z_exact_hex"], list):
+                return "EVIDENCE_ACCEPTED_Z_EXACT_HEX_NOT_A_LIST"
+            if not isinstance(acc["lam_exact_hex"], list):
+                return "EVIDENCE_ACCEPTED_LAM_EXACT_HEX_NOT_A_LIST"
+    return None
+
+
 def verify_numerical_evidence_record(rec: dict) -> str | None:
-    """Semantic REPLAY of one record's numerical claims (cycle-4 finding 9): reconstruct the arrays
-    from the exact rationals and recheck every nested hash and structural invariant. The outer
-    record_sha256 is a checksum over CLAIMS; this validates the claims themselves."""
+    """Semantic REPLAY of one record's numerical claims (cycle-4 finding 9; schema 2.0 per delta
+    v1.8): validate the closed schema, reconstruct the float64 arrays from the exact hex encoding,
+    BYTE-VERIFY them against the recorded content hash BEFORE any semantic use, then recheck every
+    nested hash and structural invariant. The outer record_sha256 is a checksum over CLAIMS; this
+    validates the claims themselves."""
     try:
+        sdef = _evidence_schema_defect(rec)
+        if sdef is not None:
+            return sdef
         comps = {}
-        for k in ("t", "A_ub", "b_ub", "A_eq", "b_eq", "upper"):
+        for k in _EVIDENCE_INPUT_KEYS:
             entry = rec["input"][k]
-            a = np.array([n / d for n, d in entry["exact_ratio"]], dtype=np.float64)
+            a = _decode_exact_hex(entry["exact_hex"])
+            if isinstance(a, str):
+                return a
             comps[k] = a.reshape(entry["shape"])
-        rebuilt = tuple(comps[k] for k in ("t", "A_ub", "b_ub", "A_eq", "b_eq", "upper"))
+        rebuilt = tuple(comps[k] for k in _EVIDENCE_INPUT_KEYS)
         if rec_content_hash(rebuilt) != rec.get("input_content_hash"):
-            return "INPUT_RATIOS_DO_NOT_MATCH_CONTENT_HASH"
+            return "INPUT_EXACT_HEX_DOES_NOT_MATCH_CONTENT_HASH"
         mdef = validate_model_inputs(rebuilt)                # cycle-5 finding 8
         if mdef is not None:
             return f"REPLAY_MODEL_INPUT_DEFECT:{mdef}"
@@ -537,12 +632,16 @@ def verify_numerical_evidence_record(rec: dict) -> str | None:
             acc = rec.get("accepted")
             if not acc:
                 return "QUALIFIED_WITHOUT_ACCEPTED_BLOCK"
-            z = np.array([n / d for n, d in acc["z_exact_ratio"]], dtype=np.float64)
-            lam = np.array([n / d for n, d in acc["lam_exact_ratio"]], dtype=np.float64)
+            z = _decode_exact_hex(acc["z_exact_hex"])
+            if isinstance(z, str):
+                return z
+            lam = _decode_exact_hex(acc["lam_exact_hex"])
+            if isinstance(lam, str):
+                return lam
             if hashlib.sha256(np.ascontiguousarray(z).tobytes()).hexdigest() != acc.get("z_sha256"):
-                return "Z_RATIOS_DO_NOT_MATCH_HASH"
+                return "Z_EXACT_HEX_DOES_NOT_MATCH_HASH"
             if hashlib.sha256(np.ascontiguousarray(lam).tobytes()).hexdigest() != acc.get("lam_sha256"):
-                return "LAM_RATIOS_DO_NOT_MATCH_HASH"
+                return "LAM_EXACT_HEX_DOES_NOT_MATCH_HASH"
             n = comps["t"].shape[0]
             if z.shape != (n,):
                 return "Z_LENGTH_MISMATCH"
@@ -571,29 +670,51 @@ def aggregate_verdict(state: dict, row_manifest: RowIdentityManifest) -> bool:
     PASS requires: zero corruption; one COMPLETE terminal as the final event with a matching count;
     zero stop records; exactly n_expected qualified records matching the manifest in order (id AND
     content hash); every record_sha256 re-verifying; and every record's numerical evidence REPLAYING
-    (exact ratios → arrays → nested hashes → structural invariants)."""
-    if state.get("corruption") or state.get("trailing_partial"):
-        return False
+    (schema 2.0 exact hex → arrays → byte-verified content hash → nested hashes → structural
+    invariants)."""
+    return aggregate_verdict_defect(state, row_manifest) is None
+
+
+def aggregate_verdict_defect(state: dict, row_manifest: RowIdentityManifest) -> str | None:
+    """The PASS gate's DEFECT REPORT (delta v1.8): same conditions as aggregate_verdict, but a
+    failure returns a deterministic, nonempty reason instead of a bare False — run 4 STOPped with
+    an empty detail and required external forensics to diagnose. Structural failures name the
+    failing condition; per-record failures report the FIRST failing record in registered row order,
+    its category, and the TOTAL failing-record count (never a giant list — per-row detail stays in
+    the durable evidence)."""
+    if state.get("corruption"):
+        return "EVIDENCE_REPLAY_FAILED:CHECKPOINT_CORRUPTION"
+    if state.get("trailing_partial"):
+        return "EVIDENCE_REPLAY_FAILED:CHECKPOINT_TRAILING_PARTIAL"
     terminal = state.get("terminal")
     if terminal is None or terminal.get("status") != TERMINAL_COMPLETE:
-        return False
+        return "EVIDENCE_REPLAY_FAILED:TERMINAL_NOT_COMPLETE"
     records = state.get("records", [])
     if terminal.get("n_records") != len(records):
-        return False
+        return "EVIDENCE_REPLAY_FAILED:TERMINAL_COUNT_MISMATCH"
     if any(r.get("class") != "qualified" for r in records):
-        return False
+        return "EVIDENCE_REPLAY_FAILED:NON_QUALIFIED_RECORD"
     if len(records) != row_manifest.n_expected:
-        return False
+        return "EVIDENCE_REPLAY_FAILED:RECORD_COUNT_MISMATCH"
+    first: tuple[object, str] | None = None
+    failed = 0
     for rec, want in zip(records, row_manifest.rows, strict=True):
         if rec.get("row_id") != want["row_id"]:
-            return False
-        if rec.get("input_content_hash") != want["content_hash"]:
-            return False
-        if rec.get("record_sha256") != _record_hash(rec):
-            return False
-        if verify_numerical_evidence_record(rec) is not None:
-            return False
-    return True
+            defect = "ROW_ID_ORDER_MISMATCH"
+        elif rec.get("input_content_hash") != want["content_hash"]:
+            defect = "MANIFEST_CONTENT_HASH_MISMATCH"
+        elif rec.get("record_sha256") != _record_hash(rec):
+            defect = "RECORD_SHA256_MISMATCH"
+        else:
+            defect = verify_numerical_evidence_record(rec)
+        if defect is not None:
+            failed += 1
+            if first is None:
+                first = (rec.get("row_id"), defect)
+    if failed:
+        return (f"EVIDENCE_REPLAY_FAILED:{first[1]}:first_row_id={first[0]}:"
+                f"failed_records={failed}")
+    return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════
