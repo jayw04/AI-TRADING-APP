@@ -1,0 +1,27 @@
+{
+ "artifact_bytes": 1530,
+ "artifact_git_blob": "23e480e2fb120093e0be4b178799cd32bae92c55",
+ "artifact_path": "docs/review/mr002/MR002_Stage3_ExpectedPins_v2.0.json",
+ "artifact_record_type": "MR002_STAGE3_EXPECTED_PINS",
+ "artifact_sha256": "59a23fc092b5e0ccdf4dfedc2873f584f722aaa71f62a3d3c19990da916a6e13",
+ "artifact_version": "1.0",
+ "binds_summary": {
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "evidence_schema_version": "2.0",
+  "git_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+  "git_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+  "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "python_version": "3.13.14"
+ },
+ "bound_technical_values_unaltered": true,
+ "countersign_date": "2026-07-19",
+ "countersigned_by": "Jay Wang (owner)",
+ "decision": "COUNTERSIGNED",
+ "note": "Countersigns the v2.0 expected-pins bytes exactly as committed at ccca220 (blob 23e480e2); no bound technical value altered. This record does NOT authorize execution by itself.",
+ "qualification_commit": "ccca22033859b71ec4d1e67e39d63afe08358062",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_EXPECTED_PINS_COUNTERSIGN",
+ "supersedes": "MR002_Stage3_ExpectedPins_Countersign_v1.0.json (sha a4c3ae1e..., binding the QUAL3/d26bd9e pins ddfa43d0...) is SUPERSEDED by this record.",
+ "version": "1.0"
+}
