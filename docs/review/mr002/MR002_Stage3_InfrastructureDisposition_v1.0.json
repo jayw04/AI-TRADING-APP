@@ -1,0 +1,54 @@
+{
+ "closeout_commit": "c2c613899679eba8c25dfa860f9f98200d3948f8",
+ "date": "2026-07-19",
+ "ebs_snapshots": "none referencing vol-0ce8c0056244d14f5 (self-owned)",
+ "host_checkpoint": "DISPOSED with the root volume on termination (authorized after verified remote archive); manual restart for deletion was NOT used",
+ "instance": {
+  "az": "us-east-1d",
+  "final_state": "terminated",
+  "id": "i-0f3ceafdd4294c572",
+  "region": "us-east-1",
+  "state_transition_reason": "User initiated (2026-07-19 21:54:36 GMT)",
+  "termination_confirmed_utc": "2026-07-19T22:52:27Z",
+  "type": "c6a.large"
+ },
+ "performance_interpretation": "HELD (not authorized)",
+ "production_promotion": "NOT AUTHORIZED",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_INFRASTRUCTURE_DISPOSITION",
+ "rerun_authorization": "NONE (forbidden)",
+ "root_volume": {
+  "delete_on_termination": true,
+  "device": "/dev/xvda",
+  "final_state": "deleted (InvalidVolume.NotFound)",
+  "id": "vol-0ce8c0056244d14f5"
+ },
+ "s3_archive": {
+  "bucket": "workbench-backups-219024422756",
+  "checkpoint": {
+   "accessible_by_versionid_post_termination": true,
+   "checksum_sha256_base64": "UR0R9SzidRqsu+eMK5bXznErXb8xYfp7LtDaXfW7Aq4=",
+   "content_length": 49612687,
+   "local_remote_bytes_equal": true,
+   "local_remote_sha256_equal": true,
+   "sha256": "511d11f52ce2751aacbbe78c2b96d7ce712b5dbf3161fa7b2ed0da5df5bb02ae",
+   "uri": "s3://workbench-backups-219024422756/mr002/run5/MR002_Stage3_CleanRun_checkpoint.jsonl",
+   "version_id": "Zz_TSuBsU.sMT7q8lpoaJieWbETfZdtq"
+  },
+  "deletion": "FORBIDDEN",
+  "encryption": "SSE-S3 AES256",
+  "region": "us-east-1",
+  "run_manifest": {
+   "content_length": 130845,
+   "sha256": "27fe7624a1a3b4e8328833f28f605eb2d636ea6d34513a75c1f396101431fa1f",
+   "uri": "s3://workbench-backups-219024422756/mr002/run5/MR002_Stage3_CleanRun_Manifest.json",
+   "version_id": "kOdvCn5Ygsq2WvxfRE9XfbyfnY9UtXUj"
+  },
+  "versioning": "Enabled"
+ },
+ "stage3_final": "PASS (Run 5 GOVERNED PASS; 3895/3895; schema-2 replay accepted; run-4 -0.0 defect resolved)",
+ "unattached_volumes": "none (no MR-002-specific available volumes)",
+ "v5_chain": "CONSUMED AND CLOSED",
+ "validation_oos": "SEALED AND UNREAD",
+ "version": "1.0"
+}
