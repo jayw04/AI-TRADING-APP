@@ -80,7 +80,7 @@ def good_argv(*, image: str = IMAGE, out_spec: str | None = None,
               extra_opts: list[str] | None = None) -> list[str]:
     """The canonical closed-grammar ATTESTED TEMPLATE argv (blocker 8: it must NOT carry
     the launcher-derived MR002_EXECUTION_BINDING_SHA256), with targeted override points."""
-    out_spec = out_spec if out_spec is not None else f"type=bind,src={OUT_SRC},dst=/out,rw"
+    out_spec = out_spec if out_spec is not None else f"type=bind,src={OUT_SRC},dst=/out,ro=false"
     argv = ["docker", "run", "--rm", "--network=none",
             "--mount", repo_spec, "--mount", out_spec]
     argv += governed_mount_tokens(input_srcs, drop=drop_input, mode=input_mode)
@@ -405,7 +405,7 @@ def test_blocker2_claimed_mount_differs_from_argv_refused(tmp_path, keypair):
 def test_blocker2_missing_out_mount_refused(tmp_path, keypair):
     priv, _, _ = keypair
     argv = good_argv()
-    out_idx = argv.index(f"type=bind,src={OUT_SRC},dst=/out,rw")
+    out_idx = argv.index(f"type=bind,src={OUT_SRC},dst=/out,ro=false")
     del argv[out_idx - 1:out_idx + 1]  # remove the '--mount <out spec>' pair
     with pytest.raises(att.LaunchValidationError, match="OUTPUT_MOUNT_COUNT_NOT_ONE:0"):
         _build(tmp_path, priv, argv=argv)
@@ -413,14 +413,14 @@ def test_blocker2_missing_out_mount_refused(tmp_path, keypair):
 
 def test_blocker2_duplicate_out_mounts_refused(tmp_path, keypair):
     priv, _, _ = keypair
-    argv = good_argv(extra_opts=["--mount", "type=bind,src=/data/other,dst=/out,rw"])
+    argv = good_argv(extra_opts=["--mount", "type=bind,src=/data/other,dst=/out,ro=false"])
     with pytest.raises(att.LaunchValidationError, match="OUTPUT_MOUNT_COUNT_NOT_ONE:2"):
         _build(tmp_path, priv, argv=argv)
 
 
 def test_blocker2_relative_host_source_refused(tmp_path, keypair):
     priv, _, _ = keypair
-    argv = good_argv(out_spec="type=bind,src=relative/out,dst=/out,rw")
+    argv = good_argv(out_spec="type=bind,src=relative/out,dst=/out,ro=false")
     with pytest.raises(att.LaunchValidationError, match="MOUNT_SRC_NOT_ABSOLUTE"):
         _build(tmp_path, priv, argv=argv)
 
@@ -439,13 +439,94 @@ def test_blocker2_out_mount_mode_not_explicit_refused(tmp_path, keypair):
         _build(tmp_path, priv, argv=argv)
 
 
+# ── exec-refusal remediation (2026-07-19 ruling): ro=false is THE explicit-rw token ──────────────
+def test_rofalse_canonical_output_mount_accepted():
+    """The canonical /out spec carries exactly `ro=false` (Docker-valid) and derives the
+    NORMALIZED logical identity <src>:/out:rw — two representations, deliberately distinct."""
+    argv = good_argv()
+    assert f"type=bind,src={OUT_SRC},dst=/out,ro=false" in argv
+    assert att.validate_launch_argv(argv, image_digest=IMAGE) == OUT_IDENTITY
+
+
+def test_rofalse_legacy_bare_rw_refused_by_grammar():
+    """The token that Docker's real CLI rejects is now refused by OUR grammar too."""
+    argv = good_argv(out_spec=f"type=bind,src={OUT_SRC},dst=/out,rw")
+    with pytest.raises(att.LaunchValidationError, match="MOUNT_SPEC_UNKNOWN_FLAG:rw"):
+        att.validate_launch_argv(argv, image_digest=IMAGE)
+
+
+@pytest.mark.parametrize("mode_token", ["ro=true", "readonly=true", "readonly=false"])
+def test_rofalse_other_mode_value_tokens_refused(mode_token):
+    argv = good_argv(out_spec=f"type=bind,src={OUT_SRC},dst=/out,{mode_token}")
+    with pytest.raises(att.LaunchValidationError,
+                       match=f"MOUNT_MODE_TOKEN_NOT_APPROVED:{mode_token}"):
+        att.validate_launch_argv(argv, image_digest=IMAGE)
+
+
+def test_rofalse_ro_true_on_output_refused_and_contradiction_refused():
+    # explicit read-only /out (bare ro) is still refused at the output-mode gate
+    argv = good_argv(out_spec=f"type=bind,src={OUT_SRC},dst=/out,ro")
+    with pytest.raises(att.LaunchValidationError, match="OUTPUT_MOUNT_NOT_EXPLICITLY_RW"):
+        att.validate_launch_argv(argv, image_digest=IMAGE)
+    # ro + ro=false in one spec is contradictory
+    argv2 = good_argv(out_spec=f"type=bind,src={OUT_SRC},dst=/out,ro,ro=false")
+    with pytest.raises(att.LaunchValidationError, match="MOUNT_MODE_CONTRADICTORY"):
+        att.validate_launch_argv(argv2, image_digest=IMAGE)
+
+
+_REAL_CLI = os.environ.get("MR002_REAL_CLI_TEST") == "1"
+
+
+@pytest.mark.skipif(not _REAL_CLI, reason="real-Docker CLI parse test — host-only by design: "
+                    "set MR002_REAL_CLI_TEST=1 on a Docker host (dev suites mock spawning; "
+                    "this test exists BECAUSE mocks cannot catch CLI-grammar incompatibility)")
+def test_realcli_canonical_template_parses_legacy_rw_refused(tmp_path):
+    """Against the REAL Docker CLI (no mocks): with EXISTING mount sources, the canonical
+    ro=false command passes option parsing AND daemon mount validation, reaching only the
+    expected image-resolution failure for a deliberately unavailable image; the legacy
+    bare-rw command fails at --mount flag parsing; no container is created by either."""
+    bogus = "inval.invalid/none:none"  # unresolvable registry — parse-accept dies at image lookup
+    (tmp_path / "repo").mkdir()
+    (tmp_path / "out").mkdir()
+    input_srcs, artifact_srcs = {}, {}
+    for _, _, dst, kwarg in att.GOVERNED_INPUTS:
+        f = tmp_path / dst.rsplit("/", 1)[1]
+        f.write_text("{}", encoding="utf-8")
+        input_srcs[kwarg] = str(f)
+    for env_key, dst in att.GOVERNED_ARTIFACT_ENV.items():
+        f = tmp_path / dst.rsplit("/", 1)[1]
+        f.write_text("{}", encoding="utf-8")
+        artifact_srcs[env_key] = str(f)
+    kw = {"repo_spec": f"type=bind,src={tmp_path}/repo,dst=/work,ro",
+          "input_srcs": input_srcs, "artifact_srcs": artifact_srcs}
+    canonical = good_argv(out_spec=f"type=bind,src={tmp_path}/out,dst=/out,ro=false", **kw)
+    # the canonical form is valid under OUR grammar before it meets the real CLI
+    assert att.validate_launch_argv(canonical, image_digest=IMAGE) == f"{tmp_path}/out:/out:rw"
+    def ps_a():
+        return subprocess.run(["docker", "ps", "-a", "-q"], capture_output=True,
+                              text=True, check=True).stdout.strip()
+    before = ps_a()
+    canonical[canonical.index(IMAGE)] = bogus
+    res = subprocess.run(canonical, capture_output=True, text=True, check=False)
+    assert res.returncode != 0
+    assert "invalid argument" not in res.stderr           # passed the CLI flag parser
+    assert "invalid mount config" not in res.stderr       # passed daemon mount validation
+    assert ("Unable to find image" in res.stderr) or ("failed to resolve" in res.stderr)
+    legacy = good_argv(out_spec=f"type=bind,src={tmp_path}/out,dst=/out,rw", **kw)
+    legacy[legacy.index(IMAGE)] = bogus
+    res2 = subprocess.run(legacy, capture_output=True, text=True, check=False)
+    assert res2.returncode == 125
+    assert "invalid field 'rw'" in res2.stderr            # refused AT the flag parser
+    assert ps_a() == before                               # no container created by either
+
+
 # ── blocker 3: closed launch-command grammar, enforced at produce AND exec ───────────────────────
 @pytest.mark.parametrize(("argv_kwargs", "match"), [
     ({"extra_opts": ["--privileged"]}, "PRIVILEGED_FORBIDDEN"),
     ({"extra_opts": ["--cap-add=SYS_ADMIN"]}, "OPTION_NOT_IN_CLOSED_GRAMMAR"),
     ({"repo_spec": "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock,ro"},
      "MOUNT_DOCKER_SOCKET_FORBIDDEN"),
-    ({"repo_spec": "type=bind,src=/data/mr002/repo,dst=/work,rw"}, "INPUT_MOUNT_NOT_READONLY"),
+    ({"repo_spec": "type=bind,src=/data/mr002/repo,dst=/work,ro=false"}, "INPUT_MOUNT_NOT_READONLY"),
     ({"repo_spec": "type=volume,src=/data/mr002/repo,dst=/work,ro"}, "MOUNT_NOT_BIND"),
     ({"command": ["bash", "-c", "python runner.py"]}, "CONTAINER_COMMAND_NOT_ALLOWED"),
     ({"command": ["sh", "-c", "echo hi"]}, "CONTAINER_COMMAND_NOT_ALLOWED"),
@@ -586,7 +667,7 @@ def test_blocker5_missing_governed_mount_refused(tmp_path, keypair):
 
 def test_blocker5_writable_governed_mount_refused(tmp_path, keypair):
     priv, _, _ = keypair
-    argv = good_argv(input_mode="rw")
+    argv = good_argv(input_mode="ro=false")
     with pytest.raises(att.LaunchValidationError, match="INPUT_MOUNT_NOT_READONLY"):
         _build(tmp_path, priv, argv=argv)
 

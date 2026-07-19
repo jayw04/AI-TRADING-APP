@@ -1,0 +1,29 @@
+=== MR-002 real-Docker CLI parse evidence (exec-refusal remediation, ro=false) ===
+date_utc: 2026-07-19T00:29:59Z
+host: i-0f3ceafdd4294c572 (c6a.large)
+docker version: Docker version 25.0.14, build 0bab007
+tr: extra operand ‘"’
+Try 'tr --help' for more information.
+grep: driver": No such file or directory
+storage driver: 
+tr: extra operand ‘"’
+Try 'tr --help' for more information.
+docker ps -a BEFORE: []
+
+--- PROBE 1: canonical ro=false template (bogus image inval.invalid/none:none; existing mount srcs) ---
+argv: docker run --rm --network=none --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/repo,dst=/work,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/out,dst=/out,ro=false --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/authorization.json,dst=/inputs/authorization.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/expected_pins.json,dst=/inputs/expected_pins.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/source_manifest.json,dst=/inputs/source_manifest.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/execution_package.json,dst=/inputs/execution_package.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/execution_binding.json,dst=/inputs/execution_binding.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/launch_attestation.json,dst=/inputs/launch_attestation.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/launch_verification_receipt.json,dst=/inputs/launch_verification_receipt.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/realism_pass.json,dst=/inputs/realism_pass.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/realcli/final_test_report.json,dst=/inputs/final_test_report.json,ro --env=OPENBLAS_CORETYPE=HASWELL --env=OPENBLAS_NUM_THREADS=1 --env=OMP_NUM_THREADS=1 --env=MKL_NUM_THREADS=1 --env=MR002_EXECUTION_COUNTERSIGN=/inputs/authorization.json --env=MR002_EXPECTED_PINS=/inputs/expected_pins.json --env=MR002_SOURCE_MANIFEST=/inputs/source_manifest.json --env=MR002_EXECUTION_PACKAGE=/inputs/execution_package.json --env=MR002_EXECUTION_BINDING=/inputs/execution_binding.json --env=MR002_LAUNCH_ATTESTATION=/inputs/launch_attestation.json --env=MR002_LAUNCH_VERIFICATION_RECEIPT=/inputs/launch_verification_receipt.json --env=MR002_REALISM_PASS=/inputs/realism_pass.json --env=MR002_FINAL_TEST_REPORT=/inputs/final_test_report.json --env=MR002_EXECUTION_COUNTERSIGN_SHA256=487c6ecbcbf06d21b247ec429d0af216e256a279c7c112903cef1b279bf1f8ca --env=PYTHONPATH=/work/apps/backend --workdir=/work/apps/backend inval.invalid/none:none python scripts/mr002_stage3_population_runner.py
+stderr: Unable to find image 'inval.invalid/none:none' locally
+stderr: docker: Error response from daemon: failed to resolve reference "inval.invalid/none:none": failed to do request: Head "https://inval.invalid/v2/none/manifests/none": dial tcp: lookup inval.invalid on 172.31.0.2:53: no such host.
+stderr: See 'docker run --help'.
+exit code: 125
+
+--- PROBE 2: legacy bare-rw /out token (same argv, rw instead of ro=false) ---
+argv delta: /out mount spec ends ,rw
+stderr: invalid argument "type=bind,src=/home/ec2-user/mr002/launch/realcli/out,dst=/out,rw" for "--mount" flag: invalid field 'rw' must be a key=value pair
+stderr: See 'docker run --help'.
+exit code: 125
+
+tr: extra operand ‘"’
+Try 'tr --help' for more information.
+docker ps -a AFTER: []
+no-container confirmation: 0 containers exist

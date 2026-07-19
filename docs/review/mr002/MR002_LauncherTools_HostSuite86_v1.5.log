@@ -1,0 +1,149 @@
+=== MR-002 launcher suite v1.5 on the QUALIFIED HOST (real-CLI test ENABLED) ===
+date_utc: 2026-07-19T00:29:31Z
+tr: extra operand ‘"’
+Only one string may be given when deleting without squeezing repeats.
+Try 'tr --help' for more information.
+host: i-0f3ceafdd4294c572 (c6a.large); Docker version 25.0.14, build 0bab007; storage: 
+python: Python 3.11.15
+producer sha256: 0fe474aa7d092d9f6eec9217ccb67d2123e259ba497f6a447bc5174186109288
+tests sha256: 9bdffc701c4deb2ca7b5f99567153dfdc99587fc948cb5ce4a3efbaf2c6407d7
+command: MR002_REAL_CLI_TEST=1 python3.11 -m pytest tests/research/test_mr002_stage3_launcher_tools.py -v -rA -p no:cacheprovider --noconftest
+=== pytest output ===
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/ec2-user/mr002/delta-test/repo/apps/backend
+configfile: pyproject.toml
+collected 86 items
+
+tests/research/test_mr002_stage3_launcher_tools.py ..................... [ 24%]
+.................................................................        [100%]
+
+=============================== warnings summary ===============================
+../../../../../.local/lib/python3.11/site-packages/_pytest/config/__init__.py:1464
+  /home/ec2-user/.local/lib/python3.11/site-packages/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+==================================== PASSES ====================================
+_________________ test_blocker4_producer_uses_shared_primitive _________________
+----------------------------- Captured stdout call -----------------------------
+{
+ "attestation_path": "/tmp/pytest-of-ec2-user/pytest-1/test_blocker4_producer_uses_sh0/produced_attestation.json",
+ "attestation_sha256": "f5c676b26b7613ca4a0edbd6f6a0005e68eb0c923649513264b493ee49b98de9",
+ "byte_length": 4020,
+ "signing_key_id": "ed25519:619a06625922ce4bf1a88ba13407863464b0c50bced8a3f93404969051278459",
+ "run_nonce": "e5f7be685f9ed7566d3a5ede3e7c8668d3a71032cd100df4d4ed9a2f1cd7922a"
+}
+----------------------------- Captured stderr call -----------------------------
+REFUSED: PUBLISH_REFUSED_EXISTS_DESTINATION:/tmp/pytest-of-ec2-user/pytest-1/test_blocker4_producer_uses_sh0/produced_attestation.json
+_____________ test_blocker3_exec_refuses_signed_but_unsafe_command _____________
+----------------------------- Captured stderr call -----------------------------
+REFUSED: attested command failed launch validation: PRIVILEGED_FORBIDDEN
+__________________ test_blocker3_exec_runs_validated_command ___________________
+----------------------------- Captured stdout call -----------------------------
+exec (attested, receipt-verified, grammar-validated, inputs re-hashed, binding-derived): ['docker', 'run', '--rm', '--network=none', '--mount', 'type=bind,src=/data/mr002/repo,dst=/work,ro', '--mount', 'type=bind,src=/data/mr002/out,dst=/out,ro=false', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker3_exec_runs_valida0/authorization.json,dst=/inputs/authorization.json,ro', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker3_exec_runs_valida0/pins.json,dst=/inputs/expected_pins.json,ro', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker3_exec_runs_valida0/manifest.json,dst=/inputs/source_manifest.json,ro', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker3_exec_runs_valida0/package.json,dst=/inputs/execution_package.json,ro', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker3_exec_runs_valida0/binding.json,dst=/inputs/execution_binding.json,ro', '--mount', 'type=bind,src=/data/mr002/inputs/launch_attestation.json,dst=/inputs/launch_attestation.json,ro', '--mount', 'type=bind,src=/data/mr002/inputs/launch_verification_receipt.json,dst=/inputs/launch_verification_receipt.json,ro', '--mount', 'type=bind,src=/data/mr002/inputs/realism_pass.json,dst=/inputs/realism_pass.json,ro', '--mount', 'type=bind,src=/data/mr002/inputs/final_test_report.json,dst=/inputs/final_test_report.json,ro', '--env=OPENBLAS_CORETYPE=HASWELL', '--env=OPENBLAS_NUM_THREADS=1', '--env=OMP_NUM_THREADS=1', '--env=MKL_NUM_THREADS=1', '--env=MR002_EXECUTION_COUNTERSIGN=/inputs/authorization.json', '--env=MR002_EXPECTED_PINS=/inputs/expected_pins.json', '--env=MR002_SOURCE_MANIFEST=/inputs/source_manifest.json', '--env=MR002_EXECUTION_PACKAGE=/inputs/execution_package.json', '--env=MR002_EXECUTION_BINDING=/inputs/execution_binding.json', '--env=MR002_LAUNCH_ATTESTATION=/inputs/launch_attestation.json', '--env=MR002_LAUNCH_VERIFICATION_RECEIPT=/inputs/launch_verification_receipt.json', '--env=MR002_REALISM_PASS=/inputs/realism_pass.json', '--env=MR002_FINAL_TEST_REPORT=/inputs/final_test_report.json', '--env=MR002_EXECUTION_COUNTERSIGN_SHA256=4697b0ad7d2b315e27f13131f875cba7e897ea0eb8fff5494597511823778cd8', '--env=PYTHONPATH=/work/apps/backend', '--workdir=/work/apps/backend', '--env=MR002_EXECUTION_BINDING_SHA256=7e059bf59a791468e44ae6b593e988b746d222487c4ef844489b94d80531599c', 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'python', 'scripts/mr002_stage3_population_runner.py']
+______________ test_blocker5_exec_refuses_substituted_input_bytes ______________
+----------------------------- Captured stderr call -----------------------------
+REFUSED: attested command failed launch validation: GOVERNED_INPUT_BYTES_MISMATCH:MR002_EXPECTED_PINS:signed=89142bf846093b072526dc87c63a4e873943812a2de8b32ad8019897da5fc09b:observed=25db9a594858742cc9f12beb7f6fb3ab3e1a771185485ce8c386c13b117957e1
+_________ test_blocker8_operator_supplied_binding_hash_refused_at_exec _________
+----------------------------- Captured stderr call -----------------------------
+REFUSED: attested command failed launch validation: ENV_KEY_NOT_ALLOWED:MR002_EXECUTION_BINDING_SHA256
+_________________ test_blocker8_end_to_end_construction_order __________________
+----------------------------- Captured stdout call -----------------------------
+exec (attested, receipt-verified, grammar-validated, inputs re-hashed, binding-derived): ['docker', 'run', '--rm', '--network=none', '--mount', 'type=bind,src=/data/mr002/repo,dst=/work,ro', '--mount', 'type=bind,src=/data/mr002/out,dst=/out,ro=false', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker8_end_to_end_const0/authorization.json,dst=/inputs/authorization.json,ro', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker8_end_to_end_const0/pins.json,dst=/inputs/expected_pins.json,ro', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker8_end_to_end_const0/manifest.json,dst=/inputs/source_manifest.json,ro', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker8_end_to_end_const0/package.json,dst=/inputs/execution_package.json,ro', '--mount', 'type=bind,src=/tmp/pytest-of-ec2-user/pytest-1/test_blocker8_end_to_end_const0/binding.json,dst=/inputs/execution_binding.json,ro', '--mount', 'type=bind,src=/data/mr002/inputs/launch_attestation.json,dst=/inputs/launch_attestation.json,ro', '--mount', 'type=bind,src=/data/mr002/inputs/launch_verification_receipt.json,dst=/inputs/launch_verification_receipt.json,ro', '--mount', 'type=bind,src=/data/mr002/inputs/realism_pass.json,dst=/inputs/realism_pass.json,ro', '--mount', 'type=bind,src=/data/mr002/inputs/final_test_report.json,dst=/inputs/final_test_report.json,ro', '--env=OPENBLAS_CORETYPE=HASWELL', '--env=OPENBLAS_NUM_THREADS=1', '--env=OMP_NUM_THREADS=1', '--env=MKL_NUM_THREADS=1', '--env=MR002_EXECUTION_COUNTERSIGN=/inputs/authorization.json', '--env=MR002_EXPECTED_PINS=/inputs/expected_pins.json', '--env=MR002_SOURCE_MANIFEST=/inputs/source_manifest.json', '--env=MR002_EXECUTION_PACKAGE=/inputs/execution_package.json', '--env=MR002_EXECUTION_BINDING=/inputs/execution_binding.json', '--env=MR002_LAUNCH_ATTESTATION=/inputs/launch_attestation.json', '--env=MR002_LAUNCH_VERIFICATION_RECEIPT=/inputs/launch_verification_receipt.json', '--env=MR002_REALISM_PASS=/inputs/realism_pass.json', '--env=MR002_FINAL_TEST_REPORT=/inputs/final_test_report.json', '--env=MR002_EXECUTION_COUNTERSIGN_SHA256=4697b0ad7d2b315e27f13131f875cba7e897ea0eb8fff5494597511823778cd8', '--env=PYTHONPATH=/work/apps/backend', '--workdir=/work/apps/backend', '--env=MR002_EXECUTION_BINDING_SHA256=a8f42c10557e29d7b4ae6d830077f9cf1f29e47f616855e7e834a9fe16c9e301', 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'python', 'scripts/mr002_stage3_population_runner.py']
+____________ test_blocker8_substituted_binding_mount_bytes_refused _____________
+----------------------------- Captured stderr call -----------------------------
+REFUSED: attested command failed launch validation: BINDING_MOUNT_BYTES_MISMATCH:mounted=25db9a594858742cc9f12beb7f6fb3ab3e1a771185485ce8c386c13b117957e1:derived=a9ea4d2f165ee959fe0fdad88d650724287a976c11aefeb6bea93d6a5a1069d1
+___________ test_blocker8_tampered_binding_cross_validation_refused ____________
+----------------------------- Captured stderr call -----------------------------
+REFUSED: attested command failed launch validation: BINDING_CROSS_VALIDATION_MISMATCH:['launch_attestation_sha256']
+=========================== short test summary info ============================
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_attestation_roundtrip_accepted_by_frozen_loader
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_attestation_tamper_refused_by_frozen_loader
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_verify_tool_receipt_accepted_by_frozen_loader
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_verify_tool_rejects_wrong_key
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_verify_tool_rejects_tampered_attestation
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_verify_tool_rejects_forged_signature
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker1_existing_destination_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker1_existing_tmp_path_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker1_symlink_destination_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker1_existing_receipt_destination_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker1_receipt_symlink_destination_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker4_destination_appearing_after_prechecks_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker4_successful_publication_exact_bytes_tmp_removed
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker4_publication_failure_no_partial_destination
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker4_producer_uses_shared_primitive
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker2_canonical_output_mount_accepted
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker2_claimed_mount_differs_from_argv_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker2_missing_out_mount_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker2_duplicate_out_mounts_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker2_relative_host_source_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker2_readonly_out_mount_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker2_out_mount_mode_not_explicit_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_rofalse_canonical_output_mount_accepted
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_rofalse_legacy_bare_rw_refused_by_grammar
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_rofalse_other_mode_value_tokens_refused[ro=true]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_rofalse_other_mode_value_tokens_refused[readonly=true]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_rofalse_other_mode_value_tokens_refused[readonly=false]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_rofalse_ro_true_on_output_refused_and_contradiction_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_realcli_canonical_template_parses_legacy_rw_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_unsafe_argv_refused[argv_kwargs0-PRIVILEGED_FORBIDDEN]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_unsafe_argv_refused[argv_kwargs1-OPTION_NOT_IN_CLOSED_GRAMMAR]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_unsafe_argv_refused[argv_kwargs2-MOUNT_DOCKER_SOCKET_FORBIDDEN]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_unsafe_argv_refused[argv_kwargs3-INPUT_MOUNT_NOT_READONLY]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_unsafe_argv_refused[argv_kwargs4-MOUNT_NOT_BIND]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_unsafe_argv_refused[argv_kwargs5-CONTAINER_COMMAND_NOT_ALLOWED]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_unsafe_argv_refused[argv_kwargs6-CONTAINER_COMMAND_NOT_ALLOWED]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_network_none_required
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_volume_style_mount_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_mutable_tag_image_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_required_env_missing_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_env_key_outside_allowlist_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_produce_refuses_unsafe_argv_before_signing
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_exec_refuses_signed_but_unsafe_command
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker3_exec_runs_validated_command
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_valid_canonical_four_artifact_command
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_mount_source_mismatch_refused_per_artifact[authorization_path]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_mount_source_mismatch_refused_per_artifact[execution_package_path]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_mount_source_mismatch_refused_per_artifact[expected_pins_path]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_mount_source_mismatch_refused_per_artifact[source_manifest_path]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_missing_governed_mount_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_writable_governed_mount_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_duplicate_destination_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_env_path_mismatch_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_inputs_shadow_mount_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_governed_input_under_output_mount_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_symlink_governed_source_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker5_exec_refuses_substituted_input_bytes
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker6_unknown_mr002_env_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker6_duplicate_governed_env_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker6_pythonpath_rules
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker6_mr002_out_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker6_sha_channel_not_hex_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker6_artifact_env_wrong_path_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker6_artifact_mount_missing_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker6_produce_countersign_sha_mismatch_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker8_attestation_template_carries_no_binding_hash
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker8_operator_supplied_binding_hash_refused_at_produce
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker8_operator_supplied_binding_hash_refused_at_exec
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker8_end_to_end_construction_order
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker8_substituted_binding_mount_bytes_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker8_tampered_binding_cross_validation_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker7_exact_registered_command_accepted
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker7_non_registered_commands_refused[command0-CONTAINER_COMMAND_NOT_REGISTERED]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker7_non_registered_commands_refused[command1-CONTAINER_COMMAND_NOT_REGISTERED]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker7_non_registered_commands_refused[command2-CONTAINER_COMMAND_NOT_REGISTERED]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker7_non_registered_commands_refused[command3-CONTAINER_COMMAND_NOT_REGISTERED]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker7_non_registered_commands_refused[command4-CONTAINER_COMMAND_NOT_REGISTERED]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_blocker7_non_registered_commands_refused[command5-CONTAINER_COMMAND_NOT_REGISTERED]
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_hardening_rsa_private_key_refused_by_producer
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_hardening_rsa_public_key_refused_by_verifier
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_hardening_rsa_public_key_refused_for_key_id
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_hardening_private_key_created_mode_0600
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_hardening_keygen_refuses_existing_symlink
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_final_report_accepted_by_frozen_loader
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_final_report_failed_test_refused
+PASSED tests/research/test_mr002_stage3_launcher_tools.py::test_final_report_dirty_tree_refused
+======================== 86 passed, 1 warning in 1.30s =========================
+=== exit code: 0 ===

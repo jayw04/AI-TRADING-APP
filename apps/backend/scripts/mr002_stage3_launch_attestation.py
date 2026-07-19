@@ -18,13 +18,17 @@ argv that fails it is refused BEFORE attestation production and AGAIN before exe
 even if its signature verifies. The only accepted shape is:
 
     docker run [--rm] --network=none [--name=<n>] [--workdir=<abs>|-w <abs>]
-        (--mount type=bind,src=<abs>,dst=<abs>,(ro|rw) | --mount=<same-spec>)...
+        (--mount type=bind,src=<abs>,dst=<abs>,(ro|readonly|ro=false) | --mount=<same-spec>)...
         (--env=KEY=VALUE | -e KEY=VALUE)...
         <image ID sha256:<64hex> equal to image_digest, or <name>@<that digest>>
         (python|python3) <args>...
 
-with: exactly ONE dst=/out bind mount, explicitly rw, absolute host src — its derived
-identity "<src>:/out:rw" must equal the signed output_mount_identity; every OTHER mount
+with: exactly ONE dst=/out bind mount whose mode token is EXACTLY `ro=false` (the one
+Docker-valid explicit read-write declaration — exec-refusal ruling 2026-07-19: Docker's
+real --mount grammar has no bare `rw` token, so bare `rw`, mode omission, `ro=true`,
+`readonly=true`, and `readonly=false` are ALL refused for /out), absolute host src — its
+derived NORMALIZED identity "<src>:/out:rw" (a logical identity, deliberately distinct
+from the CLI token) must equal the signed output_mount_identity; every OTHER mount
 explicitly ro (governed inputs are read-only); no duplicate mount destination; a FINITE
 environment set (blocker 6 — no MR002_* wildcard: the four numerical vars pinned exactly,
 PYTHONPATH required and pinned to /work/apps/backend, the nine governed MR002_* keys
@@ -186,7 +190,14 @@ _ABS_PATH_RE = re.compile(r"^(/|[A-Za-z]:[/\\])")
 _IMAGE_DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 _MOUNT_SPEC_KEYS = {"type", "src", "source", "dst", "destination", "target"}
-_MOUNT_SPEC_FLAGS = {"ro", "rw", "readonly"}
+# Docker's real --mount grammar has NO bare `rw` token (exec-refusal ruling 2026-07-19):
+# read-only is the bare `ro`/`readonly` flag; the ONLY approved explicit read-write
+# declaration is the exact Docker-valid token `ro=false` (mode omission NOT approved).
+# Internally the parser normalizes `ro=false` to the marker flag "rw" — the normalized
+# output identity stays "<src>:/out:rw", which is a LOGICAL identity, distinct from the
+# Docker CLI token `ro=false` that the command itself must carry.
+_MOUNT_SPEC_FLAGS = {"ro", "readonly"}
+_MOUNT_EXPLICIT_RW_TOKEN = "ro=false"
 
 
 class LaunchValidationError(Exception):
@@ -211,8 +222,16 @@ def _parse_mount_spec(spec: str) -> dict:
     for part in spec.split(","):
         if not part:
             raise LaunchValidationError(f"MOUNT_SPEC_EMPTY_SEGMENT:{spec}")
+        if part == _MOUNT_EXPLICIT_RW_TOKEN:
+            # the ONE approved explicit read-write declaration (Docker-valid)
+            mount["flags"].add("rw")
+            continue
         if "=" in part:
             k, v = part.split("=", 1)
+            if k in ("ro", "readonly"):
+                # ro=true / readonly=true / readonly=false are NOT in the closed grammar —
+                # only bare ro|readonly (read-only) and exactly `ro=false` (read-write)
+                raise LaunchValidationError(f"MOUNT_MODE_TOKEN_NOT_APPROVED:{part}")
             if k not in _MOUNT_SPEC_KEYS:
                 raise LaunchValidationError(f"MOUNT_SPEC_UNKNOWN_KEY:{k}")
             if k in ("src", "source"):

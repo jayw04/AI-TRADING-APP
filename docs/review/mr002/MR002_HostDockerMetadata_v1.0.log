@@ -1,0 +1,13 @@
+=== MR-002 supplemental host Docker-metadata record (supersedes the defective storage-driver capture in MR002_LauncherTools_HostSuite86_v1.5.log and MR002_RealCLI_ParseEvidence_v1.5.log FOR METADATA ONLY; those logs are preserved unedited) ===
+date_utc: 2026-07-19T00:42:01Z
+host: i-0f3ceafdd4294c572 (c6a.large)
+docker version: Docker version 25.0.14, build 0bab007
+
+$ docker info --format {{.Driver}}
+overlayfs
+
+$ docker info --format {{json .DriverStatus}}
+[["driver-type","io.containerd.snapshotter.v1"]]
+
+$ docker info --format {{json .Plugins}}
+{"Volume":["local"],"Network":["bridge","host","ipvlan","macvlan","null","overlay"],"Authorization":null,"Log":["awslogs","fluentd","gcplogs","gelf","journald","json-file","local","splunk","syslog"]}
