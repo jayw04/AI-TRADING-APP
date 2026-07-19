@@ -1,0 +1,13 @@
+{
+ "attestation_sha256": "e82468c3f94ea90f2f7c8d23c8a8abfde16f7aa5717004e3eac7efdf084d4fb2",
+ "canonical_signed_payload_sha256": "2704c6062ac66ddde5f18e62ffc708bf18ef45b2f92ecb1547e91c944b27fa87",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_LAUNCH_VERIFICATION_RECEIPT",
+ "run_nonce": "f3e0edf795a6998eb99fb1eca45ea9f9501ca1c9e9389e6a711db4be392594fc",
+ "signature_algorithm": "ed25519",
+ "signing_key_id": "ed25519:86c48f8f19affc3a81b8b263f0244c03379e9a03593a86ae1bcd4c851cb35a87",
+ "verification_exit_status": 0,
+ "verification_tool_sha256": "33d08fe345b3b88f49cc85ee50cf6a53233d3523164bb7f927eb7333c4464e94",
+ "verified_at": "2026-07-19T21:00:43+00:00",
+ "version": "1.0"
+}

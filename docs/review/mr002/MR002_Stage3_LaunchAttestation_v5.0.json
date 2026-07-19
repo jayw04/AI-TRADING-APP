@@ -1,0 +1,23 @@
+{
+ "authorization_sha256": "167b1b6e2b15fcce5f1e7f68a95a237184b94892f69867a8bec90c701f818c37",
+ "bound_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+ "bound_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+ "canonical_signed_payload_sha256": "2704c6062ac66ddde5f18e62ffc708bf18ef45b2f92ecb1547e91c944b27fa87",
+ "exact_command": "[\"docker\", \"run\", \"--rm\", \"--network=none\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/numrepo,dst=/work,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/out,dst=/out,ro=false\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/authorization.json,dst=/inputs/authorization.json,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/expected_pins.json,dst=/inputs/expected_pins.json,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/source_manifest.json,dst=/inputs/source_manifest.json,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/execution_package.json,dst=/inputs/execution_package.json,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/execution_binding.json,dst=/inputs/execution_binding.json,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/launch_attestation.json,dst=/inputs/launch_attestation.json,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/launch_verification_receipt.json,dst=/inputs/launch_verification_receipt.json,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/realism_pass.json,dst=/inputs/realism_pass.json,ro\", \"--mount\", \"type=bind,src=/home/ec2-user/mr002/inputs/final_test_report.json,dst=/inputs/final_test_report.json,ro\", \"--env=OPENBLAS_CORETYPE=HASWELL\", \"--env=OPENBLAS_NUM_THREADS=1\", \"--env=OMP_NUM_THREADS=1\", \"--env=MKL_NUM_THREADS=1\", \"--env=MR002_EXECUTION_COUNTERSIGN=/inputs/authorization.json\", \"--env=MR002_EXPECTED_PINS=/inputs/expected_pins.json\", \"--env=MR002_SOURCE_MANIFEST=/inputs/source_manifest.json\", \"--env=MR002_EXECUTION_PACKAGE=/inputs/execution_package.json\", \"--env=MR002_EXECUTION_BINDING=/inputs/execution_binding.json\", \"--env=MR002_LAUNCH_ATTESTATION=/inputs/launch_attestation.json\", \"--env=MR002_LAUNCH_VERIFICATION_RECEIPT=/inputs/launch_verification_receipt.json\", \"--env=MR002_REALISM_PASS=/inputs/realism_pass.json\", \"--env=MR002_FINAL_TEST_REPORT=/inputs/final_test_report.json\", \"--env=MR002_EXECUTION_COUNTERSIGN_SHA256=167b1b6e2b15fcce5f1e7f68a95a237184b94892f69867a8bec90c701f818c37\", \"--env=MR002_IMAGE_DIGEST=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea\", \"--env=MR002_OCI_CONFIG_DIGEST=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea\", \"--env=PYTHONPATH=/work/apps/backend\", \"--workdir=/work/apps/backend\", \"sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea\", \"python\", \"scripts/mr002_stage3_population_runner.py\"]",
+ "execution_package_sha256": "846c6418c3b23b36c61da260fcf0953b5245a0967df8187355887d51d5c9ea24",
+ "expected_pins_sha256": "59a23fc092b5e0ccdf4dfedc2873f584f722aaa71f62a3d3c19990da916a6e13",
+ "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "launcher_identity": "ec2-user@ip-172-31-37-125.ec2.internal mr002_stage3_launch_attestation.py",
+ "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "output_mount_identity": "/home/ec2-user/mr002/out:/out:rw",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_LAUNCH_ATTESTATION",
+ "run_nonce": "f3e0edf795a6998eb99fb1eca45ea9f9501ca1c9e9389e6a711db4be392594fc",
+ "signature": "Aj9U+UXSA7CGA3n3ns7CII0C1PEBu5Kei2MGFn0PZ4BtkEpjGQMQNU16aQ8nxcxt13kYyPHWNstcToAYmPjTAQ==",
+ "signature_algorithm": "ed25519",
+ "signing_key_id": "ed25519:86c48f8f19affc3a81b8b263f0244c03379e9a03593a86ae1bcd4c851cb35a87",
+ "source_manifest_sha256": "9798302a868724ac92fab57274100bef928bb0ccdf29f393dcaf65850bbf76f8",
+ "verification_tool": "scripts/mr002_stage3_attestation_verify.py",
+ "verification_tool_sha256": "33d08fe345b3b88f49cc85ee50cf6a53233d3523164bb7f927eb7333c4464e94",
+ "version": "1.0"
+}
