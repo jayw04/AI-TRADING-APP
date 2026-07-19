@@ -1,0 +1,41 @@
+{
+ "authoritative_calendar_source": {
+  "external_xnys_library": "NON-GOVERNING DIAGNOSTIC ONLY (not installed for governance)",
+  "governed_session_list_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+  "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "snapshot": "apps/backend/data/mr002_research.duckdb"
+ },
+ "boundary": "Validation/OOS SEALED AND UNREAD; no development/validation/OOS performance computed; performance interpretation + production promotion NOT AUTHORIZED.",
+ "date": "2026-07-19",
+ "open_convention_for_v1.0_final": {
+  "alternative": "5 (close-exit, no separate exit-open)",
+  "governing_default": "6 (next-open exit after 5 held sessions; faithful to frozen 'next-open execution' applying to the exit ladder)",
+  "item": "realization endpoint 5 vs 6 indexed sessions",
+  "status": "RC1 governs with 6; owner ratification of the endpoint convention promotes RC1 -> v1.0-final"
+ },
+ "owner_rulings": {
+  "D-BENCH": {
+   "decision": "ZERO_BENCHMARK",
+   "detail": "Primary return = daily net portfolio return on fixed $10M NAV; benchmark return = 0; primary excess return = daily net portfolio return. ALL cash interest, short financing, borrow fees, execution costs, and financing effects are already included in net P&L. NOT a risk-free accrual series (removed the cash-zero/risk-free conflation)."
+  },
+  "D-COST": {
+   "decision": "ARTIFACT_BINDING_MANDATORY",
+   "detail": "Frozen values retained (10 bps/side, 50 bps/yr borrow @360, $10M NAV, 2% ADV clip-never-delay, 1.5% new-entry cap, next-open execution, no forward-fill). Before ANY validation access the evaluator qualification MUST bind: cost-model source file + git blob + sha256 + version + commit + tree + container digest + dependency lock + synthetic fixture evidence. PENDING_EVALUATOR_BIND is FORBIDDEN in v1.0-final."
+  },
+  "D-NI": {
+   "decision": "REJECTED",
+   "detail": "Non-inferiority overlay NOT added. Frozen absolute-OOS structure retained: validation supplies positive-fold + parameter-stability gates; OOS verdict is absolute on untouched config B. No Delta_NI in the governing gates (historical note only). Retention reason = FIDELITY TO THE FROZEN DESIGN, not a universal strictness ordering (absolute and non-inferiority test different claims)."
+  },
+  "D-PURGE": {
+   "decision": "SCORING_EXCLUSIONS",
+   "detail": "Frozen 1700/850/850 boundaries NOT shifted. Deterministic within-window eligibility masks: a decision session is scored only when all required formation sessions AND the complete execution/holding/return-realization horizon lie within the SAME governed window. Formation exclusion 69 sessions at window start; realization = next-open + registered 5-session max hold."
+  },
+  "S_min": {
+   "decision": "0.70_CONFIRMATORY",
+   "detail": "PASS requires net OOS Sharpe >= 0.70 (and all other gates). Diversifier 0.40 is a separately-reported classification tag DIVERSIFIER_TIER_MET, NOT a PASS route. 0.40 <= Sharpe < 0.70 => FAIL (confirmatory) + tag DIVERSIFIER_TIER_MET; Sharpe < 0.40 => FAIL."
+  }
+ },
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_VALIDATIONOOS_DECISION_RECORD",
+ "version": "1.0"
+}

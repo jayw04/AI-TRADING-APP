@@ -1,0 +1,116 @@
+{
+ "record_type": "MR002_SESSION_INDEX_EXTRACTION",
+ "version": "1.0",
+ "snapshot": "apps/backend/data/mr002_research.duckdb",
+ "snapshot_sha256_pre": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+ "snapshot_sha256_post": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+ "snapshot_unchanged": true,
+ "session_query": "SELECT DISTINCT date FROM prices ORDER BY date",
+ "crosscheck_query": "SELECT DISTINCT date FROM etf_prices ORDER BY date",
+ "prices_total_distinct_dates_all_history": 4154,
+ "governed_sessions": 3400,
+ "governed_session_list_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+ "etf_governed_list_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+ "prices_equals_etf_within_governed_window": true,
+ "seam_rule": {
+  "formation_exclude_sessions": 69,
+  "horizon_governing_sessions": 6,
+  "horizon_alt_sessions": 5,
+  "endpoint_convention": "governing = next-open exit (t+1..t+6); alt = close-exit (t+1..t+5)"
+ },
+ "windows": {
+  "development": {
+   "declared_start": "2013-01-02",
+   "declared_end": "2019-10-02",
+   "expected_sessions": 1700,
+   "observed_sessions": 1700,
+   "count_matches_frozen": true,
+   "first_session": "2013-01-02",
+   "last_session": "2019-10-02"
+  },
+  "validation": {
+   "declared_start": "2019-10-03",
+   "declared_end": "2023-02-16",
+   "expected_sessions": 850,
+   "observed_sessions": 850,
+   "count_matches_frozen": true,
+   "first_session": "2019-10-03",
+   "last_session": "2023-02-16",
+   "scoring_eligible_governing": {
+    "first_idx": 69,
+    "last_idx": 843,
+    "first_date": "2020-01-13",
+    "last_date": "2023-02-08",
+    "eligible_sessions": 775
+   },
+   "scoring_eligible_alt_close_exit": {
+    "first_date": "2020-01-13",
+    "last_date": "2023-02-09",
+    "eligible_sessions": 776
+   },
+   "folds_governing": [
+    {
+     "fold": 1,
+     "first_idx": 69,
+     "last_idx": 223,
+     "first_date": "2020-01-13",
+     "last_date": "2020-08-21",
+     "sessions": 155
+    },
+    {
+     "fold": 2,
+     "first_idx": 224,
+     "last_idx": 378,
+     "first_date": "2020-08-24",
+     "last_date": "2021-04-06",
+     "sessions": 155
+    },
+    {
+     "fold": 3,
+     "first_idx": 379,
+     "last_idx": 533,
+     "first_date": "2021-04-07",
+     "last_date": "2021-11-12",
+     "sessions": 155
+    },
+    {
+     "fold": 4,
+     "first_idx": 534,
+     "last_idx": 688,
+     "first_date": "2021-11-15",
+     "last_date": "2022-06-28",
+     "sessions": 155
+    },
+    {
+     "fold": 5,
+     "first_idx": 689,
+     "last_idx": 843,
+     "first_date": "2022-06-29",
+     "last_date": "2023-02-08",
+     "sessions": 155
+    }
+   ]
+  },
+  "oos": {
+   "declared_start": "2023-02-17",
+   "declared_end": "2026-07-10",
+   "expected_sessions": 850,
+   "observed_sessions": 850,
+   "count_matches_frozen": true,
+   "first_session": "2023-02-17",
+   "last_session": "2026-07-10",
+   "scoring_eligible_governing": {
+    "first_idx": 69,
+    "last_idx": 843,
+    "first_date": "2023-05-30",
+    "last_date": "2026-07-01",
+    "eligible_sessions": 775
+   },
+   "scoring_eligible_alt_close_exit": {
+    "first_date": "2023-05-30",
+    "last_date": "2026-07-02",
+    "eligible_sessions": 776
+   }
+  }
+ }
+}
