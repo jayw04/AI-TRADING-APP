@@ -171,6 +171,16 @@ GOVERNED_ARTIFACT_ENV = {
 # hash (checked at produce AND exec). No cycle: the authorization exists before the
 # attestation is produced.
 HEX64_ENV_KEYS = ("MR002_EXECUTION_COUNTERSIGN_SHA256",)
+# Image-identity channels (preflight-refusal ruling 2026-07-19): the in-container preflight
+# `gather_env` READS these — a container cannot observe its own digest — and compares them
+# against the countersigned pins. They are SIGNED TEMPLATE FIELDS (attested, never
+# launcher-derived): REQUIRED in both template and executed modes; full lowercase
+# sha256:<64hex>; MR002_IMAGE_DIGEST must equal the attestation's image_digest (enforced
+# in-grammar against the validator's image_digest argument, so produce AND exec both get
+# it); MR002_OCI_CONFIG_DIGEST must equal the attestation's oci_config_digest (enforced at
+# produce against the build argument and at exec against the signed field). Duplicates,
+# substitutions, omissions, and operator-selected alternate values all refuse.
+IDENTITY_ENV_KEYS = ("MR002_IMAGE_DIGEST", "MR002_OCI_CONFIG_DIGEST")
 # MR002_EXECUTION_BINDING_SHA256 is the ONE LAUNCHER-DERIVED field (owner review
 # 2026-07-18, blocker 8): the Phase-B binding must contain the attestation and receipt
 # hashes, so its own hash CANNOT appear inside the signed command (a fixed-point/preimage
@@ -353,7 +363,18 @@ def _parse_launch_argv(argv, *, image_digest: str, executed: bool = False) -> di
     # (including any other MR002_* key) is refused
     governed_env_exact = {k: dst for _, k, dst, _ in GOVERNED_INPUTS} | GOVERNED_ARTIFACT_ENV
     allowed_keys = (set(REQUIRED_LAUNCH_ENV) | {"PYTHONPATH"} | set(governed_env_exact)
-                    | set(HEX64_ENV_KEYS))
+                    | set(HEX64_ENV_KEYS) | set(IDENTITY_ENV_KEYS))
+    # image-identity channels: required, full-digest format, and MR002_IMAGE_DIGEST must
+    # equal the attested image identity exactly (the OCI channel's equality against the
+    # attestation's oci_config_digest is enforced by the produce/exec callers)
+    if env.get("MR002_IMAGE_DIGEST") != image_digest:
+        raise LaunchValidationError(
+            f"IDENTITY_ENV_MISMATCH:MR002_IMAGE_DIGEST={env.get('MR002_IMAGE_DIGEST')}"
+            f":attested={image_digest}")
+    oci_env = str(env.get("MR002_OCI_CONFIG_DIGEST") or "")
+    if not _IMAGE_DIGEST_RE.match(oci_env):
+        raise LaunchValidationError(
+            f"IDENTITY_ENV_NOT_FULL_DIGEST:MR002_OCI_CONFIG_DIGEST={oci_env}")
     if executed:
         # blocker 8: the executed argv carries exactly the one launcher-derived field
         allowed_keys.add(DERIVED_BINDING_ENV_KEY)
@@ -541,6 +562,12 @@ def build_attestation(*, authorization_path: str, expected_pins_path: str,
         raise LaunchValidationError(
             f"ENV_COUNTERSIGN_SHA_MISMATCH:env="
             f"{parsed['env']['MR002_EXECUTION_COUNTERSIGN_SHA256']}:observed={auth_sha}")
+    # identity-channel rule (2026-07-19): the OCI channel must equal the attestation's own
+    # oci_config_digest (the image channel is enforced in-grammar against image_digest)
+    if parsed["env"]["MR002_OCI_CONFIG_DIGEST"] != oci_config_digest:
+        raise LaunchValidationError(
+            f"IDENTITY_ENV_MISMATCH:MR002_OCI_CONFIG_DIGEST="
+            f"{parsed['env']['MR002_OCI_CONFIG_DIGEST']}:attested={oci_config_digest}")
     doc = {
         "record_type": ATTESTATION_RECORD_TYPE,
         "version": "1.0",
@@ -653,6 +680,13 @@ def exec_attested(args: argparse.Namespace) -> int:
                 f"ENV_COUNTERSIGN_SHA_MISMATCH:env="
                 f"{parsed['env']['MR002_EXECUTION_COUNTERSIGN_SHA256']}"
                 f":signed={attestation['authorization_sha256']}")
+        # identity channels at the exec boundary: signed values only (the image channel is
+        # enforced in-grammar against the attestation's image_digest already)
+        if parsed["env"]["MR002_OCI_CONFIG_DIGEST"] != attestation["oci_config_digest"]:
+            raise LaunchValidationError(
+                f"IDENTITY_ENV_MISMATCH:MR002_OCI_CONFIG_DIGEST="
+                f"{parsed['env']['MR002_OCI_CONFIG_DIGEST']}"
+                f":signed={attestation['oci_config_digest']}")
         # blocker 8: derive the binding hash from ACTUAL bytes — never operator-supplied
         try:
             derived_binding_sha = _sha256_file(args.binding)

@@ -1,0 +1,103 @@
+=== MR-002 preflight SMOKE execution (Option 1, v1.6 ruling) ===
+start_utc: 2026-07-19T01:38:27.068Z
+smoke tool sha256: c59e1a10c84ef6ef073d87bac90afe74eddfebab95a8da17eccba13b11d43139 bytes: 2291
+docker ps -a BEFORE: []
+out entries BEFORE: 0
+exact argv: docker run --rm --network=none --cidfile /home/ec2-user/mr002/launch/smoke.cid --mount type=bind,src=/home/ec2-user/mr002/numrepo,dst=/work,ro --mount type=bind,src=/home/ec2-user/mr002/inputs/authorization.json,dst=/inputs/authorization.json,ro --mount type=bind,src=/home/ec2-user/mr002/inputs/expected_pins.json,dst=/inputs/expected_pins.json,ro --mount type=bind,src=/home/ec2-user/mr002/inputs/source_manifest.json,dst=/inputs/source_manifest.json,ro --mount type=bind,src=/home/ec2-user/mr002/launch/tools/mr002_stage3_preflight_smoke.py,dst=/tools/mr002_stage3_preflight_smoke.py,ro --env=OPENBLAS_CORETYPE=HASWELL --env=OPENBLAS_NUM_THREADS=1 --env=OMP_NUM_THREADS=1 --env=MKL_NUM_THREADS=1 --env=MR002_EXECUTION_COUNTERSIGN=/inputs/authorization.json --env=MR002_EXECUTION_COUNTERSIGN_SHA256=487c6ecbcbf06d21b247ec429d0af216e256a279c7c112903cef1b279bf1f8ca --env=MR002_EXPECTED_PINS=/inputs/expected_pins.json --env=MR002_SOURCE_MANIFEST=/inputs/source_manifest.json --env=MR002_IMAGE_DIGEST=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea --env=MR002_OCI_CONFIG_DIGEST=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea --env=PYTHONPATH=/work/apps/backend --workdir /work/apps/backend sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea python /tools/mr002_stage3_preflight_smoke.py
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "source_manifest",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "git_commit",
+      "status": "PASS",
+      "detail": "observed=d26bd9edbd875d2e3e11d4a6f6e06bad933b168e expected=d26bd9edbd875d2e3e11d4a6f6e06bad933b168e"
+    },
+    {
+      "name": "git_tree",
+      "status": "PASS",
+      "detail": "observed=c0e52d8ec61f881a2058c9c9686fde1ec33123a0 expected=c0e52d8ec61f881a2058c9c9686fde1ec33123a0"
+    },
+    {
+      "name": "working_tree_clean",
+      "status": "PASS",
+      "detail": "clean=True"
+    },
+    {
+      "name": "image_digest",
+      "status": "PASS",
+      "detail": "observed=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea expected=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea"
+    },
+    {
+      "name": "oci_config_digest",
+      "status": "PASS",
+      "detail": "observed=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea expected=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea (must be a full 64-hex digest)"
+    },
+    {
+      "name": "python_version",
+      "status": "PASS",
+      "detail": "observed=3.13.14 expected=3.13.14"
+    },
+    {
+      "name": "python_abi",
+      "status": "PASS",
+      "detail": "observed=cpython-313-x86_64-linux-gnu expected=cpython-313-x86_64-linux-gnu"
+    },
+    {
+      "name": "package_versions",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "cpu_avx2_present",
+      "status": "PASS",
+      "detail": "required=['avx2'] present=['avx2']"
+    },
+    {
+      "name": "cpu_avx512_absent",
+      "status": "PASS",
+      "detail": "none present"
+    },
+    {
+      "name": "thread_env",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "openblas_coretype",
+      "status": "PASS",
+      "detail": "observed=HASWELL expected=HASWELL"
+    },
+    {
+      "name": "material_config",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "corpus_hash_constant",
+      "status": "PASS",
+      "detail": "observed=1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b expected=1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b"
+    },
+    {
+      "name": "solver_certifier_fingerprints",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "cascade_import_hygiene",
+      "status": "PASS",
+      "detail": "clean"
+    }
+  ],
+  "failed": []
+}
+exit code: 0
+container id: ef0a38bac1b1e03883f0af13896f0b1dba3b68018cdc0f573de7cbc415529256
+end_utc: 2026-07-19T01:38:28.453Z
+docker ps -a AFTER: []
+out entries AFTER: 0
+corpus-iteration confirmation: run_preflight touches manifest files + git + module imports only (composition-pinned); corpus DB access would require production_corpus_source which the tool provably does not import; container lifetime above is seconds

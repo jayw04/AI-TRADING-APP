@@ -1,0 +1,7 @@
+=== MR-002 Stage-3 launcher-tools ruff log v1.7 (preflight-smoke qualification) ===
+date_utc: 2026-07-19T01:39:36Z
+ruff version: ruff 0.15.13
+command: .venv/Scripts/python -m ruff check scripts/mr002_stage3_launch_attestation.py scripts/mr002_stage3_attestation_verify.py scripts/mr002_stage3_final_test_report.py scripts/mr002_stage3_preflight_smoke.py tests/research/test_mr002_stage3_launcher_tools.py
+=== ruff output ===
+All checks passed!
+=== exit code: 0 ===

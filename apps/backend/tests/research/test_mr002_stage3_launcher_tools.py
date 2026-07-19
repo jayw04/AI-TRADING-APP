@@ -19,6 +19,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -75,6 +76,7 @@ def good_argv(*, image: str = IMAGE, out_spec: str | None = None,
               input_mode: str = "ro", artifact_srcs: dict[str, str] | None = None,
               drop_artifact: str | None = None, governed_env: dict[str, str] | None = None,
               countersign_sha: str = "e" * 64,
+              identity_env: dict[str, str | None] | None = None,
               pythonpath: str | None = att.PYTHONPATH_APPROVED,
               env_extra: list[str] | None = None, command: list[str] | None = None,
               extra_opts: list[str] | None = None) -> list[str]:
@@ -89,6 +91,9 @@ def good_argv(*, image: str = IMAGE, out_spec: str | None = None,
              "--env=OMP_NUM_THREADS=1", "--env=MKL_NUM_THREADS=1"]
     argv += governed_env_tokens(governed_env)
     argv += [f"--env=MR002_EXECUTION_COUNTERSIGN_SHA256={countersign_sha}"]
+    identity = {"MR002_IMAGE_DIGEST": IMAGE, "MR002_OCI_CONFIG_DIGEST": IMAGE}
+    identity.update(identity_env or {})
+    argv += [f"--env={k}={v}" for k, v in identity.items() if v is not None]
     if pythonpath is not None:
         argv += [f"--env=PYTHONPATH={pythonpath}"]
     argv += ["--workdir=/work/apps/backend"]
@@ -918,6 +923,195 @@ def test_blocker7_exact_registered_command_accepted():
 def test_blocker7_non_registered_commands_refused(command, match):
     with pytest.raises(att.LaunchValidationError, match=match):
         att.validate_launch_argv(good_argv(command=command), image_digest=IMAGE)
+
+
+# ── preflight-refusal remediation (2026-07-19 ruling): image-identity env channels ───────────────
+def test_identity_env_exact_pinned_values_pass():
+    """Both channels present with the exact pinned digests: the canonical template passes."""
+    argv = good_argv()
+    assert f"--env=MR002_IMAGE_DIGEST={IMAGE}" in argv
+    assert f"--env=MR002_OCI_CONFIG_DIGEST={IMAGE}" in argv
+    assert att.validate_launch_argv(argv, image_digest=IMAGE) == OUT_IDENTITY
+
+
+@pytest.mark.parametrize("missing_key", ["MR002_IMAGE_DIGEST", "MR002_OCI_CONFIG_DIGEST"])
+def test_identity_env_missing_key_refused(missing_key):
+    argv = good_argv(identity_env={missing_key: None})
+    with pytest.raises(att.LaunchValidationError,
+                       match=f"IDENTITY_ENV_(MISMATCH|NOT_FULL_DIGEST):{missing_key}"):
+        att.validate_launch_argv(argv, image_digest=IMAGE)
+
+
+def test_identity_env_wrong_image_digest_refused():
+    argv = good_argv(identity_env={"MR002_IMAGE_DIGEST": "sha256:" + "d" * 64})
+    with pytest.raises(att.LaunchValidationError,
+                       match="IDENTITY_ENV_MISMATCH:MR002_IMAGE_DIGEST"):
+        att.validate_launch_argv(argv, image_digest=IMAGE)
+
+
+def test_identity_env_malformed_oci_digest_refused():
+    for bad in ("sha256:" + "D" * 64, "81e8d7a7", "sha256:short"):
+        argv = good_argv(identity_env={"MR002_OCI_CONFIG_DIGEST": bad})
+        with pytest.raises(att.LaunchValidationError,
+                           match="IDENTITY_ENV_NOT_FULL_DIGEST:MR002_OCI_CONFIG_DIGEST"):
+            att.validate_launch_argv(argv, image_digest=IMAGE)
+
+
+def test_identity_env_wrong_oci_value_refused_at_produce(tmp_path, keypair):
+    """A well-formed OCI value differing from the attestation's oci_config_digest refuses
+    BEFORE signing."""
+    priv, _, _ = keypair
+    arts = _stub_artifacts(tmp_path)
+    argv = argv_for(arts, identity_env={"MR002_OCI_CONFIG_DIGEST": "sha256:" + "d" * 64})
+    with pytest.raises(att.LaunchValidationError,
+                       match="IDENTITY_ENV_MISMATCH:MR002_OCI_CONFIG_DIGEST"):
+        _build(tmp_path, priv, argv=argv, arts=arts)
+
+
+def test_identity_env_duplicate_key_refused():
+    argv = good_argv(env_extra=[f"--env=MR002_IMAGE_DIGEST={IMAGE}"])
+    with pytest.raises(att.LaunchValidationError, match="ENV_KEY_DUPLICATE:MR002_IMAGE_DIGEST"):
+        att.validate_launch_argv(argv, image_digest=IMAGE)
+
+
+def test_identity_env_exec_refuses_valid_signature_with_wrong_oci(produced, monkeypatch):
+    """A cryptographically VALID attestation whose template smuggles a wrong (well-formed)
+    OCI value is refused at exec before any spawn."""
+    from cryptography.hazmat.primitives import serialization
+    d = dict(produced["doc"])
+    template = json.loads(d["exact_command"])
+    i = template.index(f"--env=MR002_OCI_CONFIG_DIGEST={IMAGE}")
+    template[i] = "--env=MR002_OCI_CONFIG_DIGEST=sha256:" + "d" * 64
+    d["exact_command"] = json.dumps(template)
+    for k in ("signature", "canonical_signed_payload_sha256"):
+        d.pop(k)
+    key = serialization.load_pem_private_key(produced["priv"].read_bytes(), password=None)
+    payload = att.canonical_payload(d)
+    d["canonical_signed_payload_sha256"] = hashlib.sha256(payload).hexdigest()
+    d["signature"] = base64.b64encode(key.sign(payload)).decode("ascii")
+    smuggled = produced["tmp"] / "smuggled_oci.json"
+    smuggled.write_text(json.dumps(d, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    receipt = produced["tmp"] / "receipt_oci.json"
+    assert _run_verify(smuggled, produced["pub"], receipt).returncode == 0  # signature IS valid
+    def _no_spawn(*a, **k):
+        raise AssertionError("exec spawned despite wrong OCI identity channel")
+    monkeypatch.setattr(att.subprocess, "run", _no_spawn)
+    args = type("A", (), {"attestation": str(smuggled), "receipt": str(receipt),
+                          "binding": str(produced["arts"]["binding"])})()
+    assert att.exec_attested(args) == 2
+
+
+def test_work_mount_may_bind_the_numerical_checkout():
+    """The /work mount source is a free absolute path — binding the SEPARATE numerical
+    checkout (numrepo) validates; nothing ties /work to the launcher checkout."""
+    argv = good_argv(repo_spec="type=bind,src=/home/ec2-user/mr002/numrepo,dst=/work,ro")
+    assert att.validate_launch_argv(argv, image_digest=IMAGE) == OUT_IDENTITY
+
+
+def test_registered_preflight_detects_launcher_checkout_as_work():
+    """Integration with the REGISTERED preflight module (imported, not mocked): an Env
+    observing the LAUNCHER checkout identity fails the git checks against pins bound to
+    the REGISTERED numerical identity; the registered identity passes them."""
+    from scripts.mr002_stage3_preflight import Env, ExpectedPins, evaluate
+    REG_C, REG_T = "d26bd9edbd875d2e3e11d4a6f6e06bad933b168e", "c0e52d8ec61f881a2058c9c9686fde1ec33123a0"
+    LAUNCH_C, LAUNCH_T = "d8992ac68af261606ce33c5e8b743f4be0e6817b", "06090b54570715e3db1fc938a9c0010b04c521e8"
+    pins = ExpectedPins(git_commit=REG_C, git_tree=REG_T)
+    def failed(env):
+        return {c.name for c in evaluate(env, pins, []).checks if c.status != "PASS"}
+    bad = failed(Env(git_commit=LAUNCH_C, git_tree=LAUNCH_T, working_tree_clean=True))
+    assert {"git_commit", "git_tree"} <= bad                     # launcher checkout DETECTED
+    good = failed(Env(git_commit=REG_C, git_tree=REG_T, working_tree_clean=True))
+    assert "git_commit" not in good and "git_tree" not in good   # registered identity passes
+
+
+# ── env-read inventory regression guard (2026-07-19 ruling) ──────────────────────────────────────
+# Approved environment reads across the REGISTERED import closure of
+# `python scripts/mr002_stage3_population_runner.py`. A new MR002_*/numerical env read in
+# any of these modules that is absent from this map FAILS this test until it is reviewed,
+# dispositioned, and added here (and, if attested, to the launcher grammar).
+APPROVED_ENV_READS = {
+    "scripts/mr002_stage3_population_runner.py": {
+        "MR002_EXECUTION_COUNTERSIGN", "MR002_EXECUTION_COUNTERSIGN_SHA256",
+        "MR002_EXPECTED_PINS", "MR002_SOURCE_MANIFEST", "MR002_EXECUTION_PACKAGE",
+        "MR002_EXECUTION_BINDING", "MR002_EXECUTION_BINDING_SHA256",
+        "MR002_LAUNCH_ATTESTATION", "MR002_LAUNCH_VERIFICATION_RECEIPT",
+        "MR002_REALISM_PASS", "MR002_FINAL_TEST_REPORT",
+        "MR002_OUT",  # optional; grammar-refused so the default /out/cleanrun governs
+    },
+    "scripts/mr002_stage3_preflight.py": {
+        "MR002_IMAGE_DIGEST", "MR002_OCI_CONFIG_DIGEST",           # attested identity channels
+        "OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_CORETYPE",
+        "MR002_ROOT", "MR002_COMMIT_SHA", "MR002_TREE_SHA",        # CLI main() only — not the registered path
+        "MR002_SOURCE_MANIFEST",                                   # CLI main() only here; the registered read is the runner's (attested)
+    },
+    "scripts/mr002_stage3_source_manifest.py": set(),
+    "app/research/mr002/stage3_cascade.py": set(),
+    "app/research/mr002/certificate.py": set(),
+    "app/research/mr002/joint_portfolio.py": set(),
+    "app/research/mr002/dataset.py": set(),
+    "app/research/mr002/runner.py": set(),
+    "scripts/mr002_piqp.py": set(),
+    "scripts/mr002_solver_intersection.py": set(),
+    "scripts/mr002_coverage_signed_gap.py": {
+        "MR002_SAMPLE",  # deliberately absent: grammar refuses it; default "" = FULL population
+    },
+    "scripts/mr002_development_run.py": {
+        "MR002_STORE",   # deliberately absent: default IS the registered DB path under /work
+        "MR002_DEV_OUT",  # CLI main() only — not reached by run_config in the capture path
+    },
+}
+_ENV_READ_RE = re.compile(r"os\.(?:environ(?:\.get)?|getenv)\s*[\[\(]\s*['\"]([A-Za-z0-9_]+)['\"]")
+
+
+def test_env_read_inventory_regression_guard():
+    """Static scan of the registered import closure: every os.environ/os.getenv read of an
+    env key must appear in APPROVED_ENV_READS for its module."""
+    backend = Path(att.__file__).parent.parent
+    unapproved = {}
+    for rel, approved in APPROVED_ENV_READS.items():
+        src = (backend / rel).read_text(encoding="utf-8")
+        found = set(_ENV_READ_RE.findall(src))
+        extra = found - approved
+        if extra:
+            unapproved[rel] = sorted(extra)
+    assert not unapproved, f"UNREVIEWED env reads in registered modules: {unapproved}"
+
+
+# ── preflight smoke tool (Option 1, v1.6 ruling): composition pinned, grammar-excluded ───────────
+SMOKE_TOOL = Path(att.__file__).parent / "mr002_stage3_preflight_smoke.py"
+
+
+def test_smoke_tool_composition_static():
+    """The smoke tool composes ONLY the approved frozen loaders + run_preflight, reads no
+    operator-supplied expected values, and contains no import or call into population
+    execution: the forbidden names below appear nowhere in its source."""
+    src = SMOKE_TOOL.read_text(encoding="utf-8")
+    code = src.split('"""', 2)[2]  # scan the CODE body, not the descriptive docstring
+    for required in ("load_authorization", "load_expected_pins", "run_preflight",
+                     "MR002_EXECUTION_COUNTERSIGN", "MR002_EXECUTION_COUNTERSIGN_SHA256",
+                     "MR002_EXPECTED_PINS", "MR002_SOURCE_MANIFEST"):
+        assert required in code, f"missing approved element: {required}"
+    for forbidden in ("run_clean_successor", "orchestrate", "resolve_instance",
+                      "production_corpus_source", "run_population", "FrozenDataset",
+                      "seal_implementations", "stage3_cascade", "duckdb",
+                      "mr002_research.duckdb", "checkpoint", "/out",
+                      "MR002_COMMIT_SHA", "MR002_TREE_SHA", "ExpectedPins("):
+        assert forbidden not in code, f"forbidden element present: {forbidden}"
+    # imports (top-level AND function-level) are exactly the frozen loaders + stdlib
+    imports = set(re.findall(r"^\s*(?:from|import)\s+([A-Za-z0-9_.]+)", code, re.M))
+    assert imports == {"__future__", "json", "os", "sys",
+                       "scripts.mr002_stage3_population_runner",
+                       "scripts.mr002_stage3_preflight"}, imports
+    # no file WRITE anywhere (open() is used read-only for the manifest)
+    assert not re.search(r"open\([^)]*['\"][wax]b?['\"]", code)
+
+
+def test_smoke_tool_not_in_registered_command_grammar():
+    """The launcher grammar continues to permit ONLY the registered population-runner
+    entrypoint — the smoke tool is NOT an acceptable production command."""
+    argv = good_argv(command=["python", "scripts/mr002_stage3_preflight_smoke.py"])
+    with pytest.raises(att.LaunchValidationError, match="CONTAINER_COMMAND_NOT_REGISTERED"):
+        att.validate_launch_argv(argv, image_digest=IMAGE)
 
 
 # ── hardening: explicit Ed25519 key-type enforcement + 0600 private key ──────────────────────────

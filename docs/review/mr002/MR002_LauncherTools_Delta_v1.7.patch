@@ -1,0 +1,99 @@
+diff --git a/docs/review/mr002/test_mr002_stage3_launcher_tools.py b/apps/backend/tests/research/test_mr002_stage3_launcher_tools.py
+index 23582ee..62ea24f 100644
+--- a/docs/review/mr002/test_mr002_stage3_launcher_tools.py
++++ b/apps/backend/tests/research/test_mr002_stage3_launcher_tools.py
+@@ -1077,6 +1077,43 @@ def test_env_read_inventory_regression_guard():
+     assert not unapproved, f"UNREVIEWED env reads in registered modules: {unapproved}"
+ 
+ 
++# ── preflight smoke tool (Option 1, v1.6 ruling): composition pinned, grammar-excluded ───────────
++SMOKE_TOOL = Path(att.__file__).parent / "mr002_stage3_preflight_smoke.py"
++
++
++def test_smoke_tool_composition_static():
++    """The smoke tool composes ONLY the approved frozen loaders + run_preflight, reads no
++    operator-supplied expected values, and contains no import or call into population
++    execution: the forbidden names below appear nowhere in its source."""
++    src = SMOKE_TOOL.read_text(encoding="utf-8")
++    code = src.split('"""', 2)[2]  # scan the CODE body, not the descriptive docstring
++    for required in ("load_authorization", "load_expected_pins", "run_preflight",
++                     "MR002_EXECUTION_COUNTERSIGN", "MR002_EXECUTION_COUNTERSIGN_SHA256",
++                     "MR002_EXPECTED_PINS", "MR002_SOURCE_MANIFEST"):
++        assert required in code, f"missing approved element: {required}"
++    for forbidden in ("run_clean_successor", "orchestrate", "resolve_instance",
++                      "production_corpus_source", "run_population", "FrozenDataset",
++                      "seal_implementations", "stage3_cascade", "duckdb",
++                      "mr002_research.duckdb", "checkpoint", "/out",
++                      "MR002_COMMIT_SHA", "MR002_TREE_SHA", "ExpectedPins("):
++        assert forbidden not in code, f"forbidden element present: {forbidden}"
++    # imports (top-level AND function-level) are exactly the frozen loaders + stdlib
++    imports = set(re.findall(r"^\s*(?:from|import)\s+([A-Za-z0-9_.]+)", code, re.M))
++    assert imports == {"__future__", "json", "os", "sys",
++                       "scripts.mr002_stage3_population_runner",
++                       "scripts.mr002_stage3_preflight"}, imports
++    # no file WRITE anywhere (open() is used read-only for the manifest)
++    assert not re.search(r"open\([^)]*['\"][wax]b?['\"]", code)
++
++
++def test_smoke_tool_not_in_registered_command_grammar():
++    """The launcher grammar continues to permit ONLY the registered population-runner
++    entrypoint — the smoke tool is NOT an acceptable production command."""
++    argv = good_argv(command=["python", "scripts/mr002_stage3_preflight_smoke.py"])
++    with pytest.raises(att.LaunchValidationError, match="CONTAINER_COMMAND_NOT_REGISTERED"):
++        att.validate_launch_argv(argv, image_digest=IMAGE)
++
++
+ # ── hardening: explicit Ed25519 key-type enforcement + 0600 private key ──────────────────────────
+ def _rsa_keypair(tmp_path):
+     from cryptography.hazmat.primitives import serialization
+diff --git a/apps/backend/scripts/mr002_stage3_preflight_smoke.py b/apps/backend/scripts/mr002_stage3_preflight_smoke.py
+new file mode 100644
+index 0000000..680d387
+--- /dev/null
++++ b/apps/backend/scripts/mr002_stage3_preflight_smoke.py
+@@ -0,0 +1,45 @@
++"""MR-002 Stage-3 — preflight-only SMOKE tool (qualification tooling, Option 1).
++
++Authorized by the v1.6 review verdict as an ADDITIVE test-only script, comparable to the
++final-test-report tooling: it proves the FULL registered preflight passes inside the
++pinned container against the real numerical checkout WITHOUT touching the population
++path. It composes ONLY frozen registered functions:
++
++  1. `load_authorization` (frozen loader) — the countersigned execution authorization,
++     from MR002_EXECUTION_COUNTERSIGN(+_SHA256);
++  2. `load_expected_pins` (frozen loader) — the REAL countersigned pins, hash-bound via
++     the authorization (no operator-supplied expected values exist anywhere here);
++  3. the registered source manifest (MR002_SOURCE_MANIFEST), parsed as the runner does;
++  4. the registered `run_preflight(pins, manifest)` — verify_source + gather_env +
++     evaluate, the exact composition `run_clean_successor` executes;
++  5. prints the COMPLETE preflight summary; exits 0 only when EVERY check passes.
++
++It must not and does not: invoke population resolution, open or iterate the corpus DB,
++call the cascade, create any output, change any registered module, or become a production
++command — the launcher's registered-command grammar continues to permit ONLY
++`python scripts/mr002_stage3_population_runner.py` (enforced by test). Composition is
++pinned by `test_smoke_tool_composition_static`.
++"""
++from __future__ import annotations
++
++import json
++import os
++import sys
++
++
++def main() -> int:
++    from scripts.mr002_stage3_population_runner import load_authorization, load_expected_pins
++    from scripts.mr002_stage3_preflight import run_preflight
++    auth = load_authorization(os.environ["MR002_EXECUTION_COUNTERSIGN"],
++                              os.environ["MR002_EXECUTION_COUNTERSIGN_SHA256"])
++    pins = load_expected_pins(os.environ["MR002_EXPECTED_PINS"], auth["expected_pins_sha256"])
++    with open(os.environ["MR002_SOURCE_MANIFEST"], encoding="utf-8") as fh:
++        manifest = json.load(fh)
++    rep = run_preflight(pins, manifest)
++    print(json.dumps(rep.summary(), indent=2))
++    return 0 if rep.passed else 1
++
++
++if __name__ == "__main__":
++    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
++    raise SystemExit(main())
