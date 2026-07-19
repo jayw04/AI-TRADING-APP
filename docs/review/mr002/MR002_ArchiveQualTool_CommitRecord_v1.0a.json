@@ -1,0 +1,61 @@
+{
+  "record_type": "MR002_ARCHIVE_QUAL_TOOL_COMMIT_RECORD",
+  "version": "1.0a",
+  "date": "2026-07-19",
+  "authorization": "archive-qualification tool v1.0a verdict — commit authorization ISSUED",
+  "commit_sha": "8f9444833f74cd9dc5fa0e7984fe1d0f43ad7c06",
+  "tree_sha": "aed9aca5db7d3896143fc2e32d2fdb872de00896",
+  "parent_sha": "29ed2f5d913a3cc4f3ef6f2c3da9c7a524c0afe0",
+  "branch": "research/mr002-preregistration",
+  "pushed": true,
+  "name_status": {
+    "A": [
+      "apps/backend/scripts/mr002_run4_archive_qualification.py",
+      "apps/backend/tests/research/test_mr002_run4_archive_qualification.py",
+      "docs/review/mr002/MR002_ArchiveQualTool_Delta_v1.0.patch",
+      "docs/review/mr002/MR002_ArchiveQualTool_Delta_v1.0a.patch",
+      "docs/review/mr002/MR002_ArchiveQualTool_DevSuite.log",
+      "docs/review/mr002/MR002_ArchiveQualTool_Ruff.log",
+      "docs/review/mr002/MR002_ArchiveQualTool_Submission_v1.0.md",
+      "docs/review/mr002/MR002_ArchiveQualTool_Submission_v1.0a.md",
+      "docs/review/mr002/MR002_ArchiveQualTool_v10a_DevSuite.log",
+      "docs/review/mr002/MR002_ArchiveQualTool_v10a_Ruff.log"
+    ]
+  },
+  "source_files": {
+    "apps/backend/scripts/mr002_run4_archive_qualification.py": {
+      "git_blob": "f02d44158cf9ad29f8520fc83851c278301ec470",
+      "committed_lf_sha256": "3b60de2a1d96d97152ea62b77c81ff25861d2e9582698b75f4e25b4dee8c7db5",
+      "byte_length": 15225
+    },
+    "apps/backend/tests/research/test_mr002_run4_archive_qualification.py": {
+      "git_blob": "dee41dc48020c0dbda16f52e76e952568a1e4888",
+      "committed_lf_sha256": "0478369e9ba324392737df67bebdb1c0942bf664cd2cc7762396a80071e94509",
+      "byte_length": 25515
+    }
+  },
+  "identity_note": "committed_lf_sha256 verified against the staged blobs immediately before commit — byte-identical to the accepted v1.0a review identities.",
+  "binary_safe_diff": {
+    "command": "git diff 29ed2f5..8f94448 --binary",
+    "sha256": "9593dcb86fa441fed9af23f3499e6b1144ae646996904e9f1e5f5ec7f9f4b0bd",
+    "byte_length": 127989
+  },
+  "tracked_status_clean": true,
+  "registered_implementation_unchanged": {
+    "governing_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+    "proof": "blob-level: stage3_cascade.py e59f4bc4…, mr002_stage3_population_runner.py db010fa2…, test_mr002_stage3_population_runner.py 42d935bf… — all IDENTICAL between ecaa262 and HEAD"
+  },
+  "launcher_unchanged": {
+    "accepted_launcher_commit": "b6e5d278ff5caf843e1081ab27ff91473a1126ce",
+    "proof": "blob-level: mr002_stage3_launch_attestation.py cc40b60e…, mr002_stage3_preflight_smoke.py 680d387f…, test_mr002_stage3_launcher_tools.py 62ea24fc… — all IDENTICAL between b6e5d27 and HEAD"
+  },
+  "post_commit_constraints": {
+    "tool_frozen": "the tooling commit is separate from and does not replace the governing implementation commit ecaa262; further tool changes need a new delta review",
+    "host_copy_verification": "the host-side copy under /home/ec2-user/mr002/tools/ MUST be byte-verified against blob f02d4415… / sha256 3b60de2a… before use",
+    "report_publication": "report AND stderr must be published to VACANT host-side paths via a no-overwrite process — bare shell redirection is not sufficient no-overwrite evidence (owner ruling)",
+    "host_phase": "EC2 restart, host qualification execution, and the archive qualification command remain NOT authorized (command approved in principle only; final approval after image digest, tool bytes, mounts, output destination, and requalification evidence are fixed)",
+    "scope": "the tool proves input-array schema-2 round-trip fidelity ONLY — it must never be described as proving solver-output (z/lam) equivalence; the run-4 archive stays immutable; the report is a new independent artifact, not a repaired checkpoint",
+    "run5": "NOT AUTHORIZED",
+    "validation_oos": "SEALED AND UNREAD"
+  }
+}
