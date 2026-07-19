@@ -1,0 +1,329 @@
+{
+  "binds_real": {
+    "certifier": "canonical_qualify (registered KKT LIMITS + two-sided signed gap)",
+    "fallback": "PIQP_P2",
+    "primary": "QUADPROG_SQRT"
+  },
+  "cases": [
+    {
+      "accepted_by": "QUADPROG_SQRT",
+      "case": "primary_qualified/active_inequality",
+      "detail": "",
+      "disposition": "PRIMARY_QUALIFIED",
+      "expected": "PRIMARY_QUALIFIED",
+      "fallback_code": null,
+      "fallback_enum": null,
+      "fallback_invoked": false,
+      "fallback_solver": null,
+      "outcome_sha256": "e5f2eb64a852d28659d5f159ba4fcf4eb5741f9d954b0d8aca03dc9a9f9446b4",
+      "pass": true,
+      "primary_code": "PASS",
+      "primary_enum": "QUALIFIED",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "85e6aa2158233f5e4725ec735ed46e49749955b93202cc491397e89288cf18c5",
+      "stop": false
+    },
+    {
+      "accepted_by": "QUADPROG_SQRT",
+      "case": "primary_qualified/active_equality",
+      "detail": "",
+      "disposition": "PRIMARY_QUALIFIED",
+      "expected": "PRIMARY_QUALIFIED",
+      "fallback_code": null,
+      "fallback_enum": null,
+      "fallback_invoked": false,
+      "fallback_solver": null,
+      "outcome_sha256": "fe2f0e91826733ffc2f3eb3fffffd3b4d3f013d427f113be29cdb22ace8f4ff7",
+      "pass": true,
+      "primary_code": "PASS",
+      "primary_enum": "QUALIFIED",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "bb4cf607866889b9b549e9af7e6be56cdd63e769b4f1146c06cbc0013916e97f",
+      "stop": false
+    },
+    {
+      "accepted_by": "QUADPROG_SQRT",
+      "case": "primary_qualified/active_upper_bound",
+      "detail": "",
+      "disposition": "PRIMARY_QUALIFIED",
+      "expected": "PRIMARY_QUALIFIED",
+      "fallback_code": null,
+      "fallback_enum": null,
+      "fallback_invoked": false,
+      "fallback_solver": null,
+      "outcome_sha256": "01c340c1a452150f2aae25c054e2f795ce1f80b523a29561e3160b5ea098bb84",
+      "pass": true,
+      "primary_code": "PASS",
+      "primary_enum": "QUALIFIED",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "4bbaa6d1701fb2e0efff77d36dea4f27c6b8d112947739366567ca5092c6d210",
+      "stop": false
+    },
+    {
+      "accepted_by": "PIQP_P2",
+      "case": "fallback_qualified/active_inequality",
+      "detail": "",
+      "disposition": "FALLBACK_QUALIFIED",
+      "expected": "FALLBACK_QUALIFIED",
+      "fallback_code": "PASS",
+      "fallback_enum": "QUALIFIED",
+      "fallback_invoked": true,
+      "fallback_solver": "PIQP_P2",
+      "outcome_sha256": "3d7b146889ffccce53589928304ff10c0443eca6d5082a638c2c933ed797cf08",
+      "pass": true,
+      "primary_code": "QUADPROG_CONSTRAINTS_INCONSISTENT",
+      "primary_enum": "NUMERICAL_STATUS_NONQUALIFICATION",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "85e6aa2158233f5e4725ec735ed46e49749955b93202cc491397e89288cf18c5",
+      "stop": false
+    },
+    {
+      "accepted_by": "PIQP_P2",
+      "case": "fallback_qualified/active_equality",
+      "detail": "",
+      "disposition": "FALLBACK_QUALIFIED",
+      "expected": "FALLBACK_QUALIFIED",
+      "fallback_code": "PASS",
+      "fallback_enum": "QUALIFIED",
+      "fallback_invoked": true,
+      "fallback_solver": "PIQP_P2",
+      "outcome_sha256": "29e7f6c639a92828242c99b4b1d120d92902a9f481015fc4dea6009c48bf0a59",
+      "pass": true,
+      "primary_code": "QUADPROG_CONSTRAINTS_INCONSISTENT",
+      "primary_enum": "NUMERICAL_STATUS_NONQUALIFICATION",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "bb4cf607866889b9b549e9af7e6be56cdd63e769b4f1146c06cbc0013916e97f",
+      "stop": false
+    },
+    {
+      "accepted_by": "PIQP_P2",
+      "case": "fallback_qualified/active_upper_bound",
+      "detail": "",
+      "disposition": "FALLBACK_QUALIFIED",
+      "expected": "FALLBACK_QUALIFIED",
+      "fallback_code": "PASS",
+      "fallback_enum": "QUALIFIED",
+      "fallback_invoked": true,
+      "fallback_solver": "PIQP_P2",
+      "outcome_sha256": "fc4a6c1fec91ed79b90aea53173fc375b0c1435366c40798a65092758dd621f3",
+      "pass": true,
+      "primary_code": "QUADPROG_CONSTRAINTS_INCONSISTENT",
+      "primary_enum": "NUMERICAL_STATUS_NONQUALIFICATION",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "4bbaa6d1701fb2e0efff77d36dea4f27c6b8d112947739366567ca5092c6d210",
+      "stop": false
+    },
+    {
+      "accepted_by": "PIQP_P2",
+      "candidate_kind": "feasible_but_suboptimal_origin",
+      "case": "certifier_classification/active_inequality",
+      "claim": "primary enum only; cascade disposition recorded, not asserted",
+      "detail": "",
+      "disposition": "FALLBACK_QUALIFIED",
+      "expected_primary_enum": "CERTIFICATE_NONQUALIFICATION",
+      "fallback_code": "PASS",
+      "fallback_enum": "QUALIFIED",
+      "fallback_invoked": true,
+      "fallback_solver": "PIQP_P2",
+      "outcome_sha256": "1c6ed6663b6e6138a98da4e845677dbfc029155be876e55153bf6160a5f7d87c",
+      "pass": true,
+      "primary_code": "kkt_residual+stationarity_residual+SIGNED_LAGRANGIAN_GAP_LIMIT_EXCEEDED",
+      "primary_enum": "CERTIFICATE_NONQUALIFICATION",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "85e6aa2158233f5e4725ec735ed46e49749955b93202cc491397e89288cf18c5",
+      "stop": false
+    },
+    {
+      "accepted_by": "PIQP_P2",
+      "candidate_kind": "primal_infeasible_origin",
+      "case": "certifier_classification/active_equality",
+      "claim": "primary enum only; cascade disposition recorded, not asserted",
+      "detail": "",
+      "disposition": "FALLBACK_QUALIFIED",
+      "expected_primary_enum": "CERTIFICATE_NONQUALIFICATION",
+      "fallback_code": "PASS",
+      "fallback_enum": "QUALIFIED",
+      "fallback_invoked": true,
+      "fallback_solver": "PIQP_P2",
+      "outcome_sha256": "63c159eadaf830e35ca2a749197d2f146912ee3ddf96f426ccf1a7d724b91df3",
+      "pass": true,
+      "primary_code": "kkt_residual+primal_residual+stationarity_residual+SIGNED_LAGRANGIAN_GAP_LIMIT_EXCEEDED",
+      "primary_enum": "CERTIFICATE_NONQUALIFICATION",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "bb4cf607866889b9b549e9af7e6be56cdd63e769b4f1146c06cbc0013916e97f",
+      "stop": false
+    },
+    {
+      "accepted_by": "PIQP_P2",
+      "candidate_kind": "feasible_but_suboptimal_origin",
+      "case": "certifier_classification/active_upper_bound",
+      "claim": "primary enum only; cascade disposition recorded, not asserted",
+      "detail": "",
+      "disposition": "FALLBACK_QUALIFIED",
+      "expected_primary_enum": "CERTIFICATE_NONQUALIFICATION",
+      "fallback_code": "PASS",
+      "fallback_enum": "QUALIFIED",
+      "fallback_invoked": true,
+      "fallback_solver": "PIQP_P2",
+      "outcome_sha256": "e46f86d047160849342400fbdc0645b4e1f7ca0677b41d9480c078f15673ff44",
+      "pass": true,
+      "primary_code": "kkt_residual+stationarity_residual+SIGNED_LAGRANGIAN_GAP_LIMIT_EXCEEDED",
+      "primary_enum": "CERTIFICATE_NONQUALIFICATION",
+      "primary_solver": "QUADPROG_SQRT",
+      "rec_sha256": "4bbaa6d1701fb2e0efff77d36dea4f27c6b8d112947739366567ca5092c6d210",
+      "stop": false
+    }
+  ],
+  "cases_pass": true,
+  "evidence_persisted": true,
+  "is_pre_execution_gate": true,
+  "not_exercised": [
+    "real registered QUADPROG ValueError (corpus-row property, see §6)",
+    "real UNRESOLVED_NUMERICAL_FAILURE",
+    "real certifier-exception INTEGRITY"
+  ],
+  "preflight_gate": {
+    "checks": [
+      {
+        "detail": "ok",
+        "name": "source_manifest",
+        "status": "PASS"
+      },
+      {
+        "detail": "observed=ecaa262480fb2b81fb0ba7d11b97721b617722bf expected=ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+        "name": "git_commit",
+        "status": "PASS"
+      },
+      {
+        "detail": "observed=1cb95e254c0dc82bc231b355b8ab502f4e33f752 expected=1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+        "name": "git_tree",
+        "status": "PASS"
+      },
+      {
+        "detail": "clean=True",
+        "name": "working_tree_clean",
+        "status": "PASS"
+      },
+      {
+        "detail": "observed=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea expected=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+        "name": "image_digest",
+        "status": "PASS"
+      },
+      {
+        "detail": "observed=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea expected=sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea (must be a full 64-hex digest)",
+        "name": "oci_config_digest",
+        "status": "PASS"
+      },
+      {
+        "detail": "observed=3.13.14 expected=3.13.14",
+        "name": "python_version",
+        "status": "PASS"
+      },
+      {
+        "detail": "observed=cpython-313-x86_64-linux-gnu expected=cpython-313-x86_64-linux-gnu",
+        "name": "python_abi",
+        "status": "PASS"
+      },
+      {
+        "detail": "ok",
+        "name": "package_versions",
+        "status": "PASS"
+      },
+      {
+        "detail": "required=['avx2'] present=['avx2']",
+        "name": "cpu_avx2_present",
+        "status": "PASS"
+      },
+      {
+        "detail": "none present",
+        "name": "cpu_avx512_absent",
+        "status": "PASS"
+      },
+      {
+        "detail": "ok",
+        "name": "thread_env",
+        "status": "PASS"
+      },
+      {
+        "detail": "observed=HASWELL expected=HASWELL",
+        "name": "openblas_coretype",
+        "status": "PASS"
+      },
+      {
+        "detail": "ok",
+        "name": "material_config",
+        "status": "PASS"
+      },
+      {
+        "detail": "observed=1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b expected=1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+        "name": "corpus_hash_constant",
+        "status": "PASS"
+      },
+      {
+        "detail": "ok",
+        "name": "solver_certifier_fingerprints",
+        "status": "PASS"
+      },
+      {
+        "detail": "clean",
+        "name": "cascade_import_hygiene",
+        "status": "PASS"
+      }
+    ],
+    "failed": [],
+    "passed": true
+  },
+  "preflight_passed": true,
+  "record_type": "MR002_STAGE3_CASCADE_REALISM_HARNESS",
+  "runtime": {
+    "avx2": true,
+    "avx512f": false,
+    "cascade_module_imports": [
+      "app.research.mr002",
+      "app.research.mr002.certificate",
+      "app.research.mr002.directed",
+      "app.research.mr002.joint_portfolio",
+      "app.research.mr002.repair",
+      "app.research.mr002.stage3_cascade",
+      "scripts.mr002_characterize_native_qp",
+      "scripts.mr002_coverage_signed_gap",
+      "scripts.mr002_piqp",
+      "scripts.mr002_solver_intersection",
+      "scripts.mr002_stage3_population_runner",
+      "scripts.mr002_stage3_preflight",
+      "scripts.mr002_stage3_source_manifest"
+    ],
+    "cpu_flags_available": true,
+    "env_vars": {
+      "MKL_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_CORETYPE": "HASWELL",
+      "OPENBLAS_NUM_THREADS": "1"
+    },
+    "fingerprints": {
+      "canonical_qualify": "7a0ca6d28353dd3a243b877ffe2de03b93df8c733a82d5141228c7c89fff43b9",
+      "certify": "3fc606978c42016242697c45828569250913fd3998a020fc45f1a79ef223c8f3",
+      "piqp_solve": "ac68d7150536044be5c1509ed1a2bcf722cce081325a1fdb00eb05b549c5f78a",
+      "primary_wrapper": "b2b5c41e19b66a323db3d6be73f022f97c747caf54e97957f337531ef8cd9b6c",
+      "resolve": "c2cba44acf8fce657e20162c865a67c2980510ddb590e74b78dcbb37fe80fa4c"
+    },
+    "git_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+    "git_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+    "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+    "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+    "package_versions": {
+      "clarabel": "0.11.1",
+      "highspy": "1.15.1",
+      "mpmath": "1.3.0",
+      "numpy": "2.2.6",
+      "piqp": "0.6.3",
+      "quadprog": "0.1.13",
+      "scipy": "1.18.0"
+    },
+    "python_abi": "cpython-313-x86_64-linux-gnu",
+    "python_version": "3.13.14",
+    "working_tree_clean": true
+  },
+  "scope": "in-image realism only; no corpus/dataset/population; no performance; OOS sealed",
+  "verdict": "PASS"
+}

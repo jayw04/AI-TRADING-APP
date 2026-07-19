@@ -1,0 +1,217 @@
+{
+  "record_type": "MR002_STAGE3_SOURCE_MANIFEST",
+  "version": "1.0",
+  "manifest_phase": "PRE_EXECUTION_SOURCE",
+  "note": "Byte-binds the load-bearing SOURCE dependencies of the finalized cascade (finding 6): SHA-256 + Git blob + byte length per file. This does NOT bind every governance artifact affecting authorization/execution \u2014 those are listed under `governance_artifacts` (bound when present) and `pending_at_countersignature` (finding 15).",
+  "excluded_by_design": {
+    "exact_repair/exact_simplex": "NOT on the cascade path \u2014 they belong to the quarantined full-population repair evidence and are deliberately not imported by the successor cascade."
+  },
+  "files": {
+    "apps/backend/app/research/mr002/stage3_cascade.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+      "git_blob": "e59f4bc4692bcf4ec3f0af44979ecd640e2106c8",
+      "byte_length": 45030,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_coverage_signed_gap.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+      "git_blob": "a6e21991c769c1b4902d8d1d952b7bd901d2811a",
+      "byte_length": 26582,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_piqp.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "06f730895fdf160ba0d15a57d49effee7ffdd2f32f19bb4fb94f40ae15cabfc8",
+      "git_blob": "cda8b9622fb0c75b7015d677332a7e800dcc3a81",
+      "byte_length": 20015,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_solver_intersection.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "ee1aacf37c1a81ecfe566b5262b9db67b9e86a04715f97ed12e76073b4767437",
+      "git_blob": "a5e6104234a0bd224d05a31bc9c2161f39512035",
+      "byte_length": 16458,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_characterize_native_qp.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "bba6fbb4901f21361d2c1c1b84c624d0299921536883cfad93244182c9cc6244",
+      "git_blob": "d88b49e192603fc824c42bf6f8f12514e470f911",
+      "byte_length": 14078,
+      "present": true
+    },
+    "apps/backend/app/research/mr002/certificate.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "c679eb39bcabd90089dfaa2f3f149996e5cfcf4fc1582e58513c91b0703e31ec",
+      "git_blob": "c3375b017cc70895f402d5f546e0631c61728143",
+      "byte_length": 14804,
+      "present": true
+    },
+    "apps/backend/app/research/mr002/directed.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "7f8d44d252512f7665c720a94644c50bd122ed86727fdbdc7023f8a7d1e47fc1",
+      "git_blob": "8c0239857611909b37fa0ea09732f5dfb806d6ac",
+      "byte_length": 8847,
+      "present": true
+    },
+    "apps/backend/app/research/mr002/joint_portfolio.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+      "git_blob": "71eb60520a0c5117f0ee4f00ceb9108b47e56b55",
+      "byte_length": 37543,
+      "present": true
+    },
+    "apps/backend/app/research/mr002/repair.py": {
+      "role": "cascade_numerical_path",
+      "sha256": "ddb62ffc026024e0de7063b1b0416b64a20af6d26ea29541681567bdd92a9a71",
+      "git_blob": "1c322269b160b5d3b3332bbe0e873cc30df2ba89",
+      "byte_length": 29679,
+      "present": true
+    },
+    "apps/backend/app/research/mr002/dataset.py": {
+      "role": "corpus_regeneration_path",
+      "sha256": "a8a11c0c2b5e9ddefb87eb0ebcc9e659eff5104115d5493685707597e157c957",
+      "git_blob": "68626046d559e1ef4c8222255f8214a527d9a0ab",
+      "byte_length": 14200,
+      "present": true
+    },
+    "apps/backend/app/research/mr002/runner.py": {
+      "role": "corpus_regeneration_path",
+      "sha256": "87dd6e71a60ba89297ed4653eb1abf94052f34f927e8865b8ea41515e290b34f",
+      "git_blob": "a75eeeb3d3b25fd824b049652642d4ff49ee78c5",
+      "byte_length": 11418,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_development_run.py": {
+      "role": "corpus_regeneration_path",
+      "sha256": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9",
+      "git_blob": "884cf8cf524a1f88a7675d95dff72ac8d5f38f1b",
+      "byte_length": 23453,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_stage3_preflight.py": {
+      "role": "execution_package_component",
+      "sha256": "9c749d73415baa9220a5c348b6c845c179ed007739f9d48ca3517bd71f94e6a7",
+      "git_blob": "1425f5ef7cb42f6a74347fc3a5602b1a8418b7f9",
+      "byte_length": 20318,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_stage3_population_runner.py": {
+      "role": "execution_package_component",
+      "sha256": "297901d7097008416e545c9b6f6f71b7a49ca255ebef6c6b282ab3f6eb624384",
+      "git_blob": "db010fa238cd00c59130eb7765725e43c42e0b6f",
+      "byte_length": 85064,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_stage3_source_manifest.py": {
+      "role": "execution_package_component",
+      "sha256": "9bacbca47fcb44a8eecde3300ebb295919c55e5f1f046aa2e405e8785bdc9cd1",
+      "git_blob": "01ff417a1518925f65787ae0f470184e8cc099e0",
+      "byte_length": 14141,
+      "present": true
+    },
+    "apps/backend/scripts/mr002_stage3_cascade_fixtures.py": {
+      "role": "execution_package_component",
+      "sha256": "b3da5c5c2efde8eecde4c56f278d0d1586c43d6e802dd041952d558ed9660874",
+      "git_blob": "79e694dca37762cee18facbc432c17342bb15e9b",
+      "byte_length": 14556,
+      "present": true
+    },
+    "apps/backend/tests/research/test_mr002_stage3_cascade_dispA.py": {
+      "role": "execution_package_component",
+      "sha256": "448da57e0fed3b6d885652de5cfeb3d6da9dd3153cffaf13429d1d405d04e101",
+      "git_blob": "7a87eb2046822ebd2036c88ffbde75677dc38fec",
+      "byte_length": 28716,
+      "present": true
+    },
+    "apps/backend/tests/research/test_mr002_stage3_preflight.py": {
+      "role": "execution_package_component",
+      "sha256": "deafe0b0f77f7e6e8191c109b4f9984b9b4f310e7d12bf75928b2c6f6d549ecd",
+      "git_blob": "844d335c007066ea67a07ee577da6c67092f5ebb",
+      "byte_length": 10270,
+      "present": true
+    },
+    "apps/backend/tests/research/test_mr002_stage3_population_runner.py": {
+      "role": "execution_package_component",
+      "sha256": "ba1951254b9164c6968186afd91ec1c2e8e58832a3e13c75c5467dcd10bbc376",
+      "git_blob": "42d935bf5f9640294835173667f3a02cc345e97b",
+      "byte_length": 78375,
+      "present": true
+    },
+    "apps/backend/tests/research/test_mr002_stage3_input_contract.py": {
+      "role": "execution_package_component",
+      "sha256": "eb52dcde80110c714f41e41d03f8d41bba57cc60ba1148c57de3f2cbeb266e9f",
+      "git_blob": "b40020d675832825b0cbdac03882f51dcce18239",
+      "byte_length": 3344,
+      "present": true
+    }
+  },
+  "files_missing": [],
+  "governance_artifacts": {
+    "docs/implementation/evidence/mr_002/MR002_Stage3_QPMatrices_InputContract_v1.0.json": {
+      "sha256": "0eca052cbd15c44b9e034ee69044198dff4fd182513dd4898b70655b1026c9a0",
+      "git_blob": "a35bca54534d66ec285e3992d12d410a79859c59",
+      "byte_length": 2240,
+      "present": true
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_TestReport_v1.0.json": {
+      "sha256": "5fa0fb55928def4493001eed39539fc6764ad7955908f01792b51acbea8bd835",
+      "git_blob": "9206844cd4dcc640170b293857ec56d911d8d937",
+      "byte_length": 1182,
+      "present": true
+    },
+    "docs/implementation/evidence/mr_002/MR002_Stage3_CascadeRealismHarness.json": {
+      "present": false
+    }
+  },
+  "pending_at_countersignature": [
+    "the execution-authorization artifact (bound commit/tree/image/manifest/pins)",
+    "the countersigned expected-pins artifact (versions, fingerprints, material config)",
+    "the in-image realism-harness PASS artifact at the pinned image",
+    "the final regenerated MR002_Stage3_SourceManifest at the clean commit"
+  ],
+  "declared_config": {
+    "registered_acceptance_LIMITS": {
+      "primal_residual": 1e-09,
+      "dual_residual": 1e-09,
+      "stationarity_residual": 1e-08,
+      "complementarity_residual": 1e-08,
+      "kkt_residual": 1e-08
+    },
+    "signed_gap_band": [
+      -1e-10,
+      1e-10
+    ],
+    "max_interval_width": 1e-30,
+    "registered_corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+    "cascade": {
+      "primary": "QUADPROG_SQRT",
+      "fallback": "PIQP_P2",
+      "numerical_allowlist": [
+        [
+          "QUADPROG_SQRT",
+          "ValueError",
+          "constraints are inconsistent, no solution"
+        ]
+      ]
+    },
+    "piqp_P2_BASE": {
+      "preconditioner_scale_cost": true,
+      "eps_abs": 1e-10,
+      "eps_rel": 1e-11,
+      "check_duality_gap": true,
+      "eps_duality_gap_abs": 1e-11,
+      "eps_duality_gap_rel": 1e-11,
+      "max_iter": 1000,
+      "preconditioner_reuse_on_update": false,
+      "iterative_refinement_always_enabled": true,
+      "iterative_refinement_eps_abs": 1e-13,
+      "iterative_refinement_eps_rel": 1e-13,
+      "iterative_refinement_max_iter": 20,
+      "kkt_solver": "sparse_ldlt"
+    },
+    "certifier_precision_dps": 100
+  }
+}

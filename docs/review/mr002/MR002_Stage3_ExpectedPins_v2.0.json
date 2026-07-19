@@ -1,0 +1,43 @@
+{
+ "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+ "fingerprints": {
+  "canonical_qualify": "7a0ca6d28353dd3a243b877ffe2de03b93df8c733a82d5141228c7c89fff43b9",
+  "certify": "3fc606978c42016242697c45828569250913fd3998a020fc45f1a79ef223c8f3",
+  "piqp_solve": "ac68d7150536044be5c1509ed1a2bcf722cce081325a1fdb00eb05b549c5f78a",
+  "primary_wrapper": "b2b5c41e19b66a323db3d6be73f022f97c747caf54e97957f337531ef8cd9b6c",
+  "resolve": "c2cba44acf8fce657e20162c865a67c2980510ddb590e74b78dcbb37fe80fa4c"
+ },
+ "git_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+ "git_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+ "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "material_config": {
+  "max_interval_width": 1e-30,
+  "registered_acceptance_LIMITS": {
+   "complementarity_residual": 1e-08,
+   "dual_residual": 1e-09,
+   "kkt_residual": 1e-08,
+   "primal_residual": 1e-09,
+   "stationarity_residual": 1e-08
+  },
+  "signed_gap_band": [
+   -1e-10,
+   1e-10
+  ]
+ },
+ "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "package_versions": {
+  "clarabel": "0.11.1",
+  "highspy": "1.15.1",
+  "mpmath": "1.3.0",
+  "numpy": "2.2.6",
+  "piqp": "0.6.3",
+  "quadprog": "0.1.13",
+  "scipy": "1.18.0"
+ },
+ "python_abi": "cpython-313-x86_64-linux-gnu",
+ "python_version": "3.13.14",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_EXPECTED_PINS",
+ "repository": "jayw04/AI-TRADING-APP",
+ "version": "1.0"
+}

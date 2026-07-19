@@ -1,0 +1,1202 @@
+{
+ "admissible_as_final": true,
+ "bound_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+ "bound_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+ "collected_passed": 236,
+ "collected_skipped": 0,
+ "collected_test_ids": [
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_dual_reconstruction_unscaling_regression",
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_heterogeneous_bounds_elementwise_transform_and_feasibility",
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_inactive_upper_bound_returns_unconstrained_optimum",
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_masking_case_upper_equals_t_mathematically_equivalent_and_stays_qualified",
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_masking_one_ulp_bitwise_nuance_fixed_example",
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_one_dim_active_upper_bound_primary_qualified",
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_realism_fixture_case_becomes_primary_qualified",
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_transformation_identity_bounds_equivalence_exact_dyadic",
+  "tests/research/test_mr002_sqrt_upper_transform.py::test_transformation_identity_representative_vectors_with_margin",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_accepted_z_is_read_only_copy",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch1_registered_valueerror_rescued_exactly_once",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch2_primary_fails_kkt_gate_is_certificate_nonqualification",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch2b_primary_kkt_fail_then_fallback_qualifies_exactly_once",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch3_primary_fails_signed_gap_only_is_certificate_nonqualification",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch4_nonfinite_candidate_is_integrity_defect_no_fallback",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch4b_nonfinite_dual",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch5_wrong_sized_primal_is_integrity_defect_no_fallback",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch5b_wrong_sized_dual",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6_unknown_exception_class_is_integrity_defect_no_fallback",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6b_exact_class_wrong_message_not_matched",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6c_exact_message_wrong_class_not_matched",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6d_registered_message_superstring_not_matched",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6e_user_defined_class_named_valueerror_not_matched",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6f_valueerror_subclass_not_matched",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch7_certifier_exception_is_integrity_defect_no_fallback",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch7b_arbitrary_certifier_fault_is_integrity_defect",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch8_unresolved_is_reached_by_fallback_certificate_nonqualification",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch8b_piqp_raising_quadprog_message_is_integrity_not_unresolved",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch8c_fallback_integrity_defect_is_invalid_run_stop",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9_fallback_call_count_matches_eligibility[nonfinite]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9_fallback_call_count_matches_eligibility[registered_numerical_is_NOT_integrity]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9_fallback_call_count_matches_eligibility[unregistered_exc]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9_fallback_call_count_matches_eligibility[wrong_size]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9b_model_input_defect_invokes_no_solver",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_every_outcome_is_a_closed_enum_and_terminal_disposition",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_fallback_certifier_exception_is_integrity",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_input_arrays_are_not_mutated",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict0-NOT_A_3TUPLE]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict1-OK_NOT_BOOL]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict2-OK_NOT_BOOL]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict3-BAD_NOT_LIST_OF_STR]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict4-BAD_NOT_LIST_OF_STR]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict5-CERT_MISSING]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict6-OK_TRUE_WITH_FAILURES]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict7-OK_FALSE_WITHOUT_FAILURES]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[None-MODEL_ARITY]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[bad_rec1-MODEL_ARITY]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[bad_rec2-MODEL_T_SHAPE]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[bad_rec3-MODEL_UNCONVERTIBLE]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[bad_rec4-MODEL_UPPER_NEGATIVE]",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_numpy_bool_ok_is_rejected",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_primary_qualified_does_not_invoke_fallback",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_production_binding_uses_frozen_solvers",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_solver_returns_bare_none_object_is_integrity",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_solver_returns_nonnumeric_candidate_is_integrity",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_solver_returns_three_values_is_integrity",
+  "tests/research/test_mr002_stage3_cascade_dispA.py::test_summary_is_json_safe",
+  "tests/research/test_mr002_stage3_input_contract.py::test_contract_and_validator_codes_are_one_to_one",
+  "tests/research/test_mr002_stage3_input_contract.py::test_contract_metadata",
+  "tests/research/test_mr002_stage3_input_contract.py::test_empty_constraint_conventions_are_valid",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[AEQ_2D_NCOLS]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[ALL_FINITE]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[ARITY6]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[AUB_2D_NCOLS]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[BEQ_MATCH]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[BUB_MATCH]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[CONVERTIBLE]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[T_1D_NONEMPTY]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[T_POSITIVE]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[UPPER_1D_N]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[UPPER_NONNEG]",
+  "tests/research/test_mr002_stage3_input_contract.py::test_valid_model_passes_every_clause",
+  "tests/research/test_mr002_stage3_population_runner.py::test_all_qualified_passes_and_preserves_full_evidence",
+  "tests/research/test_mr002_stage3_population_runner.py::test_atomic_write_is_byte_exact",
+  "tests/research/test_mr002_stage3_population_runner.py::test_authorization_cross_validation_against_pins",
+  "tests/research/test_mr002_stage3_population_runner.py::test_authorization_date_must_be_iso",
+  "tests/research/test_mr002_stage3_population_runner.py::test_authorization_exact_schema_extras",
+  "tests/research/test_mr002_stage3_population_runner.py::test_authorization_good_artifact_loads",
+  "tests/research/test_mr002_stage3_population_runner.py::test_authorization_semantic_fields_enforced",
+  "tests/research/test_mr002_stage3_population_runner.py::test_binding_rejects_unexpected_keys_and_missing_decision",
+  "tests/research/test_mr002_stage3_population_runner.py::test_certificate_not_qualifying_outcome_is_rejected",
+  "tests/research/test_mr002_stage3_population_runner.py::test_close_failure_cannot_pass",
+  "tests/research/test_mr002_stage3_population_runner.py::test_corpus_provenance_reaches_run_manifest",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cross_validate_binding_catches_artifact_mismatch",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue1_missing_evidence_persisted_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue2_cases_derived_not_trusted",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue3_production_binding_must_have_run",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue4_receipt_must_match_attestation_key_and_payload",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue5_entry_retains_attestation_for_receipt",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue6_invalid_calendar_authorization_date_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue7_attestation_closed_schema",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker1_binds_real_identities_enforced",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker2_case_semantics_derived_per_group",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker3_per_test_results_required_and_derived",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker4_report_identity_must_match_phase_b",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker5_receipt_nonce_mandatory_and_matched",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker6_receipt_version_and_status_enforced",
+  "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker7_verification_tool_bound_to_attestation",
+  "tests/research/test_mr002_stage3_population_runner.py::test_derive_corpus_hash_matches_registered_scheme",
+  "tests/research/test_mr002_stage3_population_runner.py::test_drain_iterator_failure_preserved",
+  "tests/research/test_mr002_stage3_population_runner.py::test_duplicate_row_ids_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_evidence_replay_catches_tampered_hex",
+  "tests/research/test_mr002_stage3_population_runner.py::test_execution_binding_and_attestation_schemas",
+  "tests/research/test_mr002_stage3_population_runner.py::test_execution_package_bytes_verified",
+  "tests/research/test_mr002_stage3_population_runner.py::test_expected_corpus_instances_pinned",
+  "tests/research/test_mr002_stage3_population_runner.py::test_final_report_semantic_qualification",
+  "tests/research/test_mr002_stage3_population_runner.py::test_invalid_run_with_qualified_primary_is_rejected",
+  "tests/research/test_mr002_stage3_population_runner.py::test_load_expected_pins_requires_all_pins",
+  "tests/research/test_mr002_stage3_population_runner.py::test_load_static_manifest_hash_mismatch_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_malformed_qualified_outcome_is_rejected",
+  "tests/research/test_mr002_stage3_population_runner.py::test_malformed_row_entry_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_midfile_malformed_line_is_corruption",
+  "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_derives_hash_itself_lying_source_caught",
+  "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_dry_run_pass_binds_checkpoint_and_provenance",
+  "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_fails_closed_on_source_exception",
+  "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_refuses_checkpoint_outside_root",
+  "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_refuses_nonempty_out_dir",
+  "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_refuses_without_preflight",
+  "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_rows_are_read_only_after_canonicalization",
+  "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_source_claimed_hash_inconsistency_caught",
+  "tests/research/test_mr002_stage3_population_runner.py::test_pins_corpus_hash_mandatory",
+  "tests/research/test_mr002_stage3_population_runner.py::test_population_longer_than_manifest_stops",
+  "tests/research/test_mr002_stage3_population_runner.py::test_population_shorter_than_manifest_stops",
+  "tests/research/test_mr002_stage3_population_runner.py::test_preflight_fail_refuses_and_resolves_nothing",
+  "tests/research/test_mr002_stage3_population_runner.py::test_real_entry_refuses_without_authorization",
+  "tests/research/test_mr002_stage3_population_runner.py::test_realism_semantic_qualification",
+  "tests/research/test_mr002_stage3_population_runner.py::test_record_after_terminal_is_corruption",
+  "tests/research/test_mr002_stage3_population_runner.py::test_record_write_failure_sets_evidence_not_persisted",
+  "tests/research/test_mr002_stage3_population_runner.py::test_refuses_preexisting_complete_checkpoint",
+  "tests/research/test_mr002_stage3_population_runner.py::test_refuses_preexisting_failed_checkpoint",
+  "tests/research/test_mr002_stage3_population_runner.py::test_refuses_trailing_partial_checkpoint",
+  "tests/research/test_mr002_stage3_population_runner.py::test_replay_checks_disposition_relationships",
+  "tests/research/test_mr002_stage3_population_runner.py::test_replay_rejects_malformed_certificate",
+  "tests/research/test_mr002_stage3_population_runner.py::test_replay_runs_model_input_validation",
+  "tests/research/test_mr002_stage3_population_runner.py::test_resolver_exception_preserved_as_failed_terminal",
+  "tests/research/test_mr002_stage3_population_runner.py::test_row_content_hash_mismatch_stops",
+  "tests/research/test_mr002_stage3_population_runner.py::test_row_iterator_creation_failure_preserved",
+  "tests/research/test_mr002_stage3_population_runner.py::test_row_order_mismatch_stops",
+  "tests/research/test_mr002_stage3_population_runner.py::test_run_manifest_sha256_exposed",
+  "tests/research/test_mr002_stage3_population_runner.py::test_short_content_hash_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_short_corpus_hash_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_sidecar_is_sequenced_and_never_overwrites",
+  "tests/research/test_mr002_stage3_population_runner.py::test_stop_halts_immediately_no_later_row",
+  "tests/research/test_mr002_stage3_population_runner.py::test_stop_persistence_boundary_catches_any_exception",
+  "tests/research/test_mr002_stage3_population_runner.py::test_tampered_record_hash_fails_aggregate",
+  "tests/research/test_mr002_stage3_population_runner.py::test_terminal_count_mismatch_fails_aggregate",
+  "tests/research/test_mr002_stage3_population_runner.py::test_terminal_write_failure_writes_sidecar",
+  "tests/research/test_mr002_stage3_population_runner.py::test_unknown_event_kind_is_corruption",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_accepted_lam_with_negative_zero_replays",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_accepted_z_with_negative_zero_replays",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_aggregate_defect_none_when_all_replay",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_aggregate_defect_reports_first_row_and_count",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_clean_record_remains_successful",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-0.1]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-0.3333333333333333]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-1.0]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-1.5e-310]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-1.7976931348623157e+308]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-2.2250738585072014e-308]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-2.5e-07]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-5e-324]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[0.008]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[0.1]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[0.3333333333333333]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[1.0]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[1.5e-310]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[1.7976931348623157e+308]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[2.2250738585072014e-308]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[5e-324]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[6.02214076e+23]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_malformed_hex_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_missing_schema_version_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_mixed_v1_accepted_field_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_mixed_v1_input_field_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_negative_zero_roundtrips_bit_exact",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_finite_hex_refuses_at_decode",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_finite_refuses_at_publication[-inf]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_finite_refuses_at_publication[inf]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_finite_refuses_at_publication[nan]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_string_hex_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_one_bit_mutation_still_fails_replay",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_ordering_and_dtype_changes_fail_content_hash",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_positive_zero_roundtrips_bit_exact",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_property_uint64_bit_patterns_roundtrip",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_run4_replica_mixed_zero_input_passes",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_shape_change_refuses_with_valid_scalars",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_stop_detail_nonempty_end_to_end",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_unknown_input_entry_field_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18_unknown_schema_version_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_aggregate_detail_surfaces_accepted_schema_defect",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_exact_registered_accepted_key_set_passes",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_missing_registered_accepted_key_refuses_deterministically[lam_exact_hex]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_missing_registered_accepted_key_refuses_deterministically[lam_sha256]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_missing_registered_accepted_key_refuses_deterministically[z_exact_hex]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_missing_registered_accepted_key_refuses_deterministically[z_sha256]",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_nested_legacy_lam_exact_ratio_still_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_non_dict_accepted_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_non_list_lam_exact_hex_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_non_list_z_exact_hex_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_stop_record_accepted_rules_unchanged",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_unknown_field_beside_lam_exact_hex_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_v18a_unknown_field_beside_z_exact_hex_refuses",
+  "tests/research/test_mr002_stage3_population_runner.py::test_validation_window_is_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_verification_receipt_required_semantics",
+  "tests/research/test_mr002_stage3_population_runner.py::test_window_violation_is_governed_refused",
+  "tests/research/test_mr002_stage3_population_runner.py::test_wrong_solver_id_outcome_is_rejected",
+  "tests/research/test_mr002_stage3_preflight.py::test_avx2_absent_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_avx512_present_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_cascade_import_hygiene_detects_quarantined_import",
+  "tests/research/test_mr002_stage3_preflight.py::test_commit_mismatch_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_corpus_hash_mismatch_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_cpu_flags_unavailable_fails_closed",
+  "tests/research/test_mr002_stage3_preflight.py::test_delta_all_previously_approved_submodules_still_accepted",
+  "tests/research/test_mr002_stage3_preflight.py::test_delta_arbitrary_app_research_module_rejected",
+  "tests/research/test_mr002_stage3_preflight.py::test_delta_bare_parent_package_accepted",
+  "tests/research/test_mr002_stage3_preflight.py::test_delta_similarly_prefixed_packages_rejected",
+  "tests/research/test_mr002_stage3_preflight.py::test_delta_unknown_sibling_under_parent_rejected",
+  "tests/research/test_mr002_stage3_preflight.py::test_dirty_working_tree_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_empty_report_is_not_passed",
+  "tests/research/test_mr002_stage3_preflight.py::test_extra_material_config_key_fails_two_way",
+  "tests/research/test_mr002_stage3_preflight.py::test_extra_package_pin_fails_closed",
+  "tests/research/test_mr002_stage3_preflight.py::test_fingerprint_mismatch_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_fully_matched_environment_passes",
+  "tests/research/test_mr002_stage3_preflight.py::test_image_digest_must_be_full_and_match",
+  "tests/research/test_mr002_stage3_preflight.py::test_incomplete_package_pins_fail_closed",
+  "tests/research/test_mr002_stage3_preflight.py::test_material_config_mismatch_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_missing_commit_pin_fails_closed",
+  "tests/research/test_mr002_stage3_preflight.py::test_no_package_pins_fails_closed",
+  "tests/research/test_mr002_stage3_preflight.py::test_openblas_coretype_wrong_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_package_version_mismatch_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_partial_fingerprint_pin_set_fails_closed",
+  "tests/research/test_mr002_stage3_preflight.py::test_source_defects_fail_closed",
+  "tests/research/test_mr002_stage3_preflight.py::test_thread_env_not_pinned_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_tree_mismatch_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_truncated_oci_digest_fails",
+  "tests/research/test_mr002_stage3_preflight.py::test_unapproved_module_loaded_fails"
+ ],
+ "execution_package_sha256": "846c6418c3b23b36c61da260fcf0953b5245a0967df8187355887d51d5c9ea24",
+ "exit_code": 0,
+ "expected_pins_sha256": "59a23fc092b5e0ccdf4dfedc2873f584f722aaa71f62a3d3c19990da916a6e13",
+ "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "production_binding_outcome": "passed",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_TEST_REPORT",
+ "source_manifest_sha256": "9798302a868724ac92fab57274100bef928bb0ccdf29f393dcaf65850bbf76f8",
+ "test_results": [
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_dual_reconstruction_unscaling_regression"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_heterogeneous_bounds_elementwise_transform_and_feasibility"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_inactive_upper_bound_returns_unconstrained_optimum"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_masking_case_upper_equals_t_mathematically_equivalent_and_stays_qualified"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_masking_one_ulp_bitwise_nuance_fixed_example"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_one_dim_active_upper_bound_primary_qualified"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_realism_fixture_case_becomes_primary_qualified"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_transformation_identity_bounds_equivalence_exact_dyadic"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_sqrt_upper_transform.py::test_transformation_identity_representative_vectors_with_margin"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_accepted_z_is_read_only_copy"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch1_registered_valueerror_rescued_exactly_once"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch2_primary_fails_kkt_gate_is_certificate_nonqualification"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch2b_primary_kkt_fail_then_fallback_qualifies_exactly_once"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch3_primary_fails_signed_gap_only_is_certificate_nonqualification"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch4_nonfinite_candidate_is_integrity_defect_no_fallback"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch4b_nonfinite_dual"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch5_wrong_sized_primal_is_integrity_defect_no_fallback"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch5b_wrong_sized_dual"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6_unknown_exception_class_is_integrity_defect_no_fallback"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6b_exact_class_wrong_message_not_matched"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6c_exact_message_wrong_class_not_matched"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6d_registered_message_superstring_not_matched"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6e_user_defined_class_named_valueerror_not_matched"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch6f_valueerror_subclass_not_matched"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch7_certifier_exception_is_integrity_defect_no_fallback"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch7b_arbitrary_certifier_fault_is_integrity_defect"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch8_unresolved_is_reached_by_fallback_certificate_nonqualification"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch8b_piqp_raising_quadprog_message_is_integrity_not_unresolved"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch8c_fallback_integrity_defect_is_invalid_run_stop"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9_fallback_call_count_matches_eligibility[nonfinite]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9_fallback_call_count_matches_eligibility[registered_numerical_is_NOT_integrity]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9_fallback_call_count_matches_eligibility[unregistered_exc]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9_fallback_call_count_matches_eligibility[wrong_size]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_branch9b_model_input_defect_invokes_no_solver"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_every_outcome_is_a_closed_enum_and_terminal_disposition"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_fallback_certifier_exception_is_integrity"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_input_arrays_are_not_mutated"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict0-NOT_A_3TUPLE]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict1-OK_NOT_BOOL]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict2-OK_NOT_BOOL]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict3-BAD_NOT_LIST_OF_STR]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict4-BAD_NOT_LIST_OF_STR]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict5-CERT_MISSING]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict6-OK_TRUE_WITH_FAILURES]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_certifier_result_is_integrity[verdict7-OK_FALSE_WITHOUT_FAILURES]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[None-MODEL_ARITY]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[bad_rec1-MODEL_ARITY]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[bad_rec2-MODEL_T_SHAPE]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[bad_rec3-MODEL_UNCONVERTIBLE]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_malformed_model_inputs_map_to_invalid_run[bad_rec4-MODEL_UPPER_NEGATIVE]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_numpy_bool_ok_is_rejected"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_primary_qualified_does_not_invoke_fallback"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_production_binding_uses_frozen_solvers"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_solver_returns_bare_none_object_is_integrity"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_solver_returns_nonnumeric_candidate_is_integrity"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_solver_returns_three_values_is_integrity"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_cascade_dispA.py::test_summary_is_json_safe"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_contract_and_validator_codes_are_one_to_one"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_contract_metadata"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_empty_constraint_conventions_are_valid"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[AEQ_2D_NCOLS]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[ALL_FINITE]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[ARITY6]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[AUB_2D_NCOLS]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[BEQ_MATCH]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[BUB_MATCH]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[CONVERTIBLE]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[T_1D_NONEMPTY]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[T_POSITIVE]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[UPPER_1D_N]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_every_contract_clause_is_enforced[UPPER_NONNEG]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_input_contract.py::test_valid_model_passes_every_clause"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_all_qualified_passes_and_preserves_full_evidence"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_atomic_write_is_byte_exact"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_authorization_cross_validation_against_pins"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_authorization_date_must_be_iso"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_authorization_exact_schema_extras"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_authorization_good_artifact_loads"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_authorization_semantic_fields_enforced"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_binding_rejects_unexpected_keys_and_missing_decision"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_certificate_not_qualifying_outcome_is_rejected"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_close_failure_cannot_pass"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_corpus_provenance_reaches_run_manifest"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cross_validate_binding_catches_artifact_mismatch"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue1_missing_evidence_persisted_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue2_cases_derived_not_trusted"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue3_production_binding_must_have_run"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue4_receipt_must_match_attestation_key_and_payload"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue5_entry_retains_attestation_for_receipt"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue6_invalid_calendar_authorization_date_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle8_issue7_attestation_closed_schema"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker1_binds_real_identities_enforced"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker2_case_semantics_derived_per_group"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker3_per_test_results_required_and_derived"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker4_report_identity_must_match_phase_b"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker5_receipt_nonce_mandatory_and_matched"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker6_receipt_version_and_status_enforced"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_cycle9_blocker7_verification_tool_bound_to_attestation"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_derive_corpus_hash_matches_registered_scheme"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_drain_iterator_failure_preserved"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_duplicate_row_ids_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_evidence_replay_catches_tampered_hex"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_execution_binding_and_attestation_schemas"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_execution_package_bytes_verified"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_expected_corpus_instances_pinned"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_final_report_semantic_qualification"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_invalid_run_with_qualified_primary_is_rejected"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_load_expected_pins_requires_all_pins"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_load_static_manifest_hash_mismatch_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_malformed_qualified_outcome_is_rejected"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_malformed_row_entry_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_midfile_malformed_line_is_corruption"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_derives_hash_itself_lying_source_caught"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_dry_run_pass_binds_checkpoint_and_provenance"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_fails_closed_on_source_exception"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_refuses_checkpoint_outside_root"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_refuses_nonempty_out_dir"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_refuses_without_preflight"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_rows_are_read_only_after_canonicalization"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_orchestration_source_claimed_hash_inconsistency_caught"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_pins_corpus_hash_mandatory"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_population_longer_than_manifest_stops"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_population_shorter_than_manifest_stops"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_preflight_fail_refuses_and_resolves_nothing"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_real_entry_refuses_without_authorization"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_realism_semantic_qualification"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_record_after_terminal_is_corruption"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_record_write_failure_sets_evidence_not_persisted"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_refuses_preexisting_complete_checkpoint"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_refuses_preexisting_failed_checkpoint"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_refuses_trailing_partial_checkpoint"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_replay_checks_disposition_relationships"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_replay_rejects_malformed_certificate"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_replay_runs_model_input_validation"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_resolver_exception_preserved_as_failed_terminal"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_row_content_hash_mismatch_stops"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_row_iterator_creation_failure_preserved"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_row_order_mismatch_stops"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_run_manifest_sha256_exposed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_short_content_hash_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_short_corpus_hash_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_sidecar_is_sequenced_and_never_overwrites"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_stop_halts_immediately_no_later_row"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_stop_persistence_boundary_catches_any_exception"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_tampered_record_hash_fails_aggregate"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_terminal_count_mismatch_fails_aggregate"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_terminal_write_failure_writes_sidecar"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_unknown_event_kind_is_corruption"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_accepted_lam_with_negative_zero_replays"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_accepted_z_with_negative_zero_replays"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_aggregate_defect_none_when_all_replay"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_aggregate_defect_reports_first_row_and_count"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_clean_record_remains_successful"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-0.1]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-0.3333333333333333]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-1.0]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-1.5e-310]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-1.7976931348623157e+308]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-2.2250738585072014e-308]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-2.5e-07]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[-5e-324]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[0.008]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[0.1]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[0.3333333333333333]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[1.0]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[1.5e-310]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[1.7976931348623157e+308]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[2.2250738585072014e-308]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[5e-324]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_finite_values_roundtrip_bit_exact[6.02214076e+23]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_malformed_hex_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_missing_schema_version_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_mixed_v1_accepted_field_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_mixed_v1_input_field_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_negative_zero_roundtrips_bit_exact"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_finite_hex_refuses_at_decode"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_finite_refuses_at_publication[-inf]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_finite_refuses_at_publication[inf]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_finite_refuses_at_publication[nan]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_non_string_hex_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_one_bit_mutation_still_fails_replay"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_ordering_and_dtype_changes_fail_content_hash"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_positive_zero_roundtrips_bit_exact"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_property_uint64_bit_patterns_roundtrip"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_run4_replica_mixed_zero_input_passes"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_shape_change_refuses_with_valid_scalars"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_stop_detail_nonempty_end_to_end"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_unknown_input_entry_field_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18_unknown_schema_version_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_aggregate_detail_surfaces_accepted_schema_defect"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_exact_registered_accepted_key_set_passes"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_missing_registered_accepted_key_refuses_deterministically[lam_exact_hex]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_missing_registered_accepted_key_refuses_deterministically[lam_sha256]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_missing_registered_accepted_key_refuses_deterministically[z_exact_hex]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_missing_registered_accepted_key_refuses_deterministically[z_sha256]"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_nested_legacy_lam_exact_ratio_still_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_non_dict_accepted_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_non_list_lam_exact_hex_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_non_list_z_exact_hex_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_stop_record_accepted_rules_unchanged"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_unknown_field_beside_lam_exact_hex_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_v18a_unknown_field_beside_z_exact_hex_refuses"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_validation_window_is_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_verification_receipt_required_semantics"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_window_violation_is_governed_refused"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_population_runner.py::test_wrong_solver_id_outcome_is_rejected"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_avx2_absent_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_avx512_present_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_cascade_import_hygiene_detects_quarantined_import"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_commit_mismatch_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_corpus_hash_mismatch_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_cpu_flags_unavailable_fails_closed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_delta_all_previously_approved_submodules_still_accepted"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_delta_arbitrary_app_research_module_rejected"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_delta_bare_parent_package_accepted"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_delta_similarly_prefixed_packages_rejected"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_delta_unknown_sibling_under_parent_rejected"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_dirty_working_tree_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_empty_report_is_not_passed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_extra_material_config_key_fails_two_way"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_extra_package_pin_fails_closed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_fingerprint_mismatch_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_fully_matched_environment_passes"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_image_digest_must_be_full_and_match"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_incomplete_package_pins_fail_closed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_material_config_mismatch_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_missing_commit_pin_fails_closed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_no_package_pins_fails_closed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_openblas_coretype_wrong_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_package_version_mismatch_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_partial_fingerprint_pin_set_fails_closed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_source_defects_fail_closed"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_thread_env_not_pinned_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_tree_mismatch_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_truncated_oci_digest_fails"
+  },
+  {
+   "outcome": "passed",
+   "test_id": "tests/research/test_mr002_stage3_preflight.py::test_unapproved_module_loaded_fails"
+  }
+ ],
+ "version": "1.0",
+ "working_tree_dirty": false
+}

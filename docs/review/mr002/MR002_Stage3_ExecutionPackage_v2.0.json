@@ -1,0 +1,98 @@
+{
+ "record_type": "MR002_STAGE3_EXECUTION_PACKAGE",
+ "version": "1.9",
+ "revision": "2.0",
+ "revision_note": "The frozen loader at the registered implementation commit pins SUPPORTED_EXECUTION_PACKAGE_VERSION = '1.9'; this record therefore keeps version '1.9' and carries the schema-2.0 regeneration as revision 2.0. Supersedes the v1.9 DRAFT prepared 2026-07-18 (pre-run-4).",
+ "status": "DRAFT for owner review at the v5 pre-attestation hold point. Regenerated after the run-4 evidence-replay defect was repaired (delta v1.8/v1.8a) and the repair was qualified against the actual archived run-4 evidence (PASS, 2026-07-19).",
+ "prepared": "2026-07-19",
+ "execution_authorized": false,
+ "evidence_schema_version": "2.0",
+ "implementation": {
+  "repository": "jayw04/AI-TRADING-APP",
+  "bound_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+  "bound_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+  "registered_file_identities": {
+   "apps/backend/app/research/mr002/stage3_cascade.py": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+   "apps/backend/scripts/mr002_stage3_population_runner.py": "297901d7097008416e545c9b6f6f71b7a49ca255ebef6c6b282ab3f6eb624384",
+   "apps/backend/tests/research/test_mr002_stage3_population_runner.py": "ba1951254b9164c6968186afd91ec1c2e8e58832a3e13c75c5467dcd10bbc376"
+  }
+ },
+ "package_binds": {
+  "source_manifest": {
+   "path": "regen/MR002_Stage3_SourceManifest_v2.0.json",
+   "sha256": "9798302a868724ac92fab57274100bef928bb0ccdf29f393dcaf65850bbf76f8"
+  },
+  "expected_pins": {
+   "path": "regen/MR002_Stage3_ExpectedPins_v2.0.json",
+   "sha256": "59a23fc092b5e0ccdf4dfedc2873f584f722aaa71f62a3d3c19990da916a6e13"
+  },
+  "realism_harness": {
+   "path": "regen/realism_out/MR002_Stage3_CascadeRealismHarness.json",
+   "sha256": "490e168af94d443e2985025f4887e3c1939d3ab9f0068521e98d8b1d401512dd",
+   "verdict": "PASS",
+   "cases": 9,
+   "preflight_passed": true
+  },
+  "final_test_report": {
+   "path": "regen/MR002_Stage3_FinalTestReport_v2.0.json",
+   "sha256": "PENDING \u2014 produced in-image after this package is hashed; the report binds THIS package's hash (one-way binding, same as v1.9->v1.0 report)"
+  }
+ },
+ "corpus_identity": {
+  "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+  "database_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "n_rows": 3895,
+  "row_manifest_protocol": "MR002_STAGE3_ROW_IDENTITY_V1"
+ },
+ "runtime_identity": {
+  "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+  "python_version": "3.13.14",
+  "python_abi": "cpython-313-x86_64-linux-gnu",
+  "in_image_package_versions": {
+   "clarabel": "0.11.1",
+   "highspy": "1.15.1",
+   "mpmath": "1.3.0",
+   "numpy": "2.2.6",
+   "piqp": "0.6.3",
+   "quadprog": "0.1.13",
+   "scipy": "1.18.0"
+  }
+ },
+ "solver_identities": {
+  "primary": "QUADPROG_SQRT",
+  "fallback": "PIQP_P2",
+  "certifier": "canonical_qualify",
+  "fingerprints": {
+   "canonical_qualify": "7a0ca6d28353dd3a243b877ffe2de03b93df8c733a82d5141228c7c89fff43b9",
+   "certify": "3fc606978c42016242697c45828569250913fd3998a020fc45f1a79ef223c8f3",
+   "piqp_solve": "ac68d7150536044be5c1509ed1a2bcf722cce081325a1fdb00eb05b549c5f78a",
+   "primary_wrapper": "b2b5c41e19b66a323db3d6be73f022f97c747caf54e97957f337531ef8cd9b6c",
+   "resolve": "c2cba44acf8fce657e20162c865a67c2980510ddb590e74b78dcbb37fe80fa4c"
+  },
+  "fingerprint_note": "Regenerated in-image at ecaa262 and OBSERVED IDENTICAL to the prior pins: the fingerprinted set is the solver/certifier closure, which delta v1.8/v1.8a deliberately did not modify (the delta changed the evidence serialization + replay only)."
+ },
+ "archive_qualification": {
+  "disposition": "PASS",
+  "report_sha256": "3a399021451a054301db7c2f87695652d52c2f38c6c78ba7f075d04f2320f072",
+  "publication_record_sha256": "1a0eb4f9373d33b09a59b4fe12af4284cbcc970a043319b4d6dd70f34a5188ee",
+  "evidence_commit": "ed9ea5103dbac36f16128c847623a524d0cb1613"
+ },
+ "dependency_provenance": {
+  "in_image": "the frozen mr002-stage3-qual image carries /manifest/pip_report.json (the registered runtime manifest); in-image packages are pinned above",
+  "host_qualification_env": {
+   "python": "3.12.13 (venv ~/mr002/qualenv-v18)",
+   "pip_reports": {
+    "pip_install_report.json": "dcd5892dbae0930374a0de2609cf1a9b00b2a0c446bfae59c555a98103d01e9f",
+    "pip_install_report_clarabel.json": "bda0591280f1dc8dde688267782116d94083460c590425e9da78b7211d647475"
+   },
+   "pandas_ta_transplant": {
+    "version": "0.4.71b0",
+    "provenance": "NOT installable from PyPI (upstream removal \u2014 'versions: none'); transplanted from the laptop venv's registered resolution as a pure-Python package archive",
+    "archive_sha256": "e402c0f16d68d8460c568cc72f9fb77970f64c7f0555a3af305bd35066ed8377",
+    "reproducibility_note": "the host qualification environment is NOT reproducible solely from PyPI (owner ruling, host-requalification verdict)"
+   }
+  }
+ },
+ "scope_boundary": "This package authorizes NOTHING to execute. It is input to the v5 pre-attestation review. Validation/OOS remain sealed and unread; run-4 checkpoint reuse and performance interpretation remain forbidden."
+}
