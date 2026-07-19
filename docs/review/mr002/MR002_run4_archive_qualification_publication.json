@@ -1,0 +1,15 @@
+{
+ "record_type": "MR002_ARCHIVE_QUALIFICATION_PUBLICATION",
+ "tool_exit": 0,
+ "report_disposition": "PASS",
+ "tool_sha256": "3b60de2a1d96d97152ea62b77c81ff25861d2e9582698b75f4e25b4dee8c7db5",
+ "report_sha256": "3a399021451a054301db7c2f87695652d52c2f38c6c78ba7f075d04f2320f072",
+ "report_bytes": 2854,
+ "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ "stderr_bytes": 0,
+ "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "implementation_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+ "checkpoint_sha256": "b9b0a94817deb540d768fc5b5909978e22f40f04e40a81e1bd5733a6637b7445",
+ "manifest_sha256": "1132d3b8a3feeefe8c92107468b488cd31da52ec67df4abd78567d8879c96e40",
+ "published_at_utc": "2026-07-19T16:46:15Z"
+}

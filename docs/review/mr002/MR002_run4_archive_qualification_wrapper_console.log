@@ -1,0 +1,4 @@
+tool_exit=0 (PASS=0 FAIL=1 REFUSED=2)
+3a399021451a054301db7c2f87695652d52c2f38c6c78ba7f075d04f2320f072  /home/ec2-user/mr002/launch/run4_archive_qualification_report.json
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /home/ec2-user/mr002/launch/run4_archive_qualification_stderr.log
+1a0eb4f9373d33b09a59b4fe12af4284cbcc970a043319b4d6dd70f34a5188ee  /home/ec2-user/mr002/launch/run4_archive_qualification_publication.json

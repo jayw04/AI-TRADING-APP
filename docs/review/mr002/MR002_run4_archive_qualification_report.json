@@ -1,0 +1,143 @@
+{
+ "record_type": "MR002_RUN4_ARCHIVE_QUALIFICATION",
+ "version": "1.0a",
+ "disposition": "PASS",
+ "gates": {
+  "implementation_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+  "checkpoint_sha256": "b9b0a94817deb540d768fc5b5909978e22f40f04e40a81e1bd5733a6637b7445",
+  "manifest_sha256": "1132d3b8a3feeefe8c92107468b488cd31da52ec67df4abd78567d8879c96e40",
+  "schema_version": "2.0",
+  "archive_read_only": true,
+  "checkpoint_path": "/archive/MR002_Stage3_CleanRun_checkpoint.jsonl"
+ },
+ "population": {
+  "n_records": 3895,
+  "formerly_failing": 3639,
+  "formerly_clean": 256,
+  "expected_failing": 3639,
+  "expected_clean": 256,
+  "counts_match_run4_forensics": true
+ },
+ "negative_zero_patterns": [
+  {
+   "components": [
+    "b_ub"
+   ],
+   "representative_row_id": 0
+  }
+ ],
+ "selected_row_ids": [
+  0,
+  39
+ ],
+ "records": [
+  {
+   "row_id": 0,
+   "archived_content_hash_equal": true,
+   "schema2_replay_defect": null,
+   "uint64_bit_equality": {
+    "t": true,
+    "A_ub": true,
+    "b_ub": true,
+    "A_eq": true,
+    "b_eq": true,
+    "upper": true
+   },
+   "negative_zero": {
+    "t": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "A_ub": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "b_ub": {
+     "count": 12,
+     "locations": [
+      0,
+      1,
+      3,
+      4,
+      6,
+      7,
+      9,
+      10,
+      12,
+      13,
+      14,
+      15
+     ],
+     "locations_truncated": false
+    },
+    "A_eq": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "b_eq": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "upper": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    }
+   },
+   "content_hash_equal": true,
+   "pass": true
+  },
+  {
+   "row_id": 39,
+   "archived_content_hash_equal": true,
+   "schema2_replay_defect": null,
+   "uint64_bit_equality": {
+    "t": true,
+    "A_ub": true,
+    "b_ub": true,
+    "A_eq": true,
+    "b_eq": true,
+    "upper": true
+   },
+   "negative_zero": {
+    "t": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "A_ub": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "b_ub": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "A_eq": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "b_eq": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    },
+    "upper": {
+     "count": 0,
+     "locations": [],
+     "locations_truncated": false
+    }
+   },
+   "content_hash_equal": true,
+   "pass": true
+  }
+ ],
+ "scope": "input arrays only \u2014 z/lam are solver outputs and are NOT reconstructable without resolution, which this tool must never perform"
+}
