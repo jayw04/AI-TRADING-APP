@@ -476,18 +476,24 @@ def test_v10a_real_docker_mount_semantics(tmp_path):
     archive.mkdir()
     (archive / tool.CHECKPOINT_NAME).write_text("{}\n", encoding="utf-8")
     (archive / tool.MANIFEST_NAME).write_text("{}\n", encoding="utf-8")
-    probe = ("import sys; sys.path.insert(0, '/tools'); "
-             "import importlib.util as u; "
-             "s = u.spec_from_file_location('aq', '/tools/t.py'); m = u.module_from_spec(s); "
-             "sys.modules['aq'] = m; s.loader.exec_module(m); "
-             "import os; "
+    # v1.0b: the probe must be a REAL multi-line script — the v1.0a single-line form put a
+    # `def` after `;` (SyntaxError), which only real in-container execution could reveal
+    probe = ("import sys\n"
+             "sys.path.insert(0, '/tools')\n"
+             "import importlib.util as u\n"
+             "s = u.spec_from_file_location('aq', '/tools/t.py')\n"
+             "m = u.module_from_spec(s)\n"
+             "sys.modules['aq'] = m\n"
+             "s.loader.exec_module(m)\n"
              "def probe(p, kind, expect):\n"
              "    try:\n"
-             "        m._strict_path(p, kind, expect); print(kind + ':OK')\n"
-             "    except m.ArchiveQualificationRefused as e: print(kind + ':' + str(e))\n"
-             "probe('/archive', 'DIR', 'dir'); "
-             "probe('/archive/" + tool.CHECKPOINT_NAME + "', 'CHECKPOINT', 'file'); "
-             "probe('/archive/" + tool.MANIFEST_NAME + "', 'MANIFEST', 'file')")
+             "        m._strict_path(p, kind, expect)\n"
+             "        print(kind + ':OK')\n"
+             "    except m.ArchiveQualificationRefused as e:\n"
+             "        print(kind + ':' + str(e))\n"
+             "probe('/archive', 'DIR', 'dir')\n"
+             "probe('/archive/" + tool.CHECKPOINT_NAME + "', 'CHECKPOINT', 'file')\n"
+             "probe('/archive/" + tool.MANIFEST_NAME + "', 'MANIFEST', 'file')\n")
 
     def run_probe(archive_mount_spec):
         return _subprocess.run(
