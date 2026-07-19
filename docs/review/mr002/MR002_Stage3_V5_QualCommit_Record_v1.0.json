@@ -1,0 +1,36 @@
+{
+  "record_type": "MR002_V5_QUALIFICATION_COMMIT_RECORD",
+  "version": "1.0",
+  "date": "2026-07-19",
+  "authorization": "v5 pre-attestation qualification verdict — qualification-artifact commit AUTHORIZED",
+  "commit_sha": "ccca22033859b71ec4d1e67e39d63afe08358062",
+  "tree_sha": "6df1b99a6683f00ff74c3ee2c65b4238996a57d8",
+  "parent_sha": "ed9ea5103dbac36f16128c847623a524d0cb1613",
+  "branch": "research/mr002-preregistration",
+  "pushed": true,
+  "name_status": "A x7 (all under docs/review/mr002/)",
+  "artifacts": {
+    "MR002_Stage3_V5_PreAttestation_Submission_v1.0.md": {"blob": "9fe7561834786e77a7f8b124d5395c7ad16c7db5", "sha256": "245ea7e464ffe048cb1083d658cc26543f74934ec9efc889f39a74dc49a82b1d", "bytes": 6887},
+    "MR002_Stage3_EnvObservation_ecaa262.json": {"blob": "0b3d0c956879e40af747c8795e64da9fc12d71da", "sha256": "e6b196a1ea8485bfa7d8dd3d3eef3268b1dabc5c7289bb28d9fa249cfdccad25", "bytes": 3655},
+    "MR002_Stage3_ExpectedPins_v2.0.json": {"blob": "23e480e2fb120093e0be4b178799cd32bae92c55", "sha256": "59a23fc092b5e0ccdf4dfedc2873f584f722aaa71f62a3d3c19990da916a6e13", "bytes": 1530, "note": "COUNTERSIGNED bytes; renamed from DRAFT via byte-preserving rename (sha unchanged); matches the staged host copy exactly"},
+    "MR002_Stage3_SourceManifest_v2.0.json": {"blob": "af90440c400894c11a82440d4c5f4dc33f29aaf1", "sha256": "9798302a868724ac92fab57274100bef928bb0ccdf29f393dcaf65850bbf76f8", "bytes": 9131},
+    "MR002_Stage3_ExecutionPackage_v2.0.json": {"blob": "200901fdeb4d998a5f3d0b3e457def1453f19f2a", "sha256": "846c6418c3b23b36c61da260fcf0953b5245a0967df8187355887d51d5c9ea24", "bytes": 5313},
+    "MR002_Stage3_FinalTestReport_v2.0.json": {"blob": "50259358709613ce17ca9a9ff0274673b60a2a39", "sha256": "e51a49202076c2e8005e90ffc9a087f0f3b5a9c33d0a926a95f3cd8550a0b093", "bytes": 61982},
+    "MR002_Stage3_CascadeRealismHarness_v2.0.json": {"blob": "3fd2462a2a9262da6657926703831212449d49f4", "sha256": "490e168af94d443e2985025f4887e3c1939d3ab9f0068521e98d8b1d401512dd", "bytes": 12131}
+  },
+  "binary_safe_diff": {
+    "command": "git diff ed9ea51..ccca220 --binary",
+    "sha256": "e31f489b07ce2de8c5aad859ecf7041a18ef4cb6410979f48330fb952df73476",
+    "byte_length": 104731
+  },
+  "tracked_status_clean": true,
+  "unchanged_proofs": {
+    "ecaa262_numerical_checkout": "all three registered blobs IDENTICAL between ecaa262 and HEAD; box /work re-verified detached ecaa262 porcelain-clean",
+    "b6e5d278_launcher": "all three launcher blobs IDENTICAL at HEAD",
+    "image_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea inspected exact on host",
+    "out_dir": "/home/ec2-user/mr002/out EMPTY (no cleanrun)",
+    "archive": "checkpoint b9b0a948… + manifest 1132d3b8… re-verified unchanged",
+    "validation_oos": "SEALED AND UNREAD"
+  },
+  "held": "v5 attestation/nonce HELD until the pins-countersign record + execution-authorization artifacts (authorized to PREPARE after this commit is reviewed) are accepted; receipt/binding/run-5 NOT authorized; no v1-v4 artifact or nonce reuse (incl. authorization 487c6ecb)"
+}
