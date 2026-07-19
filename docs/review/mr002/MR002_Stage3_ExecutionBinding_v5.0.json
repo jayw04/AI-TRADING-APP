@@ -1,0 +1,23 @@
+{
+ "authorization_sha256": "167b1b6e2b15fcce5f1e7f68a95a237184b94892f69867a8bec90c701f818c37",
+ "bound_commit": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+ "bound_tree": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+ "countersigned_by": "Jay Wang (owner)",
+ "countersigned_date": "2026-07-19",
+ "decision": "EXECUTION_PACKAGE_COUNTERSIGNED",
+ "execution_authorized": true,
+ "execution_package_sha256": "846c6418c3b23b36c61da260fcf0953b5245a0967df8187355887d51d5c9ea24",
+ "expected_pins_sha256": "59a23fc092b5e0ccdf4dfedc2873f584f722aaa71f62a3d3c19990da916a6e13",
+ "final_test_report_sha256": "e51a49202076c2e8005e90ffc9a087f0f3b5a9c33d0a926a95f3cd8550a0b093",
+ "image_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "implementation_manifest_sha256": "9798302a868724ac92fab57274100bef928bb0ccdf29f393dcaf65850bbf76f8",
+ "launch_attestation_sha256": "e82468c3f94ea90f2f7c8d23c8a8abfde16f7aa5717004e3eac7efdf084d4fb2",
+ "launch_verification_receipt_sha256": "d69b95bef7e106db97a616a242ca071b8404bd0c029740b7d7f2b92e42baab56",
+ "oci_config_digest": "sha256:81e8d7a7be6bb022d7bde68e923ea6ef2a41b029390200e0240235f35aa173ea",
+ "realism_pass_sha256": "490e168af94d443e2985025f4887e3c1939d3ab9f0068521e98d8b1d401512dd",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_EXECUTION_BINDING",
+ "repository": "jayw04/AI-TRADING-APP",
+ "scope": "MR002_STAGE3_CLEAN_SUCCESSOR_ONLY",
+ "version": "1.0"
+}
