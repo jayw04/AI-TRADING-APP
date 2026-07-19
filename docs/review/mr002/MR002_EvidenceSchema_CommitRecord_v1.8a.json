@@ -1,0 +1,70 @@
+{
+  "record_type": "MR002_EVIDENCE_SCHEMA_COMMIT_RECORD",
+  "version": "1.8a",
+  "date": "2026-07-19",
+  "authorization": "v1.8a review verdict — v1.8/v1.8a commit AUTHORIZED",
+  "commit_sha": "ecaa262480fb2b81fb0ba7d11b97721b617722bf",
+  "tree_sha": "1cb95e254c0dc82bc231b355b8ab502f4e33f752",
+  "parent_sha": "5878c356155c4ec82fb7ae106c1a0bf8c8928547",
+  "branch": "research/mr002-preregistration",
+  "pushed": true,
+  "name_status": {
+    "M": [
+      "apps/backend/app/research/mr002/stage3_cascade.py",
+      "apps/backend/scripts/mr002_stage3_population_runner.py",
+      "apps/backend/tests/research/test_mr002_stage3_population_runner.py"
+    ],
+    "A": [
+      "docs/review/mr002/MR002_EvidenceEncoding_ClosureInventory_v1.0.md",
+      "docs/review/mr002/MR002_EvidenceSchema_Delta_v1.8.patch",
+      "docs/review/mr002/MR002_EvidenceSchema_Delta_v1.8a.patch",
+      "docs/review/mr002/MR002_EvidenceSchema_Resubmission_v1.8.md",
+      "docs/review/mr002/MR002_EvidenceSchema_Resubmission_v1.8a.md",
+      "docs/review/mr002/MR002_v18_DevSuite_LauncherTools.log",
+      "docs/review/mr002/MR002_v18_DevSuite_PopulationRunner.log",
+      "docs/review/mr002/MR002_v18_Ruff.log",
+      "docs/review/mr002/MR002_v18a_DevSuite_PopulationRunner.log",
+      "docs/review/mr002/MR002_v18a_Ruff.log"
+    ]
+  },
+  "code_files": {
+    "apps/backend/app/research/mr002/stage3_cascade.py": {
+      "git_blob": "e59f4bc4692bcf4ec3f0af44979ecd640e2106c8",
+      "committed_lf_sha256": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+      "byte_length": 45030
+    },
+    "apps/backend/scripts/mr002_stage3_population_runner.py": {
+      "git_blob": "db010fa238cd00c59130eb7765725e43c42e0b6f",
+      "committed_lf_sha256": "297901d7097008416e545c9b6f6f71b7a49ca255ebef6c6b282ab3f6eb624384",
+      "byte_length": 85064
+    },
+    "apps/backend/tests/research/test_mr002_stage3_population_runner.py": {
+      "git_blob": "42d935bf5f9640294835173667f3a02cc345e97b",
+      "committed_lf_sha256": "ba1951254b9164c6968186afd91ec1c2e8e58832a3e13c75c5467dcd10bbc376",
+      "byte_length": 78375
+    }
+  },
+  "identity_note": "committed_lf_sha256 values verified against `git cat-file blob HEAD:<path>` AFTER the commit — they equal the accepted v1.8a review identities byte-for-byte (CRLF working-copy conversion does not touch the stored blobs).",
+  "binary_safe_diff": {
+    "command": "git diff 5878c35..ecaa262 --binary",
+    "sha256": "d1ab9ba06f000d58cfadda8048a5c16eb5f119e361f3b976ef037cb9e8eb822f",
+    "byte_length": 137184
+  },
+  "tracked_status_clean": true,
+  "tracked_status_evidence": "git status --porcelain excluding untracked = 0 entries after commit",
+  "launcher_unchanged": {
+    "confirmed": true,
+    "method": "blob-level comparison of every .py file in the accepted launcher commit b6e5d278ff5caf843e1081ab27ff91473a1126ce against HEAD",
+    "files": {
+      "apps/backend/scripts/mr002_stage3_launch_attestation.py": "cc40b60eb72df22e354e6fca5b70a8d81a0b3a85 (identical b6e5d27 == HEAD)",
+      "apps/backend/scripts/mr002_stage3_preflight_smoke.py": "680d387f74d56bb121ed223383653222eb8a7c7d (identical b6e5d27 == HEAD)",
+      "apps/backend/tests/research/test_mr002_stage3_launcher_tools.py": "62ea24fca453adfadf4e20e19f461b704caec4a0 (identical b6e5d27 == HEAD)"
+    }
+  },
+  "post_commit_constraints": {
+    "code_frozen": "accepted code must not be modified after this commit without a new delta review",
+    "host_phase": "EC2 remains STOPPED; host requalification + archived run-4 replay check + mpmath resolution + new pins/manifest/package/report + v5 chain all DEFERRED until host work is ready",
+    "run5": "NOT YET AUTHORIZED",
+    "validation_oos": "SEALED AND UNREAD"
+  }
+}
