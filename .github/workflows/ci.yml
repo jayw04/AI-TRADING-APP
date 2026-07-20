@@ -184,6 +184,27 @@ jobs:
         working-directory: ${{ matrix.p.dir }}
         run: mypy ${{ matrix.p.src }}
 
+      # ADR 0043 loss-control gate — runs on PRs TOO (no FULL guard), because the loss-control
+      # state-machine service is the first safety-critical, behaviour-bearing component of the
+      # architecture and its coverage floor must gate the PR, not just the post-merge run. Runs
+      # the full risk suite (which exercises the loss-control tests), produces a scoped branch
+      # coverage report (its own file, so it never clobbers the FULL run's coverage.xml), and
+      # fails if any required loss-control module is below 0.95 OR absent from the report.
+      - name: ADR 0043 loss-control tests + branch-coverage gate (backend)
+        if: matrix.p.project == 'backend'
+        working-directory: ${{ matrix.p.dir }}
+        run: |
+          pytest -q tests/risk --cov=app.risk.loss_control --cov-branch \
+            --cov-report=xml:coverage-adr0043.xml
+          python scripts/check_adr0043_coverage.py coverage-adr0043.xml
+
+      # Migration-graph integrity — one head, no dangling parents. Runs on PRs too so a
+      # mis-chained migration is caught before merge, not at deploy.
+      - name: Alembic single-head check (backend)
+        if: matrix.p.project == 'backend'
+        working-directory: ${{ matrix.p.dir }}
+        run: python scripts/check_alembic_single_head.py
+
       # FULL only (push to main / nightly / dispatch): pytest + coverage gates are the
       # slow part (~10 min). PRs run LIGHT — ruff + mypy + the fast bash invariant checks
       # above/below — and the full test+coverage suite runs on every merge to main and
