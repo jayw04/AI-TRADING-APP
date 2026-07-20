@@ -53,6 +53,18 @@ _REDUCTION_ONLY_STATES = frozenset(
     {C.STATE_REDUCTION_ONLY_DAILY_LOSS, C.STATE_REDUCTION_ONLY_BREAKER}
 )
 
+# A recovery can only have originated from a lock or an integrity stop. This origin is a PERSISTED
+# fact — the ``from_state`` of the event that entered RECOVERY_PREFLIGHT — so the service supplies it
+# deterministically (PR 6) from durable state, NEVER inferred from process memory or ambiguous
+# history. ``decide_transition`` fail-closes when the origin is absent, invalid, or incompatible.
+_RECOVERY_ORIGIN_STATES = frozenset(
+    {
+        C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+        C.STATE_REDUCTION_ONLY_BREAKER,
+        C.STATE_INTEGRITY_STOP,
+    }
+)
+
 
 @dataclass(frozen=True)
 class TransitionDecision:
@@ -72,7 +84,7 @@ def decide_transition(
     state: str,
     trigger: str,
     *,
-    prior_lock_state: str | None = None,
+    recovery_origin_state: str | None = None,
 ) -> TransitionDecision:
     """Return the transition (state, trigger) implies, or a no-op if the trigger does not apply.
 
@@ -80,9 +92,12 @@ def decide_transition(
     so the caller always gets an explicit result. A trigger that names the state the account is
     already in — or that has no edge from this state — is an explicit no-op, not a silent success.
 
-    ``prior_lock_state`` matters only for ``PREFLIGHT_FAIL``: a failed recovery returns to the lock
-    it came from when that is known, else fails closed to INTEGRITY_STOP (§D5). The rest of the
-    recovery graph is defined here but is not exercised until recovery is wired (PR 6).
+    ``recovery_origin_state`` matters only for ``PREFLIGHT_FAIL``: a failed recovery returns to the
+    state it came from (a reduction-only lock or an integrity stop). It is a PERSISTED input (the
+    ``from_state`` of the RECOVERY_PREFLIGHT-entering event), passed in explicitly — the function
+    never infers it from memory. If it is absent, not a valid origin, or otherwise incompatible, the
+    transition FAILS CLOSED to INTEGRITY_STOP (§D5). The rest of the recovery graph is defined here
+    but is not exercised until recovery is wired (PR 6).
     """
     if trigger not in ALL_TRIGGERS:
         return _no_op(f"unknown trigger {trigger!r}")
@@ -119,13 +134,22 @@ def decide_transition(
                 True, C.STATE_RECOVERY_COOLDOWN, _CONTROL_RECOVERY, "preflight passed"
             )
         if trigger == TRIGGER_PREFLIGHT_FAIL:
-            if prior_lock_state in _REDUCTION_ONLY_STATES:
-                return TransitionDecision(
-                    True, prior_lock_state, _CONTROL_RECOVERY,
-                    "preflight failed — return to prior lock",
+            if recovery_origin_state in _RECOVERY_ORIGIN_STATES:
+                # Returning INTO the integrity stop is an integrity event; returning to a lock is a
+                # recovery-flow event.
+                control = (
+                    _CONTROL_INTEGRITY
+                    if recovery_origin_state == C.STATE_INTEGRITY_STOP
+                    else _CONTROL_RECOVERY
                 )
+                return TransitionDecision(
+                    True, recovery_origin_state, control,
+                    "preflight failed — return to recovery origin",
+                )
+            # Origin absent, invalid, or incompatible — never guess a lock; fail closed.
             return TransitionDecision(
-                True, C.STATE_INTEGRITY_STOP, _CONTROL_INTEGRITY, "preflight failed — fail closed"
+                True, C.STATE_INTEGRITY_STOP, _CONTROL_INTEGRITY,
+                "preflight failed — origin absent/invalid, fail closed",
             )
 
     elif state == C.STATE_RECOVERY_COOLDOWN:

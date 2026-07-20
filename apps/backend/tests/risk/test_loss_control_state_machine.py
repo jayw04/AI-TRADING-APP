@@ -37,18 +37,37 @@ def test_transitions_that_apply(state, trigger, to_state, control):
     assert d.control_type == control
 
 
-def test_preflight_fail_returns_to_prior_lock_when_known():
+@pytest.mark.parametrize(
+    ("origin", "to_state", "control"),
+    [
+        # A valid persisted origin is returned to; INTEGRITY_STOP origin is an integrity event.
+        (C.STATE_REDUCTION_ONLY_DAILY_LOSS, C.STATE_REDUCTION_ONLY_DAILY_LOSS, "RECOVERY"),
+        (C.STATE_REDUCTION_ONLY_BREAKER, C.STATE_REDUCTION_ONLY_BREAKER, "RECOVERY"),
+        (C.STATE_INTEGRITY_STOP, C.STATE_INTEGRITY_STOP, "INTEGRITY"),
+    ],
+)
+def test_preflight_fail_returns_to_valid_recovery_origin(origin, to_state, control):
     d = sm.decide_transition(
-        C.STATE_RECOVERY_PREFLIGHT,
-        sm.TRIGGER_PREFLIGHT_FAIL,
-        prior_lock_state=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+        C.STATE_RECOVERY_PREFLIGHT, sm.TRIGGER_PREFLIGHT_FAIL, recovery_origin_state=origin
     )
-    assert d.applies and d.to_state == C.STATE_REDUCTION_ONLY_DAILY_LOSS
+    assert d.applies and d.to_state == to_state and d.control_type == control
 
 
-def test_preflight_fail_fails_closed_when_prior_lock_unknown():
-    d = sm.decide_transition(C.STATE_RECOVERY_PREFLIGHT, sm.TRIGGER_PREFLIGHT_FAIL)
-    assert d.applies and d.to_state == C.STATE_INTEGRITY_STOP
+@pytest.mark.parametrize(
+    "origin",
+    [
+        None,  # absent
+        C.STATE_NORMAL,  # not a valid recovery origin
+        C.STATE_RECOVERY_COOLDOWN,  # incompatible
+        "WAT",  # garbage
+    ],
+)
+def test_preflight_fail_fails_closed_on_absent_or_invalid_origin(origin):
+    # Never guess a lock from memory/ambiguous history — an unusable origin fails closed.
+    d = sm.decide_transition(
+        C.STATE_RECOVERY_PREFLIGHT, sm.TRIGGER_PREFLIGHT_FAIL, recovery_origin_state=origin
+    )
+    assert d.applies and d.to_state == C.STATE_INTEGRITY_STOP and d.control_type == "INTEGRITY"
 
 
 # --------------------------------------------------------------- transition graph (no-ops)

@@ -137,7 +137,7 @@ class LossControlService:
         account_id: int,
         trigger: str,
         expected_state_version: int | None = None,
-        prior_lock_state: str | None = None,
+        recovery_origin_state: str | None = None,
         context: TransitionContext | None = None,
     ) -> TransitionResult:
         """Adjudicate and (if it applies and wins the CAS) persist one transition.
@@ -173,8 +173,10 @@ class LossControlService:
                 f"expected state_version {expected_state_version} != current {current_version}",
             )
 
+        # ``recovery_origin_state`` is a PERSISTED input (§D5) — in PR 6 the caller reads it from the
+        # from_state of the event that entered RECOVERY_PREFLIGHT. It is never inferred here.
         decision = sm.decide_transition(
-            current_state, trigger, prior_lock_state=prior_lock_state
+            current_state, trigger, recovery_origin_state=recovery_origin_state
         )
         if not decision.applies:
             await self._session.commit()
