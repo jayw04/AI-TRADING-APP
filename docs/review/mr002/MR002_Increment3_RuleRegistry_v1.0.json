@@ -1,0 +1,370 @@
+{
+ "bound_identities": {
+  "census_v1.0": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e",
+  "phase0_resolution_v1.0": "860c8cdeb995fadea21359ede189dad27378ab2c553e5a24122bbbd2d2546740",
+  "prereg_v1.0.4": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "trial_ledger": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+  "v0.3_design": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+  "v1.0_FROZEN": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+ },
+ "boundary": "Validation/OOS SEALED AND UNREAD; real-data/performance NOT authorized.",
+ "candidate_schema": {
+  "fail_closed": "missing/duplicate candidate_id; INTEGRITY_STOP:CANDIDATE_SIGMA_RESID_INVALID on bad sigma; missing sector_id/beta when the constraint applies; non-finite signal/exposure input; unknown configuration_id; eligibility_status not in the closed enum",
+  "field_semantics": {
+   "configuration_id": "A|B|C selects only Z_entry (1.75/2.00/2.25)",
+   "eligibility_evidence_identity": "identity binding the upstream frozen eligibility assessment (Increment 3 consumes, never reconstructs earnings/merger/split/delisting/gap/liquidity)",
+   "eligibility_status": "closed enum {ELIGIBLE, INELIGIBLE}",
+   "official_next_open_price": "synthetic input (>0); real-data retrieval prohibited",
+   "permanent_security_id": "permanent security identifier (NOT candidate_id); final tie-break by lexical byte ordering",
+   "registered_sigma_resid": "upstream-registered 60-session volatility of the registered 5-session residual for that candidate+session; strictly positive finite; NOT computed by Increment 3",
+   "registered_signal_value": "residual z; used for Z_entry threshold AND |z| ordering/tie-breaks",
+   "signal_origin_session": "signal age; older signal = smaller signal_origin_session (removal tie-break)",
+   "trailing_adv_dollars": "synthetic input (>=0); real-data retrieval prohibited"
+  },
+  "optional_fields": [
+   "registered_inverse_vol_weight"
+  ],
+  "record_type": "MR002_SyntheticCandidate",
+  "required_fields": [
+   "candidate_id",
+   "permanent_security_id",
+   "signal_origin_session",
+   "decision_session",
+   "symbol",
+   "side",
+   "registered_signal_value",
+   "registered_sigma_resid",
+   "sector_id",
+   "beta",
+   "eligibility_status",
+   "eligibility_evidence_identity",
+   "configuration_id",
+   "official_next_open_price",
+   "trailing_adv_dollars"
+  ]
+ },
+ "date": "2026-07-20",
+ "loader_binding_note": "The Increment-3 identity-bound loader hash-binds THIS registry + the Phase-0 resolution + the governing sources; any divergence between code and these bytes -> REFUSED_CODE_OR_DATA_IDENTITY.",
+ "promoted_because": "its bytes now include the owner Phase-0 rulings (MR002_Increment3_Phase0_Resolution_v1.0)",
+ "reason_codes": {
+  "INTEGRITY_STOP:CANDIDATE_INVERSE_VOL_MISMATCH": "candidate-provided inverse disagrees with the recomputed 1/registered_sigma_resid beyond the frozen tolerance",
+  "INTEGRITY_STOP:CANDIDATE_SIGMA_RESID_INVALID": "registered_sigma_resid missing/boolean/non-numeric/non-finite/zero/negative",
+  "INTEGRITY_STOP:HELD_POSITION_OPEN_MARK_MISSING": "a held position has no official open mark on a session and the frozen source supplies no held-position mark rule",
+  "INTEGRITY_STOP:REALIZED_BETA_CONSTRAINT": "post-execution realized |Sum w_i beta_i|/gross > 0.10 (gross-normalized ratio worsened by asymmetric clipping; no registered repair -> fail closed)",
+  "INTEGRITY_STOP:REALIZED_GROSS_CONSTRAINT": "post-execution realized gross exceeds 100% NAV (impossible under reduce-only clipping -> defect)",
+  "INTEGRITY_STOP:REALIZED_SECTOR_CONSTRAINT": "post-execution realized sector net (>5% gross) or sector gross (>20% gross) exceeded (gross-normalized ratio worsened by asymmetric clipping; no registered repair -> fail closed)",
+  "INTEGRITY_STOP:REALIZED_SINGLE_NAME_CONSTRAINT": "post-execution realized per-name market value exceeds 1.5% NAV (impossible under reduce-only clipping -> defect)",
+  "N_A_EMPTY_PORTFOLIO": "realized gross = 0: all cash; beta numerator = 0; normalized beta = N_A_EMPTY_PORTFOLIO; beta passes vacuously (no division by zero / no infinity)",
+  "REFUSED_CODE_OR_DATA_IDENTITY:NAV_IDENTITY_MISMATCH": "construction NAV and execution-layer NAV differ within the order cycle"
+ },
+ "record_status": "IMPLEMENTATION_BINDING",
+ "record_type": "MR002_INCREMENT3_RULE_REGISTRY",
+ "rules": [
+  {
+   "economic_meaning": "Gross-exposure ceiling",
+   "prereg_mirror": null,
+   "rule_id": "PR-01",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 (L135-136)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Exits-before-entries + one-position invariant",
+   "prereg_mirror": null,
+   "rule_id": "PR-02",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.1 (L140-141)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Inverse-residual-vol weighting (rule)",
+   "prereg_mirror": null,
+   "rule_id": "PR-03",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.2 (L142-143)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Inverse-vol derivation",
+   "prereg_mirror": null,
+   "rule_id": "PR-04",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.2 (L142)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "DERIVED_MECHANIC"
+  },
+  {
+   "economic_meaning": "Within-side normalization",
+   "prereg_mirror": null,
+   "rule_id": "PR-05",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.2 (L142-143)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "DERIVED_MECHANIC"
+  },
+  {
+   "economic_meaning": "Long/short allocation (entry dollar-neutrality)",
+   "prereg_mirror": "exposure_limits_frozen.dollar_neutral (long_gross == short_gross)",
+   "rule_id": "PR-06",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.3 (L144-146)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Entry-neutrality timing",
+   "prereg_mirror": null,
+   "rule_id": "PR-07",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.3 (L144)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Position cap",
+   "prereg_mirror": "exposure_limits_frozen.single_name_max (w_i <= 0.015)",
+   "rule_id": "PR-08",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 limits (L162)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Sector caps",
+   "prereg_mirror": "exposure_limits_frozen.sector_net_max=0.05, sector_gross_max=0.20",
+   "rule_id": "PR-09",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 limits (L163)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Beta constraint + aggregation",
+   "prereg_mirror": "exposure_limits_frozen.beta_limit=0.10",
+   "rule_id": "PR-10",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 limits (L164-165); \u00a73 (L60-66)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Constraint-removal ORDER",
+   "prereg_mirror": null,
+   "rule_id": "PR-11",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.4 (L147-148)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Constraint repair (remove smallest |z|)",
+   "prereg_mirror": null,
+   "rule_id": "PR-12",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.4 (L149-151)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Removal tie-breaking",
+   "prereg_mirror": null,
+   "rule_id": "PR-13",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.4 (L150-151)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "No upward renormalization / replacement",
+   "prereg_mirror": null,
+   "rule_id": "PR-14",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.4 (L148-149)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Drift-repair ordering",
+   "prereg_mirror": "exposure_limits_frozen.net_drift_band=0.05",
+   "rule_id": "PR-15",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 drift (L154-158)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Fixed shares until exit",
+   "prereg_mirror": null,
+   "rule_id": "PR-16",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.5 (L152)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Cash treatment",
+   "prereg_mirror": null,
+   "rule_id": "PR-17",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 (L135-136); \u00a75.4 (L148-149)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Candidate eligibility rules",
+   "prereg_mirror": null,
+   "rule_id": "PR-18",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a74 (L91-113)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Signal-strength ordering",
+   "prereg_mirror": null,
+   "rule_id": "PR-19",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a74 (L94-98)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "A/B/C parameter differences",
+   "prereg_mirror": null,
+   "rule_id": "PR-20",
+   "source_file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "source_section_lines": "trial_ledger (A/B/C) + \u00a74 (L94-98)",
+   "source_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Pending-exit account treatment",
+   "prereg_mirror": null,
+   "rule_id": "PR-21",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a74 halts (L120-125); \u00a75.1/\u00a75.5 (L140,152)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Target-vs-executed exposure (three-state)",
+   "prereg_mirror": "cost_model_frozen_values.adv_participation_cap=0.02, new_entry_cap_fraction_of_nav=0.015",
+   "rule_id": "PR-22",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 (L135-158); prereg cost_model (adv 0.02, nav-entry 0.015)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN_BY_OWNER_RULING"
+  },
+  {
+   "economic_meaning": "1.5% cap at two enforcement points",
+   "prereg_mirror": "single_name_max (1.5%) == cost_model.new_entry_cap_fraction_of_nav (0.015)",
+   "rule_id": "PR-23",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 (L162); prereg cost_model (nav-entry 0.015)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN_BY_OWNER_RULING"
+  },
+  {
+   "economic_meaning": "Sector taxonomy source",
+   "prereg_mirror": null,
+   "rule_id": "PR-24",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a72/V2 (L230); \u00a72 (L38-45)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "economic_meaning": "Residual / z / volatility computation",
+   "prereg_mirror": null,
+   "rule_id": "PR-25",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a73 (L47-73)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OUT_OF_SCOPE"
+  },
+  {
+   "economic_meaning": "Volatility overlay",
+   "prereg_mirror": null,
+   "rule_id": "PR-26",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75a (L169+)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OUT_OF_SCOPE"
+  },
+  {
+   "economic_meaning": "ADV / NAV execution clips",
+   "prereg_mirror": "cost_model_frozen_values.adv_participation_cap=0.02, new_entry_cap_fraction_of_nav=0.015",
+   "rule_id": "PR-27",
+   "source_file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "source_section_lines": "prereg cost_model (adv 0.02, nav 0.015)",
+   "source_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+   "status": "DERIVED_MECHANIC"
+  }
+ ],
+ "rulings_bound": {
+  "PR-22_target_executed_model": "FROZEN_BY_OWNER_RULING",
+  "PR-23_1.5pct_layering": "FROZEN_BY_OWNER_RULING",
+  "RC-1_sizing_interface": "RESOLVED",
+  "RC-3_pending_exits": "CONFIRMED_FROZEN",
+  "daily_nav_marking": "FROZEN_BY_OWNER_RULING",
+  "post_execution_dollar_neutrality": "frozen 5%-of-gross drift treatment (registered next-open reduction)",
+  "post_execution_per_name_gross": "hard realized integrity checks (REALIZED_SINGLE_NAME_CONSTRAINT / REALIZED_GROSS_CONSTRAINT)",
+  "post_execution_sector_beta": "hard realized integrity checks (REALIZED_SECTOR_CONSTRAINT / REALIZED_BETA_CONSTRAINT)",
+  "tie_break_field_mapping": "removal tie-break -> signal_origin_session (older signal); drift-repair tie-break -> held-position entry session (oldest position, from Increment-2 state); both final -> permanent_security_id lexical byte ordering"
+ },
+ "source_validation": {
+  "census": {
+   "expected_sha256": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e",
+   "file": "docs/review/mr002/MR002_Portfolio_Rule_Census_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e"
+  },
+  "prereg_v1.0.4": {
+   "expected_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+   "file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "match": true,
+   "recomputed_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "registry_draft": {
+   "expected_sha256": "02e5cf6b9ead26075cec7af7869a3dc3e1f77b71e0c5f4eec9f11bfe3474003d",
+   "file": "docs/review/mr002/MR002_Increment3_RuleRegistry_Draft_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "02e5cf6b9ead26075cec7af7869a3dc3e1f77b71e0c5f4eec9f11bfe3474003d"
+  },
+  "trial_ledger": {
+   "expected_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
+  },
+  "v0.3_design": {
+   "expected_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "match": true,
+   "recomputed_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  },
+  "v1.0_FREEZE_CANDIDATE": {
+   "expected_sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc",
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md",
+   "match": true,
+   "recomputed_sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc"
+  },
+  "v1.0_FROZEN": {
+   "expected_sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc",
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "match": true,
+   "recomputed_sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+  }
+ },
+ "status_legend": {
+  "DERIVED_MECHANIC": "arithmetic on frozen inputs (not signal/residual/vol generation)",
+  "FROZEN": "explicit in governing text",
+  "FROZEN_BY_OWNER_RULING": "resolved by the Phase-0 owner ruling",
+  "OUT_OF_SCOPE": "not authorized in Increment 3 / secondary only"
+ },
+ "supersedes": "MR002_Increment3_RuleRegistry_Draft_v1.0 (DRAFT_NON_BINDING)",
+ "version": "1.0"
+}

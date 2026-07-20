@@ -1,0 +1,213 @@
+{
+ "authorized_by": "owner rulings 2026-07-20 (docs/review/comments.md): RC-1 adopted, RC-2 three-state model adopted (sector/beta FAIL-CLOSED), RC-3 confirmed, RC-4 confirmed, daily NAV marking = official open-to-open, sector/beta ambiguity CLOSED.",
+ "bound_identities": {
+  "census_v1.0": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e",
+  "prereg_v1.0.4": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "registry_draft_v1.0": "02e5cf6b9ead26075cec7af7869a3dc3e1f77b71e0c5f4eec9f11bfe3474003d",
+  "trial_ledger": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+  "v0.3_design": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+  "v1.0_FREEZE_CANDIDATE": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc",
+  "v1.0_FROZEN": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+ },
+ "boundary": "No sealed data read; no signal/residual/z/volatility computation; no performance. Governance record only.",
+ "candidate_schema": {
+  "fail_closed": "missing/duplicate candidate_id; INTEGRITY_STOP:CANDIDATE_SIGMA_RESID_INVALID on bad sigma; missing sector_id/beta when the constraint applies; non-finite signal/exposure input; unknown configuration_id; eligibility_status not in the closed enum",
+  "field_semantics": {
+   "configuration_id": "A|B|C selects only Z_entry (1.75/2.00/2.25)",
+   "eligibility_evidence_identity": "identity binding the upstream frozen eligibility assessment (Increment 3 consumes, never reconstructs earnings/merger/split/delisting/gap/liquidity)",
+   "eligibility_status": "closed enum {ELIGIBLE, INELIGIBLE}",
+   "official_next_open_price": "synthetic input (>0); real-data retrieval prohibited",
+   "permanent_security_id": "permanent security identifier (NOT candidate_id); final tie-break by lexical byte ordering",
+   "registered_sigma_resid": "upstream-registered 60-session volatility of the registered 5-session residual for that candidate+session; strictly positive finite; NOT computed by Increment 3",
+   "registered_signal_value": "residual z; used for Z_entry threshold AND |z| ordering/tie-breaks",
+   "signal_origin_session": "signal age; older signal = smaller signal_origin_session (removal tie-break)",
+   "trailing_adv_dollars": "synthetic input (>=0); real-data retrieval prohibited"
+  },
+  "optional_fields": [
+   "registered_inverse_vol_weight"
+  ],
+  "record_type": "MR002_SyntheticCandidate",
+  "required_fields": [
+   "candidate_id",
+   "permanent_security_id",
+   "signal_origin_session",
+   "decision_session",
+   "symbol",
+   "side",
+   "registered_signal_value",
+   "registered_sigma_resid",
+   "sector_id",
+   "beta",
+   "eligibility_status",
+   "eligibility_evidence_identity",
+   "configuration_id",
+   "official_next_open_price",
+   "trailing_adv_dollars"
+  ]
+ },
+ "date": "2026-07-20",
+ "next": "Commit this resolution + the promoted binding registry -> THEN Increment 3 implementation (identity-bound loader -> candidate schema -> inverse-vol+normalization -> entry-neutral target -> pos/sector/beta cascade -> pending+exits-first state -> Increment-2 execution integration (preview->verify->commit) -> three-state exposure evidence -> official-open daily NAV/returns -> Increment-1 metric/report integration -> synthetic qualification).",
+ "not_authorized": [
+  "real residual calculation",
+  "actual z-score generation",
+  "actual sigma estimation",
+  "PIT sector reconstruction",
+  "real vendor adapters",
+  "validation data access",
+  "OOS data access",
+  "development performance",
+  "performance interpretation",
+  "production promotion"
+ ],
+ "promotes": "MR002_Increment3_RuleRegistry_Draft_v1.0 (DRAFT_NON_BINDING) -> MR002_Increment3_RuleRegistry_v1.0 (IMPLEMENTATION_BINDING) whose bytes include these rulings",
+ "reason_codes": {
+  "INTEGRITY_STOP:CANDIDATE_INVERSE_VOL_MISMATCH": "candidate-provided inverse disagrees with the recomputed 1/registered_sigma_resid beyond the frozen tolerance",
+  "INTEGRITY_STOP:CANDIDATE_SIGMA_RESID_INVALID": "registered_sigma_resid missing/boolean/non-numeric/non-finite/zero/negative",
+  "INTEGRITY_STOP:HELD_POSITION_OPEN_MARK_MISSING": "a held position has no official open mark on a session and the frozen source supplies no held-position mark rule",
+  "INTEGRITY_STOP:REALIZED_BETA_CONSTRAINT": "post-execution realized |Sum w_i beta_i|/gross > 0.10 (gross-normalized ratio worsened by asymmetric clipping; no registered repair -> fail closed)",
+  "INTEGRITY_STOP:REALIZED_GROSS_CONSTRAINT": "post-execution realized gross exceeds 100% NAV (impossible under reduce-only clipping -> defect)",
+  "INTEGRITY_STOP:REALIZED_SECTOR_CONSTRAINT": "post-execution realized sector net (>5% gross) or sector gross (>20% gross) exceeded (gross-normalized ratio worsened by asymmetric clipping; no registered repair -> fail closed)",
+  "INTEGRITY_STOP:REALIZED_SINGLE_NAME_CONSTRAINT": "post-execution realized per-name market value exceeds 1.5% NAV (impossible under reduce-only clipping -> defect)",
+  "N_A_EMPTY_PORTFOLIO": "realized gross = 0: all cash; beta numerator = 0; normalized beta = N_A_EMPTY_PORTFOLIO; beta passes vacuously (no division by zero / no infinity)",
+  "REFUSED_CODE_OR_DATA_IDENTITY:NAV_IDENTITY_MISMATCH": "construction NAV and execution-layer NAV differ within the order cycle"
+ },
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_INCREMENT3_PHASE0_RESOLUTION",
+ "registry_status_updates": {
+  "PR-22_target_executed_model": "FROZEN_BY_OWNER_RULING",
+  "PR-23_1.5pct_layering": "FROZEN_BY_OWNER_RULING",
+  "RC-1_sizing_interface": "RESOLVED",
+  "RC-3_pending_exits": "CONFIRMED_FROZEN",
+  "daily_nav_marking": "FROZEN_BY_OWNER_RULING",
+  "post_execution_dollar_neutrality": "frozen 5%-of-gross drift treatment (registered next-open reduction)",
+  "post_execution_per_name_gross": "hard realized integrity checks (REALIZED_SINGLE_NAME_CONSTRAINT / REALIZED_GROSS_CONSTRAINT)",
+  "post_execution_sector_beta": "hard realized integrity checks (REALIZED_SECTOR_CONSTRAINT / REALIZED_BETA_CONSTRAINT)",
+  "tie_break_field_mapping": "removal tie-break -> signal_origin_session (older signal); drift-repair tie-break -> held-position entry session (oldest position, from Increment-2 state); both final -> permanent_security_id lexical byte ordering"
+ },
+ "rulings": {
+  "RC-1_sizing_interface": {
+   "added_provenance_fields": [
+    "permanent_security_id",
+    "signal_origin_session"
+   ],
+   "disposition": "Each candidate carries registered_sigma_resid (upstream-registered 60-session vol of the registered 5-session residual). Increment 3 computes ONLY q_i = 1/registered_sigma_resid then the frozen within-side normalization. Increment 3 may NOT estimate residuals/volatility, reconstruct the 60-session window, substitute cross-sectional volatility, winsorize/floor/impute sigma. Fail closed on missing/boolean/non-numeric/non-finite/zero/negative -> INTEGRITY_STOP:CANDIDATE_SIGMA_RESID_INVALID.",
+   "inverse_vol_tolerance": {
+    "frozen_tolerance": "math.isclose(candidate_inverse, recomputed, rel_tol=1e-12, abs_tol=0.0)",
+    "note": "Pinned to a specific frozen relative tolerance (1e-12) per the owner 'exact or frozen-tolerance' allowance, so the mismatch trigger is well-defined; the optional field is never used in the math.",
+    "on_mismatch": "INTEGRITY_STOP:CANDIDATE_INVERSE_VOL_MISMATCH",
+    "policy": "The evaluator ALWAYS computes q_i = 1/registered_sigma_resid and uses that value in the weighting; a candidate-provided registered_inverse_vol_weight is EVIDENCE ONLY."
+   },
+   "status": "RESOLVED_ADOPTED"
+  },
+  "RC-2_target_vs_executed": {
+   "atomicity": "PREVIEW -> VERIFY -> COMMIT: preview execution -> realized-constraint verification -> commit ledger and portfolio state ONLY if verification passes. A failed preview may appear in evidence as a REFUSED replay, but its fills MUST NOT enter the accepted synthetic portfolio state. Evaluator atomicity only (not a claim a live broker can cancel observed fills; operational partial-fill handling is outside Increment 3).",
+   "cascade_binds": "INTENDED_TARGET (position cap -> sector caps -> beta limit -> nothing else); removals only during construction; removed capacity -> cash; remaining weights not increased",
+   "dry_run_identity": "the dry-run MUST use the same official-open prices, ADV, NAV identity, rounding, share clipping, and missing-open handling as the emitted execution ledger",
+   "empty_portfolio": "realized gross = 0: all cash; beta numerator = 0; normalized beta = N_A_EMPTY_PORTFOLIO; beta passes vacuously (no division by zero / no infinity)",
+   "execution": "Increment 2 applies min(intended shares, 2% ADV, 1.5% NAV executable, official-open availability); may reduce or cancel, NEVER enlarge",
+   "on_realized_violation": [
+    "retain intended-order + dry-run evidence",
+    "identify the binding realized constraint",
+    "emit NO successful portfolio session",
+    "do NOT resize orders",
+    "do NOT remove another candidate",
+    "do NOT substitute a lower-ranked candidate",
+    "do NOT renormalize remaining positions",
+    "do NOT invent a next-session sector or beta repair"
+   ],
+   "post_execution_disposition": {
+    "dollar_neutrality": "NOT fail-closed on unequal realized long/short gross: within 5% of gross -> accept; outside -> record drift and generate the frozen next-open reduction instruction through the normal replay lifecycle (the ONLY registered later repair)",
+    "gross_exceeded": "INTEGRITY_STOP:REALIZED_GROSS_CONSTRAINT",
+    "normalized_beta_exceeded": "INTEGRITY_STOP:REALIZED_BETA_CONSTRAINT",
+    "per_name_exceeded": "INTEGRITY_STOP:REALIZED_SINGLE_NAME_CONSTRAINT",
+    "sector_gross_or_net_exceeded": "INTEGRITY_STOP:REALIZED_SECTOR_CONSTRAINT"
+   },
+   "rationale": "sector/beta are gross-normalized ratios that asymmetric clipping can worsen with no absolute increase; only net-dollar drift has a registered repair, so carrying+repairing a post-clip sector/beta violation would introduce an unregistered economic rule -> fail closed.",
+   "required_sequence": [
+    "construct RAW_TARGET",
+    "apply position->sector->beta cascade",
+    "produce INTENDED_TARGET satisfying every frozen constraint",
+    "dry-run exact Increment-2 execution mechanics",
+    "calculate REALIZED_EXECUTED exposures",
+    "re-evaluate all hard exposure constraints"
+   ],
+   "status": "FROZEN_BY_OWNER_RULING",
+   "three_states": [
+    "RAW_TARGET",
+    "INTENDED_TARGET",
+    "REALIZED_EXECUTED"
+   ]
+  },
+  "RC-3_pending_exits": {
+   "disposition": "A deferred exit remains an OPEN position until it fills, consuming shares/market value/gross/net/sector/beta/one-position-per-symbol occupancy/capital; symbol ineligible for a new entry; no new sizing/renormalization (shares fixed). Processed BEFORE new entries every subsequent session; if no valid official open again, remains pending WITHOUT producing duplicate exit orders. Confirmation of combined frozen rules, not a new economic rule.",
+   "status": "CONFIRMED_FROZEN"
+  },
+  "RC-4_1.5pct_two_layer": {
+   "disposition": "One economic limit, two enforcement stages. Construction: intended per-name MV <= 1.5% NAV. Execution: filled = min(intended shares, 2% ADV shares, 1.5% NAV shares); NO second 98.5% multiplier - verify+clip against the same absolute cap. One common NAV identity for construction and execution within the order cycle; if they differ before the open -> REFUSED_CODE_OR_DATA_IDENTITY:NAV_IDENTITY_MISMATCH. Clipped capacity -> cash, never reassigned.",
+   "status": "FROZEN_BY_OWNER_RULING"
+  },
+  "daily_nav_marking": {
+   "close_marked": "close-to-close/close-marked results only if a separately authorized diagnostic requires them; MUST NOT feed Sharpe/DSR/stationary-bootstrap/Calmar/MaxDD/annualized-return/gate verdicts",
+   "disposition": "Official-open-to-official-open marking on the registered session calendar for the primary daily portfolio-return series.",
+   "first_session": "the prior NAV comes from the immediately preceding required warm-up/open state; do NOT create a zero-return first observation because the scoring window starts there",
+   "missing_mark": "held position with valid carried holding but no official open mark -> use the frozen missing-open rule; do NOT forward-fill/close/midpoint/unregistered-vendor; where the frozen source supplies no held-position mark rule -> INTEGRITY_STOP:HELD_POSITION_OPEN_MARK_MISSING. Exit deferral alone does not authorize substituting another valuation field.",
+   "price_identity": "split-adjusted, non-dividend-adjusted, official regular-session opening price, registered session index; NO close/synthetic-midpoint in the primary series",
+   "return_formula": "r_s = NAV_s / NAV_{s-1} - 1 (both NAVs at their respective registered official opens)",
+   "status": "FROZEN_BY_OWNER_RULING",
+   "valuation_sequence": [
+    "begin with positions carried from the prior session",
+    "apply exits scheduled for official open s",
+    "apply eligible entries scheduled for official open s",
+    "apply all entry/exit costs at that open",
+    "value every remaining open position at official open s",
+    "carry cash with zero return in the primary result",
+    "record NAV_s after open executions and costs"
+   ]
+  }
+ },
+ "source_validation": {
+  "census": {
+   "expected_sha256": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e",
+   "file": "docs/review/mr002/MR002_Portfolio_Rule_Census_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e"
+  },
+  "prereg_v1.0.4": {
+   "expected_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+   "file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "match": true,
+   "recomputed_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "registry_draft": {
+   "expected_sha256": "02e5cf6b9ead26075cec7af7869a3dc3e1f77b71e0c5f4eec9f11bfe3474003d",
+   "file": "docs/review/mr002/MR002_Increment3_RuleRegistry_Draft_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "02e5cf6b9ead26075cec7af7869a3dc3e1f77b71e0c5f4eec9f11bfe3474003d"
+  },
+  "trial_ledger": {
+   "expected_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
+  },
+  "v0.3_design": {
+   "expected_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "match": true,
+   "recomputed_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  },
+  "v1.0_FREEZE_CANDIDATE": {
+   "expected_sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc",
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md",
+   "match": true,
+   "recomputed_sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc"
+  },
+  "v1.0_FROZEN": {
+   "expected_sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc",
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "match": true,
+   "recomputed_sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+  }
+ },
+ "version": "1.0"
+}
