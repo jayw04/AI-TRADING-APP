@@ -1,0 +1,56 @@
+{
+  "record_type": "MR002_DSR_TrialStatistics_Census",
+  "version": "1.0",
+  "date": "2026-07-20",
+  "purpose": "Determine whether each of the five countersigned DSR trials (MR002-A/B/C + RNG-001 + RNG-EntryLogic) has a DEFENSIBLE FROZEN annualized net Sharpe on a comparable daily-net-return basis, as required to reconstruct sigma_trials per the owner's DSR-dispersion ruling. This census RECORDS availability; it does not manufacture any statistic.",
+  "required_convention": "annualized net Sharpe = mean(daily net simple return)/std(ddof=1) * sqrt(252), on each trial's FROZEN final verdict configuration/result; no post-hoc selection; no missing trial dropped; no synthetic substitution.",
+  "trials": [
+    {
+      "trial_id": "MR002-A",
+      "name": "MR-002 config A (z-entry 1.75)",
+      "cited_frozen_evidence": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+      "result_produced": "designed config (no pre-freeze backtest; dev perf not computed)",
+      "annualized_net_sharpe_available": false,
+      "reason": "Never backtested. The MR-002 program invariant is that NO development/validation/OOS performance has been computed; A is a designed z-entry config with no realized return series. A 'validation-period Sharpe' would require opening SEALED validation data (validation_authorization=false) AND running a config never run."
+    },
+    {
+      "trial_id": "MR002-B",
+      "name": "MR-002 config B (z-entry 2.00, VERDICT config)",
+      "cited_frozen_evidence": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+      "result_produced": "verdict config",
+      "annualized_net_sharpe_available": false,
+      "reason": "The verdict CONFIGURATION is frozen, but no frozen annualized net Sharpe exists (dev perf not computed). Its OOS Sharpe is exactly what the sealed evaluation will produce LATER; it cannot pre-exist as a trial statistic without opening sealed data."
+    },
+    {
+      "trial_id": "MR002-C",
+      "name": "MR-002 config C (z-entry 2.25)",
+      "cited_frozen_evidence": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+      "result_produced": "designed config",
+      "annualized_net_sharpe_available": false,
+      "reason": "Same as A: designed config, never backtested, no frozen Sharpe."
+    },
+    {
+      "trial_id": "RNG-001",
+      "name": "RNG-001 VWAP-deviation fade (prior mean-reversion-family study)",
+      "cited_frozen_evidence": "docs/design/RNG-001_Executive_Summary.md",
+      "result_produced": "YES - Completed, Rejected (Evidenced), Archived",
+      "annualized_net_sharpe_available": false,
+      "reason": "The cited frozen executive summary states a QUALITATIVE verdict (Rejected/Evidenced/Archived) but contains NO annualized net Sharpe value. No defensible frozen Sharpe on a comparable daily-net-return basis is present at the ledger-cited evidence path."
+    },
+    {
+      "trial_id": "RNG-EntryLogic",
+      "name": "RNG range entry-logic sub-study (v0.1/v0.2)",
+      "cited_frozen_evidence": "docs/implementation/evidence/range_entry_logic/RNG_EntryLogic_Study_v0.2.md",
+      "result_produced": "YES - documented sub-study",
+      "annualized_net_sharpe_available": false,
+      "reason": "Reports per-trade returns, profit factor (0.70 / 1.53), win rates, and DAY-CLUSTERED CIs on an equal-weight OR-entry portfolio return (idle capital = 0 on non-fills) — but NO annualized net Sharpe, and on a DIFFERENT return basis (opening-range entry, not MR-002 residual-reversion daily net returns). Not comparable and not a frozen Sharpe."
+    }
+  ],
+  "summary": {
+    "trials_with_defensible_frozen_annualized_net_sharpe": 0,
+    "trials_missing": ["MR002-A", "MR002-B", "MR002-C", "RNG-001", "RNG-EntryLogic"],
+    "disposition": "REFUSED_DSR_TRIAL_STATISTICS_UNAVAILABLE"
+  },
+  "deeper_contradiction": "The owner's prescribed procedure lists 'MR002-A/B/C validation-period annualized Sharpe', but (a) A/B/C were never backtested (program invariant: dev perf not computed) and (b) validation is SEALED with validation_authorization=false. The prescribed reconstruction is therefore not executable as written and requires owner reconciliation before any sigma_trials can be bound.",
+  "boundary": "No sealed data read; no performance computed; no statistic manufactured."
+}
