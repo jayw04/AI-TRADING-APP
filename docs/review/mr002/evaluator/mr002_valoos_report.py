@@ -14,7 +14,7 @@ import json
 import math
 
 RECORD_TYPE = "MR002_ValOOS_Report"
-SCHEMA_VERSION = "increment1-v1.1-synthetic"
+SCHEMA_VERSION = "increment1-v1.2-synthetic"
 
 
 class CanonicalizationError(Exception):
@@ -73,10 +73,12 @@ def canonical_bytes(obj: dict) -> bytes:
 
 
 def build_report(*, window: str, verdict: dict, governing_identity: dict, code_identity: dict,
-                 dependency_identity: dict, fixture_identity: dict, metric_values: dict,
-                 gate_results: list, diagnostics: list, hard_stop_evidence, seed: int) -> dict:
+                 dependency_identity: dict, dependency_lock_sha256: str, fixture_identity: dict,
+                 metric_values: dict, gate_results: list, diagnostics: list, hard_stop_evidence,
+                 seed: int) -> dict:
     """Assemble the canonical report and stamp its output_hash (over the record minus output_hash).
-    `verdict` is the gate-engine evaluate() dict (research_gate_verdict / run_disposition / stop_code)."""
+    `verdict` is the gate-engine evaluate() dict (research_gate_verdict / run_disposition / stop_code).
+    `dependency_lock_sha256` is the sha256 of the frozen dependency-lock file, embedded per Ruling 3."""
     record = {
         "record_type": RECORD_TYPE,
         "schema_version": SCHEMA_VERSION,
@@ -86,10 +88,12 @@ def build_report(*, window: str, verdict: dict, governing_identity: dict, code_i
         "stop_code": verdict.get("stop_code"),
         "governing_prereg_identity": governing_identity.get("prereg_sha256"),
         "governing_ledger_identity": governing_identity.get("ledger_sha256"),
-        "governing_resolution_identity": governing_identity.get("resolution_sha256"),
+        "governing_correction_identity": governing_identity.get("correction_sha256"),
+        "governing_dispersion_resolution_identity": governing_identity.get("dispersion_resolution_sha256"),
         "dsr_trials_N": governing_identity.get("dsr_trials_N"),
         "code_identity": code_identity,
         "dependency_identity": dependency_identity,
+        "dependency_lock_sha256": dependency_lock_sha256,
         "fixture_identity": fixture_identity,
         "metric_values": metric_values,
         "gate_results": gate_results,

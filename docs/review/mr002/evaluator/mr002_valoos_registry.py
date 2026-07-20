@@ -1,7 +1,7 @@
 """MR-002 validation/OOS evaluator — immutable required-gate registry (Increment 1 v1.1).
 
 The governing gate set, thresholds, comparison senses, and sample designations are pinned here and
-**cross-validated against the loaded v1.0.3 `gates_frozen`** by `cross_validate_registry` — if the
+**cross-validated against the loaded v1.0.4 `gates_frozen`** by `cross_validate_registry` — if the
 code registry diverges from the preregistration bytes it raises RefusedIdentity, so the registry can
 never silently drift from governance. A disposition may be derived only when EVERY required gate in
 `REQUIRED_GATES` is present with the registry-pinned threshold and sample (enforced in the gate
@@ -90,7 +90,7 @@ def _dig(d: dict, dotted: str):
 
 
 def cross_validate_registry(gates_frozen: dict) -> None:
-    """Assert every registry threshold equals the loaded v1.0.3 gates_frozen value. Diverging code →
+    """Assert every registry threshold equals the loaded v1.0.4 gates_frozen value. Diverging code →
     RefusedIdentity (imported lazily to avoid a cycle)."""
     from mr002_valoos_identity import RefusedIdentity
     for g in REQUIRED_GATES.values():

@@ -1,7 +1,7 @@
 {
   "record_type": "MR002_Increment1_DependencyLock",
   "increment": 1,
-  "version": "1.1",
+  "version": "1.2",
   "python": {
     "implementation": "CPython",
     "version": "3.13.14",

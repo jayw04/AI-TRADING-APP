@@ -1,7 +1,18 @@
-"""MR-002 validation/OOS evaluator — metric primitives (Increment 1 v1.1).
+"""MR-002 validation/OOS evaluator — metric primitives (Increment 1 v1.2).
 
 Pure, synthetic-only. Return/Calmar/drawdown follow the owner's 2026-07-20 convention ruling:
 COMPOUNDED wealth path + GEOMETRIC annualization. Arithmetic mean x 252 is DESCRIPTIVE only.
+
+v1.2 (owner rulings 2026-07-20, docs/review/comments.md):
+  * BOOTSTRAP corrected to the frozen v0.3 STATIONARY (Politis-Romano, circular) rule. The
+    moving-block/L21/2000/seed42 variant is REJECTED as transcription drift and is GONE from this
+    module (Ruling 1). Governing OOS bootstrap = stationary, expected block length 5 (confirmatory)
+    and 10 (reported robustness), 10,000 replications each, numpy PCG64, seed 20260711, one-sided
+    95% percentile lower bound of mean daily net return; L=5 lower bound > 0 is the confirmatory gate.
+  * DSR trial dispersion (`trial_sharpe_std`) is validated finite + non-negative (Ruling 2). The
+    production OOS interface requires the countersigned validation-stage dispersion artifact
+    (see mr002_valoos_identity.load_validation_dispersion_artifact); synthetic fixtures keep a
+    clearly-labelled SYNTHETIC provenance and NEVER claim the validation-derived value exists.
 
 Frozen conventions:
   * wealth_0 = 1; wealth_t = wealth_(t-1) * (1 + r_t)   (r_t = daily simple net return)
@@ -12,13 +23,16 @@ Frozen conventions:
   * OOS-only MaxDD: separate path starting at wealth 1.0 on the first eligible OOS return
   * Calmar = geometric annualized return / MaxDD (same sealed-OOS compounded series)
   * Sharpe = arithmetic mean / sample std (ddof=1) x sqrt(252)  (unchanged estimator)
-  * moving-block (non-circular) bootstrap: block L=21, 2000 resamples, PCG64 seed 42, one-sided 95%
+  * stationary (Politis-Romano, circular) bootstrap: p = 1/expected_L; first index uniform [0,n-1];
+    each next index: with prob p a fresh uniform start, else advance the prior index by one; wrap
+    n-1 -> 0; exactly n draws. Governing seed 20260711, exactly 10,000 replications; any other
+    governing-run seed is rejected.
   * DSR (Bailey/Lopez-de-Prado): observed per-obs Sharpe uses ddof=1; skew/raw-kurtosis use the
     population (n) moment estimators; expected-max-Sharpe via the Euler-Mascheroni two-quantile form.
 
 INTEGRITY_STOP codes: ZERO_VOLATILITY, NONFINITE_OR_EMPTY, NONPOSITIVE_WEALTH, NONFINITE_WEALTH,
 ZERO_DRAWDOWN_NONPOSITIVE_RETURN, NONPOSITIVE_NAV, INVALID_TRIALS_N, DSR_DENOM_NONPOSITIVE,
-BOOTSTRAP_PARAM.
+DSR_TRIAL_DISPERSION_NONFINITE, DSR_TRIAL_DISPERSION_NEGATIVE, BOOTSTRAP_PARAM, BOOTSTRAP_SEED.
 """
 
 from __future__ import annotations
@@ -28,9 +42,11 @@ from scipy.stats import norm
 
 ANNUALIZATION = float(np.sqrt(252.0))
 TRADING_DAYS = 252.0
-BLOCK_SESSIONS = 21
-RESAMPLES = 2000
-SEED = 42
+# Frozen v0.3 stationary bootstrap (Ruling 1, 2026-07-20).
+STATIONARY_EXPECTED_L_PRIMARY = 5
+STATIONARY_EXPECTED_L_SENSITIVITY = 10
+STATIONARY_RESAMPLES = 10000
+STATIONARY_SEED = 20260711
 CONFIDENCE = 0.95
 EULER_GAMMA = 0.5772156649015329
 DSR_MIN_SAMPLE = 20
@@ -111,31 +127,64 @@ def calmar(daily_net) -> dict:
             "max_drawdown": mdd, "gate_pass": bool(val >= 0.75)}
 
 
-# ── moving-block bootstrap (frozen §bootstrap) ────────────────────────────────────────────────────
-def _block_indices(n: int, block: int, rng: np.random.Generator) -> np.ndarray:
-    idx: list[int] = []
-    while len(idx) < n:
-        s = int(rng.integers(0, n))                  # uniform start in [0, n-1]
-        idx.extend(range(s, min(s + block, n)))      # up to L, truncate at series end, no wraparound
-    return np.array(idx[:n], dtype=np.int64)
+# ── stationary (Politis-Romano, circular) bootstrap — frozen v0.3 §bootstrap (Ruling 1) ────────────
+def _stationary_indices(n: int, expected_block: int, rng: np.random.Generator) -> np.ndarray:
+    """Politis-Romano stationary (circular) index sequence of length n.
+
+    p = 1/expected_block. idx[0] ~ uniform[0, n-1]. For each next observation: draw u ~ U[0,1); if
+    u < p start a fresh block at a uniform[0, n-1] index, else advance the prior index by one; wrap
+    n-1 -> 0. Exactly n indices. The RNG call order is FROZEN: idx0 = integers(0,n); then per step
+    u = random(), and only on a new block a further integers(0,n)."""
+    if expected_block < 1:
+        raise IntegrityStop(f"BOOTSTRAP_PARAM:EXPECTED_L={expected_block}")
+    p = 1.0 / expected_block
+    idx = np.empty(n, dtype=np.int64)
+    cur = int(rng.integers(0, n))
+    idx[0] = cur
+    for t in range(1, n):
+        if float(rng.random()) < p:
+            cur = int(rng.integers(0, n))            # fresh block start
+        else:
+            cur = (cur + 1) % n                       # advance, circular wrap n-1 -> 0
+        idx[t] = cur
+    return idx
 
 
-def block_bootstrap_mean_lower_bound(daily_net, *, block: int = BLOCK_SESSIONS,
-                                     resamples: int = RESAMPLES, seed: int = SEED,
-                                     confidence: float = CONFIDENCE) -> float:
+def stationary_bootstrap_mean_lower_bound(daily_net, *, expected_block: int,
+                                          resamples: int = STATIONARY_RESAMPLES,
+                                          seed: int = STATIONARY_SEED,
+                                          confidence: float = CONFIDENCE) -> float:
+    """One-sided `confidence` percentile lower bound of the resampled mean daily net return, via the
+    frozen stationary bootstrap. Governing constraints (fail-closed): expected_block in {5,10};
+    exactly 10,000 replications; seed 20260711 (any other governing-run seed is rejected)."""
     r = _finite(daily_net)
     n = r.size
     if n < 2:
         raise IntegrityStop("BOOTSTRAP_PARAM:N<2")
-    if not (1 <= block <= n):
-        raise IntegrityStop(f"BOOTSTRAP_PARAM:BLOCK={block}")
-    if resamples < RESAMPLES:
-        raise IntegrityStop(f"BOOTSTRAP_PARAM:RESAMPLES<{RESAMPLES}")
+    if expected_block not in (STATIONARY_EXPECTED_L_PRIMARY, STATIONARY_EXPECTED_L_SENSITIVITY):
+        raise IntegrityStop(f"BOOTSTRAP_PARAM:EXPECTED_L={expected_block}")
+    if resamples != STATIONARY_RESAMPLES:
+        raise IntegrityStop(f"BOOTSTRAP_PARAM:RESAMPLES!={STATIONARY_RESAMPLES}:{resamples}")
+    if seed != STATIONARY_SEED:
+        raise IntegrityStop(f"BOOTSTRAP_SEED:{seed}!={STATIONARY_SEED}")
     if not (0.0 < confidence < 1.0):
         raise IntegrityStop(f"BOOTSTRAP_PARAM:CONFIDENCE={confidence}")
     rng = np.random.default_rng(seed)
-    means = np.array([r[_block_indices(n, block, rng)].mean() for _ in range(resamples)])
+    means = np.array([r[_stationary_indices(n, expected_block, rng)].mean() for _ in range(resamples)])
     return float(np.percentile(means, (1.0 - confidence) * 100.0))
+
+
+def stationary_bootstrap_confirmatory(daily_net) -> dict:
+    """Governing OOS bootstrap result: primary expected-L=5 confirmatory gate (lower bound > 0) plus
+    expected-L=10 reported robustness (NOT a separate PASS gate)."""
+    lb5 = stationary_bootstrap_mean_lower_bound(daily_net, expected_block=STATIONARY_EXPECTED_L_PRIMARY)
+    lb10 = stationary_bootstrap_mean_lower_bound(daily_net, expected_block=STATIONARY_EXPECTED_L_SENSITIVITY)
+    return {"method": "stationary_politis_romano_circular", "seed": STATIONARY_SEED,
+            "replications_each": STATIONARY_RESAMPLES, "confidence": CONFIDENCE,
+            "primary_expected_L": STATIONARY_EXPECTED_L_PRIMARY, "primary_lower_bound": lb5,
+            "sensitivity_expected_L": STATIONARY_EXPECTED_L_SENSITIVITY, "sensitivity_lower_bound": lb10,
+            "confirmatory_gate_pass": bool(lb5 > 0.0),
+            "sensitivity_role": "robustness_reported_not_gated"}
 
 
 # ── fold / concentration / regime / breadth metrics ──────────────────────────────────────────────
@@ -205,17 +254,30 @@ def capacity_ingest(net_edge_under_cap: float) -> dict:
 
 
 # ── DSR (GATE) — pinned moment estimators; N supplied by the loaded ledger ─────────────────────────
+def _validate_trial_dispersion(trial_sharpe_std: float) -> float:
+    """Ruling 2 fail-closed on the cross-trial Sharpe dispersion input: finite + non-negative. Zero
+    is allowed (expected-max Sharpe then collapses to the benchmark term) but flagged by the caller."""
+    s = float(trial_sharpe_std)
+    if not np.isfinite(s):
+        raise IntegrityStop("DSR_TRIAL_DISPERSION_NONFINITE")
+    if s < 0.0:
+        raise IntegrityStop("DSR_TRIAL_DISPERSION_NEGATIVE")
+    return s
+
+
 def expected_max_sharpe(trials_n: int, trial_sharpe_std: float, benchmark_sharpe: float = 0.0) -> float:
     """Bailey/LdP expected maximum of N i.i.d. trial Sharpes (per-observation units). SR0 for N=1 is
-    the benchmark. `trial_sharpe_std` is the cross-trial Sharpe dispersion (see the DSR-dispersion
-    governance note — its PRODUCTION derivation is an OPEN item; here it is a synthetic fixture arg)."""
+    the benchmark. `trial_sharpe_std` is the cross-trial Sharpe dispersion (Ruling 2: validated finite
+    + non-negative; in production it is the validation-derived sigma_daily, in synthetic qualification
+    a clearly-labelled synthetic fixture arg)."""
     if not isinstance(trials_n, int) or isinstance(trials_n, bool) or trials_n < 1:
         raise IntegrityStop(f"INVALID_TRIALS_N:{trials_n}")
+    std = _validate_trial_dispersion(trial_sharpe_std)
     if trials_n == 1:
         return float(benchmark_sharpe)
     z1 = norm.ppf(1.0 - 1.0 / trials_n)
     z2 = norm.ppf(1.0 - 1.0 / (trials_n * np.e))
-    return float(benchmark_sharpe + trial_sharpe_std * ((1.0 - EULER_GAMMA) * z1 + EULER_GAMMA * z2))
+    return float(benchmark_sharpe + std * ((1.0 - EULER_GAMMA) * z1 + EULER_GAMMA * z2))
 
 
 def _sample_moments(r: np.ndarray) -> tuple[float, float, float]:
@@ -232,10 +294,15 @@ def _sample_moments(r: np.ndarray) -> tuple[float, float, float]:
 
 
 def deflated_sharpe(daily_net, *, trials_n: int, trial_sharpe_std: float,
-                    benchmark_sharpe: float = 0.0) -> dict:
-    """Deflated Sharpe Ratio. `trials_n` MUST be the loaded, ledger-bound value (no default)."""
+                    benchmark_sharpe: float = 0.0,
+                    trial_sharpe_std_provenance: str = "SYNTHETIC") -> dict:
+    """Deflated Sharpe Ratio. `trials_n` MUST be the loaded, ledger-bound value (no default);
+    `trial_sharpe_std` is validated finite + non-negative (Ruling 2). `trial_sharpe_std_provenance`
+    labels the dispersion source: "SYNTHETIC" for fixtures, "VALIDATION_DERIVED" only when supplied
+    from the countersigned validation dispersion artifact via production_deflated_sharpe()."""
     if not isinstance(trials_n, int) or isinstance(trials_n, bool) or trials_n < 1:
         raise IntegrityStop(f"INVALID_TRIALS_N:{trials_n}")
+    std = _validate_trial_dispersion(trial_sharpe_std)
     r = _finite(daily_net)
     t = r.size
     if t < DSR_MIN_SAMPLE:
@@ -243,7 +310,7 @@ def deflated_sharpe(daily_net, *, trials_n: int, trial_sharpe_std: float,
     if np.ptp(r) == 0.0:
         raise IntegrityStop("ZERO_VOLATILITY")
     sr, skew, kurt = _sample_moments(r)
-    sr0 = expected_max_sharpe(trials_n, trial_sharpe_std, benchmark_sharpe)
+    sr0 = expected_max_sharpe(trials_n, std, benchmark_sharpe)
     denom_sq = 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr ** 2
     if not np.isfinite(denom_sq) or denom_sq <= 0.0:     # guard BEFORE sqrt (no RuntimeWarning)
         raise IntegrityStop("DSR_DENOM_NONPOSITIVE")
@@ -251,8 +318,28 @@ def deflated_sharpe(daily_net, *, trials_n: int, trial_sharpe_std: float,
     dsr = float(norm.cdf((sr - sr0) * np.sqrt(t - 1) / denom))
     return {"dsr": dsr, "sr_per_obs": sr, "skew": skew, "kurtosis": kurt,
             "expected_max_sharpe": sr0, "trials_n": trials_n,
-            "trial_sharpe_std": float(trial_sharpe_std), "trial_sharpe_std_provenance": "SYNTHETIC",
-            "gate_pass": bool(dsr >= 0.95)}
+            "trial_sharpe_std": std, "trial_sharpe_std_provenance": trial_sharpe_std_provenance,
+            "trial_sharpe_std_is_zero": bool(std == 0.0), "gate_pass": bool(dsr >= 0.95)}
+
+
+def production_deflated_sharpe(daily_net, *, dispersion_artifact: dict,
+                               benchmark_sharpe: float = 0.0) -> dict:
+    """OOS DSR gate using the VALIDATION-derived dispersion artifact (Ruling 2). `dispersion_artifact`
+    MUST be the dict returned by mr002_valoos_identity.load_validation_dispersion_artifact() — which
+    fail-closes with REFUSED_CODE_OR_DATA_IDENTITY when the countersigned artifact is absent or its
+    identity does not bind. N and sigma_daily are read from that artifact; there is no synthetic
+    fallback and no default dispersion."""
+    if not isinstance(dispersion_artifact, dict):
+        raise IntegrityStop("DSR_DISPERSION_ARTIFACT_TYPE")
+    trials_n = dispersion_artifact.get("N")
+    sigma_daily = dispersion_artifact.get("sigma_daily")
+    if not isinstance(trials_n, int) or isinstance(trials_n, bool):
+        raise IntegrityStop(f"INVALID_TRIALS_N:{trials_n!r}")
+    if sigma_daily is None:
+        raise IntegrityStop("DSR_DISPERSION_SIGMA_ABSENT")
+    return deflated_sharpe(daily_net, trials_n=trials_n, trial_sharpe_std=sigma_daily,
+                           benchmark_sharpe=benchmark_sharpe,
+                           trial_sharpe_std_provenance="VALIDATION_DERIVED")
 
 
 # ── DIAGNOSTICS (reported, NEVER gate the verdict) ───────────────────────────────────────────────
@@ -273,7 +360,8 @@ def pbo_diagnostic(fold_returns_by_config: dict) -> dict:
         rank = min(max(rank, 1e-6), 1 - 1e-6)
         logits.append(np.log(rank / (1 - rank)))
     pbo = float(np.mean([1.0 for lg in logits if lg <= 0]) if logits else 0.0)
-    return {"pbo": pbo, "classification": "DIAGNOSTIC", "note": "N=3 underpowered"}
+    return {"pbo": pbo, "classification": "DIAGNOSTIC", "qualification": "NOT_FULLY_QUALIFIED",
+            "note": "N=3 underpowered; NOT_FULLY_QUALIFIED - DIAGNOSTIC ONLY"}
 
 
 def annual_herfindahl_diagnostic(annual_pnl: dict) -> dict:

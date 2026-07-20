@@ -1,10 +1,23 @@
-# MR-002 DSR cross-trial Sharpe-dispersion — OPEN governance item (note v1.0)
+# MR-002 DSR cross-trial Sharpe-dispersion — governance item (note v1.0)
 
-**Status: UNRESOLVED. Not qualified. Not a rule.** This note records — but does NOT settle — the
-frozen derivation required for the DSR expected-maximum-Sharpe input. Per the owner ruling
-(2026-07-20), DSR *formula* work is authorized on synthetic fixtures; the *production* derivation of
-the cross-trial Sharpe dispersion is an open governance item that must be settled before full
-evaluator qualification.
+> **★ RESOLVED 2026-07-20** by owner Ruling 2 (`docs/review/comments.md`) →
+> `MR002_DSR_DispersionResolution_v1.0.json` (`7a601f5b…`). The five-trial historical-Sharpe
+> reconstruction is **closed as unavailable** (blocker accepted; zero of five defensible; no
+> manufacture). The estimator is now frozen: **σ_trials = stddev(ddof=1) of the VALIDATION-period
+> annualized net Sharpes of MR002-A/B/C only** (RNG-001/RNG-EntryLogic retained in N = 5 but excluded
+> from dispersion for documented incomparability); converted to per-observation units by ÷√252;
+> computed **only** during the later authorized validation run and sealed (as
+> `MR002_DSR_TrialDispersion_Validation_v1.0.json`) before OOS. The production DSR interface
+> (`production_deflated_sharpe` + `load_validation_dispersion_artifact`) **requires** that
+> countersigned artifact — absent/identity-mismatch fail-closes with `REFUSED_CODE_OR_DATA_IDENTITY`.
+> The A/B/C Sharpes are **not** computed now. The original OPEN analysis is retained below for the
+> record; option 2 (comparable-sample restatement, restricted to A/B/C) is the adopted resolution.
+
+**Original status (superseded): UNRESOLVED.** This note records — but did NOT settle — the frozen
+derivation required for the DSR expected-maximum-Sharpe input. Per the owner ruling (2026-07-20), DSR
+*formula* work is authorized on synthetic fixtures; the *production* derivation of the cross-trial
+Sharpe dispersion was an open governance item that had to be settled before full evaluator
+qualification — now resolved as above.
 
 ## What is open
 

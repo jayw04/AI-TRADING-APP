@@ -1,7 +1,7 @@
-"""Generate the Increment-1 v1.1 qualification-evidence bundle: source hashes, a canonical
-full-battery synthetic report (exact-float schema), determinism proof, and the dependency binding.
-Writes MR002_Increment1_Qualification.json and MR002_Increment1_CanonicalReport.json. Reads NO real
-dataset — all inputs are synthetic constants."""
+"""Generate the Increment-1 v1.2 qualification-evidence bundle: source hashes, a canonical
+full-battery synthetic report (exact-float schema, dependency-lock sha embedded), determinism proof,
+and the dependency binding. Writes MR002_Increment1_Qualification.json and
+MR002_Increment1_CanonicalReport.json. Reads NO real dataset — all inputs are synthetic constants."""
 import hashlib
 import json
 import sys
@@ -14,6 +14,7 @@ import mr002_valoos_report as R
 from mr002_valoos_identity import load_governing_identity
 
 GOV_DIR = ".."
+DEP_LOCK = "MR002_Increment1_Dependencies.json"
 SRC = ["mr002_valoos_identity.py", "mr002_valoos_registry.py", "mr002_valoos_metrics.py",
        "mr002_valoos_gates.py", "mr002_valoos_report.py", "test_increment1.py", "_gen_evidence.py"]
 
@@ -56,7 +57,8 @@ def make_canonical_report():
         code_identity={s: sha(s) for s in SRC},
         dependency_identity={"numpy": np.__version__, "scipy": scipy.__version__,
                              "python": sys.version.split()[0]},
-        fixture_identity={"fixture": "increment1-v1.1-full-battery", "seed": 42},
+        dependency_lock_sha256=sha(DEP_LOCK),
+        fixture_identity={"fixture": "increment1-v1.2-full-battery", "seed": 42},
         metric_values={"net_sharpe": 1.5, "neg_zero_probe": -0.0},
         gate_results=b.to_list(), diagnostics=b.diagnostics_list(), hard_stop_evidence=None, seed=42)
 
@@ -68,14 +70,21 @@ open("MR002_Increment1_CanonicalReport.json", "w", encoding="utf-8").write(
 
 qual = {
     "record_type": "MR002_Increment1_Qualification",
-    "increment": 1, "version": "1.1",
-    "scope": "identity loader + metric primitives + gate engine + report kernel + synthetic fixtures",
+    "increment": 1, "version": "1.2",
+    "scope": "identity loader (v1.0.4 chain) + metric primitives (stationary bootstrap) + gate engine "
+             "+ report kernel (dependency-lock embedded) + DSR dispersion validation + production DSR "
+             "interface + synthetic fixtures",
+    "owner_rulings_applied": "docs/review/comments.md 2026-07-20 (Ruling 1 bootstrap, Ruling 2 DSR dispersion, Ruling 3 increment v1.2)",
+    "governing_prereg": "MR002_ValidationOOS_Preregistration_v1.0.4 (bootstrap-corrected)",
+    "governance_records": ["MR002_ValidationOOS_CorrectionRecord_v1.0.4.json",
+                           "MR002_DSR_DispersionResolution_v1.0.json"],
     "governing_identity": loaded if "gates_frozen" not in loaded else {k: v for k, v in loaded.items() if k != "gates_frozen"},
     "source_hashes": {s: sha(s) for s in SRC},
-    "dependency_lock": "MR002_Increment1_Dependencies.json",
-    "dependency_lock_sha256": sha("MR002_Increment1_Dependencies.json"),
-    "governance_note_dsr_dispersion": "MR002_DSR_Dispersion_GovernanceNote_v1.0.md",
-    "tests": {"count": 43, "result": "43 passed", "log": "MR002_Increment1_TestLog.txt"},
+    "dependency_lock": DEP_LOCK,
+    "dependency_lock_sha256": sha(DEP_LOCK),
+    "bootstrap": "frozen v0.3 stationary (Politis-Romano, circular); expected L 5 (confirmatory) + 10 "
+                 "(robustness); 10000 replications; seed 20260711; moving-block REJECTED and removed",
+    "tests": {"count": 53, "result": "53 passed", "log": "MR002_Increment1_TestLog.txt"},
     "canonical_report_output_hash": report["output_hash"],
     "canonical_report_dispositions": {"research_gate_verdict": report["research_gate_verdict"],
                                       "run_disposition": report["run_disposition"]},
@@ -89,7 +98,10 @@ qual = {
         "synthetic_fixture_only": report["synthetic_fixture_only"]},
     "no_real_dataset_opened": True,
     "dsr_N_source": "MR002_DSR_TrialLedger_v1.0.json (deda5cec...), N=5 — no code-constant fallback",
-    "dsr_dispersion_provenance": "SYNTHETIC (production derivation OPEN — see governance note)",
+    "dsr_dispersion_provenance": "SYNTHETIC in fixtures; production path requires the countersigned "
+        "MR002_DSR_TrialDispersion_Validation_v1.0.json (absent now -> REFUSED_CODE_OR_DATA_IDENTITY); "
+        "estimator frozen by MR002_DSR_DispersionResolution_v1.0 (sigma_trials = stddev ddof=1 of "
+        "A/B/C validation annualized Sharpes, /sqrt(252)); A/B/C Sharpes NOT computed now",
 }
 open("MR002_Increment1_Qualification.json", "w", encoding="utf-8").write(
     json.dumps(qual, sort_keys=True, indent=2))
