@@ -7,11 +7,12 @@ the compare-and-swap mechanics, and monotonic per-account sequencing.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.db.models.account import Account, AccountMode
 from app.db.models.risk_control_event import RiskControlEvent
@@ -199,6 +200,48 @@ async def test_conflict_when_cas_loses_writes_no_event(session_factory, acct, mo
         )
     assert result.outcome == NOT_APPLIED_CONFLICT
     assert not result.applied
+    assert await _event_count(session_factory, acct) == 0
+
+
+async def test_conflict_reports_winner_durable_state_not_pre_race_snapshot(session_factory, acct):
+    """Writer A reads version 0; a concurrent winner advances to version 1 (durably, to a DIFFERENT
+    state) at the moment A would CAS. A loses and must report the WINNER's state and version 1 —
+    never its own pre-race snapshot (NORMAL / version 0), so a caller can't build a follow-up
+    request from a superseded version.
+    """
+    async with session_factory() as s:
+        svc = LossControlService(s)
+        await svc.get_state_row(acct)  # version 0
+        real_cas = svc._cas_advance
+
+        async def _winner_commits_then_a_loses(*, account_id, expected_version, to_state):
+            # Stand in for a concurrent writer B that wins and commits (0 -> 1) to a DIFFERENT state
+            # on the same durable DB, right before A's CAS runs.
+            await s.execute(
+                update(RiskLossControlState)
+                .where(RiskLossControlState.account_id == account_id)
+                .values(
+                    state=C.STATE_REDUCTION_ONLY_BREAKER,
+                    state_version=RiskLossControlState.state_version + 1,
+                    last_sequence_no=RiskLossControlState.last_sequence_no + 1,
+                    updated_at=datetime.now(UTC),
+                )
+            )
+            await s.commit()
+            return await real_cas(
+                account_id=account_id, expected_version=expected_version, to_state=to_state
+            )
+
+        svc._cas_advance = _winner_commits_then_a_loses
+        result = await svc.request_transition(
+            account_id=acct, trigger=sm.TRIGGER_DAILY_LOSS_BREACH  # A wanted REDUCTION_ONLY_DAILY_LOSS
+        )
+
+    assert result.outcome == NOT_APPLIED_CONFLICT
+    # The WINNER's durable state/version — NOT A's pre-race snapshot (NORMAL / 0).
+    assert result.state == C.STATE_REDUCTION_ONLY_BREAKER
+    assert result.state_version == 1
+    # A appended no event of its own.
     assert await _event_count(session_factory, acct) == 0
 
 

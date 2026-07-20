@@ -194,13 +194,24 @@ class LossControlService:
             to_state=cast("str", decision.to_state),
         )
         if rows != 1:
-            # Lost the race — another writer advanced the version. Do NOT append an event.
+            # Lost the race — another writer advanced the version. Do NOT append an event. Reload
+            # so the result reports the WINNER's DURABLE state/version, not our now-stale pre-race
+            # snapshot: a caller that builds a follow-up request must see the real current version,
+            # never one already superseded.
             await self._session.rollback()
+            winner = cast(
+                "RiskLossControlState",
+                await self._session.scalar(
+                    select(RiskLossControlState).where(
+                        RiskLossControlState.account_id == account_id
+                    )
+                ),
+            )
             return TransitionResult(
                 NOT_APPLIED_CONFLICT,
                 account_id,
-                current_state,
-                current_version,
+                winner.state,
+                winner.state_version,
                 "compare-and-swap lost to a concurrent writer",
             )
 
