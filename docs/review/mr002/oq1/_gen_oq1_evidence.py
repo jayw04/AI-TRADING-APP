@@ -91,6 +91,28 @@ dump({"record_type": "MR002_OQ1_DeterminismReport",
       "comparison_projection": {"operational_fields_excluded": sorted(DET.OPERATIONAL_FIELDS)}},
      "MR002_OQ1_DeterminismReport.json")
 
+# base-image immutability + independent-rebuild equivalence (OQ-1 v1.1)
+dump({"record_type": "MR002_OQ1_RebuildEquivalence", "version": "1.1",
+      "base_image_pinned_digest": "sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91",
+      "base_image_amd64_digest": "sha256:afe189875f1d2f9b45e287834fb9f2c273a5d59d354ae4050ab9affbf0a6ba06",
+      "note": "Docker build metadata prevents byte-identical image IDs; equivalence proven by the projection below.",
+      "two_independent_builds": {
+          "image_id_A": "sha256:abbd9424560500513ad8dd2ff1e2a3229635f18df62f9e5567dc40e13122cd1e",
+          "image_id_B": "sha256:36def1335d2b1aa4bd25e13be555494e5bb04b60da5721438dc4ae569736efdb",
+          "image_ids_differ": True, "not_called_same_image": True},
+      "equivalence_projection": {
+          "same_pinned_base_digest": True,
+          "installed_distributions_identical": True, "installed_distributions_fingerprint_md5": "5f145965ae8c5ef5f20907acc23ca26b",
+          "application_and_governance_bytes_identical": True, "app_gov_bytes_sha256": "9b494ac476696f0c2e2e34600c4b853159211ff774aaaee6fc9a1c078e7f6004",
+          "evaluator_output_reproduced": True, "accepted_output_hash": qual["accepted_output_hash"]},
+      "offline_build_from_published_bundle": {
+          "bundle_downloaded_from_release": True, "bundle_sha256_matches_manifest": True,
+          "wheelhouse_reconstructed_from_bundle": True, "no_pypi_no_resolution_no_host_cache": True,
+          "qualification_from_bundle_built_image": "OQ1_PASS", "accepted_hash_reproduced": True},
+      "digest_refusals": {"tampered_base_digest": "REFUSED_ENVIRONMENT_IDENTITY:BASE_IMAGE_DIGEST exit 11",
+                          "wrong_expected_container_digest": "REFUSED_ENVIRONMENT_IDENTITY:CONTAINER_IMAGE_DIGEST exit 11"}},
+     "MR002_OQ1_RebuildEquivalence.json")
+
 # container build manifest + runtime policy
 dump({"record_type": "MR002_OQ1_ContainerBuildManifest", "image_id": digest,
       "dockerfile": "Dockerfile.oq1", "base_image": "python:3.13-slim",
@@ -157,8 +179,11 @@ for fn in sorted(os.listdir(EV)):
         arts.append({"path": p, "content_type": "application/json" if fn.endswith(".json") else "text/plain",
                      "producer": "oq1", "governing_role": role(fn)})
 # include the dependency-lock trio + Dockerfile + runtime policy (in oq1/, referenced by hash)
-for fn in ("requirements.lock", "wheelhouse-manifest.json", "dependency-resolution-report.json", "Dockerfile.oq1"):
-    arts.append({"path": fn, "content_type": "text/plain", "producer": "oq1", "governing_role": "dependency_lock" if "lock" in fn or "wheelhouse" in fn or "resolution" in fn else "container_recipe"})
+for fn in ("requirements.lock", "wheelhouse-manifest.json", "dependency-resolution-report.json",
+           "wheelhouse-bundle-manifest.json", "Dockerfile.oq1", "container-build-identity.json"):
+    arts.append({"path": fn, "content_type": "text/plain", "producer": "oq1",
+                 "governing_role": "dependency_lock" if ("lock" in fn or "wheelhouse" in fn or "resolution" in fn)
+                 else "container_recipe"})
 manifest = PUB.build_manifest(arts)
 dump(manifest, "MR002_OQ1_Manifest.json")
 

@@ -30,7 +30,7 @@
  "record_type": "MR002_OQ1_RefusalReport",
  "sample_refusal_record": {
   "code_commit": "c",
-  "container_digest": "sha256:d513232de0bbd22b8616a6dffb1af9db153ccb704cac746e2b0bf8afef5e4a2d",
+  "container_digest": "sha256:2b797ea622d94c1fe9f5e8eace5b05581365c95be5af9ad3de73b1ff81489b39",
   "dependency_lock_hash": "f3eaf9935ab87145c66a96cd5edccec939b274f1b33afeefa62f8225037944ba",
   "exit_code": 12,
   "expected_identity": "disabled",
@@ -42,7 +42,7 @@
   },
   "observed_identity": "reachable",
   "reason_code": "REFUSED_SEALED_ACCESS:NETWORK_REACHABLE",
-  "record_hash": "5daf784854f0f0217973d8838a7862c6b4bae9d0ad5ca15d158ae2e9101574ac",
+  "record_hash": "7ceda1fb3d13630a8bc460ae1df045d4a858389eaa5f8f2a3f6d6bda594ff874",
   "record_type": "MR002_OQ1_Refusal",
   "stack_trace_hash": null,
   "stage": "preflight",

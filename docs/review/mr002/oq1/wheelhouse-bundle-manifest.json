@@ -1,0 +1,82 @@
+{
+ "archive_byte_count": 64235470,
+ "archive_filename": "wheelhouse-bundle.tar.gz",
+ "archive_sha256": "a40bbb8286d3e2808f8474b3b805790c844b12012f86dee5784807459dead5e4",
+ "offline_build": "extract into oq1/wheelhouse/ then pip install --no-index --find-links --require-hashes -r requirements.lock",
+ "platform_targets": [
+  "manylinux2014_x86_64",
+  "manylinux_2_28_x86_64",
+  "none-any"
+ ],
+ "publication": {
+  "asset_api_url": "https://api.github.com/repos/jayw04/AI-TRADING-APP/releases/assets/483744510",
+  "asset_byte_count": 64235470,
+  "asset_id": "483744510",
+  "asset_name": "wheelhouse-bundle.tar.gz",
+  "download": "gh release download mr002-oq1-wheelhouse-v1 -R jayw04/AI-TRADING-APP -p wheelhouse-bundle.tar.gz",
+  "mechanism": "GitHub release asset",
+  "release_url": "https://github.com/jayw04/AI-TRADING-APP/releases/tag/mr002-oq1-wheelhouse-v1",
+  "repo": "jayw04/AI-TRADING-APP",
+  "tag": "mr002-oq1-wheelhouse-v1"
+ },
+ "python_abi": "cp313",
+ "record_type": "MR002_OQ1_WheelhouseBundle",
+ "version": "1.0",
+ "wheel_count": 9,
+ "wheels": [
+  {
+   "byte_count": 25335,
+   "filename": "colorama-0.4.6-py2.py3-none-any.whl",
+   "platform_tag": "none-any",
+   "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"
+  },
+  {
+   "byte_count": 7484,
+   "filename": "iniconfig-2.3.0-py3-none-any.whl",
+   "platform_tag": "none-any",
+   "sha256": "f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12"
+  },
+  {
+   "byte_count": 16526072,
+   "filename": "numpy-2.2.6-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+   "platform_tag": "cp313-manylinux_2_17_x86_64.manylinux2014_x86_64",
+   "sha256": "1bc23a79bfabc5d056d106f9befb8d50c31ced2fbc70eedb8155aec74a45798f"
+  },
+  {
+   "byte_count": 100195,
+   "filename": "packaging-26.2-py3-none-any.whl",
+   "platform_tag": "none-any",
+   "sha256": "5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e"
+  },
+  {
+   "byte_count": 20538,
+   "filename": "pluggy-1.6.0-py3-none-any.whl",
+   "platform_tag": "none-any",
+   "sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746"
+  },
+  {
+   "byte_count": 1231151,
+   "filename": "pygments-2.20.0-py3-none-any.whl",
+   "platform_tag": "none-any",
+   "sha256": "81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176"
+  },
+  {
+   "byte_count": 375249,
+   "filename": "pytest-9.0.3-py3-none-any.whl",
+   "platform_tag": "none-any",
+   "sha256": "2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9"
+  },
+  {
+   "byte_count": 11434486,
+   "filename": "ruff-0.15.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+   "platform_tag": "none-manylinux_2_17_x86_64.manylinux2014_x86_64",
+   "sha256": "cc411dfebe5eebe55ce041c6ae080eb7668955e866daa2fbb16692a784f1c4ca"
+  },
+  {
+   "byte_count": 35266390,
+   "filename": "scipy-1.18.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+   "platform_tag": "cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64",
+   "sha256": "a46f9273dbd0eb1cefba61c9b8648b4dfe3cbc14a080176f9a73e44b8336dc7f"
+  }
+ ]
+}

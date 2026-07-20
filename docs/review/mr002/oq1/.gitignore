@@ -5,3 +5,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 evidence/container_image_id.txt
+
+# published on the GitHub release (asset 483744510), not in git
+wheelhouse-bundle.tar.gz
+_tamper*.json

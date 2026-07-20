@@ -1,0 +1,34 @@
+{
+ "base_image_amd64_digest": "sha256:afe189875f1d2f9b45e287834fb9f2c273a5d59d354ae4050ab9affbf0a6ba06",
+ "base_image_pinned_digest": "sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91",
+ "digest_refusals": {
+  "tampered_base_digest": "REFUSED_ENVIRONMENT_IDENTITY:BASE_IMAGE_DIGEST exit 11",
+  "wrong_expected_container_digest": "REFUSED_ENVIRONMENT_IDENTITY:CONTAINER_IMAGE_DIGEST exit 11"
+ },
+ "equivalence_projection": {
+  "accepted_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "app_gov_bytes_sha256": "9b494ac476696f0c2e2e34600c4b853159211ff774aaaee6fc9a1c078e7f6004",
+  "application_and_governance_bytes_identical": true,
+  "evaluator_output_reproduced": true,
+  "installed_distributions_fingerprint_md5": "5f145965ae8c5ef5f20907acc23ca26b",
+  "installed_distributions_identical": true,
+  "same_pinned_base_digest": true
+ },
+ "note": "Docker build metadata prevents byte-identical image IDs; equivalence proven by the projection below.",
+ "offline_build_from_published_bundle": {
+  "accepted_hash_reproduced": true,
+  "bundle_downloaded_from_release": true,
+  "bundle_sha256_matches_manifest": true,
+  "no_pypi_no_resolution_no_host_cache": true,
+  "qualification_from_bundle_built_image": "OQ1_PASS",
+  "wheelhouse_reconstructed_from_bundle": true
+ },
+ "record_type": "MR002_OQ1_RebuildEquivalence",
+ "two_independent_builds": {
+  "image_id_A": "sha256:abbd9424560500513ad8dd2ff1e2a3229635f18df62f9e5567dc40e13122cd1e",
+  "image_id_B": "sha256:36def1335d2b1aa4bd25e13be555494e5bb04b60da5721438dc4ae569736efdb",
+  "image_ids_differ": true,
+  "not_called_same_image": true
+ },
+ "version": "1.1"
+}

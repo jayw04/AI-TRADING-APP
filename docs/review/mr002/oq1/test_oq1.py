@@ -190,3 +190,28 @@ def test_oq1_35_s3_dryrun_immutability_and_run5_forbidden(tmp_path):
     with pytest.raises(PUB.PublicationRefused, match="RUN5_ARCHIVE_DESTINATION_FORBIDDEN"):
         PUB.s3_publish_dryrun(bucket="workbench-backups-219024422756", prefix="mr002/run5", artifacts=arts,
                               versioning=True, object_lock=True, sse=True)
+
+
+# ── OQ-1 v1.1: base-image immutability + offline-build-input bundle ────────────────────────────────
+def test_oq1_v11_dockerfile_base_digest_pinned():
+    df = open(os.path.join(HERE, "Dockerfile.oq1"), encoding="utf-8").read()
+    assert "FROM python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91" in df
+    assert "@sha256:" in df.splitlines()[1]                 # mutable tag alone is not permitted
+
+
+def test_oq1_v11_build_identity_pins_base_and_context():
+    import json
+    b = json.load(open(os.path.join(HERE, "container-build-identity.json")))
+    assert b["base_image"]["index_digest"] == "sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91"
+    assert b["base_image"]["amd64_digest"] == "sha256:afe189875f1d2f9b45e287834fb9f2c273a5d59d354ae4050ab9affbf0a6ba06"
+    assert b["dockerfile_sha256"] and b["build_context_identity"]["commit"]
+
+
+def test_oq1_v11_wheelhouse_bundle_manifest_bound_to_release():
+    import json
+    m = json.load(open(os.path.join(HERE, "wheelhouse-bundle-manifest.json")))
+    assert m["wheel_count"] == 9 and len(m["archive_sha256"]) == 64 and m["archive_byte_count"] == 64235470
+    p = m["publication"]
+    assert p["mechanism"] == "GitHub release asset" and p["asset_id"] == "483744510"
+    assert p["release_url"].endswith("mr002-oq1-wheelhouse-v1")
+    assert all(len(w["sha256"]) == 64 and w["platform_tag"] for w in m["wheels"])

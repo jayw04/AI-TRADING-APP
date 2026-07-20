@@ -25,8 +25,8 @@ ACCEPTED_SCHEMA = "increment3-v1.1-synthetic"
 FIXED_TS = "OQ1-SYNTHETIC-RUN"                                 # deterministic: no wall-clock in evidence
 
 
-def qualify(*, output_dir: str, container_digest: str = "n/a", code_commit: str = "n/a",
-            require_network_disabled: bool = True) -> dict:
+def qualify(*, output_dir: str, container_digest: str = "n/a", expected_container_digest: str | None = None,
+            code_commit: str = "n/a", require_network_disabled: bool = True) -> dict:
     dep_lock_hash = hashlib.sha256(open(os.path.join(HERE, "wheelhouse-manifest.json"), "rb").read()).hexdigest()
 
     def refusal(reason, stage, expected, observed):
@@ -34,7 +34,7 @@ def qualify(*, output_dir: str, container_digest: str = "n/a", code_commit: str 
                                  code_commit=code_commit, container_digest=container_digest,
                                  dependency_lock_hash=dep_lock_hash, timestamp=FIXED_TS)
 
-    pre = PF.run_preflight(container_digest=container_digest,
+    pre = PF.run_preflight(container_digest=container_digest, expected_container_digest=expected_container_digest,
                            require_network_disabled=require_network_disabled, output_dir=output_dir)
     if not pre["all_pass"]:                                    # a failed preflight runs NO portfolio session
         reason = (pre["stops"] or pre["refusals"] or ["INTEGRITY_STOP:PREFLIGHT"])[0]
@@ -78,6 +78,7 @@ def main(argv=None) -> int:
     out = os.environ.get("OQ1_OUTPUT_DIR", os.path.join(HERE, "evidence"))
     os.makedirs(out, exist_ok=True)
     res = qualify(output_dir=out, container_digest=os.environ.get("OQ1_CONTAINER_DIGEST", "n/a"),
+                  expected_container_digest=os.environ.get("OQ1_EXPECTED_CONTAINER_DIGEST") or None,
                   code_commit=os.environ.get("OQ1_CODE_COMMIT", "n/a"),
                   require_network_disabled=os.environ.get("OQ1_REQUIRE_NETWORK_DISABLED", "1") == "1")
     which = res.get("qualification") or res.get("refusal")

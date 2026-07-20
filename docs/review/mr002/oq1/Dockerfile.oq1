@@ -1,5 +1,5 @@
 # MR-002 OQ-1 operational qualification image (synthetic evaluator only; no real data)
-FROM python:3.13-slim
+FROM python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
 ENV PYTHONHASHSEED=0 PYTHONDONTWRITEBYTECODE=1 TZ=UTC LC_ALL=C.UTF-8 LANG=C.UTF-8 \
     OQ1_OUTPUT_DIR=/out OQ1_REQUIRE_NETWORK_DISABLED=1
 # offline dependency install from the hash-pinned wheelhouse (no network resolution)

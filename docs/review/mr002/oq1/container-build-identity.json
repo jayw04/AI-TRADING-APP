@@ -1,0 +1,25 @@
+{
+ "base_image": {
+  "amd64_digest": "sha256:afe189875f1d2f9b45e287834fb9f2c273a5d59d354ae4050ab9affbf0a6ba06",
+  "index_digest": "sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91",
+  "media_type": "application/vnd.oci.image.index.v1+json",
+  "repository": "docker.io/library/python",
+  "tag_informational": "3.13-slim"
+ },
+ "build_context_identity": {
+  "commit": "125941d53558d908031be9522f6a687ead07dd5f",
+  "repo": "jayw04/AI-TRADING-APP"
+ },
+ "dependency_lock": {
+  "requirements_lock_sha256": "274ef6e41f55cfede2efd1cccb6ba367ec0bfc58e919804fa2f9dc33b2c009b8",
+  "wheelhouse_bundle_asset_id": "483744510",
+  "wheelhouse_bundle_sha256": "a40bbb8286d3e2808f8474b3b805790c844b12012f86dee5784807459dead5e4",
+  "wheelhouse_manifest_sha256": "f3eaf9935ab87145c66a96cd5edccec939b274f1b33afeefa62f8225037944ba"
+ },
+ "dockerfile": "Dockerfile.oq1",
+ "dockerfile_sha256": "2a9ed9a0261bac5b2514d676f0a621509760f3d02945cfe751f4d6d9a1cdae5f",
+ "note": "Base pinned by digest (immutable). Resulting image ID varies per build via Docker metadata; verified at runtime via OQ1_EXPECTED_CONTAINER_DIGEST. Reproducibility proven via base-digest + installed-package + app/gov-byte + evaluator-output equivalence.",
+ "record_type": "MR002_OQ1_ContainerBuildIdentity",
+ "resulting_image_digest": "n/a",
+ "version": "1.1"
+}

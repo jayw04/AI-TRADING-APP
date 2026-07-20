@@ -1,5 +1,5 @@
 {
- "container_digest": "sha256:d513232de0bbd22b8616a6dffb1af9db153ccb704cac746e2b0bf8afef5e4a2d",
+ "container_digest": "sha256:2b797ea622d94c1fe9f5e8eace5b05581365c95be5af9ad3de73b1ff81489b39",
  "preflight": {
   "all_pass": true,
   "checks": [
@@ -21,6 +21,11 @@
    {
     "check": "python_identity",
     "detail": "3.13",
+    "pass": true
+   },
+   {
+    "check": "base_image_digest",
+    "detail": "digest-pinned base bound",
     "pass": true
    },
    {

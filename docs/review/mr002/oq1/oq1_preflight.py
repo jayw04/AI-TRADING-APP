@@ -67,11 +67,27 @@ def run_preflight(*, container_digest: str = "n/a", expected_container_digest: s
     # 4. python / schema identity
     ck("python_identity", sys.version_info[:2] == (3, 13), ".".join(map(str, sys.version_info[:2])))
 
-    # 5. container digest (when an expected digest is pinned)
-    if expected_container_digest is not None:
-        if container_digest != expected_container_digest:
-            refused.append("REFUSED_ENVIRONMENT_IDENTITY:CONTAINER_DIGEST_MISMATCH")
-        ck("container_digest", container_digest == expected_container_digest, "digest bound")
+    # 5. base-image digest (pinned) + running container-image digest
+    EXPECTED_BASE_INDEX = "sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91"
+    EXPECTED_BASE_AMD64 = "sha256:afe189875f1d2f9b45e287834fb9f2c273a5d59d354ae4050ab9affbf0a6ba06"
+    try:
+        bid = json.load(open(os.path.join(HERE, "container-build-identity.json"), encoding="utf-8"))
+        base_ok = (bid["base_image"]["index_digest"] == EXPECTED_BASE_INDEX
+                   and bid["base_image"]["amd64_digest"] == EXPECTED_BASE_AMD64)
+        ck("base_image_digest", base_ok, "digest-pinned base bound")
+        if not base_ok:
+            refused.append("REFUSED_ENVIRONMENT_IDENTITY:BASE_IMAGE_DIGEST")
+        # container-image digest: the running image must match the build-identity's resulting digest
+        if bid.get("resulting_image_digest") and bid["resulting_image_digest"] != "n/a":
+            match = container_digest == bid["resulting_image_digest"]
+            ck("container_image_digest", match, "running image bound to build identity")
+            if not match:
+                refused.append("REFUSED_ENVIRONMENT_IDENTITY:CONTAINER_IMAGE_DIGEST")
+    except FileNotFoundError:
+        ck("base_image_digest", False, "build-identity manifest missing")
+        stop.append("INTEGRITY_STOP:BUILD_IDENTITY_MISSING")
+    if expected_container_digest is not None and container_digest != expected_container_digest:
+        refused.append("REFUSED_ENVIRONMENT_IDENTITY:CONTAINER_IMAGE_DIGEST")
 
     # 6. output-directory policy (must exist, be writable, and not be an input/evaluator/gov path)
     if output_dir is not None:

@@ -18,7 +18,7 @@
   "phase0_resolution": "860c8cde...",
   "registry": "edb7ff22..."
  },
- "image_id": "sha256:d513232de0bbd22b8616a6dffb1af9db153ccb704cac746e2b0bf8afef5e4a2d",
+ "image_id": "sha256:2b797ea622d94c1fe9f5e8eace5b05581365c95be5af9ad3de73b1ff81489b39",
  "note": "wheelhouse binaries are regenerable from requirements.lock (hash-pinned); not stored in git",
  "record_type": "MR002_OQ1_ContainerBuildManifest"
 }
