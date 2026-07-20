@@ -5,13 +5,13 @@ evaluator. **Not started.** It runs entirely on synthetic and development-free f
 NO development, validation, or OOS performance — and must be accepted before the owner authorizes
 the validation opening. This plan is the acceptance contract; it reads no sealed data.
 
-> **HARD PRECONDITION (blocking):** Workstream B implementation may NOT begin until BOTH hold:
-> (1) the v1.0.2 preregistration is owner-accepted; and (2) the DSR trial ledger is
-> **countersigned** with `dsr.status = READY` and an exact `dsr.trials_N` + `trial_ledger_sha256`
-> bound (`MR002_DSR_TrialLedger_Candidate_v1.0.json` is a CANDIDATE only). While `dsr.status !=
-> READY`: `trials_N` is null, validation authorization is false, the evaluator cannot reach a PASS
-> disposition, and no validation input may be opened. The evaluator must implement DSR against the
-> countersigned N — never a defaulted 3.
+> **HARD PRECONDITION:** Workstream B may begin only after owner acceptance of:
+> - `MR002_ValidationOOS_Preregistration_v1.0.3`
+> - `MR002_DSR_TrialLedger_v1.0.json`
+> - `MR002_DSR_Resolution_v1.0.json`
+>
+> The governing preregistration is DSR-READY at N = 5; `sequencing.validation_authorization` is
+> false (this workstream is synthetic/development-free only and does not open any validation input).
 
 ## 0. Relationship to the governance package
 
@@ -45,11 +45,10 @@ These are metric/calendar primitives — **not** the evaluator.
    1.5% new-entry cap, next-open execution, no forward-fill — as a committed file bound by
    version + sha256.
 3. **Benchmark (D-BENCH)** — zero; excess = net return; all financing/costs in net P&L.
-4. **Metric + gate battery (per the CORRECTED v1.0.1 governing gates — see
-   `MR002_ValidationOOS_CorrectionRecord_v1.0.1.json`)** — each a frozen implementation with a
+4. **Metric + gate battery (per the v1.0.3 governing gates)** — each a frozen implementation with a
    synthetic fixture of known answer. **PASS gates:** Sharpe ≥ 0.70; bootstrap mean-return lower
    bound > 0; Calmar ≥ 0.75; MaxDD ≤ 15% on **validation+OOS combined**; ≥3/5 positive folds; A/C
-   stability; DSR ≥ 95% (**N = blocker**, below); **net annualized return ≥ 3%**; cost stress at
+   stability; DSR ≥ 95% (**N = 5**, below); **net annualized return ≥ 3%**; cost stress at
    **20 bps/side + 300 bps/yr borrow**; breadth ≥ 500 trades / **≥100 distinct entry dates** / ≥100
    long / ≥100 short; **trade concentration** (top-10 ≤ 20% of positive trade P&L, single stock ≤
    10%); **annual profile** (≥3 positive years AND largest ≤ 50% of Σ positive annual P&L); **regime
@@ -59,9 +58,12 @@ These are metric/calendar primitives — **not** the evaluator.
    **annual-P&L Herfindahl**. The evaluator must tag diagnostics as non-gating so they cannot alter
    a verdict.
 5. **PBO (CSCV, DIAGNOSTIC)** — exact split count `S`, ranking metric, partition enumeration; output
-   reported, never gating. **DSR (GATE)** — deflated-Sharpe estimator, skew/kurtosis, expected-max-
-   Sharpe, tolerances; **trial N is BLOCKED** (`MR002_DSR_TrialLedger_Blocker_v1.0.md`) — the DSR
-   gate stays unexecutable until the owner binds N from the frozen ledger; do NOT default to 3.
+   reported, never gating. **DSR (GATE) — READY:** the evaluator must implement DSR with
+   **`trials_N = 5`** and bind the countersigned ledger SHA-256
+   **`deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b`**
+   (`MR002_DSR_TrialLedger_v1.0.json`). **No default, override, or alternate trial count is
+   permitted.** Deflated-Sharpe estimator, skew/kurtosis, expected-max-Sharpe, and numerical
+   tolerances are bound in qualification against N = 5.
 6. **Report schema** — immutable per-window record: record_type, window, disposition ∈ {PASS, FAIL,
    REFUSED, INTEGRITY_STOP}, every gate value + CI, seed, code/data/image identities, hashes.
    Output paths `.../valoos/<window>/MR002_ValOOS_<window>_Report.json` + a no-overwrite publication
@@ -91,10 +93,21 @@ is resolved here; it may not survive into the authorized run.
 evaluator code identities (commit/tree/blobs) · container + dependency identity · report schema ·
 full synthetic end-to-end evidence + hashes · every gate's synthetic fixture result · refusal-test
 evidence · determinism proof · confirmation that zero development/validation/OOS performance was
-computed. Owner review of that package precedes any validation-opening authorization.
+computed · **proof that the implemented evaluator reads `trials_N = 5` from the bound governing
+identities (v1.0.3 `b840e01c…` / ledger `deda5cec…`) — not from a code constant that could diverge**
+(e.g., an identity/refusal test that fails closed if the loaded ledger hash or N does not match the
+governing binding). Owner review of that package precedes any validation-opening authorization.
 
 ## 6. Boundary
 
 No sealed data, no development performance, no strategy performance. Validation access is a
 separate later authorization; OOS access is a further separate authorization after an accepted
 validation PASS.
+
+## 7. Historical provenance (superseded — NON-operative)
+
+For audit only, not governing: the gate battery correction chain (v1.0-final → v1.0.1 → v1.0.2 →
+v1.0.3), the DSR blocker `MR002_DSR_TrialLedger_Blocker_v1.0.md`, and the candidate ledger
+`MR002_DSR_TrialLedger_Candidate_v1.0.json` record how N was reconstructed. These are superseded by
+the countersigned ledger (`deda5cec…`, N = 5) and v1.0.3; nothing in this section is a live
+precondition or an unexecutable/blocked state.
