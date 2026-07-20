@@ -97,12 +97,15 @@ dump({"record_type": "MR002_OQ1_RebuildEquivalence", "version": "1.1",
       "base_image_amd64_digest": "sha256:afe189875f1d2f9b45e287834fb9f2c273a5d59d354ae4050ab9affbf0a6ba06",
       "note": "Docker build metadata prevents byte-identical image IDs; equivalence proven by the projection below.",
       "two_independent_builds": {
-          "image_id_A": "sha256:abbd9424560500513ad8dd2ff1e2a3229635f18df62f9e5567dc40e13122cd1e",
-          "image_id_B": "sha256:36def1335d2b1aa4bd25e13be555494e5bb04b60da5721438dc4ae569736efdb",
+          "resulting_images": [
+              {"build_id": "A", "image_digest": "sha256:abbd9424560500513ad8dd2ff1e2a3229635f18df62f9e5567dc40e13122cd1e", "runtime_preflight_verified": True},
+              {"build_id": "B", "image_digest": "sha256:36def1335d2b1aa4bd25e13be555494e5bb04b60da5721438dc4ae569736efdb", "runtime_preflight_verified": True}],
           "image_ids_differ": True, "not_called_same_image": True},
       "equivalence_projection": {
           "same_pinned_base_digest": True,
-          "installed_distributions_identical": True, "installed_distributions_fingerprint_md5": "5f145965ae8c5ef5f20907acc23ca26b",
+          "installed_distributions_identical": True,
+          "installed_distributions_sha256": "a4953ba56d1073ebc8df44d634ba6dbd834110fbde30b2f7c6cf170fe470dd14",
+          "installed_distributions_md5_informational": "5f145965ae8c5ef5f20907acc23ca26b",
           "application_and_governance_bytes_identical": True, "app_gov_bytes_sha256": "9b494ac476696f0c2e2e34600c4b853159211ff774aaaee6fc9a1c078e7f6004",
           "evaluator_output_reproduced": True, "accepted_output_hash": qual["accepted_output_hash"]},
       "offline_build_from_published_bundle": {

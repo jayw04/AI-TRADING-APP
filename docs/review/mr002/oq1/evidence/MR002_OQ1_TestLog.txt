@@ -1,4 +1,4 @@
-MR-002 OQ-1 in-process qualification test log
+MR-002 OQ-1 in-process qualification test log (v1.2)
 Command: pytest test_oq1.py -v
 ----
 ============================= test session starts =============================
@@ -31,7 +31,7 @@ test_oq1.py::test_oq1_33_overwrite_refuses PASSED                        [ 79%]
 test_oq1.py::test_oq1_34_partial_missing_artifact_fails_closed PASSED    [ 83%]
 test_oq1.py::test_oq1_35_s3_dryrun_immutability_and_run5_forbidden PASSED [ 87%]
 test_oq1.py::test_oq1_v11_dockerfile_base_digest_pinned PASSED           [ 91%]
-test_oq1.py::test_oq1_v11_build_identity_pins_base_and_context PASSED    [ 95%]
+test_oq1.py::test_oq1_v12_build_identity_binds_v11_commit_and_images PASSED [ 95%]
 test_oq1.py::test_oq1_v11_wheelhouse_bundle_manifest_bound_to_release PASSED [100%]
 
-============================= 24 passed in 1.95s ==============================
+============================= 24 passed in 1.37s ==============================

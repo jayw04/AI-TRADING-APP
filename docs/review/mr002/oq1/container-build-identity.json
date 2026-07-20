@@ -7,19 +7,36 @@
   "tag_informational": "3.13-slim"
  },
  "build_context_identity": {
-  "commit": "125941d53558d908031be9522f6a687ead07dd5f",
-  "repo": "jayw04/AI-TRADING-APP"
- },
- "dependency_lock": {
+  "dockerfile_sha256": "2a9ed9a0261bac5b2514d676f0a621509760f3d02945cfe751f4d6d9a1cdae5f",
+  "evaluator_code_aggregate_sha256": "020d39b59cb50d56f244274a06031875767299367a4faf079a517239b055d12a",
+  "governance_input_aggregate_sha256": "1a998bfcc9a16dcffc1a9adab568e86a7a237003be92e4a117283731afe2c56d",
+  "repo": "jayw04/AI-TRADING-APP",
   "requirements_lock_sha256": "274ef6e41f55cfede2efd1cccb6ba367ec0bfc58e919804fa2f9dc33b2c009b8",
-  "wheelhouse_bundle_asset_id": "483744510",
-  "wheelhouse_bundle_sha256": "a40bbb8286d3e2808f8474b3b805790c844b12012f86dee5784807459dead5e4",
-  "wheelhouse_manifest_sha256": "f3eaf9935ab87145c66a96cd5edccec939b274f1b33afeefa62f8225037944ba"
+  "source_commit": "1e3db0a00903f2ca692644caa6199164e4836f5f",
+  "source_tree": "66c86234876d101168414b02b74504dd200b32f9",
+  "wheelhouse_bundle_manifest_sha256": "a2e700d2cab3f2c1779e54f92571e02918e13244e08ec8ce6bf9840b48a1c171"
  },
- "dockerfile": "Dockerfile.oq1",
- "dockerfile_sha256": "2a9ed9a0261bac5b2514d676f0a621509760f3d02945cfe751f4d6d9a1cdae5f",
- "note": "Base pinned by digest (immutable). Resulting image ID varies per build via Docker metadata; verified at runtime via OQ1_EXPECTED_CONTAINER_DIGEST. Reproducibility proven via base-digest + installed-package + app/gov-byte + evaluator-output equivalence.",
+ "canonical_rebuild_equivalence_identity": {
+  "accepted_evaluator_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "application_governance_bytes_sha256": "9b494ac476696f0c2e2e34600c4b853159211ff774aaaee6fc9a1c078e7f6004",
+  "base_amd64_digest": "sha256:afe189875f1d2f9b45e287834fb9f2c273a5d59d354ae4050ab9affbf0a6ba06",
+  "base_index_digest": "sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91",
+  "installed_distributions_md5_informational": "5f145965ae8c5ef5f20907acc23ca26b",
+  "installed_distributions_sha256": "a4953ba56d1073ebc8df44d634ba6dbd834110fbde30b2f7c6cf170fe470dd14"
+ },
+ "note": "Base pinned by digest (immutable). The two independent builds legitimately produced distinct image IDs (recorded above); rebuild equivalence is bound by the SHA-256 canonical identity, not one image digest. resulting_image_digest single-field removed (was misleading).",
  "record_type": "MR002_OQ1_ContainerBuildIdentity",
- "resulting_image_digest": "n/a",
- "version": "1.1"
+ "resulting_images": [
+  {
+   "build_id": "A",
+   "image_digest": "sha256:abbd9424560500513ad8dd2ff1e2a3229635f18df62f9e5567dc40e13122cd1e",
+   "runtime_preflight_verified": true
+  },
+  {
+   "build_id": "B",
+   "image_digest": "sha256:36def1335d2b1aa4bd25e13be555494e5bb04b60da5721438dc4ae569736efdb",
+   "runtime_preflight_verified": true
+  }
+ ],
+ "version": "1.2"
 }

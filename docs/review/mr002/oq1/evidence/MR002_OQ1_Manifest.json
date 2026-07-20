@@ -10,12 +10,12 @@
    "sha256": "2a9ed9a0261bac5b2514d676f0a621509760f3d02945cfe751f4d6d9a1cdae5f"
   },
   {
-   "byte_count": 1329,
+   "byte_count": 2390,
    "content_type": "text/plain",
    "governing_role": "container_recipe",
    "producer": "oq1",
    "relative_path": "container-build-identity.json",
-   "sha256": "c17d7b41b78b436aa97e5174f2d184d4c068c3d5d03d5137290ee7139553abdb"
+   "sha256": "fd2df77ce8501557bc0163d47cd7cf58d2533d1dc3ce84329b6cae5b87bca9e5"
   },
   {
    "byte_count": 1349,
@@ -66,12 +66,12 @@
    "sha256": "584d2236d7a55fb361ea10c074984d1bcb694e8c1f81feba6ddc679cefd6b33b"
   },
   {
-   "byte_count": 1663,
+   "byte_count": 1947,
    "content_type": "application/json",
    "governing_role": "evidence",
    "producer": "oq1",
    "relative_path": "MR002_OQ1_RebuildEquivalence.json",
-   "sha256": "856ab0310fa8e10790fca880f98a1640a2744a43e0ad34f7268f025bba63e2e1"
+   "sha256": "550a278091c0008c62be70e9dbbfbd1f4d07aa235a9787ab80f7ec79230af31a"
   },
   {
    "byte_count": 1565,
@@ -98,12 +98,12 @@
    "sha256": "2afaa5685b887142f68aa2318969b2bac1f8623317b68a59156c926bfed0bdb5"
   },
   {
-   "byte_count": 2593,
+   "byte_count": 2603,
    "content_type": "text/plain",
    "governing_role": "evidence",
    "producer": "oq1",
    "relative_path": "MR002_OQ1_TestLog.txt",
-   "sha256": "b56fa7d9bbe41b9c38d9cdd50fdd0291337b1fdb73441f3c314968b367f05481"
+   "sha256": "5d8dfa32160d888aed63531da8189f0f7eb6185d05d6ad5231d51ead1cb2ae23"
   },
   {
    "byte_count": 939,
@@ -154,7 +154,7 @@
    "sha256": "f3eaf9935ab87145c66a96cd5edccec939b274f1b33afeefa62f8225037944ba"
   }
  ],
- "manifest_self_hash": "25c996d01db67803cbccd63b2559daae442e41ae34f0c81d0fbf0c5960ee192c",
+ "manifest_self_hash": "86b2c9a8c0d7f1a69b003bc953ea8ab1c3c4b9438491abf4be661b4dd8fd7033",
  "record_type": "MR002_OQ1_Manifest",
  "version": "1.0"
 }

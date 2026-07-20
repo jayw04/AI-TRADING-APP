@@ -199,12 +199,23 @@ def test_oq1_v11_dockerfile_base_digest_pinned():
     assert "@sha256:" in df.splitlines()[1]                 # mutable tag alone is not permitted
 
 
-def test_oq1_v11_build_identity_pins_base_and_context():
+def test_oq1_v12_build_identity_binds_v11_commit_and_images():
     import json
     b = json.load(open(os.path.join(HERE, "container-build-identity.json")))
     assert b["base_image"]["index_digest"] == "sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91"
     assert b["base_image"]["amd64_digest"] == "sha256:afe189875f1d2f9b45e287834fb9f2c273a5d59d354ae4050ab9affbf0a6ba06"
-    assert b["dockerfile_sha256"] and b["build_context_identity"]["commit"]
+    # v1.2 provenance correction: binds the v1.1 build commit/tree (not the parent), both image digests
+    bc = b["build_context_identity"]
+    assert bc["source_commit"] == "1e3db0a00903f2ca692644caa6199164e4836f5f"
+    assert bc["source_tree"] == "66c86234876d101168414b02b74504dd200b32f9"
+    assert bc["dockerfile_sha256"] and bc["governance_input_aggregate_sha256"] and bc["evaluator_code_aggregate_sha256"]
+    assert "resulting_image_digest" not in b                     # the misleading single "n/a" field is removed
+    assert {i["build_id"] for i in b["resulting_images"]} == {"A", "B"}
+    assert all(i["runtime_preflight_verified"] for i in b["resulting_images"])
+    # governing installed-distribution fingerprint is SHA-256, not MD5
+    cid = b["canonical_rebuild_equivalence_identity"]
+    assert len(cid["installed_distributions_sha256"]) == 64
+    assert cid["accepted_evaluator_output_hash"] == "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907"
 
 
 def test_oq1_v11_wheelhouse_bundle_manifest_bound_to_release():
