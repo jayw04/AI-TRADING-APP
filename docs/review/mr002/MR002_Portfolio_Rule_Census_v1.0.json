@@ -1,0 +1,546 @@
+{
+ "additional_open_items": [
+  {
+   "id": "OPEN-daily-marking",
+   "note": "NOT one of the four authorized ruling candidates; surfaced for a ruling BEFORE component-6 (portfolio-to-ledger -> daily NAV/returns -> Increment-1 metric interfaces) is built.",
+   "question": "For the daily net portfolio return series feeding the Increment-1 metric family (Sharpe, DSR, stationary bootstrap), what is the daily MARKING convention for held positions (official opens open-to-open, vs close-to-close)? \u00a74 fixes EXECUTION at official opens and labels close-to-close execution 'diagnostic only', but the daily NAV/return marking cadence for the return SERIES is not pinned in one place.",
+   "recommended_resolution_NONBINDING": "Mark held positions daily on the registered execution price series (split-adjusted, non-dividend-adjusted official opens), consistent with V3; or confirm the intended cadence.",
+   "severity": "RULING_NEEDED_FUTURE"
+  }
+ ],
+ "authority_note": "The v0.3 construction table (\u00a73-\u00a75) is frozen UNCHANGED into the owner-signed v1.0 (70108c11) and its sealed-bound freeze candidate (7b5ee09c). prereg.exposure_limits_frozen + cost_model_frozen_values are the machine-readable MIRRORS of the v0.3 \u00a75 limits; the loader will bind those and cite v0.3 \u00a75 for the algorithm. v0.3 sha 1007db82 == prereg.governing_gate_source.v0.3_gate_table_sha256.",
+ "boundary": "No sealed data read; no signal/residual/z/volatility computation; no performance. Enumeration only.",
+ "confirmed_frozen_no_reopen": [
+  "constraint order: position cap -> sector caps -> beta limit -> nothing else (PR-11)",
+  "constraint repair: remove smallest |z| first (PR-12)",
+  "removal tie-break: older signal, then permanent identifier (PR-13)",
+  "drift repair: oldest position, then permanent identifier (PR-15)",
+  "replacement: none; removed capacity remains cash (PR-14)",
+  "beta: |signed portfolio beta| / gross exposure <= 0.10 (PR-10)",
+  "shares: fixed until exit (PR-16)",
+  "session processing: exits before entries (PR-02)",
+  "sector source: PIT classification or a frozen, evidence-bound mapping (PR-24)"
+ ],
+ "conflicts": [
+  {
+   "assessment": "NOT a contradiction: the same economic limits (1.5% per-name, 2% ADV) are enforced at two STAGES (construction target + execution safety). Reconciled by the three-state exposure model (PR-22/PR-23, RC-2/RC-4).",
+   "pair": "prereg cost_model_frozen_values (execution) vs v0.3 \u00a75 limits (construction)",
+   "resolved": true
+  }
+ ],
+ "date": "2026-07-20",
+ "exposure_state_model": {
+  "integrity": "A post-execution check recomputes realized per-name/gross/net/sector/beta and refuses (INTEGRITY_STOP or REFUSED replay) if any exceeds a target constraint; it never resizes or substitutes.",
+  "per_constraint_record": [
+   "raw_value",
+   "construction_constrained_value",
+   "executed_value",
+   "binding_rule",
+   "removed_or_clipped_amount",
+   "cash_remainder"
+  ],
+  "purpose": "Prevent the portfolio layer and execution layer from appearing to disagree when they enforce different STAGES of the same rule.",
+  "states": [
+   "pre_constraint_raw_target",
+   "post_construction_intended_target",
+   "post_execution_realized_exposure"
+  ]
+ },
+ "governing_sources": {
+  "prereg_v1.0.4": {
+   "file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "trial_ledger": {
+   "file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
+  },
+  "v0.3_design": {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  },
+  "v1.0_FREEZE_CANDIDATE": {
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md",
+   "sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc"
+  },
+  "v1.0_FROZEN": {
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+  }
+ },
+ "no_evaluator_code_changed": true,
+ "no_governing_contradictions_found_in": [
+  "constraint order",
+  "constraint repair",
+  "removal tie-break",
+  "drift repair",
+  "replacement",
+  "beta aggregation",
+  "fixed shares",
+  "exits-before-entries",
+  "sector source"
+ ],
+ "not_authorized": [
+  "residual model calculation",
+  "z-score generation from actual data",
+  "PIT-SIC reconstruction",
+  "vendor-data ingestion",
+  "sealed validation adapter",
+  "sealed OOS adapter",
+  "development performance",
+  "validation execution",
+  "OOS execution",
+  "performance interpretation",
+  "production promotion",
+  "portfolio loader/selection/normalization/cascade/replay code (Phase 0)"
+ ],
+ "phase": "Increment 3 Phase-0 (census + governance questions ONLY; no loader/selection/normalization/cascade/replay/tests-beyond-census; no data; no performance)",
+ "phase0_stop": "Owner rules RC-1..RC-4 (+ the additional daily-marking item before component-6). THEN Increment 3 build proceeds: identity-bound loader (binds FROZEN PR-* + prereg mirrors) -> synthetic candidate interface -> deterministic cascade -> frozen exposure controls (three-state) -> A/B/C single code path -> synthetic portfolio-to-ledger replay -> qualification fixtures.",
+ "proposed_candidate_schema": {
+  "fail_closed": "missing/duplicate candidate_id; missing/0/neg/nonfinite registered_sigma_resid; missing sector_id/beta when the corresponding constraint applies; non-finite registered_signal_value or exposure input; unknown configuration_id.",
+  "fields": {
+   "beta": "float = registered beta-hat_m (missing when beta constraint applies -> fail closed)",
+   "candidate_id": "str, unique (duplicate -> fail closed)",
+   "configuration_id": "A | B | C (selects only Z_entry per PR-20)",
+   "eligibility_status": "str/enum summarizing \u00a74 eligibility (earnings-clearance, gap filter, corporate-action, liquidity)",
+   "official_next_open_price": "float > 0 (fill price; feeds Increment-2)",
+   "registered_inverse_vol_weight": "OPTIONAL float, EVIDENCE ONLY; evaluator recomputes 1/registered_sigma_resid and cross-checks",
+   "registered_sigma_resid": "float > 0, finite = 60-session vol of the registered 5-session residual (upstream frozen signal artifact; NOT computed here; missing/0/neg/nonfinite -> fail closed) [RC-1]",
+   "registered_signal_value": "float = residual z (used for Z_entry threshold + |z| ordering/tie-breaks; RC-1/OQ-2)",
+   "sector_id": "str (frozen taxonomy per PR-24; missing when a sector cap applies -> fail closed)",
+   "session": "int ordinal",
+   "side": "long | short",
+   "symbol": "str",
+   "trailing_adv_dollars": "float >= 0 (2% ADV clip input)"
+  },
+  "record_type": "MR002_SyntheticCandidate (proposed; not yet implemented)"
+ },
+ "purpose": "Map every portfolio-construction rule Increment 3 needs to its exact governing citation (status FROZEN / DERIVED_MECHANIC / OPEN / OUT_OF_SCOPE). Per the 'no reasonable defaults' directive, no economic rule is inferred; OPEN items require owner rulings before construction code.",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_PORTFOLIO_RULE_CENSUS",
+ "rules": [
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Gross-exposure ceiling",
+   "governing_quote": "Gross exposure is a 100%-of-NAV MAXIMUM, not a target; unused capital remains cash; no return credited to cash in the primary result.",
+   "implementation_consequence": "Loader binds gross_max=1.00*NAV; unused notional -> cash (no redistribution, no cash yield in primary).",
+   "rule_id": "PR-01",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 (L135-136)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Exits-before-entries + one-position invariant",
+   "governing_quote": "Exits first, then entries. One position per symbol; no pyramiding; no re-entry at the same open a symbol exited.",
+   "implementation_consequence": "Construction processes exits before entries each session; one-position-per-symbol; no-same-open re-entry already enforced in Increment 2 (simulate_sequence).",
+   "rule_id": "PR-02",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.1 (L140-141)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Inverse-residual-vol weighting (rule)",
+   "governing_quote": "Candidate sides from \u00a74; raw weight proportional to 1/sigma_resid (60-session 5-day residual vol), normalized within each side.",
+   "implementation_consequence": "The WEIGHTING RULE is frozen; its INPUT sigma_resid is OPEN (RC-1 / OQ registered_sigma_resid); the inversion + normalization are DERIVED_MECHANIC (PR-04/PR-05).",
+   "rule_id": "PR-03",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.2 (L142-143)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Inverse-vol derivation",
+   "governing_quote": "raw_inverse_vol_weight = 1 / registered_sigma_resid (Increment-3 arithmetic on a frozen input; NOT residual/vol estimation).",
+   "implementation_consequence": "Increment 3 computes 1/registered_sigma_resid and cross-checks any candidate-supplied inverse; it may NOT estimate volatility or residuals (OUT_OF_SCOPE PR-25).",
+   "rule_id": "PR-04",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.2 (L142)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "DERIVED_MECHANIC",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Within-side normalization",
+   "governing_quote": "Raw weights normalized WITHIN each side (long pool and short pool separately).",
+   "implementation_consequence": "Increment 3 normalizes provided/derived raw weights within each side (arithmetic over the eligible candidate set; not signal generation).",
+   "rule_id": "PR-05",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.2 (L142-143)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "DERIVED_MECHANIC",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Long/short allocation (entry dollar-neutrality)",
+   "governing_quote": "New books matched at order time: long gross = short gross = min(feasible long side, feasible short side, 50% of NAV). No forced trade solely to satisfy neutrality.",
+   "implementation_consequence": "Allocation sizes both sides to the common min; per-side cap 50% NAV; total gross <= 100% NAV. No fill invented to force neutrality.",
+   "prereg_mirror": "exposure_limits_frozen.dollar_neutral (long_gross == short_gross)",
+   "rule_id": "PR-06",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.3 (L144-146)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Entry-neutrality timing",
+   "governing_quote": "Neutrality matched AT ORDER TIME (construction), not enforced on realized fills.",
+   "implementation_consequence": "Neutrality is a construction-target property (see PR-22 three-state model); realized post-clip neutrality is verified, not forced (RC-2).",
+   "rule_id": "PR-07",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.3 (L144)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Position cap",
+   "governing_quote": "Max position market value = 1.5% of current portfolio NAV (non-recursive).",
+   "implementation_consequence": "Per-name target cap 1.5% NAV at construction; SAME number enforced at execution as a safety check (RC-4); applied once, not compounded.",
+   "prereg_mirror": "exposure_limits_frozen.single_name_max (w_i <= 0.015)",
+   "rule_id": "PR-08",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 limits (L162)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Sector caps",
+   "governing_quote": "Net dollar exposure per sector <= 5% of gross; gross per sector <= 20% of gross.",
+   "implementation_consequence": "Loader binds sector_net_max=0.05*gross, sector_gross_max=0.20*gross; requires candidate sector_id (frozen taxonomy, PR-24).",
+   "prereg_mirror": "exposure_limits_frozen.sector_net_max=0.05, sector_gross_max=0.20",
+   "rule_id": "PR-09",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 limits (L163)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Beta constraint + aggregation",
+   "governing_quote": "With signed weights w_i as fractions of NAV and beta_i = each stock's \u00a73 beta-hat_m: |Sum w_i beta_i| / gross_exposure <= 0.10.",
+   "implementation_consequence": "Portfolio beta = signed weighted sum / gross; requires candidate beta (registered beta-hat_m). Aggregation convention is frozen (no ambiguity).",
+   "prereg_mirror": "exposure_limits_frozen.beta_limit=0.10",
+   "rule_id": "PR-10",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 limits (L164-165); \u00a73 (L60-66)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Constraint-removal ORDER",
+   "governing_quote": "Constraints applied in registered reduction order: (i) position cap -> (ii) sector caps -> (iii) beta limit -> (iv) nothing else.",
+   "implementation_consequence": "Cascade evaluates position cap, then sector caps, then beta, then stops. Pre-confirmed by owner; not reopened.",
+   "rule_id": "PR-11",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.4 (L147-148)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Constraint repair (remove smallest |z|)",
+   "governing_quote": "If constraints are infeasible, remove the candidate with the smallest |z| first and re-apply.",
+   "implementation_consequence": "Infeasibility repair removes smallest-|z| candidate iteratively. Pre-confirmed.",
+   "rule_id": "PR-12",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.4 (L149-151)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Removal tie-breaking",
+   "governing_quote": "Tie on smallest |z|: older signal, then permanent identifier.",
+   "implementation_consequence": "Removal ordering deterministic: |z| asc -> older signal -> permanent id. Pre-confirmed.",
+   "rule_id": "PR-13",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.4 (L150-151)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "No upward renormalization / replacement",
+   "governing_quote": "Removal of a candidate never renormalizes remaining weights upward - freed capacity always goes to cash. (No substitution of a removed candidate.)",
+   "implementation_consequence": "Removed capacity -> cash; remaining weights unchanged; no lower-ranked substitution. Pre-confirmed (replacement=none).",
+   "rule_id": "PR-14",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.4 (L148-149)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Drift-repair ordering",
+   "governing_quote": "No rebalance while |net dollar exposure| <= 5% of gross. On breach, reduce the larger side only until inside the band, selecting by smallest |entry z| first (tie: oldest position, then permanent identifier); reductions trade at the next open.",
+   "implementation_consequence": "Drift band 5% of gross; repair reduces larger side by |entry z| asc -> oldest position -> permanent id. Pre-confirmed.",
+   "prereg_mirror": "exposure_limits_frozen.net_drift_band=0.05",
+   "rule_id": "PR-15",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 drift (L154-158)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Fixed shares until exit",
+   "governing_quote": "Existing positions are not re-marked to target weights.",
+   "implementation_consequence": "Held positions keep fixed shares; construction sizes only NEW entries. Pre-confirmed.",
+   "rule_id": "PR-16",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75.5 (L152)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Cash treatment",
+   "governing_quote": "Unused capital remains cash; freed/removed/clipped capacity -> cash; no return credited to cash in the primary result.",
+   "implementation_consequence": "All un-deployed / removed / clipped notional accumulates as cash; primary result credits no cash yield.",
+   "rule_id": "PR-17",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 (L135-136); \u00a75.4 (L148-149)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Candidate eligibility rules",
+   "governing_quote": "Long entry requires z <= -Z_entry AND bottom 10% of the day's long-eligible pool AND earnings-clearance AND no announced merger/split/delisting/major corporate action AND gap filter passes AND liquidity envelope. Short mirrors on the short-eligible pool.",
+   "implementation_consequence": "Eligibility rules are frozen; the SYNTHETIC candidate carries a caller-provided eligibility_status summarizing them (Increment 3 does not recompute earnings/corporate-action calendars from data).",
+   "rule_id": "PR-18",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a74 (L91-113)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Signal-strength ordering",
+   "governing_quote": "Percentiles computed within each side; ties broken by |z| then permanent security identifier; selection is bottom/top 10% of side-eligible z-scores.",
+   "implementation_consequence": "Selection orders eligible candidates by z within side; the |z| ordering also drives PR-12/PR-13 repair. registered_signal_value = z (RC-1 / OQ-2 confirm).",
+   "rule_id": "PR-19",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a74 (L94-98)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "A/B/C parameter differences",
+   "governing_quote": "Configurations A/B/C differ ONLY in the entry z-threshold Z_entry = 1.75 / 2.00 / 2.25; all other portfolio, cost, execution, and sample rules identical.",
+   "implementation_consequence": "One code path; configuration_id in {A,B,C} selects only Z_entry; replay output must prove no other parameter differs.",
+   "rule_id": "PR-20",
+   "source_file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "source_section_lines": "trial_ledger (A/B/C) + \u00a74 (L94-98)",
+   "source_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Pending-exit account treatment",
+   "governing_quote": "Exits without a valid official opening price remain pending and execute at the next available official regular-session open; combined with one-position-per-symbol and fixed-shares, the position stays held until it fills.",
+   "implementation_consequence": "A pending exit keeps its shares/exposure/sector/beta/capital in account state and blocks a same-symbol new entry until it fills (RC-3 confirms the construction-layer treatment). Deferral itself already implemented in Increment 2.",
+   "rule_id": "PR-21",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a74 halts (L120-125); \u00a75.1/\u00a75.5 (L140,152)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": "prereg cost_model_frozen_values (execution-layer) vs \u00a75 (construction-layer) enforce the SAME limits at different STAGES - not a contradiction; the three-state model reconciles them.",
+   "economic_meaning": "Target-vs-executed exposure (three-state)",
+   "governing_quote": "Constraints bind to intended target weights; Increment-2 execution (ADV/NAV clip) may only reduce absolute executed exposure; clipped capacity remains cash and is not redistributed.",
+   "implementation_consequence": "Replay must record pre-constraint raw target, post-construction intended target, and post-execution realized exposure; a post-execution integrity check (no resize/substitute) verifies realized exposure violates no target constraint - asymmetric long/short clipping can worsen net exposure or normalized beta, so 'clipping is always safe' is NOT assumed (RC-2).",
+   "prereg_mirror": "cost_model_frozen_values.adv_participation_cap=0.02, new_entry_cap_fraction_of_nav=0.015",
+   "rule_id": "PR-22",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 (L135-158); prereg cost_model (adv 0.02, nav-entry 0.015)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "1.5% cap at two enforcement points",
+   "governing_quote": "Construction sets intended per-name exposure <= 1.5% NAV; execution enforces the same 1.5% against executable notional as a safety check; not multiplied or compounded.",
+   "implementation_consequence": "One economic limit, two enforcement points: execution uses min(intended shares, 2% ADV cap, 1.5%-NAV executable cap); any reduction -> cash. RC-4 confirms single application (no sequential double-clip).",
+   "prereg_mirror": "single_name_max (1.5%) == cost_model.new_entry_cap_fraction_of_nav (0.015)",
+   "rule_id": "PR-23",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75 (L162); prereg cost_model (nav-entry 0.015)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Sector taxonomy source",
+   "governing_quote": "Accept only (1) a genuine PIT sector/industry history, or (2) historically effective SIC/NAICS converted through a frozen mapping table whose hash ships in the evidence package.",
+   "implementation_consequence": "Synthetic candidate carries sector_id directly (caller-provided), consistent with the frozen taxonomy source; Increment 3 does NOT reconstruct PIT-SIC (OUT_OF_SCOPE). Pre-confirmed (PIT or frozen evidence-bound mapping).",
+   "rule_id": "PR-24",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a72/V2 (L230); \u00a72 (L38-45)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Residual / z / volatility computation",
+   "governing_quote": "Rolling 60-session OLS residual, five-session sum, and z-normalization define the signal; sigma_resid is the 60-session residual vol.",
+   "implementation_consequence": "Increment 3 is NOT authorized to compute residuals, z-scores, or volatility - these arrive as registered candidate fields (registered_signal_value, registered_sigma_resid). Enforced as a not-authorized boundary.",
+   "rule_id": "PR-25",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a73 (L47-73)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OUT_OF_SCOPE",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "Volatility overlay",
+   "governing_quote": "\u00a75a volatility overlay is secondary reporting only; primary result = unscaled (<= 1.0x gross).",
+   "implementation_consequence": "Increment 3 PRIMARY replay excludes the overlay; not implemented this increment.",
+   "rule_id": "PR-26",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "source_section_lines": "\u00a75a (L169+)",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OUT_OF_SCOPE",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  },
+  {
+   "conflicting_source": null,
+   "economic_meaning": "ADV / NAV execution clips",
+   "governing_quote": "2% trailing-ADV participation clip and 1.5% NAV new-entry cap; clip never delays; unfilled notional remains cash.",
+   "implementation_consequence": "Already implemented + qualified in Increment 2; Increment 3 reuses it unchanged (must not duplicate inconsistently - see RC-4).",
+   "prereg_mirror": "cost_model_frozen_values.adv_participation_cap=0.02, new_entry_cap_fraction_of_nav=0.015",
+   "rule_id": "PR-27",
+   "source_file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "source_section_lines": "prereg cost_model (adv 0.02, nav 0.015)",
+   "source_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+   "status": "DERIVED_MECHANIC",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11); prereg mirrors change only via a versioned preregistration correction record."
+  }
+ ],
+ "ruling_candidates": [
+  {
+   "evidence": "PR-03 requires weight \u221d 1/sigma_resid (\u00a75.2, v0.3 1007db82); the authorized candidate schema omits any sizing input; PR-25 makes residual/vol computation OUT_OF_SCOPE.",
+   "id": "RC-1",
+   "proposed_disposition": [
+    "The synthetic candidate MUST carry registered_sigma_resid = the 60-session volatility of the registered five-session residual, provided by the upstream frozen signal artifact; strictly positive, finite, and NOT computed by Increment 3.",
+    "Increment 3 may compute ONLY raw_inverse_vol_weight = 1 / registered_sigma_resid and normalize within side.",
+    "Increment 3 may NOT calculate residuals or estimate volatility.",
+    "The candidate MAY also include a derived inverse value as evidence; the evaluator recomputes 1/registered_sigma_resid and cross-checks it.",
+    "A missing, zero, negative, or non-finite registered_sigma_resid FAILS CLOSED."
+   ],
+   "severity": "BLOCKER",
+   "title": "Position-sizing interface (registered_sigma_resid)"
+  },
+  {
+   "evidence": "\u00a75 constraints are construction-target properties; Increment-2 ADV/NAV clip reduces executed size to cash. Asymmetric long/short clipping can worsen net exposure or normalized beta even though per-symbol clipping reduces absolute exposure.",
+   "id": "RC-2",
+   "proposed_disposition": [
+    "Portfolio constraints bind to intended TARGET weights before execution.",
+    "Increment-2 clipping may only reduce the ABSOLUTE executed exposure; clipped capacity remains cash and is not redistributed.",
+    "After execution, realized exposure MUST be recomputed and verified not to exceed any target constraint.",
+    "Do NOT assume clipping is always safe: the replay records BOTH target and executed exposures and runs a post-execution integrity check.",
+    "The post-execution check MUST NOT resize or substitute orders; a violation produces an INTEGRITY_STOP or an explicit REFUSED replay outcome."
+   ],
+   "severity": "RULING_NEEDED",
+   "title": "Target versus executed exposure"
+  },
+  {
+   "evidence": "\u00a74 halts (pending exit executes next available open) + \u00a75.1 one-position-per-symbol + \u00a75.5 fixed shares.",
+   "id": "RC-3",
+   "proposed_disposition": [
+    "A deferred exit remains an OPEN held position.",
+    "Its shares, exposure, sector usage, beta contribution, and capital remain part of account state until the exit actually fills.",
+    "The symbol is INELIGIBLE for a new position while the exit is pending."
+   ],
+   "severity": "CONFIRM",
+   "title": "Pending exits"
+  },
+  {
+   "evidence": "\u00a75 position cap 1.5% NAV (construction) and prereg cost_model new_entry_cap_fraction_of_nav 0.015 (execution) are the SAME number.",
+   "id": "RC-4",
+   "proposed_disposition": [
+    "Construction layer sets intended per-name exposure at no more than 1.5% of NAV.",
+    "Execution layer enforces the same 1.5% limit against executable notional as a safety check.",
+    "The limits are NOT multiplied or compounded.",
+    "Execution uses min(intended shares, 2% ADV cap, 1.5%-NAV executable cap); any reduction remains cash.",
+    "One economic limit with two enforcement points, not two sequential 1.5% reductions."
+   ],
+   "severity": "CONFIRM",
+   "title": "The 1.5% cap at two layers"
+  }
+ ],
+ "source_validation": {
+  "prereg_v1.0.4": {
+   "expected_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+   "file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "match": true,
+   "recomputed_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "trial_ledger": {
+   "expected_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
+  },
+  "v0.3_design": {
+   "expected_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "match": true,
+   "recomputed_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  },
+  "v1.0_FREEZE_CANDIDATE": {
+   "expected_sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc",
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md",
+   "match": true,
+   "recomputed_sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc"
+  },
+  "v1.0_FROZEN": {
+   "expected_sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc",
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "match": true,
+   "recomputed_sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+  }
+ },
+ "status_legend": {
+  "DERIVED_MECHANIC": "a mechanical computation Increment 3 performs on frozen inputs (arithmetic; not signal/residual/vol generation).",
+  "FROZEN": "explicit in the governing text; loader binds it and cites it.",
+  "OPEN": "requires an owner ruling before construction code (see ruling_candidates / additional_open_items).",
+  "OUT_OF_SCOPE": "explicitly not authorized in Increment 3 (or secondary-only); not implemented."
+ },
+ "version": "1.0"
+}

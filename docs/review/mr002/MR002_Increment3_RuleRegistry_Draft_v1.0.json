@@ -1,0 +1,225 @@
+{
+ "governing_sources": {
+  "prereg_v1.0.4": {
+   "file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "trial_ledger": {
+   "file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
+  },
+  "v0.3_design": {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  },
+  "v1.0_FREEZE_CANDIDATE": {
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md",
+   "sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc"
+  },
+  "v1.0_FROZEN": {
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+  }
+ },
+ "pending_rulings": [
+  "RC-1",
+  "RC-2",
+  "RC-3",
+  "RC-4",
+  "OPEN-daily-marking"
+ ],
+ "record_type": "MR002_Increment3_RuleRegistry_DRAFT",
+ "rules": [
+  {
+   "citation": "\u00a75 (L135-136)",
+   "prereg_mirror": null,
+   "rule_id": "PR-01",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.1 (L140-141)",
+   "prereg_mirror": null,
+   "rule_id": "PR-02",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.2 (L142-143)",
+   "prereg_mirror": null,
+   "rule_id": "PR-03",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.2 (L142)",
+   "prereg_mirror": null,
+   "rule_id": "PR-04",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "DERIVED_MECHANIC"
+  },
+  {
+   "citation": "\u00a75.2 (L142-143)",
+   "prereg_mirror": null,
+   "rule_id": "PR-05",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "DERIVED_MECHANIC"
+  },
+  {
+   "citation": "\u00a75.3 (L144-146)",
+   "prereg_mirror": "exposure_limits_frozen.dollar_neutral (long_gross == short_gross)",
+   "rule_id": "PR-06",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.3 (L144)",
+   "prereg_mirror": null,
+   "rule_id": "PR-07",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75 limits (L162)",
+   "prereg_mirror": "exposure_limits_frozen.single_name_max (w_i <= 0.015)",
+   "rule_id": "PR-08",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75 limits (L163)",
+   "prereg_mirror": "exposure_limits_frozen.sector_net_max=0.05, sector_gross_max=0.20",
+   "rule_id": "PR-09",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75 limits (L164-165); \u00a73 (L60-66)",
+   "prereg_mirror": "exposure_limits_frozen.beta_limit=0.10",
+   "rule_id": "PR-10",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.4 (L147-148)",
+   "prereg_mirror": null,
+   "rule_id": "PR-11",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.4 (L149-151)",
+   "prereg_mirror": null,
+   "rule_id": "PR-12",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.4 (L150-151)",
+   "prereg_mirror": null,
+   "rule_id": "PR-13",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.4 (L148-149)",
+   "prereg_mirror": null,
+   "rule_id": "PR-14",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75 drift (L154-158)",
+   "prereg_mirror": "exposure_limits_frozen.net_drift_band=0.05",
+   "rule_id": "PR-15",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75.5 (L152)",
+   "prereg_mirror": null,
+   "rule_id": "PR-16",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75 (L135-136); \u00a75.4 (L148-149)",
+   "prereg_mirror": null,
+   "rule_id": "PR-17",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a74 (L91-113)",
+   "prereg_mirror": null,
+   "rule_id": "PR-18",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a74 (L94-98)",
+   "prereg_mirror": null,
+   "rule_id": "PR-19",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "trial_ledger (A/B/C) + \u00a74 (L94-98)",
+   "prereg_mirror": null,
+   "rule_id": "PR-20",
+   "source_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a74 halts (L120-125); \u00a75.1/\u00a75.5 (L140,152)",
+   "prereg_mirror": null,
+   "rule_id": "PR-21",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a75 (L135-158); prereg cost_model (adv 0.02, nav-entry 0.015)",
+   "prereg_mirror": "cost_model_frozen_values.adv_participation_cap=0.02, new_entry_cap_fraction_of_nav=0.015",
+   "rule_id": "PR-22",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OPEN"
+  },
+  {
+   "citation": "\u00a75 (L162); prereg cost_model (nav-entry 0.015)",
+   "prereg_mirror": "single_name_max (1.5%) == cost_model.new_entry_cap_fraction_of_nav (0.015)",
+   "rule_id": "PR-23",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OPEN"
+  },
+  {
+   "citation": "\u00a72/V2 (L230); \u00a72 (L38-45)",
+   "prereg_mirror": null,
+   "rule_id": "PR-24",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "FROZEN"
+  },
+  {
+   "citation": "\u00a73 (L47-73)",
+   "prereg_mirror": null,
+   "rule_id": "PR-25",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OUT_OF_SCOPE"
+  },
+  {
+   "citation": "\u00a75a (L169+)",
+   "prereg_mirror": null,
+   "rule_id": "PR-26",
+   "source_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "status": "OUT_OF_SCOPE"
+  },
+  {
+   "citation": "prereg cost_model (adv 0.02, nav 0.015)",
+   "prereg_mirror": "cost_model_frozen_values.adv_participation_cap=0.02, new_entry_cap_fraction_of_nav=0.015",
+   "rule_id": "PR-27",
+   "source_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+   "status": "DERIVED_MECHANIC"
+  }
+ ],
+ "status": "DRAFT - NON-BINDING; no evaluator code binds this yet; seeds the future identity-bound loader after RC-1..RC-4 are ruled.",
+ "version": "1.0-draft"
+}
