@@ -28,8 +28,8 @@
   "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
   "determinism_proof": {
     "byte_identical": true,
-    "run1_hash": "b4bafae4c18b63607c10f7769b2cfeae9e2b5fd3a3ce125cc647ab92ed979808",
-    "run2_hash": "b4bafae4c18b63607c10f7769b2cfeae9e2b5fd3a3ce125cc647ab92ed979808"
+    "run1_hash": "940ecec4a0d3da926cf705d1ccd44fd45151a3a15bb55ac810655959088bb230",
+    "run2_hash": "940ecec4a0d3da926cf705d1ccd44fd45151a3a15bb55ac810655959088bb230"
   },
   "development_free_assertions": {
     "development_performance_computed": false,
@@ -42,6 +42,7 @@
     "symbol",
     "side",
     "decision_session",
+    "decision_type",
     "scheduled_execution_session",
     "actual_execution_session",
     "event_type",
@@ -66,7 +67,7 @@
     "validation/OOS access"
   ],
   "increment": 2,
-  "ledger_report_output_hash": "b4bafae4c18b63607c10f7769b2cfeae9e2b5fd3a3ce125cc647ab92ed979808",
+  "ledger_report_output_hash": "940ecec4a0d3da926cf705d1ccd44fd45151a3a15bb55ac810655959088bb230",
   "next_open_semantics": {
     "clip_never_delay": true,
     "entry": "official open t+1",
@@ -77,23 +78,32 @@
     "time_stop": "official open t+6"
   },
   "no_real_dataset_opened": true,
-  "owner_authorization": "docs/review/comments.md adjudication 2026-07-20 (Increment 2 authorized after closeout)",
+  "owner_authorization": "docs/review/comments.md adjudication 2026-07-20; Increment 2 v1.1 hardening authorized after review",
   "python": "3.13.14",
   "reconciliation_all_positions": true,
   "record_type": "MR002_Increment2_Qualification",
   "report_self_hash_verifies": true,
-  "scope": "frozen cost model (base/stress/severe) + synthetic trade ledger (16 frozen fields) + next-open execution semantics + mechanical ADV/NAV clips; synthetic-only",
+  "scope": "frozen cost model (base/stress/severe, identity-validated) + synthetic trade ledger (17 frozen fields incl decision_type) + next-open execution semantics + mechanical ADV/NAV clips; calendar-day borrow accrual; synthetic-only",
   "source_hashes": {
-    "_gen_evidence_inc2.py": "078be8af044e1f8c03c139fe1c2c1dd370a5238b80657bdb6f1b47cf94402223",
-    "mr002_valoos_costmodel.py": "de10ed1f39b6b54f1f8d70d428c76c10ee9027ad4f5f5f8aa68daea92779faea",
-    "mr002_valoos_execution.py": "e771067677cb290ee8fa8148218adaddfa664de6ef30cdbb385e70125d7299d9",
+    "_gen_evidence_inc2.py": "d4c47a9dc53aa7e455e207a4ecc2d21808a9adfc33b009b954cd3eb6db2602ef",
+    "mr002_valoos_costmodel.py": "b40fb1a4f4418edb27f3f0de5477228e7b36de1f47f561cf142dc19185047050",
+    "mr002_valoos_execution.py": "f775ba63f7c808a076b88e28a6dc367ab58654a8d1b052774a54753e819d4491",
     "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
-    "test_increment2.py": "dc442e40816454b63c2cfe8a8303ffe63dda539414e8e397f5d8d77091dd16e2"
+    "test_increment2.py": "ed7f0e5606113c7ad9efc322c2401809785fcadde11e93d3d4aedcf494a6fa17"
   },
   "tests": {
-    "count": 22,
+    "count": 35,
     "file": "test_increment2.py",
-    "result": "22 passed"
+    "result": "35 passed"
   },
-  "version": "1.0"
+  "v1.1_hardening": [
+    "event-level decision provenance (decision_type + causal decision_session; entry date never on an exit event)",
+    "calendar-day borrow accrual from explicit entry/exit dates",
+    "six-session horizon identity-enforced (ExecRefused EXECUTION_HORIZON)",
+    "missing/invalid ADV/NAV -> integrity stops (not silent zero-fill)",
+    "cost-schedule identity validation (REFUSED_CODE_OR_DATA_IDENTITY:COST_SCHEDULE)",
+    "strict int/type validation; duplicate trade_id/position_id + exit-before-entry refused",
+    "_resolve_exit_session no-future-open returns (None, False)"
+  ],
+  "version": "1.1"
 }

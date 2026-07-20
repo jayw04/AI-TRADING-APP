@@ -23,10 +23,11 @@ def sha(path):
 def _sequence():
     opens = {s: 100.0 for s in range(0, 9)}
     opens[6] = 110.0
-    mkt = Market(opens=opens, adv_dollars={s: 1e12 for s in range(0, 9)}, nav=1e12)
+    dates = {s: f"2024-01-{s + 1:02d}" for s in range(0, 9)}   # explicit calendar dates
+    mkt = Market(opens=opens, adv_dollars={s: 1e12 for s in range(0, 9)}, session_dates=dates, nav=1e12)
     intents = [
         TradeIntent("L1", "AAA", "long", "PL1", 0, 100, exit_decision_session=5),
-        TradeIntent("S1", "BBB", "short", "PS1", 0, 100),                 # time-stop + borrow
+        TradeIntent("S1", "BBB", "short", "PS1", 0, 100),                 # time-stop + calendar-day borrow
     ]
     return simulate_sequence(intents, mkt, C.BASE)
 
@@ -54,10 +55,18 @@ def _sched(s):
 
 qual = {
     "record_type": "MR002_Increment2_Qualification",
-    "increment": 2, "version": "1.0",
-    "scope": "frozen cost model (base/stress/severe) + synthetic trade ledger (16 frozen fields) + "
-             "next-open execution semantics + mechanical ADV/NAV clips; synthetic-only",
-    "owner_authorization": "docs/review/comments.md adjudication 2026-07-20 (Increment 2 authorized after closeout)",
+    "increment": 2, "version": "1.1",
+    "scope": "frozen cost model (base/stress/severe, identity-validated) + synthetic trade ledger "
+             "(17 frozen fields incl decision_type) + next-open execution semantics + mechanical "
+             "ADV/NAV clips; calendar-day borrow accrual; synthetic-only",
+    "owner_authorization": "docs/review/comments.md adjudication 2026-07-20; Increment 2 v1.1 hardening authorized after review",
+    "v1.1_hardening": ["event-level decision provenance (decision_type + causal decision_session; "
+        "entry date never on an exit event)", "calendar-day borrow accrual from explicit entry/exit dates",
+        "six-session horizon identity-enforced (ExecRefused EXECUTION_HORIZON)",
+        "missing/invalid ADV/NAV -> integrity stops (not silent zero-fill)",
+        "cost-schedule identity validation (REFUSED_CODE_OR_DATA_IDENTITY:COST_SCHEDULE)",
+        "strict int/type validation; duplicate trade_id/position_id + exit-before-entry refused",
+        "_resolve_exit_session no-future-open returns (None, False)"],
     "excluded_not_authorized": ["residual signal calculation", "universe reconstruction",
         "sector mapping", "portfolio optimization", "beta/sector exposure constraints",
         "real vendor data adapters", "development performance", "validation/OOS access"],
@@ -71,7 +80,7 @@ qual = {
     "source_hashes": {s: sha(s) for s in SRC},
     "dependency_lock": DEP_LOCK, "dependency_lock_sha256": sha(DEP_LOCK),
     "python": sys.version.split()[0],
-    "tests": {"count": 22, "result": "22 passed", "file": "test_increment2.py"},
+    "tests": {"count": 35, "result": "35 passed", "file": "test_increment2.py"},
     "ledger_report_output_hash": report["output_hash"],
     "determinism_proof": {"run1_hash": report["output_hash"], "run2_hash": report2["output_hash"],
                           "byte_identical": report["output_hash"] == report2["output_hash"]},
