@@ -16,7 +16,7 @@ from mr002_valoos_nav import daily_nav_record, return_series
 from mr002_valoos_portfolio_state import PortfolioState
 from mr002_valoos_replay import process_session
 
-SCHEMA_VERSION = "increment3-v1.0-synthetic"
+SCHEMA_VERSION = "increment3-v1.1-synthetic"
 
 
 def run_replay(sessions: list, *, initial_cash: float, config_id: str, warmup_nav=None) -> dict:

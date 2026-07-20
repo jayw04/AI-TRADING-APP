@@ -70,9 +70,17 @@ qual = {
     "increment": 3, "version": "1.1",
     "scope": "identity-bound loader + strict candidate schema + inverse-vol/normalization + entry-neutral "
              "construction + position->sector->beta removal cascade + pending/exits-first state + "
-             "Increment-2 execution integration (preview->verify->commit) + three-state exposure + "
-             "official-open daily NAV/returns + Increment-1 metric integration; synthetic-only",
-    "owner_authorization": "docs/review/comments.md build-plan verdict 2026-07-20 (Increment 3 authorized with four clarifications incorporated)",
+             "Increment-2 execution integration (preview->verify->commit) + four recorded exposure views "
+             "(RAW_TARGET / HELD_BASELINE / INTENDED_TARGET / REALIZED_EXECUTED) + official-open daily "
+             "NAV/returns + Increment-1 metric integration; synthetic-only",
+    "exposure_views": ["RAW_TARGET", "HELD_BASELINE", "INTENDED_TARGET", "REALIZED_EXECUTED"],
+    "owner_authorization": "docs/review/comments.md Increment-3 v1.1 adjudication 2026-07-20 (ACCEPTED + CLOSED; narrow schema/evidence-label correction only)",
+    "roadmap_disposition": {"original_increment_4_scope": "SATISFIED EARLY BY INCREMENT 3 v1.1 (synthetic "
+        "candidates -> construction -> execution ledger -> portfolio state -> official-open NAV -> daily "
+        "returns -> Increment-1 metrics -> canonical report)",
+        "next_operational_increment": "NOT YET AUTHORIZED (container/dependency/publication/refusal + "
+        "access-boundary qualification); scope to be restated (numbering shifted after Inc 3 absorbed "
+        "the original Increment-4 deliverable)"},
     "governing_identities": {"registry_v1.0": identity["registry_sha256"],
                              "resolution_v1.0": identity["resolution_sha256"],
                              "sources": identity["source_shas"]},

@@ -9,8 +9,8 @@
   "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
   "determinism_proof": {
     "byte_identical": true,
-    "run1_hash": "a5cb8e3cc08fa1f817b545a8e029d81a9cb1ee62ca1f013688ba358c0ac2cc53",
-    "run2_hash": "a5cb8e3cc08fa1f817b545a8e029d81a9cb1ee62ca1f013688ba358c0ac2cc53"
+    "run1_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+    "run2_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907"
   },
   "development_free_assertions": {
     "development_performance_computed": false,
@@ -27,6 +27,12 @@
     "performance interpretation",
     "production promotion"
   ],
+  "exposure_views": [
+    "RAW_TARGET",
+    "HELD_BASELINE",
+    "INTENDED_TARGET",
+    "REALIZED_EXECUTED"
+  ],
   "full_evaluator_suite": "128 passed (Increment 1: 59, Increment 2: 35, Increment 3: 34; Increment-2 refactor behavior-preserving)",
   "governing_identities": {
     "registry_v1.0": "edb7ff22b5215f815b15e64166111604d2b99da91a545729b6c9796928d3b91a",
@@ -41,19 +47,23 @@
   "metric_input_is_portfolio_series": true,
   "metric_input_series_len": 4,
   "no_real_dataset_opened": true,
-  "owner_authorization": "docs/review/comments.md build-plan verdict 2026-07-20 (Increment 3 authorized with four clarifications incorporated)",
+  "owner_authorization": "docs/review/comments.md Increment-3 v1.1 adjudication 2026-07-20 (ACCEPTED + CLOSED; narrow schema/evidence-label correction only)",
   "record_type": "MR002_Increment3_Qualification",
-  "replay_report_output_hash": "a5cb8e3cc08fa1f817b545a8e029d81a9cb1ee62ca1f013688ba358c0ac2cc53",
+  "replay_report_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
   "report_self_hash_verifies": true,
-  "scope": "identity-bound loader + strict candidate schema + inverse-vol/normalization + entry-neutral construction + position->sector->beta removal cascade + pending/exits-first state + Increment-2 execution integration (preview->verify->commit) + three-state exposure + official-open daily NAV/returns + Increment-1 metric integration; synthetic-only",
+  "roadmap_disposition": {
+    "next_operational_increment": "NOT YET AUTHORIZED (container/dependency/publication/refusal + access-boundary qualification); scope to be restated (numbering shifted after Inc 3 absorbed the original Increment-4 deliverable)",
+    "original_increment_4_scope": "SATISFIED EARLY BY INCREMENT 3 v1.1 (synthetic candidates -> construction -> execution ledger -> portfolio state -> official-open NAV -> daily returns -> Increment-1 metrics -> canonical report)"
+  },
+  "scope": "identity-bound loader + strict candidate schema + inverse-vol/normalization + entry-neutral construction + position->sector->beta removal cascade + pending/exits-first state + Increment-2 execution integration (preview->verify->commit) + four recorded exposure views (RAW_TARGET / HELD_BASELINE / INTENDED_TARGET / REALIZED_EXECUTED) + official-open daily NAV/returns + Increment-1 metric integration; synthetic-only",
   "sessions_committed": 4,
   "source_hashes": {
-    "_gen_evidence_inc3.py": "e93bd016ec8fe6ce6c036d6883e57322bab3d667eef148f97d321095e4ec5b2f",
+    "_gen_evidence_inc3.py": "5736f061110cd4f419230195f1261f7f75216ee8d058061133004afcc63acf6d",
     "mr002_valoos_candidates.py": "5e429c37af40b6913289b716051e36aaab55015e71087c44fab04815b8d2386c",
     "mr002_valoos_construction.py": "e6af4eea60099b97663fd603da35d10d5bf9021ef2ac16b7d267f9fc3be601b3",
     "mr002_valoos_exposure.py": "5d18a45706e47dfceefafd5236928094714f64566931103dfd04f539a7f552bc",
     "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
-    "mr002_valoos_pipeline.py": "a18f33a8967a3b2101f8a9f505c259e4b3b2379573aa44bb35cb6614bf0c836f",
+    "mr002_valoos_pipeline.py": "5e71ea392e728378d6d1004ff42de87fdfb4e9b5a94e5210c71c754441c6ae1d",
     "mr002_valoos_portfolio_identity.py": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
     "mr002_valoos_portfolio_state.py": "7129c11e832691b39abb9983b21b13ed2b4ce9c61e3316e329fc1052012a5d34",
     "mr002_valoos_replay.py": "1d386de684348d7977e2147ab2f7f01b6e6fe17deaa739769550254648dca0a8",
