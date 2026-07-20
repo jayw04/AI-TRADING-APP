@@ -1,7 +1,25 @@
+from enum import StrEnum
 from functools import lru_cache
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class LossControlMode(StrEnum):
+    """ADR 0043 PR4 — how the persisted loss-control state machine participates in the risk path.
+
+    An explicit tri-state (not booleans), independent of the two baseline flags.
+
+    * ``OFF``     — the state machine is not consulted; behaviour is identical to pre-PR4 code.
+    * ``SHADOW``  — the state machine is evaluated and its transitions persisted, comparison evidence
+                    is emitted, but the LEGACY decision stays authoritative (never changes accept/refuse).
+    * ``ENFORCE`` — the state-machine outcome is authoritative at its gate, combined with the rest of
+                    the engine by the normative precedence ladder (it never *weakens* a stricter result).
+    """
+
+    OFF = "OFF"
+    SHADOW = "SHADOW"
+    ENFORCE = "ENFORCE"
 
 
 class Settings(BaseSettings):
@@ -73,6 +91,13 @@ class Settings(BaseSettings):
     # (capture on + enforcement off = observation; capture on + enforcement on = authoritative).
     # Flag off is byte-for-byte the legacy daily-loss behaviour.
     session_baseline_enforcement_enabled: bool = False
+
+    # ADR 0043 PR4 — how the persisted loss-control STATE MACHINE participates in the risk path
+    # (WORKBENCH_LOSS_CONTROL_MODE = OFF | SHADOW | ENFORCE). Default OFF (pre-PR4 behaviour).
+    # INDEPENDENT of the two baseline flags above: none of the three implicitly enables another. A
+    # valid observation config is capture=on, enforcement=off, mode=SHADOW; the authoritative config
+    # is capture=on, enforcement=on, mode=ENFORCE.
+    loss_control_mode: LossControlMode = LossControlMode.OFF
 
     # --- Alpaca credentials (not WORKBENCH_-prefixed) ---
     alpaca_paper_api_key: str = Field(default="", alias="ALPACA_PAPER_API_KEY")

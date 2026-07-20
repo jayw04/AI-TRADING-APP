@@ -225,8 +225,65 @@ user owns the FINRA decision.
 | `CIRCUIT_BREAKER_TRIPPED` | An account hit its daily-loss limit | Read the payload's PnL snapshot + `halted_strategy_ids`; confirm with the trader before reset |
 | `CIRCUIT_BREAKER_RESET` | A user reset a tripped breaker | Verify `reset_by_user_id` is the account owner; strategies remain HALTED |
 | `RISK_LIMITS_UPDATED` | A user edited risk limits | Review `changes.old`/`changes.new`; watch for loosened caps before a loss event |
+| `LOSS_CONTROL_ENFORCED` | The ADR 0043 loss-control **state machine** contributed to an order rejection in `ENFORCE` mode | See the scenario below — read the provenance, do **not** bootstrap or force `NORMAL` |
 
-(When the P5 §8 on-call playbook is authored, these three scenarios move there.)
+(When the P5 §8 on-call playbook is authored, these scenarios move there.)
+
+## `LOSS_CONTROL_ENFORCED` — the loss-control state machine (ADR 0043 PR4)
+
+**This is interpretation + diagnosis only. It does not authorize enabling `ENFORCE`, running a
+canary, or resetting anything.** The mode is `OFF` by default; a `LOSS_CONTROL_ENFORCED` row exists
+only where `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE` has been deliberately turned on.
+
+**What it means.** In `ENFORCE`, the persisted loss-control state machine participates in the
+order decision. When it authoritatively **contributes to a rejection**, the engine writes this
+audit row (atomically with the `RiskCheck` rejection) and the order carries `LOSS_CONTROL_STOP` in
+its reasons (alongside any independent gate reason, e.g. `CIRCUIT_BREAKER`, which is never
+discarded). A matching legacy rejection keeps its own reason **and** records the loss-control
+provenance; an `ADR_LOOSER` divergence (loss control would have permitted) never appears here — it
+does not weaken an independent rejection and writes no row.
+
+**Read the payload:**
+
+1. `loss_control_mode` — confirm it is `ENFORCE` (an `OFF`/`SHADOW` row should never exist).
+2. `target_id` — the account.
+3. `loss_control_state` + `loss_control_state_version` — the persisted state the decision used.
+4. `loss_control_outcome` — `INTEGRITY_STOP` / `REFUSE` / …
+5. `verified_reduction` — whether the order was a verified de-risking reduction.
+6. `legacy_outcome` + `divergence` — `MATCH` (both denied) vs `ADR_STRICTER` (only loss control
+   denied) vs `ERROR` (the gate or a governing transition failed).
+7. `trigger` + `trigger_committed` — present when the trip was a **transition-commit failure**:
+   `trigger_committed=False` with `error=TRIGGER_COMMIT_FAILED` means the governing state transition
+   did not persist, so the order was failed **closed** rather than evaluated against possibly-stale
+   state.
+8. `state_known` (in the paired `risk_loss_control_shadow_comparison` log) — `False` means **no
+   persisted state row**; the account fails closed to `INTEGRITY_STOP`.
+
+**Denominator.** In `SHADOW`/`ENFORCE`, `risk_loss_control_shadow_comparison` is emitted **once per
+loss-control-applicable order** — every terminal decision reachable once the order has a resolved
+symbol, a valid account, and a well-formed request (all the risk-gate rejections *and* the passes),
+not only the daily-loss/breaker ones. Non-applicable preprocessing failures (halt,
+market-session-closed, malformed request, mode/account mismatch, unresolved symbol,
+no-limits-configured) emit no comparison. So the comparison stream is the full applicable population
+— the denominator PR8 canary analysis needs; `LOSS_CONTROL_ENFORCED` (the numerator of *authoritative
+contributions*) is a strict subset.
+
+**A `LOSS_CONTROL_STOP` from a missing-state, `ERROR`, or transition-commit-failure condition is an
+integrity refusal — NOT a trading-limit adjustment request.** Do not treat it as "the cap is too
+tight".
+
+**Operator action:**
+- **Do not** bootstrap the account or manually force its state to `NORMAL` — that would paper over
+  the integrity condition the fail-closed exists to surface.
+- Keep `ENFORCE` disabled, or return the account to its previously authorized mode
+  (`OFF`/`SHADOW`), while investigating.
+- Recovery from a loss-control lock has **no sanctioned operator procedure yet** — the checked
+  recovery preflight (PR6) and re-arm/hysteresis (PR7) are not implemented. Until then, a genuine
+  lock is cleared only by the existing audited circuit-breaker reset flow for the *breaker*
+  component, never by editing loss-control state directly.
+- The three loss-control flags are independent (`SESSION_BASELINE_SHADOW_ENABLED`,
+  `SESSION_BASELINE_ENFORCEMENT_ENABLED`, `LOSS_CONTROL_MODE`); toggling `LOSS_CONTROL_MODE` back to
+  `OFF`/`SHADOW` neither disables baseline capture nor changes the daily-loss basis.
 
 ## Strategy HALTED status
 

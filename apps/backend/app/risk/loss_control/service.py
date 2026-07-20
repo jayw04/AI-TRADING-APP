@@ -131,6 +131,19 @@ class LossControlService:
     async def current_state(self, account_id: int) -> str:
         return (await self.get_state_row(account_id)).state
 
+    async def load_state_row(self, account_id: int) -> RiskLossControlState | None:
+        """Read the account's materialized state row WITHOUT creating one — returns None if absent.
+
+        This is the read the enforcement gate uses: an absent row must fail closed (INTEGRITY_STOP),
+        never be silently bootstrapped to NORMAL inside the order decision (ADR 0043 PR4). Explicit
+        bootstrap is ``get_state_row`` (or a transition), performed deliberately before enforcement.
+        """
+        return await self._session.scalar(
+            select(RiskLossControlState).where(
+                RiskLossControlState.account_id == account_id
+            )
+        )
+
     async def request_transition(
         self,
         *,

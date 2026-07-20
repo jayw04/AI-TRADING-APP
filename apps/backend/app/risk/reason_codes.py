@@ -20,6 +20,10 @@ class ReasonCode(StrEnum):
     NO_LIMITS_CONFIGURED = "NO_LIMITS_CONFIGURED"
     # P5 §5 — live-mode risk gates.
     CIRCUIT_BREAKER = "CIRCUIT_BREAKER"
+    # ADR 0043 PR4 — the persisted loss-control state machine refused this order in ENFORCE mode
+    # (INTEGRITY_STOP, or a reduction-only state refusing a non-reducing order). Distinct from the
+    # legacy CIRCUIT_BREAKER so evidence can tell which control acted.
+    LOSS_CONTROL_STOP = "LOSS_CONTROL_STOP"
     MAX_ORDERS_PER_DAY = "MAX_ORDERS_PER_DAY"
     INSUFFICIENT_BUYING_POWER = "INSUFFICIENT_BUYING_POWER"
     # P5 §6 — live order safety (OrderRouter-level rejections, pre-risk-engine).
