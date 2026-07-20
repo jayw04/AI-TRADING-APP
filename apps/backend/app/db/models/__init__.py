@@ -21,9 +21,14 @@ from app.db.models.range_execution_record import RangeExecutionRecord
 from app.db.models.reconciliation_run import ReconciliationRun
 from app.db.models.replay_run import ReplayRun
 from app.db.models.risk_check import RiskCheck
+from app.db.models.risk_control_event import RiskControlEvent
 from app.db.models.risk_decision import RiskDecision
 from app.db.models.risk_limits import RiskLimits
+from app.db.models.risk_loss_control_state import RiskLossControlState
+from app.db.models.risk_recovery_preflight import RiskRecoveryPreflight
+from app.db.models.risk_recovery_preflight_check import RiskRecoveryPreflightCheck
 from app.db.models.risk_reservation import RiskReservation
+from app.db.models.risk_session_baseline import RiskSessionBaseline
 from app.db.models.scanner_definition import ScannerDefinition
 from app.db.models.scanner_run import ScannerRun
 from app.db.models.scheduler_heartbeat import SchedulerHeartbeat
@@ -67,9 +72,14 @@ __all__ = [
     "ReconciliationRun",
     "ReplayRun",
     "RiskCheck",
+    "RiskControlEvent",
     "RiskDecision",
-    "RiskReservation",
     "RiskLimits",
+    "RiskLossControlState",
+    "RiskRecoveryPreflight",
+    "RiskRecoveryPreflightCheck",
+    "RiskReservation",
+    "RiskSessionBaseline",
     "ScannerDefinition",
     "ScannerRun",
     "SchedulerHeartbeat",
