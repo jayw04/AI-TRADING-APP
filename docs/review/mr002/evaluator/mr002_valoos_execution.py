@@ -145,6 +145,18 @@ def _date(market: Market, session: int) -> _dt.date:
         raise ExecIntegrityStop(f"EXEC_DATE_INVALID:{session}:{s!r}") from None
 
 
+def preview_entry_fill(intended_shares, entry_open: float, nav: float, adv: float) -> dict:
+    """Pure shared clip primitive: the 2%-trailing-ADV participation cap AND 1.5%-NAV new-entry cap
+    applied to an intended entry, clip-never-delay. `filled = max(0, min(intended, nav_cap, adv_cap))`;
+    the clipped remainder is dropped to cash. This is the SINGLE implementation of the clip formulas —
+    simulate_position and the Increment-3 execution preview both call it (no duplicated math)."""
+    nav_cap_shares = int((NAV_NEW_ENTRY_CAP * nav) // entry_open)
+    adv_cap_shares = int((ADV_PARTICIPATION_CAP * adv) // entry_open)
+    filled = max(0, min(int(intended_shares), nav_cap_shares, adv_cap_shares))
+    return {"filled_shares": filled, "clipped_shares": int(intended_shares) - filled,
+            "nav_cap_shares": nav_cap_shares, "adv_cap_shares": adv_cap_shares}
+
+
 def _event(intent: TradeIntent, *, decision_session, decision_type, event_type, scheduled, actual,
            shares, open_price, executed_notional, commission, borrow, gross, net, reason) -> dict:
     return {
@@ -195,12 +207,12 @@ def simulate_position(intent: TradeIntent, market: Market, schedule: CostSchedul
                     net=0.0, reason="MISSING_ENTRY_OPEN")
         return {"events": [ev], "position": None, "disposition": "CANCELLED"}
 
-    # mechanical clips: 1.5% NAV new-entry cap AND 2% trailing-ADV participation; clip never delay
+    # mechanical clips: 1.5% NAV new-entry cap AND 2% trailing-ADV participation; clip never delay.
+    # The clip math is the shared pure primitive preview_entry_fill (also called by Increment 3 —
+    # a single implementation of the ADV/NAV clip formulas, never duplicated).
     adv = _adv(market, entry_sched)
-    nav_cap_shares = int((NAV_NEW_ENTRY_CAP * nav) // entry_open)
-    adv_cap_shares = int((ADV_PARTICIPATION_CAP * adv) // entry_open)
-    filled = max(0, min(int(intent.desired_shares), nav_cap_shares, adv_cap_shares))
-    clipped = int(intent.desired_shares) - filled
+    _pf = preview_entry_fill(intent.desired_shares, entry_open, nav, adv)
+    filled, clipped = _pf["filled_shares"], _pf["clipped_shares"]
     is_short = intent.side == "short"
 
     entry_notional = filled * entry_open

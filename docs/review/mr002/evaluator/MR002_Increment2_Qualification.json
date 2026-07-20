@@ -28,8 +28,8 @@
   "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
   "determinism_proof": {
     "byte_identical": true,
-    "run1_hash": "940ecec4a0d3da926cf705d1ccd44fd45151a3a15bb55ac810655959088bb230",
-    "run2_hash": "940ecec4a0d3da926cf705d1ccd44fd45151a3a15bb55ac810655959088bb230"
+    "run1_hash": "83138b4fcaa7ca8692e7c46ebdf97d0db48f9c5bb086d338e02527aa160407b0",
+    "run2_hash": "83138b4fcaa7ca8692e7c46ebdf97d0db48f9c5bb086d338e02527aa160407b0"
   },
   "development_free_assertions": {
     "development_performance_computed": false,
@@ -67,7 +67,7 @@
     "validation/OOS access"
   ],
   "increment": 2,
-  "ledger_report_output_hash": "940ecec4a0d3da926cf705d1ccd44fd45151a3a15bb55ac810655959088bb230",
+  "ledger_report_output_hash": "83138b4fcaa7ca8692e7c46ebdf97d0db48f9c5bb086d338e02527aa160407b0",
   "next_open_semantics": {
     "clip_never_delay": true,
     "entry": "official open t+1",
@@ -87,7 +87,7 @@
   "source_hashes": {
     "_gen_evidence_inc2.py": "d4c47a9dc53aa7e455e207a4ecc2d21808a9adfc33b009b954cd3eb6db2602ef",
     "mr002_valoos_costmodel.py": "b40fb1a4f4418edb27f3f0de5477228e7b36de1f47f561cf142dc19185047050",
-    "mr002_valoos_execution.py": "f775ba63f7c808a076b88e28a6dc367ab58654a8d1b052774a54753e819d4491",
+    "mr002_valoos_execution.py": "1058bd7e5b204ec1d09b49d42e5844f1d6422537c0be5a390fc9e95acd1755c5",
     "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
     "test_increment2.py": "ed7f0e5606113c7ad9efc322c2401809785fcadde11e93d3d4aedcf494a6fa17"
   },

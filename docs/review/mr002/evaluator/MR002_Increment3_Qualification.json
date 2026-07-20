@@ -1,0 +1,69 @@
+{
+  "clarifications_incorporated": [
+    "HeldPosition carries entry_registered_signal_value + originating_candidate_id + eligibility_evidence_identity",
+    "candidate/market execution-input identity (CANDIDATE_EXECUTION_INPUT_MISMATCH) + NAV_IDENTITY_MISMATCH",
+    "full-session atomic preview: exits -> provisional state -> entries -> verify -> commit",
+    "sector/beta realized fail-closed (distinct REALIZED_* codes); Increment-2 clip/cost primitives reused (no duplication)"
+  ],
+  "dependency_lock": "MR002_Increment1_Dependencies.json",
+  "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
+  "determinism_proof": {
+    "byte_identical": true,
+    "run1_hash": "53ffca3d2e40a8a024bf8c20ad3c8e3bc264662de80d1fb49bfa2ceccdb18d54",
+    "run2_hash": "53ffca3d2e40a8a024bf8c20ad3c8e3bc264662de80d1fb49bfa2ceccdb18d54"
+  },
+  "development_free_assertions": {
+    "development_performance_computed": false,
+    "oos_data_read": false,
+    "synthetic_fixture_only": true,
+    "validation_data_read": false
+  },
+  "excluded_not_authorized": [
+    "real residual/z/sigma",
+    "PIT sector reconstruction",
+    "real vendor adapters",
+    "validation/OOS access",
+    "development performance",
+    "performance interpretation",
+    "production promotion"
+  ],
+  "full_evaluator_suite": "121 passed (Increment 1: 59, Increment 2: 35, Increment 3: 27; Increment-2 refactor behavior-preserving)",
+  "governing_identities": {
+    "registry_v1.0": "edb7ff22b5215f815b15e64166111604d2b99da91a545729b6c9796928d3b91a",
+    "resolution_v1.0": "860c8cdeb995fadea21359ede189dad27378ab2c553e5a24122bbbd2d2546740",
+    "sources": {
+      "MR002_DSR_TrialLedger_v1.0.json": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+      "MR002_Portfolio_Rule_Census_v1.0.json": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e",
+      "MR002_ValidationOOS_Preregistration_v1.0.4.json": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+    }
+  },
+  "increment": 3,
+  "metric_input_is_portfolio_series": true,
+  "metric_input_series_len": 4,
+  "no_real_dataset_opened": true,
+  "owner_authorization": "docs/review/comments.md build-plan verdict 2026-07-20 (Increment 3 authorized with four clarifications incorporated)",
+  "record_type": "MR002_Increment3_Qualification",
+  "replay_report_output_hash": "53ffca3d2e40a8a024bf8c20ad3c8e3bc264662de80d1fb49bfa2ceccdb18d54",
+  "report_self_hash_verifies": true,
+  "scope": "identity-bound loader + strict candidate schema + inverse-vol/normalization + entry-neutral construction + position->sector->beta removal cascade + pending/exits-first state + Increment-2 execution integration (preview->verify->commit) + three-state exposure + official-open daily NAV/returns + Increment-1 metric integration; synthetic-only",
+  "sessions_committed": 4,
+  "source_hashes": {
+    "_gen_evidence_inc3.py": "56f4673bb3c6010ca9758ef84548cfe9ddf97376c7fd94794d407d23f6be395c",
+    "mr002_valoos_candidates.py": "5e429c37af40b6913289b716051e36aaab55015e71087c44fab04815b8d2386c",
+    "mr002_valoos_construction.py": "f1060caab0234440e13b4e96bf51bae7b68a9a44476984a9211ce3988d659e38",
+    "mr002_valoos_exposure.py": "84ae611c6f01c6733b62d6b2a07630e1c7c0ce2f4ed3331576daf259a045f54a",
+    "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
+    "mr002_valoos_pipeline.py": "e11a9f668b9e12f9ea422eb01a8bcc85c6941291f61275b93bfc5fd0fc531dd3",
+    "mr002_valoos_portfolio_identity.py": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
+    "mr002_valoos_portfolio_state.py": "775f8df8f2f98f2aba167056f3fc0837dce8472b61681de4dcfb806250f8c12e",
+    "mr002_valoos_replay.py": "6f97850ac3fd8d43c9fa19e6f720c3d4feb5bfd6c7b16db33de12d6a7fd1e4bf",
+    "test_increment3.py": "ab984c6085d65db04fbc696ccd9d98716172a862b0b4be7a1447ffade06cc7aa"
+  },
+  "tests": {
+    "count": 27,
+    "file": "test_increment3.py",
+    "matrix": "MR002_Increment3_QualificationMatrix_v1.0.json (T3-01..T3-33; consolidated)",
+    "result": "27 passed"
+  },
+  "version": "1.0"
+}

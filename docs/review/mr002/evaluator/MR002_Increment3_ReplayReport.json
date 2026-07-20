@@ -1,0 +1,1219 @@
+{
+  "code_identity": {
+    "_gen_evidence_inc3.py": "56f4673bb3c6010ca9758ef84548cfe9ddf97376c7fd94794d407d23f6be395c",
+    "mr002_valoos_candidates.py": "5e429c37af40b6913289b716051e36aaab55015e71087c44fab04815b8d2386c",
+    "mr002_valoos_construction.py": "f1060caab0234440e13b4e96bf51bae7b68a9a44476984a9211ce3988d659e38",
+    "mr002_valoos_exposure.py": "84ae611c6f01c6733b62d6b2a07630e1c7c0ce2f4ed3331576daf259a045f54a",
+    "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
+    "mr002_valoos_pipeline.py": "e11a9f668b9e12f9ea422eb01a8bcc85c6941291f61275b93bfc5fd0fc531dd3",
+    "mr002_valoos_portfolio_identity.py": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
+    "mr002_valoos_portfolio_state.py": "775f8df8f2f98f2aba167056f3fc0837dce8472b61681de4dcfb806250f8c12e",
+    "mr002_valoos_replay.py": "6f97850ac3fd8d43c9fa19e6f720c3d4feb5bfd6c7b16db33de12d6a7fd1e4bf",
+    "test_increment3.py": "ab984c6085d65db04fbc696ccd9d98716172a862b0b4be7a1447ffade06cc7aa"
+  },
+  "config_id": "B",
+  "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
+  "development_performance_computed": false,
+  "governing_registry_identity": "edb7ff22b5215f815b15e64166111604d2b99da91a545729b6c9796928d3b91a",
+  "governing_resolution_identity": "860c8cdeb995fadea21359ede189dad27378ab2c553e5a24122bbbd2d2546740",
+  "metrics": {
+    "calmar": {
+      "annualized_return": {
+        "display": 0.3144990785524653,
+        "exact_hex": "0x1.420c0be40517cp-2"
+      },
+      "comparison_value": "POSITIVE_INFINITY",
+      "gate_pass": true,
+      "max_drawdown": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "value": null
+    },
+    "compounded_max_drawdown": {
+      "display": 0.0,
+      "exact_hex": "0x0.0p+0"
+    },
+    "geometric_annualized_return": {
+      "display": 0.3144990785524653,
+      "exact_hex": "0x1.420c0be40517cp-2"
+    },
+    "input_series_exact_hex": [
+      "-0x1.3a92a30553000p-13",
+      "0x1.894665d393c00p-10",
+      "0x1.88af95716bc00p-10",
+      "0x1.8819388e3d000p-10"
+    ],
+    "input_series_len": 4,
+    "stationary_bootstrap_confirmatory": {
+      "confidence": {
+        "display": 0.95,
+        "exact_hex": "0x1.e666666666666p-1"
+      },
+      "confirmatory_gate_pass": true,
+      "method": "stationary_politis_romano_circular",
+      "primary_expected_L": 5,
+      "primary_lower_bound": {
+        "display": 0.0006739905457200379,
+        "exact_hex": "0x1.615d7ad03e000p-11"
+      },
+      "replications_each": 10000,
+      "seed": 20260711,
+      "sensitivity_expected_L": 10,
+      "sensitivity_lower_bound": {
+        "display": 0.0006745506909548449,
+        "exact_hex": "0x1.61a8a941d5600p-11"
+      },
+      "sensitivity_role": "robustness_reported_not_gated"
+    }
+  },
+  "nav_records": [
+    {
+      "cash": {
+        "display": 999850.0,
+        "exact_hex": "0x1.e835400000000p+19"
+      },
+      "daily_return": {
+        "display": -0.00014999999999998348,
+        "exact_hex": "-0x1.3a92a30553000p-13"
+      },
+      "gross_mark": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "nav": {
+        "display": 999850.0,
+        "exact_hex": "0x1.e835400000000p+19"
+      },
+      "nav_prev": {
+        "display": 1000000.0,
+        "exact_hex": "0x1.e848000000000p+19"
+      },
+      "open_marks_used": 10,
+      "positions_valued": 10,
+      "session": 1
+    },
+    {
+      "cash": {
+        "display": 999850.0,
+        "exact_hex": "0x1.e835400000000p+19"
+      },
+      "daily_return": {
+        "display": 0.0015002250337550205,
+        "exact_hex": "0x1.894665d393c00p-10"
+      },
+      "gross_mark": {
+        "display": 1500.0,
+        "exact_hex": "0x1.7700000000000p+10"
+      },
+      "nav": {
+        "display": 1001350.0,
+        "exact_hex": "0x1.e8f0c00000000p+19"
+      },
+      "nav_prev": {
+        "display": 999850.0,
+        "exact_hex": "0x1.e835400000000p+19"
+      },
+      "open_marks_used": 10,
+      "positions_valued": 10,
+      "session": 2
+    },
+    {
+      "cash": {
+        "display": 999850.0,
+        "exact_hex": "0x1.e835400000000p+19"
+      },
+      "daily_return": {
+        "display": 0.001497977730064326,
+        "exact_hex": "0x1.88af95716bc00p-10"
+      },
+      "gross_mark": {
+        "display": 3000.0,
+        "exact_hex": "0x1.7700000000000p+11"
+      },
+      "nav": {
+        "display": 1002850.0,
+        "exact_hex": "0x1.e9ac400000000p+19"
+      },
+      "nav_prev": {
+        "display": 1001350.0,
+        "exact_hex": "0x1.e8f0c00000000p+19"
+      },
+      "open_marks_used": 10,
+      "positions_valued": 10,
+      "session": 3
+    },
+    {
+      "cash": {
+        "display": 999850.0,
+        "exact_hex": "0x1.e835400000000p+19"
+      },
+      "daily_return": {
+        "display": 0.0014957371491250981,
+        "exact_hex": "0x1.8819388e3d000p-10"
+      },
+      "gross_mark": {
+        "display": 4500.0,
+        "exact_hex": "0x1.1940000000000p+12"
+      },
+      "nav": {
+        "display": 1004350.0,
+        "exact_hex": "0x1.ea67c00000000p+19"
+      },
+      "nav_prev": {
+        "display": 1002850.0,
+        "exact_hex": "0x1.e9ac400000000p+19"
+      },
+      "open_marks_used": 10,
+      "positions_valued": 10,
+      "session": 4
+    }
+  ],
+  "oos_data_read": false,
+  "output_hash": "53ffca3d2e40a8a024bf8c20ad3c8e3bc264662de80d1fb49bfa2ceccdb18d54",
+  "record_type": "MR002_ValOOS_PortfolioReplay",
+  "return_series": [
+    {
+      "display": -0.00014999999999998348,
+      "exact_hex": "-0x1.3a92a30553000p-13"
+    },
+    {
+      "display": 0.0015002250337550205,
+      "exact_hex": "0x1.894665d393c00p-10"
+    },
+    {
+      "display": 0.001497977730064326,
+      "exact_hex": "0x1.88af95716bc00p-10"
+    },
+    {
+      "display": 0.0014957371491250981,
+      "exact_hex": "0x1.8819388e3d000p-10"
+    }
+  ],
+  "schema_version": "increment3-v1.0-synthetic",
+  "sessions": [
+    {
+      "atomicity_committed": true,
+      "disposition": "COMMITTED",
+      "drift_repair": null,
+      "events": [],
+      "exposure": {
+        "INTENDED_TARGET": {
+          "cash": {
+            "display": 850000.0,
+            "exact_hex": "0x1.9f0a000000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.15,
+            "exact_hex": "0x1.3333333333333p-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1000000.0,
+            "exact_hex": "0x1.e848000000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "normalized_beta": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "L1_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "L2_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "L3_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "L4_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S0_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S1_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S2_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S3_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S4_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC1": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC2": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC3": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC4": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "state_label": "INTENDED_TARGET"
+        },
+        "RAW_TARGET": null,
+        "REALIZED_EXECUTED": {
+          "cash": {
+            "display": 850000.0,
+            "exact_hex": "0x1.9f0a000000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.15,
+            "exact_hex": "0x1.3333333333333p-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1000000.0,
+            "exact_hex": "0x1.e848000000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "normalized_beta": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "L1_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "L2_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "L3_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "L4_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S0_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S1_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S2_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S3_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            },
+            "S4_0": {
+              "display": 0.015,
+              "exact_hex": "0x1.eb851eb851eb8p-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC1": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC2": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC3": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC4": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "state_label": "REALIZED_EXECUTED"
+        }
+      },
+      "intended": [
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "L0_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "L0_0",
+          "registered_signal_value": {
+            "display": -3.0,
+            "exact_hex": "-0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC0",
+          "side": "long",
+          "signal_origin_session": 1,
+          "symbol": "L0_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "L1_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "L1_0",
+          "registered_signal_value": {
+            "display": -3.0,
+            "exact_hex": "-0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC1",
+          "side": "long",
+          "signal_origin_session": 1,
+          "symbol": "L1_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "L2_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "L2_0",
+          "registered_signal_value": {
+            "display": -3.0,
+            "exact_hex": "-0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC2",
+          "side": "long",
+          "signal_origin_session": 1,
+          "symbol": "L2_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "L3_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "L3_0",
+          "registered_signal_value": {
+            "display": -3.0,
+            "exact_hex": "-0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC3",
+          "side": "long",
+          "signal_origin_session": 1,
+          "symbol": "L3_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "L4_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "L4_0",
+          "registered_signal_value": {
+            "display": -3.0,
+            "exact_hex": "-0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC4",
+          "side": "long",
+          "signal_origin_session": 1,
+          "symbol": "L4_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "S0_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "S0_0",
+          "registered_signal_value": {
+            "display": 3.0,
+            "exact_hex": "0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC0",
+          "side": "short",
+          "signal_origin_session": 1,
+          "symbol": "S0_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "S1_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "S1_0",
+          "registered_signal_value": {
+            "display": 3.0,
+            "exact_hex": "0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC1",
+          "side": "short",
+          "signal_origin_session": 1,
+          "symbol": "S1_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "S2_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "S2_0",
+          "registered_signal_value": {
+            "display": 3.0,
+            "exact_hex": "0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC2",
+          "side": "short",
+          "signal_origin_session": 1,
+          "symbol": "S2_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "S3_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "S3_0",
+          "registered_signal_value": {
+            "display": 3.0,
+            "exact_hex": "0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC3",
+          "side": "short",
+          "signal_origin_session": 1,
+          "symbol": "S3_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        {
+          "beta": {
+            "display": 0.05,
+            "exact_hex": "0x1.999999999999ap-5"
+          },
+          "binding_constraint": "position_cap",
+          "candidate_id": "S4_0",
+          "intended_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "intended_shares": 150,
+          "official_next_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "permanent_security_id": "S4_0",
+          "registered_signal_value": {
+            "display": 3.0,
+            "exact_hex": "0x1.8000000000000p+1"
+          },
+          "sector_id": "SEC4",
+          "side": "short",
+          "signal_origin_session": 1,
+          "symbol": "S4_0",
+          "target_weight": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        }
+      ],
+      "removal_events": [],
+      "session": 1,
+      "stop_code": null
+    },
+    {
+      "atomicity_committed": true,
+      "disposition": "COMMITTED",
+      "drift_repair": null,
+      "events": [],
+      "exposure": {
+        "INTENDED_TARGET": {
+          "cash": {
+            "display": 1001350.0,
+            "exact_hex": "0x1.e8f0c00000000p+19"
+          },
+          "empty": true,
+          "gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "gross_dollars": 0,
+          "nav": {
+            "display": 1001350.0,
+            "exact_hex": "0x1.e8f0c00000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "normalized_beta": "N_A_EMPTY_PORTFOLIO",
+          "per_name": {},
+          "sector_gross": {},
+          "sector_net": {},
+          "signed_beta_numerator": 0,
+          "state_label": "INTENDED_TARGET"
+        },
+        "RAW_TARGET": null,
+        "REALIZED_EXECUTED": {
+          "cash": {
+            "display": 851350.0,
+            "exact_hex": "0x1.9fb2c00000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14979777300644131,
+            "exact_hex": "0x1.32c92cc09c41ap-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1001350.0,
+            "exact_hex": "0x1.e8f0c00000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.01,
+            "exact_hex": "0x1.47ae147ae147bp-7"
+          },
+          "normalized_beta": {
+            "display": 0.0005,
+            "exact_hex": "0x1.0624dd2f1a9fcp-11"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L1_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L2_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L3_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L4_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "S0_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S1_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S2_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S3_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S4_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC1": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC2": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC3": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC4": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 7.489888650322066e-05,
+            "exact_hex": "0x1.3a261127897a8p-14"
+          },
+          "state_label": "REALIZED_EXECUTED"
+        }
+      },
+      "intended": [],
+      "removal_events": [],
+      "session": 2,
+      "stop_code": null
+    },
+    {
+      "atomicity_committed": true,
+      "disposition": "COMMITTED",
+      "drift_repair": null,
+      "events": [],
+      "exposure": {
+        "INTENDED_TARGET": {
+          "cash": {
+            "display": 1002850.0,
+            "exact_hex": "0x1.e9ac400000000p+19"
+          },
+          "empty": true,
+          "gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "gross_dollars": 0,
+          "nav": {
+            "display": 1002850.0,
+            "exact_hex": "0x1.e9ac400000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "normalized_beta": "N_A_EMPTY_PORTFOLIO",
+          "per_name": {},
+          "sector_gross": {},
+          "sector_net": {},
+          "signed_beta_numerator": 0,
+          "state_label": "INTENDED_TARGET"
+        },
+        "RAW_TARGET": null,
+        "REALIZED_EXECUTED": {
+          "cash": {
+            "display": 852850.0,
+            "exact_hex": "0x1.a06e400000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14957371491249938,
+            "exact_hex": "0x1.3253b42f1f908p-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1002850.0,
+            "exact_hex": "0x1.e9ac400000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.02,
+            "exact_hex": "0x1.47ae147ae147bp-6"
+          },
+          "normalized_beta": {
+            "display": 0.001,
+            "exact_hex": "0x1.0624dd2f1a9fcp-10"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L1_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L2_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L3_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L4_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "S0_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S1_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S2_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S3_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S4_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC1": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC2": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC3": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC4": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.00014957371491249938,
+            "exact_hex": "0x1.39adc6d830b4cp-13"
+          },
+          "state_label": "REALIZED_EXECUTED"
+        }
+      },
+      "intended": [],
+      "removal_events": [],
+      "session": 3,
+      "stop_code": null
+    },
+    {
+      "atomicity_committed": true,
+      "disposition": "COMMITTED",
+      "drift_repair": null,
+      "events": [],
+      "exposure": {
+        "INTENDED_TARGET": {
+          "cash": {
+            "display": 1004350.0,
+            "exact_hex": "0x1.ea67c00000000p+19"
+          },
+          "empty": true,
+          "gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "gross_dollars": 0,
+          "nav": {
+            "display": 1004350.0,
+            "exact_hex": "0x1.ea67c00000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "normalized_beta": "N_A_EMPTY_PORTFOLIO",
+          "per_name": {},
+          "sector_gross": {},
+          "sector_net": {},
+          "signed_beta_numerator": 0,
+          "state_label": "INTENDED_TARGET"
+        },
+        "RAW_TARGET": null,
+        "REALIZED_EXECUTED": {
+          "cash": {
+            "display": 854350.0,
+            "exact_hex": "0x1.a129c00000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14935032608154528,
+            "exact_hex": "0x1.31de9571565ebp-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1004350.0,
+            "exact_hex": "0x1.ea67c00000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.03,
+            "exact_hex": "0x1.eb851eb851eb8p-6"
+          },
+          "normalized_beta": {
+            "display": 0.0014999999999999994,
+            "exact_hex": "0x1.89374bc6a7ef7p-10"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L1_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L2_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L3_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L4_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "S0_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S1_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S2_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S3_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S4_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC1": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC2": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC3": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC4": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.00022402548912231783,
+            "exact_hex": "0x1.d5d0c4c6a9870p-13"
+          },
+          "state_label": "REALIZED_EXECUTED"
+        }
+      },
+      "intended": [],
+      "removal_events": [],
+      "session": 4,
+      "stop_code": null
+    }
+  ],
+  "synthetic_fixture_only": true,
+  "validation_data_read": false
+}
