@@ -246,3 +246,32 @@ WAL checkpoint; rotate host logs via logrotate (out of scope for the workbench).
 **Check:** the metric name against §8.3 (the twelve `workbench_*` metrics).
 Cross-reference your Prometheus alerting rules. Alert-rule tuning is out of
 scope for this playbook.
+
+## "MKTPROJ_MODEL_PROMOTED appeared in the audit log"
+
+**What it is:** the MKT-PROJ-001 §4 guardrail-1 action — a market-projection
+model artifact moved candidate→production via
+`scripts/research/mkt_proj_001/promote_model.py`. Legitimate promotions verify
+the FULL sha256 against the merged §3 evidence manifest before flipping status.
+
+**Check:** the payload's `artifact_hash` matches `registered_model.artifact_hash`
+in `docs/implementation/evidence/mkt_proj_001/ml_walkforward_PRE_CLOSE_TOMORROW.json`
+on main, and the payload's `authority` cites the ModelCard v1.0 owner decision.
+A promotion with a non-matching hash, an unexpected model_version, or no
+corresponding merged evidence is an incident: set the row's status back to
+`retired`, and the API/card degrades to unavailable on the next serve.
+
+## "Market Projection card shows 'data drift under review'"
+
+**What it is:** the §4 guardrail-8 auto-downgrade — the train/serve (IEX vs
+SIP) drift ladder tripped (≥1.0σ one day, ≥0.5σ same feature 3 consecutive
+served days, or >20% of features ≥0.5σ one day). The badge downgrade is
+automatic; **restoration is operator-only by design**.
+
+**Check:** `data/market_projection/drift_state.json` (reasons + since) and the
+per-day ledger `drift_ledger.jsonl`. Investigate the offending features
+(premarket-quality fields and volume baselines are the expected suspects).
+
+**Fix (only after review):** delete `drift_state.json` (or set `"status": "ok"`)
+inside the container; the next API read restores the validated badge. Never
+script this — the asymmetry (auto-down, manual-up) is the guardrail.

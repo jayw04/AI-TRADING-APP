@@ -14,6 +14,7 @@ from app.db.models.journal_note import JournalNote
 from app.db.models.llm_opt_in import LLMOptIn
 from app.db.models.market_projection import MarketProjectionTrainingRow
 from app.db.models.market_projection_model import MarketProjectionModelRegistry
+from app.db.models.market_projection_run import MarketProjectionRun
 from app.db.models.morning_brief import MorningBrief
 from app.db.models.order import Order
 from app.db.models.position import Position
@@ -64,6 +65,7 @@ __all__ = [
     "Fill",
     "JournalNote",
     "MarketProjectionModelRegistry",
+    "MarketProjectionRun",
     "MarketProjectionTrainingRow",
     "MorningBrief",
     "Order",

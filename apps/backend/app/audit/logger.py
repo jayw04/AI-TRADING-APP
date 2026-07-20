@@ -155,6 +155,12 @@ class AuditAction(StrEnum):
     # when a paper variant is promoted live after the 24h cooldown. §3a's gate
     # only writes STRATEGY_PROPOSAL_TRANSITIONED (EVALUATING → EVIDENCE_READY).
     STRATEGY_PROMOTED = "STRATEGY_PROMOTED"
+    # MKT-PROJ-001 §4 guardrail 1 (ModelCard v1.0): a market-projection model
+    # artifact was promoted candidate→production. WRITTEN only by the promotion
+    # script after a full-sha256 match against the merged §3 evidence manifest;
+    # no retraining or artifact substitution rides this action. Payload carries
+    # {model_version, artifact_hash, projection_type, evidence_manifest}.
+    MKTPROJ_MODEL_PROMOTED = "MKTPROJ_MODEL_PROMOTED"
     # P6b §4 (ADR 0006 v2): an LLM eval harness was started for a strategy (Mode
     # A + Mode B spawned). Stop/terminate is a state change on the harness row
     # (no separate action). Per-signal decisions live in eval_harness_decisions,

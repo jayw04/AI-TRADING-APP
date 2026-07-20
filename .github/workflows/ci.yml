@@ -255,6 +255,10 @@ jobs:
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_reference_only_invariant.sh
 
+      - name: Market-projection isolation invariant check (backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_market_projection_isolation.sh
+
       - name: Credential env-isolation invariant check (backend)
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_no_env_credentials.sh

@@ -666,6 +666,43 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     )
                 logger.info("insider_reference_monitor_scheduled")
 
+            # 10c-dec. MKT-PROJ-001 §4 Market Projection serving (ModelCard v1.0,
+            # owner decision 2026-07-10/11). Primary horizon ONLY; the preclose job
+            # double-fires (15:45 full-day + 12:45 half-day) and each tick verifies
+            # against the authoritative calendar. DEFAULT OFF (conservative-defaults):
+            # the box flips WORKBENCH_MARKET_PROJECTION_ENABLED=1 explicitly.
+            # Display-only research surface — never the order path (NFR-001).
+            if os.environ.get("WORKBENCH_MARKET_PROJECTION_ENABLED", "").lower() in ("1", "true"):
+                from apscheduler.triggers.cron import CronTrigger as _MktProjCron
+
+                from app.jobs.market_projection_jobs import (
+                    run_market_projection_outcomes,
+                    run_market_projection_preclose,
+                    run_market_projection_regime_report,
+                )
+
+                for _mp_id, _mp_hour, _mp_min in (
+                    ("mktproj_preclose", 15, 45),
+                    ("mktproj_preclose_halfday", 12, 45),
+                ):
+                    scheduler.scheduler.add_job(
+                        run_market_projection_preclose,
+                        _MktProjCron(day_of_week="mon-fri", hour=_mp_hour, minute=_mp_min, timezone="America/New_York"),
+                        id=_mp_id, max_instances=1, coalesce=True, replace_existing=True,
+                    )
+                scheduler.scheduler.add_job(
+                    run_market_projection_outcomes,
+                    _MktProjCron(day_of_week="mon-fri", hour=18, minute=30, timezone="America/New_York"),
+                    id="mktproj_outcomes", max_instances=1, coalesce=True, replace_existing=True,
+                )
+                scheduler.scheduler.add_job(
+                    run_market_projection_regime_report,
+                    _MktProjCron(day="1", hour=17, minute=5, timezone="America/New_York"),
+                    id="mktproj_regime_report", max_instances=1, coalesce=True,
+                    replace_existing=True,
+                )
+                logger.info("market_projection_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't

@@ -70,6 +70,8 @@ def nyse_sessions(start: date, end: date) -> pd.DataFrame:
     import pandas_market_calendars as mcal
 
     sched = mcal.get_calendar("NYSE").schedule(start_date=start, end_date=end)
+    if sched.empty:  # a closed-day-only window has object-dtype columns (no .dt)
+        return pd.DataFrame(columns=["open_et", "close_et"])
     out = pd.DataFrame(
         {
             "open_et": sched["market_open"].dt.tz_convert(ET),
@@ -91,17 +93,22 @@ def _client():
     return StockHistoricalDataClient(api_key=creds.api_key, secret_key=creds.api_secret)
 
 
-def fetch_daily(client: Any, symbols: Iterable[str], start: date, end: date) -> dict[str, pd.DataFrame]:
-    """Daily bars per symbol (SIP), index = session date."""
+def fetch_daily(
+    client: Any, symbols: Iterable[str], start: date, end: date, *, feed: str = "sip"
+) -> dict[str, pd.DataFrame]:
+    """Daily bars per symbol, index = session date. feed="sip" (training; end
+    clamped behind the recent-data window) or "iex" (live serving path)."""
     from alpaca.data.enums import Adjustment, DataFeed
     from alpaca.data.requests import StockBarsRequest
     from alpaca.data.timeframe import TimeFrame
 
+    end_dt = datetime.combine(end, time.max)
     data = client.get_stock_bars(
         StockBarsRequest(symbol_or_symbols=list(symbols), timeframe=TimeFrame.Day,
                          start=datetime.combine(start, time.min),
-                         end=_clamp_sip_end(datetime.combine(end, time.max)),
-                         feed=DataFeed.SIP, adjustment=Adjustment.SPLIT)
+                         end=_clamp_sip_end(end_dt) if feed == "sip" else end_dt,
+                         feed=DataFeed.SIP if feed == "sip" else DataFeed.IEX,
+                         adjustment=Adjustment.SPLIT)
     ).data
     out: dict[str, pd.DataFrame] = {}
     for sym, bars in data.items():
@@ -118,21 +125,23 @@ def fetch_daily(client: Any, symbols: Iterable[str], start: date, end: date) -> 
     return out
 
 
-def fetch_minute_month(client: Any, symbols: Iterable[str], year: int, month: int) -> dict[str, pd.DataFrame]:
-    """One month of minute bars per symbol (SIP, includes pre/post-market),
-    index = tz-aware ET timestamps. The monthly chunk IS the footgun guard."""
+def fetch_minute_range(
+    client: Any, symbols: Iterable[str], start: date, end: date, *, feed: str = "sip"
+) -> dict[str, pd.DataFrame]:
+    """Minute bars for [start, end] per symbol, index = tz-aware ET timestamps.
+    Callers keep ranges ≤ ~1 month (the bar_cache 10k-truncation footgun guard);
+    feed="iex" is the live serving path (no SIP clamp — IEX serves to now)."""
     from alpaca.data.enums import DataFeed
     from alpaca.data.requests import StockBarsRequest
     from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
-    start = date(year, month, 1)
-    end = date(year + (month == 12), (month % 12) + 1, 1) - timedelta(days=1)
+    end_dt = datetime.combine(end + timedelta(days=1), time.min)
     data = client.get_stock_bars(
         StockBarsRequest(symbol_or_symbols=list(symbols),
                          timeframe=TimeFrame(1, TimeFrameUnit.Minute),
                          start=datetime.combine(start, time.min),
-                         end=_clamp_sip_end(datetime.combine(end + timedelta(days=1), time.min)),
-                         feed=DataFeed.SIP)
+                         end=_clamp_sip_end(end_dt) if feed == "sip" else end_dt,
+                         feed=DataFeed.SIP if feed == "sip" else DataFeed.IEX)
     ).data
     out: dict[str, pd.DataFrame] = {}
     for sym, bars in data.items():
