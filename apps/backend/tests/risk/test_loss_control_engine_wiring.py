@@ -36,6 +36,7 @@ from app.db.models.symbol import Symbol
 from app.db.models.user import User
 from app.risk.engine import RiskEngine
 from app.risk.loss_control import constants as C
+from app.risk.reason_codes import ReasonCode
 from app.risk.types import OrderRequest
 
 D = Decimal
@@ -217,3 +218,142 @@ async def test_no_recovery_state_reachable_through_pr4(seeded, monkeypatch):
     assert row is None or row.state not in (
         C.STATE_RECOVERY_PREFLIGHT, C.STATE_RECOVERY_COOLDOWN
     )
+
+
+# ============================================================ §Finding 1 — trigger commit failure
+
+
+def _break_trigger_transition(monkeypatch):
+    """Make the trigger's request_transition raise (simulating a persistence-write failure)."""
+    import app.risk.loss_control.service as svc_mod
+
+    async def _boom(self, **kwargs):
+        raise RuntimeError("transition write failed")
+
+    monkeypatch.setattr(svc_mod.LossControlService, "request_transition", _boom)
+
+
+async def _audit_rows(session_factory, action):
+    async with session_factory() as s:
+        return (
+            await s.execute(select(AuditLog).where(AuditLog.action == action))
+        ).scalars().all()
+
+
+def _spy_comparisons(monkeypatch) -> list:
+    """Capture every emit_comparison call (structlog isn't reliably captured by caplog)."""
+    seen: list = []
+    real = engine_mod.emit_comparison
+
+    def _spy(decision, **kwargs):
+        seen.append(decision)
+        return real(decision, **kwargs)
+
+    monkeypatch.setattr(engine_mod, "emit_comparison", _spy)
+    return seen
+
+
+async def test_enforce_trigger_commit_failure_fails_closed(seeded, monkeypatch):
+    # ENFORCE: the governing daily-loss transition fails to persist → the order is failed CLOSED
+    # with LOSS_CONTROL_STOP + durable provenance (trigger identity + committed=False), NOT
+    # evaluated against the stale NORMAL state (§Finding 1).
+    _set_mode(monkeypatch, LossControlMode.ENFORCE)
+    await _breaching_state(seeded)
+    await _set_state(seeded, C.STATE_NORMAL)  # persisted state is (and stays) NORMAL
+    _break_trigger_transition(monkeypatch)
+    out = await _evaluate(seeded, _order())
+    assert out.decision == REJECT
+    assert any(str(r) == "LOSS_CONTROL_STOP" for r in out.reason_codes)
+    rows = await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED")
+    assert len(rows) == 1
+    prov = json.loads(rows[0].payload_json)
+    assert prov["trigger"] == "DAILY_LOSS_BREACH"
+    assert prov["trigger_committed"] == "False"
+    assert prov["error"] == "TRIGGER_COMMIT_FAILED"
+    # State was NOT advanced past NORMAL by a failed write (fail-closed, not stale-evaluated).
+    row = await _state_row(seeded)
+    assert row is not None and row.state == C.STATE_NORMAL
+
+
+async def test_shadow_trigger_commit_failure_keeps_legacy(seeded, monkeypatch):
+    # SHADOW: the same failure is evidence-only. The legacy daily-loss gate still rejects the BUY;
+    # ERROR comparison evidence is emitted; no LOSS_CONTROL_ENFORCED audit (shadow never authoritative).
+    _set_mode(monkeypatch, LossControlMode.SHADOW)
+    await _breaching_state(seeded)
+    _break_trigger_transition(monkeypatch)
+    seen = _spy_comparisons(monkeypatch)
+    out = await _evaluate(seeded, _order())
+    assert out.decision == REJECT  # legacy daily-loss still rejects the non-reduction BUY
+    assert not any(str(r) == "LOSS_CONTROL_STOP" for r in out.reason_codes)  # legacy reason only
+    assert await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED") == []  # no authoritative audit
+    # ERROR comparison evidence recorded (transition-commit failure surfaced, decision unchanged).
+    assert any(d.divergence == "ERROR" for d in seen)
+
+
+# ============================================================ §Finding 2 — provenance on matched denial
+
+
+async def test_enforce_matched_daily_loss_denial_records_durable_provenance(seeded, monkeypatch):
+    # Legacy daily-loss rejects a non-reduction BUY AND the ENFORCE state machine (REDUCTION_ONLY)
+    # also denies it → a MATCH denial. The independent CIRCUIT_BREAKER reason is preserved AND
+    # LOSS_CONTROL_STOP is appended, with a durable LOSS_CONTROL_ENFORCED audit (§Finding 2).
+    _set_mode(monkeypatch, LossControlMode.ENFORCE)
+    await _breaching_state(seeded)
+    await _set_state(seeded, C.STATE_REDUCTION_ONLY_DAILY_LOSS)  # already locked (trigger no-ops)
+    out = await _evaluate(seeded, _order())
+    assert out.decision == REJECT
+    reasons = [str(r) for r in out.reason_codes]
+    assert "CIRCUIT_BREAKER" in reasons  # independent reason NOT discarded
+    assert "LOSS_CONTROL_STOP" in reasons  # loss control's authoritative contribution recorded
+    rows = await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED")
+    assert len(rows) == 1
+    prov = json.loads(rows[0].payload_json)
+    assert prov["divergence"] == "MATCH"
+    assert prov["loss_control_state"] == "REDUCTION_ONLY_DAILY_LOSS"
+
+
+async def test_enforce_matched_breaker_denial_records_durable_provenance(seeded, monkeypatch):
+    _set_mode(monkeypatch, LossControlMode.ENFORCE)
+    await _set_state(seeded, C.STATE_REDUCTION_ONLY_BREAKER)
+    async with seeded() as s:  # pre-trip the breaker so step 13 rejects
+        acct = await s.get(Account, 1)
+        acct.circuit_breaker_tripped_at = NOW
+        await s.commit()
+    out = await _evaluate(seeded, _order())
+    assert out.decision == REJECT
+    reasons = [str(r) for r in out.reason_codes]
+    assert "CIRCUIT_BREAKER" in reasons and "LOSS_CONTROL_STOP" in reasons
+    rows = await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED")
+    assert len(rows) == 1
+
+
+async def test_enforce_looser_preserves_legacy_reason_no_audit(seeded, monkeypatch):
+    # ADR_LOOSER: legacy rejects but loss control PERMITS. ENFORCE must preserve the legacy reason,
+    # NOT append LOSS_CONTROL_STOP, and NOT write a loss-control audit (loss control is not the
+    # cause). Tested directly on _enforce_loss_control — the centralized authoritative-denial handler
+    # — since a committed trigger makes this shape unreachable via the engine's reject sites.
+    from app.risk.loss_control.gate import DIVERGENCE_ADR_LOOSER, LossControlDecision
+
+    permits = LossControlDecision(
+        mode="ENFORCE", authoritative=True, state="NORMAL", state_version=0, state_known=True,
+        outcome="ALLOW", permits_order=True, verified_reduction=None, legacy_outcome="REFUSE",
+        legacy_permits=False, divergence=DIVERGENCE_ADR_LOOSER, reason_code=None,
+    )
+    engine = RiskEngine(seeded)
+    async with seeded() as s:
+        final = await engine._enforce_loss_control(
+            s, _order(), permits,
+            legacy_reasons=[ReasonCode.CIRCUIT_BREAKER], legacy_rejecting=True,
+        )
+        await s.commit()
+    assert final is None  # loss control does not change the (legacy) outcome
+    assert await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED") == []  # no audit — not the cause
+
+
+async def test_off_emits_no_comparison_evidence(seeded, monkeypatch):
+    # OFF performs zero comparison events (the denominator is only SHADOW/ENFORCE).
+    _set_mode(monkeypatch, LossControlMode.OFF)
+    await _set_state(seeded, C.STATE_NORMAL)
+    seen = _spy_comparisons(monkeypatch)
+    await _evaluate(seeded, _order())
+    assert seen == []

@@ -51,8 +51,12 @@ from app.risk.halt import is_halted
 from app.risk.loss_control import constants as LC
 from app.risk.loss_control.daily_loss_basis import DailyLossBasis, select_daily_loss_basis
 from app.risk.loss_control.gate import (
+    ERR_GATE_EVAL,
+    ERR_TRIGGER_COMMIT,
     LossControlDecision,
     LossControlGate,
+    TriggerResult,
+    emit_comparison,
     fail_closed_decision,
 )
 from app.risk.loss_control.service import LossControlService, TransitionContext
@@ -396,10 +400,13 @@ class RiskEngine:
                         payload=trip_payload,
                     )
                     # ADR 0043 PR4: a live control detected the daily-loss breach — drive the state
-                    # machine (SHADOW/ENFORCE). Unambiguous trigger; no recovery/re-arm here.
-                    await self._fire_loss_control_trigger(
-                        req.account_id, TRIGGER_DAILY_LOSS_BREACH
+                    # machine (SHADOW/ENFORCE). Unambiguous trigger; no recovery/re-arm here. In
+                    # ENFORCE a failed transition write fails this order closed (§Finding 1).
+                    guard = await self._trigger_and_guard(
+                        session, req, TRIGGER_DAILY_LOSS_BREACH
                     )
+                    if guard is not None:
+                        return guard
                     # ADR 0042: a control may stop trading, but it must not prevent VERIFIED
                     # reduction of the risk it exists to control. On 2026-07-13 this gate
                     # refused the momentum book's own SNDK and LITE trims while the book bled
@@ -411,15 +418,20 @@ class RiskEngine:
                         daily_pnl=day_change,
                         cache=reduction_cache,
                     ):
-                        # Evidence denominator: emit the shadow comparison for this loss-control
-                        # rejection too (the ADR result can only agree — it never weakens a reject).
-                        await self._apply_loss_control(
+                        # Evidence denominator + durable provenance when ENFORCE also denies
+                        # (§Finding 2): the independent CIRCUIT_BREAKER reason is preserved and
+                        # LOSS_CONTROL_STOP appended; ADR_LOOSER keeps only the legacy reason.
+                        lc = await self._apply_loss_control(
                             req, reduction_cache, legacy_permits=False, legacy_outcome="REFUSE"
+                        )
+                        final = await self._enforce_loss_control(
+                            session, req, lc,
+                            legacy_reasons=[ReasonCode.CIRCUIT_BREAKER], legacy_rejecting=True,
                         )
                         return await self._persist_and_return(
                             session,
                             decision=RiskDecision.REJECT,
-                            reasons=[ReasonCode.CIRCUIT_BREAKER],
+                            reasons=final or [ReasonCode.CIRCUIT_BREAKER],
                         )
 
             # 10. Rate limit (per minute).
@@ -485,7 +497,10 @@ class RiskEngine:
                 await cb.check(req.account_id)
             except CircuitBreakerError:
                 # ADR 0043 PR4: a live control detected the breaker trip — drive the state machine.
-                await self._fire_loss_control_trigger(req.account_id, TRIGGER_BREAKER_TRIP)
+                # In ENFORCE a failed transition write fails this order closed (§Finding 1).
+                guard = await self._trigger_and_guard(session, req, TRIGGER_BREAKER_TRIP)
+                if guard is not None:
+                    return guard
                 # Same rule, same classifier (ADR 0042). Steps 9 and 13 do NOT implement
                 # similar logic separately — implementing it twice is exactly how the
                 # gross-exposure gate got the reducing-order exemption (ADR 0038) while these
@@ -497,13 +512,17 @@ class RiskEngine:
                     daily_pnl=None,
                     cache=reduction_cache,
                 ):
-                    await self._apply_loss_control(
+                    lc = await self._apply_loss_control(
                         req, reduction_cache, legacy_permits=False, legacy_outcome="REFUSE"
+                    )
+                    final = await self._enforce_loss_control(
+                        session, req, lc,
+                        legacy_reasons=[ReasonCode.CIRCUIT_BREAKER], legacy_rejecting=True,
                     )
                     return await self._persist_and_return(
                         session,
                         decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.CIRCUIT_BREAKER],
+                        reasons=final or [ReasonCode.CIRCUIT_BREAKER],
                     )
 
             # ADR 0043 PR4: the loss-control GATE — after the risk effect is established, before the
@@ -515,12 +534,12 @@ class RiskEngine:
             lc = await self._apply_loss_control(
                 req, reduction_cache, legacy_permits=True, legacy_outcome="ALLOW"
             )
-            if lc is not None and lc.authoritative and not lc.permits_order:
-                await self._audit_loss_control_enforced(session, req, lc)
+            final = await self._enforce_loss_control(
+                session, req, lc, legacy_reasons=[], legacy_rejecting=False
+            )
+            if final is not None:
                 return await self._persist_and_return(
-                    session,
-                    decision=RiskDecision.REJECT,
-                    reasons=[ReasonCode.LOSS_CONTROL_STOP],
+                    session, decision=RiskDecision.REJECT, reasons=final
                 )
 
             # Pass.
@@ -673,13 +692,21 @@ class RiskEngine:
         )
         return basis.day_change, basis
 
-    async def _fire_loss_control_trigger(self, account_id: int, trigger: str) -> None:
+    async def _fire_loss_control_trigger(
+        self, account_id: int, trigger: str
+    ) -> TriggerResult:
         """Fire an ADR 0043 state-machine transition from a live control detection (SHADOW/ENFORCE
         only). Uses its OWN session (request_transition commits) so it never commits the engine's
-        in-flight evaluation. Exception-isolated — a shadow/enforce transition failure must never
-        interrupt the order path; CancelledError still propagates."""
-        if get_settings().loss_control_mode == LossControlMode.OFF:
-            return
+        in-flight evaluation. CancelledError propagates; any other exception is caught and reported
+        as ``committed=False`` — the caller then fails closed in ENFORCE (§Finding 1) rather than
+        reading possibly-stale state.
+
+        ``committed=True`` means request_transition returned (APPLIED, or a legitimate no-op / lost
+        CAS — all leave the persisted state consistent). ``committed=False`` means the WRITE raised,
+        so the persisted authoritative state may be stale."""
+        mode = get_settings().loss_control_mode
+        if mode == LossControlMode.OFF:
+            return TriggerResult(attempted=False, committed=False, trigger=trigger, mode=mode.value)
         try:
             async with self._session_factory() as trigger_session:
                 await LossControlService(trigger_session).request_transition(
@@ -687,13 +714,46 @@ class RiskEngine:
                     trigger=trigger,
                     context=TransitionContext(initiator_type="SYSTEM"),
                 )
-        except Exception:  # noqa: BLE001 — never break the order path on a loss-control write
+            return TriggerResult(attempted=True, committed=True, trigger=trigger, mode=mode.value)
+        except Exception:  # noqa: BLE001 — never break the order path; CancelledError still propagates
             logger.warning(
                 "loss_control_trigger_failed",
                 account_id=account_id,
                 trigger=trigger,
                 exc_info=True,
             )
+            return TriggerResult(
+                attempted=True, committed=False, trigger=trigger, mode=mode.value,
+                error_code=ERR_TRIGGER_COMMIT,
+            )
+
+    async def _trigger_and_guard(
+        self, session: AsyncSession, req: OrderRequest, trigger: str
+    ) -> RiskOutcome | None:
+        """Fire a live trigger and enforce its persistence contract.
+
+        OFF: no-op. SHADOW: on a commit failure, emit ERROR comparison evidence (legacy stays
+        authoritative) and continue. ENFORCE: on a commit failure, the governing transition did not
+        persist — the current order is failed CLOSED with an authoritative INTEGRITY_STOP (durable
+        provenance), never evaluated against possibly-stale state (§Finding 1). Returns a REJECT
+        outcome the caller must return immediately, or None to continue."""
+        trig = await self._fire_loss_control_trigger(req.account_id, trigger)
+        if trig.committed or not trig.attempted:
+            return None
+        # Commit failed.
+        decision = fail_closed_decision(
+            get_settings().loss_control_mode, legacy_outcome="REFUSE", legacy_permits=False,
+            error=ERR_TRIGGER_COMMIT,
+        )
+        emit_comparison(decision, account_id=req.account_id, request_id=req.client_order_id)
+        if not trig.enforce_fail_closed:  # SHADOW — evidence only, legacy authoritative
+            return None
+        await self._audit_loss_control_enforced(
+            session, req, decision, trigger=trigger, trigger_committed=False
+        )
+        return await self._persist_and_return(
+            session, decision=RiskDecision.REJECT, reasons=[ReasonCode.LOSS_CONTROL_STOP]
+        )
 
     async def _apply_loss_control(
         self,
@@ -709,7 +769,7 @@ class RiskEngine:
         the persisted state's outcome depends on a verified reduction, it REUSES the ADR 0042
         classifier (never duplicates it) via ``_permits_verified_reduction``. Exception-isolated: a
         failure yields None in SHADOW (legacy stays authoritative) and a fail-closed deny in ENFORCE.
-        """
+        Always emits one comparison event (the denominator)."""
         mode = get_settings().loss_control_mode
         if mode == LossControlMode.OFF:
             return None
@@ -728,14 +788,13 @@ class RiskEngine:
                         daily_pnl=None,
                         cache=reduction_cache,
                     )
-                gate = LossControlGate(lc_session, mode)
-                decision = await gate.evaluate(
+                decision = await LossControlGate(lc_session, mode).evaluate(
                     account_id=req.account_id,
                     verified_reduction=reduction_cache.get("result"),
                     legacy_outcome=legacy_outcome,
                     legacy_permits=legacy_permits,
                 )
-                gate.emit_comparison(
+                emit_comparison(
                     decision, account_id=req.account_id, request_id=req.client_order_id
                 )
                 return decision
@@ -743,18 +802,53 @@ class RiskEngine:
             logger.warning(
                 "loss_control_gate_unexpected_failure", account_id=req.account_id, exc_info=True
             )
-            return (
-                fail_closed_decision(mode, legacy_outcome, legacy_permits, error="gate_failure")
-                if mode == LossControlMode.ENFORCE
-                else None
+            decision = fail_closed_decision(
+                mode, legacy_outcome, legacy_permits, error=ERR_GATE_EVAL
             )
+            emit_comparison(decision, account_id=req.account_id, request_id=req.client_order_id)
+            return decision if mode == LossControlMode.ENFORCE else None
+
+    async def _enforce_loss_control(
+        self,
+        session: AsyncSession,
+        req: OrderRequest,
+        decision: LossControlDecision | None,
+        *,
+        legacy_reasons: list[ReasonCode],
+        legacy_rejecting: bool,
+    ) -> list[ReasonCode] | None:
+        """Centralized authoritative-denial handling (§Finding 2). Returns the FINAL reason list to
+        persist when loss control authoritatively CONTRIBUTES to a rejection (durable audit written),
+        or None when it does not change the outcome.
+
+        * OFF / SHADOW (not authoritative) → None (legacy stands).
+        * ENFORCE and loss control PERMITS → None. If legacy is rejecting (ADR_LOOSER), the legacy
+          rejection is preserved with its OWN reason and NO loss-control audit — loss control is not
+          the cause; only comparison evidence (already emitted) records it.
+        * ENFORCE and loss control DENIES → a durable LOSS_CONTROL_ENFORCED audit is written and
+          LOSS_CONTROL_STOP is appended to the legacy reasons (when legacy is also rejecting) or is
+          the sole reason (on the otherwise-PASS path). The independent reason is never discarded."""
+        if decision is None or not decision.authoritative or decision.permits_order:
+            return None
+        await self._audit_loss_control_enforced(session, req, decision)
+        reasons = list(legacy_reasons) if legacy_rejecting else []
+        if ReasonCode.LOSS_CONTROL_STOP not in reasons:
+            reasons.append(ReasonCode.LOSS_CONTROL_STOP)
+        return reasons
 
     async def _audit_loss_control_enforced(
-        self, session: AsyncSession, req: OrderRequest, decision: LossControlDecision
+        self,
+        session: AsyncSession,
+        req: OrderRequest,
+        decision: LossControlDecision,
+        *,
+        trigger: str | None = None,
+        trigger_committed: bool | None = None,
     ) -> None:
         """Durable enforce evidence: an audit_log row carrying the full loss-control provenance
-        (state, version, mode, outcome, verified-reduction). Written on the engine session so it
-        commits atomically with the RiskCheck rejection."""
+        (state, version, mode, outcome, verified-reduction, legacy outcome, divergence, and — for a
+        transition-commit failure — the trigger identity + commit status). Written on the engine
+        session so it commits atomically with the RiskCheck rejection."""
         AuditLogger.write(
             session,
             actor_type=AuditActorType.SYSTEM,
@@ -762,7 +856,7 @@ class RiskEngine:
             action=AuditAction.LOSS_CONTROL_ENFORCED,
             target_type="account",
             target_id=req.account_id,
-            payload=decision.provenance(),
+            payload=decision.provenance(trigger=trigger, trigger_committed=trigger_committed),
             user_id=req.user_id,
         )
 

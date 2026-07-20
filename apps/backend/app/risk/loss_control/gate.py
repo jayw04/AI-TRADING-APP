@@ -39,6 +39,35 @@ DIVERGENCE_INCOMPARABLE = "INCOMPARABLE"  # legacy decision not supplied
 DIVERGENCE_ERROR = "ERROR"  # the gate itself errored (fail closed)
 
 
+# Stable error codes for the ``error`` field — a bounded vocabulary, never raw exception text (which
+# could leak DB URLs / SQL / credential fragments into the structured evidence). The real exception
+# is logged separately with exc_info.
+ERR_GATE_EVAL = "GATE_EVAL_ERROR"
+ERR_TRIGGER_COMMIT = "TRIGGER_COMMIT_FAILED"
+
+
+@dataclass(frozen=True)
+class TriggerResult:
+    """The outcome of firing a state-machine trigger from a live control detection (§Finding 1).
+
+    ``committed`` is True when ``request_transition`` completed without raising — i.e. the transition
+    was adjudicated and the persisted state is consistent (APPLIED, or a legitimate no-op / lost-CAS,
+    all of which leave the state correct). It is False only on an EXCEPTION, which means the write
+    failed and the persisted authoritative state may be stale. ``enforce_fail_closed`` is that latter
+    case in ENFORCE — the engine must then fail the current order closed, not read stale state.
+    """
+
+    attempted: bool
+    committed: bool
+    trigger: str
+    mode: str
+    error_code: str | None = None
+
+    @property
+    def enforce_fail_closed(self) -> bool:
+        return self.attempted and not self.committed and self.mode == LossControlMode.ENFORCE.value
+
+
 @dataclass(frozen=True)
 class LossControlDecision:
     """The gate's structured result — evidence in SHADOW, authoritative input in ENFORCE."""
@@ -55,9 +84,11 @@ class LossControlDecision:
     legacy_permits: bool | None
     divergence: str
     reason_code: str | None  # a ReasonCode when ADR would refuse (used only in ENFORCE)
-    error: str | None = None
+    error: str | None = None  # a stable ERR_* code, never raw exception text
 
-    def provenance(self) -> dict[str, str | None]:
+    def provenance(
+        self, *, trigger: str | None = None, trigger_committed: bool | None = None
+    ) -> dict[str, str | None]:
         """Flat, string-valued provenance for the durable enforce evidence / audit payload."""
 
         def s(v: object) -> str | None:
@@ -71,7 +102,37 @@ class LossControlDecision:
             "verified_reduction": s(self.verified_reduction),
             "reason_code": self.reason_code,
             "divergence": self.divergence,
+            "legacy_outcome": self.legacy_outcome,
+            "error": self.error,
+            "trigger": trigger,
+            "trigger_committed": s(trigger_committed),
         }
+
+
+def emit_comparison(
+    decision: LossControlDecision, *, account_id: int, request_id: str | None
+) -> None:
+    """One structured event PER EVALUATED ORDER (matches included, not only divergences) — the
+    denominator canary evidence needs. Emitted in SHADOW and ENFORCE alike."""
+    logger.info(
+        "risk_loss_control_shadow_comparison",
+        account_id=account_id,
+        request_id=request_id,
+        mode=decision.mode,
+        loss_control_state=decision.state,  # doubles as the lock reason
+        loss_control_state_version=decision.state_version,
+        state_known=decision.state_known,
+        adr_outcome=decision.outcome,
+        adr_permits=decision.permits_order,
+        legacy_outcome=decision.legacy_outcome,
+        legacy_permits=decision.legacy_permits,
+        divergence=decision.divergence,
+        verified_reduction=decision.verified_reduction,
+        adr_stricter=decision.divergence == DIVERGENCE_ADR_STRICTER,
+        adr_looser=decision.divergence == DIVERGENCE_ADR_LOOSER,
+        no_authority=not decision.authoritative,
+        error=decision.error,
+    )
 
 
 def fail_closed_decision(
@@ -156,7 +217,10 @@ class LossControlGate:
                 divergence=_divergence(permits, legacy_permits),
                 reason_code=None if permits else ReasonCode.LOSS_CONTROL_STOP.value,
             )
-        except Exception as exc:  # noqa: BLE001 — BaseException (CancelledError) still propagates
+        except Exception:  # noqa: BLE001 — BaseException (CancelledError) still propagates
+            # Log the REAL exception here (with traceback); the structured evidence carries only a
+            # stable code so it can never leak DB URLs / SQL / credential fragments.
+            logger.warning("loss_control_gate_eval_failed", account_id=account_id, exc_info=True)
             return LossControlDecision(
                 mode=self._mode.value,
                 authoritative=authoritative,
@@ -170,28 +234,6 @@ class LossControlGate:
                 legacy_permits=legacy_permits,
                 divergence=DIVERGENCE_ERROR,
                 reason_code=ReasonCode.LOSS_CONTROL_STOP.value,
-                error=str(exc),
+                error=ERR_GATE_EVAL,
             )
 
-    def emit_comparison(self, decision: LossControlDecision, *, account_id: int, request_id: str | None) -> None:
-        """One structured event PER EVALUATED ORDER (matches included, not only divergences) — the
-        denominator canary evidence needs."""
-        logger.info(
-            "risk_loss_control_shadow_comparison",
-            account_id=account_id,
-            request_id=request_id,
-            mode=decision.mode,
-            loss_control_state=decision.state,  # doubles as the lock reason
-            loss_control_state_version=decision.state_version,
-            state_known=decision.state_known,
-            adr_outcome=decision.outcome,
-            adr_permits=decision.permits_order,
-            legacy_outcome=decision.legacy_outcome,
-            legacy_permits=decision.legacy_permits,
-            divergence=decision.divergence,
-            verified_reduction=decision.verified_reduction,
-            adr_stricter=decision.divergence == DIVERGENCE_ADR_STRICTER,
-            adr_looser=decision.divergence == DIVERGENCE_ADR_LOOSER,
-            no_authority=not decision.authoritative,
-            error=decision.error,
-        )
