@@ -219,17 +219,47 @@ async def test_control_state_consistent_fails_when_row_or_account_absent(session
     assert r.status == C.CHECK_FAIL and r.reason == C.ERR_STATE_CONTRADICTION
 
 
-async def test_positions_reconcile_skips_unknown_symbol_id(base):
-    # A local position whose symbol_id has no Symbol row is skipped (ticker unresolved), not crashed.
+async def test_positions_reconcile_unresolved_nonzero_local_fails(base):
+    # A NONZERO local position whose symbol_id has no Symbol row is unreconcilable — the system knows
+    # it carries quantity but cannot match it to a broker position. That is an integrity condition:
+    # FAIL, never silently disappear.
     async with base() as s:
         s.add(Position(user_id=1, account_id=1, symbol_id=999, qty=D("5"),
                        avg_entry_price=D("10"), side="long", updated_at=NOW))
         await s.commit()
     ad = MagicMock()
-    ad.get_positions.return_value = []  # broker flat; unknown-symbol local row skipped
+    ad.get_positions.return_value = []  # broker flat
     async with base() as s:
         r = await pf._positions_reconcile(_ctx(s, adapter=ad))
-    assert r.passed  # the unresolved local row contributed nothing → reconciles clean
+    assert r.status == C.CHECK_FAIL and r.reason == C.ERR_POSITION_MISMATCH
+    assert r.evidence["unresolved_local_count"] == 1
+    assert r.evidence["unresolved_symbol_ids"] == [999]
+
+
+async def test_positions_reconcile_zero_qty_unresolved_local_ignored(base):
+    # A ZERO-quantity stale local row carries no risk → ignored even if its symbol is unresolvable.
+    async with base() as s:
+        s.add(Position(user_id=1, account_id=1, symbol_id=999, qty=D("0"),
+                       avg_entry_price=D("10"), side="long", updated_at=NOW))
+        await s.commit()
+    ad = MagicMock()
+    ad.get_positions.return_value = []
+    async with base() as s:
+        r = await pf._positions_reconcile(_ctx(s, adapter=ad))
+    assert r.passed and r.evidence["unresolved_local_count"] == 0
+
+
+async def test_positions_reconcile_duplicate_broker_symbol_fails(base):
+    # Two broker rows for the same symbol must not silently collapse — FAIL with the duplicate named.
+    async with base() as s:
+        s.add(Position(user_id=1, account_id=1, symbol_id=1, qty=D("100"), avg_entry_price=D("10"),
+                       side="long", updated_at=NOW))
+        await s.commit()
+    ad = MagicMock()
+    ad.get_positions.return_value = [{"symbol": "AAPL", "qty": "60"}, {"symbol": "AAPL", "qty": "40"}]
+    async with base() as s:
+        r = await pf._positions_reconcile(_ctx(s, adapter=ad))
+    assert r.status == C.CHECK_FAIL and "AAPL" in r.evidence["duplicate_broker_symbols"]
 
 
 # ============================================================ adversarial reconciliation (issue 3)

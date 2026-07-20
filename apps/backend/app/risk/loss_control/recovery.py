@@ -55,6 +55,20 @@ _ELIGIBLE_ORIGINS = frozenset(_ORIGIN_TRIP_TYPE)
 _RESUMABLE_STATUSES = frozenset({C.PREFLIGHT_STATUS_REQUESTED, C.PREFLIGHT_STATUS_RUNNING})
 
 
+def _valid_request_event(event: RiskControlEvent | None, account_id: int) -> bool:
+    """Whether an event is valid provenance for the durable recovery origin: it must be THIS
+    account's, have entered ``RECOVERY_PREFLIGHT`` via a ``RECOVERY_REQUEST``, and come from a real
+    lock origin. Anything else (absent, wrong account, wrong to/from-state, wrong trigger) leaves the
+    origin unknown → fail closed to INTEGRITY_STOP, never a guessed lock."""
+    return (
+        event is not None
+        and event.account_id == account_id
+        and event.to_state == C.STATE_RECOVERY_PREFLIGHT
+        and event.requested_transition == TRIGGER_RECOVERY_REQUEST
+        and event.from_state in _ELIGIBLE_ORIGINS
+    )
+
+
 # ------------------------------------------------------------------ authority matrix (§D5)
 
 
@@ -236,7 +250,6 @@ class RecoveryPreflightService:
             if parent.status not in _RESUMABLE_STATUSES:
                 return _outcome_from(parent)  # terminal or awaiting explicit approval
             expected_version = parent.expected_state_version
-            origin_candidate = parent.origin_state or ""
             parent_role = parent.requested_by_actor_type
             request_event_id = parent.request_event_id
             state_row = await LossControlService(s).load_state_row(account_id)
@@ -259,13 +272,11 @@ class RecoveryPreflightService:
                     return await self._close_parent(
                         account_id, parent_id, status=C.PREFLIGHT_STATUS_FAILED, verdict=None,
                         transition=None, failure_reason=C.ERR_NOT_ELIGIBLE)
-                request_event_id = request_event_id or await self._find_request_event(
-                    account_id, origin_candidate)
+                request_event_id = request_event_id or await self._find_request_event(account_id)
             else:
                 request_event_id = result.event_id  # type: ignore[attr-defined]
         elif current_state == C.STATE_RECOVERY_PREFLIGHT:
-            request_event_id = request_event_id or await self._find_request_event(
-                account_id, origin_candidate)
+            request_event_id = request_event_id or await self._find_request_event(account_id)
         else:
             return await self._close_parent(
                 account_id, parent_id, status=C.PREFLIGHT_STATUS_FAILED, verdict=None,
@@ -273,12 +284,11 @@ class RecoveryPreflightService:
 
         return await self._run_checks_and_finalize(
             account_id=account_id, parent_id=parent_id, request_event_id=request_event_id,
-            origin=origin_candidate, role=parent_role, expected_version=expected_version,
-            adapter=adapter,
+            role=parent_role, expected_version=expected_version, adapter=adapter,
         )
 
     async def _run_checks_and_finalize(
-        self, *, account_id: int, parent_id: int, request_event_id: int | None, origin: str,
+        self, *, account_id: int, parent_id: int, request_event_id: int | None,
         role: str, expected_version: int, adapter: object | None,
     ) -> RecoveryOutcome:
         async with self._session_factory() as s:
@@ -288,18 +298,38 @@ class RecoveryPreflightService:
             request_event = (
                 await s.get(RiskControlEvent, request_event_id) if request_event_id else None
             )
-            # Durable origin = the committed RECOVERY_REQUEST event's from_state (never inferred).
-            durable_origin = request_event.from_state if request_event is not None else origin
-            trip_type = _ORIGIN_TRIP_TYPE.get(durable_origin)
-            trip_cause = await self._lock_trip_cause(s, account_id, durable_origin, request_event_id)
+            # Durable origin = the committed RECOVERY_REQUEST event's from_state, and ONLY if that
+            # event is valid provenance (right account, entered RECOVERY_PREFLIGHT, via a
+            # RECOVERY_REQUEST, from a real lock origin). The parent's pre-transition candidate
+            # ``origin`` is used to LOCATE the event, never as a substitute for it: if the event is
+            # absent / invalid / ambiguous the origin is UNKNOWN (None), the origin-proven check
+            # fails, and PREFLIGHT_FAIL fires with recovery_origin_state=None so the state machine
+            # fails closed to INTEGRITY_STOP — never back to a guessed prior lock (§D5).
+            durable_origin: str | None = None
+            if _valid_request_event(request_event, account_id):
+                assert request_event is not None
+                durable_origin = request_event.from_state
+            else:
+                request_event = None
+                request_event_id = None
+
+            if durable_origin is not None:
+                trip_type = _ORIGIN_TRIP_TYPE.get(durable_origin)
+                trip_cause = await self._lock_trip_cause(
+                    s, account_id, durable_origin, request_event_id)
+                authority_class = _ORIGIN_AUTHORITY_CLASS.get(
+                    durable_origin, parent.authority_class)
+            else:
+                trip_type = None
+                trip_cause = None
+                authority_class = parent.authority_class
             now = datetime.now(UTC)
 
             parent.origin_state = durable_origin
             parent.request_event_id = request_event_id
             parent.trip_type = trip_type
             parent.trip_cause = trip_cause
-            parent.authority_class = _ORIGIN_AUTHORITY_CLASS.get(
-                durable_origin, parent.authority_class)
+            parent.authority_class = authority_class
             parent.status = C.PREFLIGHT_STATUS_RUNNING
             parent.result = C.PREFLIGHT_STATUS_RUNNING
             parent.started_at = parent.started_at or now
@@ -332,6 +362,9 @@ class RecoveryPreflightService:
                 account_id, parent_id, durable_origin, expected_version, verdict,
                 first_non_pass.reason if first_non_pass else None,
             )
+        # A PASS is only reachable when the origin-proven check passed, so the origin is a real,
+        # durable lock origin here (never None).
+        assert durable_origin is not None
         return await self._finalize_pass_or_await(
             account_id, parent_id, durable_origin, trip_cause, role, expected_version,
         )
@@ -341,24 +374,34 @@ class RecoveryPreflightService:
             row = await LossControlService(s).load_state_row(account_id)
             return row.state if row is not None else None
 
-    async def _find_request_event(self, account_id: int, origin: str) -> int | None:
-        """The committed RECOVERY_REQUEST event that entered RECOVERY_PREFLIGHT from ``origin`` — the
-        durable provenance to rebind on a resume where the parent lost its request_event_id."""
+    async def _find_request_event(self, account_id: int) -> int | None:
+        """Rebind the committed RECOVERY_REQUEST event on a resume where the parent lost its
+        request_event_id. Returns an id ONLY when provenance is unambiguous — exactly one
+        RECOVERY_REQUEST event entered RECOVERY_PREFLIGHT for this account. Zero (absent) or more than
+        one (ambiguous) ⇒ None, so the origin is treated as unknown and recovery fails closed to
+        INTEGRITY_STOP rather than guessing which cycle this is."""
         async with self._session_factory() as s:
-            return await s.scalar(
-                select(RiskControlEvent.id).where(
-                    RiskControlEvent.account_id == account_id,
-                    RiskControlEvent.to_state == C.STATE_RECOVERY_PREFLIGHT,
-                    RiskControlEvent.from_state == origin,
-                ).order_by(RiskControlEvent.id.desc())
+            ids = list(
+                (
+                    await s.execute(
+                        select(RiskControlEvent.id).where(
+                            RiskControlEvent.account_id == account_id,
+                            RiskControlEvent.to_state == C.STATE_RECOVERY_PREFLIGHT,
+                            RiskControlEvent.requested_transition == TRIGGER_RECOVERY_REQUEST,
+                        )
+                    )
+                ).scalars().all()
             )
+        return ids[0] if len(ids) == 1 else None
 
     # ---- finalizers ----
 
     async def _finalize_fail(
-        self, account_id: int, preflight_id: int, origin: str, expected_version: int,
+        self, account_id: int, preflight_id: int, origin: str | None, expected_version: int,
         verdict: str, reason: str | None,
     ) -> RecoveryOutcome:
+        # origin is the DURABLE origin (None when unproven). PREFLIGHT_FAIL with a valid origin
+        # returns to that lock; with None the state machine fails closed to INTEGRITY_STOP.
         result = await self._transition(
             account_id=account_id, trigger=TRIGGER_PREFLIGHT_FAIL,
             expected_version=expected_version + 1,  # RECOVERY_REQUEST already bumped it once

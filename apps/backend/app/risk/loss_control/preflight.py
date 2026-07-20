@@ -127,7 +127,17 @@ async def _positions_reconcile(ctx: PreflightContext) -> PreflightCheckResult:
     positions = await _broker_positions(ctx)
     if positions is None:
         return _incomplete(C.CHECK_POSITIONS_RECONCILE, C.ERR_BROKER_UNREACHABLE, {})
-    broker = {str(p.get("symbol")): Decimal(str(p.get("qty") or 0)) for p in positions}
+    # Broker side, guarding against duplicate rows for one symbol (they would otherwise silently
+    # collapse — a broker whose contract yields duplicates must be reconciled deliberately, not by
+    # overwrite). Duplicates are recorded and FAIL.
+    broker: dict[str, Decimal] = {}
+    dup_broker: set[str] = set()
+    for p in positions:
+        sym = str(p.get("symbol"))
+        if sym in broker:
+            dup_broker.add(sym)
+        broker[sym] = broker.get(sym, Decimal(0)) + Decimal(str(p.get("qty") or 0))
+
     local_rows = list(
         (
             await ctx.session.execute(
@@ -137,11 +147,29 @@ async def _positions_reconcile(ctx: PreflightContext) -> PreflightCheckResult:
             )
         ).all()
     )
-    # Reconcile by symbol ticker; resolve local symbol_id → ticker.
-    local = await _local_positions_by_ticker(ctx, local_rows)
+    tickers = await _ticker_map(ctx, {symbol_id for symbol_id, _ in local_rows})
+    # A local position whose symbol_id cannot be resolved to a ticker is NOT reconcilable: the system
+    # knows it carries quantity but cannot say which broker position matches. That is itself an
+    # integrity condition and must FAIL — never silently disappear. A zero-quantity stale row carries
+    # no risk and is ignored.
+    local: dict[str, Decimal] = {}
+    unresolved: list[int] = []
+    for symbol_id, qty in local_rows:
+        q = Decimal(str(qty or 0))
+        ticker = tickers.get(symbol_id)
+        if ticker is None:
+            if q != 0:
+                unresolved.append(symbol_id)
+            continue
+        local[ticker] = local.get(ticker, Decimal(0)) + q
+
     mismatches = _diff_qty(local, broker)
-    return _result(C.CHECK_POSITIONS_RECONCILE, not mismatches, C.ERR_POSITION_MISMATCH,
-                   {"mismatch_count": len(mismatches), "symbols": sorted(mismatches)[:20]})
+    ok = not mismatches and not unresolved and not dup_broker
+    return _result(C.CHECK_POSITIONS_RECONCILE, ok, C.ERR_POSITION_MISMATCH,
+                   {"mismatch_count": len(mismatches), "symbols": sorted(mismatches)[:20],
+                    "unresolved_local_count": len(unresolved),
+                    "unresolved_symbol_ids": sorted(unresolved)[:20],
+                    "duplicate_broker_symbols": sorted(dup_broker)[:20]})
 
 
 async def _open_orders_reconcile(ctx: PreflightContext) -> PreflightCheckResult:
@@ -381,18 +409,6 @@ async def _broker_call_orders(ctx: PreflightContext) -> list[dict[str, Any]] | N
     except Exception as exc:  # noqa: BLE001
         logger.warning("recovery_preflight_broker_orders_failed", error=str(exc))
         return None
-
-
-async def _local_positions_by_ticker(
-    ctx: PreflightContext, rows: list[Any]
-) -> dict[str, Decimal]:
-    tickers = await _ticker_map(ctx, {symbol_id for symbol_id, _ in rows})
-    out: dict[str, Decimal] = {}
-    for symbol_id, qty in rows:
-        ticker = tickers.get(symbol_id)
-        if ticker is not None:
-            out[str(ticker)] = Decimal(str(qty or 0))
-    return out
 
 
 async def _ticker_map(ctx: PreflightContext, symbol_ids: set[int]) -> dict[int, str]:

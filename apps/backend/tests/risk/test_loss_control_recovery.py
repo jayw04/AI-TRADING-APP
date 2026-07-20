@@ -938,8 +938,7 @@ async def test_run_checks_and_finalize_missing_parent_is_internal_error(seeded):
     svc = RecoveryPreflightService(seeded)
     out = await svc._run_checks_and_finalize(
         account_id=1, parent_id=999999, request_event_id=None,
-        origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS, role=C.ACTOR_OWNER, expected_version=1,
-        adapter=None)
+        role=C.ACTOR_OWNER, expected_version=1, adapter=None)
     assert out.rejected and out.reason == C.ERR_INTERNAL
 
 
@@ -969,3 +968,94 @@ async def test_create_conflict_different_requester_is_idempotency_conflict(seede
     out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="dup",
                                      requester_user_id=OWNER_ID, adapter=_healthy_adapter())
     assert out.rejected and out.reason == C.ERR_IDEMPOTENCY_CONFLICT
+
+
+# ------------------------------------ durable-origin fail-closed (unproven ⇒ INTEGRITY_STOP)
+
+
+async def _seed_recovery_request_event(seeded, *, from_state, to_state=C.STATE_RECOVERY_PREFLIGHT,
+                                       trigger="RECOVERY_REQUEST", account_id=1, seq=99):
+    from app.db.models.risk_control_event import RiskControlEvent
+    async with seeded() as s:
+        ev = RiskControlEvent(account_id=account_id, sequence_no=seq, control_type="RECOVERY",
+                              from_state=from_state, to_state=to_state, requested_transition=trigger,
+                              initiator_type="SYSTEM", control_version=1, created_at=NOW)
+        s.add(ev)
+        await s.commit()
+        return ev.id
+
+
+async def _put_in_preflight(seeded, *, state_version=3):
+    from app.db.models.risk_loss_control_state import RiskLossControlState
+    async with seeded() as s:
+        s.add(RiskLossControlState(account_id=1, state=C.STATE_RECOVERY_PREFLIGHT,
+                                   state_version=state_version, last_sequence_no=state_version,
+                                   control_version=1, updated_at=NOW))
+        await s.commit()
+
+
+async def test_resume_with_missing_request_event_fails_closed_to_integrity_stop(seeded, monkeypatch):
+    # Account sits in RECOVERY_PREFLIGHT but NO RECOVERY_REQUEST event exists → origin unprovable →
+    # the preflight fails and the state machine fails closed to INTEGRITY_STOP (never a guessed lock).
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _put_in_preflight(seeded, state_version=3)
+    pid = await _requested_parent(seeded, key="k", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                                  expected_version=2, request_event_id=None)
+    svc = RecoveryPreflightService(seeded)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.preflight_id == pid
+    assert (await _state(seeded)).state == C.STATE_INTEGRITY_STOP
+    async with seeded() as s:
+        parent = await s.get(RiskRecoveryPreflight, pid)
+    assert parent.origin_state is None  # origin was NOT reused from the candidate
+
+
+async def test_resume_with_wrong_event_fails_closed_to_integrity_stop(seeded, monkeypatch):
+    # A bound request_event with the WRONG to_state (not RECOVERY_PREFLIGHT) is invalid provenance →
+    # origin unknown → INTEGRITY_STOP.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _put_in_preflight(seeded, state_version=3)
+    bad_ev = await _seed_recovery_request_event(
+        seeded, from_state=C.STATE_REDUCTION_ONLY_DAILY_LOSS, to_state=C.STATE_NORMAL)
+    pid = await _requested_parent(seeded, key="k", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                                  expected_version=2, request_event_id=bad_ev)
+    svc = RecoveryPreflightService(seeded)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.preflight_id == pid
+    assert (await _state(seeded)).state == C.STATE_INTEGRITY_STOP
+
+
+async def test_resume_with_ambiguous_events_fails_closed_to_integrity_stop(seeded, monkeypatch):
+    # Two RECOVERY_REQUEST→PREFLIGHT events and a lost request_event_id → ambiguous provenance →
+    # origin cannot be proven → INTEGRITY_STOP (never pick one and guess).
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _put_in_preflight(seeded, state_version=3)
+    await _seed_recovery_request_event(seeded, from_state=C.STATE_REDUCTION_ONLY_DAILY_LOSS, seq=90)
+    await _seed_recovery_request_event(seeded, from_state=C.STATE_REDUCTION_ONLY_BREAKER, seq=91)
+    pid = await _requested_parent(seeded, key="k", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                                  expected_version=2, request_event_id=None)
+    svc = RecoveryPreflightService(seeded)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.preflight_id == pid
+    assert (await _state(seeded)).state == C.STATE_INTEGRITY_STOP
+
+
+async def test_valid_origin_failure_returns_to_that_lock(seeded, monkeypatch):
+    # Contrast: when the origin IS proven (a valid bound event) but a check FAILs, the account returns
+    # to the durable lock — not INTEGRITY_STOP. Here the broker is unreachable (INCOMPLETE) with a
+    # proven daily-loss origin, so it returns to REDUCTION_ONLY_DAILY_LOSS.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _drive_to_lock(seeded, TRIGGER_DAILY_LOSS_BREACH,
+                         trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS)
+    svc = RecoveryPreflightService(seeded)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=None)  # no broker → INCOMPLETE
+    assert out.status == C.PREFLIGHT_STATUS_INCOMPLETE
+    assert (await _state(seeded)).state == C.STATE_REDUCTION_ONLY_DAILY_LOSS

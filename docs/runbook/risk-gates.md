@@ -303,14 +303,22 @@ reduction-only lock still permits only verified reductions).
    crash mid-flight can never leave the account in `RECOVERY_PREFLIGHT` with no discoverable
    workflow — a retry with the **same `idempotency_key`** resumes that same durable preflight. A
    committed `RECOVERY_REQUEST` moves the account to `RECOVERY_PREFLIGHT` and records the **durable
-   origin** (the `from_state` of that event — never inferred).
+   origin** (the `from_state` of that event — never inferred). The origin is trusted **only** from a
+   valid committed event (right account, entered `RECOVERY_PREFLIGHT` via `RECOVERY_REQUEST`, from a
+   real lock origin, unambiguous). If the event is absent, invalid, or ambiguous, the origin is
+   **unknown** (`origin_state = null`): the origin-proven check fails and `PREFLIGHT_FAIL` fires with
+   no origin, so the account fails closed to `INTEGRITY_STOP` — **never** back to a guessed prior lock.
 2. **The 12 checks** — persisted individually in `risk_recovery_preflight_checks` (`PASS` / `FAIL` /
    `INCOMPLETE`). A check blocked by an unmet prerequisite is stored `INCOMPLETE`
    (`reason = BLOCKED_BY_<check>`); the absence of a row never means success. The `open_orders` and
    `reservations` checks reconcile by **stable identity and every risk-bearing field** (broker/client
    order id, symbol, side, quantity, type, prices; reservation→order backing + quantity), never by
    count — so a `FAIL` there names a specific unmatched order or orphaned/duplicate reservation, and
-   equal counts of *different* orders (or a HELD reservation on a terminal order) do **not** pass.
+   equal counts of *different* orders (or a HELD reservation on a terminal order) do **not** pass. The
+   `positions` check likewise FAILs on a **nonzero local position whose symbol can't be resolved** (an
+   integrity condition — it carries quantity but can't be matched; evidence names
+   `unresolved_symbol_ids`) and on **duplicate broker rows for one symbol** (never silently
+   collapsed); a zero-quantity stale row is ignored.
 3. **Authorization** — see the matrix below. `INTEGRITY_STOP` always requires a *separate* explicit
    operator approval (POST `.../{id}/approve`); it is never system- or owner-self-authorized.
 4. **Transition** — an aggregate `PASS` + authorization commits `PREFLIGHT_PASS` →
