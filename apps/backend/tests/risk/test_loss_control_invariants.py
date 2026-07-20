@@ -1,0 +1,166 @@
+"""ADR 0043 PR5 — the loss-control structural invariant checker itself.
+
+Two directions per invariant: the REAL repo passes (no false positives), and a synthetic violation
+is CAUGHT (no false negatives) — including the aliased-import and market-session-classify cases the
+AST approach exists to handle.
+"""
+
+from __future__ import annotations
+
+import ast
+import importlib.util
+import sys
+from pathlib import Path
+
+BACKEND = Path(__file__).resolve().parents[2]
+CHECKER = BACKEND / "scripts" / "check_loss_control_invariants.py"
+
+_spec = importlib.util.spec_from_file_location("_lc_invariants", CHECKER)
+assert _spec and _spec.loader
+mod = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = mod  # register so the checker's @dataclass can resolve its module
+_spec.loader.exec_module(mod)
+
+
+def _run_one(check, rel: str, src: str):
+    return check(rel, ast.parse(src))
+
+
+def _invariants(violations) -> set[str]:
+    return {v.invariant for v in violations}
+
+
+# --------------------------------------------------------------- the real repo is clean
+
+
+def test_real_repo_passes():
+    paths = sorted((BACKEND / "app").rglob("*.py"))
+    assert mod.run(paths) == []
+
+
+# --------------------------------------------------------------- §1 single-persister
+
+
+def test_single_persister_flags_writes_outside_service():
+    src = (
+        "from app.db.models.risk_loss_control_state import RiskLossControlState\n"
+        "def f(session):\n"
+        "    row = RiskLossControlState(account_id=1)\n"  # constructor
+        "    session.add(row)\n"
+        "    row.state_version = 5\n"  # direct CAS-column write
+    )
+    v = _run_one(mod.check_single_persister, "app/risk/loss_control/gate.py", src)
+    assert len(v) >= 2 and _invariants(v) == {"single-persister"}
+
+
+def test_single_persister_flags_update_and_table_string():
+    src = (
+        "from sqlalchemy import update\n"
+        "from app.db.models.risk_control_event import RiskControlEvent\n"
+        "def f(session):\n"
+        "    session.execute(update(RiskControlEvent).values(x=1))\n"
+        "    session.execute('DELETE FROM risk_control_events')\n"
+    )
+    v = _run_one(mod.check_single_persister, "app/api/v1/risk.py", src)
+    assert len(v) >= 2
+
+
+def test_single_persister_allows_reads_and_service():
+    reads = (
+        "from sqlalchemy import select\n"
+        "from app.db.models.risk_loss_control_state import RiskLossControlState\n"
+        "def f(session):\n"
+        "    return session.scalar(select(RiskLossControlState))\n"  # a READ — allowed everywhere
+    )
+    assert _run_one(mod.check_single_persister, "app/risk/loss_control/gate.py", reads) == []
+    # The same writes ARE allowed inside the transition service.
+    writes = (
+        "from app.db.models.risk_control_event import RiskControlEvent\n"
+        "def f(session):\n"
+        "    session.add(RiskControlEvent(account_id=1))\n"
+    )
+    assert _run_one(mod.check_single_persister, mod.SERVICE, writes) == []
+
+
+# --------------------------------------------------------------- §2 gate only via engine
+
+
+def test_gate_flags_import_outside_engine_even_aliased():
+    src = "from app.risk.loss_control.gate import LossControlGate as G\ndef f(): return G\n"
+    v = _run_one(mod.check_gate_only_via_engine, "app/orders/router.py", src)
+    assert _invariants(v) == {"gate-only-via-engine"}  # aliasing does not evade the check
+
+
+def test_gate_allows_engine_and_gate_module():
+    src = "from app.risk.loss_control.gate import LossControlGate\n"
+    assert _run_one(mod.check_gate_only_via_engine, mod.ENGINE, src) == []
+    assert _run_one(mod.check_gate_only_via_engine, mod.GATE, src) == []
+
+
+# --------------------------------------------------------------- §3 no duplicate classifier
+
+
+def test_classifier_flags_import_in_loss_control():
+    src = "from app.risk.risk_effect import classify\n"
+    v = _run_one(mod.check_no_duplicate_classifier, "app/risk/loss_control/gate.py", src)
+    assert _invariants(v) == {"no-duplicate-classifier"}
+
+
+def test_classifier_does_not_flag_market_session_classify():
+    # The bare market-session `.classify(...)` call must NOT be flagged (the false positive AST fixes).
+    src = "def f(ms, now):\n    return ms.classify(now)\n"
+    assert _run_one(mod.check_no_duplicate_classifier, "app/risk/loss_control/session_baseline.py", src) == []
+
+
+def test_classifier_boundary_only_applies_to_loss_control():
+    src = "from app.risk.risk_effect import classify\n"  # the ENGINE is allowed to import it
+    assert _run_one(mod.check_no_duplicate_classifier, mod.ENGINE, src) == []
+
+
+# --------------------------------------------------------------- §4 no implicit bootstrap
+
+
+def test_bootstrap_flags_get_state_row_at_the_seam():
+    src = "def f(svc):\n    return svc.get_state_row(1)\n"
+    assert _invariants(_run_one(mod.check_no_implicit_bootstrap, mod.ENGINE, src)) == {"no-implicit-bootstrap"}
+    assert _invariants(_run_one(mod.check_no_implicit_bootstrap, mod.GATE, src)) == {"no-implicit-bootstrap"}
+
+
+def test_bootstrap_allows_load_state_row_and_service():
+    src = "def f(svc):\n    return svc.load_state_row(1)\n"
+    assert _run_one(mod.check_no_implicit_bootstrap, mod.GATE, src) == []
+    # get_state_row is fine inside the service (its home) and admin/tests.
+    assert _run_one(mod.check_no_implicit_bootstrap, mod.SERVICE, "def f(s): return s.get_state_row(1)\n") == []
+
+
+# --------------------------------------------------------------- §5 no recovery triggers in engine
+
+
+def test_recovery_trigger_flagged_in_engine():
+    src = (
+        "from app.risk.loss_control.state_machine import TRIGGER_RECOVERY_REQUEST\n"
+        "def f():\n    return TRIGGER_RECOVERY_REQUEST\n"
+    )
+    assert _invariants(_run_one(mod.check_no_recovery_triggers_in_engine, mod.ENGINE, src)) == {
+        "no-recovery-triggers"
+    }
+
+
+def test_recovery_trigger_string_flagged_in_engine():
+    src = "x = 'COOLDOWN_EXPIRED'\n"
+    assert _run_one(mod.check_no_recovery_triggers_in_engine, mod.ENGINE, src)
+
+
+def test_sanctioned_triggers_allowed_in_engine():
+    src = (
+        "from app.risk.loss_control.state_machine import "
+        "TRIGGER_DAILY_LOSS_BREACH, TRIGGER_BREAKER_TRIP\n"
+        "def f():\n    return TRIGGER_DAILY_LOSS_BREACH, TRIGGER_BREAKER_TRIP\n"
+    )
+    assert _run_one(mod.check_no_recovery_triggers_in_engine, mod.ENGINE, src) == []
+
+
+def test_recovery_triggers_only_checked_in_engine():
+    # state_machine.py legitimately DEFINES the recovery triggers — must not be flagged.
+    src = "TRIGGER_RECOVERY_REQUEST = 'RECOVERY_REQUEST'\n"
+    assert _run_one(mod.check_no_recovery_triggers_in_engine, "app/risk/loss_control/state_machine.py", src) == []
