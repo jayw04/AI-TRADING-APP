@@ -6,7 +6,7 @@
 | Status | **Accepted** (owner accepted the v3 architecture 2026-07-20; implementation is future governed work — see "Implementation status") |
 | Phase | Cross-phase (risk engine; durable successor to the ADR 0042 fast-track) |
 | Supersedes | — (extends ADR 0004 *circuit-breaker-hard-halt* and ADR 0004 *daily-loss-from-start-of-day-baseline*) |
-| Related | 0042 (verified risk-reducing orders + decision ledger), 0004 *circuit-breaker-hard-halt*, 0004 *daily-loss-from-start-of-day-baseline*, 0034 (per-account risk containment), 0035 (operational self-healing), 0038 (reducing-exits exempt from gross gate), 0039 (reducing-exits exempt from cooldown) |
+| Related | 0042 (*verified risk-reducing orders pass the daily-loss and circuit-breaker gates* — `docs/adr/0042-verified-risk-reducing-orders-through-loss-and-breaker-gates.md`), 0004 *circuit-breaker-hard-halt*, 0004 *daily-loss-from-start-of-day-baseline*, 0034 (per-account risk containment), 0035 (operational self-healing), 0038 (reducing-exits exempt from gross gate), 0039 (reducing-exits exempt from cooldown) |
 
 > **Implementation status.** This ADR is **accepted architecture, not implemented code.** The decision —
 > the state machine, baseline lifecycle, trip taxonomy, recovery preflight, hysteresis policy, schema
