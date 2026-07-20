@@ -198,7 +198,7 @@ TRACE = [
     ("SIG-20/23", "eligibility.evaluate_eligibility", ["test_eligibility_evidence_missing", "test_eligibility_liquidity_exclusion_status", "test_eligibility_unknown_category_and_after_cutoff_ignored"], ["decision_eligibility_status", "eligibility_evidence_identity", "eligibility_precedence_rank"], ["INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING"]),
     ("SIG-24/32", "producer warm-up guard + constants", ["test_first_scoreable_boundary_ok_and_too_early", "test_warmup_guard_rejects_too_early_ordinal"], ["warmup_return_sessions", "warmup_price_observations"], ["INELIGIBLE:OLS_WINDOW_INSUFFICIENT"]),
     ("SIG-25", "liquidity.trailing_adv_dollars", ["test_adv_window_insufficient", "test_liquidity_short_window_and_sector_factor_no_history"], ["trailing_adv_dollars"], ["INELIGIBLE:ADV_WINDOW_INSUFFICIENT"]),
-    ("SIG-26/27", "models + execution_enrichment", ["test_decision_record_rejects_future_field", "test_enrichment_admissible_gap_and_missing_open", "test_enrichment_cannot_mutate_decision", "test_model_unknown_and_missing_field_rejected"], ["official_next_open_price(enriched)", "execution_admissibility_status(enriched)"], ["INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"]),
+    ("SIG-26/27", "models + execution_enrichment", ["test_decision_record_rejects_future_field", "test_enrichment_admissible_gap_and_missing_open", "test_enrichment_cannot_mutate_decision", "test_model_unknown_and_missing_field_rejected", "test_enrichment_invalid_open_and_close_and_session"], ["official_next_open_price(enriched)", "execution_admissibility_status(enriched)"], ["INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED", "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID", "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH"]),
     ("SIG-28/29", "security_identity", ["test_ticker_change_continuity_vs_merger_no_continuity", "test_lineage_ambiguous", "test_lineage_missing_symbol"], ["permanent_security_id", "candidate_id"], ["INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS"]),
     ("SIG-30/31", "identities.InputIdentityRegistry", ["test_identity_mismatch_calendar", "test_schema_version_mismatch_refused_at_construction", "test_registry_missing_slot_and_unregistered_verify"], ["(pre-computation gate)"], ["REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH"]),
 ]
@@ -222,6 +222,7 @@ COVERAGE = {
     "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT": ("ambiguous same-timestamp PIT sector", "test_sector_same_timestamp_conflict"),
     "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS": ("ambiguous lineage", "test_lineage_ambiguous"),
     "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": ("future field / unknown key / enrichment mutation", "test_decision_record_rejects_future_field"),
+    "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID": ("non-finite/non-positive official open or gap denominator", "test_enrichment_invalid_open_and_close_and_session"),
     "INELIGIBLE:OLS_WINDOW_INSUFFICIENT": ("young/IPO insufficient history", "test_young_security_insufficient_history"),
     "INELIGIBLE:KNOWN_MARKET_ABSENCE": ("missing close with governed halt evidence", "test_governed_halt_with_evidence_is_ineligible"),
     "INELIGIBLE:R5_WINDOW_INSUFFICIENT": ("missing residual in the current 5", "test_normalize_current_r5_missing"),

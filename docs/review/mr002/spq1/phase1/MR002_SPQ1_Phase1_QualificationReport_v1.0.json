@@ -14,9 +14,9 @@
  "record_type": "MR002_SPQ1_Phase1_QualificationReport",
  "ruff": "clean",
  "tests": {
-  "passed": 44,
+  "passed": 48,
   "suite": "apps/backend/tests/research/spq1",
-  "total": 44
+  "total": 48
  },
  "version": "1.0"
 }

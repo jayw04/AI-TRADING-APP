@@ -422,7 +422,8 @@ def test_publication_overwrite_and_partial_refusal(tmp_path):   # impl: overwrit
 
 def test_all_emittable_refusal_codes_reachable():
     # Every code raised somewhere in this suite; assert the taxonomy has exactly the frozen set.
-    assert len(REFUSAL_CODES) == 17
+    assert len(REFUSAL_CODES) == 18
+    assert "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID" in REFUSAL_CODES
     classes = set(REFUSAL_CODES.values())
     assert classes == {"INTEGRITY_STOP", "REFUSED_CODE_OR_DATA_IDENTITY", "INELIGIBLE"}
 
@@ -487,16 +488,70 @@ def test_liquidity_short_window_and_sector_factor_no_history():
              "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH")
 
 
-def test_eligibility_unknown_category_and_after_cutoff_ignored():
+def test_eligibility_unknown_category_missing_evidence():
     from app.research.mr002.spq1.eligibility import ExclusionCheck, evaluate_eligibility
     bad = ExclusionCheck("R", "not_a_category", True, "v", "th", "src", "2020-01-01", True)
     _refusal(lambda: evaluate_eligibility([bad], "2020-06-01"),
              "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING")
-    # a fact published AFTER the cutoff is ignored (no look-ahead) -> ELIGIBLE
-    late = ExclusionCheck("R2", "event_blackout", True, "v", "th", "src",
-                          "2021-01-01T00:00:00Z", True)
-    res = evaluate_eligibility([late], "2020-01-13T00:00:00Z")
-    assert res.status == "ELIGIBLE"
+
+
+def test_eligibility_post_cutoff_evidence_is_missing_both_directions():   # Correction 1
+    from app.research.mr002.spq1.eligibility import ExclusionCheck, evaluate_eligibility
+    cutoff = "2020-01-13T00:00:00Z"
+    # post-cutoff record that says "clear" (excludes=False) -> still EVIDENCE_MISSING
+    clear = ExclusionCheck("EARN", "event_blackout", False, "v", "th", "src",
+                           "2021-01-01T00:00:00Z", True)
+    _refusal(lambda: evaluate_eligibility([clear], cutoff),
+             "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING")
+    # post-cutoff record that says "exclude" -> same disposition; future fact not consulted
+    exclude = ExclusionCheck("EARN", "event_blackout", True, "v", "th", "src",
+                             "2021-01-01T00:00:00Z", True)
+    _refusal(lambda: evaluate_eligibility([exclude], cutoff),
+             "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING")
+
+
+def test_eligibility_earlier_valid_record_used_when_later_unavailable():   # Correction 1
+    from app.research.mr002.spq1.eligibility import ExclusionCheck, evaluate_eligibility
+    cutoff = "2020-01-13T00:00:00Z"
+    earlier = ExclusionCheck("EARN", "event_blackout", False, "clear", "th", "src-a",
+                             "2020-01-05T00:00:00Z", True)
+    later = ExclusionCheck("EARN", "event_blackout", True, "exclude", "th", "src-b",
+                           "2021-06-01T00:00:00Z", True)   # not yet available
+    res = evaluate_eligibility([earlier, later], cutoff)
+    assert res.status == "ELIGIBLE"   # earlier valid record used; future record ignored
+    assert res.evidence[0].availability_timestamp == "2020-01-05T00:00:00Z"
+    assert res.evidence[0].reason == "cleared"
+
+
+def test_enrichment_invalid_open_and_close_and_session():   # Correction 2
+    rec = produce_decision(F.build_market(), F.build_security(), F.build_registry(),
+                          F.build_lineage(), F.build_request())
+    t1 = rec.decision_session + 1
+    for bad_open in (0.0, -5.0, math.inf):
+        _refusal(lambda bo=bad_open: enrich_decision(rec, t1, bo, 100.0),
+                 "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID")
+    for bad_close in (0.0, -1.0, math.nan):
+        _refusal(lambda bc=bad_close: enrich_decision(rec, t1, 100.0, bc),
+                 "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID")
+    _refusal(lambda: enrich_decision(rec, t1 + 5, 100.0, 100.0),
+             "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH")
+    # boundary: exactly 6% cancels; just below admits
+    at = enrich_decision(rec, t1, 106.0, 100.0)
+    assert at.execution_admissibility_status == "CANCELLED_GAP"
+    below = enrich_decision(rec, t1, 105.99, 100.0)
+    assert below.execution_admissibility_status == "ADMISSIBLE"
+
+
+def test_registered_ols_malformed_input():   # Correction 3
+    from app.research.mr002.spq1.stock_regression import registered_ols
+    _refusal(lambda: registered_ols(np.zeros((3, 2)), np.zeros((3, 1))),
+             "INTEGRITY_STOP:OLS_DESIGN_SINGULAR")   # y not 1-D
+    _refusal(lambda: registered_ols(np.zeros(5), np.zeros((4, 1))),
+             "INTEGRITY_STOP:OLS_DESIGN_SINGULAR")   # row mismatch
+    _refusal(lambda: registered_ols(np.zeros(0), np.zeros((0, 1))),
+             "INTEGRITY_STOP:OLS_DESIGN_SINGULAR")   # empty
+    _refusal(lambda: registered_ols(np.zeros(2), np.zeros((2, 3))),
+             "INTEGRITY_STOP:OLS_DESIGN_SINGULAR")   # fewer obs than params
 
 
 def test_lineage_missing_symbol():

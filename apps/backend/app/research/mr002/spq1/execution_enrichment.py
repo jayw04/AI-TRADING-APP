@@ -17,6 +17,7 @@ from .models import (
     ExecutionEnrichedCandidateRecord,
     SignalDecisionRecord,
 )
+from .refusals import refuse
 
 __all__ = ["GAP_THRESHOLD", "enrich_decision"]
 
@@ -30,12 +31,34 @@ def enrich_decision(
     distribution_adjusted_close_t: float,
     enrichment_timestamp: str = "",
 ) -> ExecutionEnrichedCandidateRecord:
-    """Build the enriched record for t+1 without mutating any decision fact."""
-    if official_next_open_price is None or not math.isfinite(official_next_open_price):
+    """Build the enriched record for t+1 without mutating any decision fact.
+
+    Fails closed on malformed execution inputs: the scheduled session must be the registered t+1
+    ordinal; the gap denominator (distribution-adjusted close t) must be finite and positive; a
+    present official open must be finite and positive. Only a genuinely MISSING open (None) is a
+    governed CANCELLED_MISSING_OPEN — a non-finite/non-positive open is an integrity refusal.
+    """
+    if scheduled_execution_session != decision.decision_session + 1:
+        raise refuse(
+            "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH",
+            f"scheduled execution session {scheduled_execution_session} is not the registered "
+            f"t+1 ({decision.decision_session + 1})",
+        )
+    if not (math.isfinite(distribution_adjusted_close_t) and distribution_adjusted_close_t > 0.0):
+        raise refuse(
+            "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID",
+            "distribution-adjusted close-t gap denominator is non-finite or non-positive",
+        )
+    if official_next_open_price is None:
         price = float("nan")
         status = CANCELLED_MISSING_OPEN
         gap_result = "NOT_EVALUATED_MISSING_OPEN"
         disposition = "cancel entry (missing official open); exits would defer (Increment-2/3)"
+    elif not (math.isfinite(official_next_open_price) and official_next_open_price > 0.0):
+        raise refuse(
+            "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID",
+            "official next-open price is present but non-finite or non-positive",
+        )
     else:
         price = float(official_next_open_price)
         ratio = abs(price / distribution_adjusted_close_t - 1.0)

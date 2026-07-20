@@ -28,6 +28,10 @@
    "governed_condition": "zero-variance normalization window",
    "reaching_test": "test_normalize_zero_variance"
   },
+  "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID": {
+   "governed_condition": "non-finite/non-positive official open or gap denominator",
+   "reaching_test": "test_enrichment_invalid_open_and_close_and_session"
+  },
   "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": {
    "governed_condition": "future field / unknown key / enrichment mutation",
    "reaching_test": "test_decision_record_rejects_future_field"
@@ -72,7 +76,7 @@
  "deprecated_non_emittable": {
   "DEPRECATED_NON_EMITTABLE:RETURN_INPUT_MISSING": "never raised; SignalRefusal(code) asserts (test_deprecated_return_input_missing_never_emittable)"
  },
- "emittable_count": 17,
+ "emittable_count": 18,
  "record_type": "MR002_SPQ1_Phase1_RefusalCoverage",
  "version": "1.0"
 }

@@ -181,14 +181,17 @@
     "execution_admissibility_status(enriched)"
    ],
    "refusal_codes": [
-    "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"
+    "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED",
+    "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID",
+    "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH"
    ],
    "sig_rules": "SIG-26/27",
    "test_case_ids": [
     "test_decision_record_rejects_future_field",
     "test_enrichment_admissible_gap_and_missing_open",
     "test_enrichment_cannot_mutate_decision",
-    "test_model_unknown_and_missing_field_rejected"
+    "test_model_unknown_and_missing_field_rejected",
+    "test_enrichment_invalid_open_and_close_and_session"
    ]
   },
   {

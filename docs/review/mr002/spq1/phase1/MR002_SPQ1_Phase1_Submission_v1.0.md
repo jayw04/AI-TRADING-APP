@@ -1,6 +1,7 @@
 # MR-002 Workstream C — SPQ-1 Phase 1 — Synthetic Implementation Qualification (submission v1.0)
 
-**Status: submitted for review.** A deterministic, synthetic-only signal & data-production
+**Status: resubmitted after the three adjudication corrections.** A deterministic, synthetic-only
+signal & data-production
 implementation of the CLOSED SPQ-1 Phase-0 specification (census `87602e7c`, owner-rulings
 `d8a9071d`, schema `49c0e550`). Qualifies implementation correctness only — no performance metric,
 no real data, no vendor/broker/order-path integration. Independent of the Stage-3-frozen
@@ -9,8 +10,29 @@ no real data, no vendor/broker/order-path integration. Independent of the Stage-
 ## Package
 
 Code: `apps/backend/app/research/mr002/spq1/` (18 modules) · Tests:
-`apps/backend/tests/research/spq1/` (44 cases) · Artifacts + generator:
+`apps/backend/tests/research/spq1/` (48 cases) · Artifacts + generator:
 `docs/review/mr002/spq1/phase1/`.
+
+## Adjudication corrections applied (three)
+
+1. **Post-cutoff eligibility evidence (Ruling 9).** The eligibility engine no longer skips a
+   post-cutoff fact; each governed rule is PIT-resolved (latest record with
+   `availability_timestamp ≤ close t`). A required rule with no record available by the cutoff — or
+   whose evidence identity is absent — is `INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING` (the future
+   fact's `excludes` value is never consulted; evidence carries `reason`). An earlier valid record
+   is used when a later record exists but is not yet available.
+2. **Execution price validation.** `enrich_decision` now requires the scheduled session to be the
+   registered t+1 ordinal (`SESSION_CALENDAR_MISMATCH` otherwise), a finite positive gap denominator,
+   and — for a present open — a finite positive price; a present-but-non-finite/non-positive open or
+   an invalid denominator is `INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID` (new registered code).
+   Only a genuinely missing (`None`) open is `CANCELLED_MISSING_OPEN`.
+3. **OLS malformed-input taxonomy.** `registered_ols` validates shapes (1-D y, 2-D X, matching rows,
+   non-empty, obs ≥ params) before solving, routing malformed inputs to
+   `INTEGRITY_STOP:OLS_DESIGN_SINGULAR` instead of letting raw NumPy errors escape the taxonomy.
+
+The refusal taxonomy is now **18** emittable codes (added `EXECUTION_PRICE_INPUT_INVALID`). The
+deterministic output hash is **unchanged** (`c9ebd7f9…`) — the corrections do not alter valid-path
+output.
 
 Responsibilities separated per §1: `refusals` · `identities` · `constants` · `calendar` · `returns`
 · `stock_regression` · `sector_factor` · `residuals` · `normalization` · `sector_pit` ·
@@ -53,7 +75,7 @@ adapters / Increment-3 modules.
 
 | item | result |
 |---|---|
-| SPQ-1 Phase-1 tests | **44 passed** (`apps/backend/tests/research/spq1`) |
+| SPQ-1 Phase-1 tests | **48 passed** (`apps/backend/tests/research/spq1`) |
 | branch coverage (spq1 package) | **96%** |
 | ruff | clean |
 | mypy (repo config) | clean (18 source files) |
@@ -62,7 +84,7 @@ adapters / Increment-3 modules.
 | deterministic output SHA-256 | `c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f` (stable across repeat runs) |
 | Stage-3 `signal.py` imported/modified | no |
 
-Every emittable refusal code (17) is reachable **only** from its governed condition (see
+Every emittable refusal code (18) is reachable **only** from its governed condition (see
 `RefusalCoverage`); the deprecated code is proven never-emittable; no real-data / network /
 order-path import exists (scanned).
 

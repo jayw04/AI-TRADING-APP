@@ -50,6 +50,7 @@ class EligibilityEvidence:
     decision_cutoff: str
     precedence_rank: int
     outcome: str
+    reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -63,42 +64,66 @@ class EligibilityResult:
 def evaluate_eligibility(
     checks: list[ExclusionCheck], decision_cutoff: str
 ) -> EligibilityResult:
-    """Apply the governed checks in fixed precedence; return the close-t eligibility result."""
+    """Apply the governed checks in fixed precedence; return the close-t eligibility result.
+
+    Each governed rule is PIT-resolved: among a rule's records, the latest with
+    availability_timestamp <= close t is used (an earlier valid record is usable when a later
+    record exists but is not yet available). A required rule with NO record available by the
+    cutoff, or a selected record whose evidence identity is absent, is INELIGIBLE (a post-cutoff
+    fact is not valid close-t evidence — its ``excludes`` value is never consulted).
+    """
+    by_rule: dict[str, list[ExclusionCheck]] = {}
+    for c in checks:
+        by_rule.setdefault(c.rule_id, []).append(c)
+
+    def _rank(rule_id: str) -> int | None:
+        return PRECEDENCE.get(by_rule[rule_id][0].precedence_category)
+
     trail: list[EligibilityEvidence] = []
-    # Deterministic order: precedence rank, then rule_id.
-    ordered = sorted(
-        checks, key=lambda c: (PRECEDENCE.get(c.precedence_category, 99), c.rule_id)
-    )
-    for c in ordered:
-        rank = PRECEDENCE.get(c.precedence_category)
+    for rule_id in sorted(by_rule, key=lambda r: (_rank(r) or 99, r)):
+        group = by_rule[rule_id]
+        rank = _rank(rule_id)
         if rank is None or rank not in (3, 4, 5):
             raise refuse(
                 "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING",
-                f"rule {c.rule_id} has no governed close-t precedence category",
+                f"rule {rule_id} has no governed close-t precedence category",
             )
-        if not c.evidence_present:
+        available = [c for c in group if c.availability_timestamp <= decision_cutoff]
+        if not available:
             ev = EligibilityEvidence(
-                c.rule_id, c.observed_value, c.threshold, c.source_identity,
-                c.availability_timestamp, decision_cutoff, rank, INELIGIBLE,
+                rule_id, "", "", group[0].source_identity,
+                max(c.availability_timestamp for c in group), decision_cutoff, rank,
+                INELIGIBLE, reason="unavailable_by_cutoff",
             )
             raise refuse(
                 "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING",
-                f"rule {c.rule_id} missing mandatory evidence identity: {asdict(ev)}",
+                f"rule {rule_id} has no evidence available by cutoff: {asdict(ev)}",
             )
-        # A fact published after the cutoff cannot be used (no look-ahead); it is ignored.
-        if c.availability_timestamp > decision_cutoff:
-            continue
-        if c.excludes:
+        # PIT selection: latest available record (deterministic tie-break by source_identity).
+        selected = max(available, key=lambda c: (c.availability_timestamp, c.source_identity))
+        if not selected.evidence_present:
             ev = EligibilityEvidence(
-                c.rule_id, c.observed_value, c.threshold, c.source_identity,
-                c.availability_timestamp, decision_cutoff, rank, INELIGIBLE,
+                rule_id, selected.observed_value, selected.threshold, selected.source_identity,
+                selected.availability_timestamp, decision_cutoff, rank, INELIGIBLE,
+                reason="evidence_absent",
+            )
+            raise refuse(
+                "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING",
+                f"rule {rule_id} missing mandatory evidence identity: {asdict(ev)}",
+            )
+        if selected.excludes:
+            ev = EligibilityEvidence(
+                rule_id, selected.observed_value, selected.threshold, selected.source_identity,
+                selected.availability_timestamp, decision_cutoff, rank, INELIGIBLE,
+                reason="excluded",
             )
             trail.append(ev)
-            return EligibilityResult(INELIGIBLE, rank, c.rule_id, tuple(trail))
+            return EligibilityResult(INELIGIBLE, rank, rule_id, tuple(trail))
         trail.append(
             EligibilityEvidence(
-                c.rule_id, c.observed_value, c.threshold, c.source_identity,
-                c.availability_timestamp, decision_cutoff, rank, ELIGIBLE,
+                rule_id, selected.observed_value, selected.threshold, selected.source_identity,
+                selected.availability_timestamp, decision_cutoff, rank, ELIGIBLE,
+                reason="cleared",
             )
         )
     return EligibilityResult(ELIGIBLE, 0, "", tuple(trail))

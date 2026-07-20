@@ -25,8 +25,19 @@ def registered_ols(y: np.ndarray, X: np.ndarray) -> np.ndarray:
     X = np.asarray(X, dtype=np.float64)
     if X.ndim == 1:
         X = X.reshape(-1, 1)
+    # Malformed shapes must not escape as raw NumPy errors — route to the governed taxonomy.
+    if y.ndim != 1 or X.ndim != 2 or y.shape[0] == 0 or X.shape[0] == 0 or y.shape[0] != X.shape[0]:
+        raise refuse(
+            "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+            f"malformed OLS input shapes: y={y.shape}, X={X.shape}",
+        )
     design = np.column_stack([np.ones(len(y), dtype=np.float64), X])
     n_params = design.shape[1]
+    if design.shape[0] < n_params:
+        raise refuse(
+            "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+            f"fewer observations ({design.shape[0]}) than parameters ({n_params})",
+        )
     if not (np.all(np.isfinite(design)) and np.all(np.isfinite(y))):
         raise refuse("INTEGRITY_STOP:OLS_DESIGN_SINGULAR", "non-finite design or response")
     try:
