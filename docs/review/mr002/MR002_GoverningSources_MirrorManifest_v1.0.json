@@ -1,0 +1,31 @@
+{
+ "authority_note": "authority = the signed frozen doc identity 70108c11 + the sealed-manifest-bound candidate identity 7b5ee09c. The mirrors are copies for in-tree discoverability.",
+ "date": "2026-07-19",
+ "editing_rule": "NO future editor may modify these mirror files. Any correction to the governing design is a SEPARATE supersession record, never an edit of the mirror.",
+ "mirrors": [
+  {
+   "authority_role": "PRECEDENCE #1 - owner-signed Research-Design Freeze (gates closed since v0.3)",
+   "byte_exact": true,
+   "current_path": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "original_git_blob": "dc26b5705c4da4d36053a757830df39b8c4277bb",
+   "original_historical_path": "Docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "restoration_commit": "53ef30eb9603069fb644737f338d1d64d3146ea7",
+   "sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc",
+   "source_commit": "dc26b5705c4da4d36053a757830df39b8c4277bb (blob id == content at that historical add)"
+  },
+  {
+   "authority_role": "PRECEDENCE #2 - sealed-manifest-bound (MR002_SealedManifest_v1.0.json freeze_candidate_doc)",
+   "byte_exact": true,
+   "current_path": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md",
+   "original_git_blob": "d0afcb326d8b2c9553e6124e6cf0169cb3858419",
+   "original_historical_path": "Docs/review/mr002-countersign/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md",
+   "restoration_commit": "53ef30eb9603069fb644737f338d1d64d3146ea7",
+   "sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc",
+   "source_commit": "d0afcb326d8b2c9553e6124e6cf0169cb3858419 (blob id)"
+  }
+ ],
+ "purpose": "docs/review/mr002/governing_sources/ is the canonical IN-TREE DISCOVERY location for the v1.0 freeze docs, which were absent from HEAD (history only). These are BYTE-EXACT MIRRORS, not newly-authoritative originals. Authority remains the original signed/sealed identities.",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_GOVERNING_SOURCES_MIRROR_MANIFEST",
+ "version": "1.0"
+}

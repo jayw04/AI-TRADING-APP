@@ -1,0 +1,49 @@
+{
+ "affirmations": {
+  "economic_rule_changed": false,
+  "evaluator_built": false,
+  "oos_bytes_read": false,
+  "performance_computed": false,
+  "validation_bytes_read": false
+ },
+ "changes": [
+  {
+   "field": "dsr.trials_N",
+   "reason": "must be non-executable until countersigned ledger; A/B/C=3 rejected by owner",
+   "v1.0.1": 3,
+   "v1.0.2": null
+  },
+  {
+   "field": "dsr.status",
+   "reason": "explicit non-executable state",
+   "v1.0.1": "(absent; spec_status PREREQUISITE)",
+   "v1.0.2": "BLOCKED_UNTIL_COUNTERSIGNED_TRIAL_LEDGER"
+  },
+  {
+   "field": "dsr.trial_ledger_sha256",
+   "reason": "bound only after countersignature",
+   "v1.0.1": "(absent)",
+   "v1.0.2": null
+  },
+  {
+   "field": "pbo.role",
+   "reason": "reconcile stale block to the corrected gates_frozen classification",
+   "v1.0.1": "(threshold '< 0.20', gate-framed)",
+   "v1.0.2": "DIAGNOSTIC - never a PASS/FAIL gate"
+  },
+  {
+   "field": "dsr_schema_assertion",
+   "reason": "prevent silent execution",
+   "v1.0.1": "(absent)",
+   "v1.0.2": "added invariant (status!=READY => trials_N null, validation auth false, no PASS, no validation input opened)"
+  }
+ ],
+ "date": "2026-07-19",
+ "dsr_N_ruling_applied": "owner REJECTED A/B/C=3; explicit pre-freeze trial-ledger reconstruction REQUIRED; candidate submitted (MR002_DSR_TrialLedger_Candidate_v1.0.json); DSR gate BLOCKED until owner countersigns and binds exact N.",
+ "reason": "the v1.0.1 machine-readable companion simultaneously declared DSR N unbound (gates_frozen) AND encoded top-level dsr.trials_N=3 (governance-incompatible; a downstream evaluator could read the 3 and silently implement the prohibited choice).",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_VALIDATIONOOS_CORRECTION",
+ "supersedes": "MR002_ValidationOOS_Preregistration_v1.0.1",
+ "unchanged_vs_v1.0.1": "all economic rules, windows, seam dates, folds, horizon 6, D-decisions, estimator, bootstrap, benchmark, corrected gate battery (gates_frozen). This is a machine-readable-consistency correction only.",
+ "version": "1.0.2"
+}

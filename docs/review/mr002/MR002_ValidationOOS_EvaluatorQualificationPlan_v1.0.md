@@ -1,10 +1,17 @@
 # MR-002 Validation/OOS Evaluator Qualification Plan v1.0 (Workstream B)
 
 **Scope:** the SEPARATE engineering workstream to build and qualify the full MR-002 validation/OOS
-evaluator. **Not started in the governance turn.** It runs entirely on synthetic and
-development-free fixtures — producing NO development, validation, or OOS performance — and must be
-accepted before the owner authorizes the validation opening. This plan is the acceptance contract;
-it reads no sealed data.
+evaluator. **Not started.** It runs entirely on synthetic and development-free fixtures — producing
+NO development, validation, or OOS performance — and must be accepted before the owner authorizes
+the validation opening. This plan is the acceptance contract; it reads no sealed data.
+
+> **HARD PRECONDITION (blocking):** Workstream B implementation may NOT begin until BOTH hold:
+> (1) the v1.0.2 preregistration is owner-accepted; and (2) the DSR trial ledger is
+> **countersigned** with `dsr.status = READY` and an exact `dsr.trials_N` + `trial_ledger_sha256`
+> bound (`MR002_DSR_TrialLedger_Candidate_v1.0.json` is a CANDIDATE only). While `dsr.status !=
+> READY`: `trials_N` is null, validation authorization is false, the evaluator cannot reach a PASS
+> disposition, and no validation input may be opened. The evaluator must implement DSR against the
+> countersigned N — never a defaulted 3.
 
 ## 0. Relationship to the governance package
 

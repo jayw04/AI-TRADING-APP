@@ -1,0 +1,108 @@
+{
+ "N_candidate": {
+  "conservative": 5,
+  "conservative_definition": "+ RNG-EntryLogic sub-study",
+  "residual_uncertainty": "the frozen clause 'informal MR variants logged before freeze' is open-ended; census found RNG-001 + RNG-EntryLogic as the discoverable documented sub-studies, but completeness of 'informal variants' CANNOT be proven from the repo. Owner must confirm completeness before binding N.",
+  "strict_definition": "A/B/C + RNG-001 (explicitly-named)",
+  "strict_lower_bound": 4
+ },
+ "boundary": "no sealed data read; no development/validation/OOS performance computed; reconstructing this administrative ledger now cannot tune against sealed outcomes (none exist).",
+ "completeness_statement": "This is an evidence-based CANDIDATE, not a proven-complete ledger. Analyst provides the census; OWNER reconstructs/countersigns and binds the exact N. The DSR gate remains BLOCKED until then.",
+ "conservatism": "on genuine ambiguity, INCLUDE (a higher N raises the DSR deflation bar; inclusion is the conservative choice for a significance gate).",
+ "date": "2026-07-19",
+ "excluded_trials": [
+  {
+   "name": "regime-gated ETF range reversion",
+   "reason": "chartered SEPARATELY and LATER (proposal: MR-002 primary, RNG-002 secondary; 'only after MR-002 harness work is underway'); NO pre-freeze result produced -> excluded",
+   "trial_id": "RNG-002"
+  },
+  {
+   "name": "reference RSI mean-reversion example",
+   "reason": "explicit 'REFERENCE IMPLEMENTATION, NOT A RECOMMENDED TRADING STRATEGY'; a template, not an examined MR-002-family variant producing a result -> excluded",
+   "trial_id": "rsi_meanreversion.py"
+  },
+  {
+   "name": "constraint-presolve / sqrt-equilibration / native-QP / PIQP / solver-intersection characterizations + sample stop reports (2026-07-12+)",
+   "reason": "POST-freeze AND numerical-solver/implementation work leaving the economic return series unchanged -> excluded (both exclusion clauses)",
+   "trial_id": "post_freeze_numerical"
+  }
+ ],
+ "exclusion_rule": "do NOT count: pure software-debug reruns with identical economic rules; failed executions producing no interpretable result; numerical-solver substitutions leaving the economic return series unchanged; exact reproductions for verification; post-freeze work.",
+ "freeze_boundary": "Research-Design Freeze SIGNED 2026-07-11; sealed 2026-07-12T02:47:20Z. 'Before the freeze' = on/before 2026-07-11.",
+ "included_trials": [
+  {
+   "category": "config/sensitivity",
+   "duplicate_of": null,
+   "economic_dimension_changed": "z-entry threshold (neighborhood sensitivity of B)",
+   "evidence_blob": "334bb154ba6330e9587b2be4ca0b1e91e15b749e",
+   "evidence_sha256_prefix": "1007db82",
+   "first_examination_date": "2026-07-11 (frozen design)",
+   "included_in_DSR_N": true,
+   "inclusion_or_exclusion_reason": "rule 2/4 - distinct threshold config in the frozen A/B/C family",
+   "name": "MR-002 config A (z-entry 1.75)",
+   "pre_freeze_evidence_path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "result_produced": "designed config (no pre-freeze backtest; dev perf not computed)",
+   "trial_id": "MR002-A"
+  },
+  {
+   "category": "config/primary",
+   "duplicate_of": null,
+   "economic_dimension_changed": "primary z-entry 2.00",
+   "evidence_blob": "334bb154ba6330e9587b2be4ca0b1e91e15b749e",
+   "evidence_sha256_prefix": "1007db82",
+   "first_examination_date": "2026-07-11",
+   "included_in_DSR_N": true,
+   "inclusion_or_exclusion_reason": "the verdict config - counts as a trial",
+   "name": "MR-002 config B (z-entry 2.00, VERDICT config)",
+   "pre_freeze_evidence_path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "result_produced": "verdict config",
+   "trial_id": "MR002-B"
+  },
+  {
+   "category": "config/sensitivity",
+   "duplicate_of": null,
+   "economic_dimension_changed": "z-entry threshold (neighborhood sensitivity of B)",
+   "evidence_blob": "334bb154ba6330e9587b2be4ca0b1e91e15b749e",
+   "evidence_sha256_prefix": "1007db82",
+   "first_examination_date": "2026-07-11",
+   "included_in_DSR_N": true,
+   "inclusion_or_exclusion_reason": "rule 2/4 - distinct threshold config",
+   "name": "MR-002 config C (z-entry 2.25)",
+   "pre_freeze_evidence_path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "result_produced": "designed config",
+   "trial_id": "MR002-C"
+  },
+  {
+   "category": "prior_family_variant",
+   "duplicate_of": null,
+   "economic_dimension_changed": "distinct signal (VWAP-deviation fade), distinct universe/hold",
+   "evidence_blob": "44a930553fe4d23708b30636f13e64963fcf390b",
+   "evidence_sha256_prefix": "39bacebb",
+   "first_examination_date": "2026-07-01..2026-07-06 (executive summary + owner review)",
+   "included_in_DSR_N": true,
+   "inclusion_or_exclusion_reason": "EXPLICITLY named in the frozen v0.3 DSR ledger; rule 1/2/3",
+   "name": "RNG-001 VWAP-deviation fade (prior mean-reversion-family study)",
+   "pre_freeze_evidence_path": "docs/design/RNG-001_Executive_Summary.md",
+   "result_produced": "YES - Completed, Rejected (Evidenced), Archived",
+   "trial_id": "RNG-001"
+  },
+  {
+   "category": "documented_sub_study",
+   "duplicate_of": "possibly part of RNG-001 development lineage",
+   "economic_dimension_changed": "range/reversion entry logic",
+   "evidence_blob": "6c7398752693d98ddfe24bfc0972615499880b47",
+   "evidence_sha256_prefix": "15912248",
+   "first_examination_date": "2026-07-06",
+   "included_in_DSR_N": "CANDIDATE (conservative include)",
+   "inclusion_or_exclusion_reason": "documented pre-freeze mean-reversion-family sub-study (rule 3); AMBIGUOUS whether it counts toward MR-002's DSR vs RNG-001 development - included conservatively, flagged for owner ruling",
+   "name": "RNG range entry-logic sub-study (v0.1/v0.2)",
+   "pre_freeze_evidence_path": "docs/implementation/evidence/range_entry_logic/RNG_EntryLogic_Study_v0.2.md",
+   "result_produced": "YES - documented sub-study",
+   "trial_id": "RNG-EntryLogic"
+  }
+ ],
+ "inclusion_rule": "count a trial if, BEFORE the freeze, it (1) produced a numerical MR performance result, (2) tested a distinct economic signal/threshold/holding rule/universe/cost/portfolio/model config, (3) was documented as an MR variant/sensitivity/sub-study/candidate, or (4) influenced selection/retention of the frozen A/B/C design.",
+ "record_status": "CANDIDATE - awaiting owner reconstruction review + countersignature; NOT binding until countersigned",
+ "record_type": "MR002_DSR_TRIAL_LEDGER_CANDIDATE",
+ "version": "1.0"
+}
