@@ -1,0 +1,129 @@
+{
+ "affirmations": {
+  "evaluator_built_from_wrong_battery": false,
+  "oos_bytes_read": false,
+  "performance_computed": false,
+  "strategy_verdict_affected": false,
+  "validation_bytes_read": false
+ },
+ "calendar_reconciliation": "AAPL SEP session index (authoritative) == all-prices distinct-date index in the governed window (both 3400, hash b873421...); seam dates/folds faithful.",
+ "date": "2026-07-19",
+ "gate_corrections": [
+  {
+   "class": "diagnostic",
+   "gate": "PBO",
+   "governing_source": "v0.3 'PBO (diagnostic)'",
+   "material_effect": "removes a false PASS/FAIL lever",
+   "v1.0.1_correct": "DIAGNOSTIC (N=3 underpowered), not a PASS gate",
+   "v1.0_erroneous": "gate, pbo_max 0.20"
+  },
+  {
+   "class": "gate",
+   "gate": "Significance",
+   "governing_source": "v0.3 'DSR (gate)'",
+   "material_effect": "DSR alone governs significance",
+   "v1.0.1_correct": "DSR >= 95% is THE significance gate",
+   "v1.0_erroneous": "implied by PBO+DSR both gates"
+  },
+  {
+   "class": "gate",
+   "gate": "Annual/profit concentration",
+   "governing_source": "v0.3 annual profile",
+   "material_effect": "different threshold (50% not 35%), added >=3-positive-years, added sample",
+   "v1.0.1_correct": ">= 3 positive calendar years AND largest positive year <= 50% of sum of positive annual P&L (Herfindahl diagnostic); sample validation+OOS",
+   "v1.0_erroneous": "single year <= 35% of P&L"
+  },
+  {
+   "class": "gate",
+   "gate": "Trade concentration",
+   "governing_source": "v0.3",
+   "material_effect": "adds a missing rejection lever",
+   "v1.0.1_correct": "top-10 trades <= 20% of positive trade P&L; single stock <= 10% of positive P&L",
+   "v1.0_erroneous": "ABSENT"
+  },
+  {
+   "class": "gate",
+   "gate": "Regime gates",
+   "governing_source": "v0.3 revised regime gates",
+   "material_effect": "wrong measure corrected (losses not P&L; multi-part)",
+   "v1.0.1_correct": ">=2 of 3 trend regimes net-positive; no trend regime > 60% of LOSSES; no vol regime Sharpe < -0.50; <60-session regimes n/a",
+   "v1.0_erroneous": "single regime <= 60% of P&L"
+  },
+  {
+   "class": "diagnostic",
+   "gate": "Positive-P&L regime concentration",
+   "governing_source": "v0.3",
+   "material_effect": "removes a false FAIL lever",
+   "v1.0.1_correct": "DIAGNOSTIC (a reversion strategy earning in high-vol disruptions SUPPORTS the hypothesis)",
+   "v1.0_erroneous": "gate"
+  },
+  {
+   "class": "gate",
+   "gate": "Net annualized return",
+   "governing_source": "v0.3",
+   "material_effect": "adds a missing economic-materiality floor",
+   "v1.0.1_correct": ">= 3% at registered gross cap (sealed OOS)",
+   "v1.0_erroneous": "ABSENT"
+  },
+  {
+   "class": "gate",
+   "gate": "Breadth",
+   "governing_source": "v0.3",
+   "material_effect": "adds missing breadth sub-gate",
+   "v1.0.1_correct": "+ >= 100 distinct entry dates",
+   "v1.0_erroneous": ">=500 trades, >=100 long, >=100 short"
+  },
+  {
+   "class": "gate",
+   "gate": "Cost stress",
+   "governing_source": "v0.3",
+   "material_effect": "exact stress levels; borrow stress is 6x not 2x",
+   "v1.0.1_correct": "profitable at 20 bps/side + 300 bps/yr borrow (PASS gate); 30 bps + 1000 bps = severe DIAGNOSTIC",
+   "v1.0_erroneous": "'2x costs'"
+  },
+  {
+   "class": "gate",
+   "gate": "Max drawdown sample",
+   "governing_source": "v0.3",
+   "material_effect": "sample corrected",
+   "v1.0.1_correct": "<= 15% over validation + sealed OOS COMBINED (OOS also separately)",
+   "v1.0_erroneous": "OOS only"
+  },
+  {
+   "class": "gate(blocked)",
+   "gate": "DSR trial ledger N",
+   "governing_source": "v0.3 trial ledger (A/B/C + prior variants)",
+   "material_effect": "N>3 would raise the DSR bar; must be pinned before DSR is executable",
+   "v1.0.1_correct": "BLOCKER - not exactly enumerable; DSR N unbound pending MR002_DSR_TrialLedger_Blocker_v1.0",
+   "v1.0_erroneous": "N=3"
+  },
+  {
+   "class": "rule",
+   "gate": "Fold remainder",
+   "governing_source": "v0.3 'remainder to final fold'",
+   "material_effect": "none numerically (0 remainder; 155 each) - wording only",
+   "v1.0.1_correct": "to FINAL fold",
+   "v1.0_erroneous": "to earliest folds"
+  }
+ ],
+ "governing_docs_restored_to_tree": [
+  "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md (70108c11)",
+  "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md (7b5ee09c)"
+ ],
+ "governing_source": "v1.0_FROZEN (signed, 70108c11) / v1.0_FREEZE_CANDIDATE (sealed-manifest-bound, 7b5ee09c) \u2014 gates 'unchanged and closed since v0.3'; census MR002_GateSource_Census_v1.0.json",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_VALIDATIONOOS_CORRECTION",
+ "supersedes": "MR002_ValidationOOS_Preregistration_v1.0",
+ "unchanged_from_v1.0": "windows, snapshot-derived seam dates (validation 2020-01-13..2023-02-08; OOS 2023-05-30..2026-07-01, 775 each), 5 folds (155 each), six-session realization horizon, D-decisions (D-NI rejected, D-PURGE, D-BENCH zero, D-COST, S_min 0.70), Sharpe estimator, moving-block bootstrap (L21/2000/seed42), zero benchmark, sequencing, sealed-access protocol.",
+ "v1.0_disposition": {
+  "committed_v1.0_files_preserved": [
+   "MR002_ValidationOOS_Preregistration_v1.0.md (ec557827)",
+   "MR002_ValidationOOS_Preregistration_v1.0.json (e9ee38e5)"
+  ],
+  "execution_impact": "none - Workstream B stopped before evaluator implementation",
+  "reason": "gate battery was anchored to an earlier design revision (v0.1) rather than the governing v0.3-frozen-into-v1.0 table",
+  "sealed_data_impact": "none - validation and OOS remained unread",
+  "status": "SUPERSEDED BEFORE VALIDATION ACCESS"
+ },
+ "version": "1.0.1"
+}

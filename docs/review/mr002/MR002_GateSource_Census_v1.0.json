@@ -1,0 +1,100 @@
+{
+ "artifacts": [
+  {
+   "gate_role": "ORIGINAL gate table \u2014 SUPERSEDED by v0.3 (my v1.0-final erroneously anchored here)",
+   "git_blob": "5edd8657",
+   "in_sealed_manifest": false,
+   "path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.1.md",
+   "scope": "full initial prereg incl. FIRST gate table",
+   "sha256": "a0504f5099bce37a...",
+   "status": "DRAFT",
+   "supersedes": "n/a"
+  },
+  {
+   "gate_role": "GOVERNING GATE-TABLE CONTENT (v1.0 freeze inherits gates 'unchanged and closed since v0.3')",
+   "git_blob": "334bb154",
+   "in_sealed_manifest": false,
+   "path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "scope": "gate table + signal/portfolio/execution frozen; S1-S4 resolved",
+   "sha256": "1007db8204ad3dff...",
+   "status": "DRAFT v0.3 (gate table frozen/closed within it; strategy+gates closed since v0.3)",
+   "supersedes": "v0.2; supersedes v0.1 gate table"
+  },
+  {
+   "gate_role": "no gate change (gates closed since v0.3)",
+   "git_blob": "11d6829d",
+   "in_sealed_manifest": false,
+   "path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.9.md",
+   "scope": "identity/universe/coverage countersign rounds",
+   "sha256": "b06131d631334a3e...",
+   "status": "DRAFT \u2014 NOT FROZEN (delta to v0.8; supersedes v0.8 only where stated; strategy+gates unchanged since v0.3)",
+   "supersedes": "v0.8 where stated"
+  },
+  {
+   "gate_role": "PRECEDENCE #2 \u2014 sealed-manifest-bound (freeze_candidate_doc hash == this)",
+   "git_blob": "d0afcb326d8b2c9553e6124e6cf0169cb3858419",
+   "in_sealed_manifest": true,
+   "path": "(history only, ABSENT from HEAD) Docs/review/mr002-countersign/TradingWorkbench_MR002_PreRegistration_v1.0_FREEZE_CANDIDATE.md",
+   "scope": "full v1.0 freeze; gates 'unchanged and closed since v0.3'",
+   "sealed_manifest_field": "freeze_candidate_doc = 7b5ee09c",
+   "sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc",
+   "status": "FREEZE CANDIDATE (awaiting signature)",
+   "supersedes": "v0.9"
+  },
+  {
+   "gate_role": "PRECEDENCE #1 \u2014 owner-signed frozen design; gate table IDENTICAL to FREEZE_CANDIDATE (only status wording differs)",
+   "git_blob": "dc26b5705c4da4d36053a757830df39b8c4277bb",
+   "in_sealed_manifest": false,
+   "note": "the actually-SIGNED freeze; references itself as v1.0_FROZEN; v1.1 cites this as the inherited-gates source",
+   "path": "(history only, ABSENT from HEAD) Docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "scope": "full v1.0 frozen; gates 'unchanged and closed since v0.3'",
+   "sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc",
+   "status": "RESEARCH-DESIGN FREEZE SIGNED (owner 2026-07-11); RUNNING",
+   "supersedes": "v0.9 / freeze candidate on signature"
+  },
+  {
+   "gate_role": "does NOT change the gate battery; inherits it from v1.0(->v0.3)",
+   "git_blob": "1743c34e",
+   "in_sealed_manifest": false,
+   "path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.1_REFREEZE_CANDIDATE.md",
+   "scope": "PORTFOLIO CONSTRUCTION ONLY; everything else incl. ALL PASS GATES inherited unchanged from v1.0",
+   "sha256": "311e997b92858a7e...",
+   "status": "APPROVED FOR RE-FREEZE (portfolio-construction only)",
+   "supersedes": "v1.0 for portfolio construction ONLY"
+  },
+  {
+   "gate_role": "PRECEDENCE #2 authority: binds the freeze_candidate_doc hash (7b5ee09c) and the frozen 8a windows/calendar",
+   "git_blob": "f61f4f22",
+   "in_sealed_manifest": "self",
+   "path": "docs/implementation/evidence/mr_002/MR002_SealedManifest_v1.0.json",
+   "scope": "identity registry + coverage gates + section_8a windows + artifact hashes; binds freeze_candidate_doc",
+   "sha256": "96f7b3f96c61abb2...",
+   "status": "owner countersigned 2026-07-11; sealed_at 2026-07-12"
+  }
+ ],
+ "boundary": "Document/metadata census only. No validation/OOS data read; no development performance computed.",
+ "date": "2026-07-19",
+ "dsr_trial_ledger": {
+  "action": "submitted as separate blocker MR002_DSR_TrialLedger_Blocker_v1.0; DSR gate remains a PREREQUISITE (N unbound) in v1.0.1.",
+  "dsr_ledger_text_v0.3": "configs A/B/C + the mean-reversion family's prior examined variants (RNG-001 and documented sub-studies; informal MR variants logged before freeze)",
+  "pbo_N": "3 (configs A/B/C) \u2014 the 'N=3 underpowered' PBO diagnostic label; defensible",
+  "problem": "no trial-ledger artifact exists; 'documented sub-studies' and 'informal MR variants logged before freeze' are not exactly enumerated anywhere found. Exact DSR N cannot be pinned without guessing.",
+  "status": "GOVERNANCE BLOCKER \u2014 exact N not defensibly enumerable from the frozen record"
+ },
+ "governing_conclusion": {
+  "absent_from_HEAD_finding": "BOTH v1.0 freeze docs (FROZEN 70108c11 signed; FREEZE_CANDIDATE 7b5ee09c sealed-bound) are ABSENT from the current tree; they exist only in git history at capital-'Docs/' paths. FLAG: the governing frozen gate document is not present at HEAD; recommend restoring it (byte-exact, from the sealed-bound blob) so the governing source is in-tree.",
+  "calendar_authority": "sealed manifest section_8a: 'Sharadar SEP session dates (AAPL, continuously listed)'. RECONCILED: AAPL governed session index == all-prices distinct-date index within the governed window (both 3400; identical list hash b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f; 1700/850/850). The v1.0.1 seam dates/folds are therefore faithful to the authoritative AAPL calendar.",
+  "gate_battery_source": "the v0.3 gate table, FROZEN UNCHANGED into v1.0 (v1.0_FROZEN signed = precedence #1; v1.0_FREEZE_CANDIDATE sealed-manifest-bound 7b5ee09c = precedence #2; gate lines IDENTICAL between the two).",
+  "my_v1.0_final_error": "anchored the gate battery to v0.1 (the first table), which v0.3 materially superseded (PBO->diagnostic, DSR gate, revised annual/trade/regime concentration, +net-annualized-return, +distinct-entry-dates, cost-stress 20/300 bps, maxDD validation+OOS combined)."
+ },
+ "precedence_rule_applied": [
+  "1: a countersigned/explicitly-frozen document that supersedes earlier gate definitions",
+  "2: a sealed-manifest entry identifying the governing gate artifact + exact hash",
+  "3: a later approved correction record naming precise gate changes",
+  "4: else the last internally-complete preregistration frozen before sealed access"
+ ],
+ "purpose": "Determine the authoritative governing gate source for MR-002 validation/OOS by artifact census + owner precedence rule, before the v1.0.1 correction. Document/metadata read only; NO sealed data.",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_GATE_SOURCE_CENSUS",
+ "version": "1.0"
+}

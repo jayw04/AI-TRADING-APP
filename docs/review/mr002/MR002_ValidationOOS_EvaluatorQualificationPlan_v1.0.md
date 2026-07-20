@@ -34,11 +34,23 @@ These are metric/calendar primitives — **not** the evaluator.
    1.5% new-entry cap, next-open execution, no forward-fill — as a committed file bound by
    version + sha256.
 3. **Benchmark (D-BENCH)** — zero; excess = net return; all financing/costs in net P&L.
-4. **Metric + gate battery** — Sharpe (frozen estimator), Calmar, MaxDD, positive-folds, cost-stress
-   2×, A/C stability, profit/regime concentration, capacity, trades — each a frozen implementation
-   with a synthetic fixture of known answer.
-5. **PBO (CSCV)** and **DSR** — exact split count `S`, ranking metric, partition enumeration (PBO);
-   deflated-Sharpe estimator, N=3 trials, skew/kurtosis, tolerances (DSR).
+4. **Metric + gate battery (per the CORRECTED v1.0.1 governing gates — see
+   `MR002_ValidationOOS_CorrectionRecord_v1.0.1.json`)** — each a frozen implementation with a
+   synthetic fixture of known answer. **PASS gates:** Sharpe ≥ 0.70; bootstrap mean-return lower
+   bound > 0; Calmar ≥ 0.75; MaxDD ≤ 15% on **validation+OOS combined**; ≥3/5 positive folds; A/C
+   stability; DSR ≥ 95% (**N = blocker**, below); **net annualized return ≥ 3%**; cost stress at
+   **20 bps/side + 300 bps/yr borrow**; breadth ≥ 500 trades / **≥100 distinct entry dates** / ≥100
+   long / ≥100 short; **trade concentration** (top-10 ≤ 20% of positive trade P&L, single stock ≤
+   10%); **annual profile** (≥3 positive years AND largest ≤ 50% of Σ positive annual P&L); **regime
+   gates** (≥2 of 3 trend regimes positive, no trend regime > 60% of losses, no vol regime Sharpe <
+   −0.50); capacity. **DIAGNOSTICS (implemented but NEVER PASS/FAIL levers):** **PBO** (N=3,
+   underpowered), **positive-P&L regime concentration**, **severe cost stress** (30 bps + 1000 bps),
+   **annual-P&L Herfindahl**. The evaluator must tag diagnostics as non-gating so they cannot alter
+   a verdict.
+5. **PBO (CSCV, DIAGNOSTIC)** — exact split count `S`, ranking metric, partition enumeration; output
+   reported, never gating. **DSR (GATE)** — deflated-Sharpe estimator, skew/kurtosis, expected-max-
+   Sharpe, tolerances; **trial N is BLOCKED** (`MR002_DSR_TrialLedger_Blocker_v1.0.md`) — the DSR
+   gate stays unexecutable until the owner binds N from the frozen ledger; do NOT default to 3.
 6. **Report schema** — immutable per-window record: record_type, window, disposition ∈ {PASS, FAIL,
    REFUSED, INTEGRITY_STOP}, every gate value + CI, seed, code/data/image identities, hashes.
    Output paths `.../valoos/<window>/MR002_ValOOS_<window>_Report.json` + a no-overwrite publication
