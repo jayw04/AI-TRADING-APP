@@ -75,6 +75,9 @@ class AuditAction(StrEnum):
     CIRCUIT_BREAKER_TRIPPED = "CIRCUIT_BREAKER_TRIPPED"
     CIRCUIT_BREAKER_RESET = "CIRCUIT_BREAKER_RESET"
     RISK_LIMITS_UPDATED = "RISK_LIMITS_UPDATED"
+    # ADR 0043 PR4 — the persisted loss-control state machine contributed to a rejection in ENFORCE
+    # mode. Durable provenance (state, version, outcome, mode, verified-reduction) in the payload.
+    LOSS_CONTROL_ENFORCED = "LOSS_CONTROL_ENFORCED"
 
     # ---- Operations & Reliability (P11 §3) ----
     # Recorded when reconciliation finds the broker's reality diverges from local state

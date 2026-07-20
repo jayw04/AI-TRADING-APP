@@ -21,7 +21,8 @@ import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.config import get_settings
+from app.audit import AuditAction, AuditActorType, AuditLogger
+from app.config import LossControlMode, get_settings
 from app.db.enums import (
     TERMINAL_ORDER_STATUSES,
     OrderSide,
@@ -47,8 +48,19 @@ from app.risk.decision_service import (
     permits_while_locked,
 )
 from app.risk.halt import is_halted
+from app.risk.loss_control import constants as LC
 from app.risk.loss_control.daily_loss_basis import DailyLossBasis, select_daily_loss_basis
+from app.risk.loss_control.gate import (
+    LossControlDecision,
+    LossControlGate,
+    fail_closed_decision,
+)
+from app.risk.loss_control.service import LossControlService, TransitionContext
 from app.risk.loss_control.session_baseline import resolve_session_date
+from app.risk.loss_control.state_machine import (
+    TRIGGER_BREAKER_TRIP,
+    TRIGGER_DAILY_LOSS_BREACH,
+)
 from app.risk.reason_codes import ReasonCode
 from app.risk.risk_effect import ActionType, ProposedAction
 from app.risk.types import OrderRequest, RiskOutcome
@@ -58,6 +70,18 @@ logger = structlog.get_logger(__name__)
 # Types whose declarations actually need limit_price / stop_price.
 _TYPES_NEEDING_LIMIT = (OrderType.LIMIT, OrderType.STOP_LIMIT)
 _TYPES_NEEDING_STOP = (OrderType.STOP, OrderType.STOP_LIMIT)
+
+# ADR 0043 PR4 — loss-control states whose per-order outcome depends on whether the order is a
+# verified reduction. Only for these does the gate need the (reused) ADR 0042 reduction verdict;
+# NORMAL → ALLOW and INTEGRITY_STOP → block regardless, so they skip the (broker) classification.
+_LC_REDUCTION_DEPENDENT_STATES = frozenset(
+    {
+        LC.STATE_REDUCTION_ONLY_DAILY_LOSS,
+        LC.STATE_REDUCTION_ONLY_BREAKER,
+        LC.STATE_RECOVERY_PREFLIGHT,
+        LC.STATE_RECOVERY_COOLDOWN,
+    }
+)
 
 
 class RiskEngine:
@@ -371,6 +395,11 @@ class RiskEngine:
                         reason="daily_loss_exceeded",
                         payload=trip_payload,
                     )
+                    # ADR 0043 PR4: a live control detected the daily-loss breach — drive the state
+                    # machine (SHADOW/ENFORCE). Unambiguous trigger; no recovery/re-arm here.
+                    await self._fire_loss_control_trigger(
+                        req.account_id, TRIGGER_DAILY_LOSS_BREACH
+                    )
                     # ADR 0042: a control may stop trading, but it must not prevent VERIFIED
                     # reduction of the risk it exists to control. On 2026-07-13 this gate
                     # refused the momentum book's own SNDK and LITE trims while the book bled
@@ -382,6 +411,11 @@ class RiskEngine:
                         daily_pnl=day_change,
                         cache=reduction_cache,
                     ):
+                        # Evidence denominator: emit the shadow comparison for this loss-control
+                        # rejection too (the ADR result can only agree — it never weakens a reject).
+                        await self._apply_loss_control(
+                            req, reduction_cache, legacy_permits=False, legacy_outcome="REFUSE"
+                        )
                         return await self._persist_and_return(
                             session,
                             decision=RiskDecision.REJECT,
@@ -450,6 +484,8 @@ class RiskEngine:
             try:
                 await cb.check(req.account_id)
             except CircuitBreakerError:
+                # ADR 0043 PR4: a live control detected the breaker trip — drive the state machine.
+                await self._fire_loss_control_trigger(req.account_id, TRIGGER_BREAKER_TRIP)
                 # Same rule, same classifier (ADR 0042). Steps 9 and 13 do NOT implement
                 # similar logic separately — implementing it twice is exactly how the
                 # gross-exposure gate got the reducing-order exemption (ADR 0038) while these
@@ -461,11 +497,31 @@ class RiskEngine:
                     daily_pnl=None,
                     cache=reduction_cache,
                 ):
+                    await self._apply_loss_control(
+                        req, reduction_cache, legacy_permits=False, legacy_outcome="REFUSE"
+                    )
                     return await self._persist_and_return(
                         session,
                         decision=RiskDecision.REJECT,
                         reasons=[ReasonCode.CIRCUIT_BREAKER],
                     )
+
+            # ADR 0043 PR4: the loss-control GATE — after the risk effect is established, before the
+            # PASS is persisted. In ENFORCE the state machine may refuse an order the rest of the
+            # engine would pass (INTEGRITY_STOP, or a reduction-only state refusing a non-reduction);
+            # it NEVER weakens a stricter result (this is the only legacy-PASS path). In SHADOW it is
+            # evidence only. OFF is a no-op (no reads/writes). It composes with — never bypasses —
+            # every gate above.
+            lc = await self._apply_loss_control(
+                req, reduction_cache, legacy_permits=True, legacy_outcome="ALLOW"
+            )
+            if lc is not None and lc.authoritative and not lc.permits_order:
+                await self._audit_loss_control_enforced(session, req, lc)
+                return await self._persist_and_return(
+                    session,
+                    decision=RiskDecision.REJECT,
+                    reasons=[ReasonCode.LOSS_CONTROL_STOP],
+                )
 
             # Pass.
             return await self._persist_and_return(
@@ -616,6 +672,99 @@ class RiskEngine:
             **basis.provenance(),
         )
         return basis.day_change, basis
+
+    async def _fire_loss_control_trigger(self, account_id: int, trigger: str) -> None:
+        """Fire an ADR 0043 state-machine transition from a live control detection (SHADOW/ENFORCE
+        only). Uses its OWN session (request_transition commits) so it never commits the engine's
+        in-flight evaluation. Exception-isolated — a shadow/enforce transition failure must never
+        interrupt the order path; CancelledError still propagates."""
+        if get_settings().loss_control_mode == LossControlMode.OFF:
+            return
+        try:
+            async with self._session_factory() as trigger_session:
+                await LossControlService(trigger_session).request_transition(
+                    account_id=account_id,
+                    trigger=trigger,
+                    context=TransitionContext(initiator_type="SYSTEM"),
+                )
+        except Exception:  # noqa: BLE001 — never break the order path on a loss-control write
+            logger.warning(
+                "loss_control_trigger_failed",
+                account_id=account_id,
+                trigger=trigger,
+                exc_info=True,
+            )
+
+    async def _apply_loss_control(
+        self,
+        req: OrderRequest,
+        reduction_cache: dict[str, Any],
+        *,
+        legacy_permits: bool,
+        legacy_outcome: str,
+    ) -> LossControlDecision | None:
+        """Evaluate the loss-control gate for one order (OFF → None, no reads/writes).
+
+        Opens its OWN read session so it sees transitions committed earlier in this evaluation. When
+        the persisted state's outcome depends on a verified reduction, it REUSES the ADR 0042
+        classifier (never duplicates it) via ``_permits_verified_reduction``. Exception-isolated: a
+        failure yields None in SHADOW (legacy stays authoritative) and a fail-closed deny in ENFORCE.
+        """
+        mode = get_settings().loss_control_mode
+        if mode == LossControlMode.OFF:
+            return None
+        try:
+            async with self._session_factory() as lc_session:
+                state_row = await LossControlService(lc_session).load_state_row(req.account_id)
+                if (
+                    state_row is not None
+                    and state_row.state in _LC_REDUCTION_DEPENDENT_STATES
+                    and "result" not in reduction_cache
+                ):
+                    await self._permits_verified_reduction(
+                        req,
+                        lock_state=LOCK_DAILY_LOSS,
+                        lock_reason="loss_control_reduction_only",
+                        daily_pnl=None,
+                        cache=reduction_cache,
+                    )
+                gate = LossControlGate(lc_session, mode)
+                decision = await gate.evaluate(
+                    account_id=req.account_id,
+                    verified_reduction=reduction_cache.get("result"),
+                    legacy_outcome=legacy_outcome,
+                    legacy_permits=legacy_permits,
+                )
+                gate.emit_comparison(
+                    decision, account_id=req.account_id, request_id=req.client_order_id
+                )
+                return decision
+        except Exception:  # noqa: BLE001 — SHADOW must not break the path; CancelledError propagates
+            logger.warning(
+                "loss_control_gate_unexpected_failure", account_id=req.account_id, exc_info=True
+            )
+            return (
+                fail_closed_decision(mode, legacy_outcome, legacy_permits, error="gate_failure")
+                if mode == LossControlMode.ENFORCE
+                else None
+            )
+
+    async def _audit_loss_control_enforced(
+        self, session: AsyncSession, req: OrderRequest, decision: LossControlDecision
+    ) -> None:
+        """Durable enforce evidence: an audit_log row carrying the full loss-control provenance
+        (state, version, mode, outcome, verified-reduction). Written on the engine session so it
+        commits atomically with the RiskCheck rejection."""
+        AuditLogger.write(
+            session,
+            actor_type=AuditActorType.SYSTEM,
+            actor_id="loss_control",
+            action=AuditAction.LOSS_CONTROL_ENFORCED,
+            target_type="account",
+            target_id=req.account_id,
+            payload=decision.provenance(),
+            user_id=req.user_id,
+        )
 
     async def _permits_verified_reduction(
         self,
