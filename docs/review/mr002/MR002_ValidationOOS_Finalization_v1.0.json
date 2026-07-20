@@ -1,0 +1,59 @@
+{
+ "commit": {
+  "final_commit": "43c4398a2cda28e2b81f772086aa7b02cf9bb0e2",
+  "parent": "b84e0424a473120b175fabac736d68fffdc6a37d",
+  "pushed": true,
+  "tracked_status_clean": true,
+  "tree": "ccea775f6a3c58404327eb37bf9dec16d6deaed1"
+ },
+ "date": "2026-07-19",
+ "decision_record": "MR002_ValidationOOS_DecisionRecord_v1.0.json (9a3a058c) committed BYTE-UNCHANGED (no prereg filename/hash reference to update; convention-status note left as historical per owner instruction)",
+ "final_files": {
+  "MR002_ValidationOOS_EvaluatorQualificationPlan_v1.0.md": {
+   "bytes": 4938,
+   "change": "one reference line updated from RC1 (399e3b53) to v1.0-final (e9ee38e5) per the owner carve-out",
+   "git_blob": "1c5878dc0314a448b865e4a95f48767b53b40103",
+   "sha256": "9f5184d7822d3c9772d610fb2308ac345de28e58f22eb5c01f62c7167591414e"
+  },
+  "MR002_ValidationOOS_Preregistration_v1.0.json": {
+   "bytes": 10054,
+   "git_blob": "c50c14b53d4b93eaef8e461165fd364f1df093ac",
+   "sha256": "e9ee38e53688229c07c75e60b37d7451898f6d6a1e8eea5a459be9a74ca00c41"
+  },
+  "MR002_ValidationOOS_Preregistration_v1.0.md": {
+   "bytes": 11420,
+   "git_blob": "eabdf5af8523ed91b58d5dc0290ef408c13cb918",
+   "sha256": "ec557827dee478b0eb32fcc5a96b4c513baf93d2e29f9dff97d0889d546613b2"
+  }
+ },
+ "next": "Workstream B (evaluator build + synthetic qualification) authorized to begin; validation/OOS SEALED; performance interpretation + production promotion NOT AUTHORIZED",
+ "no_substantive_change_proof": {
+  "d_decisions_unchanged": true,
+  "estimator_bootstrap_unchanged": true,
+  "folds_unchanged": true,
+  "gates_thresholds_unchanged": true,
+  "governed_session_list_sha256_unchanged": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+  "invariants_check": "PASS (validation/oos eligible dates, fold boundaries, calmar/sharpe/pbo/dsr gates, session hash all identical RC1->final)",
+  "method": "programmatic flat-key diff of RC1 vs final JSON; unified textual diff of RC1 vs final MD",
+  "windows_dates_unchanged": true
+ },
+ "ratification": "owner ratified realization horizon = 6 (next-open exit t+1..t+6); 5-session close-exit REJECTED (historical rationale only, not executable config)",
+ "rc1_sources": {
+  "json": "399e3b53 (9,791 B)",
+  "md": "658ba5a5 (11,248 B)"
+ },
+ "rc1_to_final_diff": {
+  "json_changed_keys": [
+   "record_status (RELEASE_CANDIDATE->IMMUTABLE)",
+   "version (1.0-RC1->1.0)",
+   "seam_rule.realization_horizon_ratification (added)",
+   "windows_literal.endpoint_convention_status (added)"
+  ],
+  "md_change_class": "governance-status only: title v1.0-RC1->v1.0; status release-candidate->IMMUTABLE; seam section pending->OWNER-RATIFIED FINAL=6; promotion section->Finalization; RC1 json ref->final json ref",
+  "md_changed_lines": 27
+ },
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_VALIDATIONOOS_FINALIZATION",
+ "sealed_data_unread": "TRUE \u2014 this finalization performed no data reads; the earlier session-index extraction read ONLY the session-date column and left the snapshot unchanged (pre==post==24e5153c). No development/validation/OOS performance computed.",
+ "version": "1.0"
+}
