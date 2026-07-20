@@ -255,6 +255,10 @@ jobs:
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_reference_only_invariant.sh
 
+      - name: Loss-control structural invariants (ADR 0043, backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_loss_control_invariants.sh
+
       - name: Credential env-isolation invariant check (backend)
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_no_env_credentials.sh
