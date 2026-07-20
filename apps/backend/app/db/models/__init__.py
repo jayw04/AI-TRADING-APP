@@ -29,6 +29,9 @@ from app.db.models.risk_recovery_preflight import RiskRecoveryPreflight
 from app.db.models.risk_recovery_preflight_check import RiskRecoveryPreflightCheck
 from app.db.models.risk_reservation import RiskReservation
 from app.db.models.risk_session_baseline import RiskSessionBaseline
+from app.db.models.risk_session_baseline_shadow_outcome import (
+    RiskSessionBaselineShadowOutcome,
+)
 from app.db.models.scanner_definition import ScannerDefinition
 from app.db.models.scanner_run import ScannerRun
 from app.db.models.scheduler_heartbeat import SchedulerHeartbeat
@@ -80,6 +83,7 @@ __all__ = [
     "RiskRecoveryPreflightCheck",
     "RiskReservation",
     "RiskSessionBaseline",
+    "RiskSessionBaselineShadowOutcome",
     "ScannerDefinition",
     "ScannerRun",
     "SchedulerHeartbeat",

@@ -65,6 +65,15 @@ class Settings(BaseSettings):
     # separately-gated increment.
     session_baseline_shadow_enabled: bool = False
 
+    # ADR 0043 §D3 — ENFORCEMENT: when True the risk engine's daily-loss gates PREFER the persisted
+    # session baseline over the drifting last_equity basis (with a compatibility fallback chain).
+    # SEPARATE from the shadow flag on purpose: shadow controls baseline *production + evidence*;
+    # this controls whether enforcement *uses* it. Enforcement must never implicitly enable capture.
+    # Default FALSE. Roll out only after ≥1 full regular session of shadow evidence is reviewed
+    # (capture on + enforcement off = observation; capture on + enforcement on = authoritative).
+    # Flag off is byte-for-byte the legacy daily-loss behaviour.
+    session_baseline_enforcement_enabled: bool = False
+
     # --- Alpaca credentials (not WORKBENCH_-prefixed) ---
     alpaca_paper_api_key: str = Field(default="", alias="ALPACA_PAPER_API_KEY")
     alpaca_paper_api_secret: str = Field(default="", alias="ALPACA_PAPER_API_SECRET")

@@ -48,6 +48,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
+from app.config import get_settings
 from app.db.enums import OrderSide, RiskScopeType, StrategyStatus
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
@@ -56,6 +57,8 @@ from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.strategy import Strategy
+from app.risk.loss_control.daily_loss_basis import DailyLossBasis, select_daily_loss_basis
+from app.risk.loss_control.session_baseline import resolve_session_date
 from app.utils.time import ensure_aware
 
 logger = structlog.get_logger(__name__)
@@ -99,14 +102,15 @@ class CircuitBreakerService:
         limits = await self._get_active_limits(account)
         realized = await self._compute_realized_pnl_today(account_id)
         unrealized = await self._compute_unrealized_pnl(account_id)
-        daily_pnl, basis = await self._compute_daily_pnl(
-            account_id, realized=realized, unrealized=unrealized
-        )
-        max_loss = (
+        applicable_limit = (
             Decimal(str(limits.max_daily_loss))
             if limits and limits.max_daily_loss is not None
-            else Decimal("0")
+            else None
         )
+        daily_pnl, basis, _basis_result = await self._compute_daily_pnl(
+            account_id, realized=realized, unrealized=unrealized, max_loss=applicable_limit
+        )
+        max_loss = applicable_limit if applicable_limit is not None else Decimal("0")
         headroom = max_loss - abs(daily_pnl) if daily_pnl < 0 else max_loss
         tripped_at = ensure_aware(account.circuit_breaker_tripped_at)
         return CircuitBreakerStatus(
@@ -141,20 +145,23 @@ class CircuitBreakerService:
         max_loss = Decimal(str(limits.max_daily_loss))
         realized = await self._compute_realized_pnl_today(account_id)
         unrealized = await self._compute_unrealized_pnl(account_id)
-        daily_pnl, basis = await self._compute_daily_pnl(
-            account_id, realized=realized, unrealized=unrealized
+        daily_pnl, basis_name, basis_result = await self._compute_daily_pnl(
+            account_id, realized=realized, unrealized=unrealized, max_loss=max_loss
         )
         if daily_pnl <= -max_loss:
+            payload: dict[str, Any] = {
+                "realized_pnl_today": str(realized),
+                "unrealized_pnl_now": str(unrealized),
+                "daily_pnl": str(daily_pnl),
+                "daily_pnl_basis": basis_name,
+                "max_daily_loss": str(max_loss),
+            }
+            # Enforcement on: attach the FULL basis provenance (baseline_id, fallback_reason, …) to
+            # the DURABLE trip payload — not only the structured log. Off: payload shape unchanged.
+            if basis_result is not None:
+                payload["daily_loss_basis_provenance"] = basis_result.provenance()
             await self.trip(
-                account_id=account_id,
-                reason="daily_loss_exceeded",
-                payload={
-                    "realized_pnl_today": str(realized),
-                    "unrealized_pnl_now": str(unrealized),
-                    "daily_pnl": str(daily_pnl),
-                    "daily_pnl_basis": basis,
-                    "max_daily_loss": str(max_loss),
-                },
+                account_id=account_id, reason="daily_loss_exceeded", payload=payload
             )
             raise CircuitBreakerError(
                 f"Daily loss limit reached (today's PnL {daily_pnl} ≤ -{max_loss}). "
@@ -183,21 +190,22 @@ class CircuitBreakerService:
         max_loss = Decimal(str(limits.max_daily_loss))
         realized = await self._compute_realized_pnl_today(account_id)
         unrealized = await self._compute_unrealized_pnl(account_id)
-        daily_pnl, basis = await self._compute_daily_pnl(
-            account_id, realized=realized, unrealized=unrealized
+        daily_pnl, basis_name, basis_result = await self._compute_daily_pnl(
+            account_id, realized=realized, unrealized=unrealized, max_loss=max_loss
         )
         if daily_pnl <= -max_loss:
+            payload: dict[str, Any] = {
+                "realized_pnl_today": str(realized),
+                "unrealized_pnl_now": str(unrealized),
+                "daily_pnl": str(daily_pnl),
+                "daily_pnl_basis": basis_name,
+                "max_daily_loss": str(max_loss),
+                "source": "monitor",  # detected by the periodic job, not an order
+            }
+            if basis_result is not None:  # enforcement on — full provenance in the durable payload
+                payload["daily_loss_basis_provenance"] = basis_result.provenance()
             await self.trip(
-                account_id=account_id,
-                reason="daily_loss_exceeded",
-                payload={
-                    "realized_pnl_today": str(realized),
-                    "unrealized_pnl_now": str(unrealized),
-                    "daily_pnl": str(daily_pnl),
-                    "daily_pnl_basis": basis,
-                    "max_daily_loss": str(max_loss),
-                    "source": "monitor",  # detected by the periodic job, not an order
-                },
+                account_id=account_id, reason="daily_loss_exceeded", payload=payload
             )
             return True
         return False
@@ -317,8 +325,13 @@ class CircuitBreakerService:
         ).scalars().first()
 
     async def _compute_daily_pnl(
-        self, account_id: int, *, realized: Decimal, unrealized: Decimal
-    ) -> tuple[Decimal, str]:
+        self,
+        account_id: int,
+        *,
+        realized: Decimal,
+        unrealized: Decimal,
+        max_loss: Decimal | None = None,
+    ) -> tuple[Decimal, str, DailyLossBasis | None]:
         """Today's P&L for the daily-loss breaker, measured from a START-OF-DAY
         baseline (ADR 0004 v2). Returns ``(daily_pnl, basis)``.
 
@@ -343,9 +356,38 @@ class CircuitBreakerService:
                 select(AccountState).where(AccountState.account_id == account_id)
             )
         ).scalars().first()
+        # ADR 0043 §D3 enforcement: prefer the immutable session baseline (with the same last_equity
+        # / cumulative fallbacks below), tagged with provenance. Flag OFF → the legacy code path
+        # below runs unchanged (byte-for-byte). The cumulative fallback IS sanctioned here.
+        if get_settings().session_baseline_enforcement_enabled:
+            basis = await select_daily_loss_basis(
+                self._session,
+                account_id,
+                current_equity=Decimal(str(state.equity))
+                if state is not None and state.equity is not None
+                else None,
+                last_equity=Decimal(str(state.last_equity))
+                if state is not None and state.last_equity is not None
+                else None,
+                realized=realized,
+                unrealized=unrealized,
+                session_date=resolve_session_date(datetime.now(UTC)),
+                applicable_limit=max_loss,
+                allow_cumulative_fallback=True,
+            )
+            logger.info(
+                "risk_daily_loss_basis",
+                account_id=account_id,
+                gate="circuit_breaker",
+                **basis.provenance(),
+            )
+            day_change = basis.day_change if basis.day_change is not None else realized + unrealized
+            # Return the FULL basis object (not just its name) so the durable trip payload — not
+            # only the structured log — carries baseline_id / fallback_reason / limit provenance.
+            return day_change, basis.basis_source or "cumulative_fallback", basis
         if state is not None and state.last_equity is not None and Decimal(str(state.last_equity)) > 0:
-            return Decimal(str(state.equity)) - Decimal(str(state.last_equity)), "equity_baseline"
-        return realized + unrealized, "cumulative_fallback"
+            return Decimal(str(state.equity)) - Decimal(str(state.last_equity)), "equity_baseline", None
+        return realized + unrealized, "cumulative_fallback", None
 
     async def _compute_realized_pnl_today(self, account_id: int) -> Decimal:
         """Realized P&L from today's CLOSING trades, via running average cost.

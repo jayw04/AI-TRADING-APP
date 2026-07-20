@@ -34,6 +34,7 @@ ADR0043_MODULES: list[tuple[str, float]] = [
     ("risk/loss_control/state_machine.py", 0.95),
     ("risk/loss_control/service.py", 0.95),
     ("risk/loss_control/session_baseline.py", 0.95),
+    ("risk/loss_control/daily_loss_basis.py", 0.95),
 ]
 
 

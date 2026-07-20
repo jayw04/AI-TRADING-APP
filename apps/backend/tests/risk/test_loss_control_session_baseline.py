@@ -267,6 +267,48 @@ async def test_non_trading_day_is_skipped(session_factory, acct):
     assert await _baseline(session_factory, acct) is None
 
 
+# --------------------------------------------------------------- outcome persistence (PR3b)
+
+
+async def test_capture_persists_shadow_outcome(session_factory, acct):
+    from app.db.models.risk_session_baseline_shadow_outcome import (
+        RiskSessionBaselineShadowOutcome,
+    )
+    async with session_factory() as s:
+        await SessionBaselineShadow(s, adapter=_empty_adapter()).capture(
+            account_id=acct, reconciled_equity=D("100000"), now=TRADING_NOW
+        )
+    async with session_factory() as s:
+        row = await s.scalar(
+            select(RiskSessionBaselineShadowOutcome).where(
+                RiskSessionBaselineShadowOutcome.account_id == acct
+            )
+        )
+    assert row is not None
+    assert row.outcome == SHADOW_CAPTURED and row.market_session_date == "2026-07-20"
+
+
+async def test_missing_after_activity_persists_outcome_for_the_reader(session_factory, acct):
+    from app.db.models.risk_session_baseline_shadow_outcome import (
+        RiskSessionBaselineShadowOutcome,
+    )
+    async with session_factory() as s:
+        s.add(_order(1, created_at=SESSION_OPEN + timedelta(minutes=5)))
+        await s.commit()
+    async with session_factory() as s:
+        await SessionBaselineShadow(s, adapter=_empty_adapter()).capture(
+            account_id=acct, reconciled_equity=D("100000"), now=TRADING_NOW
+        )
+    async with session_factory() as s:
+        row = await s.scalar(
+            select(RiskSessionBaselineShadowOutcome).where(
+                RiskSessionBaselineShadowOutcome.account_id == acct
+            )
+        )
+    # The enforcement basis selector reads this to emit MISSING_AFTER_ACTIVITY, not a generic reason.
+    assert row is not None and row.outcome == SHADOW_MISSING_AFTER_ACTIVITY
+
+
 # --------------------------------------------------------------- broker timestamp parsing
 
 
