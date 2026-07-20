@@ -1,0 +1,49 @@
+{
+ "record_type": "MR002_SPQ1_Phase2B_2B1_SecurityCensus",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "securities": {
+  "PSEC-198508": {
+   "dispositions": {
+    "INELIGIBLE": 6,
+    "SIGNAL_DECISION_RECORD_EMITTED": 18
+   },
+   "symbol": "MSFT"
+  },
+  "PSEC-199059": {
+   "dispositions": {
+    "INELIGIBLE": 18,
+    "SIGNAL_DECISION_RECORD_EMITTED": 6
+   },
+   "symbol": "AAPL"
+  },
+  "PSEC-199495": {
+   "dispositions": {
+    "INELIGIBLE": 6,
+    "SIGNAL_DECISION_RECORD_EMITTED": 18
+   },
+   "symbol": "BAC"
+  },
+  "PSEC-199626": {
+   "dispositions": {
+    "INELIGIBLE": 6,
+    "SIGNAL_DECISION_RECORD_EMITTED": 18
+   },
+   "symbol": "INTC"
+  },
+  "PSEC-199739": {
+   "dispositions": {
+    "INELIGIBLE": 6,
+    "SIGNAL_DECISION_RECORD_EMITTED": 18
+   },
+   "symbol": "XOM"
+  },
+  "PSEC-376609": {
+   "dispositions": {
+    "INELIGIBLE": 18,
+    "SIGNAL_DECISION_RECORD_EMITTED": 6
+   },
+   "symbol": "TWLO"
+  }
+ },
+ "version": "1.0"
+}

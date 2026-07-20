@@ -1,0 +1,91 @@
+{
+ "record_type": "MR002_SPQ1_Phase2B_2B1_SessionCensus",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "sessions": {
+  "1694": {
+   "SIGNAL_DECISION_RECORD_EMITTED": 6
+  },
+  "1695": {
+   "SIGNAL_DECISION_RECORD_EMITTED": 6
+  },
+  "1696": {
+   "SIGNAL_DECISION_RECORD_EMITTED": 6
+  },
+  "1697": {
+   "SIGNAL_DECISION_RECORD_EMITTED": 6
+  },
+  "1698": {
+   "SIGNAL_DECISION_RECORD_EMITTED": 6
+  },
+  "1699": {
+   "SIGNAL_DECISION_RECORD_EMITTED": 6
+  },
+  "40": {
+   "INELIGIBLE": 6
+  },
+  "41": {
+   "INELIGIBLE": 6
+  },
+  "42": {
+   "INELIGIBLE": 6
+  },
+  "43": {
+   "INELIGIBLE": 6
+  },
+  "44": {
+   "INELIGIBLE": 6
+  },
+  "45": {
+   "INELIGIBLE": 6
+  },
+  "800": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "801": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "802": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "803": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "804": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "805": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "830": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "831": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "832": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "833": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "834": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  },
+  "835": {
+   "INELIGIBLE": 2,
+   "SIGNAL_DECISION_RECORD_EMITTED": 4
+  }
+ },
+ "version": "1.0"
+}

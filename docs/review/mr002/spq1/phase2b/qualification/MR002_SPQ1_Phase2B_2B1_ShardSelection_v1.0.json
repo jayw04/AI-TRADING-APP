@@ -1,0 +1,63 @@
+{
+ "note": "universe count is a constant top-250/month; high==low==250 (recorded, not a selector). No natural halt/absence or same-timestamp-sector-conflict instance in this slice.",
+ "record_type": "MR002_SPQ1_Phase2B_2B1_ShardSelection",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "securities": {
+  "AAPL": {
+   "cik": 320193,
+   "reason": "ordinary continuously-traded liquid name; PIT sector + earnings coverage"
+  },
+  "BAC": {
+   "cik": 70858,
+   "reason": "financial-sector liquid name (sector diversity)"
+  },
+  "INTC": {
+   "cik": 50863,
+   "reason": "ordinary continuously-traded liquid name"
+  },
+  "MSFT": {
+   "cik": 789019,
+   "reason": "ordinary continuously-traded liquid name"
+  },
+  "TWLO": {
+   "cik": 1447669,
+   "reason": "IPO within development window (first price 2016-06) -> warm-up case"
+  },
+  "XOM": {
+   "cik": 34088,
+   "reason": "energy-sector liquid name (sector diversity)"
+  }
+ },
+ "selection_basis": "mechanical structural coverage; frozen before any signal inspection",
+ "shards": {
+  "S-early": {
+   "reason": "early-dev warm-up",
+   "session_ordinals": [
+    40,
+    45
+   ]
+  },
+  "S-ipo": {
+   "reason": "IPO/warm-up (TWLO)",
+   "session_ordinals": [
+    830,
+    835
+   ]
+  },
+  "S-late": {
+   "reason": "late-dev",
+   "session_ordinals": [
+    1694,
+    1699
+   ]
+  },
+  "S-middle": {
+   "reason": "middle-dev",
+   "session_ordinals": [
+    800,
+    805
+   ]
+  }
+ },
+ "version": "1.0"
+}

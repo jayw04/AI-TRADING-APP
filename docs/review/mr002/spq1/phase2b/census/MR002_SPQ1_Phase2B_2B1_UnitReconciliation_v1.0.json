@@ -1,0 +1,17 @@
+{
+ "dispositions": {
+  "INELIGIBLE": 60,
+  "SIGNAL_DECISION_RECORD_EMITTED": 84
+ },
+ "duplicate_candidate_ids": false,
+ "duplicate_units": false,
+ "emitted_eligibility": {
+  "ELIGIBLE": 84
+ },
+ "expected_units": 144,
+ "missing_outcomes": 0,
+ "reconciles": true,
+ "record_type": "MR002_SPQ1_Phase2B_2B1_UnitReconciliation",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "version": "1.0"
+}

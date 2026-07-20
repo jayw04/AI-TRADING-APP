@@ -1,0 +1,30 @@
+{
+ "codes": {
+  "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING": {
+   "affected_securities": 1,
+   "classification": "INELIGIBLE",
+   "count": 12,
+   "first_session": 800,
+   "last_session": 835
+  },
+  "INELIGIBLE:OLS_WINDOW_INSUFFICIENT": {
+   "affected_securities": 5,
+   "classification": "INELIGIBLE",
+   "count": 30,
+   "first_session": 40,
+   "last_session": 45
+  },
+  "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING": {
+   "affected_securities": 1,
+   "classification": "INELIGIBLE",
+   "count": 18,
+   "first_session": 40,
+   "last_session": 835
+  }
+ },
+ "deprecated_emitted": false,
+ "record_type": "MR002_SPQ1_Phase2B_2B1_RefusalCensus",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "unknown_codes": [],
+ "version": "1.0"
+}

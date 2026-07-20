@@ -1,0 +1,33 @@
+{
+ "acceptance_gate": {
+  "all_reads_development": true,
+  "atomic_non_overwriting": true,
+  "deprecated_emissions": 0,
+  "no_performance_artifact": true,
+  "one_terminal_outcome_per_unit": true,
+  "pit_sentinels_cannot_affect": true,
+  "raw_exceptions": 0,
+  "single_multi_resumed_match": true,
+  "unknown_refusal_codes": 0,
+  "validation_oos_reads": 0
+ },
+ "artifact_sha256": {
+  "InputIdentityManifest": "50800642231bd7a7db830dd32125063686d0185d647d8997134a5824045d871c",
+  "OpenedObjectLedger": "f6484142fd41984c52f7a69c47ab687f25248f1b89fb76a5e94288c22a48e69c",
+  "PITLeakageAudit": "42c12265d9de49593490eb1daae0220bf8cdf99a4e2d17ab6bb71391899b83c1",
+  "RefusalCensus": "16a61da5238465d99b3e5ab8c2e2042d24e5c225b3a9bf3b58205afdac3f517b",
+  "RestartReport": "d4bbe08c86a3ad638809e6472fb9a5302e3d6092404d67d40236f13a2f429a11",
+  "RunManifest": "218e10de4074ce328c143d0a091a537d7cd79136ec2192b3ee5c45e05575d6e3",
+  "SecurityCensus": "1b73b2d52466a425843db1a9d9e71fdf15f5d937fb968d395a88afd15226ab8f",
+  "SessionCensus": "b28d1e609e4a72120a91f93a90715f77a925f3a850888729721421881ce38411",
+  "ShardInvarianceReport": "39cb493ee551821bfb66873033a58b5c102e7b56af15851423227aa125133cce",
+  "ShardSelection": "c1c1f7336449d1bbca7b24cce19fd08c043e943d8fcfbc8970c531bbec900483",
+  "UnitReconciliation": "35ff535ff9a9a9727278bb7a83d0faba001e177260a997d9da2f7473f5b7e3d4"
+ },
+ "boundary": "limited-shard only; full 1.3M-unit run is 2B-2 (NOT authorized).",
+ "gate_all_pass": true,
+ "record_type": "MR002_SPQ1_Phase2B_2B1_QualificationReport",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "run_spec_sha256": "10ffaf3a2e085676c9aa61830759915b2bc9efbe5f5aeff6e0bfb47860281585",
+ "version": "1.0"
+}

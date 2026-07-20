@@ -1,0 +1,9 @@
+{
+ "cutoff_before_all_obs_missing": false,
+ "note": "a post-cutoff SIC observation does not change the resolved close-t sector; a cutoff before any observation yields SECTOR_PIT_IDENTITY_MISSING.",
+ "post_cutoff_sector_obs_excluded": true,
+ "record_type": "MR002_SPQ1_Phase2B_2B1_PITLeakageAudit",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "sentinel_altered_valid_decision": false,
+ "version": "1.0"
+}

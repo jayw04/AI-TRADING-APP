@@ -1,0 +1,8 @@
+{
+ "completed_shard_overwrite_blocked": true,
+ "no_duplicate_on_resume": true,
+ "record_type": "MR002_SPQ1_Phase2B_2B1_RestartReport",
+ "restart_identical_final": true,
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "version": "1.0"
+}
