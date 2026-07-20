@@ -48,6 +48,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import AuditAction, AuditActorType, AuditLogger
+from app.config import get_settings
 from app.db.enums import OrderSide, RiskScopeType, StrategyStatus
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
@@ -56,6 +57,8 @@ from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.strategy import Strategy
+from app.risk.loss_control.daily_loss_basis import select_daily_loss_basis
+from app.risk.loss_control.session_baseline import resolve_session_date
 from app.utils.time import ensure_aware
 
 logger = structlog.get_logger(__name__)
@@ -343,6 +346,33 @@ class CircuitBreakerService:
                 select(AccountState).where(AccountState.account_id == account_id)
             )
         ).scalars().first()
+        # ADR 0043 §D3 enforcement: prefer the immutable session baseline (with the same last_equity
+        # / cumulative fallbacks below), tagged with provenance. Flag OFF → the legacy code path
+        # below runs unchanged (byte-for-byte). The cumulative fallback IS sanctioned here.
+        if get_settings().session_baseline_enforcement_enabled:
+            basis = await select_daily_loss_basis(
+                self._session,
+                account_id,
+                current_equity=Decimal(str(state.equity))
+                if state is not None and state.equity is not None
+                else None,
+                last_equity=Decimal(str(state.last_equity))
+                if state is not None and state.last_equity is not None
+                else None,
+                realized=realized,
+                unrealized=unrealized,
+                session_date=resolve_session_date(datetime.now(UTC)),
+                applicable_limit=None,
+                allow_cumulative_fallback=True,
+            )
+            logger.info(
+                "risk_daily_loss_basis",
+                account_id=account_id,
+                gate="circuit_breaker",
+                **basis.provenance(),
+            )
+            day_change = basis.day_change if basis.day_change is not None else realized + unrealized
+            return day_change, basis.basis_source or "cumulative_fallback"
         if state is not None and state.last_equity is not None and Decimal(str(state.last_equity)) > 0:
             return Decimal(str(state.equity)) - Decimal(str(state.last_equity)), "equity_baseline"
         return realized + unrealized, "cumulative_fallback"

@@ -51,6 +51,9 @@ from app.db.models.risk_session_baseline import (
     BASELINE_STATUS_ACTIVE,
     RiskSessionBaseline,
 )
+from app.db.models.risk_session_baseline_shadow_outcome import (
+    RiskSessionBaselineShadowOutcome,
+)
 from app.market.session import MarketSession, default_market_session
 
 logger = structlog.get_logger(__name__)
@@ -158,12 +161,12 @@ class SessionBaselineShadow:
         info = self._ms.classify(now)
         session_date = resolve_session_date(now, self._ms)
         if session_date is None or info.regular_open is None:
-            return self._emit(SHADOW_SKIPPED_NON_TRADING, account_id, None)
+            return await self._emit(SHADOW_SKIPPED_NON_TRADING, account_id, None)
 
         existing = await self._existing_baseline(account_id, session_date)
         if existing is not None:
             # Immutable: an established baseline is reused across restarts, never re-captured.
-            return self._emit(
+            return await self._emit(
                 SHADOW_REUSED,
                 account_id,
                 session_date,
@@ -174,10 +177,10 @@ class SessionBaselineShadow:
         activity = await self._session_activity_occurred(account_id, info.regular_open)
         if activity is None:
             # Could not verify absence of activity → fail closed; do not mint a baseline.
-            return self._emit(SHADOW_INDETERMINATE, account_id, session_date, activity_detected=True)
+            return await self._emit(SHADOW_INDETERMINATE, account_id, session_date, activity_detected=True)
         if activity:
             # Activity already occurred this session → a clean pre-activity baseline is impossible.
-            return self._emit(
+            return await self._emit(
                 SHADOW_MISSING_AFTER_ACTIVITY, account_id, session_date, activity_detected=True
             )
 
@@ -208,7 +211,7 @@ class SessionBaselineShadow:
         )
         # rowcount 1 = we captured; 0 = a concurrent writer captured first → reuse theirs.
         outcome = SHADOW_CAPTURED if result.rowcount == 1 else SHADOW_REUSED
-        return self._emit(
+        return await self._emit(
             outcome,
             account_id,
             session_date,
@@ -279,7 +282,7 @@ class SessionBaselineShadow:
                 return True
         return False
 
-    def _emit(
+    async def _emit(
         self,
         outcome: str,
         account_id: int,
@@ -297,6 +300,10 @@ class SessionBaselineShadow:
             baseline_id=baseline_id,
             activity_detected=activity_detected,
         )
+        # Persist the latest outcome (when there is a session to key on) so the enforcement reader
+        # can distinguish WHY a baseline is absent — never authoritative, evidence only.
+        if session_date is not None:
+            await self._persist_outcome(account_id, session_date, outcome)
         # Fail-closed outcomes are the operationally interesting ones — warn; the rest are info.
         log = logger.warning if result.fail_closed else logger.info
         log(
@@ -308,3 +315,21 @@ class SessionBaselineShadow:
             activity_detected=activity_detected,
         )
         return result
+
+    async def _persist_outcome(
+        self, account_id: int, session_date: str, outcome: str
+    ) -> None:
+        """Upsert the latest shadow outcome for (account, session date). Evidence only."""
+        now = datetime.now(UTC)
+        stmt = sqlite_insert(RiskSessionBaselineShadowOutcome).values(
+            account_id=account_id,
+            market_session_date=session_date,
+            outcome=outcome,
+            updated_at=now,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["account_id", "market_session_date"],
+            set_={"outcome": stmt.excluded.outcome, "updated_at": stmt.excluded.updated_at},
+        )
+        await self._session.execute(stmt)
+        await self._session.commit()

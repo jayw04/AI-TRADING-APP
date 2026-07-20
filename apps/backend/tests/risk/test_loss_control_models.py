@@ -265,13 +265,16 @@ def _alembic_config():
     return cfg
 
 
-def test_migration_is_single_head_on_this_revision():
-    """Chain integrity, no DB: this revision is the sole head and chains onto the prior head."""
+def test_migration_chain_integrity():
+    """Chain integrity, no DB: exactly one head, and PR1's revision chains onto the prior head.
+
+    (PR1's revision is no longer the head once later increments add migrations — the single-head
+    invariant is enforced generally by scripts/check_alembic_single_head.py.)
+    """
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(_alembic_config())
-    # Exactly one head, and it is this revision (catches a duplicate-head / mis-chain).
-    assert list(script.get_heads()) == ["b6d2f4a9c1e7"]
+    assert len(script.get_heads()) == 1  # no divergent branches / duplicate heads
     rev = script.get_revision("b6d2f4a9c1e7")
     assert rev.down_revision == "c3f8a1e7d24b"
 

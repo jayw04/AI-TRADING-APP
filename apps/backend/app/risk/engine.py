@@ -21,6 +21,7 @@ import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.config import get_settings
 from app.db.enums import (
     TERMINAL_ORDER_STATUSES,
     OrderSide,
@@ -46,6 +47,8 @@ from app.risk.decision_service import (
     permits_while_locked,
 )
 from app.risk.halt import is_halted
+from app.risk.loss_control.daily_loss_basis import DailyLossBasis, select_daily_loss_basis
+from app.risk.loss_control.session_baseline import resolve_session_date
 from app.risk.reason_codes import ReasonCode
 from app.risk.risk_effect import ActionType, ProposedAction
 from app.risk.types import OrderRequest, RiskOutcome
@@ -340,20 +343,33 @@ class RiskEngine:
                         )
                     )
                 ).scalars().first()
-                if state is not None and state.day_change <= -limits.max_daily_loss:
+                # ADR 0043 §D3: choose the daily-loss basis. Flag OFF → state.day_change unchanged
+                # (byte-for-byte legacy); flag ON → prefer the immutable session baseline, with
+                # structured evidence. The gate/threshold semantics are otherwise unchanged.
+                day_change, basis = await self._daily_loss_day_change(
+                    session, req.account_id, limits, state
+                )
+                if day_change is not None and day_change <= -limits.max_daily_loss:
                     # The breach is a HISTORICAL fact and the lock still trips — a permitted
                     # reduction is not required to repair already-realised P&L (ADR 0042,
                     # lock_trigger vs permitted_effect). What changes is what may pass.
+                    trip_payload = {
+                        "day_change": str(day_change),
+                        "max_daily_loss": str(limits.max_daily_loss),
+                        "source": "risk_engine_daily_loss",
+                    }
+                    if basis is not None:  # enforcement on — carry the basis provenance
+                        trip_payload["daily_loss_basis"] = basis.basis_source or ""
+                        if basis.baseline_id is not None:
+                            trip_payload["baseline_id"] = str(basis.baseline_id)
+                        if basis.fallback_reason is not None:
+                            trip_payload["fallback_reason"] = basis.fallback_reason
                     await CircuitBreakerService(
                         session=session, bus=self._bus
                     ).trip(
                         account_id=req.account_id,
                         reason="daily_loss_exceeded",
-                        payload={
-                            "day_change": str(state.day_change),
-                            "max_daily_loss": str(limits.max_daily_loss),
-                            "source": "risk_engine_daily_loss",
-                        },
+                        payload=trip_payload,
                     )
                     # ADR 0042: a control may stop trading, but it must not prevent VERIFIED
                     # reduction of the risk it exists to control. On 2026-07-13 this gate
@@ -363,7 +379,7 @@ class RiskEngine:
                         req,
                         lock_state=LOCK_DAILY_LOSS,
                         lock_reason="daily_loss_exceeded",
-                        daily_pnl=state.day_change,
+                        daily_pnl=day_change,
                         cache=reduction_cache,
                     ):
                         return await self._persist_and_return(
@@ -564,6 +580,42 @@ class RiskEngine:
             return Decimal(str(close)) if close is not None else None
         except Exception:
             return None
+
+    async def _daily_loss_day_change(
+        self,
+        session: AsyncSession,
+        account_id: int,
+        limits: RiskLimits,
+        state: AccountState | None,
+    ) -> tuple[Decimal | None, DailyLossBasis | None]:
+        """The day-change for the step-9 daily-loss gate, plus its basis provenance.
+
+        Flag OFF (default): returns ``state.day_change`` unchanged (the legacy last_equity basis)
+        with NO provenance — byte-for-byte the prior behaviour. Flag ON: selects the daily-loss
+        basis (ADR 0043 §D3), preferring the immutable session baseline, and emits structured
+        evidence so enforcement is verifiable. Step 9 never sanctioned the cumulative fallback, so
+        it is not offered here; a missing session date is never guessed.
+        """
+        if state is None:
+            return None, None
+        if not get_settings().session_baseline_enforcement_enabled:
+            return state.day_change, None
+        basis = await select_daily_loss_basis(
+            session,
+            account_id,
+            current_equity=Decimal(str(state.equity)) if state.equity is not None else None,
+            last_equity=Decimal(str(state.last_equity)) if state.last_equity is not None else None,
+            session_date=resolve_session_date(datetime.now(UTC)),
+            applicable_limit=Decimal(str(limits.max_daily_loss)),
+            allow_cumulative_fallback=False,
+        )
+        logger.info(
+            "risk_daily_loss_basis",
+            account_id=account_id,
+            gate="engine_step9",
+            **basis.provenance(),
+        )
+        return basis.day_change, basis
 
     async def _permits_verified_reduction(
         self,
