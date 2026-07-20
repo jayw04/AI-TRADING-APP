@@ -1,0 +1,250 @@
+{
+ "authorizes_execution": false,
+ "benchmark": {
+  "definition": "zero",
+  "excess": "= primary net return",
+  "financing_costs_included_in_net": true,
+  "is_risk_free_accrual_series": false,
+  "primary_return": "daily net portfolio return on 10M NAV"
+ },
+ "bootstrap": {
+  "block_length_sessions": 21,
+  "confidence": 0.95,
+  "construction": "percentile",
+  "fold_resampling": "per-fold, that fold daily-return series is block-bootstrapped identically (same L/resamples/seed)",
+  "mean_return_and_sharpe_use_same_samples": true,
+  "name": "moving-block (non-circular) bootstrap of daily net returns",
+  "partition": "resample the eligible daily net return series by drawing blocks of fixed length L from random start indices in [0,n-1], truncating blocks at the series end (no wraparound), concatenating drawn blocks in draw order, then truncating to exactly n observations",
+  "reference_implementation": "docs/review/mr002/evaluator_prototype/mr002_valoos_metrics_prototype.py (synthetic-qualified primitive; the qualified evaluator binds the frozen impl)",
+  "resamples": 2000,
+  "rng": "numpy_PCG64",
+  "same_method_validation_and_oos": true,
+  "seed": 42,
+  "sided": "one_sided_lower"
+ },
+ "boundary": "Validation/OOS SEALED AND UNREAD; performance interpretation + production promotion NOT AUTHORIZED.",
+ "confirmatory_structure": {
+  "D-NI": "REJECTED (absolute OOS)",
+  "oos_role": "absolute economic/statistical gates, config B, once",
+  "validation_role": "positive-fold + parameter-stability gates"
+ },
+ "cost_model_frozen_values": {
+  "adv_cap_policy": "clip_never_delay",
+  "adv_participation_cap": 0.02,
+  "borrow_bps_per_year": 50,
+  "borrow_day_count": 360,
+  "commission_slippage_bps_per_side": 10,
+  "executable_artifact": "PREREQUISITE (evaluator qualification binds file+blob+sha256+version+commit+tree+container+lock+synthetic evidence; not a placeholder value)",
+  "execution": "next_open_t_plus_1",
+  "forward_fill": "prohibited",
+  "nav_usd": 10000000,
+  "new_entry_cap_fraction_of_nav": 0.015
+ },
+ "coverage_gates": {
+  "codes": [
+   "REFUSED_DATA_COVERAGE",
+   "REFUSED_PRICE_INTEGRITY",
+   "REFUSED_CORPORATE_ACTION",
+   "REFUSED_UNIVERSE_RECONSTRUCTION",
+   "REFUSED_COST_MODEL",
+   "REFUSED_EXPOSURE_LIMIT",
+   "REFUSED_REPLAY_INTEGRITY",
+   "REFUSED_CODE_OR_DATA_IDENTITY",
+   "INTEGRITY_STOP"
+  ],
+  "denominators": "per-window: numerator = observed complete records; denominator = eligible sessions x registered universe cardinality x required fields. Registered full-population denominator = 40,750 ticker-days (sealed manifest). Window-specific ticker-day denominators computed by the evaluator from the FROZEN universe table (metadata) at qualification - a prerequisite, not a placeholder value.",
+  "forward_fill": "prohibited",
+  "per_year_min_data": 0.9,
+  "per_year_min_pitsic": 0.95,
+  "registered_data_availability_min": 0.95,
+  "registered_pitsic_availability_min": 0.98
+ },
+ "date": "2026-07-19",
+ "dsr": {
+  "annualization": "sqrt(252)",
+  "benchmark_sharpe": 0.0,
+  "method": "Deflated Sharpe Ratio (Bailey/Lopez-de-Prado)",
+  "sample_length": "eligible OOS sessions (775 governing)",
+  "significance_min": 0.95,
+  "skew_kurtosis": "sample skewness and kurtosis of the config-B net return series",
+  "spec_status": "PREREQUISITE - exact estimator + numerical tolerances bound in evaluator qualification",
+  "trials_N": 3,
+  "trials_definition": "the three configurations A,B,C tried (B is the verdict config; A/C are the tried alternatives inflating multiple-testing variance)"
+ },
+ "exposure_limits_frozen": {
+  "beta_limit": 0.1,
+  "breach_policy": "hard_refusal REFUSED_EXPOSURE_LIMIT",
+  "dollar_neutral": "long_gross == short_gross",
+  "net_drift_band": 0.05,
+  "sector_gross_max": 0.2,
+  "sector_net_max": 0.05,
+  "single_name_max": "<= registered start weight (w_i <= 0.015 new-entry)"
+ },
+ "gates_frozen": {
+  "alpha": 0.05,
+  "capacity": "positive net edge under 2% ADV cap",
+  "cost_stress_multiplier": 2.0,
+  "delta_ni": null,
+  "diversifier_tag": {
+   "corr_vs_mom001_max": 0.3,
+   "note": "reported tag DIVERSIFIER_TIER_MET only; NOT a PASS route",
+   "threshold": 0.4
+  },
+  "dsr_significance_min": 0.95,
+  "min_long": 100,
+  "min_short": 100,
+  "min_trades": 500,
+  "net_max_drawdown_max": 0.15,
+  "net_oos_calmar_min": 0.75,
+  "oos_pass_requires_BOTH": [
+   "net_oos_sharpe_point_estimate >= 0.70",
+   "one_sided_95pct_bootstrap_lower_bound_of_daily_mean_net_return > 0"
+  ],
+  "parameter_stability": "configs A and C both net-profitable",
+  "pbo_max": 0.2,
+  "profit_concentration_single_year_max": 0.35,
+  "regime_concentration_single_regime_max": 0.6,
+  "validation_positive_folds_min_of_5": 3
+ },
+ "governing_frozen_sources": {
+  "authoritative_calendar_snapshot": {
+   "file": "apps/backend/data/mr002_research.duckdb",
+   "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+  },
+  "sealed_manifest": {
+   "file": "docs/implementation/evidence/mr_002/MR002_SealedManifest_v1.0.json",
+   "sha256": "96f7b3f96c61abb2d146ca25a58698471ae61454af13882ea15c9be9000112cd"
+  },
+  "session_index_extraction": {
+   "file": "docs/review/mr002/evaluator_prototype/MR002_SessionIndex_Extraction_Output.json",
+   "script_sha256": "908de368968fbb5d012ff456fd7925f541907e2b73a9851a416c9b3b5c1fe646",
+   "sha256": "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071"
+  },
+  "windows_design": {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.1_REFREEZE_CANDIDATE.md",
+   "sha256": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5"
+  }
+ },
+ "pbo": {
+  "matrix": "config-B per-fold performance across the 5 validation folds; symmetric IS/OOS partitions",
+  "method": "CSCV (Combinatorially-Symmetric Cross-Validation; Bailey/Borwein/Lopez-de-Prado/Zhu)",
+  "spec_status": "PREREQUISITE - exact split count S, ranking metric, and partition enumeration bound in evaluator qualification with synthetic fixtures",
+  "threshold": "< 0.20",
+  "trials_family": "the config-B fold performance matrix; A and C are NOT PBO trials (they are the parameter-stability gate)"
+ },
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_VALIDATIONOOS_PREREGISTRATION",
+ "sealed_access_protocol": {
+  "first_access_proof": "earliest CloudTrail GetObject event on the validation partition",
+  "mechanism": "CloudTrail S3 data events enabled BEFORE access; dedicated IAM principal; explicit bucket/key DENY on the OOS partition during validation; validation-only access policy during validation; committed CloudTrail event export; policy-state snapshots before and after each execution",
+  "oos_unread_proof": "access-policy isolation + audited ABSENCE of OOS GetObject events during validation (NOT an S3 last-access attribute, which S3 does not provide)"
+ },
+ "sealed_data_read": false,
+ "seam_rule": {
+  "basis": "registered session ordinals (not calendar-day arithmetic)",
+  "eligibility": "score decision session t only if all formation sessions AND full realization horizon lie within the SAME governed window",
+  "fold_rule": "5 contiguous non-overlapping nearly-equal partitions of the eligible validation sessions; remainder to earliest folds (here exactly 155 each, 775/5)",
+  "formation_exclude_sessions": 69,
+  "realization_horizon_alt": 5,
+  "realization_horizon_governing": 6,
+  "realization_horizon_ratification": "OWNER-RATIFIED FINAL = 6 (next-open exit t+1..t+6). The 5-session close-exit alternative is REJECTED (historical rationale only; not executable configuration)."
+ },
+ "secondary_family": "descriptive_only (no inferential secondary family; no post-hoc multiplicity)",
+ "sequencing": {
+  "one_validation_execution": true,
+  "oos_config": "B_only",
+  "oos_inaccessible_during_validation": true,
+  "oos_openings": 1,
+  "oos_requires_separate_authorization_after_validation_PASS": true,
+  "validation_first": true
+ },
+ "sharpe_estimator": {
+  "annualization": "sqrt(252)",
+  "frequency": "daily",
+  "mean": "arithmetic",
+  "precision": "float64",
+  "report_dp": 4,
+  "returns": "simple_net",
+  "std_ddof": 1,
+  "zero_vol": "INTEGRITY_STOP (peak-to-peak==0)"
+ },
+ "terminal_dispositions": [
+  "PASS",
+  "FAIL",
+  "REFUSED",
+  "INTEGRITY_STOP"
+ ],
+ "test_status": {
+  "full_validation_oos_evaluator": "NOT YET BUILT OR QUALIFIED (Workstream B)",
+  "metric_primitives_prototype": "EXECUTED - 11/11 synthetic tests passed (reads no data)"
+ },
+ "validation_folds_literal_governing": [
+  {
+   "first": "2020-01-13",
+   "fold": 1,
+   "last": "2020-08-21",
+   "sessions": 155
+  },
+  {
+   "first": "2020-08-24",
+   "fold": 2,
+   "last": "2021-04-06",
+   "sessions": 155
+  },
+  {
+   "first": "2021-04-07",
+   "fold": 3,
+   "last": "2021-11-12",
+   "sessions": 155
+  },
+  {
+   "first": "2021-11-15",
+   "fold": 4,
+   "last": "2022-06-28",
+   "sessions": 155
+  },
+  {
+   "first": "2022-06-29",
+   "fold": 5,
+   "last": "2023-02-08",
+   "sessions": 155
+  }
+ ],
+ "version": "1.0",
+ "windows_literal": {
+  "development": {
+   "end": "2019-10-02",
+   "sessions": 1700,
+   "start": "2013-01-02",
+   "status": "in_use_no_performance"
+  },
+  "endpoint_convention_status": "horizon 6 owner-ratified final; alt_close_exit_* fields are the REJECTED alternative, retained for historical rationale only",
+  "governed_session_list_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+  "oos": {
+   "alt_close_exit_last": "2026-07-02",
+   "alt_eligible_sessions": 776,
+   "config": "B_only",
+   "eligible_sessions": 775,
+   "end": "2026-07-10",
+   "openings": 1,
+   "scoring_eligible_first": "2023-05-30",
+   "scoring_eligible_last": "2026-07-01",
+   "sessions": 850,
+   "start": "2023-02-17",
+   "status": "SEALED_AND_UNREAD"
+  },
+  "prices_equals_etf_in_governed_window": true,
+  "total_sessions": 3400,
+  "validation": {
+   "alt_close_exit_last": "2023-02-09",
+   "alt_eligible_sessions": 776,
+   "eligible_sessions": 775,
+   "end": "2023-02-16",
+   "scoring_eligible_first": "2020-01-13",
+   "scoring_eligible_last": "2023-02-08",
+   "sessions": 850,
+   "start": "2019-10-03",
+   "status": "SEALED_AND_UNREAD"
+  }
+ }
+}

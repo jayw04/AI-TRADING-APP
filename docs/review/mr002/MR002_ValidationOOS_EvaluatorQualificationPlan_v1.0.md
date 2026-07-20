@@ -8,7 +8,7 @@ it reads no sealed data.
 
 ## 0. Relationship to the governance package
 
-The preregistration v1.0-RC1 (`399e3b53…`) + decision record (`9a3a058c…`) FREEZE the windows,
+The preregistration v1.0-final (`e9ee38e5…`) + decision record (`9a3a058c…`) FREEZE the windows,
 gates, estimator, bootstrap, thresholds, seam rule, and dispositions. This workstream produces the
 **executable** that implements exactly those frozen rules and proves it on synthetic fixtures. No
 rule may be changed here; a needed rule change returns to governance.
