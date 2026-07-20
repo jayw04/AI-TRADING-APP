@@ -1,0 +1,53 @@
+{
+  "canonical_report_output_hash": "d3412e49a36accdd73abb1f965781aa89ab39a6a0f9e47b762ae90187337fedb",
+  "dependency_inventory": {
+    "numpy": "2.2.6",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.14",
+    "scipy": "1.18.0"
+  },
+  "determinism_proof": {
+    "byte_identical": true,
+    "run1_hash": "d3412e49a36accdd73abb1f965781aa89ab39a6a0f9e47b762ae90187337fedb",
+    "run2_hash": "d3412e49a36accdd73abb1f965781aa89ab39a6a0f9e47b762ae90187337fedb"
+  },
+  "development_free_assertions": {
+    "development_performance_computed": false,
+    "oos_data_read": false,
+    "synthetic_fixture_only": true,
+    "validation_data_read": false
+  },
+  "dsr_N_source": "MR002_DSR_TrialLedger_v1.0.json (deda5cec...), N=5 \u2014 no code-constant fallback",
+  "governing_identity": {
+    "dsr_status": "READY",
+    "dsr_trials_N": 5,
+    "ledger_included_trials": [
+      "MR002-A",
+      "MR002-B",
+      "MR002-C",
+      "RNG-001",
+      "RNG-EntryLogic"
+    ],
+    "ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+    "prereg_sha256": "b840e01cf8f4dc2cf40f43f4fc0f9f70e53712e5f78b3a73346014bbcf2ef468",
+    "resolution_sha256": "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0",
+    "validation_authorization": false
+  },
+  "increment": 1,
+  "no_real_dataset_opened": true,
+  "record_type": "MR002_Increment1_Qualification",
+  "report_self_hash_verifies": true,
+  "scope": "governing-identity loader + metric primitives + gate engine + report kernel + synthetic fixtures",
+  "source_hashes": {
+    "mr002_valoos_gates.py": "85585f303027c7621b61d208c1eee2d68367b2ccfdf51f5045cb8645f5a12819",
+    "mr002_valoos_identity.py": "5860c77bdd6192ae4bdd9f28f8d2d8d45c1b0bfabbbc9fcbde04d0a1814b4c5a",
+    "mr002_valoos_metrics.py": "5bd6d7e4ac8d3baf0569ff744ceb2a655e44cca1f5c553d9c3f3bd7299d879f0",
+    "mr002_valoos_report.py": "ccb20e98232e03baf5236e11c9210c774f685b4720a1ab601e0ab381df73e0bd",
+    "test_increment1.py": "0140a501a23d0bcf6869bb059b53fd3c7f9bebee353abfe8b43f71761c19fbc9"
+  },
+  "tests": {
+    "count": 14,
+    "log": "MR002_Increment1_TestLog.txt",
+    "result": "14 passed"
+  }
+}
