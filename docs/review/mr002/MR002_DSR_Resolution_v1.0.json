@@ -1,0 +1,35 @@
+{
+ "boundary": "no sealed data read; no performance computed; no economic rule changed.",
+ "countersigned_trial_ledger": {
+  "decision": "TRIAL_LEDGER_COUNTERSIGNED",
+  "file": "MR002_DSR_TrialLedger_v1.0.json",
+  "included": [
+   "MR002-A",
+   "MR002-B",
+   "MR002-C",
+   "RNG-001",
+   "RNG-EntryLogic"
+  ],
+  "sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+  "trials_N": 5
+ },
+ "date": "2026-07-19",
+ "prereg_update": {
+  "changed": [
+   "dsr.status BLOCKED->READY",
+   "dsr.trials_N null->5",
+   "dsr.trial_ledger_sha256 null->deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "gates_frozen.dsr_trials_N->5",
+   "sequencing.validation_authorization added explicit false"
+  ],
+  "from": "MR002_ValidationOOS_Preregistration_v1.0.2 (8afdacd6)",
+  "to": "MR002_ValidationOOS_Preregistration_v1.0.3",
+  "to_sha256": "b840e01cf8f4dc2cf40f43f4fc0f9f70e53712e5f78b3a73346014bbcf2ef468",
+  "unchanged": "all gates, thresholds, dates, folds, costs, estimator, bootstrap, D-decisions, access restrictions, validation/OOS sealed status"
+ },
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_DSR_RESOLUTION",
+ "resolves": "the DSR governance blocker (MR002_DSR_TrialLedger_Blocker_v1.0) via the countersigned trial ledger",
+ "validation_access": "NOT AUTHORIZED - resolving the DSR prerequisite removes the evaluator-qualification blocker ONLY; it does not authorize validation or OOS access.",
+ "version": "1.0"
+}

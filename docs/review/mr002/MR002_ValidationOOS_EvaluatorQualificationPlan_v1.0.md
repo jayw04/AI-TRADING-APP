@@ -15,10 +15,14 @@ the validation opening. This plan is the acceptance contract; it reads no sealed
 
 ## 0. Relationship to the governance package
 
-The preregistration v1.0-final (`e9ee38e5…`) + decision record (`9a3a058c…`) FREEZE the windows,
-gates, estimator, bootstrap, thresholds, seam rule, and dispositions. This workstream produces the
-**executable** that implements exactly those frozen rules and proves it on synthetic fixtures. No
-rule may be changed here; a needed rule change returns to governance.
+The **governing preregistration is v1.0.3** (`b840e01c…`; DSR-resolved) — which supersedes the
+chain v1.0-final → v1.0.1 → v1.0.2. It FREEZES the windows, corrected gate battery, estimator,
+bootstrap, thresholds, seam rule, dispositions, and D-decisions (`MR002_ValidationOOS_DecisionRecord_v1.0.json`
+`9a3a058c…`). DSR is bound by the **countersigned trial ledger** `MR002_DSR_TrialLedger_v1.0.json`
+(`deda5cec…`, N = 5) via the **DSR resolution** `MR002_DSR_Resolution_v1.0.json` (`30b812f1…`). This
+workstream produces the **executable** that implements exactly those frozen rules — including DSR at
+**N = 5** (never a defaulted 3) — and proves it on synthetic fixtures. No rule may be changed here;
+a needed rule change returns to governance.
 
 ## 1. What already exists (identity-tested, committed)
 
