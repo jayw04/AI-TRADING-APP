@@ -49,7 +49,10 @@ def metric_handoff(returns: list) -> dict:
     metrics plus the exact input-series identity so the qualification can prove the same series was
     passed (not a separately constructed helper)."""
     out = {"input_series_len": len(returns),
-           "input_series_exact_hex": [float(r).hex() for r in returns]}
+           "input_series_exact_hex": [float(r).hex() for r in returns],
+           "label": "SYNTHETIC_INTERFACE_QUALIFICATION_ONLY",
+           "note": "Metric values (incl. any gate_pass / confirmatory_gate_pass flags) are interface "
+                   "wiring proof on a synthetic fixture, NOT an MR-002 research-gate outcome."}
     if len(returns) >= 1:
         try:
             out["geometric_annualized_return"] = M.geometric_annualized_return(returns)
@@ -70,8 +73,11 @@ def build_pipeline_report(*, replay: dict, metrics: dict, identity: dict, config
         "record_type": "MR002_ValOOS_PortfolioReplay",
         "schema_version": SCHEMA_VERSION,
         "config_id": config_id,
+        "research_gate_verdict": "NOT_EVALUATED_SYNTHETIC",
+        "performance_interpretation_authorized": False,
         "governing_registry_identity": identity.get("registry_sha256"),
         "governing_resolution_identity": identity.get("resolution_sha256"),
+        "governing_source_identities": identity.get("source_shas"),
         "sessions": [{"session": r["session"], "disposition": r["disposition"], "stop_code": r["stop_code"],
                       "events": r["events"], "intended": r["intended"], "removal_events": r["removal_events"],
                       "drift_repair": r.get("drift_repair"), "exposure": r["exposure"],

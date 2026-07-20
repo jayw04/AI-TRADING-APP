@@ -157,17 +157,26 @@ def preview_entry_fill(intended_shares, entry_open: float, nav: float, adv: floa
             "nav_cap_shares": nav_cap_shares, "adv_cap_shares": adv_cap_shares}
 
 
+def ledger_event(*, trade_id, symbol, side, decision_session, decision_type, scheduled, actual,
+                 event_type, shares, open_price, executed_notional, commission, borrow, gross, net,
+                 position_id, reason) -> dict:
+    """The single shared 17-field trade-ledger event constructor. Increment 3 calls this (never a
+    second abbreviated schema) so every event carries the qualified EVENT_FIELDS."""
+    return {"trade_id": trade_id, "symbol": symbol, "side": side, "decision_session": decision_session,
+            "decision_type": decision_type, "scheduled_execution_session": scheduled,
+            "actual_execution_session": actual, "event_type": event_type, "shares": shares,
+            "official_open_price": open_price, "executed_notional": executed_notional,
+            "commission_slippage_cost": commission, "borrow_cost": borrow, "gross_pnl": gross,
+            "net_pnl": net, "position_id": position_id, "reason": reason}
+
+
 def _event(intent: TradeIntent, *, decision_session, decision_type, event_type, scheduled, actual,
            shares, open_price, executed_notional, commission, borrow, gross, net, reason) -> dict:
-    return {
-        "trade_id": intent.trade_id, "symbol": intent.symbol, "side": intent.side,
-        "decision_session": decision_session, "decision_type": decision_type,
-        "scheduled_execution_session": scheduled, "actual_execution_session": actual,
-        "event_type": event_type, "shares": shares, "official_open_price": open_price,
-        "executed_notional": executed_notional, "commission_slippage_cost": commission,
-        "borrow_cost": borrow, "gross_pnl": gross, "net_pnl": net,
-        "position_id": intent.position_id, "reason": reason,
-    }
+    return ledger_event(trade_id=intent.trade_id, symbol=intent.symbol, side=intent.side,
+                        decision_session=decision_session, decision_type=decision_type,
+                        scheduled=scheduled, actual=actual, event_type=event_type, shares=shares,
+                        open_price=open_price, executed_notional=executed_notional, commission=commission,
+                        borrow=borrow, gross=gross, net=net, position_id=intent.position_id, reason=reason)
 
 
 def _resolve_exit_session(market: Market, target: int):

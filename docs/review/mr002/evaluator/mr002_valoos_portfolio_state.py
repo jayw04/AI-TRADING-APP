@@ -20,6 +20,7 @@ class HeldPosition:
     entry_date: str
     entry_open_price: float
     entry_notional: float
+    entry_commission: float
     sector_id: str
     beta: float
     permanent_security_id: str

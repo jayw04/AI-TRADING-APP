@@ -1,21 +1,26 @@
 {
   "code_identity": {
-    "_gen_evidence_inc3.py": "56f4673bb3c6010ca9758ef84548cfe9ddf97376c7fd94794d407d23f6be395c",
+    "_gen_evidence_inc3.py": "e93bd016ec8fe6ce6c036d6883e57322bab3d667eef148f97d321095e4ec5b2f",
     "mr002_valoos_candidates.py": "5e429c37af40b6913289b716051e36aaab55015e71087c44fab04815b8d2386c",
-    "mr002_valoos_construction.py": "f1060caab0234440e13b4e96bf51bae7b68a9a44476984a9211ce3988d659e38",
-    "mr002_valoos_exposure.py": "84ae611c6f01c6733b62d6b2a07630e1c7c0ce2f4ed3331576daf259a045f54a",
+    "mr002_valoos_construction.py": "e6af4eea60099b97663fd603da35d10d5bf9021ef2ac16b7d267f9fc3be601b3",
+    "mr002_valoos_exposure.py": "5d18a45706e47dfceefafd5236928094714f64566931103dfd04f539a7f552bc",
     "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
-    "mr002_valoos_pipeline.py": "e11a9f668b9e12f9ea422eb01a8bcc85c6941291f61275b93bfc5fd0fc531dd3",
+    "mr002_valoos_pipeline.py": "a18f33a8967a3b2101f8a9f505c259e4b3b2379573aa44bb35cb6614bf0c836f",
     "mr002_valoos_portfolio_identity.py": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
-    "mr002_valoos_portfolio_state.py": "775f8df8f2f98f2aba167056f3fc0837dce8472b61681de4dcfb806250f8c12e",
-    "mr002_valoos_replay.py": "6f97850ac3fd8d43c9fa19e6f720c3d4feb5bfd6c7b16db33de12d6a7fd1e4bf",
-    "test_increment3.py": "ab984c6085d65db04fbc696ccd9d98716172a862b0b4be7a1447ffade06cc7aa"
+    "mr002_valoos_portfolio_state.py": "7129c11e832691b39abb9983b21b13ed2b4ce9c61e3316e329fc1052012a5d34",
+    "mr002_valoos_replay.py": "1d386de684348d7977e2147ab2f7f01b6e6fe17deaa739769550254648dca0a8",
+    "test_increment3.py": "3110201a789c1b144b35c504da817ff5fcd174a5b3771cfe28b462bc2ea06532"
   },
   "config_id": "B",
   "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
   "development_performance_computed": false,
   "governing_registry_identity": "edb7ff22b5215f815b15e64166111604d2b99da91a545729b6c9796928d3b91a",
   "governing_resolution_identity": "860c8cdeb995fadea21359ede189dad27378ab2c553e5a24122bbbd2d2546740",
+  "governing_source_identities": {
+    "MR002_DSR_TrialLedger_v1.0.json": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+    "MR002_Portfolio_Rule_Census_v1.0.json": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e",
+    "MR002_ValidationOOS_Preregistration_v1.0.4.json": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
   "metrics": {
     "calmar": {
       "annualized_return": {
@@ -45,6 +50,8 @@
       "0x1.8819388e3d000p-10"
     ],
     "input_series_len": 4,
+    "label": "SYNTHETIC_INTERFACE_QUALIFICATION_ONLY",
+    "note": "Metric values (incl. any gate_pass / confirmatory_gate_pass flags) are interface wiring proof on a synthetic fixture, NOT an MR-002 research-gate outcome.",
     "stationary_bootstrap_confirmatory": {
       "confidence": {
         "display": 0.95,
@@ -170,8 +177,10 @@
     }
   ],
   "oos_data_read": false,
-  "output_hash": "53ffca3d2e40a8a024bf8c20ad3c8e3bc264662de80d1fb49bfa2ceccdb18d54",
+  "output_hash": "a5cb8e3cc08fa1f817b545a8e029d81a9cb1ee62ca1f013688ba358c0ac2cc53",
+  "performance_interpretation_authorized": false,
   "record_type": "MR002_ValOOS_PortfolioReplay",
+  "research_gate_verdict": "NOT_EVALUATED_SYNTHETIC",
   "return_series": [
     {
       "display": -0.00014999999999998348,
@@ -196,8 +205,405 @@
       "atomicity_committed": true,
       "disposition": "COMMITTED",
       "drift_repair": null,
-      "events": [],
+      "events": [
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-L0_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "long",
+          "symbol": "L0_0",
+          "trade_id": "TR-L0_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-L1_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "long",
+          "symbol": "L1_0",
+          "trade_id": "TR-L1_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-L2_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "long",
+          "symbol": "L2_0",
+          "trade_id": "TR-L2_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-L3_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "long",
+          "symbol": "L3_0",
+          "trade_id": "TR-L3_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-L4_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "long",
+          "symbol": "L4_0",
+          "trade_id": "TR-L4_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-S0_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "short",
+          "symbol": "S0_0",
+          "trade_id": "TR-S0_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-S1_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "short",
+          "symbol": "S1_0",
+          "trade_id": "TR-S1_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-S2_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "short",
+          "symbol": "S2_0",
+          "trade_id": "TR-S2_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-S3_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "short",
+          "symbol": "S3_0",
+          "trade_id": "TR-S3_0-entry-1"
+        },
+        {
+          "actual_execution_session": 1,
+          "borrow_cost": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "commission_slippage_cost": {
+            "display": 15.0,
+            "exact_hex": "0x1.e000000000000p+3"
+          },
+          "decision_session": 0,
+          "decision_type": "ENTRY_SIGNAL",
+          "event_type": "ENTRY_FILL",
+          "executed_notional": {
+            "display": 15000.0,
+            "exact_hex": "0x1.d4c0000000000p+13"
+          },
+          "gross_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "net_pnl": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "official_open_price": {
+            "display": 100.0,
+            "exact_hex": "0x1.9000000000000p+6"
+          },
+          "position_id": "POS-S4_0-1",
+          "reason": "SYNTHETIC_SIGNAL",
+          "scheduled_execution_session": 1,
+          "shares": 150,
+          "side": "short",
+          "symbol": "S4_0",
+          "trade_id": "TR-S4_0-entry-1"
+        }
+      ],
       "exposure": {
+        "HELD_BASELINE": {
+          "cash": {
+            "display": 1000000.0,
+            "exact_hex": "0x1.e848000000000p+19"
+          },
+          "empty": true,
+          "gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "gross_dollars": 0,
+          "nav": {
+            "display": 1000000.0,
+            "exact_hex": "0x1.e848000000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "normalized_beta": "N_A_EMPTY_PORTFOLIO",
+          "per_name": {},
+          "sector_gross": {},
+          "sector_net": {},
+          "signed_beta_numerator": 0,
+          "state_label": "HELD_BASELINE"
+        },
         "INTENDED_TARGET": {
           "cash": {
             "display": 850000.0,
@@ -316,7 +722,124 @@
           },
           "state_label": "INTENDED_TARGET"
         },
-        "RAW_TARGET": null,
+        "RAW_TARGET": {
+          "cash": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "empty": false,
+          "gross": {
+            "display": 1.0,
+            "exact_hex": "0x1.0000000000000p+0"
+          },
+          "gross_dollars": {
+            "display": 1000000.0,
+            "exact_hex": "0x1.e848000000000p+19"
+          },
+          "nav": {
+            "display": 1000000.0,
+            "exact_hex": "0x1.e848000000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "normalized_beta": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "L1_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "L2_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "L3_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "L4_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "S0_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "S1_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "S2_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "S3_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            },
+            "S4_0": {
+              "display": 0.1,
+              "exact_hex": "0x1.999999999999ap-4"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC1": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC2": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC3": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            },
+            "SEC4": {
+              "display": 0.0,
+              "exact_hex": "0x0.0p+0"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          },
+          "state_label": "RAW_TARGET"
+        },
         "REALIZED_EXECUTED": {
           "cash": {
             "display": 850000.0,
@@ -748,7 +1271,243 @@
       "drift_repair": null,
       "events": [],
       "exposure": {
+        "HELD_BASELINE": {
+          "cash": {
+            "display": 851350.0,
+            "exact_hex": "0x1.9fb2c00000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14979777300644131,
+            "exact_hex": "0x1.32c92cc09c41ap-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1001350.0,
+            "exact_hex": "0x1.e8f0c00000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.01,
+            "exact_hex": "0x1.47ae147ae147bp-7"
+          },
+          "normalized_beta": {
+            "display": 0.0005,
+            "exact_hex": "0x1.0624dd2f1a9fcp-11"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L1_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L2_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L3_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L4_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "S0_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S1_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S2_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S3_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S4_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC1": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC2": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC3": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC4": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 7.489888650322066e-05,
+            "exact_hex": "0x1.3a261127897a8p-14"
+          },
+          "state_label": "HELD_BASELINE"
+        },
         "INTENDED_TARGET": {
+          "cash": {
+            "display": 851350.0,
+            "exact_hex": "0x1.9fb2c00000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14979777300644131,
+            "exact_hex": "0x1.32c92cc09c41ap-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1001350.0,
+            "exact_hex": "0x1.e8f0c00000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.01,
+            "exact_hex": "0x1.47ae147ae147bp-7"
+          },
+          "normalized_beta": {
+            "display": 0.0005,
+            "exact_hex": "0x1.0624dd2f1a9fcp-11"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L1_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L2_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L3_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "L4_0": {
+              "display": 0.015129575073650571,
+              "exact_hex": "0x1.efc4131264f54p-7"
+            },
+            "S0_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S1_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S2_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S3_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            },
+            "S4_0": {
+              "display": 0.014829979527637689,
+              "exact_hex": "0x1.e5f2e28928a97p-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC1": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC2": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC3": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            },
+            "SEC4": {
+              "display": 0.002,
+              "exact_hex": "0x1.0624dd2f1a9fcp-9"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 7.489888650322066e-05,
+            "exact_hex": "0x1.3a261127897a8p-14"
+          },
+          "state_label": "INTENDED_TARGET"
+        },
+        "RAW_TARGET": {
           "cash": {
             "display": 1001350.0,
             "exact_hex": "0x1.e8f0c00000000p+19"
@@ -772,9 +1531,8 @@
           "sector_gross": {},
           "sector_net": {},
           "signed_beta_numerator": 0,
-          "state_label": "INTENDED_TARGET"
+          "state_label": "RAW_TARGET"
         },
-        "RAW_TARGET": null,
         "REALIZED_EXECUTED": {
           "cash": {
             "display": 851350.0,
@@ -905,7 +1663,243 @@
       "drift_repair": null,
       "events": [],
       "exposure": {
+        "HELD_BASELINE": {
+          "cash": {
+            "display": 852850.0,
+            "exact_hex": "0x1.a06e400000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14957371491249938,
+            "exact_hex": "0x1.3253b42f1f908p-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1002850.0,
+            "exact_hex": "0x1.e9ac400000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.02,
+            "exact_hex": "0x1.47ae147ae147bp-6"
+          },
+          "normalized_beta": {
+            "display": 0.001,
+            "exact_hex": "0x1.0624dd2f1a9fcp-10"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L1_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L2_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L3_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L4_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "S0_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S1_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S2_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S3_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S4_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC1": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC2": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC3": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC4": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.00014957371491249938,
+            "exact_hex": "0x1.39adc6d830b4cp-13"
+          },
+          "state_label": "HELD_BASELINE"
+        },
         "INTENDED_TARGET": {
+          "cash": {
+            "display": 852850.0,
+            "exact_hex": "0x1.a06e400000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14957371491249938,
+            "exact_hex": "0x1.3253b42f1f908p-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1002850.0,
+            "exact_hex": "0x1.e9ac400000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.02,
+            "exact_hex": "0x1.47ae147ae147bp-6"
+          },
+          "normalized_beta": {
+            "display": 0.001,
+            "exact_hex": "0x1.0624dd2f1a9fcp-10"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L1_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L2_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L3_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "L4_0": {
+              "display": 0.015256518921074937,
+              "exact_hex": "0x1.f3ecf4e88da01p-7"
+            },
+            "S0_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S1_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S2_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S3_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            },
+            "S4_0": {
+              "display": 0.014658224061424939,
+              "exact_hex": "0x1.e052187b0a94cp-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC1": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC2": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC3": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            },
+            "SEC4": {
+              "display": 0.004,
+              "exact_hex": "0x1.0624dd2f1a9fcp-8"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.00014957371491249938,
+            "exact_hex": "0x1.39adc6d830b4cp-13"
+          },
+          "state_label": "INTENDED_TARGET"
+        },
+        "RAW_TARGET": {
           "cash": {
             "display": 1002850.0,
             "exact_hex": "0x1.e9ac400000000p+19"
@@ -929,9 +1923,8 @@
           "sector_gross": {},
           "sector_net": {},
           "signed_beta_numerator": 0,
-          "state_label": "INTENDED_TARGET"
+          "state_label": "RAW_TARGET"
         },
-        "RAW_TARGET": null,
         "REALIZED_EXECUTED": {
           "cash": {
             "display": 852850.0,
@@ -1062,7 +2055,243 @@
       "drift_repair": null,
       "events": [],
       "exposure": {
+        "HELD_BASELINE": {
+          "cash": {
+            "display": 854350.0,
+            "exact_hex": "0x1.a129c00000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14935032608154528,
+            "exact_hex": "0x1.31de9571565ebp-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1004350.0,
+            "exact_hex": "0x1.ea67c00000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.03,
+            "exact_hex": "0x1.eb851eb851eb8p-6"
+          },
+          "normalized_beta": {
+            "display": 0.0014999999999999994,
+            "exact_hex": "0x1.89374bc6a7ef7p-10"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L1_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L2_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L3_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L4_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "S0_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S1_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S2_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S3_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S4_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC1": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC2": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC3": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC4": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.00022402548912231783,
+            "exact_hex": "0x1.d5d0c4c6a9870p-13"
+          },
+          "state_label": "HELD_BASELINE"
+        },
         "INTENDED_TARGET": {
+          "cash": {
+            "display": 854350.0,
+            "exact_hex": "0x1.a129c00000000p+19"
+          },
+          "empty": false,
+          "gross": {
+            "display": 0.14935032608154528,
+            "exact_hex": "0x1.31de9571565ebp-3"
+          },
+          "gross_dollars": {
+            "display": 150000.0,
+            "exact_hex": "0x1.24f8000000000p+17"
+          },
+          "nav": {
+            "display": 1004350.0,
+            "exact_hex": "0x1.ea67c00000000p+19"
+          },
+          "net_fraction_of_gross": {
+            "display": 0.03,
+            "exact_hex": "0x1.eb851eb851eb8p-6"
+          },
+          "normalized_beta": {
+            "display": 0.0014999999999999994,
+            "exact_hex": "0x1.89374bc6a7ef7p-10"
+          },
+          "per_name": {
+            "L0_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L1_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L2_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L3_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "L4_0": {
+              "display": 0.015383083586399164,
+              "exact_hex": "0x1.f812a87525e3cp-7"
+            },
+            "S0_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S1_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S2_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S3_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            },
+            "S4_0": {
+              "display": 0.014486981629909893,
+              "exact_hex": "0x1.dab59c28bb4b5p-7"
+            }
+          },
+          "sector_gross": {
+            "SEC0": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC1": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC2": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC3": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            },
+            "SEC4": {
+              "display": 0.2,
+              "exact_hex": "0x1.999999999999ap-3"
+            }
+          },
+          "sector_net": {
+            "SEC0": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC1": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC2": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC3": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            },
+            "SEC4": {
+              "display": 0.006,
+              "exact_hex": "0x1.89374bc6a7efap-8"
+            }
+          },
+          "signed_beta_numerator": {
+            "display": 0.00022402548912231783,
+            "exact_hex": "0x1.d5d0c4c6a9870p-13"
+          },
+          "state_label": "INTENDED_TARGET"
+        },
+        "RAW_TARGET": {
           "cash": {
             "display": 1004350.0,
             "exact_hex": "0x1.ea67c00000000p+19"
@@ -1086,9 +2315,8 @@
           "sector_gross": {},
           "sector_net": {},
           "signed_beta_numerator": 0,
-          "state_label": "INTENDED_TARGET"
+          "state_label": "RAW_TARGET"
         },
-        "RAW_TARGET": null,
         "REALIZED_EXECUTED": {
           "cash": {
             "display": 854350.0,

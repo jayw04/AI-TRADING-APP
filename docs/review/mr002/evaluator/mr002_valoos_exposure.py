@@ -52,6 +52,40 @@ def snapshot(state_label: str, legs: list, nav: float) -> dict:
             "empty": gross_d == 0.0}
 
 
+def _subject_checks(snap: dict):
+    """Yield (kind, subject, value, limit) for every hard-cap subject in a snapshot."""
+    for sym, frac in snap["per_name"].items():
+        yield ("SINGLE_NAME", sym, frac, POSITION_CAP_NAV)
+    yield ("GROSS", "", snap["gross"], GROSS_MAX)
+    for s, frac in snap["sector_gross"].items():
+        yield ("SECTOR", f"gross:{s}", frac, SECTOR_GROSS_MAX)
+    for s, frac in snap["sector_net"].items():
+        yield ("SECTOR", f"net:{s}", frac, SECTOR_NET_MAX)
+    if snap["normalized_beta"] != N_A_EMPTY:
+        yield ("BETA", "", snap["normalized_beta"], BETA_MAX)
+
+
+def worsened_or_new_violations(baseline: dict, book: dict, *, realized: bool = False) -> list:
+    """Numeric grandfathering (Increment-3 v1.1 defect-1 ruling). A hard-cap breach in `book` is a
+    violation ONLY when, relative to the pre-existing `baseline` (the held-only book), it is either
+    NEW (baseline subject was <= limit) or WORSENED (book value strictly exceeds the baseline value).
+    A subject that was already over its limit and is not worsened is grandfathered (PR-16). Comparisons
+    use actual numeric values, never violation keys alone."""
+    base = {(k, subj): val for k, subj, val, _ in _subject_checks(baseline)}
+    pref = "REALIZED_" if realized else ""
+    out = []
+    for kind, subj, val, limit in _subject_checks(book):
+        if val <= limit:
+            continue
+        prior = base.get((kind, subj), 0.0)
+        if prior <= limit or val > prior:               # NEW breach, or WORSENED beyond the grandfathered value
+            code = {"SINGLE_NAME": "SINGLE_NAME_CONSTRAINT", "GROSS": "GROSS_CONSTRAINT",
+                    "SECTOR": "SECTOR_CONSTRAINT", "BETA": "BETA_CONSTRAINT"}[kind]
+            detail = f"{subj}:{val}>{limit}(baseline {prior})" if subj else f"{val}>{limit}(baseline {prior})"
+            out.append((f"INTEGRITY_STOP:{pref}{code}", detail))
+    return out
+
+
 def hard_cap_violations(snap: dict, *, realized: bool = False) -> list:
     """Return the list of (code, detail) hard-cap violations. With realized=True the codes are the
     distinct REALIZED_* integrity codes (RC-2)."""

@@ -1,7 +1,6 @@
-MR-002 Increment 3 qualification test log (synthetic portfolio construction/replay)
+MR-002 Increment 3 v1.1 qualification test log (synthetic portfolio construction/replay; held-aware, 17-field ledger, RAW_TARGET)
 Command: apps/backend/.venv/Scripts/python.exe -m pytest test_increment3.py -v
-Environment: CPython 3.13.14, numpy 2.2.6, scipy 1.18.0 (synthetic-only; reads no real dataset)
-Full evaluator suite: 121 passed (Inc1 59 + Inc2 35 + Inc3 27)
+Full evaluator suite: 128 passed (Inc1 59 + Inc2 35 + Inc3 34)
 ----------------------------------------------------------------------
 ============================= test session starts =============================
 platform win32 -- Python 3.13.14, pytest-9.0.3, pluggy-1.6.0 -- C:\LLM-RAG-APP\ai-trading-app\apps\backend\.venv\Scripts\python.exe
@@ -9,34 +8,41 @@ cachedir: .pytest_cache
 rootdir: C:\LLM-RAG-APP\ai-trading-app\docs\review\mr002\evaluator
 plugins: anyio-4.13.0, asyncio-1.3.0, cov-7.1.0
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collecting ... collected 27 items
+collecting ... collected 34 items
 
-test_increment3.py::test_01_identity_loads_and_tamper_refused PASSED     [  3%]
-test_increment3.py::test_02_candidate_schema_failures PASSED             [  7%]
-test_increment3.py::test_03_sigma_and_inverse PASSED                     [ 11%]
-test_increment3.py::test_04_abc_only_threshold_differs PASSED            [ 14%]
-test_increment3.py::test_05_within_side_normalization PASSED             [ 18%]
-test_increment3.py::test_06_entry_neutrality PASSED                      [ 22%]
-test_increment3.py::test_07_position_cap_clip_to_cash PASSED             [ 25%]
-test_increment3.py::test_08_10_12_sector_cascade_and_no_renorm PASSED    [ 29%]
-test_increment3.py::test_09_beta_cascade PASSED                          [ 33%]
-test_increment3.py::test_11_removal_tie_breaks PASSED                    [ 37%]
-test_increment3.py::test_13_14_15_pending_and_occupancy PASSED           [ 40%]
-test_increment3.py::test_16_nav_identity_mismatch PASSED                 [ 44%]
-test_increment3.py::test_21_empty_portfolio PASSED                       [ 48%]
-test_increment3.py::test_22_held_missing_mark PASSED                     [ 51%]
-test_increment3.py::test_23_24_nav_arithmetic_and_first_window PASSED    [ 55%]
-test_increment3.py::test_25_atomicity_refused_leaves_state_unchanged PASSED [ 59%]
-test_increment3.py::test_26_deterministic_full_replay PASSED             [ 62%]
-test_increment3.py::test_27_signed_zero_and_nonfinite PASSED             [ 66%]
-test_increment3.py::test_28_no_real_data_imports PASSED                  [ 70%]
-test_increment3.py::test_29_candidate_execution_input_mismatch PASSED    [ 74%]
-test_increment3.py::test_30_exits_before_entries_provisional_state PASSED [ 77%]
-test_increment3.py::test_31_realized_single_name_and_gross_codes PASSED  [ 81%]
-test_increment3.py::test_32_portfolio_returns_feed_increment1_metrics PASSED [ 85%]
-test_increment3.py::test_33_no_duplicate_execution_formulas PASSED       [ 88%]
-test_increment3.py::test_17_18_real_asymmetric_adv_clip_realized_sector_breach PASSED [ 92%]
-test_increment3.py::test_19_realized_beta_breach_fail_closed PASSED      [ 96%]
-test_increment3.py::test_20_net_drift_repair_not_a_stop PASSED           [100%]
+test_increment3.py::test_01_identity_loads_and_tamper_refused PASSED     [  2%]
+test_increment3.py::test_02_candidate_schema_failures PASSED             [  5%]
+test_increment3.py::test_03_sigma_and_inverse PASSED                     [  8%]
+test_increment3.py::test_04_abc_only_threshold_differs PASSED            [ 11%]
+test_increment3.py::test_05_within_side_normalization PASSED             [ 14%]
+test_increment3.py::test_06_entry_neutrality PASSED                      [ 17%]
+test_increment3.py::test_07_position_cap_clip_to_cash PASSED             [ 20%]
+test_increment3.py::test_08_10_12_sector_cascade_and_no_renorm PASSED    [ 23%]
+test_increment3.py::test_09_beta_cascade PASSED                          [ 26%]
+test_increment3.py::test_11_removal_tie_breaks PASSED                    [ 29%]
+test_increment3.py::test_13_14_15_pending_and_occupancy PASSED           [ 32%]
+test_increment3.py::test_16_nav_identity_mismatch PASSED                 [ 35%]
+test_increment3.py::test_21_empty_portfolio PASSED                       [ 38%]
+test_increment3.py::test_22_held_missing_mark PASSED                     [ 41%]
+test_increment3.py::test_23_24_nav_arithmetic_and_first_window PASSED    [ 44%]
+test_increment3.py::test_25_atomicity_refused_leaves_state_unchanged PASSED [ 47%]
+test_increment3.py::test_26_deterministic_full_replay PASSED             [ 50%]
+test_increment3.py::test_27_signed_zero_and_nonfinite PASSED             [ 52%]
+test_increment3.py::test_28_no_real_data_imports PASSED                  [ 55%]
+test_increment3.py::test_29_candidate_execution_input_mismatch PASSED    [ 58%]
+test_increment3.py::test_30_exits_before_entries_provisional_state PASSED [ 61%]
+test_increment3.py::test_31_realized_single_name_and_gross_codes PASSED  [ 64%]
+test_increment3.py::test_32_portfolio_returns_feed_increment1_metrics PASSED [ 67%]
+test_increment3.py::test_33_no_duplicate_execution_formulas PASSED       [ 70%]
+test_increment3.py::test_17_18_real_asymmetric_adv_clip_realized_sector_breach PASSED [ 73%]
+test_increment3.py::test_19_realized_beta_breach_fail_closed PASSED      [ 76%]
+test_increment3.py::test_20_net_drift_repair_not_a_stop PASSED           [ 79%]
+test_increment3.py::test_34_numeric_grandfathering PASSED                [ 82%]
+test_increment3.py::test_35_held_appreciation_grandfathered_no_new_orders PASSED [ 85%]
+test_increment3.py::test_36_construction_sees_held_and_blocks_worsening_entry PASSED [ 88%]
+test_increment3.py::test_37_committed_events_17_field_and_reconcile PASSED [ 91%]
+test_increment3.py::test_38_exit_and_pending_events_17_field PASSED      [ 94%]
+test_increment3.py::test_39_raw_target_nonnull_and_derivation_trail PASSED [ 97%]
+test_increment3.py::test_40_synthetic_report_verdict_not_evaluated PASSED [100%]
 
-============================= 27 passed in 1.74s ==============================
+============================= 34 passed in 1.20s ==============================

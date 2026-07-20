@@ -179,8 +179,8 @@ def test_11_removal_tie_breaks():
 
 # ── T3-13/14/15 pending exits before entries, dedup, occupancy ───────────────────────────────────
 def test_13_14_15_pending_and_occupancy():
-    pos = HeldPosition("POS-Z-1", "Z", "long", 100, 1, "2024-01-02", 100.0, 10000.0, "SEC0", 0.05,
-                       "Z", 1, -2.5, "B", "candZ", "ev")
+    pos = HeldPosition("POS-Z-1", "Z", "long", 100, 1, "2024-01-02", 100.0, 10000.0, 10.0, "SEC0",
+                       0.05, "Z", 1, -2.5, "B", "candZ", "ev")
     pe = PendingExit("POS-Z-1", "Z", 2, 1, "EXIT_DECISION", 100, "EXIT_DECISION")
     st = PortfolioState(session=1, cash=NAV0, held=(pos,), pending=(pe,))
     assert "Z" in st.occupied_symbols()                       # occupancy blocks re-entry
@@ -210,14 +210,14 @@ def test_21_empty_portfolio():
 
 # ── T3-22 held-position missing open mark ─────────────────────────────────────────────────────────
 def test_22_held_missing_mark():
-    pos = HeldPosition("P", "Z", "long", 100, 1, "2024-01-02", 100.0, 10000.0, "S0", 0.05, "Z", 1, -2.5, "B", "c", "ev")
+    pos = HeldPosition("P", "Z", "long", 100, 1, "2024-01-02", 100.0, 10000.0, 10.0, "S0", 0.05, "Z", 1, -2.5, "B", "c", "ev")
     with pytest.raises(NAV.NavIntegrityStop, match="HELD_POSITION_OPEN_MARK_MISSING"):
         NAV.mark_positions([pos], {})                          # no open for Z
 
 
 # ── T3-23/24 open-to-open NAV arithmetic + first-window prior NAV ────────────────────────────────
 def test_23_24_nav_arithmetic_and_first_window():
-    pos = HeldPosition("P", "Z", "long", 100, 1, "2024-01-02", 100.0, 10000.0, "S0", 0.05, "Z", 1, -2.5, "B", "c", "ev")
+    pos = HeldPosition("P", "Z", "long", 100, 1, "2024-01-02", 100.0, 10000.0, 10.0, "S0", 0.05, "Z", 1, -2.5, "B", "c", "ev")
     r1 = NAV.daily_nav_record(session=1, cash=990000.0, held=[pos], opens_s={"Z": 100.0}, nav_prev=1_000_000.0)
     assert r1["nav"] == pytest.approx(990000.0 + 100 * 100.0)   # 1,000,000
     assert r1["daily_return"] == pytest.approx(0.0)
@@ -413,3 +413,107 @@ def test_20_net_drift_repair_not_a_stop():
     assert res["disposition"] == "COMMITTED" and res["stop_code"] is None
     assert res["drift_repair"] is not None and res["drift_repair"]["breached"] is True
     assert res["drift_repair"]["larger_side"] == "long"
+
+
+# ── Increment-3 v1.1 correction tests (defect-1/2/3 + hardening) ──────────────────────────────────
+def _held(sym, side, shares, sec, beta, price=100.0, ecomm=10.0):
+    return HeldPosition(f"POS-{sym}-0", sym, side, shares, 0, "2024-01-02", price, shares * price, ecomm,
+                        sec, beta, sym, 1, -2.5 if side == "long" else 2.5, "B", sym, "ev")
+
+
+def test_34_numeric_grandfathering():
+    # 9 balanced filler sectors + sector S with a net imbalance; total gross constant -> ONLY sector-S
+    # net moves. Tiny notionals keep per-name/gross well within limits, isolating the sector-net breach.
+    def snap(sl, ss):
+        legs = []
+        for i in range(9):
+            legs += [{"symbol": f"F{i}L", "side": "long", "notional": 5.0, "sector_id": f"F{i}", "beta": 0.0},
+                     {"symbol": f"F{i}S", "side": "short", "notional": 5.0, "sector_id": f"F{i}", "beta": 0.0}]
+        legs += [{"symbol": "SL", "side": "long", "notional": sl, "sector_id": "S", "beta": 0.0},
+                 {"symbol": "SS", "side": "short", "notional": ss, "sector_id": "S", "beta": 0.0}]
+        return EX.snapshot("X", legs, NAV0)
+    base = snap(6.5, 0.5)                                  # sector S net = 6/97 = 0.0619 breach; gross 97
+    assert base["sector_net"]["S"] > 0.05 and max(base["sector_gross"].values()) < 0.20
+    assert any("SECTOR" in c for c, _ in EX.worsened_or_new_violations(base, snap(6.9, 0.1), realized=True))  # worsened
+    assert EX.worsened_or_new_violations(base, base, realized=True) == []                                     # unchanged
+    assert EX.worsened_or_new_violations(base, snap(6.0, 1.0), realized=True) == []                           # reduced -> allowed
+    newb = EX.snapshot("X", [{"symbol": "A", "side": "long", "notional": 0.02 * NAV0, "sector_id": "S", "beta": 0.0},
+                             {"symbol": "C", "side": "short", "notional": 0.02 * NAV0, "sector_id": "T", "beta": 0.0}], NAV0)
+    assert EX.worsened_or_new_violations(EX.snapshot("X", [], NAV0), newb, realized=True)                     # NEW breach -> fail
+
+
+def test_35_held_appreciation_grandfathered_no_new_orders():
+    pos = _held("Z", "long", 150, "SEC0", 0.05)            # entry 1.5% NAV; no new candidates this session
+    st = PortfolioState(session=1, cash=NAV0 - 15000.0, held=(pos,))
+    res = RP.process_session(st, candidate_records=[], exit_signals=[],
+                             market={"session": 2, "date": "2024-01-03", "opens": {"Z": 200.0}, "adv": {}}, config_id="B")
+    assert res["disposition"] == "COMMITTED"               # appreciation alone does not fail closed
+    assert res["exposure"]["REALIZED_EXECUTED"]["per_name"]["Z"] > ID.POSITION_CAP_NAV
+
+
+def test_36_construction_sees_held_and_blocks_worsening_entry():
+    held_legs = [{"symbol": "H", "side": "long", "notional": 0.06 * NAV0, "sector_id": "SEC0", "beta": 0.0}]
+    recs = [_cand("N", "long", -3.0, "SEC0"), _cand("SS", "short", 3.0, "SEC1")]
+    book = CO.build_intended_target(CA.validate_candidates(recs, config_id="B"), NAV0, {"H"}, held_legs=held_legs)
+    # a new SEC0 long would worsen the pre-existing SEC0 breach -> removed; total intended not worsened
+    assert all(o["symbol"] != "N" for o in book["intended"]) or \
+        book["exposure"]["sector_net"].get("SEC0", 0.0) <= 0.06 + 1e-12
+
+
+def test_37_committed_events_17_field_and_reconcile():
+    import mr002_valoos_execution as EXE
+    recs = _valid_recs()
+    res = RP.process_session(PortfolioState(session=0, cash=NAV0), candidate_records=recs, exit_signals=[],
+                             market={"session": 1, "date": "2024-01-02", "opens": _opens(recs),
+                                     "adv": {r["candidate_id"]: 1e15 for r in recs}}, config_id="B")
+    entries = [e for e in res["events"] if e["event_type"] == "ENTRY_FILL"]
+    assert entries and all(tuple(e.keys()) == EXE.EVENT_FIELDS for e in res["events"])
+    assert len(entries) == len(res["committed_state"].held)
+    for h in res["committed_state"].held:
+        assert sum(1 for e in entries if e["position_id"] == h.position_id) == 1
+    assert res["reconciliation"]["reconciles"] is True
+
+
+def test_38_exit_and_pending_events_17_field():
+    import mr002_valoos_execution as EXE
+    recs = _valid_recs()
+    st = _run([_session(recs, 1, "2024-01-02", _opens(recs))])["results"][0]["committed_state"]
+    o2 = {h.symbol: 100.0 for h in st.held}
+    ex = RP.process_session(st, candidate_records=[], exit_signals=[{"symbol": "L0_0", "exit_decision_session": 1}],
+                            market={"session": 2, "date": "2024-01-03", "opens": o2, "adv": {}}, config_id="B")
+    exit_ev = next(e for e in ex["events"] if e["event_type"] == "EXIT_FILL" and e["symbol"] == "L0_0")
+    assert tuple(exit_ev.keys()) == EXE.EVENT_FIELDS and exit_ev["gross_pnl"] is not None
+    o2b = {h.symbol: 100.0 for h in st.held if h.symbol != "L0_0"}     # L0_0 open missing -> exit defers
+    pend = RP.process_session(st, candidate_records=[], exit_signals=[{"symbol": "L0_0", "exit_decision_session": 1}],
+                              market={"session": 2, "date": "2024-01-03", "opens": o2b, "adv": {}}, config_id="B")
+    # the exit defers (EXIT_PENDING evidence, 17-field, one logical order) AND the unmarkable held
+    # position fails the session closed (HELD_POSITION_OPEN_MARK_MISSING) — both frozen rules hold
+    pe_ev = next(e for e in pend["events"] if e["event_type"] == "EXIT_PENDING")
+    assert tuple(pe_ev.keys()) == EXE.EVENT_FIELDS
+    assert sum(1 for e in pend["events"] if e["event_type"] == "EXIT_PENDING" and e["symbol"] == "L0_0") == 1
+    assert pend["disposition"] == "REFUSED" and "HELD_POSITION_OPEN_MARK_MISSING" in pend["stop_code"]
+    assert pend["committed_state"] is st
+
+
+def test_39_raw_target_nonnull_and_derivation_trail():
+    recs = _valid_recs()
+    res = RP.process_session(PortfolioState(session=0, cash=NAV0), candidate_records=recs, exit_signals=[],
+                             market={"session": 1, "date": "2024-01-02", "opens": _opens(recs),
+                                     "adv": {r["candidate_id"]: 1e15 for r in recs}}, config_id="B")
+    raw = res["exposure"]["RAW_TARGET"]
+    assert raw is not None and raw["gross"] > res["exposure"]["INTENDED_TARGET"]["gross"]
+    clips = [d for d in res["constraint_decisions"] if d.get("binding_rule") == "position_cap"]
+    assert len(clips) == len(res["intended"])
+    assert all(d["construction_constrained_value"] < d["raw_value"] for d in clips)
+
+
+def test_40_synthetic_report_verdict_not_evaluated():
+    recs = _valid_recs()
+    rep = P.run_replay([_session(recs, 1, "2024-01-02", _opens(recs))], initial_cash=NAV0, config_id="B")
+    ident = {"registry_sha256": ID.REGISTRY_SHA, "resolution_sha256": ID.RESOLUTION_SHA, "source_shas": {"x": "y"}}
+    r = P.build_pipeline_report(replay=rep, metrics=P.metric_handoff(rep["return_series"]), identity=ident,
+                                config_id="B", code_identity={"m": "1"}, dependency_lock_sha256="0" * 64)
+    assert r["research_gate_verdict"] == "NOT_EVALUATED_SYNTHETIC"
+    assert r["performance_interpretation_authorized"] is False
+    assert r["governing_source_identities"] == {"x": "y"}
+    assert r["metrics"]["label"] == "SYNTHETIC_INTERFACE_QUALIFICATION_ONLY"

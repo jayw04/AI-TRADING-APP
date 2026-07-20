@@ -54,7 +54,8 @@ def _report():
     metrics = P.metric_handoff(replay["return_series"])
     return P.build_pipeline_report(replay=replay, metrics=metrics,
                                    identity={"registry_sha256": identity["registry_sha256"],
-                                             "resolution_sha256": identity["resolution_sha256"]},
+                                             "resolution_sha256": identity["resolution_sha256"],
+                                             "source_shas": identity["source_shas"]},
                                    config_id="B", code_identity={s: sha(s) for s in SRC},
                                    dependency_lock_sha256=sha(DEP_LOCK)), replay, metrics
 
@@ -66,7 +67,7 @@ open("MR002_Increment3_ReplayReport.json", "w", encoding="utf-8").write(json.dum
 committed = sum(1 for r in replay["results"] if r["disposition"] == "COMMITTED")
 qual = {
     "record_type": "MR002_Increment3_Qualification",
-    "increment": 3, "version": "1.0",
+    "increment": 3, "version": "1.1",
     "scope": "identity-bound loader + strict candidate schema + inverse-vol/normalization + entry-neutral "
              "construction + position->sector->beta removal cascade + pending/exits-first state + "
              "Increment-2 execution integration (preview->verify->commit) + three-state exposure + "
@@ -84,9 +85,9 @@ qual = {
         "validation/OOS access", "development performance", "performance interpretation", "production promotion"],
     "source_hashes": {s: sha(s) for s in SRC},
     "dependency_lock": DEP_LOCK, "dependency_lock_sha256": sha(DEP_LOCK),
-    "tests": {"count": 27, "result": "27 passed", "file": "test_increment3.py",
+    "tests": {"count": 34, "result": "34 passed (incl. 7 v1.1 correction tests)", "file": "test_increment3.py",
               "matrix": "MR002_Increment3_QualificationMatrix_v1.0.json (T3-01..T3-33; consolidated)"},
-    "full_evaluator_suite": "121 passed (Increment 1: 59, Increment 2: 35, Increment 3: 27; Increment-2 refactor behavior-preserving)",
+    "full_evaluator_suite": "128 passed (Increment 1: 59, Increment 2: 35, Increment 3: 34; Increment-2 refactor behavior-preserving)",
     "replay_report_output_hash": report["output_hash"],
     "determinism_proof": {"run1_hash": report["output_hash"], "run2_hash": report2["output_hash"],
                           "byte_identical": report["output_hash"] == report2["output_hash"]},
