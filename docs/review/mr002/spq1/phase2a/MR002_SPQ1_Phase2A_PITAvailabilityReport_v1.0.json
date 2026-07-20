@@ -1,0 +1,16 @@
+{
+ "all_availability_utc_iso": true,
+ "classification_system": "SIC",
+ "earliest_available": "2012-01-25T21:42:11Z",
+ "latest_available_within_dev": "2019-07-31T20:31:53Z",
+ "record_type": "MR002_SPQ1_Phase2A_PITAvailabilityReport",
+ "rules_enforced": [
+  "latest available by close t governs",
+  "future-published record excluded",
+  "same-timestamp conflict fails closed",
+  "no present-day backfill",
+  "missing PIT sector -> INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING"
+ ],
+ "sector_records_cik_320193": 31,
+ "version": "1.0"
+}

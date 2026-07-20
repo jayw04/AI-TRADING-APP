@@ -37,7 +37,11 @@ from app.research.mr002.spq1.producer import (  # noqa: E402
     produce_decision,
 )
 from app.research.mr002.spq1.publication import build_publication  # noqa: E402
-from app.research.mr002.spq1.refusals import DEPRECATED_CODES, REFUSAL_CODES  # noqa: E402
+from app.research.mr002.spq1.refusals import (  # noqa: E402
+    DEPRECATED_CODES,
+    PHASE1_CODES,
+    REFUSAL_CODES,
+)
 from app.research.mr002.spq1.returns import CellStatus, arithmetic_total_returns  # noqa: E402
 from app.research.mr002.spq1.sector_pit import SectorRecord  # noqa: E402
 from app.research.mr002.spq1.security_identity import LineageRecord, PitIdentityRegistry  # noqa: E402
@@ -231,10 +235,11 @@ COVERAGE = {
     "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING": ("missing mandatory eligibility evidence", "test_eligibility_evidence_missing"),
     "INELIGIBLE:ADV_WINDOW_INSUFFICIENT": ("insufficient ADV window observations", "test_adv_window_insufficient"),
 }
-assert set(COVERAGE) == set(REFUSAL_CODES), "refusal coverage must match the frozen taxonomy exactly"
+assert set(COVERAGE) == set(PHASE1_CODES), "refusal coverage must match the Phase-1 taxonomy exactly"
+_ = REFUSAL_CODES  # full taxonomy (incl. Phase-2 codes) referenced for completeness
 refusal_coverage = {
     "record_type": "MR002_SPQ1_Phase1_RefusalCoverage", "version": "1.0",
-    "emittable_count": len(REFUSAL_CODES),
+    "emittable_count": len(PHASE1_CODES),
     "coverage": {code: {"governed_condition": c, "reaching_test": t} for code, (c, t) in COVERAGE.items()},
     "deprecated_non_emittable": {
         code: "never raised; SignalRefusal(code) asserts (test_deprecated_return_input_missing_never_emittable)"

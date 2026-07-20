@@ -31,6 +31,7 @@ REFUSAL_CODES: dict[str, str] = {
     "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS": INTEGRITY_STOP,
     "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": INTEGRITY_STOP,
     "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID": INTEGRITY_STOP,
+    "INTEGRITY_STOP:FORBIDDEN_PARTITION_ACCESS": INTEGRITY_STOP,  # Phase-2A dev-partition guard
     # --- INELIGIBLE ---
     "INELIGIBLE:OLS_WINDOW_INSUFFICIENT": INELIGIBLE,
     "INELIGIBLE:KNOWN_MARKET_ABSENCE": INELIGIBLE,
@@ -40,6 +41,12 @@ REFUSAL_CODES: dict[str, str] = {
     "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING": INELIGIBLE,
     "INELIGIBLE:ADV_WINDOW_INSUFFICIENT": INELIGIBLE,
 }
+
+# Codes introduced by Phase 2A (data-boundary adapters); NOT reachable from the Phase-1 producer.
+PHASE2_CODES: frozenset[str] = frozenset({"INTEGRITY_STOP:FORBIDDEN_PARTITION_ACCESS"})
+
+# The Phase-1 emittable subset (the signal producer's own governed codes).
+PHASE1_CODES: dict[str, str] = {k: v for k, v in REFUSAL_CODES.items() if k not in PHASE2_CODES}
 
 # Retired (Correction 2). Present for coverage proof that it is NEVER emitted; not in REFUSAL_CODES.
 DEPRECATED_CODES: dict[str, str] = {

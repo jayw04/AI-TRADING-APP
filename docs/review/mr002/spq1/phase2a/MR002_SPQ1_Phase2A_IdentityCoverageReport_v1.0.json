@@ -1,0 +1,14 @@
+{
+ "aapl_permanent_id": "PSEC-199059",
+ "continuity_rule": "ticker rename -> continuity; share_class/merger -> new identity unless authorized",
+ "record_type": "MR002_SPQ1_Phase2A_IdentityCoverageReport",
+ "relationship_types": [
+  "direct",
+  "ticker_rename",
+  "share_class",
+  "successor_cik",
+  "predecessor_cik"
+ ],
+ "symbols_resolved": 1,
+ "version": "1.0"
+}

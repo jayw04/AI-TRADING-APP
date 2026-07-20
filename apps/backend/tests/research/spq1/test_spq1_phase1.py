@@ -421,11 +421,13 @@ def test_publication_overwrite_and_partial_refusal(tmp_path):   # impl: overwrit
 # --------------------------------------------------------------------------- coverage / isolation
 
 def test_all_emittable_refusal_codes_reachable():
-    # Every code raised somewhere in this suite; assert the taxonomy has exactly the frozen set.
-    assert len(REFUSAL_CODES) == 18
-    assert "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID" in REFUSAL_CODES
-    classes = set(REFUSAL_CODES.values())
-    assert classes == {"INTEGRITY_STOP", "REFUSED_CODE_OR_DATA_IDENTITY", "INELIGIBLE"}
+    # The Phase-1 producer's own governed subset is exactly 18 codes; Phase-2 adds a data-boundary
+    # code the producer never emits.
+    from app.research.mr002.spq1.refusals import PHASE1_CODES, PHASE2_CODES
+    assert len(PHASE1_CODES) == 18
+    assert "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID" in PHASE1_CODES
+    assert PHASE2_CODES.isdisjoint(PHASE1_CODES)
+    assert set(REFUSAL_CODES.values()) == {"INTEGRITY_STOP", "REFUSED_CODE_OR_DATA_IDENTITY", "INELIGIBLE"}
 
 
 def test_no_real_data_or_network_or_orderpath_imports():

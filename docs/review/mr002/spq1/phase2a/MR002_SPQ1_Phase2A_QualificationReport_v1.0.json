@@ -1,0 +1,103 @@
+{
+ "boundary": "development-partition only; no full-period signal run, ranking, portfolio, execution, performance, A/B/C, validation, OOS, order-path, or production.",
+ "designation": "MR-002 Workstream C \u2014 SPQ-1 Phase 2A (development-data source & adapter qualification)",
+ "development_window": {
+  "end": "2019-10-02",
+  "governed_session_list_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+  "sessions": 1700,
+  "start": "2013-01-02"
+ },
+ "no_performance_artifact_generated": true,
+ "no_validation_oos_object_opened": true,
+ "opened_object_ledger": {
+  "all_partition_development": true,
+  "all_ranges_within_dev": true,
+  "entries": [
+   {
+    "object_identity": "apps/backend/data/mr002_research.duckdb",
+    "partition": "DEVELOPMENT",
+    "purpose": "materialize:prices",
+    "query_range": "2013-01-02..2019-10-02",
+    "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+    "result_row_count": 0,
+    "retrieval_timestamp": "",
+    "seq": 0
+   },
+   {
+    "object_identity": "apps/backend/data/mr002_research.duckdb",
+    "partition": "DEVELOPMENT",
+    "purpose": "materialize:etf_prices",
+    "query_range": "2013-01-02..2019-10-02",
+    "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+    "result_row_count": 0,
+    "retrieval_timestamp": "",
+    "seq": 1
+   },
+   {
+    "object_identity": "apps/backend/data/mr002_research.duckdb",
+    "partition": "DEVELOPMENT",
+    "purpose": "materialize:actions",
+    "query_range": "2013-01-02..2019-10-02",
+    "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+    "result_row_count": 0,
+    "retrieval_timestamp": "",
+    "seq": 2
+   },
+   {
+    "object_identity": "apps/backend/data/mr002_research.duckdb",
+    "partition": "DEVELOPMENT",
+    "purpose": "materialize:crosswalk",
+    "query_range": "2013-01-02..2019-10-02",
+    "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+    "result_row_count": 0,
+    "retrieval_timestamp": "",
+    "seq": 3
+   },
+   {
+    "object_identity": "apps/backend/data/mr002_provenance.duckdb",
+    "partition": "DEVELOPMENT",
+    "purpose": "materialize:sic_observations",
+    "query_range": "2013-01-02..2019-10-02",
+    "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+    "result_row_count": 0,
+    "retrieval_timestamp": "",
+    "seq": 4
+   },
+   {
+    "object_identity": "apps/backend/data/mr002_provenance.duckdb",
+    "partition": "DEVELOPMENT",
+    "purpose": "materialize:earnings_anchors",
+    "query_range": "2013-01-02..2019-10-02",
+    "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+    "result_row_count": 0,
+    "retrieval_timestamp": "",
+    "seq": 5
+   }
+  ],
+  "no_validation_or_oos_object_opened": true,
+  "record_type": "MR002_SPQ1_Phase2A_OpenedObjectLedger",
+  "version": "1.0"
+ },
+ "phase1_isolation": {
+  "increment3_hash": "42c5cee0...",
+  "phase1_valid_path_hash": "c9ebd7f9...",
+  "unchanged": true
+ },
+ "record_type": "MR002_SPQ1_Phase2A_QualificationReport",
+ "registered_source_sha256": {
+  "mr002_provenance.duckdb": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
+  "mr002_research.duckdb": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+ },
+ "tests": {
+  "branch_coverage_pct": 91,
+  "increment3_hash_unchanged": true,
+  "isolation_tests": 152,
+  "mypy": "clean",
+  "phase1_determinism_unchanged": true,
+  "phase1_tests": 48,
+  "ruff": "clean",
+  "tests_passed": 18,
+  "tests_total": 18
+ },
+ "version": "1.0"
+}

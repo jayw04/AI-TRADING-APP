@@ -1,0 +1,29 @@
+{
+ "dev_snapshot_identity": "211eacc0ff55904e7494b9688e74b76e57128a4e59cd809f78d66bf1621d3ae2",
+ "development_end": "2019-10-02",
+ "development_sessions": 1700,
+ "development_start": "2013-01-02",
+ "forbidden_source_prefixes": [
+  "validation",
+  "oos",
+  "sealed"
+ ],
+ "governed_session_list_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+ "manifest_identity": "93b3fe3135602b7449e0afdf09313414047dd0e17adb64fbd3e9f6949f3c2e26",
+ "oos_boundary": "2023-02-17",
+ "partition_guard_identity": "344278d311ddd93fbbb6aff9fed2c21e5a1bebb9d3c2e85fcd6245e42493bdd0",
+ "permitted_source_objects": [
+  "apps/backend/data/mr002_provenance.duckdb",
+  "apps/backend/data/mr002_research.duckdb"
+ ],
+ "record_type": "MR002_SPQ1_Phase2A_DevelopmentPartitionManifest",
+ "registered_calendar_policy": {
+  "basis": "registered ET regular-session policy (dates are EOD; no vendor intraday timestamps)",
+  "regular_close": "16:00",
+  "regular_open": "09:30",
+  "timezone": "America/New_York"
+ },
+ "timezone": "America/New_York",
+ "validation_boundary": "2019-10-03",
+ "version": "1.0"
+}

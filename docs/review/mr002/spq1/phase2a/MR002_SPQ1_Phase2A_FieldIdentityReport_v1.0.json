@@ -1,0 +1,27 @@
+{
+ "record_type": "MR002_SPQ1_Phase2A_FieldIdentityReport",
+ "sector_etf_map": {
+  "COMMS": "XLC",
+  "DISCRETIONARY": "XLY",
+  "ENERGY": "XLE",
+  "FIN": "XLF",
+  "HEALTHCARE": "XLV",
+  "INDUSTRIAL": "XLI",
+  "MATERIALS": "XLB",
+  "REALESTATE": "XLRE",
+  "STAPLES": "XLP",
+  "TECH": "XLK",
+  "UTILITIES": "XLU"
+ },
+ "series_distinct_closeadj_vs_closeunadj": true,
+ "spy_finite_sessions": 1700,
+ "tech_finite_sessions": 1700,
+ "v3_field_identity": {
+  "execution_open": "open",
+  "raw_close": "closeunadj",
+  "raw_volume": "volume",
+  "signal_total_return_close": "closeadj",
+  "split_adjusted_close": "close"
+ },
+ "version": "1.0"
+}

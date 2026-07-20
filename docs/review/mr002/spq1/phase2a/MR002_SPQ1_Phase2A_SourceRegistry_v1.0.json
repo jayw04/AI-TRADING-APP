@@ -1,0 +1,58 @@
+{
+ "preregistered_sample": {
+  "ciks": [
+   320193
+  ],
+  "coverage_categories": {
+   "earnings_availability_and_bmo_amc": "cik 320193 earnings_anchors",
+   "merger_succession_no_continuity": "crosswalk successor_cik/predecessor_cik",
+   "no_natural_instance_in_dev_slice": [
+    "earnings_amendment (is_amendment_origin=0 across dev)",
+    "same_timestamp_sector_conflict (sic_conflicts=0)",
+    "missing_official_next_open (EOD daily data; execution-layer concept)"
+   ],
+   "ordinary_continuously_traded": "AAPL (1700/1700 dev sessions)",
+   "pit_sector_records_with_acceptance_ts": "cik 320193 sic_observations",
+   "sector_etf_complete_history": "SPY + XLK (1700/1700)",
+   "share_class_separation": "crosswalk relationship_type = share_class",
+   "ticker_change_continuity": "crosswalk relationship_type in {direct, ticker_rename}"
+  },
+  "etfs": [
+   "SPY",
+   "XLK"
+  ],
+  "note": "categories with no natural dev-slice instance are qualified by the frozen Phase-1 resolver logic (closed), not fabricated into the real slice.",
+  "selection_basis": "mechanical structural coverage only; frozen before inspecting any signal",
+  "tickers": [
+   "AAPL"
+  ]
+ },
+ "record_type": "MR002_SPQ1_Phase2A_SourceRegistry",
+ "sources": [
+  {
+   "adjustment_semantics": "V3 (closeadj/closeunadj/close/open)",
+   "availability_semantics": "session-date EOD (T+0 availability)",
+   "coverage_interval": "2013-01-02..2019-10-02 (dev slice)",
+   "permitted_partition": "DEVELOPMENT",
+   "registered_path": "apps/backend/data/mr002_research.duckdb",
+   "schema_identity": "prices,etf_prices,actions,crosswalk,sic_mapping,sic_observations,universe",
+   "snapshot_identity": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+   "source_name": "mr002_research",
+   "source_owner": "Sharadar/EDGAR (Stage-3 governed snapshot)",
+   "source_type": "duckdb"
+  },
+  {
+   "adjustment_semantics": "n/a (identity/events)",
+   "availability_semantics": "acceptance/publication UTC timestamps",
+   "coverage_interval": "PIT (accepted_utc/acceptance_utc)",
+   "permitted_partition": "DEVELOPMENT",
+   "registered_path": "apps/backend/data/mr002_provenance.duckdb",
+   "schema_identity": "sic_observations,earnings_anchors,identity_crosswalk,sic_conflicts",
+   "snapshot_identity": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
+   "source_name": "mr002_provenance",
+   "source_owner": "EDGAR PIT provenance (Stage-3)",
+   "source_type": "duckdb"
+  }
+ ],
+ "version": "1.0"
+}

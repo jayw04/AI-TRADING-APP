@@ -1,0 +1,69 @@
+{
+ "all_partition_development": true,
+ "all_ranges_within_dev": true,
+ "entries": [
+  {
+   "object_identity": "apps/backend/data/mr002_research.duckdb",
+   "partition": "DEVELOPMENT",
+   "purpose": "materialize:prices",
+   "query_range": "2013-01-02..2019-10-02",
+   "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+   "result_row_count": 0,
+   "retrieval_timestamp": "",
+   "seq": 0
+  },
+  {
+   "object_identity": "apps/backend/data/mr002_research.duckdb",
+   "partition": "DEVELOPMENT",
+   "purpose": "materialize:etf_prices",
+   "query_range": "2013-01-02..2019-10-02",
+   "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+   "result_row_count": 0,
+   "retrieval_timestamp": "",
+   "seq": 1
+  },
+  {
+   "object_identity": "apps/backend/data/mr002_research.duckdb",
+   "partition": "DEVELOPMENT",
+   "purpose": "materialize:actions",
+   "query_range": "2013-01-02..2019-10-02",
+   "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+   "result_row_count": 0,
+   "retrieval_timestamp": "",
+   "seq": 2
+  },
+  {
+   "object_identity": "apps/backend/data/mr002_research.duckdb",
+   "partition": "DEVELOPMENT",
+   "purpose": "materialize:crosswalk",
+   "query_range": "2013-01-02..2019-10-02",
+   "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+   "result_row_count": 0,
+   "retrieval_timestamp": "",
+   "seq": 3
+  },
+  {
+   "object_identity": "apps/backend/data/mr002_provenance.duckdb",
+   "partition": "DEVELOPMENT",
+   "purpose": "materialize:sic_observations",
+   "query_range": "2013-01-02..2019-10-02",
+   "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+   "result_row_count": 0,
+   "retrieval_timestamp": "",
+   "seq": 4
+  },
+  {
+   "object_identity": "apps/backend/data/mr002_provenance.duckdb",
+   "partition": "DEVELOPMENT",
+   "purpose": "materialize:earnings_anchors",
+   "query_range": "2013-01-02..2019-10-02",
+   "reader_implementation_identity": "spq1-phase2a-v1.0-development",
+   "result_row_count": 0,
+   "retrieval_timestamp": "",
+   "seq": 5
+  }
+ ],
+ "no_validation_or_oos_object_opened": true,
+ "record_type": "MR002_SPQ1_Phase2A_OpenedObjectLedger",
+ "version": "1.0"
+}

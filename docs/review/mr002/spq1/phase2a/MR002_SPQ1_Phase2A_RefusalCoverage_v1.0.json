@@ -1,0 +1,16 @@
+{
+ "adapter_reachable_codes": {
+  "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING": "earnings post-cutoff",
+  "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING": "PIT cutoff-before-first-record",
+  "INTEGRITY_STOP:FORBIDDEN_PARTITION_ACCESS": "test_guard_* (range/object/traversal)",
+  "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE": "duplicate price row guard",
+  "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH": "calendar count/order guard",
+  "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH": "benchmark/sector/V3-substitution"
+ },
+ "phase2_new_code": [
+  "INTEGRITY_STOP:FORBIDDEN_PARTITION_ACCESS"
+ ],
+ "record_type": "MR002_SPQ1_Phase2A_RefusalCoverage",
+ "total_registered_taxonomy": 19,
+ "version": "1.0"
+}
