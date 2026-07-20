@@ -1,10 +1,12 @@
 {
   "code_identity": {
-    "mr002_valoos_gates.py": "85585f303027c7621b61d208c1eee2d68367b2ccfdf51f5045cb8645f5a12819",
-    "mr002_valoos_identity.py": "5860c77bdd6192ae4bdd9f28f8d2d8d45c1b0bfabbbc9fcbde04d0a1814b4c5a",
-    "mr002_valoos_metrics.py": "5bd6d7e4ac8d3baf0569ff744ceb2a655e44cca1f5c553d9c3f3bd7299d879f0",
-    "mr002_valoos_report.py": "ccb20e98232e03baf5236e11c9210c774f685b4720a1ab601e0ab381df73e0bd",
-    "test_increment1.py": "0140a501a23d0bcf6869bb059b53fd3c7f9bebee353abfe8b43f71761c19fbc9"
+    "_gen_evidence.py": "ace8deb8557b5bb25b4ef9c1033fb24af268766f943a31ff68c85422b61ecd98",
+    "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
+    "mr002_valoos_identity.py": "a0674350e63b6a4a0eb54dc9c6de376d2e84f235580641832d6f2811c96ce7ec",
+    "mr002_valoos_metrics.py": "62bdd2afefca7295f2112665dc58e4b3f47be1e1e6f8561374b684c22b29a5be",
+    "mr002_valoos_registry.py": "7a99ef56ed22ff84222cf0be8ed2c1ec7999fa5eff266038a3cee236d48f917f",
+    "mr002_valoos_report.py": "bf43a0c3c2c09a8f6ff1a3fddce4935db7f04f9724c607bc35ff497e75b8f337",
+    "test_increment1.py": "1f1d390b275e580244f548265007d6643ba5e8dc3ca500a6872475166ef1e77e"
   },
   "dependency_identity": {
     "numpy": "2.2.6",
@@ -15,52 +17,338 @@
   "diagnostics": [
     {
       "classification": "DIAGNOSTIC",
-      "pbo": 0.1
+      "diag_id": "pbo",
+      "evidence": "",
+      "status": "N_A",
+      "value": {
+        "display": 0.1,
+        "exact_hex": "0x1.999999999999ap-4"
+      }
+    },
+    {
+      "classification": "DIAGNOSTIC",
+      "diag_id": "positive_pnl_regime_concentration",
+      "evidence": "",
+      "status": "N_A",
+      "value": {
+        "display": 0.1,
+        "exact_hex": "0x1.999999999999ap-4"
+      }
+    },
+    {
+      "classification": "DIAGNOSTIC",
+      "diag_id": "annual_herfindahl",
+      "evidence": "",
+      "status": "N_A",
+      "value": {
+        "display": 0.1,
+        "exact_hex": "0x1.999999999999ap-4"
+      }
+    },
+    {
+      "classification": "DIAGNOSTIC",
+      "diag_id": "severe_cost_stress",
+      "evidence": "",
+      "status": "N_A",
+      "value": {
+        "display": 0.1,
+        "exact_hex": "0x1.999999999999ap-4"
+      }
     }
   ],
-  "disposition": "PASS",
   "dsr_trials_N": 5,
   "fixture_identity": {
-    "fixture": "increment1-canonical",
-    "n": 900,
+    "fixture": "increment1-v1.1-full-battery",
     "seed": 42
   },
   "gate_results": [
     {
       "classification": "GATE",
       "evidence": "",
-      "gate_id": "sharpe",
-      "sample": null,
+      "gate_id": "net_sharpe",
+      "sample": "sealed_OOS",
       "status": "PASS",
-      "threshold": 0.7,
-      "value": 3.4131415443349282
+      "threshold": {
+        "display": 0.7,
+        "exact_hex": "0x1.6666666666666p-1"
+      },
+      "value": {
+        "display": 1.5,
+        "exact_hex": "0x1.8000000000000p+0"
+      }
     },
     {
       "classification": "GATE",
       "evidence": "",
-      "gate_id": "bootstrap_mean_lb",
-      "sample": null,
+      "gate_id": "bootstrap_mean_lower_bound",
+      "sample": "sealed_OOS",
       "status": "PASS",
-      "threshold": 0.0,
-      "value": 0.0005733147673529285
+      "threshold": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "value": {
+        "display": 0.0001,
+        "exact_hex": "0x1.a36e2eb1c432dp-14"
+      }
     },
     {
       "classification": "GATE",
       "evidence": "",
-      "gate_id": "dsr",
-      "sample": null,
+      "gate_id": "net_calmar",
+      "sample": "sealed_OOS",
       "status": "PASS",
-      "threshold": 0.95,
-      "value": 0.9999999992357169
+      "threshold": {
+        "display": 0.75,
+        "exact_hex": "0x1.8000000000000p-1"
+      },
+      "value": {
+        "display": 2.0,
+        "exact_hex": "0x1.0000000000000p+1"
+      }
     },
     {
-      "classification": "DIAGNOSTIC",
+      "classification": "GATE",
       "evidence": "",
-      "gate_id": "pbo",
-      "sample": null,
-      "status": "N_A",
-      "threshold": null,
-      "value": 0.1
+      "gate_id": "combined_max_drawdown",
+      "sample": "validation+OOS_combined",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.15,
+        "exact_hex": "0x1.3333333333333p-3"
+      },
+      "value": {
+        "display": 0.1,
+        "exact_hex": "0x1.999999999999ap-4"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "positive_validation_folds",
+      "sample": "validation",
+      "status": "PASS",
+      "threshold": 3,
+      "value": 4
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "parameter_stability_A",
+      "sample": "validation",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "value": {
+        "display": 0.5,
+        "exact_hex": "0x1.0000000000000p-1"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "parameter_stability_C",
+      "sample": "validation",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "value": {
+        "display": 0.5,
+        "exact_hex": "0x1.0000000000000p-1"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "deflated_sharpe",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.95,
+        "exact_hex": "0x1.e666666666666p-1"
+      },
+      "value": {
+        "display": 0.99,
+        "exact_hex": "0x1.fae147ae147aep-1"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "net_annualized_return",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.03,
+        "exact_hex": "0x1.eb851eb851eb8p-6"
+      },
+      "value": {
+        "display": 0.08,
+        "exact_hex": "0x1.47ae147ae147bp-4"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "cost_stress",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "value": {
+        "display": 0.02,
+        "exact_hex": "0x1.47ae147ae147bp-6"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "breadth_completed_trades",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": 500,
+      "value": 600
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "breadth_distinct_entry_dates",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": 100,
+      "value": 150
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "breadth_long_trades",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": 100,
+      "value": 300
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "breadth_short_trades",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": 100,
+      "value": 300
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "trade_concentration_top10",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.2,
+        "exact_hex": "0x1.999999999999ap-3"
+      },
+      "value": {
+        "display": 0.15,
+        "exact_hex": "0x1.3333333333333p-3"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "trade_concentration_single_stock",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.1,
+        "exact_hex": "0x1.999999999999ap-4"
+      },
+      "value": {
+        "display": 0.05,
+        "exact_hex": "0x1.999999999999ap-5"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "annual_positive_years",
+      "sample": "validation+OOS_combined",
+      "status": "PASS",
+      "threshold": 3,
+      "value": 4
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "annual_largest_positive_year_fraction",
+      "sample": "validation+OOS_combined",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.5,
+        "exact_hex": "0x1.0000000000000p-1"
+      },
+      "value": {
+        "display": 0.3,
+        "exact_hex": "0x1.3333333333333p-2"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "trend_regimes_positive_count",
+      "sample": "validation+OOS_combined",
+      "status": "PASS",
+      "threshold": 2,
+      "value": 3
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "trend_regime_loss_concentration",
+      "sample": "validation+OOS_combined",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.6,
+        "exact_hex": "0x1.3333333333333p-1"
+      },
+      "value": {
+        "display": 0.4,
+        "exact_hex": "0x1.999999999999ap-2"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "volatility_regime_floor",
+      "sample": "validation+OOS_combined",
+      "status": "PASS",
+      "threshold": {
+        "display": -0.5,
+        "exact_hex": "-0x1.0000000000000p-1"
+      },
+      "value": {
+        "display": -0.2,
+        "exact_hex": "-0x1.999999999999ap-3"
+      }
+    },
+    {
+      "classification": "GATE",
+      "evidence": "",
+      "gate_id": "capacity",
+      "sample": "sealed_OOS",
+      "status": "PASS",
+      "threshold": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "value": {
+        "display": 0.01,
+        "exact_hex": "0x1.47ae147ae147bp-7"
+      }
     }
   ],
   "governing_ledger_identity": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
@@ -68,15 +356,23 @@
   "governing_resolution_identity": "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0",
   "hard_stop_evidence": null,
   "metric_values": {
-    "bootstrap_lb": 0.0005733147673529285,
-    "dsr": 0.9999999992357169,
-    "sharpe": 3.4131415443349282
+    "neg_zero_probe": {
+      "display": -0.0,
+      "exact_hex": "-0x0.0p+0"
+    },
+    "net_sharpe": {
+      "display": 1.5,
+      "exact_hex": "0x1.8000000000000p+0"
+    }
   },
   "oos_data_read": false,
-  "output_hash": "d3412e49a36accdd73abb1f965781aa89ab39a6a0f9e47b762ae90187337fedb",
+  "output_hash": "90d94776b78fb499fcadb27e27336f9ab1543e31e3b3ef55df571bfde63b299f",
   "record_type": "MR002_ValOOS_Report",
-  "schema_version": "increment1-synthetic-1.0",
+  "research_gate_verdict": "PASS",
+  "run_disposition": "PASS",
+  "schema_version": "increment1-v1.1-synthetic",
   "seed": 42,
+  "stop_code": null,
   "synthetic_fixture_only": true,
   "validation_data_read": false,
   "window": "synthetic"

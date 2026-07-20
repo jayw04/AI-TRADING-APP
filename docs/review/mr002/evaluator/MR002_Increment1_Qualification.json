@@ -1,15 +1,15 @@
 {
-  "canonical_report_output_hash": "d3412e49a36accdd73abb1f965781aa89ab39a6a0f9e47b762ae90187337fedb",
-  "dependency_inventory": {
-    "numpy": "2.2.6",
-    "platform": "Windows-11-10.0.26200-SP0",
-    "python": "3.13.14",
-    "scipy": "1.18.0"
+  "canonical_report_dispositions": {
+    "research_gate_verdict": "PASS",
+    "run_disposition": "PASS"
   },
+  "canonical_report_output_hash": "90d94776b78fb499fcadb27e27336f9ab1543e31e3b3ef55df571bfde63b299f",
+  "dependency_lock": "MR002_Increment1_Dependencies.json",
+  "dependency_lock_sha256": "9eb6577898765e47a5ae2f1270dc93bb940eca98541b2968b06e21bbfb234c66",
   "determinism_proof": {
     "byte_identical": true,
-    "run1_hash": "d3412e49a36accdd73abb1f965781aa89ab39a6a0f9e47b762ae90187337fedb",
-    "run2_hash": "d3412e49a36accdd73abb1f965781aa89ab39a6a0f9e47b762ae90187337fedb"
+    "run1_hash": "90d94776b78fb499fcadb27e27336f9ab1543e31e3b3ef55df571bfde63b299f",
+    "run2_hash": "90d94776b78fb499fcadb27e27336f9ab1543e31e3b3ef55df571bfde63b299f"
   },
   "development_free_assertions": {
     "development_performance_computed": false,
@@ -18,6 +18,8 @@
     "validation_data_read": false
   },
   "dsr_N_source": "MR002_DSR_TrialLedger_v1.0.json (deda5cec...), N=5 \u2014 no code-constant fallback",
+  "dsr_dispersion_provenance": "SYNTHETIC (production derivation OPEN \u2014 see governance note)",
+  "governance_note_dsr_dispersion": "MR002_DSR_Dispersion_GovernanceNote_v1.0.md",
   "governing_identity": {
     "dsr_status": "READY",
     "dsr_trials_N": 5,
@@ -37,17 +39,21 @@
   "no_real_dataset_opened": true,
   "record_type": "MR002_Increment1_Qualification",
   "report_self_hash_verifies": true,
-  "scope": "governing-identity loader + metric primitives + gate engine + report kernel + synthetic fixtures",
+  "scope": "identity loader + metric primitives + gate engine + report kernel + synthetic fixtures",
+  "signed_zero_preserved": true,
   "source_hashes": {
-    "mr002_valoos_gates.py": "85585f303027c7621b61d208c1eee2d68367b2ccfdf51f5045cb8645f5a12819",
-    "mr002_valoos_identity.py": "5860c77bdd6192ae4bdd9f28f8d2d8d45c1b0bfabbbc9fcbde04d0a1814b4c5a",
-    "mr002_valoos_metrics.py": "5bd6d7e4ac8d3baf0569ff744ceb2a655e44cca1f5c553d9c3f3bd7299d879f0",
-    "mr002_valoos_report.py": "ccb20e98232e03baf5236e11c9210c774f685b4720a1ab601e0ab381df73e0bd",
-    "test_increment1.py": "0140a501a23d0bcf6869bb059b53fd3c7f9bebee353abfe8b43f71761c19fbc9"
+    "_gen_evidence.py": "ace8deb8557b5bb25b4ef9c1033fb24af268766f943a31ff68c85422b61ecd98",
+    "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
+    "mr002_valoos_identity.py": "a0674350e63b6a4a0eb54dc9c6de376d2e84f235580641832d6f2811c96ce7ec",
+    "mr002_valoos_metrics.py": "62bdd2afefca7295f2112665dc58e4b3f47be1e1e6f8561374b684c22b29a5be",
+    "mr002_valoos_registry.py": "7a99ef56ed22ff84222cf0be8ed2c1ec7999fa5eff266038a3cee236d48f917f",
+    "mr002_valoos_report.py": "bf43a0c3c2c09a8f6ff1a3fddce4935db7f04f9724c607bc35ff497e75b8f337",
+    "test_increment1.py": "1f1d390b275e580244f548265007d6643ba5e8dc3ca500a6872475166ef1e77e"
   },
   "tests": {
-    "count": 14,
+    "count": 43,
     "log": "MR002_Increment1_TestLog.txt",
-    "result": "14 passed"
-  }
+    "result": "43 passed"
+  },
+  "version": "1.1"
 }

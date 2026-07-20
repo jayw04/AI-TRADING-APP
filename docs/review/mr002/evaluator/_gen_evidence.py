@@ -1,22 +1,40 @@
-"""Generate the Increment-1 qualification-evidence bundle (source hashes, canonical synthetic
-report, determinism proof, dependency inventory). Writes MR002_Increment1_Qualification.json and
-MR002_Increment1_CanonicalReport.json. Reads NO real dataset."""
+"""Generate the Increment-1 v1.1 qualification-evidence bundle: source hashes, a canonical
+full-battery synthetic report (exact-float schema), determinism proof, and the dependency binding.
+Writes MR002_Increment1_Qualification.json and MR002_Increment1_CanonicalReport.json. Reads NO real
+dataset — all inputs are synthetic constants."""
 import hashlib
 import json
-import platform
 import sys
 
 import numpy as np
 import scipy
 
 import mr002_valoos_gates as G
-import mr002_valoos_metrics as M
+import mr002_valoos_report as R
 from mr002_valoos_identity import load_governing_identity
-from mr002_valoos_report import build_report, report_hash
 
 GOV_DIR = ".."
-SRC = ["mr002_valoos_identity.py", "mr002_valoos_metrics.py", "mr002_valoos_gates.py",
-       "mr002_valoos_report.py", "test_increment1.py"]
+SRC = ["mr002_valoos_identity.py", "mr002_valoos_registry.py", "mr002_valoos_metrics.py",
+       "mr002_valoos_gates.py", "mr002_valoos_report.py", "test_increment1.py", "_gen_evidence.py"]
+
+# passing (value, sample) for all 22 governing gates
+PASS_GATES = {
+    "net_sharpe": (1.5, "sealed_OOS"), "bootstrap_mean_lower_bound": (0.0001, "sealed_OOS"),
+    "net_calmar": (2.0, "sealed_OOS"), "combined_max_drawdown": (0.10, "validation+OOS_combined"),
+    "positive_validation_folds": (4, "validation"), "parameter_stability_A": (0.5, "validation"),
+    "parameter_stability_C": (0.5, "validation"), "deflated_sharpe": (0.99, "sealed_OOS"),
+    "net_annualized_return": (0.08, "sealed_OOS"), "cost_stress": (0.02, "sealed_OOS"),
+    "breadth_completed_trades": (600, "sealed_OOS"), "breadth_distinct_entry_dates": (150, "sealed_OOS"),
+    "breadth_long_trades": (300, "sealed_OOS"), "breadth_short_trades": (300, "sealed_OOS"),
+    "trade_concentration_top10": (0.15, "sealed_OOS"),
+    "trade_concentration_single_stock": (0.05, "sealed_OOS"),
+    "annual_positive_years": (4, "validation+OOS_combined"),
+    "annual_largest_positive_year_fraction": (0.30, "validation+OOS_combined"),
+    "trend_regimes_positive_count": (3, "validation+OOS_combined"),
+    "trend_regime_loss_concentration": (0.40, "validation+OOS_combined"),
+    "volatility_regime_floor": (-0.20, "validation+OOS_combined"), "capacity": (0.01, "sealed_OOS"),
+}
+REQ_DIAGS = ["pbo", "positive_pnl_regime_concentration", "annual_herfindahl", "severe_cost_stress"]
 
 
 def sha(path):
@@ -27,55 +45,55 @@ loaded = load_governing_identity(GOV_DIR)
 
 
 def make_canonical_report():
-    """Single deterministic build path (seed-42 fixture) — used for BOTH the canonical report and
-    the determinism proof so the two runs are byte-for-byte comparable."""
-    daily = np.random.default_rng(7).normal(0.0012, 0.004, 900)
     b = G.GateBattery()
-    sharpe = M.annualized_sharpe(daily)
-    lb = M.block_bootstrap_mean_lower_bound(daily)
-    dsr = M.deflated_sharpe(daily, trials_n=loaded["dsr_trials_N"], trial_sharpe_std=0.01)
-    b.gate("sharpe", sharpe >= 0.70, sharpe, 0.70)
-    b.gate("bootstrap_mean_lb", lb > 0.0, lb, 0.0)
-    b.gate("dsr", dsr["gate_pass"], dsr["dsr"], 0.95)
-    b.diagnostic("pbo", 0.10)
-    return build_report(
-        window="synthetic", disposition=b.disposition(), governing_identity=loaded,
-        code_identity={s: sha(s) for s in SRC}, dependency_identity={"numpy": np.__version__,
-        "scipy": scipy.__version__, "python": sys.version.split()[0]},
-        fixture_identity={"fixture": "increment1-canonical", "seed": 42, "n": 900},
-        metric_values={"sharpe": sharpe, "bootstrap_lb": lb, "dsr": dsr["dsr"]},
-        gate_results=b.to_list(), diagnostics=[{"pbo": 0.10, "classification": "DIAGNOSTIC"}],
-        hard_stop_evidence=None, seed=42), dsr
+    for gid, (val, sample) in PASS_GATES.items():
+        b.add_gate(gid, val, sample=sample)
+    for d in REQ_DIAGS:
+        b.add_diagnostic(d, 0.10)
+    verdict = b.evaluate()
+    return R.build_report(
+        window="synthetic", verdict=verdict, governing_identity=loaded,
+        code_identity={s: sha(s) for s in SRC},
+        dependency_identity={"numpy": np.__version__, "scipy": scipy.__version__,
+                             "python": sys.version.split()[0]},
+        fixture_identity={"fixture": "increment1-v1.1-full-battery", "seed": 42},
+        metric_values={"net_sharpe": 1.5, "neg_zero_probe": -0.0},
+        gate_results=b.to_list(), diagnostics=b.diagnostics_list(), hard_stop_evidence=None, seed=42)
 
 
-report, dsr = make_canonical_report()
-report2, _ = make_canonical_report()
-
+report = make_canonical_report()
+report2 = make_canonical_report()
 open("MR002_Increment1_CanonicalReport.json", "w", encoding="utf-8").write(
     json.dumps(report, sort_keys=True, indent=2))
 
 qual = {
     "record_type": "MR002_Increment1_Qualification",
-    "increment": 1,
-    "scope": "governing-identity loader + metric primitives + gate engine + report kernel + synthetic fixtures",
-    "governing_identity": loaded,
+    "increment": 1, "version": "1.1",
+    "scope": "identity loader + metric primitives + gate engine + report kernel + synthetic fixtures",
+    "governing_identity": loaded if "gates_frozen" not in loaded else {k: v for k, v in loaded.items() if k != "gates_frozen"},
     "source_hashes": {s: sha(s) for s in SRC},
-    "dependency_inventory": {"numpy": np.__version__, "scipy": scipy.__version__,
-                             "python": sys.version.split()[0], "platform": platform.platform()},
-    "tests": {"count": 14, "result": "14 passed", "log": "MR002_Increment1_TestLog.txt"},
+    "dependency_lock": "MR002_Increment1_Dependencies.json",
+    "dependency_lock_sha256": sha("MR002_Increment1_Dependencies.json"),
+    "governance_note_dsr_dispersion": "MR002_DSR_Dispersion_GovernanceNote_v1.0.md",
+    "tests": {"count": 43, "result": "43 passed", "log": "MR002_Increment1_TestLog.txt"},
     "canonical_report_output_hash": report["output_hash"],
+    "canonical_report_dispositions": {"research_gate_verdict": report["research_gate_verdict"],
+                                      "run_disposition": report["run_disposition"]},
     "determinism_proof": {"run1_hash": report["output_hash"], "run2_hash": report2["output_hash"],
                           "byte_identical": report["output_hash"] == report2["output_hash"]},
-    "report_self_hash_verifies": report_hash(report) == report["output_hash"],
+    "report_self_hash_verifies": R.report_hash(report) == report["output_hash"],
+    "signed_zero_preserved": report["metric_values"]["neg_zero_probe"]["exact_hex"] == "-0x0.0p+0",
     "development_free_assertions": {"validation_data_read": report["validation_data_read"],
         "oos_data_read": report["oos_data_read"],
         "development_performance_computed": report["development_performance_computed"],
         "synthetic_fixture_only": report["synthetic_fixture_only"]},
     "no_real_dataset_opened": True,
     "dsr_N_source": "MR002_DSR_TrialLedger_v1.0.json (deda5cec...), N=5 — no code-constant fallback",
+    "dsr_dispersion_provenance": "SYNTHETIC (production derivation OPEN — see governance note)",
 }
 open("MR002_Increment1_Qualification.json", "w", encoding="utf-8").write(
     json.dumps(qual, sort_keys=True, indent=2))
-print("canonical report output_hash:", report["output_hash"])
+print("output_hash:", report["output_hash"])
 print("determinism byte_identical:", qual["determinism_proof"]["byte_identical"])
-print("dsr gate_pass:", dsr["gate_pass"], "dsr:", round(dsr["dsr"], 6))
+print("dispositions:", report["research_gate_verdict"], report["run_disposition"])
+print("signed_zero_preserved:", qual["signed_zero_preserved"])

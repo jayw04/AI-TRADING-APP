@@ -1,14 +1,24 @@
-"""MR-002 validation/OOS evaluator — metric primitives (Workstream B, Increment 1).
+"""MR-002 validation/OOS evaluator — metric primitives (Increment 1 v1.1).
 
-Pure, synthetic-only metric implementations of the v1.0.3 governing gate battery. Every function
-takes CALLER-SUPPLIED synthetic arrays/records — NO portfolio construction, NO real data access, NO
-sealed-data adapters. Frozen conventions (v1.0.3 §estimator/§bootstrap):
-  * daily SIMPLE net returns on fixed $10M NAV; excess = net return (zero benchmark).
-  * Sharpe = arithmetic mean / sample std (ddof=1) * sqrt(252); zero-vol (ptp==0) -> IntegrityStop.
-  * annualized return = mean(daily) * 252 (simple convention, consistent with the arithmetic Sharpe).
-  * moving-block (non-circular) bootstrap: block L=21, 2000 resamples, PCG64 seed 42, one-sided 95%.
+Pure, synthetic-only. Return/Calmar/drawdown follow the owner's 2026-07-20 convention ruling:
+COMPOUNDED wealth path + GEOMETRIC annualization. Arithmetic mean x 252 is DESCRIPTIVE only.
 
-DSR uses the loaded, ledger-bound N (=5); this module never hard-codes N — the caller passes it in.
+Frozen conventions:
+  * wealth_0 = 1; wealth_t = wealth_(t-1) * (1 + r_t)   (r_t = daily simple net return)
+  * net annualized return gate  = (prod(1+r_t))^(252/n) - 1
+  * MaxDD  = max_t (1 - W_t / max_{s<=t} W_s), a NON-NEGATIVE fraction, off the compounded path
+  * combined MaxDD: concatenate validation then OOS chronologically into ONE continuous path (no
+    reset of wealth or running peak at the seam)
+  * OOS-only MaxDD: separate path starting at wealth 1.0 on the first eligible OOS return
+  * Calmar = geometric annualized return / MaxDD (same sealed-OOS compounded series)
+  * Sharpe = arithmetic mean / sample std (ddof=1) x sqrt(252)  (unchanged estimator)
+  * moving-block (non-circular) bootstrap: block L=21, 2000 resamples, PCG64 seed 42, one-sided 95%
+  * DSR (Bailey/Lopez-de-Prado): observed per-obs Sharpe uses ddof=1; skew/raw-kurtosis use the
+    population (n) moment estimators; expected-max-Sharpe via the Euler-Mascheroni two-quantile form.
+
+INTEGRITY_STOP codes: ZERO_VOLATILITY, NONFINITE_OR_EMPTY, NONPOSITIVE_WEALTH, NONFINITE_WEALTH,
+ZERO_DRAWDOWN_NONPOSITIVE_RETURN, NONPOSITIVE_NAV, INVALID_TRIALS_N, DSR_DENOM_NONPOSITIVE,
+BOOTSTRAP_PARAM.
 """
 
 from __future__ import annotations
@@ -16,102 +26,134 @@ from __future__ import annotations
 import numpy as np
 from scipy.stats import norm
 
-ANNUALIZATION = np.sqrt(252.0)
+ANNUALIZATION = float(np.sqrt(252.0))
 TRADING_DAYS = 252.0
 BLOCK_SESSIONS = 21
 RESAMPLES = 2000
 SEED = 42
 CONFIDENCE = 0.95
 EULER_GAMMA = 0.5772156649015329
+DSR_MIN_SAMPLE = 20
 
 
 class IntegrityStop(Exception):
-    """Zero-volatility, non-finite, or otherwise degenerate input (frozen INTEGRITY_STOP)."""
+    """Degenerate / out-of-domain input (frozen INTEGRITY_STOP with a specific code)."""
 
 
-def _finite(a: np.ndarray) -> np.ndarray:
+def _finite(a) -> np.ndarray:
     a = np.asarray(a, dtype=np.float64)
     if a.size == 0 or not np.all(np.isfinite(a)):
         raise IntegrityStop("NONFINITE_OR_EMPTY")
     return a
 
 
-# ── return aggregation + point metrics ──────────────────────────────────────────────────────────
-def daily_net_return(per_name_pnl: np.ndarray, nav: float = 10_000_000.0) -> float:
-    """Sum per-name net P&L for one session and divide by fixed NAV -> one daily net return."""
-    p = _finite(per_name_pnl)
-    if nav <= 0:
-        raise IntegrityStop("NONPOSITIVE_NAV")
-    return float(p.sum() / nav)
+# ── compounded wealth path (the governing convention) ─────────────────────────────────────────────
+def compounded_wealth(daily_net) -> np.ndarray:
+    """W_t after each session, starting from an implicit W_0 = 1.0. Any r <= -1 => NONPOSITIVE_WEALTH;
+    any non-finite wealth => NONFINITE_WEALTH."""
+    r = _finite(daily_net)
+    if np.any(r <= -1.0):
+        raise IntegrityStop("NONPOSITIVE_WEALTH")
+    w = np.cumprod(1.0 + r)
+    if not np.all(np.isfinite(w)) or np.any(w <= 0.0):
+        raise IntegrityStop("NONFINITE_WEALTH")
+    return w
 
 
-def annualized_return(daily_net: np.ndarray) -> float:
+def geometric_annualized_return(daily_net) -> float:
+    """(prod(1+r))^(252/n) - 1 — the governing >= 3% net annualized-return value."""
+    r = _finite(daily_net)
+    w = compounded_wealth(r)
+    n = r.size
+    return float(w[-1] ** (TRADING_DAYS / n) - 1.0)
+
+
+def arithmetic_annualized_mean(daily_net) -> float:
+    """mean(daily) x 252 — DESCRIPTIVE ONLY; NOT the return gate (owner ruling 2026-07-20)."""
     return float(_finite(daily_net).mean() * TRADING_DAYS)
 
 
-def annualized_sharpe(daily_net_excess: np.ndarray) -> float:
+def compounded_max_drawdown(daily_net) -> float:
+    """MaxDD off the compounded wealth index; non-negative fraction (0.15 == 15%)."""
+    w = compounded_wealth(daily_net)
+    peak = np.maximum.accumulate(w)
+    dd = 1.0 - w / peak
+    return float(dd.max())
+
+
+def combined_max_drawdown(validation_daily, oos_daily) -> float:
+    """One continuous compounded path over validation THEN OOS (chronological); no seam reset."""
+    v = _finite(validation_daily)
+    o = _finite(oos_daily)
+    return compounded_max_drawdown(np.concatenate([v, o]))
+
+
+def annualized_sharpe(daily_net_excess) -> float:
     r = _finite(daily_net_excess)
     if np.ptp(r) == 0.0:
         raise IntegrityStop("ZERO_VOLATILITY")
     return float(r.mean() / r.std(ddof=1) * ANNUALIZATION)
 
 
-def max_drawdown(daily_net: np.ndarray) -> float:
-    """Max peak-to-trough drawdown of the cumulative simple-return path; returned as a POSITIVE
-    fraction (0.15 == 15%)."""
+def calmar(daily_net) -> dict:
+    """Calmar = geometric annualized return / compounded MaxDD, same series. Special cases per the
+    owner ruling; POSITIVE_INFINITY is a finite-status object, never an IEEE Infinity."""
     r = _finite(daily_net)
-    cum = np.cumsum(r)          # additive simple returns on fixed NAV
-    peak = np.maximum.accumulate(cum)
-    dd = peak - cum
-    return float(dd.max())
-
-
-def calmar(daily_net: np.ndarray) -> float:
-    mdd = max_drawdown(daily_net)
+    rann = geometric_annualized_return(r)
+    mdd = compounded_max_drawdown(r)
     if mdd == 0.0:
-        raise IntegrityStop("ZERO_DRAWDOWN")
-    return float(annualized_return(daily_net) / mdd)
+        if rann > 0.0:
+            return {"value": None, "comparison_value": "POSITIVE_INFINITY",
+                    "annualized_return": rann, "max_drawdown": 0.0, "gate_pass": True}
+        raise IntegrityStop("ZERO_DRAWDOWN_NONPOSITIVE_RETURN")
+    val = rann / mdd
+    return {"value": float(val), "comparison_value": None, "annualized_return": rann,
+            "max_drawdown": mdd, "gate_pass": bool(val >= 0.75)}
 
 
 # ── moving-block bootstrap (frozen §bootstrap) ────────────────────────────────────────────────────
 def _block_indices(n: int, block: int, rng: np.random.Generator) -> np.ndarray:
     idx: list[int] = []
     while len(idx) < n:
-        s = int(rng.integers(0, n))
-        idx.extend(range(s, min(s + block, n)))     # truncate at series end, no wraparound
+        s = int(rng.integers(0, n))                  # uniform start in [0, n-1]
+        idx.extend(range(s, min(s + block, n)))      # up to L, truncate at series end, no wraparound
     return np.array(idx[:n], dtype=np.int64)
 
 
-def block_bootstrap_mean_lower_bound(daily_net: np.ndarray, *, block: int = BLOCK_SESSIONS,
+def block_bootstrap_mean_lower_bound(daily_net, *, block: int = BLOCK_SESSIONS,
                                      resamples: int = RESAMPLES, seed: int = SEED,
                                      confidence: float = CONFIDENCE) -> float:
     r = _finite(daily_net)
+    n = r.size
+    if n < 2:
+        raise IntegrityStop("BOOTSTRAP_PARAM:N<2")
+    if not (1 <= block <= n):
+        raise IntegrityStop(f"BOOTSTRAP_PARAM:BLOCK={block}")
+    if resamples < RESAMPLES:
+        raise IntegrityStop(f"BOOTSTRAP_PARAM:RESAMPLES<{RESAMPLES}")
+    if not (0.0 < confidence < 1.0):
+        raise IntegrityStop(f"BOOTSTRAP_PARAM:CONFIDENCE={confidence}")
     rng = np.random.default_rng(seed)
-    means = np.array([r[_block_indices(r.size, block, rng)].mean() for _ in range(resamples)])
+    means = np.array([r[_block_indices(n, block, rng)].mean() for _ in range(resamples)])
     return float(np.percentile(means, (1.0 - confidence) * 100.0))
 
 
 # ── fold / concentration / regime / breadth metrics ──────────────────────────────────────────────
-def positive_fold_count(fold_daily_returns: list[np.ndarray]) -> int:
-    """Number of folds whose net return SUM is > 0."""
-    return int(sum(1 for f in fold_daily_returns if _finite(f).sum() > 0.0))
+def positive_fold_count(fold_daily_returns: list) -> int:
+    """Folds whose COMPOUNDED terminal wealth > 1 (net-positive over the fold)."""
+    return int(sum(1 for f in fold_daily_returns if compounded_wealth(f)[-1] > 1.0))
 
 
 def annual_profile(annual_pnl: dict) -> dict:
-    """v1.0.3: >=3 positive calendar years AND largest positive year <= 50% of the SUM of positive
-    annual P&L. Returns {positive_years, largest_positive_fraction, gate_pass}."""
     vals = {y: float(v) for y, v in annual_pnl.items()}
     pos = [v for v in vals.values() if v > 0]
-    n_pos = len(pos)
     total_pos = sum(pos)
     largest_frac = (max(pos) / total_pos) if total_pos > 0 else 1.0
-    return {"positive_years": n_pos, "largest_positive_fraction": largest_frac,
-            "gate_pass": bool(n_pos >= 3 and largest_frac <= 0.50)}
+    return {"positive_years": len(pos), "largest_positive_fraction": largest_frac,
+            "gate_pass": bool(len(pos) >= 3 and largest_frac <= 0.50)}
 
 
-def trade_concentration(trade_pnl: np.ndarray, trade_stock_ids) -> dict:
-    """v1.0.3: top-10 trades <= 20% of total POSITIVE trade P&L; single stock <= 10% of total
-    positive P&L."""
+def trade_concentration(trade_pnl, trade_stock_ids) -> dict:
     p = _finite(trade_pnl)
     ids = list(trade_stock_ids)
     pos_mask = p > 0
@@ -129,24 +171,19 @@ def trade_concentration(trade_pnl: np.ndarray, trade_stock_ids) -> dict:
 
 
 def regime_gates(trend_regime_pnl: dict, vol_regime_sharpe: dict, *, min_sessions: dict | None = None) -> dict:
-    """v1.0.3 regime GATES: positive net P&L in >=2 of 3 trend regimes; no trend regime > 60% of
-    total LOSSES; no vol regime Sharpe < -0.50 (regimes with < 60 sessions exposure are n/a)."""
     min_sessions = min_sessions or {}
     tvals = {k: float(v) for k, v in trend_regime_pnl.items()}
     eligible = {k: v for k, v in tvals.items() if min_sessions.get(k, 999) >= 60}
     n_pos = sum(1 for v in eligible.values() if v > 0)
     losses = -sum(v for v in eligible.values() if v < 0)
-    max_loss_frac = 0.0
-    if losses > 0:
-        max_loss_frac = max((-v / losses) for v in eligible.values() if v < 0)
+    max_loss_frac = max(((-v / losses) for v in eligible.values() if v < 0), default=0.0)
     vol_ok = all(s >= -0.50 for k, s in vol_regime_sharpe.items() if min_sessions.get(k, 999) >= 60)
     return {"trend_positive_count": n_pos, "max_trend_loss_fraction": max_loss_frac,
             "vol_regime_ok": vol_ok,
             "gate_pass": bool(n_pos >= 2 and max_loss_frac <= 0.60 and vol_ok)}
 
 
-def breadth(trade_records: list[dict]) -> dict:
-    """v1.0.3: >=500 completed trades, >=100 distinct entry dates, >=100 long, >=100 short."""
+def breadth(trade_records: list) -> dict:
     n = len(trade_records)
     dates = {t["entry_date"] for t in trade_records}
     longs = sum(1 for t in trade_records if t["side"] == "long")
@@ -155,79 +192,88 @@ def breadth(trade_records: list[dict]) -> dict:
             "gate_pass": bool(n >= 500 and len(dates) >= 100 and longs >= 100 and shorts >= 100)}
 
 
-def cost_stress_ingest(stressed_daily_net: np.ndarray) -> dict:
-    """Ingest a caller-produced 20 bps/side + 300 bps/yr-borrow stressed return series; gate = still
-    net-profitable (cumulative > 0)."""
-    r = _finite(stressed_daily_net)
-    return {"stressed_total_return": float(r.sum()), "gate_pass": bool(r.sum() > 0.0)}
+def cost_stress_ingest(stressed_daily_net) -> dict:
+    """Ingest a caller-produced 20 bps/side + 300 bps/yr-borrow stressed series; gate = net-profitable
+    (compounded terminal wealth > 1)."""
+    w = compounded_wealth(stressed_daily_net)
+    return {"stressed_terminal_wealth": float(w[-1]), "gate_pass": bool(w[-1] > 1.0)}
 
 
 def capacity_ingest(net_edge_under_cap: float) -> dict:
-    """Ingest a caller-produced capacity result (net edge at $10M under the 2% ADV cap); gate =
-    positive."""
     v = float(net_edge_under_cap)
     return {"net_edge_under_cap": v, "gate_pass": bool(v > 0.0)}
 
 
-# ── DSR (GATE) at the loaded, ledger-bound N ─────────────────────────────────────────────────────
-def deflated_sharpe(daily_net: np.ndarray, *, trials_n: int, trial_sharpe_std: float,
-                    benchmark_sharpe: float = 0.0) -> dict:
-    """Deflated Sharpe Ratio (Bailey & Lopez de Prado). `trials_n` MUST be the loaded, ledger-bound
-    value (N=5) — this function has NO default. Returns {dsr, expected_max_sharpe, gate_pass}.
+# ── DSR (GATE) — pinned moment estimators; N supplied by the loaded ledger ─────────────────────────
+def expected_max_sharpe(trials_n: int, trial_sharpe_std: float, benchmark_sharpe: float = 0.0) -> float:
+    """Bailey/LdP expected maximum of N i.i.d. trial Sharpes (per-observation units). SR0 for N=1 is
+    the benchmark. `trial_sharpe_std` is the cross-trial Sharpe dispersion (see the DSR-dispersion
+    governance note — its PRODUCTION derivation is an OPEN item; here it is a synthetic fixture arg)."""
+    if not isinstance(trials_n, int) or isinstance(trials_n, bool) or trials_n < 1:
+        raise IntegrityStop(f"INVALID_TRIALS_N:{trials_n}")
+    if trials_n == 1:
+        return float(benchmark_sharpe)
+    z1 = norm.ppf(1.0 - 1.0 / trials_n)
+    z2 = norm.ppf(1.0 - 1.0 / (trials_n * np.e))
+    return float(benchmark_sharpe + trial_sharpe_std * ((1.0 - EULER_GAMMA) * z1 + EULER_GAMMA * z2))
 
-    SR is the ANNUALIZED Sharpe converted back to per-observation for the DSR z-statistic; skew and
-    kurtosis are of the daily net series. expected_max_sharpe (SR0) is the Bailey-LdP expected
-    maximum of N trial Sharpes given the cross-trial Sharpe dispersion `trial_sharpe_std`
-    (per-observation units)."""
-    if not isinstance(trials_n, int) or trials_n < 1:
+
+def _sample_moments(r: np.ndarray) -> tuple[float, float, float]:
+    """observed per-obs Sharpe (ddof=1), sample skewness, raw (Pearson, normal=3) kurtosis — the
+    higher moments use the population (n) normalization."""
+    mean = r.mean()
+    sd1 = r.std(ddof=1)
+    sd0 = r.std(ddof=0)
+    sr = mean / sd1
+    z = (r - mean) / sd0
+    skew = float((z ** 3).mean())
+    kurt = float((z ** 4).mean())
+    return float(sr), skew, kurt
+
+
+def deflated_sharpe(daily_net, *, trials_n: int, trial_sharpe_std: float,
+                    benchmark_sharpe: float = 0.0) -> dict:
+    """Deflated Sharpe Ratio. `trials_n` MUST be the loaded, ledger-bound value (no default)."""
+    if not isinstance(trials_n, int) or isinstance(trials_n, bool) or trials_n < 1:
         raise IntegrityStop(f"INVALID_TRIALS_N:{trials_n}")
     r = _finite(daily_net)
     t = r.size
+    if t < DSR_MIN_SAMPLE:
+        raise IntegrityStop(f"DSR_SAMPLE_TOO_SHORT:{t}<{DSR_MIN_SAMPLE}")
     if np.ptp(r) == 0.0:
         raise IntegrityStop("ZERO_VOLATILITY")
-    sr = r.mean() / r.std(ddof=1)                       # per-observation Sharpe
-    # sample skewness / kurtosis (Fisher, i.e. excess kurtosis + 3 for the DSR formula uses raw g2)
-    d = (r - r.mean()) / r.std(ddof=0)
-    skew = float((d ** 3).mean())
-    kurt = float((d ** 4).mean())                        # non-excess (normal == 3)
-    # Bailey-LdP expected max Sharpe over N independent trials:
-    if trials_n == 1:
-        sr0 = benchmark_sharpe
-    else:
-        z1 = norm.ppf(1.0 - 1.0 / trials_n)
-        z2 = norm.ppf(1.0 - 1.0 / (trials_n * np.e))
-        sr0 = benchmark_sharpe + trial_sharpe_std * ((1.0 - EULER_GAMMA) * z1 + EULER_GAMMA * z2)
-    denom = np.sqrt(1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr ** 2)
-    if denom <= 0 or not np.isfinite(denom):
+    sr, skew, kurt = _sample_moments(r)
+    sr0 = expected_max_sharpe(trials_n, trial_sharpe_std, benchmark_sharpe)
+    denom_sq = 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr ** 2
+    if not np.isfinite(denom_sq) or denom_sq <= 0.0:     # guard BEFORE sqrt (no RuntimeWarning)
         raise IntegrityStop("DSR_DENOM_NONPOSITIVE")
+    denom = np.sqrt(denom_sq)
     dsr = float(norm.cdf((sr - sr0) * np.sqrt(t - 1) / denom))
-    return {"dsr": dsr, "sr_per_obs": float(sr), "expected_max_sharpe": float(sr0),
-            "trials_n": trials_n, "gate_pass": bool(dsr >= 0.95)}
+    return {"dsr": dsr, "sr_per_obs": sr, "skew": skew, "kurtosis": kurt,
+            "expected_max_sharpe": sr0, "trials_n": trials_n,
+            "trial_sharpe_std": float(trial_sharpe_std), "trial_sharpe_std_provenance": "SYNTHETIC",
+            "gate_pass": bool(dsr >= 0.95)}
 
 
 # ── DIAGNOSTICS (reported, NEVER gate the verdict) ───────────────────────────────────────────────
-def pbo_diagnostic(fold_returns_by_config: dict, *, n_splits: int = 4) -> dict:
-    """PBO via a simplified CSCV over per-fold config performance. DIAGNOSTIC ONLY — its output can
-    never change the verdict. Returns {pbo, label}. (Exact CSCV split enumeration is refined later;
-    this qualifies the diagnostic plumbing on synthetic input.)"""
-    configs = list(fold_returns_by_config)
-    mat = np.array([[float(np.sum(fold_returns_by_config[c][f])) for c in configs]
-                    for f in range(len(next(iter(fold_returns_by_config.values()))))])
-    n_folds = mat.shape[0]
+def pbo_diagnostic(fold_returns_by_config: dict) -> dict:
     from itertools import combinations
+    configs = list(fold_returns_by_config)
+    n_folds = len(next(iter(fold_returns_by_config.values())))
+    mat = np.array([[float(compounded_wealth(fold_returns_by_config[c][f])[-1] - 1.0)
+                     for c in configs] for f in range(n_folds)])
     logits = []
     for is_idx in combinations(range(n_folds), max(1, n_folds // 2)):
         oos_idx = [i for i in range(n_folds) if i not in is_idx]
         if not oos_idx:
             continue
-        is_perf = mat[list(is_idx)].mean(axis=0)
+        best = int(np.argmax(mat[list(is_idx)].mean(axis=0)))
         oos_perf = mat[oos_idx].mean(axis=0)
-        best = int(np.argmax(is_perf))
         rank = (np.argsort(np.argsort(oos_perf))[best] + 1) / (len(configs) + 1)
         rank = min(max(rank, 1e-6), 1 - 1e-6)
         logits.append(np.log(rank / (1 - rank)))
     pbo = float(np.mean([1.0 for lg in logits if lg <= 0]) if logits else 0.0)
-    return {"pbo": pbo, "label": "DIAGNOSTIC (N=3 underpowered)", "classification": "DIAGNOSTIC"}
+    return {"pbo": pbo, "classification": "DIAGNOSTIC", "note": "N=3 underpowered"}
 
 
 def annual_herfindahl_diagnostic(annual_pnl: dict) -> dict:
@@ -242,3 +288,9 @@ def positive_pnl_regime_concentration_diagnostic(regime_pnl: dict) -> dict:
     tot = sum(pos.values())
     top = (max(pos.values()) / tot) if tot > 0 else 1.0
     return {"top_regime_positive_fraction": top, "classification": "DIAGNOSTIC"}
+
+
+def severe_cost_stress_diagnostic(stressed_daily_net) -> dict:
+    """30 bps/side + 1000 bps/yr borrow stressed series (reported, NEVER gated)."""
+    w = compounded_wealth(stressed_daily_net)
+    return {"severe_stressed_terminal_wealth": float(w[-1]), "classification": "DIAGNOSTIC"}

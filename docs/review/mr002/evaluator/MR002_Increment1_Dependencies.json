@@ -1,0 +1,35 @@
+{
+  "record_type": "MR002_Increment1_DependencyLock",
+  "increment": 1,
+  "version": "1.1",
+  "python": {
+    "implementation": "CPython",
+    "version": "3.13.14",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "packages": {
+    "numpy": {
+      "version": "2.2.6",
+      "artifact_binding": "installed dist-info RECORD (complete) sha256",
+      "record_sha256": "5c7da535a03bc1b3d4ae10961d19e4af1755be5f144901707f835ed398388cdd"
+    },
+    "scipy": {
+      "version": "1.18.0",
+      "artifact_binding": "installed dist-info RECORD (complete) sha256",
+      "record_sha256": "c4f6c9fce4141d3acc6113bbe18adb51f69d5cd5cb56368205c6cbe383c237c1"
+    },
+    "pytest": {
+      "version": "9.0.3",
+      "artifact_binding": "installed dist-info RECORD (complete) sha256",
+      "record_sha256": "3081fb7de47a581b4f10f953f2d8e0c649f38782b35aac74e2d7681e2d35bbaf"
+    },
+    "ruff": {
+      "version": "0.15.13",
+      "artifact_binding": "installed dist-info RECORD (complete) sha256",
+      "record_sha256": "3eb1df57608c2a38321a2c0264b798f3513f143ce2eddfa37567d703fb5c1e97"
+    }
+  },
+  "artifact_binding_note": "The complete dist-info RECORD file lists a sha256 for EVERY installed file of the package; hashing the whole RECORD therefore binds the full installed artifact content (not a name/version prefix). Upstream PyPI wheel-artifact hashes were unavailable at generation time (no wheel in the local pip cache; the developer machine's Norton SSL inspection blocks some package hosts). A PyPI wheel-hash / fully-hashed lock can be added on a non-Norton environment before full-evaluator qualification.",
+  "lock_generation_command": "apps/backend/.venv/Scripts/python.exe -c \"import importlib.metadata as md, hashlib, pathlib; [print(p, md.version(p), hashlib.sha256((pathlib.Path(md.distribution(p).locate_file(''))/next(iter(pathlib.Path(md.distribution(p).locate_file('')).glob(p.replace('-','_')+'*.dist-info'))).name/'RECORD').read_bytes()).hexdigest()) for p in ['numpy','scipy','pytest','ruff']]\"",
+  "boundary": "synthetic/development-free; no real dataset opened; no validation/OOS access."
+}
