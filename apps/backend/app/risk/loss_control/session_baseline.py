@@ -97,19 +97,30 @@ def resolve_session_date(
 
 
 def _broker_order_instant(order: Any) -> datetime | None:
-    """Best-effort UTC timestamp of a broker order dict/obj (submitted/created/updated)."""
+    """The order's activity time as a TIMEZONE-AWARE instant, or None if no field yields one.
+
+    Naive datetimes and naive/invalid ISO strings are treated as UNUSABLE — never assumed to be
+    UTC. The alpaca adapter serializes order timestamps via ``model_dump(mode="json")`` on tz-aware
+    datetimes, i.e. ISO strings WITH an offset, so a naive value is out-of-contract; assigning it a
+    timezone by assumption would be a guess. An unusable value in one field falls through to the
+    next; if none is usable the order has no establishable activity time and the caller fails closed
+    (§D3 — unverifiable → INDETERMINATE, never a false 'no activity')."""
     for key in ("submitted_at", "created_at", "updated_at"):
         value = order.get(key) if isinstance(order, dict) else getattr(order, key, None)
         if value is None:
             continue
         if isinstance(value, datetime):
-            return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+            if value.tzinfo is not None:
+                return value
+            continue  # naive datetime — out of contract, unusable
         if isinstance(value, str):
             try:
                 dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
             except ValueError:
                 continue
-            return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+            if dt.tzinfo is not None:
+                return dt
+            continue  # parsed but naive — unusable
     return None
 
 
@@ -255,7 +266,16 @@ class SessionBaselineShadow:
             return None
         for order in broker_orders or []:
             instant = _broker_order_instant(order)
-            if instant is not None and instant >= session_open_utc:
+            if instant is None:
+                # A broker order whose activity time can't be established means we cannot PROVE
+                # that no regular-session activity occurred → unverifiable, fail closed. It must not
+                # be dismissed just because other orders are known to be pre-open.
+                logger.warning(
+                    "risk_session_baseline_broker_order_timestamp_unverifiable",
+                    account_id=account_id,
+                )
+                return None
+            if instant >= session_open_utc:
                 return True
         return False
 

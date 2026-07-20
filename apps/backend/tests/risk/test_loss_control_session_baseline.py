@@ -193,14 +193,42 @@ async def test_broker_order_before_session_is_not_activity(session_factory, acct
     assert result.outcome == SHADOW_CAPTURED  # a pre-session broker order is not this-session activity
 
 
-async def test_broker_order_without_timestamp_is_ignored(session_factory, acct):
+async def test_broker_order_without_timestamp_is_indeterminate(session_factory, acct):
+    # An order whose activity time can't be established → we can't prove no activity → fail closed.
     adapter = Mock()
     adapter.list_orders = Mock(return_value=[{"id": "no-ts"}])
     async with session_factory() as s:
         result = await SessionBaselineShadow(s, adapter=adapter).capture(
             account_id=acct, reconciled_equity=D("100000"), now=TRADING_NOW
         )
-    assert result.outcome == SHADOW_CAPTURED
+    assert result.outcome == SHADOW_INDETERMINATE
+    assert await _baseline(session_factory, acct) is None  # never mint a baseline on unverifiable evidence
+
+
+async def test_broker_order_invalid_timestamp_is_indeterminate(session_factory, acct):
+    adapter = Mock()
+    adapter.list_orders = Mock(return_value=[{"id": "bad", "submitted_at": "not-a-timestamp"}])
+    async with session_factory() as s:
+        result = await SessionBaselineShadow(s, adapter=adapter).capture(
+            account_id=acct, reconciled_equity=D("100000"), now=TRADING_NOW
+        )
+    assert result.outcome == SHADOW_INDETERMINATE
+    assert await _baseline(session_factory, acct) is None
+
+
+async def test_mixed_malformed_and_preopen_orders_is_indeterminate(session_factory, acct):
+    # A malformed order cannot be dismissed just because the other orders are known pre-open.
+    adapter = Mock()
+    adapter.list_orders = Mock(return_value=[
+        {"id": "preopen", "submitted_at": (SESSION_OPEN - timedelta(days=1)).isoformat()},
+        {"id": "malformed"},  # no usable timestamp
+    ])
+    async with session_factory() as s:
+        result = await SessionBaselineShadow(s, adapter=adapter).capture(
+            account_id=acct, reconciled_equity=D("100000"), now=TRADING_NOW
+        )
+    assert result.outcome == SHADOW_INDETERMINATE
+    assert await _baseline(session_factory, acct) is None
 
 
 # --------------------------------------------------------------- fail-closed: unverifiable
@@ -245,12 +273,14 @@ async def test_non_trading_day_is_skipped(session_factory, acct):
 def test_broker_order_instant_parsing():
     dt = datetime(2026, 7, 20, 14, 0, tzinfo=UTC)
     assert _broker_order_instant({"submitted_at": dt}) == dt
-    naive = datetime(2026, 7, 20, 14, 0)
-    assert _broker_order_instant({"created_at": naive}).tzinfo is UTC
     assert _broker_order_instant({"submitted_at": "2026-07-20T14:00:00Z"}) == dt
-    # falls through an unparseable field to the next usable one
+    # A naive value is out-of-contract → UNUSABLE (None), never assumed UTC.
+    assert _broker_order_instant({"created_at": datetime(2026, 7, 20, 14, 0)}) is None
+    assert _broker_order_instant({"submitted_at": "2026-07-20T14:00:00"}) is None  # naive string
+    # An unusable (unparseable OR naive) field falls through to a usable tz-aware one.
     assert _broker_order_instant(
         {"submitted_at": "not-a-date", "created_at": "2026-07-20T14:00:00+00:00"}
     ) == dt
+    assert _broker_order_instant({"submitted_at": "2026-07-20T09:00:00", "created_at": dt}) == dt
     assert _broker_order_instant({}) is None
     assert _broker_order_instant({"submitted_at": None, "created_at": None, "updated_at": None}) is None
