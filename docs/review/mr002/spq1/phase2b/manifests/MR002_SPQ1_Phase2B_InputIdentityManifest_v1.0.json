@@ -1,0 +1,74 @@
+{
+ "bound_prior_identities": {
+  "increment3_accepted_output_sha256": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "owner_rulings_sha256": "d8a9071d53bdb036ad9e6d46cd0d899f6846d3f2af946f932ce963e10f0e206a",
+  "phase0_census_sha256": "87602e7c5e5c719a44d83d6a556690116958c58e1e0d97b687531da824f9008e",
+  "phase0_closeout": "023b75e837a6ca5992da4bf483dd122d35759e59",
+  "phase0_schema_sha256": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f",
+  "phase1_closeout": "18561c3a8c56ff54b9fdfd1da8e7d9db6e2cfd60",
+  "phase1_valid_path_output_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
+  "phase2a_closeout": "673f10bdc84e276d5fc1d5bce39f459c8bc869af",
+  "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e..."
+ },
+ "code_identities": {
+  "adapter_code_version": "spq1-phase2a-v1.0-development",
+  "adapter_modules": {
+   "__init__.py": "055c3e5c67491c3153644d7a5ffae0110c90a06de2f6645ad5a4e3d97bf60f50",
+   "benchmark_adapter.py": "2aadc2e122f64c1cd8faabbc4e0ce18ae421bbb367fc4479cb413b3e5d0e2203",
+   "calendar_adapter.py": "50fc5b070f9a6593d0088ee3716ad02b61f570525c3b8a10ad84be86664e78e6",
+   "dev_snapshot.py": "a6fbdf1d3207b064f400bbb793697b5024af3b5dece0b6c945d339c7d6c83584",
+   "eligibility_adapter.py": "641b7b62e51a60ec127e3caa6c774f65d893734ea1114ed9aabeb0b572abb83e",
+   "identity_adapter.py": "dc5af0d76b4c83b70103f99e97098a77235f0581f032caa8df0a4785ce80dfe8",
+   "liquidity_adapter.py": "882a80e739a1053a3cf99b1092e00fb3a7faa10d0908197ed79c56593339060c",
+   "manifests.py": "3888c3bc7d5203e902557568cc844ac31034f7981913f207792b1214baabf1a1",
+   "partition_guard.py": "f558636a3a3fe3f4ade9f1d8077bd34eeedbe8406e7c5f956dc78fb230e4ffbc",
+   "pit_sector_adapter.py": "576979f50379d2b62966def032e52ed569aa1b63726d26065edad66cbbf4d254",
+   "price_adapter.py": "2fa68c96f1b02a32da64e98c6dd482f0fa66b203be3ce6fef38ab2731a6dca48",
+   "sector_proxy_adapter.py": "31cee2b58bdd771a275d999248692f6ea79a5aff49aa933ca0cf978e10ad80aa"
+  },
+  "producer_modules": {
+   "__init__.py": "d1f326b44ba6fc6bf9aacb3e3b779a08610ad4ae07a5d13d78e68bcd97c1eb6f",
+   "calendar.py": "567044c06672f03cc655ac412b666a3195bcf8f96cf01a9575078ffe91cdc7dc",
+   "constants.py": "c1661e4ae720ae292243a6159b78c464d3b84c3e8d8f41acc2e71980b2c4499b",
+   "eligibility.py": "b88ce8977f8d929bc6ff8140c2ea67fba1a447a150eafe82d6ed8715da5fea54",
+   "execution_enrichment.py": "da6a730daea287332b51fe98d8a5d4a2580c37d8c0dab915ac64214883cdba05",
+   "identities.py": "019a800f9cc43c6873430d3acbf061bbfa206bb8c33d8fb0466064f274cde62b",
+   "liquidity.py": "a51c0e0d57d806249806ecbbfd0bacb8ee60d2708a8b4f86a43f0e1cb7a41648",
+   "models.py": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+   "normalization.py": "3d6be8242c27b50840184b68016b10ec72169ae43cde28c6495c5e5bab750eaf",
+   "producer.py": "0005244fb2100f8d9b7c4c6a9dcb7069505c50b26c962f4d928d25acb3da2bad",
+   "publication.py": "3698694af74e40b1e22f13e72978d82cfa64be6c73a764d647a909399956424c",
+   "refusals.py": "f37432037e5a441469db4886f23d260023f6024dcf47927ec71f001b41745cff",
+   "residuals.py": "0a9147cec5478d2c861ee81642b7499942cd9dbfc413be606d2fb3ba1d29c7ca",
+   "returns.py": "b231197e35d827d351a987077959011d33e69d5b3d1bbd8a0773a848a26fa5c8",
+   "sector_factor.py": "fbd9c8d9743a35de28265d068022007ca85118b23da32ad0286b9a969970807a",
+   "sector_pit.py": "5b581ab503ec734c25b47876dd1878e8e0d0aab0d0c070d74a5f6705bf2e10d4",
+   "security_identity.py": "3aef443508baa4bf1139afd362cfc482e217bdfdd902d48650ddb1f2fb44cc10",
+   "stock_regression.py": "4c1bffcc8a3ec6d22f710cd7f1c42fcdf0154cfad5e6aaea633796b761cca455"
+  }
+ },
+ "record_type": "MR002_SPQ1_Phase2B_InputIdentityManifest",
+ "registered_sources": {
+  "development_universe": {
+   "content_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39",
+   "months": 82,
+   "role": "monthly PIT membership (top-250 long / top-150 short)",
+   "rows": 20500
+  },
+  "mr002_provenance.duckdb": {
+   "role": "sic_observations/earnings_anchors",
+   "sha256": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688"
+  },
+  "mr002_research.duckdb": {
+   "role": "prices/etf_prices/actions/crosswalk/universe/sic_mapping",
+   "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+  },
+  "sic_mapping_table": {
+   "content_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
+   "role": "registered owner-countersigned SIC-range -> sector -> ETF mapping",
+   "rows": 110
+  }
+ },
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "version": "1.0"
+}

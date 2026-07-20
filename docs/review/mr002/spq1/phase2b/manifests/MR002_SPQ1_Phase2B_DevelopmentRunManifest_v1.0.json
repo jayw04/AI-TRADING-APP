@@ -1,0 +1,65 @@
+{
+ "development_window": {
+  "dev_calendar_sha256": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0",
+  "end": "2019-10-02",
+  "governed_session_list_reference_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+  "sessions": 1700,
+  "start": "2013-01-02"
+ },
+ "factor_identities": {
+  "market": "SPY total-return (etf_prices)",
+  "sectors": "11 SPDR select-sector ETFs",
+  "sic_to_sector_etf_mapping": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006"
+ },
+ "output": {
+  "large_records": "decision/disposition shards may stay out of git; identities+manifests committed",
+  "root": "docs/review/mr002/spq1/phase2b/",
+  "subdirs": [
+   "run_spec",
+   "manifests",
+   "evidence",
+   "census",
+   "qualification"
+  ]
+ },
+ "partition_guard_identity": "f558636a3a3fe3f4ade9f1d8077bd34eeedbe8406e7c5f956dc78fb230e4ffbc",
+ "pit_source_identities": {
+  "adv": "closeunadj x volume",
+  "corporate_actions": "actions.date",
+  "earnings": "earnings_anchors.acceptance_utc (BMO/AMC, amendments)",
+  "sector": "sic_observations.accepted_utc + sic_mapping"
+ },
+ "policies": {
+  "batch_policy": "per-shard; single-process and multi-shard runs must be byte-identical after canonical ordering",
+  "canonical_ordering": "(decision_session_ordinal asc, permanent_security_id asc)",
+  "checkpoint_policy": "atomic per-shard completion; completed-shard SHA-256 recorded; non-overwriting",
+  "eligibility_boundary": "close-t only; any post-close-t fact -> INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED",
+  "execution_enrichment": "NOT a full run; only a preregistered mechanical sample proving the seam",
+  "failure_policy": "raw exception / unregistered refusal / reconciliation mismatch / post-dev row / validation-OOS reference -> STOP, no repair/tune/reinterpret",
+  "performance_quarantine": "signal values emitted but never ranked/interpreted; only implementation diagnostics (finite counts, refusal/coverage distributions) permitted",
+  "resource_limits": "single-process default; a second shard configuration + a restart run for invariance",
+  "restart_policy": "resume from last completed shard; never overwrite/duplicate/skip; identical final manifest",
+  "sharding": "contiguous session-ordinal blocks (independent units -> shard-invariant after canonical merge)",
+  "terminal_dispositions": [
+   "SIGNAL_DECISION_RECORD_EMITTED",
+   "INELIGIBLE",
+   "INTEGRITY_STOP",
+   "REFUSED_CODE_OR_DATA_IDENTITY"
+  ],
+  "unit_of_computation": "permanent_security_id x decision_session -> exactly one terminal disposition"
+ },
+ "record_type": "MR002_SPQ1_Phase2B_DevelopmentRunManifest",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "security_types": {
+  "excluded": "ETF/ETN/CEF/preferred/rights/warrants/units/SPAC-units/OTC/foreign-ordinary/duplicate",
+  "included": "US-listed operating-company common equity + governed share classes (Ruling 10)"
+ },
+ "universe": {
+  "distinct_permatickers": 540,
+  "identity": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39",
+  "membership_rule": "universe_month <= session month; top-250 long / top-150 shorts per \u00a74; PIT, survivorship-free; never a present-day list",
+  "months": 82,
+  "source": "universe table (monthly PIT)"
+ },
+ "version": "1.0"
+}
