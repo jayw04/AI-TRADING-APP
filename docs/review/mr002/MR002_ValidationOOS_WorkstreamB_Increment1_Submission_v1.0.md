@@ -79,5 +79,9 @@ code-constant fallback exists. The evidence bundle records `dsr_N_source` = the 
 ## 8. Boundary confirmation
 
 `sequencing.validation_authorization` remains **false**; no validation/OOS partition was read; no
-development performance computed. Increment 1 stops here — Increment 2 (portfolio replay + the
-sealed-data path) requires a separate authorization and is NOT begun.
+development performance computed. Increment 1 stops here. The authorized forward sequence (owner
+correction, 2026-07-20) is: **Increment 2** = cost model + synthetic trade ledger + next-open
+execution semantics; **Increment 3** = portfolio replay + exposure constraints; a **later
+operational increment** = sealed-access controls and adapters. No validation/OOS adapter or sealed
+partition access is introduced during Increment 2. Each is a separate authorization and none is
+begun.
