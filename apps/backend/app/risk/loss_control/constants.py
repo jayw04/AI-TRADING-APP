@@ -141,3 +141,100 @@ ALL_AUTHORITY_CLASSES: frozenset[str] = frozenset(
         AUTHORITY_MANUAL_SAME_OR_HIGHER,
     }
 )
+
+# ==============================================================================================
+# ADR 0043 PR6 — the recovery preflight WORKFLOW vocabulary (control-plane, not the order path).
+# ==============================================================================================
+
+# Bumped when the check registry / evidence shape changes so a stale evidence package is legible.
+RECOVERY_EVIDENCE_VERSION = 1
+
+# Parent preflight lifecycle status. Distinct from the aggregate VERDICT (PASS/FAIL/INCOMPLETE) and
+# from the transition-commit outcome — a PASS verdict is NOT the same as "the transition committed".
+PREFLIGHT_STATUS_REQUESTED = "REQUESTED"
+PREFLIGHT_STATUS_RUNNING = "RUNNING"
+PREFLIGHT_STATUS_PASSED = "PASSED"  # aggregate PASS + authority satisfied + PREFLIGHT_PASS committed
+PREFLIGHT_STATUS_FAILED = "FAILED"  # aggregate FAIL → PREFLIGHT_FAIL committed
+PREFLIGHT_STATUS_INCOMPLETE = "INCOMPLETE"  # aggregate INCOMPLETE → PREFLIGHT_FAIL committed
+PREFLIGHT_STATUS_AUTHORIZATION_REQUIRED = "AUTHORIZATION_REQUIRED"  # PASS but a human must approve
+PREFLIGHT_STATUS_COMMIT_FAILED = "COMMIT_FAILED"  # a transition write raised — nothing authoritative
+ALL_PREFLIGHT_STATUSES: frozenset[str] = frozenset(
+    {
+        PREFLIGHT_STATUS_REQUESTED,
+        PREFLIGHT_STATUS_RUNNING,
+        PREFLIGHT_STATUS_PASSED,
+        PREFLIGHT_STATUS_FAILED,
+        PREFLIGHT_STATUS_INCOMPLETE,
+        PREFLIGHT_STATUS_AUTHORIZATION_REQUIRED,
+        PREFLIGHT_STATUS_COMMIT_FAILED,
+    }
+)
+# Statuses in which a preflight is still "active" — an account may have at most one active preflight.
+ACTIVE_PREFLIGHT_STATUSES: frozenset[str] = frozenset(
+    {PREFLIGHT_STATUS_REQUESTED, PREFLIGHT_STATUS_RUNNING, PREFLIGHT_STATUS_AUTHORIZATION_REQUIRED}
+)
+
+# Aggregate verdict of the 12 checks (fail-closed). Same value set as the per-check status.
+AGG_PASS = CHECK_PASS
+AGG_FAIL = CHECK_FAIL
+AGG_INCOMPLETE = CHECK_INCOMPLETE
+
+# The 12 stable, versioned preflight check names (§D5). Exactly twelve — do not add/remove without
+# bumping RECOVERY_EVIDENCE_VERSION and updating tests + runbook + authority policy.
+CHECK_STATE_KNOWN_AND_RECOVERABLE = "state_known_and_recoverable"
+CHECK_RECOVERY_ORIGIN_PROVEN = "recovery_origin_proven"
+CHECK_BROKER_REACHABLE = "broker_reachable"
+CHECK_BROKER_ACCOUNT_ACTIVE = "broker_account_active"
+CHECK_POSITIONS_RECONCILE = "positions_reconcile"
+CHECK_OPEN_ORDERS_RECONCILE = "open_orders_reconcile"
+CHECK_RESERVATIONS_RECONCILE = "reservations_reconcile"
+CHECK_SESSION_BASELINE_VALID = "session_baseline_valid"
+CHECK_DAILY_LOSS_RECOMPUTED = "daily_loss_recomputed"
+CHECK_TRIP_CAUSE_CLASSIFIED = "trip_cause_classified"
+CHECK_CONTROL_STATE_CONSISTENT = "control_state_consistent"
+CHECK_NO_UNRESOLVED_INTEGRITY_CONDITION = "no_unresolved_integrity_condition"
+PREFLIGHT_CHECK_REGISTRY: tuple[str, ...] = (
+    CHECK_STATE_KNOWN_AND_RECOVERABLE,
+    CHECK_RECOVERY_ORIGIN_PROVEN,
+    CHECK_BROKER_REACHABLE,
+    CHECK_BROKER_ACCOUNT_ACTIVE,
+    CHECK_POSITIONS_RECONCILE,
+    CHECK_OPEN_ORDERS_RECONCILE,
+    CHECK_RESERVATIONS_RECONCILE,
+    CHECK_SESSION_BASELINE_VALID,
+    CHECK_DAILY_LOSS_RECOMPUTED,
+    CHECK_TRIP_CAUSE_CLASSIFIED,
+    CHECK_CONTROL_STATE_CONSISTENT,
+    CHECK_NO_UNRESOLVED_INTEGRITY_CONDITION,
+)
+
+# Actor types for request / authorization. A SYSTEM actor may run checks but may NOT self-authorize
+# an INTEGRITY_STOP recovery (§D5 authority matrix).
+ACTOR_OWNER = "OWNER"
+ACTOR_RISK_OPERATOR = "RISK_OPERATOR"
+ACTOR_SYSTEM = "SYSTEM"
+
+# Stable error / blocked codes for evidence (never raw exception text, no credentials/tokens).
+ERR_BROKER_UNREACHABLE = "ERR_BROKER_UNREACHABLE"
+ERR_BROKER_ACCOUNT_INACTIVE = "ERR_BROKER_ACCOUNT_INACTIVE"
+ERR_POSITION_MISMATCH = "ERR_POSITION_MISMATCH"
+ERR_OPEN_ORDER_MISMATCH = "ERR_OPEN_ORDER_MISMATCH"
+ERR_RESERVATION_MISMATCH = "ERR_RESERVATION_MISMATCH"
+ERR_BASELINE_INVALID = "ERR_BASELINE_INVALID"
+ERR_LOSS_NOT_RECOMPUTABLE = "ERR_LOSS_NOT_RECOMPUTABLE"
+ERR_ORIGIN_UNPROVEN = "ERR_ORIGIN_UNPROVEN"
+ERR_STATE_CONTRADICTION = "ERR_STATE_CONTRADICTION"
+ERR_TRIP_CAUSE_UNKNOWN = "ERR_TRIP_CAUSE_UNKNOWN"
+ERR_UNRESOLVED_INTEGRITY = "ERR_UNRESOLVED_INTEGRITY"
+ERR_AUTHORIZATION_REQUIRED = "ERR_AUTHORIZATION_REQUIRED"
+ERR_TRANSITION_COMMIT_FAILED = "ERR_TRANSITION_COMMIT_FAILED"
+ERR_INTERNAL = "ERR_INTERNAL"  # unexpected exception, bounded — raw text stays in internal logs
+ERR_NOT_ELIGIBLE = "ERR_NOT_ELIGIBLE"  # request from NORMAL / cooldown / unknown / missing state
+ERR_NOT_AUTHORIZED = "ERR_NOT_AUTHORIZED"  # actor may not request/authorize this origin
+ERR_IDEMPOTENCY_CONFLICT = "ERR_IDEMPOTENCY_CONFLICT"  # same key, conflicting payload
+ERR_ACTIVE_PREFLIGHT_EXISTS = "ERR_ACTIVE_PREFLIGHT_EXISTS"  # one active per account
+
+# Authority-class labels (what authority a given origin's PREFLIGHT_PASS requires).
+AUTHORITY_CLASS_OWNER_OR_OPERATOR = "OWNER_OR_OPERATOR"
+AUTHORITY_CLASS_OPERATOR_OR_OWNER_IF_DAILY_LOSS = "OPERATOR_OR_OWNER_IF_DAILY_LOSS"
+AUTHORITY_CLASS_OPERATOR_HUMAN_APPROVAL = "OPERATOR_HUMAN_APPROVAL"  # INTEGRITY_STOP

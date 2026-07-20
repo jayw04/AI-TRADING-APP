@@ -97,6 +97,36 @@ def test_gate_allows_engine_and_gate_module():
     assert _run_one(mod.check_gate_only_via_engine, mod.GATE, src) == []
 
 
+# --------------------------------------------------------------- §6 sanctioned trigger placement (PR6)
+
+
+def test_recovery_trigger_allowed_in_coordinator():
+    src = "from app.risk.loss_control.state_machine import TRIGGER_RECOVERY_REQUEST\n"
+    assert _run_one(mod.check_sanctioned_trigger_placement,
+                    "app/risk/loss_control/recovery.py", src) == []
+
+
+def test_recovery_trigger_forbidden_in_engine_and_api():
+    src = ("from app.risk.loss_control.state_machine import TRIGGER_PREFLIGHT_PASS\n"
+           "def f(): return TRIGGER_PREFLIGHT_PASS\n")
+    assert _invariants(_run_one(mod.check_sanctioned_trigger_placement,
+                                "app/risk/engine.py", src)) == {"sanctioned-trigger-placement"}
+    assert _invariants(_run_one(mod.check_sanctioned_trigger_placement,
+                                "app/api/v1/risk.py", src)) == {"sanctioned-trigger-placement"}
+
+
+def test_rearm_trigger_forbidden_outside_state_machine():
+    src = "from app.risk.loss_control.state_machine import TRIGGER_COOLDOWN_COMPLETE\n"
+    # Even the recovery coordinator may not touch the re-arm triggers (that is PR7).
+    assert _invariants(_run_one(mod.check_sanctioned_trigger_placement,
+                                "app/risk/loss_control/recovery.py", src)) == {
+        "sanctioned-trigger-placement"
+    }
+    # state_machine.py DEFINES them — allowed.
+    assert _run_one(mod.check_sanctioned_trigger_placement,
+                    "app/risk/loss_control/state_machine.py", src) == []
+
+
 # --------------------------------------------------------------- §3 no duplicate classifier
 
 

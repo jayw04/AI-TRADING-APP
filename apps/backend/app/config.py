@@ -99,6 +99,14 @@ class Settings(BaseSettings):
     # is capture=on, enforcement=on, mode=ENFORCE.
     loss_control_mode: LossControlMode = LossControlMode.OFF
 
+    # ADR 0043 PR6 — registered RISK-OPERATOR authority. There is no operator role in the user model,
+    # so operator authority is an explicit allowlist of user ids (WORKBENCH_RISK_OPERATOR_USER_IDS,
+    # e.g. "[2, 5]"). Default EMPTY: only account owners can act, and an INTEGRITY_STOP recovery can
+    # never be authorized (it stays AUTHORIZATION_REQUIRED) until an operator is registered — the
+    # conservative default the recovery authority matrix relies on. An administrative/DB role alone
+    # does NOT confer operator authority; only this explicit registration does.
+    risk_operator_user_ids: list[int] = Field(default_factory=list)
+
     # --- Alpaca credentials (not WORKBENCH_-prefixed) ---
     alpaca_paper_api_key: str = Field(default="", alias="ALPACA_PAPER_API_KEY")
     alpaca_paper_api_secret: str = Field(default="", alias="ALPACA_PAPER_API_SECRET")
