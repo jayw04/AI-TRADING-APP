@@ -259,6 +259,15 @@ does not weaken an independent rejection and writes no row.
 8. `state_known` (in the paired `risk_loss_control_shadow_comparison` log) — `False` means **no
    persisted state row**; the account fails closed to `INTEGRITY_STOP`.
 
+**Denominator.** In `SHADOW`/`ENFORCE`, `risk_loss_control_shadow_comparison` is emitted **once per
+loss-control-applicable order** — every terminal decision reachable once the order has a resolved
+symbol, a valid account, and a well-formed request (all the risk-gate rejections *and* the passes),
+not only the daily-loss/breaker ones. Non-applicable preprocessing failures (halt,
+market-session-closed, malformed request, mode/account mismatch, unresolved symbol,
+no-limits-configured) emit no comparison. So the comparison stream is the full applicable population
+— the denominator PR8 canary analysis needs; `LOSS_CONTROL_ENFORCED` (the numerator of *authoritative
+contributions*) is a strict subset.
+
 **A `LOSS_CONTROL_STOP` from a missing-state, `ERROR`, or transition-commit-failure condition is an
 integrity refusal — NOT a trading-limit adjustment request.** Do not treat it as "the cap is too
 tight".

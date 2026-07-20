@@ -237,18 +237,23 @@ class RiskEngine:
                     reasons=[ReasonCode.NO_LIMITS_CONFIGURED],
                 )
 
+            # From here on the order is LOSS-CONTROL-APPLICABLE (resolved symbol, valid account,
+            # well-formed request), so every terminal decision — reject or pass — routes through
+            # _finalize_with_loss_control to emit exactly one comparison event and apply the ENFORCE
+            # override. Steps 0–4 above are non-applicable preprocessing and persist directly.
+
             # 5. Symbol allow/deny lists.
             if limits.denied_symbols and req.symbol_ticker in limits.denied_symbols:
-                return await self._persist_and_return(
-                    session,
-                    decision=RiskDecision.REJECT,
-                    reasons=[ReasonCode.SYMBOL_DENIED],
+                return await self._finalize_with_loss_control(
+                    session, req, reduction_cache,
+                    legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.SYMBOL_DENIED],
+                    legacy_outcome="REFUSE", legacy_permits=False,
                 )
             if limits.allowed_symbols and req.symbol_ticker not in limits.allowed_symbols:
-                return await self._persist_and_return(
-                    session,
-                    decision=RiskDecision.REJECT,
-                    reasons=[ReasonCode.SYMBOL_DENIED],
+                return await self._finalize_with_loss_control(
+                    session, req, reduction_cache,
+                    legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.SYMBOL_DENIED],
+                    legacy_outcome="REFUSE", legacy_permits=False,
                 )
 
             # 6. Short restriction. A SELL is "opening a short" if we don't
@@ -260,10 +265,10 @@ class RiskEngine:
                     session, req, symbol
                 )
                 if current_qty < req.qty:
-                    return await self._persist_and_return(
-                        session,
-                        decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.SHORT_NOT_ALLOWED],
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.SHORT_NOT_ALLOWED],
+                        legacy_outcome="REFUSE", legacy_permits=False,
                     )
 
             estimated_notional = await self._estimate_notional(req)
@@ -294,10 +299,10 @@ class RiskEngine:
                 limits.max_position_qty is not None
                 and resulting_qty > limits.max_position_qty
             ):
-                return await self._persist_and_return(
-                    session,
-                    decision=RiskDecision.REJECT,
-                    reasons=[ReasonCode.POSITION_CAP_QTY],
+                return await self._finalize_with_loss_control(
+                    session, req, reduction_cache,
+                    legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.POSITION_CAP_QTY],
+                    legacy_outcome="REFUSE", legacy_permits=False,
                 )
             if limits.max_position_notional is not None:
                 # Use limit_price if supplied; else avg_entry_price of current
@@ -308,10 +313,10 @@ class RiskEngine:
                 )
                 resulting_notional = resulting_qty * (ref_price or Decimal(0))
                 if resulting_notional > limits.max_position_notional:
-                    return await self._persist_and_return(
-                        session,
-                        decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.POSITION_CAP_NOTIONAL],
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.POSITION_CAP_NOTIONAL],
+                        legacy_outcome="REFUSE", legacy_permits=False,
                     )
 
             # 8. Gross exposure cap. Projected gross = settled positions
@@ -349,10 +354,10 @@ class RiskEngine:
                 )
                 projected = Decimal(gross_now or 0) + pending_buy_notional + incoming
                 if projected > limits.max_gross_exposure:
-                    return await self._persist_and_return(
-                        session,
-                        decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.GROSS_EXPOSURE],
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.GROSS_EXPOSURE],
+                        legacy_outcome="REFUSE", legacy_permits=False,
                     )
 
             # 9. Daily-loss cap → trip THIS ACCOUNT's circuit breaker, scoped to
@@ -418,20 +423,14 @@ class RiskEngine:
                         daily_pnl=day_change,
                         cache=reduction_cache,
                     ):
-                        # Evidence denominator + durable provenance when ENFORCE also denies
+                        # Comparison evidence + durable provenance when ENFORCE also denies
                         # (§Finding 2): the independent CIRCUIT_BREAKER reason is preserved and
                         # LOSS_CONTROL_STOP appended; ADR_LOOSER keeps only the legacy reason.
-                        lc = await self._apply_loss_control(
-                            req, reduction_cache, legacy_permits=False, legacy_outcome="REFUSE"
-                        )
-                        final = await self._enforce_loss_control(
-                            session, req, lc,
-                            legacy_reasons=[ReasonCode.CIRCUIT_BREAKER], legacy_rejecting=True,
-                        )
-                        return await self._persist_and_return(
-                            session,
-                            decision=RiskDecision.REJECT,
-                            reasons=final or [ReasonCode.CIRCUIT_BREAKER],
+                        return await self._finalize_with_loss_control(
+                            session, req, reduction_cache,
+                            legacy_decision=RiskDecision.REJECT,
+                            legacy_reasons=[ReasonCode.CIRCUIT_BREAKER],
+                            legacy_outcome="REFUSE", legacy_permits=False,
                         )
 
             # 10. Rate limit (per minute).
@@ -446,10 +445,10 @@ class RiskEngine:
                     )
                 ).scalar_one()
                 if count >= limits.max_orders_per_minute:
-                    return await self._persist_and_return(
-                        session,
-                        decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.RATE_LIMIT],
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.RATE_LIMIT],
+                        legacy_outcome="REFUSE", legacy_permits=False,
                     )
 
             # 11. Per-day order cap (P5 §5). Orders on the account since today's
@@ -465,10 +464,10 @@ class RiskEngine:
                     )
                 ).scalar_one()
                 if day_count >= limits.max_orders_per_day:
-                    return await self._persist_and_return(
-                        session,
-                        decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.MAX_ORDERS_PER_DAY],
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.MAX_ORDERS_PER_DAY],
+                        legacy_outcome="REFUSE", legacy_permits=False,
                     )
 
             # 12. Pre-trade buying power — LIVE only (P5 §5). Dormant until P5 §7
@@ -480,10 +479,10 @@ class RiskEngine:
                 )
                 bp_decision = await bp_checker.check(account, req)
                 if not bp_decision.sufficient:
-                    return await self._persist_and_return(
-                        session,
-                        decision=RiskDecision.REJECT,
-                        reasons=[ReasonCode.INSUFFICIENT_BUYING_POWER],
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.INSUFFICIENT_BUYING_POWER],
+                        legacy_outcome="REFUSE", legacy_permits=False,
                     )
 
             # 13. Circuit breaker (account-scoped, P5 §5) — evaluated LAST per
@@ -512,41 +511,24 @@ class RiskEngine:
                     daily_pnl=None,
                     cache=reduction_cache,
                 ):
-                    lc = await self._apply_loss_control(
-                        req, reduction_cache, legacy_permits=False, legacy_outcome="REFUSE"
-                    )
-                    final = await self._enforce_loss_control(
-                        session, req, lc,
-                        legacy_reasons=[ReasonCode.CIRCUIT_BREAKER], legacy_rejecting=True,
-                    )
-                    return await self._persist_and_return(
-                        session,
-                        decision=RiskDecision.REJECT,
-                        reasons=final or [ReasonCode.CIRCUIT_BREAKER],
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT,
+                        legacy_reasons=[ReasonCode.CIRCUIT_BREAKER],
+                        legacy_outcome="REFUSE", legacy_permits=False,
                     )
 
-            # ADR 0043 PR4: the loss-control GATE — after the risk effect is established, before the
-            # PASS is persisted. In ENFORCE the state machine may refuse an order the rest of the
-            # engine would pass (INTEGRITY_STOP, or a reduction-only state refusing a non-reduction);
-            # it NEVER weakens a stricter result (this is the only legacy-PASS path). In SHADOW it is
-            # evidence only. OFF is a no-op (no reads/writes). It composes with — never bypasses —
-            # every gate above.
-            lc = await self._apply_loss_control(
-                req, reduction_cache, legacy_permits=True, legacy_outcome="ALLOW"
-            )
-            final = await self._enforce_loss_control(
-                session, req, lc, legacy_reasons=[], legacy_rejecting=False
-            )
-            if final is not None:
-                return await self._persist_and_return(
-                    session, decision=RiskDecision.REJECT, reasons=final
-                )
-
-            # Pass.
-            return await self._persist_and_return(
-                session,
-                decision=RiskDecision.PASS,
-                reasons=[ReasonCode.OK],
+            # Pass — the loss-control gate runs here too (via _finalize_with_loss_control): after the
+            # risk effect is established, before the PASS is persisted. In ENFORCE the state machine
+            # may refuse an order the rest of the engine would pass (INTEGRITY_STOP, or a
+            # reduction-only state refusing a non-reduction); it NEVER weakens a stricter result (this
+            # is the only legacy-PASS path). In SHADOW it is evidence only. OFF is a no-op. It
+            # composes with — never bypasses — every gate above.
+            return await self._finalize_with_loss_control(
+                session, req, reduction_cache,
+                legacy_decision=RiskDecision.PASS,
+                legacy_reasons=[ReasonCode.OK],
+                legacy_outcome="ALLOW", legacy_permits=True,
                 resolved_symbol_id=resolved_symbol_id,
                 estimated_notional=estimated_notional,
                 # A permitted locked-account reduction carries its reservation id here so the
@@ -732,22 +714,24 @@ class RiskEngine:
     ) -> RiskOutcome | None:
         """Fire a live trigger and enforce its persistence contract.
 
-        OFF: no-op. SHADOW: on a commit failure, emit ERROR comparison evidence (legacy stays
-        authoritative) and continue. ENFORCE: on a commit failure, the governing transition did not
+        OFF: no-op. SHADOW: on a commit failure, continue (legacy stays authoritative); the failure
+        is captured by the ``loss_control_trigger_failed`` warning, and this order still gets its
+        SINGLE comparison event at finalization — the guard does NOT emit one, so the denominator
+        stays exactly one per order. ENFORCE: on a commit failure, the governing transition did not
         persist — the current order is failed CLOSED with an authoritative INTEGRITY_STOP (durable
-        provenance), never evaluated against possibly-stale state (§Finding 1). Returns a REJECT
-        outcome the caller must return immediately, or None to continue."""
+        provenance) and its single ERROR comparison here, never evaluated against possibly-stale
+        state (§Finding 1). Returns a REJECT outcome the caller must return immediately, else None."""
         trig = await self._fire_loss_control_trigger(req.account_id, trigger)
         if trig.committed or not trig.attempted:
             return None
-        # Commit failed.
+        if not trig.enforce_fail_closed:  # SHADOW — legacy authoritative; comparison emitted at finalize
+            return None
+        # ENFORCE + commit failed → fail this order closed; this is its single comparison + audit.
         decision = fail_closed_decision(
             get_settings().loss_control_mode, legacy_outcome="REFUSE", legacy_permits=False,
             error=ERR_TRIGGER_COMMIT,
         )
         emit_comparison(decision, account_id=req.account_id, request_id=req.client_order_id)
-        if not trig.enforce_fail_closed:  # SHADOW — evidence only, legacy authoritative
-            return None
         await self._audit_loss_control_enforced(
             session, req, decision, trigger=trigger, trigger_committed=False
         )
@@ -835,6 +819,50 @@ class RiskEngine:
         if ReasonCode.LOSS_CONTROL_STOP not in reasons:
             reasons.append(ReasonCode.LOSS_CONTROL_STOP)
         return reasons
+
+    async def _finalize_with_loss_control(
+        self,
+        session: AsyncSession,
+        req: OrderRequest,
+        reduction_cache: dict[str, Any],
+        *,
+        legacy_decision: RiskDecision,
+        legacy_reasons: list[ReasonCode],
+        legacy_outcome: str,
+        legacy_permits: bool,
+        resolved_symbol_id: int | None = None,
+        estimated_notional: Decimal | None = None,
+        reservation_id: int | None = None,
+    ) -> RiskOutcome:
+        """The single terminal decision point for every LOSS-CONTROL-APPLICABLE order (§denominator).
+
+        Every terminal decision reachable once the order has a meaningful proposed action — a
+        resolved symbol, a valid account, a well-formed request — routes through here: the applicable
+        legacy rejections (deny-list, short, position/gross caps, rate, per-day, buying-power, daily
+        loss, breaker) AND the otherwise-PASS. It emits EXACTLY ONE comparison event (via
+        ``_apply_loss_control``) so the canary denominator is the whole applicable order population,
+        and applies the ENFORCE authoritative override (via ``_enforce_loss_control``): a loss-control
+        denial appends LOSS_CONTROL_STOP + writes durable provenance without discarding the
+        independent reason; an ADR_LOOSER never weakens the independent rejection.
+
+        Non-applicable PREPROCESSING failures — halt, market-session-closed, malformed request,
+        mode/account mismatch, unresolved symbol, no-limits-configured — do NOT route here: no
+        meaningful proposed action exists to compare, so they persist directly and emit no comparison.
+        In OFF this is behaviourally identical to a bare ``_persist_and_return`` (no reads/writes)."""
+        lc = await self._apply_loss_control(
+            req, reduction_cache, legacy_permits=legacy_permits, legacy_outcome=legacy_outcome
+        )
+        final_reasons = await self._enforce_loss_control(
+            session, req, lc, legacy_reasons=legacy_reasons, legacy_rejecting=not legacy_permits
+        )
+        return await self._persist_and_return(
+            session,
+            decision=legacy_decision if final_reasons is None else RiskDecision.REJECT,
+            reasons=final_reasons if final_reasons is not None else legacy_reasons,
+            resolved_symbol_id=resolved_symbol_id,
+            estimated_notional=estimated_notional,
+            reservation_id=reservation_id,
+        )
 
     async def _audit_loss_control_enforced(
         self,

@@ -96,6 +96,14 @@ async def _state_row(session_factory, account_id=1):
         )
 
 
+async def _set_limits(session_factory, **fields):
+    async with session_factory() as s:
+        rl = await s.get(RiskLimits, 1)
+        for k, v in fields.items():
+            setattr(rl, k, v)
+        await s.commit()
+
+
 # ------------------------------------------------------------ OFF
 
 
@@ -276,18 +284,21 @@ async def test_enforce_trigger_commit_failure_fails_closed(seeded, monkeypatch):
 
 
 async def test_shadow_trigger_commit_failure_keeps_legacy(seeded, monkeypatch):
-    # SHADOW: the same failure is evidence-only. The legacy daily-loss gate still rejects the BUY;
-    # ERROR comparison evidence is emitted; no LOSS_CONTROL_ENFORCED audit (shadow never authoritative).
+    # SHADOW: the failure is evidence-only and cannot alter the decision. The legacy daily-loss gate
+    # still rejects the BUY; the order still gets its SINGLE comparison at finalize (the guard emits
+    # none, so the denominator stays exactly one per order); no LOSS_CONTROL_ENFORCED audit.
     _set_mode(monkeypatch, LossControlMode.SHADOW)
     await _breaching_state(seeded)
+    await _set_state(seeded, C.STATE_NORMAL)  # stays NORMAL (the trigger write fails)
     _break_trigger_transition(monkeypatch)
     seen = _spy_comparisons(monkeypatch)
     out = await _evaluate(seeded, _order())
     assert out.decision == REJECT  # legacy daily-loss still rejects the non-reduction BUY
-    assert not any(str(r) == "LOSS_CONTROL_STOP" for r in out.reason_codes)  # legacy reason only
+    assert [str(r) for r in out.reason_codes] == ["CIRCUIT_BREAKER"]  # legacy reason only
     assert await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED") == []  # no authoritative audit
-    # ERROR comparison evidence recorded (transition-commit failure surfaced, decision unchanged).
-    assert any(d.divergence == "ERROR" for d in seen)
+    assert len(seen) == 1  # exactly one comparison for this order
+    # The stale NORMAL state would have permitted; legacy denied → ADR_LOOSER, evidence only.
+    assert seen[0].divergence == "ADR_LOOSER"
 
 
 # ============================================================ §Finding 2 — provenance on matched denial
@@ -357,3 +368,92 @@ async def test_off_emits_no_comparison_evidence(seeded, monkeypatch):
     seen = _spy_comparisons(monkeypatch)
     await _evaluate(seeded, _order())
     assert seen == []
+
+
+# ============================================================ comparison DENOMINATOR (all applicable paths)
+
+
+async def test_denylist_reject_before_step9_emits_comparison(seeded, monkeypatch):
+    # A deny-list rejection (step 5) is BEFORE the daily-loss/breaker gates, yet still applicable —
+    # it must emit exactly one comparison so the denominator includes it.
+    _set_mode(monkeypatch, LossControlMode.SHADOW)
+    await _set_state(seeded, C.STATE_NORMAL)
+    await _set_limits(seeded, denied_symbols=["AAPL"])
+    seen = _spy_comparisons(monkeypatch)
+    out = await _evaluate(seeded, _order())
+    assert [str(r) for r in out.reason_codes] == ["SYMBOL_DENIED"]  # legacy reason unchanged (SHADOW)
+    assert len(seen) == 1 and seen[0].legacy_outcome == "REFUSE"
+
+
+async def test_position_cap_reject_emits_exactly_one_comparison(seeded, monkeypatch):
+    # An exposure/position-cap rejection (step 7) is applicable. ENFORCE + NORMAL permits, so it's
+    # ADR_LOOSER: the independent cap rejection stands, no LOSS_CONTROL_STOP, no audit, one comparison.
+    _set_mode(monkeypatch, LossControlMode.ENFORCE)
+    await _set_state(seeded, C.STATE_NORMAL)
+    await _set_limits(seeded, max_position_qty=0)  # any BUY exceeds
+    seen = _spy_comparisons(monkeypatch)
+    out = await _evaluate(seeded, _order())
+    assert [str(r) for r in out.reason_codes] == ["POSITION_CAP_QTY"]  # not weakened, no LOSS_CONTROL_STOP
+    assert len(seen) == 1 and seen[0].divergence == "ADR_LOOSER"
+    assert await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED") == []  # loss control not the cause
+
+
+async def test_rate_limit_reject_emits_comparison(seeded, monkeypatch):
+    # An intermediate rate-limit rejection (step 10) is applicable → one comparison.
+    _set_mode(monkeypatch, LossControlMode.SHADOW)
+    await _set_state(seeded, C.STATE_NORMAL)
+    await _set_limits(seeded, max_orders_per_minute=0)  # count 0 >= 0 → reject
+    seen = _spy_comparisons(monkeypatch)
+    out = await _evaluate(seeded, _order())
+    assert [str(r) for r in out.reason_codes] == ["RATE_LIMIT"]
+    assert len(seen) == 1
+
+
+async def test_enforce_matched_denial_at_early_gate_records_provenance(seeded, monkeypatch):
+    # MATCH at an early applicable gate: deny-list rejects AND the state machine (INTEGRITY_STOP)
+    # also denies → LOSS_CONTROL_STOP appended + durable audit; independent SYMBOL_DENIED preserved.
+    _set_mode(monkeypatch, LossControlMode.ENFORCE)
+    await _set_state(seeded, C.STATE_INTEGRITY_STOP)
+    await _set_limits(seeded, denied_symbols=["AAPL"])
+    seen = _spy_comparisons(monkeypatch)
+    out = await _evaluate(seeded, _order())
+    reasons = [str(r) for r in out.reason_codes]
+    assert "SYMBOL_DENIED" in reasons and "LOSS_CONTROL_STOP" in reasons
+    assert len(seen) == 1 and seen[0].divergence == "MATCH"
+    assert len(await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED")) == 1
+
+
+async def test_pass_emits_exactly_one_comparison(seeded, monkeypatch):
+    _set_mode(monkeypatch, LossControlMode.SHADOW)
+    await _set_state(seeded, C.STATE_NORMAL)
+    seen = _spy_comparisons(monkeypatch)
+    out = await _evaluate(seeded, _order())
+    assert out.decision == PASS
+    assert len(seen) == 1 and seen[0].divergence == "MATCH"  # both allow
+
+
+# ------------------------------------------------------------ non-applicable preprocessing → no comparison
+
+
+async def test_malformed_request_is_non_applicable_no_comparison(seeded, monkeypatch):
+    # Malformed request (qty 0) — no meaningful proposed action → non-applicable preprocessing.
+    # Even in ENFORCE with a locked state, it persists directly and emits NO comparison.
+    _set_mode(monkeypatch, LossControlMode.ENFORCE)
+    await _set_state(seeded, C.STATE_INTEGRITY_STOP)
+    seen = _spy_comparisons(monkeypatch)
+    out = await _evaluate(seeded, _order(qty="0"))
+    assert [str(r) for r in out.reason_codes] == ["INVALID_INPUT"]
+    assert seen == []  # non-applicable → not routed through the gate
+    assert await _audit_rows(seeded, "LOSS_CONTROL_ENFORCED") == []
+
+
+async def test_unresolved_symbol_is_non_applicable_no_comparison(seeded, monkeypatch):
+    _set_mode(monkeypatch, LossControlMode.ENFORCE)
+    await _set_state(seeded, C.STATE_INTEGRITY_STOP)
+    seen = _spy_comparisons(monkeypatch)
+    req = OrderRequest(user_id=1, account_id=1, symbol_ticker="ZZZZ", side=OrderSide.BUY,
+                       qty=D("1"), type=OrderType.MARKET, tif=TimeInForce.DAY,
+                       source_type=OrderSourceType.MANUAL)
+    out = await _evaluate(seeded, req)
+    assert [str(r) for r in out.reason_codes] == ["SYMBOL_DENIED"]  # unresolved symbol (step 3)
+    assert seen == []  # no meaningful proposed action → no comparison
