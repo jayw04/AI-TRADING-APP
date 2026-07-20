@@ -23,7 +23,7 @@ from decimal import Decimal
 from typing import Any
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.enums import TERMINAL_ORDER_STATUSES
@@ -145,39 +145,122 @@ async def _positions_reconcile(ctx: PreflightContext) -> PreflightCheckResult:
 
 
 async def _open_orders_reconcile(ctx: PreflightContext) -> PreflightCheckResult:
+    # Reconcile the ACTUAL open orders by stable identity and every risk-bearing field — NOT by count.
+    # Two different order sets with equal counts (e.g. BUY 100 AAPL vs SELL 500 TSLA) must FAIL, and
+    # any broker order we cannot account for locally must FAIL.
     broker_orders = await _broker_open_orders(ctx)
     if broker_orders is None:
         return _incomplete(C.CHECK_OPEN_ORDERS_RECONCILE, C.ERR_BROKER_UNREACHABLE, {})
-    local_open = await ctx.session.scalar(
-        select(func.count()).select_from(Order).where(
-            Order.account_id == ctx.account_id, Order.status.notin_(TERMINAL_ORDER_STATUSES)
-        )
+    local_orders = list(
+        (
+            await ctx.session.execute(
+                select(Order).where(
+                    Order.account_id == ctx.account_id,
+                    Order.status.notin_(TERMINAL_ORDER_STATUSES),
+                )
+            )
+        ).scalars().all()
     )
-    broker_open = len(broker_orders)
-    ok = int(local_open or 0) == broker_open
-    return _result(C.CHECK_OPEN_ORDERS_RECONCILE, ok, C.ERR_OPEN_ORDER_MISMATCH,
-                   {"local_open": int(local_open or 0), "broker_open": broker_open})
+    tickers = await _ticker_map(ctx, {o.symbol_id for o in local_orders})
+
+    local: dict[tuple[str, str], dict[str, Any]] = {}
+    mismatches: list[str] = []
+    for o in local_orders:
+        ident = _order_identity(o.broker_order_id, o.client_order_id)
+        if ident is None:  # a live local order with no broker/client id cannot be reconciled
+            mismatches.append(f"unidentifiable_local:{o.id}")
+            continue
+        if ident in local:  # two live local orders sharing an identity — a contradiction
+            mismatches.append(f"duplicate_local:{ident[1]}")
+            continue
+        local[ident] = _order_fields(
+            symbol=tickers.get(o.symbol_id), side=str(o.side), qty=o.qty,
+            order_type=str(o.type), limit_price=o.limit_price, stop_price=o.stop_price,
+        )
+
+    broker: dict[tuple[str, str], dict[str, Any]] = {}
+    for b in broker_orders:
+        ident = _order_identity(b.get("id") or b.get("broker_order_id"), b.get("client_order_id"))
+        if ident is None:
+            mismatches.append("unidentifiable_broker")
+            continue
+        broker[ident] = _order_fields(
+            symbol=b.get("symbol"), side=b.get("side"), qty=b.get("qty"),
+            order_type=b.get("type") or b.get("order_type"),
+            limit_price=b.get("limit_price"), stop_price=b.get("stop_price"),
+        )
+
+    for ident in broker.keys() - local.keys():  # unknown broker orders → FAIL
+        mismatches.append(f"unknown_broker_order:{ident[1]}")
+    for ident in local.keys() - broker.keys():  # local order the broker does not see → FAIL
+        mismatches.append(f"missing_at_broker:{ident[1]}")
+    for ident in local.keys() & broker.keys():  # matched pair must agree on every risk field
+        if local[ident] != broker[ident]:
+            mismatches.append(f"field_mismatch:{ident[1]}")
+
+    return _result(C.CHECK_OPEN_ORDERS_RECONCILE, not mismatches, C.ERR_OPEN_ORDER_MISMATCH,
+                   {"local_open": len(local_orders), "broker_open": len(broker_orders),
+                    "mismatch_count": len(mismatches), "mismatches": sorted(mismatches)[:20]})
 
 
 async def _reservations_reconcile(ctx: PreflightContext) -> PreflightCheckResult:
-    held = await ctx.session.scalar(
-        select(func.count()).select_from(RiskReservation).where(
-            RiskReservation.account_id == ctx.account_id,
-            RiskReservation.state == RESERVATION_HELD,
-        )
+    # Exact reservation↔order reconciliation (not a bare orphan count). Every HELD reservation must
+    # back exactly one existing non-terminal order in this account with a matching quantity; and any
+    # order that provably HAD a reservation but is still live without a HELD one is a contradiction.
+    res_rows = list(
+        (
+            await ctx.session.execute(
+                select(RiskReservation.id, RiskReservation.order_id, RiskReservation.qty,
+                       RiskReservation.state, RiskReservation.account_id).where(
+                    RiskReservation.account_id == ctx.account_id
+                )
+            )
+        ).all()
     )
-    # A HELD reservation must be backed by a non-terminal order (no orphan). Orphans are ones whose
-    # order is terminal/absent — the reaper's target; their presence at recovery time is a mismatch.
-    orphan = await ctx.session.scalar(
-        select(func.count()).select_from(RiskReservation).where(
-            RiskReservation.account_id == ctx.account_id,
-            RiskReservation.state == RESERVATION_HELD,
-            RiskReservation.order_id.is_(None),
-        )
-    )
-    ok = int(orphan or 0) == 0
-    return _result(C.CHECK_RESERVATIONS_RECONCILE, ok, C.ERR_RESERVATION_MISMATCH,
-                   {"held": int(held or 0), "orphan": int(orphan or 0)})
+    order_ids = {r.order_id for r in res_rows if r.order_id is not None}
+    orders = {}
+    if order_ids:
+        orders = {
+            o.id: o
+            for o in (
+                await ctx.session.execute(select(Order).where(Order.id.in_(order_ids)))
+            ).scalars().all()
+        }
+
+    mismatches: list[str] = []
+    held_order_ids: list[int] = []
+    for r in res_rows:
+        if r.state != RESERVATION_HELD:
+            continue
+        if r.order_id is None:
+            mismatches.append(f"orphan_no_order:{r.id}")
+            continue
+        order = orders.get(r.order_id)
+        if order is None:
+            mismatches.append(f"missing_order:{r.id}")
+        elif order.account_id != r.account_id:
+            mismatches.append(f"account_mismatch:{r.id}")
+        elif order.status in TERMINAL_ORDER_STATUSES:
+            mismatches.append(f"terminal_order:{r.id}")
+        elif Decimal(str(order.qty)) != Decimal(str(r.qty)):
+            mismatches.append(f"qty_mismatch:{r.id}")
+        else:
+            held_order_ids.append(r.order_id)
+    # No two HELD reservations may back the same order.
+    for oid in {o for o in held_order_ids if held_order_ids.count(o) > 1}:
+        mismatches.append(f"duplicate_reservation:{oid}")
+    # Reverse: an order that had a reservation (now released/consumed) yet is still non-terminal and
+    # has no live HELD reservation is missing its required reservation.
+    held_set = set(held_order_ids)
+    for oid in order_ids - held_set:
+        order = orders.get(oid)
+        if order is not None and order.status not in TERMINAL_ORDER_STATUSES:
+            mismatches.append(f"live_order_without_held_reservation:{oid}")
+
+    held_count = sum(1 for r in res_rows if r.state == RESERVATION_HELD)
+    return _result(C.CHECK_RESERVATIONS_RECONCILE, not mismatches, C.ERR_RESERVATION_MISMATCH,
+                   {"held": held_count, "mismatch_count": len(mismatches),
+                    "mismatches": sorted(mismatches)[:20]})
 
 
 async def _session_baseline_valid(ctx: PreflightContext) -> PreflightCheckResult:
@@ -303,13 +386,54 @@ async def _broker_call_orders(ctx: PreflightContext) -> list[dict[str, Any]] | N
 async def _local_positions_by_ticker(
     ctx: PreflightContext, rows: list[Any]
 ) -> dict[str, Decimal]:
-    from app.db.models.symbol import Symbol
+    tickers = await _ticker_map(ctx, {symbol_id for symbol_id, _ in rows})
     out: dict[str, Decimal] = {}
     for symbol_id, qty in rows:
-        ticker = await ctx.session.scalar(select(Symbol.ticker).where(Symbol.id == symbol_id))
+        ticker = tickers.get(symbol_id)
         if ticker is not None:
             out[str(ticker)] = Decimal(str(qty or 0))
     return out
+
+
+async def _ticker_map(ctx: PreflightContext, symbol_ids: set[int]) -> dict[int, str]:
+    from app.db.models.symbol import Symbol
+    if not symbol_ids:
+        return {}
+    rows = (
+        await ctx.session.execute(
+            select(Symbol.id, Symbol.ticker).where(Symbol.id.in_(symbol_ids))
+        )
+    ).all()
+    return {sid: str(ticker) for sid, ticker in rows if ticker is not None}
+
+
+def _order_identity(broker_order_id: Any, client_order_id: Any) -> tuple[str, str] | None:
+    """A stable identity for reconciliation: broker order id preferred, else client order id."""
+    if broker_order_id:
+        return ("bid", str(broker_order_id))
+    if client_order_id:
+        return ("cid", str(client_order_id))
+    return None
+
+
+def _order_fields(
+    *, symbol: Any, side: Any, qty: Any, order_type: Any, limit_price: Any, stop_price: Any
+) -> dict[str, Any]:
+    """Normalize the risk-bearing fields so local and broker orders compare exactly."""
+    def _dec(v: Any) -> str | None:
+        if v is None or v == "":
+            return None
+        # Canonicalize scale so a DB-round-tripped Numeric (e.g. 100.00000000) compares equal to a
+        # broker string (100), and 150.2500 == 150.25.
+        return str(Decimal(str(v)).normalize())
+    return {
+        "symbol": str(symbol).upper() if symbol is not None else None,
+        "side": str(side).lower() if side is not None else None,
+        "qty": _dec(qty),
+        "type": str(order_type).lower() if order_type is not None else None,
+        "limit_price": _dec(limit_price),
+        "stop_price": _dec(stop_price),
+    }
 
 
 def _diff_qty(local: dict[str, Decimal], broker: dict[str, Decimal]) -> list[str]:

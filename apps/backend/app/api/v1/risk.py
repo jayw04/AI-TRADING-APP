@@ -17,7 +17,7 @@ from app.db.session import get_session, get_sessionmaker
 from app.events import get_event_bus
 from app.risk.circuit_breaker import CircuitBreakerService
 from app.risk.loss_control import constants as LC
-from app.risk.loss_control.recovery import RecoveryPreflightService
+from app.risk.loss_control.recovery import RecoveryPreflightService, actor_role
 from app.risk.pdt_analyzer import PdtAnalyzer
 
 router = APIRouter(tags=["risk"])
@@ -236,6 +236,18 @@ async def _account_owner_or_404(session: AsyncSession, account_id: int) -> int:
     return int(owner)
 
 
+async def _require_recovery_access(
+    *, account_id: int, current_user_id: int, session: AsyncSession
+) -> int:
+    """Every recovery endpoint (request/read/approve) requires the SAME authority: the account owner
+    or a registered risk operator. Returns the owner id. Read must not be looser than write — an
+    authenticated stranger guessing account/preflight ids must get 403, never the evidence."""
+    owner_id = await _account_owner_or_404(session, account_id)
+    if actor_role(current_user_id, owner_id) is None:
+        raise HTTPException(status_code=403, detail=LC.ERR_NOT_AUTHORIZED)
+    return owner_id
+
+
 def _adapter_for(request: Request, account_id: int) -> object | None:
     registry = getattr(request.app.state, "broker_registry", None)
     return registry.get(account_id) if registry is not None else None
@@ -249,7 +261,8 @@ async def create_recovery_request(
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, object]:
-    owner_id = await _account_owner_or_404(session, account_id)
+    owner_id = await _require_recovery_access(
+        account_id=account_id, current_user_id=current_user.id, session=session)
     svc = RecoveryPreflightService(get_sessionmaker())
     outcome = await svc.request_recovery(
         account_id=account_id, account_owner_id=owner_id,
@@ -281,7 +294,8 @@ async def get_recovery_request(
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, object]:
-    await _account_owner_or_404(session, account_id)
+    await _require_recovery_access(
+        account_id=account_id, current_user_id=current_user.id, session=session)
     got = await RecoveryPreflightService(get_sessionmaker()).get(account_id, preflight_id)
     if got is None:
         raise HTTPException(status_code=404, detail="Recovery request not found")
@@ -303,7 +317,8 @@ async def approve_recovery_request(
 ) -> dict[str, object]:
     # Approves the EXISTING evidence package (does not rerun the checks). Authorization is the
     # registered risk-operator authority; an INTEGRITY_STOP recovery requires it explicitly.
-    owner_id = await _account_owner_or_404(session, account_id)
+    owner_id = await _require_recovery_access(
+        account_id=account_id, current_user_id=current_user.id, session=session)
     svc = RecoveryPreflightService(get_sessionmaker())
     outcome = await svc.approve(
         account_id=account_id, account_owner_id=owner_id, preflight_id=preflight_id,

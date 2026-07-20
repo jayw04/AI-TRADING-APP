@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -50,6 +50,9 @@ _ORIGIN_AUTHORITY_CLASS = {
     C.STATE_INTEGRITY_STOP: C.AUTHORITY_CLASS_OPERATOR_HUMAN_APPROVAL,
 }
 _ELIGIBLE_ORIGINS = frozenset(_ORIGIN_TRIP_TYPE)
+# A parent in one of these states has not resolved — a retry RESUMES it (crash-durability), rather
+# than returning it as final. AUTHORIZATION_REQUIRED and the terminal states are NOT resumed.
+_RESUMABLE_STATUSES = frozenset({C.PREFLIGHT_STATUS_REQUESTED, C.PREFLIGHT_STATUS_RUNNING})
 
 
 # ------------------------------------------------------------------ authority matrix (§D5)
@@ -151,19 +154,27 @@ class RecoveryPreflightService:
             return _reject(C.PREFLIGHT_STATUS_FAILED, C.ERR_NOT_AUTHORIZED)
 
         async with self._session_factory() as s:
-            # Idempotency FIRST — a retry returns the existing workflow, whatever the current state.
+            # Idempotency FIRST — a retry RESUMES a non-terminal workflow (crash recovery) or returns
+            # the resolved one, whatever the current state.
             existing = await self._load_by_key(s, account_id, idempotency_key)
             if existing is not None:
                 if existing.requested_by_actor_id != str(requester_user_id):
                     return _reject(existing.status, C.ERR_IDEMPOTENCY_CONFLICT)
+                if existing.status in _RESUMABLE_STATUSES:
+                    return await self._advance(
+                        account_id=account_id, parent_id=existing.id, adapter=adapter)
                 return _outcome_from(existing)
 
             state_row = await LossControlService(s).load_state_row(account_id)  # NO bootstrap
             if state_row is None or state_row.state not in _ELIGIBLE_ORIGINS:
                 if state_row is not None and state_row.state == C.STATE_RECOVERY_PREFLIGHT:
-                    # A recovery is already in flight — return its active preflight idempotently.
+                    # A recovery is already in flight — RESUME its active preflight so a crash between
+                    # the transition and check execution can never strand the workflow.
                     active = await self._load_active(s, account_id)
                     if active is not None:
+                        if active.status in _RESUMABLE_STATUSES:
+                            return await self._advance(
+                                account_id=account_id, parent_id=active.id, adapter=adapter)
                         return _outcome_from(active)
                 return _reject(C.PREFLIGHT_STATUS_FAILED, C.ERR_NOT_ELIGIBLE)
 
@@ -177,69 +188,127 @@ class RecoveryPreflightService:
                 return _reject(C.PREFLIGHT_STATUS_FAILED, C.ERR_ACTIVE_PREFLIGHT_EXISTS)
 
             expected_version = state_row.state_version
-
-        # Commit RECOVERY_REQUEST → RECOVERY_PREFLIGHT (dedicated session).
-        result = await self._transition(
-            account_id=account_id, trigger=TRIGGER_RECOVERY_REQUEST,
-            expected_version=expected_version,
-        )
-        if result is None:
-            return await self._persist_commit_failed(
-                account_id, idempotency_key, requester_user_id, role, expected_version,
-                origin_candidate,
-            )
-        if not getattr(result, "applied", False):
-            # Stale / conflict / no-edge — state moved under us; do not run authoritative checks.
-            return _reject(C.PREFLIGHT_STATUS_FAILED, C.ERR_NOT_ELIGIBLE)
-
-        event_id = result.event_id  # type: ignore[attr-defined]
-        # Now run the authoritative workflow.
-        return await self._run_workflow(
-            account_id=account_id, idempotency_key=idempotency_key,
-            requester_user_id=requester_user_id, role=role,
-            origin=origin_candidate, expected_version=expected_version,
-            request_event_id=event_id, adapter=adapter,
-        )
-
-    async def _run_workflow(
-        self, *, account_id: int, idempotency_key: str, requester_user_id: int, role: str,
-        origin: str, expected_version: int, request_event_id: int | None, adapter: object | None,
-    ) -> RecoveryOutcome:
-        async with self._session_factory() as s:
-            request_event = (
-                await s.get(RiskControlEvent, request_event_id) if request_event_id else None
-            )
-            # Durable origin = the committed RECOVERY_REQUEST event's from_state (never inferred).
-            durable_origin = request_event.from_state if request_event is not None else None
-            trip_type = _ORIGIN_TRIP_TYPE.get(origin)
-            trip_cause = await self._lock_trip_cause(s, account_id, origin, request_event_id)
+            # CREATE THE PARENT FIRST (status REQUESTED). The workflow is durably owned BEFORE the
+            # RECOVERY_REQUEST transition, so the account can never sit in RECOVERY_PREFLIGHT with no
+            # discoverable preflight. A REQUESTED parent is not yet authoritative (no verdict), but it
+            # IS active for the one-active index, so a concurrent request cannot start a second.
             now = datetime.now(UTC)
-            authority_class = _ORIGIN_AUTHORITY_CLASS[origin]
-
             parent = RiskRecoveryPreflight(
                 account_id=account_id, idempotency_key=idempotency_key,
                 requested_transition=TRIGGER_RECOVERY_REQUEST,
                 expected_state_version=expected_version,
                 requested_by_actor_type=role, requested_by_actor_id=str(requester_user_id),
-                requested_at=now, origin_state=durable_origin,
-                origin_state_version=expected_version, request_event_id=request_event_id,
-                trip_type=trip_type, trip_cause=trip_cause, authority_class=authority_class,
-                status=C.PREFLIGHT_STATUS_RUNNING, result=C.PREFLIGHT_STATUS_RUNNING,
+                requested_at=now, origin_state=origin_candidate,
+                origin_state_version=expected_version,
+                trip_type=_ORIGIN_TRIP_TYPE.get(origin_candidate),
+                authority_class=_ORIGIN_AUTHORITY_CLASS[origin_candidate],
+                status=C.PREFLIGHT_STATUS_REQUESTED, result=C.PREFLIGHT_STATUS_REQUESTED,
                 initiator_type=role, initiator_id=str(requester_user_id),
                 control_version=C.LOSS_CONTROL_STATE_VERSION,
-                evidence_version=C.RECOVERY_EVIDENCE_VERSION,
-                created_at=now, started_at=now,
+                evidence_version=C.RECOVERY_EVIDENCE_VERSION, created_at=now, started_at=now,
             )
             try:
                 s.add(parent)
-                await s.flush()
-            except IntegrityError:  # concurrent duplicate — reload the winner
+                await s.commit()
+                parent_id = parent.id
+            except IntegrityError:  # concurrent create (unique key OR one-active index)
                 await s.rollback()
                 winner = await self._load_by_key(s, account_id, idempotency_key)
-                return _outcome_from(winner) if winner else _reject(
-                    C.PREFLIGHT_STATUS_FAILED, C.ERR_ACTIVE_PREFLIGHT_EXISTS
+                if winner is None:
+                    return _reject(C.PREFLIGHT_STATUS_FAILED, C.ERR_ACTIVE_PREFLIGHT_EXISTS)
+                if winner.requested_by_actor_id != str(requester_user_id):
+                    return _reject(winner.status, C.ERR_IDEMPOTENCY_CONFLICT)
+                parent_id = winner.id
+
+        return await self._advance(account_id=account_id, parent_id=parent_id, adapter=adapter)
+
+    async def _advance(
+        self, *, account_id: int, parent_id: int, adapter: object | None,
+    ) -> RecoveryOutcome:
+        """Drive a REQUESTED/RUNNING parent to resolution — idempotent across a crash+retry. Ensures
+        the RECOVERY_REQUEST transition is committed, then (re)runs the checks and finalizes. The
+        authority decision uses the PARENT's original requester role, not the (possibly different)
+        caller's, so a resume never escalates authority."""
+        async with self._session_factory() as s:
+            parent = await s.get(RiskRecoveryPreflight, parent_id)
+            if parent is None:
+                return _reject(C.PREFLIGHT_STATUS_FAILED, C.ERR_INTERNAL)
+            if parent.status not in _RESUMABLE_STATUSES:
+                return _outcome_from(parent)  # terminal or awaiting explicit approval
+            expected_version = parent.expected_state_version
+            origin_candidate = parent.origin_state or ""
+            parent_role = parent.requested_by_actor_type
+            request_event_id = parent.request_event_id
+            state_row = await LossControlService(s).load_state_row(account_id)
+            current_state = state_row.state if state_row is not None else None
+
+        # Ensure the RECOVERY_REQUEST transition is committed (idempotent across resume).
+        if current_state in _ELIGIBLE_ORIGINS:
+            result = await self._transition(
+                account_id=account_id, trigger=TRIGGER_RECOVERY_REQUEST,
+                expected_version=expected_version,
+            )
+            if result is None:
+                return await self._close_parent(
+                    account_id, parent_id, status=C.PREFLIGHT_STATUS_COMMIT_FAILED, verdict=None,
+                    transition=None, failure_reason=C.ERR_TRANSITION_COMMIT_FAILED)
+            if not getattr(result, "applied", False):
+                # State moved under us. If it landed in RECOVERY_PREFLIGHT the transition committed
+                # (ours or a prior crashed attempt); otherwise recovery is no longer applicable.
+                if await self._current_state(account_id) != C.STATE_RECOVERY_PREFLIGHT:
+                    return await self._close_parent(
+                        account_id, parent_id, status=C.PREFLIGHT_STATUS_FAILED, verdict=None,
+                        transition=None, failure_reason=C.ERR_NOT_ELIGIBLE)
+                request_event_id = request_event_id or await self._find_request_event(
+                    account_id, origin_candidate)
+            else:
+                request_event_id = result.event_id  # type: ignore[attr-defined]
+        elif current_state == C.STATE_RECOVERY_PREFLIGHT:
+            request_event_id = request_event_id or await self._find_request_event(
+                account_id, origin_candidate)
+        else:
+            return await self._close_parent(
+                account_id, parent_id, status=C.PREFLIGHT_STATUS_FAILED, verdict=None,
+                transition=None, failure_reason=C.ERR_NOT_ELIGIBLE)
+
+        return await self._run_checks_and_finalize(
+            account_id=account_id, parent_id=parent_id, request_event_id=request_event_id,
+            origin=origin_candidate, role=parent_role, expected_version=expected_version,
+            adapter=adapter,
+        )
+
+    async def _run_checks_and_finalize(
+        self, *, account_id: int, parent_id: int, request_event_id: int | None, origin: str,
+        role: str, expected_version: int, adapter: object | None,
+    ) -> RecoveryOutcome:
+        async with self._session_factory() as s:
+            parent = await s.get(RiskRecoveryPreflight, parent_id)
+            if parent is None:
+                return _reject(C.PREFLIGHT_STATUS_FAILED, C.ERR_INTERNAL)
+            request_event = (
+                await s.get(RiskControlEvent, request_event_id) if request_event_id else None
+            )
+            # Durable origin = the committed RECOVERY_REQUEST event's from_state (never inferred).
+            durable_origin = request_event.from_state if request_event is not None else origin
+            trip_type = _ORIGIN_TRIP_TYPE.get(durable_origin)
+            trip_cause = await self._lock_trip_cause(s, account_id, durable_origin, request_event_id)
+            now = datetime.now(UTC)
+
+            parent.origin_state = durable_origin
+            parent.request_event_id = request_event_id
+            parent.trip_type = trip_type
+            parent.trip_cause = trip_cause
+            parent.authority_class = _ORIGIN_AUTHORITY_CLASS.get(
+                durable_origin, parent.authority_class)
+            parent.status = C.PREFLIGHT_STATUS_RUNNING
+            parent.result = C.PREFLIGHT_STATUS_RUNNING
+            parent.started_at = parent.started_at or now
+            # Clear any prior check rows so a resumed run re-records exactly 12 (idempotent evidence).
+            await s.execute(
+                delete(RiskRecoveryPreflightCheck).where(
+                    RiskRecoveryPreflightCheck.preflight_id == parent_id
                 )
-            preflight_id = parent.id
+            )
 
             ctx = pf.PreflightContext(
                 session=s, account_id=account_id, origin_state=durable_origin,
@@ -249,7 +318,7 @@ class RecoveryPreflightService:
             results = await pf.run_preflight_checks(ctx)
             for r in results:
                 s.add(RiskRecoveryPreflightCheck(
-                    preflight_id=preflight_id, check_name=r.name, status=r.status,
+                    preflight_id=parent_id, check_name=r.name, status=r.status,
                     evidence=json.dumps({**r.evidence, "reason": r.reason}), created_at=now,
                 ))
             verdict = pf.aggregate_verdict(results)
@@ -260,12 +329,29 @@ class RecoveryPreflightService:
         # Drive the transition off the verdict + authority.
         if verdict != C.AGG_PASS:
             return await self._finalize_fail(
-                account_id, preflight_id, origin, expected_version, verdict,
+                account_id, parent_id, durable_origin, expected_version, verdict,
                 first_non_pass.reason if first_non_pass else None,
             )
         return await self._finalize_pass_or_await(
-            account_id, preflight_id, origin, trip_cause, role, expected_version,
+            account_id, parent_id, durable_origin, trip_cause, role, expected_version,
         )
+
+    async def _current_state(self, account_id: int) -> str | None:
+        async with self._session_factory() as s:
+            row = await LossControlService(s).load_state_row(account_id)
+            return row.state if row is not None else None
+
+    async def _find_request_event(self, account_id: int, origin: str) -> int | None:
+        """The committed RECOVERY_REQUEST event that entered RECOVERY_PREFLIGHT from ``origin`` — the
+        durable provenance to rebind on a resume where the parent lost its request_event_id."""
+        async with self._session_factory() as s:
+            return await s.scalar(
+                select(RiskControlEvent.id).where(
+                    RiskControlEvent.account_id == account_id,
+                    RiskControlEvent.to_state == C.STATE_RECOVERY_PREFLIGHT,
+                    RiskControlEvent.from_state == origin,
+                ).order_by(RiskControlEvent.id.desc())
+            )
 
     # ---- finalizers ----
 
@@ -324,7 +410,7 @@ class RecoveryPreflightService:
         )
 
     async def _close_parent(
-        self, account_id: int, preflight_id: int, *, status: str, verdict: str,
+        self, account_id: int, preflight_id: int, *, status: str, verdict: str | None,
         transition: object | None, failure_reason: str | None,
         authorized_by: tuple[str, str | None] | None = None,
     ) -> RecoveryOutcome:
@@ -350,41 +436,6 @@ class RecoveryPreflightService:
             return RecoveryOutcome(
                 accepted=True, status=status, preflight_id=preflight_id,
                 resulting_state=resulting_state, aggregate_verdict=verdict, reason=failure_reason,
-            )
-
-    async def _persist_commit_failed(
-        self, account_id: int, idempotency_key: str, requester_user_id: int, role: str,
-        expected_version: int, origin: str,
-    ) -> RecoveryOutcome:
-        async with self._session_factory() as s:
-            now = datetime.now(UTC)
-            parent = RiskRecoveryPreflight(
-                account_id=account_id, idempotency_key=idempotency_key,
-                requested_transition=TRIGGER_RECOVERY_REQUEST,
-                expected_state_version=expected_version,
-                requested_by_actor_type=role, requested_by_actor_id=str(requester_user_id),
-                requested_at=now, origin_state=None, origin_state_version=expected_version,
-                trip_type=_ORIGIN_TRIP_TYPE.get(origin),
-                authority_class=_ORIGIN_AUTHORITY_CLASS[origin],
-                status=C.PREFLIGHT_STATUS_COMMIT_FAILED, result=C.PREFLIGHT_STATUS_COMMIT_FAILED,
-                failure_reason=C.ERR_TRANSITION_COMMIT_FAILED,
-                initiator_type=role, initiator_id=str(requester_user_id),
-                control_version=C.LOSS_CONTROL_STATE_VERSION,
-                evidence_version=C.RECOVERY_EVIDENCE_VERSION, created_at=now, completed_at=now,
-                resolved_at=now,
-            )
-            try:
-                s.add(parent)
-                await s.commit()
-            except IntegrityError:
-                await s.rollback()
-                winner = await self._load_by_key(s, account_id, idempotency_key)
-                if winner:
-                    return _outcome_from(winner)
-            return RecoveryOutcome(
-                accepted=True, status=C.PREFLIGHT_STATUS_COMMIT_FAILED, preflight_id=parent.id,
-                resulting_state=None, aggregate_verdict=None,
-                reason=C.ERR_TRANSITION_COMMIT_FAILED,
             )
 
     # ---- approve (explicit human authorization for AUTHORIZATION_REQUIRED preflights) ----

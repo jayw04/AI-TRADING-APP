@@ -16,7 +16,11 @@ from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.risk_control_event import RiskControlEvent
 from app.db.models.risk_loss_control_state import RiskLossControlState
-from app.db.models.risk_reservation import RESERVATION_HELD, RiskReservation
+from app.db.models.risk_reservation import (
+    RESERVATION_HELD,
+    RESERVATION_RELEASED,
+    RiskReservation,
+)
 from app.db.models.risk_session_baseline import RiskSessionBaseline
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
@@ -226,3 +230,180 @@ async def test_positions_reconcile_skips_unknown_symbol_id(base):
     async with base() as s:
         r = await pf._positions_reconcile(_ctx(s, adapter=ad))
     assert r.passed  # the unresolved local row contributed nothing → reconciles clean
+
+
+# ============================================================ adversarial reconciliation (issue 3)
+
+
+def _local_order(**kw):
+    base = dict(user_id=1, account_id=1, symbol_id=1, side=OrderSide.BUY, qty=D("100"),
+                type=OrderType.MARKET, tif=TimeInForce.DAY, status=OrderStatus.SUBMITTED,
+                source_type=OrderSourceType.MANUAL, created_at=NOW, updated_at=NOW)
+    base.update(kw)
+    return Order(**base)
+
+
+async def test_open_orders_equal_counts_but_different_orders_fail(base):
+    # The reviewer's example: local BUY 100 AAPL vs broker SELL 500 TSLA — both COUNT 1 but are
+    # entirely different orders. A count check would PASS; identity reconciliation FAILS.
+    async with base() as s:
+        s.add(_local_order(id=1, client_order_id="c1", side=OrderSide.BUY, qty=D("100")))
+        await s.commit()
+    ad = MagicMock()
+    ad.list_orders.return_value = [{"id": "b9", "client_order_id": "cX", "symbol": "TSLA",
+                                    "side": "sell", "qty": "500", "type": "market"}]
+    async with base() as s:
+        r = await pf._open_orders_reconcile(_ctx(s, adapter=ad))
+    assert r.status == C.CHECK_FAIL and r.reason == C.ERR_OPEN_ORDER_MISMATCH
+
+
+async def test_open_orders_matching_identity_and_risk_fields_pass(base):
+    async with base() as s:
+        s.add(_local_order(id=1, broker_order_id="b1", client_order_id="c1", side=OrderSide.BUY,
+                           qty=D("100"), type=OrderType.LIMIT, limit_price=D("150.25")))
+        await s.commit()
+    ad = MagicMock()
+    ad.list_orders.return_value = [{"id": "b1", "symbol": "AAPL", "side": "buy", "qty": "100",
+                                    "type": "limit", "limit_price": "150.25"}]
+    async with base() as s:
+        r = await pf._open_orders_reconcile(_ctx(s, adapter=ad))
+    assert r.passed
+
+
+async def test_open_orders_same_identity_field_mismatch_fails(base):
+    # Same broker id, but the side differs — a matched pair that disagrees on a risk field → FAIL.
+    async with base() as s:
+        s.add(_local_order(id=1, broker_order_id="b1", side=OrderSide.BUY, qty=D("100")))
+        await s.commit()
+    ad = MagicMock()
+    ad.list_orders.return_value = [{"id": "b1", "symbol": "AAPL", "side": "sell", "qty": "100",
+                                    "type": "market"}]
+    async with base() as s:
+        r = await pf._open_orders_reconcile(_ctx(s, adapter=ad))
+    assert r.status == C.CHECK_FAIL
+
+
+async def test_open_orders_unknown_broker_order_fails(base):
+    # No local open orders; broker reports one we cannot account for → FAIL (never PASS on unknowns).
+    ad = MagicMock()
+    ad.list_orders.return_value = [{"id": "bZ", "symbol": "AAPL", "side": "buy", "qty": "1",
+                                    "type": "market"}]
+    async with base() as s:
+        r = await pf._open_orders_reconcile(_ctx(s, adapter=ad))
+    assert r.status == C.CHECK_FAIL
+
+
+async def test_open_orders_both_flat_pass(base):
+    ad = MagicMock()
+    ad.list_orders.return_value = []
+    async with base() as s:
+        r = await pf._open_orders_reconcile(_ctx(s, adapter=ad))
+    assert r.passed
+
+
+async def test_reservations_held_referencing_terminal_order_fails(base):
+    # A HELD reservation whose order is FILLED (terminal) must FAIL — the exact false-PASS the old
+    # order_id-is-None-only query allowed through.
+    async with base() as s:
+        s.add(_local_order(id=1, client_order_id="c1", qty=D("10"), status=OrderStatus.FILLED))
+        s.add(RiskReservation(account_id=1, symbol="AAPL", qty=D("10"), state=RESERVATION_HELD,
+                              created_at=NOW, order_id=1))
+        await s.commit()
+        r = await pf._reservations_reconcile(_ctx(s))
+    assert r.status == C.CHECK_FAIL and r.reason == C.ERR_RESERVATION_MISMATCH
+
+
+async def test_reservations_held_matching_nonterminal_order_pass(base):
+    async with base() as s:
+        s.add(_local_order(id=1, client_order_id="c1", qty=D("10"), status=OrderStatus.SUBMITTED))
+        s.add(RiskReservation(account_id=1, symbol="AAPL", qty=D("10"), state=RESERVATION_HELD,
+                              created_at=NOW, order_id=1))
+        await s.commit()
+        r = await pf._reservations_reconcile(_ctx(s))
+    assert r.passed
+
+
+async def test_reservations_qty_mismatch_fails(base):
+    async with base() as s:
+        s.add(_local_order(id=1, client_order_id="c1", qty=D("10"), status=OrderStatus.SUBMITTED))
+        s.add(RiskReservation(account_id=1, symbol="AAPL", qty=D("7"), state=RESERVATION_HELD,
+                              created_at=NOW, order_id=1))  # amount disagrees with the order
+        await s.commit()
+        r = await pf._reservations_reconcile(_ctx(s))
+    assert r.status == C.CHECK_FAIL
+
+
+async def test_reservations_missing_order_fails(base):
+    async with base() as s:
+        s.add(RiskReservation(account_id=1, symbol="AAPL", qty=D("10"), state=RESERVATION_HELD,
+                              created_at=NOW, order_id=999))  # points at a non-existent order
+        await s.commit()
+        r = await pf._reservations_reconcile(_ctx(s))
+    assert r.status == C.CHECK_FAIL
+
+
+async def test_reservations_live_order_with_released_reservation_fails(base):
+    # Reverse direction: a non-terminal order whose only reservation was RELEASED is missing its
+    # required HELD reservation → FAIL.
+    async with base() as s:
+        s.add(_local_order(id=1, client_order_id="c1", qty=D("10"), status=OrderStatus.SUBMITTED))
+        s.add(RiskReservation(account_id=1, symbol="AAPL", qty=D("10"), state=RESERVATION_RELEASED,
+                              created_at=NOW, order_id=1))
+        await s.commit()
+        r = await pf._reservations_reconcile(_ctx(s))
+    assert r.status == C.CHECK_FAIL
+
+
+async def test_reservations_none_held_pass(base):
+    # No HELD reservations and no live orders needing one → clean PASS.
+    async with base() as s:
+        r = await pf._reservations_reconcile(_ctx(s))
+    assert r.passed
+
+
+async def test_open_orders_unidentifiable_and_duplicate_records_each(base):
+    async with base() as s:
+        s.add(_local_order(id=1, broker_order_id=None, client_order_id=None))  # unidentifiable local
+        # Two live local orders sharing a client id (broker_order_id is DB-unique) → duplicate ident.
+        s.add(_local_order(id=2, broker_order_id=None, client_order_id="dup"))
+        s.add(_local_order(id=3, broker_order_id=None, client_order_id="dup"))
+        await s.commit()
+    ad = MagicMock()
+    ad.list_orders.return_value = [
+        {"symbol": "AAPL", "side": "buy", "qty": "100", "type": "market"},  # no id → unidentifiable
+    ]
+    async with base() as s:
+        r = await pf._open_orders_reconcile(_ctx(s, adapter=ad))
+    ms = r.evidence["mismatches"]
+    assert r.status == C.CHECK_FAIL
+    assert any("unidentifiable_local" in m for m in ms)
+    assert any("duplicate_local" in m for m in ms)
+    assert any("unidentifiable_broker" in m for m in ms)
+
+
+async def test_reservations_account_mismatch_fails(base):
+    async with base() as s:
+        s.add(User(id=2, email="u2@t"))
+        s.add(Account(id=2, user_id=2, broker="alpaca", mode=AccountMode.paper, label="P2"))
+        # The order belongs to account 2 but a HELD reservation on account 1 points at it.
+        s.add(_local_order(id=1, account_id=2, user_id=2, client_order_id="c1", qty=D("10"),
+                           status=OrderStatus.SUBMITTED))
+        s.add(RiskReservation(account_id=1, symbol="AAPL", qty=D("10"), state=RESERVATION_HELD,
+                              created_at=NOW, order_id=1))
+        await s.commit()
+        r = await pf._reservations_reconcile(_ctx(s))
+    assert r.status == C.CHECK_FAIL
+    assert any("account_mismatch" in m for m in r.evidence["mismatches"])
+
+
+async def test_reservations_duplicate_backing_same_order_fails(base):
+    async with base() as s:
+        s.add(_local_order(id=1, client_order_id="c1", qty=D("10"), status=OrderStatus.SUBMITTED))
+        s.add(RiskReservation(account_id=1, symbol="AAPL", qty=D("10"), state=RESERVATION_HELD,
+                              created_at=NOW, order_id=1))
+        s.add(RiskReservation(account_id=1, symbol="AAPL", qty=D("10"), state=RESERVATION_HELD,
+                              created_at=NOW, order_id=1))  # two HELD backing the same order
+        await s.commit()
+        r = await pf._reservations_reconcile(_ctx(s))
+    assert r.status == C.CHECK_FAIL
+    assert any("duplicate_reservation" in m for m in r.evidence["mismatches"])

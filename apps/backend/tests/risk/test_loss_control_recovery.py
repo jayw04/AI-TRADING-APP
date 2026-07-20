@@ -30,6 +30,7 @@ from app.risk.loss_control.state_machine import (
     TRIGGER_BREAKER_TRIP,
     TRIGGER_DAILY_LOSS_BREACH,
     TRIGGER_INTEGRITY_VIOLATION,
+    TRIGGER_RECOVERY_REQUEST,
 )
 
 D = Decimal
@@ -613,7 +614,10 @@ async def test_stale_request_transition_not_applied_is_rejected(seeded, monkeypa
     monkeypatch.setattr(svc, "_transition", _not_applied)
     out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
                                      requester_user_id=OWNER_ID, adapter=_healthy_adapter())
-    assert out.rejected and out.reason == C.ERR_NOT_ELIGIBLE
+    # The durable parent (created first) resolves to FAILED(NOT_ELIGIBLE); the account never advanced.
+    assert out.accepted and out.status == C.PREFLIGHT_STATUS_FAILED
+    assert out.reason == C.ERR_NOT_ELIGIBLE
+    assert (await _state(seeded)).state == C.STATE_REDUCTION_ONLY_DAILY_LOSS
 
 
 # --------------------------------------------------------------- approve staleness
@@ -719,15 +723,249 @@ async def test_close_parent_missing_row_is_internal_error(seeded):
     assert out.rejected and out.reason == C.ERR_INTERNAL
 
 
-async def test_persist_commit_failed_reloads_winner_on_duplicate(seeded):
-    # Two commit-failed persists for the same key: the second hits the UNIQUE(account, key)
-    # constraint, rolls back, and returns the already-persisted winner (never a second row).
-    svc = RecoveryPreflightService(seeded)
-    first = await svc._persist_commit_failed(1, "dup", OWNER_ID, C.ACTOR_OWNER, 1,
-                                             C.STATE_REDUCTION_ONLY_DAILY_LOSS)
-    assert first.status == C.PREFLIGHT_STATUS_COMMIT_FAILED
-    second = await svc._persist_commit_failed(1, "dup", OWNER_ID, C.ACTOR_OWNER, 1,
-                                              C.STATE_REDUCTION_ONLY_DAILY_LOSS)
-    assert second.accepted and second.preflight_id == first.preflight_id
+# --------------------------------------------------------------- crash-durability (parent-first)
+
+
+async def _requested_parent(seeded, *, key, origin, expected_version, request_event_id,
+                            requester=OWNER_ID, status=C.PREFLIGHT_STATUS_REQUESTED):
+    """Seed a parent (REQUESTED by default), simulating a crash right after it was created (and, when
+    request_event_id is set, after the RECOVERY_REQUEST transition committed) but before checks ran."""
     async with seeded() as s:
+        p = RiskRecoveryPreflight(
+            account_id=1, idempotency_key=key, requested_transition="RECOVERY_REQUEST",
+            expected_state_version=expected_version, requested_by_actor_type=C.ACTOR_OWNER,
+            requested_by_actor_id=str(requester), requested_at=NOW, origin_state=origin,
+            origin_state_version=expected_version, request_event_id=request_event_id,
+            trip_type=C.TRIP_TYPE_DAILY_LOSS, authority_class=C.AUTHORITY_CLASS_OWNER_OR_OPERATOR,
+            status=status, result=status,
+            initiator_type=C.ACTOR_OWNER, initiator_id=str(requester), control_version=1,
+            evidence_version=1, created_at=NOW, started_at=NOW)
+        s.add(p)
+        await s.commit()
+        return p.id
+
+
+async def test_crash_after_transition_before_checks_resumes_same_workflow(seeded, monkeypatch):
+    # Simulate: RECOVERY_REQUEST committed (account in RECOVERY_PREFLIGHT), then crash before checks.
+    # A REQUESTED parent exists with no check rows. A retry with the same key RESUMES that same
+    # durable workflow to completion — never ERR_NOT_ELIGIBLE, never a second parent.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _drive_to_lock(seeded, TRIGGER_DAILY_LOSS_BREACH,
+                         trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS)
+    st = await _state(seeded)
+    expected_version = st.state_version
+    # Commit the RECOVERY_REQUEST transition (the account is now in RECOVERY_PREFLIGHT).
+    async with seeded() as s:
+        res = await LossControlService(s).request_transition(
+            account_id=1, trigger=TRIGGER_RECOVERY_REQUEST,
+            expected_state_version=expected_version,
+            context=TransitionContext(initiator_type="SYSTEM"))
+    assert (await _state(seeded)).state == C.STATE_RECOVERY_PREFLIGHT
+    # ...but the parent was left REQUESTED with no checks (the crash window). request_event_id lost.
+    pid = await _requested_parent(seeded, key="k", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                                  expected_version=expected_version, request_event_id=None)
+
+    svc = RecoveryPreflightService(seeded)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.accepted and out.preflight_id == pid          # same durable workflow
+    assert out.status != C.PREFLIGHT_STATUS_FAILED           # resolved, not stranded
+    assert out.reason != C.ERR_NOT_ELIGIBLE
+    checks = await _check_rows(seeded, pid)
+    assert len(checks) == 12                                 # evidence recorded on resume
+    async with seeded() as s:                                # no second parent
         assert await s.scalar(select(func.count()).select_from(RiskRecoveryPreflight)) == 1
+    assert res.applied
+
+
+async def test_crash_before_transition_resumes_and_commits(seeded, monkeypatch):
+    # Parent created REQUESTED but crash BEFORE the RECOVERY_REQUEST transition committed (account
+    # still in the lock origin). A same-key retry drives the transition then the checks.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _drive_to_lock(seeded, TRIGGER_DAILY_LOSS_BREACH,
+                         trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS)
+    st = await _state(seeded)
+    pid = await _requested_parent(seeded, key="k", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                                  expected_version=st.state_version, request_event_id=None)
+    svc = RecoveryPreflightService(seeded)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.accepted and out.preflight_id == pid
+    assert len(await _check_rows(seeded, pid)) == 12
+    # The account left the origin (recovery committed) — no longer REDUCTION_ONLY_DAILY_LOSS.
+    assert (await _state(seeded)).state != C.STATE_REDUCTION_ONLY_DAILY_LOSS
+
+
+async def test_recovery_request_commit_failure_closes_parent_not_stranded(seeded, monkeypatch):
+    # The RECOVERY_REQUEST transition raises → the pre-created parent is closed COMMIT_FAILED (never
+    # left dangling), and the account stays locked.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _drive_to_lock(seeded, TRIGGER_DAILY_LOSS_BREACH,
+                         trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS)
+    svc = RecoveryPreflightService(seeded)
+
+    async def _boom(**kw):
+        return None
+
+    monkeypatch.setattr(svc, "_transition", _boom)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.accepted and out.status == C.PREFLIGHT_STATUS_COMMIT_FAILED
+    assert out.preflight_id is not None
+    assert (await _state(seeded)).state == C.STATE_REDUCTION_ONLY_DAILY_LOSS
+
+
+async def test_different_key_resumes_active_requested_workflow(seeded, monkeypatch):
+    # Account already in RECOVERY_PREFLIGHT with an active REQUESTED parent (crash mid-flight). A
+    # request with a DIFFERENT key resumes that same active workflow rather than stranding it.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _drive_to_lock(seeded, TRIGGER_DAILY_LOSS_BREACH,
+                         trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS)
+    st = await _state(seeded)
+    async with seeded() as s:
+        await LossControlService(s).request_transition(
+            account_id=1, trigger=TRIGGER_RECOVERY_REQUEST,
+            expected_state_version=st.state_version,
+            context=TransitionContext(initiator_type="SYSTEM"))
+    pid = await _requested_parent(seeded, key="orig", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                                  expected_version=st.state_version, request_event_id=None)
+    svc = RecoveryPreflightService(seeded)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="other",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.accepted and out.preflight_id == pid            # resumed the SAME active workflow
+    assert len(await _check_rows(seeded, pid)) == 12
+
+
+async def test_resume_when_state_left_the_recovery_path_fails(seeded, monkeypatch):
+    # A REQUESTED parent whose account has since moved to NORMAL (no longer recoverable) → the resume
+    # closes it FAILED, never drives a transition.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    from app.db.models.risk_loss_control_state import RiskLossControlState
+    async with seeded() as s:
+        s.add(RiskLossControlState(account_id=1, state=C.STATE_NORMAL, state_version=5,
+                                   last_sequence_no=5, control_version=1, updated_at=NOW))
+        await s.commit()
+    await _requested_parent(seeded, key="k", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                            expected_version=1, request_event_id=None)
+    svc = RecoveryPreflightService(seeded)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.status == C.PREFLIGHT_STATUS_FAILED and out.reason == C.ERR_NOT_ELIGIBLE
+
+
+async def test_not_applied_but_landed_in_preflight_rebinds_and_runs(seeded, monkeypatch):
+    # The RECOVERY_REQUEST transition reports not-applied, but the account is nonetheless in
+    # RECOVERY_PREFLIGHT (a prior attempt committed it) → rebind the event and run the checks.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _drive_to_lock(seeded, TRIGGER_DAILY_LOSS_BREACH,
+                         trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS)
+    st = await _state(seeded)
+    # Commit the real RECOVERY_REQUEST so the account IS in RECOVERY_PREFLIGHT + an event exists.
+    async with seeded() as s:
+        await LossControlService(s).request_transition(
+            account_id=1, trigger=TRIGGER_RECOVERY_REQUEST,
+            expected_state_version=st.state_version,
+            context=TransitionContext(initiator_type="SYSTEM"))
+    pid = await _requested_parent(seeded, key="k", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                                  expected_version=st.state_version, request_event_id=None)
+    svc = RecoveryPreflightService(seeded)
+
+    async def _not_applied(**kw):
+        return SimpleNamespace(applied=False, event_id=None, state=C.STATE_RECOVERY_PREFLIGHT)
+
+    # Make the account look like it is still at an eligible origin at parent-load time, so _advance
+    # takes the "eligible origin" branch; the transition then reports not-applied while a re-read
+    # shows RECOVERY_PREFLIGHT (a prior attempt committed it) → rebind + run.
+    async with seeded() as s:
+        from app.db.models.risk_loss_control_state import RiskLossControlState
+        row = await s.scalar(select(RiskLossControlState).where(RiskLossControlState.account_id == 1))
+        row.state = C.STATE_REDUCTION_ONLY_DAILY_LOSS
+        await s.commit()
+    monkeypatch.setattr(svc, "_current_state", lambda account_id: _coro(C.STATE_RECOVERY_PREFLIGHT))
+    monkeypatch.setattr(svc, "_transition", _not_applied)
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="k",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.preflight_id == pid
+    assert len(await _check_rows(seeded, pid)) == 12
+
+
+async def test_create_conflict_on_unique_key_is_caught_and_rejected(seeded, monkeypatch):
+    # A concurrent create the in-session pre-checks missed: the DB UNIQUE(account, key) rejects the
+    # insert, which is caught (not raised) and turned into ERR_ACTIVE_PREFLIGHT_EXISTS.
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _drive_to_lock(seeded, TRIGGER_DAILY_LOSS_BREACH,
+                         trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS)
+    st = await _state(seeded)
+    await _requested_parent(seeded, key="dup", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                            expected_version=st.state_version, request_event_id=None)
+    svc = RecoveryPreflightService(seeded)
+    # Bypass the in-session idempotency + one-active pre-checks so the DB constraint is what rejects.
+    monkeypatch.setattr(svc, "_load_by_key", lambda s, a, k: _coro(None))
+    monkeypatch.setattr(svc, "_load_active", lambda s, account_id: _coro(None))
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="dup",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.rejected and out.reason == C.ERR_ACTIVE_PREFLIGHT_EXISTS
+
+
+async def _coro(value):
+    return value
+
+
+async def test_advance_missing_parent_is_internal_error(seeded):
+    svc = RecoveryPreflightService(seeded)
+    out = await svc._advance(account_id=1, parent_id=999999, adapter=None)
+    assert out.rejected and out.reason == C.ERR_INTERNAL
+
+
+async def test_advance_nonresumable_parent_returns_outcome(seeded):
+    # A terminal parent handed to _advance is returned as-is, never re-driven through the workflow.
+    pid = await _requested_parent(seeded, key="done", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                                  expected_version=1, request_event_id=None,
+                                  status=C.PREFLIGHT_STATUS_PASSED)
+    svc = RecoveryPreflightService(seeded)
+    out = await svc._advance(account_id=1, parent_id=pid, adapter=None)
+    assert out.accepted and out.status == C.PREFLIGHT_STATUS_PASSED
+
+
+async def test_run_checks_and_finalize_missing_parent_is_internal_error(seeded):
+    svc = RecoveryPreflightService(seeded)
+    out = await svc._run_checks_and_finalize(
+        account_id=1, parent_id=999999, request_event_id=None,
+        origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS, role=C.ACTOR_OWNER, expected_version=1,
+        adapter=None)
+    assert out.rejected and out.reason == C.ERR_INTERNAL
+
+
+async def test_create_conflict_different_requester_is_idempotency_conflict(seeded, monkeypatch):
+    # DB UNIQUE(account, key) rejects the insert and the winner-reload finds a row owned by a
+    # DIFFERENT requester → ERR_IDEMPOTENCY_CONFLICT (never silently adopt another actor's workflow).
+    monkeypatch.setattr(rec_mod, "get_settings",
+                        lambda: SimpleNamespace(risk_operator_user_ids=[]))
+    await _drive_to_lock(seeded, TRIGGER_DAILY_LOSS_BREACH,
+                         trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS)
+    st = await _state(seeded)
+    await _requested_parent(seeded, key="dup", origin=C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+                            expected_version=st.state_version, request_event_id=None,
+                            requester=OPERATOR_ID)  # owned by a different requester
+    svc = RecoveryPreflightService(seeded)
+    real_lbk = svc._load_by_key
+    flag = {"first": True}
+
+    async def _lbk(s, a, k):
+        if flag["first"]:  # idempotency pre-check misses (simulated race), then the reload finds it
+            flag["first"] = False
+            return None
+        return await real_lbk(s, a, k)
+
+    monkeypatch.setattr(svc, "_load_by_key", _lbk)
+    monkeypatch.setattr(svc, "_load_active", lambda s, account_id: _coro(None))
+    out = await svc.request_recovery(account_id=1, account_owner_id=OWNER_ID, idempotency_key="dup",
+                                     requester_user_id=OWNER_ID, adapter=_healthy_adapter())
+    assert out.rejected and out.reason == C.ERR_IDEMPOTENCY_CONFLICT

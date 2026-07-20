@@ -295,13 +295,22 @@ reduction-only lock still permits only verified reductions).
 
 **The workflow, in four distinct stages** (do not conflate them):
 1. **Request** — an authorized actor POSTs `/accounts/{id}/loss-control/recovery-requests` with an
-   `idempotency_key`. Eligible only from `REDUCTION_ONLY_DAILY_LOSS`, `REDUCTION_ONLY_BREAKER`, or
+   `idempotency_key`. **All three endpoints (request / read / approve) require the same authority —
+   the account owner or a registered risk operator; a stranger gets `403` and never sees the
+   evidence.** Eligible only from `REDUCTION_ONLY_DAILY_LOSS`, `REDUCTION_ONLY_BREAKER`, or
    `INTEGRITY_STOP`; a request from `NORMAL` / `RECOVERY_COOLDOWN` / missing state is rejected and
-   creates nothing. A committed `RECOVERY_REQUEST` moves the account to `RECOVERY_PREFLIGHT` and
-   records the **durable origin** (the `from_state` of that event — never inferred).
+   creates nothing. The preflight row is created **before** the `RECOVERY_REQUEST` transition, so a
+   crash mid-flight can never leave the account in `RECOVERY_PREFLIGHT` with no discoverable
+   workflow — a retry with the **same `idempotency_key`** resumes that same durable preflight. A
+   committed `RECOVERY_REQUEST` moves the account to `RECOVERY_PREFLIGHT` and records the **durable
+   origin** (the `from_state` of that event — never inferred).
 2. **The 12 checks** — persisted individually in `risk_recovery_preflight_checks` (`PASS` / `FAIL` /
    `INCOMPLETE`). A check blocked by an unmet prerequisite is stored `INCOMPLETE`
-   (`reason = BLOCKED_BY_<check>`); the absence of a row never means success.
+   (`reason = BLOCKED_BY_<check>`); the absence of a row never means success. The `open_orders` and
+   `reservations` checks reconcile by **stable identity and every risk-bearing field** (broker/client
+   order id, symbol, side, quantity, type, prices; reservation→order backing + quantity), never by
+   count — so a `FAIL` there names a specific unmatched order or orphaned/duplicate reservation, and
+   equal counts of *different* orders (or a HELD reservation on a terminal order) do **not** pass.
 3. **Authorization** — see the matrix below. `INTEGRITY_STOP` always requires a *separate* explicit
    operator approval (POST `.../{id}/approve`); it is never system- or owner-self-authorized.
 4. **Transition** — an aggregate `PASS` + authorization commits `PREFLIGHT_PASS` →
