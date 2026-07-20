@@ -1,23 +1,12 @@
 {
- "acceptance_gates": [
-  "all 1700 sessions processed",
-  "one terminal disposition per eligible unit",
-  "exact reconciliation",
-  "development-only reads",
-  "zero validation/OOS objects",
-  "PIT-valid records",
-  "repeat-run byte-identical",
-  "shard-invariant",
-  "restart-identical",
-  "no deprecated/unknown code",
-  "Phase-1 fixture + Increment-3 hash unchanged",
-  "no performance artifact"
- ],
  "authorization": "LIMITED DEVELOPMENT-PARTITION COMPUTATION; performance NOT authorized; validation/OOS sealed",
  "bound_identities": {
-  "development_run_manifest": "9b172362b75e4c21bb835cd73d08ac57b563c6c465e5bd70ecbd09736c5fcb59",
+  "dev_calendar_sha256": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0",
+  "development_run_manifest": "1fe35f1ae334ae48dc7d9805b1a666a60dea9cfc097e03d71898aa4b455af957",
+  "governed_session_list_reference_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
   "increment3_accepted_output_sha256": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
-  "input_identity_manifest": "375448783a6ec72987b1fdcf5196ae56b47d0fd706048e24b631e96c9c9ec13c",
+  "input_identity_manifest": "3216c37965602c4fef29e16e99be6f4ab99abaa40ed6611190958dbac0db2e4e",
+  "opened_object_ledger": "84a21ff809840ac103618c7070d06cefefe860acac06626d32b621caa750bee7",
   "owner_rulings_sha256": "d8a9071d53bdb036ad9e6d46cd0d899f6846d3f2af946f932ce963e10f0e206a",
   "phase0_census_sha256": "87602e7c5e5c719a44d83d6a556690116958c58e1e0d97b687531da824f9008e",
   "phase0_closeout": "023b75e837a6ca5992da4bf483dd122d35759e59",
@@ -25,11 +14,11 @@
   "phase1_closeout": "18561c3a8c56ff54b9fdfd1da8e7d9db6e2cfd60",
   "phase1_valid_path_output_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
   "phase2a_closeout": "673f10bdc84e276d5fc1d5bce39f459c8bc869af",
-  "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e...",
+  "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e7494b9688e74b76e57128a4e59cd809f78d66bf1621d3ae2",
   "provenance_db_sha256": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
   "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
-  "sic_mapping_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
-  "universe_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39"
+  "sic_mapping_content_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
+  "universe_content_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39"
  },
  "frozen_mechanics": {
   "adv": "median(raw close x raw volume)",
@@ -68,8 +57,31 @@
  "record_type": "MR002_SPQ1_Phase2B_RunSpecification",
  "review_date": "2026-07-20",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
- "run_specification_sha256": "cf29d8d351767bdfc58eabf9c8a7e76ef1225db54159b11dafbfb4616b7abc6a",
+ "run_specification_sha256": "10ffaf3a2e085676c9aa61830759915b2bc9efbe5f5aeff6e0bfb47860281585",
+ "sic_mapping_selection_rule": {
+  "effective_time_selection": "among rows covering the SIC, the latest effective_from <= close t governs (NULL effective_from = always-effective); range boundaries inclusive",
+  "missing_sic_range": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING (never defaulted)",
+  "revision_supersession_order": "effective_from then review_status (approved supersedes draft)",
+  "same_effective_time_conflict": "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT",
+  "sector_lookup": "the row whose [sic_start, sic_end] inclusive range contains the security's PIT SIC (from sic_observations.accepted_utc <= close t)",
+  "sector_to_etf": "the sector_etf column (11 SPDR select-sector ETFs); one ETF per sector",
+  "table": "registered owner-countersigned sic_mapping (content-hash bound)"
+ },
  "stage": "SPQ-1 Phase 2B (development-period signal-production qualification)",
- "supersedes_phase2a_placeholder": "the full run binds the registered sic_mapping (owner-countersigned) for SIC->sector->ETF; the Phase-2A pit_sector_adapter division placeholder is a one-sample stand-in and is replaced for the full-universe run.",
+ "supersedes_phase2a_placeholder": "the full run binds the registered sic_mapping for SIC->sector->ETF; the Phase-2A pit_sector_adapter division placeholder is a one-sample stand-in, replaced for the run.",
+ "universe_selection_rule": {
+  "authorized_row_set": "universe_month between 2013-01-01 and 2019-10-01 (82 governing months covering dev sessions 2013-01-02..2019-10-02)",
+  "availability_convention": "universe_month date is the reconstitution availability timestamp",
+  "duplicate_membership_row": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+  "future_universe_month": "excluded; can never influence session t",
+  "governing_universe_month": "max registered universe_month whose availability (= the universe_month date) is <= close(session t)",
+  "membership_flags": "top-250 in_long_universe / top-150 in_short_universe per \u00a74",
+  "membership_from": "ONLY the rows of that single governing month",
+  "missing_governing_month": "INELIGIBLE:OLS_WINDOW_INSUFFICIENT is NOT used; a missing governing month is a universe-integrity failure -> INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS (frozen)",
+  "pre_window_seed": "none required (the 2013-01 reconstitution governs the first dev session)",
+  "source": "universe table (monthly PIT reconstitution)",
+  "survivorship": "PIT, survivorship-free; never a present-day constituent list",
+  "uniqueness_key": "(universe_month, permanent_security_id)"
+ },
  "version": "1.0"
 }

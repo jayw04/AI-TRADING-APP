@@ -1,0 +1,44 @@
+{
+ "all_completed": true,
+ "count": 2,
+ "entries": [
+  {
+   "actual_max_date": "2019-10-01",
+   "actual_min_date": "2013-01-01",
+   "completion_timestamp": "",
+   "declared_range": "2013-01-01..2019-10-02",
+   "object_identity": "apps/backend/data/mr002_research.duckdb",
+   "object_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+   "partition": "DEVELOPMENT",
+   "purpose": "2b0_identity:universe",
+   "query_identity": "universe:universe_month between $a and $b",
+   "reader_implementation_identity": "phase2b0-runspec",
+   "result_row_count": 20500,
+   "result_set_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39",
+   "seq": 0,
+   "status": "COMPLETED"
+  },
+  {
+   "actual_max_date": "2018-10-01",
+   "actual_min_date": "2016-09-01",
+   "completion_timestamp": "",
+   "declared_range": "2013-01-01..2019-10-02",
+   "object_identity": "apps/backend/data/mr002_research.duckdb",
+   "object_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+   "partition": "DEVELOPMENT",
+   "purpose": "2b0_identity:sic_mapping",
+   "query_identity": "sic_mapping:1=1",
+   "reader_implementation_identity": "phase2b0-runspec",
+   "result_row_count": 110,
+   "result_set_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
+   "seq": 1,
+   "status": "COMPLETED"
+  }
+ ],
+ "no_actual_key_beyond_dev_end": true,
+ "note": "2B-0 reads are limited to the universe + sic_mapping identity binding; guarded, authorized, and recorded as completed reads (distinct from the Phase-2A ledger).",
+ "record_type": "MR002_SPQ1_Phase2B_2B0_OpenedObjectLedger",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "validation_or_oos_objects_opened": 0,
+ "version": "1.0"
+}

@@ -1,5 +1,7 @@
 {
  "bound_prior_identities": {
+  "dev_calendar_sha256": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0",
+  "governed_session_list_reference_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
   "increment3_accepted_output_sha256": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
   "owner_rulings_sha256": "d8a9071d53bdb036ad9e6d46cd0d899f6846d3f2af946f932ce963e10f0e206a",
   "phase0_census_sha256": "87602e7c5e5c719a44d83d6a556690116958c58e1e0d97b687531da824f9008e",
@@ -8,7 +10,11 @@
   "phase1_closeout": "18561c3a8c56ff54b9fdfd1da8e7d9db6e2cfd60",
   "phase1_valid_path_output_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
   "phase2a_closeout": "673f10bdc84e276d5fc1d5bce39f459c8bc869af",
-  "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e..."
+  "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e7494b9688e74b76e57128a4e59cd809f78d66bf1621d3ae2",
+  "provenance_db_sha256": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
+  "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "sic_mapping_content_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
+  "universe_content_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39"
  },
  "code_identities": {
   "adapter_code_version": "spq1-phase2a-v1.0-development",
@@ -47,12 +53,13 @@
    "stock_regression.py": "4c1bffcc8a3ec6d22f710cd7f1c42fcdf0154cfad5e6aaea633796b761cca455"
   }
  },
+ "opened_object_ledger_ref": "MR002_SPQ1_Phase2B_2B0_OpenedObjectLedger_v1.0.json",
  "record_type": "MR002_SPQ1_Phase2B_InputIdentityManifest",
  "registered_sources": {
   "development_universe": {
+   "authorized_row_set": "universe_month between 2013-01-01 and 2019-10-01 (82 governing months covering dev sessions 2013-01-02..2019-10-02)",
    "content_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39",
    "months": 82,
-   "role": "monthly PIT membership (top-250 long / top-150 short)",
    "rows": 20500
   },
   "mr002_provenance.duckdb": {
@@ -65,7 +72,7 @@
   },
   "sic_mapping_table": {
    "content_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
-   "role": "registered owner-countersigned SIC-range -> sector -> ETF mapping",
+   "role": "SIC-range -> sector -> ETF",
    "rows": 110
   }
  },

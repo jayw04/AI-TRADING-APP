@@ -1,24 +1,47 @@
 # MR-002 Workstream C — SPQ-1 Phase 2B — Development-Period Signal-Production Qualification
 
-## Increment 2B-0 — Run Specification (submitted; NO computation)
+## Increment 2B-0 — Run Specification (resubmitted after four corrections + SIC clarification)
 
-**Status: 2B-0 run specification submitted for review.** This is the first of the four Phase-2B
-increments (2B-0 spec → 2B-1 shard qualification → 2B-2 full run → 2B-3 reconciliation/closeout). It
-freezes the run identity and binds every source + code identity and every policy **before any signal
-is produced**. No computation, no candidate records, no performance.
+**Status: 2B-0 run specification resubmitted.** First of the four Phase-2B increments (2B-0 spec →
+2B-1 shard qualification → 2B-2 full run → 2B-3 reconciliation/closeout). Freezes the run identity and
+binds every source + code identity and every policy **before any signal is produced**. No computation,
+no candidate records, no performance.
 
-I am delivering 2B-0 as its own reviewable checkpoint because it commits two consequential bindings
-(the PIT universe and the registered SIC→sector→ETF mapping) and the full 2B-2 run is ~1.3M units —
-the owner's own "do not jump directly to the full run" discipline. Recon confirmed both bindings
-already exist in governed form.
+## Adjudication corrections applied
+
+1. **Complete identity binding.** Every SHA-256 field is now a full 64-char value (the truncated
+   `phase2a_dev_snapshot_content_sha256` is now `211eacc0…1621d3ae2`); the generator **validates every
+   identity against `^[0-9a-f]{64}$` (and commits against 40-hex) and refuses to write on any
+   placeholder** before emitting artifacts.
+2. **Guarded, ledgered 2B-0 reads.** The universe + sic_mapping identity reads now go through the
+   Phase-2A `PartitionGuard` (authorize → read → `record_completed_read`) and are recorded in a
+   dedicated **`MR002_SPQ1_Phase2B_2B0_OpenedObjectLedger_v1.0.json`** (2 completed reads: universe
+   20,500 rows `2013-01-01..2019-10-01`, sic_mapping 110 rows; both within dev bounds; 0 validation/OOS
+   objects). No direct unledgered source read remains.
+3. **Exact universe row-set + frozen PIT membership rule.** The universe identity now hashes the
+   **exact authorized governing-month set** (`universe_month between 2013-01-01 and 2019-10-01`, 82
+   months), and the manifest freezes: `governing_universe_month(t) = max universe_month ≤ close(t)`;
+   membership from that **single** month only; uniqueness key `(universe_month, permanent_security_id)`;
+   missing month / duplicate row → `SECURITY_IDENTITY_AMBIGUOUS`; future month excluded; no pre-window
+   seed required.
+4. **Portable deterministic generator.** `ROOT = Path(__file__).resolve().parents[5]` — no workstation
+   path in source discovery, module hashing, identity, or query. A test proves byte-identical artifacts
+   from a different working directory.
+
+**SIC-mapping effective-time rule frozen** (clarification): sector = the row whose inclusive
+`[sic_start, sic_end]` contains the security's PIT SIC (from `sic_observations.accepted_utc ≤ close t`);
+among covering rows, latest `effective_from ≤ close t` governs (NULL = always-effective); same-effective
+conflict → `SECTOR_EFFECTIVE_DATE_CONFLICT`; missing SIC range → `SECTOR_PIT_IDENTITY_MISSING`; one ETF
+per sector via `sector_etf`.
 
 ## Run identity
 
-**Run ID:** `MR002-SPQ1-P2B-DEV-V1` · run-specification hash `cf29d8d3…` (deterministic).
+**Run ID:** `MR002-SPQ1-P2B-DEV-V1` (unchanged — no computation occurred) · **new run-specification
+hash `10ffaf3a…`** (was `cf29d8d3`).
 
-Artifacts (this increment): `run_spec/MR002_SPQ1_Phase2B_RunSpecification_v1.0.json` (`4faf556f`) ·
-`manifests/MR002_SPQ1_Phase2B_DevelopmentRunManifest_v1.0.json` (`9b172362`) ·
-`manifests/MR002_SPQ1_Phase2B_InputIdentityManifest_v1.0.json` (`37544878`).
+Artifacts: `run_spec/…RunSpecification…` (`c0f01b38`) · `manifests/…DevelopmentRunManifest…`
+(`1fe35f1a`) · `manifests/…InputIdentityManifest…` (`3216c379`) ·
+`evidence/…2B0_OpenedObjectLedger…` (`84a21ff8`).
 
 ## Bound source identities
 
