@@ -1,0 +1,99 @@
+{
+  "controls": {
+    "adv_participation_cap": 0.02,
+    "costs_from": "executed notional (not intended order notional)",
+    "nav_new_entry_cap": 0.015
+  },
+  "cost_schedules": {
+    "BASE": {
+      "borrow_bps_per_year": 50.0,
+      "bps_per_side": 10.0,
+      "classification": "GATE",
+      "day_count": 360
+    },
+    "SEVERE": {
+      "borrow_bps_per_year": 1000.0,
+      "bps_per_side": 30.0,
+      "classification": "DIAGNOSTIC",
+      "day_count": 360
+    },
+    "STRESS": {
+      "borrow_bps_per_year": 300.0,
+      "bps_per_side": 20.0,
+      "classification": "GATE",
+      "day_count": 360
+    }
+  },
+  "dependency_lock": "MR002_Increment1_Dependencies.json",
+  "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
+  "determinism_proof": {
+    "byte_identical": true,
+    "run1_hash": "b4bafae4c18b63607c10f7769b2cfeae9e2b5fd3a3ce125cc647ab92ed979808",
+    "run2_hash": "b4bafae4c18b63607c10f7769b2cfeae9e2b5fd3a3ce125cc647ab92ed979808"
+  },
+  "development_free_assertions": {
+    "development_performance_computed": false,
+    "oos_data_read": false,
+    "synthetic_fixture_only": true,
+    "validation_data_read": false
+  },
+  "event_fields": [
+    "trade_id",
+    "symbol",
+    "side",
+    "decision_session",
+    "scheduled_execution_session",
+    "actual_execution_session",
+    "event_type",
+    "shares",
+    "official_open_price",
+    "executed_notional",
+    "commission_slippage_cost",
+    "borrow_cost",
+    "gross_pnl",
+    "net_pnl",
+    "position_id",
+    "reason"
+  ],
+  "excluded_not_authorized": [
+    "residual signal calculation",
+    "universe reconstruction",
+    "sector mapping",
+    "portfolio optimization",
+    "beta/sector exposure constraints",
+    "real vendor data adapters",
+    "development performance",
+    "validation/OOS access"
+  ],
+  "increment": 2,
+  "ledger_report_output_hash": "b4bafae4c18b63607c10f7769b2cfeae9e2b5fd3a3ce125cc647ab92ed979808",
+  "next_open_semantics": {
+    "clip_never_delay": true,
+    "entry": "official open t+1",
+    "exit_decision": "official open e+1",
+    "missing_entry": "cancel",
+    "missing_exit": "defer to next open",
+    "no_same_open_reentry": true,
+    "time_stop": "official open t+6"
+  },
+  "no_real_dataset_opened": true,
+  "owner_authorization": "docs/review/comments.md adjudication 2026-07-20 (Increment 2 authorized after closeout)",
+  "python": "3.13.14",
+  "reconciliation_all_positions": true,
+  "record_type": "MR002_Increment2_Qualification",
+  "report_self_hash_verifies": true,
+  "scope": "frozen cost model (base/stress/severe) + synthetic trade ledger (16 frozen fields) + next-open execution semantics + mechanical ADV/NAV clips; synthetic-only",
+  "source_hashes": {
+    "_gen_evidence_inc2.py": "078be8af044e1f8c03c139fe1c2c1dd370a5238b80657bdb6f1b47cf94402223",
+    "mr002_valoos_costmodel.py": "de10ed1f39b6b54f1f8d70d428c76c10ee9027ad4f5f5f8aa68daea92779faea",
+    "mr002_valoos_execution.py": "e771067677cb290ee8fa8148218adaddfa664de6ef30cdbb385e70125d7299d9",
+    "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+    "test_increment2.py": "dc442e40816454b63c2cfe8a8303ffe63dda539414e8e397f5d8d77091dd16e2"
+  },
+  "tests": {
+    "count": 22,
+    "file": "test_increment2.py",
+    "result": "22 passed"
+  },
+  "version": "1.0"
+}

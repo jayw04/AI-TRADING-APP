@@ -1,0 +1,406 @@
+{
+  "base_schedule": "BASE",
+  "code_identity": {
+    "_gen_evidence_inc2.py": "078be8af044e1f8c03c139fe1c2c1dd370a5238b80657bdb6f1b47cf94402223",
+    "mr002_valoos_costmodel.py": "de10ed1f39b6b54f1f8d70d428c76c10ee9027ad4f5f5f8aa68daea92779faea",
+    "mr002_valoos_execution.py": "e771067677cb290ee8fa8148218adaddfa664de6ef30cdbb385e70125d7299d9",
+    "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+    "test_increment2.py": "dc442e40816454b63c2cfe8a8303ffe63dda539414e8e397f5d8d77091dd16e2"
+  },
+  "cost_stress": [
+    {
+      "borrow_cost": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "classification": "GATE",
+      "entry_commission": {
+        "display": 20.0,
+        "exact_hex": "0x1.4000000000000p+4"
+      },
+      "exit_commission": {
+        "display": 22.0,
+        "exact_hex": "0x1.6000000000000p+4"
+      },
+      "gross_pnl": {
+        "display": 1000.0,
+        "exact_hex": "0x1.f400000000000p+9"
+      },
+      "net_pnl": {
+        "display": 958.0,
+        "exact_hex": "0x1.df00000000000p+9"
+      },
+      "reconciles": true,
+      "schedule": "STRESS",
+      "total_costs": {
+        "display": 42.0,
+        "exact_hex": "0x1.5000000000000p+5"
+      }
+    },
+    {
+      "borrow_cost": {
+        "display": 4.166666666666666,
+        "exact_hex": "0x1.0aaaaaaaaaaaap+2"
+      },
+      "classification": "GATE",
+      "entry_commission": {
+        "display": 20.0,
+        "exact_hex": "0x1.4000000000000p+4"
+      },
+      "exit_commission": {
+        "display": 22.0,
+        "exact_hex": "0x1.6000000000000p+4"
+      },
+      "gross_pnl": {
+        "display": -1000.0,
+        "exact_hex": "-0x1.f400000000000p+9"
+      },
+      "net_pnl": {
+        "display": -1046.1666666666667,
+        "exact_hex": "-0x1.058aaaaaaaaabp+10"
+      },
+      "reconciles": true,
+      "schedule": "STRESS",
+      "total_costs": {
+        "display": 46.166666666666664,
+        "exact_hex": "0x1.7155555555555p+5"
+      }
+    }
+  ],
+  "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
+  "development_performance_computed": false,
+  "event_fields": [
+    "trade_id",
+    "symbol",
+    "side",
+    "decision_session",
+    "scheduled_execution_session",
+    "actual_execution_session",
+    "event_type",
+    "shares",
+    "official_open_price",
+    "executed_notional",
+    "commission_slippage_cost",
+    "borrow_cost",
+    "gross_pnl",
+    "net_pnl",
+    "position_id",
+    "reason"
+  ],
+  "events": [
+    {
+      "actual_execution_session": 1,
+      "borrow_cost": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "commission_slippage_cost": {
+        "display": 10.0,
+        "exact_hex": "0x1.4000000000000p+3"
+      },
+      "decision_session": 0,
+      "event_type": "ENTRY_FILL",
+      "executed_notional": {
+        "display": 10000.0,
+        "exact_hex": "0x1.3880000000000p+13"
+      },
+      "gross_pnl": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "net_pnl": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "official_open_price": {
+        "display": 100.0,
+        "exact_hex": "0x1.9000000000000p+6"
+      },
+      "position_id": "PL1",
+      "reason": "SYNTHETIC_SIGNAL",
+      "scheduled_execution_session": 1,
+      "shares": 100,
+      "side": "long",
+      "symbol": "AAA",
+      "trade_id": "L1"
+    },
+    {
+      "actual_execution_session": 6,
+      "borrow_cost": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "commission_slippage_cost": {
+        "display": 11.0,
+        "exact_hex": "0x1.6000000000000p+3"
+      },
+      "decision_session": 0,
+      "event_type": "EXIT_FILL",
+      "executed_notional": {
+        "display": 11000.0,
+        "exact_hex": "0x1.57c0000000000p+13"
+      },
+      "gross_pnl": {
+        "display": 1000.0,
+        "exact_hex": "0x1.f400000000000p+9"
+      },
+      "net_pnl": {
+        "display": 979.0,
+        "exact_hex": "0x1.e980000000000p+9"
+      },
+      "official_open_price": {
+        "display": 110.0,
+        "exact_hex": "0x1.b800000000000p+6"
+      },
+      "position_id": "PL1",
+      "reason": "EXIT_DECISION",
+      "scheduled_execution_session": 6,
+      "shares": 100,
+      "side": "long",
+      "symbol": "AAA",
+      "trade_id": "L1"
+    },
+    {
+      "actual_execution_session": 1,
+      "borrow_cost": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "commission_slippage_cost": {
+        "display": 10.0,
+        "exact_hex": "0x1.4000000000000p+3"
+      },
+      "decision_session": 0,
+      "event_type": "ENTRY_FILL",
+      "executed_notional": {
+        "display": 10000.0,
+        "exact_hex": "0x1.3880000000000p+13"
+      },
+      "gross_pnl": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "net_pnl": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "official_open_price": {
+        "display": 100.0,
+        "exact_hex": "0x1.9000000000000p+6"
+      },
+      "position_id": "PS1",
+      "reason": "SYNTHETIC_SIGNAL",
+      "scheduled_execution_session": 1,
+      "shares": 100,
+      "side": "short",
+      "symbol": "BBB",
+      "trade_id": "S1"
+    },
+    {
+      "actual_execution_session": 6,
+      "borrow_cost": {
+        "display": 0.6944444444444444,
+        "exact_hex": "0x1.638e38e38e38ep-1"
+      },
+      "commission_slippage_cost": {
+        "display": 11.0,
+        "exact_hex": "0x1.6000000000000p+3"
+      },
+      "decision_session": 0,
+      "event_type": "EXIT_FILL",
+      "executed_notional": {
+        "display": 11000.0,
+        "exact_hex": "0x1.57c0000000000p+13"
+      },
+      "gross_pnl": {
+        "display": -1000.0,
+        "exact_hex": "-0x1.f400000000000p+9"
+      },
+      "net_pnl": {
+        "display": -1021.6944444444445,
+        "exact_hex": "-0x1.fed8e38e38e39p+9"
+      },
+      "official_open_price": {
+        "display": 110.0,
+        "exact_hex": "0x1.b800000000000p+6"
+      },
+      "position_id": "PS1",
+      "reason": "TIME_STOP",
+      "scheduled_execution_session": 6,
+      "shares": 100,
+      "side": "short",
+      "symbol": "BBB",
+      "trade_id": "S1"
+    }
+  ],
+  "oos_data_read": false,
+  "output_hash": "b4bafae4c18b63607c10f7769b2cfeae9e2b5fd3a3ce125cc647ab92ed979808",
+  "positions": [
+    {
+      "borrow_cost": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "days_held": 5,
+      "entry_commission": {
+        "display": 10.0,
+        "exact_hex": "0x1.4000000000000p+3"
+      },
+      "entry_notional": {
+        "display": 10000.0,
+        "exact_hex": "0x1.3880000000000p+13"
+      },
+      "entry_open_price": {
+        "display": 100.0,
+        "exact_hex": "0x1.9000000000000p+6"
+      },
+      "entry_session": 1,
+      "exit_commission": {
+        "display": 11.0,
+        "exact_hex": "0x1.6000000000000p+3"
+      },
+      "exit_notional": {
+        "display": 11000.0,
+        "exact_hex": "0x1.57c0000000000p+13"
+      },
+      "exit_open_price": {
+        "display": 110.0,
+        "exact_hex": "0x1.b800000000000p+6"
+      },
+      "exit_session": 6,
+      "gross_pnl": {
+        "display": 1000.0,
+        "exact_hex": "0x1.f400000000000p+9"
+      },
+      "net_pnl": {
+        "display": 979.0,
+        "exact_hex": "0x1.e980000000000p+9"
+      },
+      "position_id": "PL1",
+      "reconciles": true,
+      "schedule": "BASE",
+      "shares": 100,
+      "side": "long",
+      "symbol": "AAA",
+      "total_costs": {
+        "display": 21.0,
+        "exact_hex": "0x1.5000000000000p+4"
+      }
+    },
+    {
+      "borrow_cost": {
+        "display": 0.6944444444444444,
+        "exact_hex": "0x1.638e38e38e38ep-1"
+      },
+      "days_held": 5,
+      "entry_commission": {
+        "display": 10.0,
+        "exact_hex": "0x1.4000000000000p+3"
+      },
+      "entry_notional": {
+        "display": 10000.0,
+        "exact_hex": "0x1.3880000000000p+13"
+      },
+      "entry_open_price": {
+        "display": 100.0,
+        "exact_hex": "0x1.9000000000000p+6"
+      },
+      "entry_session": 1,
+      "exit_commission": {
+        "display": 11.0,
+        "exact_hex": "0x1.6000000000000p+3"
+      },
+      "exit_notional": {
+        "display": 11000.0,
+        "exact_hex": "0x1.57c0000000000p+13"
+      },
+      "exit_open_price": {
+        "display": 110.0,
+        "exact_hex": "0x1.b800000000000p+6"
+      },
+      "exit_session": 6,
+      "gross_pnl": {
+        "display": -1000.0,
+        "exact_hex": "-0x1.f400000000000p+9"
+      },
+      "net_pnl": {
+        "display": -1021.6944444444445,
+        "exact_hex": "-0x1.fed8e38e38e39p+9"
+      },
+      "position_id": "PS1",
+      "reconciles": true,
+      "schedule": "BASE",
+      "shares": 100,
+      "side": "short",
+      "symbol": "BBB",
+      "total_costs": {
+        "display": 21.694444444444443,
+        "exact_hex": "0x1.5b1c71c71c71cp+4"
+      }
+    }
+  ],
+  "record_type": "MR002_ValOOS_TradeLedger",
+  "schema_version": "increment2-v1.0-synthetic",
+  "severe_cost_diagnostic": [
+    {
+      "borrow_cost": {
+        "display": 0.0,
+        "exact_hex": "0x0.0p+0"
+      },
+      "classification": "DIAGNOSTIC",
+      "entry_commission": {
+        "display": 30.0,
+        "exact_hex": "0x1.e000000000000p+4"
+      },
+      "exit_commission": {
+        "display": 33.0,
+        "exact_hex": "0x1.0800000000000p+5"
+      },
+      "gross_pnl": {
+        "display": 1000.0,
+        "exact_hex": "0x1.f400000000000p+9"
+      },
+      "net_pnl": {
+        "display": 937.0,
+        "exact_hex": "0x1.d480000000000p+9"
+      },
+      "reconciles": true,
+      "schedule": "SEVERE",
+      "total_costs": {
+        "display": 63.0,
+        "exact_hex": "0x1.f800000000000p+5"
+      }
+    },
+    {
+      "borrow_cost": {
+        "display": 13.888888888888888,
+        "exact_hex": "0x1.bc71c71c71c71p+3"
+      },
+      "classification": "DIAGNOSTIC",
+      "entry_commission": {
+        "display": 30.0,
+        "exact_hex": "0x1.e000000000000p+4"
+      },
+      "exit_commission": {
+        "display": 33.0,
+        "exact_hex": "0x1.0800000000000p+5"
+      },
+      "gross_pnl": {
+        "display": -1000.0,
+        "exact_hex": "-0x1.f400000000000p+9"
+      },
+      "net_pnl": {
+        "display": -1076.888888888889,
+        "exact_hex": "-0x1.0d38e38e38e39p+10"
+      },
+      "reconciles": true,
+      "schedule": "SEVERE",
+      "total_costs": {
+        "display": 76.88888888888889,
+        "exact_hex": "0x1.338e38e38e38ep+6"
+      }
+    }
+  ],
+  "synthetic_fixture_only": true,
+  "validation_data_read": false
+}
