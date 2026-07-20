@@ -56,6 +56,15 @@ class Settings(BaseSettings):
     # enforced and is NOT affected by this flag.
     login_totp_required: bool = True
 
+    # ADR 0043 §D3 — SHADOW session-baseline capture in the account-sync path. When True, each
+    # account-sync poll captures/reuses the immutable per-session baseline (risk_session_baselines)
+    # and emits shadow evidence — but changes NO risk decision (no daily-loss basis, no state
+    # machine, no breaker). Default FALSE: this adds a broker list_orders() poll while no baseline
+    # exists, so it must be enabled deliberately in the intended deployment config rather than
+    # activating everywhere on merge. Enforcement (baseline as the daily-loss basis) is a later,
+    # separately-gated increment.
+    session_baseline_shadow_enabled: bool = False
+
     # --- Alpaca credentials (not WORKBENCH_-prefixed) ---
     alpaca_paper_api_key: str = Field(default="", alias="ALPACA_PAPER_API_KEY")
     alpaca_paper_api_secret: str = Field(default="", alias="ALPACA_PAPER_API_SECRET")

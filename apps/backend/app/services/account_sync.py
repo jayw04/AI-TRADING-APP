@@ -20,9 +20,11 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.brokers.alpaca import AlpacaAdapter
+from app.config import get_settings
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
 from app.events.bus import EventBus
+from app.risk.loss_control.session_baseline import SessionBaselineShadow
 
 logger = structlog.get_logger(__name__)
 
@@ -55,7 +57,7 @@ class AccountSyncService:
         if account is None:
             logger.warning("account_sync_no_account_row")
             return payload
-        await self._upsert_and_publish(account.id, raw, payload)
+        await self._upsert_and_publish(account.id, raw, payload, self._adapter)
         return payload
 
     async def sync_all(self) -> dict[str, list[int]]:
@@ -82,7 +84,9 @@ class AccountSyncService:
                 continue
             try:
                 raw = await asyncio.to_thread(adapter.get_account)
-                await self._upsert_and_publish(account.id, raw, _normalize_account(raw))
+                await self._upsert_and_publish(
+                    account.id, raw, _normalize_account(raw), adapter
+                )
                 synced.append(account.id)
             except Exception as exc:  # one account must not kill the sweep
                 logger.warning("account_sync_account_failed", account_id=account.id, error=str(exc))
@@ -91,9 +95,17 @@ class AccountSyncService:
         return {"synced": synced, "skipped": skipped, "errors": errors}
 
     async def _upsert_and_publish(
-        self, account_id: int, raw: dict[str, Any], payload: dict[str, Any]
+        self,
+        account_id: int,
+        raw: dict[str, Any],
+        payload: dict[str, Any],
+        adapter: Any,
     ) -> None:
-        """Upsert one account's AccountState row and publish its snapshot event."""
+        """Upsert one account's AccountState row and publish its snapshot event.
+
+        ``adapter`` is the account's OWN broker adapter — used only by the ADR 0043 §D3 shadow
+        baseline capture (to see externally-submitted broker orders); it is not otherwise needed
+        here."""
         async with self._session_factory() as session:
             now = datetime.now(UTC)
             stmt = sqlite_insert(AccountState).values(
@@ -120,6 +132,14 @@ class AccountSyncService:
             )
             await session.execute(stmt)
             await session.commit()
+            # ADR 0043 §D3 — SHADOW baseline capture, from the equity JUST reconciled above (never a
+            # second broker call for equity). After the AccountState commit + before publish. Fully
+            # non-authoritative and exception-isolated: a shadow failure must never interrupt sync,
+            # and the result is intentionally discarded — it can become no baseline decision, no
+            # transition, no breaker trip.
+            await self._maybe_capture_session_baseline(
+                session, adapter, account_id, payload["equity"], now
+            )
         logger.info("account_sync_completed", account_id=account_id,
                     status=payload["status"], equity=str(payload["equity"]))
         await self._bus.publish(
@@ -127,6 +147,31 @@ class AccountSyncService:
             {"account_id": account_id,
              **{k: str(v) if isinstance(v, Decimal) else v for k, v in payload.items()}},
         )
+
+    async def _maybe_capture_session_baseline(
+        self,
+        session: AsyncSession,
+        adapter: Any,
+        account_id: int,
+        reconciled_equity: Decimal,
+        now: datetime,
+    ) -> None:
+        """ADR 0043 §D3 shadow hook — best-effort, flag-gated, and non-authoritative.
+
+        Off by default (``session_baseline_shadow_enabled``). Any failure is swallowed and logged so
+        it can never interrupt account synchronization; ``CancelledError`` (a ``BaseException``) is
+        NOT caught, so task cancellation still propagates. The ``ShadowResult`` is discarded — the
+        shadow can influence no risk decision."""
+        if not get_settings().session_baseline_shadow_enabled:
+            return
+        try:
+            await SessionBaselineShadow(session=session, adapter=adapter).capture(
+                account_id=account_id, reconciled_equity=reconciled_equity, now=now
+            )
+        except Exception:
+            logger.exception(
+                "risk_session_baseline_shadow_unexpected_failure", account_id=account_id
+            )
 
     async def _resolve_account(self, session: AsyncSession) -> Account | None:
         mode = AccountMode.paper if self._adapter.is_paper else AccountMode.live
