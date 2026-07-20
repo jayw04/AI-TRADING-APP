@@ -14,7 +14,8 @@ from ..refusals import refuse
 SPY_IDENTITY = "SPY"
 
 
-def load_spy_adjclose(con, calendar: RegisteredCalendar, ticker: str = SPY_IDENTITY) -> np.ndarray:  # noqa: ANN001
+def load_spy_adjclose(con, calendar: RegisteredCalendar, ticker: str = SPY_IDENTITY,  # noqa: ANN001
+                      require_complete: bool = True) -> np.ndarray:
     if ticker != SPY_IDENTITY:
         raise refuse(
             "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH",
@@ -29,4 +30,10 @@ def load_spy_adjclose(con, calendar: RegisteredCalendar, ticker: str = SPY_IDENT
     for i, ds in enumerate(calendar.sessions):
         if ds in by_date:
             out[i] = by_date[ds]
+    if require_complete and not np.all(np.isfinite(out)):
+        missing = int(np.count_nonzero(~np.isfinite(out)))
+        raise refuse(
+            "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH",
+            f"SPY benchmark missing {missing} registered dev sessions (no fallback)",
+        )
     return out

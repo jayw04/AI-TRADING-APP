@@ -22,8 +22,11 @@ sys.path.insert(0, os.path.join(ROOT, "apps", "backend"))
 
 from app.research.mr002.spq1.adapters import (  # noqa: E402
     ADAPTER_CODE_VERSION,
+    DEV_CALENDAR_SHA256,
     DEV_END,
     DEV_START,
+    GOVERNED_SESSION_COUNT,
+    GOVERNED_SESSION_LIST_SHA256,
     REGISTERED_PROVENANCE_DB,
     REGISTERED_RESEARCH_DB,
     abs_path,
@@ -128,6 +131,13 @@ dev_partition_manifest = {
     "record_type": "MR002_SPQ1_Phase2A_DevelopmentPartitionManifest", "version": "1.0",
     **dev_manifest.canonical(), "manifest_identity": dev_manifest.identity,
     "registered_calendar_policy": REGISTERED_SESSION_POLICY,
+    "dev_calendar_sha256_enforced": DEV_CALENDAR_SHA256,
+    "governed_session_list_reference": {
+        "sha256": GOVERNED_SESSION_LIST_SHA256, "sessions": GOVERNED_SESSION_COUNT,
+        "note": "covers dev+validation+OOS; NOT recomputable within the dev-only boundary — "
+                "bound as a Phase-2B/validation-time reference. Phase-2A enforces the dev-calendar "
+                "sub-hash, which rejects a missing/inserted/reordered session at the same count."},
+    "calendar_source_object_sha256": research_sha,
 }
 
 adapter_manifest = {
@@ -135,6 +145,21 @@ adapter_manifest = {
     "adapter_code_version": ADAPTER_CODE_VERSION, "module_sha256": module_hashes,
     "one_way_flow": "registered source -> adapter -> PIT/validation -> input manifest -> Phase-1 typed input",
     "signal_math_contains_no_sql_s3_http_vendor": True,
+    "adjudication_corrections_applied": {
+        "1_crosswalk_pit_bounded": "dev_snapshot crosswalk filtered effective_from <= DEV_END; "
+            "future identity rows excluded; identity effective-date uses a frozen on-or-after rule "
+            "(no clamping); pre-window rows retained as PRE_WINDOW; post-window -> AMBIGUOUS.",
+        "2_governed_calendar_hash_enforced": "load_calendar enforces the frozen dev-calendar SHA-256 "
+            "(rejects a same-count missing/inserted/reordered session); governed 3400-session hash "
+            "bound as a Phase-2B reference (not recomputable dev-only).",
+        "3_opened_object_ledger_actual_reads": "PartitionGuard splits authorize_read/record_completed_read; "
+            "ledger records actual row count, actual min/max date, result hash, status; a returned row "
+            "beyond the authorized bounds fails closed.",
+        "4_unknown_relationship_fails_closed": "identity adapter refuses unknown relationship_type -> "
+            "SECURITY_IDENTITY_AMBIGUOUS (no corporate-action fallback).",
+        "5_benchmark_completeness_and_bound_params": "SPY adapter asserts completeness; snapshot queries "
+            "use bound parameters, not string concatenation.",
+    },
 }
 
 pit_report = {
@@ -196,13 +221,15 @@ determinism = {
 opened_object_ledger = {
     "record_type": "MR002_SPQ1_Phase2A_OpenedObjectLedger", "version": "1.0",
     "entries": ledger.entries,
+    "all_completed": all(e["status"] == "COMPLETED" for e in ledger.entries),
     "all_partition_development": all(e["partition"] == "DEVELOPMENT" for e in ledger.entries),
-    "all_ranges_within_dev": all(
-        str(e["query_range"]).split("..")[0] >= DEV_START
-        and str(e["query_range"]).split("..")[1] <= DEV_END for e in ledger.entries),
+    "no_actual_row_beyond_dev_end": all(
+        e["actual_max_date"] is None or str(e["actual_max_date"]) <= DEV_END
+        for e in ledger.entries),
     "no_validation_or_oos_object_opened": all(
         "validation" not in str(e["object_identity"]).lower()
         and "oos" not in str(e["object_identity"]).lower() for e in ledger.entries),
+    "records_actual_reads_not_authorizations": True,
 }
 
 measured = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {

@@ -1,8 +1,38 @@
 # MR-002 Workstream C — SPQ-1 Phase 2A — Development-Data Source & Adapter Qualification (v1.0)
 
-**Status: submitted for review.** LIMITED REAL-DATA INTEGRATION — development partition only. Read-only
-adapters bind the registered MR-002 **development** partition (frozen `2013-01-02 → 2019-10-02`, 1700
-governed sessions, `governed_session_list_sha256 b873421…`) to the qualified Phase-1 typed inputs. No
+**Status: resubmitted after the five adjudication corrections.** LIMITED REAL-DATA INTEGRATION —
+development partition only.
+
+## Adjudication corrections applied (five)
+
+1. **Future crosswalk rows excluded + no clamping.** The dev snapshot now PIT-bounds the crosswalk
+   (`effective_from <= DEV_END`); the identity adapter maps effective dates with a **frozen on-or-after
+   session rule** (never at-or-before clamping), retains pre-window rows explicitly as `PRE_WINDOW`,
+   and refuses a post-window effective date → `SECURITY_IDENTITY_AMBIGUOUS`. A post-`DEV_END` ticker
+   change / merger can no longer become a last-development-session event.
+2. **Governed calendar hash enforced.** `load_calendar` verifies the frozen **dev-calendar SHA-256**
+   (`a7ec4f0f…`) — a missing / inserted / reordered session at the same 1700 count is rejected. The
+   full governed 3400-session hash (`b873421…`, covering dev+val+OOS) is **not recomputable within the
+   dev-only boundary**, so it is bound as a Phase-2B/validation-time reference; the dev-calendar
+   sub-hash is the enforced dev-only control.
+3. **Opened-object ledger records actual reads.** `PartitionGuard` splits `authorize_read` from
+   `record_completed_read`; each entry carries the object SHA-256, declared range, executed query,
+   **actual row count, actual min/max date, result-set hash, and COMPLETED status**. A returned row
+   beyond the authorized bounds fails closed; a pre-read authorization alone is never recorded.
+4. **Unknown relationship type fails closed.** The identity adapter refuses an unrecognized
+   `relationship_type` → `SECURITY_IDENTITY_AMBIGUOUS` (no corporate-action fallback).
+5. **Benchmark completeness + bound parameters.** The SPY adapter asserts completeness (missing
+   sessions → `SIGNAL_INPUT_IDENTITY_MISMATCH`); snapshot queries use bound parameters, not string
+   concatenation.
+
+The dev-snapshot content hash is **unchanged** (`211eacc0…`) — the corrections tighten integrity
+without altering the sampled content.
+
+## Original scope
+
+Read-only adapters bind the registered MR-002 **development** partition (frozen
+`2013-01-02 → 2019-10-02`, 1700 governed sessions; the full `governed_session_list_sha256 b873421…`
+covers dev+val+OOS and is a Phase-2B reference) to the qualified Phase-1 typed inputs. No
 performance metric is computed, retained, or interpreted; the Phase-1 conversion is a schema-compat
 check only, and any incidental z-score is an unexamined implementation artifact.
 
@@ -50,8 +80,8 @@ Phase-1 resolver logic, **not fabricated** into the slice.
 
 | item | result |
 |---|---|
-| Phase-2A tests | **18 passed** (12 real-data + 6 DB-independent units) |
-| branch coverage (adapters) | **91%** |
+| Phase-2A tests | **26 passed** (16 real-data + 10 DB-independent units) |
+| branch coverage (adapters) | **92%** |
 | ruff / mypy | clean / clean |
 | Phase-1 tests | **48 passed** (unchanged) |
 | evaluator + Increment 1–3 + OQ-1 | **152 passed** (unchanged) |

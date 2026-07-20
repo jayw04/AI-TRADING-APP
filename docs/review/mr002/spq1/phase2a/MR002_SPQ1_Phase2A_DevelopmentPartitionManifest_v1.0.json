@@ -1,4 +1,6 @@
 {
+ "calendar_source_object_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+ "dev_calendar_sha256_enforced": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0",
  "dev_snapshot_identity": "211eacc0ff55904e7494b9688e74b76e57128a4e59cd809f78d66bf1621d3ae2",
  "development_end": "2019-10-02",
  "development_sessions": 1700,
@@ -8,10 +10,15 @@
   "oos",
   "sealed"
  ],
+ "governed_session_list_reference": {
+  "note": "covers dev+validation+OOS; NOT recomputable within the dev-only boundary \u2014 bound as a Phase-2B/validation-time reference. Phase-2A enforces the dev-calendar sub-hash, which rejects a missing/inserted/reordered session at the same count.",
+  "sessions": 3400,
+  "sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f"
+ },
  "governed_session_list_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
- "manifest_identity": "93b3fe3135602b7449e0afdf09313414047dd0e17adb64fbd3e9f6949f3c2e26",
+ "manifest_identity": "3179882ba5f8b634573d9486652ea74e8e007acbb8c227611a10158232fdc096",
  "oos_boundary": "2023-02-17",
- "partition_guard_identity": "344278d311ddd93fbbb6aff9fed2c21e5a1bebb9d3c2e85fcd6245e42493bdd0",
+ "partition_guard_identity": "f558636a3a3fe3f4ade9f1d8077bd34eeedbe8406e7c5f956dc78fb230e4ffbc",
  "permitted_source_objects": [
   "apps/backend/data/mr002_provenance.duckdb",
   "apps/backend/data/mr002_research.duckdb"
@@ -21,6 +28,7 @@
   "basis": "registered ET regular-session policy (dates are EOD; no vendor intraday timestamps)",
   "regular_close": "16:00",
   "regular_open": "09:30",
+  "shortened_session_policy": "date-membership only (EOD data; no per-session intraday times)",
   "timezone": "America/New_York"
  },
  "timezone": "America/New_York",

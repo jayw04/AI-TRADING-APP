@@ -1,15 +1,22 @@
 {
  "adapter_code_version": "spq1-phase2a-v1.0-development",
+ "adjudication_corrections_applied": {
+  "1_crosswalk_pit_bounded": "dev_snapshot crosswalk filtered effective_from <= DEV_END; future identity rows excluded; identity effective-date uses a frozen on-or-after rule (no clamping); pre-window rows retained as PRE_WINDOW; post-window -> AMBIGUOUS.",
+  "2_governed_calendar_hash_enforced": "load_calendar enforces the frozen dev-calendar SHA-256 (rejects a same-count missing/inserted/reordered session); governed 3400-session hash bound as a Phase-2B reference (not recomputable dev-only).",
+  "3_opened_object_ledger_actual_reads": "PartitionGuard splits authorize_read/record_completed_read; ledger records actual row count, actual min/max date, result hash, status; a returned row beyond the authorized bounds fails closed.",
+  "4_unknown_relationship_fails_closed": "identity adapter refuses unknown relationship_type -> SECURITY_IDENTITY_AMBIGUOUS (no corporate-action fallback).",
+  "5_benchmark_completeness_and_bound_params": "SPY adapter asserts completeness; snapshot queries use bound parameters, not string concatenation."
+ },
  "module_sha256": {
-  "__init__.py": "d496f1b6283cd7057f439601cf6d98724902fa5568ba769acb3f2a87adf3ef90",
-  "benchmark_adapter.py": "1c082bd51fe0fb5433e44cd651a7bd30cb6f6c6da2d212314f95500a703c147c",
-  "calendar_adapter.py": "6672378fbee1f0d1eb5e80e4bb141dd09ebc8063ee28cc52c63173e676a591c9",
-  "dev_snapshot.py": "905182d5ce6a779b74556af228659991d3d0e9c7e7585d93361d3906c7712dfd",
+  "__init__.py": "055c3e5c67491c3153644d7a5ffae0110c90a06de2f6645ad5a4e3d97bf60f50",
+  "benchmark_adapter.py": "2aadc2e122f64c1cd8faabbc4e0ce18ae421bbb367fc4479cb413b3e5d0e2203",
+  "calendar_adapter.py": "50fc5b070f9a6593d0088ee3716ad02b61f570525c3b8a10ad84be86664e78e6",
+  "dev_snapshot.py": "a6fbdf1d3207b064f400bbb793697b5024af3b5dece0b6c945d339c7d6c83584",
   "eligibility_adapter.py": "641b7b62e51a60ec127e3caa6c774f65d893734ea1114ed9aabeb0b572abb83e",
-  "identity_adapter.py": "77749def067e1971c7bd421b5c6f64e0e9c4458bbe6e4302eff76611b2010e61",
+  "identity_adapter.py": "dc5af0d76b4c83b70103f99e97098a77235f0581f032caa8df0a4785ce80dfe8",
   "liquidity_adapter.py": "882a80e739a1053a3cf99b1092e00fb3a7faa10d0908197ed79c56593339060c",
   "manifests.py": "3888c3bc7d5203e902557568cc844ac31034f7981913f207792b1214baabf1a1",
-  "partition_guard.py": "344278d311ddd93fbbb6aff9fed2c21e5a1bebb9d3c2e85fcd6245e42493bdd0",
+  "partition_guard.py": "f558636a3a3fe3f4ade9f1d8077bd34eeedbe8406e7c5f956dc78fb230e4ffbc",
   "pit_sector_adapter.py": "576979f50379d2b62966def032e52ed569aa1b63726d26065edad66cbbf4d254",
   "price_adapter.py": "2fa68c96f1b02a32da64e98c6dd482f0fa66b203be3ce6fef38ab2731a6dca48",
   "sector_proxy_adapter.py": "31cee2b58bdd771a275d999248692f6ea79a5aff49aa933ca0cf978e10ad80aa"

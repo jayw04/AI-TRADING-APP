@@ -95,11 +95,43 @@ def test_guard_rejects_unregistered_and_traversal():
             "INTEGRITY_STOP:FORBIDDEN_PARTITION_ACCESS")
 
 
-# ---- calendar ----
+# ---- calendar (hash enforced, not just count) ----
 def test_calendar_is_1700_dev_sessions(snap):
     cal = load_calendar(snap["con"])
     assert len(cal) == 1700
     assert cal.sessions[0] == "2013-01-02" and cal.sessions[-1] == "2019-10-02"
+
+
+def test_calendar_hash_rejects_same_count_perturbation(snap, tmp_path):
+    from app.research.mr002.spq1.adapters import DEV_CALENDAR_SHA256
+    from app.research.mr002.spq1.adapters.calendar_adapter import dev_calendar_sha256
+    dates = list(load_calendar(snap["con"]).sessions)
+    assert dev_calendar_sha256(tuple(dates)) == DEV_CALENDAR_SHA256      # governed hash matches
+    dates[800] = "2099-12-31"                                           # replace one; count stays 1700
+    p = str(tmp_path / "bad.duckdb")
+    con = duckdb.connect(p)
+    con.execute("create table prices (ticker varchar, date varchar)")
+    con.executemany("insert into prices values ('AAPL', ?)", [[d] for d in sorted(dates)])
+    con.close()
+    ro = duckdb.connect(p, read_only=True)
+    _refuse(lambda: load_calendar(ro), "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH")
+    ro.close()
+
+
+def test_identity_pre_window_disposition(snap):
+    reg = load_identity_registry(snap["con"], load_calendar(snap["con"]))
+    assert reg.lineage["AAPL"][0].source_evidence_identity.startswith("crosswalk:PRE_WINDOW")
+
+
+def test_opened_object_ledger_records_actual_reads(snap):
+    entries = snap["ledger"].entries
+    assert entries and all(e["status"] == "COMPLETED" for e in entries)
+    assert all(e["result_row_count"] > 0 for e in entries)
+    # no read returned a row beyond the development window (future/validation/OOS)
+    assert all(e["actual_max_date"] is None or e["actual_max_date"] <= "2019-10-02" for e in entries)
+    # crosswalk PIT-bound: max effective_from <= DEV_END (no future identity row)
+    cw = [e for e in entries if e["query_identity"].startswith("crosswalk")][0]
+    assert cw["actual_max_date"] <= "2019-10-02"
 
 
 # ---- identity ----

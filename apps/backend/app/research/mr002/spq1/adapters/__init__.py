@@ -19,9 +19,17 @@ from __future__ import annotations
 DEV_START = "2013-01-02"
 DEV_END = "2019-10-02"
 DEV_SESSIONS = 1700
+# The full governed session list covers 3400 sessions (dev+validation+OOS); it CANNOT be recomputed
+# within the dev-only boundary, so it is bound as a Phase-2B/validation-time reference, not enforced
+# here. Phase-2A enforces the frozen DEV-only calendar identity below instead.
 GOVERNED_SESSION_LIST_SHA256 = (
     "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f"
 )
+GOVERNED_SESSION_COUNT = 3400
+# Frozen development-calendar identity: SHA-256 of the 1700 dev session dates under the explicit
+# serialization "\n".join(iso_dates) + "\n". Catches a missing / inserted / reordered session even
+# at the same count. Reproducible dev-only.
+DEV_CALENDAR_SHA256 = "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0"
 DEV_TIMEZONE = "America/New_York"  # registered regular-session policy (dates are EOD)
 
 # Registered source object identities (repo-relative; bound by SHA-256 at qualification time).
