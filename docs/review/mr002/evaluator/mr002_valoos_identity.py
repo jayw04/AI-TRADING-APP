@@ -1,20 +1,25 @@
 """MR-002 validation/OOS evaluator — governing-identity loader (Increment 1 v1.2).
 
 Fail-closed. Beyond content-hash pinning, it strictly parses each artifact (duplicate JSON keys
-rejected; bool never accepted where an int is required) and cross-validates the full identity chain:
+rejected; bool never accepted where an int is required) and cross-validates the FULL FIVE-ARTIFACT
+provenance chain (adjudication closeout 2026-07-20):
 
-  prereg (v1.0.4)  <->  ledger (N=5, countersigned)  <->  correction (v1.0.3 -> v1.0.4)
-                                                     <->  dispersion resolution (N=5, A/B/C sigma)
+  1. prereg (v1.0.4, bootstrap-corrected)
+  2. ledger (N=5, countersigned)
+  3. DSR resolution (original): v1.0.2 BLOCKED -> countersigned N=5 ledger -> v1.0.3 DSR READY
+  4. correction (v1.0.3 -> v1.0.4; bootstrap only)
+  5. dispersion resolution (binds v1.0.4; same ledger + N=5; A/B/C dispersion estimator)
 
-The governing prereg is the bootstrap-corrected v1.0.4 (Ruling 1, 2026-07-20). The CorrectionRecord
-binds v1.0.3 -> v1.0.4 and affirms no economic rule changed; the DSR DispersionResolution binds the
-dispersion estimator (Ruling 2). The governing N originates from the ledger bytes — there is NO
-independent fallback constant. The prereg's frozen stationary-bootstrap spec is cross-checked against
-the code's bootstrap constants. Any failure raises RefusedIdentity(REFUSED_CODE_OR_DATA_IDENTITY)
-before any evaluator input is accepted.
+The original DSR resolution is the immutable provenance that DSR reached READY on v1.0.3 (it binds the
+countersigned ledger hash, N=5, and v1.0.3). It is NOT superseded by the later DispersionResolution,
+which resolves a different issue (the dispersion estimator). All three of prereg / DSR resolution /
+dispersion resolution must agree on N=5 and the same ledger hash. The governing N originates from the
+ledger bytes — there is NO independent fallback constant. The prereg's frozen stationary-bootstrap
+spec is cross-checked against the code's bootstrap constants. Any failure raises
+RefusedIdentity(REFUSED_CODE_OR_DATA_IDENTITY) before any evaluator input is accepted.
 
-`_validate_semantics(prereg, ledger, correction, dispersion)` is factored out so tests can exercise
-the semantic checks on tampered in-memory dicts (not merely the outer file-hash gate).
+`_validate_semantics(prereg, ledger, resolution, correction, dispersion)` is factored out so tests can
+exercise the semantic checks on tampered in-memory dicts (not merely the outer file-hash gate).
 
 The production OOS DSR gate additionally requires the countersigned validation-stage dispersion
 artifact via `load_validation_dispersion_artifact` — absent/identity-mismatch fail-closes with
@@ -29,18 +34,21 @@ import os
 
 PREREG = "MR002_ValidationOOS_Preregistration_v1.0.4.json"
 LEDGER = "MR002_DSR_TrialLedger_v1.0.json"
+RESOLUTION = "MR002_DSR_Resolution_v1.0.json"                 # original DSR-status resolution (v1.0.3)
 CORRECTION = "MR002_ValidationOOS_CorrectionRecord_v1.0.4.json"
 DISPERSION_RESOLUTION = "MR002_DSR_DispersionResolution_v1.0.json"
 
 PREREG_SHA = "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
 PREREG_V103_SHA = "b840e01cf8f4dc2cf40f43f4fc0f9f70e53712e5f78b3a73346014bbcf2ef468"
 LEDGER_SHA = "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
+RESOLUTION_SHA = "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0"
 CORRECTION_SHA = "33fbb78ce7679aaab2afc514cb0164f09e3331f87b8422b4827a0d2587c91b91"
 DISPERSION_RESOLUTION_SHA = "7a601f5b7bc0bea5045755723d7f9b946b01f7eba0eee9191e0f2074b6fb5627"
 
 EXPECTED_TRIAL_IDS = ("MR002-A", "MR002-B", "MR002-C", "RNG-001", "RNG-EntryLogic")
 DISPERSION_SOURCE_TRIALS = ("MR002-A", "MR002-B", "MR002-C")
 PREREG_NAME = "MR002_ValidationOOS_Preregistration_v1.0.4"
+PREREG_V103_NAME = "MR002_ValidationOOS_Preregistration_v1.0.3"
 
 # frozen v0.3 stationary bootstrap spec — must match the prereg bytes AND the code constants
 BOOTSTRAP_SEED = 20260711
@@ -50,7 +58,7 @@ BOOTSTRAP_L_SENSITIVITY = 10
 
 VALIDATION_DISPERSION_ARTIFACT = "MR002_DSR_TrialDispersion_Validation_v1.0.json"
 
-DEFAULT_IDENTITIES = {PREREG: PREREG_SHA, LEDGER: LEDGER_SHA,
+DEFAULT_IDENTITIES = {PREREG: PREREG_SHA, LEDGER: LEDGER_SHA, RESOLUTION: RESOLUTION_SHA,
                       CORRECTION: CORRECTION_SHA, DISPERSION_RESOLUTION: DISPERSION_RESOLUTION_SHA}
 
 
@@ -89,7 +97,8 @@ def _require_str(value, where: str) -> str:
 
 
 # ── semantic cross-validation (testable on tampered in-memory dicts) ──────────────────────────────
-def _validate_semantics(prereg: dict, ledger: dict, correction: dict, dispersion: dict) -> int:
+def _validate_semantics(prereg: dict, ledger: dict, resolution: dict, correction: dict,
+                        dispersion: dict) -> int:
     # preregistration (v1.0.4, bootstrap-corrected)
     if _require_str(prereg.get("record_type"), "prereg.record_type") != "MR002_VALIDATIONOOS_PREREGISTRATION":
         _refuse("PREREG_RECORD_TYPE")
@@ -139,6 +148,30 @@ def _validate_semantics(prereg: dict, ledger: dict, correction: dict, dispersion
     if n_ledger != len(set(ids)):
         _refuse(f"LEDGER_N_NEQ_UNIQUE_IDS:{n_ledger}!={len(set(ids))}")
 
+    # original DSR-status resolution (v1.0.2 BLOCKED -> countersigned N=5 ledger -> v1.0.3 READY)
+    if _require_str(resolution.get("record_type"), "resolution.record_type") != "MR002_DSR_RESOLUTION":
+        _refuse("RESOLUTION_RECORD_TYPE")
+    rctl = resolution.get("countersigned_trial_ledger", {})
+    if rctl.get("sha256") != LEDGER_SHA:
+        _refuse("RESOLUTION_LEDGER_HASH_UNBOUND")
+    n_res = _require_int(rctl.get("trials_N"), "resolution.ctl.trials_N")
+    if tuple(rctl.get("included", [])) != EXPECTED_TRIAL_IDS:
+        _refuse(f"RESOLUTION_LEDGER_ID_SET:{rctl.get('included')}")
+    rpu = resolution.get("prereg_update", {})
+    if rpu.get("to_sha256") != PREREG_V103_SHA:
+        _refuse("RESOLUTION_PREREG_HASH_UNBOUND")
+    if rpu.get("to") != PREREG_V103_NAME:
+        _refuse(f"RESOLUTION_PREREG_NAME:{rpu.get('to')}")
+    if not any("READY" in str(x) for x in rpu.get("changed", [])):
+        _refuse("RESOLUTION_DSR_READY_UNRECORDED")
+    if "NOT AUTHORIZED" not in str(resolution.get("validation_access", "")):
+        _refuse("RESOLUTION_VALIDATION_ACCESS_NOT_UNAUTHORIZED")
+    # provenance continuity: the DSR state established by the original resolution (READY, N=5, ledger
+    # deda5cec) must AGREE with the v1.0.4 prereg's current dsr block (carried forward unchanged).
+    p_dsr = prereg.get("dsr", {})
+    if p_dsr.get("status") != "READY" or p_dsr.get("trial_ledger_sha256") != rctl.get("sha256"):
+        _refuse("RESOLUTION_V104_DSR_STATE_DISAGREE")
+
     # correction record (v1.0.3 -> v1.0.4 bootstrap correction)
     if _require_str(correction.get("record_type"), "correction.record_type") != "MR002_VALIDATIONOOS_CORRECTION":
         _refuse("CORRECTION_RECORD_TYPE")
@@ -177,9 +210,9 @@ def _validate_semantics(prereg: dict, ledger: dict, correction: dict, dispersion
     if dispersion.get("governing_prereg", {}).get("sha256") != PREREG_SHA:
         _refuse("DISPERSION_PREREG_HASH_UNBOUND")
 
-    # chain coherence: prereg, ledger, dispersion all agree on N == 5
-    if not (n_prereg == n_ledger == n_disp):
-        _refuse(f"N_CHAIN_INCONSISTENT:prereg={n_prereg},ledger={n_ledger},dispersion={n_disp}")
+    # chain coherence: prereg, ledger, original resolution, dispersion all agree on N == 5
+    if not (n_prereg == n_ledger == n_res == n_disp):
+        _refuse(f"N_CHAIN_INCONSISTENT:prereg={n_prereg},ledger={n_ledger},resolution={n_res},dispersion={n_disp}")
     if n_ledger != 5:
         _refuse(f"N_NOT_5:{n_ledger}")
     return n_ledger
@@ -209,9 +242,10 @@ def load_governing_identity(gov_dir: str, *, expected: dict | None = None) -> di
     expected = expected or DEFAULT_IDENTITIES
     prereg = _loads_strict(_check_file(gov_dir, PREREG, expected[PREREG]))
     ledger = _loads_strict(_check_file(gov_dir, LEDGER, expected[LEDGER]))
+    resolution = _loads_strict(_check_file(gov_dir, RESOLUTION, expected[RESOLUTION]))
     correction = _loads_strict(_check_file(gov_dir, CORRECTION, expected[CORRECTION]))
     dispersion = _loads_strict(_check_file(gov_dir, DISPERSION_RESOLUTION, expected[DISPERSION_RESOLUTION]))
-    n = _validate_semantics(prereg, ledger, correction, dispersion)
+    n = _validate_semantics(prereg, ledger, resolution, correction, dispersion)
 
     # bind the code registry to the loaded gates_frozen (fail-closed on divergence)
     from mr002_valoos_registry import cross_validate_registry
@@ -219,6 +253,7 @@ def load_governing_identity(gov_dir: str, *, expected: dict | None = None) -> di
 
     return {
         "prereg_sha256": expected[PREREG], "ledger_sha256": expected[LEDGER],
+        "resolution_sha256": expected[RESOLUTION],
         "correction_sha256": expected[CORRECTION],
         "dispersion_resolution_sha256": expected[DISPERSION_RESOLUTION],
         "dsr_trials_N": n,                               # sourced from the ledger

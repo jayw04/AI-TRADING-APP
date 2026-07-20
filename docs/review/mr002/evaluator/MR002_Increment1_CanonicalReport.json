@@ -1,12 +1,12 @@
 {
   "code_identity": {
-    "_gen_evidence.py": "985856b2700edef8dca5cfff06e45783bf354e6b227009dae23ac9abd5156ade",
+    "_gen_evidence.py": "70079c7918bc2b8c350cb8a28e2bf2aebbd855a0dfc87b0c66c66beb29c71652",
     "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
-    "mr002_valoos_identity.py": "5fc7380e10a6b140f35541a2ff373b23910aa7d211b6139c82da486cd0972e9f",
+    "mr002_valoos_identity.py": "36eb44741c2bf5ede80688d6527a0d89fdfa5ac1f37b44fc61341ac3aab701b1",
     "mr002_valoos_metrics.py": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
     "mr002_valoos_registry.py": "8fc8c1af19ef03a21387f5680d4959a952dbc9d1c53a352560deba8d5697add7",
-    "mr002_valoos_report.py": "de6dd4745a1bbd24ad3f4452d2887223c137bd4d685084cad86536a32548a112",
-    "test_increment1.py": "6c10fb1ffc2720530ee650247305ed7b353b28908dcaeb95c081f084f3f41fc4"
+    "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+    "test_increment1.py": "66beacfb3b5d3ba8d2383314b38253762439f5fca18043993ef703d1cc892742"
   },
   "dependency_identity": {
     "numpy": "2.2.6",
@@ -354,6 +354,7 @@
   ],
   "governing_correction_identity": "33fbb78ce7679aaab2afc514cb0164f09e3331f87b8422b4827a0d2587c91b91",
   "governing_dispersion_resolution_identity": "7a601f5b7bc0bea5045755723d7f9b946b01f7eba0eee9191e0f2074b6fb5627",
+  "governing_dsr_resolution_identity": "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0",
   "governing_ledger_identity": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
   "governing_prereg_identity": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
   "hard_stop_evidence": null,
@@ -368,7 +369,7 @@
     }
   },
   "oos_data_read": false,
-  "output_hash": "599009ed3da90c40df85be6dc779bd36bc80dde0fca6dec00e89a267a4f368a1",
+  "output_hash": "a68ca21bbcfb16a8ee40c75ac72f05e8c35126d497b76ce2d12d478cc5e8ce95",
   "record_type": "MR002_ValOOS_Report",
   "research_gate_verdict": "PASS",
   "run_disposition": "PASS",

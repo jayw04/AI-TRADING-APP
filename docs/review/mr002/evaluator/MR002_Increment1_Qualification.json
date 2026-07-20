@@ -4,13 +4,13 @@
     "research_gate_verdict": "PASS",
     "run_disposition": "PASS"
   },
-  "canonical_report_output_hash": "599009ed3da90c40df85be6dc779bd36bc80dde0fca6dec00e89a267a4f368a1",
+  "canonical_report_output_hash": "a68ca21bbcfb16a8ee40c75ac72f05e8c35126d497b76ce2d12d478cc5e8ce95",
   "dependency_lock": "MR002_Increment1_Dependencies.json",
   "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
   "determinism_proof": {
     "byte_identical": true,
-    "run1_hash": "599009ed3da90c40df85be6dc779bd36bc80dde0fca6dec00e89a267a4f368a1",
-    "run2_hash": "599009ed3da90c40df85be6dc779bd36bc80dde0fca6dec00e89a267a4f368a1"
+    "run1_hash": "a68ca21bbcfb16a8ee40c75ac72f05e8c35126d497b76ce2d12d478cc5e8ce95",
+    "run2_hash": "a68ca21bbcfb16a8ee40c75ac72f05e8c35126d497b76ce2d12d478cc5e8ce95"
   },
   "development_free_assertions": {
     "development_performance_computed": false,
@@ -20,10 +20,6 @@
   },
   "dsr_N_source": "MR002_DSR_TrialLedger_v1.0.json (deda5cec...), N=5 \u2014 no code-constant fallback",
   "dsr_dispersion_provenance": "SYNTHETIC in fixtures; production path requires the countersigned MR002_DSR_TrialDispersion_Validation_v1.0.json (absent now -> REFUSED_CODE_OR_DATA_IDENTITY); estimator frozen by MR002_DSR_DispersionResolution_v1.0 (sigma_trials = stddev ddof=1 of A/B/C validation annualized Sharpes, /sqrt(252)); A/B/C Sharpes NOT computed now",
-  "governance_records": [
-    "MR002_ValidationOOS_CorrectionRecord_v1.0.4.json",
-    "MR002_DSR_DispersionResolution_v1.0.json"
-  ],
   "governing_identity": {
     "bootstrap": {
       "expected_L_primary": 5,
@@ -50,29 +46,37 @@
     ],
     "ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
     "prereg_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+    "resolution_sha256": "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0",
     "validation_authorization": false
   },
+  "governing_identity_chain": [
+    "MR002_ValidationOOS_Preregistration_v1.0.4.json",
+    "MR002_DSR_TrialLedger_v1.0.json",
+    "MR002_DSR_Resolution_v1.0.json",
+    "MR002_ValidationOOS_CorrectionRecord_v1.0.4.json",
+    "MR002_DSR_DispersionResolution_v1.0.json"
+  ],
   "governing_prereg": "MR002_ValidationOOS_Preregistration_v1.0.4 (bootstrap-corrected)",
   "increment": 1,
   "no_real_dataset_opened": true,
-  "owner_rulings_applied": "docs/review/comments.md 2026-07-20 (Ruling 1 bootstrap, Ruling 2 DSR dispersion, Ruling 3 increment v1.2)",
+  "owner_rulings_applied": "docs/review/comments.md 2026-07-20 (Ruling 1 bootstrap, Ruling 2 DSR dispersion, Ruling 3 increment v1.2) + adjudication closeout (re-add original DSR resolution to the mandatory chain; supersede legacy prototype)",
   "record_type": "MR002_Increment1_Qualification",
   "report_self_hash_verifies": true,
-  "scope": "identity loader (v1.0.4 chain) + metric primitives (stationary bootstrap) + gate engine + report kernel (dependency-lock embedded) + DSR dispersion validation + production DSR interface + synthetic fixtures",
+  "scope": "identity loader (5-artifact v1.0.4 chain) + metric primitives (stationary bootstrap) + gate engine + report kernel (dependency-lock embedded) + DSR dispersion validation + production DSR interface + synthetic fixtures",
   "signed_zero_preserved": true,
   "source_hashes": {
-    "_gen_evidence.py": "985856b2700edef8dca5cfff06e45783bf354e6b227009dae23ac9abd5156ade",
+    "_gen_evidence.py": "70079c7918bc2b8c350cb8a28e2bf2aebbd855a0dfc87b0c66c66beb29c71652",
     "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
-    "mr002_valoos_identity.py": "5fc7380e10a6b140f35541a2ff373b23910aa7d211b6139c82da486cd0972e9f",
+    "mr002_valoos_identity.py": "36eb44741c2bf5ede80688d6527a0d89fdfa5ac1f37b44fc61341ac3aab701b1",
     "mr002_valoos_metrics.py": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
     "mr002_valoos_registry.py": "8fc8c1af19ef03a21387f5680d4959a952dbc9d1c53a352560deba8d5697add7",
-    "mr002_valoos_report.py": "de6dd4745a1bbd24ad3f4452d2887223c137bd4d685084cad86536a32548a112",
-    "test_increment1.py": "6c10fb1ffc2720530ee650247305ed7b353b28908dcaeb95c081f084f3f41fc4"
+    "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+    "test_increment1.py": "66beacfb3b5d3ba8d2383314b38253762439f5fca18043993ef703d1cc892742"
   },
   "tests": {
-    "count": 53,
+    "count": 59,
     "log": "MR002_Increment1_TestLog.txt",
-    "result": "53 passed"
+    "result": "59 passed"
   },
   "version": "1.2"
 }

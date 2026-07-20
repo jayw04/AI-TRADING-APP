@@ -26,6 +26,7 @@ from mr002_valoos_identity import (
     DISPERSION_RESOLUTION,
     LEDGER,
     PREREG,
+    RESOLUTION,
     RefusedIdentity,
     _validate_semantics,
     load_governing_identity,
@@ -97,70 +98,107 @@ def test_01_load_returns_N5_from_ledger_no_constant():
 def _real_dicts():
     def rd(name):
         return copy.deepcopy(json.load(open(os.path.join(GOV_DIR, name), encoding="utf-8")))
-    return rd(PREREG), rd(LEDGER), rd(CORRECTION), rd(DISPERSION_RESOLUTION)
+    return rd(PREREG), rd(LEDGER), rd(RESOLUTION), rd(CORRECTION), rd(DISPERSION_RESOLUTION)
 
 
 def test_02_semantic_bool_where_int_rejected():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     ledger["trials_N"] = True                            # bool masquerading as int
     with pytest.raises(RefusedIdentity, match="NON_INT"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_03_semantic_correction_prereg_crossbinding():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     cor["prereg_update"]["to_sha256"] = "0" * 64
     with pytest.raises(RefusedIdentity, match="CORRECTION_TO_HASH_UNBOUND"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_04_semantic_dispersion_ledger_crossbinding():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     disp["countersigned_trial_ledger"]["sha256"] = "0" * 64
     with pytest.raises(RefusedIdentity, match="DISPERSION_LEDGER_HASH_UNBOUND"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_05_semantic_N_chain_inconsistent():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     prereg["dsr"]["trials_N"] = 4
     with pytest.raises(RefusedIdentity, match="N_CHAIN_INCONSISTENT"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_06_semantic_validation_auth_not_false():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     prereg["sequencing"]["validation_authorization"] = 0   # int, not False
     with pytest.raises(RefusedIdentity, match="VALIDATION_AUTH_NOT_FALSE"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_07_semantic_ledger_id_set():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     ledger["included_trials_ids"][4] = "RNG-WRONG"
     with pytest.raises(RefusedIdentity, match="LEDGER_ID_SET"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_07b_semantic_bootstrap_spec_bound():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     prereg["bootstrap"]["seed"] = 42                     # the rejected moving-block seed
     with pytest.raises(RefusedIdentity, match="BOOTSTRAP_SEED:42"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_07c_semantic_correction_affirmation_flip():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     cor["affirmations"]["economic_rule_changed"] = True
     with pytest.raises(RefusedIdentity, match="CORRECTION_AFFIRMATION:economic_rule_changed"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_07d_semantic_dispersion_source_trials_bound():
-    prereg, ledger, cor, disp = _real_dicts()
+    prereg, ledger, res, cor, disp = _real_dicts()
     disp["dispersion"]["source_trials"] = ["MR002-A", "MR002-B", "RNG-001"]
     with pytest.raises(RefusedIdentity, match="DISPERSION_SOURCE_TRIALS"):
-        _validate_semantics(prereg, ledger, cor, disp)
+        _validate_semantics(prereg, ledger, res, cor, disp)
+
+
+# ── original DSR-status resolution in the mandatory chain (adjudication closeout 2026-07-20) ────────
+def test_07e_missing_original_dsr_resolution_refused():
+    with tempfile.TemporaryDirectory() as tmp:
+        for f in (PREREG, LEDGER, CORRECTION, DISPERSION_RESOLUTION):   # resolution omitted
+            shutil.copyfile(os.path.join(GOV_DIR, f), os.path.join(tmp, f))
+        with pytest.raises(RefusedIdentity, match="MISSING:MR002_DSR_Resolution_v1.0.json"):
+            load_governing_identity(tmp)
+
+
+def test_07f_original_resolution_ledger_hash_mismatch():
+    prereg, ledger, res, cor, disp = _real_dicts()
+    res["countersigned_trial_ledger"]["sha256"] = "0" * 64
+    with pytest.raises(RefusedIdentity, match="RESOLUTION_LEDGER_HASH_UNBOUND"):
+        _validate_semantics(prereg, ledger, res, cor, disp)
+
+
+def test_07g_original_resolution_N_mismatch():
+    prereg, ledger, res, cor, disp = _real_dicts()
+    res["countersigned_trial_ledger"]["trials_N"] = 4
+    with pytest.raises(RefusedIdentity, match="N_CHAIN_INCONSISTENT"):
+        _validate_semantics(prereg, ledger, res, cor, disp)
+
+
+def test_07h_original_resolution_prereg_hash_mismatch():
+    prereg, ledger, res, cor, disp = _real_dicts()
+    res["prereg_update"]["to_sha256"] = "0" * 64
+    with pytest.raises(RefusedIdentity, match="RESOLUTION_PREREG_HASH_UNBOUND"):
+        _validate_semantics(prereg, ledger, res, cor, disp)
+
+
+def test_07i_original_resolution_disagrees_with_v104_dsr_state():
+    prereg, ledger, res, cor, disp = _real_dicts()
+    prereg["dsr"]["status"] = "BLOCKED"      # v1.0.4 DSR state contradicts the READY resolution
+    with pytest.raises(RefusedIdentity, match="DSR_NOT_READY|RESOLUTION_V104_DSR_STATE_DISAGREE"):
+        _validate_semantics(prereg, ledger, res, cor, disp)
 
 
 def test_08_duplicate_json_key_rejected():
@@ -173,7 +211,7 @@ def test_09_symlink_and_missing_refused():
     with tempfile.TemporaryDirectory() as tmp:
         for f in (PREREG, CORRECTION):
             shutil.copyfile(os.path.join(GOV_DIR, f), os.path.join(tmp, f))
-        with pytest.raises(RefusedIdentity, match="MISSING"):   # ledger + dispersion absent
+        with pytest.raises(RefusedIdentity, match="MISSING"):   # ledger + resolution + dispersion absent
             load_governing_identity(tmp)
 
 
@@ -554,14 +592,34 @@ def test_42_report_determinism_and_self_hash():
     assert R.report_hash(r1) == r1["output_hash"]
     assert r1["research_gate_verdict"] == "PASS" and r1["run_disposition"] == "PASS"
     assert r1["validation_data_read"] is False and r1["synthetic_fixture_only"] is True
-    # the dependency-lock sha and the v1.0.4 correction/dispersion identities are embedded
+    # the dependency-lock sha and the full v1.0.4 governing identity chain are embedded
     assert r1["dependency_lock_sha256"] == DEP_LOCK_SHA
-    assert r1["governing_correction_identity"] and r1["governing_dispersion_resolution_identity"]
+    assert (r1["governing_dsr_resolution_identity"] and r1["governing_correction_identity"]
+            and r1["governing_dispersion_resolution_identity"])
     # the -0.0 probe survives canonicalization as an exact hex, not a normalized 0.0
     assert r1["metric_values"]["neg_zero_probe"]["exact_hex"] == "-0x0.0p+0"
 
 
 # ── supporting metric closed-form ─────────────────────────────────────────────────────────────────
+def test_44_active_evaluator_does_not_reference_prototype():
+    # the rejected moving-block lives only in the superseded evaluator_prototype/; the active
+    # qualified evaluator must not import, reference, or reach into that directory.
+    active = ["mr002_valoos_identity.py", "mr002_valoos_registry.py", "mr002_valoos_metrics.py",
+              "mr002_valoos_gates.py", "mr002_valoos_report.py", "_gen_evidence.py"]
+    here = os.path.dirname(__file__)
+    for name in active:
+        src = open(os.path.join(here, name), encoding="utf-8").read()
+        assert "evaluator_prototype" not in src, name          # no reference to the prototype dir
+        assert "_prototype" not in src, name                   # no import of any *_prototype module
+        for line in src.splitlines():                          # no import line reaching the prototype
+            if line.lstrip().startswith(("import ", "from ")):
+                assert "prototype" not in line.lower(), (name, line)
+    # the superseded marker exists next to the historical prototype
+    marker = os.path.join(here, "..", "evaluator_prototype", "SUPERSEDED.md")
+    assert os.path.isfile(marker)
+    assert "NON-GOVERNING HISTORICAL PROTOTYPE" in open(marker, encoding="utf-8").read()
+
+
 def test_43_supporting_metric_gates():
     trades = ([{"entry_date": f"d{i % 120}", "side": "long"} for i in range(300)]
               + [{"entry_date": f"d{i % 120}", "side": "short"} for i in range(300)])

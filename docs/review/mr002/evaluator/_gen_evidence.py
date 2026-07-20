@@ -71,20 +71,23 @@ open("MR002_Increment1_CanonicalReport.json", "w", encoding="utf-8").write(
 qual = {
     "record_type": "MR002_Increment1_Qualification",
     "increment": 1, "version": "1.2",
-    "scope": "identity loader (v1.0.4 chain) + metric primitives (stationary bootstrap) + gate engine "
-             "+ report kernel (dependency-lock embedded) + DSR dispersion validation + production DSR "
-             "interface + synthetic fixtures",
-    "owner_rulings_applied": "docs/review/comments.md 2026-07-20 (Ruling 1 bootstrap, Ruling 2 DSR dispersion, Ruling 3 increment v1.2)",
+    "scope": "identity loader (5-artifact v1.0.4 chain) + metric primitives (stationary bootstrap) + "
+             "gate engine + report kernel (dependency-lock embedded) + DSR dispersion validation + "
+             "production DSR interface + synthetic fixtures",
+    "owner_rulings_applied": "docs/review/comments.md 2026-07-20 (Ruling 1 bootstrap, Ruling 2 DSR dispersion, Ruling 3 increment v1.2) + adjudication closeout (re-add original DSR resolution to the mandatory chain; supersede legacy prototype)",
     "governing_prereg": "MR002_ValidationOOS_Preregistration_v1.0.4 (bootstrap-corrected)",
-    "governance_records": ["MR002_ValidationOOS_CorrectionRecord_v1.0.4.json",
-                           "MR002_DSR_DispersionResolution_v1.0.json"],
+    "governing_identity_chain": ["MR002_ValidationOOS_Preregistration_v1.0.4.json",
+                                 "MR002_DSR_TrialLedger_v1.0.json",
+                                 "MR002_DSR_Resolution_v1.0.json",
+                                 "MR002_ValidationOOS_CorrectionRecord_v1.0.4.json",
+                                 "MR002_DSR_DispersionResolution_v1.0.json"],
     "governing_identity": loaded if "gates_frozen" not in loaded else {k: v for k, v in loaded.items() if k != "gates_frozen"},
     "source_hashes": {s: sha(s) for s in SRC},
     "dependency_lock": DEP_LOCK,
     "dependency_lock_sha256": sha(DEP_LOCK),
     "bootstrap": "frozen v0.3 stationary (Politis-Romano, circular); expected L 5 (confirmatory) + 10 "
                  "(robustness); 10000 replications; seed 20260711; moving-block REJECTED and removed",
-    "tests": {"count": 53, "result": "53 passed", "log": "MR002_Increment1_TestLog.txt"},
+    "tests": {"count": 59, "result": "59 passed", "log": "MR002_Increment1_TestLog.txt"},
     "canonical_report_output_hash": report["output_hash"],
     "canonical_report_dispositions": {"research_gate_verdict": report["research_gate_verdict"],
                                       "run_disposition": report["run_disposition"]},

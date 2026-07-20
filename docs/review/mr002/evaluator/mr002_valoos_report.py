@@ -88,6 +88,7 @@ def build_report(*, window: str, verdict: dict, governing_identity: dict, code_i
         "stop_code": verdict.get("stop_code"),
         "governing_prereg_identity": governing_identity.get("prereg_sha256"),
         "governing_ledger_identity": governing_identity.get("ledger_sha256"),
+        "governing_dsr_resolution_identity": governing_identity.get("resolution_sha256"),
         "governing_correction_identity": governing_identity.get("correction_sha256"),
         "governing_dispersion_resolution_identity": governing_identity.get("dispersion_resolution_sha256"),
         "dsr_trials_N": governing_identity.get("dsr_trials_N"),
