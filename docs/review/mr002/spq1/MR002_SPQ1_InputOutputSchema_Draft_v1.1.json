@@ -1,0 +1,49 @@
+{
+ "execution_enriched_record": {
+  "adds": [
+   "official_next_open_price (t+1 official open, split-only)",
+   "scheduled_execution_session (=t+1)",
+   "execution_admissibility_status (ADMISSIBLE|CANCELLED_GAP|CANCELLED_MISSING_OPEN|other governed execution result)",
+   "gap_filter_result (|AdjOpen_t+1/AdjClose_t-1| >= 6% -> CANCELLED_GAP)",
+   "missing_open_disposition (cancel entry / defer exit)"
+  ],
+  "carries_unchanged": "the full SignalDecisionRecord (byte-preserved; enrichment cannot mutate decision facts)",
+  "record_type": "MR002_SPQ1_ExecutionEnrichedCandidateRecord (draft v1.1)",
+  "seam": "adapter into the CLOSED Increment-3 accepted replay candidate contract (edb7ff22); Increment 3 is NOT reopened.",
+  "timing": "session t+1 (execution) \u2014 appends execution facts WITHOUT recomputing decision facts"
+ },
+ "record_type": "MR002_SPQ1_InputOutputSchema_Draft",
+ "seam_principle": "decision facts (close-t) byte-preserved; execution facts appended at t+1; Increment-3 replay contract CLOSED and unchanged.",
+ "signal_decision_record": {
+  "cutoff": "close of session t (all fields use information through close-t only)",
+  "forbidden_field_disposition": "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED",
+  "record_type": "MR002_SPQ1_SignalDecisionRecord (draft v1.1)",
+  "required_fields": [
+   "candidate_id (= program_id | configuration_id | decision_session | permanent_security_id | side | signal_record_identity)",
+   "permanent_security_id (frozen PIT identity registry)",
+   "symbol (time-varying)",
+   "decision_session (=t)",
+   "signal_origin_session",
+   "side",
+   "registered_signal_value (=z_i,t)",
+   "registered_sigma_resid (=sigma_i,t-1)",
+   "sector_id (PIT, availability<=close t)",
+   "beta (=beta_m,i)",
+   "decision_eligibility_status (ELIGIBLE|INELIGIBLE at close t; no z-threshold/percentile/gap filter)",
+   "eligibility_evidence_identity",
+   "eligibility_precedence_rank (1..6, Ruling 9)",
+   "configuration_id (A|B|C, Z_entry downstream)",
+   "trailing_adv_dollars (20-session MEDIAN of raw close x raw volume, ending t-1)",
+   "normalization_window_identity",
+   "computation_record_identity",
+   "warmup_return_sessions (=125)",
+   "warmup_price_observations (=126)"
+  ],
+  "structurally_forbidden_fields": [
+   "official_next_open_price",
+   "actual_execution_session",
+   "any post-close-t observation"
+  ]
+ },
+ "version": "1.1"
+}

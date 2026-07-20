@@ -1,0 +1,230 @@
+{
+ "cases": [
+  {
+   "case_id": "SPQM-01",
+   "expected_disposition": "PASS",
+   "rule": "SIG-04",
+   "scenario": "60 registered sessions with no compression"
+  },
+  {
+   "case_id": "SPQM-29",
+   "expected_disposition": "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE",
+   "rule": "SIG-04/06",
+   "scenario": "interior missing OLS session (no bridge)"
+  },
+  {
+   "case_id": "SPQM-02",
+   "expected_disposition": "INELIGIBLE:OLS_WINDOW_INSUFFICIENT",
+   "rule": "SIG-04",
+   "scenario": "59-session window refuses (insufficient history)"
+  },
+  {
+   "case_id": "SPQM-03",
+   "expected_disposition": "PASS",
+   "rule": "SIG-08",
+   "scenario": "coefficients end at t-1"
+  },
+  {
+   "case_id": "SPQM-30",
+   "expected_disposition": "PASS",
+   "rule": "SIG-08",
+   "scenario": "day-t residual uses t-1 coefficients"
+  },
+  {
+   "case_id": "SPQM-04",
+   "expected_disposition": "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED",
+   "rule": "SIG-27",
+   "scenario": "decision record rejects next-open price structurally"
+  },
+  {
+   "case_id": "SPQM-39",
+   "expected_disposition": "PASS (byte-preserved)",
+   "rule": "SIG-27",
+   "scenario": "execution enrichment cannot mutate decision facts"
+  },
+  {
+   "case_id": "SPQM-05",
+   "expected_disposition": "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+   "rule": "SIG-10",
+   "scenario": "singular OLS design refuses"
+  },
+  {
+   "case_id": "SPQM-06",
+   "expected_disposition": "REFUSED_CODE_OR_DATA_IDENTITY",
+   "rule": "SIG-05/07",
+   "scenario": "missing factor (SPY/sector) return refuses"
+  },
+  {
+   "case_id": "SPQM-07",
+   "expected_disposition": "PASS",
+   "rule": "SIG-12",
+   "scenario": "R5 uses five consecutive registered sessions"
+  },
+  {
+   "case_id": "SPQM-31",
+   "expected_disposition": "INELIGIBLE:R5_WINDOW_INSUFFICIENT",
+   "rule": "SIG-13",
+   "scenario": "missing middle residual does not bridge"
+  },
+  {
+   "case_id": "SPQM-13",
+   "expected_disposition": "PASS",
+   "rule": "SIG-17",
+   "scenario": "same-pass z/sigma identity"
+  },
+  {
+   "case_id": "SPQM-10",
+   "expected_disposition": "INELIGIBLE:ZSCORE_VARIANCE_INVALID",
+   "rule": "SIG-14",
+   "scenario": "zero z-score variance"
+  },
+  {
+   "case_id": "SPQM-32",
+   "expected_disposition": "PASS",
+   "rule": "SIG-32",
+   "scenario": "exact first scoreable-session boundary (125 return / 126 price)"
+  },
+  {
+   "case_id": "SPQM-33",
+   "expected_disposition": "INELIGIBLE",
+   "rule": "SIG-32",
+   "scenario": "one-session-too-early refusal"
+  },
+  {
+   "case_id": "SPQM-14",
+   "expected_disposition": "PASS",
+   "rule": "SIG-19",
+   "scenario": "PIT sector effective-date change respected"
+  },
+  {
+   "case_id": "SPQM-34",
+   "expected_disposition": "PASS (excluded)",
+   "rule": "SIG-19",
+   "scenario": "PIT sector record published after cutoff excluded"
+  },
+  {
+   "case_id": "SPQM-15",
+   "expected_disposition": "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT",
+   "rule": "SIG-19",
+   "scenario": "same-timestamp sector conflict refuses"
+  },
+  {
+   "case_id": "SPQM-16",
+   "expected_disposition": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING",
+   "rule": "SIG-11",
+   "scenario": "missing PIT sector -> INELIGIBLE"
+  },
+  {
+   "case_id": "SPQM-17",
+   "expected_disposition": "PASS (history continues)",
+   "rule": "SIG-28",
+   "scenario": "ticker change with identity continuity"
+  },
+  {
+   "case_id": "SPQM-35",
+   "expected_disposition": "history does NOT continue",
+   "rule": "SIG-28",
+   "scenario": "merger successor without continuity"
+  },
+  {
+   "case_id": "SPQM-19",
+   "expected_disposition": "PASS",
+   "rule": "SIG-09",
+   "scenario": "beta first eligible session (= residual regression)"
+  },
+  {
+   "case_id": "SPQM-20",
+   "expected_disposition": "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+   "rule": "SIG-09/10",
+   "scenario": "beta singular/constant benchmark refuses"
+  },
+  {
+   "case_id": "SPQM-21",
+   "expected_disposition": "INELIGIBLE",
+   "rule": "SIG-21",
+   "scenario": "earnings-window boundary -> INELIGIBLE"
+  },
+  {
+   "case_id": "SPQM-22",
+   "expected_disposition": "INELIGIBLE",
+   "rule": "SIG-20",
+   "scenario": "corporate-action exclusion"
+  },
+  {
+   "case_id": "SPQM-23",
+   "expected_disposition": "INELIGIBLE:ADV_WINDOW_INSUFFICIENT",
+   "rule": "SIG-25",
+   "scenario": "liquidity/ADV boundary"
+  },
+  {
+   "case_id": "SPQM-37",
+   "expected_disposition": "PASS",
+   "rule": "SIG-25",
+   "scenario": "ADV current-session exclusion (window ends t-1)"
+  },
+  {
+   "case_id": "SPQM-38",
+   "expected_disposition": "PASS",
+   "rule": "SIG-25",
+   "scenario": "ADV exactly-20-session boundary (median, raw x raw)"
+  },
+  {
+   "case_id": "SPQM-36",
+   "expected_disposition": "INELIGIBLE:KNOWN_MARKET_ABSENCE",
+   "rule": "SIG-24",
+   "scenario": "halt / no-close eligibility (with governed evidence)"
+  },
+  {
+   "case_id": "SPQM-40",
+   "expected_disposition": "INELIGIBLE:KNOWN_MARKET_ABSENCE",
+   "rule": "SIG-04/24",
+   "scenario": "missing close WITH governed halt/absence evidence"
+  },
+  {
+   "case_id": "SPQM-41",
+   "expected_disposition": "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE",
+   "rule": "SIG-04/06",
+   "scenario": "SAME missing close WITHOUT governed evidence (unexplained hole)"
+  },
+  {
+   "case_id": "SPQM-42",
+   "expected_disposition": "gap outcome only in execution_admissibility_status",
+   "rule": "SIG-20/22",
+   "scenario": "close-t eligibility excludes the t+1 gap filter (two-stage)"
+  },
+  {
+   "case_id": "SPQM-24",
+   "expected_disposition": "cancel/defer at t+1",
+   "rule": "SIG-26",
+   "scenario": "missing official open (execution step only)"
+  },
+  {
+   "case_id": "SPQM-25",
+   "expected_disposition": "PASS",
+   "rule": "SignalDecisionRecord",
+   "scenario": "candidate provenance completeness"
+  },
+  {
+   "case_id": "SPQM-26",
+   "expected_disposition": "PASS",
+   "rule": "SIG-15",
+   "scenario": "A/B/C differ only by Z_entry downstream"
+  },
+  {
+   "case_id": "SPQM-27",
+   "expected_disposition": "PASS",
+   "rule": "all",
+   "scenario": "deterministic synthetic output (byte-identical)"
+  },
+  {
+   "case_id": "SPQM-28",
+   "expected_disposition": "PASS",
+   "rule": "all",
+   "scenario": "no real-data import or file access (synthetic-only)"
+  }
+ ],
+ "count": 37,
+ "note": "Synthetic-only matrix; all owner-required tests (comments.md lines 408-424) included; no OPEN-RULING remains.",
+ "record_type": "MR002_SPQ1_QualificationMatrix_Draft",
+ "version": "1.1"
+}

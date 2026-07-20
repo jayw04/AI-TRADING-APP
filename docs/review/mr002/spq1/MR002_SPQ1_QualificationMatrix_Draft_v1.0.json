@@ -1,0 +1,176 @@
+{
+ "cases": [
+  {
+   "case_id": "SPQM-01",
+   "expected_disposition": "PASS",
+   "rule": "SIG-08",
+   "scenario": "exact 60-session OLS boundary passes"
+  },
+  {
+   "case_id": "SPQM-02",
+   "expected_disposition": "INTEGRITY_STOP",
+   "rule": "SIG-08",
+   "scenario": "59-session window refuses (OLS_WINDOW_INSUFFICIENT)"
+  },
+  {
+   "case_id": "SPQM-03",
+   "expected_disposition": "PASS",
+   "rule": "SIG-08",
+   "scenario": "decision-session lagging: coefficients from t-60..t-1, residual at t"
+  },
+  {
+   "case_id": "SPQM-04",
+   "expected_disposition": "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED",
+   "rule": "SIG-27",
+   "scenario": "future-price leakage rejected (next-open in decision record)"
+  },
+  {
+   "case_id": "SPQM-05",
+   "expected_disposition": "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+   "rule": "SIG-10",
+   "scenario": "singular OLS design refuses"
+  },
+  {
+   "case_id": "SPQM-06",
+   "expected_disposition": "INELIGIBLE:RETURN_INPUT_MISSING",
+   "rule": "SIG-05/07",
+   "scenario": "missing factor (SPY/sector) return refuses"
+  },
+  {
+   "case_id": "SPQM-07",
+   "expected_disposition": "PASS",
+   "rule": "SIG-12",
+   "scenario": "five-session R5 endpoints (t..t-4)"
+  },
+  {
+   "case_id": "SPQM-08",
+   "expected_disposition": "OPEN-RULING",
+   "rule": "SIG-13",
+   "scenario": "R5 across calendar gaps (registered consecutive)"
+  },
+  {
+   "case_id": "SPQM-09",
+   "expected_disposition": "OPEN-RULING",
+   "rule": "SIG-14",
+   "scenario": "z-score first eligible session"
+  },
+  {
+   "case_id": "SPQM-10",
+   "expected_disposition": "INTEGRITY_STOP:ZSCORE_VARIANCE_INVALID",
+   "rule": "SIG-14",
+   "scenario": "zero z-score variance refuses"
+  },
+  {
+   "case_id": "SPQM-11",
+   "expected_disposition": "OPEN-RULING",
+   "rule": "SIG-16",
+   "scenario": "sigma_resid first eligible session"
+  },
+  {
+   "case_id": "SPQM-12",
+   "expected_disposition": "INTEGRITY_STOP:SIGMA_RESID_INVALID",
+   "rule": "SIG-16",
+   "scenario": "zero/non-finite sigma refuses"
+  },
+  {
+   "case_id": "SPQM-13",
+   "expected_disposition": "PASS",
+   "rule": "SIG-17",
+   "scenario": "z and sigma_resid share one normalization-window identity"
+  },
+  {
+   "case_id": "SPQM-14",
+   "expected_disposition": "OPEN-RULING",
+   "rule": "SIG-19",
+   "scenario": "PIT sector effective-date change respected"
+  },
+  {
+   "case_id": "SPQM-15",
+   "expected_disposition": "REFUSED:SECTOR_EFFECTIVE_DATE_CONFLICT",
+   "rule": "SIG-19",
+   "scenario": "same-day sector conflict refuses"
+  },
+  {
+   "case_id": "SPQM-16",
+   "expected_disposition": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING",
+   "rule": "SIG-11",
+   "scenario": "missing PIT sector -> INELIGIBLE"
+  },
+  {
+   "case_id": "SPQM-17",
+   "expected_disposition": "OPEN-RULING",
+   "rule": "SIG-28",
+   "scenario": "security-symbol change handled by permanent id"
+  },
+  {
+   "case_id": "SPQM-18",
+   "expected_disposition": "OPEN-RULING",
+   "rule": "SIG-28",
+   "scenario": "permanent-id continuity across lineage"
+  },
+  {
+   "case_id": "SPQM-19",
+   "expected_disposition": "PASS",
+   "rule": "SIG-09",
+   "scenario": "beta first eligible session (= residual regression)"
+  },
+  {
+   "case_id": "SPQM-20",
+   "expected_disposition": "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+   "rule": "SIG-09/10",
+   "scenario": "beta singular/constant benchmark refuses"
+  },
+  {
+   "case_id": "SPQM-21",
+   "expected_disposition": "INELIGIBLE",
+   "rule": "SIG-21",
+   "scenario": "earnings-window boundary -> INELIGIBLE"
+  },
+  {
+   "case_id": "SPQM-22",
+   "expected_disposition": "INELIGIBLE",
+   "rule": "SIG-20",
+   "scenario": "corporate-action exclusion"
+  },
+  {
+   "case_id": "SPQM-23",
+   "expected_disposition": "OPEN-RULING",
+   "rule": "SIG-25",
+   "scenario": "liquidity/ADV boundary"
+  },
+  {
+   "case_id": "SPQM-24",
+   "expected_disposition": "cancel/defer at t+1",
+   "rule": "SIG-26",
+   "scenario": "missing official open (execution step only)"
+  },
+  {
+   "case_id": "SPQM-25",
+   "expected_disposition": "PASS",
+   "rule": "SignalDecisionRecord",
+   "scenario": "candidate provenance completeness (all decision fields present)"
+  },
+  {
+   "case_id": "SPQM-26",
+   "expected_disposition": "PASS",
+   "rule": "SIG-15",
+   "scenario": "A/B/C differ only by Z_entry downstream (no signal-side change)"
+  },
+  {
+   "case_id": "SPQM-27",
+   "expected_disposition": "PASS",
+   "rule": "all",
+   "scenario": "deterministic synthetic output (byte-identical)"
+  },
+  {
+   "case_id": "SPQM-28",
+   "expected_disposition": "PASS",
+   "rule": "all",
+   "scenario": "no real-data import or file access (synthetic-only)"
+  }
+ ],
+ "count": 28,
+ "note": "Draft synthetic-only matrix; OPEN-RULING cases await owner rulings on the linked open questions.",
+ "record_type": "MR002_SPQ1_QualificationMatrix_Draft",
+ "version": "1.0"
+}

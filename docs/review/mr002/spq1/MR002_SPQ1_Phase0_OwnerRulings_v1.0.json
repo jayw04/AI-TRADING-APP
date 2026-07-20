@@ -1,0 +1,291 @@
+{
+ "count": 12,
+ "date": "2026-07-20",
+ "note": "Twelve owner rulings resolving the SPQ-1 Phase-0 open questions; OWNER-A (warm-up 125/126), OWNER-B (ADV V3 median raw x raw), and OWNER-C (halt-vs-hole) all RATIFIED 2026-07-20.",
+ "owner": "Jay Wang",
+ "ratifications": {
+  "OWNER-A": "RATIFIED",
+  "OWNER-B": "RATIFIED",
+  "OWNER-C": "RATIFIED",
+  "detail": {
+   "OWNER-A": "SIG-32 (R6): first scoreable boundary = 125 registered return sessions (earliest return index t-124) and 126 registered price observations.",
+   "OWNER-B": "SIG-25 (R11): ADV = MEDIAN of raw close x raw volume over two windows (60-session selection, 20-session cap = trailing_adv_dollars) \u2014 frozen V3 controls.",
+   "OWNER-C": "SIG-04 (R1): missing close WITH governed halt/absence evidence -> INELIGIBLE:KNOWN_MARKET_ABSENCE; unexplained hole -> INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE."
+  },
+  "ratification_date": "2026-07-20"
+ },
+ "record_type": "MR002_SPQ1_Phase0_OwnerRulings",
+ "rulings": [
+  {
+   "affected_rule_ids": [
+    "SIG-04",
+    "SIG-06"
+   ],
+   "date": "2026-07-20",
+   "decision": "60 VALID registered sessions t-60..t-1; no interior observation skipped/compressed/forward-filled/replaced; never build 'last 60 available' across gaps.",
+   "owner": "Jay Wang",
+   "rationale": "Interior gaps silently bridged would leak or distort the residual window.",
+   "required_refusal_or_ineligibility_code": [
+    "INELIGIBLE:OLS_WINDOW_INSUFFICIENT (IPO/young)",
+    "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE (interior hole, no evidence)",
+    "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH (missing SPY/sector)",
+    "INELIGIBLE:KNOWN_MARKET_ABSENCE (governed halt/no-close)"
+   ],
+   "required_tests": [
+    "SPQM-01 60 no compression",
+    "SPQM-29 interior missing OLS session",
+    "SPQM-40 halt-with-evidence vs SPQM-41 hole-without-evidence"
+   ],
+   "ruling_id": "R1",
+   "source_documents": [
+    "v0.3 \u00a72/\u00a74"
+   ],
+   "title": "OLS observation counting and missing sessions"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-10"
+   ],
+   "date": "2026-07-20",
+   "decision": "One deterministic float64 least-squares with intercept; no regularization/ridge/pseudodata/factor-dropping/alternate-model; preregister solver identity + fixed rank tolerance (mechanics constant, not result-selected).",
+   "owner": "Jay Wang",
+   "rationale": "Solver ambiguity or a fallback path could change residuals; a singular design must fail closed.",
+   "required_refusal_or_ineligibility_code": [
+    "INTEGRITY_STOP:OLS_DESIGN_SINGULAR"
+   ],
+   "required_tests": [
+    "SPQM-05 singular OLS design",
+    "SPQM-20 constant benchmark"
+   ],
+   "ruling_id": "R2",
+   "source_documents": [
+    "v0.3 \u00a73"
+   ],
+   "title": "OLS solver and singular handling"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-08"
+   ],
+   "date": "2026-07-20",
+   "decision": "eps_i,t = r_i,t - alpha_hat_t-1 - beta_m_hat_t-1 r_SPY,t - beta_s_hat_t-1 u_sector,t; coefficients end t-1; day-t returns available at close t; no refit including session t.",
+   "owner": "Jay Wang",
+   "rationale": "The single authorized way session-t information enters the decision without look-ahead.",
+   "required_refusal_or_ineligibility_code": [],
+   "required_tests": [
+    "SPQM-03 coefficients end t-1",
+    "SPQM-30 day-t residual uses t-1 coefficients"
+   ],
+   "ruling_id": "R3",
+   "source_documents": [
+    "v0.3 \u00a73 Step 2"
+   ],
+   "title": "Day-t residual production"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-12",
+    "SIG-13"
+   ],
+   "date": "2026-07-20",
+   "decision": "R5 = eps_t-4..eps_t (5 consecutive registered sessions); missing residual in the five -> INELIGIBLE; do not bridge; registered sessions, not calendar days.",
+   "owner": "Jay Wang",
+   "rationale": "Bridging a gap would sum non-adjacent residuals and corrupt the signal.",
+   "required_refusal_or_ineligibility_code": [
+    "INELIGIBLE:R5_WINDOW_INSUFFICIENT"
+   ],
+   "required_tests": [
+    "SPQM-07 R5 endpoints",
+    "SPQM-31 missing middle residual no bridge"
+   ],
+   "ruling_id": "R4",
+   "source_documents": [
+    "v0.3 \u00a73 Step 3"
+   ],
+   "title": "R5 definition and missing residuals"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-14",
+    "SIG-16",
+    "SIG-17"
+   ],
+   "date": "2026-07-20",
+   "decision": "mu,sigma over R5_t-60..R5_t-1 (60 values); one pass; current R5_t excluded; sigma finite & >0; zero sigma -> INELIGIBLE (registered reason); non-finite intermediate -> INTEGRITY_STOP; no floor/clip.",
+   "owner": "Jay Wang",
+   "rationale": "z and sigma_resid must share one window identity; the weighting sigma is z's own denominator.",
+   "required_refusal_or_ineligibility_code": [
+    "INELIGIBLE (zero sigma, registered reason)",
+    "INTEGRITY_STOP (non-finite intermediate)"
+   ],
+   "required_tests": [
+    "SPQM-10 zero z-variance",
+    "SPQM-13 same-pass z/sigma identity"
+   ],
+   "ruling_id": "R5",
+   "source_documents": [
+    "v0.3 \u00a73 Step 3"
+   ],
+   "title": "Z-score and sigma window"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-32",
+    "SIG-24"
+   ],
+   "date": "2026-07-20",
+   "decision": "Derive mechanically from the nested windows; distinguish return-history vs price-history; include an independently worked boundary example; no vague 'approximately 124'.",
+   "owner": "Jay Wang",
+   "rationale": "Min-history is pinned to the exact derived warm-up; an off-by-one is a leakage/eligibility boundary error.",
+   "required_refusal_or_ineligibility_code": [
+    "INELIGIBLE (one session too early)"
+   ],
+   "required_tests": [
+    "SPQM-32 exact first-scoreable boundary",
+    "SPQM-33 one-session-too-early refusal"
+   ],
+   "ruling_id": "R6",
+   "source_documents": [
+    "v0.3 \u00a73 (nested windows)"
+   ],
+   "title": "First scoreable session and warm-up"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-19"
+   ],
+   "date": "2026-07-20",
+   "decision": "effective classification at t = latest accepted PIT record with availability timestamp <= close t; filing date alone insufficient if a later acceptance/publication timestamp exists; same-timestamp -> source supersession ordering, else deterministic later-accepted-filing; ambiguous -> conflict stop; never current classification.",
+   "owner": "Jay Wang",
+   "rationale": "A future-published sector reclassification must not leak into a past decision.",
+   "required_refusal_or_ineligibility_code": [
+    "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT"
+   ],
+   "required_tests": [
+    "SPQM-14 PIT effective-date change",
+    "SPQM-34 sector published after cutoff excluded",
+    "SPQM-15 same-timestamp conflict"
+   ],
+   "ruling_id": "R7",
+   "source_documents": [
+    "v0.3 \u00a72 V2"
+   ],
+   "title": "PIT-sector effective date"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-19",
+    "SIG-28"
+   ],
+   "date": "2026-07-20",
+   "decision": "Successor does not auto-inherit predecessor sector/history; governed lineage record required; ticker change same security -> continues; new permanent security -> not continued unless authorized; sector looked up for the active permanent security at cutoff.",
+   "owner": "Jay Wang",
+   "rationale": "Automatic inheritance across a corporate action fabricates history and leaks survivorship.",
+   "required_refusal_or_ineligibility_code": [
+    "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS"
+   ],
+   "required_tests": [
+    "SPQM-17 ticker change continuity",
+    "SPQM-35 merger successor without continuity"
+   ],
+   "ruling_id": "R8",
+   "source_documents": [
+    "v0.3 \u00a72"
+   ],
+   "title": "Security succession and PIT-sector continuity"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-20",
+    "SIG-21",
+    "SIG-23"
+   ],
+   "date": "2026-07-20",
+   "decision": "Source data available by close t; precedence integrity>missing-input>security/universe>event-blackout>liquidity/price>signal-threshold; each outcome carries rule ID/observed value/threshold/source identity/availability timestamp/decision cutoff; no post-close-t fact affects the session-t record; below-threshold is not a failure.",
+   "owner": "Jay Wang",
+   "rationale": "A fixed precedence + evidence binding makes every exclusion auditable and PIT-safe.",
+   "required_refusal_or_ineligibility_code": [
+    "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING",
+    "INTEGRITY_STOP (integrity/identity)"
+   ],
+   "required_tests": [
+    "SPQM-21 earnings boundary",
+    "SPQM-22 corporate-action exclusion"
+   ],
+   "ruling_id": "R9",
+   "source_documents": [
+    "v0.3 \u00a74"
+   ],
+   "title": "Eligibility evidence timing and precedence"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-24",
+    "SIG-26"
+   ],
+   "date": "2026-07-20",
+   "decision": "Min history = exact derived warm-up (no fallback); eligible = US-listed operating-company common equity + governed share classes; exclude ETF/ETN/CEF/preferred/rights/warrants/units/SPAC-units/OTC/foreign-ordinary/duplicate; exchange from frozen PIT universe; halt or no close-t -> INELIGIBLE; missing t+1 open -> Increment-2/3 execution layer; never invent a next-open.",
+   "owner": "Jay Wang",
+   "rationale": "Type/exchange/halt eligibility must be PIT and fail-closed; SPQ-1 does not fabricate execution prices.",
+   "required_refusal_or_ineligibility_code": [
+    "INELIGIBLE:KNOWN_MARKET_ABSENCE (governed halt/no-close)",
+    "INELIGIBLE:OLS_WINDOW_INSUFFICIENT (insufficient history)",
+    "execution-layer CANCELLED_MISSING_OPEN (Increment 2/3)"
+   ],
+   "required_tests": [
+    "SPQM-36 halt/no-close eligibility",
+    "SPQM-40/41 halt-evidence distinction",
+    "SPQM-24 missing official open"
+   ],
+   "ruling_id": "R10",
+   "source_documents": [
+    "v0.3 \u00a72/\u00a74"
+   ],
+   "title": "Minimum history, security type, exchange, halts"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-25"
+   ],
+   "date": "2026-07-20",
+   "decision": "Trailing dollar volume over sessions completed before the decision session; window ends t-1, current excluded, exactly-N present; missing session -> INELIGIBLE:ADV_WINDOW_INSUFFICIENT; no median-swap/winsor/zero-fill/short-window fallback. OVERRIDE CLAUSE: if governing V3 specifies a different dollar-volume convention it governs and must be cited verbatim.",
+   "owner": "Jay Wang",
+   "rationale": "The candidate's trailing_adv_dollars must be trailing, PIT, and fail-closed. Per the override clause, frozen V3 (\u00a74) governs the price field (raw close x raw volume) and statistic (MEDIAN) over two windows (60-session selection, 20-session cap).",
+   "required_refusal_or_ineligibility_code": [
+    "INELIGIBLE:ADV_WINDOW_INSUFFICIENT"
+   ],
+   "required_tests": [
+    "SPQM-23 liquidity/ADV boundary",
+    "SPQM-37 ADV current-session exclusion",
+    "SPQM-38 ADV exactly-N boundary"
+   ],
+   "ruling_id": "R11",
+   "source_documents": [
+    "v0.3 \u00a74 (lines 30-33, 84, 253)"
+   ],
+   "title": "ADV formula and lag"
+  },
+  {
+   "affected_rule_ids": [
+    "SIG-28",
+    "SIG-29"
+   ],
+   "date": "2026-07-20",
+   "decision": "permanent_security_id from the frozen PIT identity registry; candidate_id = decision-record identity; symbol = time-varying; ticker change !-> new permanent id when registry says continuity; merger/successor !-> predecessor identity unless governed lineage says same security; candidate_id binds program/config/session/permanent-security/side/signal-record.",
+   "owner": "Jay Wang",
+   "rationale": "Stable economic identity + record identity must be distinct and registry-governed.",
+   "required_refusal_or_ineligibility_code": [
+    "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS"
+   ],
+   "required_tests": [
+    "SPQM-25 provenance completeness"
+   ],
+   "ruling_id": "R12",
+   "source_documents": [
+    "v0.3 \u00a72 + Increment-3 (edb7ff22)"
+   ],
+   "title": "Permanent security identity"
+  }
+ ],
+ "version": "1.0"
+}

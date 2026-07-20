@@ -1,0 +1,58 @@
+{
+ "count": 10,
+ "note": "Leakage-critical open items requiring owner rulings before SPQ-1 implementation; multiple rounds expected.",
+ "questions": [
+  {
+   "area": 1,
+   "id": "OQ-SPQ-01",
+   "question": "IPO entry boundary + counting of suspended/missing sessions inside the 60-session OLS window (skip / void / shift)."
+  },
+  {
+   "area": 2,
+   "id": "OQ-SPQ-02",
+   "question": "Exact interior-missing-session handling within the 60-session return window."
+  },
+  {
+   "area": 3,
+   "id": "OQ-SPQ-03",
+   "question": "OLS solver, numerical tolerance, minimum rank/observation requirement, singular-design handling."
+  },
+  {
+   "area": 4,
+   "id": "OQ-SPQ-04",
+   "question": "R5 missing-residual behavior, first eligible session, consecutiveness of registered sessions, <5-valid refusal."
+  },
+  {
+   "area": 7,
+   "id": "OQ-SPQ-05",
+   "question": "PIT sector effective-date rule, availability timestamp, same-day multiple-record handling, succession/symbol changes."
+  },
+  {
+   "area": 9,
+   "id": "OQ-SPQ-06",
+   "question": "Per-exclusion availability timestamps, precedence order, evidence identity, refusal-vs-INELIGIBLE mapping."
+  },
+  {
+   "area": 9,
+   "id": "OQ-SPQ-07",
+   "question": "PIT rules + evidence for min-trading-history, security-type, exchange-eligibility, bankruptcy/halt."
+  },
+  {
+   "area": 10,
+   "id": "OQ-SPQ-08",
+   "question": "ADV-dollar formula, lookback length, lag, minimum observations (raw close x raw volume pair is frozen)."
+  },
+  {
+   "area": 11,
+   "id": "OQ-SPQ-09",
+   "question": "permanent_security_id source, symbol-to-security mapping, ticker changes, share-class, mergers/successors, duplicates, ADR/common."
+  },
+  {
+   "area": 5,
+   "id": "OQ-SPQ-10",
+   "question": "Z-score / sigma first-eligible-session anchoring (needs 60 R5 obs which need 5-day R5 which need residuals which need 60-session OLS): confirm the compounded warm-up length + first scoreable session."
+  }
+ ],
+ "record_type": "MR002_SPQ1_OpenQuestions",
+ "version": "1.0"
+}

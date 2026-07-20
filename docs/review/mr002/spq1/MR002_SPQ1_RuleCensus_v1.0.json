@@ -1,0 +1,547 @@
+{
+ "bound_identities": {
+  "dsr_dispersion_resolution": {
+   "file": "docs/review/mr002/MR002_DSR_DispersionResolution_v1.0.json",
+   "sha256": "7a601f5b7bc0bea5045755723d7f9b946b01f7eba0eee9191e0f2074b6fb5627"
+  },
+  "dsr_resolution": {
+   "file": "docs/review/mr002/MR002_DSR_Resolution_v1.0.json",
+   "sha256": "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0"
+  },
+  "increment3_accepted_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "increment3_qualification": {
+   "file": "docs/review/mr002/evaluator/MR002_Increment3_Qualification.json",
+   "sha256": "0c077c38b037c771b931a3bd0619e4758cf9fe00e15b6e46a79c215c55fff809"
+  },
+  "increment3_registry": {
+   "file": "docs/review/mr002/MR002_Increment3_RuleRegistry_v1.0.json",
+   "sha256": "edb7ff22b5215f815b15e64166111604d2b99da91a545729b6c9796928d3b91a"
+  },
+  "oq1_closeout_commit": "f47f92ddf670bd0d0413d7624731eb6c59b961c9",
+  "oq1_manifest": {
+   "file": "docs/review/mr002/oq1/evidence/MR002_OQ1_Manifest.json",
+   "sha256": "7b6eb07d286c172e8e8c249ae66a73aa35824fa1e16acc85f51e8db9ac03a74e"
+  },
+  "phase0_resolution": {
+   "file": "docs/review/mr002/MR002_Increment3_Phase0_Resolution_v1.0.json",
+   "sha256": "860c8cdeb995fadea21359ede189dad27378ab2c553e5a24122bbbd2d2546740"
+  },
+  "portfolio_rule_census": {
+   "file": "docs/review/mr002/MR002_Portfolio_Rule_Census_v1.0.json",
+   "sha256": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e"
+  },
+  "prereg_v1.0.4": {
+   "file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "trial_ledger": {
+   "file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
+  },
+  "v0.3_design": {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  },
+  "v1.0_FROZEN": {
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+  }
+ },
+ "boundary": "Synthetic-only. Phase 0 opens no real/dev/validation/OOS data, imports no vendor adapter, computes no residual/z/beta/ADV/sector/eligibility, runs no metric, tunes no parameter, and never chooses a rule because it produces better results.",
+ "date": "2026-07-20",
+ "designation": "MR-002 Workstream C \u2014 Signal & Data-Production Qualification (SPQ-1), Phase 0",
+ "frozen_input_identities": [
+  "SPY total-return series",
+  "sector-ETF proxy mapping table (hash in evidence)",
+  "sector-ETF source series",
+  "registered session-calendar",
+  "price/return adjustment convention"
+ ],
+ "not_authorized": [
+  "real/dev/validation/OOS dataset access",
+  "vendor adapters",
+  "real residual/z/beta/ADV/sector/eligibility computation",
+  "performance metrics",
+  "parameter tuning",
+  "result-driven rule selection",
+  "SPQ-1 implementation (Phase 1+)"
+ ],
+ "owner_accepted_clarifications_2026_07_20": [
+  "beta FROZEN = market-beta coefficient beta_m of the \u00a73 Step-2 residual regression (SIG-09)",
+  "registered_sigma_resid FROZEN = z-normalization sigma_i,t-1 (SIG-16); z/sigma single-pass consistency REQUIRED (SIG-17)",
+  "decision/execution seam REQUIRED: SignalDecisionRecord (no future fields) + ExecutionEnrichedCandidateRecord; FUTURE_INFORMATION_DETECTED (SIG-27)",
+  "frozen input identities REQUIRED: SPY, sector-ETF mapping+source, session calendar, price/return adjustment (SIG-30/31; SIGNAL_INPUT_IDENTITY_MISMATCH)"
+ ],
+ "phase0_stop": "Census + schemas + open-question register + draft qualification matrix ONLY. No production signal modules or tests. Owner rules the OPEN items (multiple rounds expected) before SPQ-1 implementation.",
+ "purpose": "Implementation-binding specification/census for the upstream layer that PRODUCES the candidate facts Increment 3 consumes. Classifies every signal/candidate-production rule FROZEN / DERIVED_MECHANIC / OPEN / OUT_OF_SCOPE. No implementation; no real data; no residual/z/sigma/beta/sector/ADV computation.",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_SPQ1_RULE_CENSUS",
+ "refusal_taxonomy": {
+  "INELIGIBLE:ADV_WINDOW_INSUFFICIENT": "insufficient observations for the registered ADV window",
+  "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING": "a required eligibility evidence identity / availability timestamp is missing",
+  "INELIGIBLE:R5_WINDOW_INSUFFICIENT": "fewer than 5 valid consecutive residuals for R5",
+  "INELIGIBLE:RETURN_INPUT_MISSING": "a required return observation is missing (ineligible that day)",
+  "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING": "no PIT-resolvable sector for the security at t (never defaulted)",
+  "INTEGRITY_STOP:BETA_INPUT_INVALID": "beta regression inputs invalid (covered by OLS_DESIGN_SINGULAR when the same regression)",
+  "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": "any post-decision-cutoff field or identity found in a SignalDecisionRecord",
+  "INTEGRITY_STOP:OLS_DESIGN_SINGULAR": "the OLS design matrix is rank-deficient / singular",
+  "INTEGRITY_STOP:OLS_WINDOW_INSUFFICIENT": "fewer than the exact 60 registered-session observations available",
+  "INTEGRITY_STOP:RESIDUAL_NONFINITE": "a computed residual is non-finite",
+  "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH": "session index / numbering diverges from the registered calendar",
+  "INTEGRITY_STOP:SIGMA_RESID_INVALID": "registered_sigma_resid is not strictly positive and finite",
+  "INTEGRITY_STOP:ZSCORE_VARIANCE_INVALID": "sigma_i,t-1 is zero or non-finite (z undefined)",
+  "INTEGRITY_STOP:ZSCORE_WINDOW_INSUFFICIENT": "fewer than 60 complete overlapping R5 observations for mu/sigma",
+  "REFUSED_CODE_OR_DATA_IDENTITY:SECTOR_EFFECTIVE_DATE_CONFLICT": "ambiguous / conflicting same-day PIT sector records",
+  "REFUSED_CODE_OR_DATA_IDENTITY:SECURITY_IDENTITY_AMBIGUOUS": "ambiguous permanent-security-id / lineage resolution",
+  "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH": "any frozen-input identity (SPY / sector-ETF mapping / sector source / session calendar / price-adjustment) mismatch"
+ },
+ "rules": [
+  {
+   "area": "1_session_price_identity",
+   "conflicting_source": null,
+   "economic_meaning": "Registered exchange calendar / session numbering",
+   "governing_quote_or_paraphrase": "Governed session index = registered snapshot session dates (AAPL/Sharadar SEP), 3400 sessions; session ordinals not calendar arithmetic (prereg windows_literal.calendar_authority, governed_session_list_sha256 b873421...).",
+   "implementation_consequence": "SPQ-1 binds the registered session index + governed_session_list_sha256; a mismatch -> SIGNAL_INPUT_IDENTITY_MISMATCH.",
+   "rule_id": "SIG-01",
+   "source_file": "prereg_v1.0.4 (b2a042d4) + v0.3 \u00a72/\u00a74",
+   "source_section_lines": "",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "1_session_price_identity",
+   "conflicting_source": null,
+   "economic_meaning": "Decision cutoff / timing semantics",
+   "governing_quote_or_paraphrase": "Signals computed AFTER the close of session t; entry at the t+1 official open; five-session time-stop at open of session 6; close-to-close execution diagnostic only.",
+   "implementation_consequence": "Decision cutoff = close of session t; no post-close-t observation may enter the decision record (SIG-33).",
+   "rule_id": "SIG-02",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a74",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "1_session_price_identity",
+   "conflicting_source": null,
+   "economic_meaning": "Registered price-series policy (V3)",
+   "governing_quote_or_paraphrase": "Signal returns = total-return-adjusted (splits+dividends); execution prices = split-adjusted, NON-dividend-adjusted open/close; gap filter = split-adjusted economically-adjusted for cash distributions; dollar-volume ranking = raw close x raw volume.",
+   "implementation_consequence": "SPQ-1 uses total-return-adjusted series for the residual model and raw close x raw volume for ADV; adjustment-identity mismatch -> SIGNAL_INPUT_IDENTITY_MISMATCH.",
+   "rule_id": "SIG-03",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a74 V3",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "1_session_price_identity",
+   "conflicting_source": null,
+   "economic_meaning": "IPO / delisting / suspended-session boundaries",
+   "governing_quote_or_paraphrase": "Mid-month universe departures run to normal exit, no new entries; delisting valuation priority order registered; survivorship-freedom mandatory (PIT membership, never a current constituent list).",
+   "implementation_consequence": "IPO entry boundary + how suspended/missing sessions inside the 60-session OLS window are counted is NOT fully specified -> owner question OQ-SPQ-01.",
+   "rule_id": "SIG-04",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a72/\u00a74",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "2_return_series",
+   "conflicting_source": null,
+   "economic_meaning": "Residual-model return definition",
+   "governing_quote_or_paraphrase": "Rolling 60-session OLS on DAILY ARITHMETIC TOTAL returns; missing observation => ineligible that day; no winsorization.",
+   "implementation_consequence": "SPQ-1 builds daily arithmetic total returns (total-return-adjusted series); any missing return in the window -> ineligible / RETURN_INPUT_MISSING.",
+   "rule_id": "SIG-05",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 2/normalization",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "2_return_series",
+   "conflicting_source": null,
+   "economic_meaning": "Missing-observation treatment inside the window",
+   "governing_quote_or_paraphrase": "Any missing observation => ineligible that day (\u00a73). Whether a missing interior session shortens/\u3010voids\u3011the 60-window is not spelled out.",
+   "implementation_consequence": "The exact handling of an interior missing session within the 60-session window (skip vs void vs shift) needs a ruling -> OQ-SPQ-02.",
+   "rule_id": "SIG-06",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "3_ols_residual",
+   "conflicting_source": null,
+   "economic_meaning": "Step-1 orthogonalized sector factor",
+   "governing_quote_or_paraphrase": "For each sector ETF, rolling 60-session regression ENDING at t-1: r_Sector,t = a + beta_Sector*r_SPY,t + u_Sector,t; residual u_Sector,t is the sector-specific factor (beta_Sector from t-60..t-1 applied to day t).",
+   "implementation_consequence": "SPQ-1 Step 1 produces u_Sector,t from the frozen sector-ETF series + SPY; both are frozen input identities (SIG-30/31).",
+   "rule_id": "SIG-07",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 1",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "3_ols_residual",
+   "conflicting_source": null,
+   "economic_meaning": "Step-2 stock residual model",
+   "governing_quote_or_paraphrase": "Rolling 60-session OLS on t-60..t-1 (never day t): r_i,t = alpha_i + beta_m,i*r_SPY,t + beta_s,i*u_Sector,t + eps_i,t; day-t residual from t-1 coefficient estimates; intercept included.",
+   "implementation_consequence": "SPQ-1 Step 2 emits eps_i,t (residual) and beta_m,i (SIG-09); window 60 ending t-1; intercept included.",
+   "rule_id": "SIG-08",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 2",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "3_ols_residual",
+   "conflicting_source": null,
+   "economic_meaning": "Beta = market-beta coefficient (owner clarification)",
+   "governing_quote_or_paraphrase": "beta_i = beta-hat_m,i, the MARKET-beta coefficient of the same \u00a73 Step-2 60-session stock regression that produces the residual (\u00a75 beta-limit binds 'beta_i = each stock's \u00a73 beta-hat_m'). Producer = SPQ-1 residual regression; benchmark = SPY; sector regressor = u_Sector; window 60 ending t-1; intercept included.",
+   "implementation_consequence": "beta is a by-product of the residual regression, NOT a separate model. No secondary beta estimation path is authorized.",
+   "rule_id": "SIG-09",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 2 + \u00a75 (line 164)",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "3_ols_residual",
+   "conflicting_source": null,
+   "economic_meaning": "OLS solver / rank / singular-design handling",
+   "governing_quote_or_paraphrase": "\u00a73 does not specify the OLS solver, numerical tolerance, minimum rank/observation requirement, or singular-design handling.",
+   "implementation_consequence": "Solver, tolerance, min-rank, and singular-design behavior need a ruling -> OQ-SPQ-03 (OLS_DESIGN_SINGULAR refusal drafted).",
+   "rule_id": "SIG-10",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "3_ols_residual",
+   "conflicting_source": null,
+   "economic_meaning": "Unresolvable sector -> excluded",
+   "governing_quote_or_paraphrase": "PIT sector mapping per V2; an unresolvable sector => excluded, never defaulted.",
+   "implementation_consequence": "A stock without a PIT-resolvable sector is INELIGIBLE (SECTOR_PIT_IDENTITY_MISSING); never assigned a default sector.",
+   "rule_id": "SIG-11",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 2",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "4_r5_aggregation",
+   "conflicting_source": null,
+   "economic_meaning": "R5 five-residual sum",
+   "governing_quote_or_paraphrase": "R5_i,t = Sum_{k=0..4} eps_i,t-k (the five residuals through day t).",
+   "implementation_consequence": "SPQ-1 sums the 5 consecutive registered-session residuals ending at t; fewer than 5 valid residuals -> ineligible / R5_WINDOW_INSUFFICIENT.",
+   "rule_id": "SIG-12",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 3",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "4_r5_aggregation",
+   "conflicting_source": null,
+   "economic_meaning": "R5 missing-session / consecutiveness / first-eligible",
+   "governing_quote_or_paraphrase": "\u00a73 defines the 5-sum but not the behavior when a residual in the 5-window is missing, nor the first eligible session, nor whether the 5 must be consecutive REGISTERED sessions.",
+   "implementation_consequence": "Missing-residual-in-R5 behavior + first-eligible-session + consecutiveness need a ruling -> OQ-SPQ-04.",
+   "rule_id": "SIG-13",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "5_zscore",
+   "conflicting_source": null,
+   "economic_meaning": "Z-score normalization",
+   "governing_quote_or_paraphrase": "z_i,t = (R5_i,t - mu_i,t-1)/sigma_i,t-1; mu,sigma from rolling windows ENDING at t-1, exactly 60 complete overlapping five-day observations, ddof=1, no winsorization. Current R5_t is excluded (window ends t-1).",
+   "implementation_consequence": "One deterministic normalization pass yields mu_i,t-1, sigma_i,t-1, z_i,t; zero-variance/non-finite -> ZSCORE_VARIANCE_INVALID.",
+   "rule_id": "SIG-14",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 3",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "5_zscore",
+   "conflicting_source": null,
+   "economic_meaning": "registered_signal_value output identity",
+   "governing_quote_or_paraphrase": "registered_signal_value = z_i,t exactly (no clipping/flooring/winsorization/rank transform).",
+   "implementation_consequence": "SPQ-1 emits registered_signal_value = z_i,t; downstream Z_entry threshold + |z| ordering consume it (Increment-3 accepted, unchanged).",
+   "rule_id": "SIG-15",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 3 + Increment-3 registry (edb7ff22)",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "6_sigma_resid",
+   "conflicting_source": null,
+   "economic_meaning": "registered_sigma_resid identity (owner clarification)",
+   "governing_quote_or_paraphrase": "registered_sigma_resid = sigma_i,t-1 = sample std (ddof=1) of the 60 complete overlapping R5 observations ending at t-1 = the z-normalization denominator. Current R5 excluded.",
+   "implementation_consequence": "SPQ-1 emits registered_sigma_resid = sigma_i,t-1 from the SAME normalization pass as z (SIG-14). Strictly positive + finite; no floor/imputation -> SIGMA_RESID_INVALID.",
+   "rule_id": "SIG-16",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73 Step 3 + RC-1 (860c8cde)",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "6_sigma_resid",
+   "conflicting_source": null,
+   "economic_meaning": "Z / sigma single-pass consistency (owner requirement)",
+   "governing_quote_or_paraphrase": "registered_signal_value (z) and registered_sigma_resid (sigma) MUST derive from one deterministic normalization pass sharing the same mu/sigma window identity.",
+   "implementation_consequence": "Qualification must prove z and sigma_resid share the same normalization-window identity + computation record; the 1/sigma_resid weighting Increment 3 uses is exactly z's denominator.",
+   "rule_id": "SIG-17",
+   "source_file": "phase0 clarification (owner 2026-07-20)",
+   "source_section_lines": "",
+   "status": "DERIVED_MECHANIC",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "7_pit_sector",
+   "conflicting_source": null,
+   "economic_meaning": "Sector taxonomy source",
+   "governing_quote_or_paraphrase": "Accept only (1) a genuine PIT sector/industry history OR (2) historically-effective SIC/NAICS via a FROZEN mapping table whose hash ships in the evidence package; no present-day backfill; survivorship-free.",
+   "implementation_consequence": "SPQ-1 binds the frozen sector-mapping-table hash; sector_id must be PIT + evidence-bound; mismatch -> SIGNAL_INPUT_IDENTITY_MISMATCH.",
+   "rule_id": "SIG-18",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a72 V2",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "7_pit_sector",
+   "conflicting_source": null,
+   "economic_meaning": "PIT effective-date / availability / succession mechanics",
+   "governing_quote_or_paraphrase": "\u00a72/V2 requires PIT + a frozen mapping table but does NOT specify the effective-date rule, filing/publication availability timestamp, same-day multiple-record handling, predecessor/security succession, or symbol changes.",
+   "implementation_consequence": "Effective-date + availability-timestamp + same-day-conflict + succession mechanics need rulings -> OQ-SPQ-05 (SECTOR_EFFECTIVE_DATE_CONFLICT / SECTOR_PIT_IDENTITY_MISSING drafted).",
+   "rule_id": "SIG-19",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a72 V2",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "9_eligibility",
+   "conflicting_source": null,
+   "economic_meaning": "Entry eligibility conditions",
+   "governing_quote_or_paraphrase": "Long entry (all at close t): z<=-Z_entry AND bottom 10% of long-eligible pool AND earnings-clearance AND no announced merger/split/delisting/major corporate action AND gap filter passes AND liquidity envelope. Short mirrors.",
+   "implementation_consequence": "SPQ-1 emits eligibility_status in {ELIGIBLE, INELIGIBLE} summarizing these; Increment 3 consumes, never recomputes.",
+   "rule_id": "SIG-20",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a74",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "9_eligibility",
+   "conflicting_source": null,
+   "economic_meaning": "Earnings-clearance rule (V1)",
+   "governing_quote_or_paraphrase": "Do not open a position when a PIT-known earnings announcement falls between the t+1 open and the max exit (open of session 6); revised-timestamp availability only; BMO/AMC conservative if indistinguishable.",
+   "implementation_consequence": "SPQ-1 marks INELIGIBLE on earnings-window overlap; requires PIT earnings-calendar availability timestamps (input identity).",
+   "rule_id": "SIG-21",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a74 V1",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "9_eligibility",
+   "conflicting_source": null,
+   "economic_meaning": "Gap filter (execution-time)",
+   "governing_quote_or_paraphrase": "Entry order cancelled at the t+1 open if |AdjOpen_t+1 / AdjClose_t - 1| >= 6% (distribution-adjusted).",
+   "implementation_consequence": "The gap filter is an EXECUTION-time (t+1) test -> it belongs to the enrichment step, NOT the decision record (SIG-33); it uses the t+1 open, unknown at decision cutoff.",
+   "rule_id": "SIG-22",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a74",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "9_eligibility",
+   "conflicting_source": null,
+   "economic_meaning": "Eligibility availability-timestamps / precedence / evidence identity",
+   "governing_quote_or_paraphrase": "Every exclusion needs an exact PIT rule + availability timestamp + lookback/exclusion window + precedence + refusal-vs-INELIGIBLE + evidence identity. \u00a74 gives the rules but not all timing/precedence mechanics.",
+   "implementation_consequence": "Per-exclusion availability timestamp, precedence, evidence identity, and refusal-vs-INELIGIBLE mapping need rulings -> OQ-SPQ-06 (ELIGIBILITY_EVIDENCE_MISSING drafted).",
+   "rule_id": "SIG-23",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a74",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "9_eligibility",
+   "conflicting_source": null,
+   "economic_meaning": "Delisting / bankruptcy / halt / min-history / security-type / exchange",
+   "governing_quote_or_paraphrase": "\u00a72/\u00a74 touch delisting valuation + survivorship but do not fully census min-trading-history, security-type, exchange-eligibility, bankruptcy/halt status as PIT eligibility rules.",
+   "implementation_consequence": "These eligibility dimensions need explicit PIT rules + evidence identities -> OQ-SPQ-07.",
+   "rule_id": "SIG-24",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a72/\u00a74",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "10_adv_open",
+   "conflicting_source": null,
+   "economic_meaning": "Dollar-volume / ADV basis",
+   "governing_quote_or_paraphrase": "Dollar-volume ranking = raw close x raw volume (consistent unadjusted pair). ADV lookback length, lag, min observations, and the exact ADV-dollar formula are NOT specified in \u00a73/\u00a74.",
+   "implementation_consequence": "ADV formula + lookback + lag + min-obs need a ruling -> OQ-SPQ-08 (ADV_WINDOW_INSUFFICIENT drafted). Raw close x raw volume is FROZEN as the pair.",
+   "rule_id": "SIG-25",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a74",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "10_adv_open",
+   "conflicting_source": null,
+   "economic_meaning": "Official next-open identity + missing-open",
+   "governing_quote_or_paraphrase": "Entries without a valid official opening price are cancelled; exits without one remain pending until the next available official regular-session open. Official open = split-adjusted non-dividend-adjusted t+1 regular-session open.",
+   "implementation_consequence": "The official next-open is a session-(t+1) fact; the producer may register a missing future open ONLY at the execution session, never at the decision timestamp.",
+   "rule_id": "SIG-26",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a74 halts + V3",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "10_adv_open",
+   "conflicting_source": null,
+   "economic_meaning": "Decision/execution seam (owner requirement)",
+   "governing_quote_or_paraphrase": "SignalDecisionRecord (decision cutoff = close t) must NOT contain official_next_open_price, actual_execution_session, or any post-close-t observation. The t+1 enrichment step appends the official opening-price fact + execution timestamp WITHOUT recomputing decision facts.",
+   "implementation_consequence": "Two structurally distinct records; the enriched record is the adapter seam into the CLOSED Increment-3 replay contract. Any post-cutoff field/identity in a decision record -> INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED.",
+   "rule_id": "SIG-27",
+   "source_file": "phase0 clarification (owner 2026-07-20) + Increment-3 (edb7ff22, CLOSED)",
+   "source_section_lines": "",
+   "status": "DERIVED_MECHANIC",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "11_security_identity",
+   "conflicting_source": null,
+   "economic_meaning": "Permanent security id / lineage",
+   "governing_quote_or_paraphrase": "permanent_security_id source, symbol-to-security mapping, ticker changes, share-class, mergers/successors, duplicate listings, ADR/common distinctions are not specified upstream.",
+   "implementation_consequence": "The permanent-security-id source + lineage rules need a ruling -> OQ-SPQ-09 (SECURITY_IDENTITY_AMBIGUOUS drafted). Survivorship-free PIT membership is FROZEN (\u00a72).",
+   "rule_id": "SIG-28",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a72",
+   "status": "OPEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "11_security_identity",
+   "conflicting_source": null,
+   "economic_meaning": "candidate_id vs permanent_security_id",
+   "governing_quote_or_paraphrase": "candidate_id is a record identity; the frozen tie-breaks use permanent_security_id (lexical). candidate_id must not silently replace the permanent security identifier.",
+   "implementation_consequence": "SPQ-1 emits both distinctly; the Increment-3 removal/drift tie-breaks bind permanent_security_id.",
+   "rule_id": "SIG-29",
+   "source_file": "phase0 resolution (860c8cde) + increment3 registry (edb7ff22)",
+   "source_section_lines": "",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "input_identities",
+   "conflicting_source": null,
+   "economic_meaning": "SPY market-factor series identity",
+   "governing_quote_or_paraphrase": "The market factor is the SPY total-return series (Step-1 + Step-2 regressor r_SPY).",
+   "implementation_consequence": "SPY total-return series is a REQUIRED frozen input identity; mismatch -> SIGNAL_INPUT_IDENTITY_MISMATCH.",
+   "rule_id": "SIG-30",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a73",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  },
+  {
+   "area": "input_identities",
+   "conflicting_source": null,
+   "economic_meaning": "Sector-ETF proxy + source-series identity",
+   "governing_quote_or_paraphrase": "Sector factors = sector-ETF residuals u_Sector; the sector-ETF proxy mapping + source series must be the FROZEN mapping table whose hash ships in the evidence package.",
+   "implementation_consequence": "Sector-ETF proxy mapping table + source series are REQUIRED frozen input identities; mismatch -> SIGNAL_INPUT_IDENTITY_MISMATCH.",
+   "rule_id": "SIG-31",
+   "source_file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md (sha 1007db82)",
+   "source_section_lines": "\u00a72 V2 + \u00a73 Step 1",
+   "status": "FROZEN",
+   "supersession_authority": "A new owner-signed decision superseding v0.3-frozen-into-v1.0 (70108c11)."
+  }
+ ],
+ "source_validation": {
+  "dsr_dispersion_resolution": {
+   "expected_prefix": "7a601f5b7bc0bea5045755723d7f9b946b01f7eba0eee9191e0f2074b6fb5627",
+   "file": "docs/review/mr002/MR002_DSR_DispersionResolution_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "7a601f5b7bc0bea5045755723d7f9b946b01f7eba0eee9191e0f2074b6fb5627"
+  },
+  "dsr_resolution": {
+   "expected_prefix": "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0",
+   "file": "docs/review/mr002/MR002_DSR_Resolution_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0"
+  },
+  "increment3_qualification": {
+   "expected_prefix": "0c077c38b037c771",
+   "file": "docs/review/mr002/evaluator/MR002_Increment3_Qualification.json",
+   "match": true,
+   "recomputed_sha256": "0c077c38b037c771b931a3bd0619e4758cf9fe00e15b6e46a79c215c55fff809"
+  },
+  "increment3_registry": {
+   "expected_prefix": "edb7ff22b5215f815b15e64166111604d2b99da91a545729b6c9796928d3b91a",
+   "file": "docs/review/mr002/MR002_Increment3_RuleRegistry_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "edb7ff22b5215f815b15e64166111604d2b99da91a545729b6c9796928d3b91a"
+  },
+  "oq1_manifest": {
+   "expected_prefix": "7b6eb07d286c172e",
+   "file": "docs/review/mr002/oq1/evidence/MR002_OQ1_Manifest.json",
+   "match": true,
+   "recomputed_sha256": "7b6eb07d286c172e8e8c249ae66a73aa35824fa1e16acc85f51e8db9ac03a74e"
+  },
+  "phase0_resolution": {
+   "expected_prefix": "860c8cdeb995fadea21359ede189dad27378ab2c553e5a24122bbbd2d2546740",
+   "file": "docs/review/mr002/MR002_Increment3_Phase0_Resolution_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "860c8cdeb995fadea21359ede189dad27378ab2c553e5a24122bbbd2d2546740"
+  },
+  "portfolio_rule_census": {
+   "expected_prefix": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e",
+   "file": "docs/review/mr002/MR002_Portfolio_Rule_Census_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "91eec2626c584b0f4dd0b184feae9f1f5dc80e5245a823be72a321b5d5f9417e"
+  },
+  "prereg_v1.0.4": {
+   "expected_prefix": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+   "file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "match": true,
+   "recomputed_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "trial_ledger": {
+   "expected_prefix": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "file": "docs/review/mr002/MR002_DSR_TrialLedger_v1.0.json",
+   "match": true,
+   "recomputed_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
+  },
+  "v0.3_design": {
+   "expected_prefix": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "match": true,
+   "recomputed_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  },
+  "v1.0_FROZEN": {
+   "expected_prefix": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc",
+   "file": "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md",
+   "match": true,
+   "recomputed_sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+  }
+ },
+ "status_legend": {
+  "DERIVED_MECHANIC": "a required deterministic consequence of frozen rules / an owner Phase-0 clarification",
+  "FROZEN": "explicit in the governing chain; the producer binds it",
+  "OPEN": "needs an owner ruling before SPQ-1 implementation (see open_questions)",
+  "OUT_OF_SCOPE": "not authorized in SPQ-1 Phase 0"
+ },
+ "version": "1.0"
+}

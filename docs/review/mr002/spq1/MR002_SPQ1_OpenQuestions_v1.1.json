@@ -1,0 +1,113 @@
+{
+ "count": 10,
+ "note": "All ten questions RESOLVED_BY_OWNER via the 12 rulings; each maps to governing rule IDs + ruling. No REMAINS_OPEN. OWNER-A/B/C RATIFIED 2026-07-20.",
+ "questions": [
+  {
+   "area": 1,
+   "governing_rule_ids": [
+    "SIG-04",
+    "SIG-06"
+   ],
+   "owner_ruling": "R1",
+   "question": "IPO/interior-missing-session counting inside the 60-session OLS window.",
+   "question_id": "OQ-SPQ-01",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 2,
+   "governing_rule_ids": [
+    "SIG-06"
+   ],
+   "owner_ruling": "R1",
+   "question": "Interior-missing-session handling within the 60-session return window.",
+   "question_id": "OQ-SPQ-02",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 3,
+   "governing_rule_ids": [
+    "SIG-10"
+   ],
+   "owner_ruling": "R2",
+   "question": "OLS solver, tolerance, rank requirement, singular-design handling.",
+   "question_id": "OQ-SPQ-03",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 4,
+   "governing_rule_ids": [
+    "SIG-13"
+   ],
+   "owner_ruling": "R4",
+   "question": "R5 missing-residual, first eligible, consecutiveness, <5 refusal.",
+   "question_id": "OQ-SPQ-04",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 7,
+   "governing_rule_ids": [
+    "SIG-19"
+   ],
+   "owner_ruling": "R7+R8",
+   "question": "PIT sector effective-date, availability, same-day, succession.",
+   "question_id": "OQ-SPQ-05",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 9,
+   "governing_rule_ids": [
+    "SIG-23"
+   ],
+   "owner_ruling": "R9",
+   "question": "Eligibility availability timestamps, precedence, evidence identity, refusal-vs-INELIGIBLE.",
+   "question_id": "OQ-SPQ-06",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 9,
+   "governing_rule_ids": [
+    "SIG-24"
+   ],
+   "owner_ruling": "R10",
+   "question": "Min-history, security-type, exchange-eligibility, bankruptcy/halt.",
+   "question_id": "OQ-SPQ-07",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 10,
+   "governing_rule_ids": [
+    "SIG-25"
+   ],
+   "owner_ruling": "R11",
+   "question": "ADV formula/lookback/lag (V3-corrected to median of raw x raw, two windows).",
+   "question_id": "OQ-SPQ-08",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 11,
+   "governing_rule_ids": [
+    "SIG-28",
+    "SIG-29"
+   ],
+   "owner_ruling": "R8+R12",
+   "question": "permanent_security_id source, lineage, succession, share-class, duplicates.",
+   "question_id": "OQ-SPQ-09",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  },
+  {
+   "area": 5,
+   "governing_rule_ids": [
+    "SIG-32",
+    "SIG-24"
+   ],
+   "owner_ruling": "R6",
+   "question": "Compounded warm-up length / first scoreable session (independently worked -> 125 return / 126 price; RATIFIED).",
+   "question_id": "OQ-SPQ-10",
+   "resolution_state": "RESOLVED_BY_OWNER"
+  }
+ ],
+ "record_type": "MR002_SPQ1_OpenQuestions",
+ "remains_open": 0,
+ "resolved_by_owner": 10,
+ "version": "1.1"
+}

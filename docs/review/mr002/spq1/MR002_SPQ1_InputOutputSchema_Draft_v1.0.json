@@ -1,0 +1,44 @@
+{
+ "execution_enriched_record": {
+  "adds": [
+   "official_next_open_price (t+1 official open)",
+   "scheduled_execution_session (=t+1)",
+   "gap_filter_result (|AdjOpen_t+1/AdjClose_t-1| >= 6% -> cancel)",
+   "missing_open_disposition"
+  ],
+  "carries_unchanged": "the full SignalDecisionRecord (byte-preserved)",
+  "record_type": "MR002_SPQ1_ExecutionEnrichedCandidateRecord (draft)",
+  "seam": "this is the adapter into the CLOSED Increment-3 accepted replay candidate contract (edb7ff22); Increment 3 is NOT reopened.",
+  "timing": "session t+1 (execution) \u2014 appends execution facts WITHOUT recomputing decision facts"
+ },
+ "record_type": "MR002_SPQ1_InputOutputSchema_Draft",
+ "seam_principle": "decision facts (close-t) are byte-preserved; execution facts are appended at t+1; Increment-3 replay contract is CLOSED and unchanged.",
+ "signal_decision_record": {
+  "cutoff": "close of session t (all fields use information through close-t only)",
+  "forbidden_field_disposition": "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED",
+  "record_type": "MR002_SPQ1_SignalDecisionRecord (draft)",
+  "required_fields": [
+   "permanent_security_id",
+   "decision_session (=t)",
+   "signal_origin_session",
+   "symbol",
+   "side",
+   "registered_signal_value (=z_i,t)",
+   "registered_sigma_resid (=sigma_i,t-1)",
+   "sector_id (PIT)",
+   "beta (=beta_m,i)",
+   "eligibility_status (ELIGIBLE|INELIGIBLE)",
+   "eligibility_evidence_identity",
+   "configuration_id (A|B|C, downstream Z_entry only)",
+   "trailing_adv_dollars (decision-time ADV)",
+   "normalization_window_identity",
+   "computation_record_identity"
+  ],
+  "structurally_forbidden_fields": [
+   "official_next_open_price",
+   "actual_execution_session",
+   "any post-close-t observation"
+  ]
+ },
+ "version": "1.0"
+}
