@@ -1,0 +1,45 @@
+{
+ "all_refused": true,
+ "container_credentials_present": false,
+ "deny_by_default": true,
+ "network_default": "disabled",
+ "record_type": "MR002_OQ1_SealedAccessReport",
+ "run5_archive_read_copy_modify": "FORBIDDEN (never accessed)",
+ "vectors": [
+  {
+   "code": "REFUSED_SEALED_ACCESS:CREDENTIAL_PRESENT:AWS_SECRET_ACCESS_KEY",
+   "result": "REFUSED",
+   "vector": "credential_env_discovery"
+  },
+  {
+   "code": "REFUSED_SEALED_ACCESS:SEALED_PATTERN:validation.duckdb",
+   "result": "REFUSED",
+   "vector": "direct_sealed_path"
+  },
+  {
+   "code": "REFUSED_SEALED_ACCESS:OUTSIDE_ALLOWLIST:passwd",
+   "result": "REFUSED",
+   "vector": "path_traversal"
+  },
+  {
+   "code": "REFUSED_SEALED_ACCESS:FORBIDDEN_IMPORT:boto3",
+   "result": "REFUSED",
+   "vector": "real_data_adapter_import"
+  },
+  {
+   "code": "REFUSED_SEALED_ACCESS:FORBIDDEN_IMPORT:subprocess",
+   "result": "REFUSED",
+   "vector": "subprocess_bypass"
+  },
+  {
+   "code": "REFUSED_SEALED_ACCESS:FORBIDDEN_IMPORT:requests",
+   "result": "REFUSED",
+   "vector": "http_client_import"
+  },
+  {
+   "code": "REFUSED_SEALED_ACCESS:FORBIDDEN_IMPORT:psycopg2",
+   "result": "REFUSED",
+   "vector": "db_client_import"
+  }
+ ]
+}

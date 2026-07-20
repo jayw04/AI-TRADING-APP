@@ -1,0 +1,136 @@
+{
+ "artifact_count": 16,
+ "artifacts": [
+  {
+   "byte_count": 1408,
+   "content_type": "text/plain",
+   "governing_role": "container_recipe",
+   "producer": "oq1",
+   "relative_path": "Dockerfile.oq1",
+   "sha256": "0dbc9c1091986b36ef874895c51eed32d819e579de2c281eefa4265db78d7db1"
+  },
+  {
+   "byte_count": 1349,
+   "content_type": "text/plain",
+   "governing_role": "dependency_lock",
+   "producer": "oq1",
+   "relative_path": "dependency-resolution-report.json",
+   "sha256": "7e02526d9a3580a4eb68adf0d26e84e0a2d452faa864921d9f1fc898a8213a06"
+  },
+  {
+   "byte_count": 339,
+   "content_type": "text/plain",
+   "governing_role": "container_recipe",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_ContainerSuiteLog.txt",
+   "sha256": "a089decf3cfe7451ece6c07cfd8c65e2739933d346fbe956bea636a3979d5b78"
+  },
+  {
+   "byte_count": 1040,
+   "content_type": "application/json",
+   "governing_role": "determinism",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_DeterminismReport.json",
+   "sha256": "be0304c7d5fbd2bf4c82fd4d9f6f09b084dcacf6ff039dbbb6b525e0b495c708"
+  },
+  {
+   "byte_count": 984,
+   "content_type": "application/json",
+   "governing_role": "preflight",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_Preflight.json",
+   "sha256": "94f25223740c20aa54d7ac06d5a7ad76a050357189c1dd5762d0d73406c78077"
+  },
+  {
+   "byte_count": 2184,
+   "content_type": "application/json",
+   "governing_role": "qualification",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_Qualification.json",
+   "sha256": "7b04b11c2adcf6bc874f65d4e96c0c3f33b09be646acb2f70fb5c336337d44e0"
+  },
+  {
+   "byte_count": 5008,
+   "content_type": "application/json",
+   "governing_role": "qualification",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_QualificationMatrix.json",
+   "sha256": "584d2236d7a55fb361ea10c074984d1bcb694e8c1f81feba6ddc679cefd6b33b"
+  },
+  {
+   "byte_count": 1565,
+   "content_type": "application/json",
+   "governing_role": "refusal",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_RefusalReport.json",
+   "sha256": "836a8c3c9461662a9e31a2f193009e51fece8d700d6f91cafcab89ae1109ff6a"
+  },
+  {
+   "byte_count": 19,
+   "content_type": "text/plain",
+   "governing_role": "static_or_test_log",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_RuffLog.txt",
+   "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+  },
+  {
+   "byte_count": 1181,
+   "content_type": "application/json",
+   "governing_role": "sealed_access",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_SealedAccessReport.json",
+   "sha256": "2afaa5685b887142f68aa2318969b2bac1f8623317b68a59156c926bfed0bdb5"
+  },
+  {
+   "byte_count": 2349,
+   "content_type": "text/plain",
+   "governing_role": "evidence",
+   "producer": "oq1",
+   "relative_path": "MR002_OQ1_TestLog.txt",
+   "sha256": "7c32d09bb69848819d6109baff84e17e864fe5c3a540d4a2bae76b225037a56e"
+  },
+  {
+   "byte_count": 939,
+   "content_type": "application/json",
+   "governing_role": "container_recipe",
+   "producer": "oq1",
+   "relative_path": "container-build-manifest.json",
+   "sha256": "fd6e3de372f1ec2cfd84e16ae5d427ef0b3bf1e2e5d4b2ab4077cb09e39b21e1"
+  },
+  {
+   "byte_count": 777,
+   "content_type": "application/json",
+   "governing_role": "container_recipe",
+   "producer": "oq1",
+   "relative_path": "container-runtime-policy.json",
+   "sha256": "9fe1efebe91caf1b348bc899354d688f647b9ff8530f31eb98de7c7081921e51"
+  },
+  {
+   "byte_count": 72,
+   "content_type": "text/plain",
+   "governing_role": "container_recipe",
+   "producer": "oq1",
+   "relative_path": "container_image_id.txt",
+   "sha256": "fba33279c8fd6b7d394cd879007fdbd7cc7dd8aa04eab03af3b05377989be34c"
+  },
+  {
+   "byte_count": 1253,
+   "content_type": "text/plain",
+   "governing_role": "dependency_lock",
+   "producer": "oq1",
+   "relative_path": "requirements.lock",
+   "sha256": "274ef6e41f55cfede2efd1cccb6ba367ec0bfc58e919804fa2f9dc33b2c009b8"
+  },
+  {
+   "byte_count": 3351,
+   "content_type": "text/plain",
+   "governing_role": "dependency_lock",
+   "producer": "oq1",
+   "relative_path": "wheelhouse-manifest.json",
+   "sha256": "f3eaf9935ab87145c66a96cd5edccec939b274f1b33afeefa62f8225037944ba"
+  }
+ ],
+ "manifest_self_hash": "107ca5591ca6e2568ee82a71326dd27a1d1c65545643fb7bcc652979f615c902",
+ "record_type": "MR002_OQ1_Manifest",
+ "version": "1.0"
+}

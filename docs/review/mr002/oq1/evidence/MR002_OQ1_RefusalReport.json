@@ -1,0 +1,51 @@
+{
+ "container_observed_exits": {
+  "OQ1_PASS": 0,
+  "altered_evaluator_file(OQ1-08)": 10,
+  "network_reachable(OQ1-19)": 12,
+  "no_secrets_in_report(OQ1-23)": true
+ },
+ "deterministic": true,
+ "exit_code_taxonomy": {
+  "DETERMINISM_MISMATCH": 14,
+  "ENVIRONMENT_REFUSAL": 11,
+  "IDENTITY_REFUSAL": 10,
+  "INTEGRITY_STOP": 13,
+  "INTERNAL_FAILURE": 20,
+  "PASS": 0,
+  "PUBLICATION_REFUSAL": 15,
+  "SEALED_ACCESS_REFUSAL": 12,
+  "UNSUPPORTED_INVOCATION": 16
+ },
+ "family_to_exit": {
+  "DETERMINISM_MISMATCH": 14,
+  "INTEGRITY_STOP:X": 13,
+  "REFUSED_CODE_OR_DATA_IDENTITY:X": 10,
+  "REFUSED_ENVIRONMENT_IDENTITY:X": 11,
+  "REFUSED_PUBLICATION:X": 15,
+  "REFUSED_SEALED_ACCESS:X": 12,
+  "UNSUPPORTED_INVOCATION": 16
+ },
+ "no_secrets_or_host_paths": true,
+ "record_type": "MR002_OQ1_RefusalReport",
+ "sample_refusal_record": {
+  "code_commit": "c",
+  "container_digest": "sha256:d513232de0bbd22b8616a6dffb1af9db153ccb704cac746e2b0bf8afef5e4a2d",
+  "dependency_lock_hash": "f3eaf9935ab87145c66a96cd5edccec939b274f1b33afeefa62f8225037944ba",
+  "exit_code": 12,
+  "expected_identity": "disabled",
+  "no_data_access_assertions": {
+   "development_performance_computed": false,
+   "oos_data_read": false,
+   "real_data_accessed": false,
+   "validation_data_read": false
+  },
+  "observed_identity": "reachable",
+  "reason_code": "REFUSED_SEALED_ACCESS:NETWORK_REACHABLE",
+  "record_hash": "5daf784854f0f0217973d8838a7862c6b4bae9d0ad5ca15d158ae2e9101574ac",
+  "record_type": "MR002_OQ1_Refusal",
+  "stack_trace_hash": null,
+  "stage": "preflight",
+  "timestamp": "FIXED"
+ }
+}

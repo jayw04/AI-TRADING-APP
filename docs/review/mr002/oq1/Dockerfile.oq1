@@ -1,0 +1,28 @@
+# MR-002 OQ-1 operational qualification image (synthetic evaluator only; no real data)
+FROM python:3.13-slim
+ENV PYTHONHASHSEED=0 PYTHONDONTWRITEBYTECODE=1 TZ=UTC LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+    OQ1_OUTPUT_DIR=/out OQ1_REQUIRE_NETWORK_DISABLED=1
+# offline dependency install from the hash-pinned wheelhouse (no network resolution)
+COPY oq1/wheelhouse /wheelhouse
+COPY oq1/requirements.lock /requirements.lock
+RUN pip install --no-index --find-links=/wheelhouse --require-hashes -r /requirements.lock \
+ && rm -rf /wheelhouse /root/.cache/pip
+RUN useradd -m -u 10001 oq1
+# application code + governing artifacts, copied read-only (owned by root; runtime user is non-root)
+COPY --chown=root:root evaluator /app/mr002/evaluator
+COPY --chown=root:root evaluator_prototype /app/mr002/evaluator_prototype
+COPY --chown=root:root oq1 /app/mr002/oq1
+COPY --chown=root:root governing_sources /app/mr002/governing_sources
+COPY --chown=root:root \
+     MR002_ValidationOOS_Preregistration_v1.0.4.json \
+     MR002_ValidationOOS_CorrectionRecord_v1.0.4.json \
+     MR002_DSR_TrialLedger_v1.0.json \
+     MR002_DSR_Resolution_v1.0.json \
+     MR002_DSR_DispersionResolution_v1.0.json \
+     MR002_Portfolio_Rule_Census_v1.0.json \
+     MR002_Increment3_RuleRegistry_v1.0.json \
+     MR002_Increment3_Phase0_Resolution_v1.0.json \
+     /app/mr002/
+USER 10001
+WORKDIR /app/mr002/oq1
+ENTRYPOINT ["python","oq1_qualify.py"]

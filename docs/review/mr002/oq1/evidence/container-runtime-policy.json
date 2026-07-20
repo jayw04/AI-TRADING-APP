@@ -1,0 +1,26 @@
+{
+ "code_filesystem": "read-only",
+ "entrypoint": "python oq1_qualify.py",
+ "exit_codes": {
+  "DETERMINISM_MISMATCH": 14,
+  "ENVIRONMENT_REFUSAL": 11,
+  "IDENTITY_REFUSAL": 10,
+  "INTEGRITY_STOP": 13,
+  "INTERNAL_FAILURE": 20,
+  "PASS": 0,
+  "PUBLICATION_REFUSAL": 15,
+  "SEALED_ACCESS_REFUSAL": 12,
+  "UNSUPPORTED_INVOCATION": 16
+ },
+ "locale": "C.UTF-8",
+ "network": "disabled (--network none)",
+ "no_credentials_or_mounts_to_sealed": true,
+ "output": "separate writable mount (/out) or tmpfs; code never written",
+ "package_install_at_runtime": false,
+ "record_type": "MR002_OQ1_ContainerRuntimePolicy",
+ "runtime_user": "non-root (uid 10001)",
+ "sealed_path_denial": true,
+ "shell_mutation_of_evaluator": false,
+ "timezone": "UTC",
+ "working_directory": "/app/mr002/oq1"
+}

@@ -1,0 +1,182 @@
+{
+ "cases": {
+  "OQ1-01": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "clean locked environment passes",
+   "status": "PASS"
+  },
+  "OQ1-02": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "package version mismatch refuses",
+   "status": "PASS"
+  },
+  "OQ1-03": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "wheel hash / missing package refuses",
+   "status": "PASS"
+  },
+  "OQ1-04": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "unexpected package refuses",
+   "status": "PASS"
+  },
+  "OQ1-05": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "wrong Python version refuses",
+   "status": "PASS"
+  },
+  "OQ1-06": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "mutable/unresolved dependency refuses (no floating ranges)",
+   "status": "PASS"
+  },
+  "OQ1-07": {
+   "evidence_source": "container docker run",
+   "scenario": "expected image digest passes",
+   "status": "PASS"
+  },
+  "OQ1-08": {
+   "evidence_source": "container docker run",
+   "scenario": "altered evaluator file refuses (exit 10)",
+   "status": "PASS"
+  },
+  "OQ1-09": {
+   "evidence_source": "container docker run",
+   "scenario": "altered governance artifact refuses",
+   "status": "PASS"
+  },
+  "OQ1-10": {
+   "evidence_source": "container docker run",
+   "scenario": "non-root runtime verified (uid 10001)",
+   "status": "PASS"
+  },
+  "OQ1-11": {
+   "evidence_source": "container docker run",
+   "scenario": "runtime filesystem mutation refused (read-only code)",
+   "status": "PASS"
+  },
+  "OQ1-12": {
+   "evidence_source": "container docker run",
+   "scenario": "network-disabled run succeeds (OQ1_PASS)",
+   "status": "PASS"
+  },
+  "OQ1-13": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "no credentials present",
+   "status": "PASS"
+  },
+  "OQ1-14": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "AWS credential discovery fails",
+   "status": "PASS"
+  },
+  "OQ1-15": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "direct sealed-path access refuses",
+   "status": "PASS"
+  },
+  "OQ1-16": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "path traversal refuses",
+   "status": "PASS"
+  },
+  "OQ1-17": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "symlink escape refuses",
+   "status": "PASS"
+  },
+  "OQ1-18": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "real-data adapter import refuses",
+   "status": "PASS"
+  },
+  "OQ1-19": {
+   "evidence_source": "container docker run",
+   "scenario": "outbound network attempt refuses (exit 12)",
+   "status": "PASS"
+  },
+  "OQ1-20": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "subprocess-based bypass refuses",
+   "status": "PASS"
+  },
+  "OQ1-21": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "each refusal family returns the frozen exit code",
+   "status": "PASS"
+  },
+  "OQ1-22": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "refusal report canonical + deterministic",
+   "status": "PASS"
+  },
+  "OQ1-23": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "refusal report contains no secrets",
+   "status": "PASS"
+  },
+  "OQ1-24": {
+   "evidence_source": "container docker run",
+   "scenario": "failed preflight executes no portfolio session",
+   "status": "PASS"
+  },
+  "OQ1-25": {
+   "evidence_source": "container docker run",
+   "scenario": "two clean container runs byte-identical",
+   "status": "PASS"
+  },
+  "OQ1-26": {
+   "evidence_source": "container docker run",
+   "scenario": "independent image rebuild equivalent",
+   "status": "PASS"
+  },
+  "OQ1-27": {
+   "evidence_source": "container docker run",
+   "scenario": "accepted synthetic output hash reproduced",
+   "status": "PASS"
+  },
+  "OQ1-28": {
+   "evidence_source": "container docker run",
+   "scenario": "economic payload unchanged across packaging",
+   "status": "PASS"
+  },
+  "OQ1-29": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "signed-zero + exact-float identities preserved",
+   "status": "PASS"
+  },
+  "OQ1-30": {
+   "evidence_source": "container docker run",
+   "scenario": "full evaluator suite passes in container (128)",
+   "status": "PASS"
+  },
+  "OQ1-31": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "manifest covers every artifact",
+   "status": "PASS"
+  },
+  "OQ1-32": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "every published artifact hash verifies",
+   "status": "PASS"
+  },
+  "OQ1-33": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "overwrite attempt refuses",
+   "status": "PASS"
+  },
+  "OQ1-34": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "partial publication fails closed",
+   "status": "PASS"
+  },
+  "OQ1-35": {
+   "evidence_source": "in-process test_oq1",
+   "scenario": "published bundle independently verifiable (S3 dry-run + immutability)",
+   "status": "PASS"
+  }
+ },
+ "count": 35,
+ "record_type": "MR002_OQ1_QualificationMatrix",
+ "version": "1.0"
+}

@@ -1,0 +1,74 @@
+{
+ "accepted_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+ "accepted_schema": "increment3-v1.1-synthetic",
+ "assertions": {
+  "development_performance_computed": false,
+  "oos_data_read": false,
+  "performance_interpretation_authorized": false,
+  "production_promotion_authorized": false,
+  "real_data_accessed": false,
+  "synthetic_fixture_only": true,
+  "validation_authorization": false,
+  "validation_data_read": false
+ },
+ "code_commit": "n/a",
+ "container_digest": "sha256:d513232de0bbd22b8616a6dffb1af9db153ccb704cac746e2b0bf8afef5e4a2d",
+ "dependency_lock_hash": "f3eaf9935ab87145c66a96cd5edccec939b274f1b33afeefa62f8225037944ba",
+ "determinism": {
+  "accepted_hash_reproduced": true,
+  "economic_payload_hash": "a2b902fc34ae083952ab00d1262e885763c0c7a301f3a38d485dd2441cfbafca",
+  "economic_payload_match": true,
+  "output_hash_a": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "output_hash_b": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "output_hash_match": true,
+  "verdict": "DETERMINISTIC"
+ },
+ "disposition": "OQ1_PASS",
+ "economic_payload_hash": "a2b902fc34ae083952ab00d1262e885763c0c7a301f3a38d485dd2441cfbafca",
+ "preflight": {
+  "all_pass": true,
+  "checks": [
+   {
+    "check": "governance_identity",
+    "detail": "registry+resolution bound",
+    "pass": true
+   },
+   {
+    "check": "evaluator_file_hashes",
+    "detail": "21 files",
+    "pass": true
+   },
+   {
+    "check": "environment_identity",
+    "detail": "locked packages verified",
+    "pass": true
+   },
+   {
+    "check": "python_identity",
+    "detail": "3.13",
+    "pass": true
+   },
+   {
+    "check": "output_dir_policy",
+    "detail": "out",
+    "pass": true
+   },
+   {
+    "check": "sealed_access_denied",
+    "detail": "no creds / no forbidden imports",
+    "pass": true
+   },
+   {
+    "check": "network_disabled",
+    "detail": "outbound unreachable",
+    "pass": true
+   }
+  ],
+  "disposition": "PREFLIGHT_PASS",
+  "refusals": [],
+  "stops": []
+ },
+ "record_type": "MR002_OQ1_Qualification",
+ "reproduced_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+ "version": "1.0"
+}

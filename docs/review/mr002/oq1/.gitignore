@@ -1,0 +1,7 @@
+# 52 MB of wheel binaries — regenerable from requirements.lock (hash-pinned); not stored in git
+wheelhouse/
+Dockerfile.probe
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+evidence/container_image_id.txt

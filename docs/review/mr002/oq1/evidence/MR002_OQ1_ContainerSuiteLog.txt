@@ -1,0 +1,5 @@
+MR-002 OQ-1 container evaluator-suite log (image sha256:d513232de0bbd22b8616a6dffb1af9db153ccb704cac746e2b0bf8afef5e4a2d; network none, read-only, non-root uid 10001)
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+128 passed, 1 warning in 5.96s

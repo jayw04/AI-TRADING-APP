@@ -1,0 +1,28 @@
+{
+ "accepted_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+ "comparison_projection": {
+  "operational_fields_excluded": [
+   "code_identity",
+   "dependency_lock_sha256",
+   "governing_source_identities"
+  ]
+ },
+ "container": {
+  "accepted_hash_reproduced": true,
+  "economic_payload_hash": "a2b902fc34ae083952ab00d1262e885763c0c7a301f3a38d485dd2441cfbafca",
+  "economic_payload_isolated_from_container_digest": true,
+  "independent_rebuild_economic_equivalent": true,
+  "run_A_eq_run_B": true
+ },
+ "in_process": {
+  "accepted_hash_reproduced": true,
+  "economic_payload_hash": "a2b902fc34ae083952ab00d1262e885763c0c7a301f3a38d485dd2441cfbafca",
+  "economic_payload_match": true,
+  "output_hash_a": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "output_hash_b": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "output_hash_match": true,
+  "verdict": "DETERMINISTIC"
+ },
+ "record_type": "MR002_OQ1_DeterminismReport",
+ "schema": "increment3-v1.1-synthetic"
+}

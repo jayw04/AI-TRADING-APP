@@ -1,0 +1,34 @@
+MR-002 OQ-1 in-process qualification test log
+Command: pytest test_oq1.py -v
+----
+============================= test session starts =============================
+platform win32 -- Python 3.13.14, pytest-9.0.3, pluggy-1.6.0 -- C:\LLM-RAG-APP\ai-trading-app\apps\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\LLM-RAG-APP\ai-trading-app\docs\review\mr002\oq1
+plugins: anyio-4.13.0, asyncio-1.3.0, cov-7.1.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 21 items
+
+test_oq1.py::test_oq1_01_clean_locked_environment_passes PASSED          [  4%]
+test_oq1.py::test_oq1_02_version_mismatch_refuses PASSED                 [  9%]
+test_oq1.py::test_oq1_03_missing_package_refuses PASSED                  [ 14%]
+test_oq1.py::test_oq1_05_wrong_python_refuses PASSED                     [ 19%]
+test_oq1.py::test_oq1_03b_wheel_hashes_pinned_no_floating PASSED         [ 23%]
+test_oq1.py::test_oq1_13_no_credentials_present_passes PASSED            [ 28%]
+test_oq1.py::test_oq1_14_credential_discovery_refuses PASSED             [ 33%]
+test_oq1.py::test_oq1_15_direct_sealed_path_refuses PASSED               [ 38%]
+test_oq1.py::test_oq1_16_path_traversal_refuses PASSED                   [ 42%]
+test_oq1.py::test_oq1_17_symlink_escape_refuses PASSED                   [ 47%]
+test_oq1.py::test_oq1_18_20_forbidden_adapter_and_subprocess_refuse PASSED [ 52%]
+test_oq1.py::test_oq1_15b_write_to_input_refused PASSED                  [ 57%]
+test_oq1.py::test_oq1_21_refusal_families_map_to_frozen_exit_codes PASSED [ 61%]
+test_oq1.py::test_oq1_22_refusal_report_canonical_deterministic PASSED   [ 66%]
+test_oq1.py::test_oq1_23_refusal_report_contains_no_secrets PASSED       [ 71%]
+test_oq1.py::test_oq1_25_27_determinism_and_accepted_hash PASSED         [ 76%]
+test_oq1.py::test_oq1_29_signed_zero_exact_float_preserved PASSED        [ 80%]
+test_oq1.py::test_oq1_31_32_manifest_covers_and_hashes_verify PASSED     [ 85%]
+test_oq1.py::test_oq1_33_overwrite_refuses PASSED                        [ 90%]
+test_oq1.py::test_oq1_34_partial_missing_artifact_fails_closed PASSED    [ 95%]
+test_oq1.py::test_oq1_35_s3_dryrun_immutability_and_run5_forbidden PASSED [100%]
+
+============================= 21 passed in 1.60s ==============================

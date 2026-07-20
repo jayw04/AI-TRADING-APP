@@ -1,0 +1,40 @@
+{
+ "no_fallback_to_unpinned_public_package": true,
+ "qualification_tooling": [
+  "colorama",
+  "iniconfig",
+  "packaging",
+  "pluggy",
+  "pygments",
+  "pytest",
+  "ruff"
+ ],
+ "record_type": "MR002_OQ1_DependencyResolutionReport",
+ "refusal_codes": {
+  "hash_mismatch": "REFUSED_ENVIRONMENT_IDENTITY:WHEEL_HASH_MISMATCH",
+  "missing_locked_artifact": "REFUSED_ENVIRONMENT_IDENTITY:MISSING_WHEEL",
+  "unapproved_source": "REFUSED_ENVIRONMENT_IDENTITY:UNAPPROVED_SOURCE",
+  "unexpected_package": "REFUSED_ENVIRONMENT_IDENTITY:UNEXPECTED_PACKAGE",
+  "unsupported_platform": "REFUSED_ENVIRONMENT_IDENTITY:PLATFORM_UNSUPPORTED",
+  "wrong_python": "REFUSED_ENVIRONMENT_IDENTITY:PYTHON_MISMATCH",
+  "wrong_version": "REFUSED_ENVIRONMENT_IDENTITY:VERSION_MISMATCH"
+ },
+ "resolved": {
+  "colorama": "0.4.6",
+  "iniconfig": "2.3.0",
+  "numpy": "2.2.6",
+  "packaging": "26.2",
+  "pluggy": "1.6.0",
+  "pygments": "2.20.0",
+  "pytest": "9.0.3",
+  "ruff": "0.15.13",
+  "scipy": "1.18.0"
+ },
+ "resolver": "pip download --only-binary=:all: --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 --python-version 3.13 --implementation cp --abi cp313",
+ "runtime": [
+  "numpy",
+  "scipy"
+ ],
+ "scipy_1_18_0_availability": "resolvable on PyPI (index latest); local install is a real pip cp313-win_amd64 wheel; linux wheel manylinux_2_28",
+ "version": "1.0"
+}

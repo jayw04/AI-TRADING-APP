@@ -1,0 +1,24 @@
+{
+ "base_image": "python:3.13-slim",
+ "dependency_lock": {
+  "install": "pip install --no-index --find-links=/wheelhouse --require-hashes -r requirements.lock",
+  "requirements_lock_sha256": "274ef6e41f55cfede2efd1cccb6ba367ec0bfc58e919804fa2f9dc33b2c009b8",
+  "wheelhouse_manifest_sha256": "f3eaf9935ab87145c66a96cd5edccec939b274f1b33afeefa62f8225037944ba"
+ },
+ "dockerfile": "Dockerfile.oq1",
+ "embeds": [
+  "source evaluator files (hash-pinned)",
+  "governing artifacts",
+  "dependency lock",
+  "base-image",
+  "evaluator schema"
+ ],
+ "evaluator_schema_identity": "increment3-v1.1-synthetic",
+ "governance_identities": {
+  "phase0_resolution": "860c8cde...",
+  "registry": "edb7ff22..."
+ },
+ "image_id": "sha256:d513232de0bbd22b8616a6dffb1af9db153ccb704cac746e2b0bf8afef5e4a2d",
+ "note": "wheelhouse binaries are regenerable from requirements.lock (hash-pinned); not stored in git",
+ "record_type": "MR002_OQ1_ContainerBuildManifest"
+}

@@ -1,0 +1,48 @@
+{
+ "container_digest": "sha256:d513232de0bbd22b8616a6dffb1af9db153ccb704cac746e2b0bf8afef5e4a2d",
+ "preflight": {
+  "all_pass": true,
+  "checks": [
+   {
+    "check": "governance_identity",
+    "detail": "registry+resolution bound",
+    "pass": true
+   },
+   {
+    "check": "evaluator_file_hashes",
+    "detail": "21 files",
+    "pass": true
+   },
+   {
+    "check": "environment_identity",
+    "detail": "locked packages verified",
+    "pass": true
+   },
+   {
+    "check": "python_identity",
+    "detail": "3.13",
+    "pass": true
+   },
+   {
+    "check": "output_dir_policy",
+    "detail": "out",
+    "pass": true
+   },
+   {
+    "check": "sealed_access_denied",
+    "detail": "no creds / no forbidden imports",
+    "pass": true
+   },
+   {
+    "check": "network_disabled",
+    "detail": "outbound unreachable",
+    "pass": true
+   }
+  ],
+  "disposition": "PREFLIGHT_PASS",
+  "refusals": [],
+  "stops": []
+ },
+ "record_type": "MR002_OQ1_Preflight",
+ "source": "container OQ1_PASS run"
+}

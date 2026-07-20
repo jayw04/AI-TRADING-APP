@@ -1,0 +1,102 @@
+{
+ "index_identity": "https://pypi.org/simple/ (offline wheelhouse; --no-index --find-links=./wheelhouse at install)",
+ "install_command": "pip install --no-index --find-links=./wheelhouse --require-hashes -r requirements.lock",
+ "no_floating_ranges": true,
+ "no_unverified_downloads": true,
+ "platform_targets": [
+  "manylinux2014_x86_64",
+  "manylinux_2_28_x86_64",
+  "none-any"
+ ],
+ "python": {
+  "abi": "cp313",
+  "implementation": "CPython",
+  "version": "3.13"
+ },
+ "record_type": "MR002_OQ1_WheelhouseManifest",
+ "version": "1.0",
+ "wheelhouse_sha256_of_shas": "5e3784c587558f6889b99ac67811c061760cfef6d60838a23f6e33b340fecc05",
+ "wheels": [
+  {
+   "filename": "colorama-0.4.6-py2.py3-none-any.whl",
+   "name": "colorama",
+   "platform_tag": "none-any",
+   "role": "qualification_tooling",
+   "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6",
+   "size_bytes": 25335,
+   "version": "0.4.6"
+  },
+  {
+   "filename": "iniconfig-2.3.0-py3-none-any.whl",
+   "name": "iniconfig",
+   "platform_tag": "none-any",
+   "role": "qualification_tooling",
+   "sha256": "f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12",
+   "size_bytes": 7484,
+   "version": "2.3.0"
+  },
+  {
+   "filename": "numpy-2.2.6-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+   "name": "numpy",
+   "platform_tag": "cp313-manylinux_2_17_x86_64.manylinux2014_x86_64",
+   "role": "runtime",
+   "sha256": "1bc23a79bfabc5d056d106f9befb8d50c31ced2fbc70eedb8155aec74a45798f",
+   "size_bytes": 16526072,
+   "version": "2.2.6"
+  },
+  {
+   "filename": "packaging-26.2-py3-none-any.whl",
+   "name": "packaging",
+   "platform_tag": "none-any",
+   "role": "qualification_tooling",
+   "sha256": "5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e",
+   "size_bytes": 100195,
+   "version": "26.2"
+  },
+  {
+   "filename": "pluggy-1.6.0-py3-none-any.whl",
+   "name": "pluggy",
+   "platform_tag": "none-any",
+   "role": "qualification_tooling",
+   "sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746",
+   "size_bytes": 20538,
+   "version": "1.6.0"
+  },
+  {
+   "filename": "pygments-2.20.0-py3-none-any.whl",
+   "name": "pygments",
+   "platform_tag": "none-any",
+   "role": "qualification_tooling",
+   "sha256": "81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176",
+   "size_bytes": 1231151,
+   "version": "2.20.0"
+  },
+  {
+   "filename": "pytest-9.0.3-py3-none-any.whl",
+   "name": "pytest",
+   "platform_tag": "none-any",
+   "role": "qualification_tooling",
+   "sha256": "2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9",
+   "size_bytes": 375249,
+   "version": "9.0.3"
+  },
+  {
+   "filename": "ruff-0.15.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+   "name": "ruff",
+   "platform_tag": "none-manylinux_2_17_x86_64.manylinux2014_x86_64",
+   "role": "qualification_tooling",
+   "sha256": "cc411dfebe5eebe55ce041c6ae080eb7668955e866daa2fbb16692a784f1c4ca",
+   "size_bytes": 11434486,
+   "version": "0.15.13"
+  },
+  {
+   "filename": "scipy-1.18.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+   "name": "scipy",
+   "platform_tag": "cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64",
+   "role": "runtime",
+   "sha256": "a46f9273dbd0eb1cefba61c9b8648b4dfe3cbc14a080176f9a73e44b8336dc7f",
+   "size_bytes": 35266390,
+   "version": "1.18.0"
+  }
+ ]
+}
