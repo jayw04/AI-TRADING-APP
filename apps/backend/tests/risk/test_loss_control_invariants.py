@@ -164,3 +164,94 @@ def test_recovery_triggers_only_checked_in_engine():
     # state_machine.py legitimately DEFINES the recovery triggers — must not be flagged.
     src = "TRIGGER_RECOVERY_REQUEST = 'RECOVERY_REQUEST'\n"
     assert _run_one(mod.check_no_recovery_triggers_in_engine, "app/risk/loss_control/state_machine.py", src) == []
+
+
+# ============================================================ AST-evasion hardening (review round 2)
+
+
+def test_single_persister_catches_aliased_model_constructor():
+    src = (
+        "from app.db.models.risk_loss_control_state import RiskLossControlState as StateRow\n"
+        "def f():\n    return StateRow(account_id=1)\n"  # aliased constructor
+    )
+    v = _run_one(mod.check_single_persister, "app/api/v1/risk.py", src)
+    assert _invariants(v) == {"single-persister"}
+
+
+def test_single_persister_catches_module_qualified_constructor():
+    src = (
+        "import app.db.models.risk_loss_control_state as state_model\n"
+        "def f():\n    return state_model.RiskLossControlState(account_id=1)\n"  # module-qualified
+    )
+    v = _run_one(mod.check_single_persister, "app/services/foo.py", src)
+    assert _invariants(v) == {"single-persister"}
+
+
+def test_single_persister_catches_aliased_model_in_write_ops():
+    src = (
+        "from sqlalchemy import update, delete\n"
+        "from app.db.models.risk_loss_control_state import RiskLossControlState as S\n"
+        "import app.db.models.risk_control_event as events\n"
+        "def f(session):\n"
+        "    session.execute(update(S).values(x=1))\n"  # aliased model in update
+        "    session.execute(delete(events.RiskControlEvent))\n"  # module-qualified in delete
+    )
+    v = _run_one(mod.check_single_persister, "app/services/foo.py", src)
+    assert len(v) >= 2 and _invariants(v) == {"single-persister"}
+
+
+def test_single_persister_catches_direct_state_mutation():
+    src = (
+        "from app.db.models.risk_loss_control_state import RiskLossControlState\n"
+        "def f():\n"
+        "    row = RiskLossControlState(account_id=1)\n"  # constructor (also flagged)
+        "    row.state = 'NORMAL'\n"  # the most obvious forbidden write — .state on the instance
+    )
+    v = _run_one(mod.check_single_persister, "app/api/v1/risk.py", src)
+    details = [x.detail for x in v]
+    assert any("mutates .state" in d for d in details)
+
+
+def test_single_persister_catches_state_mutation_on_annotated_param():
+    src = (
+        "from app.db.models.risk_loss_control_state import RiskLossControlState\n"
+        "def f(row: RiskLossControlState):\n"  # received instance, no constructor in-file
+        "    row.state = 'INTEGRITY_STOP'\n"
+        "    row.state_version = 9\n"
+    )
+    v = _run_one(mod.check_single_persister, "app/services/foo.py", src)
+    details = [x.detail for x in v]
+    assert any("mutates .state" in d for d in details)
+    assert any(".state_version" in d for d in details)
+
+
+def test_single_persister_does_not_flag_unrelated_dot_state():
+    # ``.state`` on a non-model object (very common) must NOT be flagged.
+    src = "def f(strategy):\n    strategy.state = 'IDLE'\n    return strategy\n"
+    assert _run_one(mod.check_single_persister, "app/services/foo.py", src) == []
+
+
+def test_gate_catches_module_import_and_factory_pattern():
+    src = (
+        "import app.risk.loss_control.gate as lc_gate\n"  # module import — itself the violation
+        "def f():\n"
+        "    Gate = lc_gate.LossControlGate\n"  # factory/reference pattern
+        "    return Gate\n"
+    )
+    v = _run_one(mod.check_gate_only_via_engine, "app/orders/router.py", src)
+    assert _invariants(v) == {"gate-only-via-engine"}
+
+
+def test_classifier_catches_plain_module_import():
+    src = (
+        "import app.risk.risk_effect as re\n"
+        "def f(snap, action):\n    return re.classify(snap, action)\n"  # qualified call via module import
+    )
+    v = _run_one(mod.check_no_duplicate_classifier, "app/risk/loss_control/service.py", src)
+    assert _invariants(v) == {"no-duplicate-classifier"}
+
+
+def test_classifier_catches_decision_service_module_import():
+    src = "import app.risk.decision_service\n"
+    v = _run_one(mod.check_no_duplicate_classifier, "app/risk/loss_control/gate.py", src)
+    assert _invariants(v) == {"no-duplicate-classifier"}

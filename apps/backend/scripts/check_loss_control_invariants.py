@@ -2,20 +2,22 @@
 
 Five load-bearing properties the PR1–PR4 increments established, enforced structurally so a future
 change cannot silently re-introduce the failure modes they closed. **Disabling any of these requires
-an ADR.** They are checked with the Python AST — not grep — so aliased imports, multi-line calls,
-and docstring/comment mentions are handled correctly (a name in a docstring is not a violation; an
-aliased import of a forbidden symbol still is).
+an ADR.** They are checked with the Python AST — not grep — so aliased and module-qualified imports,
+multi-line calls, and docstring/comment mentions are handled correctly (a name in a docstring is not
+a violation; ``from ... import Model as X`` / ``import ... as m; m.Model(...)`` still are).
 
   1. SINGLE-PERSISTER (§D1.1). Only ``app/risk/loss_control/service.py`` performs runtime writes to
-     the ``risk_loss_control_state`` / ``risk_control_events`` tables. The transition service is the
-     sole persistence authority; reads are unrestricted (the gate must load state).
-  2. GATE ONLY THROUGH THE ENGINE. ``LossControlGate`` is imported / constructed only in
-     ``app/risk/engine.py`` (and its own module) — one authoritative decision seam, never a second
-     one in the router, breaker, API, jobs, or recovery code.
-  3. NO DUPLICATE REDUCTION CLASSIFIER. Code under ``app/risk/loss_control/`` never imports or calls
-     the ADR 0042 verified-reduction machinery (``risk_effect.classify``, ``RiskDecisionService``,
-     the engine's ``_permits_verified_reduction``). The verdict is computed once by the engine and
-     passed into the pure ``order_outcome_for_state``.
+     the ``risk_loss_control_state`` / ``risk_control_events`` tables — including via aliased or
+     module-qualified model references, and direct mutation of the materialized ``.state`` /
+     ``.state_version`` / ``.last_sequence_no`` on a model instance. Reads are unrestricted.
+  2. GATE ONLY THROUGH THE ENGINE. ``LossControlGate`` is imported (in any form) or constructed only
+     in ``app/risk/engine.py`` (and its own module) — one authoritative decision seam. Importing the
+     gate module outside the allowlist is itself the violation (a factory/reference pattern can't
+     evade it).
+  3. NO DUPLICATE REDUCTION CLASSIFIER. Code under ``app/risk/loss_control/`` never imports the
+     ADR 0042 verified-reduction machinery in any form (``from app.risk.risk_effect import ...`` or
+     ``import app.risk.risk_effect``, likewise ``decision_service``) nor calls its distinctive
+     symbols. The verdict is computed once by the engine and passed into ``order_outcome_for_state``.
   4. NO IMPLICIT BOOTSTRAP AT THE DECISION SEAM. ``app/risk/engine.py`` and the gate never call
      ``get_state_row`` (which may bootstrap NORMAL); the decision path uses ``load_state_row`` so a
      missing state fails closed to INTEGRITY_STOP instead of being silently created.
@@ -49,54 +51,29 @@ THIS_SCRIPT = "scripts/check_loss_control_invariants.py"
 STATE_TABLES = {"risk_loss_control_state", "risk_control_events"}
 STATE_MODEL_NAMES = {"RiskLossControlState", "RiskControlEvent"}
 WRITE_FUNCS = {"insert", "sqlite_insert", "update", "delete"}
-STATE_WRITE_ATTRS = {"state_version", "last_sequence_no"}
-_SQL_WRITE_KEYWORDS = ("insert", "update", "delete")  # to spot raw SQL, not docstrings
+STATE_WRITE_ATTRS_UNCONDITIONAL = {"state_version", "last_sequence_no"}  # distinctive columns
+STATE_WRITE_ATTR_INSTANCE = "state"  # generic — only flagged on a resolved model instance
+_SQL_WRITE_KEYWORDS = ("insert", "update", "delete")
 
+# §2 — the authoritative gate module.
+GATE_MODULE = "app.risk.loss_control.gate"
 
-def _is_raw_sql_write(value: str) -> str | None:
-    """Return the table name if ``value`` is raw SQL WRITING a state table, else None.
-
-    Matches a string that names a state table AND contains a SQL write keyword — so a docstring that
-    merely mentions the table (no INSERT/UPDATE/DELETE) is not a false positive."""
-    low = value.lower()
-    if not any(kw in low for kw in _SQL_WRITE_KEYWORDS):
-        return None
-    for table in STATE_TABLES:
-        if table in value:
-            return table
-    return None
-
-# §3 — the ADR 0042 classifier machinery loss_control/ must not reach for. The IMPORT boundary is
-# the real enforcement: you cannot use ``risk_effect.classify`` or ``RiskDecisionService`` without
-# importing it. So the import checks (module + name) below are comprehensive; the CALL check is
-# narrowed to DISTINCTIVE names only — a bare ``classify(...)`` is the market-session classifier, not
-# ADR 0042's, and ``decide(...)`` is too generic to flag on the name alone.
-FORBIDDEN_IN_LOSS_CONTROL_MODULES = ("app.risk.risk_effect", "app.risk.decision_service")
-FORBIDDEN_IMPORT_NAMES = {
-    "classify",
-    "RiskDecisionService",
-    "permits_while_locked",
-    "_permits_verified_reduction",
-}
-FORBIDDEN_CALL_NAMES = {
-    "RiskDecisionService",
-    "permits_while_locked",
-    "_permits_verified_reduction",
-}
+# §3 — the ADR 0042 classifier machinery loss_control/ must not reach for.
+FORBIDDEN_LC_MODULES = ("app.risk.risk_effect", "app.risk.decision_service")
+FORBIDDEN_IMPORT_NAMES = {"classify", "RiskDecisionService", "permits_while_locked",
+                          "_permits_verified_reduction"}
+# A bare ``classify(...)`` is the market-session classifier; ``decide(...)`` is too generic — so the
+# CALL check is narrowed to distinctive names. The import boundary above is the real enforcement.
+FORBIDDEN_CALL_NAMES = {"RiskDecisionService", "permits_while_locked", "_permits_verified_reduction"}
 
 # §5 — recovery / re-arm triggers forbidden in the engine (identifiers + string spellings).
 FORBIDDEN_ENGINE_TRIGGER_NAMES = {
-    "TRIGGER_RECOVERY_REQUEST",
-    "TRIGGER_PREFLIGHT_PASS",
-    "TRIGGER_PREFLIGHT_FAIL",
-    "TRIGGER_COOLDOWN_COMPLETE",
-    "TRIGGER_HEALTH_REGRESSED",
+    "TRIGGER_RECOVERY_REQUEST", "TRIGGER_PREFLIGHT_PASS", "TRIGGER_PREFLIGHT_FAIL",
+    "TRIGGER_COOLDOWN_COMPLETE", "TRIGGER_HEALTH_REGRESSED",
 }
 FORBIDDEN_ENGINE_TRIGGER_STRINGS = {
-    "RECOVERY_REQUEST", "RECOVERY_REQUESTED",
-    "PREFLIGHT_PASS", "RECOVERY_PREFLIGHT_PASS",
-    "PREFLIGHT_FAIL", "RECOVERY_PREFLIGHT_FAIL",
-    "COOLDOWN_COMPLETE", "COOLDOWN_EXPIRED",
+    "RECOVERY_REQUEST", "RECOVERY_REQUESTED", "PREFLIGHT_PASS", "RECOVERY_PREFLIGHT_PASS",
+    "PREFLIGHT_FAIL", "RECOVERY_PREFLIGHT_FAIL", "COOLDOWN_COMPLETE", "COOLDOWN_EXPIRED",
     "HEALTH_REGRESSED", "REARM",
 }
 
@@ -126,9 +103,69 @@ def _func_name(node: ast.Call) -> str:
     return ""
 
 
-def _first_arg_name(node: ast.Call) -> str | None:
-    if node.args and isinstance(node.args[0], ast.Name):
-        return node.args[0].id
+# --------------------------------------------------------------------- import / instance resolution
+
+
+def _model_class_localnames(tree: ast.AST) -> set[str]:
+    """Local names bound to a state-model CLASS via ``from ... import Model [as Alias]``."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for a in node.names:
+                if a.name in STATE_MODEL_NAMES:
+                    names.add(a.asname or a.name)
+    return names
+
+
+def _is_model_ref(node: ast.expr, localnames: set[str]) -> bool:
+    """Does ``node`` reference a state-model class — direct, aliased, or module-qualified?
+
+    Catches ``RiskLossControlState``, an aliased ``StateRow`` (localnames), and any
+    ``<anything>.RiskLossControlState`` (module-qualified) — no legitimate non-model symbol is
+    literally named ``.RiskLossControlState`` / ``.RiskControlEvent``."""
+    if isinstance(node, ast.Name):
+        return node.id in STATE_MODEL_NAMES or node.id in localnames
+    if isinstance(node, ast.Attribute):
+        return node.attr in STATE_MODEL_NAMES
+    return False
+
+
+def _state_instance_vars(tree: ast.AST, localnames: set[str]) -> set[str]:
+    """Local names known to hold a state-model INSTANCE: assigned from a constructor, or a
+    parameter / annotated variable typed as a state model. Used to catch ``row.state = ...``."""
+    vars_: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) and _is_model_ref(
+            node.value.func, localnames
+        ):
+            for t in node.targets:
+                if isinstance(t, ast.Name):
+                    vars_.add(t.id)
+        elif isinstance(node, ast.AnnAssign) and node.annotation is not None and _is_model_ref(
+            node.annotation, localnames
+        ):
+            if isinstance(node.target, ast.Name):
+                vars_.add(node.target.id)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for arg in [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]:
+                if arg.annotation is not None and _is_model_ref(arg.annotation, localnames):
+                    vars_.add(arg.arg)
+    return vars_
+
+
+def _attr_root(node: ast.Attribute) -> str | None:
+    return node.value.id if isinstance(node.value, ast.Name) else None
+
+
+def _is_raw_sql_write(value: str) -> str | None:
+    """Return the table name if ``value`` is raw SQL WRITING a state table, else None (a docstring
+    that merely mentions the table has no INSERT/UPDATE/DELETE keyword, so it is not flagged)."""
+    low = value.lower()
+    if not any(kw in low for kw in _SQL_WRITE_KEYWORDS):
+        return None
+    for table in STATE_TABLES:
+        if table in value:
+            return table
     return None
 
 
@@ -139,28 +176,30 @@ def check_single_persister(rel: str, tree: ast.AST) -> list[Violation]:
     """§1 — only service.py may WRITE the two state-machine tables (reads are fine everywhere)."""
     if rel in (SERVICE, STATE_MODELS, EVENT_MODELS, THIS_SCRIPT) or _is_test(rel) or "/alembic/" in rel:
         return []
+    localnames = _model_class_localnames(tree)
+    state_vars = _state_instance_vars(tree, localnames)
     out: list[Violation] = []
     for node in ast.walk(tree):
-        # Model instantiation: RiskLossControlState(...) / RiskControlEvent(...).
-        if isinstance(node, ast.Call) and _func_name(node) in STATE_MODEL_NAMES and isinstance(
-            node.func, ast.Name
-        ):
-            out.append(Violation("single-persister", rel, node.lineno,
-                                  f"constructs {_func_name(node)} outside the transition service"))
-        # Write ops: insert/update/delete(RiskLossControlState|RiskControlEvent).
-        elif isinstance(node, ast.Call) and _func_name(node) in WRITE_FUNCS and (
-            _first_arg_name(node) in STATE_MODEL_NAMES
-        ):
-            out.append(Violation("single-persister", rel, node.lineno,
-                                  f"{_func_name(node)}() targets a state-machine table outside the service"))
-        # Direct writes to the CAS/sequence columns.
-        elif isinstance(node, (ast.Assign, ast.AugAssign)):
+        if isinstance(node, ast.Call):
+            if _is_model_ref(node.func, localnames):
+                out.append(Violation("single-persister", rel, node.lineno,
+                                     "constructs a state-machine model outside the transition service"))
+            elif _func_name(node) in WRITE_FUNCS and node.args and _is_model_ref(
+                node.args[0], localnames
+            ):
+                out.append(Violation("single-persister", rel, node.lineno,
+                                     f"{_func_name(node)}() targets a state-machine table outside the service"))
+        elif isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             for t in targets:
-                if isinstance(t, ast.Attribute) and t.attr in STATE_WRITE_ATTRS:
+                if not isinstance(t, ast.Attribute):
+                    continue
+                if t.attr in STATE_WRITE_ATTRS_UNCONDITIONAL:
                     out.append(Violation("single-persister", rel, node.lineno,
                                          f"assigns .{t.attr} outside the transition service"))
-        # Bare table-name string (e.g. a table= kwarg) or raw SQL writing the table.
+                elif t.attr == STATE_WRITE_ATTR_INSTANCE and _attr_root(t) in state_vars:
+                    out.append(Violation("single-persister", rel, node.lineno,
+                                         "mutates .state on a state-machine model outside the service"))
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             if node.value in STATE_TABLES:
                 out.append(Violation("single-persister", rel, node.lineno,
@@ -174,20 +213,21 @@ def check_single_persister(rel: str, tree: ast.AST) -> list[Violation]:
 
 
 def check_gate_only_via_engine(rel: str, tree: ast.AST) -> list[Violation]:
-    """§2 — LossControlGate imported/constructed only in engine.py (+ its own module, tests)."""
+    """§2 — the gate is imported (any form) or constructed only in engine.py (+ its module, tests)."""
     if rel in (ENGINE, GATE) or _is_test(rel):
         return []
     out: list[Violation] = []
     for node in ast.walk(tree):
-        # Import of the symbol (survives aliasing — we check the imported name, not the asname).
-        if isinstance(node, ast.ImportFrom) and (node.module or "").startswith(
-            "app.risk.loss_control.gate"
-        ):
+        if isinstance(node, ast.ImportFrom) and (node.module or "").startswith(GATE_MODULE):
             for a in node.names:
                 if a.name == "LossControlGate":
                     out.append(Violation("gate-only-via-engine", rel, node.lineno,
                                          "imports LossControlGate outside the engine"))
-        # Direct construction.
+        elif isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name == GATE_MODULE or a.name.startswith(GATE_MODULE + "."):
+                    out.append(Violation("gate-only-via-engine", rel, node.lineno,
+                                         "imports the gate module outside the engine"))
         elif isinstance(node, ast.Call) and _func_name(node) == "LossControlGate":
             out.append(Violation("gate-only-via-engine", rel, node.lineno,
                                  "constructs LossControlGate outside the engine"))
@@ -195,20 +235,25 @@ def check_gate_only_via_engine(rel: str, tree: ast.AST) -> list[Violation]:
 
 
 def check_no_duplicate_classifier(rel: str, tree: ast.AST) -> list[Violation]:
-    """§3 — loss_control/ must not import/call the ADR 0042 reduction classifier machinery."""
+    """§3 — loss_control/ must not import (any form) or call the ADR 0042 classifier machinery."""
     if not rel.startswith(LOSS_CONTROL_PKG) or _is_test(rel):
         return []
     out: list[Violation] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             mod = node.module or ""
-            if any(mod.startswith(m) for m in FORBIDDEN_IN_LOSS_CONTROL_MODULES):
+            if any(mod.startswith(m) for m in FORBIDDEN_LC_MODULES):
                 out.append(Violation("no-duplicate-classifier", rel, node.lineno,
                                      f"loss_control/ imports from {mod} (reuse the engine's verdict)"))
             for a in node.names:
                 if a.name in FORBIDDEN_IMPORT_NAMES:
                     out.append(Violation("no-duplicate-classifier", rel, node.lineno,
                                          f"loss_control/ imports {a.name} (reuse the engine's verdict)"))
+        elif isinstance(node, ast.Import):
+            for a in node.names:
+                if any(a.name == m or a.name.startswith(m + ".") for m in FORBIDDEN_LC_MODULES):
+                    out.append(Violation("no-duplicate-classifier", rel, node.lineno,
+                                         f"loss_control/ imports module {a.name} (reuse the engine's verdict)"))
         elif isinstance(node, ast.Call) and _func_name(node) in FORBIDDEN_CALL_NAMES:
             out.append(Violation("no-duplicate-classifier", rel, node.lineno,
                                  f"loss_control/ calls {_func_name(node)}() (reuse the engine's verdict)"))
