@@ -1,0 +1,78 @@
+{
+ "affirmations": {
+  "access_restriction_changed": false,
+  "cost_or_D_decision_changed": false,
+  "dsr_trial_count_changed": false,
+  "economic_rule_changed": false,
+  "evaluator_built": false,
+  "gate_threshold_changed": false,
+  "oos_bytes_read": false,
+  "performance_computed": false,
+  "validation_bytes_read": false,
+  "window_or_seam_or_fold_changed": false
+ },
+ "authoritative_bootstrap": "v0.3 STATIONARY RULE (Politis-Romano, circular), established v0.2, retained v0.3, inherited by owner-signed v1.0 freeze 70108c11",
+ "authorized_by": "owner ruling 2026-07-20 (docs/review/comments.md, Ruling 1 - authoritative bootstrap)",
+ "census_reference": "MR002_Bootstrap_Source_Census_v1.0.json + MR002_Bootstrap_Ruling_Candidate_v1.0.md (committed ed06d01)",
+ "date": "2026-07-20",
+ "defect_class": "bootstrap transcription drift (same class as the v1.0-final gate-battery mis-anchoring)",
+ "explicit_statement": "The Validation/OOS chain substituted moving-block/L21/2000/seed42 for the frozen stationary/10,000/seed20260711/expected-L5 rule and omitted the registered expected-L10 sensitivity. No signed decision authorized that substitution.",
+ "machine_diff_proof": {
+  "added_keys": [
+   "corrections_from_v1.0.3"
+  ],
+  "changed_keys": [
+   "bootstrap",
+   "date",
+   "record_status",
+   "supersedes",
+   "version"
+  ],
+  "invariants_byte_equal": [
+   "gates_frozen",
+   "windows_literal",
+   "validation_folds_literal_governing",
+   "seam_rule",
+   "cost_model_frozen_values",
+   "dsr",
+   "dsr_schema_assertion",
+   "exposure_limits_frozen",
+   "sharpe_estimator",
+   "sequencing",
+   "benchmark",
+   "confirmatory_structure",
+   "coverage_gates",
+   "governing_gate_source",
+   "governing_frozen_sources",
+   "pbo",
+   "sealed_access_protocol",
+   "secondary_family",
+   "terminal_dispositions",
+   "authorizes_execution",
+   "sealed_data_read",
+   "boundary"
+  ],
+  "method": "json.loads both files; compare top-level keys",
+  "removed_keys": []
+ },
+ "prereg_update": {
+  "changed": [
+   "bootstrap.name: moving-block (non-circular) -> stationary (Politis-Romano, circular)",
+   "bootstrap.block_length_sessions=21 -> expected_block_length_primary_sessions=5 + expected_block_length_sensitivity_sessions=10",
+   "bootstrap.resamples=2000 -> replications_each=10000",
+   "bootstrap.seed=42 -> seed=20260711",
+   "bootstrap.rng unchanged (numpy_PCG64); confidence 0.95 unchanged; sided one_sided_lower unchanged",
+   "bootstrap.mechanics/statistic/confirmatory_gate/sensitivity_role added (frozen v0.3 spec; expected-L10 sensitivity restored)",
+   "version 1.0.3 -> 1.0.4; date; supersedes; record_status; corrections_from_v1.0.3 added"
+  ],
+  "from": "MR002_ValidationOOS_Preregistration_v1.0.3",
+  "from_sha256": "b840e01cf8f4dc2cf40f43f4fc0f9f70e53712e5f78b3a73346014bbcf2ef468",
+  "to": "MR002_ValidationOOS_Preregistration_v1.0.4",
+  "to_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+ },
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_VALIDATIONOOS_CORRECTION",
+ "supersedes": "MR002_ValidationOOS_Preregistration_v1.0.3",
+ "unchanged_vs_v1.0.3": "NO gate threshold, window, seam date, fold, cost, D-decision, DSR trial count (N=5), or access restriction changed. The confirmatory gate remains the one-sided 95% bootstrap lower bound of daily mean net return > 0; only the bootstrap that PRODUCES that lower bound is corrected to the frozen stationary rule.",
+ "version": "1.0.4"
+}

@@ -1,0 +1,86 @@
+{
+ "authorized_by": "owner ruling 2026-07-20 (docs/review/comments.md, Ruling 2 - DSR dispersion)",
+ "boundary": "Do NOT compute the A/B/C Sharpes now. This ruling FREEZES the algorithm; the values are produced only during the later explicitly authorized validation execution. No sealed data read; no performance computed; N unchanged; no trial deleted.",
+ "complements_note": "Complements MR002_DSR_Resolution_v1.0 (which set dsr.status READY + N=5 on v1.0.3). This record resolves the SEPARATE trial-statistics/dispersion blocker; the countersigned ledger and N=5 are unchanged.",
+ "countersigned_trial_ledger": {
+  "file": "MR002_DSR_TrialLedger_v1.0.json",
+  "included": [
+   "MR002-A",
+   "MR002-B",
+   "MR002-C",
+   "RNG-001",
+   "RNG-EntryLogic"
+  ],
+  "sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+  "status": "UNCHANGED (the ledger is NOT modified)",
+  "trials_N": 5
+ },
+ "date": "2026-07-20",
+ "dispersion": {
+  "conversion": "divide by sqrt(252)",
+  "estimator": "sample standard deviation, ddof=1",
+  "excluded_from_dispersion": {
+   "reason": "no comparable frozen daily-net Sharpe exists (documented incomparability/unavailability)",
+   "retained_in_N": true,
+   "trials": [
+    "RNG-001",
+    "RNG-EntryLogic"
+   ]
+  },
+  "input_units": "annualized Sharpe",
+  "runtime_units": "per-observation Sharpe",
+  "sample": "validation",
+  "source_trials": [
+   "MR002-A",
+   "MR002-B",
+   "MR002-C"
+  ]
+ },
+ "exact_calculation": {
+  "oos_dsr_inputs": {
+   "N": 5,
+   "sigma_trials": "sigma_trials_daily (per-observation units)"
+  },
+  "per_config_annualized_sharpe": "SR_ann for A/B/C = mean(daily simple net returns) / std(ddof=1) * sqrt(252), over the validation scoring-eligible sessions, frozen base-cost specification, the COMPLETE validation window (NOT selected folds)",
+  "sigma_trials_annualized": "std(SR_A_ann, SR_B_ann, SR_C_ann; ddof=1)",
+  "sigma_trials_daily": "sigma_trials_annualized / sqrt(252)"
+ },
+ "fail_closed_rules": {
+  "any_ABC_series_different_sessions_costs_execution_or_data_identity": "REFUSED_DSR_TRIAL_STATISTICS_INCOMPARABLE",
+  "any_ABC_validation_sharpe_unavailable": "REFUSED_DSR_TRIAL_STATISTICS_UNAVAILABLE",
+  "dispersion_artifact_absent_or_identity_mismatch_before_OOS": "REFUSED_CODE_OR_DATA_IDENTITY",
+  "sigma_trials_negative": "INTEGRITY_STOP:DSR_TRIAL_DISPERSION_NEGATIVE",
+  "sigma_trials_nonfinite": "INTEGRITY_STOP:DSR_TRIAL_DISPERSION_NONFINITE",
+  "sigma_trials_zero": "allowed mathematically, MUST be reported explicitly; expected-max Sharpe collapses to the zero-benchmark term"
+ },
+ "governing_prereg": {
+  "name": "MR002_ValidationOOS_Preregistration_v1.0.4",
+  "sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+ },
+ "multiplicity_N": 5,
+ "not_circular": "The DSR gate is evaluated on sealed OOS config B. The dispersion input is frozen from the earlier validation stage: A/B/C are all preregistered before validation; validation uses the same common sample for all three; no configuration is selected from their results; B remains the fixed verdict configuration; the dispersion artifact is sealed before OOS authorization; OOS data is not used to estimate dispersion. Validation creates a nuisance-parameter artifact for the later OOS DSR gate; it does not tune the strategy or inspect OOS.",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_DSR_DISPERSION_RESOLUTION",
+ "resolves": "the DSR trial-statistics blocker (MR002_DSR_TrialStatistics_Blocker_v1.0) by CHANGING the dispersion ESTIMATOR, NOT by deleting trials from the multiplicity family. The five-trial historical-Sharpe reconstruction is CLOSED as unavailable (blocker accepted; zero of five ledger trials has a defensible frozen annualized net Sharpe on a comparable basis; no statistic manufactured).",
+ "validation_stage_dispersion_artifact": {
+  "emitted_by": "the validation evaluator during the single authorized validation run",
+  "file": "MR002_DSR_TrialDispersion_Validation_v1.0.json",
+  "must_be_immutable_and_countersigned_before_OOS": true,
+  "required_fields": [
+   "trial_ids_A_B_C",
+   "validation_return_series_hashes",
+   "annualized_sharpe_per_config",
+   "exact_hex_per_value",
+   "ddof=1",
+   "annualization=sqrt(252)",
+   "sigma_annualized",
+   "sigma_daily",
+   "N=5",
+   "preregistration_identity",
+   "evaluator_identity",
+   "validation_report_identity",
+   "calculation_code_identity"
+  ]
+ },
+ "version": "1.0"
+}
