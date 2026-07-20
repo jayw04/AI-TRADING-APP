@@ -1,0 +1,228 @@
+{
+ "count": 14,
+ "entries": [
+  {
+   "implementation": "calendar.RegisteredCalendar",
+   "output_fields": [
+    "decision_session"
+   ],
+   "refusal_codes": [
+    "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH"
+   ],
+   "sig_rules": "SIG-01/02",
+   "test_case_ids": [
+    "test_calendar_mismatch_unsorted",
+    "test_calendar_duplicate_and_ordinal_and_window"
+   ]
+  },
+  {
+   "implementation": "returns.arithmetic_total_returns",
+   "output_fields": [
+    "registered_signal_value"
+   ],
+   "refusal_codes": [],
+   "sig_rules": "SIG-03/05",
+   "test_case_ids": [
+    "test_valid_decision_and_fields"
+   ]
+  },
+  {
+   "implementation": "returns.classify_stock_window",
+   "output_fields": [
+    "decision_eligibility_status"
+   ],
+   "refusal_codes": [
+    "INELIGIBLE:OLS_WINDOW_INSUFFICIENT",
+    "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE",
+    "INELIGIBLE:KNOWN_MARKET_ABSENCE"
+   ],
+   "sig_rules": "SIG-04/06",
+   "test_case_ids": [
+    "test_young_security_insufficient_history",
+    "test_interior_hole_without_evidence_fails_closed",
+    "test_governed_halt_with_evidence_is_ineligible"
+   ]
+  },
+  {
+   "implementation": "sector_factor.sector_factor_at",
+   "output_fields": [
+    "registered_signal_value"
+   ],
+   "refusal_codes": [
+    "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH"
+   ],
+   "sig_rules": "SIG-07",
+   "test_case_ids": [
+    "test_missing_factor_is_identity_mismatch",
+    "test_liquidity_short_window_and_sector_factor_no_history"
+   ]
+  },
+  {
+   "implementation": "residuals.stock_residual_and_beta + stock_regression.registered_ols",
+   "output_fields": [
+    "beta",
+    "registered_signal_value"
+   ],
+   "refusal_codes": [
+    "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+    "INTEGRITY_STOP:RESIDUAL_NONFINITE"
+   ],
+   "sig_rules": "SIG-08/09",
+   "test_case_ids": [
+    "test_valid_decision_and_fields",
+    "test_singular_design_fails_closed",
+    "test_residual_nonfinite_guard",
+    "test_registered_solver_identity_and_tolerance"
+   ]
+  },
+  {
+   "implementation": "normalization.r5_value",
+   "output_fields": [
+    "registered_signal_value"
+   ],
+   "refusal_codes": [
+    "INELIGIBLE:R5_WINDOW_INSUFFICIENT"
+   ],
+   "sig_rules": "SIG-12/13",
+   "test_case_ids": [
+    "test_r5_requires_five_consecutive"
+   ]
+  },
+  {
+   "implementation": "normalization.normalize_signal",
+   "output_fields": [
+    "registered_signal_value",
+    "registered_sigma_resid",
+    "normalization_window_identity",
+    "computation_record_identity"
+   ],
+   "refusal_codes": [
+    "INELIGIBLE:R5_WINDOW_INSUFFICIENT",
+    "INTEGRITY_STOP:ZSCORE_WINDOW_INSUFFICIENT",
+    "INELIGIBLE:ZSCORE_VARIANCE_INVALID",
+    "INTEGRITY_STOP:SIGMA_RESID_NONFINITE"
+   ],
+   "sig_rules": "SIG-14/15/16/17",
+   "test_case_ids": [
+    "test_z_sigma_single_pass_identity",
+    "test_normalize_current_r5_missing",
+    "test_normalize_window_incomplete",
+    "test_normalize_zero_variance",
+    "test_normalize_sigma_nonfinite",
+    "test_normalize_excludes_current_r5"
+   ]
+  },
+  {
+   "implementation": "sector_pit.resolve_sector",
+   "output_fields": [
+    "sector_id"
+   ],
+   "refusal_codes": [
+    "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING",
+    "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT"
+   ],
+   "sig_rules": "SIG-18/19",
+   "test_case_ids": [
+    "test_sector_missing_pit",
+    "test_sector_published_after_cutoff_excluded",
+    "test_sector_same_timestamp_conflict"
+   ]
+  },
+  {
+   "implementation": "eligibility.evaluate_eligibility",
+   "output_fields": [
+    "decision_eligibility_status",
+    "eligibility_evidence_identity",
+    "eligibility_precedence_rank"
+   ],
+   "refusal_codes": [
+    "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING"
+   ],
+   "sig_rules": "SIG-20/23",
+   "test_case_ids": [
+    "test_eligibility_evidence_missing",
+    "test_eligibility_liquidity_exclusion_status",
+    "test_eligibility_unknown_category_and_after_cutoff_ignored"
+   ]
+  },
+  {
+   "implementation": "producer warm-up guard + constants",
+   "output_fields": [
+    "warmup_return_sessions",
+    "warmup_price_observations"
+   ],
+   "refusal_codes": [
+    "INELIGIBLE:OLS_WINDOW_INSUFFICIENT"
+   ],
+   "sig_rules": "SIG-24/32",
+   "test_case_ids": [
+    "test_first_scoreable_boundary_ok_and_too_early",
+    "test_warmup_guard_rejects_too_early_ordinal"
+   ]
+  },
+  {
+   "implementation": "liquidity.trailing_adv_dollars",
+   "output_fields": [
+    "trailing_adv_dollars"
+   ],
+   "refusal_codes": [
+    "INELIGIBLE:ADV_WINDOW_INSUFFICIENT"
+   ],
+   "sig_rules": "SIG-25",
+   "test_case_ids": [
+    "test_adv_window_insufficient",
+    "test_liquidity_short_window_and_sector_factor_no_history"
+   ]
+  },
+  {
+   "implementation": "models + execution_enrichment",
+   "output_fields": [
+    "official_next_open_price(enriched)",
+    "execution_admissibility_status(enriched)"
+   ],
+   "refusal_codes": [
+    "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"
+   ],
+   "sig_rules": "SIG-26/27",
+   "test_case_ids": [
+    "test_decision_record_rejects_future_field",
+    "test_enrichment_admissible_gap_and_missing_open",
+    "test_enrichment_cannot_mutate_decision",
+    "test_model_unknown_and_missing_field_rejected"
+   ]
+  },
+  {
+   "implementation": "security_identity",
+   "output_fields": [
+    "permanent_security_id",
+    "candidate_id"
+   ],
+   "refusal_codes": [
+    "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS"
+   ],
+   "sig_rules": "SIG-28/29",
+   "test_case_ids": [
+    "test_ticker_change_continuity_vs_merger_no_continuity",
+    "test_lineage_ambiguous",
+    "test_lineage_missing_symbol"
+   ]
+  },
+  {
+   "implementation": "identities.InputIdentityRegistry",
+   "output_fields": [
+    "(pre-computation gate)"
+   ],
+   "refusal_codes": [
+    "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH"
+   ],
+   "sig_rules": "SIG-30/31",
+   "test_case_ids": [
+    "test_identity_mismatch_calendar",
+    "test_schema_version_mismatch_refused_at_construction",
+    "test_registry_missing_slot_and_unregistered_verify"
+   ]
+  }
+ ],
+ "record_type": "MR002_SPQ1_Phase1_RuleTraceability",
+ "version": "1.0"
+}

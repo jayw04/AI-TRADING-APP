@@ -1,0 +1,78 @@
+{
+ "coverage": {
+  "INELIGIBLE:ADV_WINDOW_INSUFFICIENT": {
+   "governed_condition": "insufficient ADV window observations",
+   "reaching_test": "test_adv_window_insufficient"
+  },
+  "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING": {
+   "governed_condition": "missing mandatory eligibility evidence",
+   "reaching_test": "test_eligibility_evidence_missing"
+  },
+  "INELIGIBLE:KNOWN_MARKET_ABSENCE": {
+   "governed_condition": "missing close with governed halt evidence",
+   "reaching_test": "test_governed_halt_with_evidence_is_ineligible"
+  },
+  "INELIGIBLE:OLS_WINDOW_INSUFFICIENT": {
+   "governed_condition": "young/IPO insufficient history",
+   "reaching_test": "test_young_security_insufficient_history"
+  },
+  "INELIGIBLE:R5_WINDOW_INSUFFICIENT": {
+   "governed_condition": "missing residual in the current 5",
+   "reaching_test": "test_normalize_current_r5_missing"
+  },
+  "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING": {
+   "governed_condition": "no PIT sector by cutoff",
+   "reaching_test": "test_sector_missing_pit"
+  },
+  "INELIGIBLE:ZSCORE_VARIANCE_INVALID": {
+   "governed_condition": "zero-variance normalization window",
+   "reaching_test": "test_normalize_zero_variance"
+  },
+  "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": {
+   "governed_condition": "future field / unknown key / enrichment mutation",
+   "reaching_test": "test_decision_record_rejects_future_field"
+  },
+  "INTEGRITY_STOP:OLS_DESIGN_SINGULAR": {
+   "governed_condition": "rank-deficient/singular design",
+   "reaching_test": "test_singular_design_fails_closed"
+  },
+  "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE": {
+   "governed_condition": "interior stock hole without governed evidence",
+   "reaching_test": "test_interior_hole_without_evidence_fails_closed"
+  },
+  "INTEGRITY_STOP:RESIDUAL_NONFINITE": {
+   "governed_condition": "non-finite residual",
+   "reaching_test": "test_residual_nonfinite_guard"
+  },
+  "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT": {
+   "governed_condition": "ambiguous same-timestamp PIT sector",
+   "reaching_test": "test_sector_same_timestamp_conflict"
+  },
+  "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS": {
+   "governed_condition": "ambiguous lineage",
+   "reaching_test": "test_lineage_ambiguous"
+  },
+  "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH": {
+   "governed_condition": "unsorted/duplicate calendar or unknown session",
+   "reaching_test": "test_calendar_mismatch_unsorted"
+  },
+  "INTEGRITY_STOP:SIGMA_RESID_NONFINITE": {
+   "governed_condition": "non-finite/overflow sigma or z",
+   "reaching_test": "test_normalize_sigma_nonfinite"
+  },
+  "INTEGRITY_STOP:ZSCORE_WINDOW_INSUFFICIENT": {
+   "governed_condition": "<60 complete overlapping R5",
+   "reaching_test": "test_normalize_window_incomplete"
+  },
+  "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH": {
+   "governed_condition": "frozen-input identity mismatch / missing factor",
+   "reaching_test": "test_identity_mismatch_calendar"
+  }
+ },
+ "deprecated_non_emittable": {
+  "DEPRECATED_NON_EMITTABLE:RETURN_INPUT_MISSING": "never raised; SignalRefusal(code) asserts (test_deprecated_return_input_missing_never_emittable)"
+ },
+ "emittable_count": 17,
+ "record_type": "MR002_SPQ1_Phase1_RefusalCoverage",
+ "version": "1.0"
+}

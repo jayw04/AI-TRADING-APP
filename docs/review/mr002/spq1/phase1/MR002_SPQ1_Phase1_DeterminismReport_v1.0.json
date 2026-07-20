@@ -1,0 +1,8 @@
+{
+ "decision_record_count": 2,
+ "manifest_sha256": "8b0a5fb1272365c722027ac1e6047865a3c3b589daee9e3b8b93eda2e5ff2f53",
+ "note": "Two synthetic securities produced + enriched + published; the canonical publication SHA-256 is byte-stable across repeated runs (test_deterministic_byte_identical_repeat, test_publication_deterministic_ordering).",
+ "record_type": "MR002_SPQ1_Phase1_DeterminismReport",
+ "synthetic_publication_canonical_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
+ "version": "1.0"
+}

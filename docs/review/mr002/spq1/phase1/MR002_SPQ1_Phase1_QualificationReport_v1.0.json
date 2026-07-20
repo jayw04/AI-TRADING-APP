@@ -1,0 +1,22 @@
+{
+ "boundary": "synthetic-only; performance/DSR/Sharpe not computed; validation/OOS sealed; real-data/vendor/broker/order-path/EC2 NOT touched.",
+ "branch_coverage_pct": 96,
+ "designation": "MR-002 Workstream C \u2014 SPQ-1 Phase 1 (synthetic implementation qualification)",
+ "deterministic_output_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
+ "isolation": {
+  "evaluator_increment_oq1_tests": 152,
+  "imports_stage3_signal_module": false,
+  "increment3_accepted_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "increment3_accepted_output_hash_unchanged": true,
+  "modifies_increment3_or_oq1": false
+ },
+ "mypy": "clean",
+ "record_type": "MR002_SPQ1_Phase1_QualificationReport",
+ "ruff": "clean",
+ "tests": {
+  "passed": 44,
+  "suite": "apps/backend/tests/research/spq1",
+  "total": 44
+ },
+ "version": "1.0"
+}

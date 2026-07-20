@@ -1,0 +1,183 @@
+{
+ "canonical_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
+ "record_type": "MR002_SPQ1_Phase1_PublicationManifest",
+ "sample_publication": {
+  "cutoff_timestamp": "2020-01-13T21:00:00Z",
+  "decision_manifest": {
+   "count": 2,
+   "record_identities": [
+    "962097e36da5f06de8864648804b97d4fe41f7da5f47b30ce9f8e606a7d2a5ea",
+    "05b07ea0fb717b27c7b839f39c0dd83da23eedd7b66e8a47a07fae40c95eda2a"
+   ]
+  },
+  "decision_records": [
+   {
+    "beta": {
+     "__float_hex__": "0x1.440066852a058p-2"
+    },
+    "candidate_id": "MR-002|B|200|PSEC-AAA|LONG|a0c1004d0c245b6046d254fee6853140554fa2f5aa41c4049ca203a34253a8f6",
+    "computation_record_identity": "a0c1004d0c245b6046d254fee6853140554fa2f5aa41c4049ca203a34253a8f6",
+    "configuration_id": "B",
+    "decision_eligibility_status": "ELIGIBLE",
+    "decision_session": 200,
+    "eligibility_evidence_identity": "c1bc267842b1ebde407f95d8374e865950e7ff5a3e02b7f7b3a992de84daaf61",
+    "eligibility_precedence_rank": 0,
+    "normalization_window_identity": "943d5fca84d61bccc9113819da127f918fdd20abab6b74b7ab25ab4391dfff2b",
+    "permanent_security_id": "PSEC-AAA",
+    "registered_sigma_resid": {
+     "__float_hex__": "0x1.e603d98e0f01ep-7"
+    },
+    "registered_signal_value": {
+     "__float_hex__": "0x1.42002dc010ec0p-4"
+    },
+    "sector_id": "TECH",
+    "side": "LONG",
+    "signal_origin_session": 200,
+    "symbol": "AAA",
+    "trailing_adv_dollars": {
+     "__float_hex__": "0x1.dd12e19ba0498p+26"
+    },
+    "warmup_price_observations": 126,
+    "warmup_return_sessions": 125
+   },
+   {
+    "beta": {
+     "__float_hex__": "0x1.a19a44ced14d5p-2"
+    },
+    "candidate_id": "MR-002|B|200|PSEC-BBB|LONG|b6fbeedf44da9ce9d4456600f159ef5ad1355d2b1a2b94d798b156b62770c656",
+    "computation_record_identity": "b6fbeedf44da9ce9d4456600f159ef5ad1355d2b1a2b94d798b156b62770c656",
+    "configuration_id": "B",
+    "decision_eligibility_status": "ELIGIBLE",
+    "decision_session": 200,
+    "eligibility_evidence_identity": "c1bc267842b1ebde407f95d8374e865950e7ff5a3e02b7f7b3a992de84daaf61",
+    "eligibility_precedence_rank": 0,
+    "normalization_window_identity": "9b61f291b18ffea292044bea9472224f7dde332b6fea350391e9786d517ea726",
+    "permanent_security_id": "PSEC-BBB",
+    "registered_sigma_resid": {
+     "__float_hex__": "0x1.34ad41aec2ea2p-7"
+    },
+    "registered_signal_value": {
+     "__float_hex__": "-0x1.0b55358bc3c91p+1"
+    },
+    "sector_id": "FIN",
+    "side": "LONG",
+    "signal_origin_session": 200,
+    "symbol": "BBB",
+    "trailing_adv_dollars": {
+     "__float_hex__": "0x1.e1e525eab1c7cp+26"
+    },
+    "warmup_price_observations": 126,
+    "warmup_return_sessions": 125
+   }
+  ],
+  "execution_enrichments": [
+   {
+    "decision_record_canonical": {
+     "beta": {
+      "__float_hex__": "0x1.a19a44ced14d5p-2"
+     },
+     "candidate_id": "MR-002|B|200|PSEC-BBB|LONG|b6fbeedf44da9ce9d4456600f159ef5ad1355d2b1a2b94d798b156b62770c656",
+     "computation_record_identity": "b6fbeedf44da9ce9d4456600f159ef5ad1355d2b1a2b94d798b156b62770c656",
+     "configuration_id": "B",
+     "decision_eligibility_status": "ELIGIBLE",
+     "decision_session": 200,
+     "eligibility_evidence_identity": "c1bc267842b1ebde407f95d8374e865950e7ff5a3e02b7f7b3a992de84daaf61",
+     "eligibility_precedence_rank": 0,
+     "normalization_window_identity": "9b61f291b18ffea292044bea9472224f7dde332b6fea350391e9786d517ea726",
+     "permanent_security_id": "PSEC-BBB",
+     "registered_sigma_resid": {
+      "__float_hex__": "0x1.34ad41aec2ea2p-7"
+     },
+     "registered_signal_value": {
+      "__float_hex__": "-0x1.0b55358bc3c91p+1"
+     },
+     "sector_id": "FIN",
+     "side": "LONG",
+     "signal_origin_session": 200,
+     "symbol": "BBB",
+     "trailing_adv_dollars": {
+      "__float_hex__": "0x1.e1e525eab1c7cp+26"
+     },
+     "warmup_price_observations": 126,
+     "warmup_return_sessions": 125
+    },
+    "decision_record_identity": "05b07ea0fb717b27c7b839f39c0dd83da23eedd7b66e8a47a07fae40c95eda2a",
+    "enrichment_timestamp": "",
+    "execution_admissibility_status": "ADMISSIBLE",
+    "gap_filter_result": "PASSED",
+    "missing_open_disposition": "official open present",
+    "official_next_open_price": {
+     "__float_hex__": "0x1.9000000000000p+6"
+    },
+    "scheduled_execution_session": 201
+   },
+   {
+    "decision_record_canonical": {
+     "beta": {
+      "__float_hex__": "0x1.440066852a058p-2"
+     },
+     "candidate_id": "MR-002|B|200|PSEC-AAA|LONG|a0c1004d0c245b6046d254fee6853140554fa2f5aa41c4049ca203a34253a8f6",
+     "computation_record_identity": "a0c1004d0c245b6046d254fee6853140554fa2f5aa41c4049ca203a34253a8f6",
+     "configuration_id": "B",
+     "decision_eligibility_status": "ELIGIBLE",
+     "decision_session": 200,
+     "eligibility_evidence_identity": "c1bc267842b1ebde407f95d8374e865950e7ff5a3e02b7f7b3a992de84daaf61",
+     "eligibility_precedence_rank": 0,
+     "normalization_window_identity": "943d5fca84d61bccc9113819da127f918fdd20abab6b74b7ab25ab4391dfff2b",
+     "permanent_security_id": "PSEC-AAA",
+     "registered_sigma_resid": {
+      "__float_hex__": "0x1.e603d98e0f01ep-7"
+     },
+     "registered_signal_value": {
+      "__float_hex__": "0x1.42002dc010ec0p-4"
+     },
+     "sector_id": "TECH",
+     "side": "LONG",
+     "signal_origin_session": 200,
+     "symbol": "AAA",
+     "trailing_adv_dollars": {
+      "__float_hex__": "0x1.dd12e19ba0498p+26"
+     },
+     "warmup_price_observations": 126,
+     "warmup_return_sessions": 125
+    },
+    "decision_record_identity": "962097e36da5f06de8864648804b97d4fe41f7da5f47b30ce9f8e606a7d2a5ea",
+    "enrichment_timestamp": "",
+    "execution_admissibility_status": "ADMISSIBLE",
+    "gap_filter_result": "PASSED",
+    "missing_open_disposition": "official open present",
+    "official_next_open_price": {
+     "__float_hex__": "0x1.9000000000000p+6"
+    },
+    "scheduled_execution_session": 201
+   }
+  ],
+  "execution_manifest": {
+   "count": 2,
+   "record_identities": [
+    "0303b5d0b27c6a2ac3a70dc857357b8785f198d6e16b4370db289450dc00e069",
+    "647ef2dd46c031cc9eaf7b8bfe238239a26c4ef4cd5b1ebf28e80caa8117aa43"
+   ]
+  },
+  "input_identities": {
+   "eligibility_evidence_sources": "elig-evidence-0001",
+   "owner_rulings_identity": "d8a9071d53bdb036ad9e6d46cd0d899f6846d3f2af946f932ce963e10f0e206a",
+   "pit_identity_registry": "pit-identity-0001",
+   "pit_sector_source": "pit-sector-src-0001",
+   "price_return_adjustment_policy": "v3-adjustment-0001",
+   "producer_code_version": "spq1-phase1-v1.0-synthetic",
+   "registered_exchange_calendar": "44660fcc9d74872b82138db8a7682d6edf5e58c528cbcd63f6c0d40d19b8196a",
+   "rule_census_identity": "87602e7c5e5c719a44d83d6a556690116958c58e1e0d97b687531da824f9008e",
+   "schema_identity": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f",
+   "sector_etf_proxy_mapping_table": "sector-map-id-0001",
+   "sector_etf_source_series": "sector-src-id-0001",
+   "spy_total_return_series": "spy-series-id-0001"
+  },
+  "manifest_sha256": "8b0a5fb1272365c722027ac1e6047865a3c3b589daee9e3b8b93eda2e5ff2f53",
+  "producer_identity": "spq1-phase1-v1.0-synthetic",
+  "schema_identities": {
+   "schema_identity": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f"
+  }
+ },
+ "version": "1.0"
+}

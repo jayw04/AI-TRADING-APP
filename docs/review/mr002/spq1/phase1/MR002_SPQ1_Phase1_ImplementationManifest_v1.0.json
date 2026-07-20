@@ -1,0 +1,50 @@
+{
+ "boundary": "synthetic-only; no vendor adapter, real dataset, order-path/broker/risk import, or performance metric; independent of the Stage-3-frozen app.research.mr002.signal module.",
+ "frozen_constants": {
+  "ADV_CAPACITY_WINDOW": 20,
+  "ADV_SELECTION_WINDOW": 60,
+  "DDOF": 1,
+  "OLS_WINDOW": 60,
+  "R5_HORIZON": 5,
+  "SECTOR_PARAMS": 2,
+  "STOCK_PARAMS": 3,
+  "WARMUP_PRICE_OBSERVATIONS": 126,
+  "WARMUP_RETURN_SESSIONS": 125,
+  "Z_NORM_OBS": 60
+ },
+ "governing_identities": {
+  "increment3_accepted_output_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "oq1_closeout_commit": "f47f92ddf670bd0d0413d7624731eb6c59b961c9",
+  "phase0_census_sha256": "87602e7c5e5c719a44d83d6a556690116958c58e1e0d97b687531da824f9008e",
+  "phase0_owner_rulings_sha256": "d8a9071d53bdb036ad9e6d46cd0d899f6846d3f2af946f932ce963e10f0e206a",
+  "phase0_schema_sha256": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f",
+  "spq1_phase0_closeout_commit": "023b75e837a6ca5992da4bf483dd122d35759e59"
+ },
+ "module_sha256": {
+  "__init__.py": "d1f326b44ba6fc6bf9aacb3e3b779a08610ad4ae07a5d13d78e68bcd97c1eb6f",
+  "calendar.py": "567044c06672f03cc655ac412b666a3195bcf8f96cf01a9575078ffe91cdc7dc",
+  "constants.py": "c1661e4ae720ae292243a6159b78c464d3b84c3e8d8f41acc2e71980b2c4499b",
+  "eligibility.py": "c4c91f380c3e71569a0b377813dfcefd146181cf240eb4a8624f425f578d386b",
+  "execution_enrichment.py": "0eb6626bb150e847ab9cc479f09b3d9943e8d63098a37c23c3a8db7075227444",
+  "identities.py": "019a800f9cc43c6873430d3acbf061bbfa206bb8c33d8fb0466064f274cde62b",
+  "liquidity.py": "a51c0e0d57d806249806ecbbfd0bacb8ee60d2708a8b4f86a43f0e1cb7a41648",
+  "models.py": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+  "normalization.py": "3d6be8242c27b50840184b68016b10ec72169ae43cde28c6495c5e5bab750eaf",
+  "producer.py": "0005244fb2100f8d9b7c4c6a9dcb7069505c50b26c962f4d928d25acb3da2bad",
+  "publication.py": "3698694af74e40b1e22f13e72978d82cfa64be6c73a764d647a909399956424c",
+  "refusals.py": "5503ebaacbeb9d580f999ad6e25e5e21e3020fbcce53e785c475aa715eb9be5f",
+  "residuals.py": "0a9147cec5478d2c861ee81642b7499942cd9dbfc413be606d2fb3ba1d29c7ca",
+  "returns.py": "b231197e35d827d351a987077959011d33e69d5b3d1bbd8a0773a848a26fa5c8",
+  "sector_factor.py": "fbd9c8d9743a35de28265d068022007ca85118b23da32ad0286b9a969970807a",
+  "sector_pit.py": "5b581ab503ec734c25b47876dd1878e8e0d0aab0d0c070d74a5f6705bf2e10d4",
+  "security_identity.py": "3aef443508baa4bf1139afd362cfc482e217bdfdd902d48650ddb1f2fb44cc10",
+  "stock_regression.py": "08b2054684c6b6485ad67919bf4e3a85fbd0f33eadcdea49fd0b012272fbb0b5"
+ },
+ "package": "apps/backend/app/research/mr002/spq1",
+ "producer_code_version": "spq1-phase1-v1.0-synthetic",
+ "rank_tolerance": 1e-10,
+ "record_type": "MR002_SPQ1_Phase1_ImplementationManifest",
+ "solver_identity": "numpy.linalg.lstsq[LAPACK_gelsd_SVD,float64]",
+ "tests": "apps/backend/tests/research/spq1",
+ "version": "1.0"
+}
