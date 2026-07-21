@@ -13,6 +13,7 @@ import importlib
 from datetime import UTC, datetime
 from decimal import Decimal as D
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -213,24 +214,49 @@ def test_assess_a5_is_red_on_any_non_hold(lib, over):
     assert ok is False, f"A5 must be RED for {over}"
 
 
+
+
 # ================================================================ blocker 1: resumable + idempotent
+# A DB-PERSISTING fake router: a re-submit shows up as a second durable order, so the harness must
+# instead rebind to the existing deterministic client_order_id and submit exactly once.
+
+import hashlib  # noqa: E402
+
+from app.db.models.risk_loss_control_state import RiskLossControlState  # noqa: E402
+from app.db.models.risk_recovery_preflight import RiskRecoveryPreflight  # noqa: E402
+from app.db.models.risk_recovery_preflight_check import RiskRecoveryPreflightCheck  # noqa: E402
 
 
-class _FakeRouter:
-    def __init__(self):
+class _DbRouter:
+    def __init__(self, sf):
+        self.sf = sf
         self.submits = 0
 
     async def submit(self, req):
         self.submits += 1
-        return SimpleNamespace(id=999, status="submitted", rejection_reason=None)
+        rejected = req.side == OrderSide.BUY
+        async with self.sf() as s:
+            o = Order(user_id=3, account_id=3, symbol_id=1, client_order_id=req.client_order_id,
+                      side=req.side, qty=req.qty, type=OrderType.MARKET, tif=TimeInForce.DAY,
+                      status=(OrderStatus.REJECTED if rejected else OrderStatus.SUBMITTED),
+                      source_type=OrderSourceType.STRATEGY,
+                      rejection_reason=("LOSS_CONTROL_STOP" if rejected else None),
+                      created_at=datetime.now(UTC), updated_at=datetime.now(UTC))
+            s.add(o)
+            await s.commit()
+            oid = o.id
+        return SimpleNamespace(id=oid, status=("rejected" if rejected else "submitted"),
+                               rejection_reason=("LOSS_CONTROL_STOP" if rejected else None))
 
 
 class _FakeRecovery:
     def __init__(self):
         self.requests = 0
+        self.keys = []
 
     async def request_recovery(self, **kw):
         self.requests += 1
+        self.keys.append(kw.get("idempotency_key"))
         return SimpleNamespace(preflight_id=1, status="PASSED")
 
 
@@ -241,6 +267,13 @@ class _FakeEvaluator:
     async def evaluate(self, account_id, **kw):
         self.calls += 1
         return SimpleNamespace(verdict="HOLD", transitioned_to=None, account_id=account_id)
+
+
+def _adapter():
+    a = MagicMock()
+    a.get_positions.return_value = []
+    a.list_orders.return_value = []
+    return a
 
 
 @pytest.fixture
@@ -260,93 +293,221 @@ async def _seed_account(session_factory):
         await s.commit()
 
 
-async def _seed_order(session_factory, *, oid, side, status, reason=None):
+async def _seed_order(session_factory, *, oid, side, status, client_order_id, reason=None):
     async with session_factory() as s:
-        s.add(Order(id=oid, user_id=3, account_id=3, symbol_id=1, client_order_id=f"c{oid}",
+        s.add(Order(id=oid, user_id=3, account_id=3, symbol_id=1, client_order_id=client_order_id,
                     side=side, qty=D("1"), type=OrderType.MARKET, tif=TimeInForce.DAY,
                     status=status, source_type=OrderSourceType.STRATEGY, rejection_reason=reason,
                     created_at=datetime.now(UTC), updated_at=datetime.now(UTC)))
         await s.commit()
 
 
-def _run(canary_env, session_factory, cp, **collab):
+def _canary(canary_env, session_factory, cp, **collab):
     from scripts.adr0043_canary_run import CanaryRun
     return CanaryRun(
-        sf=session_factory, adapter=None,
-        router=collab.get("router", _FakeRouter()),
+        sf=session_factory, adapter=collab.get("adapter", _adapter()),
+        router=collab.get("router", _DbRouter(session_factory)),
         recovery=collab.get("recovery", _FakeRecovery()),
         evaluator=collab.get("evaluator", _FakeEvaluator()),
         evidence=canary_env.Evidence(phase="TEST"), checkpoint=cp)
 
 
-async def test_resume_after_a2_does_not_resubmit(canary_env, session_factory):
+# ---- the post-submit / pre-checkpoint crash window ----
+
+
+async def test_a2_rebinds_to_existing_order_when_checkpoint_absent(canary_env, session_factory):
+    # The order was submitted (durably) but the checkpoint write was lost. A retry must REBIND to the
+    # existing deterministic identity, not submit a second protected-leg SELL.
     await _seed_account(session_factory)
-    await _seed_order(session_factory, oid=1, side=OrderSide.SELL, status=OrderStatus.SUBMITTED)
-    cp = canary_env.Checkpoint()
-    cp.record_step("A2", order_id=1)
-    router = _FakeRouter()
-    run = _run(canary_env, session_factory, cp, router=router)
+    cp = canary_env.Checkpoint.load()
+    await _seed_order(session_factory, oid=1, side=OrderSide.SELL, status=OrderStatus.SUBMITTED,
+                      client_order_id=cp.client_id("A2"))  # checkpoint has NO A2 recorded
+    router = _DbRouter(session_factory)
+    run = _canary(canary_env, session_factory, cp, router=router)
     await run.step_a2()
-    assert router.submits == 0                        # no second protected-leg SELL
+    assert router.submits == 0                                   # no second SELL
     assert run.ev.doc["assertions"][-1]["result"] == "PASS"
+    assert cp.step_done("A2")
 
 
-async def test_resume_after_a3_does_not_resubmit(canary_env, session_factory):
+async def test_a3_rebinds_to_existing_rejected_order_when_checkpoint_absent(canary_env,
+                                                                            session_factory):
     await _seed_account(session_factory)
+    cp = canary_env.Checkpoint.load()
     await _seed_order(session_factory, oid=2, side=OrderSide.BUY, status=OrderStatus.REJECTED,
-                      reason="LOSS_CONTROL_STOP")
-    cp = canary_env.Checkpoint()
-    cp.record_step("A3", order_id=2)
-    router = _FakeRouter()
-    run = _run(canary_env, session_factory, cp, router=router)
+                      client_order_id=cp.client_id("A3"), reason="LOSS_CONTROL_STOP")
+    router = _DbRouter(session_factory)
+    run = _canary(canary_env, session_factory, cp, router=router)
     await run.step_a3()
-    assert router.submits == 0                        # no second new-risk BUY
+    assert router.submits == 0                                   # no second BUY
     assert run.ev.doc["assertions"][-1]["result"] == "PASS"
 
 
-async def test_a2_checkpoint_contradicting_durable_evidence_refuses(canary_env, session_factory):
+async def test_repeated_a2_retries_produce_exactly_one_order(canary_env, session_factory):
+    # Two runs sharing the SAME run id (a retry) submit the protected-leg SELL exactly once — the
+    # second finds the first's order by its deterministic client id.
     await _seed_account(session_factory)
-    # Checkpoint says A2 sold order 1, but order 1 is a BUY — a contradiction → refuse, not restart.
-    await _seed_order(session_factory, oid=1, side=OrderSide.BUY, status=OrderStatus.SUBMITTED)
-    cp = canary_env.Checkpoint()
-    cp.record_step("A2", order_id=1)
-    run = _run(canary_env, session_factory, cp)
+    cp1 = canary_env.Checkpoint.load()
+    router = _DbRouter(session_factory)
+    run1 = _canary(canary_env, session_factory, cp1, router=router)
+    await run1.step_a2()
+    assert router.submits == 1
+    cp2 = canary_env.Checkpoint(run_id=cp1.run_id)                # retry: same identity, lost steps
+    run2 = _canary(canary_env, session_factory, cp2, router=router)
+    await run2.step_a2()
+    assert router.submits == 1                                   # still exactly one order
+    async with session_factory() as s:
+        from sqlalchemy import func, select
+        n = await s.scalar(select(func.count()).select_from(Order).where(
+            Order.client_order_id == cp1.client_id("A2")))
+    assert n == 1
+
+
+async def test_a2_deterministic_id_wrong_fields_refuses(canary_env, session_factory):
+    # An order carrying the A2 identity but with the WRONG side is a contradiction → refuse.
+    await _seed_account(session_factory)
+    cp = canary_env.Checkpoint.load()
+    await _seed_order(session_factory, oid=1, side=OrderSide.BUY, status=OrderStatus.SUBMITTED,
+                      client_order_id=cp.client_id("A2"))
+    run = _canary(canary_env, session_factory, cp)
     with pytest.raises(canary_env.CanaryRefused):
         await run.step_a2()
 
 
-async def test_a3_missing_durable_order_refuses(canary_env, session_factory):
-    await _seed_account(session_factory)  # no order 5 exists
-    cp = canary_env.Checkpoint()
-    cp.record_step("A3", order_id=5)
-    run = _run(canary_env, session_factory, cp)
-    with pytest.raises(canary_env.CanaryRefused):
-        await run.step_a3()
+async def test_fresh_a2_submits_exactly_once(canary_env, session_factory):
+    await _seed_account(session_factory)
+    cp = canary_env.Checkpoint.load()
+    router = _DbRouter(session_factory)
+    run = _canary(canary_env, session_factory, cp, router=router)
+    await run.step_a2()
+    assert router.submits == 1 and run.ev.doc["assertions"][-1]["result"] == "PASS"
+
+
+async def test_a4_passes_the_stable_idempotency_key(canary_env, session_factory):
+    await _seed_account(session_factory)
+    cp = canary_env.Checkpoint.load()
+    recovery = _FakeRecovery()
+    run = _canary(canary_env, session_factory, cp, recovery=recovery)
+    await run.step_a4()
+    assert recovery.requests == 1 and recovery.keys == [cp.idempotency_key]
 
 
 async def test_resume_during_a4_reuses_the_preflight_not_a_new_request(canary_env, session_factory):
     await _seed_account(session_factory)
-    cp = canary_env.Checkpoint()
+    cp = canary_env.Checkpoint.load()
     cp.record_step("A4", preflight_id=1)
     recovery = _FakeRecovery()
-    run = _run(canary_env, session_factory, cp, recovery=recovery)
+    run = _canary(canary_env, session_factory, cp, recovery=recovery)
     await run.step_a4()
-    assert recovery.requests == 0                     # reused the recorded preflight, no new request
+    assert recovery.requests == 0                                # reused the recorded preflight
+
+
+# ---- the completed run resumes cleanly (before mutable preconditions), no side effects ----
+
+
+async def _seed_completed(session_factory, canary_env, cp, out_path):
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+    now = _dt.now(_UTC)
+    await _seed_account(session_factory)
+    await _seed_order(session_factory, oid=1, side=OrderSide.SELL, status=OrderStatus.SUBMITTED,
+                      client_order_id=cp.client_id("A2"))
+    await _seed_order(session_factory, oid=2, side=OrderSide.BUY, status=OrderStatus.REJECTED,
+                      client_order_id=cp.client_id("A3"), reason="LOSS_CONTROL_STOP")
+    async with session_factory() as s:
+        s.add(RiskLossControlState(account_id=3, state="RECOVERY_COOLDOWN", state_version=5,
+                                   last_sequence_no=4, control_version=1, updated_at=now))
+        s.add(RiskRecoveryPreflight(
+            account_id=3, idempotency_key="k", requested_transition="RECOVERY_REQUEST",
+            expected_state_version=4, requested_by_actor_type="OWNER", requested_by_actor_id="3",
+            requested_at=now, origin_state="REDUCTION_ONLY_DAILY_LOSS", origin_state_version=4,
+            trip_cause="REALIZED_AND_MARK_TO_MARKET_LOSS",
+            authority_class="OWNER_OR_OPERATOR", status="PASSED", result="PASSED",
+            aggregate_verdict="PASS", initiator_type="OWNER", initiator_id="3", control_version=1,
+            evidence_version=1, created_at=now))
+        for i in range(12):
+            s.add(RiskRecoveryPreflightCheck(preflight_id=1, check_name=f"c{i}", status="PASS",
+                                             created_at=now))
+        await s.commit()
+    out_path.write_text('{"gate": "PASS"}', encoding="utf-8")
+    cp.steps["run_start_event_id"] = 0
+    for step in ("A1", "A2", "A3"):
+        cp.record_step(step)
+    cp.record_step("A4", preflight_id=1)
+    cp.record_step("A5", verdict="HOLD", transitioned_to=None)
+    cp.completed_gate = "PASS"
+    cp.completed_digest = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    cp.save()
+
+
+async def test_completed_run_returns_gate_with_no_side_effects(canary_env, session_factory,
+                                                               tmp_path):
+    from scripts.adr0043_canary_run import _completed_or_none
+    out = tmp_path / "ev.json"
+    cp = canary_env.Checkpoint.load()
+    await _seed_completed(session_factory, canary_env, cp, out)
+    rc = await _completed_or_none(session_factory, None, cp, out)
+    assert rc == 0                                               # PASS gate, returned without trading
+
+
+async def test_completed_run_missing_order_refuses(canary_env, session_factory, tmp_path):
+    from scripts.adr0043_canary_run import _completed_or_none
+    out = tmp_path / "ev.json"
+    cp = canary_env.Checkpoint.load()
+    await _seed_completed(session_factory, canary_env, cp, out)
+    async with session_factory() as s:  # delete the A2 order → durable contradiction
+        from sqlalchemy import delete
+        await s.execute(delete(Order).where(Order.client_order_id == cp.client_id("A2")))
+        await s.commit()
+    with pytest.raises(canary_env.CanaryRefused):
+        await _completed_or_none(session_factory, None, cp, out)
+
+
+async def test_completed_run_digest_mismatch_refuses(canary_env, session_factory, tmp_path):
+    from scripts.adr0043_canary_run import _completed_or_none
+    out = tmp_path / "ev.json"
+    cp = canary_env.Checkpoint.load()
+    await _seed_completed(session_factory, canary_env, cp, out)
+    out.write_text('{"gate": "PASS", "tampered": true}', encoding="utf-8")  # digest now mismatches
+    with pytest.raises(canary_env.CanaryRefused):
+        await _completed_or_none(session_factory, None, cp, out)
+
+
+async def test_completed_run_a5_not_hold_refuses(canary_env, session_factory, tmp_path):
+    from scripts.adr0043_canary_run import _completed_or_none
+    out = tmp_path / "ev.json"
+    cp = canary_env.Checkpoint.load()
+    await _seed_completed(session_factory, canary_env, cp, out)
+    cp.record_step("A5", verdict="COMPLETE", transitioned_to="NORMAL")  # contradicts HOLD
+    cp.completed_gate = "PASS"
+    cp.save()
+    with pytest.raises(canary_env.CanaryRefused):
+        await _completed_or_none(session_factory, None, cp, out)
+
+
+async def test_not_all_done_returns_none(canary_env, session_factory, tmp_path):
+    from scripts.adr0043_canary_run import _completed_or_none
+    cp = canary_env.Checkpoint.load()
+    cp.record_step("A1")  # not all steps done
+    rc = await _completed_or_none(session_factory, None, cp, tmp_path / "ev.json")
+    assert rc is None
 
 
 async def test_run_after_all_done_issues_no_side_effects(canary_env, session_factory):
     await _seed_account(session_factory)
-    cp = canary_env.Checkpoint()
+    cp = canary_env.Checkpoint.load()
     for step in ("A1", "A2", "A3", "A4", "A5"):
         cp.record_step(step)
-    router, recovery, evaluator = _FakeRouter(), _FakeRecovery(), _FakeEvaluator()
-    run = _run(canary_env, session_factory, cp, router=router, recovery=recovery, evaluator=evaluator)
+    router, recovery, evaluator = _DbRouter(session_factory), _FakeRecovery(), _FakeEvaluator()
+    run = _canary(canary_env, session_factory, cp, router=router, recovery=recovery,
+                  evaluator=evaluator)
     rc = await run.execute(pre=None, run_start_event_id=0)
     assert rc == 0
     assert router.submits == 0 and recovery.requests == 0 and evaluator.calls == 0
 
 
-def test_a4_idempotency_key_is_stable_across_reload(canary_env):
+def test_client_id_is_stable_and_step_specific(canary_env):
     cp = canary_env.Checkpoint.load()
-    key = cp.idempotency_key
-    assert key and canary_env.Checkpoint.load().idempotency_key == key  # a retry reuses the key
+    assert cp.client_id("A2") == canary_env.Checkpoint.load().client_id("A2")  # stable
+    assert cp.client_id("A2") != cp.client_id("A3")                            # step-specific
+    assert cp.client_id("A2").startswith("adr0043-")

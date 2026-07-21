@@ -294,9 +294,13 @@ class Checkpoint:
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     deadline_at: str = ""
     lock_reached: bool = False
-    # A STABLE recovery idempotency key: a retry of A4 must reuse it so the recovery service returns
-    # the SAME preflight rather than starting a second workflow.
+    # A STABLE run id — the deterministic order/recovery identity that closes the
+    # post-submit/pre-checkpoint crash window (a retry reuses the SAME broker client_order_id and the
+    # SAME recovery key, so it can never create a second order or a second preflight).
+    run_id: str = ""
     idempotency_key: str = ""
+    completed_gate: str | None = None
+    completed_digest: str | None = None
     steps: dict[str, Any] = field(default_factory=dict)
     events: list[dict] = field(default_factory=list)
 
@@ -307,9 +311,15 @@ class Checkpoint:
         now = datetime.now(UTC)
         cp = cls()
         cp.deadline_at = (now + timedelta(minutes=BUDGET_MINUTES)).isoformat()
-        cp.idempotency_key = f"adr0043-canary-{now.isoformat()}"
+        cp.run_id = now.strftime("%Y%m%d%H%M%S")
+        cp.idempotency_key = f"adr0043-canary-{cp.run_id}"
         cp.save()
         return cp
+
+    def client_id(self, step: str) -> str:
+        """The deterministic broker client_order_id for a side-effecting order step — stable across
+        retries so the broker itself dedupes a re-submit."""
+        return f"adr0043-{self.run_id}-{step.lower()}"
 
     def save(self) -> None:
         CHECKPOINT.parent.mkdir(parents=True, exist_ok=True)
@@ -510,6 +520,43 @@ async def order_row(sf, order_id: int) -> dict | None:
             )
         ).mappings().first()
     return dict(r) if r else None
+
+
+async def find_order_by_client_id(sf, adapter, client_id: str) -> dict | None:
+    """Locate an order by its DETERMINISTIC client_order_id — the identity that closes the
+    post-submit/pre-checkpoint crash window. Checks the durable LOCAL order first (the router
+    persists it around submit), then the BROKER (in case the local write was the thing that was
+    lost). Returns normalized {source, local_id, side, symbol, qty, status} or None."""
+    async with sf() as s:
+        r = (
+            await s.execute(
+                text(
+                    "SELECT o.id, o.side, o.qty, o.status, sym.ticker AS symbol "
+                    "FROM orders o JOIN symbols sym ON sym.id = o.symbol_id "
+                    "WHERE o.account_id = :a AND o.client_order_id = :c ORDER BY o.id DESC"
+                ),
+                {"a": ACCT, "c": client_id},
+            )
+        ).mappings().first()
+    if r:
+        return {"source": "local", "local_id": r["id"], "side": str(r["side"]),
+                "symbol": str(r["symbol"]), "qty": D(str(r["qty"])), "status": str(r["status"])}
+    if adapter is not None:
+        for o in (adapter.list_orders() or []):
+            if str(o.get("client_order_id")) == client_id:
+                return {"source": "broker", "local_id": None, "side": str(o.get("side")),
+                        "symbol": str(o.get("symbol")), "qty": D(str(o.get("qty") or 0)),
+                        "status": str(o.get("status"))}
+    return None
+
+
+def order_identity_matches(existing: dict, *, side: str, symbol: str, qty: D) -> bool:
+    """Whether a found order's risk-bearing identity matches the step's intent."""
+    return (
+        str(existing["side"]).lower().endswith(side.lower())
+        and str(existing["symbol"]).upper() == symbol.upper()
+        and existing["qty"] == qty
+    )
 
 
 async def preflight_row(sf, preflight_id: int) -> dict | None:

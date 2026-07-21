@@ -77,13 +77,17 @@ sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 
 - **Single-instance** (lock file) — two concurrent harnesses are the 2026-07-14 double-reservation
   condition; the second is refused.
-- **Step-level resumable + idempotent** — each side-effecting step (A2 SELL, A3 BUY, A4 recovery
-  request) is checkpointed BEFORE the next begins. A dropped SSH session resumes at the first
-  incomplete step and **never re-issues a completed side effect** (no second protected-leg SELL, no
-  second BUY, no second recovery request — A4 reuses a stable idempotency key). On resume a completed
-  step re-derives its assertion from the durable order/preflight/event; a checkpoint that
-  **contradicts** that durable evidence is **refused**, not silently restarted; a fully-complete
-  checkpoint re-issues nothing.
+- **Step-level resumable + idempotent, crash-window-closed** — A2/A3 submit with a **deterministic
+  `client_order_id`** (`adr0043-<run-id>-a2|a3`) that the router forwards to the broker, so even a
+  crash *after* the order is accepted but *before* the checkpoint is written cannot create a second
+  order: on retry the harness finds the existing order **by that identity** (local first, then the
+  broker) and rebinds instead of submitting. A4 reuses a stable recovery idempotency key (the
+  recovery service dedupes). An identity that exists with **contradicting** fields is **refused**, not
+  restarted. A **completed** checkpoint is handled **before** the mutable reduction-only/legs
+  preconditions (after a full run the account is in `RECOVERY_COOLDOWN`, not reduction-only): it
+  verifies the durable A2/A3 orders, the 12/12 preflight PASS, the recorded `HOLD`, and the evidence
+  file's SHA-256 against the checkpoint, then returns the prior gate with **zero** side effects — or
+  refuses if any of that contradicts durable evidence.
 - **Evidence** — `/app/data/adr0043_evidence_enforce.json`, sha256 printed; every order carries a
   pre-order snapshot of the durable state, and every refusal is verified auditable.
 

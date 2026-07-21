@@ -64,9 +64,11 @@ from scripts.adr0043_canary_lib import (
     control_events_for,
     current_loss_control_state,
     event_row,
+    find_order_by_client_id,
     ledger_rows_for,
     load_limits,
     loss_control_mode,
+    order_identity_matches,
     order_row,
     preflight_pass_check_count,
     preflight_row,
@@ -78,10 +80,12 @@ OUT = Path("/app/data/adr0043_evidence_enforce.json")
 LEG = LEGS[0][0]  # the reduction target
 
 
-def mk(sym, side, qty, src=OrderSourceType.STRATEGY) -> OrderRequest:
+def mk(sym, side, qty, *, client_order_id, src=OrderSourceType.STRATEGY) -> OrderRequest:
+    # A DETERMINISTIC client_order_id: the router forwards it to the broker (router.py L623), so a
+    # re-submit after a lost checkpoint cannot create a second broker order.
     return OrderRequest(
         user_id=USER, account_id=ACCT, symbol_ticker=sym, side=side, qty=qty,
-        type=OrderType.MARKET, tif=TimeInForce.DAY, source_type=src,
+        type=OrderType.MARKET, tif=TimeInForce.DAY, source_type=src, client_order_id=client_order_id,
     )
 
 
@@ -124,45 +128,53 @@ class CanaryRun:
         )
         self.cp.record_step("A1", state=pre.loss_control_state)
 
-    # ---- A2: a verified reduction is admitted ---------------------------------------------
+    # ---- A2: a verified reduction is admitted (idempotent by deterministic client id) -----
     async def step_a2(self) -> None:
-        if self.cp.step_done("A2"):
-            oid = self.cp.step_data("A2").get("order_id")
-            row = await order_row(self.sf, oid) if oid else None
-            if row is None or str(row["side"]).lower() != "sell":
+        cid = self.cp.client_id("A2")
+        existing = await find_order_by_client_id(self.sf, self.ad, cid)
+        if existing is not None:
+            # An order already carries this identity (checkpoint present OR the post-submit crash
+            # window). Rebind to it; never submit a second protected-leg SELL.
+            if not order_identity_matches(existing, side="sell", symbol=LEG, qty=D("1")):
                 raise CanaryRefused(
-                    f"A2 checkpoint contradicts durable evidence (order {oid!r}); refusing to "
-                    f"restart — investigate rather than re-submit a protected-leg SELL")
-            self.ev.assert_("A2.verified_reduction_allowed", _admitted(row["status"]),
-                            f"resumed: order #{oid} status={row['status']} (no re-submit)")
+                    f"A2 deterministic id {cid} exists with contradicting fields {existing}; "
+                    f"refusing — investigate rather than restart")
+            self.cp.record_step("A2", order_id=existing.get("local_id"), client_order_id=cid)
+            self.ev.assert_("A2.verified_reduction_allowed", _admitted(existing["status"]),
+                            f"rebound to {existing['source']} order {cid} "
+                            f"status={existing['status']} (no re-submit)")
             return
         o = await self._submit(
-            "A2.reduce", {"symbol": LEG, "side": "sell", "qty": "1", "kind": "verified_reduction"},
-            mk(LEG, OrderSide.SELL, D("1")))
-        self.cp.record_step("A2", order_id=getattr(o, "id", None))
+            "A2.reduce", {"symbol": LEG, "side": "sell", "qty": "1", "client_order_id": cid},
+            mk(LEG, OrderSide.SELL, D("1"), client_order_id=cid))
+        self.cp.record_step("A2", order_id=getattr(o, "id", None), client_order_id=cid)
         self.ev.assert_("A2.verified_reduction_allowed", _admitted(getattr(o, "status", "")),
                         f"SELL 1 {LEG} status={getattr(o, 'status', o)} "
                         f"reason={getattr(o, 'rejection_reason', None)}")
 
-    # ---- A3: new risk is refused ----------------------------------------------------------
+    # ---- A3: new risk is refused (idempotent by deterministic client id) ------------------
     async def step_a3(self) -> None:
-        if self.cp.step_done("A3"):
-            oid = self.cp.step_data("A3").get("order_id")
-            row = await order_row(self.sf, oid) if oid else None
-            reason = str(row["rejection_reason"] or "") if row else ""
-            if row is None or not _rejected(row["status"]) or "LOSS_CONTROL_STOP" not in reason:
+        cid = self.cp.client_id("A3")
+        existing = await find_order_by_client_id(self.sf, self.ad, cid)
+        if existing is not None:
+            if not order_identity_matches(existing, side="buy", symbol=LEG, qty=D("1")):
                 raise CanaryRefused(
-                    f"A3 checkpoint contradicts durable evidence (order {oid!r}); refusing to "
-                    f"restart — investigate rather than re-submit a new-risk BUY")
-            self.ev.assert_("A3.new_risk_refused", True,
-                            f"resumed: order #{oid} rejected reason={reason} (no re-submit)")
+                    f"A3 deterministic id {cid} exists with contradicting fields {existing}; "
+                    f"refusing — investigate rather than restart")
+            row = await order_row(self.sf, existing["local_id"]) if existing.get("local_id") else None
+            reason = str((row or {}).get("rejection_reason") or "")
+            self.cp.record_step("A3", order_id=existing.get("local_id"), client_order_id=cid)
+            self.ev.assert_(
+                "A3.new_risk_refused",
+                _rejected(existing["status"]) and "LOSS_CONTROL_STOP" in reason,
+                f"rebound to order {cid} status={existing['status']} reason={reason} (no re-submit)")
             return
-        since_l = (await ledger_rows_for(self.sf))  # snapshot before, for the audit check
+        since_l = await ledger_rows_for(self.sf)  # snapshot before, for the audit check
         o = await self._submit(
-            "A3.new_risk", {"symbol": LEG, "side": "buy", "qty": "1", "kind": "new_risk"},
-            mk(LEG, OrderSide.BUY, D("1")))
+            "A3.new_risk", {"symbol": LEG, "side": "buy", "qty": "1", "client_order_id": cid},
+            mk(LEG, OrderSide.BUY, D("1"), client_order_id=cid))
         reason = str(getattr(o, "rejection_reason", "") or "")
-        self.cp.record_step("A3", order_id=getattr(o, "id", None))
+        self.cp.record_step("A3", order_id=getattr(o, "id", None), client_order_id=cid)
         self.ev.assert_(
             "A3.new_risk_refused",
             _rejected(getattr(o, "status", "")) and "LOSS_CONTROL_STOP" in reason,
@@ -239,10 +251,52 @@ class CanaryRun:
         return 0 if self.ev.passed() else 1
 
 
+async def _completed_or_none(sf, adapter, cp: Checkpoint, out_path: Path) -> int | None:
+    """If the checkpoint reports every step done, VERIFY the durable evidence and return the prior
+    gate WITHOUT any side effect — never trade, request recovery, run the evaluator, or rewrite the
+    evidence again. Called BEFORE the mutable reduction-only / legs preconditions (after a full run
+    the account is in RECOVERY_COOLDOWN, not reduction-only, so those preconditions would otherwise
+    wrongly refuse a completed run). A completed checkpoint that contradicts durable evidence is
+    REFUSED, not trusted."""
+    if not cp.all_done():
+        return None
+    for step, side in (("A2", "sell"), ("A3", "buy")):
+        cid = cp.client_id(step)
+        found = await find_order_by_client_id(sf, adapter, cid)
+        if found is None or not order_identity_matches(found, side=side, symbol=LEG, qty=D("1")):
+            raise CanaryRefused(
+                f"completed-run {step} order {cid} missing or contradicts durable evidence: {found}")
+    pf_id = cp.step_data("A4").get("preflight_id")
+    pf = await preflight_row(sf, pf_id) if pf_id else None
+    if not pf or pf.get("status") != "PASSED" or await preflight_pass_check_count(sf, pf_id) != 12:
+        raise CanaryRefused("completed-run preflight evidence missing or not a full 12/12 PASS")
+    if cp.step_data("A5").get("verdict") != "HOLD":
+        raise CanaryRefused("completed-run A5 verdict is not HOLD")
+    if not out_path.exists():
+        raise CanaryRefused("completed-run evidence file is missing")
+    import hashlib
+    digest = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    if cp.completed_digest and digest != cp.completed_digest:
+        raise CanaryRefused("completed-run evidence file digest does not match the checkpoint")
+    run_start = int(cp.steps.get("run_start_event_id", 0))
+    if await saw_state_since(sf, STATE_NORMAL, run_start):
+        raise CanaryRefused("a NORMAL transition occurred after the recorded run — evidence is stale")
+    gate = cp.completed_gate or "FAIL"
+    print(f"ADR 0043 canary already complete — gate {gate}; no orders/recovery/evaluator re-issued",
+          flush=True)
+    return 0 if gate == "PASS" else 1
+
+
 async def run() -> int:
     sf = get_sessionmaker()
     ev = Evidence(phase="ENFORCE")
     cp = Checkpoint.load()
+
+    # A completed run resumes cleanly BEFORE the mutable preconditions: verify durable evidence and
+    # return the prior result with zero side effects (local-order evidence only — no registry/broker).
+    completed = await _completed_or_none(sf, None, cp, OUT)
+    if completed is not None:
+        return completed
 
     mode = await loss_control_mode(sf)
     if mode != REQUIRED_LOSS_CONTROL_MODE:
@@ -284,7 +338,10 @@ async def run() -> int:
     rc = await run_obj.execute(pre=pre, run_start_event_id=run_start)
 
     digest = ev.write(OUT)
+    cp.completed_gate = ev.doc["gate"]
+    cp.completed_digest = digest
     cp.phase = "DONE"
+    cp.save()
     cp.note("complete", gate=ev.doc["gate"], digest=digest)
     print(f"\nADR 0043 canary {ev.doc['gate']} — evidence {OUT} sha256={digest}", flush=True)
     return rc
