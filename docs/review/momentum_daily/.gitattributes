@@ -2,3 +2,4 @@
 # SHA-256 (8fa766f39e289c9925e7295f434b7887abd4d91ce1d802eb21b30d626fd8c054)
 # stays verifiable across checkouts (no EOL conversion). Scoped, not a broad rule.
 acct4_prepause_evidence_20260720T223216Z.json -text
+acct4_prepause_evidence_20260720T223216Z.v2.json -text

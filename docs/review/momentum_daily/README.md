@@ -13,7 +13,8 @@ Branch: `fix/momentum-daily-cold-start-seed` (off `origin/main`, contains PR #43
 ## Contents
 - `momentum_daily_coldstart_repair_plan_v1.0.md` — implementation plan (lifecycle state machine, idempotency/crash-recovery, `initial_seed` gating, migration, evidence-clock split, ADR 0044, fail-closed hold enforcement, drift audit, reactivation checklist, validation matrix, ratified decisions).
 - `harness_inception_reconstruction_findings_v1.0.md` — step-3 gate: evidence-cited reconstruction of the Stage 2-4 harness inception semantics (basis for the classification).
-- `acct4_prepause_evidence_20260720T223216Z.json` — immutable pre-pause containment snapshot; **canonical SHA-256 `8fa766f39e289c9925e7295f434b7887abd4d91ce1d802eb21b30d626fd8c054`** (recorded in `strategy_state.operational_hold.evidence_snapshot_sha256`).
+- `acct4_prepause_evidence_20260720T223216Z.json` — immutable pre-pause containment snapshot, **authoritative for the containment event**. ⚠ **Mixed-format:** a JSON object followed by an appended plaintext `DEACTIVATION CLOSURE` block — it is **not** parseable by a strict JSON parser; preserved as-is (byte-pinned) to keep its canonical hash. **Canonical SHA-256 `8fa766f39e289c9925e7295f434b7887abd4d91ce1d802eb21b30d626fd8c054`** (recorded in `strategy_state.operational_hold.evidence_snapshot_sha256`).
+- `acct4_prepause_evidence_20260720T223216Z.v2.json` — machine-parseable **valid-JSON derivative** (closure nested under `deactivation_closure`; provenance under `provenance`). Convenience artifact for tooling; **does not supersede** the original for containment authority. Own SHA-256 `ab347211667e77ef1e16d0f0dd223f4a99f802954f629d27b1b24bce05314fec`.
 
 ## Key governed facts
 - Deactivation: audited via `POST /strategies/11/stop` (actor user 4), audit `STRATEGY_UNREGISTERED` id=5733, run 605 closed.
