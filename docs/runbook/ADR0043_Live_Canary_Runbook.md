@@ -17,7 +17,11 @@ implementation baseline must be an **ancestor** of the deployed revision, and ev
 must be reviewed **ADR-0043 documentation only** (no executable/migration/config/dependency/deployment
 delta). The runbook deliberately does **not** hard-pin the deployed SHA — otherwise every later docs fix
 would make it stale — it pins the fixed implementation baseline plus the lineage + docs-only-delta rule.
-**Account / user:** 3. **Protected legs:** `F:500`, `MSFT:20`. **Mode:** `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`.
+**Canary identity:** the **frozen object is the Alpaca paper account** (the broker identity holding
+`F:500` / `MSFT:20`) and its **owner** — **not** a database primary key. The harness targets them by
+`ADR0043_USER` / `ADR0043_ACCOUNT` (**default `3`**); the app hardcodes no `id=3`, and the DB primary keys
+on a fresh box are whatever the sanctioned provisioning assigns (see §A4b — record them and set the env to
+match). **Protected legs:** `F:500`, `MSFT:20`. **Mode:** `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`.
 
 The live canary (`scripts/adr0043_canary_run.py`) is **assertion-only**: it requires ENFORCE, a durable
 `REDUCTION_ONLY_*` state row, and the protected legs; otherwise it **refuses**. It never establishes the
@@ -80,7 +84,8 @@ export EVIDENCE_DIR="$PWD/evidence/$ADR0043_RUN_ID"
 printf '%s\n' \
   "run_id=$ADR0043_RUN_ID" \
   "adr0043_implementation_commit=c8b3ac24b839d7b19c40979a9e4be859151dbab7" \
-  "account_id=3" "user_id=3" "required_mode=ENFORCE" \
+  "canary_ids=recorded at A4b (env ADR0043_USER/ADR0043_ACCOUNT; default 3)" \
+  "required_mode=ENFORCE" \
   "started_utc=$(date -u +%FT%TZ)" > "$EVIDENCE_DIR/run_identity.txt"
 ```
 
@@ -181,6 +186,20 @@ implementation baseline) — both values are preserved.
   (**must equal the repository head**). **STOP** on >1 head, a DB behind, an unknown revision, or any
   proposal to `alembic stamp head` merely to pass (valid only when the schema is independently known to
   match, never to manufacture readiness).
+- **Ambient loss-control mode = `ENFORCE` (load-bearing).** The engine short-circuits the loss-control
+  trigger when `loss_control_mode == OFF` (its default), so under OFF a daily-loss breach trips only the
+  legacy gate and **persists no `REDUCTION_ONLY_DAILY_LOSS` transition** — the canary would then refuse
+  for "no reduction-only state". Passing `-e WORKBENCH_LOSS_CONTROL_MODE=ENFORCE` to the canary affects
+  **only that one process**, NOT the backend that captures the baseline, routes the Phase-0D orders, and
+  persists the lock. So the **backend must run with ambient `ENFORCE`** from here through the canary.
+  Capture the **effective runtime** value from inside the container (do not infer from Compose alone):
+  ```
+  $COMPOSE exec -T backend sh -lc 'printf "WORKBENCH_LOSS_CONTROL_MODE=%s\n" "$WORKBENCH_LOSS_CONTROL_MODE"'
+  # required: WORKBENCH_LOSS_CONTROL_MODE=ENFORCE
+  ```
+  If enabling it requires a restart, do it **before baseline capture** (the sanctioned pre-baseline restart
+  exception) and re-record container identity, image digest, config checksum, boot/start timestamp, and the
+  ambient mode. The formal canary still passes `-e …=ENFORCE` as defence in depth.
 
 ## A4. Confirm one backend and clean canary-artifact paths
 
@@ -191,10 +210,53 @@ implementation baseline) — both values are preserved.
   restart time/logs, and whether it is genuinely resumable, and **document the decision**. A contradictory
   checkpoint should produce a **refusal** — a valid safety outcome, not something to work around.
 
-> **Expected at this point:** the fresh backend syncs account 3's broker state (the `F`/`MSFT` positions,
-> account status) into its fresh local DB, and the loss-control state is `NORMAL` (a fresh DB has no
-> prior lock). That is correct — the durable `REDUCTION_ONLY_*` lock is established in **Phase 0 below, on
-> this same box**, not carried over from anywhere.
+> **Expected at this point:** once the canary account and its credentials are established (§A4b), the
+> backend syncs that account's broker state (the `F`/`MSFT` positions, account status) into its fresh local
+> DB, and the loss-control state is `NORMAL` (a fresh DB has no prior lock). That is correct — the durable
+> `REDUCTION_ONLY_*` lock is established in **Phase 0 below, on this same box**, not carried over.
+
+## A4b. Establish + verify the canary account (Alpaca paper identity), credentials, effective limits — before Phase 0
+
+A genuinely fresh box has an **empty `workbench.sqlite`**: no user, no account, no encrypted broker
+credentials, and **no risk limits**. Account synchronisation only syncs *positions* for an *existing,
+credentialed* account, and the engine **rejects every order with `NO_LIMITS_CONFIGURED`** when no limits
+row resolves — so the Phase-0D breach cannot run until identity, account, credentials, and limits exist.
+
+The IDs are **autoincrement — do not assume `create_user.py` assigns user `3` or `seed_dev_data.py`
+assigns account `3`** (on a fresh DB they are the first rows). The frozen object is the **Alpaca paper
+account** (the broker identity holding `F:500`/`MSFT:20`), not the DB primary key. Establish it through the
+**sanctioned scripts — never ad-hoc SQL inserts**, then **record the actual IDs** and point the harness at
+them:
+
+1. **Owner login:** `scripts/create_user.py` (the canary owner + password/TOTP). Note its printed
+   `user id=<N>`. (`create_user.py` also seeds a **default** GLOBAL limits row — `max_daily_loss=2000`,
+   `max_position_qty=1000`, `max_position_notional=25000`, `max_gross_exposure=100000`,
+   `max_orders_per_minute=10` — see the limits step below.)
+2. **Paper account + credentials:** `scripts/provision_range_account.py --email <owner>` (or
+   `seed_dev_data.py` for a single-user setup), binding the **correct Alpaca paper key/secret** from the
+   env vars into the Fernet-encrypted store (ADR 0003 / `CredentialStore`). Note its printed
+   `account id=<M>`. **No plaintext credentials in the evidence package.**
+3. **Point the harness:** `export ADR0043_USER=<N>` and `export ADR0043_ACCOUNT=<M>` for Phase-0
+   reconciliation, the Phase-0D breach, and the canary. (They default to `3` only if the recorded IDs
+   happen to be 3.)
+
+**Effective limits (approved, not accidental defaults).** The provisioning above leaves the create_user
+**defaults** in place. If the **approved** canary configuration differs, set it through the **sanctioned,
+authenticated, audit-logged** `PUT /risk-limits` endpoint (as the owner) **before baseline capture** —
+this is legitimate reconstruction of the approved configuration, **distinct from** opportunistically
+lowering a limit to make the breach reachable (prohibited). Record the resulting effective values (§0C).
+
+Then **verify** (read-only) and record: the owner exists; the account exists and belongs to the owner;
+`broker=alpaca`, `mode=paper`; the bound **broker account identity == the frozen Alpaca paper account**
+(the one holding `F`/`MSFT`); credentials **resolve** (a broker read succeeds) and are **not** bound to the
+wrong account; the broker account is **active**; `F` and `MSFT` positions **synchronise**; and **exactly
+one** GLOBAL/`ADR0043_USER`/paper limits row resolves with the approved values (§0C).
+
+**STOP before baseline capture** if: the account is absent; it maps to the **wrong** Alpaca paper account;
+credentials are absent or ambiguous; the broker account is **inactive**; positions do not synchronise; no
+limits row resolves (`NO_LIMITS_CONFIGURED`) or it holds unexpected/accidental defaults; two matching limit
+rows exist; or the account already carries **unexplained** local loss-control / recovery state (a fresh DB
+should have none).
 
 ---
 
@@ -217,16 +279,18 @@ state events, so it is **recorded at boundaries, not required equal**.
 For the first ADR-0043 live validation:
 
 - **Trip origin:** `DAILY_LOSS` · **Expected locked state:** `REDUCTION_ONLY_DAILY_LOSS`
-- **Recovery requester:** user 3, the account owner · **Additional operator authority:** *not required*.
+- **Recovery requester:** the **canary owner** (`ADR0043_USER`), who **is** the account owner ·
+  **Additional operator authority:** *not required*.
 
-The canary requests recovery as the owner (user 3). Per the authority matrix, the owner can self-authorize
-a `PREFLIGHT_PASS` **only** for a daily-loss origin; a `REDUCTION_ONLY_BREAKER` origin lands
-`AUTHORIZATION_REQUIRED` and the owner's `approve()` is refused → **A4 is RED**.
+The canary requests recovery as the owner. Per the authority matrix, the owner can self-authorize a
+`PREFLIGHT_PASS` **only** for a daily-loss origin; a `REDUCTION_ONLY_BREAKER` origin lands
+`AUTHORIZATION_REQUIRED` and the owner's `approve()` is refused → **A4 is RED**. The governing property is
+**owner authority**, not a numeric user id.
 
-- **Do NOT** add user 3 to `WORKBENCH_RISK_OPERATOR_USER_IDS` merely to help A4 pass — that changes the
-  authority configuration under test.
-- **If account 3 enters `REDUCTION_ONLY_BREAKER`** instead of `REDUCTION_ONLY_DAILY_LOSS`, **STOP** and
-  classify the setup as unsuitable for this GREEN run. Do not rewrite the trip cause or durable state.
+- **Do NOT** add the canary owner (`ADR0043_USER`) to `WORKBENCH_RISK_OPERATOR_USER_IDS` merely to help A4
+  pass — that changes the authority configuration under test.
+- **If the canary account enters `REDUCTION_ONLY_BREAKER`** instead of `REDUCTION_ONLY_DAILY_LOSS`,
+  **STOP** and classify the setup as unsuitable for this GREEN run. Do not rewrite the trip cause or state.
   Preserve the breaker-origin result as setup evidence; start a separately governed attempt only after
   identifying why the intended daily-loss path did not govern the trip.
 
@@ -236,21 +300,21 @@ The baseline must be captured by **this box's** production runtime — the one t
 and run the canary — **not** by a predecessor instance.
 
 1. Identify the deployed baseline-capture setting; confirm it is enabled for the backend that will handle
-   account 3. If it is a startup-time setting, restart the container through the approved procedure
-   **before** the baseline is captured (the one permitted restart), then re-record the final container
-   identity + configuration. Record the configuration checksum.
+   the canary account. If it is a startup-time setting, restart the container through the approved
+   procedure **before** the baseline is captured (the one permitted restart), then re-record the final
+   container identity + configuration. Record the configuration checksum.
 2. Verify the baseline is captured for the **current** trading session and is immutable after capture.
 
-A valid baseline record contains at least: `account_id=3`, session/trading date = current session,
-baseline status = valid/authoritative, capture timestamp, source/provenance, the required equity/values,
-and immutability/version evidence.
+A valid baseline record contains at least: `account_id=$ADR0043_ACCOUNT`, session/trading date = current
+session, baseline status = valid/authoritative, capture timestamp, source/provenance, the required
+equity/values, and immutability/version evidence.
 
 **STOP** — do not begin loss generation — if: capture is disabled; the baseline row is missing; the
 baseline belongs to a previous session; provenance is invalid; it was manually inserted; it was modified
 after session activity began; or two competing baselines exist. **Never "repair" the baseline after the
 breach** — that would invalidate both the lock provenance and the recovery preflight.
 
-## 0B. Reconcile account 3 before the breach
+## 0B. Reconcile the canary account before the breach
 
 Read-only, broker vs the freshly-synced DB: broker positions/open-orders/recent-fills/account-status/
 buying-power/equity/market-clock vs DB positions/open-orders/reservations/account-state/loss-control-state/
@@ -260,13 +324,30 @@ recovery workflow; no unexplained state transition. Do not buy/adjust positions 
 baseline unless that establishment is an already-governed part of setup; if the account no longer matches,
 **revise and re-freeze the manifest through review** — do not silently restore it.
 
-## 0C. Freeze the limits (and provenance)
+## 0C. Freeze the EFFECTIVE limits (and provenance)
 
-Export the complete effective limit set **before** any loss (`max_daily_loss`, `max_position_qty`,
-`max_position_notional`, `max_gross_exposure`, `max_orders_per_day`, rate limits, velocity thresholds,
-breaker thresholds, all overrides). Hash it. From here through countersignature,
-`limits_before_sha256 == limits_after_sha256`. An unreachable breach is unreachable — **never** solved by
-lowering controls.
+Record the limits **the risk engine actually resolves**, not merely rows that look relevant. In this
+codebase the engine resolves limits via `_load_global_limits(user_id, broker_mode)` — the **single**
+`RiskLimits` row where `scope_type = GLOBAL`, `user_id = ADR0043_USER`, `broker_mode = paper` (`.first()`).
+There is **no account-specific override precedence**; that one row **is** the effective limit set, and if
+none resolves the engine rejects every order with `NO_LIMITS_CONFIGURED`.
+
+So:
+- Confirm **exactly one** such GLOBAL/paper row exists for the canary owner (two would make `.first()`
+  non-deterministic — **STOP**), and that its values are the **approved** configuration (established via
+  the sanctioned `PUT /risk-limits` path in §A4b), **not accidental create_user defaults**.
+- Record the **effective resolved** values (with the fact that the source is the single GLOBAL/paper row):
+  `effective_max_daily_loss`, `effective_max_orders_per_day`, `effective_max_position_qty`,
+  `effective_max_position_notional`, `effective_max_gross_exposure`, and any rate/velocity/breaker
+  thresholds the deployment applies. Hash the export → `limits_before_sha256`.
+- Also record `recovery_requester=$ADR0043_USER`, `recovery_requester_is_account_owner=true`,
+  `required_trip_origin=DAILY_LOSS`, `required_target_state=REDUCTION_ONLY_DAILY_LOSS`,
+  `canary_owner_risk_operator=false`. Do **not** add the canary owner identified by `ADR0043_USER` to
+  `WORKBENCH_RISK_OPERATOR_USER_IDS` — the governing property is **owner authority**, not a numeric id.
+
+From here through countersignature, `limits_before_sha256 == limits_after_sha256`. The Phase-0D breach plan
+must use the **effective resolved `max_daily_loss`**, never a guessed row. An unreachable breach is
+unreachable — **never** solved by lowering controls.
 
 ## 0D. Generate a real daily loss through sanctioned orders (on this box)
 
@@ -333,10 +414,21 @@ checkpoint/evidence paths clean.
 ## Continuity record — formal-canary start
 
 Re-capture the same fields as the Phase-0-start record and **compare**: `instance_id` / `boot_id` /
-backend image digest / git commit / configuration checksum / broker account identity / session baseline
-id/version must be **identical** (same runtime, no reprovision/image-swap/config-change). Record the
-current database SHA-256 (expected different from Phase-0-start — orders/events were written; recorded, not
-required equal). Store as `$EVIDENCE_DIR/continuity_canary.txt`. **STOP** if any immutable item changed.
+backend image digest / git commit / configuration checksum / **ambient `WORKBENCH_LOSS_CONTROL_MODE`
+(= `ENFORCE`)** / broker account identity / session baseline id/version must be **identical** (same
+runtime, no reprovision/image-swap/config-change). **Re-derive the image digest here** (do not depend on a
+shell export surviving across SSH sessions) and compare it to the Phase-0 record:
+
+```
+BACKEND_CID=$($COMPOSE ps -q backend)
+BACKEND_IMAGE_DIGEST="$(sudo docker inspect "$BACKEND_CID" --format '{{.Image}}')"
+test -n "$BACKEND_IMAGE_DIGEST"                                # non-empty
+test "$BACKEND_IMAGE_DIGEST" = "$PHASE0_BACKEND_IMAGE_DIGEST"  # equals the Phase-0 continuity record
+```
+
+An empty digest or a mismatch is a **hard STOP**. Record the current database SHA-256 (expected different
+from Phase-0-start — orders/events were written; recorded, not required equal). Store as
+`$EVIDENCE_DIR/continuity_canary.txt`. **STOP** if any immutable item changed (including ambient mode).
 
 ---
 
@@ -351,8 +443,8 @@ globally flip every environment to ENFORCE unless separately reviewed.
 
 ## C. Immediate pre-canary confirmation (read-only)
 
-Confirm, read-only: `risk_loss_control_state` for account 3 is now `REDUCTION_ONLY_DAILY_LOSS` with
-`state_version` present; `F ≥ 500`, `MSFT ≥ 20` at the broker. **Never** run `UPDATE risk_loss_control_state`,
+Confirm, read-only: `risk_loss_control_state` for the canary account (`ADR0043_ACCOUNT`) is now
+`REDUCTION_ONLY_DAILY_LOSS` with `state_version` present; `F ≥ 500`, `MSFT ≥ 20` at the broker. **Never** run `UPDATE risk_loss_control_state`,
 `UPDATE risk_limits`, `UPDATE accounts SET circuit_breaker_tripped_at`, or `DELETE FROM risk_control_events`
 — any need for such a change means the run is not valid. **Do not buy back a missing leg** (a locked account
 cannot legitimately manufacture the precondition — the harness treats it as a refusal).
@@ -371,9 +463,14 @@ sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml exec \
   -e WORKBENCH_LOSS_CONTROL_MODE=ENFORCE \
   -e ADR0043_COMMIT_SHA="$(git rev-parse HEAD)" \
   -e ADR0043_IMAGE_DIGEST="$BACKEND_IMAGE_DIGEST" \
+  -e ADR0043_USER="$ADR0043_USER" \
+  -e ADR0043_ACCOUNT="$ADR0043_ACCOUNT" \
   backend \
   python -m scripts.adr0043_canary_run
 ```
+
+`ADR0043_USER` / `ADR0043_ACCOUNT` are the **recorded** local ids from §A4b (default `3`); the harness
+targets the canary account by these, so they must match the established owner/account.
 
 > `ADR0043_IMAGE_DIGEST` **is** consumed — bound into the evidence document (`image_digest`), covered by
 > the harness SHA-256 (cryptographically bound, not merely stored beside it). `ADR0043_DEPLOYED_AT` is
@@ -397,7 +494,7 @@ must not be faked.
 
 Do not accept PASS alone — review the evidence and durable state.
 
-- **A1 `state_authoritative`** — pre-order snapshot shows account 3 in `REDUCTION_ONLY_*` with
+- **A1 `state_authoritative`** — pre-order snapshot shows the canary account in `REDUCTION_ONLY_*` with
   `state_version`. Failure: state absent; `NORMAL`; only the legacy breaker column indicates a lock; state
   changed outside the sanctioned event stream.
 - **A2 `verified_reduction_allowed`** — SELL 1 protected symbol **admitted** (not rejected by loss
@@ -447,15 +544,15 @@ what changed. A Phase 0 failure is a **setup-readiness** failure — same discip
 
 ## K. After GREEN
 
-Keep account 3 frozen until countersignature is complete: finish evidence copying; independently verify all
-hashes; inspect A1–A5; confirm final state; countersign; preserve the package in durable storage. Then, and
-only then, reclaim account 3 **only through sanctioned flows**: sanctioned risk-reducing orders to flatten
-the legs; verify fills + no residual/open orders; run the audited recovery/reset path; verify the durable
-event trail; confirm the final clean state; restore the intended clean paper-account duplicate; record the
-new account/broker identity + credentials through approved secret management. **Do not** edit
-`risk_loss_control_state`, delete events, null breaker fields manually, rewrite preflight records, reset the
-paper balance before evidence preservation, or treat account 3 as a strategy book without a separate
-governance decision.
+Keep the canary account frozen until countersignature is complete: finish evidence copying; independently
+verify all hashes; inspect A1–A5; confirm final state; countersign; preserve the package in durable storage.
+Then, and only then, reclaim the canary account **only through sanctioned flows**: sanctioned risk-reducing
+orders to flatten the legs; verify fills + no residual/open orders; run the audited recovery/reset path;
+verify the durable event trail; confirm the final clean state; restore the intended clean paper-account
+duplicate; record the new account/broker identity + credentials through approved secret management. **Do
+not** edit `risk_loss_control_state`, delete events, null breaker fields manually, rewrite preflight records,
+reset the paper balance before evidence preservation, or treat the canary account as a strategy book without
+a separate governance decision.
 
 > **Open governance item to resolve before reclamation.** The manifest describes account 3 as the
 > **permanent risk-engine verification account** ("not converted into a strategy account"), while this
@@ -473,14 +570,20 @@ governance decision.
       delta is **documentation-only**; clean git tree
 - [ ] Backend image digest + Compose/config checksums recorded
 - [ ] Exactly one Alembic head; DB current at that head
+- [ ] **Ambient `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`** confirmed from the effective runtime (not Compose alone)
+- [ ] **Canary account established via sanctioned bootstrap** (owner + paper account created; IDs recorded
+      and `ADR0043_USER`/`ADR0043_ACCOUNT` set to match; creds resolve; **broker identity == frozen Alpaca
+      paper account**; active; `F`+`MSFT` synchronised; approved effective limits row set via `PUT
+      /risk-limits`, not create_user defaults) — no ad-hoc inserts, no ID assumed to be 3
 - [ ] Exactly one backend runtime; no live canary process; canary artifact paths absent (or a documented resume)
-- [ ] Continuity record (Phase-0 start) captured
+- [ ] Continuity record (Phase-0 start) captured (incl. image digest, ambient mode)
 
 **Phase 0 (establish the lock on that same box):**
 
 - [ ] Authoritative current-session baseline captured on THIS box, immutable
 - [ ] Broker/DB reconciled (positions, orders, reservations); no stale/unexplained state
-- [ ] Limits + provenance frozen; `limits_before_sha256` recorded
+- [ ] **Effective** limits resolved (exactly one GLOBAL/canary-owner/paper row; approved values via `PUT
+      /risk-limits`, not create_user defaults); frozen; `limits_before_sha256` recorded
 - [ ] Loss generated only through `OrderRouter → RiskEngine → broker adapter`
 - [ ] Durable state `= REDUCTION_ONLY_DAILY_LOSS`, trip cause `= DAILY_LOSS` (NOT breaker)
 - [ ] Read-only twelve-check readiness recorded (dependency-aware; A4-only rows marked pending)
@@ -488,8 +591,9 @@ governance decision.
 
 **Formal canary — on the same runtime:**
 
-- [ ] Continuity record (canary start) captured; immutables equal to Phase-0-start
-- [ ] ENFORCE + `ADR0043_COMMIT_SHA` + `ADR0043_IMAGE_DIGEST` passed only to the one command
+- [ ] Continuity record (canary start) captured; immutables equal to Phase-0-start; **image digest
+      re-derived and equal** to the Phase-0 record (non-empty)
+- [ ] ENFORCE + `ADR0043_COMMIT_SHA` + `ADR0043_IMAGE_DIGEST` (non-empty) passed to the one command
 - [ ] Pre-run DB + broker evidence captured; terminal + service logs recording
 
 **GREEN only when:**
