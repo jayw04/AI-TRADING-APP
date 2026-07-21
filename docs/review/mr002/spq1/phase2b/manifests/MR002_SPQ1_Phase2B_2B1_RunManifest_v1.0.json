@@ -2,18 +2,18 @@
  "decision_cutoff": "registered ET close via zoneinfo (DST-correct)",
  "diagnostics_only": {
   "emitted": 66,
-  "ineligible": 54,
-  "integrity_stop": 24,
+  "ineligible": 36,
+  "integrity_stop": 66,
   "refused": 0,
-  "total_units": 144
+  "total_units": 168
  },
  "increment": "2B-1 (limited-shard qualification)",
  "phase2b_code_identity_verified": true,
- "phase2b_orchestration_code_identity": "a0e30cda5400fba0e23ba1b37ff9dc12a325f647b64d15e75edfa6cebd688eba",
+ "phase2b_orchestration_code_identity": "866d14fcbbc0d9151fe908a8b383722e913ace94464125fb8ee2981aa1cf067c",
  "pit_sector_source": "research.sic_observations (covers 534/535 dev-universe ciks; provenance copy covers only 13 -> registered PIT sector source for the run is research.sic_observations)",
  "record_type": "MR002_SPQ1_Phase2B_2B1_RunManifest",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
- "run_spec_sha256": "64db0c31d33b80e0fdc59dd5476c29a51fb2d8c3ded87d454c84ee9ef1a23325",
+ "run_spec_sha256": "277d9bd326124dfda9df5fb984ecf16557f306af7e253addf1aa0856cc6f5f8d",
  "sic_to_sector_etf": "registered owner-countersigned sic_mapping (supersedes Phase-2A placeholder)",
  "version": "1.0"
 }

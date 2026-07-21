@@ -1,7 +1,7 @@
 {
  "dispositions": {
-  "INELIGIBLE": 54,
-  "INTEGRITY_STOP": 24,
+  "INELIGIBLE": 36,
+  "INTEGRITY_STOP": 66,
   "SIGNAL_DECISION_RECORD_EMITTED": 66
  },
  "duplicate_candidate_ids": false,
@@ -9,7 +9,7 @@
  "emitted_eligibility": {
   "ELIGIBLE": 66
  },
- "expected_units": 144,
+ "expected_units": 168,
  "missing_outcomes": 0,
  "reconciles": true,
  "record_type": "MR002_SPQ1_Phase2B_2B1_UnitReconciliation",

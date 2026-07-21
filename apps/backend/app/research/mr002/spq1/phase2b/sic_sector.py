@@ -33,14 +33,24 @@ def load_sic_map(rows: list[tuple]) -> list[SicMapRow]:
     return out
 
 
-def latest_pit_sic(sic_obs: list[tuple], close_t_iso: str) -> tuple[str, str] | None:
-    """sic_obs: (accepted_utc, sic). Return (sic, availability_iso) latest accepted by close t."""
-    avail = [(normalize_utc_iso(a), str(s)) for a, s in sic_obs]
-    avail = [(a, s) for a, s in avail if a <= close_t_iso]
+def latest_pit_sic(sic_obs: list[tuple], close_t_iso: str) -> tuple[str, str, str] | None:
+    """sic_obs: (accepted_utc, sic, accession). Return (sic, full-UTC availability, accession) for the
+    latest observation accepted by close t. Full timestamp (not date-truncated); a same-acceptance-time
+    pair with conflicting SIC fails closed SECTOR_EFFECTIVE_DATE_CONFLICT; exact duplicate records
+    (same accepted_utc, sic, accession) deterministically dedupe."""
+    seen: dict[tuple[str, str, str], None] = {}
+    for a, s, acc in sic_obs:
+        seen[(normalize_utc_iso(a), str(s), str(acc))] = None   # exact-dup dedupe
+    avail = [k for k in seen if k[0] <= close_t_iso]
     if not avail:
         return None
-    a, s = max(avail, key=lambda x: x[0])
-    return s, a
+    latest_ts = max(k[0] for k in avail)
+    winners = [k for k in avail if k[0] == latest_ts]
+    if len({k[1] for k in winners}) != 1:
+        raise refuse("INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT",
+                     f"conflicting SIC at same acceptance {latest_ts}")
+    ts, s, acc = sorted(winners)[0]
+    return s, ts, acc
 
 
 def resolve_sector(sic_map: list[SicMapRow], sic_obs: list[tuple], close_t_iso: str) -> SectorRecord:
@@ -48,7 +58,7 @@ def resolve_sector(sic_map: list[SicMapRow], sic_obs: list[tuple], close_t_iso: 
     pit = latest_pit_sic(sic_obs, close_t_iso)
     if pit is None:
         raise refuse("INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING", "no PIT SIC by close t")
-    sic_str, availability = pit
+    sic_str, availability, accession = pit
     sic = int(sic_str)
     close_day = close_t_iso[:10]
     covering = [r for r in sic_map if r.sic_start <= sic <= r.sic_end
@@ -65,7 +75,8 @@ def resolve_sector(sic_map: list[SicMapRow], sic_obs: list[tuple], close_t_iso: 
                      f"SIC {sic} has conflicting same-effective sector rows")
     w = winners[0]
     return SectorRecord(sector_id=w.research_sector, availability_timestamp=availability,
-                        supersession_ordinal=0, source_evidence_identity=f"sic_map:{w.sic_start}-{w.sic_end}")
+                        supersession_ordinal=0,
+                        source_evidence_identity=f"sic_obs:{accession}|sic_map:{w.sic_start}-{w.sic_end}")
 
 
 def sector_etf(sic_map: list[SicMapRow], sector_id: str) -> str:

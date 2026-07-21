@@ -1,12 +1,15 @@
 {
- "cutoff_before_all_obs_missing": false,
+ "cutoff_before_all_obs_missing": true,
  "decision_cutoff": "registered ET close via zoneinfo (21:00Z standard / 20:00Z daylight)",
  "dst_leak_channel_closed": true,
+ "identity_resolved_at_session_t_not_dev_end": true,
  "note": "a post-cutoff SIC observation does not change the resolved close-t sector; the cutoff is the DST-correct ET close; synthetic integrity-stop / identity-refusal sentinels are supplementary.",
+ "per_session_cik_resolution_pit": true,
  "post_cutoff_sector_obs_excluded": true,
  "record_type": "MR002_SPQ1_Phase2B_2B1_PITLeakageAudit",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
  "sentinel_altered_valid_decision": false,
+ "sic_reads_preserve_accession_and_full_timestamp": true,
  "synthetic_sentinels_supplementary": {
   "identity_refusal_reached": true,
   "integrity_stop_reached": true

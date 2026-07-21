@@ -37,8 +37,8 @@ TERMINAL = {EMITTED, INELIGIBLE, INTEGRITY_STOP, REFUSED}
 
 def _ctx(tmp):
     led = OpenedObjectLedger()
-    con, guard, src = ORCH.materialize_run_input(str(tmp), TK, CK, led)
-    ctx = ORCH.build_context(con, guard, TK, CK, src)
+    con, guard, src, sp, ss = ORCH.materialize_run_input(str(tmp), TK, CK, led)
+    ctx = ORCH.build_context(con, guard, TK, CK, src, sp, ss)
     return ctx, con, src, led
 
 
@@ -87,15 +87,47 @@ def test_restart_atomic_non_overwriting(tmp_path):
 
 
 def test_pit_sector_sentinel_excluded(tmp_path):
+    from app.research.mr002.spq1.phase2b.cutoff import et_close_cutoff_iso
     ctx, con, src, _ = _ctx(tmp_path / "d.duckdb")
-    aapl = next(v for v in ctx.securities.values() if v["symbol"] == "AAPL")
-    cutoff = ctx.calendar.sessions[1699] + "T21:00:00Z"
-    base = resolve_sector(ctx.sic_map, aapl["sic_obs"], cutoff)
-    poisoned = list(aapl["sic_obs"]) + [("2099-01-01 00:00:00+00:00", "6199")]
+    obs = ctx.sic_obs_by_cik.get(320193, [])
+    cutoff = et_close_cutoff_iso(ctx.calendar.sessions[1699])           # DST-correct ET close
+    base = resolve_sector(ctx.sic_map, obs, cutoff)
+    poisoned = list(obs) + [("2099-01-01 00:00:00+00:00", "6199", "SENTINEL")]  # future obs
     after = resolve_sector(ctx.sic_map, poisoned, cutoff)
     con.close()
     src.close()
     assert base.sector_id == after.sector_id                           # future obs cannot change sector
+
+
+def test_per_session_cik_and_identity_are_pit():
+    from app.research.mr002.spq1.phase2b.orchestrator import resolve_cik_at
+    from app.research.mr002.spq1.refusals import SignalRefusal
+    # predecessor cik effective [0,100), successor [100,None) -> resolved per session, not at DEV_END
+    timeline = [(0, 100, 111), (100, None, 222)]
+    assert resolve_cik_at(timeline, 50) == 111        # before boundary -> predecessor
+    assert resolve_cik_at(timeline, 100) == 222       # on/after boundary -> successor
+    assert resolve_cik_at(timeline, 1699) == 222
+    # overlapping intervals with conflicting CIK -> ambiguous only where they overlap
+    overlap = [(0, 200, 111), (100, None, 222)]
+    with pytest.raises(SignalRefusal) as e:
+        resolve_cik_at(overlap, 150)
+    assert e.value.code == "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS"
+    assert resolve_cik_at(overlap, 50) == 111         # outside the overlap resolves cleanly
+
+
+def test_sic_reads_preserve_accession_and_conflict():
+    from app.research.mr002.spq1.phase2b.sic_sector import latest_pit_sic
+    from app.research.mr002.spq1.refusals import SignalRefusal
+    obs = [("2015-01-01 00:00:00+00:00", "3571", "ACC-1"),
+           ("2016-01-01 00:00:00+00:00", "3572", "ACC-2")]
+    sic, ts, acc = latest_pit_sic(obs, "2016-06-01T20:00:00Z")
+    assert (sic, acc) == ("3572", "ACC-2") and ts == "2016-01-01T00:00:00Z"   # full timestamp, accession
+    # two filings at the SAME acceptance timestamp with conflicting SIC -> conflict
+    conflict = [("2016-01-01 00:00:00+00:00", "3571", "ACC-A"),
+                ("2016-01-01 00:00:00+00:00", "6199", "ACC-B")]
+    with pytest.raises(SignalRefusal) as e:
+        latest_pit_sic(conflict, "2016-06-01T20:00:00Z")
+    assert e.value.code == "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT"
 
 
 def test_et_close_cutoff_dst_correct():

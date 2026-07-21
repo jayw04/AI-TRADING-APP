@@ -1,14 +1,16 @@
 {
  "governed_case_coverage": {
-  "earnings_cutoff": "AAPL earnings availability vs registered ET close (real)",
+  "earnings_cutoff": "AAPL earnings availability vs registered ET close via zoneinfo (real)",
+  "earnings_evidence_missing": "AAPL earnings evidence unavailable by close t at some sessions -> INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING (real)",
   "emitted_valid_path": "AAPL/MSFT/BAC/XOM at late/middle sessions (real)",
   "identity_refusal": "synthetic sentinel: injected missing SPY factor obs -> SIGNAL_INPUT_IDENTITY_MISMATCH (searched: SPY is complete over dev -> 0 natural factor-missing)",
   "integrity_stop": "synthetic sentinel: injected unexplained interior hole -> OLS_WINDOW_INCOMPLETE (searched real dev slice: 0 natural interior holes among the selected securities)",
   "ipo_warm_up_boundary": "TWLO (first price 2016-06) (real)",
   "known_halt_absence": "SEARCHED: no governed halt/absence marker in the dev slice -> 0 real cases; not fabricated (Sharadar SEP has no halt evidence field)",
-  "missing_pit_sector": "EVI (cik 1170565 absent from research.sic_observations) -> INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING (real)",
+  "missing_pit_sector": "sentinel (cutoff before any accepted SIC) -> SECTOR_PIT_IDENTITY_MISSING; SEARCHED: a cleanly-resolving no-SIC ticker also has ambiguous lineage in this slice",
+  "per_session_cik_transition": "TRV (crosswalk cik 831001 eff 1986-1998, 86312 eff 2007-); resolve_cik_at -> 86312 in dev, predecessor interval excluded (real; unit-tested)",
   "same_timestamp_sector_conflict": "SEARCHED: sic_conflicts table empty over dev -> 0 real cases; conflict path qualified by the closed resolver + a synthetic construction only",
-  "ticker_change_continuity": "FLT (permaticker 105193 rename chain RELS->..->FLT) (real)",
+  "security_identity_ambiguous": "TRV + FRCB: the closed identity_adapter lineage (which does not read effective_through) sees 2 pre-window permatickers -> INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS (real, per-session)",
   "warm_up_insufficient": "all securities at early/IPO sessions -> INELIGIBLE:OLS_WINDOW_INSUFFICIENT (real)"
  },
  "note": "universe count is a constant top-250/month; high==low==250 (recorded, not a selector). Cases with 0 real dev instances disclose the searched population + rule; synthetic sentinels are supplementary evidence only, never a substitute for real emitted/ineligible shard evidence.",
@@ -23,17 +25,17 @@
    "cik": 70858,
    "reason": "financial-sector liquid name (sector diversity)"
   },
-  "EVI": {
-   "cik": 1170565,
-   "reason": "universe cik absent from research.sic_observations -> INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING"
-  },
-  "FLT": {
-   "cik": 1175454,
-   "reason": "ticker-change lineage (permaticker 105193: RELS->..->FLT); identity-continuity case"
+  "FRCB": {
+   "cik": 1132979,
+   "reason": "cik absent from research.sic_observations -> INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING"
   },
   "MSFT": {
    "cik": 789019,
    "reason": "ordinary continuously-traded liquid name"
+  },
+  "TRV": {
+   "cik": 86312,
+   "reason": "multi-CIK crosswalk (831001 eff 1986-1998, 86312 eff 2007-); PIT CIK resolves to 86312 in dev -> per-session CIK case (predecessor interval correctly excluded)"
   },
   "TWLO": {
    "cik": 1447669,

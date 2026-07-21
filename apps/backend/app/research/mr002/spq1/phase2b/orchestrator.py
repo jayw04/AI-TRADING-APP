@@ -23,14 +23,13 @@ from ..adapters import DEV_END, DEV_START, REGISTERED_PROVENANCE_DB, REGISTERED_
 from ..adapters import dev_snapshot as DS
 from ..adapters.benchmark_adapter import load_spy_adjclose
 from ..adapters.calendar_adapter import load_calendar
-from ..adapters.eligibility_adapter import load_earnings_checks
 from ..adapters.identity_adapter import load_identity_registry
 from ..adapters.partition_guard import OpenedObjectLedger, PartitionGuard
 from ..adapters.price_adapter import load_price_series
 from ..calendar import RegisteredCalendar
 from ..identities import InputIdentityRegistry, canonical_sha256
 from ..producer import MarketData, ProductionRequest, SecurityData, produce_decision
-from ..refusals import SignalRefusal
+from ..refusals import SignalRefusal, refuse
 from ..returns import CellStatus, arithmetic_total_returns
 from ..security_identity import PitIdentityRegistry
 from . import DISPOSITION_BY_CLASS, EMITTED
@@ -74,7 +73,8 @@ class UnitResult:
     record_identity: str | None
 
     def key(self) -> tuple:
-        return (self.decision_session, self.permanent_security_id)
+        # Enumeration key is (session, symbol) — PIT-safe; permanent_security_id is resolved AT t.
+        return (self.decision_session, self.symbol)
 
     def as_row(self) -> dict:
         return {"permanent_security_id": self.permanent_security_id, "symbol": self.symbol,
@@ -92,7 +92,9 @@ class RunContext:
     registry: InputIdentityRegistry
     lineage: PitIdentityRegistry
     sic_map: list[SicMapRow]
-    securities: dict[str, dict]              # permanent_security_id -> {symbol, cik, stock_ret, status, raw_close, raw_volume, sic_obs}
+    securities: dict[str, dict]              # SYMBOL -> {stock_ret, status, raw_close, raw_volume, cik_timeline}
+    sic_obs_by_cik: dict[int, list]          # cik -> [(accepted_utc_full_iso, sic, accession)]
+    earnings_by_cik: dict[int, list]         # cik -> earnings_anchors rows (bulk, ledgered)
     ledger: OpenedObjectLedger
 
 
@@ -111,39 +113,97 @@ def _guarded_load_sic_map(con, guard: PartitionGuard) -> list[SicMapRow]:  # noq
 
 
 def _guarded_sic_obs(src, guard, ciks):  # noqa: ANN001
-    """PIT SIC observations from research.sic_observations (broad coverage), dev-bounded + guarded."""
-    from ..adapters import abs_path
+    """PIT SIC observations from research.sic_observations, dev-bounded + guarded. Preserves the full
+    registered field set (cik, accepted_utc, sic, accession) and the COMPLETE UTC timestamp; the ledger
+    result hash binds all four fields + the full timestamp (per the amended source contract)."""
+    from ..adapters import abs_path, normalize_utc_iso
     from ..adapters.manifests import sha256_file
     tok = guard.authorize_read(REGISTERED_RESEARCH_DB, "0001-01-01", DEV_END, "sic_observations",
                                "orchestrator", allow_pre_window=True)
     rows = src.execute(
-        "select cik, accepted_utc, sic from sic_observations where cik = ANY($c) "
+        "select cik, accepted_utc, sic, accession from sic_observations where cik = ANY($c) "
         "and cast(accepted_utc as date) <= $b", {"c": ciks, "b": DEV_END}).fetchall()
     by: dict[int, list] = {}
-    for cik, a, s in rows:
-        by.setdefault(int(cik), []).append((a, s))
-    norm = sorted([[str(cik), str(a)[:10], str(s)] for cik, a, s in rows])
+    norm = []
+    for cik, a, s, acc in rows:
+        ts = normalize_utc_iso(a)
+        by.setdefault(int(cik), []).append((ts, str(s), str(acc)))
+        norm.append([str(cik), ts, str(s), str(acc)])   # full timestamp + accession
+    norm.sort()
     guard.record_completed_read(tok, sha256_file(abs_path(REGISTERED_RESEARCH_DB)),
-                                "sic_observations", None,
+                                "sic_observations[cik,accepted_utc,sic,accession]", None,
                                 max((r[1] for r in norm), default=None), len(rows),
                                 canonical_sha256(norm), "", allow_pre_window=True)
     return by
 
 
-def build_context(snapshot_con, guard, tickers, ciks, sic_map_con):  # noqa: ANN001
+def _snap_ledger(guard, snap_path, snap_sha, purpose, rows_for_hash, row_count, max_key):  # noqa: ANN001
+    """Record a bounded bulk read of the (registered) development snapshot object."""
+    tok = guard.authorize_read(snap_path, "0001-01-01", DEV_END, purpose, "orchestrator",
+                               allow_pre_window=True)
+    guard.record_completed_read(tok, snap_sha, f"snapshot:{purpose}", None, max_key, row_count,
+                                canonical_sha256(rows_for_hash), "", allow_pre_window=True)
+
+
+def _date_ord(cal, date_str, default):  # noqa: ANN001
+    d = str(date_str)[:10]
+    if d < cal.sessions[0]:
+        return 0 if default == "lo" else -1
+    if d > cal.sessions[-1]:
+        return len(cal) if default == "hi" else len(cal) - 1
+    lo, hi = 0, len(cal) - 1
+    while lo < hi:                       # first session on/after d
+        mid = (lo + hi) // 2
+        if cal.sessions[mid] < d:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+
+def resolve_cik_at(cik_timeline, t):  # noqa: ANN001
+    """PIT CIK for session ordinal t from the registered crosswalk intervals (no unordered LIMIT 1).
+    Overlapping intervals with conflicting CIK fail closed SECURITY_IDENTITY_AMBIGUOUS."""
+    active = [c for (lo, hi, c) in cik_timeline if lo <= t and (hi is None or t < hi)]
+    if not active:
+        raise refuse("INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS", f"no CIK effective at session {t}")
+    if len(set(active)) != 1:
+        raise refuse("INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+                     f"conflicting CIKs {sorted(set(active))} at session {t}")
+    return active[0]
+
+
+def build_context(snapshot_con, guard, tickers, ciks, sic_map_con, snap_path="", snap_sha=""):  # noqa: ANN001
     cal = load_calendar(snapshot_con)
-    spy = arithmetic_total_returns(load_spy_adjclose(snapshot_con, cal))
+    _snap_ledger(guard, snap_path, snap_sha, "calendar", list(cal.sessions), len(cal), cal.sessions[-1])
+    spy_levels = load_spy_adjclose(snapshot_con, cal)
+    _snap_ledger(guard, snap_path, snap_sha, "spy", [f"{v}" for v in spy_levels],
+                 int(np.isfinite(spy_levels).sum()), cal.sessions[-1])
+    spy = arithmetic_total_returns(spy_levels)
     sic_map = _guarded_load_sic_map(sic_map_con, guard)
     sic_obs_by_cik = _guarded_sic_obs(sic_map_con, guard, ciks)
-    # sector returns keyed by research_sector via its ETF
+    # sector returns keyed by research_sector via its ETF (one bulk etf_prices read, ledgered)
+    etf_rows = snapshot_con.execute('select ticker, "date", adjclose from etf_prices').fetchall()
+    _snap_ledger(guard, snap_path, snap_sha, "sector_etfs",
+                 sorted([str(r) for r in etf_rows]), len(etf_rows),
+                 max((str(r[1]) for r in etf_rows), default=None))
     etf_by_sector: dict[str, str] = {r.research_sector: r.sector_etf for r in sic_map}
+    etf_series: dict[str, dict[str, float]] = {}
+    for tk, d, v in etf_rows:
+        etf_series.setdefault(str(tk), {})[str(d)] = float(v)
     sector_ret: dict[str, np.ndarray] = {}
     for sector, etf in etf_by_sector.items():
-        rows = snapshot_con.execute(
-            'select "date", adjclose from etf_prices where ticker = ? order by "date"', [etf]).fetchall()
-        by = {str(d): float(v) for d, v in rows}
+        by = etf_series.get(etf, {})
         arr = np.array([by.get(s, np.nan) for s in cal.sessions], dtype=np.float64)
-        sector_ret[sector] = arithmetic_total_returns(_levels_to_series(arr))
+        sector_ret[sector] = arithmetic_total_returns(arr)
+    # crosswalk (bulk, ledgered) -> per-symbol CIK timeline + the PIT lineage registry
+    cw = snapshot_con.execute("select ticker, cik, effective_from, effective_to from crosswalk").fetchall()
+    _snap_ledger(guard, snap_path, snap_sha, "crosswalk", sorted([str(r) for r in cw]), len(cw), None)
+    cik_timeline: dict[str, list] = {}
+    for tk, cik, eff_from, eff_to in cw:
+        cik_timeline.setdefault(str(tk), []).append(
+            (_date_ord(cal, eff_from, "lo"), None if eff_to is None else _date_ord(cal, eff_to, "hi"),
+             int(cik)))
     lineage = load_identity_registry(snapshot_con, cal)
     securities: dict[str, dict] = {}
     for tk in tickers:
@@ -151,37 +211,47 @@ def build_context(snapshot_con, guard, tickers, ciks, sic_map_con):  # noqa: ANN
             series = load_price_series(snapshot_con, tk, cal)
         except SignalRefusal:
             continue
-        try:
-            permsec = lineage.resolve_permanent_id(tk, len(cal) - 1)
-        except SignalRefusal as exc:
-            # ambiguous lineage is a governed per-unit integrity stop, not a run-abort.
-            securities[f"AMBIGUOUS:{tk}"] = {"symbol": tk, "identity_refusal": exc.code}
-            continue
         close = series["closeadj"]
         present = np.isfinite(close)
         if not present.any():
             continue
+        _snap_ledger(guard, snap_path, snap_sha, f"prices:{tk}", [f"{v}" for v in close],
+                     int(present.sum()), cal.sessions[-1])
         first = int(np.argmax(present))
         status = [CellStatus.PRESENT if present[i] else
                   (CellStatus.YOUNG if i < first else CellStatus.UNEXPLAINED_HOLE)
                   for i in range(len(cal))]
-        cik = _ticker_cik(snapshot_con, tk)
-        sic_obs = sic_obs_by_cik.get(cik, []) if cik else []
-        securities[permsec] = {"symbol": tk, "cik": cik,
-                               "stock_ret": arithmetic_total_returns(close),
-                               "status": status, "raw_close": series["closeunadj"],
-                               "raw_volume": series["volume"], "sic_obs": sic_obs}
+        securities[tk] = {"symbol": tk, "stock_ret": arithmetic_total_returns(close),
+                          "status": status, "raw_close": series["closeunadj"],
+                          "raw_volume": series["volume"], "cik_timeline": cik_timeline.get(tk, [])}
+    # earnings evidence (bulk, ledgered) for the authorized CIK set
+    ea = snapshot_con.execute(
+        "select cik, accession, acceptance_utc, event_time_basis, cooling_start_session, "
+        "cooling_end_session from earnings_anchors where cast(cik as bigint) = ANY($c)",
+        {"c": ciks}).fetchall()
+    _snap_ledger(guard, snap_path, snap_sha, "earnings", sorted([str(r) for r in ea]), len(ea), None)
+    earnings_by_cik: dict[int, list] = {}
+    for row in ea:
+        earnings_by_cik.setdefault(int(row[0]), []).append(row[1:])
     return RunContext(snapshot_con, cal, spy, sector_ret, _registry(cal), lineage, sic_map,
-                      securities, guard.ledger)
+                      securities, sic_obs_by_cik, earnings_by_cik, guard.ledger)
 
 
-def _levels_to_series(arr: np.ndarray) -> np.ndarray:
-    return arr
-
-
-def _ticker_cik(con, ticker):  # noqa: ANN001
-    r = con.execute("select cik from crosswalk where ticker = ? limit 1", [ticker]).fetchone()
-    return int(r[0]) if r and r[0] is not None else None
+def _earnings_checks(rows, session_date):  # noqa: ANN001
+    """In-memory earnings-blackout ExclusionChecks (mirrors the Phase-2A adapter; no per-unit DB read)."""
+    from ..adapters import normalize_utc_iso
+    from ..eligibility import ExclusionCheck
+    out = []
+    for accession, acceptance_utc, basis, cool_start, cool_end in rows:
+        excludes = (cool_start is not None and cool_end is not None
+                    and str(cool_start) <= session_date <= str(cool_end))
+        out.append(ExclusionCheck(
+            rule_id=f"EARN-BLACKOUT:{accession}", precedence_category="event_blackout",
+            excludes=excludes, observed_value=f"basis={basis};window={cool_start}..{cool_end}",
+            threshold="no earnings within [t+1 open, session-6 open]",
+            source_identity=f"earnings_anchor:{accession}",
+            availability_timestamp=normalize_utc_iso(acceptance_utc), evidence_present=True))
+    return out
 
 
 def _registry(cal):  # noqa: ANN001
@@ -195,34 +265,34 @@ def _registry(cal):  # noqa: ANN001
     return InputIdentityRegistry(ids)
 
 
-def run_unit(ctx: RunContext, permsec: str, t: int) -> UnitResult:
-    sec = ctx.securities[permsec]
-    if "identity_refusal" in sec:
-        code = str(sec["identity_refusal"])
-        return UnitResult(permsec, sec["symbol"], t, DISPOSITION_BY_CLASS[code.split(":")[0]],
-                          code, None, None)
+def run_unit(ctx: RunContext, symbol: str, t: int) -> UnitResult:
+    """Resolve identity + CIK AT the decision session t (PIT); no end-of-window resolution."""
+    sec = ctx.securities[symbol]
     close_t_iso = et_close_cutoff_iso(ctx.calendar.sessions[t])
+    permsec = ""
     try:
-        sector = resolve_sector(ctx.sic_map, sec["sic_obs"], close_t_iso)
+        permsec = ctx.lineage.resolve_permanent_id(symbol, t)           # PIT identity @ t
+        cik = resolve_cik_at(sec["cik_timeline"], t)                    # PIT CIK @ t
+        sector = resolve_sector(ctx.sic_map, ctx.sic_obs_by_cik.get(cik, []), close_t_iso)
         if sector.sector_id not in ctx.sector_ret:
             sector_etf(ctx.sic_map, sector.sector_id)  # raises if unmapped
         obs: dict[str, str] = {
             k: (ctx.calendar.identity if k == "registered_exchange_calendar" else v)
             for k, v in _OBS_IDS.items()}
         market = MarketData(ctx.calendar, ctx.spy_ret, ctx.sector_ret, obs)
-        checks = load_earnings_checks(ctx.con, sec["cik"], ctx.calendar.sessions[t]) if sec["cik"] else []
-        secdata = SecurityData(sec["symbol"], sec["stock_ret"], sec["status"],
+        checks = _earnings_checks(ctx.earnings_by_cik.get(cik, []), ctx.calendar.sessions[t])
+        secdata = SecurityData(symbol, sec["stock_ret"], sec["status"],
                                sec["raw_close"], sec["raw_volume"], [sector], checks)
         req = ProductionRequest("MR-002", "B", "LONG", t, close_t_iso)
         rec = produce_decision(market, secdata, ctx.registry, ctx.lineage, req)
-        return UnitResult(permsec, sec["symbol"], t, EMITTED, None,
+        return UnitResult(permsec, symbol, t, EMITTED, None,
                           rec.decision_eligibility_status, rec.record_identity)
     except SignalRefusal as e:
-        return UnitResult(permsec, sec["symbol"], t, DISPOSITION_BY_CLASS[e.code_class], e.code, None, None)
+        return UnitResult(permsec, symbol, t, DISPOSITION_BY_CLASS[e.code_class], e.code, None, None)
 
 
 def run_shard(ctx: RunContext, units: list[tuple[str, int]]) -> tuple[list[UnitResult], str]:
-    results = [run_unit(ctx, permsec, t) for permsec, t in units]
+    results = [run_unit(ctx, symbol, t) for symbol, t in units]
     results.sort(key=lambda r: r.key())
     content = canonical_sha256([r.as_row() for r in results])
     return results, content
@@ -253,13 +323,14 @@ def merge(shard_results: list[list[UnitResult]]) -> list[UnitResult]:
 
 
 def materialize_run_input(out_path: str, tickers: list[str], ciks: list[int],
-                          ledger: OpenedObjectLedger) -> tuple[object, PartitionGuard]:  # noqa: ANN001
+                          ledger: OpenedObjectLedger):  # noqa: ANN001, ANN201
     import duckdb
-    guard = PartitionGuard(REGISTERED, ledger)
-    DS.materialize(duckdb, out_path, tickers, ETF_TICKERS, ciks, guard, "orchestrator")
+    # the dev snapshot is a registered dev-only object; its reads are guarded + ledgered too.
+    guard = PartitionGuard(REGISTERED | frozenset({out_path}), ledger)
+    snap = DS.materialize(duckdb, out_path, tickers, ETF_TICKERS, ciks, guard, "orchestrator")
     con = duckdb.connect(out_path, read_only=True)
-    src = duckdb.connect(_abs(REGISTERED_RESEARCH_DB), read_only=True)  # sic_mapping source
-    return con, guard, src  # type: ignore[return-value]
+    src = duckdb.connect(_abs(REGISTERED_RESEARCH_DB), read_only=True)  # sic_mapping/sic_obs source
+    return con, guard, src, out_path, snap.content_sha256
 
 
 def _abs(rel: str) -> str:

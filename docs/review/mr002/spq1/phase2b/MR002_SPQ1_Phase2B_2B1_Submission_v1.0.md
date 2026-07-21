@@ -1,8 +1,33 @@
 # MR-002 Workstream C — SPQ-1 Phase 2B — Increment 2B-1
 
-## Dry-Run & Limited-Shard Qualification (resubmitted after four corrections)
+## Dry-Run & Limited-Shard Qualification (resubmitted; second correction round)
 
-### Adjudication corrections applied
+### Second-round corrections (PIT identity + ledger)
+
+- **Per-session permanent-security resolution.** `run_unit` now resolves
+  `permanent_security_id = lineage.resolve_permanent_id(symbol, decision_session)` **at t** (was
+  `len(cal)-1`). Enumeration is keyed by `(session, symbol)`; identity is a per-session fact. Ambiguity
+  affects only the sessions where it holds. Unit-tested across a boundary.
+- **Per-session, PIT CIK resolution.** New `resolve_cik_at(cik_timeline, t)` replaces the unordered
+  `LIMIT 1` — it selects the crosswalk CIK whose `[effective_from, effective_through)` interval contains
+  t; overlapping intervals with conflicting CIK → `SECURITY_IDENTITY_AMBIGUOUS`. TRV (cik 831001 eff
+  1986–1998, 86312 eff 2007–) resolves to **86312** in dev, the predecessor interval correctly excluded
+  (unit-tested; row-order-independent via `= ANY`).
+- **SIC read matches the amended contract.** `sic_observations` is read as
+  `(cik, accepted_utc, sic, accession)`; the **full UTC timestamp** is preserved (not date-truncated);
+  a same-acceptance-time pair with conflicting SIC → `SECTOR_EFFECTIVE_DATE_CONFLICT`; exact duplicates
+  dedupe; the completed-read hash binds all four fields + the full timestamp.
+- **Complete Phase-2B read ledger.** The development snapshot is registered as a guarded object and
+  every bulk read (calendar, SPY, sector ETFs, crosswalk, per-symbol prices, earnings) is recorded as a
+  completed read with row count / range / query identity / result hash — bounded bulk reads (not
+  per-unit), sized for 2B-2. Earnings are bulk-loaded (in-memory checks per unit).
+
+Real-data dispositions now span all four classes: **EMITTED + INELIGIBLE (warm-up,
+ELIGIBILITY_EVIDENCE_MISSING) + INTEGRITY_STOP (SECURITY_IDENTITY_AMBIGUOUS)**, plus synthetic
+supplementary sentinels (OLS_WINDOW_INCOMPLETE, SIGNAL_INPUT_IDENTITY_MISMATCH, SECTOR_PIT_IDENTITY_
+MISSING) with searched-population disclosure.
+
+### First-round corrections applied
 
 1. **PIT-sector source amendment (2B-0).** A controlled 2B-0 amendment now freezes the registered PIT
    sector source as **`research.sic_observations`** (DB `24e5153c…`; columns cik/accepted_utc/sic/

@@ -14,17 +14,10 @@
    "first_session": 40,
    "last_session": 45
   },
-  "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING": {
-   "affected_securities": 1,
-   "classification": "INELIGIBLE",
-   "count": 18,
-   "first_session": 40,
-   "last_session": 835
-  },
   "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS": {
    "affected_securities": 1,
    "classification": "INTEGRITY_STOP",
-   "count": 24,
+   "count": 66,
    "first_session": 40,
    "last_session": 1699
   }

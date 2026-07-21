@@ -2,46 +2,67 @@
  "record_type": "MR002_SPQ1_Phase2B_2B1_SecurityCensus",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
  "securities": {
-  "AMBIGUOUS:FLT": {
+  "AAPL": {
+   "dispositions": {
+    "INELIGIBLE": 18,
+    "SIGNAL_DECISION_RECORD_EMITTED": 6
+   },
+   "resolved_permanent_security_ids": [
+    "PSEC-199059"
+   ]
+  },
+  "BAC": {
+   "dispositions": {
+    "INELIGIBLE": 6,
+    "SIGNAL_DECISION_RECORD_EMITTED": 18
+   },
+   "resolved_permanent_security_ids": [
+    "PSEC-199495"
+   ]
+  },
+  "FRCB": {
    "dispositions": {
     "INTEGRITY_STOP": 24
    },
-   "symbol": "FLT"
+   "resolved_permanent_security_ids": [
+    ""
+   ]
   },
-  "PSEC-198508": {
+  "MSFT": {
    "dispositions": {
     "INELIGIBLE": 6,
     "SIGNAL_DECISION_RECORD_EMITTED": 18
    },
-   "symbol": "MSFT"
+   "resolved_permanent_security_ids": [
+    "PSEC-198508"
+   ]
   },
-  "PSEC-199059": {
+  "TRV": {
    "dispositions": {
-    "INELIGIBLE": 18,
+    "INTEGRITY_STOP": 24
+   },
+   "resolved_permanent_security_ids": [
+    ""
+   ]
+  },
+  "TWLO": {
+   "dispositions": {
+    "INTEGRITY_STOP": 18,
     "SIGNAL_DECISION_RECORD_EMITTED": 6
    },
-   "symbol": "AAPL"
+   "resolved_permanent_security_ids": [
+    "",
+    "PSEC-376609"
+   ]
   },
-  "PSEC-199495": {
+  "XOM": {
    "dispositions": {
     "INELIGIBLE": 6,
     "SIGNAL_DECISION_RECORD_EMITTED": 18
    },
-   "symbol": "BAC"
-  },
-  "PSEC-199739": {
-   "dispositions": {
-    "INELIGIBLE": 6,
-    "SIGNAL_DECISION_RECORD_EMITTED": 18
-   },
-   "symbol": "XOM"
-  },
-  "PSEC-376609": {
-   "dispositions": {
-    "INELIGIBLE": 18,
-    "SIGNAL_DECISION_RECORD_EMITTED": 6
-   },
-   "symbol": "TWLO"
+   "resolved_permanent_security_ids": [
+    "PSEC-199739"
+   ]
   }
  },
  "version": "1.0"

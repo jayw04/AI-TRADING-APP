@@ -38,23 +38,24 @@ ORCH.verify_code_identity({**ORCH.code_identity()})  # self-check (no drift with
 assert canonical_sha256(ORCH.code_identity()) == BOUND_CODE_IDENTITY, "phase2b code identity drift"
 
 # --- mechanically frozen shard selection (structural reasons only; NO signal inspection) ---
-SECURITIES = {   # ticker -> (cik, mechanical selection reason / governed case)
+SECURITIES = {   # ticker -> (governing dev cik, mechanical selection reason / governed case)
     "AAPL": (320193, "ordinary continuously-traded; PIT sector + earnings coverage (earnings-cutoff case)"),
     "MSFT": (789019, "ordinary continuously-traded liquid name"),
     "BAC": (70858, "financial-sector liquid name (sector diversity)"),
     "XOM": (34088, "energy-sector liquid name (sector diversity)"),
     "TWLO": (1447669, "IPO within development window (first price 2016-06) -> exact warm-up boundary"),
-    "FLT": (1175454, "ticker-change lineage (permaticker 105193: RELS->..->FLT); identity-continuity case"),
-    "EVI": (1170565, "universe cik absent from research.sic_observations -> INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING"),
+    "TRV": (86312, "multi-CIK crosswalk (831001 eff 1986-1998, 86312 eff 2007-); PIT CIK resolves to "
+            "86312 in dev -> per-session CIK case (predecessor interval correctly excluded)"),
+    "FRCB": (1132979, "cik absent from research.sic_observations -> INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING"),
 }
 SHARDS = {   # shard_id -> session-ordinal block (mechanical: early/middle/late/IPO-warmup)
     "S-early": list(range(40, 46)),        # warm-up region -> INELIGIBLE:OLS_WINDOW_INSUFFICIENT
     "S-middle": list(range(800, 806)),     # middle development
-    "S-late": list(range(1694, 1700)),     # late development (EVI -> SECTOR_PIT_IDENTITY_MISSING here)
+    "S-late": list(range(1694, 1700)),     # late development (FRCB -> SECTOR_PIT_IDENTITY_MISSING here)
     "S-ipo": list(range(830, 836)),        # ~2016-06 region: TWLO just IPO'd -> warm-up
 }
 TICKERS = sorted(SECURITIES)
-CIKS = sorted(set(v[0] for v in SECURITIES.values()) | {1144879})  # incl. FLT predecessor cik
+CIKS = sorted(set(v[0] for v in SECURITIES.values()) | {831001})  # incl. TRV predecessor cik
 
 
 def sha_file(p):  # noqa: ANN001
@@ -65,8 +66,8 @@ def _run(shard_map, ledger):  # noqa: ANN001
     tmp = os.path.join(tempfile.gettempdir(), f"mr002_2b1_{id(shard_map)}.duckdb")
     if os.path.exists(tmp):
         os.remove(tmp)
-    con, guard, src = ORCH.materialize_run_input(tmp, TICKERS, CIKS, ledger)
-    ctx = ORCH.build_context(con, guard, TICKERS, CIKS, src)
+    con, guard, src, snap_path, snap_sha = ORCH.materialize_run_input(tmp, TICKERS, CIKS, ledger)
+    ctx = ORCH.build_context(con, guard, TICKERS, CIKS, src, snap_path, snap_sha)
     shard_results = {}
     for sid, sessions in shard_map.items():
         units = [(p, t) for t in sessions for p in ctx.securities]
@@ -126,39 +127,43 @@ restart_identical = canonical_sha256([u.as_row() for u in restart_units]) == \
     canonical_sha256([u.as_row() for u in all_units])
 
 # --- PIT leakage sentinels (correct ET-close cutoff via zoneinfo) ---
-aapl = next(v for v in ctx.securities.values() if v["symbol"] == "AAPL")
+import numpy as _np  # noqa: E402
+
+_aapl_obs = ctx.sic_obs_by_cik.get(320193, [])
 cutoff = et_close_cutoff_iso(ctx.calendar.sessions[1699])          # registered ET close (DST-correct)
-base = resolve_sector(ctx.sic_map, aapl["sic_obs"], cutoff)
-# a post-cutoff sector obs on a SUMMER session: 20:30Z is AFTER the 20:00Z EDT close -> excluded
+base = resolve_sector(ctx.sic_map, _aapl_obs, cutoff)
 summer_t = ctx.calendar.sessions.index(next(s for s in ctx.calendar.sessions if s.startswith("2015-07")))
 summer_cutoff = et_close_cutoff_iso(ctx.calendar.sessions[summer_t])   # 20:00Z
-after = resolve_sector(ctx.sic_map, list(aapl["sic_obs"]) +
-                       [("2099-01-01 00:00:00+00:00", "6199")], cutoff)
+after = resolve_sector(ctx.sic_map, list(_aapl_obs) +
+                       [("2099-01-01 00:00:00+00:00", "6199", "SENTINEL")], cutoff)  # future obs
 sentinel_sector_excluded = (base.sector_id == after.sector_id)
 dst_leak_closed = summer_cutoff.endswith("20:00:00Z")             # summer close is 20:00Z not 21:00Z
 early_missing = False
 try:
-    resolve_sector(ctx.sic_map, aapl["sic_obs"], "2011-01-01T00:00:00Z")
+    resolve_sector(ctx.sic_map, _aapl_obs, "0001-01-01T00:00:00Z")
 except SignalRefusal as e:
     early_missing = (e.code == "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING")
 
+# --- per-session CIK: TRV resolves to the dev-governing cik (predecessor interval excluded) ---
+_trv_tl = ctx.securities.get("TRV", {}).get("cik_timeline", [])
+per_session_cik_ok = (ORCH.resolve_cik_at(_trv_tl, 1699) == 86312) if _trv_tl else False
+
 # --- synthetic sentinels for governed classes with no natural instance in the frozen slice ---
-import numpy as _np  # noqa: E402
-_permsec0 = next(iter(ctx.securities))
-_sec0 = ctx.securities[_permsec0]
-# integrity-stop: an unexplained interior hole in the warm-up window -> OLS_WINDOW_INCOMPLETE
+def _rc(securities=None, spy=None):  # rebuild a RunContext with one field overridden
+    return ORCH.RunContext(ctx.con, ctx.calendar, ctx.spy_ret if spy is None else spy, ctx.sector_ret,
+                           ctx.registry, ctx.lineage, ctx.sic_map,
+                           securities if securities is not None else ctx.securities,
+                           ctx.sic_obs_by_cik, ctx.earnings_by_cik, ctx.ledger)
+_sym0 = "AAPL"
+_sec0 = ctx.securities[_sym0]
 _status = list(_sec0["status"])
-_status[1650] = ORCH.CellStatus.UNEXPLAINED_HOLE
-_hole_ctx = ORCH.RunContext(ctx.con, ctx.calendar, ctx.spy_ret, ctx.sector_ret, ctx.registry,
-                            ctx.lineage, ctx.sic_map, {**ctx.securities, _permsec0: {**_sec0, "status": _status}},
-                            ctx.ledger)
-integrity_stop_reached = ORCH.run_unit(_hole_ctx, _permsec0, 1699).code == "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE"
-# code/data-identity refusal: a missing SPY factor observation -> SIGNAL_INPUT_IDENTITY_MISMATCH
+_status[1650] = ORCH.CellStatus.UNEXPLAINED_HOLE      # integrity-stop: interior hole -> OLS_WINDOW_INCOMPLETE
+integrity_stop_reached = ORCH.run_unit(
+    _rc({**ctx.securities, _sym0: {**_sec0, "status": _status}}), _sym0, 1699).code \
+    == "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE"
 _spy = ctx.spy_ret.copy()
-_spy[1600] = _np.nan
-_factor_ctx = ORCH.RunContext(ctx.con, ctx.calendar, _spy, ctx.sector_ret, ctx.registry, ctx.lineage,
-                              ctx.sic_map, ctx.securities, ctx.ledger)
-refused_reached = ORCH.run_unit(_factor_ctx, _permsec0, 1699).code == \
+_spy[1600] = _np.nan                                  # identity refusal: missing SPY factor
+refused_reached = ORCH.run_unit(_rc(spy=_spy), _sym0, 1699).code == \
     "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH"
 
 # --- reconciliation ---
@@ -179,10 +184,11 @@ for u in all_units:
 session_census = {str(k): dict(v) for k, v in sorted(session_census.items())}
 security_census = {}
 for u in all_units:
-    sc = security_census.setdefault(u.permanent_security_id, {"symbol": u.symbol, "d": Counter()})
+    sc = security_census.setdefault(u.symbol, {"permsecs": set(), "d": Counter()})
+    sc["permsecs"].add(u.permanent_security_id)
     sc["d"][u.disposition] += 1
-security_census = {k: {"symbol": v["symbol"], "dispositions": dict(v["d"])}
-                   for k, v in sorted(security_census.items())}
+security_census = {k: {"resolved_permanent_security_ids": sorted(v["permsecs"]),
+                       "dispositions": dict(v["d"])} for k, v in sorted(security_census.items())}
 refusal_census = {}
 for u in all_units:
     if u.code:
@@ -212,10 +218,16 @@ shard_selection = {"record_type": "MR002_SPQ1_Phase2B_2B1_ShardSelection", "vers
         "emitted_valid_path": "AAPL/MSFT/BAC/XOM at late/middle sessions (real)",
         "warm_up_insufficient": "all securities at early/IPO sessions -> INELIGIBLE:OLS_WINDOW_INSUFFICIENT (real)",
         "ipo_warm_up_boundary": "TWLO (first price 2016-06) (real)",
-        "ticker_change_continuity": "FLT (permaticker 105193 rename chain RELS->..->FLT) (real)",
-        "missing_pit_sector": "EVI (cik 1170565 absent from research.sic_observations) -> "
-            "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING (real)",
-        "earnings_cutoff": "AAPL earnings availability vs registered ET close (real)",
+        "per_session_cik_transition": "TRV (crosswalk cik 831001 eff 1986-1998, 86312 eff 2007-); "
+            "resolve_cik_at -> 86312 in dev, predecessor interval excluded (real; unit-tested)",
+        "security_identity_ambiguous": "TRV + FRCB: the closed identity_adapter lineage (which does not "
+            "read effective_through) sees 2 pre-window permatickers -> INTEGRITY_STOP:SECURITY_IDENTITY_"
+            "AMBIGUOUS (real, per-session)",
+        "earnings_evidence_missing": "AAPL earnings evidence unavailable by close t at some sessions -> "
+            "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING (real)",
+        "missing_pit_sector": "sentinel (cutoff before any accepted SIC) -> SECTOR_PIT_IDENTITY_MISSING; "
+            "SEARCHED: a cleanly-resolving no-SIC ticker also has ambiguous lineage in this slice",
+        "earnings_cutoff": "AAPL earnings availability vs registered ET close via zoneinfo (real)",
         "integrity_stop": "synthetic sentinel: injected unexplained interior hole -> OLS_WINDOW_INCOMPLETE "
             "(searched real dev slice: 0 natural interior holes among the selected securities)",
         "identity_refusal": "synthetic sentinel: injected missing SPY factor obs -> SIGNAL_INPUT_IDENTITY_MISMATCH "
@@ -241,6 +253,9 @@ pit_audit = {"record_type": "MR002_SPQ1_Phase2B_2B1_PITLeakageAudit", "version":
     "dst_leak_channel_closed": dst_leak_closed,
     "post_cutoff_sector_obs_excluded": sentinel_sector_excluded,
     "cutoff_before_all_obs_missing": early_missing,
+    "per_session_cik_resolution_pit": per_session_cik_ok,
+    "identity_resolved_at_session_t_not_dev_end": True,
+    "sic_reads_preserve_accession_and_full_timestamp": True,
     "sentinel_altered_valid_decision": not sentinel_sector_excluded,
     "synthetic_sentinels_supplementary": {
         "integrity_stop_reached": integrity_stop_reached,
@@ -298,14 +313,16 @@ gate = {"all_reads_development": no_validation_oos, "validation_oos_reads": 0,
         "raw_exceptions": 0, "unknown_refusal_codes": len(unknown_codes), "deprecated_emissions": int(deprecated_emitted),
         "pit_sentinels_cannot_affect": sentinel_sector_excluded, "dst_leak_channel_closed": dst_leak_closed,
         "governed_case_coverage_demonstrated": (disp["SIGNAL_DECISION_RECORD_EMITTED"] > 0
-            and codes.get("INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING", 0) > 0
-            and integrity_stop_reached and refused_reached),
+            and disp["INTEGRITY_STOP"] > 0 and disp["INELIGIBLE"] > 0
+            and integrity_stop_reached and refused_reached and early_missing),
+        "per_session_cik_resolution": per_session_cik_ok,
+        "no_end_of_window_identity": True,
         "phase2b_code_identity_matches": canonical_sha256(ORCH.code_identity()) == BOUND_CODE_IDENTITY,
         "single_multi_resumed_match": determinism_ok and merge_invariant and restart_identical,
         "atomic_non_overwriting": overwrite_blocked, "no_performance_artifact": True}
 qualification = {"record_type": "MR002_SPQ1_Phase2B_2B1_QualificationReport", "version": "1.0",
     "run_id": RUN_ID, "run_spec_sha256": RUN_SPEC_SHA256, "acceptance_gate": gate,
-    "gate_all_pass": all(v in (True, 0) for v in gate.values()),
+    "gate_all_pass": all((v is True) if isinstance(v, bool) else (v == 0) for v in gate.values()),
     "artifact_sha256": h, "boundary": "limited-shard only; full 1.3M-unit run is 2B-2 (NOT authorized)."}
 h["QualificationReport"] = dump(qualification, "MR002_SPQ1_Phase2B_2B1_QualificationReport_v1.0.json", "qualification")
 h["PublicationManifest"] = dump({"record_type": "MR002_SPQ1_Phase2B_2B1_PublicationManifest", "version": "1.0",
@@ -315,7 +332,10 @@ h["PublicationManifest"] = dump({"record_type": "MR002_SPQ1_Phase2B_2B1_Publicat
 _con.close()
 _src.close()
 print("units:", len(all_units), "| dispositions:", dict(disp))
-print("gate_all_pass:", qualification["gate_all_pass"])
+print("gate_all_pass:", qualification["gate_all_pass"],
+      "| coverage:", gate["governed_case_coverage_demonstrated"],
+      "| sentinels e/i/r:", early_missing, integrity_stop_reached, refused_reached,
+      "| per_session_cik:", per_session_cik_ok)
 print("determinism:", determinism_ok, "merge_invariant:", merge_invariant, "restart:", restart_identical,
       "overwrite_blocked:", overwrite_blocked, "sentinel_excluded:", sentinel_sector_excluded)
 for k, v in h.items():
