@@ -94,11 +94,14 @@ no-tuning discipline. Its full procedure is **Phase 0** of
 >   transition and the canary would refuse. The backend must run ambient `ENFORCE` from provision through
 >   the canary (the canary's `-e …=ENFORCE` only covers its one process). Confirm from the effective
 >   runtime, not Compose alone.
-> - **Account 3 established via the sanctioned bootstrap.** A fresh `workbench.sqlite` has no user 3 /
->   account 3 / encrypted broker credentials / risk limits; the engine rejects every order with
->   `NO_LIMITS_CONFIGURED` when no limits row resolves. Establish + verify user 3 / account 3 / paper
->   credentials / the correct broker-account binding / `F`+`MSFT` sync / an effective limits row **through
->   the sanctioned scripts (`create_user.py`, `rebootstrap_credentials.py`) — never ad-hoc SQL**.
+> - **Canary account established via the sanctioned bootstrap.** A fresh `workbench.sqlite` has no user /
+>   account / encrypted broker credentials / risk limits; the engine rejects every order with
+>   `NO_LIMITS_CONFIGURED` when no limits row resolves. The frozen object is the **Alpaca paper account**
+>   (broker identity holding `F`+`MSFT`), **not a DB primary key** — the app hardcodes no `id=3` and the
+>   harness targets `ADR0043_USER`/`ADR0043_ACCOUNT` (default `3`). Establish + verify the owner / paper
+>   account / credentials / correct broker-account binding / `F`+`MSFT` sync / an approved effective limits
+>   row **through the sanctioned scripts (`create_user.py`, `provision_range_account.py`) and the
+>   audit-logged `PUT /risk-limits` — never ad-hoc SQL** — then **record the actual IDs** and set the env.
 
 For a valid GREEN attempt, Phase 0 must yield `READY_FOR_ADR0043_CANARY`:
 
@@ -111,10 +114,11 @@ For a valid GREEN attempt, Phase 0 must yield `READY_FOR_ADR0043_CANARY`:
    loss generation — never inserted or repaired after the breach.
 3. **Reconciled account** — broker vs DB positions/orders/reservations clean; `F`/`MSFT` legs present; no
    stale reservation or pending recovery workflow.
-4. **Frozen EFFECTIVE limits + provenance** — the engine resolves a **single** GLOBAL/user-3/paper
-   `RiskLimits` row (no account-override precedence); confirm exactly one exists with approved values (not
-   defaults), record the effective resolved values, and hold `limits_before_sha256 == limits_after_sha256`
-   through countersignature. An unreachable breach is unreachable, never solved by lowering controls.
+4. **Frozen EFFECTIVE limits + provenance** — the engine resolves a **single** GLOBAL / canary-owner /
+   paper `RiskLimits` row (no account-override precedence); confirm exactly one exists with the **approved**
+   values (established via the audit-logged `PUT /risk-limits`, not accidental `create_user` defaults),
+   record the effective resolved values, and hold `limits_before_sha256 == limits_after_sha256` through
+   countersignature. An unreachable breach is unreachable, never solved by lowering controls.
 5. **Loss generated only through** `OrderRouter → RiskEngine → broker adapter` — no console/API trades,
    no DB edits; capacity reserved for A2/A3 + the recovery path.
 6. **Read-only twelve-check readiness** recorded (dependency-aware; `recovery_origin_proven` and the

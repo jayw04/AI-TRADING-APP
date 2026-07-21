@@ -17,7 +17,11 @@ implementation baseline must be an **ancestor** of the deployed revision, and ev
 must be reviewed **ADR-0043 documentation only** (no executable/migration/config/dependency/deployment
 delta). The runbook deliberately does **not** hard-pin the deployed SHA — otherwise every later docs fix
 would make it stale — it pins the fixed implementation baseline plus the lineage + docs-only-delta rule.
-**Account / user:** 3. **Protected legs:** `F:500`, `MSFT:20`. **Mode:** `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`.
+**Canary identity:** the **frozen object is the Alpaca paper account** (the broker identity holding
+`F:500` / `MSFT:20`) and its **owner** — **not** a database primary key. The harness targets them by
+`ADR0043_USER` / `ADR0043_ACCOUNT` (**default `3`**); the app hardcodes no `id=3`, and the DB primary keys
+on a fresh box are whatever the sanctioned provisioning assigns (see §A4b — record them and set the env to
+match). **Protected legs:** `F:500`, `MSFT:20`. **Mode:** `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`.
 
 The live canary (`scripts/adr0043_canary_run.py`) is **assertion-only**: it requires ENFORCE, a durable
 `REDUCTION_ONLY_*` state row, and the protected legs; otherwise it **refuses**. It never establishes the
@@ -80,7 +84,8 @@ export EVIDENCE_DIR="$PWD/evidence/$ADR0043_RUN_ID"
 printf '%s\n' \
   "run_id=$ADR0043_RUN_ID" \
   "adr0043_implementation_commit=c8b3ac24b839d7b19c40979a9e4be859151dbab7" \
-  "account_id=3" "user_id=3" "required_mode=ENFORCE" \
+  "canary_ids=recorded at A4b (env ADR0043_USER/ADR0043_ACCOUNT; default 3)" \
+  "required_mode=ENFORCE" \
   "started_utc=$(date -u +%FT%TZ)" > "$EVIDENCE_DIR/run_identity.txt"
 ```
 
@@ -205,35 +210,53 @@ implementation baseline) — both values are preserved.
   restart time/logs, and whether it is genuinely resumable, and **document the decision**. A contradictory
   checkpoint should produce a **refusal** — a valid safety outcome, not something to work around.
 
-> **Expected at this point:** once account 3 and its credentials are established (§A4b), the backend syncs
-> account 3's broker state (the `F`/`MSFT` positions, account status) into its fresh local DB, and the
-> loss-control state is `NORMAL` (a fresh DB has no prior lock). That is correct — the durable
+> **Expected at this point:** once the canary account and its credentials are established (§A4b), the
+> backend syncs that account's broker state (the `F`/`MSFT` positions, account status) into its fresh local
+> DB, and the loss-control state is `NORMAL` (a fresh DB has no prior lock). That is correct — the durable
 > `REDUCTION_ONLY_*` lock is established in **Phase 0 below, on this same box**, not carried over.
 
-## A4b. Establish and verify account 3 (identity, credentials, effective limits) — before Phase 0
+## A4b. Establish + verify the canary account (Alpaca paper identity), credentials, effective limits — before Phase 0
 
-A genuinely fresh box has an **empty `workbench.sqlite`**: no user 3, no account 3, no encrypted broker
+A genuinely fresh box has an **empty `workbench.sqlite`**: no user, no account, no encrypted broker
 credentials, and **no risk limits**. Account synchronisation only syncs *positions* for an *existing,
-credentialed* account — it does not create the account/user/creds/limits from nothing. And the engine
-**rejects every order with `NO_LIMITS_CONFIGURED`** when no limits row resolves, so the Phase-0D breach
-cannot even run without limits. So before baseline capture, **establish** these through the **sanctioned
-bootstrap mechanisms — never ad-hoc SQL inserts**:
+credentialed* account, and the engine **rejects every order with `NO_LIMITS_CONFIGURED`** when no limits
+row resolves — so the Phase-0D breach cannot run until identity, account, credentials, and limits exist.
 
-- **Login identity:** `scripts/create_user.py` (user 3 + password/TOTP).
-- **Broker credentials:** `scripts/rebootstrap_credentials.py` (Alpaca paper key/secret from `.env` into
-  the Fernet-encrypted credential store — ADR 0003) and the account↔user binding via the sanctioned
-  account/provisioning path. Never place plaintext credentials in the evidence package.
+The IDs are **autoincrement — do not assume `create_user.py` assigns user `3` or `seed_dev_data.py`
+assigns account `3`** (on a fresh DB they are the first rows). The frozen object is the **Alpaca paper
+account** (the broker identity holding `F:500`/`MSFT:20`), not the DB primary key. Establish it through the
+**sanctioned scripts — never ad-hoc SQL inserts**, then **record the actual IDs** and point the harness at
+them:
 
-Then **verify** (read-only) and record: `user_id=3` exists; `account_id=3` exists and belongs to user 3;
-`broker=alpaca`, `mode=paper`; the bound **broker account identity matches the frozen canary account**;
-credentials **resolve** (a broker read succeeds) and are **not shared with the wrong account**; the broker
-account is **active**; `F` and `MSFT` positions **synchronise** from that broker account; and the effective
-risk limits **resolve** for account 3's user (see §0C — the engine uses a single GLOBAL/user/paper row).
+1. **Owner login:** `scripts/create_user.py` (the canary owner + password/TOTP). Note its printed
+   `user id=<N>`. (`create_user.py` also seeds a **default** GLOBAL limits row — `max_daily_loss=2000`,
+   `max_position_qty=1000`, `max_position_notional=25000`, `max_gross_exposure=100000`,
+   `max_orders_per_minute=10` — see the limits step below.)
+2. **Paper account + credentials:** `scripts/provision_range_account.py --email <owner>` (or
+   `seed_dev_data.py` for a single-user setup), binding the **correct Alpaca paper key/secret** from the
+   env vars into the Fernet-encrypted store (ADR 0003 / `CredentialStore`). Note its printed
+   `account id=<M>`. **No plaintext credentials in the evidence package.**
+3. **Point the harness:** `export ADR0043_USER=<N>` and `export ADR0043_ACCOUNT=<M>` for Phase-0
+   reconciliation, the Phase-0D breach, and the canary. (They default to `3` only if the recorded IDs
+   happen to be 3.)
 
-**STOP before baseline capture** if: account 3 is absent; it maps to the **wrong** broker account;
+**Effective limits (approved, not accidental defaults).** The provisioning above leaves the create_user
+**defaults** in place. If the **approved** canary configuration differs, set it through the **sanctioned,
+authenticated, audit-logged** `PUT /risk-limits` endpoint (as the owner) **before baseline capture** —
+this is legitimate reconstruction of the approved configuration, **distinct from** opportunistically
+lowering a limit to make the breach reachable (prohibited). Record the resulting effective values (§0C).
+
+Then **verify** (read-only) and record: the owner exists; the account exists and belongs to the owner;
+`broker=alpaca`, `mode=paper`; the bound **broker account identity == the frozen Alpaca paper account**
+(the one holding `F`/`MSFT`); credentials **resolve** (a broker read succeeds) and are **not** bound to the
+wrong account; the broker account is **active**; `F` and `MSFT` positions **synchronise**; and **exactly
+one** GLOBAL/`ADR0043_USER`/paper limits row resolves with the approved values (§0C).
+
+**STOP before baseline capture** if: the account is absent; it maps to the **wrong** Alpaca paper account;
 credentials are absent or ambiguous; the broker account is **inactive**; positions do not synchronise; no
-limits row resolves (would be `NO_LIMITS_CONFIGURED`) or it falls back to unexpected defaults; or account 3
-already carries **unexplained** local loss-control / recovery state (a fresh DB should have none).
+limits row resolves (`NO_LIMITS_CONFIGURED`) or it holds unexpected/accidental defaults; two matching limit
+rows exist; or the account already carries **unexplained** local loss-control / recovery state (a fresh DB
+should have none).
 
 ---
 
@@ -303,14 +326,14 @@ baseline unless that establishment is an already-governed part of setup; if the 
 
 Record the limits **the risk engine actually resolves**, not merely rows that look relevant. In this
 codebase the engine resolves limits via `_load_global_limits(user_id, broker_mode)` — the **single**
-`RiskLimits` row where `scope_type = GLOBAL`, `user_id = 3`, `broker_mode = paper` (`.first()`). There is
-**no account-specific override precedence**; that one row **is** the effective limit set, and if none
-resolves the engine rejects every order with `NO_LIMITS_CONFIGURED`.
+`RiskLimits` row where `scope_type = GLOBAL`, `user_id = ADR0043_USER`, `broker_mode = paper` (`.first()`).
+There is **no account-specific override precedence**; that one row **is** the effective limit set, and if
+none resolves the engine rejects every order with `NO_LIMITS_CONFIGURED`.
 
 So:
-- Confirm **exactly one** such GLOBAL/paper row exists for user 3 (two would make `.first()`
-  non-deterministic — **STOP**), and that its values are the **approved** configuration, **not fresh
-  defaults**.
+- Confirm **exactly one** such GLOBAL/paper row exists for the canary owner (two would make `.first()`
+  non-deterministic — **STOP**), and that its values are the **approved** configuration (established via
+  the sanctioned `PUT /risk-limits` path in §A4b), **not accidental create_user defaults**.
 - Record the **effective resolved** values (with the fact that the source is the single GLOBAL/paper row):
   `effective_max_daily_loss`, `effective_max_orders_per_day`, `effective_max_position_qty`,
   `effective_max_position_notional`, `effective_max_gross_exposure`, and any rate/velocity/breaker
@@ -437,9 +460,14 @@ sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml exec \
   -e WORKBENCH_LOSS_CONTROL_MODE=ENFORCE \
   -e ADR0043_COMMIT_SHA="$(git rev-parse HEAD)" \
   -e ADR0043_IMAGE_DIGEST="$BACKEND_IMAGE_DIGEST" \
+  -e ADR0043_USER="$ADR0043_USER" \
+  -e ADR0043_ACCOUNT="$ADR0043_ACCOUNT" \
   backend \
   python -m scripts.adr0043_canary_run
 ```
+
+`ADR0043_USER` / `ADR0043_ACCOUNT` are the **recorded** local ids from §A4b (default `3`); the harness
+targets the canary account by these, so they must match the established owner/account.
 
 > `ADR0043_IMAGE_DIGEST` **is** consumed — bound into the evidence document (`image_digest`), covered by
 > the harness SHA-256 (cryptographically bound, not merely stored beside it). `ADR0043_DEPLOYED_AT` is
@@ -540,8 +568,10 @@ governance decision.
 - [ ] Backend image digest + Compose/config checksums recorded
 - [ ] Exactly one Alembic head; DB current at that head
 - [ ] **Ambient `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`** confirmed from the effective runtime (not Compose alone)
-- [ ] **Account 3 established via sanctioned bootstrap** (user 3 / account 3 / paper creds resolve / correct
-      broker account / active / `F`+`MSFT` synchronised / effective limits resolve) — no ad-hoc inserts
+- [ ] **Canary account established via sanctioned bootstrap** (owner + paper account created; IDs recorded
+      and `ADR0043_USER`/`ADR0043_ACCOUNT` set to match; creds resolve; **broker identity == frozen Alpaca
+      paper account**; active; `F`+`MSFT` synchronised; approved effective limits row set via `PUT
+      /risk-limits`, not create_user defaults) — no ad-hoc inserts, no ID assumed to be 3
 - [ ] Exactly one backend runtime; no live canary process; canary artifact paths absent (or a documented resume)
 - [ ] Continuity record (Phase-0 start) captured (incl. image digest, ambient mode)
 
@@ -549,8 +579,8 @@ governance decision.
 
 - [ ] Authoritative current-session baseline captured on THIS box, immutable
 - [ ] Broker/DB reconciled (positions, orders, reservations); no stale/unexplained state
-- [ ] **Effective** limits resolved (exactly one GLOBAL/user-3/paper row; approved values, not defaults);
-      frozen; `limits_before_sha256` recorded
+- [ ] **Effective** limits resolved (exactly one GLOBAL/canary-owner/paper row; approved values via `PUT
+      /risk-limits`, not create_user defaults); frozen; `limits_before_sha256` recorded
 - [ ] Loss generated only through `OrderRouter → RiskEngine → broker adapter`
 - [ ] Durable state `= REDUCTION_ONLY_DAILY_LOSS`, trip cause `= DAILY_LOSS` (NOT breaker)
 - [ ] Read-only twelve-check readiness recorded (dependency-aware; A4-only rows marked pending)
