@@ -46,6 +46,13 @@ class RetroFormalizationRefused(Exception):
     HoldStoreUnavailable via ``read_hold`` and also blocks.) No audit is written."""
 
 
+class LegacyHoldAdoptionRefused(Exception):
+    """Adoption of a LEGACY (pre-schema-v1) operational-hold marker into a schema-v1
+    ACTIVE hold was refused fail-closed: the marker is absent, is already schema-v1, or
+    its legacy fields (reason_code / paused_at / status) differ from the operator-
+    asserted expectation. No state is written and no audit is written."""
+
+
 @dataclass(frozen=True)
 class HoldMutationResult:
     record: HoldRecord
@@ -60,6 +67,15 @@ class FormalizeResult:
     audit_id: int | None
     hold_rev: int
     planned_payload: dict
+
+
+@dataclass(frozen=True)
+class AdoptResult:
+    strategy_id: int
+    action: str  # would_adopt | adopted | already_adopted
+    audit_id: int | None
+    planned_blob: dict  # the schema-v1 blob that (would be) written
+    legacy_marker: dict  # the preserved legacy marker (read-only echo)
 
 
 async def read_hold(session: AsyncSession, strategy_id: int) -> HoldRecord | None:
@@ -301,10 +317,119 @@ async def formalize_retrospective_hold_placed(
     return FormalizeResult(strategy_id, "wrote", row.id, rec.rev, payload)
 
 
+async def _read_raw_hold(session: AsyncSession, strategy_id: int) -> dict | None:
+    """Read the RAW ``operational_hold`` value WITHOUT schema validation. Adoption must
+    read a pre-schema-v1 marker that ``read_hold``/``load_hold_record`` would reject."""
+    try:
+        return (
+            await session.execute(
+                select(StrategyState.value).where(
+                    StrategyState.strategy_id == strategy_id,
+                    StrategyState.key == K_OPERATIONAL_HOLD,
+                )
+            )
+        ).scalars().first()
+    except SQLAlchemyError as exc:
+        raise HoldStoreUnavailable(str(exc)) from exc
+
+
+async def adopt_legacy_operational_hold(
+    session: AsyncSession, *, strategy_id: int, expected_reason_code: str,
+    expected_paused_at: str, expected_legacy_status: str = "PAUSED",
+    placed_by: str, evidence_refs: list | None = None, approval_ref: str | None = None,
+    actor_type: AuditActorType = AuditActorType.USER, actor_id: str | None = None,
+    apply: bool = False,
+) -> AdoptResult:
+    """Adopt a LEGACY (pre-schema-v1) operational-hold marker into a canonical schema-v1
+    ACTIVE hold, PRESERVING the full legacy marker, and emit exactly one retrospective
+    ``STRATEGY_HOLD_PLACED``. This is the one governed migration for a hold that became
+    effective before the hold schema existed (the acct-4 case): the marker is not
+    parseable by ``read_hold`` (schema_version absent), so neither ``HoldService.place``
+    (idempotent no-op / read_hold raises) nor ``formalize_retrospective_hold_placed``
+    (read_hold raises) can operate on it, and it can never be ``clear``-ed until adopted.
+
+    The resulting schema-v1 blob is ACTIVE (rev 1, ``effective_at`` = the legacy
+    ``paused_at``, ``source=RETROSPECTIVE_FORMALIZATION``) and carries the entire original
+    marker verbatim under a ``legacy_marker`` key — nothing is lost. The hold stays
+    ACTIVE, so activation remains blocked; clearing is a separate, later step.
+
+    Fail-closed refusals (raise ``LegacyHoldAdoptionRefused``, no writes): the marker is
+    absent, is already schema-v1 without the adoption marker, or its legacy
+    ``(reason_code, paused_at, status)`` differ from the operator assertion. Idempotent:
+    if the marker is already the adopted schema-v1 form, returns ``already_adopted`` with
+    no second write. The caller owns the transaction.
+    """
+    raw = await _read_raw_hold(session, strategy_id)
+    if raw is None:
+        raise LegacyHoldAdoptionRefused(f"strategy {strategy_id}: no operational_hold to adopt")
+    if not isinstance(raw, dict):
+        raise LegacyHoldAdoptionRefused(f"operational_hold is not an object: {type(raw).__name__}")
+
+    if raw.get("schema_version") == HOLD_SCHEMA_VERSION:
+        # Already schema-v1. Idempotent only if THIS adoption produced it (carries the
+        # preserved legacy marker); otherwise refuse — it is a normal hold, not a legacy one.
+        if "legacy_marker" in raw:
+            existing = load_hold_record(raw)
+            assert existing is not None  # schema-v1 parses
+            return AdoptResult(strategy_id, "already_adopted", None, raw, raw["legacy_marker"])
+        raise LegacyHoldAdoptionRefused(
+            f"strategy {strategy_id}: operational_hold is already schema-v1 (not a legacy "
+            "marker); use the standard place/formalize flow"
+        )
+
+    # Validate the legacy marker matches the operator's assertion (fail-closed).
+    if raw.get("status") != expected_legacy_status:
+        raise LegacyHoldAdoptionRefused(
+            f"legacy status {raw.get('status')!r} != expected {expected_legacy_status!r}")
+    if raw.get("reason_code") != expected_reason_code:
+        raise LegacyHoldAdoptionRefused(
+            f"legacy reason_code {raw.get('reason_code')!r} != expected {expected_reason_code!r}")
+    if raw.get("paused_at") != expected_paused_at:
+        raise LegacyHoldAdoptionRefused(
+            f"legacy paused_at {raw.get('paused_at')!r} != expected {expected_paused_at!r}")
+
+    new = HoldRecord(
+        status=HoldStatus.ACTIVE, reason_code=expected_reason_code, reason=raw.get("reason", ""),
+        effective_at=expected_paused_at, placed_at=datetime.now(UTC).isoformat(),
+        placed_by=placed_by, rev=1, evidence_refs=list(evidence_refs or []),
+        approval_ref=approval_ref, source=RETRO_SOURCE,
+    )
+    blob = new.to_dict()
+    blob["legacy_marker"] = raw  # preserve the entire original marker verbatim
+    if not apply:
+        return AdoptResult(strategy_id, "would_adopt", None, blob, raw)
+
+    res = cast(
+        "CursorResult[Any]",
+        await session.execute(
+            update(StrategyState).where(
+                StrategyState.strategy_id == strategy_id,
+                StrategyState.key == K_OPERATIONAL_HOLD,
+            ).values(value=blob, updated_at=datetime.now(UTC))
+        ),
+    )
+    if res.rowcount != 1:
+        raise LegacyHoldAdoptionRefused("concurrent write moved the marker; adoption aborted")
+    row = AuditLogger.write(
+        session, actor_type=actor_type, actor_id=actor_id,
+        action=AuditAction.STRATEGY_HOLD_PLACED, target_type="strategy", target_id=strategy_id,
+        payload={"strategy_id": strategy_id, "reason_code": expected_reason_code,
+                 "reason": new.reason, "rev": 1, "effective_at": expected_paused_at,
+                 "placed_by": placed_by, "source": RETRO_SOURCE, "retrospective": True,
+                 "adopted_from_legacy": True, "evidence_refs": list(evidence_refs or []),
+                 "approval_ref": approval_ref},
+    )
+    await session.flush()  # populate row.id
+    return AdoptResult(strategy_id, "adopted", row.id, blob, raw)
+
+
 __all__ = [
+    "AdoptResult",
     "FormalizeResult",
+    "LegacyHoldAdoptionRefused",
     "RETRO_SOURCE",
     "RetroFormalizationRefused",
+    "adopt_legacy_operational_hold",
     "formalize_retrospective_hold_placed",
     "HoldMutationResult",
     "HoldService",
