@@ -1,0 +1,111 @@
+{
+ "captured_purpose": "pre-pause evidence \u2014 momentum-daily AWAITING_COLD_START_FIX",
+ "strategy": [
+  {
+   "id": 11,
+   "user_id": 4,
+   "name": "momentum-daily",
+   "version": "0.2.0",
+   "status": "PAPER",
+   "schedule": "50 15 * * mon-fri",
+   "code_path": "templates/momentum_daily.py",
+   "has_pending_reload": 1,
+   "pending_reload_at": "2026-07-17 19:20:45.236068",
+   "cooldown_until": null,
+   "updated_at": "2026-07-20 10:03:56.485532"
+  }
+ ],
+ "account": [
+  {
+   "id": 4,
+   "user_id": 4,
+   "broker": "alpaca",
+   "mode": "paper",
+   "label": "Alpaca Paper (Growth)",
+   "circuit_breaker_tripped_at": null,
+   "performance_inception_at": "2026-07-17 00:00:00.000000"
+  }
+ ],
+ "account_state": [
+  {
+   "account_id": 4,
+   "cash": 100000,
+   "equity": 100000,
+   "buying_power": 400000,
+   "portfolio_value": 100000,
+   "status": "ACTIVE",
+   "trading_blocked": 0,
+   "updated_at": "2026-07-20 22:32:07.823545"
+  }
+ ],
+ "holdings": [],
+ "orders_all_time_acct4": [],
+ "pending_or_partial_orders": [],
+ "strategy_state": [
+  {
+   "key": "last_eval_date",
+   "value": "\"2026-07-20\"",
+   "updated_at": "2026-07-20 19:50:01.823070"
+  },
+  {
+   "key": "last_review_date",
+   "value": "\"2026-07-20\"",
+   "updated_at": "2026-07-20 19:50:01.831741"
+  },
+  {
+   "key": "prev_regime",
+   "value": "{\"gross\": 0.98}",
+   "updated_at": "2026-07-20 19:50:00.954943"
+  },
+  {
+   "key": "rebalance_lifecycle",
+   "value": "{\"signal_date\": \"2026-07-20\", \"attempted_at\": \"2026-07-20\", \"completed_at\": \"2026-07-20\", \"attempts\": 1}",
+   "updated_at": "2026-07-20 19:50:01.840407"
+  }
+ ],
+ "latest_decision_signal": [
+  {
+   "type": "INFO",
+   "payload_json": "{\"reason\": \"reviewed_no_trigger\", \"date\": \"2026-07-20\", \"held\": []}",
+   "received_at": "2026-07-20 19:50:01.811739"
+  },
+  {
+   "type": "INFO",
+   "payload_json": "{\"reason\": \"effective_params\", \"version\": \"0.2.0\", \"window\": \"252/21\", \"entry_rank\": 5, \"hold_rank\": 10, \"schedule\": \"10 21 * * mon-fri\", \"policy\": \"daily_evaluation_conditional_trading\"}",
+   "received_at": "2026-07-20 10:03:56.476603"
+  },
+  {
+   "type": "INFO",
+   "payload_json": "{\"reason\": \"effective_params\", \"version\": \"0.2.0\", \"window\": \"252/21\", \"entry_rank\": 5, \"hold_rank\": 10, \"schedule\": \"10 21 * * mon-fri\", \"policy\": \"daily_evaluation_conditional_trading\"}",
+   "received_at": "2026-07-18 02:28:57.837760"
+  }
+ ],
+ "risk_decisions_acct4": [],
+ "configured_backstop_date": "2026-08-03"
+}
+
+--- DEACTIVATION CLOSURE (appended) ---
+STABLE IDENTIFIERS
+  strategy_id:        11
+  strategy_name:      momentum-daily (version 0.2.0)
+  account_id:         4
+  user_id:            4  (alpaca paper PA32AC6G1HB2, label "Alpaca Paper (Growth)")
+  closed_run_id:      605  (started 2026-07-20T10:03:56Z, ended 2026-07-20T22:46:08Z, status IDLE)
+  deactivation_audit_event_id: 5733  (STRATEGY_UNREGISTERED, actor=user:4, reason=user_stop)
+  deployed_image_digest: sha256:064490a5aef041e3fbea357a8341143e890fb0f7f98e1a9b0612d4755f6a654f (built 2026-07-17; no git ref baked in image; provenance ref per memory = dfb7134)
+  deactivation_ts:    2026-07-20T22:46:08Z (UTC)
+  hold_persisted_ts:  2026-07-20T22:48:22Z (UTC)
+  snapshot_path:      scratchpad/acct4_prepause_evidence_20260720T223216Z.json
+  snapshot_sha256:    canonical SHA-256 of this finalized file is recorded externally (a snapshot cannot embed its own hash): strategy_state.operational_hold.evidence_snapshot_sha256, this review package's README.md, and the repair plan.
+
+STATE SEMANTICS (two distinct domains — do not conflate)
+  runtime registration status (strategies.status): IDLE  — engine unregistered; NOT a signal of activation-eligibility
+  governance operational status (strategy_state.operational_hold.status): PAUSED, reason_code AWAITING_COLD_START_FIX
+  => IDLE alone must NOT be read as "eligible for ordinary activation"; the operational_hold governs and must be enforced (fail-closed) by the reactivation path.
+
+ACTION PERFORMED
+  Stopped via audited API: POST /api/v1/strategies/11/stop -> engine.unregister(reason="user_stop").
+  Backend removed the strategy's scheduled evaluation job ("Removed job strategy:11:on_bar"); therefore,
+  while the strategy remains unregistered/paused, neither trigger evaluation nor the 2026-08-03 backstop
+  can execute. (The backstop date and logic are UNCHANGED — only the strategy's dispatch job was removed.)
+  operational_hold marker persisted to strategy_state (machine-readable; reactivation_requirements enumerated).
