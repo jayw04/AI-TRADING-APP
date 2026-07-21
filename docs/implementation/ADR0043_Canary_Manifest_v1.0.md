@@ -79,8 +79,15 @@ account's own caps; `BreachUnreachable` is raised rather than lowering a limit).
 The harness is **assertion-only** — it requires the preconditions above and does **not** create the
 lock. Establishing a canary-eligible locked state is a mandatory setup phase, run under the same
 no-tuning discipline. Its full procedure is **Phase 0** of
-`docs/runbook/ADR0043_Live_Canary_Runbook.md` (v1.0). For a valid GREEN attempt, Phase 0 must yield
-`READY_FOR_ADR0043_CANARY`:
+`docs/runbook/ADR0043_Live_Canary_Runbook.md` (v1.0).
+
+> **Ordering + continuity (architecture-driven).** The application DB is host-local SQLite, so the
+> fresh box is **provisioned FIRST** and the lock is established **on that same runtime** — the same
+> instance, image, config, database, broker credentials, and baseline continue from baseline capture
+> through Phase 0, the canary, evidence, and countersignature (no reprovision / DB copy / image swap /
+> config change inside that boundary). Sequence: **provision (A0–A4) → Phase 0 (0A–0G) → canary (B–K)**.
+
+For a valid GREEN attempt, Phase 0 must yield `READY_FOR_ADR0043_CANARY`:
 
 1. **Daily-loss origin (not breaker).** The lock must be `REDUCTION_ONLY_DAILY_LOSS` from a `DAILY_LOSS`
    trip, so the account **owner** (user 3) can self-authorize recovery. A `REDUCTION_ONLY_BREAKER` origin
