@@ -1,0 +1,247 @@
+{
+ "amendment": "2B-0 amendment (post-2B-1 adjudication): PIT-sector source = research.sic_observations; decision cutoff = ET-close via zoneinfo; Phase-2B execution-code identity bound. Run ID unchanged.",
+ "amendment_v1_1": {
+  "amends_run_spec_sha256_before": "747875e313d11c96e8b203b86db32b5c8032b4857e13f8fa5f2d237d829a758e",
+  "phase2b_orchestration_code_identity_unchanged": "bb029a96bb0c9e31600bd0b7ab068c31f70bbc7ac23afce0a3ffe0cb4412845b",
+  "reason": "controlled amendment defining the terminal treatment of an already-detected non-injective request->permanent-security mapping (surfaced by the SPQ-1 Phase 2B-2 census). Runner-side detection; frozen phase2b modules unchanged.",
+  "scope_unchanged": [
+   "universe membership",
+   "calendar",
+   "crosswalk contents",
+   "lineage data",
+   "permaticker values",
+   "signal mathematics",
+   "PIT cutoff",
+   "sector resolution",
+   "eligibility rules",
+   "shard boundaries",
+   "phase2b_orchestration_code_identity (bb029a96...)"
+  ]
+ },
+ "authorization": "LIMITED DEVELOPMENT-PARTITION COMPUTATION; performance NOT authorized; validation/OOS sealed",
+ "bound_identities": {
+  "dev_calendar_sha256": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0",
+  "development_run_manifest": "52389ee9f993705f8188d24f8a75ad9089fdeb46aac01f8853dcafa4c5373ba7",
+  "governed_session_list_reference_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+  "increment3_accepted_output_sha256": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+  "input_identity_manifest": "4c5f072add9ea0e85409d523383e58b3cb8f45e4175479b44eb338cbff0d4560",
+  "opened_object_ledger": "bcd6253d82d51c11fd29d97e79e71c707ab9dfdf9c102dc3490a80ce6a23662c",
+  "owner_rulings_sha256": "d8a9071d53bdb036ad9e6d46cd0d899f6846d3f2af946f932ce963e10f0e206a",
+  "phase0_census_sha256": "87602e7c5e5c719a44d83d6a556690116958c58e1e0d97b687531da824f9008e",
+  "phase0_closeout": "023b75e837a6ca5992da4bf483dd122d35759e59",
+  "phase0_schema_sha256": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f",
+  "phase1_closeout": "18561c3a8c56ff54b9fdfd1da8e7d9db6e2cfd60",
+  "phase1_valid_path_output_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
+  "phase2a_closeout": "673f10bdc84e276d5fc1d5bce39f459c8bc869af",
+  "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e7494b9688e74b76e57128a4e59cd809f78d66bf1621d3ae2",
+  "phase2b_orchestration_code_identity": "bb029a96bb0c9e31600bd0b7ab068c31f70bbc7ac23afce0a3ffe0cb4412845b",
+  "pit_sector_observation_source_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
+  "provenance_db_sha256": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
+  "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "sic_mapping_content_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
+  "universe_content_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39"
+ },
+ "decision_cutoff_rule": "registered ET regular-session close 16:00 America/New_York -> UTC via zoneinfo (21:00Z standard / 20:00Z daylight per historical session date); NOT a fabricated fixed 21:00Z (which would leak 4-5pm ET evidence in summer).",
+ "frozen_mechanics": {
+  "adv": "median(raw close x raw volume)",
+  "adv_windows": "60 and 20 sessions ending t-1",
+  "dtype": "float64",
+  "lapack": "gelsd/SVD",
+  "normalization": "60 complete R5 observations ending t-1",
+  "note": "FROZEN; no Phase-2B work may alter these mechanics.",
+  "ols_window": "60 registered sessions ending t-1",
+  "r5": "5 consecutive residuals ending t",
+  "rcond": 1e-10,
+  "sigma": "sample std ddof=1",
+  "solver": "numpy.linalg.lstsq",
+  "warmup_price_observations": 126,
+  "warmup_return_sessions": 125
+ },
+ "increment": "2B-0 (run specification; NO computation)",
+ "increments": {
+  "2B-0": "run specification (this)",
+  "2B-1": "dry-run + limited-shard qualification (gate)",
+  "2B-2": "full development signal-production run",
+  "2B-3": "reconciliation/determinism/closeout"
+ },
+ "not_authorized": [
+  "ranking/interpretation",
+  "portfolio",
+  "execution replay",
+  "P&L/returns/Sharpe/DSR",
+  "A/B/C comparison",
+  "parameter tuning",
+  "validation",
+  "OOS",
+  "order-path",
+  "production"
+ ],
+ "phase2b_orchestration_code_identity": "bb029a96bb0c9e31600bd0b7ab068c31f70bbc7ac23afce0a3ffe0cb4412845b",
+ "pit_sector_observation_source_rule": {
+  "amends": "the 2B-0 ratified contract's provenance sic_observations source (only 13 ciks); guarded + ledgered identically to every other real-data input.",
+  "authorized_columns": [
+   "cik",
+   "accepted_utc",
+   "sic",
+   "accession (provenance/source identity)"
+  ],
+  "content_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
+  "coverage": "534 of 535 development-universe ciks",
+  "development_upper_bound": "accepted_utc <= DEV_END close (cast to date <= 2019-10-02)",
+  "missing_covered_cik": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING",
+  "pre_window_policy": "earlier accepted observations allowed as PIT state seeds (allow_pre_window)",
+  "registered_database_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "rows": 23550,
+  "same_acceptance_time_conflict": "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT",
+  "source": "research.sic_observations (the registered PIT-sector observation source)",
+  "uniqueness_key": "(cik, accepted_utc, accession); PIT selection = latest accepted_utc <= close t"
+ },
+ "record_type": "MR002_SPQ1_Phase2B_RunSpecification",
+ "request_identity_collision_rule": {
+  "all_claimants_stop": "every request member of a collision group terminates as the integrity stop; no claimant is selected as a winner and no signal decision is produced for any member.",
+  "amends_run_spec_sha256_before": "747875e313d11c96e8b203b86db32b5c8032b4857e13f8fa5f2d237d829a758e",
+  "cardinality_gt_2": "a collision cardinality > 2 uses the same all-claimants-stop rule but MUST be separately surfaced (maximum_collision_cardinality in the CollisionCensus).",
+  "collision_census_artifact": "MR002_SPQ1_Phase2B_2B2_CollisionCensus_v1.0.json",
+  "collision_census_schema": {
+   "group_row": [
+    "collision_group_id",
+    "decision_session",
+    "session_date",
+    "governing_universe_month",
+    "claimed_permanent_security_id",
+    "colliding_request_symbols",
+    "collision_cardinality",
+    "group_disposition_rule"
+   ],
+   "per_request_row": [
+    "decision_session",
+    "session_date",
+    "request_symbol",
+    "request_key",
+    "collision_group_id",
+    "claimed_permanent_security_id",
+    "colliding_request_symbols",
+    "collision_cardinality",
+    "identity_source",
+    "collision_rule_id",
+    "terminal_disposition",
+    "terminal_code",
+    "terminal_key",
+    "governing_universe_month"
+   ],
+   "reconciliation": "affected_request_count == collision-caused SECURITY_IDENTITY_AMBIGUOUS records"
+  },
+  "detection_stage": "runner-side governed pre-production step, AFTER provisional PIT identity resolution and BEFORE sector lookup, earnings lookup, signal production, record-identity generation, and shard publication; the frozen run_unit is called ONLY for non-colliding requests.",
+  "distinct_from_single_request_ambiguity": "a single request whose lineage resolution independently fails (SECURITY_IDENTITY_AMBIGUOUS from normal PIT resolution) is NOT a collision; it flows through frozen run_unit. The CollisionCensus counts ONLY non-injective cross-request collisions; the RefusalCensus splits SECURITY_IDENTITY_AMBIGUOUS by cause.",
+  "governed_sequence": [
+   "enumerate request units for the shard",
+   "resolve provisional permanent_security_id at each session (same registered resolver + ordinal)",
+   "group successful resolutions by (session, provisional permanent_security_id)",
+   "mark groups with cardinality > 1 as collisions",
+   "emit one unresolved INTEGRITY_STOP for each request in the group",
+   "run normal frozen production only for non-colliding requests",
+   "reconcile by request key and accepted resolved terminal key"
+  ],
+  "known_development_window_collisions": {
+   "collision_group_count": 35,
+   "collision_request_unit_count": 70,
+   "distinct_collision_symbol_sets": 3,
+   "maximum_collision_cardinality": 2,
+   "registered_pairs": {
+    "AGN/AGN1": {
+     "claimed_permanent_security_id": "PSEC-198103",
+     "corporate_action": "Allergan / Actavis ticker reassignment",
+     "governing_months": [
+      "2015-03-01"
+     ],
+     "session_range": [
+      "2015-03-16",
+      "2015-03-31"
+     ],
+     "sessions": 12
+    },
+    "CB/CB1": {
+     "claimed_permanent_security_id": "PSEC-199850",
+     "corporate_action": "ACE / Chubb merger ticker reassignment",
+     "governing_months": [
+      "2016-01-01"
+     ],
+     "session_range": [
+      "2016-01-14",
+      "2016-01-15"
+     ],
+     "sessions": 2
+    },
+    "DD/DD1": {
+     "claimed_permanent_security_id": "PSEC-199769",
+     "corporate_action": "DowDuPont merger ticker reassignment",
+     "governing_months": [
+      "2017-08-01",
+      "2017-09-01"
+     ],
+     "session_range": [
+      "2017-08-31",
+      "2017-09-29"
+     ],
+     "sessions": 21
+    }
+   },
+   "source_identities_for_census": {
+    "crosswalk_via": "research.crosswalk (ticker,cik,effective_from,effective_to)",
+    "lineage_resolver": "adapters.identity_adapter.load_identity_registry.resolve_permanent_id",
+    "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+    "universe_content_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39"
+   },
+   "status": "registered evidence, NOT a hard expected-count gate; additional groups found in the full run are handled by the same rule and disclosed + reconciled (a new group is not an automatic stop after this amendment)."
+  },
+  "no_winner_prohibition": "no tie-break may be applied (base-ticker naming, universe permaticker, row order, longer trading history, non-suffixed symbol, surviving ticker, or later corporate-action knowledge). Any such tie-break would introduce an ungoverned identity-selection rule / look-ahead.",
+  "predicate": "for a decision session t, if two or more DISTINCT request symbols resolve provisionally (via the registered PIT lineage resolver ctx.lineage.resolve_permanent_id at session ordinal t) to the SAME permanent_security_id, that (session, permanent_security_id) is a collision group and the request->permanent-security mapping is non-injective at t.",
+  "provisional_resolver_control": "the runner's provisional resolution MUST be the same registered lineage resolver (adapters.identity_adapter.load_identity_registry.resolve_permanent_id) and the same session ordinal run_unit uses; the runner implements NO alternative identity logic, caching, fallback, or tie-break.",
+  "rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+  "scope_unchanged": [
+   "universe membership",
+   "calendar",
+   "crosswalk contents",
+   "lineage data",
+   "permaticker values",
+   "signal mathematics",
+   "PIT cutoff",
+   "sector resolution",
+   "eligibility rules",
+   "shard boundaries",
+   "phase2b_orchestration_code_identity (bb029a96...)"
+  ],
+  "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+  "terminal_disposition": "INTEGRITY_STOP",
+  "terminal_key_treatment": "the provisional permanent_security_id is NOT accepted; the terminal record carries permanent_security_id = null/empty and terminal key (session, 'UNRESOLVED:<request_symbol>'); the claimed id is retained ONLY as diagnostic evidence in the CollisionCensus. This preserves both one-terminal-disposition-per-unit and duplicate-resolved-permanent-security/session-keys = 0."
+ },
+ "review_date": "2026-07-20",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "run_specification_sha256": "fd19aef5230bac56bc82be1efb1be55ba3fe5d4f9daae33608f49ebbfd4554c3",
+ "sic_mapping_selection_rule": {
+  "effective_time_selection": "among rows covering the SIC, the latest effective_from <= close t governs (NULL effective_from = always-effective); range boundaries inclusive",
+  "missing_sic_range": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING (never defaulted)",
+  "revision_supersession_order": "effective_from then review_status (approved supersedes draft)",
+  "same_effective_time_conflict": "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT",
+  "sector_lookup": "the row whose [sic_start, sic_end] inclusive range contains the security's PIT SIC (from sic_observations.accepted_utc <= close t)",
+  "sector_to_etf": "the sector_etf column (11 SPDR select-sector ETFs); one ETF per sector",
+  "table": "registered owner-countersigned sic_mapping (content-hash bound)"
+ },
+ "stage": "SPQ-1 Phase 2B (development-period signal-production qualification)",
+ "supersedes_phase2a_placeholder": "the full run binds the registered sic_mapping for SIC->sector->ETF; the Phase-2A pit_sector_adapter division placeholder is a one-sample stand-in, replaced for the run.",
+ "universe_selection_rule": {
+  "authorized_row_set": "universe_month between 2013-01-01 and 2019-10-01 (82 governing months covering dev sessions 2013-01-02..2019-10-02)",
+  "availability_convention": "universe_month date is the reconstitution availability timestamp",
+  "duplicate_membership_row": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+  "future_universe_month": "excluded; can never influence session t",
+  "governing_universe_month": "max registered universe_month whose availability (= the universe_month date) is <= close(session t)",
+  "membership_flags": "top-250 in_long_universe / top-150 in_short_universe per \u00a74",
+  "membership_from": "ONLY the rows of that single governing month",
+  "missing_governing_month": "INELIGIBLE:OLS_WINDOW_INSUFFICIENT is NOT used; a missing governing month is a universe-integrity failure -> INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS (frozen)",
+  "pre_window_seed": "none required (the 2013-01 reconstitution governs the first dev session)",
+  "source": "universe table (monthly PIT reconstitution)",
+  "survivorship": "PIT, survivorship-free; never a present-day constituent list",
+  "uniqueness_key": "(universe_month, permanent_security_id)"
+ },
+ "version": "1.1"
+}

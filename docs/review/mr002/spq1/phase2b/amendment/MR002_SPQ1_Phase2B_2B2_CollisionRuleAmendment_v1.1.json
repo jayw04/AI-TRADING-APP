@@ -1,0 +1,143 @@
+{
+ "boundary": "amendment only; Phase 2B-2 relaunch is separately authorized by the owner after amendment adjudication; performance / downstream / validation / OOS remain NOT authorized.",
+ "development_run_manifest_v1_0_sha256": "d8652e806f42e53d1a31bbdb0b678ba26ff45f8a5b72a05eacf634f567a63fa7",
+ "development_run_manifest_v1_1_sha256": "52389ee9f993705f8188d24f8a75ad9089fdeb46aac01f8853dcafa4c5373ba7",
+ "governed_code_identities": {
+  "collision_rule_module_identity": "595ae9df743b4260e4cdadc36a890ab9537074c92b381682f72410e3003bf881",
+  "full_run_runner_identity": "7e341fba524a8d98ad3d23e2302eae8cd6aed651190590313c4eddc3d64ef530",
+  "phase2b_orchestration_code_identity_frozen": "bb029a96bb0c9e31600bd0b7ab068c31f70bbc7ac23afce0a3ffe0cb4412845b"
+ },
+ "input_identity_manifest_unchanged": true,
+ "input_identity_manifest_v1_0_sha256": "4c5f072add9ea0e85409d523383e58b3cb8f45e4175479b44eb338cbff0d4560",
+ "record_type": "MR002_SPQ1_Phase2B_2B2_CollisionRuleAmendment",
+ "regression_tests": "apps/backend/tests/research/spq1/test_spq1_phase2b_2_collision.py (11 governed scenarios + real-data fixtures AGN/AGN1, CB/CB1, DD/DD1)",
+ "rule": {
+  "all_claimants_stop": "every request member of a collision group terminates as the integrity stop; no claimant is selected as a winner and no signal decision is produced for any member.",
+  "amends_run_spec_sha256_before": "747875e313d11c96e8b203b86db32b5c8032b4857e13f8fa5f2d237d829a758e",
+  "cardinality_gt_2": "a collision cardinality > 2 uses the same all-claimants-stop rule but MUST be separately surfaced (maximum_collision_cardinality in the CollisionCensus).",
+  "collision_census_artifact": "MR002_SPQ1_Phase2B_2B2_CollisionCensus_v1.0.json",
+  "collision_census_schema": {
+   "group_row": [
+    "collision_group_id",
+    "decision_session",
+    "session_date",
+    "governing_universe_month",
+    "claimed_permanent_security_id",
+    "colliding_request_symbols",
+    "collision_cardinality",
+    "group_disposition_rule"
+   ],
+   "per_request_row": [
+    "decision_session",
+    "session_date",
+    "request_symbol",
+    "request_key",
+    "collision_group_id",
+    "claimed_permanent_security_id",
+    "colliding_request_symbols",
+    "collision_cardinality",
+    "identity_source",
+    "collision_rule_id",
+    "terminal_disposition",
+    "terminal_code",
+    "terminal_key",
+    "governing_universe_month"
+   ],
+   "reconciliation": "affected_request_count == collision-caused SECURITY_IDENTITY_AMBIGUOUS records"
+  },
+  "detection_stage": "runner-side governed pre-production step, AFTER provisional PIT identity resolution and BEFORE sector lookup, earnings lookup, signal production, record-identity generation, and shard publication; the frozen run_unit is called ONLY for non-colliding requests.",
+  "distinct_from_single_request_ambiguity": "a single request whose lineage resolution independently fails (SECURITY_IDENTITY_AMBIGUOUS from normal PIT resolution) is NOT a collision; it flows through frozen run_unit. The CollisionCensus counts ONLY non-injective cross-request collisions; the RefusalCensus splits SECURITY_IDENTITY_AMBIGUOUS by cause.",
+  "governed_sequence": [
+   "enumerate request units for the shard",
+   "resolve provisional permanent_security_id at each session (same registered resolver + ordinal)",
+   "group successful resolutions by (session, provisional permanent_security_id)",
+   "mark groups with cardinality > 1 as collisions",
+   "emit one unresolved INTEGRITY_STOP for each request in the group",
+   "run normal frozen production only for non-colliding requests",
+   "reconcile by request key and accepted resolved terminal key"
+  ],
+  "known_development_window_collisions": {
+   "collision_group_count": 35,
+   "collision_request_unit_count": 70,
+   "distinct_collision_symbol_sets": 3,
+   "maximum_collision_cardinality": 2,
+   "registered_pairs": {
+    "AGN/AGN1": {
+     "claimed_permanent_security_id": "PSEC-198103",
+     "corporate_action": "Allergan / Actavis ticker reassignment",
+     "governing_months": [
+      "2015-03-01"
+     ],
+     "session_range": [
+      "2015-03-16",
+      "2015-03-31"
+     ],
+     "sessions": 12
+    },
+    "CB/CB1": {
+     "claimed_permanent_security_id": "PSEC-199850",
+     "corporate_action": "ACE / Chubb merger ticker reassignment",
+     "governing_months": [
+      "2016-01-01"
+     ],
+     "session_range": [
+      "2016-01-14",
+      "2016-01-15"
+     ],
+     "sessions": 2
+    },
+    "DD/DD1": {
+     "claimed_permanent_security_id": "PSEC-199769",
+     "corporate_action": "DowDuPont merger ticker reassignment",
+     "governing_months": [
+      "2017-08-01",
+      "2017-09-01"
+     ],
+     "session_range": [
+      "2017-08-31",
+      "2017-09-29"
+     ],
+     "sessions": 21
+    }
+   },
+   "source_identities_for_census": {
+    "crosswalk_via": "research.crosswalk (ticker,cik,effective_from,effective_to)",
+    "lineage_resolver": "adapters.identity_adapter.load_identity_registry.resolve_permanent_id",
+    "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+    "universe_content_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39"
+   },
+   "status": "registered evidence, NOT a hard expected-count gate; additional groups found in the full run are handled by the same rule and disclosed + reconciled (a new group is not an automatic stop after this amendment)."
+  },
+  "no_winner_prohibition": "no tie-break may be applied (base-ticker naming, universe permaticker, row order, longer trading history, non-suffixed symbol, surviving ticker, or later corporate-action knowledge). Any such tie-break would introduce an ungoverned identity-selection rule / look-ahead.",
+  "predicate": "for a decision session t, if two or more DISTINCT request symbols resolve provisionally (via the registered PIT lineage resolver ctx.lineage.resolve_permanent_id at session ordinal t) to the SAME permanent_security_id, that (session, permanent_security_id) is a collision group and the request->permanent-security mapping is non-injective at t.",
+  "provisional_resolver_control": "the runner's provisional resolution MUST be the same registered lineage resolver (adapters.identity_adapter.load_identity_registry.resolve_permanent_id) and the same session ordinal run_unit uses; the runner implements NO alternative identity logic, caching, fallback, or tie-break.",
+  "rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+  "scope_unchanged": [
+   "universe membership",
+   "calendar",
+   "crosswalk contents",
+   "lineage data",
+   "permaticker values",
+   "signal mathematics",
+   "PIT cutoff",
+   "sector resolution",
+   "eligibility rules",
+   "shard boundaries",
+   "phase2b_orchestration_code_identity (bb029a96...)"
+  ],
+  "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+  "terminal_disposition": "INTEGRITY_STOP",
+  "terminal_key_treatment": "the provisional permanent_security_id is NOT accepted; the terminal record carries permanent_security_id = null/empty and terminal key (session, 'UNRESOLVED:<request_symbol>'); the claimed id is retained ONLY as diagnostic evidence in the CollisionCensus. This preserves both one-terminal-disposition-per-unit and duplicate-resolved-permanent-security/session-keys = 0."
+ },
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "run_spec_sha256_after": "fd19aef5230bac56bc82be1efb1be55ba3fe5d4f9daae33608f49ebbfd4554c3",
+ "run_spec_sha256_before": "747875e313d11c96e8b203b86db32b5c8032b4857e13f8fa5f2d237d829a758e",
+ "run_specification_v1_1_file_sha256": "14fe495aacac9b96952410729fd5a37a73acc681cd86db3ca9177dc2b574b274",
+ "runner_controls": [
+  "the provisional-resolution call is the SAME registered lineage resolver + session ordinal run_unit uses (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+  "the runner implements NO alternative identity logic, caching, fallback, or tie-break",
+  "detection precedes sector lookup, earnings lookup, producer, record-identity, and publication"
+ ],
+ "stage": "SPQ-1 Phase 2B run-spec amendment (owner-adjudicated)",
+ "version": "1.1"
+}

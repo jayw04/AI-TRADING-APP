@@ -1,0 +1,4 @@
+# Full-run decision/disposition shards are large and reproducible; kept out of git.
+# Every shard's content_sha256 + count is bound in MR002_SPQ1_Phase2B_2B2_ShardManifest_v1.0.json.
+shards_A/
+shards_B/
