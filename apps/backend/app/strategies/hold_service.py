@@ -72,7 +72,7 @@ class FormalizeResult:
 @dataclass(frozen=True)
 class AdoptResult:
     strategy_id: int
-    action: str  # would_adopt | adopted | already_adopted
+    action: str  # would_adopt | adopted | already_adopted | already_adopted_and_cleared
     audit_id: int | None
     planned_blob: dict  # the schema-v1 blob that (would be) written
     legacy_marker: dict  # the preserved legacy marker (read-only echo)
@@ -354,10 +354,13 @@ async def adopt_legacy_operational_hold(
     ACTIVE, so activation remains blocked; clearing is a separate, later step.
 
     Fail-closed refusals (raise ``LegacyHoldAdoptionRefused``, no writes): the marker is
-    absent, is already schema-v1 without the adoption marker, or its legacy
-    ``(reason_code, paused_at, status)`` differ from the operator assertion. Idempotent:
-    if the marker is already the adopted schema-v1 form, returns ``already_adopted`` with
-    no second write. The caller owns the transaction.
+    absent; is already schema-v1 but does NOT match this exact governed adoption (a
+    conflict to adjudicate, never a silent success); its legacy ``(status, reason_code,
+    paused_at)`` differ from the operator assertion; or the marker changed between
+    validation and the value-CAS write. Idempotent only when the current schema-v1 record
+    is PROVABLY this adoption: ``already_adopted`` (still ACTIVE) or
+    ``already_adopted_and_cleared`` (adopted then legitimately cleared) — both no-ops with
+    no second write/audit. The caller owns the transaction.
     """
     raw = await _read_raw_hold(session, strategy_id)
     if raw is None:
@@ -366,16 +369,36 @@ async def adopt_legacy_operational_hold(
         raise LegacyHoldAdoptionRefused(f"operational_hold is not an object: {type(raw).__name__}")
 
     if raw.get("schema_version") == HOLD_SCHEMA_VERSION:
-        # Already schema-v1. Idempotent only if THIS adoption produced it (carries the
-        # preserved legacy marker); otherwise refuse — it is a normal hold, not a legacy one.
-        if "legacy_marker" in raw:
-            existing = load_hold_record(raw)
-            assert existing is not None  # schema-v1 parses
-            return AdoptResult(strategy_id, "already_adopted", None, raw, raw["legacy_marker"])
-        raise LegacyHoldAdoptionRefused(
-            f"strategy {strategy_id}: operational_hold is already schema-v1 (not a legacy "
-            "marker); use the standard place/formalize flow"
+        # Already schema-v1. The no-op must PROVE it is THIS governed adoption, not merely
+        # any schema-v1 record that happens to carry a ``legacy_marker`` key (which could be
+        # a manually-constructed / differently-parameterised / later-revised object). Require
+        # the full adoption provenance to match the operator's assertion; anything else is a
+        # conflict requiring adjudication, never a silent success.
+        lm = raw.get("legacy_marker")
+        is_this_adoption = (
+            isinstance(lm, dict)
+            and raw.get("source") == RETRO_SOURCE
+            and raw.get("reason_code") == expected_reason_code
+            and raw.get("effective_at") == expected_paused_at
+            and lm.get("status") == expected_legacy_status
+            and lm.get("reason_code") == expected_reason_code
+            and lm.get("paused_at") == expected_paused_at
         )
+        if not is_this_adoption:
+            raise LegacyHoldAdoptionRefused(
+                f"strategy {strategy_id}: operational_hold is already schema-v1 but does NOT "
+                "match this governed adoption (source / reason_code / effective_at / "
+                "legacy_marker mismatch); adjudicate — do not adopt"
+            )
+        assert isinstance(lm, dict)  # guaranteed by is_this_adoption; narrows for the type checker
+        status = raw.get("status")
+        if status == HoldStatus.ACTIVE.value:
+            return AdoptResult(strategy_id, "already_adopted", None, raw, lm)
+        if status == HoldStatus.CLEARED.value:
+            # Adopted earlier and legitimately cleared since; NOT an active adoption.
+            return AdoptResult(strategy_id, "already_adopted_and_cleared", None, raw, lm)
+        raise LegacyHoldAdoptionRefused(
+            f"strategy {strategy_id}: adopted hold has unexpected status {status!r}; adjudicate")
 
     # Validate the legacy marker matches the operator's assertion (fail-closed).
     if raw.get("status") != expected_legacy_status:
@@ -399,17 +422,27 @@ async def adopt_legacy_operational_hold(
     if not apply:
         return AdoptResult(strategy_id, "would_adopt", None, blob, raw)
 
+    # GENUINE compare-and-set: the UPDATE fires only if the row's value is STILL byte-for-byte
+    # the exact legacy marker we read and validated (``StrategyState.value == raw``) — not merely
+    # the same (strategy_id, key) row. Any concurrent writer that replaced or modified the marker
+    # (including a concurrent adoption, which sets a schema-v1 value) changes ``value``, so the
+    # WHERE misses → rowcount 0 → refuse: NO overwrite, NO audit. This is what makes "the marker
+    # changed since read" a mechanism, not just a message.
     res = cast(
         "CursorResult[Any]",
         await session.execute(
             update(StrategyState).where(
                 StrategyState.strategy_id == strategy_id,
                 StrategyState.key == K_OPERATIONAL_HOLD,
+                StrategyState.value == raw,
             ).values(value=blob, updated_at=datetime.now(UTC))
         ),
     )
     if res.rowcount != 1:
-        raise LegacyHoldAdoptionRefused("concurrent write moved the marker; adoption aborted")
+        raise LegacyHoldAdoptionRefused(
+            "the legacy marker changed between validation and write (concurrent modification or "
+            "adoption); CAS failed — no state and no audit written"
+        )
     row = AuditLogger.write(
         session, actor_type=actor_type, actor_id=actor_id,
         action=AuditAction.STRATEGY_HOLD_PLACED, target_type="strategy", target_id=strategy_id,

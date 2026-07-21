@@ -165,3 +165,71 @@ async def test_legacy_marker_stays_unreadable_until_adopted(session_factory):
     async with session_factory() as session:
         with pytest.raises(HoldStateInvalid):
             await read_hold(session, SID)  # schema_version absent -> fail closed
+
+
+# ---- CAS: concurrent marker movement (Blocker 1) ----
+
+async def test_concurrent_marker_change_fails_the_cas(session_factory, monkeypatch):
+    """A writer that changes the marker AFTER adoption read it but BEFORE the write must
+    make the value-CAS miss: no overwrite, no audit. Simulated by adoption reading the
+    STALE original while the DB already holds a concurrently-modified marker."""
+    import app.strategies.hold_service as hs
+
+    modified = {**LEGACY, "reason": "CONCURRENTLY MODIFIED BY ANOTHER ACTOR"}
+    await _seed(session_factory, modified)  # the DB's CURRENT value
+
+    async def _stale(_session, _sid):  # adoption "reads" the pre-change marker
+        return dict(LEGACY)
+    monkeypatch.setattr(hs, "_read_raw_hold", _stale)
+
+    with pytest.raises(LegacyHoldAdoptionRefused):
+        await _adopt(session_factory, apply=True)
+    assert await _read_raw(session_factory) == modified  # concurrent value UNTOUCHED
+    assert len(await _retro_placed_rows(session_factory)) == 0  # NO audit written
+
+
+# ---- idempotency must validate the adopted state (Blocker 2) ----
+
+def _adopted_blob(**over) -> dict:
+    b = {
+        "schema_version": 1, "_rev": 1, "status": "ACTIVE", "reason_code": RC,
+        "reason": "cold-start trigger gap", "effective_at": PAUSED_AT,
+        "placed_at": "2026-07-21T23:00:00Z", "placed_by": PLACED_BY,
+        "evidence_refs": ["snapshot=8fa766f3"], "approval_ref": None,
+        "source": RETRO_SOURCE, "cleared_at": None, "cleared_by": None,
+        "legacy_marker": LEGACY,
+    }
+    b.update(over)
+    return b
+
+
+async def test_already_adopted_active_is_idempotent_noop(session_factory):
+    await _seed(session_factory, _adopted_blob())
+    res = await _adopt(session_factory, apply=True)
+    assert res.action == "already_adopted" and res.audit_id is None
+    assert len(await _retro_placed_rows(session_factory)) == 0
+
+
+async def test_already_adopted_then_cleared_is_reported_not_active(session_factory):
+    await _seed(session_factory, _adopted_blob(status="CLEARED", _rev=2,
+                                               cleared_at="2026-08-01T00:00:00Z", cleared_by=PLACED_BY))
+    res = await _adopt(session_factory, apply=True)
+    assert res.action == "already_adopted_and_cleared" and res.audit_id is None
+    assert len(await _retro_placed_rows(session_factory)) == 0
+
+
+@pytest.mark.parametrize("bad", [
+    _adopted_blob(source="SOMETHING_ELSE"),                       # non-retrospective source
+    _adopted_blob(reason_code="OTHER_RC"),                        # different reason_code
+    _adopted_blob(effective_at="2020-01-01T00:00:00Z"),          # different effective_at
+    _adopted_blob(legacy_marker={**LEGACY, "paused_at": "2020-01-01T00:00:00Z"}),  # marker mismatch
+    _adopted_blob(legacy_marker={**LEGACY, "reason_code": "OTHER"}),
+    {"schema_version": 1, "_rev": 1, "status": "ACTIVE", "reason_code": RC,
+     "effective_at": PAUSED_AT, "source": RETRO_SOURCE},         # schema-v1 with NO legacy_marker
+])
+async def test_refuses_schema_v1_that_is_not_this_adoption(session_factory, bad):
+    await _seed(session_factory, bad)
+    with pytest.raises(LegacyHoldAdoptionRefused):
+        await _adopt(session_factory, apply=True)
+    assert await _read_raw(session_factory) == bad  # untouched
+    assert len(await _retro_placed_rows(session_factory)) == 0  # no audit
