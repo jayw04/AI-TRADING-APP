@@ -325,18 +325,98 @@ async def test_stale_version_cannot_rearm(seeded, monkeypatch):
     assert (await _state(seeded)).state == C.STATE_RECOVERY_COOLDOWN
 
 
-async def test_account_isolation_in_evaluate_all(seeded, monkeypatch):
+async def _seed_cooldown_for(seeded, account_id, *, trip_cause, origin=C.STATE_REDUCTION_ONLY_BREAKER):
+    """A velocity-class RECOVERY_COOLDOWN for an arbitrary account id (for the isolation test)."""
+    async with seeded() as s:
+        if account_id != 1:
+            s.add(User(id=account_id, email=f"u{account_id}@t"))
+            s.add(Account(id=account_id, user_id=account_id, broker="alpaca",
+                          mode=AccountMode.paper, label=f"P{account_id}"))
+        s.add(RiskLossControlState(account_id=account_id, state=C.STATE_RECOVERY_COOLDOWN,
+                                   state_version=4, last_sequence_no=3, control_version=1,
+                                   updated_at=ENTRY_AT))
+        for seq, (frm, to, trig, cause) in enumerate([
+            (C.STATE_NORMAL, origin, "BREAKER_TRIP", trip_cause),
+            (origin, C.STATE_RECOVERY_PREFLIGHT, "RECOVERY_REQUEST", None),
+            (C.STATE_RECOVERY_PREFLIGHT, C.STATE_RECOVERY_COOLDOWN, "PREFLIGHT_PASS", None),
+        ], start=1):
+            ev = RiskControlEvent(account_id=account_id, sequence_no=seq, control_type="RECOVERY",
+                                  from_state=frm, to_state=to, requested_transition=trig,
+                                  trip_cause=cause, initiator_type="SYSTEM", control_version=1,
+                                  created_at=ENTRY_AT, session_date=ENTRY_SESSION)
+            s.add(ev)
+        await s.flush()
+        s.add(RiskRecoveryPreflight(
+            account_id=account_id, idempotency_key=f"k{account_id}",
+            requested_transition="RECOVERY_REQUEST", expected_state_version=3,
+            requested_by_actor_type=C.ACTOR_OWNER, requested_by_actor_id="1", requested_at=ENTRY_AT,
+            origin_state=origin, origin_state_version=3, transition_event_id=ev.id,
+            trip_cause=trip_cause, authority_class=C.AUTHORITY_CLASS_OWNER_OR_OPERATOR,
+            status=C.PREFLIGHT_STATUS_PASSED, result=C.PREFLIGHT_STATUS_PASSED,
+            initiator_type=C.ACTOR_OWNER, initiator_id="1", control_version=1, evidence_version=1,
+            created_at=ENTRY_AT))
+        await s.commit()
+
+
+async def test_evaluate_all_uses_per_account_evidence(seeded, monkeypatch):
+    # Two velocity-class accounts in cooldown. The provider hands each its OWN adapter + velocity.
+    # Account 1 gets healthy evidence → COMPLETE; account 2 gets a DIFFERENT reading (velocity above
+    # the recovery threshold) → HOLD. If the evaluator reused one shared reading, account 2 would
+    # complete too — so distinct outcomes prove per-account evidence.
+    monkeypatch.setattr(cool_mod, "resolve_session_date", lambda now: ENTRY_SESSION)
+    await _seed_cooldown_for(seeded, 1, trip_cause=C.TRIP_CAUSE_LOSS_VELOCITY)
+    await _seed_cooldown_for(seeded, 2, trip_cause=C.TRIP_CAUSE_LOSS_VELOCITY)
+
+    from app.risk.loss_control.cooldown import AccountEvidence
+    seen: list[int] = []
+    per_account = {
+        1: AccountEvidence(adapter=_healthy_adapter(),
+                           velocity=VelocityReading(D("400"), D("1000"),
+                                                    C.VELOCITY_HEALTHY_MIN_SECONDS)),  # healthy
+        2: AccountEvidence(adapter=_healthy_adapter(),
+                           velocity=VelocityReading(D("900"), D("1000"),
+                                                    C.VELOCITY_HEALTHY_MIN_SECONDS)),  # > threshold
+    }
+
+    def provider(account_id):
+        seen.append(account_id)
+        return per_account[account_id]
+
+    results = await CooldownEvaluator(seeded).evaluate_all(provider=provider, now=_now_after(30))
+    by_acct = {r.account_id: r.verdict for r in results}
+    assert by_acct[1] == C.COOLDOWN_COMPLETE          # its own healthy velocity
+    assert by_acct[2] == C.COOLDOWN_HOLD              # its own too-fast velocity — not shared
+    assert sorted(seen) == [1, 2]                     # provider invoked once per account
+    async with seeded() as s:  # only account 1 advanced to NORMAL
+        s1 = await s.scalar(select(RiskLossControlState.state).where(
+            RiskLossControlState.account_id == 1))
+        s2 = await s.scalar(select(RiskLossControlState.state).where(
+            RiskLossControlState.account_id == 2))
+    assert s1 == C.STATE_NORMAL and s2 == C.STATE_RECOVERY_COOLDOWN
+
+
+async def test_evaluate_all_default_provider_fails_closed(seeded, monkeypatch):
+    # No provider → no adapter/velocity for any account → each fails closed (HOLD), never advances.
+    monkeypatch.setattr(cool_mod, "resolve_session_date", lambda now: ENTRY_SESSION)
+    await _seed_cooldown_for(seeded, 1, trip_cause=C.TRIP_CAUSE_LOSS_VELOCITY)
+    results = await CooldownEvaluator(seeded).evaluate_all(now=_now_after(30))
+    assert results[0].verdict == C.COOLDOWN_HOLD
+
+
+async def test_account_isolation_one_bad_does_not_affect_other(seeded, monkeypatch):
     monkeypatch.setattr(cool_mod, "resolve_session_date", lambda now: ENTRY_SESSION)
     await _seed_cooldown(seeded, trip_cause=C.TRIP_CAUSE_UNKNOWN,
                          trip_evidence=C.TRIP_EVIDENCE_ARTIFACT_CONFIRMED)
-    async with seeded() as s:  # a second account also in cooldown but with NO provenance
+    async with seeded() as s:  # a second account in cooldown with NO provenance
         s.add(User(id=2, email="b@t"))
         s.add(Account(id=2, user_id=2, broker="alpaca", mode=AccountMode.paper, label="P2"))
         s.add(RiskLossControlState(account_id=2, state=C.STATE_RECOVERY_COOLDOWN, state_version=1,
                                    last_sequence_no=0, control_version=1, updated_at=ENTRY_AT))
         await s.commit()
-    results = await CooldownEvaluator(seeded).evaluate_all(adapter=_healthy_adapter(),
-                                                           now=_now_after(15))
+
+    from app.risk.loss_control.cooldown import AccountEvidence
+    results = await CooldownEvaluator(seeded).evaluate_all(
+        provider=lambda aid: AccountEvidence(adapter=_healthy_adapter()), now=_now_after(15))
     by_acct = {r.account_id: r.verdict for r in results}
     assert by_acct[1] == C.COOLDOWN_COMPLETE          # acct 1 advances
     assert by_acct[2] == C.COOLDOWN_REGRESSED         # acct 2 fails closed, independently
@@ -406,3 +486,18 @@ async def test_null_origin_and_null_session_date_still_evaluates(seeded, monkeyp
                          entry_session_date=None, authorized_by="2")
     out = await CooldownEvaluator(seeded).evaluate(1, adapter=_healthy_adapter(), now=_now_after(30))
     assert out.verdict == C.COOLDOWN_COMPLETE and out.transitioned_to == C.STATE_NORMAL
+
+
+async def test_evaluate_all_supports_async_provider(seeded, monkeypatch):
+    # The provider may be async (e.g. it looks up a broker connection over the network).
+    monkeypatch.setattr(cool_mod, "resolve_session_date", lambda now: ENTRY_SESSION)
+    await _seed_cooldown_for(seeded, 1, trip_cause=C.TRIP_CAUSE_LOSS_VELOCITY)
+    from app.risk.loss_control.cooldown import AccountEvidence
+
+    async def provider(account_id):
+        return AccountEvidence(adapter=_healthy_adapter(),
+                               velocity=VelocityReading(D("400"), D("1000"),
+                                                        C.VELOCITY_HEALTHY_MIN_SECONDS))
+
+    results = await CooldownEvaluator(seeded).evaluate_all(provider=provider, now=_now_after(30))
+    assert results[0].verdict == C.COOLDOWN_COMPLETE

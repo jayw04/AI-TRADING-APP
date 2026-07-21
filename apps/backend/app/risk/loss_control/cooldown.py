@@ -22,6 +22,8 @@ fail closed. The pure decision itself stays in ``state_machine.py``.
 
 from __future__ import annotations
 
+import inspect
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -61,6 +63,21 @@ class VelocityReading:
 
 
 @dataclass(frozen=True)
+class AccountEvidence:
+    """The PER-ACCOUNT live evidence a caller supplies for one account's evaluation. Never share one
+    account's broker adapter or velocity reading across accounts — each account has its own broker
+    connection and its own loss velocity."""
+
+    adapter: object | None = None
+    velocity: VelocityReading | None = None
+
+
+# A provider yields the evidence for ONE account (sync or async). ``evaluate_all`` calls it per
+# account so broker/velocity evidence is never reused across accounts.
+EvidenceProvider = Callable[[int], "AccountEvidence | Awaitable[AccountEvidence]"]
+
+
+@dataclass(frozen=True)
 class CooldownEvaluation:
     account_id: int
     verdict: str  # a C.COOLDOWN_* value, or "NO_OP" when the account is not (any longer) in cooldown
@@ -89,15 +106,31 @@ class CooldownEvaluator:
         return list(rows)
 
     async def evaluate_all(
-        self, *, adapter: object | None = None, velocity: VelocityReading | None = None,
-        now: datetime | None = None,
+        self, *, provider: EvidenceProvider | None = None, now: datetime | None = None,
     ) -> list[CooldownEvaluation]:
-        """Evaluate every account currently in cooldown. Account-isolated: one account's failure
-        never affects another (each is caught and reported as a no-op)."""
+        """Evaluate every account currently in cooldown, each with its OWN evidence.
+
+        ``provider(account_id)`` supplies that account's broker adapter + velocity reading (never one
+        shared across accounts — that would reconcile account B against account A's broker). Absent, a
+        default (no adapter / no velocity) is used, which fails closed. Account-isolated: one account's
+        failure never affects another (each is caught and reported)."""
         out: list[CooldownEvaluation] = []
         for account_id in await self.accounts_in_cooldown():
-            out.append(await self.evaluate(account_id, adapter=adapter, velocity=velocity, now=now))
+            evidence = await self._resolve_evidence(provider, account_id)
+            out.append(await self.evaluate(
+                account_id, adapter=evidence.adapter, velocity=evidence.velocity, now=now))
         return out
+
+    @staticmethod
+    async def _resolve_evidence(
+        provider: EvidenceProvider | None, account_id: int
+    ) -> AccountEvidence:
+        if provider is None:
+            return AccountEvidence()
+        result = provider(account_id)
+        if inspect.isawaitable(result):
+            result = await result
+        return result
 
     async def evaluate(
         self, account_id: int, *, adapter: object | None = None,
