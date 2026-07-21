@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+from dataclasses import replace
 from decimal import Decimal
 from typing import Any, ClassVar
 
@@ -58,14 +59,29 @@ from app.factor_data.factors.engine import FactorUnavailable
 from app.factor_data.universe import UniverseUnavailable
 from app.risk import OrderRequest
 from app.strategies import Strategy
+from app.strategies.deployment_state import (
+    DeploymentBlob,
+    DeploymentStateInvalid,
+    DeploymentStateUninitialized,
+    load_deployment_blob,
+    seed_attempt_to_dict,
+)
+from app.strategies.seed_reconciliation import (
+    DeploymentState,
+    SeedAttempt,
+    SeedAttemptStatus,
+    reconcile_seed_attempt,
+)
 
 _HOLD_ON = (FactorDataUnavailable, FactorUnavailable, UniverseUnavailable)
+_TERMINAL_ATTEMPT = frozenset({SeedAttemptStatus.FILLED, SeedAttemptStatus.TERMINALLY_UNFILLED})
 
 # Durable-state keys.
 _K_LAST_EVAL = "last_eval_date"          # ISO date of the last completed daily evaluation (the latch)
 _K_LAST_REVIEW = "last_review_date"      # ISO date of the last completed review (backstop clock)
 _K_LIFECYCLE = "rebalance_lifecycle"     # {signal_date, attempted_at, completed_at, attempts}
 _K_REGIME = "prev_regime"                # {"gross": float} | {"below": bool} — last regime state seen
+_K_DEPLOYMENT = "deployment"             # P7 §7-A: the atomic _rev-versioned deployment-lifecycle blob
 
 
 class MomentumDaily(Strategy):
@@ -110,6 +126,8 @@ class MomentumDaily(Strategy):
         "regime_stale_max_days": 2,      # A5 bounded fallback (both modes)
         "regime_degraded_gross": 0.50,
         "regime_degraded_max_days": 4,
+        # ---- cold-start inception (§7-A) ----
+        "initial_seed_investable_gross": 0.60,   # LOCKED: seed a NEVER_DEPLOYED book only at regime gross >= this
         # ---- universe (§8 — Stage, fixed baseline) ----
         "monthly_universe_refresh": False,
         # ---- execution ----
@@ -181,6 +199,8 @@ class MomentumDaily(Strategy):
                                   "description": "Gross multiplier once regime data is staler than regime_stale_max_days."},
         "regime_degraded_max_days": {"type": "integer", "min": 1, "default": 4,
                                      "description": "Beyond this staleness, gross goes to zero."},
+        "initial_seed_investable_gross": {"type": "number", "min": 0, "max": 1, "default": 0.60,
+                                          "description": "Inception eligibility ONLY (LOCKED 0.60): seed a never-deployed book when regime_target_gross >= this. Not a warm-book regime control."},
         "monthly_universe_refresh": {"type": "boolean", "default": False,
                                      "description": "Refresh the registered universe monthly (§8). Baseline = fixed."},
         "min_trade_pct": {"type": "number", "min": 0, "max": 1, "default": 0.03,
@@ -223,6 +243,18 @@ class MomentumDaily(Strategy):
         once-per-day latch makes at most one evaluation per calendar day, surviving restarts."""
         day = (bar.t.date() if hasattr(bar.t, "date") else bar.t).isoformat()
         self._tick_date = bar.t.date() if hasattr(bar.t, "date") else bar.t
+        self._tick_ts = bar.t  # datetime — the deterministic clock for a seed attempt (sub-step 2)
+
+        # P7 §7-A.2b: load+validate the deployment blob and reconcile any active seed
+        # attempt BEFORE the daily latch — a fill can land after today's evaluation or
+        # on a same-day restart, and lifecycle state must still advance. Fail closed on
+        # uninitialized/invalid/ambiguous state (submit nothing).
+        dep = await self._load_and_validate_deployment()
+        if dep is None:
+            return
+        dep = await self._reconcile_active_seed_attempt(dep)
+        if dep is None:
+            return
 
         if await self.ctx.get_state(_K_LAST_EVAL) == day:
             return  # already evaluated today (durable latch — not an in-memory flag)
@@ -242,7 +274,7 @@ class MomentumDaily(Strategy):
             "completed_at": lifecycle.get("completed_at"),
         })
         try:
-            await self._evaluate(day)
+            await self._evaluate(day, dep)
         except Exception as exc:  # noqa: BLE001 — contain; the same-day retry budget covers it
             await self.ctx.log_signal("PORTFOLIO", SignalType.EXIT, payload={
                 "reason": "daily_eval_failed", "date": day, "error": str(exc)[:160]})
@@ -254,7 +286,187 @@ class MomentumDaily(Strategy):
             "signal_date": day, "attempted_at": day, "completed_at": day,
             "attempts": attempts + 1})
 
-    async def _evaluate(self, day: str) -> None:
+    # ---- P7 §7-A.2b: deployment lifecycle (read-side) ----
+
+    async def _load_and_validate_deployment(self) -> DeploymentBlob | None:
+        """Load + FAIL-CLOSED-validate the deployment blob. Returns None (and logs the
+        reason) on an uninitialized or invalid/impossible state — the caller submits
+        nothing this tick. 7-B performs the authoritative first init."""
+        raw = await self.ctx.get_state(_K_DEPLOYMENT)
+        try:
+            return load_deployment_blob(raw)
+        except DeploymentStateUninitialized:
+            await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                "reason": "deployment_state_uninitialized"})
+            return None
+        except DeploymentStateInvalid as exc:
+            await self.ctx.log_signal("PORTFOLIO", SignalType.EXIT, payload={
+                "reason": "deployment_state_invalid", "error": str(exc)[:160]})
+            return None
+
+    async def _reconcile_active_seed_attempt(self, dep: DeploymentBlob) -> DeploymentBlob | None:
+        """Reconcile an active NON-TERMINAL seed attempt from live observations and
+        CAS-apply the result. Returns the fresh blob to evaluate against, or None to
+        block normal evaluation (CAS lost, or a blocking reconciliation-required)."""
+        attempt = dep.active_seed_attempt
+        if attempt is None or attempt.status in _TERMINAL_ATTEMPT:
+            return await self._detect_unexpected_flatten(dep)
+
+        fills = await self.ctx.recent_fills(
+            since=attempt.last_reconciled_fill_at or attempt.created_at,
+            after_fill_id=attempt.last_reconciled_fill_id,
+            client_order_id_prefix=attempt.client_order_id_prefix,
+        )
+        open_orders = await self.ctx.open_orders(
+            client_order_id_prefix=attempt.client_order_id_prefix)
+        positions = await self._current_holdings()
+        result = reconcile_seed_attempt(attempt, fills, open_orders, positions)
+
+        cursor = result.committed_cursor
+        new_attempt = replace(
+            attempt, status=result.seed_attempt_status,
+            last_reconciled_fill_at=cursor[0] if cursor else attempt.last_reconciled_fill_at,
+            last_reconciled_fill_id=cursor[1] if cursor else attempt.last_reconciled_fill_id,
+        )
+        # first_deployed_at is monotonic (preserve once set); has_ever_deployed one-shot.
+        first_dep = dep.first_deployed_at or result.first_deployed_at
+        has_ever = dep.has_ever_deployed or (result.deployment_state == DeploymentState.DEPLOYED)
+        if result.should_clear_attempt:
+            last = seed_attempt_to_dict(new_attempt)  # ARCHIVE terminal attempt (not delete)
+            active = None
+        else:
+            last, active = dep.last_seed_attempt, new_attempt
+        new_blob = DeploymentBlob(
+            rev=dep.rev + 1, state=result.deployment_state, has_ever_deployed=has_ever,
+            first_deployed_at=first_dep, active_seed_attempt=active, last_seed_attempt=last)
+
+        ok = await self.ctx.compare_and_set_state(
+            _K_DEPLOYMENT, expected_rev=dep.rev, new_value=new_blob.to_dict())
+        if not ok:
+            # Concurrency loss: another writer advanced the blob. Reload next tick; do
+            # NOT evaluate against stale state now.
+            await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                "reason": "reconcile_cas_lost"})
+            return None
+        for alert in result.alerts:
+            await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                "reason": "seed_alert", "alert": alert})
+        if result.seed_attempt_status == SeedAttemptStatus.RECONCILIATION_REQUIRED:
+            await self.ctx.log_signal("PORTFOLIO", SignalType.EXIT, payload={
+                "reason": "seed_reconciliation_required", "alerts": list(result.alerts)})
+            return None
+        return new_blob
+
+    async def _detect_unexpected_flatten(self, dep: DeploymentBlob) -> DeploymentBlob | None:
+        """A DEPLOYED book observed flat with no active attempt is an anomaly the
+        template cannot attribute (risk liquidation / manual flatten / account
+        intervention are 7-B's to classify). Alert and fail closed — never INVENT an
+        INTENTIONALLY_FLAT cause the template cannot prove."""
+        if dep.state == DeploymentState.DEPLOYED and not await self._current_holdings():
+            await self.ctx.log_signal("PORTFOLIO", SignalType.EXIT, payload={
+                "reason": "unexpected_flatten_detected"})
+            return None
+        return dep
+
+    async def _maybe_initial_seed(self, day: str, dep: DeploymentBlob, regime_gross: float,
+                                  scores: Any, held: dict[str, Decimal]) -> None:
+        """Evaluate the six inception gates (each traced); on all-pass, CAS a PREPARED
+        attempt (write-ahead) BEFORE any submission, then submit incrementally. A CAS
+        loss is a normal concurrency loss — reload next tick, submit nothing."""
+        eligible = self._eligible(scores)
+        pending = await self.ctx.open_orders(
+            client_order_id_prefix=f"seed:{self.ctx.strategy_id}:")
+        threshold = float(self.params.get("initial_seed_investable_gross", 0.60))
+        gates = {
+            "no_holdings": not held,
+            "no_pending_entries": not pending,
+            "never_deployed": (dep.state == DeploymentState.NEVER_DEPLOYED
+                               and not dep.has_ever_deployed),
+            "regime_investable": regime_gross >= threshold,
+            "scores_available": True,
+            "eligible_candidates": len(eligible) >= 1,
+        }
+        await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+            "reason": "initial_seed_eval", "date": day, "gates": gates,
+            "regime_target_gross": regime_gross, "candidates": int(len(eligible))})
+        if not all(gates.values()):
+            await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                "reason": "reviewed_no_trigger", "date": day, "held": sorted(held),
+                "seed_gates_failed": [k for k, v in gates.items() if not v]})
+            return
+
+        target = self._select_targets(scores, held)
+        if not target:
+            await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                "reason": "reviewed_no_trigger", "date": day, "seed_no_targets": True})
+            return
+        attempt_number = int((dep.last_seed_attempt or {}).get("attempt_number", 0)) + 1
+        attempt_id = f"{day}-{attempt_number}"
+        prefix = f"seed:{self.ctx.strategy_id}:{attempt_id}:"
+        if any(len(f"{prefix}{s.upper()}") > 64 for s in target):  # broker/DB client-id cap
+            await self.ctx.log_signal("PORTFOLIO", SignalType.EXIT, payload={
+                "reason": "initial_seed_prefix_too_long", "prefix": prefix})
+            return
+        attempt = SeedAttempt(
+            attempt_id=attempt_id, created_at=self._tick_ts, intended_symbols=tuple(target),
+            client_order_id_prefix=prefix, status=SeedAttemptStatus.PREPARED)
+        prepared = DeploymentBlob(
+            rev=dep.rev + 1, state=DeploymentState.DEPLOYMENT_PENDING, has_ever_deployed=False,
+            first_deployed_at=None, active_seed_attempt=attempt,
+            last_seed_attempt=dep.last_seed_attempt)
+        if not await self.ctx.compare_and_set_state(
+                _K_DEPLOYMENT, expected_rev=dep.rev, new_value=prepared.to_dict()):
+            await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                "reason": "initial_seed_cas_lost", "date": day})
+            return
+        await self._submit_seed(prepared, target, scores, held, attempt_number)
+
+    async def _submit_seed(self, blob: DeploymentBlob, target: list[str], scores: Any,
+                           held: dict[str, Decimal], attempt_number: int) -> None:
+        """Incremental CAS-persisted submission. Every status update is a CAS. The
+        durable submission LEDGER (not open_orders emptiness) decides the terminal
+        outcome: any accepted order -> ORDERS_OPEN; every intended order rejected/
+        skipped -> TERMINALLY_UNFILLED -> ARCHIVE -> NEVER_DEPLOYED (retry). Ongoing
+        reconciliation (on_bar; prefix recovery over fills AND open orders) advances
+        ORDERS_OPEN thereafter. The client_order_id tag makes a crash between submit
+        and status-persist recoverable by prefix."""
+        attempt = blob.active_seed_attempt
+        submitting = replace(attempt, status=SeedAttemptStatus.SUBMITTING)
+        b_sub = DeploymentBlob(
+            rev=blob.rev + 1, state=DeploymentState.DEPLOYMENT_PENDING, has_ever_deployed=False,
+            first_deployed_at=None, active_seed_attempt=submitting,
+            last_seed_attempt=blob.last_seed_attempt)
+        if not await self.ctx.compare_and_set_state(
+                _K_DEPLOYMENT, expected_rev=blob.rev, new_value=b_sub.to_dict()):
+            await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
+                "reason": "initial_seed_cas_lost"})
+            return
+
+        outcomes: list[dict[str, Any]] = []
+        await self._apply_targets(target, held=held, reason="initial_seed",
+                                  attempt=attempt, outcomes=outcomes)
+        accepted = [o for o in outcomes if o.get("ok")]
+
+        if accepted:
+            final = replace(submitting, status=SeedAttemptStatus.ORDERS_OPEN)
+            b_fin = DeploymentBlob(
+                rev=b_sub.rev + 1, state=DeploymentState.DEPLOYMENT_PENDING,
+                has_ever_deployed=False, first_deployed_at=None, active_seed_attempt=final,
+                last_seed_attempt=blob.last_seed_attempt)
+        else:
+            archived = seed_attempt_to_dict(
+                replace(submitting, status=SeedAttemptStatus.TERMINALLY_UNFILLED))
+            archived["attempt_number"] = attempt_number
+            archived["previous_attempt_id"] = (blob.last_seed_attempt or {}).get("attempt_id")
+            b_fin = DeploymentBlob(
+                rev=b_sub.rev + 1, state=DeploymentState.NEVER_DEPLOYED, has_ever_deployed=False,
+                first_deployed_at=None, active_seed_attempt=None, last_seed_attempt=archived)
+            await self.ctx.log_signal("PORTFOLIO", SignalType.EXIT, payload={
+                "reason": "initial_seed_all_rejected", "attempt_id": attempt.attempt_id})
+        await self.ctx.compare_and_set_state(
+            _K_DEPLOYMENT, expected_rev=b_sub.rev, new_value=b_fin.to_dict())
+
+    async def _evaluate(self, day: str, dep: DeploymentBlob) -> None:
         """Score, decide which triggers fire, and trade ONLY if one does."""
         regime_below, regime_gross, regime_flipped = await self._regime()
         self._regime_gross = regime_gross
@@ -279,6 +491,18 @@ class MomentumDaily(Strategy):
         held = await self._current_holdings()
         self._current_order = {t: i + 1 for i, t in enumerate(self._eligible(scores).index)}
         await self._load_prior_closes()
+
+        # P7 §7-A.2b: cold-start seed path — ONLY for a never-deployed flat book. Regime
+        # risk-off and data-unavailable outcomes above still take precedence; the seed
+        # gates can only be reached with a risk-on regime and available scores.
+        # A seed in flight (DEPLOYMENT_PENDING) is owned by reconciliation (on_bar,
+        # before the latch); do not warm-trade while awaiting fills.
+        if dep.state == DeploymentState.DEPLOYMENT_PENDING:
+            return
+        # Cold-start: a never-deployed flat book seeds via initial_seed.
+        if dep.state == DeploymentState.NEVER_DEPLOYED and not dep.has_ever_deployed:
+            await self._maybe_initial_seed(day, dep, regime_gross, scores, held)
+            return
 
         triggers = await self._fired_triggers(scores, held, regime_flipped)
         backstop_due = await self._backstop_due(day)
@@ -540,13 +764,20 @@ class MomentumDaily(Strategy):
     # ---- execution (sells before buys; regime gross; storm-safe via the daily latch) ----
 
     async def _apply_targets(self, target: list[str], *, held: dict[str, Decimal] | None = None,
-                             reason: str) -> None:
+                             reason: str, attempt: SeedAttempt | None = None,
+                             outcomes: list | None = None) -> None:
         if held is None:
             held = await self._current_holdings()
+
+        def _coid(sym: str) -> str | None:
+            # P7 §7-A: tag seed orders so fills/orders are attributable to the attempt.
+            return f"{attempt.client_order_id_prefix}{sym.upper()}" if attempt is not None else None
+
         target_set = set(target)
         for sym, qty in held.items():
             if sym not in target_set:
-                await self._submit(sym, OrderSide.SELL, qty, reason=f"{reason}_exit")
+                await self._submit(sym, OrderSide.SELL, qty, reason=f"{reason}_exit",
+                                   client_order_id=_coid(sym), outcomes=outcomes)
         if not target:
             return
         equity = await self._investable_equity()
@@ -562,6 +793,8 @@ class MomentumDaily(Strategy):
             if price is None or price <= 0:
                 await self.ctx.log_signal(sym, SignalType.ENTRY,
                                           payload={"reason": f"{reason}_skip_no_price"})
+                if outcomes is not None:
+                    outcomes.append({"symbol": sym.upper(), "ok": False, "reason": "skip_no_price"})
                 continue
             price_d = Decimal(str(price))
             target_qty = ((per_name / price_d).quantize(Decimal("0.000001")) if fractional
@@ -574,13 +807,14 @@ class MomentumDaily(Strategy):
                 continue
             if delta < 0:
                 await self._submit(sym, OrderSide.SELL, -delta, reason=f"{reason}_trim",
-                                   ref_price=price)
+                                   ref_price=price, client_order_id=_coid(sym), outcomes=outcomes)
             else:
                 buy_qty = delta - pending.get(sym.upper(), Decimal(0))
                 if buy_qty > 0:
                     buys.append((sym, buy_qty, price))
         for sym, qty, price in buys:
-            await self._submit(sym, OrderSide.BUY, qty, reason=f"{reason}_entry", ref_price=price)
+            await self._submit(sym, OrderSide.BUY, qty, reason=f"{reason}_entry", ref_price=price,
+                               client_order_id=_coid(sym), outcomes=outcomes)
 
     async def _current_holdings(self) -> dict[str, Decimal]:
         held: dict[str, Decimal] = {}
@@ -612,13 +846,16 @@ class MomentumDaily(Strategy):
         return float(bars.iloc[-1]["c"])
 
     async def _submit(self, symbol: str, side: OrderSide, qty: Decimal, *, reason: str,
-                      ref_price: float | None = None) -> bool:
+                      ref_price: float | None = None, client_order_id: str | None = None,
+                      outcomes: list | None = None) -> bool:
         if qty <= 0:
+            if outcomes is not None:
+                outcomes.append({"symbol": symbol.upper(), "ok": False, "reason": "zero_qty"})
             return False
         req = OrderRequest(
             user_id=0, account_id=0, symbol_ticker=symbol, side=side, qty=qty,
             type=OrderType.MARKET, tif=TimeInForce.DAY, source_type=OrderSourceType.STRATEGY,
-            source_id=None,
+            source_id=None, client_order_id=client_order_id,
             reference_price=(Decimal(str(ref_price)) if ref_price and ref_price > 0 else None),
         )
         result = await self.ctx.submit_order(req)
@@ -633,4 +870,7 @@ class MomentumDaily(Strategy):
         pacing = float(self.params.get("order_pacing_seconds", 0.0) or 0.0)
         if pacing > 0:
             await asyncio.sleep(pacing)
-        return result is not None and not rejection
+        ok = result is not None and not rejection
+        if outcomes is not None:
+            outcomes.append({"symbol": symbol.upper(), "ok": ok, "reason": rejection})
+        return ok
