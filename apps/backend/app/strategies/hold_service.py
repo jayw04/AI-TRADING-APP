@@ -14,9 +14,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -181,12 +182,17 @@ class HoldService:
             except IntegrityError as exc:
                 raise HoldConflict("concurrent place lost the CAS") from exc
             return
-        res = await session.execute(
-            update(StrategyState).where(
-                StrategyState.strategy_id == strategy_id,
-                StrategyState.key == K_OPERATIONAL_HOLD,
-                func.json_extract(StrategyState.value, "$._rev") == expected_rev,
-            ).values(value=new_value, updated_at=datetime.now(UTC))
+        # `Session.execute` is statically typed as `Result`, but a DML statement yields a
+        # `CursorResult` at runtime — and `rowcount` (the CAS witness) is the point here.
+        res = cast(
+            "CursorResult[Any]",
+            await session.execute(
+                update(StrategyState).where(
+                    StrategyState.strategy_id == strategy_id,
+                    StrategyState.key == K_OPERATIONAL_HOLD,
+                    func.json_extract(StrategyState.value, "$._rev") == expected_rev,
+                ).values(value=new_value, updated_at=datetime.now(UTC))
+            ),
         )
         if res.rowcount != 1:
             raise HoldConflict("concurrent CAS lost")

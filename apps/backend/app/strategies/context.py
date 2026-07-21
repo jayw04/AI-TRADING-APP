@@ -15,11 +15,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 import structlog
 from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -708,14 +709,19 @@ class StrategyContext:
             except IntegrityError:
                 return False
         async with self._session_factory() as session, session.begin():
-            res = await session.execute(
-                update(StrategyState)
-                .where(
-                    StrategyState.strategy_id == self.strategy_id,
-                    StrategyState.key == key,
-                    func.json_extract(StrategyState.value, "$._rev") == expected_rev,
-                )
-                .values(value=new_value, updated_at=datetime.now(UTC))
+            # DML yields a `CursorResult` at runtime though typed as `Result`; `rowcount`
+            # is the CAS witness here.
+            res = cast(
+                "CursorResult[Any]",
+                await session.execute(
+                    update(StrategyState)
+                    .where(
+                        StrategyState.strategy_id == self.strategy_id,
+                        StrategyState.key == key,
+                        func.json_extract(StrategyState.value, "$._rev") == expected_rev,
+                    )
+                    .values(value=new_value, updated_at=datetime.now(UTC))
+                ),
             )
             changed = res.rowcount
         return changed == 1

@@ -57,6 +57,14 @@ def _parse_dt(v, field_name: str) -> datetime | None:
         raise DeploymentStateInvalid(f"bad datetime in {field_name}: {v!r}") from exc
 
 
+def _require_dt(v, field_name: str) -> datetime:
+    """Like ``_parse_dt`` but for a required field — a null/missing value is invalid."""
+    dt = _parse_dt(v, field_name)
+    if dt is None:
+        raise DeploymentStateInvalid(f"missing required datetime: {field_name}")
+    return dt
+
+
 def seed_attempt_to_dict(a: SeedAttempt) -> dict:
     return {
         "attempt_id": a.attempt_id,
@@ -74,7 +82,7 @@ def seed_attempt_from_dict(d: dict) -> SeedAttempt:
     try:
         return SeedAttempt(
             attempt_id=d["attempt_id"],
-            created_at=_parse_dt(d["created_at"], "attempt.created_at"),
+            created_at=_require_dt(d["created_at"], "attempt.created_at"),
             intended_symbols=tuple(d.get("intended_symbols", ())),
             client_order_id_prefix=d["client_order_id_prefix"],
             submitted_order_ids=tuple(d.get("submitted_order_ids", ())),
