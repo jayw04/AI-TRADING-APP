@@ -1,5 +1,14 @@
 # ADR 0043 — Canary Manifest v1.0
 
+> **Governing status:** ADR-0043 **code implementation COMPLETE** (PRs 1–8; main `c8b3ac2`) ·
+> **live operational validation PENDING** · **account 3 NOT RECLAIMABLE**. The reclaim boundary is
+> reached only after a countersigned GREEN live run. Do not collapse the two milestones.
+>
+> **Execution procedure (Phase 0 setup through countersignature):**
+> `docs/runbook/ADR0043_Live_Canary_Runbook.md` **(v1.0)** — this manifest is the frozen *contract*; the
+> runbook is the detailed *procedure* and references this manifest by name. Keep the two in sync by
+> version.
+
 **Purpose:** the paper-account verification required before ADR 0043's loss-control state machine is
 trusted in `ENFORCE` on any book that has a mandate.
 **Status:** Frozen (pre-run). Parameters below are recorded BEFORE the run and are not changed mid-run.
@@ -65,15 +74,58 @@ account's own caps; `BreachUnreachable` is raised rather than lowering a limit).
 
 ---
 
+## 3.5 Mandatory Phase 0 preconditions (establish the lock BEFORE the canary)
+
+The harness is **assertion-only** — it requires the preconditions above and does **not** create the
+lock. Establishing a canary-eligible locked state is a mandatory setup phase, run under the same
+no-tuning discipline. Its full procedure is **Phase 0** of
+`docs/runbook/ADR0043_Live_Canary_Runbook.md` (v1.0).
+
+> **Ordering + continuity (architecture-driven).** The application DB is host-local SQLite, so the
+> fresh box is **provisioned FIRST** and the lock is established **on that same runtime** — the same
+> instance, image, config, database, broker credentials, and baseline continue from baseline capture
+> through Phase 0, the canary, evidence, and countersignature (no reprovision / DB copy / image swap /
+> config change inside that boundary). Sequence: **provision (A0–A4) → Phase 0 (0A–0G) → canary (B–K)**.
+
+For a valid GREEN attempt, Phase 0 must yield `READY_FOR_ADR0043_CANARY`:
+
+1. **Daily-loss origin (not breaker).** The lock must be `REDUCTION_ONLY_DAILY_LOSS` from a `DAILY_LOSS`
+   trip, so the account **owner** (user 3) can self-authorize recovery. A `REDUCTION_ONLY_BREAKER` origin
+   would need operator authority — **do not** add user 3 to `WORKBENCH_RISK_OPERATOR_USER_IDS` to help it
+   pass (that changes the authority configuration under test); a breaker-origin trip is an **unsuitable
+   setup**, preserved as evidence, not rewritten.
+2. **Authoritative, current-session, immutable baseline** captured by the production mechanism **before**
+   loss generation — never inserted or repaired after the breach.
+3. **Reconciled account** — broker vs DB positions/orders/reservations clean; `F`/`MSFT` legs present; no
+   stale reservation or pending recovery workflow.
+4. **Frozen limits + provenance** — `limits_before_sha256 == limits_after_sha256` through
+   countersignature; an unreachable breach is unreachable, never solved by lowering controls.
+5. **Loss generated only through** `OrderRouter → RiskEngine → broker adapter` — no console/API trades,
+   no DB edits; capacity reserved for A2/A3 + the recovery path.
+6. **Read-only twelve-check readiness** recorded (dependency-aware; `recovery_origin_proven` and the
+   transition portion of `control_state_consistent` remain **pending until A4** — a readiness inspection
+   must never call the real recovery transition, which would consume the A4 idempotency identity).
+
+A **Phase 0 failure is a setup-readiness failure, not a canary failure** — preserved and explained, never
+worked around.
+
+---
+
 ## 4. Running it (on the box, never the laptop)
 
 ```
 ssh workbench
 sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   exec -e WORKBENCH_LOSS_CONTROL_MODE=ENFORCE \
-       -e ADR0043_COMMIT_SHA=$(git rev-parse HEAD) backend \
+       -e ADR0043_COMMIT_SHA=$(git rev-parse HEAD) \
+       -e ADR0043_IMAGE_DIGEST="$BACKEND_IMAGE_DIGEST" backend \
   python -m scripts.adr0043_canary_run
 ```
+
+`ADR0043_COMMIT_SHA` / `ADR0043_IMAGE_DIGEST` / `ADR0043_DEPLOYED_AT` are read into the evidence
+document (`commit_sha` / `image_digest` / `deployed_at`) and are therefore covered by the harness
+SHA-256 — provenance is cryptographically bound to the run, not merely stored beside it. External
+capture of the immutable image id / ECR digest remains mandatory regardless.
 
 - **Single-instance** (lock file) — two concurrent harnesses are the 2026-07-14 double-reservation
   condition; the second is refused.
