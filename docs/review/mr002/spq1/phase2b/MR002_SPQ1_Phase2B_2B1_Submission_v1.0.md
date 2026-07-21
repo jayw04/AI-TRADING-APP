@@ -1,6 +1,18 @@
 # MR-002 Workstream C — SPQ-1 Phase 2B — Increment 2B-1
 
-## Dry-Run & Limited-Shard Qualification (resubmitted; fourth correction round)
+## Dry-Run & Limited-Shard Qualification (resubmitted; fifth correction round)
+
+### Fifth-round correction (stable logical snapshot identity)
+
+- Governed ledger entries for the materialized development snapshot now bind a **stable logical
+  identity** — `MR002_SPQ1_PHASE2B_DEVELOPMENT_SNAPSHOT` — plus the snapshot content SHA-256, instead of
+  the ephemeral workstation temp path (e.g. `.../mr002_2b1_<random>.duckdb`). The physical file is opened
+  outside the guard and never appears in governed evidence. Each snapshot completed-read binds: logical
+  object identity, content SHA-256, registered partition, query identity, result-set SHA-256. Test:
+  running with two different temporary output filenames yields **byte-identical** opened-object ledger
+  entries (and no `Temp`/`AppData`/`.duckdb` string in any object identity). Nothing else changed.
+
+
 
 ### Fourth-round correction (ledger row-count semantics)
 

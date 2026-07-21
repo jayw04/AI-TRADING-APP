@@ -211,6 +211,29 @@ def test_price_ledger_binds_every_consumed_field(tmp_path):
     _ = (dev_calendar_sha256, PartitionGuard)  # keep imports meaningful
 
 
+def test_ledger_uses_stable_logical_snapshot_identity_portable(tmp_path):
+    ctx1, con1, src1, led1 = _ctx(tmp_path / "mr002_2b1_11111111.duckdb")
+    con1.close()
+    src1.close()
+    ctx2, con2, src2, led2 = _ctx(tmp_path / "totally_different_99999999.duckdb")
+    con2.close()
+    src2.close()
+    # no ephemeral/workstation temp path or random snapshot filename in governed ledger identities
+    # (the repo-relative registered source DB paths are legitimate, stable object identities)
+    for e in led1.entries:
+        oid = str(e["object_identity"])
+        assert "Temp" not in oid and "AppData" not in oid and "mr002_2b1_" not in oid
+        assert oid in ("MR002_SPQ1_PHASE2B_DEVELOPMENT_SNAPSHOT",
+                       "apps/backend/data/mr002_research.duckdb",
+                       "apps/backend/data/mr002_provenance.duckdb")
+    # snapshot reads bind the STABLE logical identity + content sha
+    snap = [e for e in led1.entries if str(e["query_identity"]).startswith("snapshot:")]
+    assert snap and all(e["object_identity"] == "MR002_SPQ1_PHASE2B_DEVELOPMENT_SNAPSHOT" for e in snap)
+    assert all(re.fullmatch(r"[0-9a-f]{64}", str(e["object_sha256"])) for e in snap)
+    # byte-identical ledger across two different physical temp filenames
+    assert canonical_sha256(led1.entries) == canonical_sha256(led2.entries)
+
+
 def test_no_orderpath_or_performance_imports():
     pkg = REPO / "apps" / "backend" / "app" / "research" / "mr002" / "spq1" / "phase2b"
     forbidden = re.compile(

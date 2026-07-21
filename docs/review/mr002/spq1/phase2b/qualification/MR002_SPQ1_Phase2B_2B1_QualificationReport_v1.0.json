@@ -20,12 +20,12 @@
   "validation_oos_reads": 0
  },
  "artifact_sha256": {
-  "InputIdentityManifest": "7394adf3f1ee3cb6cfc0dfa108d121904d79c14e693d115c73dfcf8acb76e896",
-  "OpenedObjectLedger": "5a8898e422895d6a691a26488e533b9a4b288821dc46b908e41af07e133cf95c",
+  "InputIdentityManifest": "629ca926c57c7f37a4786ecfb1f86f0cf4ec90419f80a485544afb513551d27d",
+  "OpenedObjectLedger": "dd0f54c84228d9c36f6fa7bb96589bd0551b2848ef4ac116198a90a780e21a78",
   "PITLeakageAudit": "a009d77ae1849c2858bd023e272152dd71add3add3940d2285cb618a396fa035",
   "RefusalCensus": "feb6439b937128e2a1d4f1f063b08a911f3b8c736f8fe1e5cd00987e00f80071",
   "RestartReport": "d4bbe08c86a3ad638809e6472fb9a5302e3d6092404d67d40236f13a2f429a11",
-  "RunManifest": "23b6b2039aadc968e84336dbfe5a5cc1d7ad23a0bb6498387d7b78ce854406f6",
+  "RunManifest": "e3ea4e0de95b1855b200ffa81f7684cf7090c278fc07a79aad7aed89e4a3083d",
   "SecurityCensus": "4ab7831fd5d76009a2a449735507499e0ea5f632450bba0535779e6483d741df",
   "SessionCensus": "927530616b7b49b500eef3fbc47b66fc75d7022345b5f152ead150e307103b62",
   "ShardInvarianceReport": "5a733d4106617c6e5b3d95926af853e53ba6d5abd445f479bbb244dfb0f3bfab",
@@ -36,6 +36,6 @@
  "gate_all_pass": true,
  "record_type": "MR002_SPQ1_Phase2B_2B1_QualificationReport",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
- "run_spec_sha256": "b9d406d25318a42762b152e9bb2d78c2658ffe049a7eb60d06a212f9d0544de5",
+ "run_spec_sha256": "747875e313d11c96e8b203b86db32b5c8032b4857e13f8fa5f2d237d829a758e",
  "version": "1.0"
 }

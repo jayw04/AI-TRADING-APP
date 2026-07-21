@@ -53,6 +53,9 @@ def verify_code_identity(expected: dict[str, str]) -> None:
         raise RuntimeError(f"phase2b orchestration code identity mismatch: {actual} != {expected}")
 
 REGISTERED = frozenset([REGISTERED_RESEARCH_DB, REGISTERED_PROVENANCE_DB])
+# Stable LOGICAL identity for the materialized dev snapshot — bound in governed ledger evidence
+# instead of the ephemeral temp path (the physical file is opened outside the guard).
+DEV_SNAPSHOT_LOGICAL_ID = "MR002_SPQ1_PHASE2B_DEVELOPMENT_SNAPSHOT"
 ETF_TICKERS = ["SPY", "XLB", "XLC", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY"]
 _OBS_IDS: dict[str, str] = {
     "registered_exchange_calendar": "", "spy_total_return_series": "dev-spy",
@@ -369,12 +372,13 @@ def reconcile(units: list[UnitResult]) -> dict:
 def materialize_run_input(out_path: str, tickers: list[str], ciks: list[int],
                           ledger: OpenedObjectLedger):  # noqa: ANN001, ANN201
     import duckdb
-    # the dev snapshot is a registered dev-only object; its reads are guarded + ledgered too.
-    guard = PartitionGuard(REGISTERED | frozenset({out_path}), ledger)
+    # The dev snapshot is a registered dev-only object; its reads are guarded + ledgered under a STABLE
+    # LOGICAL identity (not the ephemeral temp path), so the evidence is portable + byte-identical.
+    guard = PartitionGuard(REGISTERED | frozenset({DEV_SNAPSHOT_LOGICAL_ID}), ledger)
     snap = DS.materialize(duckdb, out_path, tickers, ETF_TICKERS, ciks, guard, "orchestrator")
-    con = duckdb.connect(out_path, read_only=True)
+    con = duckdb.connect(out_path, read_only=True)   # physical open — NOT in governed evidence
     src = duckdb.connect(_abs(REGISTERED_RESEARCH_DB), read_only=True)  # sic_mapping/sic_obs source
-    return con, guard, src, out_path, snap.content_sha256
+    return con, guard, src, DEV_SNAPSHOT_LOGICAL_ID, snap.content_sha256
 
 
 def _abs(rel: str) -> str:
