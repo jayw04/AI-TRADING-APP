@@ -191,3 +191,20 @@ def test_unknown_dwell_class_maps_to_strictest_repair_gate():
 
 def test_daily_loss_no_same_session_rearm():
     assert daily_loss_permits_same_session_rearm() is False
+
+
+# --------------------------------------------------------------- velocity input hardening (§D6)
+
+
+def test_velocity_fail_closed_on_invalid_inputs():
+    mins = C.VELOCITY_HEALTHY_MIN_SECONDS
+    assert velocity_is_healthy(D("0"), D("0"), mins) is False        # zero trip limit
+    assert velocity_is_healthy(D("0"), D("-1000"), mins) is False    # negative trip limit
+    assert velocity_is_healthy(D("-1"), D("1000"), mins) is False    # negative current velocity
+    assert velocity_is_healthy(D("100"), D("1000"), -1) is False     # negative sustained seconds
+
+
+def test_velocity_exact_threshold_and_exact_sustained_are_healthy():
+    # Boundaries are inclusive: exactly 50% of the limit and exactly the minimum sustained interval.
+    assert velocity_is_healthy(D("500"), D("1000"), C.VELOCITY_HEALTHY_MIN_SECONDS) is True
+    assert velocity_is_healthy(D("500.01"), D("1000"), C.VELOCITY_HEALTHY_MIN_SECONDS) is False

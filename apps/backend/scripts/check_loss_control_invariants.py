@@ -44,6 +44,7 @@ ENGINE = "app/risk/engine.py"
 GATE = "app/risk/loss_control/gate.py"
 RECOVERY = "app/risk/loss_control/recovery.py"
 STATE_MACHINE = "app/risk/loss_control/state_machine.py"
+COOLDOWN = "app/risk/loss_control/cooldown.py"
 LOSS_CONTROL_PKG = "app/risk/loss_control/"
 STATE_MODELS = "app/db/models/risk_loss_control_state.py"
 EVENT_MODELS = "app/db/models/risk_control_event.py"
@@ -79,10 +80,11 @@ FORBIDDEN_ENGINE_TRIGGER_STRINGS = {
     "HEALTH_REGRESSED", "REARM",
 }
 
-# §6 — SANCTIONED trigger placement (PR6). The recovery triggers are now legitimate, but only in the
-# recovery coordinator, the transition service, and the state-machine definition — not scattered
-# across the app (the engine, API handlers, jobs). The re-arm triggers stay confined to the
-# state-machine definition until PR7 wires them.
+# §6 — SANCTIONED trigger placement. The recovery triggers are legitimate, but only in the recovery
+# coordinator, the transition service, and the state-machine definition — not scattered across the
+# app (the engine, API handlers, unrelated jobs). The re-arm triggers (PR7) are sanctioned in the
+# state-machine definition AND the dedicated cooldown evaluator, which is the ONLY job allowed to map
+# an §D1.4 verdict onto a transition — still forbidden in the engine, routers, and any other job.
 RECOVERY_TRIGGER_NAMES = {"TRIGGER_RECOVERY_REQUEST", "TRIGGER_PREFLIGHT_PASS", "TRIGGER_PREFLIGHT_FAIL"}
 REARM_TRIGGER_NAMES = {"TRIGGER_COOLDOWN_COMPLETE", "TRIGGER_HEALTH_REGRESSED"}
 
@@ -92,7 +94,7 @@ def _recovery_trigger_allowed(rel: str) -> bool:
 
 
 def _rearm_trigger_allowed(rel: str) -> bool:
-    return rel == STATE_MACHINE
+    return rel in (STATE_MACHINE, COOLDOWN)
 
 
 @dataclass(frozen=True)

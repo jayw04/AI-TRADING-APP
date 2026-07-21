@@ -115,16 +115,25 @@ def test_recovery_trigger_forbidden_in_engine_and_api():
                                 "app/api/v1/risk.py", src)) == {"sanctioned-trigger-placement"}
 
 
-def test_rearm_trigger_forbidden_outside_state_machine():
-    src = "from app.risk.loss_control.state_machine import TRIGGER_COOLDOWN_COMPLETE\n"
-    # Even the recovery coordinator may not touch the re-arm triggers (that is PR7).
-    assert _invariants(_run_one(mod.check_sanctioned_trigger_placement,
-                                "app/risk/loss_control/recovery.py", src)) == {
-        "sanctioned-trigger-placement"
-    }
-    # state_machine.py DEFINES them — allowed.
+def test_rearm_trigger_forbidden_outside_sanctioned_homes():
+    src = ("from app.risk.loss_control.state_machine import TRIGGER_COOLDOWN_COMPLETE\n"
+           "def f(): return TRIGGER_COOLDOWN_COMPLETE\n")
+    # The recovery coordinator, the engine, and API handlers may NOT touch the re-arm triggers.
+    for rel in ("app/risk/loss_control/recovery.py", "app/risk/engine.py", "app/api/v1/risk.py"):
+        assert _invariants(_run_one(mod.check_sanctioned_trigger_placement, rel, src)) == {
+            "sanctioned-trigger-placement"
+        }
+
+
+def test_rearm_trigger_allowed_in_state_machine_and_cooldown_evaluator():
+    # PR7: the state-machine definition DEFINES them, and the dedicated cooldown evaluator is the one
+    # job allowed to map an §D1.4 verdict onto a transition.
+    src = ("from app.risk.loss_control.state_machine import TRIGGER_HEALTH_REGRESSED\n"
+           "def f(): return TRIGGER_HEALTH_REGRESSED\n")
     assert _run_one(mod.check_sanctioned_trigger_placement,
                     "app/risk/loss_control/state_machine.py", src) == []
+    assert _run_one(mod.check_sanctioned_trigger_placement,
+                    "app/risk/loss_control/cooldown.py", src) == []
 
 
 # --------------------------------------------------------------- §3 no duplicate classifier

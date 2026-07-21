@@ -295,7 +295,13 @@ def velocity_recovery_threshold(trip_limit: Decimal) -> Decimal:
 
 def velocity_is_healthy(current: Decimal, trip_limit: Decimal, sustained_seconds: int) -> bool:
     """Loss velocity is 'healthy' only at ≤ the recovery threshold AND sustained long enough — the
-    asymmetric hysteresis that stops a single quiet tick from re-arming the account."""
+    asymmetric hysteresis that stops a single quiet tick from re-arming the account.
+
+    Fail closed on nonsensical inputs: a non-positive trip limit, a negative current velocity, or a
+    negative sustained interval can never be 'healthy' (they would otherwise let a garbage reading
+    re-arm the account)."""
+    if trip_limit <= 0 or current < 0 or sustained_seconds < 0:
+        return False
     return (
         current <= velocity_recovery_threshold(trip_limit)
         and sustained_seconds >= C.VELOCITY_HEALTHY_MIN_SECONDS
