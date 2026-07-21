@@ -34,7 +34,24 @@ from ..refusals import SignalRefusal
 from ..returns import CellStatus, arithmetic_total_returns
 from ..security_identity import PitIdentityRegistry
 from . import DISPOSITION_BY_CLASS, EMITTED
+from .cutoff import et_close_cutoff_iso
 from .sic_sector import SicMapRow, load_sic_map, resolve_sector, sector_etf
+
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_CODE_MODULES = ("__init__.py", "cutoff.py", "sic_sector.py", "orchestrator.py")
+
+
+def code_identity() -> dict[str, str]:
+    """SHA-256 of every Phase-2B execution module (bound in the run manifest; run refuses on drift)."""
+    import hashlib
+    return {m: hashlib.sha256(open(os.path.join(_THIS_DIR, m), "rb").read()).hexdigest()
+            for m in _CODE_MODULES}
+
+
+def verify_code_identity(expected: dict[str, str]) -> None:
+    actual = code_identity()
+    if actual != expected:
+        raise RuntimeError(f"phase2b orchestration code identity mismatch: {actual} != {expected}")
 
 REGISTERED = frozenset([REGISTERED_RESEARCH_DB, REGISTERED_PROVENANCE_DB])
 ETF_TICKERS = ["SPY", "XLB", "XLC", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY"]
@@ -134,7 +151,12 @@ def build_context(snapshot_con, guard, tickers, ciks, sic_map_con):  # noqa: ANN
             series = load_price_series(snapshot_con, tk, cal)
         except SignalRefusal:
             continue
-        permsec = lineage.resolve_permanent_id(tk, len(cal) - 1)
+        try:
+            permsec = lineage.resolve_permanent_id(tk, len(cal) - 1)
+        except SignalRefusal as exc:
+            # ambiguous lineage is a governed per-unit integrity stop, not a run-abort.
+            securities[f"AMBIGUOUS:{tk}"] = {"symbol": tk, "identity_refusal": exc.code}
+            continue
         close = series["closeadj"]
         present = np.isfinite(close)
         if not present.any():
@@ -175,7 +197,11 @@ def _registry(cal):  # noqa: ANN001
 
 def run_unit(ctx: RunContext, permsec: str, t: int) -> UnitResult:
     sec = ctx.securities[permsec]
-    close_t_iso = ctx.calendar.sessions[t] + "T21:00:00Z"
+    if "identity_refusal" in sec:
+        code = str(sec["identity_refusal"])
+        return UnitResult(permsec, sec["symbol"], t, DISPOSITION_BY_CLASS[code.split(":")[0]],
+                          code, None, None)
+    close_t_iso = et_close_cutoff_iso(ctx.calendar.sessions[t])
     try:
         sector = resolve_sector(ctx.sic_map, sec["sic_obs"], close_t_iso)
         if sector.sector_id not in ctx.sector_ret:

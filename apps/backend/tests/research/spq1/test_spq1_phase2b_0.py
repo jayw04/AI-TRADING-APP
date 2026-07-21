@@ -82,7 +82,7 @@ def test_2b0_ledger_records_guarded_completed_reads():
     _load_gen().run()
     led = json.loads(_artifact(
         "evidence", "MR002_SPQ1_Phase2B_2B0_OpenedObjectLedger_v1.0.json").read_text(encoding="utf-8"))
-    assert led["count"] == 2 and led["all_completed"]
+    assert led["count"] == 3 and led["all_completed"]   # universe + sic_mapping + sic_observations
     assert led["no_actual_key_beyond_dev_end"] and led["validation_or_oos_objects_opened"] == 0
     for e in led["entries"]:
         assert e["status"] == "COMPLETED" and e["result_row_count"] > 0

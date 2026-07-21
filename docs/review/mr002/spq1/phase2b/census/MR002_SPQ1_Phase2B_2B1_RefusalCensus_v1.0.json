@@ -8,9 +8,9 @@
    "last_session": 835
   },
   "INELIGIBLE:OLS_WINDOW_INSUFFICIENT": {
-   "affected_securities": 5,
+   "affected_securities": 4,
    "classification": "INELIGIBLE",
-   "count": 30,
+   "count": 24,
    "first_session": 40,
    "last_session": 45
   },
@@ -20,6 +20,13 @@
    "count": 18,
    "first_session": 40,
    "last_session": 835
+  },
+  "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS": {
+   "affected_securities": 1,
+   "classification": "INTEGRITY_STOP",
+   "count": 24,
+   "first_session": 40,
+   "last_session": 1699
   }
  },
  "deprecated_emitted": false,

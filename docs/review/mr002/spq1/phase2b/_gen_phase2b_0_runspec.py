@@ -89,14 +89,23 @@ def run() -> dict:
         "universe_month")
     sic_sha, sic_n = _guarded_table(
         guard, con, research_sha, "sic_mapping", "1=1", {}, "effective_from")
+    # Amendment: research.sic_observations is the registered PIT-sector observation source (covers
+    # 534/535 dev-universe ciks; the Phase-2A provenance copy covers only 13). Guarded + ledgered.
+    sic_obs_sha, sic_obs_n = _guarded_table(
+        guard, con, research_sha, "sic_observations",
+        "cast(accepted_utc as date) <= $b", {"b": DEV_END}, "accepted_utc")
     con.close()
 
     core = os.path.join(ROOT, "apps", "backend", "app", "research", "mr002", "spq1")
     adp = os.path.join(core, "adapters")
+    p2b = os.path.join(core, "phase2b")
     producer_hashes = {f: sha256_file(os.path.join(core, f))
                        for f in sorted(x for x in os.listdir(core) if x.endswith(".py"))}
     adapter_hashes = {f: sha256_file(os.path.join(adp, f))
                       for f in sorted(x for x in os.listdir(adp) if x.endswith(".py"))}
+    phase2b_hashes = {f: sha256_file(os.path.join(p2b, f))
+                      for f in sorted(x for x in os.listdir(p2b) if x.endswith(".py"))}
+    phase2b_orchestration_code_identity = canonical_sha256(phase2b_hashes)
 
     sha_ids = {
         "phase0_census_sha256": "87602e7c5e5c719a44d83d6a556690116958c58e1e0d97b687531da824f9008e",
@@ -109,6 +118,8 @@ def run() -> dict:
         "governed_session_list_reference_sha256": GOVERNED_SESSION_LIST_SHA256,
         "research_db_sha256": research_sha, "provenance_db_sha256": prov_sha,
         "sic_mapping_content_sha256": sic_sha, "universe_content_sha256": uni_sha,
+        "pit_sector_observation_source_sha256": sic_obs_sha,
+        "phase2b_orchestration_code_identity": phase2b_orchestration_code_identity,
     }
     commit_ids = {
         "phase0_closeout": "023b75e837a6ca5992da4bf483dd122d35759e59",
@@ -160,6 +171,20 @@ def run() -> dict:
         "missing_sic_range": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING (never defaulted)",
         "sector_to_etf": "the sector_etf column (11 SPDR select-sector ETFs); one ETF per sector",
     }
+    pit_sector_obs_rule = {
+        "source": "research.sic_observations (the registered PIT-sector observation source)",
+        "registered_database_sha256": research_sha,
+        "content_sha256": sic_obs_sha, "rows": sic_obs_n,
+        "authorized_columns": ["cik", "accepted_utc", "sic", "accession (provenance/source identity)"],
+        "development_upper_bound": "accepted_utc <= DEV_END close (cast to date <= 2019-10-02)",
+        "pre_window_policy": "earlier accepted observations allowed as PIT state seeds (allow_pre_window)",
+        "uniqueness_key": "(cik, accepted_utc, accession); PIT selection = latest accepted_utc <= close t",
+        "same_acceptance_time_conflict": "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT",
+        "coverage": "534 of 535 development-universe ciks",
+        "missing_covered_cik": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING",
+        "amends": "the 2B-0 ratified contract's provenance sic_observations source (only 13 ciks); "
+                  "guarded + ledgered identically to every other real-data input.",
+    }
 
     input_identity_manifest = {
         "record_type": "MR002_SPQ1_Phase2B_InputIdentityManifest", "version": "1.0", "run_id": RUN_ID,
@@ -169,8 +194,13 @@ def run() -> dict:
             "sic_mapping_table": {"content_sha256": sic_sha, "rows": sic_n, "role": "SIC-range -> sector -> ETF"},
             "development_universe": {"content_sha256": uni_sha, "rows": uni_n, "months": 82,
                                     "authorized_row_set": universe_rule["authorized_row_set"]},
+            "pit_sector_observation_source": {"table": "research.sic_observations",
+                                             "content_sha256": sic_obs_sha, "rows": sic_obs_n,
+                                             "rule": pit_sector_obs_rule},
         },
         "code_identities": {"producer_modules": producer_hashes, "adapter_modules": adapter_hashes,
+                            "phase2b_execution_modules": phase2b_hashes,
+                            "phase2b_orchestration_code_identity": phase2b_orchestration_code_identity,
                             "adapter_code_version": ADAPTER_CODE_VERSION},
         "bound_prior_identities": {**sha_ids, **commit_ids},
         "opened_object_ledger_ref": "MR002_SPQ1_Phase2B_2B0_OpenedObjectLedger_v1.0.json",
@@ -186,9 +216,14 @@ def run() -> dict:
                           "excluded": "ETF/ETN/CEF/preferred/rights/warrants/units/SPAC-units/OTC/foreign-ordinary/duplicate"},
         "factor_identities": {"market": "SPY total-return (etf_prices)", "sectors": "11 SPDR select-sector ETFs",
                              "sic_to_sector_etf_mapping": sic_sha, "sic_mapping_selection_rule": sic_rule},
-        "pit_source_identities": {"sector": "sic_observations.accepted_utc + sic_mapping",
+        "pit_source_identities": {"sector": "research.sic_observations.accepted_utc + sic_mapping",
+                                 "sector_observation_rule": pit_sector_obs_rule,
                                  "earnings": "earnings_anchors.acceptance_utc (BMO/AMC, amendments)",
                                  "corporate_actions": "actions.date", "adv": "closeunadj x volume"},
+        "decision_cutoff": "registered ET regular-session close: 16:00 America/New_York -> UTC via "
+                          "zoneinfo (21:00Z standard / 20:00Z daylight); no fabricated fixed UTC",
+        "phase2b_orchestration_code_identity": phase2b_orchestration_code_identity,
+        "phase2b_execution_modules": phase2b_hashes,
         "partition_guard_identity": adapter_hashes["partition_guard.py"],
         "output": {"root": "docs/review/mr002/spq1/phase2b/",
                   "subdirs": ["run_spec", "manifests", "evidence", "census", "qualification"],
@@ -226,6 +261,13 @@ def run() -> dict:
             "note": "FROZEN; no Phase-2B work may alter these mechanics."},
         "universe_selection_rule": universe_rule,
         "sic_mapping_selection_rule": sic_rule,
+        "pit_sector_observation_source_rule": pit_sector_obs_rule,
+        "decision_cutoff_rule": "registered ET regular-session close 16:00 America/New_York -> UTC via "
+            "zoneinfo (21:00Z standard / 20:00Z daylight per historical session date); NOT a fabricated "
+            "fixed 21:00Z (which would leak 4-5pm ET evidence in summer).",
+        "phase2b_orchestration_code_identity": phase2b_orchestration_code_identity,
+        "amendment": "2B-0 amendment (post-2B-1 adjudication): PIT-sector source = research.sic_observations; "
+            "decision cutoff = ET-close via zoneinfo; Phase-2B execution-code identity bound. Run ID unchanged.",
         "bound_identities": {**sha_ids, **commit_ids,
                             "development_run_manifest": None, "input_identity_manifest": None,
                             "opened_object_ledger": None},

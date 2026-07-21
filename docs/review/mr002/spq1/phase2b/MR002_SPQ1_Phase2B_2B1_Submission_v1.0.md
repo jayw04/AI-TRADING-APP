@@ -1,8 +1,31 @@
 # MR-002 Workstream C — SPQ-1 Phase 2B — Increment 2B-1
 
-## Dry-Run & Limited-Shard Qualification (submitted; STOPS before the full run)
+## Dry-Run & Limited-Shard Qualification (resubmitted after four corrections)
 
-**Status: 2B-1 limited-shard qualification submitted.** The accepted producer runs over a
+### Adjudication corrections applied
+
+1. **PIT-sector source amendment (2B-0).** A controlled 2B-0 amendment now freezes the registered PIT
+   sector source as **`research.sic_observations`** (DB `24e5153c…`; columns cik/accepted_utc/sic/
+   accession; upper bound `accepted_utc ≤ DEV_END`; pre-window seeds allowed; uniqueness
+   `(cik, accepted_utc, accession)`; same-acceptance conflict → `SECTOR_EFFECTIVE_DATE_CONFLICT`;
+   coverage 534/535; missing covered cik → `SECTOR_PIT_IDENTITY_MISSING`), guarded + ledgered like every
+   input. RunSpecification / DevelopmentRunManifest / InputIdentityManifest regenerated; **run-spec hash
+   `10ffaf3a` → `96a3ee48`** (Run ID unchanged, no full run occurred).
+2. **Decision cutoff = registered ET close via `zoneinfo`.** Replaces the fabricated fixed `21:00Z`
+   with 16:00 America/New_York → UTC (**21:00Z standard / 20:00Z daylight** per historical date),
+   closing the DST leakage channel (summer 4–5pm ET evidence). Tests cover winter/summer/DST-transition
+   and the 20:30Z-summer boundary.
+3. **Structural shard coverage expanded** (frozen before signal inspection): now demonstrates
+   **real** `INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS` (FLT dual-cik lineage), **real**
+   `INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING` (EVI, cik absent from sic_observations), ticker-change
+   (FLT chain), IPO/warm-up (TWLO), and earnings-cutoff (AAPL), plus **synthetic supplementary**
+   sentinels for `OLS_WINDOW_INCOMPLETE` and `SIGNAL_INPUT_IDENTITY_MISMATCH`. Classes with **0 real dev
+   instances** (halt/absence, same-timestamp sector conflict) disclose the searched population + rule.
+4. **Phase-2B execution-code identity bound.** The amended 2B-0 manifests bind
+   `phase2b_orchestration_code_identity` (SHA-256 of `__init__/cutoff/sic_sector/orchestrator`); the run
+   verifies its own module hashes and refuses on drift. Closed Phase-1 identities are untouched.
+
+**Status: resubmitted.** The accepted producer runs over a
 mechanically-frozen shard set of real development units, proving the terminal-disposition contract,
 determinism, shard/restart/merge invariance, PIT sentinels, and isolation. It **stops before the full
 ~1.3M-unit 2B-2 run**. Uses the ratified run identity (`MR002-SPQ1-P2B-DEV-V1`, run-spec

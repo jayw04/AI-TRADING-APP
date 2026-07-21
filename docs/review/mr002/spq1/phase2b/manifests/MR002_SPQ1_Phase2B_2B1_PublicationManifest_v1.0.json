@@ -1,19 +1,19 @@
 {
  "artifact_sha256": {
-  "InputIdentityManifest": "50800642231bd7a7db830dd32125063686d0185d647d8997134a5824045d871c",
-  "OpenedObjectLedger": "f6484142fd41984c52f7a69c47ab687f25248f1b89fb76a5e94288c22a48e69c",
-  "PITLeakageAudit": "42c12265d9de49593490eb1daae0220bf8cdf99a4e2d17ab6bb71391899b83c1",
-  "QualificationReport": "e4c15e153e149a6b02719f36827ec2fac7a271f990e9ae29f979827e31e6e150",
-  "RefusalCensus": "16a61da5238465d99b3e5ab8c2e2042d24e5c225b3a9bf3b58205afdac3f517b",
+  "InputIdentityManifest": "42fead7eea08a7b19fc724cec10486e20c22f8aa368ce2bbbc153d130c25b320",
+  "OpenedObjectLedger": "aa08281b3e43fa63bd310142df5b6729301c26be0d6cec62d81ce5d587350b9e",
+  "PITLeakageAudit": "fbd2e2b8fb3646026708228685da87db5784e0c08c87dedfc5516ac27b5f3f2e",
+  "QualificationReport": "2436a30c7ea68f6f7cf81fcea62acb631d33e64f27bc21b9268f271125e3f511",
+  "RefusalCensus": "ac79910d1df8958b5d93a0094179c77cfa4255ec3ce294a000b7f578691a5aeb",
   "RestartReport": "d4bbe08c86a3ad638809e6472fb9a5302e3d6092404d67d40236f13a2f429a11",
-  "RunManifest": "218e10de4074ce328c143d0a091a537d7cd79136ec2192b3ee5c45e05575d6e3",
-  "SecurityCensus": "1b73b2d52466a425843db1a9d9e71fdf15f5d937fb968d395a88afd15226ab8f",
-  "SessionCensus": "b28d1e609e4a72120a91f93a90715f77a925f3a850888729721421881ce38411",
-  "ShardInvarianceReport": "39cb493ee551821bfb66873033a58b5c102e7b56af15851423227aa125133cce",
-  "ShardSelection": "c1c1f7336449d1bbca7b24cce19fd08c043e943d8fcfbc8970c531bbec900483",
-  "UnitReconciliation": "35ff535ff9a9a9727278bb7a83d0faba001e177260a997d9da2f7473f5b7e3d4"
+  "RunManifest": "5fd36fea0ca5b1ce4809e794e2be1b2446ebd160b7233e7bdb07bb2e962f81b2",
+  "SecurityCensus": "fe84824c8ffe98747114960deb97ae52cc0aed315c45c32611feeb2a762549b4",
+  "SessionCensus": "b31b7a56c7503e7f943f799ad9bd7ea2df3a2de8ce2062fa992ad36320e4f862",
+  "ShardInvarianceReport": "6a68ca80b382ed3f19a1923c9a35cb4791aa1c02ec809506a758a030755f6eb3",
+  "ShardSelection": "110f4a85d73c1b66b20221be3bbd673cd7669e687d421121fe50e00f972e83fd",
+  "UnitReconciliation": "af1a1edf3f7b1ff4b45a6fac3410955c87ce0c42de233e5b3344321d38e029bf"
  },
- "canonical_merge_sha256": "7d15e149e9805042b724a7edec69f353e447d8abc675a18317bd2d4e35e087a9",
+ "canonical_merge_sha256": "5c03225105bb89605a6ef9981b8f828bdf17eac2b77a433b5ede953de515d94a",
  "record_type": "MR002_SPQ1_Phase2B_2B1_PublicationManifest",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
  "version": "1.0"

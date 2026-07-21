@@ -1,19 +1,35 @@
 {
- "note": "universe count is a constant top-250/month; high==low==250 (recorded, not a selector). No natural halt/absence or same-timestamp-sector-conflict instance in this slice.",
+ "governed_case_coverage": {
+  "earnings_cutoff": "AAPL earnings availability vs registered ET close (real)",
+  "emitted_valid_path": "AAPL/MSFT/BAC/XOM at late/middle sessions (real)",
+  "identity_refusal": "synthetic sentinel: injected missing SPY factor obs -> SIGNAL_INPUT_IDENTITY_MISMATCH (searched: SPY is complete over dev -> 0 natural factor-missing)",
+  "integrity_stop": "synthetic sentinel: injected unexplained interior hole -> OLS_WINDOW_INCOMPLETE (searched real dev slice: 0 natural interior holes among the selected securities)",
+  "ipo_warm_up_boundary": "TWLO (first price 2016-06) (real)",
+  "known_halt_absence": "SEARCHED: no governed halt/absence marker in the dev slice -> 0 real cases; not fabricated (Sharadar SEP has no halt evidence field)",
+  "missing_pit_sector": "EVI (cik 1170565 absent from research.sic_observations) -> INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING (real)",
+  "same_timestamp_sector_conflict": "SEARCHED: sic_conflicts table empty over dev -> 0 real cases; conflict path qualified by the closed resolver + a synthetic construction only",
+  "ticker_change_continuity": "FLT (permaticker 105193 rename chain RELS->..->FLT) (real)",
+  "warm_up_insufficient": "all securities at early/IPO sessions -> INELIGIBLE:OLS_WINDOW_INSUFFICIENT (real)"
+ },
+ "note": "universe count is a constant top-250/month; high==low==250 (recorded, not a selector). Cases with 0 real dev instances disclose the searched population + rule; synthetic sentinels are supplementary evidence only, never a substitute for real emitted/ineligible shard evidence.",
  "record_type": "MR002_SPQ1_Phase2B_2B1_ShardSelection",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
  "securities": {
   "AAPL": {
    "cik": 320193,
-   "reason": "ordinary continuously-traded liquid name; PIT sector + earnings coverage"
+   "reason": "ordinary continuously-traded; PIT sector + earnings coverage (earnings-cutoff case)"
   },
   "BAC": {
    "cik": 70858,
    "reason": "financial-sector liquid name (sector diversity)"
   },
-  "INTC": {
-   "cik": 50863,
-   "reason": "ordinary continuously-traded liquid name"
+  "EVI": {
+   "cik": 1170565,
+   "reason": "universe cik absent from research.sic_observations -> INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING"
+  },
+  "FLT": {
+   "cik": 1175454,
+   "reason": "ticker-change lineage (permaticker 105193: RELS->..->FLT); identity-continuity case"
   },
   "MSFT": {
    "cik": 789019,
@@ -21,7 +37,7 @@
   },
   "TWLO": {
    "cik": 1447669,
-   "reason": "IPO within development window (first price 2016-06) -> warm-up case"
+   "reason": "IPO within development window (first price 2016-06) -> exact warm-up boundary"
   },
   "XOM": {
    "cik": 34088,

@@ -1,6 +1,6 @@
 {
  "all_completed": true,
- "count": 2,
+ "count": 3,
  "entries": [
   {
    "actual_max_date": "2019-10-01",
@@ -32,6 +32,22 @@
    "result_row_count": 110,
    "result_set_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
    "seq": 1,
+   "status": "COMPLETED"
+  },
+  {
+   "actual_max_date": "2019-10-01",
+   "actual_min_date": "2010-01-05",
+   "completion_timestamp": "",
+   "declared_range": "2013-01-01..2019-10-02",
+   "object_identity": "apps/backend/data/mr002_research.duckdb",
+   "object_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+   "partition": "DEVELOPMENT",
+   "purpose": "2b0_identity:sic_observations",
+   "query_identity": "sic_observations:cast(accepted_utc as date) <= $b",
+   "reader_implementation_identity": "phase2b0-runspec",
+   "result_row_count": 23550,
+   "result_set_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
+   "seq": 2,
    "status": "COMPLETED"
   }
  ],

@@ -1,12 +1,13 @@
 {
  "dispositions": {
-  "INELIGIBLE": 60,
-  "SIGNAL_DECISION_RECORD_EMITTED": 84
+  "INELIGIBLE": 54,
+  "INTEGRITY_STOP": 24,
+  "SIGNAL_DECISION_RECORD_EMITTED": 66
  },
  "duplicate_candidate_ids": false,
  "duplicate_units": false,
  "emitted_eligibility": {
-  "ELIGIBLE": 84
+  "ELIGIBLE": 66
  },
  "expected_units": 144,
  "missing_outcomes": 0,

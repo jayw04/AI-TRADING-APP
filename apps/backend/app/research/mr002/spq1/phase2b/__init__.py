@@ -9,7 +9,8 @@ is ranked or interpreted.
 from __future__ import annotations
 
 RUN_ID = "MR002-SPQ1-P2B-DEV-V1"
-RUN_SPEC_SHA256 = "10ffaf3a2e085676c9aa61830759915b2bc9efbe5f5aeff6e0bfb47860281585"
+# The run-spec hash lives ONLY in the artifacts (not in hashed code) to avoid a self-referential
+# code-identity loop; the runner reads it from the RunSpecification.
 
 # Terminal dispositions (exactly one per unit).
 EMITTED = "SIGNAL_DECISION_RECORD_EMITTED"

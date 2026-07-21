@@ -11,6 +11,8 @@
   "phase1_valid_path_output_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
   "phase2a_closeout": "673f10bdc84e276d5fc1d5bce39f459c8bc869af",
   "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e7494b9688e74b76e57128a4e59cd809f78d66bf1621d3ae2",
+  "phase2b_orchestration_code_identity": "a0e30cda5400fba0e23ba1b37ff9dc12a325f647b64d15e75edfa6cebd688eba",
+  "pit_sector_observation_source_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
   "provenance_db_sha256": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
   "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
   "sic_mapping_content_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
@@ -32,6 +34,13 @@
    "price_adapter.py": "2fa68c96f1b02a32da64e98c6dd482f0fa66b203be3ce6fef38ab2731a6dca48",
    "sector_proxy_adapter.py": "31cee2b58bdd771a275d999248692f6ea79a5aff49aa933ca0cf978e10ad80aa"
   },
+  "phase2b_execution_modules": {
+   "__init__.py": "0344cdcac1dfe1c66a13ef7c23d90085a3d1b6c71d237c6d1d30d88d3332a12e",
+   "cutoff.py": "5aa9c5fe042e6bef308ffd10876e84466f269e57a5d04754a6052b3e72c2a88f",
+   "orchestrator.py": "1ac836ab2d7285314bc24d035dedf0ebef5f592d31975be7a8aa806c8febcd98",
+   "sic_sector.py": "471e1aaaf5065878d9f323d27245949bdd0e1cc963f38df5cb8f208e7e51cbc1"
+  },
+  "phase2b_orchestration_code_identity": "a0e30cda5400fba0e23ba1b37ff9dc12a325f647b64d15e75edfa6cebd688eba",
   "producer_modules": {
    "__init__.py": "d1f326b44ba6fc6bf9aacb3e3b779a08610ad4ae07a5d13d78e68bcd97c1eb6f",
    "calendar.py": "567044c06672f03cc655ac412b666a3195bcf8f96cf01a9575078ffe91cdc7dc",
@@ -69,6 +78,30 @@
   "mr002_research.duckdb": {
    "role": "prices/etf_prices/actions/crosswalk/universe/sic_mapping",
    "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+  },
+  "pit_sector_observation_source": {
+   "content_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
+   "rows": 23550,
+   "rule": {
+    "amends": "the 2B-0 ratified contract's provenance sic_observations source (only 13 ciks); guarded + ledgered identically to every other real-data input.",
+    "authorized_columns": [
+     "cik",
+     "accepted_utc",
+     "sic",
+     "accession (provenance/source identity)"
+    ],
+    "content_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
+    "coverage": "534 of 535 development-universe ciks",
+    "development_upper_bound": "accepted_utc <= DEV_END close (cast to date <= 2019-10-02)",
+    "missing_covered_cik": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING",
+    "pre_window_policy": "earlier accepted observations allowed as PIT state seeds (allow_pre_window)",
+    "registered_database_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+    "rows": 23550,
+    "same_acceptance_time_conflict": "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT",
+    "source": "research.sic_observations (the registered PIT-sector observation source)",
+    "uniqueness_key": "(cik, accepted_utc, accession); PIT selection = latest accepted_utc <= close t"
+   },
+   "table": "research.sic_observations"
   },
   "sic_mapping_table": {
    "content_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",

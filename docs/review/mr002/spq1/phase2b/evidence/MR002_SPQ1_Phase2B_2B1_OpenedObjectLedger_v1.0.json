@@ -13,8 +13,8 @@
    "purpose": "materialize:prices",
    "query_identity": "prices:ticker = ANY($t) and \"date\" between $a and $b",
    "reader_implementation_identity": "orchestrator",
-   "result_row_count": 9325,
-   "result_set_sha256": "26fa357fa020859da94ec6815c69bb2c33c080cf799a80986f5599a0f972804c",
+   "result_row_count": 7625,
+   "result_set_sha256": "e7b93b72590c7a98ca8baa786e21eb0cabeb5a901a142dd85a70e5ea053b0679",
    "seq": 0,
    "status": "COMPLETED"
   },
@@ -36,7 +36,7 @@
   },
   {
    "actual_max_date": "2019-09-06",
-   "actual_min_date": "2013-02-05",
+   "actual_min_date": "2013-02-07",
    "completion_timestamp": "",
    "declared_range": "2013-01-02..2019-10-02",
    "object_identity": "apps/backend/data/mr002_research.duckdb",
@@ -45,13 +45,13 @@
    "purpose": "materialize:actions",
    "query_identity": "actions:ticker = ANY($t) and \"date\" between $a and $b",
    "reader_implementation_identity": "orchestrator",
-   "result_row_count": 149,
-   "result_set_sha256": "e779327a3d9f711a77efab9bcedcf70ff2af542327a501cf6b63c1cc30e2003f",
+   "result_row_count": 120,
+   "result_set_sha256": "1d0f2fbb6a0eb651b46d51421b1b82093b39627e5f6417201b356ad44cc3b0dc",
    "seq": 2,
    "status": "COMPLETED"
   },
   {
-   "actual_max_date": "2016-06-23",
+   "actual_max_date": "2019-08-05",
    "actual_min_date": "1986-01-01",
    "completion_timestamp": "",
    "declared_range": "0001-01-01..2019-10-02",
@@ -61,8 +61,8 @@
    "purpose": "materialize:crosswalk",
    "query_identity": "crosswalk:cik = ANY($c) and effective_from <= $b",
    "reader_implementation_identity": "orchestrator",
-   "result_row_count": 8,
-   "result_set_sha256": "df9533a6ea342e89e4721b6554b6aebeb8b579cf8a06d59becf72ea14c803e4c",
+   "result_row_count": 18,
+   "result_set_sha256": "b85cbf220667642694c58c0c244909f23d7fa4ddcd5236b2ad10b1561cdb8415",
    "seq": 3,
    "status": "COMPLETED"
   },
@@ -115,7 +115,7 @@
    "status": "COMPLETED"
   },
   {
-   "actual_max_date": "2019-08-07",
+   "actual_max_date": "2019-08-09",
    "actual_min_date": null,
    "completion_timestamp": "",
    "declared_range": "0001-01-01..2019-10-02",
@@ -125,8 +125,8 @@
    "purpose": "sic_observations",
    "query_identity": "sic_observations",
    "reader_implementation_identity": "orchestrator",
-   "result_row_count": 211,
-   "result_set_sha256": "3b404437b7b22eb4a85daaed8e93203f488b698d7e14f0f2b04c8910b8cb7e4c",
+   "result_row_count": 207,
+   "result_set_sha256": "9ea5f3e139c030c6391ddb0a5f991f941a57cc1672e22f0b47d5a891c1d1c3a8",
    "seq": 7,
    "status": "COMPLETED"
   }

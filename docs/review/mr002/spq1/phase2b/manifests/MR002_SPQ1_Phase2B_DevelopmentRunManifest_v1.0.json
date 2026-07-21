@@ -1,4 +1,5 @@
 {
+ "decision_cutoff": "registered ET regular-session close: 16:00 America/New_York -> UTC via zoneinfo (21:00Z standard / 20:00Z daylight); no fabricated fixed UTC",
  "development_window": {
   "dev_calendar_sha256": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0",
   "end": "2019-10-02",
@@ -32,11 +33,37 @@
   ]
  },
  "partition_guard_identity": "f558636a3a3fe3f4ade9f1d8077bd34eeedbe8406e7c5f956dc78fb230e4ffbc",
+ "phase2b_execution_modules": {
+  "__init__.py": "0344cdcac1dfe1c66a13ef7c23d90085a3d1b6c71d237c6d1d30d88d3332a12e",
+  "cutoff.py": "5aa9c5fe042e6bef308ffd10876e84466f269e57a5d04754a6052b3e72c2a88f",
+  "orchestrator.py": "1ac836ab2d7285314bc24d035dedf0ebef5f592d31975be7a8aa806c8febcd98",
+  "sic_sector.py": "471e1aaaf5065878d9f323d27245949bdd0e1cc963f38df5cb8f208e7e51cbc1"
+ },
+ "phase2b_orchestration_code_identity": "a0e30cda5400fba0e23ba1b37ff9dc12a325f647b64d15e75edfa6cebd688eba",
  "pit_source_identities": {
   "adv": "closeunadj x volume",
   "corporate_actions": "actions.date",
   "earnings": "earnings_anchors.acceptance_utc (BMO/AMC, amendments)",
-  "sector": "sic_observations.accepted_utc + sic_mapping"
+  "sector": "research.sic_observations.accepted_utc + sic_mapping",
+  "sector_observation_rule": {
+   "amends": "the 2B-0 ratified contract's provenance sic_observations source (only 13 ciks); guarded + ledgered identically to every other real-data input.",
+   "authorized_columns": [
+    "cik",
+    "accepted_utc",
+    "sic",
+    "accession (provenance/source identity)"
+   ],
+   "content_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
+   "coverage": "534 of 535 development-universe ciks",
+   "development_upper_bound": "accepted_utc <= DEV_END close (cast to date <= 2019-10-02)",
+   "missing_covered_cik": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING",
+   "pre_window_policy": "earlier accepted observations allowed as PIT state seeds (allow_pre_window)",
+   "registered_database_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+   "rows": 23550,
+   "same_acceptance_time_conflict": "INTEGRITY_STOP:SECTOR_EFFECTIVE_DATE_CONFLICT",
+   "source": "research.sic_observations (the registered PIT-sector observation source)",
+   "uniqueness_key": "(cik, accepted_utc, accession); PIT selection = latest accepted_utc <= close t"
+  }
  },
  "policies": {
   "batch_policy": "single-process == multi-shard == restart, byte-identical after canonical ordering",

@@ -98,6 +98,25 @@ def test_pit_sector_sentinel_excluded(tmp_path):
     assert base.sector_id == after.sector_id                           # future obs cannot change sector
 
 
+def test_et_close_cutoff_dst_correct():
+    from app.research.mr002.spq1.phase2b.cutoff import et_close_cutoff_iso
+    assert et_close_cutoff_iso("2015-01-15") == "2015-01-15T21:00:00Z"   # EST -> 21:00Z
+    assert et_close_cutoff_iso("2015-07-15") == "2015-07-15T20:00:00Z"   # EDT -> 20:00Z
+    assert et_close_cutoff_iso("2015-03-09") == "2015-03-09T20:00:00Z"   # after spring-forward
+    # a summer 20:30Z availability is AFTER the 20:00Z EDT close -> excluded (would have leaked at 21:00Z)
+    assert et_close_cutoff_iso("2015-07-15") < "2015-07-15T20:30:00Z"
+
+
+def test_phase2b_code_identity_binds_all_execution_modules():
+    from app.research.mr002.spq1.phase2b import orchestrator as O
+    ident = O.code_identity()
+    assert set(ident) == {"__init__.py", "cutoff.py", "sic_sector.py", "orchestrator.py"}
+    assert all(re.fullmatch(r"[0-9a-f]{64}", h) for h in ident.values())
+    O.verify_code_identity(dict(ident))                                  # matches -> ok
+    with pytest.raises(RuntimeError):
+        O.verify_code_identity({**ident, "orchestrator.py": "0" * 64})   # drift -> refuse
+
+
 def test_no_orderpath_or_performance_imports():
     pkg = REPO / "apps" / "backend" / "app" / "research" / "mr002" / "spq1" / "phase2b"
     forbidden = re.compile(
