@@ -47,9 +47,9 @@ confirm `alembic current` == `e7b3f2a9c4d1`, resume-on-boot clean). Then:
 ## 2. Initialize the deployment lifecycle for strategy 11 (SEPARATE command)
 
 Lifecycle init and the retrospective hold formalization are **separate commands with
-separate verification**. Init writes ONLY `strategy_state['deployment']`; it never reads
-or writes `operational_hold`. If init fails, the existing hold — and activation blocking
-— is untouched.
+separate verification**. Init **writes only** `strategy_state['deployment']`; it **reads
+`operational_hold` solely for verification** (to echo it) and **never mutates it**. If
+init fails, the existing hold — and activation blocking — is untouched.
 
 - [ ] **Dry run first** (default; no write):
       ```
@@ -94,10 +94,54 @@ or writes `operational_hold`. If init fails, the existing hold — and activatio
 ⚠ The operational hold is **already effective as a persisted marker**; this step only
 adds the *formal audit event* using the new action. It must **not** create a second
 logical hold. Only run this **after** the code is deployed (step 1) and the new action
-exists on the box. Fields: `event_time=now`, `effective_at=2026-07-20T22:48:22Z`,
-`source=RETROSPECTIVE_FORMALIZATION`, evidence_refs = prepause snapshot sha
-`8fa766f3…` + `STRATEGY_UNREGISTERED` id 5733 + run 605 + approved repair plan. It does
-**not** clear or extend the hold.
+exists on the box.
+
+**Sanctioned mechanism:** `scripts/formalize_existing_operational_hold.py`. This is the
+*only* correct path — `HoldService.place()` on the existing identical active hold is an
+idempotent no-op and writes no audit; a raw audit insert bypasses the service boundary
+and hash chain; placing another hold violates "no second logical hold". The script emits
+exactly one `STRATEGY_HOLD_PLACED` (`source=RETROSPECTIVE_FORMALIZATION`, `retrospective=
+true`, `effective_at=2026-07-20T22:48:22Z`), validates the live hold against the operator-
+asserted `(rev, reason_code, effective_at)`, **never mutates the hold blob**, dedups on
+`(strategy_id, hold_rev, source)`, and proves the blob byte-identical before/after.
+
+First read the live hold to get its exact `_rev` and `effective_at`:
+```
+ssh workbench "sudo docker exec workbench-backend sqlite3 /app/data/workbench.sqlite \
+  \"SELECT value FROM strategy_state WHERE strategy_id=11 AND key='operational_hold';\""
+```
+Then **dry run** (default; validates + plans, writes nothing), substituting the observed
+`<REV>` and confirming `effective_at`:
+```
+ssh workbench 'sudo docker exec workbench-backend \
+  python scripts/formalize_existing_operational_hold.py \
+    --strategy-id 11 --expected-rev <REV> \
+    --expected-reason-code AWAITING_COLD_START_FIX \
+    --expected-effective-at 2026-07-20T22:48:22Z \
+    --evidence-ref "snapshot_sha256=8fa766f3…" \
+    --evidence-ref "audit=STRATEGY_UNREGISTERED#5733" \
+    --evidence-ref "run=605" \
+    --evidence-ref "plan=momentum_daily_coldstart_repair_plan_v1.0" \
+    --approval-ref "<adjudication ref>"'
+```
+Expect `WOULD WRITE …`, `hold blob BYTE-IDENTICAL before/after: YES`, exit 0. If it
+prints `REFUSED` (exit 5), the live hold does not match the asserted rev/reason/effective
+or is unreadable — **stop and reconcile**, do not force. Then re-run with `--apply`; expect
+`WROTE … audit id <N>`, byte-identical YES, exit 0. A second `--apply` is a no-op
+(`already formalized`, exit 0, no second event).
+
+**Verification query** (exactly one retrospective event, hold untouched):
+```
+ssh workbench "sudo docker exec workbench-backend sqlite3 /app/data/workbench.sqlite \
+  \"SELECT id, action, json_extract(payload_json,'\$.source'), json_extract(payload_json,'\$.rev') \
+    FROM audit_log WHERE action='STRATEGY_HOLD_PLACED' \
+    AND json_extract(payload_json,'\$.strategy_id')=11 \
+    AND json_extract(payload_json,'\$.source')='RETROSPECTIVE_FORMALIZATION';\""
+# expect exactly ONE row at the observed <REV>; and confirm the hold blob is unchanged:
+ssh workbench "sudo docker exec workbench-backend sqlite3 /app/data/workbench.sqlite \
+  \"SELECT value FROM strategy_state WHERE strategy_id=11 AND key='operational_hold';\""
+```
+It does **not** clear or extend the hold.
 
 ## 5. Acceptance + drift gates
 

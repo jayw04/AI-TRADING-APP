@@ -3,11 +3,11 @@
 
 One-shot, idempotent, DRY-RUN BY DEFAULT. Writes ONLY the authoritative
 ``strategy_state['deployment']`` blob (``NEVER_DEPLOYED`` / ``has_ever_deployed=false``
-/ ``first_deployed_at=null`` / ``active_seed_attempt=null``, rev 0). It NEVER reads
-or writes ``strategy_state['operational_hold']`` — lifecycle initialization and the
-retrospective hold formalization are DELIBERATELY separate commands with separate
-verification (ADR 0044). The hold marker is echoed read-only so the operator can
-confirm it is untouched before and after.
+/ ``first_deployed_at=null`` / ``active_seed_attempt=null``, rev 0). It READS
+``strategy_state['operational_hold']`` solely for verification (to echo it) and NEVER
+mutates it — lifecycle initialization and the retrospective hold formalization are
+DELIBERATELY separate commands with separate verification (ADR 0044). The hold marker
+is echoed read-only so the operator can confirm it is untouched before and after.
 
 Safety contract:
   * refuses (exit 3, no write) if a deployment blob already exists — one-shot, never
@@ -75,7 +75,8 @@ async def init_deployment_lifecycle(
 ) -> InitResult:
     """Plan (and, if ``apply``, perform) the one-shot lifecycle initialization within
     ``session``. Does NOT commit — the caller owns the transaction so state + nothing-
-    else commit together. Never touches ``operational_hold``."""
+    else commit together. Writes only ``deployment``; reads ``operational_hold`` for
+    verification only and never mutates it."""
     if await session.get(StrategyRow, strategy_id) is None:
         return InitResult(strategy_id, "strategy_not_found", None, None, None)
 

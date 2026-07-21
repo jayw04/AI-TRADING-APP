@@ -35,12 +35,30 @@ from app.strategies.operational_hold import (
     load_hold_record,
 )
 
+RETRO_SOURCE = "RETROSPECTIVE_FORMALIZATION"
+
+
+class RetroFormalizationRefused(Exception):
+    """The retrospective hold formalization was refused fail-closed: the live hold is
+    absent/cleared, or its (rev, reason_code, effective_at) differs from the operator-
+    asserted expectation. (Malformed/unreadable state raises HoldStateInvalid /
+    HoldStoreUnavailable via ``read_hold`` and also blocks.) No audit is written."""
+
 
 @dataclass(frozen=True)
 class HoldMutationResult:
     record: HoldRecord
     changed: bool
     was_noop: bool = False
+
+
+@dataclass(frozen=True)
+class FormalizeResult:
+    strategy_id: int
+    action: str  # would_write | wrote | already_formalized
+    audit_id: int | None
+    hold_rev: int
+    planned_payload: dict
 
 
 async def read_hold(session: AsyncSession, strategy_id: int) -> HoldRecord | None:
@@ -205,7 +223,83 @@ async def record_activation_blocked(
     return True
 
 
+async def formalize_retrospective_hold_placed(
+    session: AsyncSession, *, strategy_id: int, expected_rev: int,
+    expected_reason_code: str, expected_effective_at: str,
+    evidence_refs: list | None = None, approval_ref: str | None = None,
+    actor_type: AuditActorType = AuditActorType.USER, actor_id: str | None = None,
+    apply: bool = False,
+) -> FormalizeResult:
+    """Emit EXACTLY ONE retrospective ``STRATEGY_HOLD_PLACED`` audit event for an
+    ALREADY-ACTIVE operational hold, WITHOUT mutating the hold blob.
+
+    This is the sanctioned way to back-record a hold that became effective before the
+    ``STRATEGY_HOLD_PLACED`` action existed (the acct-4 cold-start case). It is NOT a
+    placement: it never writes, clears, or edits ``operational_hold`` (or any
+    ``strategy_state``) — it only adds the audit event, tagged ``source=
+    RETROSPECTIVE_FORMALIZATION``. This is why ``HoldService.place`` is wrong here: on
+    an existing identical active hold, ``place`` is an idempotent no-op and writes no
+    audit at all.
+
+    Fail-closed refusals (raise, no audit): the live hold is absent/cleared, or its
+    ``(rev, reason_code, effective_at)`` differs from the operator-asserted expectation
+    (``RetroFormalizationRefused``); malformed/unreadable state raises
+    ``HoldStateInvalid`` / ``HoldStoreUnavailable`` via ``read_hold`` and also blocks.
+
+    Deduplicated by ``(strategy_id, hold_rev, source=RETROSPECTIVE_FORMALIZATION)``: a
+    second run is an idempotent no-op that writes no second event. ``apply=False``
+    (default) validates + plans without writing. The caller owns the transaction.
+    """
+    rec = await read_hold(session, strategy_id)  # Invalid/Unavailable -> refuse (block)
+    if rec is None or not rec.is_active:
+        raise RetroFormalizationRefused(
+            f"strategy {strategy_id}: no ACTIVE hold to formalize")
+    if rec.rev != expected_rev:
+        raise RetroFormalizationRefused(
+            f"hold rev {rec.rev} != expected {expected_rev}")
+    if rec.reason_code != expected_reason_code:
+        raise RetroFormalizationRefused(
+            f"reason_code {rec.reason_code!r} != expected {expected_reason_code!r}")
+    if rec.effective_at != expected_effective_at:
+        raise RetroFormalizationRefused(
+            f"effective_at {rec.effective_at!r} != expected {expected_effective_at!r}")
+
+    payload = {
+        "strategy_id": strategy_id, "reason_code": rec.reason_code, "reason": rec.reason,
+        "rev": rec.rev, "effective_at": rec.effective_at, "placed_by": rec.placed_by,
+        "source": RETRO_SOURCE, "retrospective": True,
+        "evidence_refs": list(evidence_refs) if evidence_refs is not None
+        else list(rec.evidence_refs),
+        "approval_ref": approval_ref if approval_ref is not None else rec.approval_ref,
+    }
+    existing = (
+        await session.execute(
+            select(AuditLog.id).where(
+                AuditLog.action == AuditAction.STRATEGY_HOLD_PLACED.value,
+                func.json_extract(AuditLog.payload_json, "$.strategy_id") == strategy_id,
+                func.json_extract(AuditLog.payload_json, "$.rev") == rec.rev,
+                func.json_extract(AuditLog.payload_json, "$.source") == RETRO_SOURCE,
+            ).limit(1)
+        )
+    ).scalars().first()
+    if existing is not None:
+        return FormalizeResult(strategy_id, "already_formalized", existing, rec.rev, payload)
+    if not apply:
+        return FormalizeResult(strategy_id, "would_write", None, rec.rev, payload)
+    row = AuditLogger.write(
+        session, actor_type=actor_type, actor_id=actor_id,
+        action=AuditAction.STRATEGY_HOLD_PLACED, target_type="strategy",
+        target_id=strategy_id, payload=payload,
+    )
+    await session.flush()  # populate row.id (hash chain computed on insert)
+    return FormalizeResult(strategy_id, "wrote", row.id, rec.rev, payload)
+
+
 __all__ = [
+    "FormalizeResult",
+    "RETRO_SOURCE",
+    "RetroFormalizationRefused",
+    "formalize_retrospective_hold_placed",
     "HoldMutationResult",
     "HoldService",
     "assert_no_active_hold",
