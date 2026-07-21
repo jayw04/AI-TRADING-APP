@@ -9,7 +9,14 @@
 > evidence with its recorded SHA-256, independently countersigned. Do not collapse the two milestones.
 
 **Frozen contract:** `docs/implementation/ADR0043_Canary_Manifest_v1.0.md`.
-**Required source revision:** `c8b3ac24b839d7b19c40979a9e4be859151dbab7`.
+**ADR-0043 implementation baseline (fixed):** `c8b3ac24b839d7b19c40979a9e4be859151dbab7`.
+**Approved deployed repository revision:** the reviewed `main` commit approved for **this** live attempt
+(operator-recorded exact SHA; it is normally *later* than the implementation baseline, because ADR-0043
+**documentation** — including this runbook — is added on top of it). **Required lineage:** the
+implementation baseline must be an **ancestor** of the deployed revision, and every intervening change
+must be reviewed **ADR-0043 documentation only** (no executable/migration/config/dependency/deployment
+delta). The runbook deliberately does **not** hard-pin the deployed SHA — otherwise every later docs fix
+would make it stale — it pins the fixed implementation baseline plus the lineage + docs-only-delta rule.
 **Account / user:** 3. **Protected legs:** `F:500`, `MSFT:20`. **Mode:** `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`.
 
 The live canary (`scripts/adr0043_canary_run.py`) is **assertion-only**: it requires ENFORCE, a durable
@@ -72,7 +79,8 @@ mkdir -p "evidence/$ADR0043_RUN_ID"
 export EVIDENCE_DIR="$PWD/evidence/$ADR0043_RUN_ID"
 printf '%s\n' \
   "run_id=$ADR0043_RUN_ID" \
-  "required_commit=c8b3ac24b839d7b19c40979a9e4be859151dbab7" \
+  "adr0043_implementation_commit=c8b3ac24b839d7b19c40979a9e4be859151dbab7" \
+  "deployed_repository_commit=<record the exact deployed SHA at A2>" \
   "account_id=3" "user_id=3" "required_mode=ENFORCE" \
   "started_utc=$(date -u +%FT%TZ)" > "$EVIDENCE_DIR/run_identity.txt"
 ```
@@ -94,17 +102,36 @@ Record instance identity immediately (`hostname`, `boot_id`, `kernel`, and — w
 enabled — `instance_id`, `ami_id`, `instance_type`) into `$EVIDENCE_DIR/instance_identity.txt`. A metadata
 failure is **documented, not bypassed**.
 
-## A2. Deploy exactly `c8b3ac2`
+## A2. Deploy the approved reviewed `main` revision + verify lineage
+
+Deploy the reviewed `main` commit **approved for this attempt** (its executable code is unchanged from the
+implementation baseline; only reviewed ADR-0043 documentation has been added on top). Record its exact SHA
+— do **not** substitute a hard-coded value from this runbook.
 
 ```
+IMPL=c8b3ac24b839d7b19c40979a9e4be859151dbab7          # ADR-0043 implementation baseline (fixed)
+DEPLOYED="$(git rev-parse HEAD)"                        # the approved reviewed main revision, recorded
+
 git fetch --prune origin && git checkout main
-git reset --hard c8b3ac24b839d7b19c40979a9e4be859151dbab7 && git clean -fd
-git rev-parse HEAD          # must equal c8b3ac2…; tree must be clean
+git reset --hard "$DEPLOYED" && git clean -fd
+git rev-parse HEAD                                      # must equal $DEPLOYED; tree must be clean
+git merge-base --is-ancestor "$IMPL" "$DEPLOYED"        # exit 0 → implementation baseline is an ancestor
+git diff --name-only "$IMPL" "$DEPLOYED"                # every path must be ADR-0043 documentation only
 ```
 
-Capture `HEAD` + `git status --porcelain=v1` + `git show -s --format=fuller HEAD` to
-`$EVIDENCE_DIR/git_state.txt`. **STOP** if HEAD differs, the tree is dirty, there are unreviewed
-deployment overrides, or the running container later reports code inconsistent with this revision.
+Record `deployed_repository_commit=$(git rev-parse HEAD)` (and `adr0043_implementation_commit=$IMPL`) into
+`run_identity.txt`; capture `HEAD` + `git status --porcelain=v1` + `git show -s --format=fuller HEAD` +
+the `merge-base`/`diff --name-only` outputs to `$EVIDENCE_DIR/git_state.txt`. Confirm the running backend
+image corresponds to the deployed repository revision (§A3). `ADR0043_COMMIT_SHA="$(git rev-parse HEAD)"`
+therefore records the **deployed** commit (not the implementation baseline) — both values are preserved.
+
+**STOP** if:
+- `HEAD` is not the approved deployed repository commit (`$DEPLOYED`);
+- the implementation baseline `c8b3ac2…` is **not** an ancestor of the deployed revision;
+- the delta `$IMPL..$DEPLOYED` contains **any** executable-application, migration, configuration,
+  dependency, or deployment change (it must be **documentation-only**);
+- the working tree is dirty (unreviewed deployment overrides);
+- the running backend image cannot be tied to the approved deployed revision.
 
 ## A3. Record instance / image / config / migration provenance
 
@@ -287,8 +314,8 @@ required equal). Store as `$EVIDENCE_DIR/continuity_canary.txt`. **STOP** if any
 
 The canary command injects `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE` into the single execution; the manifest
 requires refusal under OFF/SHADOW. Confirm the command receives exactly `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`
-and `ADR0043_COMMIT_SHA=c8b3ac2…`. **Do not** globally flip every environment to ENFORCE unless separately
-reviewed.
+and `ADR0043_COMMIT_SHA="$(git rev-parse HEAD)"` (the deployed repository commit `$DEPLOYED`). **Do not**
+globally flip every environment to ENFORCE unless separately reviewed.
 
 ## C. Immediate pre-canary confirmation (read-only)
 
@@ -410,7 +437,8 @@ governance decision.
 **Phase A (fresh box + provenance) — first:**
 
 - [ ] New AWS instance provisioned for this attempt; instance/boot identity recorded
-- [ ] Source exactly `c8b3ac2…`; clean git tree
+- [ ] Deployed = the approved reviewed `main` revision (SHA recorded); `c8b3ac2…` is an ancestor; the
+      delta is **documentation-only**; clean git tree
 - [ ] Backend image digest + Compose/config checksums recorded
 - [ ] Exactly one Alembic head; DB current at that head
 - [ ] Exactly one backend runtime; no live canary process; canary artifact paths absent (or a documented resume)
