@@ -12,6 +12,8 @@ in a later increment — NOT here. This module is data, not behavior.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 # --- versioning -------------------------------------------------------------------------------
 # Bumped when the state model itself changes shape, so future migrations of persisted state are
 # manageable the way RISK_POLICY_VERSION (ADR 0042) and the ledger already are (ADR 0043 §D1.3).
@@ -238,3 +240,44 @@ ERR_ACTIVE_PREFLIGHT_EXISTS = "ERR_ACTIVE_PREFLIGHT_EXISTS"  # one active per ac
 AUTHORITY_CLASS_OWNER_OR_OPERATOR = "OWNER_OR_OPERATOR"
 AUTHORITY_CLASS_OPERATOR_OR_OWNER_IF_DAILY_LOSS = "OPERATOR_OR_OWNER_IF_DAILY_LOSS"
 AUTHORITY_CLASS_OPERATOR_HUMAN_APPROVAL = "OPERATOR_HUMAN_APPROVAL"  # INTEGRITY_STOP
+
+# --- re-arm / hysteresis / dwell (ADR 0043 §D6 + §D1.4) ---------------------------------------
+# Asymmetric re-arm: NO symmetric monetary band. Once locked, an account only re-arms to NORMAL
+# after a class-dependent minimum dwell AND all §D1.4 conditions hold. Values are the ADR's
+# conservative defaults (house convention: dwell defaults tight; a later increment may make them
+# configurable — this vocabulary is data, not behaviour). The policy logic lives in
+# ``state_machine.py`` (§D6), the sole sanctioned home for re-arm decisions.
+
+# Dwell CLASS — how long an account must dwell in RECOVERY_COOLDOWN before it may re-arm, keyed to
+# what it is recovering from.
+DWELL_CLASS_ARTIFACT = "ARTIFACT"  # confirmed measurement artifact — fast, fixed dwell
+DWELL_CLASS_RATE_VELOCITY = "RATE_VELOCITY"  # rate / loss-velocity trip — longer fixed dwell
+DWELL_CLASS_CONFIRMED_DAILY_LOSS = "CONFIRMED_DAILY_LOSS"  # real daily loss — until the next session
+DWELL_CLASS_INTEGRITY = "INTEGRITY"  # broker/recon/config integrity — until manual repair completes
+ALL_DWELL_CLASSES: frozenset[str] = frozenset(
+    {
+        DWELL_CLASS_ARTIFACT,
+        DWELL_CLASS_RATE_VELOCITY,
+        DWELL_CLASS_CONFIRMED_DAILY_LOSS,
+        DWELL_CLASS_INTEGRITY,
+    }
+)
+
+# Dwell KIND — how the requirement is satisfied.
+DWELL_KIND_FIXED_MINUTES = "FIXED_MINUTES"
+DWELL_KIND_UNTIL_NEXT_SESSION = "UNTIL_NEXT_SESSION"
+DWELL_KIND_UNTIL_MANUAL_REPAIR = "UNTIL_MANUAL_REPAIR"
+
+# Fixed-dwell minutes (ADR §D6 conservative defaults).
+DWELL_ARTIFACT_MINUTES = 15
+DWELL_RATE_VELOCITY_MINUTES = 30
+
+# Loss-velocity hysteresis (§D6): trip at the configured limit; "healthy" is a SEPARATE, stricter
+# recovery threshold — at most this fraction of the trip limit, sustained for a minimum duration.
+VELOCITY_RECOVERY_FRACTION = Decimal("0.5")
+VELOCITY_HEALTHY_MIN_SECONDS = 600  # 10 minutes
+
+# §D1.4 cooldown-completion verdicts (the pure policy's answer for RECOVERY_COOLDOWN).
+COOLDOWN_HOLD = "HOLD"  # conditions not yet met — stay in cooldown, no re-arm
+COOLDOWN_COMPLETE = "COMPLETE"  # all §D1.4 conditions hold — may transition to NORMAL
+COOLDOWN_REGRESSED = "REGRESSED"  # an outright regression — fail closed to INTEGRITY_STOP
