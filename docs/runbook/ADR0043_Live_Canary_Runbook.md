@@ -80,10 +80,13 @@ export EVIDENCE_DIR="$PWD/evidence/$ADR0043_RUN_ID"
 printf '%s\n' \
   "run_id=$ADR0043_RUN_ID" \
   "adr0043_implementation_commit=c8b3ac24b839d7b19c40979a9e4be859151dbab7" \
-  "deployed_repository_commit=<record the exact deployed SHA at A2>" \
   "account_id=3" "user_id=3" "required_mode=ENFORCE" \
   "started_utc=$(date -u +%FT%TZ)" > "$EVIDENCE_DIR/run_identity.txt"
 ```
+
+The **deployed repository commit** is resolved on the box in §A2 (not known yet — the fresh box is not
+provisioned). It is **appended** to this file after A2 with its real value; the final evidence package must
+contain **no unresolved placeholder**.
 
 > **Operator run id vs harness run id — do NOT assert they match.** `ADR0043_RUN_ID` labels the external
 > evidence package. The harness checkpoint generates and persists its **own** internal `run_id`, and the
@@ -105,31 +108,60 @@ failure is **documented, not bypassed**.
 ## A2. Deploy the approved reviewed `main` revision + verify lineage
 
 Deploy the reviewed `main` commit **approved for this attempt** (its executable code is unchanged from the
-implementation baseline; only reviewed ADR-0043 documentation has been added on top). Record its exact SHA
-— do **not** substitute a hard-coded value from this runbook.
+implementation baseline; only reviewed ADR-0043 documentation has been added on top). The approved SHA is
+resolved **after** `fetch`, **independent of whatever was already checked out** — never captured from the
+pre-existing `HEAD` (that would make the equality check tautological), and never a value hard-coded in this
+runbook.
 
 ```
 IMPL=c8b3ac24b839d7b19c40979a9e4be859151dbab7          # ADR-0043 implementation baseline (fixed)
-DEPLOYED="$(git rev-parse HEAD)"                        # the approved reviewed main revision, recorded
 
-git fetch --prune origin && git checkout main
-git reset --hard "$DEPLOYED" && git clean -fd
-git rev-parse HEAD                                      # must equal $DEPLOYED; tree must be clean
-git merge-base --is-ancestor "$IMPL" "$DEPLOYED"        # exit 0 → implementation baseline is an ancestor
-git diff --name-only "$IMPL" "$DEPLOYED"                # every path must be ADR-0043 documentation only
+git fetch --prune origin
+
+# The reviewed main commit APPROVED for this attempt, resolved AFTER fetch. Preferred form below.
+# Stronger form when the exact SHA is approved BEFORE provisioning — require it explicitly:
+#   DEPLOYED="${ADR0043_APPROVED_DEPLOYED_SHA:?must be set}"; git cat-file -e "$DEPLOYED^{commit}"
+DEPLOYED="$(git rev-parse origin/main)"
+printf 'approved deployed revision: %s\n' "$DEPLOYED"
+
+git checkout --detach "$DEPLOYED"                      # detached: local main cannot drift after approval
+git clean -fd
+
+test "$(git rev-parse HEAD)" = "$DEPLOYED"             # HEAD is the approved deployed commit
+test -z "$(git status --porcelain=v1)"                # clean tree
+git merge-base --is-ancestor "$IMPL" "$DEPLOYED"       # exit 0 → implementation baseline is an ancestor
+
+# Documentation-only delta — enforced by an ALLOWLIST, not an operator eyeball. Every changed path from
+# the implementation baseline to the deployed revision must be a reviewed ADR-0043 doc (extend the
+# allowlist only for separately-reviewed ADR-0043 evidence-template files):
+git diff --name-only "$IMPL" "$DEPLOYED" \
+  | grep -Ev '^docs/(runbook/ADR0043_Live_Canary_Runbook\.md|implementation/ADR0043_Canary_Manifest_v1\.0\.md)$' \
+  && { echo "STOP: non-allowlisted (non-documentation) delta from $IMPL to $DEPLOYED"; exit 1; } || true
 ```
 
-Record `deployed_repository_commit=$(git rev-parse HEAD)` (and `adr0043_implementation_commit=$IMPL`) into
-`run_identity.txt`; capture `HEAD` + `git status --porcelain=v1` + `git show -s --format=fuller HEAD` +
-the `merge-base`/`diff --name-only` outputs to `$EVIDENCE_DIR/git_state.txt`. Confirm the running backend
-image corresponds to the deployed repository revision (§A3). `ADR0043_COMMIT_SHA="$(git rev-parse HEAD)"`
-therefore records the **deployed** commit (not the implementation baseline) — both values are preserved.
+Append the resolved values to the evidence run-identity (no unresolved placeholder in the final package),
+and capture the git state:
+
+```
+printf '%s\n' \
+  "adr0043_implementation_commit=$IMPL" \
+  "deployed_repository_commit=$DEPLOYED" >> "$EVIDENCE_DIR/run_identity.txt"
+{ git rev-parse HEAD; git status --porcelain=v1; git show -s --format=fuller HEAD; \
+  echo "ancestor_ok=$(git merge-base --is-ancestor "$IMPL" "$DEPLOYED" && echo yes || echo no)"; \
+  git diff --name-only "$IMPL" "$DEPLOYED"; } > "$EVIDENCE_DIR/git_state.txt"
+```
+
+Confirm the running backend image corresponds to the deployed repository revision (§A3).
+`ADR0043_COMMIT_SHA="$(git rev-parse HEAD)"` therefore records the **deployed** commit (not the
+implementation baseline) — both values are preserved.
 
 **STOP** if:
+- `DEPLOYED` was captured from the pre-fetch `HEAD` rather than resolved after fetch (the equality check
+  must not be self-satisfied);
 - `HEAD` is not the approved deployed repository commit (`$DEPLOYED`);
 - the implementation baseline `c8b3ac2…` is **not** an ancestor of the deployed revision;
-- the delta `$IMPL..$DEPLOYED` contains **any** executable-application, migration, configuration,
-  dependency, or deployment change (it must be **documentation-only**);
+- the delta `$IMPL..$DEPLOYED` contains **any** path outside the ADR-0043 documentation allowlist
+  (executable-application, migration, configuration, dependency, deployment, or unrelated-doc change);
 - the working tree is dirty (unreviewed deployment overrides);
 - the running backend image cannot be tied to the approved deployed revision.
 
