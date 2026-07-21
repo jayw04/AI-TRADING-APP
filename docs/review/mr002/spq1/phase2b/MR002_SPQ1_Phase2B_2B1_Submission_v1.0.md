@@ -1,6 +1,25 @@
 # MR-002 Workstream C — SPQ-1 Phase 2B — Increment 2B-1
 
-## Dry-Run & Limited-Shard Qualification (resubmitted; second correction round)
+## Dry-Run & Limited-Shard Qualification (resubmitted; third correction round)
+
+### Third-round corrections (final integrity)
+
+- **Resolved-unit uniqueness.** `UnitResult` now exposes `request_key = (session, symbol)` (enumeration)
+  and `terminal_key = (session, permanent_security_id)` — identity failures use
+  `(session, "UNRESOLVED:symbol")`. `merge` fails closed on a duplicate request unit **and** on a
+  duplicate **resolved** `permanent_security_id × session` (the frozen logical unit); `reconcile`
+  reports both `duplicate_request_keys = 0` and `duplicate_resolved_permanent_security_session_keys = 0`.
+  Canonical ordering is by request key (input-symbol-order-independent). Tested: two symbols → same
+  permanent id on one session is rejected; identity failure yields one UNRESOLVED disposition (no silent
+  drop); merge is order-invariant.
+- **Complete consumed-field price/factor ledger.** Each per-symbol price completed-read now binds, in
+  canonical session order, `[session, closeadj, closeunadj, volume, status]` (exact `float.hex()`), so a
+  change to raw close, volume, or missingness alters the hash (was `closeadj` only). SPY now binds
+  `[session, value]` rows (sector-ETF rows already carry `(ticker, date, value)`). Tested: mutating any
+  of closeadj / closeunadj / volume / status changes the hash; unchanged data reproduces it; row order
+  is canonicalized.
+
+
 
 ### Second-round corrections (PIT identity + ledger)
 

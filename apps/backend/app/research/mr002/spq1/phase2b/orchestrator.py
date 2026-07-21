@@ -72,9 +72,19 @@ class UnitResult:
     decision_eligibility_status: str | None
     record_identity: str | None
 
-    def key(self) -> tuple:
-        # Enumeration key is (session, symbol) — PIT-safe; permanent_security_id is resolved AT t.
+    def request_key(self) -> tuple:
+        # enumeration/request identity (before PIT resolution): (session, requested symbol)
         return (self.decision_session, self.symbol)
+
+    def terminal_key(self) -> tuple:
+        # final reconciliation identity: (session, permanent_security_id); identity failures use a
+        # deterministic UNRESOLVED request key (no permanent id could be established).
+        if self.permanent_security_id:
+            return (self.decision_session, self.permanent_security_id)
+        return (self.decision_session, f"UNRESOLVED:{self.symbol}")
+
+    def key(self) -> tuple:   # canonical ordering key = request key (input-symbol-order-independent)
+        return self.request_key()
 
     def as_row(self) -> dict:
         return {"permanent_security_id": self.permanent_security_id, "symbol": self.symbol,
@@ -137,6 +147,11 @@ def _guarded_sic_obs(src, guard, ciks):  # noqa: ANN001
     return by
 
 
+def _cf(x) -> str:  # noqa: ANN001
+    """Canonical exact-float encoding for ledger identity (float.hex(); 'nan' for missing)."""
+    return float(x).hex()
+
+
 def _snap_ledger(guard, snap_path, snap_sha, purpose, rows_for_hash, row_count, max_key):  # noqa: ANN001
     """Record a bounded bulk read of the (registered) development snapshot object."""
     tok = guard.authorize_read(snap_path, "0001-01-01", DEV_END, purpose, "orchestrator",
@@ -177,7 +192,8 @@ def build_context(snapshot_con, guard, tickers, ciks, sic_map_con, snap_path="",
     cal = load_calendar(snapshot_con)
     _snap_ledger(guard, snap_path, snap_sha, "calendar", list(cal.sessions), len(cal), cal.sessions[-1])
     spy_levels = load_spy_adjclose(snapshot_con, cal)
-    _snap_ledger(guard, snap_path, snap_sha, "spy", [f"{v}" for v in spy_levels],
+    _snap_ledger(guard, snap_path, snap_sha, "spy",
+                 [[cal.sessions[i], _cf(spy_levels[i])] for i in range(len(cal))],
                  int(np.isfinite(spy_levels).sum()), cal.sessions[-1])
     spy = arithmetic_total_returns(spy_levels)
     sic_map = _guarded_load_sic_map(sic_map_con, guard)
@@ -215,12 +231,15 @@ def build_context(snapshot_con, guard, tickers, ciks, sic_map_con, snap_path="",
         present = np.isfinite(close)
         if not present.any():
             continue
-        _snap_ledger(guard, snap_path, snap_sha, f"prices:{tk}", [f"{v}" for v in close],
-                     int(present.sum()), cal.sessions[-1])
         first = int(np.argmax(present))
         status = [CellStatus.PRESENT if present[i] else
                   (CellStatus.YOUNG if i < first else CellStatus.UNEXPLAINED_HOLE)
                   for i in range(len(cal))]
+        # bind EVERY consumed field: session, closeadj, closeunadj (ADV), volume (ADV), status
+        price_rows = [[cal.sessions[i], _cf(close[i]), _cf(series["closeunadj"][i]),
+                       _cf(series["volume"][i]), status[i].value] for i in range(len(cal))]
+        _snap_ledger(guard, snap_path, snap_sha, f"prices:{tk}", price_rows,
+                     int(present.sum()), cal.sessions[-1])
         securities[tk] = {"symbol": tk, "stock_ret": arithmetic_total_returns(close),
                           "status": status, "raw_close": series["closeunadj"],
                           "raw_volume": series["volume"], "cik_timeline": cik_timeline.get(tk, [])}
@@ -312,14 +331,29 @@ def publish_shard(results: list[UnitResult], content_sha: str, path: str) -> str
 
 
 def merge(shard_results: list[list[UnitResult]]) -> list[UnitResult]:
+    """Merge shards, fail closed on a duplicate REQUEST unit or a duplicate RESOLVED
+    permanent_security_id x session (the frozen logical unit); canonical order by request key."""
     flat = [r for shard in shard_results for r in shard]
-    seen = set()
+    req_seen: set = set()
+    term_seen: set = set()
     for r in flat:
-        if r.key() in seen:
-            raise ValueError(f"duplicate unit in merge: {r.key()}")
-        seen.add(r.key())
-    flat.sort(key=lambda r: r.key())
+        if r.request_key() in req_seen:
+            raise ValueError(f"duplicate request unit in merge: {r.request_key()}")
+        req_seen.add(r.request_key())
+        if r.permanent_security_id:                          # resolved units must be unique per unit
+            if r.terminal_key() in term_seen:
+                raise ValueError(f"duplicate resolved permanent-security/session: {r.terminal_key()}")
+            term_seen.add(r.terminal_key())
+    flat.sort(key=lambda r: r.request_key())
     return flat
+
+
+def reconcile(units: list[UnitResult]) -> dict:
+    """Duplicate-key accounting for the reconciliation report (both must be zero)."""
+    req = [u.request_key() for u in units]
+    term = [u.terminal_key() for u in units if u.permanent_security_id]
+    return {"duplicate_request_keys": len(req) - len(set(req)),
+            "duplicate_resolved_permanent_security_session_keys": len(term) - len(set(term))}
 
 
 def materialize_run_input(out_path: str, tickers: list[str], ciks: list[int],

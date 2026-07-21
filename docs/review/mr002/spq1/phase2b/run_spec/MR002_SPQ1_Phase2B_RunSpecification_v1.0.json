@@ -3,10 +3,10 @@
  "authorization": "LIMITED DEVELOPMENT-PARTITION COMPUTATION; performance NOT authorized; validation/OOS sealed",
  "bound_identities": {
   "dev_calendar_sha256": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0",
-  "development_run_manifest": "dbcdb36107490402e7582361669419d01271c7321358515fc0f1911c94deb8b9",
+  "development_run_manifest": "b3fff1644db137a16dc3f98185ae3fdf406102c7c7ea7f6224ca6e7f13db71c0",
   "governed_session_list_reference_sha256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
   "increment3_accepted_output_sha256": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
-  "input_identity_manifest": "64e2aa20bd9ed1a201c11bdb313b1d6e6d7590f8ef6a7d369d8b2ab33a471ec9",
+  "input_identity_manifest": "be976532fd138ab6dacb61b257a5e4833764f61ecd9f266da92aa8c6dd84a8ef",
   "opened_object_ledger": "bcd6253d82d51c11fd29d97e79e71c707ab9dfdf9c102dc3490a80ce6a23662c",
   "owner_rulings_sha256": "d8a9071d53bdb036ad9e6d46cd0d899f6846d3f2af946f932ce963e10f0e206a",
   "phase0_census_sha256": "87602e7c5e5c719a44d83d6a556690116958c58e1e0d97b687531da824f9008e",
@@ -16,7 +16,7 @@
   "phase1_valid_path_output_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
   "phase2a_closeout": "673f10bdc84e276d5fc1d5bce39f459c8bc869af",
   "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e7494b9688e74b76e57128a4e59cd809f78d66bf1621d3ae2",
-  "phase2b_orchestration_code_identity": "866d14fcbbc0d9151fe908a8b383722e913ace94464125fb8ee2981aa1cf067c",
+  "phase2b_orchestration_code_identity": "d7727557bd88eb94ec36b18a05100d658613cb21a4d68e2042e699142ffb6044",
   "pit_sector_observation_source_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
   "provenance_db_sha256": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
   "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
@@ -58,7 +58,7 @@
   "order-path",
   "production"
  ],
- "phase2b_orchestration_code_identity": "866d14fcbbc0d9151fe908a8b383722e913ace94464125fb8ee2981aa1cf067c",
+ "phase2b_orchestration_code_identity": "d7727557bd88eb94ec36b18a05100d658613cb21a4d68e2042e699142ffb6044",
  "pit_sector_observation_source_rule": {
   "amends": "the 2B-0 ratified contract's provenance sic_observations source (only 13 ciks); guarded + ledgered identically to every other real-data input.",
   "authorized_columns": [
@@ -81,7 +81,7 @@
  "record_type": "MR002_SPQ1_Phase2B_RunSpecification",
  "review_date": "2026-07-20",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
- "run_specification_sha256": "277d9bd326124dfda9df5fb984ecf16557f306af7e253addf1aa0856cc6f5f8d",
+ "run_specification_sha256": "61736b443f4b3d584f60f0e91b7c2ff234fcea0b6123743b3252a2fee2250391",
  "sic_mapping_selection_rule": {
   "effective_time_selection": "among rows covering the SIC, the latest effective_from <= close t governs (NULL effective_from = always-effective); range boundaries inclusive",
   "missing_sic_range": "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING (never defaulted)",

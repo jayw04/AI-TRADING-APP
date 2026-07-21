@@ -5,6 +5,9 @@
   "SIGNAL_DECISION_RECORD_EMITTED": 66
  },
  "duplicate_candidate_ids": false,
+ "duplicate_request_keys": 0,
+ "duplicate_resolved_permanent_security_session_keys": 0,
+ "duplicate_resolved_unit_fails_closed": true,
  "duplicate_units": false,
  "emitted_eligibility": {
   "ELIGIBLE": 66

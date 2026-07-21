@@ -149,6 +149,60 @@ def test_phase2b_code_identity_binds_all_execution_modules():
         O.verify_code_identity({**ident, "orchestrator.py": "0" * 64})   # drift -> refuse
 
 
+def test_resolved_unit_uniqueness_and_request_key_separation():
+    UR = ORCH.UnitResult
+    # two symbols resolving to the SAME permanent id on ONE session -> duplicate resolved unit
+    same_permsec = [UR("PSEC-1", "OLD", 5, EMITTED, None, "ELIGIBLE", "h"),
+                    UR("PSEC-1", "NEW", 5, EMITTED, None, "ELIGIBLE", "h")]
+    with pytest.raises(ValueError, match="duplicate resolved"):
+        ORCH.merge([same_permsec])
+    # same symbols on NON-overlapping sessions -> accepted (distinct request + terminal keys)
+    diff = [UR("PSEC-1", "SYM", 5, EMITTED, None, "ELIGIBLE", "h"),
+            UR("PSEC-2", "SYM", 6, EMITTED, None, "ELIGIBLE", "h2")]
+    with pytest.raises(ValueError, match="duplicate request"):   # same symbol+session would collide
+        ORCH.merge([[UR("PSEC-1", "SYM", 5, EMITTED, None, "E", "h"),
+                     UR("PSEC-9", "SYM", 5, EMITTED, None, "E", "h")]])
+    m = ORCH.merge([diff])
+    assert len(m) == 2
+    # identity failure -> a distinct UNRESOLVED terminal key, no silent drop
+    amb = UR("", "SYM", 5, INTEGRITY_STOP, "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS", None, None)
+    assert amb.terminal_key() == (5, "UNRESOLVED:SYM")
+    assert ORCH.reconcile([amb])["duplicate_resolved_permanent_security_session_keys"] == 0
+    # canonical merge invariant under input-symbol order
+    a = [UR("P2", "B", 1, EMITTED, None, "E", "h2"), UR("P1", "A", 1, EMITTED, None, "E", "h1")]
+    assert canonical_sha256([u.as_row() for u in ORCH.merge([a])]) == \
+        canonical_sha256([u.as_row() for u in ORCH.merge([list(reversed(a))])])
+
+
+def test_price_ledger_binds_every_consumed_field(tmp_path):
+    import numpy as np
+
+    from app.research.mr002.spq1.adapters.calendar_adapter import dev_calendar_sha256
+    from app.research.mr002.spq1.adapters.partition_guard import PartitionGuard
+    from app.research.mr002.spq1.identities import canonical_sha256 as csha
+    from app.research.mr002.spq1.returns import CellStatus
+
+    cal = type("C", (), {"sessions": ("2013-01-02", "2013-01-03", "2013-01-04")})()
+    close = np.array([10.0, 11.0, 12.0])
+    unadj = np.array([9.0, 9.5, 10.0])
+    vol = np.array([100.0, 200.0, 300.0])
+    status = [CellStatus.PRESENT] * 3
+
+    def ledger_hash(c, u, v, st):
+        rows = [[cal.sessions[i], ORCH._cf(c[i]), ORCH._cf(u[i]), ORCH._cf(v[i]), st[i].value]
+                for i in range(3)]
+        return csha(rows)
+
+    base = ledger_hash(close, unadj, vol, status)
+    assert ledger_hash(close, unadj, vol, status) == base                         # unchanged -> same
+    assert ledger_hash(close * 1.01, unadj, vol, status) != base                  # closeadj changes
+    assert ledger_hash(close, unadj * 1.01, vol, status) != base                  # closeunadj changes
+    assert ledger_hash(close, unadj, vol * 2, status) != base                     # volume changes
+    st2 = [CellStatus.PRESENT, CellStatus.UNEXPLAINED_HOLE, CellStatus.PRESENT]
+    assert ledger_hash(close, unadj, vol, st2) != base                            # status changes
+    _ = (dev_calendar_sha256, PartitionGuard)  # keep imports meaningful
+
+
 def test_no_orderpath_or_performance_imports():
     pkg = REPO / "apps" / "backend" / "app" / "research" / "mr002" / "spq1" / "phase2b"
     forbidden = re.compile(

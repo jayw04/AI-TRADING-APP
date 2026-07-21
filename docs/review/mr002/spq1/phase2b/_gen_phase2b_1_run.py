@@ -171,10 +171,20 @@ expected_units = sum(len(s) for s in SHARDS.values()) * len(ctx.securities)
 emitted = disp["SIGNAL_DECISION_RECORD_EMITTED"]
 reconciles = (expected_units == emitted + disp["INELIGIBLE"] + disp["INTEGRITY_STOP"]
               + disp["REFUSED_CODE_OR_DATA_IDENTITY"])
-dup_units = len(all_units) != len({u.key() for u in all_units})
-dup_records = False
+recon_keys = ORCH.reconcile(all_units)
+dup_units = recon_keys["duplicate_request_keys"] > 0 or \
+    recon_keys["duplicate_resolved_permanent_security_session_keys"] > 0
 recs = [u.record_identity for u in all_units if u.record_identity]
 dup_candidate = len(recs) != len(set(recs))
+# duplicate-resolved-unit sentinel: two symbols -> same permanent id, same session -> merge fails closed
+_UR = ORCH.UnitResult
+_dup_pair = [_UR("PSEC-DUP", "SYM-A", 7, "SIGNAL_DECISION_RECORD_EMITTED", None, "ELIGIBLE", "h"),
+             _UR("PSEC-DUP", "SYM-B", 7, "SIGNAL_DECISION_RECORD_EMITTED", None, "ELIGIBLE", "h")]
+try:
+    ORCH.merge([_dup_pair])
+    dup_resolved_blocked = False
+except ValueError:
+    dup_resolved_blocked = True
 
 # --- censuses ---
 session_census = {}
@@ -244,6 +254,10 @@ shard_selection = {"record_type": "MR002_SPQ1_Phase2B_2B1_ShardSelection", "vers
 unit_recon = {"record_type": "MR002_SPQ1_Phase2B_2B1_UnitReconciliation", "version": "1.0", "run_id": RUN_ID,
     "expected_units": expected_units, "dispositions": dict(disp), "reconciles": reconciles,
     "duplicate_units": dup_units, "duplicate_candidate_ids": dup_candidate, "missing_outcomes": 0,
+    "duplicate_request_keys": recon_keys["duplicate_request_keys"],
+    "duplicate_resolved_permanent_security_session_keys":
+        recon_keys["duplicate_resolved_permanent_security_session_keys"],
+    "duplicate_resolved_unit_fails_closed": dup_resolved_blocked,
     "emitted_eligibility": dict(elig)}
 refusal_census_art = {"record_type": "MR002_SPQ1_Phase2B_2B1_RefusalCensus", "version": "1.0",
     "run_id": RUN_ID, "codes": refusal_census, "deprecated_emitted": deprecated_emitted,
@@ -310,6 +324,10 @@ h["RestartReport"] = dump(restart, "MR002_SPQ1_Phase2B_2B1_RestartReport_v1.0.js
 
 gate = {"all_reads_development": no_validation_oos, "validation_oos_reads": 0,
         "one_terminal_outcome_per_unit": reconciles and not dup_units,
+        "duplicate_request_keys": recon_keys["duplicate_request_keys"],
+        "duplicate_resolved_permanent_security_session_keys":
+            recon_keys["duplicate_resolved_permanent_security_session_keys"],
+        "duplicate_resolved_unit_fails_closed": dup_resolved_blocked,
         "raw_exceptions": 0, "unknown_refusal_codes": len(unknown_codes), "deprecated_emissions": int(deprecated_emitted),
         "pit_sentinels_cannot_affect": sentinel_sector_excluded, "dst_leak_channel_closed": dst_leak_closed,
         "governed_case_coverage_demonstrated": (disp["SIGNAL_DECISION_RECORD_EMITTED"] > 0
