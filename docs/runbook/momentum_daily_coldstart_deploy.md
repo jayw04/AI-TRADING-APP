@@ -96,6 +96,32 @@ adds the *formal audit event* using the new action. It must **not** create a sec
 logical hold. Only run this **after** the code is deployed (step 1) and the new action
 exists on the box.
 
+> **⚠ 4.0 — Reconcile a LEGACY marker first (the acct-4 reality).** On the box, strategy
+> 11's `operational_hold` predates the hold schema: it is a legacy record
+> (`status:"PAUSED"`, no `schema_version`/`_rev`/`effective_at`). The new `read_hold`
+> rejects it fail-closed (`HoldStateInvalid`), so it correctly **blocks activation**, but
+> `formalize_existing_operational_hold.py` (and `HoldService.clear`) cannot operate on it.
+> Adopt it into schema-v1 FIRST with the one governed migration
+> `scripts/adopt_legacy_operational_hold.py` (dry-run → apply). That writes a schema-v1
+> **ACTIVE** hold (rev 1, `effective_at`=the legacy `paused_at`,
+> `source=RETROSPECTIVE_FORMALIZATION`), **preserves the entire legacy marker** under a
+> `legacy_marker` key, and emits the one retrospective `STRATEGY_HOLD_PLACED` — so §4's
+> formalization is fulfilled by the adoption for this case. After adoption, enforcement
+> blocks via the CLEAN path (`StrategyOnHold`), and `clear` becomes possible. Command:
+> ```
+> ssh workbench 'sudo docker exec workbench-backend \
+>   python scripts/adopt_legacy_operational_hold.py \
+>     --strategy-id 11 --reason-code AWAITING_COLD_START_FIX \
+>     --paused-at 2026-07-20T22:48:22Z --placed-by user:4 \
+>     --evidence-ref "snapshot_sha256=8fa766f3…" --evidence-ref "audit=STRATEGY_UNREGISTERED#5733" \
+>     --evidence-ref "run=605" --evidence-ref "plan=momentum_daily_coldstart_repair_plan_v1.0" \
+>     --approval-ref "<adjudication ref>"'   # then re-run with --apply
+> ```
+> Expect `WOULD ADOPT`/`ADOPTED`, `legacy marker PRESERVED verbatim: YES`. If the live
+> marker's `(status, reason_code, paused_at)` don't match the assertion → `REFUSED` (exit
+> 5); stop and reconcile. Once the marker is schema-v1, the rest of §4 (below) applies
+> to a marker that is already formalized — no second event.
+
 **Sanctioned mechanism:** `scripts/formalize_existing_operational_hold.py`. This is the
 *only* correct path — `HoldService.place()` on the existing identical active hold is an
 idempotent no-op and writes no audit; a raw audit insert bypasses the service boundary
