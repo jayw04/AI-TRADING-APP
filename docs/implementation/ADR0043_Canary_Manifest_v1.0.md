@@ -106,9 +106,10 @@ no-tuning discipline. Its full procedure is **Phase 0** of
 For a valid GREEN attempt, Phase 0 must yield `READY_FOR_ADR0043_CANARY`:
 
 1. **Daily-loss origin (not breaker).** The lock must be `REDUCTION_ONLY_DAILY_LOSS` from a `DAILY_LOSS`
-   trip, so the account **owner** (user 3) can self-authorize recovery. A `REDUCTION_ONLY_BREAKER` origin
-   would need operator authority — **do not** add user 3 to `WORKBENCH_RISK_OPERATOR_USER_IDS` to help it
-   pass (that changes the authority configuration under test); a breaker-origin trip is an **unsuitable
+   trip, so the account **owner** (`ADR0043_USER`) can self-authorize recovery. A `REDUCTION_ONLY_BREAKER`
+   origin would need operator authority — **do not** add the canary owner (`ADR0043_USER`) to
+   `WORKBENCH_RISK_OPERATOR_USER_IDS` to help it pass (that changes the authority configuration under test;
+   the governing property is owner authority, not a numeric id); a breaker-origin trip is an **unsuitable
    setup**, preserved as evidence, not rewritten.
 2. **Authoritative, current-session, immutable baseline** captured by the production mechanism **before**
    loss generation — never inserted or repaired after the breach.

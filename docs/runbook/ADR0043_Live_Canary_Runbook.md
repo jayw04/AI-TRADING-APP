@@ -279,16 +279,18 @@ state events, so it is **recorded at boundaries, not required equal**.
 For the first ADR-0043 live validation:
 
 - **Trip origin:** `DAILY_LOSS` · **Expected locked state:** `REDUCTION_ONLY_DAILY_LOSS`
-- **Recovery requester:** user 3, the account owner · **Additional operator authority:** *not required*.
+- **Recovery requester:** the **canary owner** (`ADR0043_USER`), who **is** the account owner ·
+  **Additional operator authority:** *not required*.
 
-The canary requests recovery as the owner (user 3). Per the authority matrix, the owner can self-authorize
-a `PREFLIGHT_PASS` **only** for a daily-loss origin; a `REDUCTION_ONLY_BREAKER` origin lands
-`AUTHORIZATION_REQUIRED` and the owner's `approve()` is refused → **A4 is RED**.
+The canary requests recovery as the owner. Per the authority matrix, the owner can self-authorize a
+`PREFLIGHT_PASS` **only** for a daily-loss origin; a `REDUCTION_ONLY_BREAKER` origin lands
+`AUTHORIZATION_REQUIRED` and the owner's `approve()` is refused → **A4 is RED**. The governing property is
+**owner authority**, not a numeric user id.
 
-- **Do NOT** add user 3 to `WORKBENCH_RISK_OPERATOR_USER_IDS` merely to help A4 pass — that changes the
-  authority configuration under test.
-- **If account 3 enters `REDUCTION_ONLY_BREAKER`** instead of `REDUCTION_ONLY_DAILY_LOSS`, **STOP** and
-  classify the setup as unsuitable for this GREEN run. Do not rewrite the trip cause or durable state.
+- **Do NOT** add the canary owner (`ADR0043_USER`) to `WORKBENCH_RISK_OPERATOR_USER_IDS` merely to help A4
+  pass — that changes the authority configuration under test.
+- **If the canary account enters `REDUCTION_ONLY_BREAKER`** instead of `REDUCTION_ONLY_DAILY_LOSS`,
+  **STOP** and classify the setup as unsuitable for this GREEN run. Do not rewrite the trip cause or state.
   Preserve the breaker-origin result as setup evidence; start a separately governed attempt only after
   identifying why the intended daily-loss path did not govern the trip.
 
@@ -298,21 +300,21 @@ The baseline must be captured by **this box's** production runtime — the one t
 and run the canary — **not** by a predecessor instance.
 
 1. Identify the deployed baseline-capture setting; confirm it is enabled for the backend that will handle
-   account 3. If it is a startup-time setting, restart the container through the approved procedure
-   **before** the baseline is captured (the one permitted restart), then re-record the final container
-   identity + configuration. Record the configuration checksum.
+   the canary account. If it is a startup-time setting, restart the container through the approved
+   procedure **before** the baseline is captured (the one permitted restart), then re-record the final
+   container identity + configuration. Record the configuration checksum.
 2. Verify the baseline is captured for the **current** trading session and is immutable after capture.
 
-A valid baseline record contains at least: `account_id=3`, session/trading date = current session,
-baseline status = valid/authoritative, capture timestamp, source/provenance, the required equity/values,
-and immutability/version evidence.
+A valid baseline record contains at least: `account_id=$ADR0043_ACCOUNT`, session/trading date = current
+session, baseline status = valid/authoritative, capture timestamp, source/provenance, the required
+equity/values, and immutability/version evidence.
 
 **STOP** — do not begin loss generation — if: capture is disabled; the baseline row is missing; the
 baseline belongs to a previous session; provenance is invalid; it was manually inserted; it was modified
 after session activity began; or two competing baselines exist. **Never "repair" the baseline after the
 breach** — that would invalidate both the lock provenance and the recovery preflight.
 
-## 0B. Reconcile account 3 before the breach
+## 0B. Reconcile the canary account before the breach
 
 Read-only, broker vs the freshly-synced DB: broker positions/open-orders/recent-fills/account-status/
 buying-power/equity/market-clock vs DB positions/open-orders/reservations/account-state/loss-control-state/
@@ -338,9 +340,10 @@ So:
   `effective_max_daily_loss`, `effective_max_orders_per_day`, `effective_max_position_qty`,
   `effective_max_position_notional`, `effective_max_gross_exposure`, and any rate/velocity/breaker
   thresholds the deployment applies. Hash the export → `limits_before_sha256`.
-- Also record `recovery_requester=user 3`, `required_trip_origin=DAILY_LOSS`,
-  `required_target_state=REDUCTION_ONLY_DAILY_LOSS`, `user3_risk_operator=false` (do **not** add user 3 to
-  `WORKBENCH_RISK_OPERATOR_USER_IDS`).
+- Also record `recovery_requester=$ADR0043_USER`, `recovery_requester_is_account_owner=true`,
+  `required_trip_origin=DAILY_LOSS`, `required_target_state=REDUCTION_ONLY_DAILY_LOSS`,
+  `canary_owner_risk_operator=false`. Do **not** add the canary owner identified by `ADR0043_USER` to
+  `WORKBENCH_RISK_OPERATOR_USER_IDS` — the governing property is **owner authority**, not a numeric id.
 
 From here through countersignature, `limits_before_sha256 == limits_after_sha256`. The Phase-0D breach plan
 must use the **effective resolved `max_daily_loss`**, never a guessed row. An unreachable breach is
@@ -440,8 +443,8 @@ globally flip every environment to ENFORCE unless separately reviewed.
 
 ## C. Immediate pre-canary confirmation (read-only)
 
-Confirm, read-only: `risk_loss_control_state` for account 3 is now `REDUCTION_ONLY_DAILY_LOSS` with
-`state_version` present; `F ≥ 500`, `MSFT ≥ 20` at the broker. **Never** run `UPDATE risk_loss_control_state`,
+Confirm, read-only: `risk_loss_control_state` for the canary account (`ADR0043_ACCOUNT`) is now
+`REDUCTION_ONLY_DAILY_LOSS` with `state_version` present; `F ≥ 500`, `MSFT ≥ 20` at the broker. **Never** run `UPDATE risk_loss_control_state`,
 `UPDATE risk_limits`, `UPDATE accounts SET circuit_breaker_tripped_at`, or `DELETE FROM risk_control_events`
 — any need for such a change means the run is not valid. **Do not buy back a missing leg** (a locked account
 cannot legitimately manufacture the precondition — the harness treats it as a refusal).
@@ -491,7 +494,7 @@ must not be faked.
 
 Do not accept PASS alone — review the evidence and durable state.
 
-- **A1 `state_authoritative`** — pre-order snapshot shows account 3 in `REDUCTION_ONLY_*` with
+- **A1 `state_authoritative`** — pre-order snapshot shows the canary account in `REDUCTION_ONLY_*` with
   `state_version`. Failure: state absent; `NORMAL`; only the legacy breaker column indicates a lock; state
   changed outside the sanctioned event stream.
 - **A2 `verified_reduction_allowed`** — SELL 1 protected symbol **admitted** (not rejected by loss
@@ -541,15 +544,15 @@ what changed. A Phase 0 failure is a **setup-readiness** failure — same discip
 
 ## K. After GREEN
 
-Keep account 3 frozen until countersignature is complete: finish evidence copying; independently verify all
-hashes; inspect A1–A5; confirm final state; countersign; preserve the package in durable storage. Then, and
-only then, reclaim account 3 **only through sanctioned flows**: sanctioned risk-reducing orders to flatten
-the legs; verify fills + no residual/open orders; run the audited recovery/reset path; verify the durable
-event trail; confirm the final clean state; restore the intended clean paper-account duplicate; record the
-new account/broker identity + credentials through approved secret management. **Do not** edit
-`risk_loss_control_state`, delete events, null breaker fields manually, rewrite preflight records, reset the
-paper balance before evidence preservation, or treat account 3 as a strategy book without a separate
-governance decision.
+Keep the canary account frozen until countersignature is complete: finish evidence copying; independently
+verify all hashes; inspect A1–A5; confirm final state; countersign; preserve the package in durable storage.
+Then, and only then, reclaim the canary account **only through sanctioned flows**: sanctioned risk-reducing
+orders to flatten the legs; verify fills + no residual/open orders; run the audited recovery/reset path;
+verify the durable event trail; confirm the final clean state; restore the intended clean paper-account
+duplicate; record the new account/broker identity + credentials through approved secret management. **Do
+not** edit `risk_loss_control_state`, delete events, null breaker fields manually, rewrite preflight records,
+reset the paper balance before evidence preservation, or treat the canary account as a strategy book without
+a separate governance decision.
 
 > **Open governance item to resolve before reclamation.** The manifest describes account 3 as the
 > **permanent risk-engine verification account** ("not converted into a strategy account"), while this
