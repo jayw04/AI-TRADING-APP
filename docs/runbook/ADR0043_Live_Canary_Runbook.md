@@ -181,6 +181,20 @@ implementation baseline) — both values are preserved.
   (**must equal the repository head**). **STOP** on >1 head, a DB behind, an unknown revision, or any
   proposal to `alembic stamp head` merely to pass (valid only when the schema is independently known to
   match, never to manufacture readiness).
+- **Ambient loss-control mode = `ENFORCE` (load-bearing).** The engine short-circuits the loss-control
+  trigger when `loss_control_mode == OFF` (its default), so under OFF a daily-loss breach trips only the
+  legacy gate and **persists no `REDUCTION_ONLY_DAILY_LOSS` transition** — the canary would then refuse
+  for "no reduction-only state". Passing `-e WORKBENCH_LOSS_CONTROL_MODE=ENFORCE` to the canary affects
+  **only that one process**, NOT the backend that captures the baseline, routes the Phase-0D orders, and
+  persists the lock. So the **backend must run with ambient `ENFORCE`** from here through the canary.
+  Capture the **effective runtime** value from inside the container (do not infer from Compose alone):
+  ```
+  $COMPOSE exec -T backend sh -lc 'printf "WORKBENCH_LOSS_CONTROL_MODE=%s\n" "$WORKBENCH_LOSS_CONTROL_MODE"'
+  # required: WORKBENCH_LOSS_CONTROL_MODE=ENFORCE
+  ```
+  If enabling it requires a restart, do it **before baseline capture** (the sanctioned pre-baseline restart
+  exception) and re-record container identity, image digest, config checksum, boot/start timestamp, and the
+  ambient mode. The formal canary still passes `-e …=ENFORCE` as defence in depth.
 
 ## A4. Confirm one backend and clean canary-artifact paths
 
@@ -191,10 +205,35 @@ implementation baseline) — both values are preserved.
   restart time/logs, and whether it is genuinely resumable, and **document the decision**. A contradictory
   checkpoint should produce a **refusal** — a valid safety outcome, not something to work around.
 
-> **Expected at this point:** the fresh backend syncs account 3's broker state (the `F`/`MSFT` positions,
-> account status) into its fresh local DB, and the loss-control state is `NORMAL` (a fresh DB has no
-> prior lock). That is correct — the durable `REDUCTION_ONLY_*` lock is established in **Phase 0 below, on
-> this same box**, not carried over from anywhere.
+> **Expected at this point:** once account 3 and its credentials are established (§A4b), the backend syncs
+> account 3's broker state (the `F`/`MSFT` positions, account status) into its fresh local DB, and the
+> loss-control state is `NORMAL` (a fresh DB has no prior lock). That is correct — the durable
+> `REDUCTION_ONLY_*` lock is established in **Phase 0 below, on this same box**, not carried over.
+
+## A4b. Establish and verify account 3 (identity, credentials, effective limits) — before Phase 0
+
+A genuinely fresh box has an **empty `workbench.sqlite`**: no user 3, no account 3, no encrypted broker
+credentials, and **no risk limits**. Account synchronisation only syncs *positions* for an *existing,
+credentialed* account — it does not create the account/user/creds/limits from nothing. And the engine
+**rejects every order with `NO_LIMITS_CONFIGURED`** when no limits row resolves, so the Phase-0D breach
+cannot even run without limits. So before baseline capture, **establish** these through the **sanctioned
+bootstrap mechanisms — never ad-hoc SQL inserts**:
+
+- **Login identity:** `scripts/create_user.py` (user 3 + password/TOTP).
+- **Broker credentials:** `scripts/rebootstrap_credentials.py` (Alpaca paper key/secret from `.env` into
+  the Fernet-encrypted credential store — ADR 0003) and the account↔user binding via the sanctioned
+  account/provisioning path. Never place plaintext credentials in the evidence package.
+
+Then **verify** (read-only) and record: `user_id=3` exists; `account_id=3` exists and belongs to user 3;
+`broker=alpaca`, `mode=paper`; the bound **broker account identity matches the frozen canary account**;
+credentials **resolve** (a broker read succeeds) and are **not shared with the wrong account**; the broker
+account is **active**; `F` and `MSFT` positions **synchronise** from that broker account; and the effective
+risk limits **resolve** for account 3's user (see §0C — the engine uses a single GLOBAL/user/paper row).
+
+**STOP before baseline capture** if: account 3 is absent; it maps to the **wrong** broker account;
+credentials are absent or ambiguous; the broker account is **inactive**; positions do not synchronise; no
+limits row resolves (would be `NO_LIMITS_CONFIGURED`) or it falls back to unexpected defaults; or account 3
+already carries **unexplained** local loss-control / recovery state (a fresh DB should have none).
 
 ---
 
@@ -260,13 +299,29 @@ recovery workflow; no unexplained state transition. Do not buy/adjust positions 
 baseline unless that establishment is an already-governed part of setup; if the account no longer matches,
 **revise and re-freeze the manifest through review** — do not silently restore it.
 
-## 0C. Freeze the limits (and provenance)
+## 0C. Freeze the EFFECTIVE limits (and provenance)
 
-Export the complete effective limit set **before** any loss (`max_daily_loss`, `max_position_qty`,
-`max_position_notional`, `max_gross_exposure`, `max_orders_per_day`, rate limits, velocity thresholds,
-breaker thresholds, all overrides). Hash it. From here through countersignature,
-`limits_before_sha256 == limits_after_sha256`. An unreachable breach is unreachable — **never** solved by
-lowering controls.
+Record the limits **the risk engine actually resolves**, not merely rows that look relevant. In this
+codebase the engine resolves limits via `_load_global_limits(user_id, broker_mode)` — the **single**
+`RiskLimits` row where `scope_type = GLOBAL`, `user_id = 3`, `broker_mode = paper` (`.first()`). There is
+**no account-specific override precedence**; that one row **is** the effective limit set, and if none
+resolves the engine rejects every order with `NO_LIMITS_CONFIGURED`.
+
+So:
+- Confirm **exactly one** such GLOBAL/paper row exists for user 3 (two would make `.first()`
+  non-deterministic — **STOP**), and that its values are the **approved** configuration, **not fresh
+  defaults**.
+- Record the **effective resolved** values (with the fact that the source is the single GLOBAL/paper row):
+  `effective_max_daily_loss`, `effective_max_orders_per_day`, `effective_max_position_qty`,
+  `effective_max_position_notional`, `effective_max_gross_exposure`, and any rate/velocity/breaker
+  thresholds the deployment applies. Hash the export → `limits_before_sha256`.
+- Also record `recovery_requester=user 3`, `required_trip_origin=DAILY_LOSS`,
+  `required_target_state=REDUCTION_ONLY_DAILY_LOSS`, `user3_risk_operator=false` (do **not** add user 3 to
+  `WORKBENCH_RISK_OPERATOR_USER_IDS`).
+
+From here through countersignature, `limits_before_sha256 == limits_after_sha256`. The Phase-0D breach plan
+must use the **effective resolved `max_daily_loss`**, never a guessed row. An unreachable breach is
+unreachable — **never** solved by lowering controls.
 
 ## 0D. Generate a real daily loss through sanctioned orders (on this box)
 
@@ -333,10 +388,21 @@ checkpoint/evidence paths clean.
 ## Continuity record — formal-canary start
 
 Re-capture the same fields as the Phase-0-start record and **compare**: `instance_id` / `boot_id` /
-backend image digest / git commit / configuration checksum / broker account identity / session baseline
-id/version must be **identical** (same runtime, no reprovision/image-swap/config-change). Record the
-current database SHA-256 (expected different from Phase-0-start — orders/events were written; recorded, not
-required equal). Store as `$EVIDENCE_DIR/continuity_canary.txt`. **STOP** if any immutable item changed.
+backend image digest / git commit / configuration checksum / **ambient `WORKBENCH_LOSS_CONTROL_MODE`
+(= `ENFORCE`)** / broker account identity / session baseline id/version must be **identical** (same
+runtime, no reprovision/image-swap/config-change). **Re-derive the image digest here** (do not depend on a
+shell export surviving across SSH sessions) and compare it to the Phase-0 record:
+
+```
+BACKEND_CID=$($COMPOSE ps -q backend)
+BACKEND_IMAGE_DIGEST="$(sudo docker inspect "$BACKEND_CID" --format '{{.Image}}')"
+test -n "$BACKEND_IMAGE_DIGEST"                                # non-empty
+test "$BACKEND_IMAGE_DIGEST" = "$PHASE0_BACKEND_IMAGE_DIGEST"  # equals the Phase-0 continuity record
+```
+
+An empty digest or a mismatch is a **hard STOP**. Record the current database SHA-256 (expected different
+from Phase-0-start — orders/events were written; recorded, not required equal). Store as
+`$EVIDENCE_DIR/continuity_canary.txt`. **STOP** if any immutable item changed (including ambient mode).
 
 ---
 
@@ -473,14 +539,18 @@ governance decision.
       delta is **documentation-only**; clean git tree
 - [ ] Backend image digest + Compose/config checksums recorded
 - [ ] Exactly one Alembic head; DB current at that head
+- [ ] **Ambient `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`** confirmed from the effective runtime (not Compose alone)
+- [ ] **Account 3 established via sanctioned bootstrap** (user 3 / account 3 / paper creds resolve / correct
+      broker account / active / `F`+`MSFT` synchronised / effective limits resolve) — no ad-hoc inserts
 - [ ] Exactly one backend runtime; no live canary process; canary artifact paths absent (or a documented resume)
-- [ ] Continuity record (Phase-0 start) captured
+- [ ] Continuity record (Phase-0 start) captured (incl. image digest, ambient mode)
 
 **Phase 0 (establish the lock on that same box):**
 
 - [ ] Authoritative current-session baseline captured on THIS box, immutable
 - [ ] Broker/DB reconciled (positions, orders, reservations); no stale/unexplained state
-- [ ] Limits + provenance frozen; `limits_before_sha256` recorded
+- [ ] **Effective** limits resolved (exactly one GLOBAL/user-3/paper row; approved values, not defaults);
+      frozen; `limits_before_sha256` recorded
 - [ ] Loss generated only through `OrderRouter → RiskEngine → broker adapter`
 - [ ] Durable state `= REDUCTION_ONLY_DAILY_LOSS`, trip cause `= DAILY_LOSS` (NOT breaker)
 - [ ] Read-only twelve-check readiness recorded (dependency-aware; A4-only rows marked pending)
@@ -488,8 +558,9 @@ governance decision.
 
 **Formal canary — on the same runtime:**
 
-- [ ] Continuity record (canary start) captured; immutables equal to Phase-0-start
-- [ ] ENFORCE + `ADR0043_COMMIT_SHA` + `ADR0043_IMAGE_DIGEST` passed only to the one command
+- [ ] Continuity record (canary start) captured; immutables equal to Phase-0-start; **image digest
+      re-derived and equal** to the Phase-0 record (non-empty)
+- [ ] ENFORCE + `ADR0043_COMMIT_SHA` + `ADR0043_IMAGE_DIGEST` (non-empty) passed to the one command
 - [ ] Pre-run DB + broker evidence captured; terminal + service logs recording
 
 **GREEN only when:**
