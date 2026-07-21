@@ -25,7 +25,7 @@ from app.db.enums import OrderSide, OrderType, SignalType
 from app.risk import OrderRequest
 
 from .backtest_models import BacktestTrade
-from .context import FillEvent
+from .context import FillEvent, OpenOrderObs
 
 logger = structlog.get_logger(__name__)
 
@@ -51,6 +51,8 @@ class _PendingOrder:
     type: OrderType
     limit_price: Decimal | None
     stop_price: Decimal | None
+    order_id: int = -1
+    client_order_id: str | None = None
 
 
 @dataclass
@@ -125,6 +127,13 @@ class BacktestContext:
         self.trades: list[BacktestTrade] = []
         self.signals: list[dict[str, Any]] = []
         self.equity_curve: list[tuple[datetime, Decimal]] = []
+        # Explicit execution-adapter store (P7 §7-A #3): settled synthetic fills,
+        # written by _settle_pending_orders and READ by recent_fills(). recent_fills
+        # never invents a fill from a mere pending order — it only reads what the
+        # simulated execution actually settled, preserving full attribution.
+        self._settled_fills: list[FillEvent] = []
+        self._order_seq: int = 0
+        self._fill_seq: int = 0
 
     @property
     def factors(self) -> Any:
@@ -190,17 +199,22 @@ class BacktestContext:
 
             self._apply_fill_to_position(po.symbol, po.side, po.qty, fill_price, now)
 
-            fills.append(
-                FillEvent(
-                    fill_id=len(self.trades) + len(fills) + 1,
-                    order_id=-1,
-                    symbol=po.symbol,
-                    side=po.side.value,
-                    qty=po.qty,
-                    price=fill_price,
-                    filled_at=now,
-                )
+            self._fill_seq += 1
+            fe = FillEvent(
+                fill_id=self._fill_seq,
+                order_id=po.order_id,
+                symbol=po.symbol,
+                side=po.side.value,
+                qty=po.qty,
+                price=fill_price,
+                filled_at=now,
+                client_order_id=po.client_order_id,
+                account_id=self.account_id,
+                source_id=str(self.strategy_id),
+                order_status="filled",
             )
+            self._settled_fills.append(fe)
+            fills.append(fe)
 
         self.pending_orders = remaining
         return fills
@@ -442,6 +456,8 @@ class BacktestContext:
                 rejection_reason="no_current_bar",
             )
 
+        self._order_seq += 1
+        oid = self._order_seq
         self.pending_orders.append(
             _PendingOrder(
                 submit_ts=now,
@@ -451,13 +467,72 @@ class BacktestContext:
                 type=order_request.type,
                 limit_price=order_request.limit_price,
                 stop_price=order_request.stop_price,
+                order_id=oid,
+                client_order_id=order_request.client_order_id,
             )
         )
         return _FakeOrderResult(
-            order_id=len(self.pending_orders),
+            order_id=oid,
             status="submitted",
             rejection_reason=None,
         )
+
+    async def recent_fills(
+        self,
+        *,
+        since: datetime | None = None,
+        after_fill_id: int | None = None,
+        client_order_id_prefix: str | None = None,
+    ) -> list[FillEvent]:
+        """Read stored synthetic fills (P7 §7-A #3 execution-adapter).
+
+        Mirrors ``StrategyContext.recent_fills``: the store only ever holds THIS
+        context's settled executions (strategy+account-scoped by construction), a
+        two-part ``(since, after_fill_id)`` cursor, ``client_order_id_prefix`` as
+        an OPTIONAL attempt filter, deterministic ascending ``(filled_at,
+        fill_id)``. It NEVER invents a fill from a mere pending order — only what
+        simulated execution actually settled appears here.
+        """
+        return await self._read_settled_fills(
+            since=since, after_fill_id=after_fill_id,
+            client_order_id_prefix=client_order_id_prefix,
+        )
+
+    async def open_orders(
+        self, *, client_order_id_prefix: str | None = None
+    ) -> list[OpenOrderObs]:
+        """Pending (not-yet-settled) orders as OpenOrderObs. In the backtest a
+        pending order settles at the next bar open, so ``pending_orders`` IS the set
+        of still-open orders. Optional attempt-prefix filter mirrors the live ctx."""
+        out: list[OpenOrderObs] = []
+        for po in self.pending_orders:
+            if client_order_id_prefix is not None and not (
+                po.client_order_id or ""
+            ).startswith(client_order_id_prefix):
+                continue
+            out.append(OpenOrderObs(order_id=po.order_id, symbol=po.symbol.upper(),
+                                    status="submitted", client_order_id=po.client_order_id))
+        return out
+
+    async def _read_settled_fills(
+        self, *, since, after_fill_id, client_order_id_prefix
+    ) -> list[FillEvent]:
+        out: list[FillEvent] = []
+        for fe in sorted(self._settled_fills, key=lambda f: (f.filled_at, f.fill_id)):
+            if since is not None and after_fill_id is not None:
+                if not (
+                    fe.filled_at > since
+                    or (fe.filled_at == since and fe.fill_id > after_fill_id)
+                ):
+                    continue
+            elif since is not None and fe.filled_at < since:
+                continue
+            if client_order_id_prefix is not None and not (
+                fe.client_order_id or ""
+            ).startswith(client_order_id_prefix):
+                continue
+            out.append(fe)
+        return out
 
     async def log_signal(
         self,

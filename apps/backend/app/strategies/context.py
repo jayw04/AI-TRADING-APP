@@ -15,11 +15,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 import structlog
-from sqlalchemy import select
+from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -30,6 +31,7 @@ from app.db.enums import (
     SignalType,
 )
 from app.db.models.account_state import AccountState
+from app.db.models.fill import Fill
 from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.signal import Signal
@@ -78,7 +80,15 @@ class SignalEvent:
 
 @dataclass
 class FillEvent:
-    """A fill on one of this strategy's orders."""
+    """A fill on one of this strategy's orders (strategy- and account-scoped).
+
+    Carries enough to prove the five qualifying-fill conditions in the seed
+    reconciliation (identity, account, attempt tag, positive qty, effective
+    status). ``order_status`` is the OWNING ORDER's effective status — fill-level
+    reversal is not modelled in the schema, so the reconciliation layer reasons
+    about validity from the order status rather than the template guessing from
+    raw rows. New fields default so existing positional construction stays valid.
+    """
 
     fill_id: int
     order_id: int
@@ -87,6 +97,23 @@ class FillEvent:
     qty: Decimal
     price: Decimal
     filled_at: datetime
+    client_order_id: str | None = None
+    account_id: int | None = None
+    source_id: str | None = None
+    order_status: str = ""
+
+
+@dataclass(frozen=True)
+class OpenOrderObs:
+    """A still-open (non-terminal) order for THIS strategy+account, carrying enough
+    for the seed reconciliation to attribute it to an attempt (P7 §7-A). Order-level
+    (not aggregated) — so per-order open/terminal state and attempt membership are
+    both observable."""
+
+    order_id: int
+    symbol: str
+    status: str = ""
+    client_order_id: str | None = None
 
 
 # ---------- StrategyContext ----------
@@ -345,6 +372,127 @@ class StrategyContext:
             out[t] = out.get(t, Decimal(0)) + Decimal(qty)
         return out
 
+    async def recent_fills(
+        self,
+        *,
+        since: datetime | None = None,
+        after_fill_id: int | None = None,
+        client_order_id_prefix: str | None = None,
+    ) -> list[FillEvent]:
+        """Fills on THIS strategy's own orders for THIS account, oldest-first.
+
+        Strategy- and account-scoped and READ-ONLY (P7 §7-A, momentum-daily
+        cold-start seed reconciliation). The authorization boundary is the
+        fills->orders relationship plus this context's own identity — NOT the
+        ``client_order_id``::
+
+            fill.order_id     == order.id
+            order.account_id  == self.account_id
+            order.source_type == STRATEGY
+            order.source_id   == str(self.strategy_id)
+
+        ``client_order_id_prefix`` is an OPTIONAL attempt-level filter layered on
+        top, never the primary authorization: a malformed or user-controlled
+        client-order id therefore cannot make another order's fill attributable
+        here. The caller passes NO strategy_id/account_id/source_id — scope is the
+        context's own identity only.
+
+        Deterministic ascending order ``(filled_at, fill_id)`` with a stable
+        tie-break. The cursor is TWO-PART to be exact across ties: pass both
+        ``since`` and ``after_fill_id`` (the last processed
+        ``(filled_at, fill_id)``) and the query returns strictly
+        ``filled_at > since OR (filled_at == since AND fill_id > after_fill_id)``
+        — so a crash between two fills sharing a timestamp neither drops nor
+        replays them. ``since`` alone is inclusive (``>=``, for the first poll
+        from the seed attempt's ``created_at``); reconciliation stays idempotent
+        by ``fill_id`` regardless.
+
+        ``FillEvent.order_status`` carries the owning order's status for
+        diagnostics ONLY. The order model has no fill-void/reversal concept, so a
+        fill with ``qty > 0`` is economically valid even if its order later
+        reached a terminal ``CANCELED`` (partial-fill-then-cancel). Callers must
+        therefore qualify on ``filled_quantity > 0`` — NOT on order status — and
+        must not treat an ordinary terminal status as fill invalidation. This
+        method returns ALL such fills (including on CANCELED orders); the
+        reconciliation layer decides qualification.
+        """
+        stmt = (
+            select(
+                Fill.id, Fill.order_id, Fill.qty, Fill.price, Fill.filled_at,
+                Order.client_order_id, Order.account_id, Order.source_id,
+                Order.status, Order.side, Symbol.ticker,
+            )
+            .join(Order, Order.id == Fill.order_id)
+            .join(Symbol, Symbol.id == Order.symbol_id)
+            .where(
+                Order.account_id == self.account_id,
+                Order.source_type == OrderSourceType.STRATEGY,
+                Order.source_id == str(self.strategy_id),
+            )
+        )
+        if since is not None and after_fill_id is not None:
+            stmt = stmt.where(
+                (Fill.filled_at > since)
+                | ((Fill.filled_at == since) & (Fill.id > after_fill_id))
+            )
+        elif since is not None:
+            stmt = stmt.where(Fill.filled_at >= since)
+        if client_order_id_prefix is not None:
+            stmt = stmt.where(Order.client_order_id.like(f"{client_order_id_prefix}%"))
+        stmt = stmt.order_by(Fill.filled_at.asc(), Fill.id.asc())
+        async with self._session_factory() as session:
+            rows = (await session.execute(stmt)).all()
+        out: list[FillEvent] = []
+        for fid, oid, qty, price, filled_at, coid, acct, src, status, side, ticker in rows:
+            out.append(
+                FillEvent(
+                    fill_id=fid,
+                    order_id=oid,
+                    symbol=ticker.upper(),
+                    side=("buy" if side == OrderSide.BUY else "sell"),
+                    qty=Decimal(qty),
+                    price=Decimal(price),
+                    filled_at=filled_at,
+                    client_order_id=coid,
+                    account_id=acct,
+                    source_id=src,
+                    order_status=str(status),
+                )
+            )
+        return out
+
+    async def open_orders(
+        self, *, client_order_id_prefix: str | None = None
+    ) -> list[OpenOrderObs]:
+        """Still-open (non-terminal) orders for THIS strategy+account, oldest-first
+        (P7 §7-A). Strategy+account-scoped like ``recent_fills``;
+        ``client_order_id_prefix`` optionally narrows to a single seed attempt.
+        Order-level (not aggregated) so the caller can tell whether each intended
+        seed order remains open, which attempt it belongs to, and whether an
+        unrelated strategy order is being mistaken for a seed order — none of which
+        is inferrable from an aggregated pending quantity.
+        """
+        stmt = (
+            select(Order.id, Symbol.ticker, Order.status, Order.client_order_id)
+            .join(Symbol, Symbol.id == Order.symbol_id)
+            .where(
+                Order.account_id == self.account_id,
+                Order.source_type == OrderSourceType.STRATEGY,
+                Order.source_id == str(self.strategy_id),
+                Order.status.notin_(TERMINAL_ORDER_STATUSES),
+            )
+        )
+        if client_order_id_prefix is not None:
+            stmt = stmt.where(Order.client_order_id.like(f"{client_order_id_prefix}%"))
+        stmt = stmt.order_by(Order.id.asc())
+        async with self._session_factory() as session:
+            rows = (await session.execute(stmt)).all()
+        return [
+            OpenOrderObs(order_id=oid, symbol=ticker.upper(), status=str(status),
+                         client_order_id=coid)
+            for oid, ticker, status, coid in rows
+        ]
+
     async def get_account_equity(self) -> Decimal | None:
         """Live account equity from the cached broker snapshot, or ``None`` if no
         snapshot exists yet.
@@ -530,6 +678,53 @@ class StrategyContext:
             else:
                 row.value = value
                 row.updated_at = datetime.now(UTC)
+
+    async def compare_and_set_state(
+        self, key: str, *, expected_rev: int | None, new_value: dict[str, Any]
+    ) -> bool:
+        """Atomic compare-and-set on a versioned state blob (P7 §7-A write-ahead).
+
+        Real optimistic concurrency, unlike ``set_state`` (last-write-wins): the
+        write applies only if the stored blob's ``_rev`` still equals
+        ``expected_rev`` — or, for ``expected_rev is None``, only if NO row exists.
+        Returns True iff exactly one row transitioned, so two callers that both read
+        the same revision cannot both write a seed attempt. ``new_value`` MUST carry
+        its own (incremented) ``_rev``.
+        """
+        from app.db.models.strategy_state import StrategyState
+
+        if expected_rev is None:
+            # Create-if-absent: the UNIQUE(strategy_id, key) constraint makes a
+            # concurrent duplicate insert fail — a dialect-agnostic CAS for the
+            # first write.
+            try:
+                async with self._session_factory() as session, session.begin():
+                    session.add(
+                        StrategyState(
+                            strategy_id=self.strategy_id, key=key, value=new_value,
+                            updated_at=datetime.now(UTC),
+                        )
+                    )
+                return True
+            except IntegrityError:
+                return False
+        async with self._session_factory() as session, session.begin():
+            # DML yields a `CursorResult` at runtime though typed as `Result`; `rowcount`
+            # is the CAS witness here.
+            res = cast(
+                "CursorResult[Any]",
+                await session.execute(
+                    update(StrategyState)
+                    .where(
+                        StrategyState.strategy_id == self.strategy_id,
+                        StrategyState.key == key,
+                        func.json_extract(StrategyState.value, "$._rev") == expected_rev,
+                    )
+                    .values(value=new_value, updated_at=datetime.now(UTC))
+                ),
+            )
+            changed = res.rowcount
+        return changed == 1
 
     async def clear_state(self, key: str) -> None:
         """Remove ``key`` entirely (so a subsequent ``get_state`` returns its default)."""

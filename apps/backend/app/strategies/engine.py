@@ -37,6 +37,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -74,6 +75,7 @@ from app.ops.dispatch_health import (
 
 from .base import Strategy
 from .context import Bar, FillEvent, SignalEvent, StrategyContext
+from .hold_service import StrategyOnHold, read_hold, record_activation_blocked
 from .loader import StrategyLoader, StrategyLoadError
 
 logger = structlog.get_logger(__name__)
@@ -194,6 +196,10 @@ class StrategyEngine:
             name="strategy-engine:signal.new",
         )
         self._started_at = time.time()  # P11 dispatch-liveness: engine uptime baseline
+        # ADR 0044 inv 5-7: a per-process token identifies THIS engine run so a
+        # boot loop's repeated register attempts for a held strategy dedup to one
+        # STRATEGY_ACTIVATION_BLOCKED_BY_HOLD event; a restart (new token) re-alerts.
+        self._run_token = uuid.uuid4().hex
         # P11 ops: periodically flag an active bar-driven strategy that has stopped being
         # dispatched during RTH (the silent-inertness guard — read-only, never trades).
         with contextlib.suppress(Exception):
@@ -281,6 +287,28 @@ class StrategyEngine:
 
     # ---- registration ----
 
+    async def _block_if_on_hold(self, strategy_id: int, *, source: str) -> None:
+        """Fail-closed operational-hold guard (ADR 0044 inv 5-7). This is the single
+        authoritative activation choke — every ``register()`` caller inherits it.
+
+        - ACTIVE hold  -> record a deduped ``STRATEGY_ACTIVATION_BLOCKED_BY_HOLD`` in
+          its OWN transaction, then raise :class:`StrategyOnHold`.
+        - absent / CLEARED -> allow.
+        - malformed / unreadable (``HoldStateInvalid`` / ``HoldStoreUnavailable``) ->
+          propagate, so a hold that cannot be trusted ALSO blocks. An unreadable hold
+          is never read as "no hold".
+        """
+        async with self._session_factory() as session:
+            rec = await read_hold(session, strategy_id)  # Invalid/Unavailable -> block
+        if rec is None or not rec.is_active:
+            return
+        async with self._session_factory() as session, session.begin():
+            await record_activation_blocked(
+                session, strategy_id=strategy_id, reason_code=rec.reason_code,
+                hold_rev=rec.rev, source=source, run_id=self._run_token,
+            )
+        raise StrategyOnHold(strategy_id, rec.reason_code, rec.rev)
+
     async def register(self, strategy_id: int) -> RunningStrategy:
         """Load, instantiate, and start dispatching to a strategy.
 
@@ -289,6 +317,11 @@ class StrategyEngine:
         """
         if strategy_id in self._running:
             return self._running[strategy_id]
+
+        # ADR 0044 inv 5-7: activation choke. An already-running strategy short-
+        # circuits above (a hold blocks ACTIVATION, not a live book); everything past
+        # here is a fresh activation and must clear the operational hold, fail-closed.
+        await self._block_if_on_hold(strategy_id, source="engine.register")
 
         instance: Strategy
         symbols: list[str]
@@ -429,6 +462,11 @@ class StrategyEngine:
                 await self._mark_error(session, row, f"on_init_failed: {exc}")
                 await session.commit()
                 raise
+
+            # ADR 0044 boundary recheck: a hold placed while this strategy was loading
+            # (load + on_init are not instantaneous) must still block. Re-check right
+            # before the run becomes authoritative — closes the register-time TOCTOU.
+            await self._block_if_on_hold(strategy_id, source="engine.register")
 
             now = datetime.now(UTC)
             # P6b §4.5 (ADR 0015): a LIVE strategy stays LIVE through registration

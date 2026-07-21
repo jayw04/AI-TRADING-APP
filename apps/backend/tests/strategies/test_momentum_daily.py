@@ -15,7 +15,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pandas as pd
 import pytest
 
-from app.strategies.context import Bar
+from app.strategies.context import Bar, FillEvent, OpenOrderObs
+from app.strategies.deployment_state import load_deployment_blob, seed_attempt_to_dict
+from app.strategies.seed_reconciliation import SeedAttempt, SeedAttemptStatus
 from strategies_user.templates.momentum_daily import (
     _K_LAST_EVAL,
     _K_REGIME,
@@ -49,7 +51,19 @@ def _spy(above=True, n=201):
     return df
 
 
-def _ctx(symbols, scores, holdings=None, spy_bars=None, price=100.0, equity=100_000):
+def _dep_blob(state="DEPLOYED", has_ever=True, rev=0, first=None, active=None):
+    """A valid deployment blob for the mock store. DEPLOYED+has_ever is the ordinary
+    warm-book state under which existing trigger behavior must be preserved."""
+    return {
+        "schema_version": 1, "_rev": rev, "state": state,
+        "has_ever_deployed": has_ever,
+        "first_deployed_at": first or ("2026-01-01T00:00:00+00:00" if has_ever else None),
+        "active_seed_attempt": active, "last_seed_attempt": None,
+    }
+
+
+def _ctx(symbols, scores, holdings=None, spy_bars=None, price=100.0, equity=100_000,
+         deployment=None):
     holdings = holdings or {}
     ctx = MagicMock()
     ctx.strategy_id = 1
@@ -86,6 +100,26 @@ def _ctx(symbols, scores, holdings=None, spy_bars=None, price=100.0, equity=100_
     async def _clear(k):
         store.pop(k, None)
     ctx.clear_state = AsyncMock(side_effect=_clear)
+
+    # P7 §7-A.2b: deployment blob + the read-side ctx seam (real dict-backed CAS so
+    # reconcile/CAS-loss tests are exercised for real; fills/orders empty by default).
+    store["deployment"] = _dep_blob() if deployment is None else deployment
+
+    async def _cas(k, *, expected_rev, new_value):
+        cur = store.get(k)
+        cur_rev = cur.get("_rev") if isinstance(cur, dict) else None
+        if expected_rev is None:
+            if cur is not None:
+                return False
+            store[k] = new_value
+            return True
+        if cur_rev != expected_rev:
+            return False
+        store[k] = new_value
+        return True
+    ctx.compare_and_set_state = AsyncMock(side_effect=_cas)
+    ctx.recent_fills = AsyncMock(return_value=[])
+    ctx.open_orders = AsyncMock(return_value=[])
     return ctx
 
 
@@ -121,7 +155,7 @@ async def test_the_daily_latch_is_DURABLE_evaluates_once_per_day():
     """The once-per-day latch lives in durable state, so a second tick the SAME day — even from a
     fresh instance (a reload) — does not re-evaluate."""
     scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
-    ctx = _ctx(["AAA", "BBB"], scores)
+    ctx = _ctx(["AAA", "BBB"], scores, holdings={"AAA": 5, "BBB": 5})  # warm DEPLOYED book
     s1 = _strat(ctx, entry_rank=2, max_names=2)
     await s1.on_init()
     await s1.on_bar(_bar(D1))
@@ -137,7 +171,8 @@ async def test_the_daily_latch_is_DURABLE_evaluates_once_per_day():
 
 
 async def test_a_new_day_evaluates_again():
-    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]))
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]),
+               holdings={"AAA": 5, "BBB": 5})  # warm DEPLOYED book
     s = _strat(ctx, entry_rank=2, max_names=2)
     await s.on_init()
     await s.on_bar(_bar(D1))
@@ -357,3 +392,206 @@ async def test_retries_are_bounded_within_the_day():
     exhausted = [r for r in _reasons(ctx) if r == "daily_eval_retries_exhausted"]
     assert len(fails) == 3                                   # exactly the retry budget
     assert exhausted                                         # then it gives up for the day
+
+
+# ---- P7 §7-A.2b sub-step 1: deployment read-side integration ----
+
+def _active(status=SeedAttemptStatus.ORDERS_OPEN, prefix="seed:1:att-1:"):
+    return seed_attempt_to_dict(SeedAttempt(
+        attempt_id="att-1", created_at=D1, intended_symbols=("AAA",),
+        client_order_id_prefix=prefix, submitted_order_ids=(101,), status=status))
+
+
+def _seed_fill():
+    return FillEvent(fill_id=1, order_id=101, symbol="AAA", side="buy", qty=Decimal(5),
+                     price=Decimal(100), filled_at=D1, client_order_id="seed:1:att-1:AAA",
+                     account_id=1, source_id="1", order_status="filled")
+
+
+async def test_substep1_missing_state_submits_nothing():
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]))
+    del ctx._store["deployment"]  # uninitialized
+    s = _strat(ctx)
+    await s.on_init()
+    await s.on_bar(_bar(D1))
+    assert not _orders(ctx)
+    assert "deployment_state_uninitialized" in _reasons(ctx)
+    assert ctx.factors.momentum_scores.call_count == 0  # never evaluated
+
+
+async def test_substep1_malformed_state_submits_nothing():
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]),
+               deployment={"schema_version": 1, "_rev": 0, "state": "GARBAGE"})
+    s = _strat(ctx)
+    await s.on_init()
+    await s.on_bar(_bar(D1))
+    assert not _orders(ctx)
+    assert "deployment_state_invalid" in _reasons(ctx)
+
+
+async def test_substep1_unexpected_flatten_alerts_without_inventing_intentional_flat():
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), holdings={})  # DEPLOYED but flat
+    s = _strat(ctx)
+    await s.on_init()
+    await s.on_bar(_bar(D1))
+    assert not _orders(ctx)
+    assert "unexpected_flatten_detected" in _reasons(ctx)
+    assert ctx._store["deployment"]["state"] == "DEPLOYED"  # NOT invented INTENTIONALLY_FLAT
+    assert ctx.factors.momentum_scores.call_count == 0
+
+
+async def test_substep1_reconciles_active_attempt_before_the_daily_latch():
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), holdings={"AAA": 5},
+               deployment=_dep_blob(state="DEPLOYED", active=_active()))
+    ctx._store[_K_LAST_EVAL] = D1.date().isoformat()  # latched for today
+    ctx.recent_fills = AsyncMock(return_value=[_seed_fill()])
+    s = _strat(ctx)
+    await s.on_init()
+    await s.on_bar(_bar(D1))
+    blob = ctx._store["deployment"]
+    assert blob["_rev"] == 1  # reconcile CAS applied DESPITE the latch
+    assert blob["active_seed_attempt"] is None
+    assert blob["last_seed_attempt"]["status"] == "FILLED"  # archived, not deleted
+
+
+async def test_substep1_partial_fill_keeps_attempt_reconciling():
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]), holdings={"AAA": 5},
+               deployment=_dep_blob(state="DEPLOYED", active=_active()))
+    ctx.recent_fills = AsyncMock(return_value=[_seed_fill()])
+    ctx.open_orders = AsyncMock(return_value=[OpenOrderObs(102, "BBB")])  # still open
+    s = _strat(ctx)
+    await s.on_init()
+    await s.on_bar(_bar(D1))
+    blob = ctx._store["deployment"]
+    assert blob["state"] == "DEPLOYED"
+    assert blob["active_seed_attempt"]["status"] == "PARTIALLY_FILLED"
+
+
+async def test_substep1_reconcile_cas_loss_does_not_evaluate_stale():
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), holdings={"AAA": 5},
+               deployment=_dep_blob(state="DEPLOYED", active=_active()))
+    ctx.recent_fills = AsyncMock(return_value=[_seed_fill()])
+    ctx.compare_and_set_state = AsyncMock(return_value=False)  # CAS lost
+    s = _strat(ctx)
+    await s.on_init()
+    await s.on_bar(_bar(D1))
+    assert "reconcile_cas_lost" in _reasons(ctx)
+    assert ctx.factors.momentum_scores.call_count == 0  # did NOT evaluate stale state
+
+
+# ---- P7 §7-A.2b sub-step 2: seed / submission integration ----
+
+def _fill(fid, oid, sym, prefix="seed:1:att-1:"):
+    return FillEvent(fill_id=fid, order_id=oid, symbol=sym, side="buy", qty=Decimal(5),
+                     price=Decimal(100), filled_at=D1, client_order_id=f"{prefix}{sym}",
+                     account_id=1, source_id="1", order_status="filled")
+
+
+async def test_substep2_initial_seed_fires_writes_ahead_and_tags_orders():
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]), holdings={},
+               deployment=_dep_blob(state="NEVER_DEPLOYED", has_ever=False))
+    s = _strat(ctx, entry_rank=2, max_names=2)
+    await s.on_init()
+    await s.on_bar(_bar(D1))
+    assert "initial_seed_eval" in _reasons(ctx)
+    blob = ctx._store["deployment"]
+    assert blob["state"] == "DEPLOYMENT_PENDING"
+    assert blob["active_seed_attempt"]["status"] == "ORDERS_OPEN"
+    assert _orders(ctx)  # seed buys submitted
+    coids = [c.args[0].client_order_id for c in ctx.submit_order.call_args_list]
+    assert coids and all(cid and cid.startswith("seed:1:2026-06-08-1:") for cid in coids)
+
+
+async def test_substep2_concurrent_cas_one_winner_one_submits_zero():
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]), holdings={},
+               deployment=_dep_blob(state="NEVER_DEPLOYED", has_ever=False))
+    scores = _scores([("AAA", 2.0), ("BBB", 1.0)])
+    dep0 = load_deployment_blob(ctx._store["deployment"])  # both callers read _rev 0
+    s1, s2 = _strat(ctx, entry_rank=2, max_names=2), _strat(ctx, entry_rank=2, max_names=2)
+    await s1.on_init()
+    await s2.on_init()
+    s1._tick_ts = D1
+    s2._tick_ts = D1
+    await s1._maybe_initial_seed("2026-06-08", dep0, 1.0, scores, {})
+    n1 = len(ctx.submit_order.call_args_list)
+    await s2._maybe_initial_seed("2026-06-08", dep0, 1.0, scores, {})  # stale _rev 0
+    n2 = len(ctx.submit_order.call_args_list)
+    assert n1 > 0                       # winner submitted
+    assert n2 == n1                     # loser submitted ZERO
+    assert "initial_seed_cas_lost" in _reasons(ctx)
+
+
+async def test_substep2_crash_after_submit_recovers_by_prefix_without_reseeding():
+    active = seed_attempt_to_dict(SeedAttempt(
+        attempt_id="2026-06-08-1", created_at=D1, intended_symbols=("AAA",),
+        client_order_id_prefix="seed:1:2026-06-08-1:", submitted_order_ids=(),
+        status=SeedAttemptStatus.SUBMITTING))  # crashed mid-submit, persisted
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), holdings={"AAA": 5},
+               deployment=_dep_blob(state="DEPLOYMENT_PENDING", has_ever=False, active=active))
+    ctx.recent_fills = AsyncMock(return_value=[_fill(1, 1, "AAA", "seed:1:2026-06-08-1:")])
+    s = _strat(ctx)
+    await s.on_init()
+    n_before = len(ctx.submit_order.call_args_list)
+    await s.on_bar(_bar(D1))
+    blob = ctx._store["deployment"]
+    assert blob["state"] == "DEPLOYED" and blob["has_ever_deployed"] is True
+    assert len(ctx.submit_order.call_args_list) == n_before  # NO re-seed
+
+
+async def test_substep2_partial_then_terminal_reconciles_to_archive():
+    active = _active(status=SeedAttemptStatus.ORDERS_OPEN)  # prefix seed:1:att-1:
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", 2.0), ("BBB", 1.0)]), holdings={"AAA": 5},
+               deployment=_dep_blob(state="DEPLOYMENT_PENDING", has_ever=False, active=active))
+    ctx.recent_fills = AsyncMock(return_value=[_fill(1, 101, "AAA")])
+    ctx.open_orders = AsyncMock(return_value=[OpenOrderObs(102, "BBB")])
+    s = _strat(ctx)
+    await s.on_init()
+    await s.on_bar(_bar(D1))                       # partial: AAA filled, BBB open
+    blob = ctx._store["deployment"]
+    assert blob["state"] == "DEPLOYED" and blob["has_ever_deployed"] is True
+    assert blob["active_seed_attempt"]["status"] == "PARTIALLY_FILLED"
+    # next session: BBB now filled too, nothing open -> archive
+    ctx.get_position_for = AsyncMock(side_effect=lambda x: _mk_pos(5) if x in ("AAA", "BBB") else None)
+    ctx.recent_fills = AsyncMock(return_value=[_fill(1, 101, "AAA"), _fill(2, 102, "BBB")])
+    ctx.open_orders = AsyncMock(return_value=[])
+    await s.on_bar(_bar(D2))
+    blob = ctx._store["deployment"]
+    assert blob["active_seed_attempt"] is None
+    assert blob["last_seed_attempt"]["status"] == "FILLED"  # archived, not deleted
+
+
+def _mk_pos(qty):
+    p = MagicMock()
+    p.side = "long"
+    p.qty = Decimal(qty)
+    return p
+
+
+async def test_substep2_all_submissions_fail_archives_and_returns_never_deployed():
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), holdings={},
+               deployment=_dep_blob(state="NEVER_DEPLOYED", has_ever=False))
+    ctx.submit_order = AsyncMock(return_value=MagicMock(rejection_reason="risk_blocked"))
+    s = _strat(ctx)
+    await s.on_init()
+    await s.on_bar(_bar(D1))
+    blob = ctx._store["deployment"]
+    assert blob["state"] == "NEVER_DEPLOYED"          # safe rollback
+    assert blob["active_seed_attempt"] is None
+    assert blob["last_seed_attempt"]["status"] == "TERMINALLY_UNFILLED"  # archived
+    assert "initial_seed_all_rejected" in _reasons(ctx)
+
+
+async def test_substep2_restart_does_not_reseed_a_pending_book():
+    active = _active(status=SeedAttemptStatus.ORDERS_OPEN)
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]), holdings={},
+               deployment=_dep_blob(state="DEPLOYMENT_PENDING", has_ever=False, active=active))
+    ctx.recent_fills = AsyncMock(return_value=[])
+    ctx.open_orders = AsyncMock(return_value=[OpenOrderObs(101, "AAA")])
+    s = _strat(ctx)  # fresh instance = a restart
+    await s.on_init()
+    n_before = len(ctx.submit_order.call_args_list)
+    await s.on_bar(_bar(D1))
+    assert len(ctx.submit_order.call_args_list) == n_before  # NO duplicate/replacement seed
+    blob = ctx._store["deployment"]
+    assert blob["state"] == "DEPLOYMENT_PENDING"
+    assert blob["active_seed_attempt"]["status"] == "ORDERS_OPEN"

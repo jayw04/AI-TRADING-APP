@@ -61,6 +61,14 @@ ALLOWED = {
     # OrderRouter + the risk engine), not a direct adapter call. It is the only
     # order call site in the file; there is no adapter/broker access.
     "strategies_user/templates/combined_book.py",
+    # P7 §7-A: the momentum-daily template (Workstream B) calls
+    # `self.ctx.submit_order(...)` for its daily rebalance and the initial_seed
+    # cold-start deployment — the same sanctioned context path (dispatches through
+    # OrderRouter + the risk engine), not a direct adapter call. (Allowlist-
+    # maintenance gap: the file was added in #435 without this peer entry.) The
+    # narrowness of this allowance is ENFORCED by
+    # test_momentum_daily_uses_only_the_sanctioned_ctx_seam below.
+    "strategies_user/templates/momentum_daily.py",
     "tests/strategies/test_backtester.py",
     "tests/strategies/test_strategy_risk_integration.py",
     # P7 §1: the strategy-generation prompt embeds the platform Strategy
@@ -102,3 +110,33 @@ def test_no_direct_adapter_mutation_calls_outside_router() -> None:
         "ADR 0002 violation — these files call AlpacaAdapter mutation methods "
         "outside the OrderRouter:\n  " + "\n  ".join(offenders)
     )
+
+
+def test_momentum_daily_uses_only_the_sanctioned_ctx_seam() -> None:
+    """momentum_daily.py is allowlisted above; prove that allowance is NARROW.
+
+    The allowlist acknowledges a sanctioned seam (``ctx.submit_order`` ->
+    OrderRouter), it does not exempt the file from scrutiny (P7 §7-A). This
+    asserts the template (a) imports/references no broker adapter, and (b) that
+    EVERY order mutation call is the ``ctx`` seam — so a future direct-adapter
+    bypass in this file would still fail.
+    """
+    path = BACKEND_ROOT / "strategies_user/templates/momentum_daily.py"
+    text = path.read_text(encoding="utf-8", errors="ignore")
+
+    forbidden = ("app.brokers", "brokers.alpaca", "AlpacaAdapter", "broker_adapter")
+    hits = [t for t in forbidden if t in text]
+    assert not hits, f"momentum_daily.py references a broker adapter directly: {hits}"
+
+    calls = 0
+    for m in CALL_PATTERN.finditer(text):
+        window = text[max(0, m.start() - 4) : m.start() + 1]
+        if "def " in window:  # a definition, not a call
+            continue
+        calls += 1
+        before_dot = text[max(0, m.start() - 3) : m.start()]
+        assert before_dot == "ctx", (
+            "non-ctx order mutation call in momentum_daily.py near: "
+            f"{text[max(0, m.start() - 12) : m.start() + 14]!r}"
+        )
+    assert calls > 0, "expected at least one ctx.submit_order call (non-vacuous proof)"

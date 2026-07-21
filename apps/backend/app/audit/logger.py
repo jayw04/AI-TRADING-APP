@@ -108,6 +108,18 @@ class AuditAction(StrEnum):
     STRATEGY_DEACTIVATED = "STRATEGY_DEACTIVATED"
     LIVE_ACCOUNT_CREATED = "LIVE_ACCOUNT_CREATED"
 
+    # ---- Operational holds (P7 §7-B, ADR 0044 inv 5-7) ----
+    # STRATEGY_HOLD_PLACED / STRATEGY_HOLD_CLEARED are governed HOLD MUTATIONS —
+    # each is written in the SAME transaction as the hold-state CAS (state and audit
+    # commit together or neither). Payload: strategy_id, reason_code, rev (+ effective_at
+    # /placed_by on place; cleared_by/prior_rev on clear; source=RETROSPECTIVE_FORMALIZATION
+    # for the acct-4 back-record). STRATEGY_ACTIVATION_BLOCKED_BY_HOLD records a REJECTED
+    # activation attempt (not a mutation); deduplicated per (strategy_id, hold_rev, source,
+    # run_id) so a boot loop does not spam the log.
+    STRATEGY_HOLD_PLACED = "STRATEGY_HOLD_PLACED"
+    STRATEGY_HOLD_CLEARED = "STRATEGY_HOLD_CLEARED"
+    STRATEGY_ACTIVATION_BLOCKED_BY_HOLD = "STRATEGY_ACTIVATION_BLOCKED_BY_HOLD"
+
     # ---- Trader preferences (P5.5 §1) ----
     # Soft-preferences profile edit. Payload carries an old/new diff of the
     # changed JSON sections; replay all entries for a user to reconstruct.

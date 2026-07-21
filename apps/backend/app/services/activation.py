@@ -56,6 +56,13 @@ from app.db.models.risk_limits import RiskLimits
 from app.db.models.strategy import Strategy
 from app.db.models.user import User
 from app.security.credential_store import CredentialKind, CredentialStore
+from app.strategies.hold_service import (
+    HoldStateInvalid,
+    HoldStoreUnavailable,
+    StrategyOnHold,
+    assert_no_active_hold,
+    record_activation_blocked,
+)
 from app.utils.time import ensure_aware
 
 logger = structlog.get_logger(__name__)
@@ -371,6 +378,28 @@ class ActivationService:
         initiated_at = ensure_aware(strategy.live_activation_initiated_at)
         assert initiated_at is not None  # guarded above
         if now - initiated_at < timedelta(hours=ACTIVATION_COOLDOWN_HOURS):
+            return False
+
+        # ADR 0044 inv 5-7: the cooldown may elapse, but a strategy under an ACTIVE
+        # operational hold does NOT complete into LIVE. Refuse (leave it PENDING_LIVE)
+        # and record the block; fail-closed on an unreadable hold. Clearing the hold
+        # is the separate, governed step that lets a later pass complete activation.
+        try:
+            await assert_no_active_hold(self._session, strategy_id)
+        except StrategyOnHold as exc:
+            await record_activation_blocked(
+                self._session, strategy_id=strategy_id, reason_code=exc.reason_code,
+                hold_rev=exc.rev, source="activation.complete_pending",
+                run_id=f"pending:{strategy_id}",
+            )
+            await self._session.commit()
+            logger.warning(
+                "activation_blocked_by_hold", strategy_id=strategy_id,
+                reason_code=exc.reason_code, hold_rev=exc.rev,
+            )
+            return False
+        except (HoldStateInvalid, HoldStoreUnavailable):
+            logger.error("activation_hold_unreadable_refused", strategy_id=strategy_id)
             return False
 
         strategy.status = StrategyStatus.LIVE

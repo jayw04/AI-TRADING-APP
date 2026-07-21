@@ -32,6 +32,7 @@ from app.observability.metrics import (
     recovery_failures_total,
     recovery_success_total,
 )
+from app.strategies.hold_service import StrategyOnHold
 
 logger = structlog.get_logger(__name__)
 
@@ -85,6 +86,15 @@ async def resume_strategies_on_boot(
             await strategy_engine.register(sid)
             recovery_success_total.labels(recovery_type=RESUME).inc()
             resumed += 1
+        except StrategyOnHold as exc:
+            # ADR 0044 inv 5-7: an operational hold is an intentional skip on boot,
+            # NOT a recovery failure — don't count it against the failure metric or
+            # the failed_ids alert list. register() already recorded the deduped
+            # STRATEGY_ACTIVATION_BLOCKED_BY_HOLD; surface it as its own signal.
+            logger.warning(
+                "strategy_resume_skipped_on_hold", strategy_id=sid,
+                reason_code=exc.reason_code, hold_rev=exc.rev,
+            )
         except Exception:
             recovery_failures_total.labels(recovery_type=RESUME).inc()
             failed_ids.append(sid)
