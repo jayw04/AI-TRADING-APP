@@ -97,6 +97,45 @@ def test_gate_allows_engine_and_gate_module():
     assert _run_one(mod.check_gate_only_via_engine, mod.GATE, src) == []
 
 
+# --------------------------------------------------------------- §6 sanctioned trigger placement (PR6)
+
+
+def test_recovery_trigger_allowed_in_coordinator():
+    src = "from app.risk.loss_control.state_machine import TRIGGER_RECOVERY_REQUEST\n"
+    assert _run_one(mod.check_sanctioned_trigger_placement,
+                    "app/risk/loss_control/recovery.py", src) == []
+
+
+def test_recovery_trigger_forbidden_in_engine_and_api():
+    src = ("from app.risk.loss_control.state_machine import TRIGGER_PREFLIGHT_PASS\n"
+           "def f(): return TRIGGER_PREFLIGHT_PASS\n")
+    assert _invariants(_run_one(mod.check_sanctioned_trigger_placement,
+                                "app/risk/engine.py", src)) == {"sanctioned-trigger-placement"}
+    assert _invariants(_run_one(mod.check_sanctioned_trigger_placement,
+                                "app/api/v1/risk.py", src)) == {"sanctioned-trigger-placement"}
+
+
+def test_rearm_trigger_forbidden_outside_sanctioned_homes():
+    src = ("from app.risk.loss_control.state_machine import TRIGGER_COOLDOWN_COMPLETE\n"
+           "def f(): return TRIGGER_COOLDOWN_COMPLETE\n")
+    # The recovery coordinator, the engine, and API handlers may NOT touch the re-arm triggers.
+    for rel in ("app/risk/loss_control/recovery.py", "app/risk/engine.py", "app/api/v1/risk.py"):
+        assert _invariants(_run_one(mod.check_sanctioned_trigger_placement, rel, src)) == {
+            "sanctioned-trigger-placement"
+        }
+
+
+def test_rearm_trigger_allowed_in_state_machine_and_cooldown_evaluator():
+    # PR7: the state-machine definition DEFINES them, and the dedicated cooldown evaluator is the one
+    # job allowed to map an §D1.4 verdict onto a transition.
+    src = ("from app.risk.loss_control.state_machine import TRIGGER_HEALTH_REGRESSED\n"
+           "def f(): return TRIGGER_HEALTH_REGRESSED\n")
+    assert _run_one(mod.check_sanctioned_trigger_placement,
+                    "app/risk/loss_control/state_machine.py", src) == []
+    assert _run_one(mod.check_sanctioned_trigger_placement,
+                    "app/risk/loss_control/cooldown.py", src) == []
+
+
 # --------------------------------------------------------------- §3 no duplicate classifier
 
 

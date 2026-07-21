@@ -277,13 +277,117 @@ tight".
   the integrity condition the fail-closed exists to surface.
 - Keep `ENFORCE` disabled, or return the account to its previously authorized mode
   (`OFF`/`SHADOW`), while investigating.
-- Recovery from a loss-control lock has **no sanctioned operator procedure yet** — the checked
-  recovery preflight (PR6) and re-arm/hysteresis (PR7) are not implemented. Until then, a genuine
-  lock is cleared only by the existing audited circuit-breaker reset flow for the *breaker*
-  component, never by editing loss-control state directly.
+- Recovery from a loss-control lock runs through the **checked recovery preflight** (PR6) into
+  `RECOVERY_COOLDOWN`, then the **cooldown evaluator** (PR7) advances it to `NORMAL` when the §D6 /
+  §D1.4 policy holds (or regresses it to `INTEGRITY_STOP`). Note: **the recovery preflight does NOT
+  clear the lock or restore normal risk-taking — it only moves the account into `RECOVERY_COOLDOWN`.**
+  Re-arm to `NORMAL` happens only later, through the evaluator, once the class-dependent dwell and all
+  §D1.4 health conditions hold. Never clear a lock by editing loss-control state directly.
 - The three loss-control flags are independent (`SESSION_BASELINE_SHADOW_ENABLED`,
   `SESSION_BASELINE_ENFORCEMENT_ENABLED`, `LOSS_CONTROL_MODE`); toggling `LOSS_CONTROL_MODE` back to
   `OFF`/`SHADOW` neither disables baseline capture nor changes the daily-loss basis.
+
+## Recovery preflight — the sanctioned way out of a loss-control lock (ADR 0043 PR6)
+
+**This is the ONLY sanctioned recovery path. Do NOT force loss-control state, do NOT manually set
+`NORMAL`, and do NOT treat a lock as a risk-limit adjustment.** A recovery is a checked,
+authority-gated, evidenced workflow — never a reflexive reset. It is control-plane, not the order
+path; a locked account keeps behaving exactly as its state dictates while a preflight runs (a
+reduction-only lock still permits only verified reductions).
+
+**The workflow, in four distinct stages** (do not conflate them):
+1. **Request** — an authorized actor POSTs `/accounts/{id}/loss-control/recovery-requests` with an
+   `idempotency_key`. **All three endpoints (request / read / approve) require the same authority —
+   the account owner or a registered risk operator; a stranger gets `403` and never sees the
+   evidence.** Eligible only from `REDUCTION_ONLY_DAILY_LOSS`, `REDUCTION_ONLY_BREAKER`, or
+   `INTEGRITY_STOP`; a request from `NORMAL` / `RECOVERY_COOLDOWN` / missing state is rejected and
+   creates nothing. The preflight row is created **before** the `RECOVERY_REQUEST` transition, so a
+   crash mid-flight can never leave the account in `RECOVERY_PREFLIGHT` with no discoverable
+   workflow — a retry with the **same `idempotency_key`** resumes that same durable preflight. A
+   committed `RECOVERY_REQUEST` moves the account to `RECOVERY_PREFLIGHT` and records the **durable
+   origin** (the `from_state` of that event — never inferred). The origin is trusted **only** from a
+   valid committed event (right account, entered `RECOVERY_PREFLIGHT` via `RECOVERY_REQUEST`, from a
+   real lock origin, unambiguous). If the event is absent, invalid, or ambiguous, the origin is
+   **unknown** (`origin_state = null`): the origin-proven check fails and `PREFLIGHT_FAIL` fires with
+   no origin, so the account fails closed to `INTEGRITY_STOP` — **never** back to a guessed prior lock.
+2. **The 12 checks** — persisted individually in `risk_recovery_preflight_checks` (`PASS` / `FAIL` /
+   `INCOMPLETE`). A check blocked by an unmet prerequisite is stored `INCOMPLETE`
+   (`reason = BLOCKED_BY_<check>`); the absence of a row never means success. The `open_orders` and
+   `reservations` checks reconcile by **stable identity and every risk-bearing field** (broker/client
+   order id, symbol, side, quantity, type, prices; reservation→order backing + quantity), never by
+   count — so a `FAIL` there names a specific unmatched order or orphaned/duplicate reservation, and
+   equal counts of *different* orders (or a HELD reservation on a terminal order) do **not** pass. The
+   `positions` check likewise FAILs on a **nonzero local position whose symbol can't be resolved** (an
+   integrity condition — it carries quantity but can't be matched; evidence names
+   `unresolved_symbol_ids`) and on **duplicate broker rows for one symbol** (never silently
+   collapsed); a zero-quantity stale row is ignored.
+3. **Authorization** — see the matrix below. `INTEGRITY_STOP` always requires a *separate* explicit
+   operator approval (POST `.../{id}/approve`); it is never system- or owner-self-authorized.
+4. **Transition + re-arm** — an aggregate `PASS` + authorization commits `PREFLIGHT_PASS` →
+   `RECOVERY_COOLDOWN`. The **cooldown evaluator** (`app/risk/loss_control/cooldown.py`, PR7) then
+   advances the account to `NORMAL` (`COOLDOWN_COMPLETE`) or regresses it to `INTEGRITY_STOP`
+   (`HEALTH_REGRESSED`) when the §D6 / §D1.4 policy (below) holds — only through `LossControlService`,
+   idempotently, and fail-closed. It is an explicit callable (invoked by a scheduled job / admin
+   action / the PR8 canary); wiring it to a schedule is an operational step, but the sanctioned code
+   path exists.
+
+**Re-arm / dwell policy (§D6, asymmetric — no monetary band).** Re-arm from `RECOVERY_COOLDOWN` to
+`NORMAL` requires a **class-dependent minimum dwell** AND all §D1.4 conditions. The dwell is keyed to
+what the account is recovering from:
+
+| Recovering from | Minimum dwell |
+|---|---|
+| Confirmed measurement artifact (`ARTIFACT_CONFIRMED`) | 15 min |
+| Loss-velocity / rate | 30 min **and** loss velocity recovered (≤ 50% of the trip limit sustained ≥ 10 min) |
+| Confirmed daily loss | **until the next session** (reduction-only for the rest of the day — no same-session re-arm) |
+| Integrity (broker / recon / baseline / config) | **until manual repair completes** |
+
+Anything unrecognised (including a serious cause mislabeled an artifact) maps to the **strictest**
+(until-manual-repair). §D1.4 also requires: no active integrity alerts, broker reconciliation clean,
+and **state unchanged** since cooldown began. An **outright** regression — a fresh integrity alert or
+a **new trip enqueued during the dwell** — fails closed to `INTEGRITY_STOP`; every other unmet
+condition merely holds the account in cooldown.
+
+**Fail-closed aggregate:** any `FAIL` → `FAIL`; else any `INCOMPLETE` → `INCOMPLETE`; else all
+twelve `PASS` → `PASS`. **`INCOMPLETE` is never a pass** — it means evidence was unavailable, stale,
+or unverifiable (e.g. the broker was unreachable). A `FAIL` or `INCOMPLETE` fires `PREFLIGHT_FAIL`,
+returning the account to its durable origin lock, or to `INTEGRITY_STOP` if the origin can't be
+proven.
+
+**Parent `status` (distinct from the aggregate verdict and the transition outcome):** `REQUESTED` /
+`RUNNING` / `PASSED` / `FAILED` / `INCOMPLETE` / `AUTHORIZATION_REQUIRED` / `COMMIT_FAILED`. A
+`PASSED` verdict is NOT the same as "a transition committed" — a `COMMIT_FAILED` means the checks
+passed but the `PREFLIGHT_PASS` write raised, so recovery was **not** claimed and the account did not
+move.
+
+**Authority matrix.** Risk-operator authority is the explicit config allowlist
+`WORKBENCH_RISK_OPERATOR_USER_IDS` (there is no operator *role* in the user model; an admin flag
+alone confers nothing). Permission to *request* is not permission to *authorize*.
+
+| Recovery origin | May request | May authorize `PREFLIGHT_PASS` |
+|---|---|---|
+| `REDUCTION_ONLY_DAILY_LOSS` | owner / operator | owner or operator |
+| `REDUCTION_ONLY_BREAKER` | owner / operator | operator; owner **only** if the trip cause is ordinary daily-loss |
+| `INTEGRITY_STOP` | operator only | operator **plus** an explicit `approve` — never system, never owner |
+
+**Operator actions:**
+- **Inspect** `GET /accounts/{id}/loss-control/recovery-requests/{preflight_id}` — read the parent
+  `status` / `aggregate_verdict` / `origin_state` and every one of the 12 checks. A `FAIL` names a
+  contradicted condition (fix it, then request again); an `INCOMPLETE` names an unverifiable one
+  (restore the missing input — e.g. broker connectivity, session baseline — do not approve around
+  it).
+- **`AUTHORIZATION_REQUIRED`** means the checks passed but a human operator must approve (integrity,
+  or a case the requester couldn't self-authorize). Approve the **existing** evidence package via
+  `approve`; if the evidence is stale (the state moved), a fresh request is required — never rewrite
+  the checks.
+- **Never** bootstrap state, force `NORMAL`, or edit the loss-control tables to unblock. No actor may
+  override a `FAIL` or `INCOMPLETE`; an administrative role alone is not operator authority.
+
+## New audit action (operator reference)
+
+| Action | Meaning | First response |
+|---|---|---|
+| `LOSS_CONTROL_RECOVERY` | A recovery request or approval (control plane) | The durable evidence is the `risk_recovery_preflights` parent + its 12 child checks — read those; this row is the actor trail (`phase` = `request` / `approve`) |
 
 ## Strategy HALTED status
 

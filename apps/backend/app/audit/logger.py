@@ -78,6 +78,9 @@ class AuditAction(StrEnum):
     # ADR 0043 PR4 — the persisted loss-control state machine contributed to a rejection in ENFORCE
     # mode. Durable provenance (state, version, outcome, mode, verified-reduction) in the payload.
     LOSS_CONTROL_ENFORCED = "LOSS_CONTROL_ENFORCED"
+    # ADR 0043 PR6 — a recovery-preflight request or authorization (control plane). The durable
+    # evidence is the risk_recovery_preflights parent + its 12 child checks; this is the actor trail.
+    LOSS_CONTROL_RECOVERY = "LOSS_CONTROL_RECOVERY"
 
     # ---- Operations & Reliability (P11 §3) ----
     # Recorded when reconciliation finds the broker's reality diverges from local state

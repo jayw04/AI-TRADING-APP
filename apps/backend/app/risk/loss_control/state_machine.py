@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from decimal import Decimal
 
 from app.risk.loss_control import constants as C
 
@@ -224,3 +225,143 @@ def combine_outcomes(outcomes: Iterable[str]) -> str:
             return rung
     # Any value not on the ladder is not a sanctioned outcome — fail closed rather than pass it.
     return C.OUTCOME_INTEGRITY_STOP
+
+
+# --- §D6 re-arm / hysteresis / dwell + §D1.4 cooldown completion -------------------------------
+# PURE policy governing WHEN an account may re-arm from RECOVERY_COOLDOWN to NORMAL, and when it
+# regresses to INTEGRITY_STOP. Asymmetric: no monetary band — re-arm requires a class-dependent
+# minimum dwell AND all §D1.4 conditions. Clock-free: elapsed time / session boundary / health
+# signals are passed in as explicit inputs (this module never reads a clock or DB). Nothing fires a
+# transition here; a later increment maps these verdicts onto TRIGGER_COOLDOWN_COMPLETE /
+# TRIGGER_HEALTH_REGRESSED through the persistence service (this stays the sanctioned home for the
+# re-arm decision, per the §6 CI invariant).
+
+# Integrity-class trip causes: an unresolved condition to be REPAIRED, not merely waited out.
+_INTEGRITY_TRIP_CAUSES = frozenset(
+    {
+        C.TRIP_CAUSE_BROKER_STATE_UNCERTAIN,
+        C.TRIP_CAUSE_POSITION_RECONCILIATION_FAILED,
+        C.TRIP_CAUSE_SESSION_BASELINE_MISSING,
+        C.TRIP_CAUSE_SESSION_BASELINE_MISMATCH,
+        C.TRIP_CAUSE_STALE_MARKET_DATA,
+        C.TRIP_CAUSE_ORDER_STATE_UNCERTAIN,
+        C.TRIP_CAUSE_CONTROL_CONFIGURATION_INVALID,
+        C.TRIP_CAUSE_REDUCTION_NOT_VERIFIABLE,
+    }
+)
+
+
+@dataclass(frozen=True)
+class DwellRequirement:
+    """How long an account must dwell in RECOVERY_COOLDOWN before re-arm is even eligible."""
+
+    kind: str  # one of C.DWELL_KIND_*
+    minutes: int | None = None  # set iff kind == FIXED_MINUTES
+
+
+def dwell_class_for_trip(trip_cause: str | None, trip_evidence_status: str | None) -> str:
+    """Classify a lock by the dwell it earns (§D6). CONSERVATIVE: a serious cause is classified by
+    the cause regardless of any (contradictory) artifact claim, and anything unrecognised falls to
+    the strictest class (until manual repair). Only a non-serious trip CONFIRMED to be an artifact
+    earns the fast fixed dwell — a short dwell is the risky direction, so it needs the strongest
+    justification."""
+    if trip_cause == C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS:
+        return C.DWELL_CLASS_CONFIRMED_DAILY_LOSS
+    if trip_cause == C.TRIP_CAUSE_LOSS_VELOCITY:
+        return C.DWELL_CLASS_RATE_VELOCITY
+    if trip_cause in _INTEGRITY_TRIP_CAUSES:
+        return C.DWELL_CLASS_INTEGRITY
+    if trip_evidence_status == C.TRIP_EVIDENCE_ARTIFACT_CONFIRMED:
+        return C.DWELL_CLASS_ARTIFACT
+    return C.DWELL_CLASS_INTEGRITY  # UNKNOWN / OPERATOR_EMERGENCY / unmapped → strictest, fail safe
+
+
+def required_dwell(dwell_class: str) -> DwellRequirement:
+    """The minimum dwell for a class (§D6 conservative defaults)."""
+    if dwell_class == C.DWELL_CLASS_ARTIFACT:
+        return DwellRequirement(C.DWELL_KIND_FIXED_MINUTES, C.DWELL_ARTIFACT_MINUTES)
+    if dwell_class == C.DWELL_CLASS_RATE_VELOCITY:
+        return DwellRequirement(C.DWELL_KIND_FIXED_MINUTES, C.DWELL_RATE_VELOCITY_MINUTES)
+    if dwell_class == C.DWELL_CLASS_CONFIRMED_DAILY_LOSS:
+        return DwellRequirement(C.DWELL_KIND_UNTIL_NEXT_SESSION)
+    # INTEGRITY and any unrecognised class → the strictest requirement (fail closed).
+    return DwellRequirement(C.DWELL_KIND_UNTIL_MANUAL_REPAIR)
+
+
+def velocity_recovery_threshold(trip_limit: Decimal) -> Decimal:
+    """The (stricter) loss-velocity level below which the account counts as recovering (§D6)."""
+    return trip_limit * C.VELOCITY_RECOVERY_FRACTION
+
+
+def velocity_is_healthy(current: Decimal, trip_limit: Decimal, sustained_seconds: int) -> bool:
+    """Loss velocity is 'healthy' only at ≤ the recovery threshold AND sustained long enough — the
+    asymmetric hysteresis that stops a single quiet tick from re-arming the account.
+
+    Fail closed on nonsensical inputs: a non-positive trip limit, a negative current velocity, or a
+    negative sustained interval can never be 'healthy' (they would otherwise let a garbage reading
+    re-arm the account)."""
+    if trip_limit <= 0 or current < 0 or sustained_seconds < 0:
+        return False
+    return (
+        current <= velocity_recovery_threshold(trip_limit)
+        and sustained_seconds >= C.VELOCITY_HEALTHY_MIN_SECONDS
+    )
+
+
+@dataclass(frozen=True)
+class CooldownInputs:
+    """Everything the §D1.4 decision needs — all passed in (no clock, no DB)."""
+
+    dwell_class: str
+    dwell_elapsed_seconds: int  # since RECOVERY_COOLDOWN began
+    new_session_started: bool  # a new trading session began since cooldown began
+    manual_repair_complete: bool  # integrity repair signed off
+    integrity_alerts_active: bool
+    broker_reconciled: bool
+    state_unchanged_since_cooldown: bool  # no new trip enqueued during the dwell
+    velocity_healthy: bool = True  # ≤ recovery threshold sustained ≥ min (only used for velocity)
+
+
+@dataclass(frozen=True)
+class CooldownVerdict:
+    verdict: str  # C.COOLDOWN_HOLD | COOLDOWN_COMPLETE | COOLDOWN_REGRESSED
+    reason: str
+
+
+def _dwell_satisfied(inp: CooldownInputs) -> bool:
+    req = required_dwell(inp.dwell_class)
+    if req.kind == C.DWELL_KIND_FIXED_MINUTES:
+        return inp.dwell_elapsed_seconds >= (req.minutes or 0) * 60
+    if req.kind == C.DWELL_KIND_UNTIL_NEXT_SESSION:
+        return inp.new_session_started
+    # ``required_dwell`` only ever yields FIXED_MINUTES, UNTIL_NEXT_SESSION, or the strictest
+    # UNTIL_MANUAL_REPAIR (its default for INTEGRITY and any unrecognised class) — so the remaining
+    # case is manual repair, which must be signed off before the dwell is satisfied.
+    return inp.manual_repair_complete
+
+
+def evaluate_cooldown(inp: CooldownInputs) -> CooldownVerdict:
+    """The pure §D1.4 verdict for an account in RECOVERY_COOLDOWN.
+
+    An OUTRIGHT regression (a fresh integrity alert, or a new trip enqueued during the dwell) fails
+    closed to INTEGRITY_STOP. Otherwise every unmet condition merely HOLDs the account in cooldown —
+    re-arm to NORMAL requires the full class-dependent dwell, a clean broker reconciliation, and
+    (for a velocity trip) recovered loss velocity. Never a symmetric monetary band."""
+    if inp.integrity_alerts_active:
+        return CooldownVerdict(C.COOLDOWN_REGRESSED, "integrity alert active during cooldown")
+    if not inp.state_unchanged_since_cooldown:
+        return CooldownVerdict(C.COOLDOWN_REGRESSED, "new trip enqueued during cooldown")
+    if not _dwell_satisfied(inp):
+        return CooldownVerdict(C.COOLDOWN_HOLD, "minimum dwell not satisfied")
+    if not inp.broker_reconciled:
+        return CooldownVerdict(C.COOLDOWN_HOLD, "broker reconciliation not clean")
+    if inp.dwell_class == C.DWELL_CLASS_RATE_VELOCITY and not inp.velocity_healthy:
+        return CooldownVerdict(C.COOLDOWN_HOLD, "loss velocity not recovered")
+    return CooldownVerdict(C.COOLDOWN_COMPLETE, "all D1.4 conditions hold")
+
+
+def daily_loss_permits_same_session_rearm() -> bool:
+    """§D6: a daily-loss lock is reduction-only for the REST OF THE SESSION — never an automatic
+    same-session re-arm for new risk. (Structurally, a daily-loss trip's dwell is UNTIL_NEXT_SESSION;
+    this explicit predicate documents the policy for callers.)"""
+    return False

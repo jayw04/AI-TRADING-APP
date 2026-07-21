@@ -12,6 +12,8 @@ in a later increment — NOT here. This module is data, not behavior.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 # --- versioning -------------------------------------------------------------------------------
 # Bumped when the state model itself changes shape, so future migrations of persisted state are
 # manageable the way RISK_POLICY_VERSION (ADR 0042) and the ledger already are (ADR 0043 §D1.3).
@@ -141,3 +143,141 @@ ALL_AUTHORITY_CLASSES: frozenset[str] = frozenset(
         AUTHORITY_MANUAL_SAME_OR_HIGHER,
     }
 )
+
+# ==============================================================================================
+# ADR 0043 PR6 — the recovery preflight WORKFLOW vocabulary (control-plane, not the order path).
+# ==============================================================================================
+
+# Bumped when the check registry / evidence shape changes so a stale evidence package is legible.
+RECOVERY_EVIDENCE_VERSION = 1
+
+# Parent preflight lifecycle status. Distinct from the aggregate VERDICT (PASS/FAIL/INCOMPLETE) and
+# from the transition-commit outcome — a PASS verdict is NOT the same as "the transition committed".
+PREFLIGHT_STATUS_REQUESTED = "REQUESTED"
+PREFLIGHT_STATUS_RUNNING = "RUNNING"
+PREFLIGHT_STATUS_PASSED = "PASSED"  # aggregate PASS + authority satisfied + PREFLIGHT_PASS committed
+PREFLIGHT_STATUS_FAILED = "FAILED"  # aggregate FAIL → PREFLIGHT_FAIL committed
+PREFLIGHT_STATUS_INCOMPLETE = "INCOMPLETE"  # aggregate INCOMPLETE → PREFLIGHT_FAIL committed
+PREFLIGHT_STATUS_AUTHORIZATION_REQUIRED = "AUTHORIZATION_REQUIRED"  # PASS but a human must approve
+PREFLIGHT_STATUS_COMMIT_FAILED = "COMMIT_FAILED"  # a transition write raised — nothing authoritative
+ALL_PREFLIGHT_STATUSES: frozenset[str] = frozenset(
+    {
+        PREFLIGHT_STATUS_REQUESTED,
+        PREFLIGHT_STATUS_RUNNING,
+        PREFLIGHT_STATUS_PASSED,
+        PREFLIGHT_STATUS_FAILED,
+        PREFLIGHT_STATUS_INCOMPLETE,
+        PREFLIGHT_STATUS_AUTHORIZATION_REQUIRED,
+        PREFLIGHT_STATUS_COMMIT_FAILED,
+    }
+)
+# Statuses in which a preflight is still "active" — an account may have at most one active preflight.
+ACTIVE_PREFLIGHT_STATUSES: frozenset[str] = frozenset(
+    {PREFLIGHT_STATUS_REQUESTED, PREFLIGHT_STATUS_RUNNING, PREFLIGHT_STATUS_AUTHORIZATION_REQUIRED}
+)
+
+# Aggregate verdict of the 12 checks (fail-closed). Same value set as the per-check status.
+AGG_PASS = CHECK_PASS
+AGG_FAIL = CHECK_FAIL
+AGG_INCOMPLETE = CHECK_INCOMPLETE
+
+# The 12 stable, versioned preflight check names (§D5). Exactly twelve — do not add/remove without
+# bumping RECOVERY_EVIDENCE_VERSION and updating tests + runbook + authority policy.
+CHECK_STATE_KNOWN_AND_RECOVERABLE = "state_known_and_recoverable"
+CHECK_RECOVERY_ORIGIN_PROVEN = "recovery_origin_proven"
+CHECK_BROKER_REACHABLE = "broker_reachable"
+CHECK_BROKER_ACCOUNT_ACTIVE = "broker_account_active"
+CHECK_POSITIONS_RECONCILE = "positions_reconcile"
+CHECK_OPEN_ORDERS_RECONCILE = "open_orders_reconcile"
+CHECK_RESERVATIONS_RECONCILE = "reservations_reconcile"
+CHECK_SESSION_BASELINE_VALID = "session_baseline_valid"
+CHECK_DAILY_LOSS_RECOMPUTED = "daily_loss_recomputed"
+CHECK_TRIP_CAUSE_CLASSIFIED = "trip_cause_classified"
+CHECK_CONTROL_STATE_CONSISTENT = "control_state_consistent"
+CHECK_NO_UNRESOLVED_INTEGRITY_CONDITION = "no_unresolved_integrity_condition"
+PREFLIGHT_CHECK_REGISTRY: tuple[str, ...] = (
+    CHECK_STATE_KNOWN_AND_RECOVERABLE,
+    CHECK_RECOVERY_ORIGIN_PROVEN,
+    CHECK_BROKER_REACHABLE,
+    CHECK_BROKER_ACCOUNT_ACTIVE,
+    CHECK_POSITIONS_RECONCILE,
+    CHECK_OPEN_ORDERS_RECONCILE,
+    CHECK_RESERVATIONS_RECONCILE,
+    CHECK_SESSION_BASELINE_VALID,
+    CHECK_DAILY_LOSS_RECOMPUTED,
+    CHECK_TRIP_CAUSE_CLASSIFIED,
+    CHECK_CONTROL_STATE_CONSISTENT,
+    CHECK_NO_UNRESOLVED_INTEGRITY_CONDITION,
+)
+
+# Actor types for request / authorization. A SYSTEM actor may run checks but may NOT self-authorize
+# an INTEGRITY_STOP recovery (§D5 authority matrix).
+ACTOR_OWNER = "OWNER"
+ACTOR_RISK_OPERATOR = "RISK_OPERATOR"
+ACTOR_SYSTEM = "SYSTEM"
+
+# Stable error / blocked codes for evidence (never raw exception text, no credentials/tokens).
+ERR_BROKER_UNREACHABLE = "ERR_BROKER_UNREACHABLE"
+ERR_BROKER_ACCOUNT_INACTIVE = "ERR_BROKER_ACCOUNT_INACTIVE"
+ERR_POSITION_MISMATCH = "ERR_POSITION_MISMATCH"
+ERR_OPEN_ORDER_MISMATCH = "ERR_OPEN_ORDER_MISMATCH"
+ERR_RESERVATION_MISMATCH = "ERR_RESERVATION_MISMATCH"
+ERR_BASELINE_INVALID = "ERR_BASELINE_INVALID"
+ERR_LOSS_NOT_RECOMPUTABLE = "ERR_LOSS_NOT_RECOMPUTABLE"
+ERR_ORIGIN_UNPROVEN = "ERR_ORIGIN_UNPROVEN"
+ERR_STATE_CONTRADICTION = "ERR_STATE_CONTRADICTION"
+ERR_TRIP_CAUSE_UNKNOWN = "ERR_TRIP_CAUSE_UNKNOWN"
+ERR_UNRESOLVED_INTEGRITY = "ERR_UNRESOLVED_INTEGRITY"
+ERR_AUTHORIZATION_REQUIRED = "ERR_AUTHORIZATION_REQUIRED"
+ERR_TRANSITION_COMMIT_FAILED = "ERR_TRANSITION_COMMIT_FAILED"
+ERR_INTERNAL = "ERR_INTERNAL"  # unexpected exception, bounded — raw text stays in internal logs
+ERR_NOT_ELIGIBLE = "ERR_NOT_ELIGIBLE"  # request from NORMAL / cooldown / unknown / missing state
+ERR_NOT_AUTHORIZED = "ERR_NOT_AUTHORIZED"  # actor may not request/authorize this origin
+ERR_IDEMPOTENCY_CONFLICT = "ERR_IDEMPOTENCY_CONFLICT"  # same key, conflicting payload
+ERR_ACTIVE_PREFLIGHT_EXISTS = "ERR_ACTIVE_PREFLIGHT_EXISTS"  # one active per account
+
+# Authority-class labels (what authority a given origin's PREFLIGHT_PASS requires).
+AUTHORITY_CLASS_OWNER_OR_OPERATOR = "OWNER_OR_OPERATOR"
+AUTHORITY_CLASS_OPERATOR_OR_OWNER_IF_DAILY_LOSS = "OPERATOR_OR_OWNER_IF_DAILY_LOSS"
+AUTHORITY_CLASS_OPERATOR_HUMAN_APPROVAL = "OPERATOR_HUMAN_APPROVAL"  # INTEGRITY_STOP
+
+# --- re-arm / hysteresis / dwell (ADR 0043 §D6 + §D1.4) ---------------------------------------
+# Asymmetric re-arm: NO symmetric monetary band. Once locked, an account only re-arms to NORMAL
+# after a class-dependent minimum dwell AND all §D1.4 conditions hold. Values are the ADR's
+# conservative defaults (house convention: dwell defaults tight; a later increment may make them
+# configurable — this vocabulary is data, not behaviour). The policy logic lives in
+# ``state_machine.py`` (§D6), the sole sanctioned home for re-arm decisions.
+
+# Dwell CLASS — how long an account must dwell in RECOVERY_COOLDOWN before it may re-arm, keyed to
+# what it is recovering from.
+DWELL_CLASS_ARTIFACT = "ARTIFACT"  # confirmed measurement artifact — fast, fixed dwell
+DWELL_CLASS_RATE_VELOCITY = "RATE_VELOCITY"  # rate / loss-velocity trip — longer fixed dwell
+DWELL_CLASS_CONFIRMED_DAILY_LOSS = "CONFIRMED_DAILY_LOSS"  # real daily loss — until the next session
+DWELL_CLASS_INTEGRITY = "INTEGRITY"  # broker/recon/config integrity — until manual repair completes
+ALL_DWELL_CLASSES: frozenset[str] = frozenset(
+    {
+        DWELL_CLASS_ARTIFACT,
+        DWELL_CLASS_RATE_VELOCITY,
+        DWELL_CLASS_CONFIRMED_DAILY_LOSS,
+        DWELL_CLASS_INTEGRITY,
+    }
+)
+
+# Dwell KIND — how the requirement is satisfied.
+DWELL_KIND_FIXED_MINUTES = "FIXED_MINUTES"
+DWELL_KIND_UNTIL_NEXT_SESSION = "UNTIL_NEXT_SESSION"
+DWELL_KIND_UNTIL_MANUAL_REPAIR = "UNTIL_MANUAL_REPAIR"
+
+# Fixed-dwell minutes (ADR §D6 conservative defaults).
+DWELL_ARTIFACT_MINUTES = 15
+DWELL_RATE_VELOCITY_MINUTES = 30
+
+# Loss-velocity hysteresis (§D6): trip at the configured limit; "healthy" is a SEPARATE, stricter
+# recovery threshold — at most this fraction of the trip limit, sustained for a minimum duration.
+VELOCITY_RECOVERY_FRACTION = Decimal("0.5")
+VELOCITY_HEALTHY_MIN_SECONDS = 600  # 10 minutes
+
+# §D1.4 cooldown-completion verdicts (the pure policy's answer for RECOVERY_COOLDOWN).
+COOLDOWN_HOLD = "HOLD"  # conditions not yet met — stay in cooldown, no re-arm
+COOLDOWN_COMPLETE = "COMPLETE"  # all §D1.4 conditions hold — may transition to NORMAL
+COOLDOWN_REGRESSED = "REGRESSED"  # an outright regression — fail closed to INTEGRITY_STOP

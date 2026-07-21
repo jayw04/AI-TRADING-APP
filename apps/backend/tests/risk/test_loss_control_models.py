@@ -131,11 +131,16 @@ async def test_recovery_preflight_and_checks_roundtrip(session_factory, acct):
     async with session_factory() as s:
         pf = RiskRecoveryPreflight(
             account_id=acct,
-            requested_transition="INTEGRITY_STOP->RECOVERY_PREFLIGHT",
+            idempotency_key="idem-roundtrip",
+            requested_transition="RECOVERY_REQUEST",
             expected_state_version=3,
+            requested_by_actor_type="USER",
+            requested_by_actor_id="3",
+            requested_at=_now(),
             trip_type=C.TRIP_TYPE_CIRCUIT_BREAKER,
             trip_cause=C.TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS,
             authority_class=C.AUTHORITY_HUMAN_REQUIRED,
+            status=C.PREFLIGHT_STATUS_PASSED,
             result=C.PREFLIGHT_PASS,
             initiator_type="USER",
             initiator_id="3",

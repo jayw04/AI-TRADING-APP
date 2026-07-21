@@ -42,6 +42,9 @@ APP = BACKEND / "app"
 SERVICE = "app/risk/loss_control/service.py"
 ENGINE = "app/risk/engine.py"
 GATE = "app/risk/loss_control/gate.py"
+RECOVERY = "app/risk/loss_control/recovery.py"
+STATE_MACHINE = "app/risk/loss_control/state_machine.py"
+COOLDOWN = "app/risk/loss_control/cooldown.py"
 LOSS_CONTROL_PKG = "app/risk/loss_control/"
 STATE_MODELS = "app/db/models/risk_loss_control_state.py"
 EVENT_MODELS = "app/db/models/risk_control_event.py"
@@ -76,6 +79,22 @@ FORBIDDEN_ENGINE_TRIGGER_STRINGS = {
     "PREFLIGHT_FAIL", "RECOVERY_PREFLIGHT_FAIL", "COOLDOWN_COMPLETE", "COOLDOWN_EXPIRED",
     "HEALTH_REGRESSED", "REARM",
 }
+
+# §6 — SANCTIONED trigger placement. The recovery triggers are legitimate, but only in the recovery
+# coordinator, the transition service, and the state-machine definition — not scattered across the
+# app (the engine, API handlers, unrelated jobs). The re-arm triggers (PR7) are sanctioned in the
+# state-machine definition AND the dedicated cooldown evaluator, which is the ONLY job allowed to map
+# an §D1.4 verdict onto a transition — still forbidden in the engine, routers, and any other job.
+RECOVERY_TRIGGER_NAMES = {"TRIGGER_RECOVERY_REQUEST", "TRIGGER_PREFLIGHT_PASS", "TRIGGER_PREFLIGHT_FAIL"}
+REARM_TRIGGER_NAMES = {"TRIGGER_COOLDOWN_COMPLETE", "TRIGGER_HEALTH_REGRESSED"}
+
+
+def _recovery_trigger_allowed(rel: str) -> bool:
+    return rel in (RECOVERY, SERVICE, STATE_MACHINE)
+
+
+def _rearm_trigger_allowed(rel: str) -> bool:
+    return rel in (STATE_MACHINE, COOLDOWN)
 
 
 @dataclass(frozen=True)
@@ -294,12 +313,39 @@ def check_no_recovery_triggers_in_engine(rel: str, tree: ast.AST) -> list[Violat
     return out
 
 
+def check_sanctioned_trigger_placement(rel: str, tree: ast.AST) -> list[Violation]:
+    """§6 — recovery triggers only in the coordinator/service/state-machine; re-arm triggers only in
+    the state-machine (until PR7). Tests exempt. A reference is a Name or an ImportFrom name."""
+    if _is_test(rel):
+        return []
+    rec_ok = _recovery_trigger_allowed(rel)
+    rearm_ok = _rearm_trigger_allowed(rel)
+    out: list[Violation] = []
+
+    def _flag(name: str, line: int) -> None:
+        if name in RECOVERY_TRIGGER_NAMES and not rec_ok:
+            out.append(Violation("sanctioned-trigger-placement", rel, line,
+                                 f"{name} referenced outside the recovery coordinator/service/state-machine"))
+        elif name in REARM_TRIGGER_NAMES and not rearm_ok:
+            out.append(Violation("sanctioned-trigger-placement", rel, line,
+                                 f"{name} referenced outside the state-machine (re-arm is PR7)"))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            _flag(node.id, node.lineno)
+        elif isinstance(node, ast.ImportFrom):
+            for a in node.names:
+                _flag(a.name, node.lineno)
+    return out
+
+
 CHECKS = (
     check_single_persister,
     check_gate_only_via_engine,
     check_no_duplicate_classifier,
     check_no_implicit_bootstrap,
     check_no_recovery_triggers_in_engine,
+    check_sanctioned_trigger_placement,
 )
 
 
@@ -330,7 +376,8 @@ def main() -> int:
         )
         return 1
     print("ADR 0043 loss-control invariants OK (single-persister, gate-only-via-engine, "
-          "no-duplicate-classifier, no-implicit-bootstrap, no-recovery-triggers)")
+          "no-duplicate-classifier, no-implicit-bootstrap, no-recovery-triggers, "
+          "sanctioned-trigger-placement)")
     return 0
 
 
