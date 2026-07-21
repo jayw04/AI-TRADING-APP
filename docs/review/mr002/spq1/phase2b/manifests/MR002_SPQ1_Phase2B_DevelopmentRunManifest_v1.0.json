@@ -36,10 +36,10 @@
  "phase2b_execution_modules": {
   "__init__.py": "0344cdcac1dfe1c66a13ef7c23d90085a3d1b6c71d237c6d1d30d88d3332a12e",
   "cutoff.py": "5aa9c5fe042e6bef308ffd10876e84466f269e57a5d04754a6052b3e72c2a88f",
-  "orchestrator.py": "408a2e02248e3225f47431b65d1d55221e3b7eff2b8eeef5c44255b933cc1616",
+  "orchestrator.py": "c58d2d197623c884bce2c5b47eb3ffda2225a651c92a5157d608d62bb8ed356a",
   "sic_sector.py": "651b25bcccd11655ceaac19707daf0f6a28732cc93abdd00a1461c053f3a7a78"
  },
- "phase2b_orchestration_code_identity": "d7727557bd88eb94ec36b18a05100d658613cb21a4d68e2042e699142ffb6044",
+ "phase2b_orchestration_code_identity": "3c1ce9b721556aa33955b0d04f1904957dab2330e31ce65b9ba78759f22e3798",
  "pit_source_identities": {
   "adv": "closeunadj x volume",
   "corporate_actions": "actions.date",

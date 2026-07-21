@@ -11,7 +11,7 @@
   "phase1_valid_path_output_sha256": "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f",
   "phase2a_closeout": "673f10bdc84e276d5fc1d5bce39f459c8bc869af",
   "phase2a_dev_snapshot_content_sha256": "211eacc0ff55904e7494b9688e74b76e57128a4e59cd809f78d66bf1621d3ae2",
-  "phase2b_orchestration_code_identity": "d7727557bd88eb94ec36b18a05100d658613cb21a4d68e2042e699142ffb6044",
+  "phase2b_orchestration_code_identity": "3c1ce9b721556aa33955b0d04f1904957dab2330e31ce65b9ba78759f22e3798",
   "pit_sector_observation_source_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
   "provenance_db_sha256": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
   "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
@@ -37,10 +37,10 @@
   "phase2b_execution_modules": {
    "__init__.py": "0344cdcac1dfe1c66a13ef7c23d90085a3d1b6c71d237c6d1d30d88d3332a12e",
    "cutoff.py": "5aa9c5fe042e6bef308ffd10876e84466f269e57a5d04754a6052b3e72c2a88f",
-   "orchestrator.py": "408a2e02248e3225f47431b65d1d55221e3b7eff2b8eeef5c44255b933cc1616",
+   "orchestrator.py": "c58d2d197623c884bce2c5b47eb3ffda2225a651c92a5157d608d62bb8ed356a",
    "sic_sector.py": "651b25bcccd11655ceaac19707daf0f6a28732cc93abdd00a1461c053f3a7a78"
   },
-  "phase2b_orchestration_code_identity": "d7727557bd88eb94ec36b18a05100d658613cb21a4d68e2042e699142ffb6044",
+  "phase2b_orchestration_code_identity": "3c1ce9b721556aa33955b0d04f1904957dab2330e31ce65b9ba78759f22e3798",
   "producer_modules": {
    "__init__.py": "d1f326b44ba6fc6bf9aacb3e3b779a08610ad4ae07a5d13d78e68bcd97c1eb6f",
    "calendar.py": "567044c06672f03cc655ac412b666a3195bcf8f96cf01a9575078ffe91cdc7dc",

@@ -1,6 +1,20 @@
 # MR-002 Workstream C — SPQ-1 Phase 2B — Increment 2B-1
 
-## Dry-Run & Limited-Shard Qualification (resubmitted; third correction round)
+## Dry-Run & Limited-Shard Qualification (resubmitted; fourth correction round)
+
+### Fourth-round correction (ledger row-count semantics)
+
+- The per-symbol price completed-read `result_row_count` now equals **`len(price_rows)`** — the exact
+  number of canonical aligned-session rows in `result_set_sha256` (all registered sessions) — not the
+  finite-close count. SPY uses `len(spy_rows)`; sector-ETF uses the count of hashed `(ticker, session,
+  value)` rows. The finite/missing counts are kept as **separate diagnostics** in the OpenedObjectLedger
+  (`read_diagnostics`: `registered_session_count`, `hashed_row_count`, `finite_closeadj_count`,
+  `finite_closeunadj_count`, `finite_volume_count`, `missing_or_nonpresent_count`) — they do not replace
+  `result_row_count`. Tested: a series with one missing adjusted close hashes 3 rows,
+  `result_row_count = 3`, `finite_closeadj_count = 2`, and the hash still changes on missingness. Nothing
+  else changed (run ID, unit-selection, signal math, PIT/SIC logic, shard set, quarantine).
+
+
 
 ### Third-round corrections (final integrity)
 

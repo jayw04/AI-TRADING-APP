@@ -200,6 +200,14 @@ def test_price_ledger_binds_every_consumed_field(tmp_path):
     assert ledger_hash(close, unadj, vol * 2, status) != base                     # volume changes
     st2 = [CellStatus.PRESENT, CellStatus.UNEXPLAINED_HOLE, CellStatus.PRESENT]
     assert ledger_hash(close, unadj, vol, st2) != base                            # status changes
+    # result_row_count semantics: hashed rows == registered sessions (3), NOT the finite-close count (2)
+    miss = np.array([10.0, float("nan"), 12.0])
+    st_miss = [CellStatus.PRESENT, CellStatus.YOUNG, CellStatus.PRESENT]
+    price_rows = [[cal.sessions[i], ORCH._cf(miss[i]), ORCH._cf(unadj[i]), ORCH._cf(vol[i]),
+                   st_miss[i].value] for i in range(3)]
+    assert len(price_rows) == 3                                                    # hashed rows = 3
+    assert int(np.isfinite(miss).sum()) == 2                                       # finite closeadj = 2
+    assert ledger_hash(miss, unadj, vol, st_miss) != base                         # missingness changes hash
     _ = (dev_calendar_sha256, PartitionGuard)  # keep imports meaningful
 
 

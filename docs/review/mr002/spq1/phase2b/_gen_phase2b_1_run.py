@@ -153,7 +153,7 @@ def _rc(securities=None, spy=None):  # rebuild a RunContext with one field overr
     return ORCH.RunContext(ctx.con, ctx.calendar, ctx.spy_ret if spy is None else spy, ctx.sector_ret,
                            ctx.registry, ctx.lineage, ctx.sic_map,
                            securities if securities is not None else ctx.securities,
-                           ctx.sic_obs_by_cik, ctx.earnings_by_cik, ctx.ledger)
+                           ctx.sic_obs_by_cik, ctx.earnings_by_cik, ctx.read_diagnostics, ctx.ledger)
 _sym0 = "AAPL"
 _sec0 = ctx.securities[_sym0]
 _status = list(_sec0["status"])
@@ -287,7 +287,11 @@ opened_ledger = {"record_type": "MR002_SPQ1_Phase2B_2B1_OpenedObjectLedger", "ve
     "all_completed": all(e["status"] == "COMPLETED" for e in ledger.entries),
     "no_actual_key_beyond_dev_end": all(e["actual_max_date"] is None or str(e["actual_max_date"]) <= "2019-10-02"
                                         for e in ledger.entries),
-    "validation_or_oos_objects_opened": 0}
+    "validation_or_oos_objects_opened": 0,
+    "result_row_count_semantics": "result_row_count = number of canonical rows in result_set_sha256 "
+        "(aligned session rows for price/SPY/factor reads); finite-observation counts are separate "
+        "diagnostics below.",
+    "read_diagnostics": ctx.read_diagnostics}
 session_census_art = {"record_type": "MR002_SPQ1_Phase2B_2B1_SessionCensus", "version": "1.0",
     "run_id": RUN_ID, "sessions": session_census}
 security_census_art = {"record_type": "MR002_SPQ1_Phase2B_2B1_SecurityCensus", "version": "1.0",

@@ -105,6 +105,7 @@ class RunContext:
     securities: dict[str, dict]              # SYMBOL -> {stock_ret, status, raw_close, raw_volume, cik_timeline}
     sic_obs_by_cik: dict[int, list]          # cik -> [(accepted_utc_full_iso, sic, accession)]
     earnings_by_cik: dict[int, list]         # cik -> earnings_anchors rows (bulk, ledgered)
+    read_diagnostics: dict                   # purpose -> {registered/finite/missing counts} (evidence)
     ledger: OpenedObjectLedger
 
 
@@ -189,12 +190,14 @@ def resolve_cik_at(cik_timeline, t):  # noqa: ANN001
 
 
 def build_context(snapshot_con, guard, tickers, ciks, sic_map_con, snap_path="", snap_sha=""):  # noqa: ANN001
+    diagnostics: dict = {}
     cal = load_calendar(snapshot_con)
     _snap_ledger(guard, snap_path, snap_sha, "calendar", list(cal.sessions), len(cal), cal.sessions[-1])
     spy_levels = load_spy_adjclose(snapshot_con, cal)
-    _snap_ledger(guard, snap_path, snap_sha, "spy",
-                 [[cal.sessions[i], _cf(spy_levels[i])] for i in range(len(cal))],
-                 int(np.isfinite(spy_levels).sum()), cal.sessions[-1])
+    spy_rows = [[cal.sessions[i], _cf(spy_levels[i])] for i in range(len(cal))]
+    _snap_ledger(guard, snap_path, snap_sha, "spy", spy_rows, len(spy_rows), cal.sessions[-1])
+    diagnostics["spy"] = {"registered_session_count": len(cal),
+                          "finite_value_count": int(np.isfinite(spy_levels).sum())}
     spy = arithmetic_total_returns(spy_levels)
     sic_map = _guarded_load_sic_map(sic_map_con, guard)
     sic_obs_by_cik = _guarded_sic_obs(sic_map_con, guard, ciks)
@@ -238,8 +241,15 @@ def build_context(snapshot_con, guard, tickers, ciks, sic_map_con, snap_path="",
         # bind EVERY consumed field: session, closeadj, closeunadj (ADV), volume (ADV), status
         price_rows = [[cal.sessions[i], _cf(close[i]), _cf(series["closeunadj"][i]),
                        _cf(series["volume"][i]), status[i].value] for i in range(len(cal))]
+        # result_row_count == the number of canonical rows in the result hash (all aligned sessions)
         _snap_ledger(guard, snap_path, snap_sha, f"prices:{tk}", price_rows,
-                     int(present.sum()), cal.sessions[-1])
+                     len(price_rows), cal.sessions[-1])
+        diagnostics[f"prices:{tk}"] = {
+            "registered_session_count": len(cal), "hashed_row_count": len(price_rows),
+            "finite_closeadj_count": int(np.isfinite(close).sum()),
+            "finite_closeunadj_count": int(np.isfinite(series["closeunadj"]).sum()),
+            "finite_volume_count": int(np.isfinite(series["volume"]).sum()),
+            "missing_or_nonpresent_count": int((~present).sum())}
         securities[tk] = {"symbol": tk, "stock_ret": arithmetic_total_returns(close),
                           "status": status, "raw_close": series["closeunadj"],
                           "raw_volume": series["volume"], "cik_timeline": cik_timeline.get(tk, [])}
@@ -253,7 +263,7 @@ def build_context(snapshot_con, guard, tickers, ciks, sic_map_con, snap_path="",
     for row in ea:
         earnings_by_cik.setdefault(int(row[0]), []).append(row[1:])
     return RunContext(snapshot_con, cal, spy, sector_ret, _registry(cal), lineage, sic_map,
-                      securities, sic_obs_by_cik, earnings_by_cik, guard.ledger)
+                      securities, sic_obs_by_cik, earnings_by_cik, diagnostics, guard.ledger)
 
 
 def _earnings_checks(rows, session_date):  # noqa: ANN001

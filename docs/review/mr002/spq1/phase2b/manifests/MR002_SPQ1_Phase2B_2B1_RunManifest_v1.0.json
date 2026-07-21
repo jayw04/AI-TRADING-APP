@@ -9,11 +9,11 @@
  },
  "increment": "2B-1 (limited-shard qualification)",
  "phase2b_code_identity_verified": true,
- "phase2b_orchestration_code_identity": "d7727557bd88eb94ec36b18a05100d658613cb21a4d68e2042e699142ffb6044",
+ "phase2b_orchestration_code_identity": "3c1ce9b721556aa33955b0d04f1904957dab2330e31ce65b9ba78759f22e3798",
  "pit_sector_source": "research.sic_observations (covers 534/535 dev-universe ciks; provenance copy covers only 13 -> registered PIT sector source for the run is research.sic_observations)",
  "record_type": "MR002_SPQ1_Phase2B_2B1_RunManifest",
  "run_id": "MR002-SPQ1-P2B-DEV-V1",
- "run_spec_sha256": "61736b443f4b3d584f60f0e91b7c2ff234fcea0b6123743b3252a2fee2250391",
+ "run_spec_sha256": "b9d406d25318a42762b152e9bb2d78c2658ffe049a7eb60d06a212f9d0544de5",
  "sic_to_sector_etf": "registered owner-countersigned sic_mapping (supersedes Phase-2A placeholder)",
  "version": "1.0"
 }
