@@ -277,10 +277,11 @@ tight".
   the integrity condition the fail-closed exists to surface.
 - Keep `ENFORCE` disabled, or return the account to its previously authorized mode
   (`OFF`/`SHADOW`), while investigating.
-- Recovery from a loss-control lock has **no sanctioned operator procedure yet** — the checked
-  recovery preflight (PR6) and re-arm/hysteresis (PR7) are not implemented. Until then, a genuine
-  lock is cleared only by the existing audited circuit-breaker reset flow for the *breaker*
-  component, never by editing loss-control state directly.
+- Recovery from a loss-control lock runs through the **checked recovery preflight** (PR6, see below)
+  and the **§D6 re-arm/dwell policy** (PR7). The periodic evaluator that advances an account out of
+  `RECOVERY_COOLDOWN` is a later increment; until it ships, a genuine lock is cleared only by the
+  existing audited circuit-breaker reset flow for the *breaker* component or the recovery preflight —
+  never by editing loss-control state directly.
 - The three loss-control flags are independent (`SESSION_BASELINE_SHADOW_ENABLED`,
   `SESSION_BASELINE_ENFORCEMENT_ENABLED`, `LOSS_CONTROL_MODE`); toggling `LOSS_CONTROL_MODE` back to
   `OFF`/`SHADOW` neither disables baseline capture nor changes the daily-loss basis.
@@ -322,7 +323,27 @@ reduction-only lock still permits only verified reductions).
 3. **Authorization** — see the matrix below. `INTEGRITY_STOP` always requires a *separate* explicit
    operator approval (POST `.../{id}/approve`); it is never system- or owner-self-authorized.
 4. **Transition** — an aggregate `PASS` + authorization commits `PREFLIGHT_PASS` →
-   `RECOVERY_COOLDOWN`. **PR6 stops there — there is no sanctioned re-arm to `NORMAL` until PR7.**
+   `RECOVERY_COOLDOWN`. The account then re-arms to `NORMAL` only when the §D6 / §D1.4 policy holds
+   (below). **PR6/PR7 land the checked recovery + the pure re-arm policy; the periodic evaluator that
+   actually fires `COOLDOWN_COMPLETE` / `HEALTH_REGRESSED` is a later increment — until it ships, an
+   account parked in `RECOVERY_COOLDOWN` does not auto-advance.**
+
+**Re-arm / dwell policy (§D6, asymmetric — no monetary band).** Re-arm from `RECOVERY_COOLDOWN` to
+`NORMAL` requires a **class-dependent minimum dwell** AND all §D1.4 conditions. The dwell is keyed to
+what the account is recovering from:
+
+| Recovering from | Minimum dwell |
+|---|---|
+| Confirmed measurement artifact (`ARTIFACT_CONFIRMED`) | 15 min |
+| Loss-velocity / rate | 30 min **and** loss velocity recovered (≤ 50% of the trip limit sustained ≥ 10 min) |
+| Confirmed daily loss | **until the next session** (reduction-only for the rest of the day — no same-session re-arm) |
+| Integrity (broker / recon / baseline / config) | **until manual repair completes** |
+
+Anything unrecognised (including a serious cause mislabeled an artifact) maps to the **strictest**
+(until-manual-repair). §D1.4 also requires: no active integrity alerts, broker reconciliation clean,
+and **state unchanged** since cooldown began. An **outright** regression — a fresh integrity alert or
+a **new trip enqueued during the dwell** — fails closed to `INTEGRITY_STOP`; every other unmet
+condition merely holds the account in cooldown.
 
 **Fail-closed aggregate:** any `FAIL` → `FAIL`; else any `INCOMPLETE` → `INCOMPLETE`; else all
 twelve `PASS` → `PASS`. **`INCOMPLETE` is never a pass** — it means evidence was unavailable, stale,
