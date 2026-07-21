@@ -64,6 +64,7 @@ from app.events import get_event_bus
 from app.services.paper_variant import PaperVariantService
 from app.services.strategy_cooldown import StrategyCooldownService
 from app.strategies import StrategyLoader, StrategyLoadError
+from app.strategies.hold_service import StrategyOnHold
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
@@ -348,6 +349,16 @@ async def start_strategy(
     engine = _get_engine(request)
     try:
         running = await engine.register(strategy_id)
+    except StrategyOnHold as exc:
+        # ADR 0044 inv 5-7: activation refused by an active operational hold. 409 (a
+        # conflicting state the caller can resolve by clearing the hold), not 500.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Strategy #{strategy_id} is under an operational hold "
+                f"({exc.reason_code}). Clear the hold before activating."
+            ),
+        ) from exc
     except StrategyLoadError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -480,6 +491,14 @@ async def reload_strategy(
         try:
             running = await engine.register(strategy_id)
             new_run_id = running.run_id
+        except StrategyOnHold as exc:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Strategy #{strategy_id} is under an operational hold "
+                    f"({exc.reason_code}); it will not re-activate on reload."
+                ),
+            ) from exc
         except StrategyLoadError as exc:
             raise HTTPException(
                 status_code=400, detail=f"Reload failed: {exc}"
