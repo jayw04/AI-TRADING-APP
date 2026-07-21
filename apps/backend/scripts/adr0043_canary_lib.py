@@ -276,25 +276,38 @@ def admissible_shares(
 
 
 # ---------------------------------------------------------------------------- checkpoint
+# The ordered, side-effecting steps. Each is checkpointed BEFORE the next begins so a dropped SSH
+# session resumes at the first incomplete step and NEVER re-runs a completed side effect (a second
+# protected-leg SELL, a second rejected BUY, a second recovery request).
+STEPS: tuple[str, ...] = ("A1", "A2", "A3", "A4", "A5")
+
+
 @dataclass
 class Checkpoint:
-    """Durable, resumable, idempotent — a dropped SSH session must never leave the run indeterminate
-    or let a SECOND invocation race the first."""
+    """Durable, resumable, idempotent — a dropped SSH session must never leave the run indeterminate,
+    re-run a completed side effect, or let a SECOND invocation race the first.
+
+    ``steps`` records each completed step's durable outcome (order id, preflight id, …). On restart
+    the run re-derives that step's assertion FROM the durable evidence rather than re-executing it."""
 
     phase: str = "INIT"
-    cycles: int = 0
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     deadline_at: str = ""
-    legs_established: bool = False
     lock_reached: bool = False
+    # A STABLE recovery idempotency key: a retry of A4 must reuse it so the recovery service returns
+    # the SAME preflight rather than starting a second workflow.
+    idempotency_key: str = ""
+    steps: dict[str, Any] = field(default_factory=dict)
     events: list[dict] = field(default_factory=list)
 
     @classmethod
     def load(cls) -> Checkpoint:
         if CHECKPOINT.exists():
             return cls(**json.loads(CHECKPOINT.read_text(encoding="utf-8")))
+        now = datetime.now(UTC)
         cp = cls()
-        cp.deadline_at = (datetime.now(UTC) + timedelta(minutes=BUDGET_MINUTES)).isoformat()
+        cp.deadline_at = (now + timedelta(minutes=BUDGET_MINUTES)).isoformat()
+        cp.idempotency_key = f"adr0043-canary-{now.isoformat()}"
         cp.save()
         return cp
 
@@ -306,6 +319,20 @@ class Checkpoint:
 
     def expired(self) -> bool:
         return datetime.now(UTC) >= datetime.fromisoformat(self.deadline_at)
+
+    def step_done(self, name: str) -> bool:
+        return bool(self.steps.get(name, {}).get("done"))
+
+    def step_data(self, name: str) -> dict:
+        return dict(self.steps.get(name, {}))
+
+    def record_step(self, name: str, **data: Any) -> None:
+        self.steps[name] = {**self.steps.get(name, {}), **data, "done": True,
+                            "at": datetime.now(UTC).isoformat()}
+        self.save()
+
+    def all_done(self) -> bool:
+        return all(self.step_done(s) for s in STEPS)
 
     def note(self, kind: str, **fields: Any) -> None:
         self.events.append({"at": datetime.now(UTC).isoformat(), "kind": kind, **fields})
@@ -466,3 +493,132 @@ async def max_control_event_id(sf) -> int:
             ).scalar()
             or 0
         )
+
+
+# ---------------------------------------------------------------------------- durable lookups (resume)
+async def order_row(sf, order_id: int) -> dict | None:
+    """The durable order a checkpointed step recorded — so a resumed step re-derives its assertion
+    from the committed order rather than submitting again."""
+    async with sf() as s:
+        r = (
+            await s.execute(
+                text(
+                    "SELECT id, account_id, symbol_id, side, status, rejection_reason "
+                    "FROM orders WHERE id = :i"
+                ),
+                {"i": order_id},
+            )
+        ).mappings().first()
+    return dict(r) if r else None
+
+
+async def preflight_row(sf, preflight_id: int) -> dict | None:
+    async with sf() as s:
+        r = (
+            await s.execute(
+                text(
+                    "SELECT id, account_id, status, aggregate_verdict, origin_state, "
+                    "transition_event_id FROM risk_recovery_preflights WHERE id = :i"
+                ),
+                {"i": preflight_id},
+            )
+        ).mappings().first()
+    return dict(r) if r else None
+
+
+async def preflight_pass_check_count(sf, preflight_id: int) -> int:
+    async with sf() as s:
+        return int(
+            (
+                await s.execute(
+                    text(
+                        "SELECT COUNT(*) FROM risk_recovery_preflight_checks "
+                        "WHERE preflight_id = :i AND status = 'PASS'"
+                    ),
+                    {"i": preflight_id},
+                )
+            ).scalar()
+            or 0
+        )
+
+
+async def event_row(sf, event_id: int) -> dict | None:
+    async with sf() as s:
+        r = (
+            await s.execute(
+                text(
+                    "SELECT id, to_state, from_state, requested_transition "
+                    "FROM risk_control_events WHERE id = :i"
+                ),
+                {"i": event_id},
+            )
+        ).mappings().first()
+    return dict(r) if r else None
+
+
+async def current_loss_control_state(sf) -> str | None:
+    async with sf() as s:
+        return (
+            await s.execute(
+                text("SELECT state FROM risk_loss_control_state WHERE account_id = :a"),
+                {"a": ACCT},
+            )
+        ).scalar()
+
+
+async def saw_state_since(sf, state: str, since_id: int) -> bool:
+    """Did any control event since ``since_id`` transition the account INTO ``state``? Used to prove
+    the account never touched NORMAL, and no COOLDOWN_COMPLETE fired, during the run."""
+    return any(e["to_state"] == state for e in await control_events_for(sf, since_id=since_id))
+
+
+# ---------------------------------------------------------------------------- PURE gate assessment
+# Extracted so the harness-honesty tests can prove every failure mode is RED, offline. A live GREEN
+# is only legitimate when reaching RECOVERY_COOLDOWN is MANDATORY — a preflight FAIL/INCOMPLETE, or an
+# evaluator that re-arms/regresses, is a RED canary, not a vacuous pass.
+
+# The expected count of preflight checks — all must PASS to enter cooldown.
+PREFLIGHT_CHECK_COUNT = 12
+
+
+def assess_a4(
+    *, accepted: bool, aggregate_verdict: str | None, resulting_state: str | None,
+    has_preflight_pass_event: bool, parent_status: str | None, pass_check_count: int,
+) -> tuple[bool, str]:
+    """A4 is GREEN only if the recovery drove the account all the way into RECOVERY_COOLDOWN with a
+    full PASS: accepted, aggregate PASS, resulting state cooldown, a committed PREFLIGHT_PASS event,
+    the parent preflight PASSED, and exactly 12 persisted PASS checks."""
+    ok = (
+        accepted
+        and aggregate_verdict == "PASS"
+        and resulting_state == STATE_RECOVERY_COOLDOWN
+        and has_preflight_pass_event
+        and parent_status == "PASSED"
+        and pass_check_count == PREFLIGHT_CHECK_COUNT
+    )
+    return ok, (
+        f"accepted={accepted} verdict={aggregate_verdict} state={resulting_state} "
+        f"pass_event={has_preflight_pass_event} parent={parent_status} "
+        f"pass_checks={pass_check_count}/{PREFLIGHT_CHECK_COUNT}"
+    )
+
+
+def assess_a5(
+    *, evaluator_called: bool, verdict: str | None, transitioned_to: str | None,
+    current_state: str | None, saw_normal: bool, saw_cooldown_complete: bool,
+) -> tuple[bool, str]:
+    """A5 is GREEN only if the evaluator was actually invoked and HELD: verdict exactly HOLD, no
+    transition, the account still in RECOVERY_COOLDOWN, and NORMAL / COOLDOWN_COMPLETE reached at NO
+    point in the run. A NO_OP, a regress to INTEGRITY_STOP, or a re-arm to NORMAL is RED."""
+    ok = (
+        evaluator_called
+        and verdict == "HOLD"
+        and transitioned_to is None
+        and current_state == STATE_RECOVERY_COOLDOWN
+        and not saw_normal
+        and not saw_cooldown_complete
+    )
+    return ok, (
+        f"called={evaluator_called} verdict={verdict} transitioned_to={transitioned_to} "
+        f"state={current_state} saw_normal={saw_normal} saw_cooldown_complete={saw_cooldown_complete}"
+    )

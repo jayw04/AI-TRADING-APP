@@ -31,13 +31,13 @@ trusted in `ENFORCE` on any book that has a mandate.
 
 **Proves — the loss-control state machine is authoritative in `ENFORCE`:**
 
-| # | Assertion | Property |
+| # | Assertion | Property (all mandatory for GREEN) |
 |---|---|---|
 | A1 | `state_authoritative` | the account is governed by a durable `REDUCTION_ONLY_*` **state row**, not merely the breaker column |
-| A2 | `verified_reduction_allowed` | a verified risk-reducing SELL of a protected leg is **SUBMITTED** under the lock (ADR 0042 preserved — the gate never traps de-risking) |
+| A2 | `verified_reduction_allowed` | a verified risk-reducing SELL of a protected leg is **ADMITTED** under the lock (ADR 0042 preserved — the gate never traps de-risking) |
 | A3 | `new_risk_refused` | a new-risk BUY is **REJECTED** with `LOSS_CONTROL_STOP` and leaves a durable event/ledger trail |
-| A4 | `recovery_path_reachable` | the sanctioned recovery preflight can be **requested** and commits a real `RECOVERY_REQUEST` event (a durable path out — never an ad-hoc force to `NORMAL`) |
-| A5 | `evaluator_does_not_prematurely_rearm` | if the account reaches `RECOVERY_COOLDOWN`, the cooldown evaluator **HOLDs** (the §D6 dwell is not satisfied inside the run) |
+| A4 | `reached_recovery_cooldown` | the recovery drove the account **all the way into `RECOVERY_COOLDOWN`** with a full PASS: aggregate `PASS`, a committed `PREFLIGHT_PASS` event, parent preflight `PASSED`, and **exactly 12 persisted PASS checks**. Merely entering `RECOVERY_PREFLIGHT`, or a preflight `FAIL`/`INCOMPLETE`, is a **RED** canary — not a vacuous pass. |
+| A5 | `evaluator_holds` | the cooldown evaluator is **actually invoked** and returns **exactly `HOLD`** (no transition, still in cooldown), with **no `NORMAL` and no `COOLDOWN_COMPLETE` at any point** in the run. A `NO_OP`, a regress to `INTEGRITY_STOP`, or a re-arm to `NORMAL` is RED. |
 
 **Does NOT prove — and refuses to fake:**
 
@@ -77,7 +77,13 @@ sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 
 - **Single-instance** (lock file) — two concurrent harnesses are the 2026-07-14 double-reservation
   condition; the second is refused.
-- **Checkpointed / resumable** — a dropped SSH session never leaves the run indeterminate.
+- **Step-level resumable + idempotent** — each side-effecting step (A2 SELL, A3 BUY, A4 recovery
+  request) is checkpointed BEFORE the next begins. A dropped SSH session resumes at the first
+  incomplete step and **never re-issues a completed side effect** (no second protected-leg SELL, no
+  second BUY, no second recovery request — A4 reuses a stable idempotency key). On resume a completed
+  step re-derives its assertion from the durable order/preflight/event; a checkpoint that
+  **contradicts** that durable evidence is **refused**, not silently restarted; a fully-complete
+  checkpoint re-issues nothing.
 - **Evidence** — `/app/data/adr0043_evidence_enforce.json`, sha256 printed; every order carries a
   pre-order snapshot of the durable state, and every refusal is verified auditable.
 
