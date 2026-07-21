@@ -26,13 +26,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.enums import ENGINE_RUNNABLE_STATUSES
 from app.db.models.strategy import Strategy as StrategyRow
-from app.strategies.hold_service import StrategyOnHold
 from app.observability.metrics import (
     recovery_attempts_total,
     recovery_duration_seconds,
     recovery_failures_total,
     recovery_success_total,
 )
+from app.strategies.hold_service import StrategyOnHold
 
 logger = structlog.get_logger(__name__)
 
