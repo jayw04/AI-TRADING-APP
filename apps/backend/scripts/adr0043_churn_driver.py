@@ -56,14 +56,12 @@ from pathlib import Path
 from typing import Any
 
 from app.db.enums import OrderSide, OrderSourceType, OrderType, TimeInForce
-from app.orders.settlement import SettlementError, settle_order
 from app.risk import OrderRequest
 from scripts.adr0043_canary_lib import (
     ACCT,
     CHURN_SYMBOLS,
     LEGS,
     PROTECTED,
-    SETTLEMENT_TIMEOUT_S,
     STATE_NORMAL,
     STATE_REDUCTION_ONLY_DAILY_LOSS,
     USER,
@@ -71,6 +69,7 @@ from scripts.adr0043_canary_lib import (
     CanaryRefused,
     CanaryStop,
     Evidence,
+    GovernedSubmitter,
     Limits,
     SingleInstance,
     admissible_shares,
@@ -84,8 +83,6 @@ from scripts.adr0043_canary_lib import (
     local_position_qty,
     order_fill_summary,
     order_identity_matches,
-    redact,
-    settlement_diagnostics,
     snapshot_state,
 )
 
@@ -311,9 +308,11 @@ class ChurnDriver:
         self.ev = evidence
         self.cp = checkpoint
         self.consumer = consumer
-        # The SHARED barrier. There is no configuration that disables it and no driver-local
-        # reconciliation path — one implementation of "is this order settled?", repo-wide.
-        self._settle = settle or settle_order
+        # The SHARED seam, which pairs every submit with the SHARED barrier. No driver-local
+        # reconciliation path exists — one implementation of "is this order settled?", repo-wide.
+        self.sub = GovernedSubmitter(
+            sf=sf, adapter=adapter, router=router, consumer=consumer, evidence=evidence,
+            settle=settle)
         self._price_fn = price_fn
         self._bounds = bounds
         self._symbols = symbols
@@ -387,6 +386,9 @@ class ChurnDriver:
                     "CHURN_LEG_LOCAL_MISSING",
                     f"leg {leg.index} exists at the broker with no local order row")
             order_id = int(existing["local_id"])
+            # Rebound rather than submitted, so the seam did not settle it — settle it here. Same
+            # barrier, same evidence; only the submit is absent.
+            settlement = await self.settle(leg, order_id=order_id)
         else:
             if self.cp.leg_done(leg.index):
                 raise CanaryStop(
@@ -396,23 +398,30 @@ class ChurnDriver:
             self.cp.record_leg_intent(leg, client_order_id=cid, pre_local=str(pre_local),
                                       pre_broker=str(pre_broker))
             price = await self.price_of(leg.symbol)
-            o = await self.router.submit(OrderRequest(
-                user_id=USER, account_id=ACCT, symbol_ticker=leg.symbol, side=leg.order_side,
-                qty=leg.qty, type=OrderType.MARKET, tif=TimeInForce.DAY,
-                source_type=OrderSourceType.STRATEGY, client_order_id=cid,
-                reference_price=price,
-            ))
-            status = str(getattr(o, "status", "") or "")
-            order_id = getattr(o, "id", None)
-            if status.lower().endswith("rejected") or order_id is None:
+            # Submit and settle are ONE decision: the seam cannot return an unsettled order that
+            # reached the broker, so there is no state in which the driver advances without one.
+            governed = await self.sub.submit_and_settle(
+                step=f"CHURN.L{leg.index}",
+                request={"symbol": leg.symbol, "side": leg.side, "qty": str(leg.qty),
+                         "client_order_id": cid},
+                order_req=OrderRequest(
+                    user_id=USER, account_id=ACCT, symbol_ticker=leg.symbol, side=leg.order_side,
+                    qty=leg.qty, type=OrderType.MARKET, tif=TimeInForce.DAY,
+                    source_type=OrderSourceType.STRATEGY, client_order_id=cid,
+                    reference_price=price,
+                ),
+                ticker=leg.symbol)
+            order_id = governed.order_id
+            if not governed.admitted or order_id is None:
                 # A refused setup order is not a failure of the driver — but it IS the end of the
                 # road, because the next decision would rest on an order that never happened.
                 raise CanaryStop(
                     "CHURN_LEG_REJECTED",
                     f"leg {leg.index} {leg.side} {leg.qty} {leg.symbol} was refused "
-                    f"(status={status} reason={getattr(o, 'rejection_reason', None)})")
+                    f"(status={governed.status} "
+                    f"reason={getattr(governed.order, 'rejection_reason', None)})")
+            settlement = _Settled(governed.settlement, governed.elapsed_s or 0.0)
 
-        settlement = await self.settle(leg, order_id=order_id)
         booked = await order_fill_summary(self.sf, order_id)
         record = {
             "index": leg.index, "side": leg.side, "symbol": leg.symbol,
@@ -438,19 +447,11 @@ class ChurnDriver:
         return await reservation_states_for(self.sf, order_id)
 
     async def settle(self, leg: Leg, *, order_id: int):
-        started = time.monotonic()
-        try:
-            result = await self._settle(
-                self.sf, self.ad, self.consumer,
-                order_id=order_id, ticker=leg.symbol, timeout_s=SETTLEMENT_TIMEOUT_S)
-        except SettlementError as exc:
-            diag = await settlement_diagnostics(
-                self.sf, self.ad, step=f"CHURN.L{leg.index}", order_id=order_id,
-                ticker=leg.symbol, elapsed_s=time.monotonic() - started,
-                exception_category=type(exc).__name__, detail=str(exc))
-            self.ev.doc.setdefault("settlement_failures", []).append(diag)
-            raise CanaryStop("SETTLEMENT_BARRIER_FAILED", redact(str(exc))[:300], diag) from exc
-        return _Settled(result, round(time.monotonic() - started, 3))
+        """THE BARRIER for a leg this call did not just submit (the re-entry / rebind path). Legs
+        the driver submits itself are settled inside the governed seam."""
+        result, elapsed = await self.sub.settle_existing(
+            step=f"CHURN.L{leg.index}", order_id=order_id, ticker=leg.symbol)
+        return _Settled(result, elapsed)
 
     async def verify_after(self, leg: Leg, booked: dict, limits: Limits) -> None:
         """Every invariant, after every leg. A violation stops the run BEFORE the next submit."""

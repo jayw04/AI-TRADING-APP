@@ -917,6 +917,147 @@ def assess_a3_no_submission(
     )
 
 
+# ---------------------------------------------------------------------------- the submit seam
+def _label(step: str) -> str:
+    """The STEP a seam assertion belongs to, independent of the sub-step that produced it.
+
+    Steps are named ``A2.reduce`` / ``A3.new_risk`` / ``CHURN.L3`` so the order record is precise,
+    but the assertion the gate reads must stay ``A3.no_broker_submission`` whatever sub-step raised
+    it — otherwise a rename of the sub-step silently renames a gating assertion."""
+    return step.split(".", 1)[0]
+
+
+@dataclass(frozen=True)
+class GovernedOrder:
+    """The outcome of one governed submission. ``settlement`` is non-None whenever the order
+    reached the broker — that is the invariant, expressed as a return value."""
+
+    step: str
+    order: Any
+    order_id: int | None
+    broker_order_id: str | None
+    status: str
+    admitted: bool
+    settlement: Any | None = None
+    elapsed_s: float | None = None
+
+
+class GovernedSubmitter:
+    """The ONLY way an ADR-0043 harness may place an order.
+
+    Attempt 2 of Phase 0 failed because a submit and its settlement were two separate decisions a
+    caller had to remember to pair. Here they are one decision, and there are exactly two of them:
+
+      * ``submit_and_settle`` — the order is EXPECTED to reach the broker. It returns only after the
+        shared barrier has confirmed settlement. If the order is refused BEFORE the broker, nothing
+        needs settling and that is recorded rather than silently treated as success.
+      * ``submit_expecting_refusal`` — the order is expected to be REFUSED before the broker. It
+        proves no broker order exists; if one does, it reconciles that order through the barrier and
+        then STOPS, because a refusal that reached the broker is an unplanned live order.
+
+    There is no third way. ``check_settlement_barrier.py`` proves at CI time that no ADR-0043 script
+    calls ``router.submit`` or ``settle_order`` directly, so "forgot to settle" is not a mistake the
+    harness can express.
+    """
+
+    def __init__(self, *, sf, adapter, router, consumer, evidence: Evidence,
+                 checkpoint: Any = None, settle=None, timeout_s: float = SETTLEMENT_TIMEOUT_S):
+        self.sf = sf
+        self.ad = adapter
+        self.router = router
+        self.consumer = consumer
+        self.ev = evidence
+        self.cp = checkpoint
+        self.timeout_s = timeout_s
+        if settle is None:
+            from app.orders.settlement import settle_order
+
+            settle = settle_order
+        self._settle_impl = settle
+
+    # ---- the barrier ------------------------------------------------------------------
+    async def settle_existing(self, *, step: str, order_id: int, ticker: str):
+        """Settle an order this run did not just submit — the re-entry / rebind path. Same barrier,
+        same evidence, same failure mode; only the submit is absent."""
+        from app.orders.settlement import SettlementError
+
+        started = time.monotonic()
+        try:
+            result = await self._settle_impl(
+                self.sf, self.ad, self.consumer,
+                order_id=order_id, ticker=ticker, timeout_s=self.timeout_s)
+        except SettlementError as exc:
+            diag = await settlement_diagnostics(
+                self.sf, self.ad, step=step, order_id=order_id, ticker=ticker,
+                elapsed_s=time.monotonic() - started,
+                exception_category=type(exc).__name__, detail=str(exc))
+            self.ev.record_settlement(diag)
+            self.ev.assert_(f"{_label(step)}.settled", False,
+                            f"barrier failed: {diag['detail']}")
+            if self.cp is not None:
+                self.cp.note("settlement_barrier_failed", **diag)
+            raise SettlementBarrierFailed(redact(str(exc))[:300], diag) from exc
+        elapsed = round(time.monotonic() - started, 3)
+        record = {
+            "step": step, "outcome": "SETTLED", "local_order_id": order_id, "ticker": ticker,
+            "broker_status": result.broker_status, "local_status": result.local_status,
+            "filled_qty": str(result.filled_qty), "local_position": str(result.local_position),
+            "broker_position": str(result.broker_position), "polls": result.polls,
+            "elapsed_s": elapsed,
+        }
+        self.ev.record_settlement(record)
+        if self.cp is not None:
+            self.cp.note("settled", **record)
+        return result, elapsed
+
+    # ---- the two sanctioned submissions ------------------------------------------------
+    async def submit_and_settle(self, *, step: str, request: dict, order_req, ticker: str,
+                                pre: StateSnapshot | None = None) -> GovernedOrder:
+        o, order_id, broker_oid, status, admitted = await self._submit(step, request, order_req, pre)
+        if not admitted or order_id is None:
+            # Refused before the broker: there is nothing to settle, and pretending otherwise would
+            # be the same lie in the opposite direction.
+            return GovernedOrder(step, o, order_id, broker_oid, status, admitted=False)
+        result, elapsed = await self.settle_existing(step=step, order_id=order_id, ticker=ticker)
+        return GovernedOrder(step, o, order_id, broker_oid, status, admitted=True,
+                             settlement=result, elapsed_s=elapsed)
+
+    async def submit_expecting_refusal(self, *, step: str, request: dict, order_req,
+                                       ticker: str) -> GovernedOrder:
+        o, order_id, broker_oid, status, admitted = await self._submit(step, request, order_req)
+        if not broker_oid:
+            return GovernedOrder(step, o, order_id, broker_oid, status, admitted=admitted)
+
+        self.ev.assert_(
+            f"{_label(step)}.no_broker_submission", False,
+            f"a broker order {broker_oid} exists for a step that must never reach the broker")
+        diag: dict[str, Any] = {"reconciled": None, "broker_order_id": broker_oid}
+        if order_id is not None:
+            try:
+                await self.settle_existing(step=f"{step}.unexpected", order_id=int(order_id),
+                                           ticker=ticker)
+                diag["reconciled"] = "SETTLED"
+            except SettlementBarrierFailed as stop:
+                diag = {**stop.diagnostics, "reconciled": "UNRESOLVED"}
+        raise CanaryStop(
+            f"{_label(step)}_UNEXPECTED_BROKER_SUBMISSION",
+            f"{step} produced broker order {broker_oid}; the account now carries an unplanned "
+            f"order. The run stops here.", diag)
+
+    async def _submit(self, step, request, order_req, pre: StateSnapshot | None = None):
+        pre = pre or await snapshot_state(self.sf, self.ad)
+        o = await self.router.submit(order_req)
+        self.ev.record_order(step=step, snapshot=pre, request=request, response=o)
+        status = str(getattr(o, "status", "") or "")
+        return (
+            o,
+            getattr(o, "id", None),
+            getattr(o, "broker_order_id", None),
+            status,
+            not status.lower().endswith("rejected"),
+        )
+
+
 async def current_loss_control_state(sf) -> str | None:
     async with sf() as s:
         return (
