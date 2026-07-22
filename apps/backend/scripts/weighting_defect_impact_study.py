@@ -71,13 +71,30 @@ MAX_POSITION_PCT = 0.20      # the registered production per-name cap (unchanged
 FEASIBILITY_EPS = 1e-9
 ROLL_WINDOWS = {"1m": 21, "3m": 63, "12m": 252}   # trading days
 
-# Committed reference endpoints, MR_MomentumDaily_Stage4_full.json (reproduction gate, PREREG v1.1 §2).
-STAGE4_REFERENCE = {
-    "C": {"cagr": 0.16914997760116085, "sharpe": 0.5965385408015447,
-          "calmar": 0.2618639429345496, "max_drawdown": -0.6459437534771688, "trades": 1539},
-    "D": {"cagr": 0.14783241200020414, "sharpe": 0.5281673679569503,
-          "calmar": 0.19938749587947163, "max_drawdown": -0.7414327129599331, "trades": 1378},
-}
+# Reproduction-gate reference (PREREG v1.1 §2), READ FROM the committed artifact — never
+# hand-transcribed. An earlier revision hardcoded these constants; four of the five variant-C
+# values were typed from a 6-decimal console echo with the trailing digits invented, and the
+# variant-D values were lifted from the Stage-3 artifact instead of the Stage-4 one. The gate
+# then failed a run that had in fact reproduced exactly. Reference values are evidence: they get
+# loaded from the evidence file, so a transcription error is not expressible.
+STAGE4_REFERENCE_ARTIFACT = (
+    BACKEND_ROOT.parent.parent
+    / "docs/implementation/evidence/momentum_daily_stage2_4/MR_MomentumDaily_Stage4_full.json"
+)
+REPRO_METRICS = ("cagr", "sharpe", "calmar", "max_drawdown")
+
+
+def load_stage4_reference(variant: str, path: Path | None = None) -> dict:
+    """Load the committed Stage-4 endpoints for ``variant``. Fail-closed: a missing file or
+    absent variant raises rather than silently degrading the reproduction gate."""
+    p = path or STAGE4_REFERENCE_ARTIFACT
+    if not p.exists():
+        raise FileNotFoundError(f"Stage-4 reference artifact not found: {p}")
+    payload = json.loads(p.read_text(encoding="utf-8"))
+    for v in payload["variants"]:
+        if v["variant"] == variant:
+            return {k: v[k] for k in (*REPRO_METRICS, "trades")}
+    raise KeyError(f"variant {variant!r} absent from {p}")
 
 
 # ---- arm simulation -------------------------------------------------------------
@@ -345,10 +362,10 @@ def evaluate_gates(cmp_: dict, b: dict) -> dict:
     return {"gates": results, "failures": [r["gate"] for r in failures], "verdict": verdict}
 
 
-def check_reproduction(a: dict, variant: str) -> dict:
-    ref = STAGE4_REFERENCE[variant]
+def check_reproduction(a: dict, variant: str, ref: dict | None = None) -> dict:
+    ref = ref if ref is not None else load_stage4_reference(variant)
     checks = {}
-    for k in ("cagr", "sharpe", "calmar", "max_drawdown"):
+    for k in REPRO_METRICS:
         rel = abs(a[k] - ref[k]) / max(abs(ref[k]), 1e-12)
         checks[k] = {"observed": a[k], "reference": ref[k], "rel_diff": rel, "pass": rel <= 1e-9}
     checks["trades"] = {"observed": a["trades"], "reference": ref["trades"],
