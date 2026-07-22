@@ -44,6 +44,10 @@ the hold.**
 | **`weighting_defect_impact_v1.1.json`** (adds the production-faithful arm; **governing**) | 38,093 B · sha256 `52123c2f0e23f16821741dc9f097eed7d0a6397ad02f0efe94f08524f3447c11` |
 | `weighting_defect_impact_v1.1_execution.log` | 5,556 B · sha256 `66b40034cf416269a39fd965994e68bc151f35eb4060cf6d22472088d3385500` |
 
+*Both `*_execution.log` files are excluded by the repo-wide `*.log` ignore rule and are therefore
+**SHA-bound here and retained on disk rather than committed** — the same treatment the census gives
+`census_execution.log` and the 40 MB/19 MB seam captures. The two `.json` result artifacts **are** committed.*
+
 **Reproduction gate (hard stop, PREREG §2).** Arm A reproduced the committed
 `MR_MomentumDaily_Stage4_full.json` endpoints within 1e-9 relative and exactly on `trades` for **both**
 variant C (1,539) and variant D (1,378). Tier-2 results are therefore admissible.
