@@ -1,0 +1,653 @@
+{
+  "mode": "full",
+  "manifest": {
+    "schema": "drift_audit_manifest/v2",
+    "expected_universe_id": "momentum_daily_stage2_4:top200_PIT_universe_asof_n200",
+    "window": {
+      "start_date": "2005-01-03",
+      "end_date": "2026-06-12",
+      "session_count": null,
+      "exclusions": []
+    },
+    "factor_db": {
+      "abs_path": "C:\\LLM-RAG-APP\\ai-trading-app\\apps\\backend\\data\\factor_data_full.duckdb",
+      "sha256": "022ffd01b52b04aacac1932448413d042f68d0bb37ddf4ccdec39292484a7831",
+      "size_bytes": 1634217984,
+      "tables": [
+        "actions",
+        "fundamentals",
+        "index_prices",
+        "ingest_runs",
+        "sep",
+        "sf1_fundamentals",
+        "tickers"
+      ],
+      "inventory": {
+        "actions": {
+          "columns": [
+            "date",
+            "action",
+            "ticker",
+            "name",
+            "value",
+            "contraticker"
+          ],
+          "rows": 0,
+          "date_min": "None",
+          "date_max": "None",
+          "distinct_tickers": 0
+        },
+        "fundamentals": {
+          "columns": [
+            "ticker",
+            "period",
+            "fiscal_year",
+            "period_end",
+            "filing_date",
+            "accepted_date",
+            "revenue",
+            "gross_profit",
+            "operating_income",
+            "ebitda",
+            "net_income",
+            "free_cash_flow",
+            "total_debt",
+            "total_equity",
+            "total_assets",
+            "shares_diluted",
+            "enterprise_value",
+            "lastupdated"
+          ],
+          "rows": 0,
+          "distinct_tickers": 0
+        },
+        "index_prices": {
+          "columns": [
+            "symbol",
+            "date",
+            "close",
+            "lastupdated"
+          ],
+          "rows": 1278,
+          "date_min": "2021-06-21",
+          "date_max": "2026-06-18"
+        },
+        "ingest_runs": {
+          "columns": [
+            "dataset",
+            "started_at",
+            "finished_at",
+            "rows",
+            "status"
+          ],
+          "rows": 16718
+        },
+        "sep": {
+          "columns": [
+            "ticker",
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "closeadj",
+            "closeunadj",
+            "lastupdated"
+          ],
+          "rows": 38994724,
+          "date_min": "1997-12-31",
+          "date_max": "2026-06-15",
+          "distinct_tickers": 14150
+        },
+        "sf1_fundamentals": {
+          "columns": [
+            "ticker",
+            "dimension",
+            "calendardate",
+            "datekey",
+            "reportperiod",
+            "lastupdated",
+            "marketcap",
+            "ev",
+            "pe",
+            "pb",
+            "ps",
+            "evebit",
+            "evebitda",
+            "fcf",
+            "fcfps",
+            "bvps",
+            "divyield",
+            "roe",
+            "roa",
+            "roic",
+            "ros",
+            "grossmargin",
+            "netmargin",
+            "ebitdamargin",
+            "currentratio",
+            "de",
+            "payoutratio",
+            "assetturnover",
+            "revenue",
+            "netinc",
+            "gp",
+            "ebit",
+            "ebitda",
+            "ncfo",
+            "assets",
+            "equity",
+            "debt",
+            "eps",
+            "epsdil",
+            "shareswa",
+            "price"
+          ],
+          "rows": 1035037,
+          "distinct_tickers": 9296
+        },
+        "tickers": {
+          "columns": [
+            "ticker",
+            "name",
+            "exchange",
+            "category",
+            "sector",
+            "industry",
+            "isdelisted",
+            "firstpricedate",
+            "lastpricedate",
+            "lastupdated"
+          ],
+          "rows": 21853,
+          "distinct_tickers": 21853
+        }
+      },
+      "digest_verified": true
+    },
+    "price_db": {
+      "abs_path": "C:\\LLM-RAG-APP\\ai-trading-app\\apps\\backend\\data\\factor_data_full.duckdb",
+      "sha256": "022ffd01b52b04aacac1932448413d042f68d0bb37ddf4ccdec39292484a7831",
+      "size_bytes": 1634217984,
+      "tables": [
+        "actions",
+        "fundamentals",
+        "index_prices",
+        "ingest_runs",
+        "sep",
+        "sf1_fundamentals",
+        "tickers"
+      ],
+      "inventory": {
+        "actions": {
+          "columns": [
+            "date",
+            "action",
+            "ticker",
+            "name",
+            "value",
+            "contraticker"
+          ],
+          "rows": 0,
+          "date_min": "None",
+          "date_max": "None",
+          "distinct_tickers": 0
+        },
+        "fundamentals": {
+          "columns": [
+            "ticker",
+            "period",
+            "fiscal_year",
+            "period_end",
+            "filing_date",
+            "accepted_date",
+            "revenue",
+            "gross_profit",
+            "operating_income",
+            "ebitda",
+            "net_income",
+            "free_cash_flow",
+            "total_debt",
+            "total_equity",
+            "total_assets",
+            "shares_diluted",
+            "enterprise_value",
+            "lastupdated"
+          ],
+          "rows": 0,
+          "distinct_tickers": 0
+        },
+        "index_prices": {
+          "columns": [
+            "symbol",
+            "date",
+            "close",
+            "lastupdated"
+          ],
+          "rows": 1278,
+          "date_min": "2021-06-21",
+          "date_max": "2026-06-18"
+        },
+        "ingest_runs": {
+          "columns": [
+            "dataset",
+            "started_at",
+            "finished_at",
+            "rows",
+            "status"
+          ],
+          "rows": 16718
+        },
+        "sep": {
+          "columns": [
+            "ticker",
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "closeadj",
+            "closeunadj",
+            "lastupdated"
+          ],
+          "rows": 38994724,
+          "date_min": "1997-12-31",
+          "date_max": "2026-06-15",
+          "distinct_tickers": 14150
+        },
+        "sf1_fundamentals": {
+          "columns": [
+            "ticker",
+            "dimension",
+            "calendardate",
+            "datekey",
+            "reportperiod",
+            "lastupdated",
+            "marketcap",
+            "ev",
+            "pe",
+            "pb",
+            "ps",
+            "evebit",
+            "evebitda",
+            "fcf",
+            "fcfps",
+            "bvps",
+            "divyield",
+            "roe",
+            "roa",
+            "roic",
+            "ros",
+            "grossmargin",
+            "netmargin",
+            "ebitdamargin",
+            "currentratio",
+            "de",
+            "payoutratio",
+            "assetturnover",
+            "revenue",
+            "netinc",
+            "gp",
+            "ebit",
+            "ebitda",
+            "ncfo",
+            "assets",
+            "equity",
+            "debt",
+            "eps",
+            "epsdil",
+            "shareswa",
+            "price"
+          ],
+          "rows": 1035037,
+          "distinct_tickers": 9296
+        },
+        "tickers": {
+          "columns": [
+            "ticker",
+            "name",
+            "exchange",
+            "category",
+            "sector",
+            "industry",
+            "isdelisted",
+            "firstpricedate",
+            "lastpricedate",
+            "lastupdated"
+          ],
+          "rows": 21853,
+          "distinct_tickers": 21853
+        }
+      },
+      "digest_verified": true
+    },
+    "code": {
+      "commit": "29b9c2c9e1b9b0871417f1a4e13a3baa55922d7c",
+      "branch": "feat/drift-audit-momentum-daily",
+      "working_tree_clean": false,
+      "dirty_paths": [
+        "docs/review/momentum_daily/drift_audit/.census_pid"
+      ]
+    },
+    "strategy": {
+      "name": "momentum-daily",
+      "version": "0.2.0",
+      "params": {
+        "momentum_lookback_days": 252,
+        "momentum_skip_days": 21,
+        "min_score": 0.0,
+        "min_raw_momentum": 0.0,
+        "entry_rank": 5,
+        "hold_rank": 10,
+        "exit_confirm_closes": 2,
+        "replace_score_advantage": 0.3,
+        "weight_drift_pct": 0.04,
+        "backstop_max_days": 10,
+        "max_daily_retries": 3,
+        "max_names": 5,
+        "max_position_pct": 0.2,
+        "max_sector_pct": null,
+        "weighting": "equal",
+        "min_weight_pct": 0.075,
+        "use_market_regime_filter": true,
+        "market_filter_symbol": "SPY",
+        "market_ma_days": 200,
+        "regime_mode": "graduated",
+        "regime_graduated_band_pct": 0.02,
+        "regime_gross_above": 0.98,
+        "regime_gross_mid": 0.6,
+        "regime_gross_below": 0.15,
+        "regime_buffer_pct": 0.0,
+        "regime_confirm_days": 1,
+        "regime_stale_max_days": 2,
+        "regime_degraded_gross": 0.5,
+        "regime_degraded_max_days": 4,
+        "initial_seed_investable_gross": 0.6,
+        "monthly_universe_refresh": false,
+        "min_trade_pct": 0.03,
+        "pricing_timeframe": "1Day",
+        "fractional_shares": true,
+        "cash_buffer_pct": 0.02,
+        "initial_equity_estimate": 100000,
+        "order_pacing_seconds": 0.0,
+        "timeframe": "1Day"
+      }
+    },
+    "replica_reference": "scripts/backtest_momentum_stage4.py::simulate (variant C, graduated)",
+    "all_digests_verified": true,
+    "content_digests": {
+      "sep": {
+        "sha256": "d9472dfe40e6bd9997b16895bd44aad709a3f00c8aa8579d7626e05cbd07e2c7",
+        "rows": 30751780,
+        "columns": [
+          "ticker",
+          "date",
+          "open",
+          "high",
+          "low",
+          "closeadj",
+          "volume"
+        ],
+        "algorithm": "sha256",
+        "canonicalization": "drift_audit_content_digest/v1",
+        "query": "SELECT ticker, date, open, high, low, closeadj, volume FROM sep WHERE date BETWEEN DATE '2005-01-03' AND DATE '2026-06-12' ORDER BY date, ticker",
+        "distinct_sessions": 5395,
+        "distinct_tickers": 14150,
+        "date_min": "2005-01-03",
+        "date_max": "2026-06-12",
+        "digest_verified": true
+      },
+      "tickers": {
+        "sha256": "2f21b154fa6a4746a8ce4b5aa74d52d31151a65c7462b8544037bcf38d4f22f3",
+        "rows": 14150,
+        "columns": [
+          "ticker",
+          "sector",
+          "industry",
+          "category",
+          "isdelisted",
+          "firstpricedate",
+          "lastpricedate"
+        ],
+        "algorithm": "sha256",
+        "canonicalization": "drift_audit_content_digest/v1",
+        "query": "SELECT ticker, sector, industry, category, isdelisted, firstpricedate, lastpricedate FROM tickers WHERE ticker IN (SELECT DISTINCT ticker FROM sep WHERE date BETWEEN DATE '2005-01-03' AND DATE '2026-06-12') ORDER BY ticker",
+        "distinct_tickers": 14150,
+        "digest_verified": true
+      }
+    },
+    "provenance_binding": {
+      "whole_file_sha256": "022ffd01b52b04aacac1932448413d042f68d0bb37ddf4ccdec39292484a7831",
+      "sep_content_sha256": "d9472dfe40e6bd9997b16895bd44aad709a3f00c8aa8579d7626e05cbd07e2c7",
+      "tickers_content_sha256": "2f21b154fa6a4746a8ce4b5aa74d52d31151a65c7462b8544037bcf38d4f22f3",
+      "content_digest_artifact_sha256": "7a4da95f6b66bd57bcb7e25f5cab1cf4a4063d869ebf6435e998c92d2f35c151",
+      "canonicalization_version": "drift_audit_content_digest/v1",
+      "universe_id": "momentum_daily_stage2_4:top200_PIT_universe_asof_n200",
+      "audit_window": {
+        "start_date": "2005-01-03",
+        "end_date": "2026-06-12"
+      },
+      "measurement_code_commit": "29b9c2c9e1b9b0871417f1a4e13a3baa55922d7c",
+      "working_tree_clean": false,
+      "replica_reference": "scripts/backtest_momentum_stage4.py::simulate (variant C, graduated)",
+      "strategy_configuration": {
+        "name": "momentum-daily",
+        "version": "0.2.0",
+        "params": {
+          "momentum_lookback_days": 252,
+          "momentum_skip_days": 21,
+          "min_score": 0.0,
+          "min_raw_momentum": 0.0,
+          "entry_rank": 5,
+          "hold_rank": 10,
+          "exit_confirm_closes": 2,
+          "replace_score_advantage": 0.3,
+          "weight_drift_pct": 0.04,
+          "backstop_max_days": 10,
+          "max_daily_retries": 3,
+          "max_names": 5,
+          "max_position_pct": 0.2,
+          "max_sector_pct": null,
+          "weighting": "equal",
+          "min_weight_pct": 0.075,
+          "use_market_regime_filter": true,
+          "market_filter_symbol": "SPY",
+          "market_ma_days": 200,
+          "regime_mode": "graduated",
+          "regime_graduated_band_pct": 0.02,
+          "regime_gross_above": 0.98,
+          "regime_gross_mid": 0.6,
+          "regime_gross_below": 0.15,
+          "regime_buffer_pct": 0.0,
+          "regime_confirm_days": 1,
+          "regime_stale_max_days": 2,
+          "regime_degraded_gross": 0.5,
+          "regime_degraded_max_days": 4,
+          "initial_seed_investable_gross": 0.6,
+          "monthly_universe_refresh": false,
+          "min_trade_pct": 0.03,
+          "pricing_timeframe": "1Day",
+          "fractional_shares": true,
+          "cash_buffer_pct": 0.02,
+          "initial_equity_estimate": 100000,
+          "order_pacing_seconds": 0.0,
+          "timeframe": "1Day"
+        }
+      }
+    }
+  },
+  "report": {
+    "n_sessions": 5395,
+    "conformance_verdict": "MISMATCHES_TO_ADJUDICATE",
+    "phase_split": {
+      "live_regime_warmup_start": "2003-10-23",
+      "comparison_start": "2005-01-03",
+      "common_regime_available_from": "2005-10-17",
+      "warmup_methodology_sessions": 199,
+      "warmup_expected_divergence_count": 199,
+      "warmup_classification": "EXPECTED_METHODOLOGY_DIVERGENCE: replica warm-up fail-open vs production-like live historical-MA regime",
+      "post_warmup_sessions": 5196,
+      "post_warmup_first_mismatch": "2005-10-17",
+      "post_warmup_category_counts": {
+        "eligible": 0,
+        "ranking": 0,
+        "target_names": 0,
+        "trade_initiated": 3207,
+        "weights": 5150,
+        "regime_gross": 86
+      },
+      "post_warmup_material_sessions": 5177,
+      "post_warmup_verdict": "POST_WARMUP_MISMATCHES_TO_ADJUDICATE"
+    },
+    "structural": {
+      "first_eligible_date_identical": true,
+      "first_eligible_date": {
+        "live": "2005-01-03",
+        "replica": "2005-01-03"
+      },
+      "first_trade_date_identical": true,
+      "first_trade_date": {
+        "live": "2005-01-03",
+        "replica": "2005-01-03"
+      },
+      "initial_target_names_identical": true,
+      "initial_ranking_identical": true,
+      "cold_start_seed_count": 1,
+      "cold_start_seed_count_is_one": true,
+      "gross_mean_within_band": false,
+      "gross_max_within_band": false
+    },
+    "census": {
+      "structural_incompatible": 1,
+      "semantic_mismatch_sessions": 3215,
+      "numeric_only_mismatch_sessions": 2161,
+      "eligible_mismatch_sessions": 0,
+      "ranking_mismatch_sessions": 0,
+      "target_mismatch_sessions": 0,
+      "trigger_mismatch_sessions": 3215,
+      "weight_mismatch_sessions": 5349,
+      "regime_gross_mismatch_sessions": 285
+    },
+    "first_cause": {
+      "date": "2005-01-03",
+      "categories": [
+        "weights",
+        "regime_gross"
+      ]
+    },
+    "sessions_clean_before_divergence": 0,
+    "first_mismatch_date": "2005-01-03",
+    "total_mismatch_sessions": 5376,
+    "downstream_mismatch_sessions": 5375,
+    "material_mismatch_sessions": 5376,
+    "category_counts": {
+      "eligible": 0,
+      "ranking": 0,
+      "target_names": 0,
+      "trade_initiated": 3215,
+      "weights": 5349,
+      "regime_gross": 285
+    },
+    "turnover": {
+      "live": 248.64399999999867,
+      "replica": 252.87951593137083,
+      "abs_diff": 4.235515931372163
+    },
+    "gross_mean_abs_diff": 0.0073382761816496766,
+    "gross_max_abs_diff": 0.44999999999999996,
+    "first_mismatch_detail": {
+      "date": "2005-01-03",
+      "semantic": [],
+      "numeric": [
+        "weights",
+        "regime_gross"
+      ],
+      "detail": {
+        "weights": {
+          "max_abs_diff": 0.005918601700272835,
+          "tol": 0.0001
+        },
+        "regime_gross": {
+          "abs_diff": 0.020000000000000018,
+          "tol": 0.0005,
+          "live": 0.98,
+          "replica": 1.0
+        }
+      }
+    },
+    "_note": "This is a DIAGNOSTIC drift census, not a pass gate. Counts AFTER first_mismatch_date include propagation from holdings divergence \u2014 read first_cause + sessions_clean_before_divergence for the primary divergence, not total_mismatch_sessions alone.",
+    "proxy_provenance": {
+      "market_symbol_substitution": "broad equal-weight market proxy (SPY absent from SEP; PREREG \u00a72)",
+      "price_column": "closeadj",
+      "missing_session_handling": "reindex to trading calendar; equal-weight mean of available daily returns (skipna); MA NaN until 200 observations",
+      "live_proxy_construction_start": "2003-10-23",
+      "pre_window_sessions": 300,
+      "warmup_target_min_sessions": 300,
+      "live_first_valid_200d_ma": "2004-08-10",
+      "replica_first_valid_200d_ma": "2005-10-17",
+      "live_proxy_content_sha256": "6b63656defe70a551ecdda8747b13dd23128e95cd7e8383d93d40024ae79ae0e"
+    }
+  },
+  "provenance_binding": {
+    "whole_file_sha256": "022ffd01b52b04aacac1932448413d042f68d0bb37ddf4ccdec39292484a7831",
+    "sep_content_sha256": "d9472dfe40e6bd9997b16895bd44aad709a3f00c8aa8579d7626e05cbd07e2c7",
+    "tickers_content_sha256": "2f21b154fa6a4746a8ce4b5aa74d52d31151a65c7462b8544037bcf38d4f22f3",
+    "content_digest_artifact_sha256": "7a4da95f6b66bd57bcb7e25f5cab1cf4a4063d869ebf6435e998c92d2f35c151",
+    "canonicalization_version": "drift_audit_content_digest/v1",
+    "universe_id": "momentum_daily_stage2_4:top200_PIT_universe_asof_n200",
+    "audit_window": {
+      "start_date": "2005-01-03",
+      "end_date": "2026-06-12"
+    },
+    "measurement_code_commit": "29b9c2c9e1b9b0871417f1a4e13a3baa55922d7c",
+    "working_tree_clean": false,
+    "replica_reference": "scripts/backtest_momentum_stage4.py::simulate (variant C, graduated)",
+    "strategy_configuration": {
+      "name": "momentum-daily",
+      "version": "0.2.0",
+      "params": {
+        "momentum_lookback_days": 252,
+        "momentum_skip_days": 21,
+        "min_score": 0.0,
+        "min_raw_momentum": 0.0,
+        "entry_rank": 5,
+        "hold_rank": 10,
+        "exit_confirm_closes": 2,
+        "replace_score_advantage": 0.3,
+        "weight_drift_pct": 0.04,
+        "backstop_max_days": 10,
+        "max_daily_retries": 3,
+        "max_names": 5,
+        "max_position_pct": 0.2,
+        "max_sector_pct": null,
+        "weighting": "equal",
+        "min_weight_pct": 0.075,
+        "use_market_regime_filter": true,
+        "market_filter_symbol": "SPY",
+        "market_ma_days": 200,
+        "regime_mode": "graduated",
+        "regime_graduated_band_pct": 0.02,
+        "regime_gross_above": 0.98,
+        "regime_gross_mid": 0.6,
+        "regime_gross_below": 0.15,
+        "regime_buffer_pct": 0.0,
+        "regime_confirm_days": 1,
+        "regime_stale_max_days": 2,
+        "regime_degraded_gross": 0.5,
+        "regime_degraded_max_days": 4,
+        "initial_seed_investable_gross": 0.6,
+        "monthly_universe_refresh": false,
+        "min_trade_pct": 0.03,
+        "pricing_timeframe": "1Day",
+        "fractional_shares": true,
+        "cash_buffer_pct": 0.02,
+        "initial_equity_estimate": 100000,
+        "order_pacing_seconds": 0.0,
+        "timeframe": "1Day"
+      }
+    }
+  },
+  "manifest_content_sha256": "b4ae42da76f189ddaf9d98859f641560986a70a5b35ed89955fbffcd5de98876"
+}

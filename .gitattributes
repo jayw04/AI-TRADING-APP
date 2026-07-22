@@ -7,3 +7,4 @@
 *.sh      text eol=lf
 *.service text eol=lf
 *.timer   text eol=lf
+docs/review/momentum_daily/drift_audit/** -text

@@ -1,0 +1,379 @@
+{
+  "mode": "provenance-only",
+  "manifest": {
+    "schema": "drift_audit_manifest/v1",
+    "expected_universe_id": "momentum_daily_stage2_4:top200_PIT_universe_asof_n200",
+    "window": {
+      "start_date": "2005-01-03",
+      "end_date": "2026-06-12",
+      "session_count": null,
+      "exclusions": []
+    },
+    "factor_db": {
+      "abs_path": "C:\\LLM-RAG-APP\\ai-trading-app\\apps\\backend\\data\\factor_data_full.duckdb",
+      "sha256": "022ffd01b52b04aacac1932448413d042f68d0bb37ddf4ccdec39292484a7831",
+      "size_bytes": 1634217984,
+      "tables": [
+        "actions",
+        "fundamentals",
+        "index_prices",
+        "ingest_runs",
+        "sep",
+        "sf1_fundamentals",
+        "tickers"
+      ],
+      "inventory": {
+        "actions": {
+          "columns": [
+            "date",
+            "action",
+            "ticker",
+            "name",
+            "value",
+            "contraticker"
+          ],
+          "rows": 0,
+          "date_min": "None",
+          "date_max": "None",
+          "distinct_tickers": 0
+        },
+        "fundamentals": {
+          "columns": [
+            "ticker",
+            "period",
+            "fiscal_year",
+            "period_end",
+            "filing_date",
+            "accepted_date",
+            "revenue",
+            "gross_profit",
+            "operating_income",
+            "ebitda",
+            "net_income",
+            "free_cash_flow",
+            "total_debt",
+            "total_equity",
+            "total_assets",
+            "shares_diluted",
+            "enterprise_value",
+            "lastupdated"
+          ],
+          "rows": 0,
+          "distinct_tickers": 0
+        },
+        "index_prices": {
+          "columns": [
+            "symbol",
+            "date",
+            "close",
+            "lastupdated"
+          ],
+          "rows": 1278,
+          "date_min": "2021-06-21",
+          "date_max": "2026-06-18"
+        },
+        "ingest_runs": {
+          "columns": [
+            "dataset",
+            "started_at",
+            "finished_at",
+            "rows",
+            "status"
+          ],
+          "rows": 16718
+        },
+        "sep": {
+          "columns": [
+            "ticker",
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "closeadj",
+            "closeunadj",
+            "lastupdated"
+          ],
+          "rows": 38994724,
+          "date_min": "1997-12-31",
+          "date_max": "2026-06-15",
+          "distinct_tickers": 14150
+        },
+        "sf1_fundamentals": {
+          "columns": [
+            "ticker",
+            "dimension",
+            "calendardate",
+            "datekey",
+            "reportperiod",
+            "lastupdated",
+            "marketcap",
+            "ev",
+            "pe",
+            "pb",
+            "ps",
+            "evebit",
+            "evebitda",
+            "fcf",
+            "fcfps",
+            "bvps",
+            "divyield",
+            "roe",
+            "roa",
+            "roic",
+            "ros",
+            "grossmargin",
+            "netmargin",
+            "ebitdamargin",
+            "currentratio",
+            "de",
+            "payoutratio",
+            "assetturnover",
+            "revenue",
+            "netinc",
+            "gp",
+            "ebit",
+            "ebitda",
+            "ncfo",
+            "assets",
+            "equity",
+            "debt",
+            "eps",
+            "epsdil",
+            "shareswa",
+            "price"
+          ],
+          "rows": 1035037,
+          "distinct_tickers": 9296
+        },
+        "tickers": {
+          "columns": [
+            "ticker",
+            "name",
+            "exchange",
+            "category",
+            "sector",
+            "industry",
+            "isdelisted",
+            "firstpricedate",
+            "lastpricedate",
+            "lastupdated"
+          ],
+          "rows": 21853,
+          "distinct_tickers": 21853
+        }
+      },
+      "digest_verified": true
+    },
+    "price_db": {
+      "abs_path": "C:\\LLM-RAG-APP\\ai-trading-app\\apps\\backend\\data\\factor_data_full.duckdb",
+      "sha256": "022ffd01b52b04aacac1932448413d042f68d0bb37ddf4ccdec39292484a7831",
+      "size_bytes": 1634217984,
+      "tables": [
+        "actions",
+        "fundamentals",
+        "index_prices",
+        "ingest_runs",
+        "sep",
+        "sf1_fundamentals",
+        "tickers"
+      ],
+      "inventory": {
+        "actions": {
+          "columns": [
+            "date",
+            "action",
+            "ticker",
+            "name",
+            "value",
+            "contraticker"
+          ],
+          "rows": 0,
+          "date_min": "None",
+          "date_max": "None",
+          "distinct_tickers": 0
+        },
+        "fundamentals": {
+          "columns": [
+            "ticker",
+            "period",
+            "fiscal_year",
+            "period_end",
+            "filing_date",
+            "accepted_date",
+            "revenue",
+            "gross_profit",
+            "operating_income",
+            "ebitda",
+            "net_income",
+            "free_cash_flow",
+            "total_debt",
+            "total_equity",
+            "total_assets",
+            "shares_diluted",
+            "enterprise_value",
+            "lastupdated"
+          ],
+          "rows": 0,
+          "distinct_tickers": 0
+        },
+        "index_prices": {
+          "columns": [
+            "symbol",
+            "date",
+            "close",
+            "lastupdated"
+          ],
+          "rows": 1278,
+          "date_min": "2021-06-21",
+          "date_max": "2026-06-18"
+        },
+        "ingest_runs": {
+          "columns": [
+            "dataset",
+            "started_at",
+            "finished_at",
+            "rows",
+            "status"
+          ],
+          "rows": 16718
+        },
+        "sep": {
+          "columns": [
+            "ticker",
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "closeadj",
+            "closeunadj",
+            "lastupdated"
+          ],
+          "rows": 38994724,
+          "date_min": "1997-12-31",
+          "date_max": "2026-06-15",
+          "distinct_tickers": 14150
+        },
+        "sf1_fundamentals": {
+          "columns": [
+            "ticker",
+            "dimension",
+            "calendardate",
+            "datekey",
+            "reportperiod",
+            "lastupdated",
+            "marketcap",
+            "ev",
+            "pe",
+            "pb",
+            "ps",
+            "evebit",
+            "evebitda",
+            "fcf",
+            "fcfps",
+            "bvps",
+            "divyield",
+            "roe",
+            "roa",
+            "roic",
+            "ros",
+            "grossmargin",
+            "netmargin",
+            "ebitdamargin",
+            "currentratio",
+            "de",
+            "payoutratio",
+            "assetturnover",
+            "revenue",
+            "netinc",
+            "gp",
+            "ebit",
+            "ebitda",
+            "ncfo",
+            "assets",
+            "equity",
+            "debt",
+            "eps",
+            "epsdil",
+            "shareswa",
+            "price"
+          ],
+          "rows": 1035037,
+          "distinct_tickers": 9296
+        },
+        "tickers": {
+          "columns": [
+            "ticker",
+            "name",
+            "exchange",
+            "category",
+            "sector",
+            "industry",
+            "isdelisted",
+            "firstpricedate",
+            "lastpricedate",
+            "lastupdated"
+          ],
+          "rows": 21853,
+          "distinct_tickers": 21853
+        }
+      },
+      "digest_verified": true
+    },
+    "code": {
+      "commit": "87b2d8cbe8cb00d7b3f4525c9ca84084a814b7b7",
+      "branch": "feat/drift-audit-momentum-daily",
+      "working_tree_clean": true,
+      "dirty_paths": []
+    },
+    "strategy": {
+      "name": "momentum-daily",
+      "version": "0.2.0",
+      "params": {
+        "momentum_lookback_days": 252,
+        "momentum_skip_days": 21,
+        "min_score": 0.0,
+        "min_raw_momentum": 0.0,
+        "entry_rank": 5,
+        "hold_rank": 10,
+        "exit_confirm_closes": 2,
+        "replace_score_advantage": 0.3,
+        "weight_drift_pct": 0.04,
+        "backstop_max_days": 10,
+        "max_daily_retries": 3,
+        "max_names": 5,
+        "max_position_pct": 0.2,
+        "max_sector_pct": null,
+        "weighting": "equal",
+        "min_weight_pct": 0.075,
+        "use_market_regime_filter": true,
+        "market_filter_symbol": "SPY",
+        "market_ma_days": 200,
+        "regime_mode": "graduated",
+        "regime_graduated_band_pct": 0.02,
+        "regime_gross_above": 0.98,
+        "regime_gross_mid": 0.6,
+        "regime_gross_below": 0.15,
+        "regime_buffer_pct": 0.0,
+        "regime_confirm_days": 1,
+        "regime_stale_max_days": 2,
+        "regime_degraded_gross": 0.5,
+        "regime_degraded_max_days": 4,
+        "initial_seed_investable_gross": 0.6,
+        "monthly_universe_refresh": false,
+        "min_trade_pct": 0.03,
+        "pricing_timeframe": "1Day",
+        "fractional_shares": true,
+        "cash_buffer_pct": 0.02,
+        "initial_equity_estimate": 100000,
+        "order_pacing_seconds": 0.0,
+        "timeframe": "1Day"
+      }
+    },
+    "replica_reference": "scripts/backtest_momentum_stage4.py::simulate (variant C, graduated)",
+    "all_digests_verified": true
+  }
+}

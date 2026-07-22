@@ -81,3 +81,7 @@ docker-compose.override.yml
 # but the dated outputs are regenerable and contain account numbers — keep them local.
 /reports/*.md
 !/reports/README.md
+# drift-audit raw seams — large (60MB); SHA-bound in census_findings + on-disk/immutable storage
+docs/review/momentum_daily/drift_audit/live_seams.json
+docs/review/momentum_daily/drift_audit/replica_seams.json
+docs/review/momentum_daily/drift_audit/.census_pid
