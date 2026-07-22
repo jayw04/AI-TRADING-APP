@@ -132,6 +132,15 @@ class AccountSnapshot:
     complete: bool = True
     # Quantities already promised to other in-flight reducing decisions (§ D).
     reserved_reducing_qty: dict[str, Decimal] = field(default_factory=dict)
+    # Of `reserved_reducing_qty`, the quantity whose fill the broker position in THIS snapshot
+    # has DEMONSTRABLY absorbed — bounded by an observed position movement, never by the mere
+    # existence of a local fill row. Held reservations keep their full original quantity until
+    # their order goes terminal, so without this a partial fill is charged twice (once by the
+    # shrunken position, once by the still-full reservation). It is credited ONLY where proven:
+    # positions, orders and fills are three non-atomic reads, and crediting an unabsorbed fill
+    # would manufacture capacity and could admit a sell that crosses zero. See
+    # `RiskDecisionService._absorbed_reserved_fill_by_symbol`.
+    absorbed_reserved_fill_qty: dict[str, Decimal] = field(default_factory=dict)
 
     def gross_exposure(self) -> Decimal:
         return sum((abs(p.qty) * p.price for p in self.positions.values()), ZERO)
@@ -151,6 +160,9 @@ class AccountSnapshot:
             ),
             "cash": str(self.cash),
             "reserved": sorted((k, str(v)) for k, v in self.reserved_reducing_qty.items()),
+            "absorbed_reserved_fill": sorted(
+                (k, str(v)) for k, v in self.absorbed_reserved_fill_qty.items()
+            ),
         }
         return hashlib.sha256(
             json.dumps(payload, sort_keys=True).encode()
@@ -204,18 +216,21 @@ class RiskEffectDecision:
 # ---------------------------------------------------------------------------------------
 # Reducible capacity (ADR 0042 § D)
 # ---------------------------------------------------------------------------------------
-def available_reducible_quantity(snap: AccountSnapshot, symbol: str) -> Decimal:
-    """How much of this long may STILL be promised to a reduction.
+def claimable_reducible_quantity(snap: AccountSnapshot, symbol: str) -> Decimal:
+    """The long, net of reducing sells in flight that are NOT already covered by a reservation.
 
-    Two concurrent sells can each look safe against the same long position and TOGETHER cross
-    through zero, creating a short — the exact failure the zero-crossing rule exists to
-    prevent, reached by a route no single-order check can see. So the capacity is net of
-    everything already in flight or already promised.
+    This is the capacity BASIS for the § D accumulator guard, which compares
+    ``reserved_qty + qty <= reducible_capacity_qty``. Because the accumulator already carries
+    every HELD reservation on the left-hand side, this side must NOT subtract them again.
 
-        current_long
-      - filled_but_not_reconciled_reductions   (carried in the snapshot's position qty)
-      - open_reducing_sell_qty
-      - reserved_reducing_qty
+        current_long − max(0, open_reducing_sell_qty − reserved_reducing_qty)
+
+    Every reduction this system approves creates a reservation AND (once submitted) appears in
+    the broker's open orders, so those two quantities overlap. Subtracting both is a double
+    count that shrinks capacity below the truth and refuses legitimate de-risking — the very
+    failure ADR 0042 exists to prevent. Subtracting the EXCESS of in-flight over reserved keeps
+    the guard honest about sells this system did not reserve (a manual order placed straight at
+    the broker), while never charging our own reductions twice.
     """
     pos = snap.positions.get(symbol.upper())
     current = pos.qty if pos else ZERO
@@ -232,8 +247,43 @@ def available_reducible_quantity(snap: AccountSnapshot, symbol: str) -> Decimal:
         ),
         ZERO,
     )
+    reserved_total = snap.reserved_reducing_qty.get(symbol.upper(), ZERO)
+    # The part of our held reservations THIS SNAPSHOT'S POSITION HAS PROVABLY ABSORBED. A
+    # reservation is held at its full original quantity until its order goes terminal, so a
+    # partial fill is otherwise charged twice: once by the shrunken position, once by the
+    # still-full reservation. Adding back only the PROVEN part charges it exactly once without
+    # inventing capacity: the producer bounds it by an observed position movement against the
+    # anchor recorded when the reservation was created, so a local fill the positions endpoint
+    # has not yet reflected contributes ZERO. An aggregate guess (reserved − in_flight) is
+    # unusable here — it cannot tell a FILLED reservation from a NOT-YET-SUBMITTED one.
+    reserved_filled = snap.absorbed_reserved_fill_qty.get(symbol.upper(), ZERO)
+    reserved_pending = max(ZERO, reserved_total - reserved_filled)
+    # Broker-open reducing quantity that no reservation of ours accounts for — a sell placed
+    # straight at the broker. Charged in full; only OUR overlap is forgiven.
+    unreserved_in_flight = max(ZERO, in_flight - reserved_pending)
+    return max(ZERO, current + reserved_filled - unreserved_in_flight)
+
+
+def available_reducible_quantity(snap: AccountSnapshot, symbol: str) -> Decimal:
+    """How much of this long may STILL be promised to a reduction.
+
+    Two concurrent sells can each look safe against the same long position and TOGETHER cross
+    through zero, creating a short — the exact failure the zero-crossing rule exists to
+    prevent, reached by a route no single-order check can see. So the capacity is net of
+    everything already in flight or already promised.
+
+        current_long
+      - filled_but_not_reconciled_reductions   (carried in the snapshot's position qty)
+      - reserved_reducing_qty
+      - open_reducing_sell_qty NOT covered by a reservation
+
+    The last two terms are deliberately not simply added: a reduction this system approved is
+    counted once as a reservation, even after it reaches the broker and also shows up as an
+    open order. See ``claimable_reducible_quantity`` — this is that basis minus the
+    reservations, which are the caller's own share of the promised total.
+    """
     reserved = snap.reserved_reducing_qty.get(symbol.upper(), ZERO)
-    return max(ZERO, current - in_flight - reserved)
+    return max(ZERO, claimable_reducible_quantity(snap, symbol) - reserved)
 
 
 # ---------------------------------------------------------------------------------------
