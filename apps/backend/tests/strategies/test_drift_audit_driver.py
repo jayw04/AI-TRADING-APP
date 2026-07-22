@@ -157,6 +157,37 @@ def test_replica_trade_gate_changed_regime_flip_and_hold():
     assert abs(sum(recs[2].weights.values()) - 0.50) < 1e-9
 
 
+async def test_end_to_end_pipeline_live_vs_replica_produces_census():
+    """Tiny e2e: drive the real live class + the replica over the same synthetic sessions,
+    feed both into build_report, and confirm the diagnostic census is produced with the
+    first-cause / downstream separation. (The two are NOT expected to match — the live
+    equal-weight vs replica weights and trigger gate differ by construction.)"""
+    from app.strategies.drift_audit import build_report
+
+    adapter = _adapter()
+    strat = _strategy(adapter)
+    days = [date(2005, 1, d) for d in (3, 4, 5, 6)]
+    live = await drive_live(strat, adapter, days, fill_price_fn=lambda _s, _d: 100.0)
+
+    ranked = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"]
+    replica = capture_replica_seams(
+        days, {d: _DS(ranked) for d in days}, {d: 0.98 for d in days},
+        select_fn=lambda ds, held, prev: ds.ranked[:5],
+        weigh_fn=lambda chosen, d: {t: 1.0 / len(chosen) for t in chosen},
+        price_fn=lambda t, d: 100.0, backstop_days=10, weight_drift_pct=0.04,
+        turnover_cost_bps=5.0, initial_equity=100_000.0)
+
+    report = build_report(live, replica).to_dict()
+    assert report["n_sessions"] == 4
+    assert set(report["census"]) >= {"trigger_mismatch_sessions", "target_mismatch_sessions",
+                                     "weight_mismatch_sessions", "semantic_mismatch_sessions"}
+    # both agree on the day-1 inception target (top-5 momentum names)
+    assert live[0].target_names == replica[0].target_names == ("AAA", "BBB", "CCC", "DDD", "EEE")
+    # the report separates first-cause from downstream and never omits the note
+    assert "first_cause" in report and "downstream_mismatch_sessions" in report
+    assert "_note" in report and "DIAGNOSTIC" in report["_note"]
+
+
 def test_replica_thin_day_emits_no_scores_record():
     days = [date(2005, 1, 3), date(2005, 1, 4)]
     day_scores = {days[0]: _DS(["AAA", "BBB"])}  # day 2 missing -> thin

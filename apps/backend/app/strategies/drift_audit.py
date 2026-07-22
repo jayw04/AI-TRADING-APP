@@ -127,19 +127,34 @@ class DriftReport:
     material_mismatch_sessions: int
     first_mismatch_detail: dict | None
     conformance_verdict: str                          # PASS_STRUCTURAL | MISMATCHES_TO_ADJUDICATE
+    # --- first-cause vs downstream (a diagnostic drift census, not a pass gate) ---
+    census: dict[str, int]                            # separated mismatch-session counts by kind
+    first_cause: dict | None                          # {date, categories} of the FIRST divergence
+    sessions_clean_before_divergence: int             # matching sessions before the first mismatch
+    downstream_mismatch_sessions: int                 # mismatch sessions AFTER the first (propagation)
+    turnover: dict                                    # {live, replica, abs_diff} — diagnostic
 
     def to_dict(self) -> dict:
         return {
             "n_sessions": self.n_sessions,
+            "conformance_verdict": self.conformance_verdict,
+            "structural": self.structural,
+            "census": self.census,
+            "first_cause": self.first_cause,
+            "sessions_clean_before_divergence": self.sessions_clean_before_divergence,
             "first_mismatch_date": self.first_mismatch_date,
             "total_mismatch_sessions": self.total_mismatch_sessions,
+            "downstream_mismatch_sessions": self.downstream_mismatch_sessions,
+            "material_mismatch_sessions": self.material_mismatch_sessions,
             "category_counts": self.category_counts,
-            "structural": self.structural,
+            "turnover": self.turnover,
             "gross_mean_abs_diff": self.gross_mean_abs_diff,
             "gross_max_abs_diff": self.gross_max_abs_diff,
-            "material_mismatch_sessions": self.material_mismatch_sessions,
             "first_mismatch_detail": self.first_mismatch_detail,
-            "conformance_verdict": self.conformance_verdict,
+            "_note": ("This is a DIAGNOSTIC drift census, not a pass gate. Counts AFTER "
+                      "first_mismatch_date include propagation from holdings divergence — "
+                      "read first_cause + sessions_clean_before_divergence for the primary "
+                      "divergence, not total_mismatch_sessions alone."),
         }
 
 
@@ -148,6 +163,17 @@ def _first_true_date(records: list[SeamRecord], pred) -> str | None:
         if pred(r):
             return r.date
     return None
+
+
+def _turnover(records: list[SeamRecord]) -> float:
+    """Diagnostic turnover proxy: sum over consecutive sessions of 0.5·Σ|Δweight|."""
+    total = 0.0
+    prev: dict[str, float] = {}
+    for r in records:
+        keys = set(prev) | set(r.weights)
+        total += 0.5 * sum(abs(r.weights.get(k, 0.0) - prev.get(k, 0.0)) for k in keys)
+        prev = r.weights
+    return total
 
 
 def build_report(live: list[SeamRecord], replica: list[SeamRecord]) -> DriftReport:
@@ -202,6 +228,25 @@ def build_report(live: list[SeamRecord], replica: list[SeamRecord]) -> DriftRepo
 
     verdict = ("PASS_STRUCTURAL" if structural_pass and not mismatch_diffs
                else "MISMATCHES_TO_ADJUDICATE")
+
+    # First-cause vs downstream: everything from the first mismatch onward is contaminated
+    # by holdings divergence, so separate the clean prefix + first cause from the propagation.
+    first_idx = next((i for i, d in enumerate(diffs) if d.any_mismatch), None)
+    downstream = (sum(1 for d in diffs[first_idx + 1:] if d.any_mismatch)
+                  if first_idx is not None else 0)
+    census = {
+        "structural_incompatible": int(not structural_pass),
+        "semantic_mismatch_sessions": sum(1 for d in diffs if d.semantic_mismatches),
+        "numeric_only_mismatch_sessions": sum(
+            1 for d in diffs if d.numeric_violations and not d.semantic_mismatches),
+        "eligible_mismatch_sessions": cats["eligible"],
+        "ranking_mismatch_sessions": cats["ranking"],
+        "target_mismatch_sessions": cats["target_names"],
+        "trigger_mismatch_sessions": cats["trade_initiated"],
+        "weight_mismatch_sessions": cats["weights"],
+        "regime_gross_mismatch_sessions": cats["regime_gross"],
+    }
+    tl, tr = _turnover(live), _turnover(replica)
     return DriftReport(
         n_sessions=len(live),
         first_mismatch_date=first.date if first else None,
@@ -215,6 +260,13 @@ def build_report(live: list[SeamRecord], replica: list[SeamRecord]) -> DriftRepo
                                 "numeric": first.numeric_violations, "detail": first.detail}
                                if first else None),
         conformance_verdict=verdict,
+        census=census,
+        first_cause=({"date": first.date,
+                      "categories": list(first.semantic_mismatches) + list(first.numeric_violations)}
+                     if first else None),
+        sessions_clean_before_divergence=(first_idx if first_idx is not None else len(diffs)),
+        downstream_mismatch_sessions=downstream,
+        turnover={"live": tl, "replica": tr, "abs_diff": abs(tl - tr)},
     )
 
 
