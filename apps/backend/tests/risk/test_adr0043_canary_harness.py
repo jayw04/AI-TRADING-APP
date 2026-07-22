@@ -39,7 +39,7 @@ def _snap(m, **over):
         at="2026-07-20T18:00:00+00:00", day_change=D("-6000"), equity=D("94000"),
         last_equity=D("100000"), max_daily_loss=D("5000"), breaker_tripped_at=None,
         loss_control_state=m.STATE_REDUCTION_ONLY_DAILY_LOSS, loss_control_state_version=3,
-        last_sequence_no=3, positions={"F": D("500"), "MSFT": D("20")}, open_orders=0,
+        last_sequence_no=3, positions={"MSFT": D("19")}, open_orders=0,
     )
     base.update(over)
     return m.StateSnapshot(**base)
@@ -155,7 +155,7 @@ def test_snapshot_serializes_the_durable_state(lib):
     d = _snap(lib).as_dict()
     assert d["loss_control_state"] == lib.STATE_REDUCTION_ONLY_DAILY_LOSS
     assert d["reduction_only"] is True and d["loss_control_state_version"] == 3
-    assert d["positions"] == {"F": "500", "MSFT": "20"}
+    assert d["positions"] == {"MSFT": "19"}
 
 
 # ================================================================ blocker 2: GREEN requires cooldown
@@ -289,7 +289,7 @@ async def _seed_account(session_factory):
     async with session_factory() as s:
         s.add(User(id=3, email="c@t"))
         s.add(Account(id=3, user_id=3, broker="alpaca", mode=AccountMode.paper, label="C"))
-        s.add(Symbol(id=1, ticker="F", exchange="X", asset_class="us_equity", name="Ford",
+        s.add(Symbol(id=1, ticker="MSFT", exchange="X", asset_class="us_equity", name="Microsoft",
                      active=True))
         await s.commit()
 
@@ -631,7 +631,7 @@ class _SettleSpy:
 
 def _positioned_adapter(qty="18"):
     a = MagicMock()
-    a.get_positions.return_value = [{"symbol": "F", "qty": qty}]
+    a.get_positions.return_value = [{"symbol": "MSFT", "qty": qty}]
     a.list_orders.return_value = []
     a.get_order.return_value = {"status": "new", "filled_qty": "0"}
     return a
@@ -672,7 +672,7 @@ async def test_a2_settles_before_it_reports_a_green_reduction(canary_env, sessio
 
     async def _submit_then_settle(req):
         o = await real_submit(req)
-        adapter.get_positions.return_value = [{"symbol": "F", "qty": "18"}]
+        adapter.get_positions.return_value = [{"symbol": "MSFT", "qty": "18"}]
         await _seed_fill(session_factory, o.id)
         await _seed_settled_position(session_factory, "18")
         async with session_factory() as s:
@@ -736,7 +736,7 @@ async def test_a2_barrier_failure_stops_the_run_before_a3(canary_env, session_fa
                   settle=_SettleSpy(fail=True))
 
     with pytest.raises(canary_env.SettlementBarrierFailed) as exc:
-        await run.execute(pre=_snap(canary_env, positions={"F": D("19")}), run_start_event_id=0)
+        await run.execute(pre=_snap(canary_env, positions={"MSFT": D("19")}), run_start_event_id=0)
 
     assert exc.value.stop_reason == "SETTLEMENT_BARRIER_FAILED"
     assert router.submits == 1, "only A2 was submitted — A3 must never have run"
@@ -754,7 +754,7 @@ async def test_barrier_failure_records_credential_free_diagnostics(canary_env, s
     run = _canary(canary_env, session_factory, cp, adapter=adapter, settle=_SettleSpy(fail=True))
 
     with pytest.raises(canary_env.SettlementBarrierFailed) as exc:
-        await run.settle("A2", order_id=1, ticker="F")
+        await run.settle("A2", order_id=1, ticker="MSFT")
 
     diag = exc.value.diagnostics
     for field in ("local_order_id", "broker_order_id", "broker_status", "broker_filled_qty",
@@ -778,7 +778,7 @@ async def test_diagnostics_survive_an_unreachable_broker(canary_env, session_fac
     adapter.get_order.side_effect = ConnectionError("reset")
 
     diag = await canary_env.settlement_diagnostics(
-        session_factory, adapter, step="A2", order_id=1, ticker="F",
+        session_factory, adapter, step="A2", order_id=1, ticker="MSFT",
         exception_category="SettlementError", detail="unreachable")
 
     assert diag["broker_position"].startswith("UNAVAILABLE:")

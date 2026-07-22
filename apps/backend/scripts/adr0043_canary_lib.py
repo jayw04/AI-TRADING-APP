@@ -45,13 +45,16 @@ USER = int(os.environ.get("ADR0043_USER", "3"))
 ACCT = int(os.environ.get("ADR0043_ACCOUNT", "3"))
 
 # The protected legs — the reduction targets the assertions need. Never churned or flattened.
+# Re-frozen to MSFT-only (manifest v1.1): the frozen canary account (account 3, PA34USW0Q8UO) holds
+# MSFT and no F, so the reduction target is MSFT. Legs are never bought/established by the harness —
+# it REFUSES if a declared leg is absent — so the config must match what the account actually holds.
 PROTECTED: tuple[str, ...] = tuple(
-    s.strip().upper() for s in os.environ.get("ADR0043_PROTECTED", "F,MSFT").split(",") if s.strip()
+    s.strip().upper() for s in os.environ.get("ADR0043_PROTECTED", "MSFT").split(",") if s.strip()
 )
 LEGS: tuple[tuple[str, D], ...] = tuple(
     (sym, D(qty))
     for sym, qty in (
-        pair.split(":") for pair in os.environ.get("ADR0043_LEGS", "F:500,MSFT:20").split(",")
+        pair.split(":") for pair in os.environ.get("ADR0043_LEGS", "MSFT:19").split(",")
     )
 )
 
