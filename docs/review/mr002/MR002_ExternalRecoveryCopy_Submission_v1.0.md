@@ -81,13 +81,63 @@ The test earned its place by failing twice before it passed:
 Both were defects in the verifier, not the archive. Recording them because a restore test that
 has never failed is not evidence that it works.
 
+### Regression tests — both defects now pinned
+
+`scripts/mr002_custody/test_recovery_verifier.py`, **13/13 passing**, no AWS and no network:
+
+| Defect / requirement | Test |
+|---|---|
+| Path normalization | `test_regression_path_normalization_variants` (relative and `./` forms) |
+| Path normalization — false assurance | `test_regression_empty_archive_never_passes` |
+| Descriptor type-confusion | `test_regression_config_blob_is_not_walked_as_a_descriptor_graph` |
+| Descriptor type-confusion — robustness | `test_regression_malformed_descriptor_does_not_crash` |
+| Pathname vs digest | `test_misnamed_blob_is_rejected` |
+| Unreferenced objects | `test_unreferenced_object_is_rejected` |
+| Missing objects | `test_missing_referenced_object_is_rejected` |
+| Wrong image entirely | `test_wrong_bound_identity_is_rejected` |
+| Wrapper hash | `test_wrapper_hash_mismatch_is_rejected` |
+| Malformed layout | `test_missing_index_json_is_rejected` |
+| Scope discipline | `test_verifier_never_claims_to_satisfy_requirement_7` |
+
+The type-confusion fixture carries a config blob with a real top-level `config` key
+(`Env`/`Cmd`), which is precisely the shape that once raised `KeyError: 'digest'`.
+
+---
+
+## 4a. Custody classification
+
+Stated truthfully, per the recovery adjudication. The workstation archive is **not** promoted
+to "offline" merely because it sits outside the cloud-sync root.
+
+| Classification | Current state |
+|---|---|
+| `PRIMARY_CUSTODY_COPY` | ECR by immutable digest |
+| `STAGED_ONLINE_RECOVERY_COPY` | this archive — routinely connected workstation, unencrypted |
+| `INDEPENDENT_OFFLINE_RECOVERY_COPY` | **NOT YET CREATED** |
+| `INFORMAL_RUNTIME_COPY` | local Docker cache — **not credited** |
+
+Also recorded machine-readably in `MR002_ExternalRecoveryCopy_v1.0.json`.
+
 ---
 
 ## 5. Offline re-verification
 
 ```
-python scripts/mr002_custody/export_recovery_copy.py --verify <path-to>/mr002-evaluator-p5-recovery.tar
+python scripts/mr002_custody/export_recovery_copy.py --verify <path-to>/mr002-evaluator-p5-recovery.tar \
+    sha256:c3cf3b9e3cb1f5a5ce94f79ede72163ab1389803fbd3f0dfc91d8744604f9f8a
 ```
+
+The optional second argument asserts the wrapper hash. The verifier implements the full
+custodian review procedure — **a successful extraction is deliberately not sufficient to pass**:
+
+- wrapper archive hash verified against the expected value
+- **every blob pathname checked against its content digest** (keying only by computed hash
+  would silently accept a misnamed blob)
+- complete reachability traversal from the bound index
+- **unreferenced unexpected objects rejected**
+- bound semantic digest matched exactly against P5
+- nonzero object-count assertion
+- explicit failure on missing, duplicated, malformed, or mistyped graph objects
 
 Uses **no network and no AWS access** — proven by running it with credentials, profile, region,
 and home directory stripped from the environment:

@@ -226,46 +226,73 @@ def restore_test(archive: Path, objects) -> dict:
     }
 
 
-def verify_offline(archive: Path) -> int:
+def verify_archive(archive: Path, bound_index: str = INDEX, expected_outer: str | None = None):
     """Verify a recovery archive with NO network and NO AWS access.
 
     This is what the custodian runs against the removable medium at each review.
-    It proves the archive is internally complete and still carries the bound
-    identity; it reaches nothing external, so it works on an air-gapped machine.
+    It works on an air-gapped machine. It is NOT an execution gate and does not
+    satisfy Requirement 7.
 
-    It is NOT an execution gate and does not satisfy Requirement 7.
+    Implements the custodian review procedure required by the recovery adjudication:
+    wrapper hash, every blob PATHNAME checked against its content digest, complete
+    reachability traversal from the bound index, rejection of unreferenced objects,
+    exact match of the bound semantic digest, a nonzero object-count assertion, and
+    explicit failure on missing, duplicated, malformed, or mistyped graph objects.
+
+    A successful extraction is deliberately NOT sufficient to pass.
     """
-    outer = hashlib.sha256(archive.read_bytes()).hexdigest()
-    blobs, layout_index = {}, None
+    problems = []
+    outer = "sha256:" + hashlib.sha256(archive.read_bytes()).hexdigest()
+    if expected_outer and outer != expected_outer:
+        problems.append(f"wrapper hash {outer} != expected {expected_outer}")
 
+    blobs, layout_index, seen_names = {}, None, set()
     with tarfile.open(archive, "r") as tar:
         for member in tar.getmembers():
             if not member.isfile():
                 continue
             data = tar.extractfile(member).read()
-            normalized = member.name.replace("\\", "/").lstrip("./")
-            if normalized.startswith("blobs/sha256/"):
-                blobs[sha256_hex(data)] = data
-            elif Path(normalized).name == "index.json":
-                layout_index = json.loads(data)
+            # Normalize "./" and backslash forms; the leading-slash assumption is
+            # exactly the defect that once made this verifier report an empty archive.
+            normalized = member.name.replace("\\", "/")
+            while normalized.startswith("./"):
+                normalized = normalized[2:]
+            normalized = normalized.lstrip("/")
 
-    problems = []
+            if normalized.startswith("blobs/sha256/"):
+                name = normalized.split("/")[-1]
+                actual = sha256_hex(data)
+                # The PATHNAME must equal the content digest. Keying solely by the
+                # computed hash would silently accept a misnamed blob.
+                if actual != f"sha256:{name}":
+                    problems.append(f"blob pathname/content mismatch: {normalized} holds {actual}")
+                    continue
+                if actual in blobs:
+                    problems.append(f"duplicate blob object: {actual}")
+                blobs[actual] = data
+                seen_names.add(actual)
+            elif Path(normalized).name == "index.json":
+                try:
+                    layout_index = json.loads(data)
+                except ValueError as exc:
+                    problems.append(f"index.json malformed: {exc}")
+
+    top = None
     if layout_index is None:
         problems.append("index.json missing from archive")
-        top = None
     else:
-        top = layout_index["manifests"][0]["digest"]
-        if top != INDEX:
-            problems.append(f"top-level digest {top} != bound index {INDEX}")
+        try:
+            top = layout_index["manifests"][0]["digest"]
+        except (KeyError, IndexError, TypeError) as exc:
+            problems.append(f"index.json has no usable top-level descriptor: {exc}")
+    if top is not None and top != bound_index:
+        problems.append(f"top-level digest {top} != bound index {bound_index}")
 
-    # Re-hashing above means a corrupted blob simply never appears under its own
-    # digest, so any dangling reference below is a real integrity failure.
-    referenced, queue, seen = set(), [top] if top else [], set()
+    referenced, queue = set(), [top] if top else []
     while queue:
         digest = queue.pop()
-        if digest in seen:
+        if digest in referenced:
             continue
-        seen.add(digest)
         referenced.add(digest)
         if digest not in blobs:
             problems.append(f"referenced object absent or corrupt: {digest}")
@@ -273,23 +300,49 @@ def verify_offline(archive: Path) -> int:
         try:
             doc = json.loads(blobs[digest])
         except (UnicodeDecodeError, ValueError):
-            continue
+            continue  # a layer blob; not a graph node
         if not isinstance(doc, dict):
             continue
+        # Follow ONLY real OCI descriptors. An image CONFIG blob has its own
+        # top-level "config" key (container Env/Cmd) that is not a descriptor —
+        # recursively interpreting it as one is a type-confusion defect.
         for desc in (doc.get("manifests") or []) + (doc.get("layers") or []) + [doc.get("config")]:
             if isinstance(desc, dict) and isinstance(desc.get("digest"), str):
                 queue.append(desc["digest"])
 
-    verdict = "PASS" if not problems else "FAIL"
-    print(f"archive          : {archive}")
-    print(f"outer (wrapper)  : sha256:{outer}")
-    print(f"inner (semantic) : {top}")
-    print(f"objects present  : {len(blobs)}   referenced: {len(referenced)}")
-    print(f"bound identity   : {'MATCHES' if top == INDEX else 'DOES NOT MATCH'}")
-    for problem in problems:
+    if not blobs:
+        problems.append("archive contains no verifiable blob objects")
+    unreferenced = sorted(set(blobs) - referenced)
+    if unreferenced:
+        problems.append(f"unreferenced unexpected objects: {unreferenced}")
+
+    return {
+        "archive": str(archive),
+        "wrapper_digest": outer,
+        "semantic_digest": top,
+        "bound_identity_matches": top == bound_index,
+        "objects_present": len(blobs),
+        "objects_referenced": len(referenced),
+        "unreferenced_objects": unreferenced,
+        "problems": problems,
+        "verdict": "PASS" if not problems else "FAIL",
+        "offline": True,
+        "satisfies_requirement_7": False,
+    }
+
+
+def verify_offline(archive: Path, expected_outer: str | None = None) -> int:
+    result = verify_archive(archive, expected_outer=expected_outer)
+    print(f"archive          : {result['archive']}")
+    print(f"outer (wrapper)  : {result['wrapper_digest']}")
+    print(f"inner (semantic) : {result['semantic_digest']}")
+    print(f"objects present  : {result['objects_present']}   "
+          f"referenced: {result['objects_referenced']}")
+    print(f"bound identity   : {'MATCHES' if result['bound_identity_matches'] else 'DOES NOT MATCH'}")
+    for problem in result["problems"]:
         print(f"  ! {problem}")
-    print(f"VERDICT: {verdict}  (offline; no network, no AWS; NOT an execution gate)")
-    return 0 if verdict == "PASS" else 1
+    print(f"VERDICT: {result['verdict']}  (offline; no network, no AWS; NOT an execution gate)")
+    return 0 if result["verdict"] == "PASS" else 1
 
 
 def main(staging: Path):
@@ -360,6 +413,16 @@ def main(staging: Path):
         },
         "inventory": inventory,
         "restore_test": restore,
+        # Truthful classification. The workstation archive is NOT promoted to
+        # "offline" merely because it sits outside the cloud-sync root.
+        "custody_classification": {
+            "PRIMARY_CUSTODY_COPY": "ECR by immutable digest — "
+                                    f"219024422756.dkr.ecr.{REGION}.amazonaws.com/{REPOSITORY}",
+            "STAGED_ONLINE_RECOVERY_COPY": "this archive, on the routinely connected "
+                                           "workstation, unencrypted",
+            "INDEPENDENT_OFFLINE_RECOVERY_COPY": "NOT YET CREATED",
+            "INFORMAL_RUNTIME_COPY": "local Docker cache — NOT CREDITED",
+        },
         "boundaries": {
             "modified_custody_repository": False,
             "implements_requirement_7": False,
@@ -388,5 +451,6 @@ def main(staging: Path):
 if __name__ == "__main__":
     default = Path("C:/LLM-RAG-APP/mr002_recovery_staging")
     if len(sys.argv) > 2 and sys.argv[1] == "--verify":
-        sys.exit(verify_offline(Path(sys.argv[2])))
+        expected = sys.argv[3] if len(sys.argv) > 3 else None
+        sys.exit(verify_offline(Path(sys.argv[2]), expected_outer=expected))
     sys.exit(main(Path(sys.argv[1]) if len(sys.argv) > 1 else default))

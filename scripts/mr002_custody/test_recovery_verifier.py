@@ -1,0 +1,212 @@
+"""Regression tests for the MR-002 recovery-archive verifier.
+
+The recovery adjudication requires explicit regression tests for the two verifier
+defects disclosed during development, because both were false-assurance risks
+rather than incidental bugs:
+
+  1. ARCHIVE PATH-NORMALIZATION — a verifier checking the wrong path namespace
+     found nothing, and with weaker assertions would have accepted an empty result.
+  2. DESCRIPTOR TYPE-CONFUSION — not every JSON object with a "config" key is an
+     OCI graph node. Configuration blobs must not be walked using manifest/index
+     rules.
+
+The remaining tests cover the custodian review procedure: a successful extraction
+must NOT be sufficient to pass.
+
+No AWS access, no network, no real archive required — every case is synthesized.
+"""
+import hashlib
+import json
+import tarfile
+
+import pytest
+
+from export_recovery_copy import INDEX_MEDIA_TYPE, verify_archive
+
+
+def digest_of(data: bytes) -> str:
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def build_archive(tmp_path, blobs, index_doc, *, prefix="", extra=None):
+    """Pack blobs into an OCI-layout tar. `blobs` maps digest -> bytes."""
+    archive = tmp_path / "recovery.tar"
+    layout = tmp_path / "layout"
+    (layout / "blobs" / "sha256").mkdir(parents=True, exist_ok=True)
+    for digest, data in blobs.items():
+        (layout / "blobs" / "sha256" / digest.split(":", 1)[1]).write_bytes(data)
+    (layout / "oci-layout").write_bytes(json.dumps({"imageLayoutVersion": "1.0.0"}).encode())
+    (layout / "index.json").write_bytes(json.dumps(index_doc).encode())
+    for name, data in (extra or {}).items():
+        (layout / name).write_bytes(data)
+
+    with tarfile.open(archive, "w") as tar:
+        for path in sorted(layout.rglob("*")):
+            if path.is_file():
+                arc = prefix + str(path.relative_to(layout)).replace("\\", "/")
+                tar.add(path, arcname=arc)
+    return archive
+
+
+@pytest.fixture
+def graph():
+    """A minimal but realistic index -> manifest -> {config, layer} graph.
+
+    The config blob deliberately carries its own top-level "config" key, exactly
+    as a real OCI image configuration does.
+    """
+    layer = b"\x1f\x8b\x08 not-really-gzip but opaque bytes"
+    config = json.dumps({
+        "architecture": "amd64", "os": "linux",
+        "config": {"Env": ["PATH=/usr/bin"], "Cmd": ["/bin/sh"]},  # NOT a descriptor
+        "rootfs": {"type": "layers", "diff_ids": [digest_of(layer)]},
+    }).encode()
+    manifest = json.dumps({
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": {"digest": digest_of(config), "size": len(config)},
+        "layers": [{"digest": digest_of(layer), "size": len(layer)}],
+    }).encode()
+    index = json.dumps({
+        "schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
+        "manifests": [{"digest": digest_of(manifest), "size": len(manifest),
+                       "platform": {"os": "linux", "architecture": "amd64"}}],
+    }).encode()
+    blobs = {digest_of(index): index, digest_of(manifest): manifest,
+             digest_of(config): config, digest_of(layer): layer}
+    return blobs, digest_of(index), {
+        "schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
+        "manifests": [{"mediaType": INDEX_MEDIA_TYPE, "digest": digest_of(index),
+                       "size": len(index)}],
+    }
+
+
+def test_healthy_archive_passes(tmp_path, graph):
+    blobs, top, index_doc = graph
+    result = verify_archive(build_archive(tmp_path, blobs, index_doc), bound_index=top)
+    assert result["verdict"] == "PASS", result["problems"]
+    assert result["objects_present"] == 4
+    assert result["objects_referenced"] == 4
+
+
+# --- REGRESSION: defect 1, archive path normalization ------------------------
+
+@pytest.mark.parametrize("prefix", ["", "./"])
+def test_regression_path_normalization_variants(tmp_path, graph, prefix):
+    """Relative and './'-prefixed arcnames must both be recognized.
+
+    The original defect required a LEADING SLASH, matched nothing, and reported
+    every object missing.
+    """
+    blobs, top, index_doc = graph
+    result = verify_archive(
+        build_archive(tmp_path, blobs, index_doc, prefix=prefix), bound_index=top)
+    assert result["verdict"] == "PASS", result["problems"]
+    assert result["objects_present"] == 4
+
+
+def test_regression_empty_archive_never_passes(tmp_path, graph):
+    """The false-assurance case: nothing found must FAIL, never vacuously pass."""
+    _, top, index_doc = graph
+    result = verify_archive(build_archive(tmp_path, {}, index_doc), bound_index=top)
+    assert result["verdict"] == "FAIL"
+    assert any("no verifiable blob objects" in p for p in result["problems"])
+
+
+# --- REGRESSION: defect 2, descriptor type confusion -------------------------
+
+def test_regression_config_blob_is_not_walked_as_a_descriptor_graph(tmp_path, graph):
+    """An image config's "config" key (Env/Cmd) must not be followed as a node.
+
+    The original defect raised KeyError: 'digest' on exactly this shape.
+    """
+    blobs, top, index_doc = graph
+    result = verify_archive(build_archive(tmp_path, blobs, index_doc), bound_index=top)
+    assert result["verdict"] == "PASS", result["problems"]
+
+
+def test_regression_malformed_descriptor_does_not_crash(tmp_path, graph):
+    """Descriptor-shaped junk must be ignored or reported, never raise."""
+    blobs, top, index_doc = graph
+    junk = json.dumps({"manifests": [{"no_digest": 1}, "a string", None],
+                       "config": {"digest": 12345}, "layers": [{}]}).encode()
+    blobs = dict(blobs)
+    blobs[digest_of(junk)] = junk
+    result = verify_archive(build_archive(tmp_path, blobs, index_doc), bound_index=top)
+    assert result["verdict"] == "FAIL"  # the junk blob is unreferenced
+    assert any("unreferenced" in p for p in result["problems"])
+
+
+# --- custodian review procedure ----------------------------------------------
+
+def test_misnamed_blob_is_rejected(tmp_path, graph):
+    """Pathname must equal content digest; keying only by content would hide this."""
+    blobs, top, index_doc = graph
+    layer_digest = next(d for d, v in blobs.items() if not v.startswith(b"{"))
+    corrupted = dict(blobs)
+    corrupted["sha256:" + "ff" * 32] = corrupted.pop(layer_digest)
+    result = verify_archive(build_archive(tmp_path, corrupted, index_doc), bound_index=top)
+    assert result["verdict"] == "FAIL"
+    assert any("pathname/content mismatch" in p for p in result["problems"])
+
+
+def test_unreferenced_object_is_rejected(tmp_path, graph):
+    blobs, top, index_doc = graph
+    extra = b"an object nothing points at"
+    result = verify_archive(
+        build_archive(tmp_path, {**blobs, digest_of(extra): extra}, index_doc),
+        bound_index=top)
+    assert result["verdict"] == "FAIL"
+    assert any("unreferenced" in p for p in result["problems"])
+
+
+def test_missing_referenced_object_is_rejected(tmp_path, graph):
+    blobs, top, index_doc = graph
+    layer_digest = next(d for d, v in blobs.items() if not v.startswith(b"{"))
+    pruned = {d: v for d, v in blobs.items() if d != layer_digest}
+    result = verify_archive(build_archive(tmp_path, pruned, index_doc), bound_index=top)
+    assert result["verdict"] == "FAIL"
+    assert any("absent or corrupt" in p for p in result["problems"])
+
+
+def test_wrong_bound_identity_is_rejected(tmp_path, graph):
+    """An otherwise-perfect archive of the WRONG image must fail."""
+    blobs, top, index_doc = graph
+    result = verify_archive(build_archive(tmp_path, blobs, index_doc),
+                            bound_index="sha256:" + "ab" * 32)
+    assert result["verdict"] == "FAIL"
+    assert not result["bound_identity_matches"]
+    assert any("!= bound index" in p for p in result["problems"])
+
+
+def test_wrapper_hash_mismatch_is_rejected(tmp_path, graph):
+    blobs, top, index_doc = graph
+    archive = build_archive(tmp_path, blobs, index_doc)
+    result = verify_archive(archive, bound_index=top,
+                            expected_outer="sha256:" + "cd" * 32)
+    assert result["verdict"] == "FAIL"
+    assert any("wrapper hash" in p for p in result["problems"])
+
+
+def test_missing_index_json_is_rejected(tmp_path, graph):
+    blobs, top, _ = graph
+    archive = tmp_path / "noindex.tar"
+    with tarfile.open(archive, "w") as tar:
+        for digest, data in blobs.items():
+            path = tmp_path / digest.split(":", 1)[1]
+            path.write_bytes(data)
+            tar.add(path, arcname=f"blobs/sha256/{digest.split(':', 1)[1]}")
+    result = verify_archive(archive, bound_index=top)
+    assert result["verdict"] == "FAIL"
+    assert any("index.json missing" in p for p in result["problems"])
+
+
+def test_verifier_never_claims_to_satisfy_requirement_7(tmp_path, graph):
+    blobs, top, index_doc = graph
+    result = verify_archive(build_archive(tmp_path, blobs, index_doc), bound_index=top)
+    assert result["satisfies_requirement_7"] is False
+    assert result["offline"] is True
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

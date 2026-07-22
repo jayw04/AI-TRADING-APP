@@ -14,7 +14,13 @@
     "implements_requirement_7": false,
     "modified_custody_repository": false
   },
-  "created_at": "2026-07-22T17:44:51.178547+00:00",
+  "created_at": "2026-07-22T17:54:41.389102+00:00",
+  "custody_classification": {
+    "INDEPENDENT_OFFLINE_RECOVERY_COPY": "NOT YET CREATED",
+    "INFORMAL_RUNTIME_COPY": "local Docker cache \u2014 NOT CREDITED",
+    "PRIMARY_CUSTODY_COPY": "ECR by immutable digest \u2014 219024422756.dkr.ecr.us-east-1.amazonaws.com/mr002-evaluator-p5",
+    "STAGED_ONLINE_RECOVERY_COPY": "this archive, on the routinely connected workstation, unencrypted"
+  },
   "inventory": [
     {
       "digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
