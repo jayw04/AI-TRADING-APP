@@ -118,15 +118,33 @@ resolved **after** `fetch`, **independent of whatever was already checked out** 
 pre-existing `HEAD` (that would make the equality check tautological), and never a value hard-coded in this
 runbook.
 
+> **Two deployment models — verify provenance the way the box was actually built.** The lineage proof
+> below (`rev-parse` / `merge-base --is-ancestor` / `diff --name-only`) requires `.git`, and **the paper
+> box has none** — code ships as a `git archive` tarball extracted into `/opt/workbench/app`
+> (`provision-from-s3.sh`). So:
+>
+> - **A2-checkout** (box provisioned by `git clone`, e.g. `ec2-user-data.sh` — box *has* `.git`): run the
+>   block below **on the box**; `ADR0043_COMMIT_SHA = git rev-parse HEAD`.
+> - **A2-archive** (box provisioned by tarball — box has **no** `.git`; this is the paper-stack default):
+>   run the lineage proof **on the build machine** via `deploy/aws/build-deploy-archive.sh`, which stamps
+>   the approved `DEPLOYED`, the `IMPL` ancestry result, and the **application-code-unchanged** guarantee
+>   (no `apps/**` delta from the baseline; reviewed docs + deploy tooling recorded as `non_application_delta`)
+>   into `DEPLOYED_BUILD_INFO.json` **embedded in the archive**, and records the archive SHA-256. On the box the
+>   proof is then the **A2-archive gate** (marker + archive digest + running image), and
+>   `ADR0043_COMMIT_SHA` is read from the marker's `deployed_repository_commit` — **not** `git rev-parse`
+>   (which fails with no `.git`). The two are equivalent evidence produced where `.git` is available.
+
 ```
 IMPL=c8b3ac24b839d7b19c40979a9e4be859151dbab7          # ADR-0043 implementation baseline (fixed)
 
 git fetch --prune origin
 
-# The reviewed main commit APPROVED for this attempt, resolved AFTER fetch. Preferred form below.
-# Stronger form when the exact SHA is approved BEFORE provisioning — require it explicitly:
-#   DEPLOYED="${ADR0043_APPROVED_DEPLOYED_SHA:?must be set}"; git cat-file -e "$DEPLOYED^{commit}"
-DEPLOYED="$(git rev-parse origin/main)"
+# The reviewed commit APPROVED for this attempt — pinned EXPLICITLY, never the moving origin/main tip.
+# `main` can (and does) advance past the approved revision after approval: e.g. #457 (ADR 0044) landed
+# 24 apps/** changes on top of the approved ADR-0043 docs-only tip. A governed loss-control deploy must
+# pin the exact SHA so an unrelated, separately-reviewed feature cannot ride into the ENFORCE box.
+DEPLOYED="${ADR0043_APPROVED_DEPLOYED_SHA:?set to the explicit approved SHA — do not use origin/main}"
+git cat-file -e "$DEPLOYED^{commit}"                  # the approved commit must exist locally
 printf 'approved deployed revision: %s\n' "$DEPLOYED"
 
 git checkout --detach "$DEPLOYED"                      # detached: local main cannot drift after approval
@@ -156,11 +174,11 @@ printf '%s\n' \
   git diff --name-only "$IMPL" "$DEPLOYED"; } > "$EVIDENCE_DIR/git_state.txt"
 ```
 
-Confirm the running backend image corresponds to the deployed repository revision (§A3).
-`ADR0043_COMMIT_SHA="$(git rev-parse HEAD)"` therefore records the **deployed** commit (not the
-implementation baseline) — both values are preserved.
+Confirm the running backend image corresponds to the deployed repository revision (§A3). In the
+**A2-checkout** model `ADR0043_COMMIT_SHA="$(git rev-parse HEAD)"` records the **deployed** commit (not
+the implementation baseline) — both values are preserved.
 
-**STOP** if:
+**STOP** (A2-checkout) if:
 - `DEPLOYED` was captured from the pre-fetch `HEAD` rather than resolved after fetch (the equality check
   must not be self-satisfied);
 - `HEAD` is not the approved deployed repository commit (`$DEPLOYED`);
@@ -169,6 +187,49 @@ implementation baseline) — both values are preserved.
   (executable-application, migration, configuration, dependency, deployment, or unrelated-doc change);
 - the working tree is dirty (unreviewed deployment overrides);
 - the running backend image cannot be tied to the approved deployed revision.
+
+### A2-archive gate (box has no `.git` — the paper-stack default)
+
+Build the stamped archive on the **build machine** (where `.git` exists) and record its evidence:
+
+```
+# On the build machine — pass the EXPLICIT approved SHA, never origin/main (main drifts past approval):
+deploy/aws/build-deploy-archive.sh "$ADR0043_APPROVED_DEPLOYED_SHA" dist
+#   → prints deployed_repository_commit, IMPL ancestry=verified, application_code_unchanged=true
+#     (no apps/** delta), archive_sha256; embeds DEPLOYED_BUILD_INFO.json at the archive root.
+#   → REFUSES (exit 3) if the approved SHA carries any apps/** delta from the implementation baseline —
+#     the fail-closed guard that catches an unrelated feature merged after approval.
+aws s3 cp dist/source.tar.gz "s3://<bucket>/bootstrap/code.tgz"
+# Deploy on the ISOLATED validation box with ambient ENFORCE:
+LOSS_CONTROL_MODE=ENFORCE bash deploy/aws/provision-from-s3.sh
+```
+
+Then verify **on the box** (read-only), recording each into `$EVIDENCE_DIR`:
+
+```
+COMPOSE="sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+# 1) marker present + approved source commit
+cat /opt/workbench/app/DEPLOYED_BUILD_INFO.json                       # deployed_repository_commit == approved DEPLOYED
+# 2) archive digest matches the recorded build digest
+sha256sum /tmp/code.tgz                                               # == archive_sha256 from the build machine
+# 3) loss-control code present on host AND inside the container
+test -d /opt/workbench/app/apps/backend/app/risk/loss_control
+$COMPOSE exec -T backend sh -lc 'test -d app/risk/loss_control && echo loss_control_present'
+# 4) reviewed docs present in the deployed tree
+test -f /opt/workbench/app/docs/runbook/ADR0043_Live_Canary_Runbook.md
+# 5) running image digest recorded + tied to THIS deploy (image created ≥ archive built_at_utc)
+BACKEND_CID=$($COMPOSE ps -q backend)
+sudo docker inspect "$BACKEND_CID" --format='image={{.Image}} created via image_inspect'
+export ADR0043_COMMIT_SHA="$(python3 -c 'import json;print(json.load(open("/opt/workbench/app/DEPLOYED_BUILD_INFO.json"))["deployed_repository_commit"])')"
+```
+
+**STOP** (A2-archive) if: `DEPLOYED_BUILD_INFO.json` is absent; `deployed_repository_commit` ≠ the approved
+`DEPLOYED`; the on-box archive SHA-256 ≠ the recorded build digest; `implementation_ancestry` ≠ `verified`
+or `application_code_unchanged` ≠ `true` in the marker; the `loss_control` package is missing on the host or
+inside the container; the reviewed docs are absent; or the running backend image cannot be tied to this
+archive (image `created` predates the archive `built_at_utc`, or the image is a stale reused tag). The
+lineage proof itself (`rev-parse`/`merge-base`/`diff`) is the build-machine step above — **do not** attempt
+`git rev-parse` on the box; there is no `.git`.
 
 ## A3. Record instance / image / config / migration provenance
 
@@ -438,8 +499,10 @@ from Phase-0-start — orders/events were written; recorded, not required equal)
 
 The canary command injects `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE` into the single execution; the manifest
 requires refusal under OFF/SHADOW. Confirm the command receives exactly `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE`
-and `ADR0043_COMMIT_SHA="$(git rev-parse HEAD)"` (the deployed repository commit `$DEPLOYED`). **Do not**
-globally flip every environment to ENFORCE unless separately reviewed.
+and the **`$ADR0043_COMMIT_SHA` established in §A2** (the deployed repository commit `$DEPLOYED`): from
+`git rev-parse HEAD` in the checkout model, or from `DEPLOYED_BUILD_INFO.json`'s `deployed_repository_commit`
+in the archive model — **not** a fresh `git rev-parse` on a box that has no `.git`. **Do not** globally flip
+every environment to ENFORCE unless separately reviewed.
 
 ## C. Immediate pre-canary confirmation (read-only)
 
@@ -454,14 +517,16 @@ cannot legitimately manufacture the precondition — the harness treats it as a 
 Record a pre-run UTC boundary and full backend logs (`_before`); record current **max ids** for the
 decision ledger, control events, recovery preflights, preflight checks, orders (run anchors). Start
 `script -q -f "/tmp/${ADR0043_RUN_ID}_terminal.log"`; inside it print `date -u`, `hostname`,
-`git rev-parse HEAD`, `$COMPOSE ps`. **Do not edit the transcript; hash the original.**
+`echo "$ADR0043_COMMIT_SHA"` (the §A2 value — `git rev-parse HEAD` only in the checkout model; on a
+no-`.git` archive box print the marker value, not a failing `rev-parse`), `$COMPOSE ps`. **Do not edit the
+transcript; hash the original.**
 
 ## E. Run exactly the manifest command
 
 ```
 sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml exec \
   -e WORKBENCH_LOSS_CONTROL_MODE=ENFORCE \
-  -e ADR0043_COMMIT_SHA="$(git rev-parse HEAD)" \
+  -e ADR0043_COMMIT_SHA="$ADR0043_COMMIT_SHA" \
   -e ADR0043_IMAGE_DIGEST="$BACKEND_IMAGE_DIGEST" \
   -e ADR0043_USER="$ADR0043_USER" \
   -e ADR0043_ACCOUNT="$ADR0043_ACCOUNT" \
