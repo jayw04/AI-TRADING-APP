@@ -1,0 +1,285 @@
+{
+  "acceptance_standard_unchanged": {
+    "asserted": true,
+    "statement": "the EvaluatorQualificationPlan SS5 standard was not modified after examining the P3 result; no gate, threshold, sample, or trial rule was touched"
+  },
+  "boundary": "Validation and OOS remain SEALED AND UNREAD; validation_authorization=false; the single validation opening remains unconsumed; OOS under DENY.",
+  "outstanding_prerequisites_not_addressed_here": [
+    "P5 SS4 pre-access evaluator binding (commit/tree/container)",
+    "P6-P9 custodian seal and structural evidence",
+    "P10 runtime instance",
+    "P11 access-control preconditions",
+    "P13 DSR trial dispersion (Phase 3C)"
+  ],
+  "p3_evaluation": {
+    "all_checks_pass": true,
+    "check_count": 16,
+    "record": "MR002_P3_AcceptanceRecord.json",
+    "verdict": "ACCEPT_AS_COMPLIANT"
+  },
+  "prerequisite": "P4 (EvaluatorQualificationPlan SS5 consolidated acceptance submission)",
+  "record_type": "MR002_EvaluatorAcceptanceSubmission",
+  "scope": "consolidated Workstream-B return across Increments 1-4; evaluation of the P3 evidence; NO P5 binding, NO P10, NO validation/OOS access, NO performance",
+  "section5_elements": {
+    "container_and_dependency_identity": {
+      "container_image_digest": "ABSENT - produced by the runtime producer under P10",
+      "dependency_lock": "MR002_Increment1_Dependencies.json",
+      "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
+      "numeric_runtime": "reference observation only; not a bound instance"
+    },
+    "determinism_proof": {
+      "increment_1": {
+        "byte_identical": true,
+        "run1_hash": "a68ca21bbcfb16a8ee40c75ac72f05e8c35126d497b76ce2d12d478cc5e8ce95",
+        "run2_hash": "a68ca21bbcfb16a8ee40c75ac72f05e8c35126d497b76ce2d12d478cc5e8ce95"
+      },
+      "increment_3": {
+        "byte_identical": true,
+        "run1_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+        "run2_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907"
+      },
+      "increment_4": {
+        "byte_identical": true,
+        "publication_run1": "6340c9bcae82bbcb758fcce98f5e5f91cb262dc50dcbc2d865d2c05a82cec8fa",
+        "publication_run2": "6340c9bcae82bbcb758fcce98f5e5f91cb262dc50dcbc2d865d2c05a82cec8fa"
+      }
+    },
+    "diagnostics_non_gating": {
+      "all_classified_non_gating": true,
+      "present": [
+        "annual_herfindahl",
+        "pbo",
+        "positive_pnl_regime_concentration",
+        "severe_cost_stress"
+      ],
+      "required": [
+        "annual_herfindahl",
+        "pbo",
+        "positive_pnl_regime_concentration",
+        "severe_cost_stress"
+      ]
+    },
+    "evaluator_code_identities": {
+      "commit_tree_container": "PENDING_EVALUATOR_BIND - authoritative binding is P5 via the registered SS4 procedure; NOT resolved here",
+      "inventory_digest": "67dc75c91829b512ee332dd269836566fa0a86cb7a9b0c61c78bec8e755d645d",
+      "module_count": 19,
+      "modules": {
+        "mr002_valoos_access_boundary.py": "f5c1e6641237a30dfe2c3bb18eac7180534736cb31887e4c425452acba34330d",
+        "mr002_valoos_candidates.py": "5e429c37af40b6913289b716051e36aaab55015e71087c44fab04815b8d2386c",
+        "mr002_valoos_code_identity.py": "6ffb1d6748cb4db48a3e69342b597dbae6ad59f0495a80b3fcf21b308280f098",
+        "mr002_valoos_construction.py": "e6af4eea60099b97663fd603da35d10d5bf9021ef2ac16b7d267f9fc3be601b3",
+        "mr002_valoos_costmodel.py": "b40fb1a4f4418edb27f3f0de5477228e7b36de1f47f561cf142dc19185047050",
+        "mr002_valoos_execution.py": "6249dee5a7a2dd9468c055ff8b626d4f64d675615aaf8923b3417aa34a0674d1",
+        "mr002_valoos_exposure.py": "5d18a45706e47dfceefafd5236928094714f64566931103dfd04f539a7f552bc",
+        "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
+        "mr002_valoos_identity.py": "36eb44741c2bf5ede80688d6527a0d89fdfa5ac1f37b44fc61341ac3aab701b1",
+        "mr002_valoos_metrics.py": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
+        "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
+        "mr002_valoos_pipeline.py": "5e71ea392e728378d6d1004ff42de87fdfb4e9b5a94e5210c71c754441c6ae1d",
+        "mr002_valoos_portfolio_identity.py": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
+        "mr002_valoos_portfolio_state.py": "7129c11e832691b39abb9983b21b13ed2b4ce9c61e3316e329fc1052012a5d34",
+        "mr002_valoos_publication.py": "e3c67d57a61b05016daa7995f32f25b00a1c54f70d6a3962d0f115ab74bb5028",
+        "mr002_valoos_registry.py": "8fc8c1af19ef03a21387f5680d4959a952dbc9d1c53a352560deba8d5697add7",
+        "mr002_valoos_replay.py": "1d386de684348d7977e2147ab2f7f01b6e6fe17deaa739769550254648dca0a8",
+        "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+        "mr002_valoos_runtime.py": "2635a52b3daa06e8c26a850c70b83efe1fd3903b2b35055441746b2f5ae0e5b0"
+      }
+    },
+    "gate_fixture_results": {
+      "gates_with_synthetic_result": 22,
+      "missing": [],
+      "required_gate_count": 22,
+      "results": {
+        "annual_largest_positive_year_fraction": {
+          "sample": "validation+OOS_combined",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.5,
+            "exact_hex": "0x1.0000000000000p-1"
+          }
+        },
+        "annual_positive_years": {
+          "sample": "validation+OOS_combined",
+          "status": "PASS",
+          "threshold": 3
+        },
+        "bootstrap_mean_lower_bound": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          }
+        },
+        "breadth_completed_trades": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": 500
+        },
+        "breadth_distinct_entry_dates": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": 100
+        },
+        "breadth_long_trades": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": 100
+        },
+        "breadth_short_trades": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": 100
+        },
+        "capacity": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          }
+        },
+        "combined_max_drawdown": {
+          "sample": "validation+OOS_combined",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.15,
+            "exact_hex": "0x1.3333333333333p-3"
+          }
+        },
+        "cost_stress": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          }
+        },
+        "deflated_sharpe": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.95,
+            "exact_hex": "0x1.e666666666666p-1"
+          }
+        },
+        "net_annualized_return": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.03,
+            "exact_hex": "0x1.eb851eb851eb8p-6"
+          }
+        },
+        "net_calmar": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.75,
+            "exact_hex": "0x1.8000000000000p-1"
+          }
+        },
+        "net_sharpe": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.7,
+            "exact_hex": "0x1.6666666666666p-1"
+          }
+        },
+        "parameter_stability_A": {
+          "sample": "validation",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          }
+        },
+        "parameter_stability_C": {
+          "sample": "validation",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.0,
+            "exact_hex": "0x0.0p+0"
+          }
+        },
+        "positive_validation_folds": {
+          "sample": "validation",
+          "status": "PASS",
+          "threshold": 3
+        },
+        "trade_concentration_single_stock": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.1,
+            "exact_hex": "0x1.999999999999ap-4"
+          }
+        },
+        "trade_concentration_top10": {
+          "sample": "sealed_OOS",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.2,
+            "exact_hex": "0x1.999999999999ap-3"
+          }
+        },
+        "trend_regime_loss_concentration": {
+          "sample": "validation+OOS_combined",
+          "status": "PASS",
+          "threshold": {
+            "display": 0.6,
+            "exact_hex": "0x1.3333333333333p-1"
+          }
+        },
+        "trend_regimes_positive_count": {
+          "sample": "validation+OOS_combined",
+          "status": "PASS",
+          "threshold": 2
+        },
+        "volatility_regime_floor": {
+          "sample": "validation+OOS_combined",
+          "status": "PASS",
+          "threshold": {
+            "display": -0.5,
+            "exact_hex": "-0x1.0000000000000p-1"
+          }
+        }
+      }
+    },
+    "refusal_test_evidence": {
+      "access_boundary": "Increment 4 T4-18..T4-29 (authorization false, OOS unconditional, stale digest, rev mismatch, unregistered, malformed state)",
+      "code_identity": "Increment 4 T4-11..T4-17 (drift, missing, unbound, commit/tree/container mismatch, absent binding)",
+      "governing_identity_chain": "Increment 1 semantic-tamper suite (ledger N, prereg N, dispersion cross-binding, id set, bool-as-int)",
+      "publication": "Increment 4 T4-31..T4-37 (occupied destination, exit disagreement, missing identity, second publication)",
+      "runtime_identity": "Increment 4 T4-05..T4-08 (placeholder, field drift, thread env)"
+    },
+    "report_schema": {
+      "module": "mr002_valoos_report.py",
+      "publication_wrapper": "mr002_valoos_publication.py (no-overwrite, exit/disposition agreement, read-only locks)",
+      "schema_version": "increment1-v1.2-synthetic",
+      "self_hash_verifies": true
+    },
+    "synthetic_end_to_end_evidence": {
+      "increment_1_canonical_report_hash": "a68ca21bbcfb16a8ee40c75ac72f05e8c35126d497b76ce2d12d478cc5e8ce95",
+      "increment_2_ledger_report_hash": "633710fba21d68d3e0a67a4fdb84b837a1febfc3023378745475ba708b5f8b14",
+      "increment_3_replay_report_hash": "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907",
+      "increment_4_access_boundary_report": "c40db71400d6272d39e036eae93342ffe0379e05fb46d8bb50cda40a90813684"
+    },
+    "trials_N_read_from_bound_identity": {
+      "N": 5,
+      "evidence": "V14 re-derived here; Increment-1 test_01/test_05 in the suite",
+      "no_code_constant_fallback": true,
+      "source": "MR002_DSR_TrialLedger_v1.0.json (deda5cec...) via load_governing_identity",
+      "tampered_N_fails_closed": true
+    },
+    "zero_performance_confirmation": {
+      "development_performance_computed": false,
+      "oos_data_read": false,
+      "sealed_reads": 0,
+      "synthetic_fixture_only": true,
+      "validation_data_read": false
+    }
+  },
+  "version": "1.0"
+}

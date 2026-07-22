@@ -1,0 +1,254 @@
+{
+  "bound_commits": {
+    "finding": "c726ede3adeff2e1dd999b37353cda8b80675b9a",
+    "increment": "9ecae4ee3f6c5e41753fd7871a8e4526fe3abc3d"
+  },
+  "bound_evidence_digests": {
+    "MR002_Increment4_AccessBoundaryReport.json": "c40db71400d6272d39e036eae93342ffe0379e05fb46d8bb50cda40a90813684",
+    "MR002_Increment4_Qualification.json": "87ab78b6974cdc13a486cd2f05a296700076de714060d5e5caeda04723dc21a4",
+    "MR002_Increment4_TestLog.txt": "a09223468b6a1dbebcc58ef2a3f776d01e7853e06d35a65f7203f81abcc5fe01",
+    "_gen_evidence_p4.py": "ad8bddd81d7493fc58d552a80adc3d42c775e445b5a31c50c9b7707b097b9f97",
+    "mr002_valoos_access_boundary.py": "f5c1e6641237a30dfe2c3bb18eac7180534736cb31887e4c425452acba34330d",
+    "mr002_valoos_code_identity.py": "6ffb1d6748cb4db48a3e69342b597dbae6ad59f0495a80b3fcf21b308280f098",
+    "mr002_valoos_publication.py": "e3c67d57a61b05016daa7995f32f25b00a1c54f70d6a3962d0f115ab74bb5028",
+    "mr002_valoos_runtime.py": "2635a52b3daa06e8c26a850c70b83efe1fd3903b2b35055441746b2f5ae0e5b0",
+    "test_increment4.py": "72548f158da9197bf79e7e33f8a0deb4113da2ab07c772d0a9200142dd3832d2"
+  },
+  "boundary": "No validation or OOS access, no credential release, no performance, no P5 qualification, no evaluator binding resolution, no P10, no acceptance-standard change. validation_authorization remains false.",
+  "cas_anchor_effect": {
+    "adjudicated_prerequisite_digest": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6",
+    "anchor_modified": false,
+    "grant_capable_field_present": false,
+    "note": "the prospective digest is illustrative of the mechanism, not a future constant: the D3 submission must recompute the digest from the THEN-current register version, which will also reflect P4-P11",
+    "prospective_prerequisite_digest_if_only_P3_transitions": "914dcfd7511255d0a355bda26a65f5d111963d566ab6fd93a0ad032f2b601a90",
+    "rule": "this record cannot make the stale anchor grant-capable; a status change only feeds a NEW prerequisite digest for a later, separately adjudicated submission"
+  },
+  "explicit_exclusions_and_unresolved_fields": {
+    "P10_runtime_instance": "UNSATISFIED - workstation observation is a reference only; missing ['dependency_lockfile_sha256', 'container_image_digest']",
+    "PENDING_EVALUATOR_BIND": "UNRESOLVED - ['commit', 'container_image_digest', 'tree'] remain sentinels; P5's SS4 procedure",
+    "not_performed": [
+      "validation/OOS access",
+      "credential release",
+      "performance computation",
+      "production of P13",
+      "resolution of PENDING_EVALUATOR_BIND (P5)",
+      "custodian seal evidence (P6-P9, P11)",
+      "runtime instance (P10)",
+      "SS5 acceptance submission (P4)",
+      "any D3 grant or readiness conclusion"
+    ]
+  },
+  "operational_modules": {
+    "mr002_valoos_access_boundary.py": "single read path; validation gated, OOS unconditionally denied, hash-chained opened-object ledger",
+    "mr002_valoos_code_identity.py": "pre-read code identity; REFUSED_CODE_OR_DATA_IDENTITY on drift/missing/unbound/mismatch/absent binding",
+    "mr002_valoos_publication.py": "exclusive-create publication, exit/disposition agreement, read-only locks and hashes",
+    "mr002_valoos_runtime.py": "numeric-runtime identity; FAIL-STOP on mismatch; rejects placeholder completion"
+  },
+  "phase3a_registry_finding": {
+    "C9_evaluation_rule": "D3 condition C9 must be evaluated against the accepted P5 binding and the then-current-tree recomputation, never by comparing the current tree to the historical Phase 3A registry",
+    "CORRECTION_to_P3_submission_section6": {
+      "defect": "the figure added the 4 new modules to Phase 3A's 21, but that 21 was counted under a DIFFERENT rule (all .py, tests and generators included); the two counts are not like-for-like",
+      "mechanically_derived_truth": {
+        "all_py_files_at_phase3a": 21,
+        "all_py_files_now": 29,
+        "section4_modules_at_phase3a": 15,
+        "section4_modules_now": 19
+      },
+      "p3_submission_asserted": "21 -> 25 modules under the SS4 rule",
+      "status": "the P3 submission text is left UNMODIFIED (it was adjudicated); this record is the corrigendum",
+      "unchanged_conclusions": "the SUBSTANCE of the SS6 finding stands: zero drift on every Phase-3A-bound file, new files present, the Phase 3A registry is historical, and P5 must enumerate the then-current inventory. Only the numeral was wrong"
+    },
+    "current_all_py_file_count": 29,
+    "interpretation": "the Phase 3A evaluator registry is HISTORICAL for its sealed commit and is NOT the future P5 qualification binding",
+    "newly_present_since_phase3a": [
+      "_gen_evidence_inc4.py",
+      "_gen_evidence_p4.py",
+      "mr002_valoos_access_boundary.py",
+      "mr002_valoos_code_identity.py",
+      "mr002_valoos_publication.py",
+      "mr002_valoos_runtime.py",
+      "test_increment4.py",
+      "test_p4_acceptance.py"
+    ],
+    "phase3a_bound_file_count": 21,
+    "phase3a_bound_files_drifted": 0,
+    "phase3a_rule": "Phase 3A bound EVERY .py file in the evaluator directory - tests and generators INCLUDED",
+    "section4_inventory_at_phase3a": 15,
+    "section4_inventory_derivation": "mechanically enumerated; NOT a hard-coded count",
+    "section4_inventory_now": 19,
+    "section4_rule": "the SS4 module inventory EXCLUDES tests and generators (CI.module_digests)"
+  },
+  "prerequisite": "P3 (evaluator operational increment)",
+  "produced_under": "owner adjudication 2026-07-22 (D2 AUTHORIZED WITH RESTRICTIONS) and the P3 adjudication authorizing P4 only",
+  "record_type": "MR002_P3_AcceptanceRecord",
+  "status_transition": {
+    "applied_here": false,
+    "effective": "ON OWNER ADJUDICATION OF P4 - not on the existence of this record",
+    "from": "PRODUCED",
+    "to": "SATISFIED"
+  },
+  "test_inventory": {
+    "full_evaluator_suite": "189 passed (Increment 1: 59, Increment 2: 35, Increment 3: 34, Increment 4: 61)",
+    "increment_4": {
+      "count": 61,
+      "file": "test_increment4.py",
+      "result": "61 passed (T4-01..T4-41 incl. parametrized cases)"
+    },
+    "log": "MR002_Increment4_TestLog.txt"
+  },
+  "verdict": "ACCEPT_AS_COMPLIANT",
+  "verification_all_pass": true,
+  "verification_findings": [
+    {
+      "check": "V1.increment",
+      "description": "commit 9ecae4e exists and is an ancestor of HEAD",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V1.finding",
+      "description": "commit c726ede exists and is an ancestor of HEAD",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V2",
+      "description": "the four P3 modules' committed digests equal the working-tree digests",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V3",
+      "description": "digests claimed by the P3 qualification record reproduce independently",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V4",
+      "description": "denial chain re-derives: 4 refusals, zero sealed reads, chain verifies",
+      "detail": {
+        "attempts": 4,
+        "blocked": 4,
+        "blocked_by_reason": {
+          "oos_denied_requires_separate_authorization": 1,
+          "unregistered_object": 1,
+          "validation_authorization_false": 2
+        },
+        "oos_reads": 0,
+        "permitted": 0,
+        "sealed_reads": 0,
+        "validation_reads": 0
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "V5",
+      "description": "a stale prerequisite digest blocks validation even when the flag reads true",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V6",
+      "description": "the workstation runtime is still NOT a bound runtime instance (P10 unsatisfied)",
+      "detail": [
+        "dependency_lockfile_sha256",
+        "container_image_digest"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "V7",
+      "description": "commit/tree/container remain PENDING_EVALUATOR_BIND (P5 not begun)",
+      "detail": [
+        "commit",
+        "container_image_digest",
+        "tree"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "V8",
+      "description": "Phase 3A and the adjudication packages are unmodified since the adjudication commit",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V9",
+      "description": "the CAS anchor is byte-identical to its adjudicated form",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V10",
+      "description": "the CAS anchor still records validation_authorization=false at _rev 0",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V11",
+      "description": "no Phase-3A-bound evaluator file drifted (compared under Phase 3A's own rule)",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V11b",
+      "description": "the SS4 inventory is derived mechanically and is NOT the 25 asserted in the P3 submission",
+      "detail": {
+        "new_modules": 4,
+        "section4_at_phase3a": 15,
+        "section4_now": 19
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "V12",
+      "description": "every required gate has a synthetic-fixture result in the canonical report",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V13",
+      "description": "every required diagnostic is present and classified non-gating",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "V14",
+      "description": "trials_N=5 is read from the countersigned ledger and a tampered N fails closed",
+      "detail": null,
+      "result": "PASS"
+    }
+  ],
+  "verification_method": "INDEPENDENT RE-DERIVATION from committed git objects and live re-execution of the boundary; the P3 submission's own assertions were not taken as evidence of themselves",
+  "version": "1.0",
+  "zero_read_denial_chain": {
+    "attempts": [
+      {
+        "partition": "VALIDATION",
+        "reason": "validation_authorization_false",
+        "refused": true
+      },
+      {
+        "partition": "OOS",
+        "reason": "oos_denied_requires_separate_authorization",
+        "refused": true
+      },
+      {
+        "partition": "VALIDATION",
+        "reason": "validation_authorization_false",
+        "refused": true
+      },
+      {
+        "partition": "SYNTHETIC",
+        "reason": "unregistered_object",
+        "refused": true
+      }
+    ],
+    "chain_verifies": true,
+    "oos_reads": 0,
+    "re_derived": true,
+    "sealed_reads": 0,
+    "stale_digest_blocks_validation": true,
+    "validation_reads": 0
+  }
+}
