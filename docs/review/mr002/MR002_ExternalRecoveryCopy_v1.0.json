@@ -1,0 +1,144 @@
+{
+  "archive": {
+    "filename": "mr002-evaluator-p5-recovery.tar",
+    "format": "OCI image layout, GNU tar, uncompressed",
+    "object_count": 13,
+    "self_contained": true,
+    "size_bytes": 44410880
+  },
+  "boundaries": {
+    "accessed_validation_or_oos": false,
+    "applied_proposed_iam_role": false,
+    "contains_secrets": false,
+    "enabled_object_lock": false,
+    "implements_requirement_7": false,
+    "modified_custody_repository": false
+  },
+  "created_at": "2026-07-22T17:44:51.178547+00:00",
+  "inventory": [
+    {
+      "digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+      "kind": "index",
+      "media_type": "application/vnd.oci.image.index.v1+json",
+      "role": "GOVERNING bound object",
+      "size": 856
+    },
+    {
+      "digest": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "kind": "manifest",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "role": "runtime image manifest",
+      "size": 1621
+    },
+    {
+      "belongs_to": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "digest": "sha256:6962e4a78792cfbd36f999967a3cfaa26f0d8b1dc8d9ee27403ca4be8556a746",
+      "kind": "config",
+      "media_type": "application/vnd.oci.image.config.v1+json",
+      "size": 6454
+    },
+    {
+      "belongs_to": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "digest": "sha256:68629629b516c3cd6f5e71ffbe18e32afb1ae5b4926c92d058c0f11ef1fd58a3",
+      "kind": "layer",
+      "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 28237639
+    },
+    {
+      "belongs_to": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "digest": "sha256:0e26001d5620dfc2698f3a683c497e1cabdcc4757f4ca4ff70e33cb36057df02",
+      "kind": "layer",
+      "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 3520812
+    },
+    {
+      "belongs_to": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "digest": "sha256:c90b26812a028bfa582bede756e645cf91fe9d05f2991b0862d719a003cce5ed",
+      "kind": "layer",
+      "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 12570253
+    },
+    {
+      "belongs_to": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "digest": "sha256:d229a71b9e515d634cb7f17b8bfe71586ed1282edbcfb81faaca1aebd0ed028b",
+      "kind": "layer",
+      "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 251
+    },
+    {
+      "belongs_to": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "digest": "sha256:d50c558685e87fd7ea981d5edaa19c65485fec895c7551354ddf00a5792d4e15",
+      "kind": "layer",
+      "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 51733
+    },
+    {
+      "belongs_to": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "digest": "sha256:8830d7c649a248c4bbf80303b4565be39c62e741050fce9b65514193ee4a25b3",
+      "kind": "layer",
+      "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 1158
+    },
+    {
+      "belongs_to": "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+      "kind": "layer",
+      "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 32
+    },
+    {
+      "digest": "sha256:b81cd073e34445ec31f2bffff0bb1345c6ccc31940c20a29fb7d9987915ae7cc",
+      "kind": "manifest",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "unknown/unknown",
+      "role": "attestation manifest",
+      "size": 564
+    },
+    {
+      "belongs_to": "sha256:b81cd073e34445ec31f2bffff0bb1345c6ccc31940c20a29fb7d9987915ae7cc",
+      "digest": "sha256:c1ae7d30bf2b5465400963e6959a82cbb70098ff80b58395a9d55ccf0f0fceb0",
+      "kind": "config",
+      "media_type": "application/vnd.oci.image.config.v1+json",
+      "size": 167
+    },
+    {
+      "belongs_to": "sha256:b81cd073e34445ec31f2bffff0bb1345c6ccc31940c20a29fb7d9987915ae7cc",
+      "digest": "sha256:4eddc7366c8c5620c041725796d4887bf840068051706ec1bf69d16f9d759464",
+      "kind": "layer",
+      "media_type": "application/vnd.in-toto+json",
+      "size": 1311
+    }
+  ],
+  "owner_actions_still_required": [
+    "encrypt the archive at rest on the destination medium",
+    "write to genuinely independent removable media",
+    "record media identifier, custodian, and review cadence in the custody record",
+    "confirm the medium is normally disconnected",
+    "confirm the staging copy is deleted or accepted as a second online copy"
+  ],
+  "record_type": "MR002_ExternalRecoveryCopy",
+  "restore_test": {
+    "archive_top_level_digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+    "blob_digest_mismatches": [],
+    "objects_expected": 13,
+    "objects_in_archive": 13,
+    "objects_missing": [],
+    "objects_unreachable_from_index": [],
+    "top_level_matches_binding": true,
+    "verdict": "PASS"
+  },
+  "scope": "external offline recovery copy of the P5-bound evaluator image; NOT an execution gate, NOT a Requirement 7 resolver, authorizes nothing",
+  "source": {
+    "local_daemon_trusted": false,
+    "rebuild_performed": false,
+    "registry": "219024422756.dkr.ecr.us-east-1.amazonaws.com/mr002-evaluator-p5",
+    "retrieved_by": "digest, with every manifest and blob verified against its own sha256 at download time"
+  },
+  "two_level_identity": {
+    "note": "the INNER index is the governing identity; the outer archive hash identifies this particular packaging and is NOT the binding",
+    "semantic_identity_inner_oci_index": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+    "wrapper_identity_outer_archive_sha256": "sha256:c3cf3b9e3cb1f5a5ce94f79ede72163ab1389803fbd3f0dfc91d8744604f9f8a"
+  },
+  "version": "1.0"
+}
