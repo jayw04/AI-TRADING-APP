@@ -11,9 +11,15 @@
 | sep content digest | `d9472dfe…` ✓ re‑verified (30.7M rows) |
 | tickers content digest | `2f21b154…` ✓ re‑verified |
 | universe_id | `momentum_daily_stage2_4:top200_PIT_universe_asof_n200` |
-| **working_tree_clean** | **FALSE — see caveat below** |
+| **working_tree_clean** | **FALSE — `PROVENANCE_ACCEPTED_WITH_OPERATIONAL_CLEANLINESS_EXCEPTION`** (owner adjudication 2026‑07‑22) |
 
-**⚠ working_tree_clean = FALSE caveat.** The manifest snapshot recorded a dirty tree **only because the run's own `census_execution.log` + `.census_pid` were written into the tracked `docs/…/drift_audit/` directory before the manifest was computed.** It is **not uncommitted code** — the measurement code was committed and clean at `29b9c2c` (verified), and the data digests re‑verified. This is a provenance‑reporting flaw in the run harnessing, not a code‑integrity issue. **Adjudication needed:** accept with this disclosure, or require a clean re‑run (log/pid to a non‑tracked path → working_tree_clean=TRUE; ~57 min).
+**Provenance status — `PROVENANCE_ACCEPTED_WITH_OPERATIONAL_CLEANLINESS_EXCEPTION` (accepted with disclosure; no clean rerun required).** The manifest recorded working_tree_clean=FALSE **only because the census process wrote its own PID and execution log into a tracked output location before the pre‑run cleanliness snapshot. The dirty‑tree flag does NOT indicate modified measurement code.** Basis for acceptance: the measurement code was committed *before* execution and pinned to `29b9c2c`; the comparison core, driver, replica extractor, and settlement logic were verified **byte‑identical** to the countersigned implementation; all input digests were **revalidated fail‑closed** before the run; and the output package is complete and SHA‑bound. **A clean rerun was NOT required** because the measurement code and input bindings were independently fixed and verified.
+
+Exact dirty paths (present at the manifest snapshot) + hashes:
+- `docs/review/momentum_daily/drift_audit/census_execution.log` — 1350 B — `c0e7fee2c9895b4b3bb6b55c975e2289dfcc6688563f38ee2a80db5123353a71`
+- `docs/review/momentum_daily/drift_audit/.census_pid` — 4 B — `167918ace289465acd4dd6ab6587fe10bfe54bc475ad8074b049ac358f98f9e2`
+
+*Future‑run correction: write PID files and execution logs OUTSIDE tracked directories (or ignore them before the pre‑run cleanliness snapshot).*
 
 **Artifact SHA‑256 (all produced + hashed):**
 | artifact | bytes | sha256 |
@@ -52,11 +58,38 @@ first_eligible_date identical ✓ · first_trade_date identical ✓ · initial_t
 
 **Weights:** median max‑per‑name diff **33 bps** (p95 155 bps) — far above the §8 1 bp band. This is the genuine, by‑construction gap: **production uses equal‑weight sizing; the validation (Stage 3 winner `N5_hybrid_nocap`, Stage 4) used `hybrid_50_50` inverse‑vol.** Same names, materially different weights.
 
-## 6. Equivalence conclusion (for your adjudication)
+## 6. Equivalence conclusion
 
-- **Selection + inception: EQUIVALENT** — production picks the same names, same order, same day‑1 inception as the validated strategy.
-- **Sizing: MATERIALLY DIFFERENT** — production equal‑weight vs validated hybrid inverse‑vol (~33 bps/name median). The validation's *performance* evidence was generated under hybrid sizing, not the production equal‑weight; **this is the primary equivalence gap.**
-- **Rebalance trigger: holdings‑neutral difference** — production rebalances more (weight‑drift maintenance) but to the same names; comparable turnover.
-- **Regime warm‑up (Phase 1) + 86 Phase‑2 regime residuals:** methodology artifacts of the disclosed SPY‑proxy substitution, not production behavior.
+- **Selection + inception: EQUIVALENT** — production picks the same names, same order, same day‑1 inception. This closes the original cold‑start and target‑selection equivalence questions. **Production is selection‑ and inception‑equivalent, NOT strategy‑equivalent overall.**
+- **Sizing: MATERIAL and PERFORMANCE‑EVIDENCE‑BREAKING** — production equal‑weight vs validated `hybrid_50_50` inverse‑vol (5,150/5,196 governing sessions, median ~33 bps/name). Position sizing determines name‑level allocation, portfolio volatility, concentration, turnover, drawdown, return attribution, and exposure under partial‑gross regimes. **The equal‑weight production strategy does NOT inherit the performance evidence established for the hybrid‑weight validated strategy.** The validation proved production selects the same securities; it did NOT validate the portfolio actually proposed for activation.
+- **Rebalance trigger: behaviorally different, holdings‑neutral, not independently activation‑blocking** — production rebalances more (3,192 weight‑drift maintenance days) but to the SAME names (1,485/1,485 identical when both trade); comparable turnover (248.6 vs 252.9). A rebalance‑frequency distinction, not a selection difference. **Once weighting is aligned, re‑check the trigger seam in a focused acceptance test to confirm it remains holdings‑neutral.**
+- **Regime‑gross residual (86 Phase‑2 sessions): documented, conditionally non‑material.** The residual regime‑gross divergence **did not alter selected names in this census, but may alter exposure and performance near regime boundaries** (max band jump 0.45; warmed‑vs‑window proxy). Remains a limitation; no separate resolution required before choosing the sizing path.
+- **Phase 1 (199 warm‑up sessions): `EXPECTED_METHODOLOGY_DIVERGENCE`** — kept visible in the full‑period census, **excluded from the Phase‑2 governing equivalence verdict.**
 
-**A successful run proves the audit executed against the countersigned inputs — not strategy equivalence.** The audit shows production is **selection‑equivalent but sizing‑divergent** vs the validated strategy. Whether the equal‑weight production config inherits the hybrid‑validated evidence is the material question for adjudication; the trigger‑frequency and regime‑warm‑up items appear immaterial to holdings.
+## 7. Final adjudication (owner, 2026‑07‑22)
+
+```
+PROVENANCE:                       ACCEPTED WITH DISCLOSURE
+                                  (PROVENANCE_ACCEPTED_WITH_OPERATIONAL_CLEANLINESS_EXCEPTION)
+COLD-START REPAIR:                VALIDATED
+SELECTION EQUIVALENCE:            PASS
+INCEPTION EQUIVALENCE:            PASS
+SIZING EQUIVALENCE:               FAIL — MATERIAL
+PERFORMANCE-EVIDENCE INHERITANCE: NOT ESTABLISHED
+ACCOUNT 4 ACTIVATION:             NOT AUTHORIZED
+```
+
+**Activation blocker (no longer cold‑start — that defect is repaired and the inception path is validated):**
+`PRODUCTION_SIZING_NOT_COVERED_BY_VALIDATED_PERFORMANCE_EVIDENCE`.
+
+**Account 4 remains: strategy 11 PAUSED · operational_hold ACTIVE · cooldown NOT STARTED.**
+
+### Two permissible resolution paths
+
+**Path 1 — align production to the validated weighting (fastest supported route).**
+Set production weighting = Stage 4 `hybrid_50_50`. Then a **focused implementation‑equivalence + operational‑acceptance package** proving: production uses the exact validated weighting function + parameters; target weights match the replica within the registered numeric tolerance; weight mismatches fall to zero (or an explicitly justified numeric‑only level); trigger differences remain holdings‑neutral; lifecycle + one‑shot seed behavior unchanged; **no new full historical strategy search / parameter selection.** This is a NEW implementation + acceptance package — it does **not** rerun or re‑review this census document.
+
+**Path 2 — validate equal weighting as a new strategy variant.**
+A new validation program for the equal‑weight variant (performance, risk, turnover, out‑of‑sample). The hybrid strategy's results cannot be attributed to it merely because the selected names match.
+
+**Recommended next action:** change production weighting to the validated `hybrid_50_50` implementation and prepare the focused activation‑acceptance package (Path 1).
