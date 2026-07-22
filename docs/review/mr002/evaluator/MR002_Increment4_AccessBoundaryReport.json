@@ -1,0 +1,109 @@
+{
+  "attempted_and_refused": [
+    {
+      "code": "VALIDATION:validation_authorization_false",
+      "object_id": "validation/registered_object_placeholder_identity",
+      "partition": "VALIDATION",
+      "refused": true
+    },
+    {
+      "code": "OOS:oos_denied_requires_separate_authorization",
+      "object_id": "oos/registered_object_placeholder_identity",
+      "partition": "OOS",
+      "refused": true
+    },
+    {
+      "code": "VALIDATION:validation_authorization_false",
+      "object_id": "validation/unregistered_identity",
+      "partition": "VALIDATION",
+      "refused": true
+    },
+    {
+      "code": "SYNTHETIC:unregistered_object",
+      "object_id": "synthetic/unregistered_identity",
+      "partition": "SYNTHETIC",
+      "refused": true
+    }
+  ],
+  "authorization_rev": 0,
+  "authorization_state_file": "docs/review/mr002/phase3bc/MR002_Phase3BC_ValidationAuthorizationState_v1.0.json",
+  "authorization_state_sha256": "a11f6e52b21381cba1ccb49feca1f608541d0c9e9e3f4ef57e4bfff6dc0c198e",
+  "boundary": "validation_reads=0, oos_reads=0, sealed_reads=0; no partition value was read",
+  "no_real_object_named": "every registered object identifier is a synthetic placeholder; no validation or OOS object identity is disclosed or resolved here",
+  "record_type": "MR002_Increment4_AccessBoundaryReport",
+  "report": {
+    "authorization_rev": 0,
+    "chain_verifies": true,
+    "counts": {
+      "attempts": 5,
+      "blocked": 4,
+      "blocked_by_reason": {
+        "oos_denied_requires_separate_authorization": 1,
+        "unregistered_object": 1,
+        "validation_authorization_false": 2
+      },
+      "oos_reads": 0,
+      "permitted": 1,
+      "sealed_reads": 0,
+      "validation_reads": 0
+    },
+    "opened_object_ledger": [
+      {
+        "object_id": "validation/registered_object_placeholder_identity",
+        "partition": "VALIDATION",
+        "permitted": false,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "reason": "validation_authorization_false",
+        "row_hash": "cec2e849e1e301c1521ef849933d935a7086f1d96c56b940fdf00825d581f14f",
+        "sequence": 1
+      },
+      {
+        "object_id": "oos/registered_object_placeholder_identity",
+        "partition": "OOS",
+        "permitted": false,
+        "prev_hash": "cec2e849e1e301c1521ef849933d935a7086f1d96c56b940fdf00825d581f14f",
+        "reason": "oos_denied_requires_separate_authorization",
+        "row_hash": "7115e89bc820ba14c772df9ee93636d0f4e7de43f8dd06ed76d94118e4494bd3",
+        "sequence": 2
+      },
+      {
+        "object_id": "validation/unregistered_identity",
+        "partition": "VALIDATION",
+        "permitted": false,
+        "prev_hash": "7115e89bc820ba14c772df9ee93636d0f4e7de43f8dd06ed76d94118e4494bd3",
+        "reason": "validation_authorization_false",
+        "row_hash": "6deb194d32d68955c8724acc8e28927f5165bdf686e2e010caaa444639b75484",
+        "sequence": 3
+      },
+      {
+        "object_id": "synthetic/unregistered_identity",
+        "partition": "SYNTHETIC",
+        "permitted": false,
+        "prev_hash": "6deb194d32d68955c8724acc8e28927f5165bdf686e2e010caaa444639b75484",
+        "reason": "unregistered_object",
+        "row_hash": "c6e17c54a4977db06d523f466f966c55817fab742ef9b2690d7be26b187b49f2",
+        "sequence": 4
+      },
+      {
+        "object_id": "synthetic/increment4_fixture",
+        "partition": "SYNTHETIC",
+        "permitted": true,
+        "prev_hash": "c6e17c54a4977db06d523f466f966c55817fab742ef9b2690d7be26b187b49f2",
+        "reason": "unsealed_partition",
+        "row_hash": "7c9e9266faa3a07d3c61a4337196f6b765a16b6f3e487c9d7eaa600540fd6238",
+        "sequence": 5
+      }
+    ],
+    "record_type": "MR002_Increment4_AccessBoundaryReport",
+    "registered_object_counts": {
+      "OOS": 1,
+      "SYNTHETIC": 1,
+      "VALIDATION": 1
+    },
+    "sealed_reads_zero": true,
+    "validation_authorization": false
+  },
+  "scope": "synthetic exercise of the access boundary against the REAL adjudicated authorization state; every sealed-partition attempt was REFUSED",
+  "validation_authorization": false,
+  "version": "1.0"
+}

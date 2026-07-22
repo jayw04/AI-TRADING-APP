@@ -1,0 +1,76 @@
+MR-002 Increment 4 (operational increment / prerequisite P3) qualification test log
+Command: apps/backend/.venv/Scripts/python.exe -m pytest test_increment4.py -v
+Full evaluator suite: 189 passed (Inc1 59 + Inc2 35 + Inc3 34 + Inc4 61)
+Synthetic only: no real dataset opened, no validation/OOS access, no performance computed.
+----------------------------------------------------------------------
+============================= test session starts =============================
+platform win32 -- Python 3.13.14, pytest-9.0.3, pluggy-1.6.0 -- C:\LLM-RAG-APP\ai-trading-app\apps\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\LLM-RAG-APP\ai-trading-app\docs\review\mr002\evaluator
+plugins: anyio-4.13.0, asyncio-1.3.0, cov-7.1.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 61 items
+
+test_increment4.py::test_T4_01_capture_reports_the_frozen_solver_settings_and_seed PASSED [  1%]
+test_increment4.py::test_T4_02_capture_never_fabricates_lockfile_or_container PASSED [  3%]
+test_increment4.py::test_T4_03_capture_binds_a_supplied_lockfile_by_content PASSED [  4%]
+test_increment4.py::test_T4_04_specification_template_is_not_a_runtime_instance PASSED [  6%]
+test_increment4.py::test_T4_05_placeholder_completion_is_rejected[] PASSED [  8%]
+test_increment4.py::test_T4_05_placeholder_completion_is_rejected[TBD] PASSED [  9%]
+test_increment4.py::test_T4_05_placeholder_completion_is_rejected[PENDING] PASSED [ 11%]
+test_increment4.py::test_T4_05_placeholder_completion_is_rejected[None] PASSED [ 13%]
+test_increment4.py::test_T4_05_placeholder_completion_is_rejected[pending] PASSED [ 14%]
+test_increment4.py::test_T4_06_matching_runtime_instance_passes PASSED   [ 16%]
+test_increment4.py::test_T4_07_any_bound_field_mismatch_fail_stops PASSED [ 18%]
+test_increment4.py::test_T4_08_thread_env_change_is_a_mismatch PASSED    [ 19%]
+test_increment4.py::test_T4_09_runtime_identity_digest_is_stable_and_sensitive PASSED [ 21%]
+test_increment4.py::test_T4_10_module_digests_exclude_tests_and_generators PASSED [ 22%]
+test_increment4.py::test_T4_11_binding_refuses_unresolved_fields PASSED  [ 24%]
+test_increment4.py::test_T4_12_matching_binding_passes PASSED            [ 26%]
+test_increment4.py::test_T4_13_module_drift_refuses PASSED               [ 27%]
+test_increment4.py::test_T4_14_unbound_module_refuses PASSED             [ 29%]
+test_increment4.py::test_T4_15_missing_module_refuses PASSED             [ 31%]
+test_increment4.py::test_T4_16_commit_tree_container_mismatch_refuses[observed_commit-other] PASSED [ 32%]
+test_increment4.py::test_T4_16_commit_tree_container_mismatch_refuses[observed_tree-other] PASSED [ 34%]
+test_increment4.py::test_T4_16_commit_tree_container_mismatch_refuses[observed_container_image_digest-sha256:other] PASSED [ 36%]
+test_increment4.py::test_T4_17_absent_binding_refuses_and_is_never_inferred PASSED [ 37%]
+test_increment4.py::test_T4_18_validation_blocked_when_authorization_false PASSED [ 39%]
+test_increment4.py::test_T4_19_oos_blocked_even_when_validation_authorized PASSED [ 40%]
+test_increment4.py::test_T4_20_validation_permitted_only_with_matching_rev_and_identities PASSED [ 42%]
+test_increment4.py::test_T4_21_stale_prerequisite_digest_blocks_validation PASSED [ 44%]
+test_increment4.py::test_T4_22_rev_mismatch_blocks_validation PASSED     [ 45%]
+test_increment4.py::test_T4_23_unregistered_object_blocked_on_every_partition PASSED [ 47%]
+test_increment4.py::test_T4_24_unsealed_partitions_remain_usable PASSED  [ 49%]
+test_increment4.py::test_T4_25_every_attempt_is_ledgered_including_refusals PASSED [ 50%]
+test_increment4.py::test_T4_26_ledger_is_hash_chained_and_tamper_evident PASSED [ 52%]
+test_increment4.py::test_T4_27_malformed_authorization_state_blocks[None] PASSED [ 54%]
+test_increment4.py::test_T4_27_malformed_authorization_state_blocks[bad1] PASSED [ 55%]
+test_increment4.py::test_T4_27_malformed_authorization_state_blocks[bad2] PASSED [ 57%]
+test_increment4.py::test_T4_27_malformed_authorization_state_blocks[bad3] PASSED [ 59%]
+test_increment4.py::test_T4_27_malformed_authorization_state_blocks[bad4] PASSED [ 60%]
+test_increment4.py::test_T4_27_malformed_authorization_state_blocks[bad5] PASSED [ 62%]
+test_increment4.py::test_T4_28_absent_state_file_blocks_rather_than_defaulting_open PASSED [ 63%]
+test_increment4.py::test_T4_29_governing_state_on_disk_loads_and_denies_validation PASSED [ 65%]
+test_increment4.py::test_T4_30_publishes_once_and_locks_read_only PASSED [ 67%]
+test_increment4.py::test_T4_31_occupied_destination_refuses_and_does_not_overwrite PASSED [ 68%]
+test_increment4.py::test_T4_32_exit_disposition_disagreement_refuses[PASS-1] PASSED [ 70%]
+test_increment4.py::test_T4_32_exit_disposition_disagreement_refuses[FAIL-0] PASSED [ 72%]
+test_increment4.py::test_T4_32_exit_disposition_disagreement_refuses[REFUSED-0] PASSED [ 73%]
+test_increment4.py::test_T4_32_exit_disposition_disagreement_refuses[INTEGRITY_STOP-0] PASSED [ 75%]
+test_increment4.py::test_T4_32_exit_disposition_disagreement_refuses[PASS-3] PASSED [ 77%]
+test_increment4.py::test_T4_33_every_disposition_publishes_verbatim_at_its_exit_code[PASS] PASSED [ 78%]
+test_increment4.py::test_T4_33_every_disposition_publishes_verbatim_at_its_exit_code[FAIL] PASSED [ 80%]
+test_increment4.py::test_T4_33_every_disposition_publishes_verbatim_at_its_exit_code[REFUSED] PASSED [ 81%]
+test_increment4.py::test_T4_33_every_disposition_publishes_verbatim_at_its_exit_code[INTEGRITY_STOP] PASSED [ 83%]
+test_increment4.py::test_T4_34_report_disposition_conflict_refuses PASSED [ 85%]
+test_increment4.py::test_T4_35_missing_identity_refuses_publication[code_identity] PASSED [ 86%]
+test_increment4.py::test_T4_35_missing_identity_refuses_publication[runtime_identity] PASSED [ 88%]
+test_increment4.py::test_T4_35_missing_identity_refuses_publication[governing_identity] PASSED [ 90%]
+test_increment4.py::test_T4_36_unknown_disposition_refuses PASSED        [ 91%]
+test_increment4.py::test_T4_37_second_publication_to_the_same_paths_refuses PASSED [ 93%]
+test_increment4.py::test_T4_38_publication_is_deterministic_for_identical_inputs PASSED [ 95%]
+test_increment4.py::test_T4_39_no_module_imports_a_dataset_or_partition_path PASSED [ 96%]
+test_increment4.py::test_T4_40_access_boundary_has_no_bypass_for_sealed_partitions PASSED [ 98%]
+test_increment4.py::test_T4_41_boundary_report_shape_is_evidence_grade PASSED [100%]
+
+============================= 61 passed in 0.85s ==============================

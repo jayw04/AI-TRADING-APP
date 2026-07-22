@@ -1,0 +1,106 @@
+{
+  "authorization": "owner adjudication 2026-07-22 \u2014 D2 AUTHORIZED WITH RESTRICTIONS (prerequisite production only; P3 first, then stop for adjudication)",
+  "boundary": "Validation and OOS remain SEALED AND UNREAD. validation_authorization=false. The single validation opening remains unconsumed.",
+  "capabilities": {
+    "access_boundary": {
+      "ledger_hash_chained": true,
+      "malformed_state_blocks": true,
+      "module": "mr002_valoos_access_boundary.py",
+      "oos_denied_unconditionally": true,
+      "sealed_reads": 0,
+      "unregistered_object_denied": true,
+      "validation_denied_without_authorization": true
+    },
+    "code_identity_refusal": {
+      "bound_module_count": 19,
+      "module": "mr002_valoos_code_identity.py",
+      "module_inventory_reproduces": true,
+      "note": "commit/tree/container are deliberately UNRESOLVED here; resolving them is P5 via the registered SS4 procedure and must not be inferred from this tree",
+      "unresolved_binding_fields": [
+        "commit",
+        "tree",
+        "container_image_digest"
+      ]
+    },
+    "numeric_runtime_identity": {
+      "accepts_complete_instance": true,
+      "fail_stops_on_drift": true,
+      "module": "mr002_valoos_runtime.py",
+      "note": "the observed workstation runtime is a REFERENCE OBSERVATION ONLY; P10 remains UNSATISFIED and is the runtime producer's deliverable",
+      "observed_runtime_is_a_bound_instance": false,
+      "observed_runtime_missing_fields": [
+        "dependency_lockfile_sha256",
+        "container_image_digest"
+      ],
+      "rejects_placeholder_completion": true
+    },
+    "publication_wrapper": {
+      "exclusive_create": true,
+      "exit_disposition_agreement_enforced": true,
+      "locks_read_only": true,
+      "module": "mr002_valoos_publication.py",
+      "post_hoc_hash_verifies": true,
+      "prior_content_preserved": true,
+      "refuses_occupied_destination": true
+    }
+  },
+  "dependency_lock": "MR002_Increment1_Dependencies.json",
+  "dependency_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
+  "determinism_proof": {
+    "byte_identical": true,
+    "publication_run1": "6340c9bcae82bbcb758fcce98f5e5f91cb262dc50dcbc2d865d2c05a82cec8fa",
+    "publication_run2": "6340c9bcae82bbcb758fcce98f5e5f91cb262dc50dcbc2d865d2c05a82cec8fa"
+  },
+  "development_free_assertions": {
+    "credentials_released": false,
+    "development_performance_computed": false,
+    "oos_data_read": false,
+    "synthetic_fixture_only": true,
+    "validation_authorization": false,
+    "validation_data_read": false
+  },
+  "evaluator_module_inventory_sha256": "67dc75c91829b512ee332dd269836566fa0a86cb7a9b0c61c78bec8e755d645d",
+  "excluded_not_authorized": [
+    "validation/OOS access",
+    "credential release",
+    "performance computation",
+    "production of P13",
+    "resolution of PENDING_EVALUATOR_BIND (P5)",
+    "custodian seal evidence (P6-P9, P11)",
+    "runtime instance (P10)",
+    "SS5 acceptance submission (P4)",
+    "any D3 grant or readiness conclusion"
+  ],
+  "full_evaluator_suite": "189 passed (Increment 1: 59, Increment 2: 35, Increment 3: 34, Increment 4: 61)",
+  "governing_identities": {
+    "correction_sha256": "33fbb78ce7679aaab2afc514cb0164f09e3331f87b8422b4827a0d2587c91b91",
+    "dispersion_resolution_sha256": "7a601f5b7bc0bea5045755723d7f9b946b01f7eba0eee9191e0f2074b6fb5627",
+    "dsr_trials_N": 5,
+    "ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+    "prereg_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+    "resolution_sha256": "30b812f179128cbb65593de25ee3039916e928a72a6d5d4de2c8051ff83f90a0",
+    "validation_authorization": false
+  },
+  "increment": 4,
+  "no_real_dataset_opened": true,
+  "prerequisite": "P3 (evaluator operational increment)",
+  "prerequisite_status_claimed": {
+    "P3": "PRODUCED - submitted for adjudication; NOT self-declared SATISFIED (satisfaction requires independent verification per the adjudication)"
+  },
+  "record_type": "MR002_Increment4_Qualification",
+  "scope": "container/dependency (numeric-runtime identity) + code identity & refusal layer + access boundary with hash-chained opened-object ledger + no-overwrite publication wrapper; synthetic-only",
+  "source_hashes": {
+    "_gen_evidence_inc4.py": "d8b7e40eba9a9b4888cfdc94ba2083667df42e9700c4ec2427cc5d3156c3427f",
+    "mr002_valoos_access_boundary.py": "f5c1e6641237a30dfe2c3bb18eac7180534736cb31887e4c425452acba34330d",
+    "mr002_valoos_code_identity.py": "6ffb1d6748cb4db48a3e69342b597dbae6ad59f0495a80b3fcf21b308280f098",
+    "mr002_valoos_publication.py": "e3c67d57a61b05016daa7995f32f25b00a1c54f70d6a3962d0f115ab74bb5028",
+    "mr002_valoos_runtime.py": "2635a52b3daa06e8c26a850c70b83efe1fd3903b2b35055441746b2f5ae0e5b0",
+    "test_increment4.py": "72548f158da9197bf79e7e33f8a0deb4113da2ab07c772d0a9200142dd3832d2"
+  },
+  "tests": {
+    "count": 61,
+    "file": "test_increment4.py",
+    "result": "61 passed (T4-01..T4-41 incl. parametrized cases)"
+  },
+  "version": "1.0"
+}
