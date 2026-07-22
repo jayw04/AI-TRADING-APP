@@ -49,6 +49,7 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.enums import TERMINAL_ORDER_STATUSES
+from app.db.models.fill import Fill
 from app.db.models.order import Order
 from app.db.models.risk_capacity_state import RiskCapacityState
 from app.db.models.risk_decision import RiskDecision
@@ -66,7 +67,7 @@ from app.risk.risk_effect import (
     RiskEffect,
     RiskEffectDecision,
     RiskEffectReason,
-    available_reducible_quantity,
+    claimable_reducible_quantity,
     classify,
 )
 
@@ -120,11 +121,13 @@ class RiskDecisionService:
         # depends on holding it — the conditional UPDATE is what enforces the invariant.
         async with _ACCOUNT_LOCKS[account_id]:
             reserved = await self._reserved_by_symbol(account_id)
+            reserved_filled = await self._reserved_filled_by_symbol(account_id)
             snap = await fetch_snapshot(
                 session=self._session,
                 account_id=account_id,
                 adapter=adapter,
                 reserved_reducing_qty=reserved,
+                reserved_filled_qty=reserved_filled,
             )
             result = classify(snap, action)
 
@@ -221,11 +224,15 @@ class RiskDecisionService:
         state is gone.
         """
         reserved = await self._reserved_by_symbol(account_id, exclude=reservation_id)
+        reserved_filled = await self._reserved_filled_by_symbol(
+            account_id, exclude=reservation_id
+        )
         fresh = await fetch_snapshot(
             session=self._session,
             account_id=account_id,
             adapter=adapter,
             reserved_reducing_qty=reserved,
+            reserved_filled_qty=reserved_filled,
         )
         if fresh.state_hash() == prior.before_state_hash:
             return prior, prior_ledger_id, reservation_id  # unchanged — the approval stands
@@ -356,7 +363,12 @@ class RiskDecisionService:
         let two processes each reset it to zero before the other commits, which is precisely the
         race the capacity row exists to close. The accumulator moves only on claim and release.
         """
-        capacity = available_reducible_quantity(snap, symbol)
+        # The CLAIMABLE basis, not the AVAILABLE one. `_claim_capacity` guards with
+        # `reserved_qty + qty <= reducible_capacity_qty`, so the accumulator already carries every
+        # HELD reservation on the left. Storing the reservation-net figure here subtracted them a
+        # second time, so the second legitimate trim against a long was refused with
+        # EXCEEDS_REDUCIBLE_CAPACITY — a risk gate blocking de-risking, the ADR 0042 failure mode.
+        capacity = claimable_reducible_quantity(snap, symbol)
         version = snap.state_hash()
         now = datetime.now(UTC)
 
@@ -469,6 +481,43 @@ class RiskDecisionService:
         )
 
     # ---------------------------------------------------------------- internals
+    async def _reserved_filled_by_symbol(
+        self, account_id: int, *, exclude: int | None = None
+    ) -> dict[str, Decimal]:
+        """Of the HELD reservations, how much has ALREADY FILLED — and is therefore already
+        reflected in the broker position.
+
+        A reservation keeps its full original quantity until its order reaches a terminal
+        status, so a PARTIAL fill is charged twice: once by the position the fill shrank, once
+        by the reservation that still names the whole quantity. `claimable_reducible_quantity`
+        adds this back so the filled part is charged exactly once.
+
+        Capped per reservation at its own quantity: an over-fill (broker fills more than the
+        reservation covered) must not manufacture capacity.
+        """
+        stmt = (
+            select(
+                RiskReservation.symbol,
+                RiskReservation.qty,
+                func.coalesce(func.sum(Fill.qty), 0),
+            )
+            .select_from(RiskReservation)
+            .join(Fill, Fill.order_id == RiskReservation.order_id)
+            .where(
+                RiskReservation.account_id == account_id,
+                RiskReservation.state == RESERVATION_HELD,
+                RiskReservation.order_id.is_not(None),
+            )
+            .group_by(RiskReservation.id, RiskReservation.symbol, RiskReservation.qty)
+        )
+        if exclude is not None:
+            stmt = stmt.where(RiskReservation.id != exclude)
+        out: dict[str, Decimal] = {}
+        for sym, res_qty, filled in (await self._session.execute(stmt)).all():
+            capped = min(Decimal(str(res_qty)), Decimal(str(filled or 0)))
+            out[sym] = out.get(sym, ZERO) + max(ZERO, capped)
+        return out
+
     async def _reserved_by_symbol(
         self, account_id: int, *, exclude: int | None = None
     ) -> dict[str, Decimal]:

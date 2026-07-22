@@ -27,14 +27,15 @@ from app.risk.risk_effect import (
     SnapshotOpenOrder,
     SnapshotPosition,
     available_reducible_quantity,
+    claimable_reducible_quantity,
     classify,
 )
 
 D = Decimal
 
 
-def _snap(positions=None, open_orders=None, *, reserved=None, complete=True,
-          cursor="100", observed="100") -> AccountSnapshot:
+def _snap(positions=None, open_orders=None, *, reserved=None, reserved_filled=None,
+          complete=True, cursor="100", observed="100") -> AccountSnapshot:
     return AccountSnapshot(
         account_id=1,
         positions={p.symbol: p for p in (positions or [])},
@@ -45,6 +46,7 @@ def _snap(positions=None, open_orders=None, *, reserved=None, complete=True,
         observed_cursor=observed,
         complete=complete,
         reserved_reducing_qty=reserved or {},
+        reserved_filled_qty=reserved_filled or {},
     )
 
 
@@ -336,3 +338,143 @@ def test_an_unpriceable_held_position_still_fails_closed():
     assert d.risk_effect is RiskEffect.INDETERMINATE
     assert d.decision is Decision.FAIL_CLOSED
     assert RiskEffectReason.NO_PRICE in d.reasons
+
+
+# ---- the reservation/in-flight double count (regression, 2026-07-22) -------------
+#
+# A reduction this system approves is counted TWICE while it is live: once as a HELD
+# reservation, and again as a broker open order once submitted. Subtracting both from the
+# long shrinks capacity below the truth and refuses legitimate de-risking — a risk gate
+# blocking risk reduction, which is the ADR 0042 failure mode itself.
+
+
+def test_a_reservation_and_its_own_open_order_are_not_charged_twice():
+    """500 long, 200 approved and now open at the broker, its reservation still HELD.
+    Claimable capacity is still the full 500 — the accumulator carries the 200."""
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("500"), D("100"))],
+        [SnapshotOpenOrder("o1", "AAPL", OrderSide.SELL, D("200"), reduces_position=True)],
+        reserved={"AAPL": D("200")},
+    )
+    assert claimable_reducible_quantity(snap, "AAPL") == D("500")
+    # ...and what is still promisable to a NEW order is the long minus what is promised.
+    assert available_reducible_quantity(snap, "AAPL") == D("300")
+
+
+def test_unreserved_in_flight_sells_still_consume_capacity():
+    """A sell this system did not reserve — placed straight at the broker — must still be
+    charged, or two routes could together cross zero."""
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("500"), D("100"))],
+        [SnapshotOpenOrder("o1", "AAPL", OrderSide.SELL, D("400"), reduces_position=True)],
+    )
+    assert claimable_reducible_quantity(snap, "AAPL") == D("100")
+    assert available_reducible_quantity(snap, "AAPL") == D("100")
+
+
+def test_partially_reserved_in_flight_charges_only_the_excess():
+    """300 in flight of which 200 is ours (reserved): only the unreserved 100 is charged."""
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("500"), D("100"))],
+        [SnapshotOpenOrder("o1", "AAPL", OrderSide.SELL, D("300"), reduces_position=True)],
+        reserved={"AAPL": D("200")},
+    )
+    assert claimable_reducible_quantity(snap, "AAPL") == D("400")   # 500 - max(0, 300-200)
+    assert available_reducible_quantity(snap, "AAPL") == D("200")   # ...minus our own 200
+
+
+def test_reservations_alone_still_bound_what_a_new_order_may_take():
+    """No open orders yet: the reservation must still restrict a NEW order, or two approvals
+    could each be sized against the same long."""
+    snap = _snap([SnapshotPosition("AAPL", D("500"), D("100"))], reserved={"AAPL": D("300")})
+    assert claimable_reducible_quantity(snap, "AAPL") == D("500")
+    assert available_reducible_quantity(snap, "AAPL") == D("200")
+
+
+def test_capacity_never_goes_negative_when_in_flight_exceeds_the_long():
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("100"), D("100"))],
+        [SnapshotOpenOrder("o1", "AAPL", OrderSide.SELL, D("400"), reduces_position=True)],
+    )
+    assert claimable_reducible_quantity(snap, "AAPL") == D("0")
+    assert available_reducible_quantity(snap, "AAPL") == D("0")
+
+
+# ---- partial fills: the filled part must be charged ONCE, not twice --------------
+#
+# A held reservation keeps its FULL original quantity until its order goes terminal. Once part
+# of it fills, the broker position has already shrunk by that amount — so the filled part is
+# charged by the position AND by the reservation. These pin one total charge.
+
+
+def test_partial_fill_is_not_charged_by_both_the_position_and_the_reservation():
+    """200 reserved; 75 filled (position 500 -> 425); 125 still open at the broker.
+    Total charge must be ONE 200, so 300 of the 425 long remains promisable."""
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("425"), D("100"))],
+        [SnapshotOpenOrder("o1", "AAPL", OrderSide.SELL, D("125"), reduces_position=True)],
+        reserved={"AAPL": D("200")},
+        reserved_filled={"AAPL": D("75")},
+    )
+    assert claimable_reducible_quantity(snap, "AAPL") == D("500")   # 425 + 75 filled-back
+    assert available_reducible_quantity(snap, "AAPL") == D("300")   # ...minus the whole 200
+
+
+def test_a_fully_filled_but_unreconciled_reservation_frees_its_capacity():
+    """200 reserved, all 200 filled (position 300), order not yet terminal so the reservation
+    still stands. The long is 300 and nothing is pending: all 300 is promisable."""
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("300"), D("100"))],
+        reserved={"AAPL": D("200")},
+        reserved_filled={"AAPL": D("200")},
+    )
+    assert claimable_reducible_quantity(snap, "AAPL") == D("500")
+    assert available_reducible_quantity(snap, "AAPL") == D("300")
+
+
+def test_a_reservation_not_yet_submitted_is_never_added_back():
+    """The dangerous mirror of the case above: reserved but NOTHING filled and no broker order.
+    Nothing may be added back, or capacity would be manufactured."""
+    snap = _snap([SnapshotPosition("AAPL", D("500"), D("100"))], reserved={"AAPL": D("200")})
+    assert claimable_reducible_quantity(snap, "AAPL") == D("500")
+    assert available_reducible_quantity(snap, "AAPL") == D("300")
+
+
+def test_reserved_200_with_a_broker_open_250_charges_only_the_unreserved_50():
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("500"), D("100"))],
+        [SnapshotOpenOrder("o1", "AAPL", OrderSide.SELL, D("250"), reduces_position=True)],
+        reserved={"AAPL": D("200")},
+    )
+    assert claimable_reducible_quantity(snap, "AAPL") == D("450")   # 500 - 50 unreserved
+    assert available_reducible_quantity(snap, "AAPL") == D("250")
+
+
+def test_capacity_never_exceeds_the_long_under_multiple_partial_overlaps():
+    """Several reservations and orders, partially overlapping: available capacity may never
+    exceed the position, however the matching falls out."""
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("400"), D("100"))],
+        [
+            SnapshotOpenOrder("o1", "AAPL", OrderSide.SELL, D("100"), reduces_position=True),
+            SnapshotOpenOrder("o2", "AAPL", OrderSide.SELL, D("50"), reduces_position=True),
+        ],
+        reserved={"AAPL": D("250")},
+        reserved_filled={"AAPL": D("100")},
+    )
+    claimable = claimable_reducible_quantity(snap, "AAPL")
+    available = available_reducible_quantity(snap, "AAPL")
+    assert available <= snap.positions["AAPL"].qty
+    assert claimable <= snap.positions["AAPL"].qty + D("100")   # at most the filled add-back
+    assert available >= D("0")
+
+
+def test_overfill_cannot_manufacture_capacity():
+    """Defensive: a filled quantity larger than the reservation must not inflate the long."""
+    snap = _snap(
+        [SnapshotPosition("AAPL", D("200"), D("100"))],
+        reserved={"AAPL": D("100")},
+        reserved_filled={"AAPL": D("100")},   # capped at the reservation by the query
+    )
+    assert claimable_reducible_quantity(snap, "AAPL") == D("300")
+    assert available_reducible_quantity(snap, "AAPL") == D("200")   # == the actual long

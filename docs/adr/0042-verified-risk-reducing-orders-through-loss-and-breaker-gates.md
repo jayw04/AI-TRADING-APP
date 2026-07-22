@@ -376,6 +376,72 @@ available_reducible_quantity =
 
 An approved sell quantity **must not exceed** that amount.
 
+> ### §D amendment — 2026-07-22: overlapping pending-reduction representations
+>
+> **The formula above is superseded by the one in this amendment.** It treated
+> `open_reducing_sell_quantity` and `reserved_reducing_quantity` as disjoint. Under the
+> implemented reservation lifecycle they overlap: an approved reduction remains represented by a
+> HELD reservation after broker submission while the corresponding broker order is also open, and
+> a reservation keeps its **full original quantity** until its order goes terminal, so a partial
+> fill is represented a third time by the position the fill already shrank. Subtracting these in
+> full double-charges the same reduction and can refuse legitimate de-risking — the failure this
+> ADR exists to prevent, reproduced by
+> `tests/orders/test_adr0042_end_to_end.py::test_reductions_cannot_be_stacked_past_the_position`
+> (three 200-share trims against a 500 long: the **second** was refused
+> `EXCEEDS_REDUCIBLE_CAPACITY`).
+>
+> Only the portion of broker-open reducing quantity not already represented by a held
+> reservation is charged as additional in-flight exposure, and the already-filled portion of a
+> held reservation — which the broker position has already absorbed — is added back so it is
+> charged exactly once:
+>
+> ```
+> unreserved_open_reducing_quantity =
+>     max(0, open_reducing_sell_quantity - reserved_pending_quantity)
+>
+> reserved_pending_quantity =
+>     max(0, reserved_reducing_quantity - reserved_filled_quantity)
+>
+> claimable_reducible_quantity =
+>     max(
+>         0,
+>         current_long_quantity
+>         + reserved_filled_quantity          # already absorbed by the position
+>         - unreserved_open_reducing_quantity
+>     )
+>
+> available_reducible_quantity =
+>     max(
+>         0,
+>         claimable_reducible_quantity
+>         - reserved_reducing_quantity
+>     )
+> ```
+>
+> The atomic claim guard uses the **claimable** basis:
+>
+> ```
+> reserved_qty_accumulator + requested_reduction_qty
+>     <= claimable_reducible_quantity
+> ```
+>
+> because the accumulator carries the claims on its own left-hand side.
+>
+> **`filled_but_not_reconciled_reductions` is still charged, not dropped.** It is charged by the
+> broker position itself: the snapshot's position is a live broker read that already reflects
+> every fill, and the open order contributes only its *remaining* quantity (`qty − filled`). The
+> `reserved_filled_quantity` term exists precisely so that this position-side charge is not
+> *duplicated* by the still-full reservation. It is measured from observed `Fill` rows joined to
+> HELD reservations and **capped per reservation at that reservation's own quantity**, so an
+> over-fill cannot manufacture capacity. An aggregate estimate such as
+> `reserved − open_orders` is explicitly rejected: it cannot distinguish a FILLED reservation
+> from a NOT-YET-SUBMITTED one, and adding back the latter would over-permit.
+>
+> Unreserved broker-open reductions remain charged in full, so a sell placed straight at the
+> broker is still counted. The zero-crossing and no-short guarantees are unchanged; this
+> amendment corrects an invalid arithmetic assumption inside the existing architecture and does
+> not alter the reservation lifecycle, the locus of capacity authority, or the risk model.
+
 **Classification, reservation and ledger insertion must be atomic**, under either a per-account
 transactional lock or optimistic concurrency on the snapshot/account version. A version conflict
 **forces reclassification** — it must never proceed on the earlier approval.
