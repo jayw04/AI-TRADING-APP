@@ -110,7 +110,12 @@ class MomentumDaily(Strategy):
         "max_names": 5,
         "max_position_pct": 0.20,
         "max_sector_pct": None,          # sector cap OFF (Stage 3 turns it on under test)
-        "weighting": "equal",            # "equal" | "invvol_hybrid" (Stage 3)
+        # SIZING IS EQUAL WEIGHT AND ONLY EQUAL WEIGHT (owner adjudication 2026-07-22). At N=5 a
+        # hard 20% per-name cap makes equal weight the ONLY feasible fully-invested portfolio, so
+        # the Stage-3 "hybrid_50_50" arm was never a distinct feasible strategy here — its
+        # 19.2-20.6% weights are the residual of a clamp loop that stops before satisfying its own
+        # constraint. See the weighting-defect erratum. `invvol_hybrid` is NOT a supported value.
+        "weighting": "equal",            # "equal" ONLY — any other value fails closed in on_init
         "min_weight_pct": 0.075,
         # ---- regime (§7 — Stage-4 VALIDATED: graduated wins decisively; binary is worst) ----
         "use_market_regime_filter": True,
@@ -169,10 +174,14 @@ class MomentumDaily(Strategy):
                              "description": "Hard cap on any single position."},
         "max_sector_pct": {"type": "number", "min": 0, "max": 1, "nullable": True, "default": None,
                            "description": "Per-sector cap (Stage 3). Empty/None = off."},
-        "weighting": {"type": "enum", "choices": ["equal", "invvol_hybrid"], "default": "equal",
-                      "description": "Sizing. Stage 3 tests the capped 50/50 inverse-vol hybrid."},
+        "weighting": {"type": "enum", "choices": ["equal"], "default": "equal",
+                      "description": "Sizing. EQUAL WEIGHT ONLY: at max_names=5 with a 20% per-name "
+                                     "cap, equal weight is the only feasible fully-invested "
+                                     "portfolio, so no inverse-vol tilt is expressible. Any other "
+                                     "value is rejected at startup."},
         "min_weight_pct": {"type": "number", "min": 0, "max": 1, "default": 0.075,
-                           "description": "Per-name floor for the inverse-vol hybrid (Stage 3)."},
+                           "description": "Unused while weighting is equal-only; retained for "
+                                          "schema stability. Has no effect on sizing."},
         "use_market_regime_filter": {"type": "boolean", "default": True,
                                      "description": "Apply the market-trend regime filter (de-gross in a downtrend)."},
         "market_filter_symbol": {"type": "string", "default": "SPY",
@@ -227,6 +236,17 @@ class MomentumDaily(Strategy):
             raise ValueError(
                 f"incoherent rank bands: hold_rank={hold} < entry_rank={entry} — a name would be "
                 f"sold the day it is bought"
+            )
+        # FAIL CLOSED on any sizing this template does not implement. A stored param row from
+        # before the weighting-defect adjudication could still carry "invvol_hybrid"; silently
+        # ignoring it would be exactly the schema/code drift this repo treats as a defect class.
+        weighting = str(self.params.get("weighting", "equal"))
+        if weighting != "equal":
+            raise ValueError(
+                f"unsupported weighting={weighting!r}: momentum-daily sizes equal-weight only. "
+                f"At max_names=5 with max_position_pct=0.20 equal weight is the only feasible "
+                f"fully-invested portfolio; an inverse-vol tilt is not expressible and is not "
+                f"implemented. Rejecting rather than silently sizing equal-weight anyway."
             )
         await self.ctx.log_signal("PORTFOLIO", SignalType.INFO, payload={
             "reason": "effective_params", "version": self.version,
@@ -569,8 +589,16 @@ class MomentumDaily(Strategy):
         total = sum(values.values())
         if total <= 0:
             return False
-        target_w = 1.0 / len(held)
-        return any(abs(values[s] / total - target_w) > drift for s in held)
+        # Target weights come from the sizing seam, not a restated 1/N — drift must be measured
+        # against what the order path would actually size. Renormalized over the held names so
+        # the comparison is like-for-like against realized weights-of-book (the gross multiplier
+        # and cash buffer cancel; they scale both sides).
+        seam = {s: float(self._per_name_notional(Decimal(1), len(held))) for s in held}
+        seam_total = sum(seam.values())
+        if seam_total <= 0:
+            return False
+        target_w = {s: seam[s] / seam_total for s in held}
+        return any(abs(values[s] / total - target_w[s]) > drift for s in held)
 
     async def _backstop_due(self, day: str) -> bool:
         """§5.1 #6 — force a review if none has completed within backstop_max_days trading days."""
@@ -761,6 +789,37 @@ class MomentumDaily(Strategy):
             return None
         return max(0, (now - last_date).days)
 
+    # ---- sizing seam (§6 — THE single source of truth for position size) ----
+    #
+    # Both the order path (`_apply_targets`), the weight-drift trigger, and the §8 drift-audit
+    # harness read sizing from here. The harness must OBSERVE this function, never restate its
+    # rule — a harness that recomputes "equal weight" independently would report agreement even
+    # if production sizing changed underneath it, which is precisely the blind spot the census
+    # hit. Equal weight only (owner adjudication 2026-07-22); see `_evaluate` docstring refs.
+
+    def _per_name_notional(self, equity: Decimal, k: int) -> Decimal:
+        """Target notional per name given ``k`` targets and gross-scaled investable ``equity``.
+
+        Equal weight, hard-capped at ``max_position_pct``. The cap binds only when k < 1/cap
+        (i.e. fewer than 5 names at the default 0.20), in which case the book runs partly in
+        cash rather than concentrating past the limit."""
+        if k <= 0:
+            return Decimal(0)
+        return min(equity / Decimal(k),
+                   equity * Decimal(str(self.params.get("max_position_pct", 0.20))))
+
+    def target_weights(self, target: list[str]) -> dict[str, float]:
+        """The production sizing seam as per-name fractions of TOTAL equity (ex cash buffer),
+        gross-scaled by the current regime — the observable form of `_per_name_notional`.
+
+        Derived by evaluating the same function at unit equity, so this can never drift from
+        what the order path actually sizes. Consumed by the §8 drift-audit driver."""
+        if not target:
+            return {}
+        unit = float(self._per_name_notional(Decimal(1), len(target)))
+        gross = float(getattr(self, "_regime_gross", 1.0) or 0.0)
+        return {t: unit * gross for t in target}
+
     # ---- execution (sells before buys; regime gross; storm-safe via the daily latch) ----
 
     async def _apply_targets(self, target: list[str], *, held: dict[str, Decimal] | None = None,
@@ -781,9 +840,7 @@ class MomentumDaily(Strategy):
         if not target:
             return
         equity = await self._investable_equity()
-        k = len(target)
-        per_name = min(equity / Decimal(k),
-                       equity * Decimal(str(self.params.get("max_position_pct", 0.20))))
+        per_name = self._per_name_notional(equity, len(target))
         min_trade = Decimal(str(self.params.get("min_trade_pct", 0.03)))
         fractional = bool(self.params.get("fractional_shares", True))
         pending = await self.ctx.pending_buy_qty()

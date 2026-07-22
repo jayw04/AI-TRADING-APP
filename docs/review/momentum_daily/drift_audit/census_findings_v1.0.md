@@ -2,6 +2,15 @@
 
 **Run:** commit `29b9c2c` · full 5,395 sessions (2005‑01‑03 → 2026‑06‑12) · countersigned data binding re‑verified fail‑closed · detached ~57 min.
 
+> **⚠ AMENDED 2026‑07‑22 by `weighting_defect_erratum_v1.0.md`.** All measurements below stand unaltered.
+> The *classification* of the weights seam (§5 weights row, §6 bullet 2, §7 `SIZING EQUIVALENCE: FAIL —
+> MATERIAL`) is superseded: the divergence is now adjudicated as a **`VALIDATION_IMPLEMENTATION_DEFECT`**
+> in the Stage‑3 harness — at N=5 the 20% cap equals 1/N, so the clamp‑and‑renormalize loop cannot
+> converge and emitted cap‑violating weights on 100% of five‑name sessions. Production equal weighting is
+> the feasible implementation of the registered constraints, not a drift from a validated alternative.
+> The activation blocker is renamed **`WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED`**; the hold
+> stands. Read the erratum alongside §6 and §7.
+
 ## 1. Provenance integrity
 
 | item | value |

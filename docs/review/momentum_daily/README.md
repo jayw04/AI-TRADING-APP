@@ -10,6 +10,17 @@ Branch: `fix/momentum-daily-cold-start-seed` (off `origin/main`, contains PR #43
 - **Drift-audit requirement:** because validation ran a *reimplementation* the template warns "must not drift," the §8 equivalence work must drive the **actual live `MomentumDaily` class** through history and compare **through `_evaluate`** at every decision seam (zero tolerance for semantic mismatches). A validation-production equivalence invariant is folded into ADR 0044 + a second CI invariant.
 - **Next:** step 5 — Policy M (≥0.60) vs Policy H (=0.98) inception-threshold analysis → lock threshold → implement.
 
+## Weighting-defect adjudication (2026-07-22)
+The §8 census closed with selection/inception EQUIVALENT but sizing FAIL-MATERIAL (production equal-weight
+vs validated `hybrid_50_50`). That classification is **superseded**: at N=5 the registered 20% per-name cap
+equals 1/N, so equal weight is the *only* feasible fully-invested portfolio and the harness's
+clamp-and-renormalize loop could not converge — it emitted weights above its own cap on 100% of five-name
+sessions. Owner adjudication: production **stays equal-weight** (`max_position_pct` unchanged at 0.20), the
+seam is reclassified `VALIDATION_IMPLEMENTATION_DEFECT`, and the blocker is renamed
+`WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED`. Account 4 remains PAUSED.
+- `drift_audit/weighting_defect_erratum_v1.0.md` — the reclassification + evidence (amends census findings §5-§7).
+- `drift_audit/PREREG_weighting_defect_impact_study_v1.0.md` — ⏸ proposed protocol for the correction-impact study; **thresholds await owner ratification, study NOT run.**
+
 ## Contents
 - `momentum_daily_coldstart_repair_plan_v1.0.md` — implementation plan (lifecycle state machine, idempotency/crash-recovery, `initial_seed` gating, migration, evidence-clock split, ADR 0044, fail-closed hold enforcement, drift audit, reactivation checklist, validation matrix, ratified decisions).
 - `harness_inception_reconstruction_findings_v1.0.md` — step-3 gate: evidence-cited reconstruction of the Stage 2-4 harness inception semantics (basis for the classification).
