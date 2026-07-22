@@ -1,0 +1,84 @@
+{
+  "adjudication": "owner P5 final adjudication \u2014 P5 ACCEPTED, PARTIALLY_RESOLVED -> SATISFIED; research-side prerequisite production COMPLETE",
+  "authorization_state": {
+    "_rev": 0,
+    "oos": "UNDER DENY",
+    "validation_authorization": false,
+    "validation_opening": "UNCONSUMED",
+    "validation_partition": "CLOSED"
+  },
+  "custody_note": "these are custody and availability requirements, NOT permission to begin P10",
+  "date": "2026-07-22",
+  "explicitly_not_authorized": [
+    "further research-side prerequisite production",
+    "grant-readiness verifier",
+    "D3 submission or authorization event",
+    "validation or OOS access",
+    "credential release",
+    "performance computation"
+  ],
+  "governing_binding": {
+    "binding_commit": "ef5af66090b28ec9841eb60412bbaff05cf9e91c",
+    "binding_state": "RESOLVED",
+    "container_image_digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+    "file": "docs/review/mr002/evaluator/MR002_EvaluatorBinding.json",
+    "included_module_count": 21,
+    "note": "the count is binding-specific, not a permanent constant; any source change requires complete re-enumeration and a superseding binding",
+    "sha256": "c83df63989ab019f216f594ed115ad824f99c42065c31dad67483226088ae1b2",
+    "source_commit": "d1e7ffc6ef280b69d6244cfbff3bb18c5d412f4b",
+    "source_tree": "01503f9a77f1ff88ac146d120c323c559ac6cb61"
+  },
+  "governing_disposition": "P5 SATISFIED; research-side prerequisite production COMPLETE; the validation partition is closed, the single opening is unconsumed, and validation_authorization = false",
+  "image_custody_requirements_before_p10_or_readiness": [
+    "retain the exact image digest in a content-addressable registry",
+    "retrieval by digest reproduces the same manifest and configuration objects",
+    "record registry location and platform manifest",
+    "the image cannot be overwritten under the bound digest",
+    "local-only availability must not be mistaken for durable custody",
+    "superseded and current bindings remain independently verifiable",
+    "the binding resolver fails if the exact image digest is unavailable"
+  ],
+  "image_manifest": {
+    "file": "docs/review/mr002/evaluator/MR002_EvaluatorImageManifest.json",
+    "image_digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+    "platform": "linux/amd64",
+    "sha256": "977bfd05aca70cf608c2dfcd7e6b94e28b5188b850a982c5c381e6a895673332"
+  },
+  "next_workstreams_not_mine": {
+    "P10": "numeric-runtime producer",
+    "P13": "Phase 3C runtime only",
+    "P6-P9, P11": "custodian-side evidence"
+  },
+  "p5_scope_limits_carried_forward": [
+    "instance identity, NOT bit-for-bit build reproducibility \u2014 do not claim reproducible builds, do not rebuild and assume equivalence, do not replace the bound digest with a later rebuild without a superseding qualification",
+    "no numerical library/BLAS/LAPACK/CPU-dispatch/threading/floating-point/seed/determinism claim; P10 is not implied"
+  ],
+  "prerequisite_digest": {
+    "adjudicated_anchor_digest": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6",
+    "anchor_unmodified": true,
+    "current_state_digest": "8d93b65607fc16e6018f08cd85c23a2b667af63a4eafcfa6d64cc2804ffebd55",
+    "derivation": "sha256 of the ascii JSON object {prerequisite_id: status} sorted by key, recomputed from the authoritative register with P3/P4/P5 SATISFIED",
+    "relationship_to_anchor": "CURRENT-STATE ONLY. It does not amend, activate, or satisfy the historical CAS anchor at 953bda934fbf8619cbcfed28ed09ec8e1a0bc75d, which remains bound to its own adjudicated digest"
+  },
+  "prerequisite_state": {
+    "P10": "UNSATISFIED \u2014 numeric-runtime instance; NO implication from P5 to P10 is granted",
+    "P11": "NOT_PRODUCED",
+    "P12": "NOT_EXECUTED (this is the act being requested)",
+    "P13": "PRODUCED_AFTER_AUTHORIZATION_AT_RUN_TIME",
+    "P3": "SATISFIED \u2014 evaluator operational increment ONLY; establishes no access-path coverage, no numeric runtime, no readiness",
+    "P4": "SATISFIED \u2014 SS5 acceptance submission",
+    "P5": "SATISFIED \u2014 SS4 pre-access evaluator binding (source + roster + container legs)",
+    "P6": "NOT_PRODUCED",
+    "P7": "NOT_PRODUCED",
+    "P8": "NOT_PRODUCED",
+    "P9": "NOT_PRODUCED"
+  },
+  "record_type": "MR002_ResearchSidePrerequisiteCloseout",
+  "sealed_packages_unmodified_since_anchor_commit": true,
+  "superseded_binding": {
+    "disposition": "historical evidence; NOT a candidate execution binding",
+    "file": "docs/review/mr002/evaluator/MR002_EvaluatorBinding_superseded_6708c59.json",
+    "sha256": "4096e6a00d4e0f085bd7a7c0be52d30b17d9a8932356af3fe37ed6aff1b6c5d4"
+  },
+  "version": "1.0"
+}
