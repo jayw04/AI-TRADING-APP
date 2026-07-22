@@ -37,6 +37,8 @@ from typing import Any
 
 from sqlalchemy import text
 
+from app.db.models.risk_reservation import RESERVATION_HELD
+
 # ---------------------------------------------------------------------------- config
 USER = int(os.environ.get("ADR0043_USER", "3"))
 ACCT = int(os.environ.get("ADR0043_ACCOUNT", "3"))
@@ -68,6 +70,15 @@ TARGET_OVERSHOOT = D(os.environ.get("ADR0043_TARGET_OVERSHOOT", "250"))
 CHECKPOINT = Path(os.environ.get("ADR0043_CHECKPOINT", "/app/data/adr0043_canary_state.json"))
 LOCKFILE = Path(os.environ.get("ADR0043_LOCKFILE", "/app/data/adr0043_canary.lock"))
 
+# The single share the A2 reduction sells and the A3 new-risk BUY asks for. One constant so the
+# submit, the identity check, and the expected post-settlement position can never disagree.
+REDUCE_QTY = D(os.environ.get("ADR0043_REDUCE_QTY", "1"))
+
+# How long the per-order settlement barrier may wait for the broker to reach terminal. Generous
+# relative to a market order on a liquid name; a barrier that gives up early would produce a FALSE
+# stop, and one that never gives up would hang the run past its budget.
+SETTLEMENT_TIMEOUT_S = float(os.environ.get("ADR0043_SETTLEMENT_TIMEOUT_S", "45"))
+
 POLICY_VERSION = "0043.1"
 
 # The loss-control mode the harness REQUIRES to make a meaningful assertion. A canary run under
@@ -95,6 +106,30 @@ class BreachUnreachable(RuntimeError):
 class CanaryRefused(RuntimeError):
     """The harness refuses to run: a precondition for a VALID run is absent (wrong mode, no lock,
     missing legs). A refusal is a correct outcome — a run that assumes its preconditions is not."""
+
+
+class CanaryStop(RuntimeError):
+    """A HARD STOP mid-run, distinct from a refusal: the run began legitimately and then hit a
+    condition that makes continuing unsafe rather than merely un-assertable. Carries a SPECIFIC
+    ``stop_reason`` so the evidence names the failure instead of recording a generic canary FAIL.
+
+    Nothing after a stop is attempted — the point of stopping is that the next step would act on a
+    ledger the harness cannot vouch for."""
+
+    def __init__(self, stop_reason: str, detail: str, diagnostics: dict[str, Any] | None = None):
+        super().__init__(f"{stop_reason}: {detail}")
+        self.stop_reason = stop_reason
+        self.detail = detail
+        self.diagnostics = diagnostics or {}
+
+
+class SettlementBarrierFailed(CanaryStop):
+    """``settle_order`` could not positively establish that an order is settled. The ledger for that
+    order is UNRESOLVED, so no further order may be placed — this is the condition that, unnamed and
+    unenforced, produced both Phase-0 SETUP failures."""
+
+    def __init__(self, detail: str, diagnostics: dict[str, Any] | None = None):
+        super().__init__("SETTLEMENT_BARRIER_FAILED", detail, diagnostics)
 
 
 # ---------------------------------------------------------------------------- state snapshot
@@ -336,6 +371,19 @@ class Checkpoint:
     def step_data(self, name: str) -> dict:
         return dict(self.steps.get(name, {}))
 
+    def record_intent(self, name: str, **data: Any) -> None:
+        """Record what a side-effecting step is ABOUT to do, durably, BEFORE it does it.
+
+        The deterministic client id closes the "did I already submit?" window; this closes the
+        "what was true before I submitted?" window. Without it a crash between submit and checkpoint
+        leaves the resumed run unable to say what the position SHOULD settle to — and a resumed run
+        that cannot verify its own arithmetic must refuse, not guess."""
+        self.steps[f"{name}_intent"] = {**data, "at": datetime.now(UTC).isoformat()}
+        self.save()
+
+    def intent(self, name: str) -> dict:
+        return dict(self.steps.get(f"{name}_intent", {}))
+
     def record_step(self, name: str, **data: Any) -> None:
         self.steps[name] = {**self.steps.get(name, {}), **data, "done": True,
                             "at": datetime.now(UTC).isoformat()}
@@ -402,7 +450,9 @@ class Evidence:
             "risk_limits": None,
             "control_events": [],
             "orders": [],
+            "settlements": [],
             "assertions": [],
+            "stop": None,
             "final": None,
         }
 
@@ -420,6 +470,17 @@ class Evidence:
                 "rejection_reason": getattr(response, "rejection_reason", None),
             }
         )
+
+    def record_settlement(self, record: dict[str, Any]) -> None:
+        """One settlement outcome — success or failure — bound into the evidence. A failed barrier
+        is evidence too, and the more diagnostic the better: the whole reason Phase 0 burned two
+        attempts is that "the order didn't settle" left no record of HOW it didn't settle."""
+        self.doc["settlements"].append(record)
+
+    def record_stop(self, stop_reason: str, detail: str, diagnostics: dict[str, Any]) -> None:
+        self.doc["stop"] = {"stop_reason": stop_reason, "detail": detail,
+                            "diagnostics": diagnostics,
+                            "at": datetime.now(UTC).isoformat()}
 
     def assert_(self, name: str, ok: bool, detail: str) -> bool:
         self.doc["assertions"].append({"name": name, "result": "PASS" if ok else "FAIL",
@@ -601,6 +662,180 @@ async def event_row(sf, event_id: int) -> dict | None:
             )
         ).mappings().first()
     return dict(r) if r else None
+
+
+# ---------------------------------------------------------------------------- settlement evidence
+async def order_fill_summary(sf, order_id: int) -> dict[str, Any]:
+    """What the LOCAL ledger has actually booked for one order — the figure every settlement
+    assertion compares against, read from the durable rows rather than from the router's response."""
+    async with sf() as s:
+        r = (
+            await s.execute(
+                text(
+                    "SELECT o.status, o.broker_order_id, o.terminal_at, "
+                    "(SELECT COUNT(*) FROM fills f WHERE f.order_id = o.id) AS fill_count, "
+                    "(SELECT COALESCE(SUM(f.qty), 0) FROM fills f WHERE f.order_id = o.id) AS qty "
+                    "FROM orders o WHERE o.id = :i"
+                ),
+                {"i": order_id},
+            )
+        ).mappings().first()
+    if r is None:
+        return {"status": None, "broker_order_id": None, "terminal_at": None,
+                "fill_count": 0, "filled_qty": D(0)}
+    return {
+        "status": str(r["status"]),
+        "broker_order_id": r["broker_order_id"],
+        "terminal_at": str(r["terminal_at"]) if r["terminal_at"] else None,
+        "fill_count": int(r["fill_count"] or 0),
+        "filled_qty": D(str(r["qty"] or 0)),
+    }
+
+
+async def reservation_states_for(sf, order_id: int) -> list[str]:
+    async with sf() as s:
+        rows = (
+            await s.execute(
+                text("SELECT state FROM risk_reservations WHERE order_id = :i ORDER BY id"),
+                {"i": order_id},
+            )
+        ).scalars().all()
+    return [str(r) for r in rows]
+
+
+async def local_position_qty(sf, ticker: str) -> D:
+    async with sf() as s:
+        q = (
+            await s.execute(
+                text(
+                    "SELECT p.qty FROM positions p JOIN symbols sym ON sym.id = p.symbol_id "
+                    "WHERE p.account_id = :a AND sym.ticker = :t"
+                ),
+                {"a": ACCT, "t": ticker},
+            )
+        ).scalar()
+    return D(str(q)) if q is not None else D(0)
+
+
+def broker_position_qty(adapter, ticker: str) -> D:
+    for p in adapter.get_positions() or []:
+        if str(p.get("symbol")).upper() == ticker.upper():
+            return D(str(p.get("qty") or 0))
+    return D(0)
+
+
+async def settlement_diagnostics(
+    sf, adapter, *, step: str, order_id: int | None, ticker: str,
+    polls: int | None = None, elapsed_s: float | None = None,
+    exception_category: str | None = None, detail: str | None = None,
+) -> dict[str, Any]:
+    """Everything needed to diagnose a settlement failure WITHOUT re-running it, and without leaking
+    a credential — ids, statuses and quantities only. Best-effort and never raises: a diagnostic
+    collector that can itself fail would destroy the evidence for the failure it is describing.
+
+    Broker reads are attempted but recorded as ``UNAVAILABLE:<ExcType>`` when the broker is the very
+    thing that is unreachable (the most likely cause of the failure being diagnosed)."""
+    diag: dict[str, Any] = {
+        "step": step,
+        "stop_reason": "SETTLEMENT_BARRIER_FAILED",
+        "local_order_id": order_id,
+        "ticker": ticker,
+        "polls": polls,
+        "elapsed_s": round(elapsed_s, 3) if elapsed_s is not None else None,
+        "exception_category": exception_category,
+        "detail": (detail or "")[:400],
+        "at": datetime.now(UTC).isoformat(),
+    }
+    try:
+        booked = await order_fill_summary(sf, order_id) if order_id else {}
+        diag["local_order_status"] = booked.get("status")
+        diag["broker_order_id"] = booked.get("broker_order_id")
+        diag["local_filled_qty"] = str(booked.get("filled_qty", D(0)))
+        diag["local_fill_count"] = booked.get("fill_count")
+    except Exception as exc:  # noqa: BLE001 — diagnostics must never mask the failure
+        diag["local_order_status"] = f"UNAVAILABLE:{type(exc).__name__}"
+    try:
+        diag["reservation_states"] = await reservation_states_for(sf, order_id) if order_id else []
+    except Exception as exc:  # noqa: BLE001
+        diag["reservation_states"] = [f"UNAVAILABLE:{type(exc).__name__}"]
+    try:
+        diag["local_position"] = str(await local_position_qty(sf, ticker))
+    except Exception as exc:  # noqa: BLE001
+        diag["local_position"] = f"UNAVAILABLE:{type(exc).__name__}"
+    try:
+        diag["broker_position"] = str(broker_position_qty(adapter, ticker))
+    except Exception as exc:  # noqa: BLE001
+        diag["broker_position"] = f"UNAVAILABLE:{type(exc).__name__}"
+    bid = diag.get("broker_order_id")
+    if bid:
+        try:
+            bo = adapter.get_order(str(bid)) or {}
+            diag["broker_status"] = str(bo.get("status"))
+            diag["broker_filled_qty"] = str(bo.get("filled_qty"))
+        except Exception as exc:  # noqa: BLE001
+            diag["broker_status"] = f"UNAVAILABLE:{type(exc).__name__}"
+            diag["broker_filled_qty"] = None
+    else:
+        diag["broker_status"] = None
+        diag["broker_filled_qty"] = None
+    try:
+        diag["loss_control_state"] = await current_loss_control_state(sf)
+    except Exception as exc:  # noqa: BLE001
+        diag["loss_control_state"] = f"UNAVAILABLE:{type(exc).__name__}"
+    return diag
+
+
+# ---------------------------------------------------------------------------- PURE settlement gates
+def assess_a2_settlement(
+    *, broker_status: str | None, local_status: str | None, fill_count: int, booked_qty: D,
+    local_position: D, broker_position: D, expected_position: D,
+    reservation_states: list[str], reduce_qty: D = REDUCE_QTY,
+) -> tuple[bool, str]:
+    """A2 is GREEN only when the reduction is SETTLED, not merely admitted.
+
+    "The router returned ALLOW" says nothing about whether the share actually left the account —
+    that gap is precisely what attempt 2 mistook for success. Every clause here is a fact read back
+    from the ledger and the broker AFTER the barrier returned."""
+    ok = (
+        str(broker_status).lower() == "filled"
+        # EXACTLY "filled" — an ``endswith`` here would silently accept PARTIALLY_FILLED, which is
+        # the one local status that most looks settled and least is.
+        and str(local_status).lower() == "filled"
+        and fill_count == 1
+        and booked_qty == reduce_qty
+        and local_position == expected_position
+        and broker_position == expected_position
+        and RESERVATION_HELD not in reservation_states
+    )
+    return ok, (
+        f"broker={broker_status} local={local_status} fills={fill_count} booked={booked_qty} "
+        f"(expected {reduce_qty}) local_pos={local_position} broker_pos={broker_position} "
+        f"(expected {expected_position}) reservations={reservation_states or '[]'}"
+    )
+
+
+def assess_a3_no_submission(
+    *, rejected: bool, reason: str, broker_order_id: str | None, local_status: str | None,
+    local_position: D, broker_position: D, expected_position: D, reservation_count: int,
+) -> tuple[bool, str]:
+    """A3 is GREEN only if the refusal reached NO broker at all.
+
+    A refusal that still produced a broker order is not a refusal — it is an unnoticed order, which
+    is a worse outcome than a failed canary."""
+    ok = (
+        rejected
+        and "LOSS_CONTROL_STOP" in reason
+        and not broker_order_id
+        and str(local_status).lower().endswith("rejected")
+        and local_position == expected_position
+        and broker_position == expected_position
+        and reservation_count == 0
+    )
+    return ok, (
+        f"rejected={rejected} reason={reason or '-'} broker_order_id={broker_order_id or 'none'} "
+        f"local_status={local_status} local_pos={local_position} broker_pos={broker_position} "
+        f"(expected unchanged {expected_position}) reservations={reservation_count}"
+    )
 
 
 async def current_loss_control_state(sf) -> str | None:
