@@ -71,6 +71,11 @@ ALLOWED = {
     "strategies_user/templates/momentum_daily.py",
     "tests/strategies/test_backtester.py",
     "tests/strategies/test_strategy_risk_integration.py",
+    # P2 coverage: BacktestContext behaviour tests call `ctx.submit_order(...)` on the
+    # SIMULATED backtest context — the same category as test_backtester.py above. There is no
+    # AlpacaAdapter and no broker access anywhere in the file; the simulated context fills
+    # against a bar DataFrame. Nothing here reaches a live order path.
+    "tests/strategies/test_backtest_context_behaviour.py",
     # P7 §1: the strategy-generation prompt embeds the platform Strategy
     # interface as EXAMPLE TEXT, which includes `self.ctx.submit_order(...)`.
     # It is prompt content, not a call site — generated strategies dispatch
