@@ -200,6 +200,28 @@ from routine online use.
 
 ---
 
+## 6a. Governing invariants (ratified by the recovery-verifier adjudication)
+
+These are the standing invariants of the recovery-verification path. Any future change that
+would violate one is a stop-the-change event.
+
+1. There is **exactly one** authoritative archive-verification implementation
+   (`verify_archive()`).
+2. Archive creation **fails** unless that verifier returns PASS.
+3. Offline media review invokes the **same** verifier — no weaker build-time variant exists.
+4. The build-time registry cross-check is **additional evidence, not an offline dependency**;
+   the offline verifier never requires registry access.
+5. **Every reachable OCI descriptor** is schema- and content-validated (type, digest syntax,
+   media type, size, size-to-content agreement, media-type agreement).
+6. **No unreferenced object** is accepted.
+7. **Empty traversal cannot pass.**
+8. Review copies must remain **byte-identical** to their authoritative sources
+   (enforced by `test_review_copies_in_sync.py`, exclusions governed by an explicit allowlist).
+9. No review-copy change can affect the bound `evaluator/` §4 inventory.
+10. **No passing recovery verification satisfies Requirement 7 or authorizes execution.**
+
+---
+
 ## 7. Custodian record — TO BE COMPLETED BY THE OWNER
 
 Deliberately left blank. Naming a custodian is the owner's act, and per the earlier

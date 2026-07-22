@@ -20,6 +20,11 @@ import pytest
 SOURCE = Path(__file__).resolve().parent
 REVIEW = SOURCE.parents[1] / "docs" / "review" / "mr002" / "custody_review"
 
+# Files that exist ONLY on the review side and have no authoritative source.
+# Governed by an explicit allowlist rather than a silent skip, so a genuinely
+# orphaned copy is still caught.
+REVIEW_ONLY = {"README.md"}
+
 
 def _tracked_files():
     return sorted(list(SOURCE.glob("*.py")) + list(SOURCE.glob("aws/*.json")))
@@ -45,11 +50,11 @@ def test_review_copy_matches_source(source_file):
 @pytest.mark.skipif(not REVIEW.exists(), reason="review copies not present in this checkout")
 def test_no_orphaned_review_copies():
     """A review copy with no source is stale evidence and must not linger."""
-    expected = {f.relative_to(SOURCE).as_posix() for f in _tracked_files()}
+    expected = {f.relative_to(SOURCE).as_posix() for f in _tracked_files()} | REVIEW_ONLY
     actual = {
         f.relative_to(REVIEW).as_posix()
         for f in REVIEW.rglob("*")
-        if f.is_file() and f.name != "README.md"
+        if f.is_file()
     }
     assert actual - expected == set(), f"orphaned review copies: {sorted(actual - expected)}"
 
