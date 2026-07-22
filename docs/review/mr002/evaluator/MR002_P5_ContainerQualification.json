@@ -1,0 +1,113 @@
+{
+  "all_defect_classes_refused": true,
+  "authorization": "P5 adjudication 2026-07-22 \u2014 container-image completion only, then stop",
+  "binding": {
+    "state": "RESOLVED",
+    "supersedes": {
+      "previous_binding_sha256": "4096e6a00d4e0f085bd7a7c0be52d30b17d9a8932356af3fe37ed6aff1b6c5d4",
+      "previous_source_commit": "6708c59fcd442fb3675d5b8e54c8e7ee0ba0a72a",
+      "reason": "producing the qualifying image required new evaluator source (mr002_valoos_image.py), so the source binding was regenerated at the new commit rather than preserved"
+    },
+    "unresolved_elements": []
+  },
+  "boundary": "No validation, OOS, or sealed data was mounted or opened. validation_authorization remains false.",
+  "determinism_note": "the image config digest embeds a build timestamp, so a rebuild produces a different digest; the binding names the digest ACTUALLY produced. Bit-reproducible image builds are not claimed",
+  "image": {
+    "base": "sha256:fcbd8dfc2605ba7c2eca646846c5e892b2931e41f6227985154a596f26ab8ed7",
+    "build_definition_sha256": "6b7c8ed8fc9d80cc723decae894337402601593940acc91edd2d733c2d8988c9",
+    "builder": "docker/29.5.3",
+    "digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+    "mounts_during_build": "none",
+    "network": "none",
+    "platform": "linux/amd64",
+    "sealed_data_mounted": false
+  },
+  "image_contents": {
+    "byte_identical_to_bound_set": true,
+    "dependency_lock_in_image_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
+    "dependency_lock_matches_source": true,
+    "modules_in_image": 21,
+    "no_additional_included_module": true
+  },
+  "image_verification": {
+    "bound_module_count": 21,
+    "image_module_count": 21,
+    "matches": true,
+    "problems": []
+  },
+  "not_done": [
+    "P10 numeric-runtime instance",
+    "custodian P6-P9/P11",
+    "P13",
+    "validation/OOS access",
+    "credential release",
+    "performance computation",
+    "grant-readiness verifier",
+    "D3 authorization event"
+  ],
+  "prerequisite": "P5 continuation \u2014 qualifying container-image leg",
+  "record_type": "MR002_P5_ContainerQualification",
+  "refusal_demonstrations": [
+    {
+      "code": "REFUSED_EVALUATOR_BINDING:module_drift",
+      "label": "module_drift_in_image",
+      "refused": true,
+      "where": "inside the produced image"
+    },
+    {
+      "code": "REFUSED_EVALUATOR_BINDING:module_missing",
+      "label": "module_omitted_from_image",
+      "refused": true,
+      "where": "inside the produced image"
+    },
+    {
+      "code": "REFUSED_EVALUATOR_BINDING:module_unbound",
+      "label": "additional_unbound_module_in_image",
+      "refused": true,
+      "where": "inside the produced image"
+    },
+    {
+      "code": "REFUSED_EVALUATOR_IMAGE:image_digest_mismatch",
+      "label": "altered_image_digest",
+      "refused": true,
+      "where": "manifest"
+    },
+    {
+      "code": "REFUSED_EVALUATOR_IMAGE:source_identity_mismatch",
+      "label": "wrong_source_commit",
+      "refused": true,
+      "where": "manifest"
+    },
+    {
+      "code": "REFUSED_EVALUATOR_IMAGE:source_identity_mismatch",
+      "label": "wrong_source_tree",
+      "refused": true,
+      "where": "manifest"
+    },
+    {
+      "code": "REFUSED_EVALUATOR_IMAGE:dependency_lock_mismatch",
+      "label": "changed_dependency_lock",
+      "refused": true,
+      "where": "manifest"
+    },
+    {
+      "code": "REFUSED_EVALUATOR_IMAGE:not_content_addressed:image_digest:'mr002-evaluator-p5:qualify'",
+      "label": "mutable_tag_only_identity",
+      "refused": true,
+      "where": "manifest"
+    }
+  ],
+  "scope_boundary": "SS4 image-identity leg only. This is NOT P10 numeric-runtime production: the image carries the evaluator modules and the dependency lock, and no numeric stack was installed or qualified here",
+  "section4_gate_inside_image": {
+    "method": "require_binding executed by the image's own interpreter against the superseding binding",
+    "modules_verified": 21,
+    "passed": true
+  },
+  "source_identity": {
+    "commit": "d1e7ffc6ef280b69d6244cfbff3bb18c5d412f4b",
+    "included_module_count": 21,
+    "modules_byte_exact_from_git_blobs": true,
+    "tree": "01503f9a77f1ff88ac146d120c323c559ac6cb61"
+  },
+  "version": "1.0"
+}

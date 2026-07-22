@@ -1,8 +1,7 @@
 {
   "authorizes": "NOTHING - this is an identity binding; it grants no data access, releases no credentials, and computes no performance",
-  "binding_state": "RESOLVED",
-  "container_image_manifest_sha256": "0b7780cfb5d87cbd3b4b0ad9f78670be28467241a00c62a69839684dd401e1f2",
-  "entry_count": 55,
+  "binding_state": "PARTIALLY_RESOLVED",
+  "entry_count": 51,
   "excluded": [
     {
       "class": "EXCLUDED_CACHE",
@@ -23,11 +22,6 @@
       "class": "EXCLUDED_NON_EVALUATOR",
       "path": "MR002_EvaluatorAcceptanceSubmission.json",
       "sha256": "cd73011573f8fc39e1554777cd454e5256aded70bcdb0f4a811e8ed9336fbb5f"
-    },
-    {
-      "class": "EXCLUDED_NON_EVALUATOR",
-      "path": "MR002_EvaluatorBinding.json",
-      "sha256": "4096e6a00d4e0f085bd7a7c0be52d30b17d9a8932356af3fe37ed6aff1b6c5d4"
     },
     {
       "class": "EXCLUDED_NON_EVALUATOR",
@@ -100,11 +94,6 @@
       "sha256": "87c797ef3032ffbea9fce572f11ffcef2cfd631c38a6a5b366bfd736b87bba8c"
     },
     {
-      "class": "EXCLUDED_NON_EVALUATOR",
-      "path": "MR002_P5_BindingQualification.json",
-      "sha256": "eb138180c006e97986fced015b2d8f7568ba1ed58b2351ba53ddfc30dd6c9ebd"
-    },
-    {
       "class": "EXCLUDED_CACHE",
       "path": "__pycache__",
       "sha256": null
@@ -140,11 +129,6 @@
       "sha256": "13470cc4cfba61a531d06887129fd92139068a0675f25e6009976146e8898e54"
     },
     {
-      "class": "EXCLUDED_GENERATOR",
-      "path": "_gen_image_p5.py",
-      "sha256": "4f444fad8f0d8f63bfdff393d01e107c4515f6027b0377c35310f15367787f64"
-    },
-    {
       "class": "EXCLUDED_TEST",
       "path": "test_binding_p5.py",
       "sha256": "e2be779622d8bf0a8cb68b11d3e05071ac7ce151edadb89f15a4fb7fdbaf1a67"
@@ -172,10 +156,10 @@
     {
       "class": "EXCLUDED_TEST",
       "path": "test_p4_acceptance.py",
-      "sha256": "91750a454609df9cecbde77a21db7a0fbbd68d774e14c5c97be9d68ebc85a363"
+      "sha256": "07b21698a8c2b97382b12d51541802d712d763e2495041f0ea7e414e27172b5a"
     }
   ],
-  "included_module_count": 21,
+  "included_module_count": 20,
   "included_modules": {
     "mr002_valoos_access_boundary.py": "f5c1e6641237a30dfe2c3bb18eac7180534736cb31887e4c425452acba34330d",
     "mr002_valoos_binding.py": "d0e7062e11e6ea040823c6e17394574dde81924d491e0d89911586ef193d75ca",
@@ -187,7 +171,6 @@
     "mr002_valoos_exposure.py": "5d18a45706e47dfceefafd5236928094714f64566931103dfd04f539a7f552bc",
     "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
     "mr002_valoos_identity.py": "36eb44741c2bf5ede80688d6527a0d89fdfa5ac1f37b44fc61341ac3aab701b1",
-    "mr002_valoos_image.py": "0b27eca302ef5e2ed507c302b1f18ab320b7095df1561a4465ca8dc920a53812",
     "mr002_valoos_metrics.py": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
     "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
     "mr002_valoos_pipeline.py": "5e71ea392e728378d6d1004ff42de87fdfb4e9b5a94e5210c71c754441c6ae1d",
@@ -213,13 +196,13 @@
   },
   "inventory_counts": {
     "EXCLUDED_CACHE": 3,
-    "EXCLUDED_GENERATOR": 7,
-    "EXCLUDED_NON_EVALUATOR": 18,
+    "EXCLUDED_GENERATOR": 6,
+    "EXCLUDED_NON_EVALUATOR": 16,
     "EXCLUDED_TEST": 6,
-    "INCLUDED_MODULE": 21
+    "INCLUDED_MODULE": 20
   },
-  "inventory_digest": "936e341cc0e714ed523c6f8aea04076b902c348e413c7e8656234457b06007a3",
-  "pending_evaluator_bind": null,
+  "inventory_digest": "93a285b02a87530cceecf0cab760a0c6a969c91fcebb11f83087164e340a2ed4",
+  "pending_evaluator_bind": "PENDING_EVALUATOR_BIND",
   "record_type": "MR002_EvaluatorBinding",
   "section4_elements": {
     "benchmark_impl": {
@@ -233,8 +216,10 @@
       "status": "RESOLVED"
     },
     "container_image_digest": {
-      "status": "RESOLVED",
-      "value": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9"
+      "producer": "runtime producer (P10 / deployment)",
+      "reason": "no qualifying bound image exists",
+      "status": "UNRESOLVED",
+      "value": "PENDING_EVALUATOR_BIND"
     },
     "cost_model_impl": {
       "module": "mr002_valoos_costmodel.py",
@@ -277,11 +262,11 @@
     },
     "source_commit": {
       "status": "RESOLVED",
-      "value": "d1e7ffc6ef280b69d6244cfbff3bb18c5d412f4b"
+      "value": "6708c59fcd442fb3675d5b8e54c8e7ee0ba0a72a"
     },
     "source_tree": {
       "status": "RESOLVED",
-      "value": "01503f9a77f1ff88ac146d120c323c559ac6cb61"
+      "value": "89a61bffb335353f54b23bdfe4a659689c364744"
     }
   },
   "source_identity_evidence": {
@@ -297,7 +282,6 @@
       "mr002_valoos_exposure.py": "5d18a45706e47dfceefafd5236928094714f64566931103dfd04f539a7f552bc",
       "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
       "mr002_valoos_identity.py": "36eb44741c2bf5ede80688d6527a0d89fdfa5ac1f37b44fc61341ac3aab701b1",
-      "mr002_valoos_image.py": "0b27eca302ef5e2ed507c302b1f18ab320b7095df1561a4465ca8dc920a53812",
       "mr002_valoos_metrics.py": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
       "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
       "mr002_valoos_pipeline.py": "5e71ea392e728378d6d1004ff42de87fdfb4e9b5a94e5210c71c754441c6ae1d",
@@ -308,14 +292,13 @@
       "mr002_valoos_replay.py": "1d386de684348d7977e2147ab2f7f01b6e6fe17deaa739769550254648dca0a8",
       "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
       "mr002_valoos_runtime.py": "2635a52b3daa06e8c26a850c70b83efe1fd3903b2b35055441746b2f5ae0e5b0"
-    }
+    },
+    "emission_note": "the artifacts emitted by this script are EXCLUDED_NON_EVALUATOR; committing them adds no included module, so the bound inventory stays reproducible at source_commit",
+    "working_tree_clean_for_modules": true
   },
-  "supersedes": {
-    "previous_binding_sha256": "4096e6a00d4e0f085bd7a7c0be52d30b17d9a8932356af3fe37ed6aff1b6c5d4",
-    "previous_source_commit": "6708c59fcd442fb3675d5b8e54c8e7ee0ba0a72a",
-    "reason": "producing the qualifying image required new evaluator source (mr002_valoos_image.py), so the source binding was regenerated at the new commit rather than preserved"
-  },
-  "unresolved_elements": [],
+  "unresolved_elements": [
+    "container_image_digest"
+  ],
   "verification_rule": "a run is refused unless (a) every included module reproduces its bound digest in the THEN-current tree, (b) no unbound module is present, (c) no module is missing, renamed, duplicated, or drifted, and (d) no element remains UNRESOLVED",
   "version": "1.0"
 }

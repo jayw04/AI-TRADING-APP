@@ -248,6 +248,22 @@ def test_P5_21_emitted_binding_matches_the_real_directory_when_present():
         binding = json.load(fh)
     report = B.verify_binding(HERE, binding)
     assert report["problems"] == [], report["problems"]
-    # the container leg must still be pending: no qualifying image exists
-    assert binding["unresolved_elements"] == ["container_image_digest"]
-    assert binding["binding_state"] == "PARTIALLY_RESOLVED"
+    # the container leg resolved once a qualifying image existed; before that it was PENDING,
+    # and the superseded binding is preserved alongside as evidence of that state
+    assert binding["binding_state"] == "RESOLVED"
+    assert binding["unresolved_elements"] == []
+    assert binding["section4_elements"]["container_image_digest"]["status"] == "RESOLVED"
+
+
+def test_P5_22_the_superseded_partially_resolved_binding_is_preserved():
+    path = os.path.join(HERE, "MR002_EvaluatorBinding_superseded_6708c59.json")
+    if not os.path.exists(path):  # pragma: no cover
+        pytest.skip("superseded binding absent")
+    with open(path, encoding="utf-8") as fh:
+        old = json.load(fh)
+    assert old["binding_state"] == "PARTIALLY_RESOLVED"
+    assert old["unresolved_elements"] == ["container_image_digest"]
+    with open(os.path.join(HERE, "MR002_EvaluatorBinding.json"), encoding="utf-8") as fh:
+        new = json.load(fh)
+    assert new["supersedes"]["previous_source_commit"] == \
+        old["section4_elements"]["source_commit"]["value"]
