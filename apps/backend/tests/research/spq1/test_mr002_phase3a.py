@@ -158,6 +158,30 @@ def test_16_oos_only_gates_cannot_execute_during_validation():
     assert all("sample_stage" in e for e in m["metrics"].values())
 
 
+def test_16b_validation_metrics_list_is_canonical_and_unique():
+    v = load("MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json")
+    mc = v["metrics_computed_during_validation"]
+    assert len(mc) == len(set(mc))          # correction A: no duplicate entry
+    assert mc == sorted(mc)                  # canonical order
+
+
+def test_16c_advancement_conditions_deterministic_diagnostics_not_gating():
+    v = load("MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json")
+    conds = v["oos_authorization_request_conditions"]
+    # correction B: only the four deterministic conditions; no discretionary red-flag / coherence test
+    joined = " ".join(conds).lower()
+    assert "red flag" not in joined and "directionally coherent" not in joined
+    assert v["advancement_conditions_are_binding_and_deterministic"] is True
+    assert set(conds) == {"every validation integrity gate passes",
+                          "Config B >= 3 of 5 folds net-positive", "Configs A and C both net-profitable",
+                          "no post-validation tuning requested"}
+    # PBO / concentration / directional coherence are diagnostics, reported-not-gating
+    diag = v["validation_diagnostics_reported_not_gating"]
+    for d in ("pbo_cscv", "directional_coherence_A_B_C",
+              "single_year_sector_side_issuer_concentration"):
+        assert "NEVER changes the advance verdict" in diag[d] or "NOT a validation pass/fail" in diag[d]
+
+
 def test_17_validation_advancement_rule_is_hash_bound():
     r = load("ValidationRunSpecification_v1.0.json")
     got = hashlib.sha256(

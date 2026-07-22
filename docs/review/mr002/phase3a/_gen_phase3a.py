@@ -510,20 +510,29 @@ H["ValidationStageDecisionSpecification"] = dump({
     "purpose": "freezes the validation-stage advancement rule SEPARATELY from the sealed-OOS primary "
         "gates; validation does NOT evaluate net_oos_sharpe, the OOS bootstrap gate, or OOS DSR",
     "prereg_sha256": PREREG_SHA,
-    "metrics_computed_during_validation": validation_stage_metrics + ["dsr_trial_dispersion_validation"],
+    "metrics_computed_during_validation": sorted(set(validation_stage_metrics)),  # canonical, set-like
     "validation_gates": {
         "validation_positive_folds_ge_3_of_5": {"config": "B", "rule": ">= 3 of 5 folds net-positive",
             "source": "gates_frozen.validation_positive_folds_min_of_5 + positive_folds_sample"},
         "parameter_stability_A_and_C_net_profitable": {"rule": "Configs A and C both net-profitable",
             "source": "gates_frozen.parameter_stability + stability_sample=validation"}},
-    "validation_diagnostics": {"pbo_cscv": "DIAGNOSTIC (config-B per-fold; NEVER a validation gate)",
+    "validation_diagnostics_reported_not_gating": {
+        "pbo_cscv": "DIAGNOSTIC_ONLY (config-B per-fold); reported, NEVER changes the advance verdict",
+        "positive_pnl_regime_concentration": "DIAGNOSTIC_ONLY; reported, NEVER changes the advance verdict",
+        "annual_herfindahl": "DIAGNOSTIC_ONLY; reported, NEVER changes the advance verdict",
+        "directional_coherence_A_B_C": "DIAGNOSTIC_ONLY; reported, NEVER changes the advance verdict",
+        "single_year_sector_side_issuer_concentration": "DIAGNOSTIC_ONLY; reported, NEVER changes the "
+            "advance verdict (no post-hoc red-flag test introduced after validation is observed)",
         "dsr_trial_dispersion_validation": "validation annualized net Sharpes of A/B/C; frozen input to "
             "the OOS DSR; NOT a validation pass/fail"},
     "oos_only_metrics_prohibited_during_validation": oos_only_prohibited,
     "oos_authorization_request_conditions": ["every validation integrity gate passes",
         "Config B >= 3 of 5 folds net-positive", "Configs A and C both net-profitable",
-        "validation diagnostics show no single-year/sector/side/issuer concentration red flag",
-        "A/B/C behavior directionally coherent", "no post-validation tuning requested"],
+        "no post-validation tuning requested"],
+    "advancement_conditions_are_binding_and_deterministic": True,
+    "advancement_conditions_exclude_diagnostics": "PBO, concentration, and directional-coherence are "
+        "DIAGNOSTIC_ONLY: reported but cannot independently change the validation advancement verdict; no "
+        "discretionary red-flag test may be introduced after validation is observed",
     "config_A_C_treatment": "the parameter-stability gate (A and C both net-profitable) is a VALIDATION "
         "gate; A and C are neighboring robustness configs and NEVER substitute for B in the OOS run",
     "dsr_dispersion_treatment": {"computed_during": "validation",

@@ -1,5 +1,7 @@
 {
  "advance_meaning": "VALIDATION_ADVANCE_REQUEST authorizes a REQUEST for separate OOS authorization; it does NOT open OOS and does NOT evaluate any OOS gate",
+ "advancement_conditions_are_binding_and_deterministic": true,
+ "advancement_conditions_exclude_diagnostics": "PBO, concentration, and directional-coherence are DIAGNOSTIC_ONLY: reported but cannot independently change the validation advancement verdict; no discretionary red-flag test may be introduced after validation is observed",
  "allowed_verdicts": [
   "VALIDATION_ADVANCE_REQUEST",
   "VALIDATION_DO_NOT_ADVANCE",
@@ -21,15 +23,12 @@
   "pbo_cscv",
   "replay_integrity",
   "validation_positive_folds_ge_3_of_5",
-  "zero_vol_peak_to_peak",
-  "dsr_trial_dispersion_validation"
+  "zero_vol_peak_to_peak"
  ],
  "oos_authorization_request_conditions": [
   "every validation integrity gate passes",
   "Config B >= 3 of 5 folds net-positive",
   "Configs A and C both net-profitable",
-  "validation diagnostics show no single-year/sector/side/issuer concentration red flag",
-  "A/B/C behavior directionally coherent",
   "no post-validation tuning requested"
  ],
  "oos_only_metrics_prohibited_during_validation": [
@@ -54,9 +53,13 @@
  "prereg_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
  "purpose": "freezes the validation-stage advancement rule SEPARATELY from the sealed-OOS primary gates; validation does NOT evaluate net_oos_sharpe, the OOS bootstrap gate, or OOS DSR",
  "record_type": "MR002_Phase3A_ValidationStageDecisionSpecification",
- "validation_diagnostics": {
+ "validation_diagnostics_reported_not_gating": {
+  "annual_herfindahl": "DIAGNOSTIC_ONLY; reported, NEVER changes the advance verdict",
+  "directional_coherence_A_B_C": "DIAGNOSTIC_ONLY; reported, NEVER changes the advance verdict",
   "dsr_trial_dispersion_validation": "validation annualized net Sharpes of A/B/C; frozen input to the OOS DSR; NOT a validation pass/fail",
-  "pbo_cscv": "DIAGNOSTIC (config-B per-fold; NEVER a validation gate)"
+  "pbo_cscv": "DIAGNOSTIC_ONLY (config-B per-fold); reported, NEVER changes the advance verdict",
+  "positive_pnl_regime_concentration": "DIAGNOSTIC_ONLY; reported, NEVER changes the advance verdict",
+  "single_year_sector_side_issuer_concentration": "DIAGNOSTIC_ONLY; reported, NEVER changes the advance verdict (no post-hoc red-flag test introduced after validation is observed)"
  },
  "validation_gates": {
   "parameter_stability_A_and_C_net_profitable": {
