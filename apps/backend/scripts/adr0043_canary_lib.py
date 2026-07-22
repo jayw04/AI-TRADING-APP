@@ -917,6 +917,34 @@ def assess_a3_no_submission(
     )
 
 
+# ---------------------------------------------------------------------------- gating assertions
+# Assertion names are EVIDENCE-SCHEMA FIELDS, not cosmetic strings: downstream verification reads
+# the package and looks for these exact names, so a rename is a silent loss of a required check and
+# a quiet removal is worse. The inventory is frozen here and pinned by a test, so an addition has to
+# be deliberate and a removal fails loudly.
+GATING_ASSERTIONS: frozenset[str] = frozenset({
+    # --- canary (adr0043_canary_run) ---
+    "A1.state_authoritative",
+    "A2.verified_reduction_allowed",
+    "A2.reduction_settled",
+    "A2.admitted_as_verified_reduction",
+    "A2.state_remains_reduction_only",
+    "A3.new_risk_refused",
+    "A3.no_broker_submission",
+    "A3.refusal_is_auditable",
+    "A4.reached_recovery_cooldown",
+    "A5.evaluator_holds",
+    "already_complete",
+    # --- emitted by the governed seam, per step label ---
+    "A2.settled",
+    "A3.settled",
+    "CHURN.settled",
+    "CHURN.no_broker_submission",
+    # --- Phase 0 churn driver ---
+    "PHASE0.lock_established",
+})
+
+
 # ---------------------------------------------------------------------------- the submit seam
 def _label(step: str) -> str:
     """The STEP a seam assertion belongs to, independent of the sub-step that produced it.

@@ -222,3 +222,155 @@ async def compute(x):
     return total / len(x)
 """
     assert check("scripts/adr0043_rogue.py", _tree(src)) == []
+
+
+# ---------------------------------------------------------------------------- alias bypasses
+# The realistic bypass is never the obvious call — a reviewer sees `router.submit(req)`. It is the
+# reference extracted a few lines earlier, after which every use reads as an ordinary local call.
+
+
+def test_aliasing_submit_to_a_local_name_is_caught():
+    src = """
+async def go(router, q):
+    submit = router.submit
+    return await submit(q)
+"""
+    v = check_no_direct_submit("scripts/adr0043_rogue.py", _tree(src))
+    assert v and v[0].invariant == "no-direct-submit"
+
+
+def test_extracting_submit_via_getattr_is_caught():
+    src = """
+async def go(router, q):
+    fn = getattr(router, "submit")
+    return await fn(q)
+"""
+    v = check_no_direct_submit("scripts/adr0043_rogue.py", _tree(src))
+    assert v and "getattr" in v[0].detail
+
+
+def test_stashing_submit_in_a_container_is_caught():
+    src = """
+def wire(router):
+    return {"place": router.submit}
+"""
+    assert check_no_direct_submit("scripts/adr0043_rogue.py", _tree(src))
+
+
+def test_importing_settle_order_under_an_alias_is_caught():
+    src = """
+from app.orders.settlement import settle_order as settle
+
+async def go(*a):
+    return await settle(*a)
+"""
+    v = check_no_direct_barrier("scripts/adr0043_rogue.py", _tree(src))
+    assert v and "aliased to settle" in v[0].detail
+
+
+def test_aliasing_settle_order_off_a_module_is_caught():
+    src = """
+import app.orders.settlement as s
+
+async def go(*a):
+    barrier = s.settle_order
+    return await barrier(*a)
+"""
+    assert check_no_direct_barrier("scripts/adr0043_rogue.py", _tree(src))
+
+
+def test_extracting_settle_order_via_getattr_is_caught():
+    src = """
+import app.orders.settlement as s
+
+async def go(*a):
+    fn = getattr(s, "settle_order")
+    return await fn(*a)
+"""
+    v = check_no_direct_barrier("scripts/adr0043_rogue.py", _tree(src))
+    assert v and any("getattr" in x.detail for x in v)
+
+
+def test_a_similarly_named_method_is_not_a_false_positive():
+    """``submit_and_settle`` / ``submit_expecting_refusal`` ARE the sanctioned seam calls; an
+    attribute check that fired on them would make the invariant unusable."""
+    src = """
+async def go(sub, req):
+    return await sub.submit_and_settle(step="A", request={}, order_req=req, ticker="MSFT")
+"""
+    assert check_no_direct_submit("scripts/adr0043_rogue.py", _tree(src)) == []
+
+
+# ---------------------------------------------------------------------------- gating assertions
+# Assertion names are evidence-schema fields. Downstream verification looks for these exact strings,
+# so an accidental rename is a silently missing check.
+
+
+FROZEN_GATING_ASSERTIONS = {
+    "A1.state_authoritative",
+    "A2.verified_reduction_allowed",
+    "A2.reduction_settled",
+    "A2.admitted_as_verified_reduction",
+    "A2.state_remains_reduction_only",
+    "A2.settled",
+    "A3.new_risk_refused",
+    "A3.no_broker_submission",
+    "A3.refusal_is_auditable",
+    "A3.settled",
+    "A4.reached_recovery_cooldown",
+    "A5.evaluator_holds",
+    "CHURN.settled",
+    "CHURN.no_broker_submission",
+    "PHASE0.lock_established",
+    "already_complete",
+}
+
+
+def test_the_gating_assertion_inventory_is_frozen():
+    """Two places must change together. An addition is then deliberate; a removal fails loudly
+    rather than quietly dropping a required assertion from the evidence package."""
+    from scripts.adr0043_canary_lib import GATING_ASSERTIONS
+
+    assert set(GATING_ASSERTIONS) == FROZEN_GATING_ASSERTIONS
+
+
+def _emitted_assertion_names() -> tuple[set[str], set[str]]:
+    """Every name passed as the first argument to ``.assert_(...)`` across the governed harnesses,
+    split into plain literals and the dynamic ``f"{_label(step)}.suffix"`` forms."""
+    literals: set[str] = set()
+    suffixes: set[str] = set()
+    for path in governed_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "assert_" and node.args):
+                continue
+            first = node.args[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                literals.add(first.value)
+            elif isinstance(first, ast.JoinedStr):
+                tail = first.values[-1]
+                if isinstance(tail, ast.Constant) and isinstance(tail.value, str):
+                    suffixes.add(tail.value)
+    return literals, suffixes
+
+
+def test_every_literal_assertion_is_registered():
+    """A new assertion added to a harness without registering it fails here, so the inventory
+    cannot silently fall behind the code."""
+    from scripts.adr0043_canary_lib import GATING_ASSERTIONS
+
+    literals, _ = _emitted_assertion_names()
+    assert literals, "no assertion names found — the extractor is broken, not the harness"
+    assert literals <= set(GATING_ASSERTIONS), literals - set(GATING_ASSERTIONS)
+
+
+def test_every_dynamic_assertion_suffix_is_registered():
+    """The seam emits ``f"{_label(step)}.settled"``; the concrete names it can produce must all be
+    inventoried, or a gating assertion exists at runtime that nothing downstream expects."""
+    from scripts.adr0043_canary_lib import GATING_ASSERTIONS
+
+    _, suffixes = _emitted_assertion_names()
+    assert suffixes, "no dynamic assertion names found — the extractor is broken"
+    for suffix in suffixes:
+        assert any(name.endswith(suffix) for name in GATING_ASSERTIONS), suffix

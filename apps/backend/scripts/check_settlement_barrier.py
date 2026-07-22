@@ -20,11 +20,22 @@ in a single call. This checker proves no harness can express "submit without set
      ``submit_expecting_refusal`` must reach it too (for the unexpected-broker-order reconcile).
      Without this the first two rules would be satisfied by a seam that settles nothing.
 
-NOT enforced here, deliberately: the LIVE order path. ``app/`` submits orders and relies on the
-trade-updates stream plus ``reconcile_stuck_orders`` — making every production submit block on a
-synchronous REST poll would be a significant behavioural change to the order path and needs an ADR,
-not a CI script. This invariant governs the ADR-0043 harnesses, which trade deliberately against a
-live account with no human watching the ledger.
+SCOPE
+-----
+This invariant applies to ADR-0043 order-placing scripts. It does NOT redefine the production order
+lifecycle or require synchronous REST settlement for general application order submission. Any
+expansion into production order paths requires separate architectural review and governance.
+
+The boundary is drawn where it is because the ADR-0043 harnesses have an operating condition the
+application does not: they place live paper orders, without reliable trade-update ownership, may not
+proceed until the prior order is durably reconciled, and must produce an evidence package that
+distinguishes refusal from settlement from reconciliation failure from unexpected broker
+submission. None of that implies the production router should become synchronous; ``app/`` keeps its
+stream-driven reconciliation plus ``reconcile_stuck_orders``.
+
+``scripts/adr0043_*.py`` is a GOVERNED NAMESPACE, not a filename convenience. A new ``adr0043_*.py``
+script inherits this requirement automatically the moment it is added; opting out means editing this
+checker, which is a reviewable act.
 
 Disabling any of these requires an ADR.
 
@@ -77,25 +88,50 @@ def _enclosing_class_methods(tree: ast.AST, class_name: str) -> dict[str, ast.AS
     return out
 
 
+def _getattr_literal(call: ast.Call) -> str | None:
+    """The constant attribute name in ``getattr(obj, "name")``, if that is what this call is.
+
+    ``fn = getattr(router, "submit")`` is a bypass a reviewer would not notice; resolving it in
+    FULL generality is static-analysis overreach (the name can be computed), so the constant-string
+    form is rejected outright and the computed form is prohibited by policy, not detection."""
+    if not (isinstance(call.func, ast.Name) and call.func.id == "getattr"):
+        return None
+    if len(call.args) < 2 or not isinstance(call.args[1], ast.Constant):
+        return None
+    value = call.args[1].value
+    return value if isinstance(value, str) else None
+
+
 def check_no_direct_submit(rel: str, tree: ast.AST) -> list[Violation]:
-    """(1) Only the seam module may call ``.submit(...)``."""
+    """(1) Only the seam module may reach ``.submit``.
+
+    This flags the ATTRIBUTE, not just the call, because the realistic bypass is not
+    ``router.submit(req)`` — a reviewer sees that. It is ``submit = router.submit`` three lines
+    earlier, and then an innocuous-looking ``await submit(req)``."""
     if rel.endswith(SEAM_MODULE):
         return []
     out = []
-    for call in _calls(tree):
-        fn = call.func
-        if isinstance(fn, ast.Attribute) and fn.attr == "submit":
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr == "submit":
             out.append(Violation(
-                "no-direct-submit", rel, call.lineno,
-                "calls .submit() directly; ADR-0043 harnesses must place orders through "
-                "GovernedSubmitter.submit_and_settle / submit_expecting_refusal so the barrier "
-                "cannot be skipped",
+                "no-direct-submit", rel, node.lineno,
+                "references .submit directly (call or alias); ADR-0043 harnesses must place orders "
+                "through GovernedSubmitter.submit_and_settle / submit_expecting_refusal so the "
+                "barrier cannot be skipped",
+            ))
+        elif isinstance(node, ast.Call) and _getattr_literal(node) == "submit":
+            out.append(Violation(
+                "no-direct-submit", rel, node.lineno,
+                "extracts .submit via getattr(); routing around the seam dynamically is prohibited",
             ))
     return out
 
 
 def check_no_direct_barrier(rel: str, tree: ast.AST) -> list[Violation]:
-    """(2) Only the seam module may import or call ``settle_order``."""
+    """(2) Only the seam module may import or reach ``settle_order``.
+
+    The import check keys off the ORIGINAL name, so ``import settle_order as settle`` is caught at
+    the import even though every later use reads as an ordinary local call."""
     if rel.endswith(SEAM_MODULE):
         return []
     out = []
@@ -103,16 +139,25 @@ def check_no_direct_barrier(rel: str, tree: ast.AST) -> list[Violation]:
         if isinstance(node, ast.ImportFrom):
             for alias in node.names:
                 if alias.name == "settle_order":
+                    as_note = f" (aliased to {alias.asname})" if alias.asname else ""
                     out.append(Violation(
                         "no-direct-barrier", rel, node.lineno,
-                        "imports settle_order; call it through the governed seam so the evidence "
-                        "record and the SETTLEMENT_BARRIER_FAILED stop are not bypassed",
+                        f"imports settle_order{as_note}; call it through the governed seam so the "
+                        f"evidence record and the SETTLEMENT_BARRIER_FAILED stop are not bypassed",
                     ))
+        elif isinstance(node, ast.Attribute) and node.attr == "settle_order":
+            out.append(Violation(
+                "no-direct-barrier", rel, node.lineno,
+                "reaches settle_order directly (call or alias) rather than through the seam",
+            ))
         elif isinstance(node, ast.Call):
-            fn = node.func
-            name = fn.id if isinstance(fn, ast.Name) else (
-                fn.attr if isinstance(fn, ast.Attribute) else None)
-            if name == "settle_order":
+            if _getattr_literal(node) == "settle_order":
+                out.append(Violation(
+                    "no-direct-barrier", rel, node.lineno,
+                    "extracts settle_order via getattr(); routing around the seam dynamically is "
+                    "prohibited",
+                ))
+            elif isinstance(node.func, ast.Name) and node.func.id == "settle_order":
                 out.append(Violation(
                     "no-direct-barrier", rel, node.lineno,
                     "calls settle_order directly rather than through the governed seam",
