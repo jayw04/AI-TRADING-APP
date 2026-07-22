@@ -514,6 +514,45 @@ class BacktestContext:
                                     status="submitted", client_order_id=po.client_order_id))
         return out
 
+    async def pending_buy_qty(self) -> dict[str, Decimal]:
+        """In-flight BUY quantity per ticker, keyed by ticker — the backtest twin of
+        ``StrategyContext.pending_buy_qty``.
+
+        SEMANTIC PARITY (P-parity, 2026-07-22). The live seam sums this strategy's own
+        **non-terminal BUY orders** — routed but not yet filled/settled, so not yet visible in
+        ``positions`` — at full qty, keyed by uppercase ticker, restricted to the strategy's
+        allowed universe. In the backtest the exact counterpart is ``pending_orders``: an order
+        submitted on bar N and not yet settled at bar N+1's open. The mapping is one-to-one:
+
+          live "non-terminal BUY, not in positions"  ==  backtest "pending BUY, not yet settled"
+
+        - **submitted** buys: counted (they sit in ``pending_orders``).
+        - **partially filled** buys: the backtest fills each order in full at the next bar open
+          — there is no partial state — so the live rule "count the full qty, the remainder lags
+          in positions" degenerates to the same full-qty count here. No divergence.
+        - **reserved-but-not-submitted**: the backtest has no reserve-before-submit step;
+          ``submit_order`` queues straight to ``pending_orders``, so there is nothing to count
+          that the live seam would not also count once routed. No divergence.
+        - **terminal / rejected / settled**: excluded by construction — a rejected order is never
+          appended, and a settled order is removed from ``pending_orders`` (it becomes a fill +
+          a position), exactly as a terminal live order drops out of the non-terminal filter.
+
+        Symbol-specific, uppercase keys, full (hence nonnegative) qty. Returning zero to satisfy
+        the interface was explicitly rejected: it would remove the AttributeError while leaving
+        the netting semantics silently wrong, so a strategy would double-submit in backtest where
+        it does not live.
+        """
+        allowed = {s.upper() for s in self.symbols}
+        out: dict[str, Decimal] = {}
+        for po in self.pending_orders:
+            if po.side != OrderSide.BUY:
+                continue
+            t = po.symbol.upper()
+            if t not in allowed:
+                continue
+            out[t] = out.get(t, Decimal(0)) + po.qty
+        return out
+
     async def _read_settled_fills(
         self, *, since, after_fill_id, client_order_id_prefix
     ) -> list[FillEvent]:

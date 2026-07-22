@@ -76,6 +76,11 @@ ALLOWED = {
     # AlpacaAdapter and no broker access anywhere in the file; the simulated context fills
     # against a bar DataFrame. Nothing here reaches a live order path.
     "tests/strategies/test_backtest_context_behaviour.py",
+    # Context parity: the pending_buy_qty parity tests call `ctx.submit_order(...)` on the
+    # SIMULATED BacktestContext (same category as above) to exercise the submit->settle path.
+    # No AlpacaAdapter, no broker access; the live StrategyContext it also builds is driven only
+    # through read seams (pending_buy_qty), never a mutation.
+    "tests/strategies/test_context_pending_buy_parity.py",
     # P7 §1: the strategy-generation prompt embeds the platform Strategy
     # interface as EXAMPLE TEXT, which includes `self.ctx.submit_order(...)`.
     # It is prompt content, not a call site — generated strategies dispatch
