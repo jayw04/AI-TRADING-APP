@@ -1,0 +1,50 @@
+{
+  "schema": "drift_audit_content_digest/v1",
+  "source_db": {
+    "abs_path": "C:\\LLM-RAG-APP\\ai-trading-app\\apps\\backend\\data\\factor_data_full.duckdb",
+    "whole_file_sha256": "022ffd01b52b04aacac1932448413d042f68d0bb37ddf4ccdec39292484a7831"
+  },
+  "window": {
+    "start_date": "2005-01-03",
+    "end_date": "2026-06-12"
+  },
+  "universe_id": "momentum_daily_stage2_4:top200_PIT_universe_asof_n200",
+  "sep_audit_window": {
+    "sha256": "d9472dfe40e6bd9997b16895bd44aad709a3f00c8aa8579d7626e05cbd07e2c7",
+    "rows": 30751780,
+    "columns": [
+      "ticker",
+      "date",
+      "open",
+      "high",
+      "low",
+      "closeadj",
+      "volume"
+    ],
+    "canonicalization": "drift_audit_content_digest/v1",
+    "algorithm": "sha256",
+    "query": "SELECT ticker, date, open, high, low, closeadj, volume FROM sep WHERE date BETWEEN DATE '2005-01-03' AND DATE '2026-06-12' ORDER BY date, ticker",
+    "distinct_sessions": 5395,
+    "distinct_tickers": 14150,
+    "date_min": "2005-01-03",
+    "date_max": "2026-06-12"
+  },
+  "tickers_audit_relevant": {
+    "sha256": "2f21b154fa6a4746a8ce4b5aa74d52d31151a65c7462b8544037bcf38d4f22f3",
+    "rows": 14150,
+    "columns": [
+      "ticker",
+      "sector",
+      "industry",
+      "category",
+      "isdelisted",
+      "firstpricedate",
+      "lastpricedate"
+    ],
+    "canonicalization": "drift_audit_content_digest/v1",
+    "algorithm": "sha256",
+    "query": "SELECT ticker, sector, industry, category, isdelisted, firstpricedate, lastpricedate FROM tickers WHERE ticker IN (SELECT DISTINCT ticker FROM sep WHERE date BETWEEN DATE '2005-01-03' AND DATE '2026-06-12') ORDER BY ticker",
+    "distinct_tickers": 14150
+  },
+  "caveat": "The original validation did not record a whole-file digest. The identified source file was later modified in NON-audit tables (index_prices). Governing reproducibility is established through file identity plus deterministic content digests of the exact audit-consumed sep and tickers inputs."
+}

@@ -162,6 +162,12 @@ def main() -> int:
     ap.add_argument("--expected-price-db-sha256", default=None)
     ap.add_argument("--expected-universe-id", required=True,
                     help="the validation universe / artifact identifier the audit is bound to")
+    ap.add_argument("--expected-sep-content-sha256", default=None,
+                    help="countersigned logical-content digest of the audit-consumed sep rows")
+    ap.add_argument("--expected-tickers-content-sha256", default=None,
+                    help="countersigned logical-content digest of the audit-relevant tickers rows")
+    ap.add_argument("--content-digest-artifact-sha256", default=None,
+                    help="SHA-256 of the countersigned content-digest artifact (recorded in the binding)")
     ap.add_argument("--start-date", required=True)
     ap.add_argument("--end-date", required=True)
     ap.add_argument("--output", required=True)
@@ -179,7 +185,10 @@ def main() -> int:
             expected_universe_id=args.expected_universe_id,
             start_date=args.start_date, end_date=args.end_date,
             strategy_name=STRATEGY_NAME, strategy_version=STRATEGY_VERSION,
-            strategy_params=_strategy_params(), replica_reference=REPLICA_REF)
+            strategy_params=_strategy_params(), replica_reference=REPLICA_REF,
+            expected_sep_content_sha256=args.expected_sep_content_sha256,
+            expected_tickers_content_sha256=args.expected_tickers_content_sha256,
+            content_digest_artifact_sha256=args.content_digest_artifact_sha256)
     except ProvenanceError as exc:
         print(f"✖ PROVENANCE REFUSED (fail-closed): {exc}", file=sys.stderr)
         return 5
