@@ -1,0 +1,1088 @@
+{
+  "schema": "mr_momentum_daily.weighting_defect_impact.v1",
+  "prereg": "PREREG_weighting_defect_impact_study_v1.1.md",
+  "window": {
+    "start": "2005-01-03",
+    "end": "2026-06-12",
+    "trading_days": 5395
+  },
+  "constants": {
+    "N": 5,
+    "cap_on": false,
+    "max_position_pct": 0.2,
+    "initial_equity": 100000.0,
+    "turnover_cost_bps": 10.0,
+    "weight_drift_pct": 0.04,
+    "backstop_days": 10
+  },
+  "arms": {
+    "C": {
+      "role": "GOVERNING",
+      "reproduction": {
+        "checks": {
+          "cagr": {
+            "observed": 0.16914959714231537,
+            "reference": 0.16914959714231537,
+            "rel_diff": 0.0,
+            "pass": true
+          },
+          "sharpe": {
+            "observed": 0.5965389159263783,
+            "reference": 0.5965389159263783,
+            "rel_diff": 0.0,
+            "pass": true
+          },
+          "calmar": {
+            "observed": 0.2618641359938403,
+            "reference": 0.2618641359938403,
+            "rel_diff": 0.0,
+            "pass": true
+          },
+          "max_drawdown": {
+            "observed": -0.6459441133485121,
+            "reference": -0.6459441133485121,
+            "rel_diff": 0.0,
+            "pass": true
+          },
+          "trades": {
+            "observed": 1539,
+            "reference": 1539,
+            "rel_diff": 0.0,
+            "pass": true
+          }
+        },
+        "pass": true
+      },
+      "A_defective_hybrid": {
+        "sizing": "hybrid_50_50",
+        "pinned": false,
+        "cagr": 0.16914959714231537,
+        "total_return": 27.507308987284627,
+        "sharpe": 0.5965389159263783,
+        "max_drawdown": -0.6459441133485121,
+        "calmar": 0.2618641359938403,
+        "annualized_volatility": 0.3865405418920753,
+        "annualized_turnover": 14.882232676872897,
+        "annualized_cost_bps": 148.82232676872897,
+        "total_cost_frac": 0.3190359530730036,
+        "avg_holding_days": 31.193625498007968,
+        "worst_single_name_gap": -0.7025974516994972,
+        "trades": 1539,
+        "pct_days_risk_off": 0.9631139944392957,
+        "final_equity": 2850730.898728463,
+        "crash_windows": {
+          "2008_gfc": -0.07465803470662213,
+          "2020_covid": 0.19761805144176603,
+          "2022_drawdown": -0.08830018449732413
+        },
+        "cap_violation_rebalances": 1539,
+        "cap_violation_max_weight": 0.25
+      },
+      "B_pinned_equal": {
+        "sizing": "equal_weight",
+        "pinned": true,
+        "cagr": 0.16679163643347183,
+        "total_return": 26.299860665195066,
+        "sharpe": 0.5908284690749598,
+        "max_drawdown": -0.6464163706665372,
+        "calmar": 0.2580250810502966,
+        "annualized_volatility": 0.3874869794347159,
+        "annualized_turnover": 14.866818268465385,
+        "annualized_cost_bps": 148.66818268465386,
+        "total_cost_frac": 0.3187055086710043,
+        "avg_holding_days": 31.193625498007968,
+        "worst_single_name_gap": -0.7025974516994972,
+        "trades": 1539,
+        "pct_days_risk_off": 0.9631139944392957,
+        "final_equity": 2729986.0665195067,
+        "crash_windows": {
+          "2008_gfc": -0.07032255886335148,
+          "2020_covid": 0.19771770935858735,
+          "2022_drawdown": -0.08682098730577092
+        },
+        "cap_violation_rebalances": 2,
+        "cap_violation_max_weight": 0.25
+      },
+      "B_free_equal": {
+        "sizing": "equal_weight",
+        "pinned": false,
+        "cagr": 0.16712657603597436,
+        "total_return": 26.46835279203068,
+        "sharpe": 0.5915642518753181,
+        "max_drawdown": -0.6460311725465665,
+        "calmar": 0.2586973866557929,
+        "annualized_volatility": 0.3874945395524192,
+        "annualized_turnover": 14.870813880330969,
+        "annualized_cost_bps": 148.70813880330968,
+        "total_cost_frac": 0.3187911640875889,
+        "avg_holding_days": 31.193625498007968,
+        "worst_single_name_gap": -0.7025974516994972,
+        "trades": 1542,
+        "pct_days_risk_off": 0.9631139944392957,
+        "final_equity": 2746835.279203068,
+        "crash_windows": {
+          "2008_gfc": -0.07032255886335148,
+          "2020_covid": 0.19771770935858912,
+          "2022_drawdown": -0.08682098730577215
+        },
+        "cap_violation_rebalances": 2,
+        "cap_violation_max_weight": 0.25
+      },
+      "B_pinned_production": {
+        "sizing": "production_capped_equal",
+        "pinned": true,
+        "cagr": 0.16685482253863815,
+        "total_return": 26.331570982963292,
+        "sharpe": 0.590968345093468,
+        "max_drawdown": -0.6464163706665368,
+        "calmar": 0.25812282935623954,
+        "annualized_volatility": 0.3874864776868388,
+        "annualized_turnover": 14.867334841581814,
+        "annualized_cost_bps": 148.67334841581814,
+        "total_cost_frac": 0.3187165826408924,
+        "avg_holding_days": 31.193625498007968,
+        "worst_single_name_gap": -0.7025974516994972,
+        "trades": 1539,
+        "pct_days_risk_off": 0.9631139944392957,
+        "final_equity": 2733157.0982963294,
+        "crash_windows": {
+          "2008_gfc": -0.06924268642583964,
+          "2020_covid": 0.19771770935858735,
+          "2022_drawdown": -0.08682098730577115
+        },
+        "cap_violation_rebalances": 0,
+        "cap_violation_max_weight": 0.0
+      },
+      "primary_comparison_pinned": {
+        "delta_annualized_volatility_bps": 9.464375426405658,
+        "delta_annualized_cost_bps": -0.1541440840751136,
+        "rolling_1m": {
+          "n": 5374,
+          "median_abs_bps": 3.7792078577331134,
+          "p95_abs_bps": 31.92886224454128,
+          "max_abs_bps": 211.2878913941829,
+          "median_signed_bps": -0.3831430421508131,
+          "pct_positive": 0.44510606624488275
+        },
+        "rolling_3m": {
+          "n": 5332,
+          "median_abs_bps": 8.104866989773196,
+          "p95_abs_bps": 72.59876089004469,
+          "max_abs_bps": 601.0607907545307,
+          "median_signed_bps": -1.5035299473620256,
+          "pct_positive": 0.4281695423855964
+        },
+        "rolling_12m": {
+          "n": 5143,
+          "median_abs_bps": 22.222860956812028,
+          "p95_abs_bps": 281.3462723109472,
+          "max_abs_bps": 940.330966583911,
+          "median_signed_bps": -13.350748582843242,
+          "pct_positive": 0.2920474431265798
+        },
+        "max_single_rebalance_cost_diff_bps": 0.2132684262517459,
+        "median_single_rebalance_cost_diff_bps": 0.007523263180095441,
+        "trade_dates_identical": true,
+        "trade_date_overlap": 1.0,
+        "target_sequence_identical": true,
+        "per_year_return_diff_bps": {
+          "2005": -13.679237397956623,
+          "2006": -21.641049497662657,
+          "2007": -171.14574094441616,
+          "2008": -0.00939794405296901,
+          "2009": -2.662697445037221,
+          "2010": 10.143617305582442,
+          "2011": -10.726490200403394,
+          "2012": -51.600963303256584,
+          "2013": 2.9973259585491796,
+          "2014": -74.17216447900054,
+          "2015": 14.230628078336638,
+          "2016": -10.728600880967054,
+          "2017": -84.77369591555428,
+          "2018": -16.08570279235,
+          "2019": 3.5464516389249745,
+          "2020": -73.2328550650152,
+          "2021": 208.8902834497386,
+          "2022": 14.791971915532054,
+          "2023": -13.689090041442142,
+          "2024": -89.01611739034809,
+          "2025": -148.29640090090246,
+          "2026": -37.40462141168077
+        },
+        "per_year_same_sign_share": 0.7272727272727273,
+        "per_year_max_abs_bps": 208.8902834497386
+      },
+      "diagnostic_comparison_free": {
+        "delta_annualized_volatility_bps": 9.539976603438749,
+        "delta_annualized_cost_bps": -0.11418796541929055,
+        "rolling_1m": {
+          "n": 5374,
+          "median_abs_bps": 3.8101379565053106,
+          "p95_abs_bps": 32.88723802855165,
+          "max_abs_bps": 211.2878913941829,
+          "median_signed_bps": -0.3639563014773417,
+          "pct_positive": 0.44715295868998883
+        },
+        "rolling_3m": {
+          "n": 5332,
+          "median_abs_bps": 8.25056959459447,
+          "p95_abs_bps": 78.41400458524106,
+          "max_abs_bps": 601.0607907545528,
+          "median_signed_bps": -1.3928911825039636,
+          "pct_positive": 0.43267066766691675
+        },
+        "rolling_12m": {
+          "n": 5143,
+          "median_abs_bps": 23.00511880959366,
+          "p95_abs_bps": 259.72484790931725,
+          "max_abs_bps": 1215.605932784811,
+          "median_signed_bps": -12.265351905622612,
+          "pct_positive": 0.31596344545984834
+        },
+        "max_single_rebalance_cost_diff_bps": 0.4795401145317535,
+        "median_single_rebalance_cost_diff_bps": 0.007615320660267377,
+        "trade_dates_identical": false,
+        "trade_date_overlap": 0.9941747572815534,
+        "target_sequence_identical": true,
+        "per_year_return_diff_bps": {
+          "2005": -13.679237397956623,
+          "2006": -21.641049497662657,
+          "2007": -171.14574094441616,
+          "2008": -0.00939794405296901,
+          "2009": -2.662697445037221,
+          "2010": 10.143617305582442,
+          "2011": -10.726490200403394,
+          "2012": -51.600963303256584,
+          "2013": 2.9973259585491796,
+          "2014": -81.7556742870118,
+          "2015": 14.23062807834441,
+          "2016": -20.1083483582698,
+          "2017": -84.77369591552986,
+          "2018": -16.08570279236554,
+          "2019": 3.546451638938297,
+          "2020": 8.447120089563054,
+          "2021": 223.95513826060088,
+          "2022": 14.791971915519841,
+          "2023": -13.68909004143326,
+          "2024": -89.01611739032145,
+          "2025": -123.88950347961281,
+          "2026": -37.40462141168743
+        },
+        "per_year_same_sign_share": 0.6818181818181818,
+        "per_year_max_abs_bps": 223.95513826060088
+      },
+      "production_faithful_comparison_pinned": {
+        "delta_annualized_volatility_bps": 9.45935794763486,
+        "delta_annualized_cost_bps": -0.14897835291083084,
+        "rolling_1m": {
+          "n": 5374,
+          "median_abs_bps": 3.830183204117099,
+          "p95_abs_bps": 32.05124900435119,
+          "max_abs_bps": 211.28789139417847,
+          "median_signed_bps": -0.3736726232150822,
+          "pct_positive": 0.44585039077037586
+        },
+        "rolling_3m": {
+          "n": 5332,
+          "median_abs_bps": 8.183760810810403,
+          "p95_abs_bps": 72.59876089004803,
+          "max_abs_bps": 601.0607907545218,
+          "median_signed_bps": -1.5035299473620256,
+          "pct_positive": 0.42873218304576144
+        },
+        "rolling_12m": {
+          "n": 5143,
+          "median_abs_bps": 21.762574584779372,
+          "p95_abs_bps": 281.346272310965,
+          "max_abs_bps": 940.3309665839199,
+          "median_signed_bps": -12.49995831954731,
+          "pct_positive": 0.29885280964417654
+        },
+        "max_single_rebalance_cost_diff_bps": 0.2616408055569044,
+        "median_single_rebalance_cost_diff_bps": 0.007597167869482835,
+        "trade_dates_identical": true,
+        "trade_date_overlap": 1.0,
+        "target_sequence_identical": true,
+        "per_year_return_diff_bps": {
+          "2005": -13.679237397956623,
+          "2006": -21.641049497662657,
+          "2007": -171.14574094441616,
+          "2008": -0.00939794405296901,
+          "2009": 9.998782751237112,
+          "2010": 10.143617305586883,
+          "2011": -10.726490200396732,
+          "2012": -51.60096330325214,
+          "2013": 2.997325958560282,
+          "2014": -74.17216447899833,
+          "2015": 14.23062807834774,
+          "2016": -10.728600880975936,
+          "2017": -84.77369591553429,
+          "2018": -16.08570279235888,
+          "2019": 3.5464516389360767,
+          "2020": -73.23285506500632,
+          "2021": 208.89028344974525,
+          "2022": 14.791971915529833,
+          "2023": -13.689090041442142,
+          "2024": -89.01611739033032,
+          "2025": -148.296400900918,
+          "2026": -37.40462141167855
+        },
+        "per_year_same_sign_share": 0.6818181818181818,
+        "per_year_max_abs_bps": 208.89028344974525
+      },
+      "gate_evaluation": {
+        "gates": [
+          {
+            "gate": "T1  annualized volatility |d|",
+            "value": 9.464375426405658,
+            "threshold": 25.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.3785750170562263
+          },
+          {
+            "gate": "T2  rolling 1m median |d|",
+            "value": 3.7792078577331134,
+            "threshold": 10.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.37792078577331134
+          },
+          {
+            "gate": "T3  rolling 1m p95 |d|",
+            "value": 31.92886224454128,
+            "threshold": 50.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.6385772448908256
+          },
+          {
+            "gate": "T4  rolling 3m median |d|",
+            "value": 8.104866989773196,
+            "threshold": 20.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.4052433494886598
+          },
+          {
+            "gate": "T5  rolling 3m p95 |d|",
+            "value": 72.59876089004469,
+            "threshold": 75.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.9679834785339292
+          },
+          {
+            "gate": "T6  rolling 12m median |d|",
+            "value": 22.222860956812028,
+            "threshold": 35.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.6349388844803436
+          },
+          {
+            "gate": "T7  rolling 12m p95 |d|",
+            "value": 281.3462723109472,
+            "threshold": 125.0,
+            "unit": "bps",
+            "pass": false,
+            "ratio": 2.2507701784875778
+          },
+          {
+            "gate": "T8  annualized cost |d|",
+            "value": 0.1541440840751136,
+            "threshold": 10.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.015414408407511359
+          },
+          {
+            "gate": "T9  max single-rebalance cost |d|",
+            "value": 0.2132684262517459,
+            "threshold": 2.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.10663421312587296
+          },
+          {
+            "gate": "T10 trade-date alignment",
+            "value": 1.0,
+            "threshold": 1.0,
+            "unit": "identical",
+            "pass": true,
+            "ratio": 0.0
+          },
+          {
+            "gate": "T11 cap violations (equal arm)",
+            "value": 2.0,
+            "threshold": 0.0,
+            "unit": "rebalances",
+            "pass": false,
+            "ratio": 99.0
+          },
+          {
+            "gate": "T13 target/holdings path identical",
+            "value": 1.0,
+            "threshold": 1.0,
+            "unit": "identical",
+            "pass": true,
+            "ratio": 0.0
+          }
+        ],
+        "failures": [
+          "T7  rolling 12m p95 |d|",
+          "T11 cap violations (equal arm)"
+        ],
+        "verdict": "MATERIALLY_DIFFERENT"
+      },
+      "gate_evaluation_production": {
+        "gates": [
+          {
+            "gate": "T1  annualized volatility |d|",
+            "value": 9.45935794763486,
+            "threshold": 25.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.3783743179053944
+          },
+          {
+            "gate": "T2  rolling 1m median |d|",
+            "value": 3.830183204117099,
+            "threshold": 10.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.3830183204117099
+          },
+          {
+            "gate": "T3  rolling 1m p95 |d|",
+            "value": 32.05124900435119,
+            "threshold": 50.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.6410249800870238
+          },
+          {
+            "gate": "T4  rolling 3m median |d|",
+            "value": 8.183760810810403,
+            "threshold": 20.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.40918804054052016
+          },
+          {
+            "gate": "T5  rolling 3m p95 |d|",
+            "value": 72.59876089004803,
+            "threshold": 75.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.9679834785339737
+          },
+          {
+            "gate": "T6  rolling 12m median |d|",
+            "value": 21.762574584779372,
+            "threshold": 35.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.6217878452794107
+          },
+          {
+            "gate": "T7  rolling 12m p95 |d|",
+            "value": 281.346272310965,
+            "threshold": 125.0,
+            "unit": "bps",
+            "pass": false,
+            "ratio": 2.25077017848772
+          },
+          {
+            "gate": "T8  annualized cost |d|",
+            "value": 0.14897835291083084,
+            "threshold": 10.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.014897835291083083
+          },
+          {
+            "gate": "T9  max single-rebalance cost |d|",
+            "value": 0.2616408055569044,
+            "threshold": 2.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.1308204027784522
+          },
+          {
+            "gate": "T10 trade-date alignment",
+            "value": 1.0,
+            "threshold": 1.0,
+            "unit": "identical",
+            "pass": true,
+            "ratio": 0.0
+          },
+          {
+            "gate": "T11 cap violations (equal arm)",
+            "value": 0.0,
+            "threshold": 0.0,
+            "unit": "rebalances",
+            "pass": true,
+            "ratio": 0.0
+          },
+          {
+            "gate": "T13 target/holdings path identical",
+            "value": 1.0,
+            "threshold": 1.0,
+            "unit": "identical",
+            "pass": true,
+            "ratio": 0.0
+          }
+        ],
+        "failures": [
+          "T7  rolling 12m p95 |d|"
+        ],
+        "verdict": "MATERIALLY_DIFFERENT",
+        "adjudication_bands": {
+          "t7_p95_bps": 281.346272310965,
+          "cap_violations": 0,
+          "classification": "MATERIALLY_DIFFERENT"
+        }
+      },
+      "arm_labels": {
+        "B_pinned_equal": "PREREGISTERED ARM \u2014 harness equal_weight, uncapped",
+        "B_pinned_production": "POST-HOC PRODUCTION-FAITHFUL CORRECTION \u2014 required because the preregistered arm did not reproduce production on two underfilled rebalances"
+      }
+    },
+    "D": {
+      "role": "NON-GOVERNING REGIME-FREE REPRODUCTION CONTROL",
+      "reproduction": {
+        "checks": {
+          "cagr": {
+            "observed": 0.14783241200020525,
+            "reference": 0.14783241200020525,
+            "rel_diff": 0.0,
+            "pass": true
+          },
+          "sharpe": {
+            "observed": 0.5281673679569521,
+            "reference": 0.5281673679569521,
+            "rel_diff": 0.0,
+            "pass": true
+          },
+          "calmar": {
+            "observed": 0.19938749587947313,
+            "reference": 0.19938749587947313,
+            "rel_diff": 0.0,
+            "pass": true
+          },
+          "max_drawdown": {
+            "observed": -0.7414327129599331,
+            "reference": -0.7414327129599331,
+            "rel_diff": 0.0,
+            "pass": true
+          },
+          "trades": {
+            "observed": 1378,
+            "reference": 1378,
+            "rel_diff": 0.0,
+            "pass": true
+          }
+        },
+        "pass": true
+      },
+      "A_defective_hybrid": {
+        "sizing": "hybrid_50_50",
+        "pinned": false,
+        "cagr": 0.14783241200020525,
+        "total_return": 18.21486405857809,
+        "sharpe": 0.5281673679569521,
+        "max_drawdown": -0.7414327129599331,
+        "calmar": 0.19938749587947313,
+        "annualized_volatility": 0.4767289343427904,
+        "annualized_turnover": 12.81688610234867,
+        "annualized_cost_bps": 128.1688610234867,
+        "total_cost_frac": 0.2747603509415199,
+        "avg_holding_days": 31.193625498007968,
+        "worst_single_name_gap": -0.7025974516994972,
+        "trades": 1378,
+        "pct_days_risk_off": 0.0,
+        "final_equity": 1921486.4058578091,
+        "crash_windows": {
+          "2008_gfc": -0.5703426488348073,
+          "2020_covid": 0.3959341536657386,
+          "2022_drawdown": -0.24759426873310564
+        },
+        "cap_violation_rebalances": 1378,
+        "cap_violation_max_weight": 0.25
+      },
+      "B_pinned_equal": {
+        "sizing": "equal_weight",
+        "pinned": true,
+        "cagr": 0.14533555983723434,
+        "total_return": 17.338472199059304,
+        "sharpe": 0.5234788949494718,
+        "max_drawdown": -0.7421552789299595,
+        "calmar": 0.1958290454347766,
+        "annualized_volatility": 0.477732672543485,
+        "annualized_turnover": 12.797708367816321,
+        "annualized_cost_bps": 127.97708367816321,
+        "total_cost_frac": 0.2743492307186911,
+        "avg_holding_days": 31.193625498007968,
+        "worst_single_name_gap": -0.7025974516994972,
+        "trades": 1378,
+        "pct_days_risk_off": 0.0,
+        "final_equity": 1833847.2199059303,
+        "crash_windows": {
+          "2008_gfc": -0.5665042146334129,
+          "2020_covid": 0.3946847130595643,
+          "2022_drawdown": -0.2483991558328551
+        },
+        "cap_violation_rebalances": 2,
+        "cap_violation_max_weight": 0.25
+      },
+      "B_free_equal": {
+        "sizing": "equal_weight",
+        "pinned": false,
+        "cagr": 0.14522618587149094,
+        "total_return": 17.30096694090791,
+        "sharpe": 0.5232858692202428,
+        "max_drawdown": -0.7418625741057528,
+        "calmar": 0.19575887898988267,
+        "annualized_volatility": 0.47768680921517964,
+        "annualized_turnover": 12.80454619497439,
+        "annualized_cost_bps": 128.0454619497439,
+        "total_cost_frac": 0.2744958157608473,
+        "avg_holding_days": 31.193625498007968,
+        "worst_single_name_gap": -0.7025974516994972,
+        "trades": 1384,
+        "pct_days_risk_off": 0.0,
+        "final_equity": 1830096.6940907908,
+        "crash_windows": {
+          "2008_gfc": -0.566504214633413,
+          "2020_covid": 0.3946847130595643,
+          "2022_drawdown": -0.2483991558328551
+        },
+        "cap_violation_rebalances": 2,
+        "cap_violation_max_weight": 0.25
+      },
+      "B_pinned_production": {
+        "sizing": "production_capped_equal",
+        "pinned": true,
+        "cagr": 0.1455339142528953,
+        "total_return": 17.406676628179365,
+        "sharpe": 0.523842888098187,
+        "max_drawdown": -0.742155278929959,
+        "calmar": 0.1960963135136981,
+        "annualized_volatility": 0.4777282787080646,
+        "annualized_turnover": 12.79862075928267,
+        "annualized_cost_bps": 127.9862075928267,
+        "total_cost_frac": 0.2743687899936575,
+        "avg_holding_days": 31.193625498007968,
+        "worst_single_name_gap": -0.7025974516994972,
+        "trades": 1378,
+        "pct_days_risk_off": 0.0,
+        "final_equity": 1840667.6628179364,
+        "crash_windows": {
+          "2008_gfc": -0.5648919575028357,
+          "2020_covid": 0.39468471305956365,
+          "2022_drawdown": -0.24839915583285488
+        },
+        "cap_violation_rebalances": 0,
+        "cap_violation_max_weight": 0.0
+      },
+      "primary_comparison_pinned": {
+        "delta_annualized_volatility_bps": 10.03738200694604,
+        "delta_annualized_cost_bps": -0.19177734532348722,
+        "rolling_1m": {
+          "n": 5374,
+          "median_abs_bps": 4.966525859103621,
+          "p95_abs_bps": 35.37652549025605,
+          "max_abs_bps": 216.2538866043806,
+          "median_signed_bps": -0.8144203309190523,
+          "pct_positive": 0.43915147004093785
+        },
+        "rolling_3m": {
+          "n": 5332,
+          "median_abs_bps": 10.802166975212302,
+          "p95_abs_bps": 75.37626486506133,
+          "max_abs_bps": 625.3426919757032,
+          "median_signed_bps": -2.544410112178541,
+          "pct_positive": 0.42366841710427605
+        },
+        "rolling_12m": {
+          "n": 5143,
+          "median_abs_bps": 27.110477164316027,
+          "p95_abs_bps": 304.7765497772481,
+          "max_abs_bps": 1298.5448587838632,
+          "median_signed_bps": -16.663029954132604,
+          "pct_positive": 0.28349212521874395
+        },
+        "max_single_rebalance_cost_diff_bps": 0.21762084311402652,
+        "median_single_rebalance_cost_diff_bps": 0.013599201769657898,
+        "trade_dates_identical": true,
+        "trade_date_overlap": 1.0,
+        "target_sequence_identical": true,
+        "per_year_return_diff_bps": {
+          "2005": -13.569004491645886,
+          "2006": -22.71153700509565,
+          "2007": -226.06889784311247,
+          "2008": -3.0168415845099883,
+          "2009": 39.8454437399498,
+          "2010": 12.359543155702202,
+          "2011": -7.920200027331514,
+          "2012": -82.24515651579,
+          "2013": 3.043615427618107,
+          "2014": -78.20655967517354,
+          "2015": -16.793518142227406,
+          "2016": -6.503341694188425,
+          "2017": -87.61996352205426,
+          "2018": 4.134299509612749,
+          "2019": 17.556151291253652,
+          "2020": -108.43503500669539,
+          "2021": 192.61148869059497,
+          "2022": -8.048870997494628,
+          "2023": -24.61860381242298,
+          "2024": -90.25272246969695,
+          "2025": -166.2561192430201,
+          "2026": -37.7168276212414
+        },
+        "per_year_same_sign_share": 0.7272727272727273,
+        "per_year_max_abs_bps": 226.06889784311247
+      },
+      "diagnostic_comparison_free": {
+        "delta_annualized_volatility_bps": 9.578748723892417,
+        "delta_annualized_cost_bps": -0.12339907374280301,
+        "rolling_1m": {
+          "n": 5374,
+          "median_abs_bps": 5.065362619985914,
+          "p95_abs_bps": 38.304168251686036,
+          "max_abs_bps": 216.2538866043806,
+          "median_signed_bps": -0.818343201183791,
+          "pct_positive": 0.43915147004093785
+        },
+        "rolling_3m": {
+          "n": 5332,
+          "median_abs_bps": 11.230554205566289,
+          "p95_abs_bps": 91.37325449953826,
+          "max_abs_bps": 625.3426919757032,
+          "median_signed_bps": -2.8350317498798683,
+          "pct_positive": 0.41935483870967744
+        },
+        "rolling_12m": {
+          "n": 5143,
+          "median_abs_bps": 29.613446622913653,
+          "p95_abs_bps": 421.3476408301231,
+          "max_abs_bps": 2208.4797052657377,
+          "median_signed_bps": -17.064365892212052,
+          "pct_positive": 0.2883531013027416
+        },
+        "max_single_rebalance_cost_diff_bps": 0.4857048014873895,
+        "median_single_rebalance_cost_diff_bps": 0.013658249078280171,
+        "trade_dates_identical": false,
+        "trade_date_overlap": 0.9913482335976929,
+        "target_sequence_identical": true,
+        "per_year_return_diff_bps": {
+          "2005": -13.569004491645886,
+          "2006": -22.71153700509565,
+          "2007": -184.41275733208417,
+          "2008": -3.0168415845099883,
+          "2009": 39.84544373994537,
+          "2010": 12.359543155722186,
+          "2011": -7.920200027320412,
+          "2012": -82.24515651578335,
+          "2013": 3.0436154276003435,
+          "2014": -140.5153935044101,
+          "2015": -16.793518142234063,
+          "2016": -30.994937675401513,
+          "2017": -87.61996352205203,
+          "2018": 4.134299509610528,
+          "2019": 17.556151291233668,
+          "2020": 73.25427805430884,
+          "2021": 207.25640248141275,
+          "2022": -8.048870997494628,
+          "2023": -24.61860381242298,
+          "2024": -90.25272246967475,
+          "2025": -277.34375101781336,
+          "2026": -37.71682762125916
+        },
+        "per_year_same_sign_share": 0.6818181818181818,
+        "per_year_max_abs_bps": 277.34375101781336
+      },
+      "production_faithful_comparison_pinned": {
+        "delta_annualized_volatility_bps": 9.99344365274213,
+        "delta_annualized_cost_bps": -0.18265343065999673,
+        "rolling_1m": {
+          "n": 5374,
+          "median_abs_bps": 5.008861589438363,
+          "p95_abs_bps": 35.92389182157207,
+          "max_abs_bps": 216.25388660438284,
+          "median_signed_bps": -0.8087099565334821,
+          "pct_positive": 0.4402679568291775
+        },
+        "rolling_3m": {
+          "n": 5332,
+          "median_abs_bps": 10.985280333296599,
+          "p95_abs_bps": 78.74528121478819,
+          "max_abs_bps": 625.3426919757121,
+          "median_signed_bps": -2.544410112178541,
+          "pct_positive": 0.42366841710427605
+        },
+        "rolling_12m": {
+          "n": 5143,
+          "median_abs_bps": 28.056556804867405,
+          "p95_abs_bps": 304.77654977723034,
+          "max_abs_bps": 1298.5448587840588,
+          "median_signed_bps": -15.856282067724381,
+          "pct_positive": 0.29282519930001943
+        },
+        "max_single_rebalance_cost_diff_bps": 0.2722729273205935,
+        "median_single_rebalance_cost_diff_bps": 0.01359920176965812,
+        "trade_dates_identical": true,
+        "trade_date_overlap": 1.0,
+        "target_sequence_identical": true,
+        "per_year_return_diff_bps": {
+          "2005": -13.569004491645886,
+          "2006": -22.71153700509565,
+          "2007": -226.06889784311247,
+          "2008": -3.0168415845099883,
+          "2009": 79.4692530960206,
+          "2010": 12.359543155706643,
+          "2011": -7.920200027319302,
+          "2012": -82.24515651576114,
+          "2013": 3.043615427618107,
+          "2014": -78.20655967518242,
+          "2015": -16.793518142241837,
+          "2016": -6.503341694183984,
+          "2017": -87.61996352204093,
+          "2018": 4.134299509607198,
+          "2019": 17.55615129124699,
+          "2020": -108.43503500668649,
+          "2021": 192.61148869063493,
+          "2022": -8.048870997492408,
+          "2023": -24.61860381242076,
+          "2024": -90.25272246967475,
+          "2025": -166.25611924299565,
+          "2026": -37.716827621268045
+        },
+        "per_year_same_sign_share": 0.7272727272727273,
+        "per_year_max_abs_bps": 226.06889784311247
+      },
+      "gate_evaluation": {
+        "gates": [
+          {
+            "gate": "T1  annualized volatility |d|",
+            "value": 10.03738200694604,
+            "threshold": 25.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.4014952802778416
+          },
+          {
+            "gate": "T2  rolling 1m median |d|",
+            "value": 4.966525859103621,
+            "threshold": 10.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.4966525859103621
+          },
+          {
+            "gate": "T3  rolling 1m p95 |d|",
+            "value": 35.37652549025605,
+            "threshold": 50.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.707530509805121
+          },
+          {
+            "gate": "T4  rolling 3m median |d|",
+            "value": 10.802166975212302,
+            "threshold": 20.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.5401083487606151
+          },
+          {
+            "gate": "T5  rolling 3m p95 |d|",
+            "value": 75.37626486506133,
+            "threshold": 75.0,
+            "unit": "bps",
+            "pass": false,
+            "ratio": 1.0050168648674844
+          },
+          {
+            "gate": "T6  rolling 12m median |d|",
+            "value": 27.110477164316027,
+            "threshold": 35.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.7745850618376008
+          },
+          {
+            "gate": "T7  rolling 12m p95 |d|",
+            "value": 304.7765497772481,
+            "threshold": 125.0,
+            "unit": "bps",
+            "pass": false,
+            "ratio": 2.4382123982179844
+          },
+          {
+            "gate": "T8  annualized cost |d|",
+            "value": 0.19177734532348722,
+            "threshold": 10.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.019177734532348722
+          },
+          {
+            "gate": "T9  max single-rebalance cost |d|",
+            "value": 0.21762084311402652,
+            "threshold": 2.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.10881042155701326
+          },
+          {
+            "gate": "T10 trade-date alignment",
+            "value": 1.0,
+            "threshold": 1.0,
+            "unit": "identical",
+            "pass": true,
+            "ratio": 0.0
+          },
+          {
+            "gate": "T11 cap violations (equal arm)",
+            "value": 2.0,
+            "threshold": 0.0,
+            "unit": "rebalances",
+            "pass": false,
+            "ratio": 99.0
+          },
+          {
+            "gate": "T13 target/holdings path identical",
+            "value": 1.0,
+            "threshold": 1.0,
+            "unit": "identical",
+            "pass": true,
+            "ratio": 0.0
+          }
+        ],
+        "failures": [
+          "T5  rolling 3m p95 |d|",
+          "T7  rolling 12m p95 |d|",
+          "T11 cap violations (equal arm)"
+        ],
+        "verdict": "MATERIALLY_DIFFERENT"
+      },
+      "gate_evaluation_production": {
+        "gates": [
+          {
+            "gate": "T1  annualized volatility |d|",
+            "value": 9.99344365274213,
+            "threshold": 25.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.3997377461096852
+          },
+          {
+            "gate": "T2  rolling 1m median |d|",
+            "value": 5.008861589438363,
+            "threshold": 10.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.5008861589438363
+          },
+          {
+            "gate": "T3  rolling 1m p95 |d|",
+            "value": 35.92389182157207,
+            "threshold": 50.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.7184778364314414
+          },
+          {
+            "gate": "T4  rolling 3m median |d|",
+            "value": 10.985280333296599,
+            "threshold": 20.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.5492640166648299
+          },
+          {
+            "gate": "T5  rolling 3m p95 |d|",
+            "value": 78.74528121478819,
+            "threshold": 75.0,
+            "unit": "bps",
+            "pass": false,
+            "ratio": 1.0499370828638426
+          },
+          {
+            "gate": "T6  rolling 12m median |d|",
+            "value": 28.056556804867405,
+            "threshold": 35.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.8016159087104973
+          },
+          {
+            "gate": "T7  rolling 12m p95 |d|",
+            "value": 304.77654977723034,
+            "threshold": 125.0,
+            "unit": "bps",
+            "pass": false,
+            "ratio": 2.4382123982178427
+          },
+          {
+            "gate": "T8  annualized cost |d|",
+            "value": 0.18265343065999673,
+            "threshold": 10.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.018265343065999674
+          },
+          {
+            "gate": "T9  max single-rebalance cost |d|",
+            "value": 0.2722729273205935,
+            "threshold": 2.0,
+            "unit": "bps",
+            "pass": true,
+            "ratio": 0.13613646366029675
+          },
+          {
+            "gate": "T10 trade-date alignment",
+            "value": 1.0,
+            "threshold": 1.0,
+            "unit": "identical",
+            "pass": true,
+            "ratio": 0.0
+          },
+          {
+            "gate": "T11 cap violations (equal arm)",
+            "value": 0.0,
+            "threshold": 0.0,
+            "unit": "rebalances",
+            "pass": true,
+            "ratio": 0.0
+          },
+          {
+            "gate": "T13 target/holdings path identical",
+            "value": 1.0,
+            "threshold": 1.0,
+            "unit": "identical",
+            "pass": true,
+            "ratio": 0.0
+          }
+        ],
+        "failures": [
+          "T5  rolling 3m p95 |d|",
+          "T7  rolling 12m p95 |d|"
+        ],
+        "verdict": "MATERIALLY_DIFFERENT",
+        "adjudication_bands": {
+          "t7_p95_bps": 304.77654977723034,
+          "cap_violations": 0,
+          "classification": "MATERIALLY_DIFFERENT"
+        }
+      },
+      "arm_labels": {
+        "B_pinned_equal": "PREREGISTERED ARM \u2014 harness equal_weight, uncapped",
+        "B_pinned_production": "POST-HOC PRODUCTION-FAITHFUL CORRECTION \u2014 required because the preregistered arm did not reproduce production on two underfilled rebalances"
+      }
+    }
+  }
+}

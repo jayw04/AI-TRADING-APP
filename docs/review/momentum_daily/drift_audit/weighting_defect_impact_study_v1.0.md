@@ -1,7 +1,24 @@
 # momentum-daily — Weighting-Defect Impact Study — Result v1.0
 
 **Date:** 2026-07-22 · **Protocol:** `PREREG_weighting_defect_impact_study_v1.1.md` (RATIFIED 2026-07-22).
-**Reproduction gate:** ✅ **PASS** (both variants). **Governing verdict:** ⛔ **`MATERIALLY_DIFFERENT`**.
+**Reproduction gate:** ✅ **PASS** (both variants).
+
+```
+PREREGISTERED_ARM_VERDICT:   MATERIALLY_DIFFERENT
+PRODUCTION_ARM_VERDICT:      MATERIALLY_DIFFERENT   (measured directly — §7.2, T7 281.35 bps > 250)
+```
+
+**The `MATERIALLY_DIFFERENT` verdict is valid for the PREREGISTERED arm**, on five grounds: T7 failed at
+2.25× threshold; the effect is persistent and directional; the free-running arm independently failed T7;
+trade timing does not explain the difference; and T11 correctly exposed that the preregistered arm violated
+its own feasibility assumption.
+
+The preregistered arm differed from production on two rebalances (§5.2), so production sizing was measured
+directly by a corrected sensitivity arm rather than inferred. **It returns the same classification**:
+T11 = 0 by construction, T7 = **281.3463 bps** — *identical to four decimal places* to the preregistered
+arm. The two underfilled sessions fall outside the p95 tail windows entirely, so the correction moved the
+governing statistic not at all. **Production equal weighting is `MATERIALLY_DIFFERENT` from the defective
+hybrid residual.**
 
 **Consequence under the ratified decision rule:** *"If the verdict changes materially, the equal-weight
 variant requires separate validation."* The activation blocker **stands**. Account 4 remains PAUSED, hold
@@ -49,8 +66,9 @@ variant C (1,539) and variant D (1,378). Tier-2 results are therefore admissible
 | **T11 cap violations (equal arm)** | **2 rebalances** | **0** | — | **FAIL** |
 | T13 target/holdings path identical | identical | identical | — | PASS |
 
-**Verdict: `MATERIALLY_DIFFERENT`** — T7 exceeds **2×** its threshold (ratio 2.25). Mechanical, per the
-ratified rule; no composite, no offsetting. Ten passes do not mitigate one failure above 2×.
+**Preregistered-arm verdict: `MATERIALLY_DIFFERENT`** — T7 exceeds **2×** its threshold (ratio 2.25).
+Mechanical, per the ratified rule; no composite, no offsetting. Ten passes do not mitigate one failure
+above 2×. This is the verdict **for the preregistered arm**; see §7 for the production-faithful arm.
 
 **T5 passed at ratio 0.97** — within 3% of failing. Recorded explicitly rather than reported as a clean
 pass. (In the non-governing variant D it *does* fail, at 75.38 bps.)
@@ -159,3 +177,105 @@ here, and re-specifying an arm after seeing results would be post-hoc.**
    set, not the sizing code, is what forecloses any tilt. Revisiting it (more names, or a higher cap)
    would be a **new strategy question requiring its own preregistration** — explicitly out of scope here.
 5. **Account 4 remains PAUSED**, hold ACTIVE, blocker unchanged, cooldown NOT STARTED.
+
+---
+
+## 7. Protocol deviation 2026-07-22 — POST-HOC PRODUCTION-FAITHFUL CORRECTION
+
+**Status:** ⏳ running at time of writing; §7.2 records the result.
+
+**Not a silent rewrite of the preregistration.** This is a dated protocol deviation, ordered by the owner
+after §5.2 showed the preregistered arm departing from production. It is **not a new blind confirmatory
+study** — it is a **construct-validity correction**: the preregistered arm did not measure the thing the
+activation question is about.
+
+### 7.1 The two arms
+
+| arm | sizing | at k=5 | at k<5 (underfilled) |
+|---|---|---|---|
+| **B-preregistered** | harness `weigh(equal_weight)`, **uncapped** | 0.20/name, fully invested | **1/k > 0.20** — 25%/name on 4-name days |
+| **B-production** | the exact `MomentumDaily._per_name_notional` seam | 0.20/name, fully invested | **0.20/name, remainder stays CASH** |
+
+Held constant: variant-C regime path, Arm-A pinned trade dates, Tier-2 calculations, thresholds. No
+re-estimation. The arm **calls the production seam itself** rather than restating its rule, so it cannot
+drift from what the order path sizes.
+
+**Disclosed discrepancy between the ruling's shorthand and the seam.** The ruling wrote
+`min(gross / selected_count, 0.20)` — a flat 20% cap on the *total-equity* weight. The production seam is
+`min(1/k, 0.20) × gross` — the cap **scales with gross**. Identical at k=5; they differ only on the
+underfilled sessions at issue (k=4 at gross 0.98: 0.200 vs 0.196). The ruling directed use of "the exact
+production `_per_name_notional()` seam", so **the seam governs** and the shorthand is read as descriptive.
+
+### 7.2 Adjudication bands (owner-specified; thresholds unchanged)
+
+| condition | classification |
+|---|---|
+| T7 > 250 bps | `MATERIALLY_DIFFERENT` |
+| 125 < T7 ≤ 250 bps | `MINOR_BUT_MEASURABLE` |
+| T7 ≤ 125 bps **and** all other gates pass | per the registered mechanical rule |
+| **T11 ≠ 0** | **STOP — implementation defect** (must be zero *by construction*: the seam caps) |
+
+### 7.2.1 RESULT — variant C (GOVERNING): `MATERIALLY_DIFFERENT`
+
+Artifacts: `weighting_defect_impact_v1.1.json` (38,093 B · sha256
+`52123c2f0e23f16821741dc9f097eed7d0a6397ad02f0efe94f08524f3447c11`) ·
+`weighting_defect_impact_v1.1_execution.log` (5,556 B · sha256
+`66b40034cf416269a39fd965994e68bc151f35eb4060cf6d22472088d3385500`) · measurement code `391055d` ·
+clean tree · reproduction gate PASS (1,539 trades) · digests re-verified fail-closed.
+
+| gate | production arm | threshold | ratio | |
+|---|---|---|---|---|
+| T1 volatility \|Δ\| | 9.46 bps | ≤ 25 | 0.38 | PASS |
+| T2 rolling 1m median \|Δ\| | 3.83 bps | ≤ 10 | 0.38 | PASS |
+| T3 rolling 1m p95 \|Δ\| | 32.05 bps | ≤ 50 | 0.64 | PASS |
+| T4 rolling 3m median \|Δ\| | 8.18 bps | ≤ 20 | 0.41 | PASS |
+| T5 rolling 3m p95 \|Δ\| | 72.60 bps | ≤ 75 | 0.97 | PASS *(narrow)* |
+| T6 rolling 12m median \|Δ\| | 21.76 bps | ≤ 35 | 0.62 | PASS |
+| **T7 rolling 12m p95 \|Δ\|** | **281.35 bps** | ≤ 125 | **2.25** | **FAIL** |
+| T8 annualized cost \|Δ\| | 0.149 bps | ≤ 10 | 0.01 | PASS |
+| T9 max single-rebalance cost \|Δ\| | 0.262 bps | ≤ 2 | 0.13 | PASS |
+| T10 trade-date alignment | identical | identical | — | PASS |
+| **T11 cap violations** | **0** | 0 | — | **PASS — zero by construction** |
+| T13 target/holdings path | identical | identical | — | PASS |
+
+**T7 = 281.3463 bps > 250 ⟹ `MATERIALLY_DIFFERENT`.** T11 = 0 confirms the arm is genuinely calling the
+production seam (the STOP condition did not trigger).
+
+**The correction changed the governing statistic by nothing at all.** Preregistered T7 281.3463 bps →
+production T7 **281.3463 bps**, identical to four decimals: the two underfilled rebalances do not fall
+inside any of the p95-tail 12-month windows. The inference recorded in §5.2 is now a measurement.
+
+Persistence is likewise unchanged: rolling 12-month differences positive only **29.9%** of the time,
+median signed **−12.50 bps**, per-year same-sign share **0.68**, worst 12-month window **940.33 bps**.
+
+Descriptive endpoints (never used to claim threshold success):
+
+| | A: defective hybrid | B: preregistered equal | **B: production** |
+|---|---|---|---|
+| CAGR | 16.9150% | 16.6792% | **16.6855%** (−22.95 bps vs A) |
+| Sharpe | 0.5965 | 0.5908 | **0.5910** |
+| annualized volatility | 38.6541% | 38.7487% | **38.7486%** |
+| max drawdown | −64.5944% | −64.6416% | **−64.6416%** |
+| cap violations | 1,539 | 2 | **0** |
+
+The two capped sessions are worth **+0.6 bps of CAGR** relative to the preregistered arm — production's
+20% cap with a cash residual is very slightly *better* than the uncapped 25%/name allocation, and
+immaterial either way.
+
+### 7.2.2 RESULT — variant D (NON-GOVERNING control): `MATERIALLY_DIFFERENT`
+
+T11 = 0 · **T5 FAIL** 78.75 / 75 (ratio 1.05) · **T7 FAIL** 304.78 / 125 (ratio 2.44) · CAGR 14.7832% →
+14.5534% (−22.98 bps) · Sharpe 0.5282 → 0.5238 · 12m positive 29.3%, median signed −15.86 bps, worst
+window 1,298.54 bps. Same conclusion under the regime-free control.
+
+### 7.3 What the corrected run cannot do
+
+It can **refine the classification** of production sizing. It **cannot** retroactively make the old hybrid
+validation valid evidence for production. That conclusion is already established independently of it:
+
+- the Stage-3 N=5 hybrid result came from an infeasible, cap-violating residual;
+- equal weighting cannot automatically inherit that result;
+- the preregistered equal arm was materially different;
+- production was not faithfully represented on every rebalance.
+
+**Account 4 activation remains unauthorized regardless of the corrected run's outcome.**

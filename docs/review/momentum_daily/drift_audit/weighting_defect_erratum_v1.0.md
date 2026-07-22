@@ -8,7 +8,9 @@ or re-open the census.** Every census measurement stands unaltered and is in fac
 below. It is a new artifact under the two-review-max policy, not a third review cycle.
 
 **What this erratum does NOT do.** It does not clear the operational hold, does not authorize Account 4
-activation, and does not establish performance-evidence inheritance for the production book.
+activation, and does not establish performance-evidence inheritance for the production book. The impact
+study it called for is now **complete** and returned **`MATERIALLY_DIFFERENT`** (§4): equal-weight
+production **requires its own validation**. Activation by inheritance is **foreclosed**.
 
 ---
 
@@ -129,29 +131,54 @@ attribution of the divergence changes — from "production drifted from the vali
 validated implementation emitted infeasible weights, and production implements the constraint set
 correctly."
 
-**Performance inheritance remains NOT established.** It is not automatic: the historical effect of removing
-the defective residual must be quantified before the hold is cleared (§4).
+**Performance inheritance is NOT established — and the impact study has now settled why.**
 
 The Stage-3/Stage-4 winner is restated as **N5 / no-cap / equal weight** — the `hybrid_50_50` label at N=5
 denotes no distinct feasible strategy and is retired for this configuration. `hybrid_50_50` remains a valid
-distinct arm at N=8 and N=10 and is unaffected by this erratum.
+distinct arm at **N=8 and N=10**, where `hi = 0.15 > 1/n`, the feasible set has interior, and the hybrid is
+well-posed. Those variants are **not invalidated** by this erratum. The winner's **universe size (N=5)** and
+**no-sector-cap** choices are separate dimensions and likewise stand.
 
-### Activation gate
+**The published winner rationale is unreliable and is withdrawn.** `Stage3_Evidence_Report_v1.0.md:67`
+selected `N5/hyb/nocap` as "best in the two canonical momentum-crash windows (2008 −57%, 2020 +39.6%)". Its
+own table records `N5/ew/nocap` at −56.65% in 2008 — **equal weight was the better 2008 performer, by
+38 bps.** The selection rested on a margin that was entirely defect residual and that pointed the *opposite*
+way in the more severe crash window.
+
+### Activation gate — CLOSED to inheritance (impact study, 2026-07-22)
 
 ```
-BLOCKER (renamed):  WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED
-                    (was: PRODUCTION_SIZING_NOT_COVERED_BY_VALIDATED_PERFORMANCE_EVIDENCE)
-Account 4:          strategy 11 PAUSED · operational_hold ACTIVE · cooldown NOT STARTED
+BLOCKER:     WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED  -> ADJUDICATED, and NOT CLEARED
+             The study returned MATERIALLY_DIFFERENT. Under the ratified rule the equal-weight
+             variant REQUIRES ITS OWN VALIDATION. Activation by inheritance is foreclosed.
+Account 4:   strategy 11 PAUSED · operational_hold ACTIVE · cooldown NOT STARTED
 ```
 
-Activation may be authorized **with equal weighting** if the §4 study shows all of:
-1. equal weighting preserves the original acceptance verdict;
-2. risk and performance differences are immaterial under the registered thresholds;
-3. no winner-selection conclusion changes;
-4. the production implementation and the audit driver use the same equal-weight sizing seam;
-5. the 20% position limit is respected exactly.
+The five conditions previously listed for authorizing activation with equal weighting are **not met and
+cannot be met by this route**. Condition 2 (differences immaterial under the registered thresholds) failed
+outright:
 
-If the verdict changes materially, the equal-weight variant requires separate validation.
+| arm | verdict | governing statistic |
+|---|---|---|
+| preregistered equal (uncapped) | `MATERIALLY_DIFFERENT` | T7 = 281.35 bps vs ≤125 (ratio 2.25) |
+| **production-faithful (capped seam)** | **`MATERIALLY_DIFFERENT`** | **T7 = 281.35 bps** — identical to 4 dp |
+| regime-free control (variant D) | `MATERIALLY_DIFFERENT` | T7 = 304.78 bps (ratio 2.44) |
+
+Conditions 4 and 5 *are* satisfied (production and the audit driver share one sizing seam; the 20% limit is
+respected exactly — T11 = 0 by construction), but they cannot rescue a failed condition 2, and compensating
+passes are not permitted.
+
+**Two arms, and why both were needed.** The preregistered arm allocated 25%/name on two underfilled
+(4-name) rebalances, because the harness `equal_weight` applies no cap — so it was not production. A
+**post-hoc production-faithful correction** (owner ruling, §5.2 of the study) re-ran the comparison through
+the exact `_per_name_notional` seam. It moved the governing statistic by **nothing at all**: the two
+sessions fall outside every p95-tail window. Both arms fail identically.
+
+**What removing the defect costs.** ~23 bps of CAGR per year at the governing configuration
+(16.9150% → 16.6855%), directionally persistent — rolling 12-month differences favour the defective hybrid
+in ~70% of windows, with a worst window of 940 bps. That cost is **not a reason to keep the residual**: the
+residual is infeasible and violates the registered cap on every five-name session. It is the measure of how
+much of the validated result was never available to production in the first place.
 
 ### Rejected alternatives (owner, 2026-07-22)
 
@@ -197,15 +224,37 @@ cap. Full `tests/strategies` suite: **473 passed**, ruff clean.
 
 ---
 
-## 4. Required next work — focused weighting-defect impact study
+## 4. The weighting-defect impact study — ✅ COMPLETE, verdict `MATERIALLY_DIFFERENT`
 
-Scope: **validated truncated weights vs cap-feasible equal weights**, holding historical selections, gross
-exposures, trade dates, costs, and data identical. Reported metrics: return, volatility, Sharpe, maximum
-drawdown, Calmar, turnover and cost, worst rolling 1-/3-/12-month differences, and whether the Stage-3
-winner or the acceptance verdict changes.
+Scope was: **validated truncated weights vs cap-feasible equal weights**, holding historical selections,
+gross exposures, trade dates, costs, and data identical — a correction-impact analysis for a defective
+sizing implementation, **not** strategy discovery, retuning, or another equivalence review.
 
-**This is a correction-impact analysis for a defective sizing implementation — not strategy discovery, not
-retuning, and not another equivalence review.**
+**Result:** `weighting_defect_impact_study_v1.0.md` (this directory). Reproduction gate PASS; governing
+verdict `MATERIALLY_DIFFERENT` on both the preregistered and the production-faithful arms; T12 persistence
+fails in substance; the free-running diagnostic fails T7 independently, so trade timing does not explain
+the divergence.
+
+### 4.1 Where this leaves activation
+
+**Equal-weight production requires its own validation.** It does not inherit Stage-3/Stage-4 performance
+evidence. The corrected run can refine the classification of production sizing — it did, and the
+classification is unchanged — but **it cannot retroactively make the old hybrid validation valid evidence
+for production.** That conclusion rests on four findings that hold independently of it:
+
+1. the Stage-3 N=5 hybrid result came from an infeasible, cap-violating residual;
+2. equal weighting cannot automatically inherit that result;
+3. the preregistered equal arm was materially different;
+4. production was not faithfully represented on every rebalance (now corrected and re-measured).
+
+### 4.2 Explicitly out of scope
+
+The registered constraint set — N=5, fully invested, 20% per-name cap — makes the feasible set a **single
+point**, so *no* sizing tilt of any kind is expressible at N=5. The defective residual's small edge came
+from a low-volatility tilt that the constraints cannot express. Whether to revisit the **number of names**
+or the **concentration cap** is therefore a question about the constraint set, not the sizing code, and is
+a **new strategy research program requiring its own preregistration**. It is **out of scope** here and is
+not authorized by this erratum or the study.
 
 Pre-registration: **`PREREG_weighting_defect_impact_study_v1.1.md`** (this directory) — RATIFIED by the
 owner 2026-07-22 (v1.0 PROPOSED, superseded). Confirmatory gates are **Tier 2 only** (volatility, rolling
