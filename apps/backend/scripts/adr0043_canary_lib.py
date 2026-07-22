@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -95,6 +96,41 @@ STATE_RECOVERY_COOLDOWN = "RECOVERY_COOLDOWN"
 REDUCTION_ONLY_STATES = frozenset(
     {STATE_REDUCTION_ONLY_DAILY_LOSS, STATE_REDUCTION_ONLY_BREAKER}
 )
+
+
+# ---------------------------------------------------------------------------- redaction
+# Evidence packages are archived, copied into review documents, and pasted into tickets. Anything
+# that reaches them is effectively published, so the ONLY defence that survives careless handling is
+# never writing the secret in the first place.
+#
+# Two rules, applied together:
+#   * diagnostics record an exception's TYPE plus a bounded message — never the exception object,
+#     never adapter configuration, never a request/response with headers attached;
+#   * every serialized evidence blob passes through ``redact`` on the way out, so a future field
+#     added without thinking about this cannot quietly leak.
+_REDACTIONS: tuple[tuple[re.Pattern[str], str], ...] = (
+    # key=value / key: value forms for anything credential-shaped, quoted or bare.
+    (re.compile(
+        r"(?i)\b(api[-_ ]?key|secret[-_ ]?key|secret|token|password|passwd|pwd|authorization|"
+        r"auth|bearer|credential|access[-_ ]?key)\b\s*[:=]\s*['\"]?[^\s'\",;}\)]+",
+    ), r"\1=<redacted>"),
+    # An Authorization header value on its own line.
+    (re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._\-]{8,}"), "Bearer <redacted>"),
+    # Alpaca key ids are PK/AK-prefixed uppercase runs; the secret is a long mixed-case run that
+    # follows the same shape as a key= value already handled above.
+    (re.compile(r"\b(?:PK|AK)[A-Z0-9]{10,}\b"), "<redacted-key-id>"),
+)
+
+
+def redact(blob: str) -> str:
+    """Strip credential-shaped material from text bound for the evidence package.
+
+    Deliberately conservative: it does NOT touch hex digests (evidence integrity depends on them),
+    ids, quantities, or status strings. It is the last line of defence, not the first — the first is
+    not collecting the material at all."""
+    for pattern, replacement in _REDACTIONS:
+        blob = pattern.sub(replacement, blob)
+    return blob
 
 
 class BreachUnreachable(RuntimeError):
@@ -497,7 +533,9 @@ class Evidence:
 
         self.doc["finished_at"] = datetime.now(UTC).isoformat()
         self.doc["gate"] = "PASS" if self.passed() else "FAIL"
-        blob = json.dumps(self.doc, indent=2, default=str)
+        # Redact on the way OUT, so the digest covers exactly the bytes that were written and a
+        # field added later without thinking about credentials still cannot leak one.
+        blob = redact(json.dumps(self.doc, indent=2, default=str))
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(blob, encoding="utf-8")
         return hashlib.sha256(blob.encode()).hexdigest()
@@ -674,7 +712,9 @@ async def order_fill_summary(sf, order_id: int) -> dict[str, Any]:
                 text(
                     "SELECT o.status, o.broker_order_id, o.terminal_at, "
                     "(SELECT COUNT(*) FROM fills f WHERE f.order_id = o.id) AS fill_count, "
-                    "(SELECT COALESCE(SUM(f.qty), 0) FROM fills f WHERE f.order_id = o.id) AS qty "
+                    "(SELECT COALESCE(SUM(f.qty), 0) FROM fills f WHERE f.order_id = o.id) AS qty, "
+                    "(SELECT COALESCE(SUM(f.qty * f.price), 0) FROM fills f "
+                    " WHERE f.order_id = o.id) AS notional "
                     "FROM orders o WHERE o.id = :i"
                 ),
                 {"i": order_id},
@@ -682,14 +722,52 @@ async def order_fill_summary(sf, order_id: int) -> dict[str, Any]:
         ).mappings().first()
     if r is None:
         return {"status": None, "broker_order_id": None, "terminal_at": None,
-                "fill_count": 0, "filled_qty": D(0)}
+                "fill_count": 0, "filled_qty": D(0), "avg_price": None}
+    qty = D(str(r["qty"] or 0))
+    notional = D(str(r["notional"] or 0))
     return {
         "status": str(r["status"]),
         "broker_order_id": r["broker_order_id"],
         "terminal_at": str(r["terminal_at"]) if r["terminal_at"] else None,
         "fill_count": int(r["fill_count"] or 0),
-        "filled_qty": D(str(r["qty"] or 0)),
+        "filled_qty": qty,
+        "avg_price": (notional / qty) if qty > 0 else None,
     }
+
+
+def count_open_orders(adapter) -> int:
+    """Open orders AT THE BROKER — the driver's "nothing is in flight" check. Public because the
+    churn driver's per-leg invariants need it, not just the snapshot."""
+    return _count_open(adapter)
+
+
+async def held_reservation_count(sf) -> int:
+    """HELD reservations across the whole ACCOUNT, not just one order. A leak anywhere consumes
+    reducible capacity, and the driver must not place the next leg while one exists."""
+    async with sf() as s:
+        return int(
+            (
+                await s.execute(
+                    text(
+                        "SELECT COUNT(*) FROM risk_reservations "
+                        "WHERE account_id = :a AND state = :st"
+                    ),
+                    {"a": ACCT, "st": RESERVATION_HELD},
+                )
+            ).scalar()
+            or 0
+        )
+
+
+def limits_fingerprint(limits: Limits) -> str:
+    """A stable digest of the EFFECTIVE limits. The driver freezes this before the first order and
+    re-checks it after every leg: a limit that moves mid-run invalidates every sizing decision the
+    run has already made, and "relax the limit to reach the breach" is the exact bug ADR 0043
+    exists to prevent."""
+    import hashlib
+
+    blob = json.dumps(limits.as_dict(), sort_keys=True)
+    return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
 async def reservation_states_for(sf, order_id: int) -> list[str]:
@@ -743,7 +821,8 @@ async def settlement_diagnostics(
         "polls": polls,
         "elapsed_s": round(elapsed_s, 3) if elapsed_s is not None else None,
         "exception_category": exception_category,
-        "detail": (detail or "")[:400],
+        # Bounded AND redacted: a broker exception message can carry a request line.
+        "detail": redact((detail or "")[:400]),
         "at": datetime.now(UTC).isoformat(),
     }
     try:

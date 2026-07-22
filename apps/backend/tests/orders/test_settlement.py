@@ -52,8 +52,13 @@ from app.orders.settlement import (
 )
 
 TICKER = "MSFT"
-# Fast polling so the timeout cases don't add seconds to the suite.
-FAST = {"timeout_s": 0.05, "poll_interval_s": 0.005}
+# A deadline short enough that the give-up cases don't add seconds to the suite. Only safe for
+# tests that either settle on the FIRST poll (the deadline is checked only when NOT terminal) or
+# are asserting the timeout itself.
+FAST = {"timeout_s": 0.2, "poll_interval_s": 0.005}
+# For tests that must reach a LATER poll: the deadline must not be able to expire mid-ingest under
+# a loaded machine, or the test becomes order-dependent (it did — caught by random ordering).
+PATIENT = {"timeout_s": 10.0, "poll_interval_s": 0.005}
 
 
 def _now() -> datetime:
@@ -276,7 +281,7 @@ async def test_partial_then_final_fill_settles_on_a_later_poll(session_factory, 
     )
 
     result = await settle_order(
-        session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST
+        session_factory, adapter, consumer, order_id=1, ticker=TICKER, **PATIENT
     )
 
     assert result.polls == 2

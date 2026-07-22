@@ -104,7 +104,7 @@ async def resolve_broker_outcome(
                     f"order {order_id}: fill delta {delta} but broker reports no average price"
                 )
             if apply:
-                payload = {
+                payload: dict[str, Any] = {
                     "event": "fill",
                     "broker_order_id": broker_order_id,
                     # deterministic → a re-run at the same cumulative fill is a no-op (delta=0).
