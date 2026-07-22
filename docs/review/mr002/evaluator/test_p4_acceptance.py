@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 
 import pytest
 
@@ -103,14 +104,36 @@ def test_P4_08_p10_and_evaluator_bind_remain_open():
         "container_image_digest"].startswith("ABSENT")
 
 
-def test_P4_09_inventory_counts_are_derived_not_asserted():
+def _inventory_at_record_commit():
+    """The evaluator .py inventory at the commit that last wrote the acceptance record.
+
+    The P4 record is a SNAPSHOT bound to its own commit, so it is verified against history, not
+    against a live tree that legitimately moves on as later prerequisites are produced.
+    """
+    rel = "docs/review/mr002/evaluator"
+    root = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
+
+    def git(*args):
+        return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True,
+                              check=True).stdout
+    commit = git("log", "-1", "--format=%H", "--", f"{rel}/{ACCEPTANCE}").strip()
+    names = [line.split("\t")[-1].rsplit("/", 1)[-1]
+             for line in git("ls-tree", "--name-only", f"{commit}:{rel}").splitlines()]
+    py = [n for n in names if n.endswith(".py")]
+    modules = [n for n in py if not n.startswith(("test_", "_gen_"))]
+    return commit, py, modules
+
+
+def test_P4_09_inventory_counts_are_derived_and_true_at_the_record_commit():
     a = load(ACCEPTANCE)
     f = a["phase3a_registry_finding"]
-    live = CI.module_digests(HERE)
-    assert f["section4_inventory_now"] == len(live)
-    all_py = [x for x in os.listdir(HERE) if x.endswith(".py")]
-    assert f["current_all_py_file_count"] == len(all_py)
+    commit, py_at_commit, modules_at_commit = _inventory_at_record_commit()
+    assert commit, "acceptance record must be committed"
+    assert f["section4_inventory_now"] == len(modules_at_commit)
+    assert f["current_all_py_file_count"] == len(py_at_commit)
     assert f["phase3a_bound_files_drifted"] == 0
+    # and the live tree may only have GROWN since; nothing bound may have vanished
+    assert len(CI.module_digests(HERE)) >= f["section4_inventory_now"]
 
 
 def test_P4_10_the_p3_submission_numeral_is_corrected_not_silently_dropped():
@@ -118,8 +141,8 @@ def test_P4_10_the_p3_submission_numeral_is_corrected_not_silently_dropped():
     c = a["phase3a_registry_finding"]["CORRECTION_to_P3_submission_section6"]
     assert "21 -> 25" in c["p3_submission_asserted"]
     assert "not like-for-like" in c["defect"]
-    assert c["mechanically_derived_truth"]["section4_modules_now"] == \
-        len(CI.module_digests(HERE))
+    _, _, modules_at_commit = _inventory_at_record_commit()
+    assert c["mechanically_derived_truth"]["section4_modules_now"] == len(modules_at_commit)
     assert "UNMODIFIED" in c["status"]
     assert "SUBSTANCE" in c["unchanged_conclusions"]
 

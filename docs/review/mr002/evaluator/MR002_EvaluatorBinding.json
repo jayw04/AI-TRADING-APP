@@ -1,0 +1,304 @@
+{
+  "authorizes": "NOTHING - this is an identity binding; it grants no data access, releases no credentials, and computes no performance",
+  "binding_state": "PARTIALLY_RESOLVED",
+  "entry_count": 51,
+  "excluded": [
+    {
+      "class": "EXCLUDED_CACHE",
+      "path": ".pytest_cache",
+      "sha256": null
+    },
+    {
+      "class": "EXCLUDED_CACHE",
+      "path": ".ruff_cache",
+      "sha256": null
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_DSR_Dispersion_GovernanceNote_v1.0.md",
+      "sha256": "c81c86848759727bbb7ca1c2d4021981848c07df6a97a9ee9ba27527ca1fe09f"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_EvaluatorAcceptanceSubmission.json",
+      "sha256": "cd73011573f8fc39e1554777cd454e5256aded70bcdb0f4a811e8ed9336fbb5f"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment1_CanonicalReport.json",
+      "sha256": "342c59f5aea935be3959dd0435f688ed3636dc661270330d9a8d7ec33f28fb4b"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment1_Dependencies.json",
+      "sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment1_Qualification.json",
+      "sha256": "3f6da4a282f8dbc1007ba472eb1ce60ef1ad49a973071eecfbd3cbaad27ffd7d"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment1_TestLog.txt",
+      "sha256": "b3ea4bc9221300daf02e1b6b20082381a1449328b934e2b224f498a059ca10c7"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment2_LedgerReport.json",
+      "sha256": "c7382668dbbd62d48b537d02db945883c9be18e93375c3201e58f004fb874eeb"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment2_Qualification.json",
+      "sha256": "1ed0d6b83d3cebaab7ee1b3778c68c2b19dc6f0e70129b6de8cb39d88d0bbb83"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment2_TestLog.txt",
+      "sha256": "7597796ffefe2ec1492d0441a132686fe0f3761062ac68fdaa9b5ccdc4364683"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment3_Qualification.json",
+      "sha256": "0c077c38b037c771b931a3bd0619e4758cf9fe00e15b6e46a79c215c55fff809"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment3_ReplayReport.json",
+      "sha256": "5ac371c66665932ab2bf711f054ce6f7f59467b3e83329d565d4bc03561aae3e"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment3_TestLog.txt",
+      "sha256": "d379252779510d655ffbb24c8bf60a93877c4d7841b47a9a97b2afb47e127d1a"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment4_AccessBoundaryReport.json",
+      "sha256": "c40db71400d6272d39e036eae93342ffe0379e05fb46d8bb50cda40a90813684"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment4_Qualification.json",
+      "sha256": "87ab78b6974cdc13a486cd2f05a296700076de714060d5e5caeda04723dc21a4"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_Increment4_TestLog.txt",
+      "sha256": "a09223468b6a1dbebcc58ef2a3f776d01e7853e06d35a65f7203f81abcc5fe01"
+    },
+    {
+      "class": "EXCLUDED_NON_EVALUATOR",
+      "path": "MR002_P3_AcceptanceRecord.json",
+      "sha256": "87c797ef3032ffbea9fce572f11ffcef2cfd631c38a6a5b366bfd736b87bba8c"
+    },
+    {
+      "class": "EXCLUDED_CACHE",
+      "path": "__pycache__",
+      "sha256": null
+    },
+    {
+      "class": "EXCLUDED_GENERATOR",
+      "path": "_gen_evidence.py",
+      "sha256": "70079c7918bc2b8c350cb8a28e2bf2aebbd855a0dfc87b0c66c66beb29c71652"
+    },
+    {
+      "class": "EXCLUDED_GENERATOR",
+      "path": "_gen_evidence_inc2.py",
+      "sha256": "d4c47a9dc53aa7e455e207a4ecc2d21808a9adfc33b009b954cd3eb6db2602ef"
+    },
+    {
+      "class": "EXCLUDED_GENERATOR",
+      "path": "_gen_evidence_inc3.py",
+      "sha256": "5736f061110cd4f419230195f1261f7f75216ee8d058061133004afcc63acf6d"
+    },
+    {
+      "class": "EXCLUDED_GENERATOR",
+      "path": "_gen_evidence_inc4.py",
+      "sha256": "d8b7e40eba9a9b4888cfdc94ba2083667df42e9700c4ec2427cc5d3156c3427f"
+    },
+    {
+      "class": "EXCLUDED_GENERATOR",
+      "path": "_gen_evidence_p4.py",
+      "sha256": "ad8bddd81d7493fc58d552a80adc3d42c775e445b5a31c50c9b7707b097b9f97"
+    },
+    {
+      "class": "EXCLUDED_GENERATOR",
+      "path": "_gen_evidence_p5.py",
+      "sha256": "13470cc4cfba61a531d06887129fd92139068a0675f25e6009976146e8898e54"
+    },
+    {
+      "class": "EXCLUDED_TEST",
+      "path": "test_binding_p5.py",
+      "sha256": "e2be779622d8bf0a8cb68b11d3e05071ac7ce151edadb89f15a4fb7fdbaf1a67"
+    },
+    {
+      "class": "EXCLUDED_TEST",
+      "path": "test_increment1.py",
+      "sha256": "66beacfb3b5d3ba8d2383314b38253762439f5fca18043993ef703d1cc892742"
+    },
+    {
+      "class": "EXCLUDED_TEST",
+      "path": "test_increment2.py",
+      "sha256": "ed7f0e5606113c7ad9efc322c2401809785fcadde11e93d3d4aedcf494a6fa17"
+    },
+    {
+      "class": "EXCLUDED_TEST",
+      "path": "test_increment3.py",
+      "sha256": "3110201a789c1b144b35c504da817ff5fcd174a5b3771cfe28b462bc2ea06532"
+    },
+    {
+      "class": "EXCLUDED_TEST",
+      "path": "test_increment4.py",
+      "sha256": "72548f158da9197bf79e7e33f8a0deb4113da2ab07c772d0a9200142dd3832d2"
+    },
+    {
+      "class": "EXCLUDED_TEST",
+      "path": "test_p4_acceptance.py",
+      "sha256": "07b21698a8c2b97382b12d51541802d712d763e2495041f0ea7e414e27172b5a"
+    }
+  ],
+  "included_module_count": 20,
+  "included_modules": {
+    "mr002_valoos_access_boundary.py": "f5c1e6641237a30dfe2c3bb18eac7180534736cb31887e4c425452acba34330d",
+    "mr002_valoos_binding.py": "d0e7062e11e6ea040823c6e17394574dde81924d491e0d89911586ef193d75ca",
+    "mr002_valoos_candidates.py": "5e429c37af40b6913289b716051e36aaab55015e71087c44fab04815b8d2386c",
+    "mr002_valoos_code_identity.py": "6ffb1d6748cb4db48a3e69342b597dbae6ad59f0495a80b3fcf21b308280f098",
+    "mr002_valoos_construction.py": "e6af4eea60099b97663fd603da35d10d5bf9021ef2ac16b7d267f9fc3be601b3",
+    "mr002_valoos_costmodel.py": "b40fb1a4f4418edb27f3f0de5477228e7b36de1f47f561cf142dc19185047050",
+    "mr002_valoos_execution.py": "6249dee5a7a2dd9468c055ff8b626d4f64d675615aaf8923b3417aa34a0674d1",
+    "mr002_valoos_exposure.py": "5d18a45706e47dfceefafd5236928094714f64566931103dfd04f539a7f552bc",
+    "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
+    "mr002_valoos_identity.py": "36eb44741c2bf5ede80688d6527a0d89fdfa5ac1f37b44fc61341ac3aab701b1",
+    "mr002_valoos_metrics.py": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
+    "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
+    "mr002_valoos_pipeline.py": "5e71ea392e728378d6d1004ff42de87fdfb4e9b5a94e5210c71c754441c6ae1d",
+    "mr002_valoos_portfolio_identity.py": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
+    "mr002_valoos_portfolio_state.py": "7129c11e832691b39abb9983b21b13ed2b4ce9c61e3316e329fc1052012a5d34",
+    "mr002_valoos_publication.py": "e3c67d57a61b05016daa7995f32f25b00a1c54f70d6a3962d0f115ab74bb5028",
+    "mr002_valoos_registry.py": "8fc8c1af19ef03a21387f5680d4959a952dbc9d1c53a352560deba8d5697add7",
+    "mr002_valoos_replay.py": "1d386de684348d7977e2147ab2f7f01b6e6fe17deaa739769550254648dca0a8",
+    "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+    "mr002_valoos_runtime.py": "2635a52b3daa06e8c26a850c70b83efe1fd3903b2b35055441746b2f5ae0e5b0"
+  },
+  "inclusion_rule": {
+    "derivation": "mechanically enumerated at qualification time; the count is NOT an adjudicated constant and must be re-derived on any tree change",
+    "excluded_classes": [
+      "EXCLUDED_TEST",
+      "EXCLUDED_GENERATOR",
+      "EXCLUDED_NON_EVALUATOR",
+      "EXCLUDED_CACHE"
+    ],
+    "generator_prefix": "_gen_",
+    "included": "*.py excluding the test and generator prefixes",
+    "test_prefix": "test_"
+  },
+  "inventory_counts": {
+    "EXCLUDED_CACHE": 3,
+    "EXCLUDED_GENERATOR": 6,
+    "EXCLUDED_NON_EVALUATOR": 16,
+    "EXCLUDED_TEST": 6,
+    "INCLUDED_MODULE": 20
+  },
+  "inventory_digest": "93a285b02a87530cceecf0cab760a0c6a969c91fcebb11f83087164e340a2ed4",
+  "pending_evaluator_bind": "PENDING_EVALUATOR_BIND",
+  "record_type": "MR002_EvaluatorBinding",
+  "section4_elements": {
+    "benchmark_impl": {
+      "module": "mr002_valoos_metrics.py",
+      "sha256": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
+      "status": "RESOLVED"
+    },
+    "bootstrap_impl": {
+      "module": "mr002_valoos_metrics.py",
+      "sha256": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
+      "status": "RESOLVED"
+    },
+    "container_image_digest": {
+      "producer": "runtime producer (P10 / deployment)",
+      "reason": "no qualifying bound image exists",
+      "status": "UNRESOLVED",
+      "value": "PENDING_EVALUATOR_BIND"
+    },
+    "cost_model_impl": {
+      "module": "mr002_valoos_costmodel.py",
+      "sha256": "b40fb1a4f4418edb27f3f0de5477228e7b36de1f47f561cf142dc19185047050",
+      "status": "RESOLVED"
+    },
+    "data_manifest_identity": {
+      "file": "apps/backend/data/mr002_research.duckdb",
+      "note": "bound from the registered preregistration identity; the physical artifact is verified at run time under the access boundary, never opened here",
+      "registered_in": "MR002_ValidationOOS_Preregistration_v1.0.4.json governing_frozen_sources",
+      "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+      "status": "RESOLVED_BY_REGISTERED_IDENTITY"
+    },
+    "dependency_lock": {
+      "file": "MR002_Increment1_Dependencies.json",
+      "sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0",
+      "status": "RESOLVED"
+    },
+    "expected_output_paths": {
+      "status": "RESOLVED",
+      "value": [
+        "valoos/<window>/MR002_ValOOS_<window>_Report.json",
+        "valoos/<window>/MR002_ValOOS_<window>_Publication.json"
+      ]
+    },
+    "metric_impl": {
+      "module": "mr002_valoos_metrics.py",
+      "sha256": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
+      "status": "RESOLVED"
+    },
+    "pbo_dsr_impl": {
+      "module": "mr002_valoos_metrics.py",
+      "sha256": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
+      "status": "RESOLVED"
+    },
+    "report_schema": {
+      "module": "mr002_valoos_report.py",
+      "sha256": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+      "status": "RESOLVED"
+    },
+    "source_commit": {
+      "status": "RESOLVED",
+      "value": "6708c59fcd442fb3675d5b8e54c8e7ee0ba0a72a"
+    },
+    "source_tree": {
+      "status": "RESOLVED",
+      "value": "89a61bffb335353f54b23bdfe4a659689c364744"
+    }
+  },
+  "source_identity_evidence": {
+    "all_included_modules_committed_at_source_commit": true,
+    "committed_blob_digests": {
+      "mr002_valoos_access_boundary.py": "f5c1e6641237a30dfe2c3bb18eac7180534736cb31887e4c425452acba34330d",
+      "mr002_valoos_binding.py": "d0e7062e11e6ea040823c6e17394574dde81924d491e0d89911586ef193d75ca",
+      "mr002_valoos_candidates.py": "5e429c37af40b6913289b716051e36aaab55015e71087c44fab04815b8d2386c",
+      "mr002_valoos_code_identity.py": "6ffb1d6748cb4db48a3e69342b597dbae6ad59f0495a80b3fcf21b308280f098",
+      "mr002_valoos_construction.py": "e6af4eea60099b97663fd603da35d10d5bf9021ef2ac16b7d267f9fc3be601b3",
+      "mr002_valoos_costmodel.py": "b40fb1a4f4418edb27f3f0de5477228e7b36de1f47f561cf142dc19185047050",
+      "mr002_valoos_execution.py": "6249dee5a7a2dd9468c055ff8b626d4f64d675615aaf8923b3417aa34a0674d1",
+      "mr002_valoos_exposure.py": "5d18a45706e47dfceefafd5236928094714f64566931103dfd04f539a7f552bc",
+      "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
+      "mr002_valoos_identity.py": "36eb44741c2bf5ede80688d6527a0d89fdfa5ac1f37b44fc61341ac3aab701b1",
+      "mr002_valoos_metrics.py": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
+      "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
+      "mr002_valoos_pipeline.py": "5e71ea392e728378d6d1004ff42de87fdfb4e9b5a94e5210c71c754441c6ae1d",
+      "mr002_valoos_portfolio_identity.py": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
+      "mr002_valoos_portfolio_state.py": "7129c11e832691b39abb9983b21b13ed2b4ce9c61e3316e329fc1052012a5d34",
+      "mr002_valoos_publication.py": "e3c67d57a61b05016daa7995f32f25b00a1c54f70d6a3962d0f115ab74bb5028",
+      "mr002_valoos_registry.py": "8fc8c1af19ef03a21387f5680d4959a952dbc9d1c53a352560deba8d5697add7",
+      "mr002_valoos_replay.py": "1d386de684348d7977e2147ab2f7f01b6e6fe17deaa739769550254648dca0a8",
+      "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+      "mr002_valoos_runtime.py": "2635a52b3daa06e8c26a850c70b83efe1fd3903b2b35055441746b2f5ae0e5b0"
+    },
+    "emission_note": "the artifacts emitted by this script are EXCLUDED_NON_EVALUATOR; committing them adds no included module, so the bound inventory stays reproducible at source_commit",
+    "working_tree_clean_for_modules": true
+  },
+  "unresolved_elements": [
+    "container_image_digest"
+  ],
+  "verification_rule": "a run is refused unless (a) every included module reproduces its bound digest in the THEN-current tree, (b) no unbound module is present, (c) no module is missing, renamed, duplicated, or drifted, and (d) no element remains UNRESOLVED",
+  "version": "1.0"
+}

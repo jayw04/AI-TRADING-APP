@@ -1,0 +1,254 @@
+{
+  "authorization": "P4 adjudication 2026-07-22 \u2014 P5 authorized; proceed with P5 only, then stop",
+  "binding": {
+    "file": "MR002_EvaluatorBinding.json",
+    "pending_evaluator_bind": "PENDING_EVALUATOR_BIND",
+    "sha256": "4096e6a00d4e0f085bd7a7c0be52d30b17d9a8932356af3fe37ed6aff1b6c5d4",
+    "state": "PARTIALLY_RESOLVED",
+    "unresolved_elements": [
+      "container_image_digest"
+    ]
+  },
+  "boundary": "No partition opened, no credential released, no performance computed, no authorization event created. validation_authorization remains false.",
+  "clean_tree_with_all_legs_resolved_passes": true,
+  "excluded_accounting": {
+    "every_entry_classified": true,
+    "excluded": [
+      {
+        "class": "EXCLUDED_CACHE",
+        "path": ".pytest_cache",
+        "sha256": null
+      },
+      {
+        "class": "EXCLUDED_CACHE",
+        "path": ".ruff_cache",
+        "sha256": null
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_DSR_Dispersion_GovernanceNote_v1.0.md",
+        "sha256": "c81c86848759727bbb7ca1c2d4021981848c07df6a97a9ee9ba27527ca1fe09f"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_EvaluatorAcceptanceSubmission.json",
+        "sha256": "cd73011573f8fc39e1554777cd454e5256aded70bcdb0f4a811e8ed9336fbb5f"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment1_CanonicalReport.json",
+        "sha256": "342c59f5aea935be3959dd0435f688ed3636dc661270330d9a8d7ec33f28fb4b"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment1_Dependencies.json",
+        "sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment1_Qualification.json",
+        "sha256": "3f6da4a282f8dbc1007ba472eb1ce60ef1ad49a973071eecfbd3cbaad27ffd7d"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment1_TestLog.txt",
+        "sha256": "b3ea4bc9221300daf02e1b6b20082381a1449328b934e2b224f498a059ca10c7"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment2_LedgerReport.json",
+        "sha256": "c7382668dbbd62d48b537d02db945883c9be18e93375c3201e58f004fb874eeb"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment2_Qualification.json",
+        "sha256": "1ed0d6b83d3cebaab7ee1b3778c68c2b19dc6f0e70129b6de8cb39d88d0bbb83"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment2_TestLog.txt",
+        "sha256": "7597796ffefe2ec1492d0441a132686fe0f3761062ac68fdaa9b5ccdc4364683"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment3_Qualification.json",
+        "sha256": "0c077c38b037c771b931a3bd0619e4758cf9fe00e15b6e46a79c215c55fff809"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment3_ReplayReport.json",
+        "sha256": "5ac371c66665932ab2bf711f054ce6f7f59467b3e83329d565d4bc03561aae3e"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment3_TestLog.txt",
+        "sha256": "d379252779510d655ffbb24c8bf60a93877c4d7841b47a9a97b2afb47e127d1a"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment4_AccessBoundaryReport.json",
+        "sha256": "c40db71400d6272d39e036eae93342ffe0379e05fb46d8bb50cda40a90813684"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment4_Qualification.json",
+        "sha256": "87ab78b6974cdc13a486cd2f05a296700076de714060d5e5caeda04723dc21a4"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_Increment4_TestLog.txt",
+        "sha256": "a09223468b6a1dbebcc58ef2a3f776d01e7853e06d35a65f7203f81abcc5fe01"
+      },
+      {
+        "class": "EXCLUDED_NON_EVALUATOR",
+        "path": "MR002_P3_AcceptanceRecord.json",
+        "sha256": "87c797ef3032ffbea9fce572f11ffcef2cfd631c38a6a5b366bfd736b87bba8c"
+      },
+      {
+        "class": "EXCLUDED_CACHE",
+        "path": "__pycache__",
+        "sha256": null
+      },
+      {
+        "class": "EXCLUDED_GENERATOR",
+        "path": "_gen_evidence.py",
+        "sha256": "70079c7918bc2b8c350cb8a28e2bf2aebbd855a0dfc87b0c66c66beb29c71652"
+      },
+      {
+        "class": "EXCLUDED_GENERATOR",
+        "path": "_gen_evidence_inc2.py",
+        "sha256": "d4c47a9dc53aa7e455e207a4ecc2d21808a9adfc33b009b954cd3eb6db2602ef"
+      },
+      {
+        "class": "EXCLUDED_GENERATOR",
+        "path": "_gen_evidence_inc3.py",
+        "sha256": "5736f061110cd4f419230195f1261f7f75216ee8d058061133004afcc63acf6d"
+      },
+      {
+        "class": "EXCLUDED_GENERATOR",
+        "path": "_gen_evidence_inc4.py",
+        "sha256": "d8b7e40eba9a9b4888cfdc94ba2083667df42e9700c4ec2427cc5d3156c3427f"
+      },
+      {
+        "class": "EXCLUDED_GENERATOR",
+        "path": "_gen_evidence_p4.py",
+        "sha256": "ad8bddd81d7493fc58d552a80adc3d42c775e445b5a31c50c9b7707b097b9f97"
+      },
+      {
+        "class": "EXCLUDED_GENERATOR",
+        "path": "_gen_evidence_p5.py",
+        "sha256": "13470cc4cfba61a531d06887129fd92139068a0675f25e6009976146e8898e54"
+      },
+      {
+        "class": "EXCLUDED_TEST",
+        "path": "test_binding_p5.py",
+        "sha256": "e2be779622d8bf0a8cb68b11d3e05071ac7ce151edadb89f15a4fb7fdbaf1a67"
+      },
+      {
+        "class": "EXCLUDED_TEST",
+        "path": "test_increment1.py",
+        "sha256": "66beacfb3b5d3ba8d2383314b38253762439f5fca18043993ef703d1cc892742"
+      },
+      {
+        "class": "EXCLUDED_TEST",
+        "path": "test_increment2.py",
+        "sha256": "ed7f0e5606113c7ad9efc322c2401809785fcadde11e93d3d4aedcf494a6fa17"
+      },
+      {
+        "class": "EXCLUDED_TEST",
+        "path": "test_increment3.py",
+        "sha256": "3110201a789c1b144b35c504da817ff5fcd174a5b3771cfe28b462bc2ea06532"
+      },
+      {
+        "class": "EXCLUDED_TEST",
+        "path": "test_increment4.py",
+        "sha256": "72548f158da9197bf79e7e33f8a0deb4113da2ab07c772d0a9200142dd3832d2"
+      },
+      {
+        "class": "EXCLUDED_TEST",
+        "path": "test_p4_acceptance.py",
+        "sha256": "07b21698a8c2b97382b12d51541802d712d763e2495041f0ea7e414e27172b5a"
+      }
+    ]
+  },
+  "fail_closed_behaviour": {
+    "drifted": {
+      "code": "REFUSED_EVALUATOR_BINDING:module_drift",
+      "refused": true
+    },
+    "duplicate": {
+      "code": "REFUSED_EVALUATOR_BINDING:duplicate_module_content,module_renamed_target",
+      "refused": true
+    },
+    "missing": {
+      "code": "REFUSED_EVALUATOR_BINDING:module_missing",
+      "refused": true
+    },
+    "renamed": {
+      "code": "REFUSED_EVALUATOR_BINDING:module_renamed,module_renamed_target",
+      "refused": true
+    },
+    "unbound": {
+      "code": "REFUSED_EVALUATOR_BINDING:module_unbound",
+      "refused": true
+    },
+    "unresolved_leg": {
+      "code": "REFUSED_EVALUATOR_BINDING:unresolved_section4_elements:container_image_digest",
+      "refused": true
+    }
+  },
+  "finding_container_leg": {
+    "consequence": "P5 delivers the authoritative CODE binding; SS4 is not fully discharged until a bound image exists. require_binding refuses a run while any leg is UNRESOLVED, so this cannot be forgotten at run time.",
+    "producer": "runtime producer (P10 / deployment) \u2014 NOT authorized to me under this instruction",
+    "statement": "SS4 requires a container-image digest. No qualifying bound image exists, so that leg is UNRESOLVED and the binding is PARTIALLY_RESOLVED."
+  },
+  "inventory": {
+    "counts_by_class": {
+      "EXCLUDED_CACHE": 3,
+      "EXCLUDED_GENERATOR": 6,
+      "EXCLUDED_NON_EVALUATOR": 16,
+      "EXCLUDED_TEST": 6,
+      "INCLUDED_MODULE": 20
+    },
+    "derivation": "mechanically enumerated under the registered SS4 rule; 19 was NOT assumed",
+    "entries_now": 52,
+    "entry_count_at_qualification": 51,
+    "entry_delta_explanation": "the emitted artifacts are EXCLUDED_NON_EVALUATOR; the included module set is unchanged",
+    "included_module_count": 20,
+    "included_module_set_unchanged_after_emission": true,
+    "inventory_digest": "93a285b02a87530cceecf0cab760a0c6a969c91fcebb11f83087164e340a2ed4"
+  },
+  "not_done": [
+    "container image creation",
+    "P10 runtime instance",
+    "custodian P6-P9/P11",
+    "P13",
+    "validation/OOS access",
+    "credential release",
+    "performance computation",
+    "D3 authorization event",
+    "grant-readiness verifier"
+  ],
+  "prerequisite": "P5 (SS4 pre-access evaluator binding)",
+  "record_type": "MR002_P5_BindingQualification",
+  "section4_element_status": {
+    "benchmark_impl": "RESOLVED",
+    "bootstrap_impl": "RESOLVED",
+    "container_image_digest": "UNRESOLVED",
+    "cost_model_impl": "RESOLVED",
+    "data_manifest_identity": "RESOLVED_BY_REGISTERED_IDENTITY",
+    "dependency_lock": "RESOLVED",
+    "expected_output_paths": "RESOLVED",
+    "metric_impl": "RESOLVED",
+    "pbo_dsr_impl": "RESOLVED",
+    "report_schema": "RESOLVED",
+    "source_commit": "RESOLVED",
+    "source_tree": "RESOLVED"
+  },
+  "source_identity": {
+    "commit": "6708c59fcd442fb3675d5b8e54c8e7ee0ba0a72a",
+    "tree": "89a61bffb335353f54b23bdfe4a659689c364744",
+    "working_tree_clean_for_modules": true
+  },
+  "version": "1.0"
+}
