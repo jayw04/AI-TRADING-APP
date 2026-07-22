@@ -10,6 +10,7 @@ completed side effect).
 from __future__ import annotations
 
 import importlib
+import json
 from datetime import UTC, datetime
 from decimal import Decimal as D
 from types import SimpleNamespace
@@ -309,38 +310,52 @@ def _canary(canary_env, session_factory, cp, **collab):
         router=collab.get("router", _DbRouter(session_factory)),
         recovery=collab.get("recovery", _FakeRecovery()),
         evaluator=collab.get("evaluator", _FakeEvaluator()),
-        evidence=canary_env.Evidence(phase="TEST"), checkpoint=cp)
+        evidence=canary_env.Evidence(phase="TEST"), checkpoint=cp,
+        consumer=collab.get("consumer", MagicMock()),
+        # Default to a settle that always succeeds; tests that care inject a spy. There is no
+        # production path that omits it — see CanaryRun.__init__.
+        settle=collab.get("settle", _SettleSpy()))
 
 
 # ---- the post-submit / pre-checkpoint crash window ----
 
 
+def _named(run) -> dict[str, str]:
+    return {a["name"]: a["result"] for a in run.ev.doc["assertions"]}
+
+
 async def test_a2_rebinds_to_existing_order_when_checkpoint_absent(canary_env, session_factory):
-    # The order was submitted (durably) but the checkpoint write was lost. A retry must REBIND to the
-    # existing deterministic identity, not submit a second protected-leg SELL.
+    # The order was submitted (durably) but the completed-step write was lost. A retry must REBIND to
+    # the existing deterministic identity, not submit a second protected-leg SELL. The pre-submit
+    # INTENT survives that window, which is what lets the rebound run still verify settlement.
     await _seed_account(session_factory)
     cp = canary_env.Checkpoint.load()
+    cp.record_intent("A2", pre_position="19", expected_position="18", ledger_since=0)
     await _seed_order(session_factory, oid=1, side=OrderSide.SELL, status=OrderStatus.SUBMITTED,
-                      client_order_id=cp.client_id("A2"))  # checkpoint has NO A2 recorded
+                      client_order_id=cp.client_id("A2"))  # checkpoint has NO A2 step recorded
     router = _DbRouter(session_factory)
-    run = _canary(canary_env, session_factory, cp, router=router)
+    run = _canary(canary_env, session_factory, cp, router=router,
+                  adapter=_positioned_adapter("18"))
     await run.step_a2()
     assert router.submits == 0                                   # no second SELL
-    assert run.ev.doc["assertions"][-1]["result"] == "PASS"
+    assert _named(run)["A2.verified_reduction_allowed"] == "PASS"
     assert cp.step_done("A2")
 
 
 async def test_a3_rebinds_to_existing_rejected_order_when_checkpoint_absent(canary_env,
                                                                             session_factory):
     await _seed_account(session_factory)
+    await _seed_settled_position(session_factory, "18")
     cp = canary_env.Checkpoint.load()
+    cp.record_intent("A2", pre_position="19", expected_position="18", ledger_since=0)
     await _seed_order(session_factory, oid=2, side=OrderSide.BUY, status=OrderStatus.REJECTED,
                       client_order_id=cp.client_id("A3"), reason="LOSS_CONTROL_STOP")
     router = _DbRouter(session_factory)
-    run = _canary(canary_env, session_factory, cp, router=router)
+    run = _canary(canary_env, session_factory, cp, router=router,
+                  adapter=_positioned_adapter("18"))
     await run.step_a3()
     assert router.submits == 0                                   # no second BUY
-    assert run.ev.doc["assertions"][-1]["result"] == "PASS"
+    assert _named(run)["A3.new_risk_refused"] == "PASS"
 
 
 async def test_repeated_a2_retries_produce_exactly_one_order(canary_env, session_factory):
@@ -349,11 +364,14 @@ async def test_repeated_a2_retries_produce_exactly_one_order(canary_env, session
     await _seed_account(session_factory)
     cp1 = canary_env.Checkpoint.load()
     router = _DbRouter(session_factory)
-    run1 = _canary(canary_env, session_factory, cp1, router=router)
+    run1 = _canary(canary_env, session_factory, cp1, router=router,
+                   adapter=_positioned_adapter("19"))
     await run1.step_a2()
     assert router.submits == 1
-    cp2 = canary_env.Checkpoint(run_id=cp1.run_id)                # retry: same identity, lost steps
-    run2 = _canary(canary_env, session_factory, cp2, router=router)
+    # Retry: same identity, completed-step record lost, pre-submit intent survived.
+    cp2 = canary_env.Checkpoint(run_id=cp1.run_id, steps={"A2_intent": cp1.intent("A2")})
+    run2 = _canary(canary_env, session_factory, cp2, router=router,
+                   adapter=_positioned_adapter("18"))
     await run2.step_a2()
     assert router.submits == 1                                   # still exactly one order
     async with session_factory() as s:
@@ -378,9 +396,22 @@ async def test_fresh_a2_submits_exactly_once(canary_env, session_factory):
     await _seed_account(session_factory)
     cp = canary_env.Checkpoint.load()
     router = _DbRouter(session_factory)
-    run = _canary(canary_env, session_factory, cp, router=router)
+    run = _canary(canary_env, session_factory, cp, router=router,
+                  adapter=_positioned_adapter("19"))
     await run.step_a2()
-    assert router.submits == 1 and run.ev.doc["assertions"][-1]["result"] == "PASS"
+    assert router.submits == 1 and _named(run)["A2.verified_reduction_allowed"] == "PASS"
+
+
+async def test_a2_refuses_when_the_leg_is_not_actually_held(canary_env, session_factory):
+    """No position, no reduction to verify — refuse rather than submit a sell that would OPEN a
+    short, which is the opposite of what A2 is supposed to prove."""
+    await _seed_account(session_factory)
+    router = _DbRouter(session_factory)
+    run = _canary(canary_env, session_factory, canary_env.Checkpoint.load(), router=router,
+                  adapter=_positioned_adapter("0"))
+    with pytest.raises(canary_env.CanaryRefused):
+        await run.step_a2()
+    assert router.submits == 0
 
 
 async def test_a4_passes_the_stable_idempotency_key(canary_env, session_factory):
@@ -511,3 +542,302 @@ def test_client_id_is_stable_and_step_specific(canary_env):
     assert cp.client_id("A2") == canary_env.Checkpoint.load().client_id("A2")  # stable
     assert cp.client_id("A2") != cp.client_id("A3")                            # step-specific
     assert cp.client_id("A2").startswith("adr0043-")
+
+
+# ================================================================ step 2: the settlement barrier
+# A2 is formal evidence in its own right: an ALLOW that never reached the account is not a passing
+# A2. These prove the harness cannot record a green reduction it did not settle, that A3 never runs
+# on an unsettled ledger, and that a refusal which somehow reached the broker stops the run.
+
+
+def test_assess_a2_green_only_on_a_fully_settled_reduction(canary_env):
+    ok, _ = canary_env.assess_a2_settlement(
+        broker_status="filled", local_status="filled", fill_count=1, booked_qty=D("1"),
+        local_position=D("18"), broker_position=D("18"), expected_position=D("18"),
+        reservation_states=["CONSUMED"])
+    assert ok is True
+
+
+@pytest.mark.parametrize("over", [
+    {"broker_status": "new"},                      # broker never reached terminal
+    {"broker_status": "canceled"},                 # terminal, but the reduction did not happen
+    {"local_status": "submitted"},                 # broker filled, local ledger behind — attempt 2
+    {"local_status": "partially_filled"},
+    {"fill_count": 0},                             # nothing booked locally
+    {"fill_count": 2},                             # not a single clean fill delta
+    {"booked_qty": D("0")},
+    {"local_position": D("19")},                   # local position never moved
+    {"broker_position": D("19")},                  # broker position never moved
+    {"local_position": D("18"), "broker_position": D("17")},   # the two ledgers disagree
+    {"reservation_states": ["HELD"]},              # capacity still held by a finished order
+    {"reservation_states": ["CONSUMED", "HELD"]},  # a second reservation leaked
+])
+def test_assess_a2_is_red_when_the_reduction_is_not_settled(canary_env, over):
+    base = dict(broker_status="filled", local_status="filled", fill_count=1, booked_qty=D("1"),
+                local_position=D("18"), broker_position=D("18"), expected_position=D("18"),
+                reservation_states=["CONSUMED"])
+    base.update(over)
+    ok, _ = canary_env.assess_a2_settlement(**base)
+    assert ok is False, f"A2 must be RED for {over}"
+
+
+def test_assess_a3_green_only_when_nothing_reached_the_broker(canary_env):
+    ok, _ = canary_env.assess_a3_no_submission(
+        rejected=True, reason="LOSS_CONTROL_STOP", broker_order_id=None, local_status="rejected",
+        local_position=D("18"), broker_position=D("18"), expected_position=D("18"),
+        reservation_count=0)
+    assert ok is True
+
+
+@pytest.mark.parametrize("over", [
+    {"rejected": False},                                  # admitted when it should be refused
+    {"reason": "CIRCUIT_BREAKER"},                        # refused, but for the wrong reason
+    {"reason": ""},
+    {"broker_order_id": "b-999"},                         # a refusal that still reached the broker
+    {"local_status": "submitted"},                        # a live local order was created
+    {"local_position": D("19")},                          # the position moved
+    {"broker_position": D("17")},
+    {"reservation_count": 1},                             # capacity reserved for a refused order
+])
+def test_assess_a3_is_red_on_any_submission_evidence(canary_env, over):
+    base = dict(rejected=True, reason="LOSS_CONTROL_STOP", broker_order_id=None,
+                local_status="rejected", local_position=D("18"), broker_position=D("18"),
+                expected_position=D("18"), reservation_count=0)
+    base.update(over)
+    ok, _ = canary_env.assess_a3_no_submission(**base)
+    assert ok is False, f"A3 must be RED for {over}"
+
+
+# ---- the A2 → settle → A3 sequencing ----
+
+
+class _SettleSpy:
+    """Records the order in which the barrier was invoked, and can be made to fail."""
+
+    def __init__(self, *, fail=False, result=None):
+        self.calls: list[int] = []
+        self.fail = fail
+        self.result = result or SimpleNamespace(
+            broker_status="filled", local_status="filled", filled_qty=D("1"),
+            local_position=D("18"), broker_position=D("18"), polls=1)
+
+    async def __call__(self, sf, adapter, consumer, *, order_id, ticker, timeout_s=None):
+        self.calls.append(order_id)
+        if self.fail:
+            from app.orders.settlement import SettlementError
+            raise SettlementError(f"order {order_id}: still non-terminal at broker (new) after 45s")
+        return self.result
+
+
+def _positioned_adapter(qty="18"):
+    a = MagicMock()
+    a.get_positions.return_value = [{"symbol": "MSFT", "qty": qty}]
+    a.list_orders.return_value = []
+    a.get_order.return_value = {"status": "new", "filled_qty": "0"}
+    return a
+
+
+async def _seed_settled_position(session_factory, qty="18"):
+    """The local position row A2's verification reads back."""
+    from app.db.models.position import Position
+    async with session_factory() as s:
+        s.add(Position(user_id=3, account_id=3, symbol_id=1, qty=D(qty),
+                       avg_entry_price=D("10"), side="long", market_value=D("0"),
+                       cost_basis=D("10"), unrealized_pl=D("0"), unrealized_plpc=D("0"),
+                       updated_at=datetime.now(UTC)))
+        await s.commit()
+
+
+async def _seed_fill(session_factory, order_id, qty="1"):
+    from app.db.models.fill import Fill
+    async with session_factory() as s:
+        s.add(Fill(order_id=order_id, broker_fill_id=f"x-{order_id}", qty=D(qty), price=D("10"),
+                   commission=D("0"), filled_at=datetime.now(UTC)))
+        await s.commit()
+
+
+async def test_a2_settles_before_it_reports_a_green_reduction(canary_env, session_factory,
+                                                              monkeypatch):
+    """The happy path, end to end through the harness: submit → settle → verify against the
+    durable record. The barrier must have been called with A2's own order id."""
+    await _seed_account(session_factory)
+    adapter = _positioned_adapter("19")          # pre-order broker position
+    cp = canary_env.Checkpoint.load()
+    settle = _SettleSpy()
+    run = _canary(canary_env, session_factory, cp, adapter=adapter, settle=settle)
+
+    # After the submit the broker (and the local ledger) reflect the settled reduction.
+    router = run.router
+    real_submit = router.submit
+
+    async def _submit_then_settle(req):
+        o = await real_submit(req)
+        adapter.get_positions.return_value = [{"symbol": "MSFT", "qty": "18"}]
+        await _seed_fill(session_factory, o.id)
+        await _seed_settled_position(session_factory, "18")
+        async with session_factory() as s:
+            from sqlalchemy import update
+            await s.execute(update(Order).where(Order.id == o.id).values(
+                status=OrderStatus.FILLED, terminal_at=datetime.now(UTC)))
+            await s.commit()
+        return o
+
+    monkeypatch.setattr(router, "submit", _submit_then_settle)
+    await run.step_a2()
+
+    assert settle.calls == [cp.step_data("A2")["order_id"]]     # barrier ran on A2's order
+    names = {a["name"]: a["result"] for a in run.ev.doc["assertions"]}
+    assert names["A2.verified_reduction_allowed"] == "PASS"
+    assert names["A2.reduction_settled"] == "PASS"
+    assert run.ev.doc["settlements"][0]["outcome"] == "SETTLED"
+
+
+async def test_a2_records_its_intent_before_submitting(canary_env, session_factory):
+    """The pre-submit intent closes the crash window: a resumed run must be able to say what the
+    position SHOULD settle to without re-deriving it from a ledger that has since moved."""
+    await _seed_account(session_factory)
+    adapter = _positioned_adapter("19")
+    cp = canary_env.Checkpoint.load()
+
+    class _Boom:
+        submits = 0
+
+        async def submit(self, req):
+            raise RuntimeError("crashed at submit")
+
+    run = _canary(canary_env, session_factory, cp, adapter=adapter, router=_Boom())
+    with pytest.raises(RuntimeError):
+        await run.step_a2()
+
+    intent = canary_env.Checkpoint.load().intent("A2")
+    assert intent["pre_position"] == "19" and intent["expected_position"] == "18"
+
+
+async def test_a2_rebind_without_recorded_intent_refuses(canary_env, session_factory):
+    """A rebound order whose expected position was never recorded cannot be verified. Refuse —
+    do not assume the arithmetic."""
+    await _seed_account(session_factory)
+    cp = canary_env.Checkpoint.load()
+    await _seed_order(session_factory, oid=1, side=OrderSide.SELL, status=OrderStatus.SUBMITTED,
+                      client_order_id=cp.client_id("A2"))
+    run = _canary(canary_env, session_factory, cp, adapter=_positioned_adapter("18"))
+    with pytest.raises(canary_env.CanaryRefused):
+        await run.step_a2()
+
+
+async def test_a2_barrier_failure_stops_the_run_before_a3(canary_env, session_factory):
+    """THE regression test for the Phase-0 failure: when the barrier cannot settle A2, the run
+    raises SETTLEMENT_BARRIER_FAILED and A3 is never attempted."""
+    await _seed_account(session_factory)
+    adapter = _positioned_adapter("19")
+    cp = canary_env.Checkpoint.load()
+    router = _DbRouter(session_factory)
+    run = _canary(canary_env, session_factory, cp, adapter=adapter, router=router,
+                  settle=_SettleSpy(fail=True))
+
+    with pytest.raises(canary_env.SettlementBarrierFailed) as exc:
+        await run.execute(pre=_snap(canary_env, positions={"MSFT": D("19")}), run_start_event_id=0)
+
+    assert exc.value.stop_reason == "SETTLEMENT_BARRIER_FAILED"
+    assert router.submits == 1, "only A2 was submitted — A3 must never have run"
+    assert not cp.step_done("A3")
+
+
+async def test_barrier_failure_records_credential_free_diagnostics(canary_env, session_factory):
+    """A failed barrier must leave enough to diagnose it without re-running anything — and must
+    not carry a credential into the evidence file."""
+    await _seed_account(session_factory)
+    adapter = _positioned_adapter("19")
+    cp = canary_env.Checkpoint.load()
+    await _seed_order(session_factory, oid=1, side=OrderSide.SELL, status=OrderStatus.SUBMITTED,
+                      client_order_id=cp.client_id("A2"))
+    run = _canary(canary_env, session_factory, cp, adapter=adapter, settle=_SettleSpy(fail=True))
+
+    with pytest.raises(canary_env.SettlementBarrierFailed) as exc:
+        await run.settle("A2", order_id=1, ticker="MSFT")
+
+    diag = exc.value.diagnostics
+    for field in ("local_order_id", "broker_order_id", "broker_status", "broker_filled_qty",
+                  "local_filled_qty", "local_order_status", "local_position", "broker_position",
+                  "reservation_states", "elapsed_s", "exception_category", "stop_reason"):
+        assert field in diag, f"diagnostics missing {field}"
+    assert diag["stop_reason"] == "SETTLEMENT_BARRIER_FAILED"
+    assert diag["exception_category"] == "SettlementError"
+    blob = json.dumps(diag).lower()
+    assert "secret" not in blob and "api_key" not in blob and "password" not in blob
+
+
+async def test_diagnostics_survive_an_unreachable_broker(canary_env, session_factory):
+    """The most likely cause of a barrier failure is a broker we cannot reach — so the collector
+    must not itself fail on the same broker."""
+    await _seed_account(session_factory)
+    await _seed_order(session_factory, oid=1, side=OrderSide.SELL, status=OrderStatus.SUBMITTED,
+                      client_order_id="x")
+    adapter = MagicMock()
+    adapter.get_positions.side_effect = ConnectionError("reset")
+    adapter.get_order.side_effect = ConnectionError("reset")
+
+    diag = await canary_env.settlement_diagnostics(
+        session_factory, adapter, step="A2", order_id=1, ticker="MSFT",
+        exception_category="SettlementError", detail="unreachable")
+
+    assert diag["broker_position"].startswith("UNAVAILABLE:")
+    # The local half is still recorded — that is the point of collecting both independently.
+    assert str(diag["local_order_status"]).lower() == "submitted"
+
+
+async def test_a3_stops_the_run_if_a_broker_order_somehow_exists(canary_env, session_factory):
+    """A refusal that reached the broker is not a refusal. The run reconciles the unplanned order
+    through the canonical settlement path and STOPS rather than continuing to A4."""
+    await _seed_account(session_factory)
+    cp = canary_env.Checkpoint.load()
+    cp.record_intent("A2", pre_position="19", expected_position="18", ledger_since=0)
+
+    class _LeakyRouter(_DbRouter):
+        async def submit(self, req):
+            o = await super().submit(req)
+            return SimpleNamespace(id=o.id, status="rejected",
+                                   rejection_reason="LOSS_CONTROL_STOP",
+                                   broker_order_id="b-leaked")
+
+    settle = _SettleSpy()
+    run = _canary(canary_env, session_factory, cp, adapter=_positioned_adapter("18"),
+                  router=_LeakyRouter(session_factory), settle=settle)
+
+    with pytest.raises(canary_env.CanaryStop) as exc:
+        await run.step_a3()
+
+    assert exc.value.stop_reason == "A3_UNEXPECTED_BROKER_SUBMISSION"
+    assert settle.calls, "the unplanned order must be reconciled through the canonical barrier"
+    names = {a["name"]: a["result"] for a in run.ev.doc["assertions"]}
+    assert names["A3.no_broker_submission"] == "FAIL"
+
+
+async def test_a3_refuses_without_a_settled_a2_intent(canary_env, session_factory):
+    """A3's "MSFT is unchanged" claim is meaningless without the settled figure it compares to."""
+    await _seed_account(session_factory)
+    cp = canary_env.Checkpoint.load()          # no A2 intent recorded
+    run = _canary(canary_env, session_factory, cp, adapter=_positioned_adapter("18"))
+    with pytest.raises(canary_env.CanaryRefused):
+        await run.step_a3()
+
+
+async def test_a3_green_path_asserts_no_submission(canary_env, session_factory):
+    await _seed_account(session_factory)
+    await _seed_settled_position(session_factory, "18")
+    cp = canary_env.Checkpoint.load()
+    cp.record_intent("A2", pre_position="19", expected_position="18", ledger_since=0)
+    run = _canary(canary_env, session_factory, cp, adapter=_positioned_adapter("18"),
+                  router=_DbRouter(session_factory))
+
+    await run.step_a3()
+
+    names = {a["name"]: a["result"] for a in run.ev.doc["assertions"]}
+    assert names["A3.no_broker_submission"] == "PASS"
+    assert names["A3.new_risk_refused"] == "PASS"
+
+
+def test_settlement_timeout_is_bounded_and_positive(canary_env):
+    """A barrier that waits forever hangs the run past its budget; one that gives up instantly
+    manufactures false stops."""
+    assert 5 <= canary_env.SETTLEMENT_TIMEOUT_S <= 300

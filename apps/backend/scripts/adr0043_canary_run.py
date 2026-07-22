@@ -17,8 +17,19 @@ The assertions:
   A1 state_authoritative        — the durable state row is ``REDUCTION_ONLY_*``.
   A2 verified_reduction_allowed — a verified reduction (SELL a protected leg) is ADMITTED under the
                                   lock (ADR 0042 preserved). Recorded once; re-derived on resume.
-  A3 new_risk_refused           — a new-risk BUY is REJECTED with ``LOSS_CONTROL_STOP`` + a durable
-                                  trail. Recorded once; re-derived on resume.
+     + reduction_settled          — and SETTLED: the per-order REST barrier confirms the broker
+                                  order FILLED, the local order terminal, exactly one booked fill of
+                                  the reduced quantity, local == broker position at the expected
+                                  figure, and no lingering HELD reservation. An ALLOW that never
+                                  reached the account is NOT a passing A2.
+     + admitted_as_verified_reduction / state_remains_reduction_only — the ledger records the
+                                  admission AS a verified reduction, and the lock still holds after.
+  A3 new_risk_refused           — a new-risk BUY is REJECTED with ``LOSS_CONTROL_STOP``, reaches NO
+                                  broker (no broker order id, no reservation), and leaves the
+                                  settled position from A2 unchanged. Recorded once; re-derived on
+                                  resume. If a broker submission somehow occurred, the run
+                                  reconciles it through the canonical settlement path and STOPS.
+
   A4 reached_recovery_cooldown  — the recovery drove the account ALL THE WAY into
                                   ``RECOVERY_COOLDOWN`` with a full PASS (aggregate PASS, a committed
                                   ``PREFLIGHT_PASS`` event, parent ``PASSED``, 12 PASS checks). A
@@ -28,6 +39,12 @@ The assertions:
                                   ``HOLD`` (no transition, still in cooldown); NORMAL / COOLDOWN_COMPLETE
                                   at NO point in the run. The harness never fakes elapsed time to force
                                   a re-arm.
+
+Ordering is load-bearing: A2 submit → A2 SETTLE → verify → A3 → verify. Attempt 2 failed because a
+wall-clock sleep stood where the settlement barrier now stands, so A3 acted on a ledger that had not
+caught up. The barrier is inside A2 itself — it is not deferred to the churn driver. Every order
+goes through ``GovernedSubmitter``, which pairs the submit with the barrier in one call;
+``check_settlement_barrier.py`` proves at CI time that no harness can bypass it.
 
 ⚠ RUNTIME IS AWS — this runs on the box, never against the laptop's local stack.
 """
@@ -43,6 +60,8 @@ from app.brokers.registry import BrokerRegistry
 from app.db.enums import OrderSide, OrderSourceType, OrderType, TimeInForce
 from app.db.session import get_sessionmaker
 from app.events.bus import EventBus
+from app.orders.lifecycle import TradeUpdateConsumer
+from app.orders.positions import PositionRecomputer
 from app.orders.router import OrderRouter
 from app.risk import OrderRequest, RiskEngine
 from app.risk.loss_control.cooldown import CooldownEvaluator
@@ -50,28 +69,38 @@ from app.risk.loss_control.recovery import RecoveryPreflightService
 from scripts.adr0043_canary_lib import (
     ACCT,
     LEGS,
+    REDUCE_QTY,
     REDUCTION_ONLY_STATES,
     REQUIRED_LOSS_CONTROL_MODE,
     STATE_NORMAL,
     STATE_RECOVERY_COOLDOWN,
     USER,
     CanaryRefused,
+    CanaryStop,
     Checkpoint,
     Evidence,
+    GovernedSubmitter,
     SingleInstance,
+    assess_a2_settlement,
+    assess_a3_no_submission,
     assess_a4,
     assess_a5,
+    broker_position_qty,
     control_events_for,
     current_loss_control_state,
     event_row,
     find_order_by_client_id,
     ledger_rows_for,
     load_limits,
+    local_position_qty,
     loss_control_mode,
+    max_ledger_id,
+    order_fill_summary,
     order_identity_matches,
     order_row,
     preflight_pass_check_count,
     preflight_row,
+    reservation_states_for,
     saw_state_since,
     snapshot_state,
 )
@@ -103,7 +132,8 @@ class CanaryRun:
     """The step-gated, resumable, idempotent assertion sequence. Collaborators are injected so the
     honesty tests can drive it offline with fakes."""
 
-    def __init__(self, *, sf, adapter, router, recovery, evaluator, evidence, checkpoint):
+    def __init__(self, *, sf, adapter, router, recovery, evaluator, evidence, checkpoint,
+                 consumer=None, settle=None):
         self.sf = sf
         self.ad = adapter
         self.router = router
@@ -111,12 +141,22 @@ class CanaryRun:
         self.evaluator: CooldownEvaluator = evaluator
         self.ev: Evidence = evidence
         self.cp: Checkpoint = checkpoint
+        self.consumer = consumer
+        # EVERY order this harness places goes through the one governed seam, which pairs the
+        # submit with the barrier so they cannot drift apart. ``settle`` is injected only so the
+        # offline honesty tests can drive the sequencing without a broker; the production default
+        # is the real barrier and there is no configuration that removes it.
+        self.sub = GovernedSubmitter(
+            sf=sf, adapter=adapter, router=router, consumer=consumer, evidence=evidence,
+            checkpoint=checkpoint, settle=settle)
 
-    async def _submit(self, step, request, order_req):
-        pre = await snapshot_state(self.sf, self.ad)
-        o = await self.router.submit(order_req)
-        self.ev.record_order(step=step, snapshot=pre, request=request, response=o)
-        return o
+    async def settle(self, step: str, *, order_id: int, ticker: str):
+        """THE BARRIER, for an order this step did not just submit (a rebind). Returns only when the
+        order is settled against broker truth; otherwise raises :class:`SettlementBarrierFailed`
+        with a full, credential-free diagnostic record."""
+        result, _elapsed = await self.sub.settle_existing(step=step, order_id=order_id,
+                                                          ticker=ticker)
+        return result
 
     # ---- A1 -------------------------------------------------------------------------------
     async def step_a1(self, pre) -> None:
@@ -128,60 +168,174 @@ class CanaryRun:
         )
         self.cp.record_step("A1", state=pre.loss_control_state)
 
-    # ---- A2: a verified reduction is admitted (idempotent by deterministic client id) -----
+    # ---- A2: a verified reduction is admitted AND SETTLED ---------------------------------
+    # Two distinct claims, and the second is the one attempt 2 skipped. "The router returned ALLOW"
+    # is a statement about the decision; it is NOT a statement about the account. A2 is formal
+    # evidence in its own right, so it settles here — NOT later inside the churn driver, and NOT
+    # after A3 has already acted on a ledger nobody verified.
     async def step_a2(self) -> None:
         cid = self.cp.client_id("A2")
         existing = await find_order_by_client_id(self.sf, self.ad, cid)
         if existing is not None:
             # An order already carries this identity (checkpoint present OR the post-submit crash
             # window). Rebind to it; never submit a second protected-leg SELL.
-            if not order_identity_matches(existing, side="sell", symbol=LEG, qty=D("1")):
+            if not order_identity_matches(existing, side="sell", symbol=LEG, qty=REDUCE_QTY):
                 raise CanaryRefused(
                     f"A2 deterministic id {cid} exists with contradicting fields {existing}; "
                     f"refusing — investigate rather than restart")
-            self.cp.record_step("A2", order_id=existing.get("local_id"), client_order_id=cid)
+            intent = self.cp.intent("A2")
+            if not intent.get("expected_position"):
+                raise CanaryRefused(
+                    f"A2 order {cid} exists but no pre-submit intent was recorded; the expected "
+                    f"post-settlement position cannot be derived. A resumed run that cannot verify "
+                    f"its own arithmetic must refuse, not assume.")
+            if existing.get("local_id") is None:
+                raise CanaryRefused(
+                    f"A2 order {cid} exists at the BROKER with no local order row; settlement "
+                    f"cannot be verified against a ledger that never recorded the order.")
+            order_id = int(existing["local_id"])
+            self.cp.record_step("A2", order_id=order_id, client_order_id=cid, rebound=True)
             self.ev.assert_("A2.verified_reduction_allowed", _admitted(existing["status"]),
                             f"rebound to {existing['source']} order {cid} "
                             f"status={existing['status']} (no re-submit)")
+            await self._verify_a2(
+                order_id=order_id, expected=D(str(intent["expected_position"])),
+                ledger_since=int(intent.get("ledger_since") or 0))
             return
-        o = await self._submit(
-            "A2.reduce", {"symbol": LEG, "side": "sell", "qty": "1", "client_order_id": cid},
-            mk(LEG, OrderSide.SELL, D("1"), client_order_id=cid))
-        self.cp.record_step("A2", order_id=getattr(o, "id", None), client_order_id=cid)
-        self.ev.assert_("A2.verified_reduction_allowed", _admitted(getattr(o, "status", "")),
-                        f"SELL 1 {LEG} status={getattr(o, 'status', o)} "
-                        f"reason={getattr(o, 'rejection_reason', None)}")
 
-    # ---- A3: new risk is refused (idempotent by deterministic client id) ------------------
+        pre = await snapshot_state(self.sf, self.ad)
+        held = pre.positions.get(LEG, D(0))
+        if held < REDUCE_QTY:
+            raise CanaryRefused(
+                f"A2 cannot reduce {LEG}: broker holds {held}, need at least {REDUCE_QTY}")
+        expected = held - REDUCE_QTY
+        ledger_since = await max_ledger_id(self.sf)
+        # Durable BEFORE the side effect: a crash after submit still knows what to verify.
+        self.cp.record_intent("A2", pre_position=str(held), expected_position=str(expected),
+                              ledger_since=ledger_since, client_order_id=cid)
+        # Submit and settle are ONE decision here — the seam will not return an unsettled order
+        # that reached the broker.
+        governed = await self.sub.submit_and_settle(
+            step="A2.reduce",
+            request={"symbol": LEG, "side": "sell", "qty": str(REDUCE_QTY),
+                     "client_order_id": cid},
+            order_req=mk(LEG, OrderSide.SELL, REDUCE_QTY, client_order_id=cid),
+            ticker=LEG, pre=pre)
+        self.cp.record_step("A2", order_id=governed.order_id, client_order_id=cid,
+                            broker_order_id=governed.broker_order_id)
+        self.ev.assert_("A2.verified_reduction_allowed", governed.admitted,
+                        f"SELL {REDUCE_QTY} {LEG} status={governed.status} "
+                        f"reason={getattr(governed.order, 'rejection_reason', None)}")
+        if governed.order_id is None:
+            raise CanaryStop(
+                "A2_NO_LOCAL_ORDER",
+                f"the router returned no local order id for {cid}; settlement cannot be verified")
+        if governed.settlement is None:
+            raise CanaryStop(
+                "A2_REDUCTION_REFUSED",
+                f"the verified reduction was refused before the broker (status={governed.status}); "
+                f"there is no settled reduction to assert on")
+        await self._verify_a2(order_id=int(governed.order_id), expected=expected,
+                              ledger_since=ledger_since, result=governed.settlement)
+
+    async def _verify_a2(self, *, order_id: int, expected: D, ledger_since: int,
+                         result=None) -> None:
+        """Read every claim back from the durable record — never from the router's response."""
+        if result is None:                       # rebind path: settle the order we rebound to
+            result = await self.settle("A2", order_id=order_id, ticker=LEG)
+
+        booked = await order_fill_summary(self.sf, order_id)
+        ok, detail = assess_a2_settlement(
+            broker_status=result.broker_status, local_status=booked["status"],
+            fill_count=booked["fill_count"], booked_qty=booked["filled_qty"],
+            local_position=await local_position_qty(self.sf, LEG),
+            broker_position=broker_position_qty(self.ad, LEG),
+            expected_position=expected,
+            reservation_states=await reservation_states_for(self.sf, order_id))
+        self.ev.assert_("A2.reduction_settled", ok, detail)
+
+        # The admission must be visible in the append-only decision ledger AS a verified reduction —
+        # an ALLOW with some other rationale would mean the gate let it through for the wrong reason.
+        ledger = await ledger_rows_for(self.sf, since_id=ledger_since)
+        verified = [
+            r for r in ledger
+            if "ALLOW" in str(r.get("decision") or "").upper()
+            and "VERIFIED_REDUCTION" in str(r.get("reason_codes") or "")
+        ]
+        self.ev.assert_(
+            "A2.admitted_as_verified_reduction", bool(verified),
+            f"{len(verified)} ALLOW/VERIFIED_REDUCTION ledger row(s) of {len(ledger)} since "
+            f"id={ledger_since}")
+
+        # Settling a reduction must not have moved the account out of the lock — the whole point is
+        # that a reduction is permitted WHILE reduction-only remains in force.
+        state = await current_loss_control_state(self.sf)
+        self.ev.assert_("A2.state_remains_reduction_only", state in REDUCTION_ONLY_STATES,
+                        f"loss_control_state={state} after the settled reduction")
+
+    # ---- A3: new risk is refused, and reaches NO broker -----------------------------------
+    # Runs only after A2 has SETTLED, so "MSFT is unchanged" is a claim about a known position
+    # rather than about one that may still be in flight.
     async def step_a3(self) -> None:
         cid = self.cp.client_id("A3")
+        expected = self.cp.intent("A2").get("expected_position")
+        if expected is None:
+            raise CanaryRefused(
+                "A3 cannot assert an unchanged position: no settled A2 intent is recorded")
+        expected_pos = D(str(expected))
+
         existing = await find_order_by_client_id(self.sf, self.ad, cid)
         if existing is not None:
-            if not order_identity_matches(existing, side="buy", symbol=LEG, qty=D("1")):
+            if not order_identity_matches(existing, side="buy", symbol=LEG, qty=REDUCE_QTY):
                 raise CanaryRefused(
                     f"A3 deterministic id {cid} exists with contradicting fields {existing}; "
                     f"refusing — investigate rather than restart")
             row = await order_row(self.sf, existing["local_id"]) if existing.get("local_id") else None
             reason = str((row or {}).get("rejection_reason") or "")
-            self.cp.record_step("A3", order_id=existing.get("local_id"), client_order_id=cid)
-            self.ev.assert_(
-                "A3.new_risk_refused",
-                _rejected(existing["status"]) and "LOSS_CONTROL_STOP" in reason,
-                f"rebound to order {cid} status={existing['status']} reason={reason} (no re-submit)")
+            self.cp.record_step("A3", order_id=existing.get("local_id"), client_order_id=cid,
+                                rebound=True)
+            await self._assert_a3(
+                rejected=_rejected(existing["status"]), reason=reason,
+                broker_order_id=(await order_fill_summary(
+                    self.sf, existing["local_id"]))["broker_order_id"]
+                if existing.get("local_id") else None,
+                local_status=existing["status"], expected=expected_pos,
+                order_id=existing.get("local_id"), note=f"rebound to order {cid} (no re-submit)")
             return
-        since_l = await ledger_rows_for(self.sf)  # snapshot before, for the audit check
-        o = await self._submit(
-            "A3.new_risk", {"symbol": LEG, "side": "buy", "qty": "1", "client_order_id": cid},
-            mk(LEG, OrderSide.BUY, D("1"), client_order_id=cid))
-        reason = str(getattr(o, "rejection_reason", "") or "")
-        self.cp.record_step("A3", order_id=getattr(o, "id", None), client_order_id=cid)
-        self.ev.assert_(
-            "A3.new_risk_refused",
-            _rejected(getattr(o, "status", "")) and "LOSS_CONTROL_STOP" in reason,
-            f"BUY 1 {LEG} status={getattr(o, 'status', o)} reason={reason}")
-        ledger = await ledger_rows_for(self.sf, since_id=(since_l[-1]["id"] if since_l else 0))
+
+        since_l = await max_ledger_id(self.sf)
+        # The seam proves no broker order exists. If one does, it reconciles that order through the
+        # canonical barrier and raises A3_UNEXPECTED_BROKER_SUBMISSION — the canary does not
+        # continue on an account carrying an unplanned live order.
+        governed = await self.sub.submit_expecting_refusal(
+            step="A3.new_risk",
+            request={"symbol": LEG, "side": "buy", "qty": str(REDUCE_QTY),
+                     "client_order_id": cid},
+            order_req=mk(LEG, OrderSide.BUY, REDUCE_QTY, client_order_id=cid), ticker=LEG)
+        reason = str(getattr(governed.order, "rejection_reason", "") or "")
+        self.cp.record_step("A3", order_id=governed.order_id, client_order_id=cid,
+                            broker_order_id=governed.broker_order_id)
+
+        await self._assert_a3(
+            rejected=_rejected(governed.status), reason=reason, broker_order_id=None,
+            local_status=governed.status, expected=expected_pos, order_id=governed.order_id,
+            note=f"BUY {REDUCE_QTY} {LEG}")
+        ledger = await ledger_rows_for(self.sf, since_id=since_l)
         self.ev.assert_("A3.refusal_is_auditable", bool(ledger),
                         f"{len(ledger)} ledger row(s) for the refusal")
+
+    async def _assert_a3(self, *, rejected, reason, broker_order_id, local_status, expected,
+                         order_id, note) -> None:
+        reservations = await reservation_states_for(self.sf, order_id) if order_id else []
+        self.ev.assert_("A3.no_broker_submission", not broker_order_id,
+                        f"broker_order_id={broker_order_id or 'none'}")
+        ok, detail = assess_a3_no_submission(
+            rejected=rejected, reason=reason, broker_order_id=broker_order_id,
+            local_status=local_status,
+            local_position=await local_position_qty(self.sf, LEG),
+            broker_position=broker_position_qty(self.ad, LEG),
+            expected_position=expected, reservation_count=len(reservations))
+        self.ev.assert_("A3.new_risk_refused", ok, f"{note} — {detail}")
 
     # ---- A4: the recovery drives ALL THE WAY into RECOVERY_COOLDOWN ------------------------
     async def step_a4(self) -> None:
@@ -263,7 +417,7 @@ async def _completed_or_none(sf, adapter, cp: Checkpoint, out_path: Path) -> int
     for step, side in (("A2", "sell"), ("A3", "buy")):
         cid = cp.client_id(step)
         found = await find_order_by_client_id(sf, adapter, cid)
-        if found is None or not order_identity_matches(found, side=side, symbol=LEG, qty=D("1")):
+        if found is None or not order_identity_matches(found, side=side, symbol=LEG, qty=REDUCE_QTY):
             raise CanaryRefused(
                 f"completed-run {step} order {cid} missing or contradicts durable evidence: {found}")
     pf_id = cp.step_data("A4").get("preflight_id")
@@ -332,10 +486,26 @@ async def run() -> int:
     bus = EventBus()
     router = OrderRouter(
         ad, RiskEngine(sf, broker_registry=registry, bus=bus), sf, bus, broker_registry=registry)
+    # The consumer is NOT started: the harness drives its canonical ``_handle`` synchronously via
+    # the settlement barrier. Subscribing here would re-arm a second consumer against the same
+    # trade-update stream — the dual-arm condition that lost attempt 2's fills in the first place.
+    consumer = TradeUpdateConsumer(sf, bus, PositionRecomputer(sf, bus))
     run_obj = CanaryRun(
         sf=sf, adapter=ad, router=router, recovery=RecoveryPreflightService(sf),
-        evaluator=CooldownEvaluator(sf), evidence=ev, checkpoint=cp)
-    rc = await run_obj.execute(pre=pre, run_start_event_id=run_start)
+        evaluator=CooldownEvaluator(sf), evidence=ev, checkpoint=cp, consumer=consumer)
+    try:
+        rc = await run_obj.execute(pre=pre, run_start_event_id=run_start)
+    except CanaryStop as stop:
+        # A stop is EVIDENCE, not an absence of it. Write the package before propagating so the
+        # failure is diagnosable without re-running anything against the live account.
+        ev.record_stop(stop.stop_reason, stop.detail, stop.diagnostics)
+        digest = ev.write(OUT)
+        # Deliberately NOT recording completed_gate/digest: a stopped run is not a completed run,
+        # and must never resume down the "already complete" path.
+        cp.phase = f"STOPPED:{stop.stop_reason}"
+        cp.save()
+        cp.note("stopped", stop_reason=stop.stop_reason, detail=stop.detail, digest=digest)
+        raise
 
     digest = ev.write(OUT)
     cp.completed_gate = ev.doc["gate"]
@@ -354,6 +524,12 @@ def main() -> int:
     except CanaryRefused as exc:
         print(f"REFUSED: {exc}", flush=True)
         return 2
+    except CanaryStop as exc:
+        # Distinct exit code: a STOP means the run began and then hit a named unsafe condition —
+        # operationally very different from a refusal, and the runbook treats it differently.
+        print(f"STOP [{exc.stop_reason}]: {exc.detail}", flush=True)
+        print(f"  diagnostics: {exc.diagnostics}", flush=True)
+        return 3
 
 
 if __name__ == "__main__":
