@@ -37,6 +37,15 @@ from app.strategies.operational_hold import (
 )
 
 RETRO_SOURCE = "RETROSPECTIVE_FORMALIZATION"
+REASON_UPDATE_SOURCE = "GOVERNING_ADJUDICATION_UPDATE"
+
+
+class HoldReasonUpdateRefused(Exception):
+    """Re-labelling an ACTIVE hold's reason_code was refused fail-closed: the hold is
+    absent, is not ACTIVE, is at a different revision than the operator asserted, or
+    carries a different CURRENT reason_code than asserted. No state and no audit are
+    written. (Malformed/unreadable state raises HoldStateInvalid / HoldStoreUnavailable
+    and also blocks.)"""
 
 
 class RetroFormalizationRefused(Exception):
@@ -67,6 +76,16 @@ class FormalizeResult:
     audit_id: int | None
     hold_rev: int
     planned_payload: dict
+
+
+@dataclass(frozen=True)
+class ReasonUpdateResult:
+    strategy_id: int
+    action: str  # would_update | updated | already_updated
+    audit_id: int | None
+    planned_blob: dict
+    previous_rev: int
+    new_rev: int
 
 
 @dataclass(frozen=True)
@@ -183,6 +202,114 @@ class HoldService:
                          "rev": new.rev, "prior_rev": cur.rev, "cleared_by": cleared_by},
             )
             return HoldMutationResult(new, changed=True)
+
+    async def update_reason(
+        self, strategy_id: int, *, expected_rev: int, expected_reason_code: str,
+        new_reason_code: str, new_reason: str, updated_at: str, updated_by: str,
+        actor_type: AuditActorType = AuditActorType.USER, actor_id: str | None = None,
+        evidence_refs: list | None = None, source: str = REASON_UPDATE_SOURCE,
+        apply: bool = True,
+    ) -> ReasonUpdateResult:
+        """Re-label an ACTIVE hold whose governing reason has changed, WITHOUT ever
+        leaving the strategy unheld.
+
+        Why this exists. ``place()`` refuses a different-reason active hold and directs
+        the caller to "clear-and-place explicitly" — correct as a no-silent-replacement
+        rule, but wrong for a *re-labelling*: clearing would momentarily unblock
+        activation, emit a spurious CLEARED event, and detach the hold's lineage. This
+        method keeps the hold continuously ACTIVE and records the relabel as its own
+        governed mutation.
+
+        Fail-closed preconditions (ALL required): the hold exists, status is ACTIVE, its
+        ``_rev`` equals ``expected_rev``, and its CURRENT ``reason_code`` equals
+        ``expected_reason_code``. ``effective_at``/``placed_at``/``placed_by`` and EVERY
+        extra key on the stored blob (``legacy_marker``, evidence snapshots — keys the
+        ``HoldRecord`` dataclass does not model and ``to_dict()`` would drop) are carried
+        forward verbatim. ``_rev`` increments. The activation cooldown is not read,
+        started, or reset.
+
+        Idempotent: a hold already ACTIVE at ``new_reason_code`` is a no-op with no audit.
+        With ``apply=False`` nothing is written and the planned blob is returned for
+        dry-run review.
+        """
+        async with self._sf() as session, session.begin():
+            raw = (
+                await session.execute(
+                    select(StrategyState.value).where(
+                        StrategyState.strategy_id == strategy_id,
+                        StrategyState.key == K_OPERATIONAL_HOLD,
+                    )
+                )
+            ).scalars().first()
+            cur = load_hold_record(raw)  # Invalid/Unavailable -> rollback, no audit
+            if cur is None:
+                raise HoldReasonUpdateRefused(f"strategy {strategy_id}: no hold to relabel")
+            if cur.reason_code == new_reason_code and cur.is_active:
+                return ReasonUpdateResult(strategy_id, "already_updated", None,
+                                          cast("dict[str, Any]", raw), cur.rev, cur.rev)
+            if not cur.is_active:
+                raise HoldReasonUpdateRefused(
+                    f"hold is {cur.status}, not ACTIVE — a cleared hold is not relabelled, "
+                    f"it is re-placed under the new reason")
+            if cur.rev != expected_rev:
+                raise HoldReasonUpdateRefused(
+                    f"stale relabel: expected rev {expected_rev}, found {cur.rev}")
+            if cur.reason_code != expected_reason_code:
+                raise HoldReasonUpdateRefused(
+                    f"current reason_code {cur.reason_code!r} != expected "
+                    f"{expected_reason_code!r}; adjudicate — do not relabel")
+
+            new = HoldRecord(
+                status=HoldStatus.ACTIVE, reason_code=new_reason_code, reason=new_reason,
+                effective_at=cur.effective_at,      # UNCHANGED — the hold began when it began
+                placed_at=cur.placed_at, placed_by=cur.placed_by, rev=cur.rev + 1,
+                evidence_refs=list(evidence_refs) if evidence_refs is not None
+                else list(cur.evidence_refs),
+                approval_ref=cur.approval_ref, source=source,
+            )
+            blob = new.to_dict()
+            # Carry forward every key the dataclass does not model, so a relabel can never
+            # silently drop preserved provenance (legacy_marker, evidence_snapshot_sha256, …).
+            assert isinstance(raw, dict)
+            for k, v in raw.items():
+                if k not in blob:
+                    blob[k] = v
+            blob["previous_reason_code"] = cur.reason_code
+            if not apply:
+                return ReasonUpdateResult(strategy_id, "would_update", None, blob,
+                                          cur.rev, new.rev)
+
+            # Byte-exact CAS: the UPDATE fires only if the stored value is STILL the exact
+            # blob validated above. Any concurrent writer changes `value`, the WHERE misses,
+            # rowcount is 0 → refuse with NO state and NO audit written.
+            res = cast(
+                "CursorResult[Any]",
+                await session.execute(
+                    update(StrategyState).where(
+                        StrategyState.strategy_id == strategy_id,
+                        StrategyState.key == K_OPERATIONAL_HOLD,
+                        StrategyState.value == raw,
+                    ).values(value=blob, updated_at=datetime.now(UTC))
+                ),
+            )
+            if res.rowcount != 1:
+                raise HoldReasonUpdateRefused(
+                    "the hold changed between validation and write (concurrent mutation); "
+                    "CAS failed — no state and no audit written")
+            row = AuditLogger.write(
+                session, actor_type=actor_type, actor_id=actor_id,
+                action=AuditAction.STRATEGY_HOLD_REASON_UPDATED, target_type="strategy",
+                target_id=strategy_id,
+                payload={"strategy_id": strategy_id,
+                         "old_reason_code": cur.reason_code, "new_reason_code": new_reason_code,
+                         "reason": new_reason, "hold_remained_active": True,
+                         "previous_rev": cur.rev, "new_rev": new.rev,
+                         "effective_at": cur.effective_at, "effective_at_unchanged": True,
+                         "updated_at": updated_at, "updated_by": updated_by, "source": source,
+                         "evidence_refs": list(new.evidence_refs)},
+            )
+            await session.flush()  # populate row.id
+            return ReasonUpdateResult(strategy_id, "updated", row.id, blob, cur.rev, new.rev)
 
     @staticmethod
     async def _cas_in(session: AsyncSession, strategy_id: int, *, expected_rev: int | None,
@@ -465,7 +592,10 @@ __all__ = [
     "adopt_legacy_operational_hold",
     "formalize_retrospective_hold_placed",
     "HoldMutationResult",
+    "HoldReasonUpdateRefused",
     "HoldService",
+    "REASON_UPDATE_SOURCE",
+    "ReasonUpdateResult",
     "assert_no_active_hold",
     "read_hold",
     "record_activation_blocked",

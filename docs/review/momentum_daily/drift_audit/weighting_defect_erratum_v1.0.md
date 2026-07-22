@@ -75,10 +75,18 @@ attaching to the value 8.
 
 ### 1.4 Effect on the Stage-3 winner selection
 
-`MR_MomentumDaily_Stage3_full.json`, window 2005-01-03 → 2026-06-12, `INITIAL_EQUITY` 100,000,
-`TURNOVER_COST_BPS` 10.0:
+> **⚠ Configuration label (corrected 2026-07-22, `PREREG …_v1.1.md` §0).** The table below is the
+> **regime-free** comparison: Stage 3 swept construction *before* Stage 4 introduced the regime filter, so
+> `N5/hyb/nocap` reproduces byte-for-byte as Stage-4 **variant D (None — control)**. Production runs the
+> **graduated** regime (**variant C**). These deltas therefore characterize the defect residual **in the
+> regime-free control**, which is the configuration in which the Stage-3 winner was actually chosen — they
+> are *not* the governing-configuration residual. The variant-C equal-weight arm had never been computed;
+> it is quantified by the impact study (§4).
 
-| metric | N5/hyb/nocap (defective) | N5/ew/nocap (feasible) | Δ (hyb − ew) |
+`MR_MomentumDaily_Stage3_full.json`, window 2005-01-03 → 2026-06-12, `INITIAL_EQUITY` 100,000,
+`TURNOVER_COST_BPS` 10.0, **regime-free (= Stage-4 variant D)**:
+
+| metric (regime-free) | N5/hyb/nocap (defective) | N5/ew/nocap (feasible) | Δ (hyb − ew) |
 |---|---|---|---|
 | CAGR | 14.783% | 14.523% | **+26.1 bps** |
 | Sharpe | 0.5282 | 0.5233 | **+0.0049** |
@@ -95,7 +103,8 @@ attaching to the value 8.
 
 **The entire measured advantage of `hybrid_50_50` over `equal_weight` at N=5 is the defect residual.**
 Under the registered constraints the two arms are the same portfolio, so the sizing dimension of the
-Stage-3 grid was not testing anything at N=5.
+Stage-3 grid was not testing anything at N=5. These differences are **observed defect residuals — not
+evidence that hybrid sizing was superior**, since at N=5 "hybrid sizing" denotes no feasible portfolio.
 
 **⚠ Consequence for the recorded winner rationale.** `Stage3_Evidence_Report_v1.0.md:67` selects
 `N5/hyb/nocap` as "best in the two canonical momentum-crash windows (2008 −57%, 2020 +39.6%)". Its own
