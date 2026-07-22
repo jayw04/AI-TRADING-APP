@@ -63,11 +63,14 @@ Full per-object inventory: `docs/review/mr002/MR002_ExternalRecoveryCopy_v1.0.js
 
 ---
 
-## 4. Restore test — and two real bugs it caught
+## 4. Post-build verification — and the bugs it caught
 
-**Verdict: PASS.** The test re-reads the archive from disk, re-hashes every blob, re-walks the
-graph from `index.json`, and confirms the top-level digest equals the binding with no missing
-or unreachable objects.
+**Verdict: PASS.** The authoritative post-build gate is now `verify_archive()` — the *same*
+hardened verifier the custodian runs offline, so the archive is never blessed at build time by a
+weaker check than the one it must later survive. A separate build-only cross-check additionally
+confirms the archive's object set equals exactly what was downloaded and digest-verified from
+the registry (**PASS**); the weaker `restore_test()` has been deleted outright so it cannot be
+reintroduced as a gate.
 
 The test earned its place by failing twice before it passed:
 
@@ -81,16 +84,18 @@ The test earned its place by failing twice before it passed:
 Both were defects in the verifier, not the archive. Recording them because a restore test that
 has never failed is not evidence that it works.
 
-### Regression tests — both defects now pinned
+### Regression tests — both defects pinned, plus strict descriptor validation
 
-`scripts/mr002_custody/test_recovery_verifier.py`, **13/13 passing**, no AWS and no network:
+`scripts/mr002_custody/test_recovery_verifier.py`, **15/15 passing**, no AWS and no network:
 
 | Defect / requirement | Test |
 |---|---|
 | Path normalization | `test_regression_path_normalization_variants` (relative and `./` forms) |
 | Path normalization — false assurance | `test_regression_empty_archive_never_passes` |
 | Descriptor type-confusion | `test_regression_config_blob_is_not_walked_as_a_descriptor_graph` |
-| Descriptor type-confusion — robustness | `test_regression_malformed_descriptor_does_not_crash` |
+| Descriptor type-confusion — reachable | `test_regression_malformed_descriptor_inside_reachable_graph_is_rejected` |
+| Size-to-content agreement | `test_size_to_content_disagreement_is_rejected` |
+| Media-type agreement | `test_media_type_disagreement_is_rejected` |
 | Pathname vs digest | `test_misnamed_blob_is_rejected` |
 | Unreferenced objects | `test_unreferenced_object_is_rejected` |
 | Missing objects | `test_missing_referenced_object_is_rejected` |
@@ -101,6 +106,12 @@ has never failed is not evidence that it works.
 
 The type-confusion fixture carries a config blob with a real top-level `config` key
 (`Env`/`Cmd`), which is precisely the shape that once raised `KeyError: 'digest'`.
+
+⚠ The malformed-descriptor test was **rewritten**. The earlier version passed only because the
+junk object was *unreferenced* — the unreferenced-object check caught it, while a malformed
+descriptor **inside the reachable graph** would still have been silently skipped. The manifest is
+now rewritten so the bad descriptors are genuinely reachable, and the test asserts all four
+rejection reasons individually.
 
 ---
 
@@ -137,6 +148,10 @@ custodian review procedure — **a successful extraction is deliberately not suf
 - **unreferenced unexpected objects rejected**
 - bound semantic digest matched exactly against P5
 - nonzero object-count assertion
+- **every reachable descriptor strictly validated** for object type, digest syntax
+  (`^sha256:[0-9a-f]{64}$`), media type, and size
+- **size-to-content agreement** — a declared size contradicting the blob fails
+- **media-type agreement** — a descriptor's declared type must match the content's own
 - explicit failure on missing, duplicated, malformed, or mistyped graph objects
 
 Uses **no network and no AWS access** — proven by running it with credentials, profile, region,

@@ -19,10 +19,12 @@ Boundaries honored (see the adjudication):
     after this script runs
 
 Outputs: an OCI layout directory, a .tar archive of it, a machine-readable
-inventory of every object, and a restore-test verdict.
+inventory of every object, and a post-build verification verdict produced by
+the same hardened verifier the custodian runs offline.
 """
 import hashlib
 import json
+import re
 import ssl
 import sys
 import tarfile
@@ -38,8 +40,42 @@ INDEX = "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9
 INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
 
 
+DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
 def sha256_hex(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def validate_descriptor(desc, where, problems):
+    """Strictly validate a REACHABLE OCI descriptor. Returns its digest, or None.
+
+    A descriptor inside the reachable graph must be well-formed, not merely
+    dict-shaped. Skipping malformed descriptors silently would let a structurally
+    broken archive verify, since an unreachable-but-invalid object is caught by the
+    unreferenced check while an unreachable-because-malformed one is not.
+
+    Checks required type, digest syntax, media type, and size. Size-to-content
+    agreement is checked later, once the blob is in hand.
+    """
+    if not isinstance(desc, dict):
+        problems.append(f"malformed descriptor at {where}: not an object ({type(desc).__name__})")
+        return None
+    digest = desc.get("digest")
+    if not isinstance(digest, str):
+        problems.append(f"malformed descriptor at {where}: digest missing or not a string")
+        return None
+    if not DIGEST_RE.match(digest):
+        problems.append(f"malformed descriptor at {where}: bad digest syntax {digest!r}")
+        return None
+    if not isinstance(desc.get("mediaType"), str) or not desc["mediaType"]:
+        problems.append(f"malformed descriptor at {where}: mediaType missing or not a string")
+        return None
+    size = desc.get("size")
+    if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+        problems.append(f"malformed descriptor at {where}: size missing or not a non-negative int")
+        return None
+    return digest
 
 
 def _tls_context():
@@ -160,72 +196,6 @@ def write_oci_layout(root: Path, objects, index_bytes):
     }).encode())
 
 
-def restore_test(archive: Path, objects) -> dict:
-    """Read-only restore test: re-read the archive and verify the graph byte-for-byte.
-
-    Deliberately independent of the in-memory objects' provenance — every member is
-    re-hashed from the archive stream, and the graph is re-walked from index.json.
-    """
-    found, mismatches = {}, []
-    with tarfile.open(archive, "r") as tar:
-        for member in tar.getmembers():
-            if not member.isfile():
-                continue
-            data = tar.extractfile(member).read()
-            normalized = member.name.replace("\\", "/").lstrip("./")
-            name = Path(member.name).name
-            # arcnames are RELATIVE ("blobs/sha256/<hex>"), so match without a
-            # leading slash — requiring one silently matched nothing and made the
-            # restore test vacuously report every object missing.
-            if normalized.startswith("blobs/sha256/"):
-                actual = sha256_hex(data)
-                if actual != f"sha256:{name}":
-                    mismatches.append({"member": member.name, "actual": actual})
-                found[actual] = data
-            elif name == "index.json":
-                found["index.json"] = data
-
-    layout_index = json.loads(found["index.json"])
-    top = layout_index["manifests"][0]["digest"]
-
-    reachable, queue = set(), [top]
-    while queue:
-        digest = queue.pop()
-        if digest in reachable or digest not in found:
-            continue
-        reachable.add(digest)
-        try:
-            doc = json.loads(found[digest])
-        except (UnicodeDecodeError, ValueError):
-            continue
-        # Only follow real OCI descriptors. An image CONFIG blob also has a
-        # top-level "config" key (container Env/Cmd) which is not a descriptor,
-        # and layer blobs may coincidentally parse as JSON.
-        def _push(value):
-            if isinstance(value, dict) and isinstance(value.get("digest"), str):
-                queue.append(value["digest"])
-
-        if isinstance(doc, dict):
-            for desc in doc.get("manifests", []) or []:
-                _push(desc)
-            _push(doc.get("config"))
-            for layer in doc.get("layers", []) or []:
-                _push(layer)
-
-    expected = set(objects)
-    return {
-        "archive_top_level_digest": top,
-        "top_level_matches_binding": top == INDEX,
-        "blob_digest_mismatches": mismatches,
-        "objects_in_archive": len(expected & set(found)),
-        "objects_expected": len(expected),
-        "objects_missing": sorted(expected - set(found)),
-        "objects_unreachable_from_index": sorted(expected - reachable),
-        "verdict": "PASS" if (top == INDEX and not mismatches
-                              and expected <= set(found) and expected <= reachable) else "FAIL",
-    }
-
-
 def verify_archive(archive: Path, bound_index: str = INDEX, expected_outer: str | None = None):
     """Verify a recovery archive with NO network and NO AWS access.
 
@@ -288,27 +258,59 @@ def verify_archive(archive: Path, bound_index: str = INDEX, expected_outer: str 
     if top is not None and top != bound_index:
         problems.append(f"top-level digest {top} != bound index {bound_index}")
 
-    referenced, queue = set(), [top] if top else []
+    # (digest, declared_size, declared_media_type, provenance)
+    referenced, queue = set(), [(top, None, None, "index.json")] if top else []
+    config_blobs = set()
     while queue:
-        digest = queue.pop()
+        digest, declared_size, declared_media, where = queue.pop()
         if digest in referenced:
             continue
         referenced.add(digest)
         if digest not in blobs:
-            problems.append(f"referenced object absent or corrupt: {digest}")
+            problems.append(f"referenced object absent or corrupt: {digest} (from {where})")
             continue
+
+        data = blobs[digest]
+        if declared_size is not None and len(data) != declared_size:
+            problems.append(
+                f"size disagreement for {digest} (from {where}): "
+                f"declared {declared_size}, actual {len(data)}")
+
+        # A config blob is a LEAF. Its top-level "config" key holds container
+        # Env/Cmd and is NOT an OCI descriptor; walking it with manifest rules is
+        # the type-confusion defect this guard exists to prevent.
+        if digest in config_blobs:
+            continue
+
         try:
-            doc = json.loads(blobs[digest])
+            doc = json.loads(data)
         except (UnicodeDecodeError, ValueError):
-            continue  # a layer blob; not a graph node
+            continue  # opaque layer blob; not a graph node
         if not isinstance(doc, dict):
             continue
-        # Follow ONLY real OCI descriptors. An image CONFIG blob has its own
-        # top-level "config" key (container Env/Cmd) that is not a descriptor —
-        # recursively interpreting it as one is a type-confusion defect.
-        for desc in (doc.get("manifests") or []) + (doc.get("layers") or []) + [doc.get("config")]:
-            if isinstance(desc, dict) and isinstance(desc.get("digest"), str):
-                queue.append(desc["digest"])
+        if declared_media and isinstance(doc.get("mediaType"), str) \
+                and doc["mediaType"] != declared_media:
+            problems.append(
+                f"media type disagreement for {digest} (from {where}): "
+                f"descriptor says {declared_media}, content says {doc['mediaType']}")
+
+        for field in ("manifests", "layers"):
+            entries = doc.get(field)
+            if entries is None:
+                continue
+            if not isinstance(entries, list):
+                problems.append(f"malformed {field} in {digest}: not a list")
+                continue
+            for i, desc in enumerate(entries):
+                child = validate_descriptor(desc, f"{digest}.{field}[{i}]", problems)
+                if child:
+                    queue.append((child, desc["size"], desc["mediaType"], f"{digest}.{field}"))
+        if "config" in doc:
+            child = validate_descriptor(doc["config"], f"{digest}.config", problems)
+            if child:
+                config_blobs.add(child)
+                queue.append((child, doc["config"]["size"], doc["config"]["mediaType"],
+                              f"{digest}.config"))
 
     if not blobs:
         problems.append("archive contains no verifiable blob objects")
@@ -322,6 +324,7 @@ def verify_archive(archive: Path, bound_index: str = INDEX, expected_outer: str 
         "semantic_digest": top,
         "bound_identity_matches": top == bound_index,
         "objects_present": len(blobs),
+        "present_digests": sorted(blobs),
         "objects_referenced": len(referenced),
         "unreferenced_objects": unreferenced,
         "problems": problems,
@@ -381,9 +384,26 @@ def main(staging: Path):
     outer = hashlib.sha256(archive.read_bytes()).hexdigest()
     print(f"  archive {archive.name}  {archive.stat().st_size:,} bytes", flush=True)
 
-    print("Restore test (re-reading archive, re-hashing every blob) ...", flush=True)
-    restore = restore_test(archive, objects)
-    print(f"  restore verdict: {restore['verdict']}", flush=True)
+    # The AUTHORITATIVE post-build gate is the same hardened verifier the custodian
+    # runs against the medium — deliberately not a weaker build-time variant, so the
+    # archive is never blessed by a check the custodian would not repeat.
+    print("Post-build verification (hardened verifier, wrapper hash asserted) ...", flush=True)
+    restore = verify_archive(archive, expected_outer=f"sha256:{outer}")
+    print(f"  verdict: {restore['verdict']}", flush=True)
+
+    # Additional signal the offline verifier cannot have: the archive's object set
+    # must equal exactly what was downloaded and digest-verified from the registry.
+    walked, packed = set(objects), set(restore["present_digests"])
+    restore["cross_check_against_registry_walk"] = {
+        "missing_from_archive": sorted(walked - packed),
+        "not_downloaded_from_registry": sorted(packed - walked),
+        "verdict": "PASS" if walked == packed else "FAIL",
+    }
+    if walked != packed:
+        restore["verdict"] = "FAIL"
+        restore["problems"].append("archive object set differs from the registry walk")
+    print(f"  cross-check vs registry walk: "
+          f"{restore['cross_check_against_registry_walk']['verdict']}", flush=True)
 
     manifest_record = {
         "record_type": "MR002_ExternalRecoveryCopy",
@@ -412,7 +432,7 @@ def main(staging: Path):
             "local_daemon_trusted": False,
         },
         "inventory": inventory,
-        "restore_test": restore,
+        "post_build_verification": restore,
         # Truthful classification. The workstation archive is NOT promoted to
         # "offline" merely because it sits outside the cloud-sync root.
         "custody_classification": {

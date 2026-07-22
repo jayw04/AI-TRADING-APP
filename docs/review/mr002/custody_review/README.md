@@ -42,7 +42,7 @@ Read the governance records first; they explain why the code exists.
 | File | Role |
 |---|---|
 | `export_recovery_copy.py` | Builds + offline-verifies the OCI recovery archive |
-| `test_recovery_verifier.py` | 13 tests, incl. regressions for both disclosed verifier defects |
+| `test_recovery_verifier.py` | 15 tests, incl. regressions for both disclosed verifier defects |
 
 ### 4. Applied AWS configuration (`aws/`)
 
@@ -63,7 +63,10 @@ Each is verifiable independently:
 - The monitor role is **read-only**, resource-scoped to one repository ARN.
 - Drift testing uses **stubs only** — no AWS resource is mutated by any test.
 - The recovery verifier fails on: misnamed blobs, unreferenced objects, missing objects, wrong
-  image, wrapper-hash mismatch, missing `index.json`, and empty archives.
+  image, wrapper-hash mismatch, missing `index.json`, empty archives, malformed reachable
+  descriptors, size disagreement, and media-type disagreement.
+- The build gate and the custodian's offline check are the **same** function
+  (`verify_archive`); no weaker build-time variant exists.
 - **No prevention claim** appears anywhere; prevention is impossible in a management account.
 
 ## Deliberately NOT here

@@ -64,12 +64,15 @@ def graph():
     manifest = json.dumps({
         "schemaVersion": 2,
         "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "config": {"digest": digest_of(config), "size": len(config)},
-        "layers": [{"digest": digest_of(layer), "size": len(layer)}],
+        "config": {"mediaType": "application/vnd.oci.image.config.v1+json",
+                   "digest": digest_of(config), "size": len(config)},
+        "layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                    "digest": digest_of(layer), "size": len(layer)}],
     }).encode()
     index = json.dumps({
         "schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
-        "manifests": [{"digest": digest_of(manifest), "size": len(manifest),
+        "manifests": [{"mediaType": "application/vnd.oci.image.manifest.v1+json",
+                       "digest": digest_of(manifest), "size": len(manifest),
                        "platform": {"os": "linux", "architecture": "amd64"}}],
     }).encode()
     blobs = {digest_of(index): index, digest_of(manifest): manifest,
@@ -125,16 +128,102 @@ def test_regression_config_blob_is_not_walked_as_a_descriptor_graph(tmp_path, gr
     assert result["verdict"] == "PASS", result["problems"]
 
 
-def test_regression_malformed_descriptor_does_not_crash(tmp_path, graph):
-    """Descriptor-shaped junk must be ignored or reported, never raise."""
-    blobs, top, index_doc = graph
-    junk = json.dumps({"manifests": [{"no_digest": 1}, "a string", None],
-                       "config": {"digest": 12345}, "layers": [{}]}).encode()
-    blobs = dict(blobs)
-    blobs[digest_of(junk)] = junk
-    result = verify_archive(build_archive(tmp_path, blobs, index_doc), bound_index=top)
-    assert result["verdict"] == "FAIL"  # the junk blob is unreferenced
-    assert any("unreferenced" in p for p in result["problems"])
+def test_regression_malformed_descriptor_inside_reachable_graph_is_rejected(tmp_path, graph):
+    """Malformed descriptors must be rejected ON THEIR OWN MERITS.
+
+    The earlier version of this test passed only because the junk object was
+    UNREFERENCED — the unreferenced-object check caught it, while a malformed
+    descriptor inside the reachable graph would have been silently skipped. Here the
+    manifest itself is rewritten so the bad descriptors are genuinely reachable.
+    """
+    blobs, _, _ = graph
+    layer = next(v for v in blobs.values() if not v.startswith(b"{"))
+    config = next(v for v in blobs.values()
+                  if v.startswith(b"{") and b"rootfs" in v)
+    bad_manifest = json.dumps({
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": {"mediaType": "application/vnd.oci.image.config.v1+json",
+                   "digest": digest_of(config), "size": len(config)},
+        "layers": [
+            {"digest": digest_of(layer), "size": len(layer)},          # no mediaType
+            {"mediaType": "x", "digest": "not-a-digest", "size": 1},   # bad digest syntax
+            {"mediaType": "x", "digest": digest_of(layer)},            # no size
+            "a string",                                                # not an object
+        ],
+    }).encode()
+    index = json.dumps({
+        "schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
+        "manifests": [{"mediaType": "application/vnd.oci.image.manifest.v1+json",
+                       "digest": digest_of(bad_manifest), "size": len(bad_manifest)}],
+    }).encode()
+    packed = {digest_of(index): index, digest_of(bad_manifest): bad_manifest,
+              digest_of(config): config, digest_of(layer): layer}
+    index_doc = {"schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
+                 "manifests": [{"mediaType": INDEX_MEDIA_TYPE, "digest": digest_of(index),
+                                "size": len(index)}]}
+
+    result = verify_archive(build_archive(tmp_path, packed, index_doc),
+                            bound_index=digest_of(index))
+    assert result["verdict"] == "FAIL"
+    malformed = [p for p in result["problems"] if "malformed descriptor" in p]
+    assert len(malformed) == 4, result["problems"]
+    assert any("mediaType missing" in p for p in malformed)
+    assert any("bad digest syntax" in p for p in malformed)
+    assert any("size missing" in p for p in malformed)
+    assert any("not an object" in p for p in malformed)
+
+
+def test_size_to_content_disagreement_is_rejected(tmp_path, graph):
+    """A descriptor whose declared size contradicts the blob must fail."""
+    blobs, _, _ = graph
+    layer = next(v for v in blobs.values() if not v.startswith(b"{"))
+    config = next(v for v in blobs.values() if v.startswith(b"{") and b"rootfs" in v)
+    manifest = json.dumps({
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": {"mediaType": "application/vnd.oci.image.config.v1+json",
+                   "digest": digest_of(config), "size": len(config)},
+        "layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                    "digest": digest_of(layer), "size": len(layer) + 999}],
+    }).encode()
+    index = json.dumps({
+        "schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
+        "manifests": [{"mediaType": "application/vnd.oci.image.manifest.v1+json",
+                       "digest": digest_of(manifest), "size": len(manifest)}],
+    }).encode()
+    packed = {digest_of(index): index, digest_of(manifest): manifest,
+              digest_of(config): config, digest_of(layer): layer}
+    index_doc = {"schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
+                 "manifests": [{"mediaType": INDEX_MEDIA_TYPE, "digest": digest_of(index),
+                                "size": len(index)}]}
+    result = verify_archive(build_archive(tmp_path, packed, index_doc),
+                            bound_index=digest_of(index))
+    assert result["verdict"] == "FAIL"
+    assert any("size disagreement" in p for p in result["problems"])
+
+
+def test_media_type_disagreement_is_rejected(tmp_path, graph):
+    """Descriptor mediaType must agree with the content's own mediaType."""
+    blobs, top, _ = graph
+    manifest_digest = next(
+        d for d, v in blobs.items()
+        if v.startswith(b"{") and b'"layers"' in v)
+    manifest = blobs[manifest_digest]
+    index = json.dumps({
+        "schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
+        "manifests": [{"mediaType": INDEX_MEDIA_TYPE,  # wrong: content says manifest
+                       "digest": manifest_digest, "size": len(manifest)}],
+    }).encode()
+    packed = {d: v for d, v in blobs.items() if d != top}
+    packed[digest_of(index)] = index
+    index_doc = {"schemaVersion": 2, "mediaType": INDEX_MEDIA_TYPE,
+                 "manifests": [{"mediaType": INDEX_MEDIA_TYPE, "digest": digest_of(index),
+                                "size": len(index)}]}
+    result = verify_archive(build_archive(tmp_path, packed, index_doc),
+                            bound_index=digest_of(index))
+    assert result["verdict"] == "FAIL"
+    assert any("media type disagreement" in p for p in result["problems"])
 
 
 # --- custodian review procedure ----------------------------------------------

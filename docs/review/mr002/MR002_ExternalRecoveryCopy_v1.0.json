@@ -14,7 +14,7 @@
     "implements_requirement_7": false,
     "modified_custody_repository": false
   },
-  "created_at": "2026-07-22T17:54:41.389102+00:00",
+  "created_at": "2026-07-22T21:07:38.688325+00:00",
   "custody_classification": {
     "INDEPENDENT_OFFLINE_RECOVERY_COPY": "NOT YET CREATED",
     "INFORMAL_RUNTIME_COPY": "local Docker cache \u2014 NOT CREDITED",
@@ -123,17 +123,40 @@
     "confirm the medium is normally disconnected",
     "confirm the staging copy is deleted or accepted as a second online copy"
   ],
-  "record_type": "MR002_ExternalRecoveryCopy",
-  "restore_test": {
-    "archive_top_level_digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
-    "blob_digest_mismatches": [],
-    "objects_expected": 13,
-    "objects_in_archive": 13,
-    "objects_missing": [],
-    "objects_unreachable_from_index": [],
-    "top_level_matches_binding": true,
-    "verdict": "PASS"
+  "post_build_verification": {
+    "archive": "C:\\LLM-RAG-APP\\mr002_recovery_staging\\mr002-evaluator-p5-recovery.tar",
+    "bound_identity_matches": true,
+    "cross_check_against_registry_walk": {
+      "missing_from_archive": [],
+      "not_downloaded_from_registry": [],
+      "verdict": "PASS"
+    },
+    "objects_present": 13,
+    "objects_referenced": 13,
+    "offline": true,
+    "present_digests": [
+      "sha256:0e26001d5620dfc2698f3a683c497e1cabdcc4757f4ca4ff70e33cb36057df02",
+      "sha256:4eddc7366c8c5620c041725796d4887bf840068051706ec1bf69d16f9d759464",
+      "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+      "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+      "sha256:68629629b516c3cd6f5e71ffbe18e32afb1ae5b4926c92d058c0f11ef1fd58a3",
+      "sha256:6962e4a78792cfbd36f999967a3cfaa26f0d8b1dc8d9ee27403ca4be8556a746",
+      "sha256:8830d7c649a248c4bbf80303b4565be39c62e741050fce9b65514193ee4a25b3",
+      "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d",
+      "sha256:b81cd073e34445ec31f2bffff0bb1345c6ccc31940c20a29fb7d9987915ae7cc",
+      "sha256:c1ae7d30bf2b5465400963e6959a82cbb70098ff80b58395a9d55ccf0f0fceb0",
+      "sha256:c90b26812a028bfa582bede756e645cf91fe9d05f2991b0862d719a003cce5ed",
+      "sha256:d229a71b9e515d634cb7f17b8bfe71586ed1282edbcfb81faaca1aebd0ed028b",
+      "sha256:d50c558685e87fd7ea981d5edaa19c65485fec895c7551354ddf00a5792d4e15"
+    ],
+    "problems": [],
+    "satisfies_requirement_7": false,
+    "semantic_digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+    "unreferenced_objects": [],
+    "verdict": "PASS",
+    "wrapper_digest": "sha256:c3cf3b9e3cb1f5a5ce94f79ede72163ab1389803fbd3f0dfc91d8744604f9f8a"
   },
+  "record_type": "MR002_ExternalRecoveryCopy",
   "scope": "external offline recovery copy of the P5-bound evaluator image; NOT an execution gate, NOT a Requirement 7 resolver, authorizes nothing",
   "source": {
     "local_daemon_trusted": false,
