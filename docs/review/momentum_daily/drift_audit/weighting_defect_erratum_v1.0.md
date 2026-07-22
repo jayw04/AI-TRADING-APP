@@ -77,7 +77,8 @@ attaching to the value 8.
 
 > **⚠ Configuration label (corrected 2026-07-22, `PREREG …_v1.1.md` §0).** The table below is the
 > **regime-free** comparison: Stage 3 swept construction *before* Stage 4 introduced the regime filter, so
-> `N5/hyb/nocap` reproduces byte-for-byte as Stage-4 **variant D (None — control)**. Production runs the
+> `N5/hyb/nocap` corresponds to Stage-4 **variant D (None — control)**, matching to ~7e-15 relative
+> (floating-point identical across two separate runs; *not* byte-identical). Production runs the
 > **graduated** regime (**variant C**). These deltas therefore characterize the defect residual **in the
 > regime-free control**, which is the configuration in which the Stage-3 winner was actually chosen — they
 > are *not* the governing-configuration residual. The variant-C equal-weight arm had never been computed;

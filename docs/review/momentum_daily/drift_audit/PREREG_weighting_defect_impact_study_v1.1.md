@@ -12,9 +12,10 @@ Nothing here authorizes activation or clearing the hold.
 ## 0. Protocol correction carried into v1.1 (disclosed, not silently fixed)
 
 **v1.0 §2.1 named the wrong reproduction reference.** It pinned Arm A to Stage-3 `N5/hyb/nocap`. That row
-is **regime-free**: Stage 3 swept construction before Stage 4 introduced the regime filter. It reproduces
-byte-for-byte as Stage-4 **variant D** (CAGR 0.147832, Sharpe 0.528167, Calmar 0.199387, maxDD −0.741433,
-1,378 trades, final equity 1,921,486.4058577747 — identical).
+is **regime-free**: Stage 3 swept construction before Stage 4 introduced the regime filter. It corresponds
+to Stage-4 **variant D** — CAGR 0.14783241200020414 (Stage 3) vs 0.14783241200020525 (Stage 4), i.e. equal
+to **~7e-15 relative**, floating-point identical from two separate runs of the same configuration. (Stated
+as "byte-for-byte" in an earlier draft; the two artifacts are numerically identical, not byte-identical.)
 
 Production runs the **graduated** regime = Stage-4 **variant C**. So:
 
