@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -49,7 +50,7 @@ def _strategy_params() -> dict:
             "order_pacing_seconds": 0.0}
 
 
-def _run_comparison(args, manifest: dict) -> dict:
+def _run_comparison(args, manifest: dict) -> tuple[dict, list, list]:
     """Wire the production FactorAccessor + duckdb prices into the live drive, and the
     validated Stage functions into the replica extractor; return the §8 drift report.
 
@@ -151,7 +152,8 @@ def _run_comparison(args, manifest: dict) -> dict:
     live_records = asyncio.run(drive_live(strat, adapter, trading_days,
                                           fill_price_fn=lambda s, d: _price(s, d)))
 
-    return build_report(live_records, replica_records).to_dict()
+    report = build_report(live_records, replica_records).to_dict()
+    return report, live_records, replica_records
 
 
 def main() -> int:
@@ -207,10 +209,25 @@ def main() -> int:
         print("  → review the manifest, then re-run WITHOUT --provenance-only for the census.")
         return 0
 
-    report = _run_comparison(args, manifest)
-    out.write_text(json.dumps({"mode": "full", "manifest": manifest, "report": report},
-                              indent=2, default=str), encoding="utf-8")
+    import dataclasses
+
+    report, live_seams, replica_seams = _run_comparison(args, manifest)
+    manifest_sha = hashlib.sha256(
+        json.dumps({"manifest": manifest}, sort_keys=True, default=str).encode()).hexdigest()
+    out.write_text(json.dumps({
+        "mode": "full", "manifest": manifest, "report": report,
+        "provenance_binding": manifest.get("provenance_binding"),
+        "manifest_content_sha256": manifest_sha,
+    }, indent=2, default=str), encoding="utf-8")
+    # raw seams archived alongside the report (persistence only — not the measurement semantics).
+    (out.parent / "live_seams.json").write_text(
+        json.dumps([dataclasses.asdict(s) for s in live_seams], default=str), encoding="utf-8")
+    (out.parent / "replica_seams.json").write_text(
+        json.dumps([dataclasses.asdict(s) for s in replica_seams], default=str), encoding="utf-8")
     print("✔ drift census written to", out)
+    print("  raw seams:", out.parent / "live_seams.json", "+", out.parent / "replica_seams.json")
+    print("  verdict  :", report.get("conformance_verdict"),
+          "| first_cause:", report.get("first_cause"))
     return 0
 
 
