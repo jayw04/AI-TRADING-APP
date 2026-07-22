@@ -73,7 +73,7 @@ async def fetch_snapshot(
     account_id: int,
     adapter: Any,  # BrokerAdapter
     reserved_reducing_qty: dict[str, Decimal] | None = None,
-    reserved_filled_qty: dict[str, Decimal] | None = None,
+    absorbed_reserved_fill_qty: dict[str, Decimal] | None = None,
 ) -> AccountSnapshot:
     """Live broker read + the local causality anchor. Never returns cached state.
 
@@ -159,7 +159,7 @@ async def fetch_snapshot(
         observed_cursor=observed_cursor,
         complete=True,
         reserved_reducing_qty=reserved_reducing_qty or {},
-        reserved_filled_qty=reserved_filled_qty or {},
+        absorbed_reserved_fill_qty=absorbed_reserved_fill_qty or {},
     )
 
 

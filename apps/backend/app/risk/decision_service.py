@@ -121,13 +121,20 @@ class RiskDecisionService:
         # depends on holding it — the conditional UPDATE is what enforces the invariant.
         async with _ACCOUNT_LOCKS[account_id]:
             reserved = await self._reserved_by_symbol(account_id)
-            reserved_filled = await self._reserved_filled_by_symbol(account_id)
             snap = await fetch_snapshot(
                 session=self._session,
                 account_id=account_id,
                 adapter=adapter,
                 reserved_reducing_qty=reserved,
-                reserved_filled_qty=reserved_filled,
+            )
+            # Absorption is proven AGAINST this snapshot's positions, so it is computed after the
+            # fetch and folded in. `state_hash` covers the term, so the capacity version still
+            # moves when it changes.
+            snap = replace(
+                snap,
+                absorbed_reserved_fill_qty=await self._absorbed_reserved_fill_by_symbol(
+                    snap, account_id
+                ),
             )
             result = classify(snap, action)
 
@@ -152,12 +159,18 @@ class RiskDecisionService:
                     result = self._deny_for_capacity(result, account_id, symbol, corr)
                 else:
                     capacity_version = claimed
+                    anchor_pos = snap.positions.get(symbol)
                     reservation = RiskReservation(
                         account_id=account_id,
                         symbol=symbol,
                         qty=action.qty,
                         state=RESERVATION_HELD,
                         created_at=datetime.now(UTC),
+                        # The anchor that lets a LATER decision PROVE this reservation's fill was
+                        # absorbed by the position, instead of assuming it.
+                        position_qty_at_reservation=(
+                            anchor_pos.qty if anchor_pos is not None else None
+                        ),
                     )
                     self._session.add(reservation)
                     await self._session.flush()
@@ -224,15 +237,17 @@ class RiskDecisionService:
         state is gone.
         """
         reserved = await self._reserved_by_symbol(account_id, exclude=reservation_id)
-        reserved_filled = await self._reserved_filled_by_symbol(
-            account_id, exclude=reservation_id
-        )
         fresh = await fetch_snapshot(
             session=self._session,
             account_id=account_id,
             adapter=adapter,
             reserved_reducing_qty=reserved,
-            reserved_filled_qty=reserved_filled,
+        )
+        fresh = replace(
+            fresh,
+            absorbed_reserved_fill_qty=await self._absorbed_reserved_fill_by_symbol(
+                fresh, account_id, exclude=reservation_id
+            ),
         )
         if fresh.state_hash() == prior.before_state_hash:
             return prior, prior_ledger_id, reservation_id  # unchanged — the approval stands
@@ -481,41 +496,81 @@ class RiskDecisionService:
         )
 
     # ---------------------------------------------------------------- internals
-    async def _reserved_filled_by_symbol(
-        self, account_id: int, *, exclude: int | None = None
+    async def _absorbed_reserved_fill_by_symbol(
+        self, snap: AccountSnapshot, account_id: int, *, exclude: int | None = None
     ) -> dict[str, Decimal]:
-        """Of the HELD reservations, how much has ALREADY FILLED — and is therefore already
-        reflected in the broker position.
+        """Of the HELD reservations, how much fill THIS SNAPSHOT'S POSITION HAS PROVABLY ABSORBED.
 
-        A reservation keeps its full original quantity until its order reaches a terminal
-        status, so a PARTIAL fill is charged twice: once by the position the fill shrank, once
-        by the reservation that still names the whole quantity. `claimable_reducible_quantity`
-        adds this back so the filled part is charged exactly once.
+        A reservation keeps its full original quantity until its order goes terminal, so a
+        partial fill is charged twice - once by the position the fill shrank, once by the
+        reservation that still names the whole quantity. Crediting the filled part back fixes
+        that, but ONLY where the credit can be proven.
 
-        Capped per reservation at its own quantity: an over-fill (broker fills more than the
-        reservation covered) must not manufacture capacity.
+        WARNING: positions, open orders and fills are THREE NON-ATOMIC READS. A fill recorded
+        locally may not yet appear in the broker positions endpoint. Crediting it back on the
+        strength of the local row alone would add reducible capacity that does not exist and
+        could admit a sell that crosses zero into a short. So the credit is bounded by a position
+        movement we can actually observe, against the anchor captured when the reservation was
+        created:
+
+            observed_position_reduction = max(0, anchor - current_long)
+            absorbed = min(observed_fills, observed_position_reduction, reserved_qty)
+
+        Symbol-level aggregation, so one observed reduction cannot be attributed to two
+        reservations. The anchor used per symbol is the SMALLEST across that symbol's held
+        reservations - the least generous, hence safest, claim about how far the position moved.
+        A reservation with no anchor (written before the column existed) contributes ZERO:
+        unprovable is not the same as absorbed, and no anchor is invented after the fact.
+
+        A position that ROSE (a buy, a transfer) yields a negative movement, clamped to zero - an
+        increase is never evidence that a reserved sell filled.
         """
         stmt = (
             select(
                 RiskReservation.symbol,
                 RiskReservation.qty,
+                RiskReservation.position_qty_at_reservation,
                 func.coalesce(func.sum(Fill.qty), 0),
             )
             .select_from(RiskReservation)
-            .join(Fill, Fill.order_id == RiskReservation.order_id)
+            .outerjoin(Fill, Fill.order_id == RiskReservation.order_id)
             .where(
                 RiskReservation.account_id == account_id,
                 RiskReservation.state == RESERVATION_HELD,
-                RiskReservation.order_id.is_not(None),
             )
-            .group_by(RiskReservation.id, RiskReservation.symbol, RiskReservation.qty)
+            .group_by(
+                RiskReservation.id,
+                RiskReservation.symbol,
+                RiskReservation.qty,
+                RiskReservation.position_qty_at_reservation,
+            )
         )
         if exclude is not None:
             stmt = stmt.where(RiskReservation.id != exclude)
+
+        fills: dict[str, Decimal] = {}
+        reserved: dict[str, Decimal] = {}
+        anchors: dict[str, Decimal] = {}
+        for sym, res_qty, anchor, filled in (await self._session.execute(stmt)).all():
+            if anchor is None:
+                continue  # unprovable -> contributes nothing, not even its fills
+            key = str(sym).upper()
+            # Cap each reservation's fills at its own quantity: an over-fill must not
+            # manufacture capacity.
+            capped = min(Decimal(str(res_qty)), max(ZERO, Decimal(str(filled or 0))))
+            fills[key] = fills.get(key, ZERO) + capped
+            reserved[key] = reserved.get(key, ZERO) + Decimal(str(res_qty))
+            a = Decimal(str(anchor))
+            anchors[key] = a if key not in anchors else min(anchors[key], a)
+
         out: dict[str, Decimal] = {}
-        for sym, res_qty, filled in (await self._session.execute(stmt)).all():
-            capped = min(Decimal(str(res_qty)), Decimal(str(filled or 0)))
-            out[sym] = out.get(sym, ZERO) + max(ZERO, capped)
+        for key, filled_total in fills.items():
+            pos = snap.positions.get(key)
+            current = pos.qty if pos else ZERO
+            observed_reduction = max(ZERO, anchors[key] - current)
+            absorbed = min(filled_total, observed_reduction, reserved.get(key, ZERO))
+            if absorbed > ZERO:
+                out[key] = absorbed
         return out
 
     async def _reserved_by_symbol(

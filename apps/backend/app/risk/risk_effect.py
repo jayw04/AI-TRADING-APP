@@ -132,10 +132,15 @@ class AccountSnapshot:
     complete: bool = True
     # Quantities already promised to other in-flight reducing decisions (§ D).
     reserved_reducing_qty: dict[str, Decimal] = field(default_factory=dict)
-    # Of `reserved_reducing_qty`, the quantity already FILLED and therefore already
-    # reflected in `positions` — held reservations keep their full original quantity until
-    # their order goes terminal, so this is what stops a partial fill being charged twice.
-    reserved_filled_qty: dict[str, Decimal] = field(default_factory=dict)
+    # Of `reserved_reducing_qty`, the quantity whose fill the broker position in THIS snapshot
+    # has DEMONSTRABLY absorbed — bounded by an observed position movement, never by the mere
+    # existence of a local fill row. Held reservations keep their full original quantity until
+    # their order goes terminal, so without this a partial fill is charged twice (once by the
+    # shrunken position, once by the still-full reservation). It is credited ONLY where proven:
+    # positions, orders and fills are three non-atomic reads, and crediting an unabsorbed fill
+    # would manufacture capacity and could admit a sell that crosses zero. See
+    # `RiskDecisionService._absorbed_reserved_fill_by_symbol`.
+    absorbed_reserved_fill_qty: dict[str, Decimal] = field(default_factory=dict)
 
     def gross_exposure(self) -> Decimal:
         return sum((abs(p.qty) * p.price for p in self.positions.values()), ZERO)
@@ -155,8 +160,8 @@ class AccountSnapshot:
             ),
             "cash": str(self.cash),
             "reserved": sorted((k, str(v)) for k, v in self.reserved_reducing_qty.items()),
-            "reserved_filled": sorted(
-                (k, str(v)) for k, v in self.reserved_filled_qty.items()
+            "absorbed_reserved_fill": sorted(
+                (k, str(v)) for k, v in self.absorbed_reserved_fill_qty.items()
             ),
         }
         return hashlib.sha256(
@@ -243,13 +248,15 @@ def claimable_reducible_quantity(snap: AccountSnapshot, symbol: str) -> Decimal:
         ZERO,
     )
     reserved_total = snap.reserved_reducing_qty.get(symbol.upper(), ZERO)
-    # The part of our held reservations the BROKER POSITION HAS ALREADY ABSORBED. A reservation
-    # is held at its full original quantity until its order goes terminal, so a partial fill is
-    # charged twice: once by the shrunken position, once by the still-full reservation. Adding
-    # it back charges it exactly once. It must come from observed fills — an aggregate guess
-    # (reserved − in_flight) cannot tell a FILLED reservation from a NOT-YET-SUBMITTED one, and
-    # adding back the latter would over-permit.
-    reserved_filled = snap.reserved_filled_qty.get(symbol.upper(), ZERO)
+    # The part of our held reservations THIS SNAPSHOT'S POSITION HAS PROVABLY ABSORBED. A
+    # reservation is held at its full original quantity until its order goes terminal, so a
+    # partial fill is otherwise charged twice: once by the shrunken position, once by the
+    # still-full reservation. Adding back only the PROVEN part charges it exactly once without
+    # inventing capacity: the producer bounds it by an observed position movement against the
+    # anchor recorded when the reservation was created, so a local fill the positions endpoint
+    # has not yet reflected contributes ZERO. An aggregate guess (reserved − in_flight) is
+    # unusable here — it cannot tell a FILLED reservation from a NOT-YET-SUBMITTED one.
+    reserved_filled = snap.absorbed_reserved_fill_qty.get(symbol.upper(), ZERO)
     reserved_pending = max(ZERO, reserved_total - reserved_filled)
     # Broker-open reducing quantity that no reservation of ours accounts for — a sell placed
     # straight at the broker. Charged in full; only OUR overlap is forgiven.

@@ -34,7 +34,7 @@ from app.risk.risk_effect import (
 D = Decimal
 
 
-def _snap(positions=None, open_orders=None, *, reserved=None, reserved_filled=None,
+def _snap(positions=None, open_orders=None, *, reserved=None, absorbed=None,
           complete=True, cursor="100", observed="100") -> AccountSnapshot:
     return AccountSnapshot(
         account_id=1,
@@ -46,7 +46,7 @@ def _snap(positions=None, open_orders=None, *, reserved=None, reserved_filled=No
         observed_cursor=observed,
         complete=complete,
         reserved_reducing_qty=reserved or {},
-        reserved_filled_qty=reserved_filled or {},
+        absorbed_reserved_fill_qty=absorbed or {},
     )
 
 
@@ -414,7 +414,7 @@ def test_partial_fill_is_not_charged_by_both_the_position_and_the_reservation():
         [SnapshotPosition("AAPL", D("425"), D("100"))],
         [SnapshotOpenOrder("o1", "AAPL", OrderSide.SELL, D("125"), reduces_position=True)],
         reserved={"AAPL": D("200")},
-        reserved_filled={"AAPL": D("75")},
+        absorbed={"AAPL": D("75")},
     )
     assert claimable_reducible_quantity(snap, "AAPL") == D("500")   # 425 + 75 filled-back
     assert available_reducible_quantity(snap, "AAPL") == D("300")   # ...minus the whole 200
@@ -426,7 +426,7 @@ def test_a_fully_filled_but_unreconciled_reservation_frees_its_capacity():
     snap = _snap(
         [SnapshotPosition("AAPL", D("300"), D("100"))],
         reserved={"AAPL": D("200")},
-        reserved_filled={"AAPL": D("200")},
+        absorbed={"AAPL": D("200")},
     )
     assert claimable_reducible_quantity(snap, "AAPL") == D("500")
     assert available_reducible_quantity(snap, "AAPL") == D("300")
@@ -460,7 +460,7 @@ def test_capacity_never_exceeds_the_long_under_multiple_partial_overlaps():
             SnapshotOpenOrder("o2", "AAPL", OrderSide.SELL, D("50"), reduces_position=True),
         ],
         reserved={"AAPL": D("250")},
-        reserved_filled={"AAPL": D("100")},
+        absorbed={"AAPL": D("100")},
     )
     claimable = claimable_reducible_quantity(snap, "AAPL")
     available = available_reducible_quantity(snap, "AAPL")
@@ -474,7 +474,7 @@ def test_overfill_cannot_manufacture_capacity():
     snap = _snap(
         [SnapshotPosition("AAPL", D("200"), D("100"))],
         reserved={"AAPL": D("100")},
-        reserved_filled={"AAPL": D("100")},   # capped at the reservation by the query
+        absorbed={"AAPL": D("100")},   # capped at the reservation by the query
     )
     assert claimable_reducible_quantity(snap, "AAPL") == D("300")
     assert available_reducible_quantity(snap, "AAPL") == D("200")   # == the actual long
