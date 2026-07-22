@@ -21,7 +21,7 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.db.enums import (
     OrderSide,
@@ -291,6 +291,250 @@ async def test_partial_then_final_fill_settles_on_a_later_poll(session_factory, 
     assert (await _order_row(session_factory, 1)).status == OrderStatus.FILLED
 
 
+async def test_incremental_fill_is_priced_from_notional_not_the_running_average(
+    session_factory, consumer
+) -> None:
+    """The defect this test exists for: booking a later increment at the broker's CUMULATIVE
+    average silently records the wrong cost.
+
+        10 @ $100, then 10 @ $120  ->  broker cumulative average $110
+        booking the second 10 at $110 records $2,100 against a true cost of $2,200
+
+    Quantity and position both still reconcile on that, which is what makes it dangerous. The
+    second fill must be booked at $120, derived from the missing notional."""
+    await _add_order(session_factory, order_id=1, qty="20")
+    adapter = FakeAdapter(
+        [
+            _broker_order("partially_filled", filled_qty="10", filled_avg_price="100.00"),
+            _broker_order("filled", filled_qty="20", filled_avg_price="110.00"),
+        ],
+        positions=[{"symbol": TICKER, "qty": "20"}],
+    )
+
+    result = await settle_order(
+        session_factory, adapter, consumer, order_id=1, ticker=TICKER, **PATIENT
+    )
+
+    fills = sorted(await _fills(session_factory, 1), key=lambda f: f.price)
+    assert [f.qty for f in fills] == [Decimal("10"), Decimal("10")]
+    assert [f.price for f in fills] == [Decimal("100"), Decimal("120")]
+    booked_notional = sum(f.qty * f.price for f in fills)
+    assert booked_notional == Decimal("2200"), "true cost, not the running-average figure"
+    assert result.filled_qty == Decimal("20")
+
+
+async def test_settlement_rejects_a_ledger_whose_prices_contradict_the_broker(
+    session_factory, consumer
+) -> None:
+    """Quantities agree, prices do not: position equality would pass, so the barrier compares
+    cumulative NOTIONAL as well."""
+    await _add_order(session_factory, order_id=1)
+    # Locally booked at $400; the broker says the same 19 shares filled at $500.
+    await _add_fill(session_factory, order_id=1, qty="19", price="400.00", fill_id="x-1")
+    adapter = FakeAdapter(
+        [_broker_order("filled", filled_qty="19", filled_avg_price="500.00")],
+        positions=[{"symbol": TICKER, "qty": "19"}],
+    )
+    async with session_factory() as session:
+        await session.execute(
+            update(Order).where(Order.id == 1).values(
+                status=OrderStatus.FILLED, terminal_at=_now())
+        )
+        await session.commit()
+
+    with pytest.raises(SettlementError, match="PRICES do not"):
+        await settle_order(session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST)
+
+
+async def test_non_positive_incremental_notional_fails_closed(session_factory, consumer) -> None:
+    """A delta whose implied cost is zero or negative is never bookable — refuse rather than
+    record quantity at a nonsensical price."""
+    await _add_order(session_factory, order_id=1, qty="20")
+    # 10 already booked at $200 = $2,000; broker says 20 filled at a $100 average = $2,000 total,
+    # leaving 10 shares to book for $0.
+    await _add_fill(session_factory, order_id=1, qty="10", price="200.00", fill_id="x-1")
+    adapter = FakeAdapter([_broker_order("filled", filled_qty="20", filled_avg_price="100.00")])
+
+    with pytest.raises(SettlementError, match="non-positive notional"):
+        await settle_order(session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST)
+
+
+async def test_an_increment_too_small_to_price_fails_closed(session_factory, consumer) -> None:
+    """A missing notional so small that the incremental price rounds to zero at storage precision
+    (4dp). Booking quantity at 0.0000 would record a free position — refuse instead."""
+    await _add_order(session_factory, order_id=1, qty="1")
+    adapter = FakeAdapter([_broker_order("filled", filled_qty="1",
+                                         filled_avg_price="0.00004")])
+
+    with pytest.raises(SettlementError, match="is not positive"):
+        await settle_order(session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST)
+
+    assert await _fills(session_factory, 1) == []
+
+
+async def test_ingest_that_books_the_wrong_quantity_fails_closed(
+    session_factory, consumer, monkeypatch
+) -> None:
+    """Final backstop: even if the canonical handler books something other than what was asked
+    for, the barrier compares the LEDGER against the broker rather than trusting the ingest."""
+    await _add_order(session_factory, order_id=1, qty="1")
+    real_handle = consumer._handle
+
+    async def _short_book(payload: dict[str, Any]) -> None:
+        if payload.get("event") in ("fill", "partial_fill"):
+            payload = {**payload, "qty": "1"}          # books 1 where 19 was required
+        await real_handle(payload)
+
+    monkeypatch.setattr(consumer, "_handle", _short_book)
+    adapter = FakeAdapter(
+        [_broker_order("filled", filled_qty="19", filled_avg_price="500.00")],
+        positions=[{"symbol": TICKER, "qty": "19"}],
+    )
+
+    with pytest.raises(SettlementError, match="!= broker cumulative"):
+        await settle_order(session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST)
+
+
+async def test_broker_notional_below_local_booked_fails_closed(session_factory, consumer) -> None:
+    await _add_order(session_factory, order_id=1, qty="20")
+    await _add_fill(session_factory, order_id=1, qty="10", price="500.00", fill_id="x-1")
+    # 20 @ $100 = $2,000 cumulative, but $5,000 is already booked locally.
+    adapter = FakeAdapter([_broker_order("filled", filled_qty="20", filled_avg_price="100.00")])
+
+    with pytest.raises(SettlementError, match="below locally booked"):
+        await settle_order(session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST)
+
+
+# --------------------------------------------------------------------------------------------
+# Terminal outcomes that carry a REAL fill — the cancellation-after-partial family
+# --------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("broker_status", "expected"),
+    [
+        ("canceled", OrderStatus.CANCELED),
+        ("expired", OrderStatus.EXPIRED),
+    ],
+)
+async def test_partial_fill_then_terminal_books_the_fill_before_the_transition(
+    session_factory, consumer, broker_status: str, expected: OrderStatus
+) -> None:
+    """The defect this family exists for: a broker order that partially fills and is THEN
+    cancelled/expired/replaced carries a non-zero cumulative ``filled_qty`` on a terminal record.
+    Sending the cancellation alone marks the local order terminal with the fill never booked — and
+    a terminal order is exactly what the barrier can no longer repair."""
+    await _add_order(session_factory, order_id=1, qty="19")
+    adapter = FakeAdapter(
+        [_broker_order(broker_status, filled_qty="5", filled_avg_price="500.00")],
+        positions=[{"symbol": TICKER, "qty": "5"}],
+    )
+
+    result = await settle_order(
+        session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST
+    )
+
+    fills = await _fills(session_factory, 1)
+    assert [f.qty for f in fills] == [Decimal("5")], "the partial fill must be booked"
+    assert fills[0].price == Decimal("500")
+    assert result.filled_qty == Decimal("5")
+    order = await _order_row(session_factory, 1)
+    assert order.status == expected                       # and the order still reaches terminal
+    assert order.terminal_at is not None
+    assert await _position_qty(session_factory) == Decimal("5")
+
+
+async def test_replaced_currently_fails_closed_on_a_missing_audit_action(
+    session_factory, consumer
+) -> None:
+    """PRE-EXISTING GAP, documented rather than silently fixed.
+
+    ``TradeUpdateConsumer._handle_terminal`` maps a broker ``replaced`` event to
+    ``OrderStatus.REPLACED`` and then builds ``AuditAction("ORDER_REPLACED")`` — which does not
+    exist, so the canonical handler raises. That is a latent defect in the LIVE consumer (a real
+    ``replaced`` event from the stream would hit it too), not something this barrier introduced.
+
+    Adding the enum value means touching the audit surface and the on-call playbook, which is its
+    own change with its own review. Until then the barrier does the right thing: it fails CLOSED and
+    names the cause, rather than reporting a settlement it could not perform."""
+    await _add_order(session_factory, order_id=1, qty="19")
+    adapter = FakeAdapter(
+        [_broker_order("replaced", filled_qty="5", filled_avg_price="500.00")],
+        positions=[{"symbol": TICKER, "qty": "5"}],
+    )
+
+    with pytest.raises(SettlementError, match="raised on terminal ingest"):
+        await settle_order(session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST)
+
+    # The FILL was still booked before the terminal attempt — that ordering is the whole point.
+    assert [f.qty for f in await _fills(session_factory, 1)] == [Decimal("5")]
+
+
+async def test_partial_then_cancel_across_two_polls_books_only_the_increment(
+    session_factory, consumer
+) -> None:
+    """The realistic sequence: we see the partial while it is still working, then see the
+    cancellation. The already-booked 5 must not be double-counted."""
+    await _add_order(session_factory, order_id=1, qty="19")
+    adapter = FakeAdapter(
+        [
+            _broker_order("partially_filled", filled_qty="5", filled_avg_price="500.00"),
+            _broker_order("canceled", filled_qty="5", filled_avg_price="500.00"),
+        ],
+        positions=[{"symbol": TICKER, "qty": "5"}],
+    )
+
+    result = await settle_order(
+        session_factory, adapter, consumer, order_id=1, ticker=TICKER, **PATIENT
+    )
+
+    assert result.polls == 2
+    assert len(await _fills(session_factory, 1)) == 1
+    assert (await _order_row(session_factory, 1)).status == OrderStatus.CANCELED
+
+
+async def test_re_settling_a_cancelled_partial_is_idempotent(session_factory, consumer) -> None:
+    """A second pass must neither re-book the fill nor disturb the terminal state."""
+    await _add_order(session_factory, order_id=1, qty="19")
+    adapter = FakeAdapter(
+        [_broker_order("canceled", filled_qty="5", filled_avg_price="500.00")],
+        positions=[{"symbol": TICKER, "qty": "5"}],
+    )
+
+    first = await settle_order(
+        session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST
+    )
+    second = await settle_order(
+        session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST
+    )
+
+    assert len(await _fills(session_factory, 1)) == 1
+    assert first.filled_qty == second.filled_qty == Decimal("5")
+    assert (await _order_row(session_factory, 1)).status == OrderStatus.CANCELED
+    assert await _position_qty(session_factory) == Decimal("5")
+
+
+async def test_cancelled_partial_at_a_second_price_is_priced_from_notional(
+    session_factory, consumer
+) -> None:
+    """Both defects at once: a cancellation carrying a cumulative fill booked at more than one
+    price. The recovered increment must be priced from the missing notional."""
+    await _add_order(session_factory, order_id=1, qty="30")
+    await _add_fill(session_factory, order_id=1, qty="10", price="100.00", fill_id="x-1")
+    adapter = FakeAdapter(
+        # 20 cumulative at a $110 average = $2,200; $1,000 booked, so 10 more for $1,200 = $120.
+        [_broker_order("canceled", filled_qty="20", filled_avg_price="110.00")],
+        positions=[{"symbol": TICKER, "qty": "20"}],
+    )
+
+    await settle_order(session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST)
+
+    fills = sorted(await _fills(session_factory, 1), key=lambda f: f.price)
+    assert [(f.qty, f.price) for f in fills] == [
+        (Decimal("10"), Decimal("100")), (Decimal("10"), Decimal("120"))]
+    assert (await _order_row(session_factory, 1)).status == OrderStatus.CANCELED
+
+
 @pytest.mark.parametrize(
     ("broker_status", "expected"),
     [
@@ -355,6 +599,20 @@ async def test_rest_unavailable_fails_closed(session_factory, consumer) -> None:
 
     assert await _fills(session_factory, 1) == []
     assert (await _order_row(session_factory, 1)).status == OrderStatus.SUBMITTED
+
+
+async def test_get_positions_failure_uses_the_same_error_contract(
+    session_factory, consumer
+) -> None:
+    """A broker read that fails during VERIFICATION must surface as a SettlementError like every
+    other barrier failure — same normalized, credential-safe contract as get_order, not a raw
+    adapter exception escaping through a different shape."""
+    await _add_order(session_factory, order_id=1)
+    adapter = FakeAdapter([_broker_order("filled", filled_qty="19", filled_avg_price="500.00")])
+    adapter.get_positions = lambda: (_ for _ in ()).throw(ConnectionError("reset"))  # type: ignore[method-assign]
+
+    with pytest.raises(SettlementError, match="get_positions failed"):
+        await settle_order(session_factory, adapter, consumer, order_id=1, ticker=TICKER, **FAST)
 
 
 async def test_broker_returns_no_order_fails_closed(session_factory, consumer) -> None:
@@ -467,7 +725,7 @@ async def test_partial_fill_shrinking_qty_fails_closed(session_factory, consumer
     await _add_order(session_factory, order_id=1)
     await _add_fill(session_factory, order_id=1, qty="10", price="500.00", fill_id="x-1")
 
-    with pytest.raises(SettlementError, match="partial filled_qty 5 < local 10"):
+    with pytest.raises(SettlementError, match="broker filled_qty 5 < local booked 10"):
         await resolve_broker_outcome(
             session_factory, consumer,
             order_id=1, broker_order_id="b-1",
@@ -481,7 +739,7 @@ async def test_partial_fill_without_average_price_fails_closed(
 ) -> None:
     await _add_order(session_factory, order_id=1)
 
-    with pytest.raises(SettlementError, match="partial fill delta 10 but no average price"):
+    with pytest.raises(SettlementError, match="fill delta 10 but broker reports no average price"):
         await resolve_broker_outcome(
             session_factory, consumer,
             order_id=1, broker_order_id="b-1",

@@ -10,10 +10,18 @@ recompute, reservation release, ``ORDER_FILL_INGESTED`` audit). Read-only agains
 (``get_order`` only; never submits or cancels).
 
 FAIL CLOSED. ``settle_order`` never returns "settled" on doubt — it raises :class:`SettlementError`
-on: broker REST unavailable, broker order missing, non-terminal at timeout, a shrinking filled qty, a
-fill with no average price, a raising consumer, a still-non-terminal LOCAL order after ingest, a
-local≠broker position, a stale HELD reservation for the order, or a duplicate/ambiguous outcome. A
-caller MUST NOT submit the next order until this returns without raising.
+on: broker REST unavailable (``get_order`` or ``get_positions``), broker order missing, non-terminal
+at timeout, a shrinking filled qty, a fill with no average price, a non-positive incremental price, a
+cumulative notional that contradicts the local ledger, a raising consumer, a still-non-terminal LOCAL
+order after ingest, a local≠broker cumulative quantity OR notional, a local≠broker position, a stale
+HELD reservation for the order, or a duplicate/ambiguous outcome. A caller MUST NOT submit the next
+order until this returns without raising.
+
+TWO THINGS THAT LOOK LIKE DETAIL AND ARE NOT. (1) Fills are reconciled before the terminal
+transition for EVERY terminal status, because a partially filled order that is then canceled carries
+a real fill on a cancellation record. (2) The missing increment is priced from cumulative NOTIONAL,
+not from the broker's cumulative average — booking a later increment at the running average records
+the wrong cost while quantity and position both still reconcile perfectly.
 
 ``resolve_broker_outcome`` is the single shared drift-computation + ingest step; ``reconcile_stuck_orders``
 imports it so there is exactly one implementation of "apply the broker's real outcome locally".
@@ -22,7 +30,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from sqlalchemy import func, select
@@ -42,6 +50,14 @@ BROKER_CANCEL = frozenset({"canceled", "expired", "rejected", "replaced"})
 
 DEFAULT_TIMEOUT_S = 30.0
 DEFAULT_POLL_INTERVAL_S = 1.5
+
+# Brokers report a ROUNDED cumulative average price (Alpaca: 4dp), and we store fill prices at 4dp
+# too, so cumulative notional reconstructed from (qty x avg) never matches the sum of booked fills
+# exactly. The tolerance is the accumulated rounding of both sides — deliberately small: it must
+# absorb representation error and nothing else, because everything it absorbs is a real discrepancy
+# we have chosen not to see.
+def _notional_tolerance(qty: Decimal) -> Decimal:
+    return abs(qty) * Decimal("0.0002") + Decimal("0.01")
 
 
 class SettlementError(RuntimeError):
@@ -63,14 +79,84 @@ def _dec(v: Any) -> Decimal:
     return Decimal(str(v or 0))
 
 
-async def _local_filled_qty(session_factory: async_sessionmaker, order_id: int) -> Decimal:
+async def _local_booked(
+    session_factory: async_sessionmaker, order_id: int
+) -> tuple[Decimal, Decimal]:
+    """Locally booked (cumulative quantity, cumulative notional) for one order.
+
+    Notional — not just quantity — because quantity alone cannot detect a fill booked at the wrong
+    PRICE, and a wrong price silently corrupts cash, cost basis, realized P&L and every downstream
+    loss-control figure while position equality still looks perfect."""
     async with session_factory() as s:
-        total = (
+        row = (
             await s.execute(
-                select(func.coalesce(func.sum(Fill.qty), 0)).where(Fill.order_id == order_id)
+                select(
+                    func.coalesce(func.sum(Fill.qty), 0),
+                    func.coalesce(func.sum(Fill.qty * Fill.price), 0),
+                ).where(Fill.order_id == order_id)
             )
-        ).scalar_one()
-    return Decimal(str(total or 0))
+        ).one()
+    return Decimal(str(row[0] or 0)), Decimal(str(row[1] or 0))
+
+
+async def _missing_increment(
+    session_factory: async_sessionmaker,
+    *,
+    order_id: int,
+    broker_order: dict[str, Any],
+) -> tuple[Decimal, Decimal | None]:
+    """The fill increment the local ledger is missing: ``(delta_qty, incremental_price)``.
+
+    The incremental price is derived from CUMULATIVE NOTIONAL, never from the broker's cumulative
+    average. Booking the missing delta at the cumulative average is only correct when nothing was
+    booked before, or when every partial filled at the same price:
+
+        10 @ $100 then 10 @ $120  ->  broker cumulative average $110
+        booking the second 10 at $110 records $2,100 against a true cost of $2,200
+
+    Quantity and position convergence both still pass on that, which is exactly what makes it
+    dangerous. So: missing notional = broker cumulative notional - locally booked notional, and the
+    incremental price is that divided by the missing quantity.
+
+    Returns ``(0, None)`` when nothing is missing. Fails closed on every ambiguity."""
+    bqty = _dec(broker_order.get("filled_qty"))
+    bavg = _dec(broker_order.get("filled_avg_price"))
+    local_qty, local_notional = await _local_booked(session_factory, order_id)
+
+    delta = bqty - local_qty
+    if delta < 0:
+        raise SettlementError(
+            f"order {order_id}: broker filled_qty {bqty} < local booked {local_qty} "
+            f"(shrinking fill — ambiguous broker outcome)"
+        )
+    if delta == 0:
+        return Decimal(0), None
+    if bavg <= 0:
+        raise SettlementError(
+            f"order {order_id}: fill delta {delta} but broker reports no average price"
+        )
+
+    broker_notional = bqty * bavg
+    missing_notional = broker_notional - local_notional
+    tolerance = _notional_tolerance(bqty)
+    if missing_notional < -tolerance:
+        raise SettlementError(
+            f"order {order_id}: broker cumulative notional {broker_notional} is below locally "
+            f"booked {local_notional} (beyond {tolerance} rounding tolerance) — the ledgers "
+            f"disagree on price, not just quantity"
+        )
+    if missing_notional <= 0:
+        raise SettlementError(
+            f"order {order_id}: fill delta {delta} carries non-positive notional "
+            f"{missing_notional}; refusing to book quantity at a zero or negative price"
+        )
+
+    price = (missing_notional / delta).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    if price <= 0:
+        raise SettlementError(
+            f"order {order_id}: computed incremental price {price} is not positive"
+        )
+    return delta, price
 
 
 async def resolve_broker_outcome(
@@ -85,88 +171,69 @@ async def resolve_broker_outcome(
     """Compute the drift between one fetched broker order and the local ledger, and — when ``apply`` —
     ingest the missing outcome through the canonical ``TradeUpdateConsumer._handle`` (idempotent via a
     deterministic execution id). Raises :class:`SettlementError` on malformed broker data or a raising
-    consumer. This is the ONE place "apply the broker's real outcome locally" is implemented."""
+    consumer. This is the ONE place "apply the broker's real outcome locally" is implemented.
+
+    ORDER OF OPERATIONS. Fills are reconciled BEFORE any terminal transition, for every terminal
+    status — not only ``filled``. A partially filled order that is then canceled/expired/replaced
+    carries a non-zero cumulative ``filled_qty`` on a terminal record, and sending the cancellation
+    alone would mark the local order terminal with the fill never booked. The barrier could then
+    never repair that ledger, which is the one job it exists to do."""
     bstatus = str(broker_order.get("status") or "").lower()
+    is_terminal = bstatus == BROKER_FILLED or bstatus in BROKER_CANCEL
+    if not (is_terminal or bstatus == "partially_filled"):
+        # Still genuinely working at the broker (new / accepted / pending_* / done_for_day).
+        return OrderOutcome(order_id, bstatus, "none", None, None, broker_terminal=False)
 
-    if bstatus == BROKER_FILLED:
+    # --- 1. reconcile the cumulative fill, whatever the terminal status ---
+    delta, price = await _missing_increment(
+        session_factory, order_id=order_id, broker_order=broker_order)
+    if delta > 0 and apply:
+        # A cancelled/expired remainder means the ORDER is done but this increment is not the whole
+        # requested quantity, so it is ingested as a partial: the canonical handler must not infer
+        # FILLED from it. The subsequent terminal event carries the real end state.
+        event = "fill" if bstatus == BROKER_FILLED else "partial_fill"
         bqty = _dec(broker_order.get("filled_qty"))
-        bavg = _dec(broker_order.get("filled_avg_price"))
-        local = await _local_filled_qty(session_factory, order_id)
-        delta = bqty - local
-        if delta < 0:
+        payload: dict[str, Any] = {
+            "event": event,
+            "broker_order_id": broker_order_id,
+            # Deterministic in the CUMULATIVE quantity → a re-run at the same cumulative fill finds
+            # delta 0 and ingests nothing; a genuine later increment gets its own id.
+            "execution_id": f"settle-{broker_order_id}-{bqty}",
+            "qty": str(delta),
+            "price": str(price),
+            "timestamp": str(broker_order.get("filled_at")),
+        }
+        try:
+            await consumer._handle(payload)
+        except Exception as exc:  # noqa: BLE001 — any consumer failure is fail-closed
             raise SettlementError(
-                f"order {order_id}: broker filled_qty {bqty} < local booked {local} "
-                f"(shrinking fill — ambiguous broker outcome)"
-            )
-        if delta > 0:
-            if bavg <= 0:
-                raise SettlementError(
-                    f"order {order_id}: fill delta {delta} but broker reports no average price"
-                )
-            if apply:
-                payload: dict[str, Any] = {
-                    "event": "fill",
-                    "broker_order_id": broker_order_id,
-                    # deterministic → a re-run at the same cumulative fill is a no-op (delta=0).
-                    "execution_id": f"settle-{broker_order_id}-{bqty}",
-                    "qty": str(delta),
-                    "price": str(bavg),
-                    "timestamp": str(broker_order.get("filled_at")),
-                }
-                try:
-                    await consumer._handle(payload)
-                except Exception as exc:  # noqa: BLE001 — any consumer failure is fail-closed
-                    raise SettlementError(
-                        f"order {order_id}: canonical consumer raised on fill ingest: "
-                        f"{type(exc).__name__}: {exc}"
-                    ) from exc
-            return OrderOutcome(order_id, bstatus, "fill", delta, bavg, broker_terminal=True)
-        return OrderOutcome(order_id, bstatus, "none", Decimal(0), bavg, broker_terminal=True)
+                f"order {order_id}: canonical consumer raised on "
+                f"{'fill' if event == 'fill' else 'partial-fill'} ingest: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
 
+    # --- 2. only then, the terminal transition ---
     if bstatus in BROKER_CANCEL:
         if apply:
-            payload = {"event": bstatus, "broker_order_id": broker_order_id, "raw": {}}
+            terminal_payload: dict[str, Any] = {
+                "event": bstatus, "broker_order_id": broker_order_id, "raw": {},
+            }
             try:
-                await consumer._handle(payload)
+                await consumer._handle(terminal_payload)
             except Exception as exc:  # noqa: BLE001
                 raise SettlementError(
                     f"order {order_id}: canonical consumer raised on terminal ingest: "
                     f"{type(exc).__name__}: {exc}"
                 ) from exc
-        return OrderOutcome(order_id, bstatus, "terminal", None, None, broker_terminal=True)
+        return OrderOutcome(order_id, bstatus, "terminal", delta or None, price,
+                            broker_terminal=True)
 
-    # Still genuinely working at the broker (new/accepted/partially_filled/pending_*).
-    if bstatus == "partially_filled" and apply:
-        # Book the partial increment so the local ledger tracks it, but the order is NOT terminal yet.
-        bqty = _dec(broker_order.get("filled_qty"))
-        bavg = _dec(broker_order.get("filled_avg_price"))
-        local = await _local_filled_qty(session_factory, order_id)
-        delta = bqty - local
-        if delta < 0:
-            raise SettlementError(
-                f"order {order_id}: broker partial filled_qty {bqty} < local {local} (shrinking)"
-            )
-        if delta > 0:
-            if bavg <= 0:
-                raise SettlementError(
-                    f"order {order_id}: partial fill delta {delta} but no average price"
-                )
-            payload = {
-                "event": "partial_fill",
-                "broker_order_id": broker_order_id,
-                "execution_id": f"settle-{broker_order_id}-{bqty}",
-                "qty": str(delta),
-                "price": str(bavg),
-                "timestamp": str(broker_order.get("filled_at")),
-            }
-            try:
-                await consumer._handle(payload)
-            except Exception as exc:  # noqa: BLE001
-                raise SettlementError(
-                    f"order {order_id}: canonical consumer raised on partial-fill ingest: "
-                    f"{type(exc).__name__}: {exc}"
-                ) from exc
-    return OrderOutcome(order_id, bstatus, "none", None, None, broker_terminal=False)
+    if bstatus == BROKER_FILLED:
+        action = "fill" if delta > 0 else "none"
+        return OrderOutcome(order_id, bstatus, action, delta, price, broker_terminal=True)
+
+    # partially_filled — booked (when applying), but NOT terminal; the caller keeps polling.
+    return OrderOutcome(order_id, bstatus, "none", delta or None, price, broker_terminal=False)
 
 
 async def _order(session_factory: async_sessionmaker, order_id: int) -> Order | None:
@@ -272,8 +339,34 @@ async def settle_order(
         raise SettlementError(
             f"order {order_id}: broker terminal but LOCAL order still {settled.status} after ingest"
         )
+    # Cumulative QUANTITY and cumulative NOTIONAL must both match the broker. Position equality
+    # alone is not sufficient: a fill booked at the wrong price leaves the position perfect and the
+    # cash, cost basis, realized P&L and loss-control evidence wrong.
+    booked_qty, booked_notional = await _local_booked(session_factory, order_id)
+    broker_filled = _dec(broker_order.get("filled_qty"))
+    broker_avg = _dec(broker_order.get("filled_avg_price"))
+    if booked_qty != broker_filled:
+        raise SettlementError(
+            f"order {order_id}: local booked qty {booked_qty} != broker cumulative "
+            f"{broker_filled} after ingest"
+        )
+    broker_notional = broker_filled * broker_avg
+    tolerance = _notional_tolerance(broker_filled)
+    if abs(booked_notional - broker_notional) > tolerance:
+        raise SettlementError(
+            f"order {order_id}: local booked notional {booked_notional} != broker "
+            f"{broker_notional} (tolerance {tolerance}) — quantities agree but PRICES do not"
+        )
+
     local_qty = await _local_position_qty(session_factory, account_id, symbol_id)
-    broker_qty = _broker_qty_for(await asyncio.to_thread(adapter.get_positions), ticker)
+    try:
+        broker_positions = await asyncio.to_thread(adapter.get_positions)
+    except Exception as exc:  # noqa: BLE001 — same normalized, credential-safe contract as get_order
+        raise SettlementError(
+            f"order {order_id}: broker get_positions failed "
+            f"({type(exc).__name__}: {str(exc)[:80]})"
+        ) from exc
+    broker_qty = _broker_qty_for(broker_positions, ticker)
     if local_qty != broker_qty:
         raise SettlementError(
             f"order {order_id}: local position {local_qty} != broker {broker_qty} for {ticker}"
@@ -286,7 +379,7 @@ async def settle_order(
         order_id=order_id,
         broker_status=outcome.broker_status,
         local_status=str(settled.status),
-        filled_qty=await _local_filled_qty(session_factory, order_id),
+        filled_qty=booked_qty,
         local_position=local_qty,
         broker_position=broker_qty,
         polls=polls,
