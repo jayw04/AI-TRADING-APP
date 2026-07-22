@@ -1,0 +1,39 @@
+{
+ "artifact_sha256": {
+  "AuthorizationRequestSubmission": "ea826919e35b53356a77aebfc2e838112c408d8c5256b098343e30b7e6d84eca",
+  "DeliverableRegister": "236a0497f79705aadee3132d17f0ca6551aa9be5e2cbb2b911b4786be1f7c137",
+  "ExecutionAuthorizationRequest": "3329630ac1ce4e63c05376b59f4de11630c119871729200786f0726e47bc367a",
+  "ExecutionGateTable": "f113a232c0536e0e130a11d9d6a3dbe01610e1ee70b9fc7633ab87e8ac290ff3",
+  "Phase3ALineageProof": "3de83591c0806dad6a712ab8873658616821181e3f462ed636c7e501428e8dea",
+  "RuntimePrerequisiteRegister": "0bc80e78cc1ede2ca7dfbed61500cda4e81e310220de3416fc46df6b8efd0ccc"
+ },
+ "blocking_unsatisfied_ids": [
+  "P3",
+  "P4",
+  "P5",
+  "P6",
+  "P7",
+  "P8",
+  "P9",
+  "P10",
+  "P11",
+  "P12"
+ ],
+ "boundary": "REQUEST ONLY. validation_authorization=false; validation/OOS SEALED AND UNREAD; no credentials released; no performance computed; stop for owner adjudication.",
+ "governing_preregistration": {
+  "commit": "4385ec7728a81c0db965e2f44d6017e6116d027c",
+  "content_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "file": "MR002_ValidationOOS_Preregistration_v1.0.4.json"
+ },
+ "grant_readiness": "NOT_READY",
+ "manifest_bound_artifact_count": 6,
+ "package": "SPQ-1 Phase 3B/C Execution Authorization Request (request only)",
+ "package_file_count": 7,
+ "phase3a_final_correction_commit": "f7319de951b6fd7b84112ad2b207d61376399ac1",
+ "phase3a_lineage_intact": true,
+ "publication_manifest_binding": "the publication manifest does NOT hash itself; it is bound externally by its Git blob SHA + the commit/tree that lands it",
+ "publication_manifest_self_excluded": true,
+ "record_type": "MR002_Phase3BC_PublicationManifest",
+ "validation_authorization": false,
+ "version": "1.0"
+}

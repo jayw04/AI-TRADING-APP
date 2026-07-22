@@ -1,0 +1,25 @@
+{
+ "census_rule": "the enrichment edge-case census is recomputed from the authorized partition; known cases may be registered in advance but must NOT become a fixed expected-count gate",
+ "enrichment_default": "FAIL CLOSED - no silent price substitution, previous-close fallback, later-open fallback, or post-hoc security winner",
+ "note": "every deliverable below is RUNTIME-PRODUCED by the authorized run; none exists now and none may be pre-populated with values",
+ "phase_3b": [
+  "ValidationOpenedObjectLedger_v1.0.json",
+  "ValidationExecutionEnrichmentManifest_v1.0.json",
+  "ValidationDecisionExecutionBindingReport_v1.0.json",
+  "ValidationUnitReconciliation_v1.0.json",
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json",
+  "ValidationSealVerificationReport_v1.0.json"
+ ],
+ "phase_3c": [
+  "ValidationPortfolioReplayManifest_v1.0.json",
+  "ValidationMetricsReport_v1.0.json (conservative + frictionless views)",
+  "ValidationDSRReport_v1.0.json",
+  "ValidationConfigurationComparison_v1.0.json",
+  "ValidationRegimeAndConcentrationReport_v1.0.json",
+  "ValidationDeterminismReport_v1.0.json",
+  "ValidationNullModelAndRandomizationReport_v1.0.json",
+  "ValidationVerdict_v1.0.md"
+ ],
+ "record_type": "MR002_Phase3BC_DeliverableRegister",
+ "version": "1.0"
+}

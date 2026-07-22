@@ -1,0 +1,79 @@
+{
+ "metric_roles": {
+  "binding": "MetricRoleRegistry_v1.0 (Phase 3A), each metric carrying metric_role and a bound sample_stage",
+  "diagnostics_are_not_gates": "PBO, regime concentration, maximum drawdown, Calmar, year-by-year behavior, side contribution, sector concentration, capacity, correlation, tail behavior - may qualify or contextualize only as preregistration permits; must never become substitute success criteria after results are observed",
+  "primary_validation_gate": "Config B net Sharpe >= 0.70 under the governing conservative-borrow view, per preregistration v1.0.4 language and cost treatment",
+  "stage_separation": "ValidationStageDecisionSpecification_v1.0 - OOS primary gates (net_oos_sharpe / bootstrap / DSR-as-OOS-gate) are PROHIBITED as validation-stage decision metrics"
+ },
+ "null_model_binding": {
+  "dsr_trial_ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+  "rule": "no new null models and no additional trials unless preregistration already authorizes them",
+  "trial_set": [
+   "Config A",
+   "Config B",
+   "Config C",
+   "RNG-001",
+   "RNG-EntryLogic"
+  ],
+  "trials_N": 5
+ },
+ "oos_note": "a sealed OOS run requires a FURTHER separate authorization after an accepted validation outcome; it is explicitly OUT OF SCOPE of this request",
+ "phase_3b_integrity_gates": [
+  {
+   "evidenced_by": "ValidationDecisionExecutionBindingReport_v1.0.json",
+   "gate": "decision_record_mutations",
+   "required": 0
+  },
+  {
+   "evidenced_by": "ValidationDecisionExecutionBindingReport_v1.0.json",
+   "gate": "missing_decision_enrichment_bindings",
+   "required": 0
+  },
+  {
+   "evidenced_by": "ValidationExecutionEnrichmentManifest_v1.0.json",
+   "gate": "duplicate_enrichment_identities",
+   "required": 0
+  },
+  {
+   "evidenced_by": "ValidationExecutionEnrichmentManifest_v1.0.json",
+   "gate": "future_information_violations",
+   "required": 0
+  },
+  {
+   "evidenced_by": "ValidationOpenedObjectLedger_v1.0.json + ValidationSealVerificationReport",
+   "gate": "oos_reads_run_ledger_and_store_access_log",
+   "required": 0
+  },
+  {
+   "evidenced_by": "ValidationOpenedObjectLedger_v1.0.json",
+   "gate": "unregistered_data_source_reads",
+   "required": 0
+  },
+  {
+   "evidenced_by": "ValidationUnitReconciliation_v1.0.json",
+   "gate": "unreconciled_validation_units",
+   "required": 0
+  },
+  {
+   "evidenced_by": "ValidationPartitionAccessHistory_v1.0.json (custodian runtime instance)",
+   "gate": "validation_access_events_before_authorization",
+   "required": 0
+  }
+ ],
+ "phase_3c_controls": [
+  "no parameter changes after results are viewed",
+  "no substitution of Config A or C for Config B because they performed better",
+  "no removal of difficult years, names, sectors, or the short side",
+  "no unregistered metric may become a decision metric",
+  "results reproducible from immutable inputs and frozen code under the bound numeric runtime"
+ ],
+ "record_type": "MR002_Phase3BC_ExecutionGateTable",
+ "source": "MR002_Development_Plan_Next_Phases_v1.1 SS4.3 (Phase 3B integrity gates) and SS4.4 / SS4.4a / SS4.4b (Phase 3C controls), governed by preregistration v1.0.4",
+ "verdict_domain": {
+  "DO_NOT_ADVANCE": "stop; do not consume OOS",
+  "INCONCLUSIVE": "evidence insufficient; stop",
+  "INTEGRITY_FAILURE": "results not interpretable; repair without performance interpretation",
+  "VALIDATION_ADVANCE_REQUEST": "validation-stage advancement may be requested (a request, not an OOS authorization)"
+ },
+ "version": "1.0"
+}

@@ -1,0 +1,219 @@
+{
+ "boundary": "no validation/OOS data opened; no performance computed; grants nothing",
+ "evaluator_module_reference_identities": {
+  "bound_module_count": 21,
+  "drift": [],
+  "modules_present_but_unbound": [],
+  "note": "Phase 3A bound the evaluator modules as a REFERENCE to be re-verified at evaluator qualification; this proves no silent drift since Phase 3A closed. It does NOT constitute evaluator qualification.",
+  "zero_drift": true
+ },
+ "governing_preregistration": {
+  "bound_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "commit": "4385ec7728a81c0db965e2f44d6017e6116d027c",
+  "file": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+  "recomputed_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "reproduces": true,
+  "version": "1.0.4"
+ },
+ "other_governing_identities": {
+  "dsr_trial_ledger_matches_prereg": true,
+  "dsr_trial_ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+  "dsr_trials_N": 5,
+  "sealed_manifest_matches_control_spec": true,
+  "sealed_manifest_sha256": "96f7b3f96c61abb2d146ca25a58698471ae61454af13882ea15c9be9000112cd"
+ },
+ "phase3a_artifacts": {
+  "all_reproduce": true,
+  "artifacts": {
+   "ExecutionEnrichmentCodeRegistry": {
+    "bound_sha256": "0bddd73c311b790a4f3ff07831279d91edb9c005b12d03543d6594749d705e51",
+    "file": "ExecutionEnrichmentCodeRegistry_v1.0.json",
+    "recomputed_sha256": "0bddd73c311b790a4f3ff07831279d91edb9c005b12d03543d6594749d705e51",
+    "reproduces": true
+   },
+   "ExecutionEnrichmentEdgeCaseSpecification": {
+    "bound_sha256": "792c6717c6e4344062ba84c1b762b6eb5b8cf51d4464cb40b280230540794d17",
+    "file": "MR002_Phase3A_ExecutionEnrichmentEdgeCaseSpecification_v1.0.json",
+    "recomputed_sha256": "792c6717c6e4344062ba84c1b762b6eb5b8cf51d4464cb40b280230540794d17",
+    "reproduces": true
+   },
+   "ExecutionEnrichmentSchema": {
+    "bound_sha256": "5b2480c1bc80abfc2d520bbc3f5c00399d20f5ca7b75f815d1e5a4bf2719f71f",
+    "file": "ExecutionEnrichmentSchema_v1.0.json",
+    "recomputed_sha256": "5b2480c1bc80abfc2d520bbc3f5c00399d20f5ca7b75f815d1e5a4bf2719f71f",
+    "reproduces": true
+   },
+   "GoverningSourceRegistry": {
+    "bound_sha256": "edb43137d9a02a5369114f8f76b42ce859ad2a607bd6db4a9702c491de1481c0",
+    "file": "MR002_Phase3A_GoverningSourceRegistry_v1.0.json",
+    "recomputed_sha256": "edb43137d9a02a5369114f8f76b42ce859ad2a607bd6db4a9702c491de1481c0",
+    "reproduces": true
+   },
+   "MetricRoleRegistry": {
+    "bound_sha256": "e8b8f74ce47f4c9e0cca32c4d658d7f2c34ec3987ce1741b89acd266f05bcc48",
+    "file": "MR002_Phase3A_MetricRoleRegistry_v1.0.json",
+    "recomputed_sha256": "e8b8f74ce47f4c9e0cca32c4d658d7f2c34ec3987ce1741b89acd266f05bcc48",
+    "reproduces": true
+   },
+   "MultiplicityAndDegreesOfFreedomAttestation": {
+    "bound_sha256": "ac316e010bdaa2a8c9f8d84cc0545769ea7eb34eb9a02b91cbf8c807d3779bc5",
+    "file": "MR002_Phase3A_MultiplicityAndDegreesOfFreedomAttestation_v1.0.json",
+    "recomputed_sha256": "ac316e010bdaa2a8c9f8d84cc0545769ea7eb34eb9a02b91cbf8c807d3779bc5",
+    "reproduces": true
+   },
+   "NumericRuntimeIdentityManifest": {
+    "bound_sha256": "0ec253505a4d55befe35b1e832960e6a1de36e6e934fe8ac8a515270f2a8826a",
+    "file": "NumericRuntimeIdentityManifest_v1.0.json",
+    "recomputed_sha256": "0ec253505a4d55befe35b1e832960e6a1de36e6e934fe8ac8a515270f2a8826a",
+    "reproduces": true
+   },
+   "OOSConsumptionProtocol": {
+    "bound_sha256": "a4ceb6ee8bb3e262b7fd4981f262798e75c70b8a52a935b52361014831b23f87",
+    "file": "MR002_Phase3A_OOSConsumptionProtocol_v1.0.json",
+    "recomputed_sha256": "a4ceb6ee8bb3e262b7fd4981f262798e75c70b8a52a935b52361014831b23f87",
+    "reproduces": true
+   },
+   "PregistrationDiffProof": {
+    "bound_sha256": "68ab995ae09c5a0e21c9b7dcf4592284f9767d427ff838a6b6a70c574a9f4037",
+    "file": "MR002_Phase3A_PregistrationDiffProof_v1.0.json",
+    "recomputed_sha256": "68ab995ae09c5a0e21c9b7dcf4592284f9767d427ff838a6b6a70c574a9f4037",
+    "reproduces": true
+   },
+   "SealVerificationReport": {
+    "bound_sha256": "c6cd2b03931d10bbc8f8d13249879b8ff42f0c58bbef414e49fe8e0ac52ea154",
+    "file": "SealVerificationReport_v1.0.json",
+    "recomputed_sha256": "c6cd2b03931d10bbc8f8d13249879b8ff42f0c58bbef414e49fe8e0ac52ea154",
+    "reproduces": true
+   },
+   "SealedPartitionAccessHistory": {
+    "bound_sha256": "26b18a77ede1af342cd22055c10d0267f157b5643be6a3388fde4d910fc69a1a",
+    "file": "SealedPartitionAccessHistory_v1.0.json",
+    "recomputed_sha256": "26b18a77ede1af342cd22055c10d0267f157b5643be6a3388fde4d910fc69a1a",
+    "reproduces": true
+   },
+   "SealedPartitionContentCommitment": {
+    "bound_sha256": "d537f5f70af369a4715f2f12915ec420a7a299d9721ca7b4f5140b8fb50ba872",
+    "file": "SealedPartitionContentCommitment_v1.0.json",
+    "recomputed_sha256": "d537f5f70af369a4715f2f12915ec420a7a299d9721ca7b4f5140b8fb50ba872",
+    "reproduces": true
+   },
+   "SealedPartitionControlSpecification": {
+    "bound_sha256": "4794845f3dd94646a5f0a772b5cda1356ef750c1581d33d271e2d3326af66dfc",
+    "file": "MR002_Phase3A_SealedPartitionControlSpecification_v1.0.json",
+    "recomputed_sha256": "4794845f3dd94646a5f0a772b5cda1356ef750c1581d33d271e2d3326af66dfc",
+    "reproduces": true
+   },
+   "ShortAvailabilityLimitationsStatement": {
+    "bound_sha256": "edbf450d92a7691775b0d3036dcfea4c7b4ab8f472c733be1a80feda0723cf9e",
+    "file": "ShortAvailabilityLimitationsStatement_v1.0.md",
+    "recomputed_sha256": "edbf450d92a7691775b0d3036dcfea4c7b4ab8f472c733be1a80feda0723cf9e",
+    "reproduces": true
+   },
+   "ShortBorrowLocateModelSpecification": {
+    "bound_sha256": "0b460345fdd8163869eccdcab7e593d92cd003764728a4544069133adff23a1a",
+    "file": "ShortBorrowLocateModelSpecification_v1.0.json",
+    "recomputed_sha256": "0b460345fdd8163869eccdcab7e593d92cd003764728a4544069133adff23a1a",
+    "reproduces": true
+   },
+   "ValidationAuthorization": {
+    "bound_sha256": "e88b9595259734abe0f6ca3e071a3d6ee01224de8ee770a52cf9b5a12dbfe6a8",
+    "file": "ValidationAuthorization_v1.0.json",
+    "recomputed_sha256": "e88b9595259734abe0f6ca3e071a3d6ee01224de8ee770a52cf9b5a12dbfe6a8",
+    "reproduces": true
+   },
+   "ValidationAuthorizationSubmission": {
+    "bound_sha256": "ac581cca1305654e6abad3d87df837c8cde34dadf07d40364128f7f9634fe993",
+    "file": "ValidationAuthorizationSubmission_v1.0.md",
+    "recomputed_sha256": "ac581cca1305654e6abad3d87df837c8cde34dadf07d40364128f7f9634fe993",
+    "reproduces": true
+   },
+   "ValidationCostExecutionSpecification": {
+    "bound_sha256": "b8287e5a46694c04d019632d46884486098c4843f29cb7a945621e44ccbd41af",
+    "file": "ValidationCostExecutionSpecification_v1.0.json",
+    "recomputed_sha256": "b8287e5a46694c04d019632d46884486098c4843f29cb7a945621e44ccbd41af",
+    "reproduces": true
+   },
+   "ValidationInputIdentityManifest": {
+    "bound_sha256": "d965defcb293af1c4c22d14f63455194b7c803567aba9a44d93aaafe96423ebb",
+    "file": "ValidationInputIdentityManifest_v1.0.json",
+    "recomputed_sha256": "d965defcb293af1c4c22d14f63455194b7c803567aba9a44d93aaafe96423ebb",
+    "reproduces": true
+   },
+   "ValidationMetricSpecification": {
+    "bound_sha256": "899669edf62fbdcc6fc4c1c1a8f0535608dcfb23972cfcd9498188280cde6dca",
+    "file": "ValidationMetricSpecification_v1.0.json",
+    "recomputed_sha256": "899669edf62fbdcc6fc4c1c1a8f0535608dcfb23972cfcd9498188280cde6dca",
+    "reproduces": true
+   },
+   "ValidationNullModelSpecification": {
+    "bound_sha256": "e9e6bb7e4de18a4d932f32cb338b425650128f8809a38fd3d61b6630d3fbd763",
+    "file": "ValidationNullModelSpecification_v1.0.json",
+    "recomputed_sha256": "e9e6bb7e4de18a4d932f32cb338b425650128f8809a38fd3d61b6630d3fbd763",
+    "reproduces": true
+   },
+   "ValidationPartitionStructuralPreflight": {
+    "bound_sha256": "0ff7c6042abd03ccd85eb08b79ffb1c842895787781827a1bbb6d01627a657b0",
+    "file": "ValidationPartitionStructuralPreflight_v1.0.json",
+    "recomputed_sha256": "0ff7c6042abd03ccd85eb08b79ffb1c842895787781827a1bbb6d01627a657b0",
+    "reproduces": true
+   },
+   "ValidationRunSpecification": {
+    "bound_sha256": "d5f669fc81791b2a0e013781636539423c4d9f1e8fac6f30337f8d5d5d6c9cb1",
+    "file": "ValidationRunSpecification_v1.0.json",
+    "recomputed_sha256": "d5f669fc81791b2a0e013781636539423c4d9f1e8fac6f30337f8d5d5d6c9cb1",
+    "reproduces": true
+   },
+   "ValidationStageDecisionSpecification": {
+    "bound_sha256": "8f67ec3002b43096c1e2e161d96b5df4d64bd4b683fae8260b67df4fd8313533",
+    "file": "MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json",
+    "recomputed_sha256": "8f67ec3002b43096c1e2e161d96b5df4d64bd4b683fae8260b67df4fd8313533",
+    "reproduces": true
+   },
+   "ValidationStructuralManifestSpecification": {
+    "bound_sha256": "001390d1069f3f2d4e0c9c5755149639be13657bcf9ca7b7255a8fee9d3856fa",
+    "file": "ValidationStructuralManifestSpecification_v1.0.json",
+    "recomputed_sha256": "001390d1069f3f2d4e0c9c5755149639be13657bcf9ca7b7255a8fee9d3856fa",
+    "reproduces": true
+   }
+  },
+  "counts_reconcile": true,
+  "files_on_disk": 26,
+  "manifest_bound_artifact_count": 25,
+  "package_file_count": 26
+ },
+ "phase3a_review_state": {
+  "commit_lineage": [
+   {
+    "commit": "be8ab538236be24dcad8876bb5914764da7c5aed",
+    "role": "Phase 3A Validation Authorization Package (8 work packages, specifications only)",
+    "tree": "5489f0df538c3ae7ded65902b9ef1c8508b0b08e"
+   },
+   {
+    "commit": "3606995bbe8d6a7e19115f84a0214d5196912540",
+    "role": "Review-1 narrow corrections (4 HOLD items)",
+    "tree": "49e5108f154af9a6f01a853876f633381ce8dc3c"
+   },
+   {
+    "commit": "f7319de951b6fd7b84112ad2b207d61376399ac1",
+    "role": "Review-2 FINAL corrections (A duplicate metric, B non-gating diagnostics) - review CLOSED",
+    "tree": "dac63eee46621562c5d85ac387e36657602e3c57"
+   }
+  ],
+  "final_correction_commit": "f7319de951b6fd7b84112ad2b207d61376399ac1",
+  "policy": "two-review-max (Review 1 corrections, Review 2 FINAL corrections, no further cycle)",
+  "state": "CLOSED"
+ },
+ "record_type": "MR002_Phase3BC_Phase3ALineageProof",
+ "run_specification_schema_bindings": {
+  "SignalDecisionRecord_model_module": {
+   "bound_sha256": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+   "path": "apps/backend/app/research/mr002/spq1/models.py",
+   "recomputed_sha256": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+   "reproduces": true
+  },
+  "fail_closed_rule": "the run MUST fail closed if EITHER the SignalDecisionRecord schema identity OR the ExecutionEnrichmentSchema identity differs from the values bound here"
+ },
+ "scope": "recomputes every Phase-3A binding from the committed tree; opens no sealed data",
+ "verdict": "PHASE_3A_LINEAGE_INTACT",
+ "version": "1.0"
+}

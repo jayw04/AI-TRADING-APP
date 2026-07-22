@@ -1,0 +1,151 @@
+{
+ "authorization_note": "producing P3-P11 is itself work that is NOT currently authorized; the owner may authorize prerequisite production WITHOUT authorizing validation opening. These are two separate decisions.",
+ "blocking_unsatisfied_ids": [
+  "P3",
+  "P4",
+  "P5",
+  "P6",
+  "P7",
+  "P8",
+  "P9",
+  "P10",
+  "P11",
+  "P12"
+ ],
+ "counts": {
+  "blocking": 12,
+  "blocking_satisfied": 2,
+  "blocking_unsatisfied": 10,
+  "total": 13
+ },
+ "grant_readiness": "NOT_READY",
+ "prerequisites": [
+  {
+   "blocks_grant": true,
+   "evidence": "two-review-max cycle CLOSED; Review-2 final corrections at f7319de951b6fd7b84112ad2b207d61376399ac1",
+   "id": "P1",
+   "producer": "OWNER",
+   "satisfaction_criterion": "Phase 3A review closed with corrections applied and no open HOLD",
+   "status": "SATISFIED",
+   "title": "Phase 3A package accepted by the owner"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "MR002_Phase3BC_Phase3ALineageProof_v1.0.json (25/25 artifacts, prereg, SignalDecisionRecord module, 21 evaluator modules, sealed manifest, DSR ledger)",
+   "id": "P2",
+   "producer": "RESEARCH",
+   "satisfaction_criterion": "every Phase-3A-bound SHA-256 recomputes identically from the tree",
+   "status": "SATISFIED",
+   "title": "Phase 3A bindings reproduce with zero drift"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "MR002_Increment3_Qualification.json roadmap_disposition: next_operational_increment = NOT YET AUTHORIZED",
+   "id": "P3",
+   "producer": "RESEARCH (Workstream B)",
+   "satisfaction_criterion": "synthetic-fixture qualification of the operational layer, accepted by owner review, reading no real dataset",
+   "status": "NOT_AUTHORIZED_TO_START",
+   "title": "Evaluator operational increment (container / dependency / publication wrapper / refusal layer / access-boundary qualification)"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "Increments 1-3 accepted and closed (2026-07-20 adjudications); no consolidated SS5 acceptance package exists",
+   "id": "P4",
+   "producer": "RESEARCH (Workstream B)",
+   "satisfaction_criterion": "code identities + container/dependency identity + report schema + full synthetic end-to-end evidence + per-gate fixture results + refusal-test evidence + determinism proof + zero-performance confirmation + proof trials_N=5 is READ FROM the bound ledger (deda5cec...) and not a code constant",
+   "status": "NOT_PRODUCED",
+   "title": "Consolidated evaluator acceptance submission (EvaluatorQualificationPlan v1.0 SS5)"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "PENDING_EVALUATOR_BIND unresolved",
+   "id": "P5",
+   "producer": "RESEARCH (Workstream B)",
+   "satisfaction_criterion": "commit + tree + container digest + dependency lock + data-manifest identity + benchmark/cost/metric/bootstrap/PBO/DSR implementations + report schema + expected output paths all bound; PENDING_EVALUATOR_BIND must not survive into the authorized run",
+   "status": "NOT_PRODUCED",
+   "title": "Pre-access evaluator binding (EvaluatorQualificationPlan v1.0 SS4)"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "SealedPartitionContentCommitment_v1.0.json is a SPECIFICATION_TEMPLATE (contains_runtime_evidence = false)",
+   "id": "P6",
+   "producer": "CUSTODIAN",
+   "satisfaction_criterion": "value-blind SHA-256 content commitment over the sealed validation partition, custodian-produced and audit-bound, committed BEFORE any authorization",
+   "status": "NOT_PRODUCED",
+   "title": "ValidationPartitionContentCommitment (runtime instance)"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "SealedPartitionAccessHistory_v1.0.json is a SPECIFICATION_TEMPLATE",
+   "id": "P7",
+   "producer": "CUSTODIAN",
+   "satisfaction_criterion": "hash-chained access history evidencing validation_access_events_before_authorization = 0 AND oos_access_events_before_validation = 0",
+   "status": "NOT_PRODUCED",
+   "title": "ValidationPartitionAccessHistory (runtime instance)"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "SealVerificationReport_v1.0.json is a SPECIFICATION_TEMPLATE",
+   "id": "P8",
+   "producer": "CUSTODIAN",
+   "satisfaction_criterion": "content commitment stable + no access-before-authorization + OpenedObjectLedger reconciles against SealedStoreAccessLog + OOS partition DENY in force during validation",
+   "status": "NOT_PRODUCED",
+   "title": "ValidationSealVerificationReport (runtime instance)"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "ValidationStructuralManifestSpecification_v1.0.json requires a custodian producer; a developer query of sealed rows is prohibited",
+   "id": "P9",
+   "producer": "CUSTODIAN (sealing process, before sealing)",
+   "satisfaction_criterion": "schema identity, table names, row counts, date bounds, session count, symbol/security counts, factor-series coverage, null-count summaries, latest source date - all custodian-produced; this is the sole input the structural preflight may read pre-authorization",
+   "status": "NOT_PRODUCED",
+   "title": "Precommitted value-blind structural manifest for the validation partition"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "Phase 3A records only a drafting_reference_runtime; lockfile_binding is REQUIRED at run time and is not a placeholder",
+   "id": "P10",
+   "producer": "RESEARCH (run environment)",
+   "satisfaction_criterion": "all 17 required bindings populated incl. dependency lockfile SHA-256 and container-image digest; mismatch FAIL-STOPS before any metric",
+   "status": "NOT_PRODUCED",
+   "title": "NumericRuntimeIdentityManifest runtime instance"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "prereg v1.0.4 sealed_access_protocol",
+   "id": "P11",
+   "producer": "CUSTODIAN / INFRASTRUCTURE",
+   "satisfaction_criterion": "CloudTrail S3 data events enabled BEFORE any access; dedicated IAM principal; explicit bucket/key DENY on the OOS partition; validation-only policy; pre-execution policy-state snapshot",
+   "status": "NOT_PRODUCED",
+   "title": "Access-control preconditions in force and snapshotted"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "ValidationAuthorization_v1.0.json: validation_authorization = false; state = REQUEST / CONTRACT (NOT a grant)",
+   "id": "P12",
+   "producer": "OWNER",
+   "satisfaction_criterion": "explicit owner authorization event referencing this request, after P1-P11 are satisfied",
+   "status": "NOT_EXECUTED (this is the act being requested)",
+   "title": "Owner-signed authorization event + time-bounded credential release"
+  },
+  {
+   "blocks_grant": false,
+   "evidence": "Increment-1 qualification: absent -> REFUSED_CODE_OR_DATA_IDENTITY; estimator frozen by MR002_DSR_DispersionResolution_v1.0 (stddev ddof=1 of A/B/C validation annualized Sharpes / sqrt(252))",
+   "id": "P13",
+   "producer": "RESEARCH at run time + OWNER countersignature",
+   "satisfaction_criterion": "produced during Phase 3C from the authorized run; the DSR gate cannot be evaluated without it. NOT a pre-authorization blocker, but a hard stop before any DSR verdict",
+   "status": "PRODUCED_AFTER_AUTHORIZATION_AT_RUN_TIME",
+   "title": "MR002_DSR_TrialDispersion_Validation_v1.0.json (countersigned)"
+  }
+ ],
+ "purpose": "the complete set of conditions that must hold before a Phase 3B/C execution authorization may be granted, with producer and current status",
+ "record_type": "MR002_Phase3BC_RuntimePrerequisiteRegister",
+ "status_domain": [
+  "SATISFIED",
+  "NOT_PRODUCED",
+  "NOT_AUTHORIZED_TO_START",
+  "NOT_EXECUTED (this is the act being requested)",
+  "PRODUCED_AFTER_AUTHORIZATION_AT_RUN_TIME"
+ ],
+ "version": "1.0"
+}
