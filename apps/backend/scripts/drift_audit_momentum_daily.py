@@ -64,6 +64,7 @@ def _run_comparison(args, manifest: dict) -> tuple[dict, list, list]:
       * market symbol ("SPY") = the same broad proxy index the replica's regime uses.
     """
     import os
+    from datetime import date as _date
     from datetime import datetime as _dt
     from decimal import Decimal
 
@@ -95,9 +96,38 @@ def _run_comparison(args, manifest: dict) -> tuple[dict, list, list]:
     cached = _CachedPriceStore(store)
     db_path = os.environ["WORKBENCH_FACTOR_DATA_DB_PATH"]
 
-    proxy = s4.build_market_proxy(store, trading_days, db_path)          # SPY substitution
-    gross = s4.gross_series(proxy, "C")                                   # variant C (graduated)
-    proxy_close = {d: float(v) for d, v in proxy["idx"].items() if pd.notna(v)}
+    # REPLICA regime — EXACTLY as validated Stage 4: proxy over the window, fail-open warm-up.
+    replica_proxy = s4.build_market_proxy(store, trading_days, db_path)
+    gross = s4.gross_series(replica_proxy, "C")                           # variant C (graduated)
+    _rep_ma = [d for d, v in replica_proxy["ma"].items() if pd.notna(v)]
+    # First session the REPLICA (validated) proxy has a 200d MA = the Phase-1/Phase-2 boundary.
+    # If the window is too short for any valid MA, the whole window is Phase-1 warm-up (sentinel).
+    common_regime_available_from = str(min(_rep_ma)) if _rep_ma else "9999-12-31"
+
+    # LIVE-ONLY warm-up (Option D): build the market proxy with >=300 prior sessions so the
+    # live regime's 200d MA is available from the first comparison session (production-faithful
+    # — real SPY has pre-2005 history). The replica proxy above is UNCHANGED.
+    warmup = 300
+    ext_days = store.trading_days(_date(start.year - 3, 1, 1), end)
+    si = ext_days.index(trading_days[0])
+    live_days = ext_days[max(0, si - warmup):]
+    live_proxy = s4.build_market_proxy(store, live_days, db_path)
+    proxy_close = {d: float(v) for d, v in live_proxy["idx"].items() if pd.notna(v)}
+    _live_ma = [d for d, v in live_proxy["ma"].items() if pd.notna(v)]
+    _idx_canon = "\n".join(f"{d}|{float(v)!r}" for d, v in sorted(live_proxy["idx"].items())
+                           if pd.notna(v)).encode("utf-8")
+    proxy_provenance = {
+        "market_symbol_substitution": "broad equal-weight market proxy (SPY absent from SEP; PREREG §2)",
+        "price_column": "closeadj",
+        "missing_session_handling": ("reindex to trading calendar; equal-weight mean of available "
+                                     "daily returns (skipna); MA NaN until 200 observations"),
+        "live_proxy_construction_start": str(live_days[0]),
+        "pre_window_sessions": si - max(0, si - warmup),
+        "warmup_target_min_sessions": warmup,
+        "live_first_valid_200d_ma": str(min(_live_ma)) if _live_ma else None,
+        "replica_first_valid_200d_ma": common_regime_available_from,
+        "live_proxy_content_sha256": hashlib.sha256(_idx_canon).hexdigest(),
+    }
 
     day_scores: dict = {}
     for d in trading_days:
@@ -129,8 +159,11 @@ def _run_comparison(args, manifest: dict) -> tuple[dict, list, list]:
     accessor = FactorAccessor(store)
 
     def scores_provider(day):
-        return accessor.momentum_scores(as_of=day, n=len(universe),
-                                        lookback_days=252, skip_days=21)
+        # n = the validation's UNIVERSE_N (top-200 PIT) so the live selection LOGIC operates over
+        # the SAME universe as the replica's compute_day — else a larger n scores a bigger universe
+        # (a wiring artifact, not a selection-seam divergence; proven identical at n=UNIVERSE_N).
+        return accessor.momentum_scores(as_of=day, n=s2.UNIVERSE_N,
+                                        lookback_days=s2.LOOKBACK_DAYS, skip_days=s2.SKIP_DAYS)
 
     def bars_provider(sym: str, as_of, n: int) -> pd.DataFrame:
         if sym.upper() == market_sym:                                   # regime = proxy index
@@ -152,7 +185,11 @@ def _run_comparison(args, manifest: dict) -> tuple[dict, list, list]:
     live_records = asyncio.run(drive_live(strat, adapter, trading_days,
                                           fill_price_fn=lambda s, d: _price(s, d)))
 
-    report = build_report(live_records, replica_records).to_dict()
+    report = build_report(
+        live_records, replica_records,
+        common_regime_available_from=common_regime_available_from,
+        live_regime_warmup_start=str(live_days[0])).to_dict()
+    report["proxy_provenance"] = proxy_provenance
     return report, live_records, replica_records
 
 

@@ -133,11 +133,15 @@ class DriftReport:
     sessions_clean_before_divergence: int             # matching sessions before the first mismatch
     downstream_mismatch_sessions: int                 # mismatch sessions AFTER the first (propagation)
     turnover: dict                                    # {live, replica, abs_diff} — diagnostic
+    # Option D split: Phase 1 = regime warm-up (replica fail-open vs production-like live MA) —
+    # an EXPECTED_METHODOLOGY_DIVERGENCE; Phase 2 = common regime-availability governing window.
+    phase_split: dict | None = None
 
     def to_dict(self) -> dict:
         return {
             "n_sessions": self.n_sessions,
             "conformance_verdict": self.conformance_verdict,
+            "phase_split": self.phase_split,
             "structural": self.structural,
             "census": self.census,
             "first_cause": self.first_cause,
@@ -176,7 +180,37 @@ def _turnover(records: list[SeamRecord]) -> float:
     return total
 
 
-def build_report(live: list[SeamRecord], replica: list[SeamRecord]) -> DriftReport:
+def _phase_stats(diffs: list[DaySeamDiff], *, boundary: str) -> dict:
+    """Option D: split diffs into Phase 1 (date < boundary — regime warm-up methodology) and
+    Phase 2 (date >= boundary — common regime-availability governing window); Phase-1
+    differences are counted but kept OUT of the Phase-2 primary equivalence stats."""
+    p1 = [d for d in diffs if d.date < boundary]
+    p2 = [d for d in diffs if d.date >= boundary]
+    p2_mm = [d for d in p2 if d.any_mismatch]
+    cats = dict.fromkeys(SEMANTIC_SEAMS + NUMERIC_SEAMS, 0)
+    for d in p2:
+        for s in d.semantic_mismatches:
+            cats[s] += 1
+        for s in d.numeric_violations:
+            cats[s] += 1
+    first = p2_mm[0] if p2_mm else None
+    return {
+        "warmup_methodology_sessions": len(p1),
+        "warmup_expected_divergence_count": sum(1 for d in p1 if d.any_mismatch),
+        "warmup_classification": ("EXPECTED_METHODOLOGY_DIVERGENCE: replica warm-up fail-open "
+                                  "vs production-like live historical-MA regime"),
+        "post_warmup_sessions": len(p2),
+        "post_warmup_first_mismatch": first.date if first else None,
+        "post_warmup_category_counts": cats,
+        "post_warmup_material_sessions": sum(1 for d in p2_mm if d.economically_material),
+        "post_warmup_verdict": ("POST_WARMUP_MATCH" if not p2_mm
+                                else "POST_WARMUP_MISMATCHES_TO_ADJUDICATE"),
+    }
+
+
+def build_report(live: list[SeamRecord], replica: list[SeamRecord], *,
+                 common_regime_available_from: str | None = None,
+                 live_regime_warmup_start: str | None = None) -> DriftReport:
     """Aggregate per-session comparisons into the §8 adjudication report. ``live`` and
     ``replica`` must be the same sessions in the same order."""
     if len(live) != len(replica):
@@ -247,6 +281,14 @@ def build_report(live: list[SeamRecord], replica: list[SeamRecord]) -> DriftRepo
         "regime_gross_mismatch_sessions": cats["regime_gross"],
     }
     tl, tr = _turnover(live), _turnover(replica)
+    phase_split: dict | None = None
+    if common_regime_available_from is not None:
+        phase_split = {
+            "live_regime_warmup_start": live_regime_warmup_start,
+            "comparison_start": live[0].date if live else None,
+            "common_regime_available_from": common_regime_available_from,
+            **_phase_stats(diffs, boundary=common_regime_available_from),
+        }
     return DriftReport(
         n_sessions=len(live),
         first_mismatch_date=first.date if first else None,
@@ -267,6 +309,7 @@ def build_report(live: list[SeamRecord], replica: list[SeamRecord]) -> DriftRepo
         sessions_clean_before_divergence=(first_idx if first_idx is not None else len(diffs)),
         downstream_mismatch_sessions=downstream,
         turnover={"live": tl, "replica": tr, "abs_diff": abs(tl - tr)},
+        phase_split=phase_split,
     )
 
 

@@ -101,6 +101,28 @@ def test_report_captures_first_mismatch_and_categories():
     assert r.first_mismatch_detail["date"] == days[2]
 
 
+def test_phase_split_separates_warmup_from_governing_window():
+    days = ["2005-01-03", "2005-01-04", "2005-01-05", "2005-01-06"]
+    live = [_rec(d, is_seed=(d == days[0])) for d in days]
+    rep = [_rec(d) for d in days]
+    # Phase-1 regime warm-up divergence on days 1-2 (live real-MA 0.98 vs replica fail-open 1.0);
+    # Phase 2 (days 3-4) identical.
+    for i in (0, 1):
+        live[i] = _rec(days[i], gross=0.98, is_seed=(i == 0))
+        rep[i] = _rec(days[i], gross=1.0)
+    r = build_report(live, rep, common_regime_available_from="2005-01-05",
+                     live_regime_warmup_start="2003-10-23").to_dict()
+    ps = r["phase_split"]
+    assert ps["live_regime_warmup_start"] == "2003-10-23"
+    assert ps["common_regime_available_from"] == "2005-01-05"
+    assert ps["warmup_methodology_sessions"] == 2          # days 1,2 < boundary
+    assert ps["warmup_expected_divergence_count"] == 2     # both warm-up sessions diverged
+    assert ps["post_warmup_sessions"] == 2                 # days 3,4
+    assert ps["post_warmup_first_mismatch"] is None        # Phase 2 clean
+    assert ps["post_warmup_verdict"] == "POST_WARMUP_MATCH"
+    assert "EXPECTED_METHODOLOGY_DIVERGENCE" in ps["warmup_classification"]
+
+
 def test_report_first_trade_date_divergence_fails_structural():
     days = ["2005-01-03", "2005-01-04"]
     # live's first trade is day 2, replica's is day 1 -> structural first-trade-date differs
