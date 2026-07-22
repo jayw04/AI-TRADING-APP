@@ -1,4 +1,12 @@
-# ADR 0043 — Canary Manifest v1.0
+# ADR 0043 — Canary Manifest v1.1 (re-frozen from v1.0)
+
+> **v1.1 re-freeze (2026-07-21):** protected legs re-scoped to **MSFT-only** to match what the frozen
+> canary broker account (account 3, Alpaca paper `PA34USW0Q8UO`) **actually holds** (`MSFT:19`, no `F`).
+> The harness never buys/establishes legs — it refuses if a declared leg is absent — so the frozen
+> config must equal the account's real positions; buying `F`/topping MSFT to reach the old `F:500,MSFT:20`
+> was declined (do not manufacture positions to satisfy a manifest). No other parameter changed. Governed
+> via the harness's env config `ADR0043_PROTECTED=MSFT` / `ADR0043_LEGS=MSFT:19` (defaults aligned in
+> `adr0043_canary_lib.py`). The v1.0 F/MSFT spec is superseded.
 
 > **Governing status:** ADR-0043 **code implementation COMPLETE** (PRs 1–8; main `c8b3ac2`) ·
 > **live operational validation PENDING** · **account 3 NOT RECLAIMABLE**. The reclaim boundary is
@@ -24,9 +32,9 @@ trusted in `ENFORCE` on any book that has a mandate.
 
 | Field | Value |
 |---|---|
-| User | 3 |
-| Account | 3 — `Alpaca Paper (Conservative)` |
-| Baseline positions | the protected legs `F:500, MSFT:20` (the reduction targets) ← precondition |
+| User | canary owner (`ADR0043_USER`; on the fresh validation box the sanctioned seed assigns `1`) |
+| Account | the frozen canary account (`ADR0043_ACCOUNT`; seed assigns `1`) bound to Alpaca paper `PA34USW0Q8UO` |
+| Baseline positions | the protected leg `MSFT` (the reduction target; account holds `MSFT:19`, no `F`) ← precondition |
 | Loss-control state | a durable `REDUCTION_ONLY_*` row in `risk_loss_control_state` ← precondition |
 | Loss-control mode | `WORKBENCH_LOSS_CONTROL_MODE=ENFORCE` ← precondition (refused otherwise) |
 
@@ -97,9 +105,10 @@ no-tuning discipline. Its full procedure is **Phase 0** of
 > - **Canary account established via the sanctioned bootstrap.** A fresh `workbench.sqlite` has no user /
 >   account / encrypted broker credentials / risk limits; the engine rejects every order with
 >   `NO_LIMITS_CONFIGURED` when no limits row resolves. The frozen object is the **Alpaca paper account**
->   (broker identity holding `F`+`MSFT`), **not a DB primary key** — the app hardcodes no `id=3` and the
->   harness targets `ADR0043_USER`/`ADR0043_ACCOUNT` (default `3`). Establish + verify the owner / paper
->   account / credentials / correct broker-account binding / `F`+`MSFT` sync / an approved effective limits
+>   (broker identity `PA34USW0Q8UO`, holding `MSFT`), **not a DB primary key** — the app hardcodes no `id`
+>   and the harness targets `ADR0043_USER`/`ADR0043_ACCOUNT` (fresh-box seed assigns `1`). Establish + verify
+>   the owner / paper account / credentials / correct broker-account binding / `MSFT` sync / an approved
+>   effective limits
 >   row **through the sanctioned scripts (`create_user.py`, `provision_range_account.py`) and the
 >   audit-logged `PUT /risk-limits` — never ad-hoc SQL** — then **record the actual IDs** and set the env.
 
@@ -113,8 +122,8 @@ For a valid GREEN attempt, Phase 0 must yield `READY_FOR_ADR0043_CANARY`:
    setup**, preserved as evidence, not rewritten.
 2. **Authoritative, current-session, immutable baseline** captured by the production mechanism **before**
    loss generation — never inserted or repaired after the breach.
-3. **Reconciled account** — broker vs DB positions/orders/reservations clean; `F`/`MSFT` legs present; no
-   stale reservation or pending recovery workflow.
+3. **Reconciled account** — broker vs DB positions/orders/reservations clean; the `MSFT` protected leg
+   present (`MSFT:19`, no unrelated positions); no stale reservation or pending recovery workflow.
 4. **Frozen EFFECTIVE limits + provenance** — the engine resolves a **single** GLOBAL / canary-owner /
    paper `RiskLimits` row (no account-override precedence); confirm exactly one exists with the **approved**
    values (established via the audit-logged `PUT /risk-limits`, not accidental `create_user` defaults),

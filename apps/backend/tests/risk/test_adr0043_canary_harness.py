@@ -38,7 +38,7 @@ def _snap(m, **over):
         at="2026-07-20T18:00:00+00:00", day_change=D("-6000"), equity=D("94000"),
         last_equity=D("100000"), max_daily_loss=D("5000"), breaker_tripped_at=None,
         loss_control_state=m.STATE_REDUCTION_ONLY_DAILY_LOSS, loss_control_state_version=3,
-        last_sequence_no=3, positions={"F": D("500"), "MSFT": D("20")}, open_orders=0,
+        last_sequence_no=3, positions={"MSFT": D("19")}, open_orders=0,
     )
     base.update(over)
     return m.StateSnapshot(**base)
@@ -154,7 +154,7 @@ def test_snapshot_serializes_the_durable_state(lib):
     d = _snap(lib).as_dict()
     assert d["loss_control_state"] == lib.STATE_REDUCTION_ONLY_DAILY_LOSS
     assert d["reduction_only"] is True and d["loss_control_state_version"] == 3
-    assert d["positions"] == {"F": "500", "MSFT": "20"}
+    assert d["positions"] == {"MSFT": "19"}
 
 
 # ================================================================ blocker 2: GREEN requires cooldown
@@ -288,7 +288,7 @@ async def _seed_account(session_factory):
     async with session_factory() as s:
         s.add(User(id=3, email="c@t"))
         s.add(Account(id=3, user_id=3, broker="alpaca", mode=AccountMode.paper, label="C"))
-        s.add(Symbol(id=1, ticker="F", exchange="X", asset_class="us_equity", name="Ford",
+        s.add(Symbol(id=1, ticker="MSFT", exchange="X", asset_class="us_equity", name="Microsoft",
                      active=True))
         await s.commit()
 

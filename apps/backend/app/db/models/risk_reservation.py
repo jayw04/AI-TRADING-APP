@@ -51,6 +51,16 @@ class RiskReservation(Base):
         ForeignKey("orders.id", ondelete="SET NULL"), nullable=True
     )
 
+    # The broker long for this symbol AT THE MOMENT this reservation was created — the anchor
+    # that lets a later decision PROVE the position has absorbed a fill, rather than assume it.
+    # Broker positions, broker orders and local fills are three non-atomic reads: a locally
+    # observed fill may not yet appear in the positions endpoint. Crediting such a fill back
+    # would manufacture reducible capacity and could admit a sell that crosses zero. NULL on
+    # rows written before this column existed — absorption is then unprovable and credited ZERO.
+    position_qty_at_reservation: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )
+
     state: Mapped[str] = mapped_column(String(12), nullable=False, default=RESERVATION_HELD)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     released_at: Mapped[datetime | None] = mapped_column(
