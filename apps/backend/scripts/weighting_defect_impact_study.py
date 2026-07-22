@@ -39,6 +39,7 @@ import statistics
 import sys
 import time as _time
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -68,6 +69,7 @@ from app.factor_data.backtest import _CachedPriceStore, _summary  # noqa: E402
 from app.factor_data.store import FactorDataStore  # noqa: E402
 
 MAX_POSITION_PCT = 0.20      # the registered production per-name cap (unchanged, adjudication 2026-07-22)
+PRODUCTION_SIZING = "production_capped_equal"
 FEASIBILITY_EPS = 1e-9
 ROLL_WINDOWS = {"1m": 21, "3m": 63, "12m": 252}   # trading days
 
@@ -82,6 +84,33 @@ STAGE4_REFERENCE_ARTIFACT = (
     / "docs/implementation/evidence/momentum_daily_stage2_4/MR_MomentumDaily_Stage4_full.json"
 )
 REPRO_METRICS = ("cagr", "sharpe", "calmar", "max_drawdown")
+
+
+def production_weights(target: list[str]) -> dict[str, float]:
+    """Pre-gross per-name weights from the EXACT production sizing seam (POST-HOC
+    PRODUCTION-FAITHFUL CORRECTION, owner ruling 2026-07-22 §5.2).
+
+    Calls ``MomentumDaily._per_name_notional`` itself rather than restating its rule, so this
+    arm cannot drift from what the order path sizes. Evaluated at unit equity, so the result is
+    a fraction of gross-scaled investable equity; the caller multiplies by gross exactly as
+    ``_apply_targets`` applies it via ``_investable_equity``.
+
+    At k=5 this equals 0.20/name (fully invested). At k<5 the cap binds: 4 names size 0.20 each
+    and the remaining 0.20 of gross STAYS IN CASH — production never concentrates past the cap.
+
+    NOTE on the ruling's shorthand: it wrote ``min(gross/k, 0.20)``, which caps the total-equity
+    weight at a flat 20%. The production seam is ``min(1/k, 0.20) x gross`` — the cap scales with
+    gross. Identical at k=5; they differ only on underfilled sessions (k=4, gross 0.98: 0.200 vs
+    0.196). The ruling directed use of "the exact production _per_name_notional() seam", so the
+    seam governs and the shorthand is treated as descriptive.
+    """
+    from types import SimpleNamespace
+
+    from strategies_user.templates.momentum_daily import MomentumDaily
+
+    shim = SimpleNamespace(params={"max_position_pct": MAX_POSITION_PCT})
+    unit = float(MomentumDaily._per_name_notional(shim, Decimal(1), len(target)))
+    return {t: unit for t in target}
 
 
 def load_stage4_reference(variant: str, path: Path | None = None) -> dict:
@@ -185,7 +214,9 @@ def simulate_arm(store, trading_days: list[date], day_scores: dict[date, DayScor
         if g <= 0.0 or not target:
             neww = {}
         else:
-            base = weigh(store, target, d, sizing=sizing, n=N, cap_on=CAP_ON, sectors=sectors)
+            base = (production_weights(target) if sizing == PRODUCTION_SIZING
+                    else weigh(store, target, d, sizing=sizing, n=N, cap_on=CAP_ON,
+                               sectors=sectors))
             over = {t: w for t, w in base.items() if w > MAX_POSITION_PCT + FEASIBILITY_EPS}
             if over:
                 cap_violations.append({"date": d.isoformat(), "max_weight": max(over.values()),
@@ -362,6 +393,31 @@ def evaluate_gates(cmp_: dict, b: dict) -> dict:
     return {"gates": results, "failures": [r["gate"] for r in failures], "verdict": verdict}
 
 
+def _adjudicate_production(cmp_: dict, b: dict) -> dict:
+    """Owner-specified bands for the production-faithful arm (2026-07-22). Thresholds unchanged;
+    only the CLASSIFICATION of a T7 failure is banded.
+
+      T7 > 250 bps                -> MATERIALLY_DIFFERENT
+      125 < T7 <= 250 bps         -> MINOR_BUT_MEASURABLE
+      T7 <= 125 bps + others pass -> the registered mechanical rule
+      T11 != 0                    -> STOP, implementation defect (must be zero BY CONSTRUCTION)
+    """
+    t7 = cmp_["rolling_12m"]["p95_abs_bps"]
+    if b["cap_violation_rebalances"] != 0:
+        return {"t7_p95_bps": t7, "cap_violations": b["cap_violation_rebalances"],
+                "classification": "STOP_IMPLEMENTATION_DEFECT",
+                "note": ("T11 must be zero BY CONSTRUCTION for the production arm — the seam caps "
+                         "at max_position_pct. A non-zero count means the arm is not calling the "
+                         "production seam.")}
+    if t7 > 250.0:
+        cls = "MATERIALLY_DIFFERENT"
+    elif t7 > 125.0:
+        cls = "MINOR_BUT_MEASURABLE"
+    else:
+        cls = "PER_REGISTERED_MECHANICAL_RULE"
+    return {"t7_p95_bps": t7, "cap_violations": 0, "classification": cls}
+
+
 def check_reproduction(a: dict, variant: str, ref: dict | None = None) -> dict:
     ref = ref if ref is not None else load_stage4_reference(variant)
     checks = {}
@@ -444,19 +500,47 @@ def main() -> int:
         cmp_pin = compare(a, b_pin)
         gates = evaluate_gates(cmp_pin, b_pin)
         cmp_free = compare(a, b_free)
+
+        # POST-HOC PRODUCTION-FAITHFUL CORRECTION (owner ruling 2026-07-22 §5.2): the
+        # preregistered arm allocated 25%/name on two underfilled (4-name) rebalances because the
+        # harness equal_weight applies no cap; production caps at 20% and holds the rest in cash.
+        # Same regime path, same pinned trade dates, same Tier-2 maths, unchanged thresholds.
+        b_prod = simulate_arm(cached, trading_days, day_scores, sectors, g,
+                              sizing=PRODUCTION_SIZING, pinned_dates=pinned)
+        cmp_prod = compare(a, b_prod)
+        gates_prod = evaluate_gates(cmp_prod, b_prod)
+        gates_prod["adjudication_bands"] = _adjudicate_production(cmp_prod, b_prod)
         print(f"[impact] B-pinned: CAGR {b_pin['cagr']:.4%} Sharpe {b_pin['sharpe']:.4f} "
               f"trades {b_pin['trades']} | VERDICT {gates['verdict']}", flush=True)
         for r in gates["gates"]:
             print(f"[impact]   {'PASS' if r['pass'] else 'FAIL'} {r['gate']:38} "
                   f"{r['value']:.4f} / {r['threshold']:.2f} {r['unit']}", flush=True)
 
+        print(f"[impact] B-prod (production-faithful): CAGR {b_prod['cagr']:.4%} "
+              f"Sharpe {b_prod['sharpe']:.4f} trades {b_prod['trades']} | "
+              f"T7 {cmp_prod['rolling_12m']['p95_abs_bps']:.2f}bps "
+              f"capviol {b_prod['cap_violation_rebalances']} | "
+              f"CLASS {gates_prod['adjudication_bands']['classification']}", flush=True)
+        for r in gates_prod["gates"]:
+            print(f"[impact]   {'PASS' if r['pass'] else 'FAIL'} prod {r['gate']:38} "
+                  f"{r['value']:.4f} / {r['threshold']:.2f} {r['unit']}", flush=True)
+
         payload["arms"][variant] = {
             "role": role, "reproduction": repro,
             "A_defective_hybrid": _strip(a), "B_pinned_equal": _strip(b_pin),
             "B_free_equal": _strip(b_free),
+            "B_pinned_production": _strip(b_prod),
             "primary_comparison_pinned": cmp_pin,
             "diagnostic_comparison_free": cmp_free,
+            "production_faithful_comparison_pinned": cmp_prod,
             "gate_evaluation": gates,
+            "gate_evaluation_production": gates_prod,
+            "arm_labels": {
+                "B_pinned_equal": "PREREGISTERED ARM — harness equal_weight, uncapped",
+                "B_pinned_production": ("POST-HOC PRODUCTION-FAITHFUL CORRECTION — required "
+                                        "because the preregistered arm did not reproduce "
+                                        "production on two underfilled rebalances"),
+            },
         }
 
     rd = Path(args.report_dir)
