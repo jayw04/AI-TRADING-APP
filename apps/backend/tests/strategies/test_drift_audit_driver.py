@@ -10,7 +10,12 @@ import pandas as pd
 
 from app.strategies.context import Bar
 from app.strategies.deployment_state import initial_blob
-from app.strategies.drift_audit_driver import DriftCtxAdapter, capture_seam
+from app.strategies.drift_audit_driver import (
+    DriftCtxAdapter,
+    capture_replica_seams,
+    capture_seam,
+    drive_live,
+)
 from strategies_user.templates.momentum_daily import _K_DEPLOYMENT, MomentumDaily
 
 SYMS = ["SPY", "AAA", "BBB", "CCC", "DDD", "EEE", "FFF"]
@@ -99,3 +104,66 @@ async def test_settle_evolves_the_book_so_holdings_persist_next_session():
     # recent_fills must surface the seed fills for the strategy's reconciliation.
     fills = await adapter.recent_fills(client_order_id_prefix=f"seed:{11}:")
     assert len(fills) == n_orders
+
+
+# ---- multi-day live drive ----
+
+async def test_drive_live_multi_day_seeds_day_one_then_evolves():
+    adapter = _adapter()
+    strat = _strategy(adapter)
+    days = [date(2005, 1, d) for d in (3, 4, 5, 6)]
+    records = await drive_live(strat, adapter, days, fill_price_fn=lambda _s, _d: 100.0)
+
+    assert len(records) == 4
+    assert records[0].is_seed is True and records[0].trade_initiated is True   # day-1 inception
+    assert all(not r.is_seed for r in records[1:])                             # seed is one-shot
+    # holdings persist after the day-1 seed fills settle
+    held = {k: v for k, v in adapter._positions.items() if v > 0}
+    assert held, "no holdings after the multi-day drive"
+
+
+# ---- replica seam extractor (mirrors Stage 4 simulate) ----
+
+class _DS:
+    def __init__(self, ranked):
+        self.ranked = ranked
+        self.score = {t: float(len(ranked) - i) for i, t in enumerate(ranked)}
+        self.rank = {t: i + 1 for i, t in enumerate(ranked)}
+
+
+def test_replica_trade_gate_changed_regime_flip_and_hold():
+    days = [date(2005, 1, d) for d in (3, 4, 5)]
+    ranked = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"]
+    day_scores = {d: _DS(ranked) for d in days}
+    gross = {days[0]: 0.98, days[1]: 0.98, days[2]: 0.50}   # gross flips on day 3
+    recs = capture_replica_seams(
+        days, day_scores, gross,
+        select_fn=lambda ds, held, prev: ds.ranked[:5],
+        weigh_fn=lambda chosen, d: {t: 1.0 / len(chosen) for t in chosen},
+        price_fn=lambda t, d: 100.0,
+        backstop_days=10, weight_drift_pct=0.04, turnover_cost_bps=5.0,
+        initial_equity=100_000.0)
+
+    assert len(recs) == 3
+    # day 1: flat -> top5 is a change -> trade
+    assert recs[0].trade_initiated is True and recs[0].target_names == ("AAA", "BBB", "CCC", "DDD", "EEE")
+    assert "changed" in recs[0].trigger
+    # day 2: same target, same gross, no drift -> HOLD
+    assert recs[1].trade_initiated is False and recs[1].trigger == "reviewed_no_trigger"
+    # day 3: gross 0.98 -> 0.50 is a regime flip -> trade
+    assert recs[2].trade_initiated is True and "regime_flip" in recs[2].trigger
+    # gross-scaled weights on the traded days
+    assert abs(sum(recs[0].weights.values()) - 0.98) < 1e-9
+    assert abs(sum(recs[2].weights.values()) - 0.50) < 1e-9
+
+
+def test_replica_thin_day_emits_no_scores_record():
+    days = [date(2005, 1, 3), date(2005, 1, 4)]
+    day_scores = {days[0]: _DS(["AAA", "BBB"])}  # day 2 missing -> thin
+    recs = capture_replica_seams(
+        days, day_scores, {d: 1.0 for d in days},
+        select_fn=lambda ds, held, prev: ds.ranked[:5],
+        weigh_fn=lambda chosen, d: {t: 1.0 / len(chosen) for t in chosen},
+        price_fn=lambda t, d: 100.0, backstop_days=10, weight_drift_pct=0.04,
+        turnover_cost_bps=5.0, initial_equity=100_000.0)
+    assert recs[1].trigger == "no_scores" and recs[1].trade_initiated is False
