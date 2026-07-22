@@ -101,7 +101,33 @@ publication to the same paths refuses. `published_at` is supplied by the caller 
 reproducible from its inputs — two independent runs produced **byte-identical** report and
 publication hashes.
 
-## 6. Explicitly not done under this authorization
+## 6. Finding — P3 makes the Phase-3A evaluator reference binding stale (affects P5 and D3 C9)
+
+Producing P3 added modules to the evaluator directory. Measured against the tree after this
+increment:
+
+- the **21 modules bound in the Phase-3A `GoverningSourceRegistry` show ZERO drift** — no
+  previously-bound module was modified;
+- **6 files are new and therefore unbound** relative to that reference: the 4 operational modules
+  plus `test_increment4.py` and `_gen_evidence_inc4.py`. Under the §4 module-inventory rule (tests
+  and generators excluded) this is **21 → 25 bound modules**.
+
+This is an expected consequence of authorized production, not a defect — but it has two governance
+effects the owner should note now rather than discover at D3:
+
+1. **P5 must bind the full 25-module inventory**, not re-assert the Phase-3A 21-module reference.
+   The Phase-3A binding was explicitly a *reference to be re-verified at evaluator qualification*;
+   it is not the §4 binding.
+2. **D3 condition C9 ("zero evaluator drift and zero unbound evaluator code") must be evaluated
+   against the P5 binding**, not against the Phase-3A reference. Evaluated against the Phase-3A
+   reference today, C9 would fail with 4 unbound modules — correctly, since no §4 binding covering
+   them exists yet.
+
+The `MR002_Phase3BC_Phase3ALineageProof_v1.0.json` committed at `ea437ce` remains accurate **as of
+its own commit** and is unmodified; the D3 submission must recompute lineage against the
+then-current tree, which is exactly what condition C8 requires.
+
+## 7. Explicitly not done under this authorization
 
 P4 (§5 acceptance submission) · P5 (§4 pre-access binding / `PENDING_EVALUATOR_BIND`) · P6–P9 and P11
 (custodian) · P10 (runtime instance) · P13 · any grant-readiness verifier or conclusion · any D3
