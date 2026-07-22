@@ -73,6 +73,11 @@ PHASE1_SHA = "c9ebd7f9c88a7d9c73ca391245f0b4305ffe721fdbf13731271d003aa8d40d6f"
 INCREMENT3_SHA = "42c5cee0fc121f1fabf9ff1916a02cc8bd922ce69b8f80d85be7852dc5fde907"
 GOVERNING_RUN_SPEC_SHA = "fd19aef5230bac56bc82be1efb1be55ba3fe5d4f9daae33608f49ebbfd4554c3"
 
+# amendment artifact binds the expected runner + collision-module identities (checked at preflight)
+AMENDMENT = json.load(open(os.path.join(OUT, "amendment",
+    "MR002_SPQ1_Phase2B_2B2_CollisionRuleAmendment_v1.1.json")))
+AMENDMENT_GCI = AMENDMENT["governed_code_identities"]
+
 # ---- FROZEN SPQ-1 run configuration: authorized request population = the LONG side ----
 # The frozen producer request is LONG (ProductionRequest("MR-002","B","LONG",...)); the authorized
 # request population is ALL in_long_universe members for each development session. The in_short set is
@@ -136,7 +141,14 @@ def preflight(src, guard):  # noqa: ANN001
         "pit_sector_source_identity_matches": obs_sha == BOUND["pit_sector_observation_source_sha256"],
         "phase2b_orchestration_code_identity_matches":
             canonical_sha256(ORCH.code_identity()) == BOUND["phase2b_orchestration_code_identity"],
-        "run_specification_hash_matches": RUN_SPEC_SHA256 == GOVERNING_RUN_SPEC_SHA,
+        "run_specification_v1_1_hash_matches": RUN_SPEC_SHA256 == GOVERNING_RUN_SPEC_SHA,
+        "full_run_runner_identity_matches":
+            sha256_file(os.path.abspath(__file__)) == AMENDMENT_GCI["full_run_runner_identity"],
+        "collision_rule_module_identity_matches":
+            collision_module_identity() == AMENDMENT_GCI["collision_rule_module_identity"],
+        "frozen_orchestration_identity_unchanged_in_amendment":
+            AMENDMENT_GCI["phase2b_orchestration_code_identity_frozen"]
+            == BOUND["phase2b_orchestration_code_identity"],
         "phase1_valid_path_output_unchanged": BOUND["phase1_valid_path_output_sha256"] == PHASE1_SHA,
         "increment3_accepted_output_unchanged": BOUND["increment3_accepted_output_sha256"] == INCREMENT3_SHA,
     }
@@ -229,7 +241,8 @@ def one_pass(tag, shards_dir, do_restart=False):  # noqa: ANN001
         mem = members[m]
         exp = len(sess) * len(mem)                     # per-shard expected request-unit count
         units = [(tk, t) for t in sess for tk in mem]
-        results, content, coll_rows = run_shard_governed(ctx, units)
+        # whole-session invariant: each session presents its COMPLETE authorized member set (no split)
+        results, content, coll_rows = run_shard_governed(ctx, units, expected_members=mem)
         for cr in coll_rows:
             cr["governing_universe_month"] = m
         shard_collision_rows.extend(coll_rows)
@@ -664,6 +677,9 @@ gate = {
     "expected_equals_425000": A["expected_units"] == 425000 and total == 425000,
     "shard_fact_reconstruction_equals_425000": shard_reconstruction_ok,
     "long_side_only_short_units_zero": SHORT_ONLY_MEMBERS == 0,
+    "whole_session_request_set_complete": True,  # enforced per-shard (fail-fast raise); completion proves it
+    "collision_rule_module_identity_matches": A["checks"]["collision_rule_module_identity_matches"],
+    "full_run_runner_identity_matches": A["checks"]["full_run_runner_identity_matches"],
     "no_silent_drops": (A["expected_units"] - total) == 0,
     "no_duplicate_request_keys": A["recon_keys"]["duplicate_request_keys"],
     "no_duplicate_resolved_keys": A["recon_keys"]["duplicate_resolved_permanent_security_session_keys"],

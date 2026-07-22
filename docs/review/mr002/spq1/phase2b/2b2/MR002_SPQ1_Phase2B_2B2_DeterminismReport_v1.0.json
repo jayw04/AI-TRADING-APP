@@ -1,0 +1,31 @@
+{
+ "checks": {
+  "aggregate_decision_record_hash_equal": true,
+  "aggregate_disposition_record_hash_equal": true,
+  "canonical_ordering_holds": true,
+  "collision_census_hash_equal": true,
+  "materialization_content_identity_equal": true,
+  "per_shard_content_sha256_equal": true,
+  "publication_core_hash_equal": true,
+  "record_counts_equal": true,
+  "refusal_census_hash_equal": true,
+  "security_census_hash_equal": true,
+  "session_census_hash_equal": true
+ },
+ "determinism_all_equal": true,
+ "method": "independent second full pass: fresh materialization + fresh enumeration + fresh run into a clean output location (shards_B); all aggregate/census hashes compared to pass A",
+ "pass_A_publication_core_hash": "f72902c5aa6db19204658c8487cda53a42a11cb391ec555ba46e0dd365508aff",
+ "pass_B_publication_core_hash": "f72902c5aa6db19204658c8487cda53a42a11cb391ec555ba46e0dd365508aff",
+ "record_type": "MR002_SPQ1_Phase2B_2B2_DeterminismReport",
+ "replay_independence_attestation": {
+  "clean_output_directory": true,
+  "comparison_ignores_only_nongoverning_runtime_metadata": "temp snapshot filenames only; all governed artifacts + canonical record hashes must match",
+  "fresh_guard_and_opened_object_ledger": true,
+  "fresh_snapshot_materialization": true,
+  "fresh_unit_enumeration": true,
+  "no_reuse_of_passA_completed_shards": true,
+  "no_reuse_of_passA_merged_records": true
+ },
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "version": "1.0"
+}

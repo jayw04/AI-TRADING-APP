@@ -1,0 +1,13 @@
+{
+ "completed_shard_overwrite_blocked": true,
+ "note": "completed shards are immutable (non-overwriting publication); a lost shard recomputes byte-identically on resume; merged-after-resume == full merge.",
+ "record_type": "MR002_SPQ1_Phase2B_2B2_RestartReport",
+ "remerge_after_resume_identical": true,
+ "resume_recompute_identical": true,
+ "resumed_shards": [
+  "2013-01-01",
+  "2016-06-01"
+ ],
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "version": "1.0"
+}

@@ -1,0 +1,5252 @@
+{
+ "record_type": "MR002_SPQ1_Phase2B_2B2_SecurityCensus",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "securities": {
+  "A": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 43,
+    "SIGNAL_DECISION_RECORD_EMITTED": 24
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196290"
+   ]
+  },
+  "AA": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 102
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124392"
+   ]
+  },
+  "AAL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1196
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199960"
+   ]
+  },
+  "AAOI": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 85
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195742"
+   ]
+  },
+  "AAP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 482
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195735"
+   ]
+  },
+  "AAPL": {
+   "dispositions": {
+    "INELIGIBLE": 1595,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 45
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199059"
+   ]
+  },
+  "ABBV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1448
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191883"
+   ]
+  },
+  "ABMD": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 208
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198315"
+   ]
+  },
+  "ABT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199997"
+   ]
+  },
+  "ACN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193203"
+   ]
+  },
+  "ADBE": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1472
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198450"
+   ]
+  },
+  "ADI": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 754
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199958"
+   ]
+  },
+  "ADM": {
+   "dispositions": {
+    "INELIGIBLE": 124,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 482
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199944"
+   ]
+  },
+  "ADP": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1158
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199928"
+   ]
+  },
+  "ADSK": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 695
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198583"
+   ]
+  },
+  "AEP": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1217
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199972"
+   ]
+  },
+  "AET": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 3,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1303
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195983"
+   ]
+  },
+  "AFL": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 153
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199969"
+   ]
+  },
+  "AGN": {
+   "dispositions": {
+    "INELIGIBLE": 1,
+    "INTEGRITY_STOP": 63,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1452
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-191420",
+    "PSEC-198103"
+   ]
+  },
+  "AGN1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 565
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "AGNC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 88
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193651"
+   ]
+  },
+  "AIG": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199966"
+   ]
+  },
+  "AKAM": {
+   "dispositions": {
+    "INELIGIBLE": 22
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196336"
+   ]
+  },
+  "ALB": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 105
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197514"
+   ]
+  },
+  "ALGN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 482
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196200"
+   ]
+  },
+  "ALL": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 755
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197653"
+   ]
+  },
+  "ALTR1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 86
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "ALXN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1306
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197642"
+   ]
+  },
+  "AMAT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199948"
+   ]
+  },
+  "AMBA": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 106
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195232"
+   ]
+  },
+  "AMD": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 692
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199991"
+   ]
+  },
+  "AMGN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199084"
+   ]
+  },
+  "AMP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 86
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198293"
+   ]
+  },
+  "AMT": {
+   "dispositions": {
+    "INELIGIBLE": 1595,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 45
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196669"
+   ]
+  },
+  "AMZN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197029"
+   ]
+  },
+  "ANDV": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1098,
+    "SIGNAL_DECISION_RECORD_EMITTED": 122
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-199632"
+   ]
+  },
+  "ANET": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 380
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-187524"
+   ]
+  },
+  "AON": {
+   "dispositions": {
+    "INELIGIBLE": 44,
+    "SIGNAL_DECISION_RECORD_EMITTED": 64
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199105"
+   ]
+  },
+  "APA": {
+   "dispositions": {
+    "INELIGIBLE": 1261
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199952"
+   ]
+  },
+  "APC1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1678
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-198565"
+   ]
+  },
+  "APD": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 805
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199989"
+   ]
+  },
+  "ARG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 20
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198401"
+   ]
+  },
+  "ATVI": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1153
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198850"
+   ]
+  },
+  "AVB": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 43
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197515"
+   ]
+  },
+  "AVGO": {
+   "dispositions": {
+    "INELIGIBLE": 869,
+    "SIGNAL_DECISION_RECORD_EMITTED": 327
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193427"
+   ]
+  },
+  "AXP": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199971"
+   ]
+  },
+  "AYX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 2
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124160"
+   ]
+  },
+  "AZO": {
+   "dispositions": {
+    "INELIGIBLE": 104,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1199
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197997"
+   ]
+  },
+  "BA": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199900"
+   ]
+  },
+  "BAC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199495"
+   ]
+  },
+  "BAX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1327
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199910"
+   ]
+  },
+  "BBBY": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 61
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197799"
+   ]
+  },
+  "BBBYQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 399
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "BBWI": {
+   "dispositions": {
+    "INTEGRITY_STOP": 545
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "BBY": {
+   "dispositions": {
+    "INELIGIBLE": 65,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1175
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198613"
+   ]
+  },
+  "BCR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 85
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199915"
+   ]
+  },
+  "BDX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 943
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199909"
+   ]
+  },
+  "BEAM2": {
+   "dispositions": {
+    "INTEGRITY_STOP": 42
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-198507"
+   ]
+  },
+  "BEAV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 21
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198045"
+   ]
+  },
+  "BEN": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 46
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199705"
+   ]
+  },
+  "BFH": {
+   "dispositions": {
+    "INTEGRITY_STOP": 400
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "BHC": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1006
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "BHI": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 842
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198375"
+   ]
+  },
+  "BIIB": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197935"
+   ]
+  },
+  "BKNG": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1298,
+    "SIGNAL_DECISION_RECORD_EMITTED": 402
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-196456"
+   ]
+  },
+  "BLK": {
+   "dispositions": {
+    "INELIGIBLE": 1700
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194456"
+   ]
+  },
+  "BMC": {
+   "dispositions": {
+    "INELIGIBLE": 1,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 43
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198189"
+   ]
+  },
+  "BMRN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 171
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196723"
+   ]
+  },
+  "BMY": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199891"
+   ]
+  },
+  "BNY": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1700
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "BRCM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 589
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196660"
+   ]
+  },
+  "BRK.A": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 3
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-119497"
+   ]
+  },
+  "BRK.B": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196523"
+   ]
+  },
+  "BSX": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1093
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197806"
+   ]
+  },
+  "BTUUQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 190
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "BURL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 20
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191413"
+   ]
+  },
+  "BX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 406
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194072"
+   ]
+  },
+  "BXP": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196860"
+   ]
+  },
+  "C": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198215"
+   ]
+  },
+  "CA1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 23
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "CAG": {
+   "dispositions": {
+    "INELIGIBLE": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 101
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199823"
+   ]
+  },
+  "CAH": {
+   "dispositions": {
+    "INELIGIBLE": 42,
+    "SIGNAL_DECISION_RECORD_EMITTED": 796
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198823"
+   ]
+  },
+  "CAM2": {
+   "dispositions": {
+    "INTEGRITY_STOP": 544
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "CAT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199869"
+   ]
+  },
+  "CB": {
+   "dispositions": {
+    "INELIGIBLE": 81,
+    "INTEGRITY_STOP": 3,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1152
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-197681",
+    "PSEC-199850"
+   ]
+  },
+  "CB1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 84
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-199850"
+   ]
+  },
+  "CCI": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1599
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "CCL": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1322
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198314"
+   ]
+  },
+  "CELG": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198310"
+   ]
+  },
+  "CERN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 66
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198397"
+   ]
+  },
+  "CETX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 589
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193510"
+   ]
+  },
+  "CF": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 547
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194851"
+   ]
+  },
+  "CFG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 455
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-187803"
+   ]
+  },
+  "CGC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 42
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-115953"
+   ]
+  },
+  "CHKAQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1051
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "CHTR": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 130,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1174
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196283"
+   ]
+  },
+  "CI": {
+   "dispositions": {
+    "INELIGIBLE": 1049,
+    "SIGNAL_DECISION_RECORD_EMITTED": 150
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198962"
+   ]
+  },
+  "CL": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199836"
+   ]
+  },
+  "CLF": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 149
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198616"
+   ]
+  },
+  "CLR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 372
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198737"
+   ]
+  },
+  "CLX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 42
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199841"
+   ]
+  },
+  "CMCSA": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 173,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1402
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195656"
+   ]
+  },
+  "CMCSK": {
+   "dispositions": {
+    "INELIGIBLE": 60,
+    "INTEGRITY_STOP": 14,
+    "SIGNAL_DECISION_RECORD_EMITTED": 136
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-116543"
+   ]
+  },
+  "CME": {
+   "dispositions": {
+    "INELIGIBLE": 20,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 781
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195760"
+   ]
+  },
+  "CMG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 715
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196625"
+   ]
+  },
+  "CMI": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199799"
+   ]
+  },
+  "CNC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 249
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196482"
+   ]
+  },
+  "COF": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1493
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197378"
+   ]
+  },
+  "COL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 84
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195845"
+   ]
+  },
+  "COP": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195694"
+   ]
+  },
+  "COR": {
+   "dispositions": {
+    "INTEGRITY_STOP": 631
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "COST": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197593"
+   ]
+  },
+  "COTY": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 62
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196967"
+   ]
+  },
+  "COUP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 44
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124254"
+   ]
+  },
+  "COV": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 5,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 229
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194188"
+   ]
+  },
+  "CPAY": {
+   "dispositions": {
+    "INTEGRITY_STOP": 64
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "CPB": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 42
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199877"
+   ]
+  },
+  "CPPRQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 253
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "CPRI": {
+   "dispositions": {
+    "INTEGRITY_STOP": 754
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "CRM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196078"
+   ]
+  },
+  "CRON": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 64
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-119398"
+   ]
+  },
+  "CSCO": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198061"
+   ]
+  },
+  "CSX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1029
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199144"
+   ]
+  },
+  "CTRA": {
+   "dispositions": {
+    "INTEGRITY_STOP": 717
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "CTRX": {
+   "dispositions": {
+    "INTEGRITY_STOP": 7,
+    "SIGNAL_DECISION_RECORD_EMITTED": 37
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194466"
+   ]
+  },
+  "CTSH": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196624"
+   ]
+  },
+  "CTXS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 463
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197912"
+   ]
+  },
+  "CVS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199546"
+   ]
+  },
+  "CVX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199327"
+   ]
+  },
+  "CXO": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1089
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194516"
+   ]
+  },
+  "D": {
+   "dispositions": {
+    "INELIGIBLE": 22,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1473
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198869"
+   ]
+  },
+  "DAL": {
+   "dispositions": {
+    "INELIGIBLE": 104,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199791"
+   ]
+  },
+  "DATA": {
+   "dispositions": {
+    "INTEGRITY_STOP": 22
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195014"
+   ]
+  },
+  "DD": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 440,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1075
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-199769",
+    "PSEC-199776"
+   ]
+  },
+  "DD1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1196
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "DDD": {
+   "dispositions": {
+    "INELIGIBLE": 85,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 278
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197580"
+   ]
+  },
+  "DE": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199109"
+   ]
+  },
+  "DELL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 40
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124114"
+   ]
+  },
+  "DELL1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 211
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-198249"
+   ]
+  },
+  "DFODQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 41
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "DFS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 950
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194076"
+   ]
+  },
+  "DG": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199781"
+   ]
+  },
+  "DHI": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 482
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197856"
+   ]
+  },
+  "DHR": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199122"
+   ]
+  },
+  "DINO": {
+   "dispositions": {
+    "INTEGRITY_STOP": 334
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "DIS": {
+   "dispositions": {
+    "INELIGIBLE": 1598,
+    "SIGNAL_DECISION_RECORD_EMITTED": 102
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197197"
+   ]
+  },
+  "DISH": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 107
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197196"
+   ]
+  },
+  "DLR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 106
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195059"
+   ]
+  },
+  "DLTR": {
+   "dispositions": {
+    "INELIGIBLE": 82,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1155
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197305"
+   ]
+  },
+  "DOC": {
+   "dispositions": {
+    "INTEGRITY_STOP": 85
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "DOV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 39
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199777"
+   ]
+  },
+  "DPZ": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 295
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195164"
+   ]
+  },
+  "DRI": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 21
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197289"
+   ]
+  },
+  "DTV1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 650
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-193222"
+   ]
+  },
+  "DUK": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194830"
+   ]
+  },
+  "DVA": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 22
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197383"
+   ]
+  },
+  "DVN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1452
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196296"
+   ]
+  },
+  "DXC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 84
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124251"
+   ]
+  },
+  "DXCM": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 40
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196261"
+   ]
+  },
+  "EA": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1217
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198895"
+   ]
+  },
+  "EBAY": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196550"
+   ]
+  },
+  "ECL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 213
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199760"
+   ]
+  },
+  "ED": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 85
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196730"
+   ]
+  },
+  "EFX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 62
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199747"
+   ]
+  },
+  "EIX": {
+   "dispositions": {
+    "INELIGIBLE": 1,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 43,
+    "SIGNAL_DECISION_RECORD_EMITTED": 61
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198242"
+   ]
+  },
+  "EL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 712
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197192"
+   ]
+  },
+  "ELV": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1700
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "EMC1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 945
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-198495"
+   ]
+  },
+  "EMR": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199753"
+   ]
+  },
+  "ENDPQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 421
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "EOG": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198278"
+   ]
+  },
+  "EPD": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 194
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196584"
+   ]
+  },
+  "EQIX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1327
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196146"
+   ]
+  },
+  "EQR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 125
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197624"
+   ]
+  },
+  "EQT": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 294
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199746"
+   ]
+  },
+  "ESRX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 7,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1318
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192161"
+   ]
+  },
+  "ET": {
+   "dispositions": {
+    "INTEGRITY_STOP": 190,
+    "SIGNAL_DECISION_RECORD_EMITTED": 40
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-195256"
+   ]
+  },
+  "ETN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1366
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191882"
+   ]
+  },
+  "ETP1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 104
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "ETR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 43
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199535"
+   ]
+  },
+  "EW": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 548
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196170"
+   ]
+  },
+  "EXC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196066"
+   ]
+  },
+  "EXPE": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1184
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194849"
+   ]
+  },
+  "F": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1287
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199713"
+   ]
+  },
+  "FANG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 315
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192041"
+   ]
+  },
+  "FCX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1368
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198214"
+   ]
+  },
+  "FDC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 166
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-165460"
+   ]
+  },
+  "FDX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196717"
+   ]
+  },
+  "FE": {
+   "dispositions": {
+    "INELIGIBLE": 61,
+    "SIGNAL_DECISION_RECORD_EMITTED": 170
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196912"
+   ]
+  },
+  "FFIV": {
+   "dispositions": {
+    "INELIGIBLE": 104,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 191
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196719"
+   ]
+  },
+  "FIS": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 152
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195852"
+   ]
+  },
+  "FISV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 150
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198439"
+   ]
+  },
+  "FITB": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 694
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199730"
+   ]
+  },
+  "FL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 187
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198109"
+   ]
+  },
+  "FRX1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 85
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-199710"
+   ]
+  },
+  "FSLR": {
+   "dispositions": {
+    "INELIGIBLE": 106,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 255
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195267"
+   ]
+  },
+  "FTV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 63
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124782"
+   ]
+  },
+  "FWONA": {
+   "dispositions": {
+    "INTEGRITY_STOP": 167
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "GAP": {
+   "dispositions": {
+    "INTEGRITY_STOP": 633
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "GD": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1453
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199689"
+   ]
+  },
+  "GE": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199688"
+   ]
+  },
+  "GEN": {
+   "dispositions": {
+    "INTEGRITY_STOP": 775
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "GGP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 42
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192812"
+   ]
+  },
+  "GILD": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197859"
+   ]
+  },
+  "GIS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1325
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199685"
+   ]
+  },
+  "GLW": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1116
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199811"
+   ]
+  },
+  "GM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193197"
+   ]
+  },
+  "GMCR": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 526
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197592"
+   ]
+  },
+  "GOOG": {
+   "dispositions": {
+    "INELIGIBLE": 846,
+    "INTEGRITY_STOP": 1,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 113,
+    "SIGNAL_DECISION_RECORD_EMITTED": 175
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-119496"
+   ]
+  },
+  "GOOGL": {
+   "dispositions": {
+    "INELIGIBLE": 846,
+    "INTEGRITY_STOP": 316,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 113,
+    "SIGNAL_DECISION_RECORD_EMITTED": 425
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-195146"
+   ]
+  },
+  "GPN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 44
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195973"
+   ]
+  },
+  "GPRO": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 147
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-187958"
+   ]
+  },
+  "GRPN": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 128
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192920"
+   ]
+  },
+  "GRUB1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 40
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "GS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197790"
+   ]
+  },
+  "GTATQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 107
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-194058"
+   ]
+  },
+  "GWW": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 460
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199150"
+   ]
+  },
+  "HAL": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199665"
+   ]
+  },
+  "HBAN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 104
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199641"
+   ]
+  },
+  "HCA": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1280
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198048"
+   ]
+  },
+  "HD": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198999"
+   ]
+  },
+  "HES": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1493
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199976"
+   ]
+  },
+  "HIG": {
+   "dispositions": {
+    "INELIGIBLE": 86,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 86
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197940"
+   ]
+  },
+  "HLF": {
+   "dispositions": {
+    "INELIGIBLE": 61,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 149
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195522"
+   ]
+  },
+  "HLT": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 761
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-186763"
+   ]
+  },
+  "HNZ": {
+   "dispositions": {
+    "INELIGIBLE": 47,
+    "INTEGRITY_STOP": 17
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199654"
+   ]
+  },
+  "HON": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198566"
+   ]
+  },
+  "HOT": {
+   "dispositions": {
+    "INELIGIBLE": 61,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 419
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199096"
+   ]
+  },
+  "HP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 103
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199653"
+   ]
+  },
+  "HPE": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 401
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-165453"
+   ]
+  },
+  "HPQ": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1430
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199650"
+   ]
+  },
+  "HSH": {
+   "dispositions": {
+    "INTEGRITY_STOP": 2,
+    "SIGNAL_DECISION_RECORD_EMITTED": 19
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199819"
+   ]
+  },
+  "HSP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 41
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195268"
+   ]
+  },
+  "HST": {
+   "dispositions": {
+    "INELIGIBLE": 44,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 318
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196489"
+   ]
+  },
+  "HSY": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 66
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199652"
+   ]
+  },
+  "HTZGQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 505
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "HUM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1175
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199642"
+   ]
+  },
+  "HWM": {
+   "dispositions": {
+    "INTEGRITY_STOP": 986
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "IBM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199623"
+   ]
+  },
+  "ICE": {
+   "dispositions": {
+    "INELIGIBLE": 42,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1048
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191531"
+   ]
+  },
+  "ICPT": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 63
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195295"
+   ]
+  },
+  "ILMN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1260
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196057"
+   ]
+  },
+  "INCY": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 291
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197897"
+   ]
+  },
+  "INTC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199626"
+   ]
+  },
+  "INTU": {
+   "dispositions": {
+    "INELIGIBLE": 43,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1012
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197671"
+   ]
+  },
+  "IONS": {
+   "dispositions": {
+    "INTEGRITY_STOP": 82
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "IP": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 422
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199621"
+   ]
+  },
+  "IPG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 21
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199619"
+   ]
+  },
+  "IQV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 66
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193088"
+   ]
+  },
+  "ISRG": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1244
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196885"
+   ]
+  },
+  "ITW": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 43,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1260
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199634"
+   ]
+  },
+  "IVZ": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 22
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197533"
+   ]
+  },
+  "JAGX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 775
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-157178"
+   ]
+  },
+  "JAH": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 20
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197685"
+   ]
+  },
+  "JAZZ": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 42
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195399"
+   ]
+  },
+  "JBLU": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 169
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195734"
+   ]
+  },
+  "JCI": {
+   "dispositions": {
+    "INELIGIBLE": 124,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1158
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124117"
+   ]
+  },
+  "JNJ": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199185"
+   ]
+  },
+  "JNPR": {
+   "dispositions": {
+    "INELIGIBLE": 82,
+    "SIGNAL_DECISION_RECORD_EMITTED": 229
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196779"
+   ]
+  },
+  "JOY": {
+   "dispositions": {
+    "INELIGIBLE": 82
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198414"
+   ]
+  },
+  "JPM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199853"
+   ]
+  },
+  "JUNO": {
+   "dispositions": {
+    "INTEGRITY_STOP": 19,
+    "SIGNAL_DECISION_RECORD_EMITTED": 2
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-187401"
+   ]
+  },
+  "JWN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 209
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199482"
+   ]
+  },
+  "K": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 254
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199601"
+   ]
+  },
+  "KDP": {
+   "dispositions": {
+    "INTEGRITY_STOP": 43
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "KEY": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 902
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199345"
+   ]
+  },
+  "KHC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 799
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-165518"
+   ]
+  },
+  "KITE": {
+   "dispositions": {
+    "INTEGRITY_STOP": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-187698"
+   ]
+  },
+  "KLAC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 86
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199070"
+   ]
+  },
+  "KMB": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1412
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199593"
+   ]
+  },
+  "KMI": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192603"
+   ]
+  },
+  "KMP": {
+   "dispositions": {
+    "INTEGRITY_STOP": 2,
+    "SIGNAL_DECISION_RECORD_EMITTED": 40
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197771"
+   ]
+  },
+  "KMX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 20
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195621"
+   ]
+  },
+  "KO": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199839"
+   ]
+  },
+  "KR": {
+   "dispositions": {
+    "INELIGIBLE": 64,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1471
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199588"
+   ]
+  },
+  "KRFT": {
+   "dispositions": {
+    "INTEGRITY_STOP": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 356
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191963"
+   ]
+  },
+  "KSS": {
+   "dispositions": {
+    "INELIGIBLE": 82,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1025
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197807"
+   ]
+  },
+  "KSU": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 40
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199604"
+   ]
+  },
+  "LBTYA": {
+   "dispositions": {
+    "INELIGIBLE": 147,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 38,
+    "SIGNAL_DECISION_RECORD_EMITTED": 234
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191556"
+   ]
+  },
+  "LBTYK": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 229
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-119285"
+   ]
+  },
+  "LEN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 544
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197459"
+   ]
+  },
+  "LH": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 19
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197469"
+   ]
+  },
+  "LHX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 66
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199181"
+   ]
+  },
+  "LIFE2": {
+   "dispositions": {
+    "INTEGRITY_STOP": 129
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "LLY": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199575"
+   ]
+  },
+  "LMT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197300"
+   ]
+  },
+  "LNG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 421
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199981"
+   ]
+  },
+  "LNKD": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 17,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 806
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195290"
+   ]
+  },
+  "LO": {
+   "dispositions": {
+    "INTEGRITY_STOP": 14,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 327
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193634"
+   ]
+  },
+  "LOW": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199568"
+   ]
+  },
+  "LRCX": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 713
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198922"
+   ]
+  },
+  "LULU": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 528
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194033"
+   ]
+  },
+  "LUMN": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1132
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "LUV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1427
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199335"
+   ]
+  },
+  "LVS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195045"
+   ]
+  },
+  "LYB": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192935"
+   ]
+  },
+  "M": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1495
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198461"
+   ]
+  },
+  "MA": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195805"
+   ]
+  },
+  "MAC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 22
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197567"
+   ]
+  },
+  "MAR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1112
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196724"
+   ]
+  },
+  "MAT": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 42
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199556"
+   ]
+  },
+  "MCD": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199552"
+   ]
+  },
+  "MCHP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 630
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198241"
+   ]
+  },
+  "MCK": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 43,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1404
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197377"
+   ]
+  },
+  "MDB": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 86
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-121821"
+   ]
+  },
+  "MDLZ": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196115"
+   ]
+  },
+  "MDT": {
+   "dispositions": {
+    "INELIGIBLE": 542,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1158
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-170416"
+   ]
+  },
+  "MDVN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 22
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197089"
+   ]
+  },
+  "MET": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196179"
+   ]
+  },
+  "META": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1596
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "MGM": {
+   "dispositions": {
+    "INELIGIBLE": 104,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1134
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198503"
+   ]
+  },
+  "MHK": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 65
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198097"
+   ]
+  },
+  "MJN": {
+   "dispositions": {
+    "INELIGIBLE": 104,
+    "INTEGRITY_STOP": 13,
+    "SIGNAL_DECISION_RECORD_EMITTED": 239
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193321"
+   ]
+  },
+  "MMM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199527"
+   ]
+  },
+  "MNDT": {
+   "dispositions": {
+    "INTEGRITY_STOP": 294
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "MNKKQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 146
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "MNST": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 338
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198010"
+   ]
+  },
+  "MO": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198615"
+   ]
+  },
+  "MON2": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1384
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-196059"
+   ]
+  },
+  "MOS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 318
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195175"
+   ]
+  },
+  "MPC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192545"
+   ]
+  },
+  "MRK": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199137"
+   ]
+  },
+  "MRO": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1407
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199252"
+   ]
+  },
+  "MRSH": {
+   "dispositions": {
+    "INTEGRITY_STOP": 44
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "MRVL": {
+   "dispositions": {
+    "INELIGIBLE": 276
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196626"
+   ]
+  },
+  "MS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197692"
+   ]
+  },
+  "MSFT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198508"
+   ]
+  },
+  "MSI": {
+   "dispositions": {
+    "INELIGIBLE": 1,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 43
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199513"
+   ]
+  },
+  "MTCH": {
+   "dispositions": {
+    "INTEGRITY_STOP": 24
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "MU": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198808"
+   ]
+  },
+  "MUR": {
+   "dispositions": {
+    "INELIGIBLE": 40
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198859"
+   ]
+  },
+  "NBL": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 568
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199485"
+   ]
+  },
+  "NEBLQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 334
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "NEE": {
+   "dispositions": {
+    "INELIGIBLE": 65,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198642"
+   ]
+  },
+  "NEM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1288
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195674"
+   ]
+  },
+  "NFLX": {
+   "dispositions": {
+    "INELIGIBLE": 735,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 113,
+    "SIGNAL_DECISION_RECORD_EMITTED": 54
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196547"
+   ]
+  },
+  "NKE": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199060"
+   ]
+  },
+  "NKTR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 85
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197616"
+   ]
+  },
+  "NLY": {
+   "dispositions": {
+    "INELIGIBLE": 103,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 107
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196785"
+   ]
+  },
+  "NOC": {
+   "dispositions": {
+    "INELIGIBLE": 39,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1368
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195878"
+   ]
+  },
+  "NOV": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 716
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196999"
+   ]
+  },
+  "NOW": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 505
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194342"
+   ]
+  },
+  "NSC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1261
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198952"
+   ]
+  },
+  "NTAP": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 464
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197175"
+   ]
+  },
+  "NUE": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 209
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199469"
+   ]
+  },
+  "NUS": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 103
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197001"
+   ]
+  },
+  "NUWE": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1660
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "NWL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 545
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198326"
+   ]
+  },
+  "NXPI": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1408
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-190485"
+   ]
+  },
+  "OCR": {
+   "dispositions": {
+    "INTEGRITY_STOP": 11,
+    "SIGNAL_DECISION_RECORD_EMITTED": 32
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199014"
+   ]
+  },
+  "OIS": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 43,
+    "SIGNAL_DECISION_RECORD_EMITTED": 23
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195993"
+   ]
+  },
+  "OKE": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 63
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196837"
+   ]
+  },
+  "OKTA": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 86
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124116"
+   ]
+  },
+  "OLED": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 61
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197135"
+   ]
+  },
+  "OMC": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 40,
+    "SIGNAL_DECISION_RECORD_EMITTED": 62
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199774"
+   ]
+  },
+  "ONXX": {
+   "dispositions": {
+    "INTEGRITY_STOP": 24,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 2
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197086"
+   ]
+  },
+  "ORCL": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194684"
+   ]
+  },
+  "ORLY": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 986
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197659"
+   ]
+  },
+  "OVV": {
+   "dispositions": {
+    "INTEGRITY_STOP": 105
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "OXY": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198445"
+   ]
+  },
+  "P1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 294
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "PANW": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1155
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194809"
+   ]
+  },
+  "PCG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 755
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197145"
+   ]
+  },
+  "PCP": {
+   "dispositions": {
+    "INELIGIBLE": 61,
+    "INTEGRITY_STOP": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 570
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199415"
+   ]
+  },
+  "PCYC": {
+   "dispositions": {
+    "INTEGRITY_STOP": 5,
+    "SIGNAL_DECISION_RECORD_EMITTED": 57
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197217"
+   ]
+  },
+  "PEG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 61
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198512"
+   ]
+  },
+  "PENN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 46
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197445"
+   ]
+  },
+  "PEP": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199433"
+   ]
+  },
+  "PETM": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 21
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198027"
+   ]
+  },
+  "PFE": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199428"
+   ]
+  },
+  "PG": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199411"
+   ]
+  },
+  "PGR": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 464
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199410"
+   ]
+  },
+  "PH": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 460
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199439"
+   ]
+  },
+  "PHM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 88
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198273"
+   ]
+  },
+  "PLD": {
+   "dispositions": {
+    "INELIGIBLE": 1,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 214
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196757"
+   ]
+  },
+  "PM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193811"
+   ]
+  },
+  "PNC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198886"
+   ]
+  },
+  "POT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 295
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198076"
+   ]
+  },
+  "PPG": {
+   "dispositions": {
+    "INELIGIBLE": 124,
+    "SIGNAL_DECISION_RECORD_EMITTED": 548
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199416"
+   ]
+  },
+  "PPL": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 598
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197439"
+   ]
+  },
+  "PRGO": {
+   "dispositions": {
+    "INELIGIBLE": 1,
+    "SIGNAL_DECISION_RECORD_EMITTED": 631
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191345"
+   ]
+  },
+  "PRU": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195843"
+   ]
+  },
+  "PSA": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 799
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194082"
+   ]
+  },
+  "PSKY": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1362
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "PSX": {
+   "dispositions": {
+    "INELIGIBLE": 43,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1496
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192106"
+   ]
+  },
+  "PVH": {
+   "dispositions": {
+    "INELIGIBLE": 22
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199425"
+   ]
+  },
+  "PX1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 968
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-197821"
+   ]
+  },
+  "PXD": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196845"
+   ]
+  },
+  "PXP": {
+   "dispositions": {
+    "INELIGIBLE": 21
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197730"
+   ]
+  },
+  "PYPL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 799
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-178719"
+   ]
+  },
+  "QCOM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198399"
+   ]
+  },
+  "QCOR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 22
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197733"
+   ]
+  },
+  "RADCQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 257
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "RAI": {
+   "dispositions": {
+    "INTEGRITY_STOP": 6,
+    "SIGNAL_DECISION_RECORD_EMITTED": 603
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195259"
+   ]
+  },
+  "RCL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 732
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197822"
+   ]
+  },
+  "RCPT": {
+   "dispositions": {
+    "INTEGRITY_STOP": 3,
+    "SIGNAL_DECISION_RECORD_EMITTED": 18
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193238"
+   ]
+  },
+  "REGN": {
+   "dispositions": {
+    "INELIGIBLE": 103,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197961"
+   ]
+  },
+  "RF": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 22,
+    "SIGNAL_DECISION_RECORD_EMITTED": 899
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195225"
+   ]
+  },
+  "RHT": {
+   "dispositions": {
+    "INTEGRITY_STOP": 18,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 113,
+    "SIGNAL_DECISION_RECORD_EMITTED": 307
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196326"
+   ]
+  },
+  "RIG": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 759
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193333"
+   ]
+  },
+  "RL": {
+   "dispositions": {
+    "INELIGIBLE": 82,
+    "SIGNAL_DECISION_RECORD_EMITTED": 125
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196866"
+   ]
+  },
+  "ROK": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 107
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196966"
+   ]
+  },
+  "ROKU": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 113,
+    "SIGNAL_DECISION_RECORD_EMITTED": 140
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-121823"
+   ]
+  },
+  "ROST": {
+   "dispositions": {
+    "INELIGIBLE": 124,
+    "SIGNAL_DECISION_RECORD_EMITTED": 714
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198685"
+   ]
+  },
+  "RRC": {
+   "dispositions": {
+    "INELIGIBLE": 22,
+    "SIGNAL_DECISION_RECORD_EMITTED": 402
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199099"
+   ]
+  },
+  "RTN": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1494
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196736"
+   ]
+  },
+  "RTX": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1700
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "S2": {
+   "dispositions": {
+    "INTEGRITY_STOP": 21
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "SBAC": {
+   "dispositions": {
+    "INELIGIBLE": 22,
+    "SIGNAL_DECISION_RECORD_EMITTED": 106
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196897"
+   ]
+  },
+  "SBUX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198229"
+   ]
+  },
+  "SCHW": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199093"
+   ]
+  },
+  "SCTY1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 272
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "SE1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 226
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "SHPG": {
+   "dispositions": {
+    "INTEGRITY_STOP": 18,
+    "SIGNAL_DECISION_RECORD_EMITTED": 735
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197302"
+   ]
+  },
+  "SHW": {
+   "dispositions": {
+    "INELIGIBLE": 82,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1222
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199357"
+   ]
+  },
+  "SIG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 44
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198202"
+   ]
+  },
+  "SIRI": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 385
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197600"
+   ]
+  },
+  "SJM": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 61
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199347"
+   ]
+  },
+  "SLB": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199371"
+   ]
+  },
+  "SLCA": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 41
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192287"
+   ]
+  },
+  "SLM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 170
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196907"
+   ]
+  },
+  "SLXP": {
+   "dispositions": {
+    "INTEGRITY_STOP": 22,
+    "SIGNAL_DECISION_RECORD_EMITTED": 145
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197107"
+   ]
+  },
+  "SNAP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 256
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124373"
+   ]
+  },
+  "SNDK1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 839
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-197210"
+   ]
+  },
+  "SO": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199337"
+   ]
+  },
+  "SPG": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196561"
+   ]
+  },
+  "SPGI": {
+   "dispositions": {
+    "INTEGRITY_STOP": 61,
+    "SIGNAL_DECISION_RECORD_EMITTED": 526
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-199551"
+   ]
+  },
+  "SPLK": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 401
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194590"
+   ]
+  },
+  "SPLS1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 145
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "SRE": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 441
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196905"
+   ]
+  },
+  "SRPT": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 20
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197955"
+   ]
+  },
+  "STI1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1048
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "STJ": {
+   "dispositions": {
+    "INELIGIBLE": 82,
+    "INTEGRITY_STOP": 19,
+    "SIGNAL_DECISION_RECORD_EMITTED": 190
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199178"
+   ]
+  },
+  "STRZA": {
+   "dispositions": {
+    "INELIGIBLE": 34,
+    "INTEGRITY_STOP": 6
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-192577"
+   ]
+  },
+  "STT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1193
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199321"
+   ]
+  },
+  "STX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1034
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195842"
+   ]
+  },
+  "STZ": {
+   "dispositions": {
+    "INELIGIBLE": 22,
+    "SIGNAL_DECISION_RECORD_EMITTED": 967
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199876"
+   ]
+  },
+  "SUNEQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 400
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "SWK": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 165
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199324"
+   ]
+  },
+  "SWKS": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1012
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199979"
+   ]
+  },
+  "SWN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 674
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199941"
+   ]
+  },
+  "SWY": {
+   "dispositions": {
+    "INELIGIBLE": 65,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 21,
+    "SIGNAL_DECISION_RECORD_EMITTED": 127
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199378"
+   ]
+  },
+  "SYF": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 756
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-187530"
+   ]
+  },
+  "SYK": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 671
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199133"
+   ]
+  },
+  "SYY": {
+   "dispositions": {
+    "INELIGIBLE": 22,
+    "SIGNAL_DECISION_RECORD_EMITTED": 586
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199307"
+   ]
+  },
+  "T": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 173,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1402
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198738"
+   ]
+  },
+  "TAP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 231
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199812"
+   ]
+  },
+  "TDC": {
+   "dispositions": {
+    "INELIGIBLE": 21
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198309"
+   ]
+  },
+  "TDG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 127
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195349"
+   ]
+  },
+  "TEAM": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 86
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-165452"
+   ]
+  },
+  "TEL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 63
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194189"
+   ]
+  },
+  "TEVA": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1386
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-189782"
+   ]
+  },
+  "TFC": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1064
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "TFCF": {
+   "dispositions": {
+    "INTEGRITY_STOP": 188,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-194984"
+   ]
+  },
+  "TFCFA": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1570,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-119498"
+   ]
+  },
+  "TGT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199795"
+   ]
+  },
+  "TIF": {
+   "dispositions": {
+    "INELIGIBLE": 61,
+    "SIGNAL_DECISION_RECORD_EMITTED": 127
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199285"
+   ]
+  },
+  "TJX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199196"
+   ]
+  },
+  "TMO": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199287"
+   ]
+  },
+  "TMUS": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 113,
+    "SIGNAL_DECISION_RECORD_EMITTED": 810
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195192"
+   ]
+  },
+  "TOL": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 26
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198464"
+   ]
+  },
+  "TPR": {
+   "dispositions": {
+    "INTEGRITY_STOP": 544
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "TRIP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 313
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192267"
+   ]
+  },
+  "TRN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 19
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199275"
+   ]
+  },
+  "TRV": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1613
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "TRW": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 42
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195315"
+   ]
+  },
+  "TSLA": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1494
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194897"
+   ]
+  },
+  "TSN": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1033
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199271"
+   ]
+  },
+  "TT": {
+   "dispositions": {
+    "INTEGRITY_STOP": 334
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "TTD": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 129
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-124697"
+   ]
+  },
+  "TTWO": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 395
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197239"
+   ]
+  },
+  "TWC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 10,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 664
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194291"
+   ]
+  },
+  "TWLO": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 230
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-376609"
+   ]
+  },
+  "TWTR": {
+   "dispositions": {
+    "INELIGIBLE": 1057,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 113,
+    "SIGNAL_DECISION_RECORD_EMITTED": 48
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-187959"
+   ]
+  },
+  "TWX": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 11,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1188
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196101"
+   ]
+  },
+  "TXN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199289"
+   ]
+  },
+  "TYC": {
+   "dispositions": {
+    "INELIGIBLE": 21,
+    "INTEGRITY_STOP": 20,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-573113"
+   ]
+  },
+  "UAA": {
+   "dispositions": {
+    "INTEGRITY_STOP": 571
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "UAL": {
+   "dispositions": {
+    "INELIGIBLE": 64,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1512
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199270"
+   ]
+  },
+  "ULTA": {
+   "dispositions": {
+    "INELIGIBLE": 22,
+    "SIGNAL_DECISION_RECORD_EMITTED": 841
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193952"
+   ]
+  },
+  "ULTI1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 22
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-197056"
+   ]
+  },
+  "UNH": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198744"
+   ]
+  },
+  "UNP": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199262"
+   ]
+  },
+  "UPS": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196291"
+   ]
+  },
+  "URI": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 981
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196526"
+   ]
+  },
+  "USB": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199727"
+   ]
+  },
+  "V": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-193960"
+   ]
+  },
+  "VALPQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 313
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "VEEV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 44
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194084"
+   ]
+  },
+  "VER": {
+   "dispositions": {
+    "INTEGRITY_STOP": 43
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "VFC": {
+   "dispositions": {
+    "INELIGIBLE": 61,
+    "SIGNAL_DECISION_RECORD_EMITTED": 416
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199238"
+   ]
+  },
+  "VIAB": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 778
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194695"
+   ]
+  },
+  "VLO": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196889"
+   ]
+  },
+  "VMC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 124
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194052"
+   ]
+  },
+  "VMED": {
+   "dispositions": {
+    "INELIGIBLE": 48,
+    "INTEGRITY_STOP": 16
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-114492"
+   ]
+  },
+  "VMW": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 803
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195958"
+   ]
+  },
+  "VRSN": {
+   "dispositions": {
+    "INELIGIBLE": 60
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197066"
+   ]
+  },
+  "VRTX": {
+   "dispositions": {
+    "INELIGIBLE": 1,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 43,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1092
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-197931"
+   ]
+  },
+  "VTR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 292
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198716"
+   ]
+  },
+  "VTRS": {
+   "dispositions": {
+    "INTEGRITY_STOP": 1341
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "VZ": {
+   "dispositions": {
+    "INELIGIBLE": 1483,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 173,
+    "SIGNAL_DECISION_RECORD_EMITTED": 44
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198739"
+   ]
+  },
+  "W": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 228
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-187888"
+   ]
+  },
+  "WBA": {
+   "dispositions": {
+    "INTEGRITY_STOP": 504,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1196
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-179780"
+   ]
+  },
+  "WBD": {
+   "dispositions": {
+    "INTEGRITY_STOP": 463
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "WCG": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 166
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195237"
+   ]
+  },
+  "WDAY": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 506
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194807"
+   ]
+  },
+  "WDC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199216"
+   ]
+  },
+  "WELL": {
+   "dispositions": {
+    "INTEGRITY_STOP": 395
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "WFC": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199475"
+   ]
+  },
+  "WFM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 4,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 843
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198012"
+   ]
+  },
+  "WFTIQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 146
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "WHLR": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1469
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-192244"
+   ]
+  },
+  "WHR": {
+   "dispositions": {
+    "INELIGIBLE": 63,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 17,
+    "SIGNAL_DECISION_RECORD_EMITTED": 514
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199210"
+   ]
+  },
+  "WLL2": {
+   "dispositions": {
+    "INTEGRITY_STOP": 651
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "WLTGQ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 21
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "WM": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 151
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198260"
+   ]
+  },
+  "WMB": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1370
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199208"
+   ]
+  },
+  "WMT": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199233"
+   ]
+  },
+  "WOLF2": {
+   "dispositions": {
+    "INTEGRITY_STOP": 41
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "WP": {
+   "dispositions": {
+    "INTEGRITY_STOP": 94,
+    "SIGNAL_DECISION_RECORD_EMITTED": 299
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": [
+    "PSEC-192123"
+   ]
+  },
+  "WU": {
+   "dispositions": {
+    "INELIGIBLE": 83
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194449"
+   ]
+  },
+  "WWAV": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 42
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191803"
+   ]
+  },
+  "WY": {
+   "dispositions": {
+    "INELIGIBLE": 81,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 172
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199212"
+   ]
+  },
+  "WYNN": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195570"
+   ]
+  },
+  "X": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1286
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195691"
+   ]
+  },
+  "XEC": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 167
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195646"
+   ]
+  },
+  "XEL": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 105
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199477"
+   ]
+  },
+  "XL1": {
+   "dispositions": {
+    "INTEGRITY_STOP": 43
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "XLNX": {
+   "dispositions": {
+    "REFUSED_CODE_OR_DATA_IDENTITY": 39,
+    "SIGNAL_DECISION_RECORD_EMITTED": 509
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-198693"
+   ]
+  },
+  "XOM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1515
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199739"
+   ]
+  },
+  "XRX": {
+   "dispositions": {
+    "INELIGIBLE": 41
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-199200"
+   ]
+  },
+  "XXII": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 1135
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194628"
+   ]
+  },
+  "XYZ": {
+   "dispositions": {
+    "INTEGRITY_STOP": 547
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "YELP": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 316
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-194654"
+   ]
+  },
+  "YHOO": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "INTEGRITY_STOP": 11,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 937
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-113491"
+   ]
+  },
+  "YUM": {
+   "dispositions": {
+    "INELIGIBLE": 125,
+    "REFUSED_CODE_OR_DATA_IDENTITY": 60,
+    "SIGNAL_DECISION_RECORD_EMITTED": 1029
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-196816"
+   ]
+  },
+  "ZBH": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 230
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-195853"
+   ]
+  },
+  "ZG": {
+   "dispositions": {
+    "INTEGRITY_STOP": 149
+   },
+   "has_unresolved_units": true,
+   "resolved_permanent_security_ids": []
+  },
+  "ZS": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 44
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-120342"
+   ]
+  },
+  "ZTS": {
+   "dispositions": {
+    "SIGNAL_DECISION_RECORD_EMITTED": 778
+   },
+   "has_unresolved_units": false,
+   "resolved_permanent_security_ids": [
+    "PSEC-191804"
+   ]
+  }
+ },
+ "security_census_sha256": "1b8a96f80196ad3abc9175fe2c48680dcf6d06cc66d6aa02a29100b227562596",
+ "version": "1.0"
+}

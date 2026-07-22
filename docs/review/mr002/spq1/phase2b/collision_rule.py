@@ -62,12 +62,35 @@ def detect_request_identity_collisions(units, resolve):  # noqa: ANN001
     return collisions, groups
 
 
-def run_shard_governed(ctx, units):  # noqa: ANN001
+def assert_whole_session_request_set(units, expected_members):  # noqa: ANN001
+    """Whole-session collision-detection invariant: for EVERY session in this shard, the requests
+    presented to detection MUST equal the complete authorized in_long_universe request set for that
+    session. A session may never be split across independently-detected batches -- a split could hide a
+    collision spanning those batches. Fail-fast STOP on violation."""
+    exp = set(expected_members)
+    by_session: dict = {}
+    for symbol, t in units:
+        by_session.setdefault(t, set()).add(symbol)
+    for t, syms in by_session.items():
+        if syms != exp:
+            raise ValueError(
+                f"whole-session invariant violated at session {t}: presented {len(syms)} requests != "
+                f"complete authorized member set ({len(exp)}) -> session split across batches; STOP")
+    return len(by_session)
+
+
+def run_shard_governed(ctx, units, expected_members=None):  # noqa: ANN001
     """Frozen-code-preserving governed shard runner. Detects non-injective request-identity collisions
     (AFTER provisional resolution, BEFORE sector/earnings/producer/record-identity), emits an UNRESOLVED
     INTEGRITY_STOP for EVERY claimant in a collision group (no winner, no signal produced), and calls the
     frozen ``run_unit`` ONLY for non-colliding requests. Returns (results, content_sha256, collision_rows)
-    where collision_rows are per-request diagnostics for the CollisionCensus."""
+    where collision_rows are per-request diagnostics for the CollisionCensus.
+
+    ``expected_members`` (the authorized in_long_universe member set for this shard's governing month), when
+    provided, enforces the whole-session invariant BEFORE detection: every session must present its
+    complete authorized request set (no split batches)."""
+    if expected_members is not None:
+        assert_whole_session_request_set(units, expected_members)
     resolve = ctx.lineage.resolve_permanent_id          # the SAME registered resolver run_unit uses
     collisions, _groups = detect_request_identity_collisions(units, resolve)
     cal = ctx.calendar.sessions

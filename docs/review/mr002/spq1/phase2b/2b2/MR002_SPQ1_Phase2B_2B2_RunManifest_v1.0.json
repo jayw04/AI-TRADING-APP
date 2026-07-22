@@ -1,0 +1,86 @@
+{
+ "authorized_request_population": {
+  "short_only_members_dev": 0,
+  "short_side_reason": "in_short_universe is a strict subset of in_long_universe (short-only members over the dev window = 0, verified); the 150 short-universe members per month are already enumerated as long-side units. There are no short-only names -> short-side unit population is empty by the frozen SPQ-1 run configuration.",
+  "short_side_request_units_produced": 0,
+  "side": "LONG",
+  "statement": "authorized request population = all in_long_universe members for each of the 1,700 development sessions (the frozen producer request is LONG). Phase 2B-2 produces the long-side SPQ-1 development census ONLY."
+ },
+ "decision_cutoff": "registered ET close via zoneinfo (21:00Z standard / 20:00Z daylight)",
+ "development_snapshot_content_sha256": "1c6a5121467ea68a18a0e1b779e7aed10f39b606a2c769517a938b8f6f4a359a",
+ "development_window": {
+  "end": "2019-10-02",
+  "sessions": 1700,
+  "start": "2013-01-02"
+ },
+ "governed_code_identities": {
+  "collision_rule_module_identity": "d827cc422b93aef3e89eaac1b95956f520cc78c721e7f6bcb83e3ec7422b0c33",
+  "full_run_runner_identity": "9f913a76c6f831b5bcbe8c955414e4c6521f01591d37c318fff6f59b5a33fc88",
+  "phase2b_orchestration_code_identity_frozen": "bb029a96bb0c9e31600bd0b7ab068c31f70bbc7ac23afce0a3ffe0cb4412845b"
+ },
+ "increment": "2B-2 (full development signal-production run)",
+ "mandatory_pre_run_checks": {
+  "collision_rule_module_identity_matches": true,
+  "dev_calendar_identity_matches": true,
+  "dev_calendar_sha256": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0",
+  "development_snapshot_content_sha256": "1c6a5121467ea68a18a0e1b779e7aed10f39b606a2c769517a938b8f6f4a359a",
+  "frozen_orchestration_identity_unchanged_in_amendment": true,
+  "full_run_runner_identity_matches": true,
+  "increment3_accepted_output_unchanged": true,
+  "phase1_valid_path_output_unchanged": true,
+  "phase2b_orchestration_code_identity_matches": true,
+  "pit_sector_observation_source_sha256": "3fc538b1c6606c44cab1cc50f87ac803970e5d7d2ca6efa4f9fd3891240137af",
+  "pit_sector_source_identity_matches": true,
+  "provenance_db_sha256": "f9908dbd42feabcb0d4657691ba6362a6019eb09c41f782adb40e0aa680ec688",
+  "registered_calendar_canonical_identity": "28f447602be6955f165abc56ba99a0602ee4d105bc5c4220920593014df079b4",
+  "registered_provenance_db_identity_matches": true,
+  "registered_research_db_identity_matches": true,
+  "research_db_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "run_specification_sha256": "fd19aef5230bac56bc82be1efb1be55ba3fe5d4f9daae33608f49ebbfd4554c3",
+  "run_specification_v1_1_hash_matches": true,
+  "sic_mapping_content_sha256": "c4e8c5e3808426511b8605faff353f83b61cd1021321aff2e8b6662169acb006",
+  "sic_mapping_identity_matches": true,
+  "universe_content_sha256": "f638dfe3d0a2aa9b22a572d8e408faa863355bf8fe4550e624b6cfe660eedf39",
+  "universe_identity_matches": true,
+  "universe_rows": 20500
+ },
+ "performance_quarantine": "no signal value ranked or interpreted; only dispositions + record identities",
+ "phase2b_orchestration_code_identity": "bb029a96bb0c9e31600bd0b7ab068c31f70bbc7ac23afce0a3ffe0cb4412845b",
+ "pit_sector_source": "research.sic_observations (534/535 dev-universe ciks)",
+ "record_type": "MR002_SPQ1_Phase2B_2B2_RunManifest",
+ "request_identity_collision_rule": {
+  "collision_census_ref": "MR002_SPQ1_Phase2B_2B2_CollisionCensus_v1.0.json",
+  "collision_group_count": 35,
+  "collision_request_unit_count": 70,
+  "detection": "runner-side governed pre-production step (frozen phase2b modules unchanged)",
+  "distinct_collision_symbol_sets": 3,
+  "maximum_collision_cardinality": 2,
+  "rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+  "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS"
+ },
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "run_spec_sha256": "fd19aef5230bac56bc82be1efb1be55ba3fe5d4f9daae33608f49ebbfd4554c3",
+ "sic_to_sector_etf": "registered owner-countersigned sic_mapping",
+ "totals": {
+  "dispositions": {
+   "INELIGIBLE": 40457,
+   "INTEGRITY_STOP": 50399,
+   "REFUSED_CODE_OR_DATA_IDENTITY": 13373,
+   "SIGNAL_DECISION_RECORD_EMITTED": 320771
+  },
+  "emitted_eligibility": {
+   "ELIGIBLE": 320771
+  },
+  "expected_units": 425000,
+  "total_units": 425000
+ },
+ "universe_enumeration": {
+  "distinct_ciks": 535,
+  "distinct_member_tickers": 540,
+  "governing_months": 82,
+  "members_per_month": 250,
+  "membership_rule": "governing_universe_month(t)=max universe_month<=close(t); members = in_long_universe of ONLY that governing month; request unit=(session,ticker)",
+  "session_counts_vary": "first/last governing months hold partial development-month session ranges; expected units reconstructed per shard, NOT assumed 250x1700"
+ },
+ "version": "1.0"
+}

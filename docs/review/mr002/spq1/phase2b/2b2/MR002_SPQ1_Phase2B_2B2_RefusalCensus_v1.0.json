@@ -1,0 +1,50 @@
+{
+ "codes": {
+  "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING": {
+   "affected_securities": 7,
+   "classification": "INELIGIBLE",
+   "count": 7742,
+   "first_session": 185,
+   "last_session": 1655
+  },
+  "INELIGIBLE:OLS_WINDOW_INSUFFICIENT": {
+   "affected_securities": 246,
+   "classification": "INELIGIBLE",
+   "count": 25149,
+   "first_session": 0,
+   "last_session": 124
+  },
+  "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING": {
+   "affected_securities": 13,
+   "classification": "INELIGIBLE",
+   "count": 7566,
+   "first_session": 0,
+   "last_session": 1699
+  },
+  "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS": {
+   "affected_securities": 147,
+   "classification": "INTEGRITY_STOP",
+   "count": 50399,
+   "first_session": 0,
+   "last_session": 1699
+  },
+  "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH": {
+   "affected_securities": 231,
+   "classification": "REFUSED_CODE_OR_DATA_IDENTITY",
+   "count": 13373,
+   "first_session": 125,
+   "last_session": 1559
+  }
+ },
+ "deprecated_emitted": false,
+ "record_type": "MR002_SPQ1_Phase2B_2B2_RefusalCensus",
+ "refusal_census_sha256": "19355260bff50c0eb2acc4a7d89b9a134764a62f8b20a40e3bb5ef12b2b0d1fa",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "security_identity_ambiguous_split": {
+  "collision_caused_noninjective": 70,
+  "note": "records under INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS are split by cause via MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1; the collision-caused subset is fully enumerated in the CollisionCensus.",
+  "single_request_lineage_ambiguity": 50329
+ },
+ "unknown_codes": [],
+ "version": "1.0"
+}

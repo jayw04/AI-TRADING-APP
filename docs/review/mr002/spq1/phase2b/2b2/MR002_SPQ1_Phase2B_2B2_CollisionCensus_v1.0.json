@@ -1,0 +1,2229 @@
+{
+ "affected_request_rows": [
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-16|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 553,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    553,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-16",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    553,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-16|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 553,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    553,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-16",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    553,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-17|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 554,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    554,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-17",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    554,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-17|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 554,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    554,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-17",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    554,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-18|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 555,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    555,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-18",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    555,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-18|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 555,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    555,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-18",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    555,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-19|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 556,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    556,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-19",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    556,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-19|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 556,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    556,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-19",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    556,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-20|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 557,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    557,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-20",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    557,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-20|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 557,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    557,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-20",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    557,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-23|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 558,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    558,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-23",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    558,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-23|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 558,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    558,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-23",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    558,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-24|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 559,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    559,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-24",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    559,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-24|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 559,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    559,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-24",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    559,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-25|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 560,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    560,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-25",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    560,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-25|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 560,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    560,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-25",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    560,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-26|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 561,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    561,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-26",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    561,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-26|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 561,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    561,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-26",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    561,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-27|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 562,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    562,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-27",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    562,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-27|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 562,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    562,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-27",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    562,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-30|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 563,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    563,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-30",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    563,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-30|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 563,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    563,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-30",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    563,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-31|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 564,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    564,
+    "AGN"
+   ],
+   "request_symbol": "AGN",
+   "session_date": "2015-03-31",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    564,
+    "UNRESOLVED:AGN"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-31|PSEC-198103",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 564,
+   "governing_universe_month": "2015-03-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    564,
+    "AGN1"
+   ],
+   "request_symbol": "AGN1",
+   "session_date": "2015-03-31",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    564,
+    "UNRESOLVED:AGN1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199850",
+   "colliding_request_symbols": [
+    "CB",
+    "CB1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2016-01-14|PSEC-199850",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 764,
+   "governing_universe_month": "2016-01-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    764,
+    "CB"
+   ],
+   "request_symbol": "CB",
+   "session_date": "2016-01-14",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    764,
+    "UNRESOLVED:CB"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199850",
+   "colliding_request_symbols": [
+    "CB",
+    "CB1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2016-01-14|PSEC-199850",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 764,
+   "governing_universe_month": "2016-01-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    764,
+    "CB1"
+   ],
+   "request_symbol": "CB1",
+   "session_date": "2016-01-14",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    764,
+    "UNRESOLVED:CB1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199850",
+   "colliding_request_symbols": [
+    "CB",
+    "CB1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2016-01-15|PSEC-199850",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 765,
+   "governing_universe_month": "2016-01-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    765,
+    "CB"
+   ],
+   "request_symbol": "CB",
+   "session_date": "2016-01-15",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    765,
+    "UNRESOLVED:CB"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199850",
+   "colliding_request_symbols": [
+    "CB",
+    "CB1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2016-01-15|PSEC-199850",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 765,
+   "governing_universe_month": "2016-01-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    765,
+    "CB1"
+   ],
+   "request_symbol": "CB1",
+   "session_date": "2016-01-15",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    765,
+    "UNRESOLVED:CB1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-08-31|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1175,
+   "governing_universe_month": "2017-08-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1175,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-08-31",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1175,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-08-31|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1175,
+   "governing_universe_month": "2017-08-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1175,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-08-31",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1175,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-01|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1176,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1176,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-01",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1176,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-01|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1176,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1176,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-01",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1176,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-05|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1177,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1177,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-05",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1177,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-05|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1177,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1177,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-05",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1177,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-06|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1178,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1178,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-06",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1178,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-06|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1178,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1178,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-06",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1178,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-07|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1179,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1179,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-07",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1179,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-07|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1179,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1179,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-07",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1179,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-08|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1180,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1180,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-08",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1180,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-08|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1180,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1180,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-08",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1180,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-11|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1181,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1181,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-11",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1181,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-11|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1181,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1181,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-11",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1181,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-12|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1182,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1182,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-12",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1182,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-12|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1182,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1182,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-12",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1182,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-13|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1183,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1183,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-13",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1183,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-13|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1183,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1183,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-13",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1183,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-14|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1184,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1184,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-14",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1184,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-14|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1184,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1184,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-14",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1184,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-15|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1185,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1185,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-15",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1185,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-15|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1185,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1185,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-15",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1185,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-18|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1186,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1186,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-18",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1186,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-18|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1186,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1186,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-18",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1186,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-19|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1187,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1187,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-19",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1187,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-19|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1187,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1187,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-19",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1187,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-20|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1188,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1188,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-20",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1188,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-20|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1188,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1188,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-20",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1188,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-21|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1189,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1189,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-21",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1189,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-21|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1189,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1189,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-21",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1189,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-22|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1190,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1190,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-22",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1190,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-22|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1190,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1190,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-22",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1190,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-25|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1191,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1191,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-25",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1191,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-25|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1191,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1191,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-25",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1191,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-26|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1192,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1192,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-26",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1192,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-26|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1192,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1192,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-26",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1192,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-27|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1193,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1193,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-27",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1193,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-27|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1193,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1193,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-27",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1193,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-28|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1194,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1194,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-28",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1194,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-28|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1194,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1194,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-28",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1194,
+    "UNRESOLVED:DD1"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-29|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1195,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1195,
+    "DD"
+   ],
+   "request_symbol": "DD",
+   "session_date": "2017-09-29",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1195,
+    "UNRESOLVED:DD"
+   ]
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-29|PSEC-199769",
+   "collision_rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+   "decision_session": 1195,
+   "governing_universe_month": "2017-09-01",
+   "identity_source": "registered_pit_identity_registry (adapters.identity_adapter.load_identity_registry.resolve_permanent_id)",
+   "request_key": [
+    1195,
+    "DD1"
+   ],
+   "request_symbol": "DD1",
+   "session_date": "2017-09-29",
+   "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "terminal_disposition": "INTEGRITY_STOP",
+   "terminal_key": [
+    1195,
+    "UNRESOLVED:DD1"
+   ]
+  }
+ ],
+ "collision_census_sha256": "cfe6b72969de2c1323ca8eaa36886c2ba63d7e9def1385788347e6cb44f29e50",
+ "collision_group_count": 35,
+ "collision_groups": [
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-16|PSEC-198103",
+   "decision_session": 553,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-16"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-17|PSEC-198103",
+   "decision_session": 554,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-17"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-18|PSEC-198103",
+   "decision_session": 555,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-18"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-19|PSEC-198103",
+   "decision_session": 556,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-19"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-20|PSEC-198103",
+   "decision_session": 557,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-20"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-23|PSEC-198103",
+   "decision_session": 558,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-23"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-24|PSEC-198103",
+   "decision_session": 559,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-24"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-25|PSEC-198103",
+   "decision_session": 560,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-25"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-26|PSEC-198103",
+   "decision_session": 561,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-26"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-27|PSEC-198103",
+   "decision_session": 562,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-27"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-30|PSEC-198103",
+   "decision_session": 563,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-30"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-198103",
+   "colliding_request_symbols": [
+    "AGN",
+    "AGN1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2015-03-31|PSEC-198103",
+   "decision_session": 564,
+   "governing_universe_month": "2015-03-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2015-03-31"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199850",
+   "colliding_request_symbols": [
+    "CB",
+    "CB1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2016-01-14|PSEC-199850",
+   "decision_session": 764,
+   "governing_universe_month": "2016-01-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2016-01-14"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199850",
+   "colliding_request_symbols": [
+    "CB",
+    "CB1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2016-01-15|PSEC-199850",
+   "decision_session": 765,
+   "governing_universe_month": "2016-01-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2016-01-15"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-08-31|PSEC-199769",
+   "decision_session": 1175,
+   "governing_universe_month": "2017-08-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-08-31"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-01|PSEC-199769",
+   "decision_session": 1176,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-01"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-05|PSEC-199769",
+   "decision_session": 1177,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-05"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-06|PSEC-199769",
+   "decision_session": 1178,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-06"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-07|PSEC-199769",
+   "decision_session": 1179,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-07"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-08|PSEC-199769",
+   "decision_session": 1180,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-08"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-11|PSEC-199769",
+   "decision_session": 1181,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-11"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-12|PSEC-199769",
+   "decision_session": 1182,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-12"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-13|PSEC-199769",
+   "decision_session": 1183,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-13"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-14|PSEC-199769",
+   "decision_session": 1184,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-14"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-15|PSEC-199769",
+   "decision_session": 1185,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-15"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-18|PSEC-199769",
+   "decision_session": 1186,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-18"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-19|PSEC-199769",
+   "decision_session": 1187,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-19"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-20|PSEC-199769",
+   "decision_session": 1188,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-20"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-21|PSEC-199769",
+   "decision_session": 1189,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-21"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-22|PSEC-199769",
+   "decision_session": 1190,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-22"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-25|PSEC-199769",
+   "decision_session": 1191,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-25"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-26|PSEC-199769",
+   "decision_session": 1192,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-26"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-27|PSEC-199769",
+   "decision_session": 1193,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-27"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-28|PSEC-199769",
+   "decision_session": 1194,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-28"
+  },
+  {
+   "claimed_permanent_security_id": "PSEC-199769",
+   "colliding_request_symbols": [
+    "DD",
+    "DD1"
+   ],
+   "collision_cardinality": 2,
+   "collision_group_id": "2017-09-29|PSEC-199769",
+   "decision_session": 1195,
+   "governing_universe_month": "2017-09-01",
+   "group_disposition_rule": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS for ALL claimants (no winner selected)",
+   "session_date": "2017-09-29"
+  }
+ ],
+ "collision_request_unit_count": 70,
+ "distinct_collision_symbol_sets": 3,
+ "maximum_collision_cardinality": 2,
+ "reconciliation": {
+  "affected_request_count": 70,
+  "collision_caused_security_identity_ambiguous_records": 70,
+  "note": "collision-caused stops are distinct from single-request PIT-resolution ambiguities; affected_request_count must equal collision_caused records.",
+  "reconciles": true,
+  "single_request_lineage_ambiguity_records": 50329
+ },
+ "record_type": "MR002_SPQ1_Phase2B_2B2_CollisionCensus",
+ "rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "run_spec_sha256": "fd19aef5230bac56bc82be1efb1be55ba3fe5d4f9daae33608f49ebbfd4554c3",
+ "terminal_code": "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+ "version": "1.0"
+}
