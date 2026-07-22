@@ -1,0 +1,43 @@
+{
+  "source": [
+    "aws.ecr"
+  ],
+  "detail-type": [
+    "AWS API Call via CloudTrail"
+  ],
+  "detail": {
+    "eventSource": [
+      "ecr.amazonaws.com"
+    ],
+    "eventName": [
+      "BatchDeleteImage",
+      "DeleteRepository",
+      "SetRepositoryPolicy",
+      "DeleteRepositoryPolicy",
+      "PutLifecyclePolicy",
+      "DeleteLifecyclePolicy",
+      "PutImageTagMutability",
+      "PutImage",
+      "TagResource",
+      "UntagResource"
+    ],
+    "$or": [
+      {
+        "requestParameters": {
+          "repositoryName": [
+            "mr002-evaluator-p5"
+          ]
+        }
+      },
+      {
+        "requestParameters": {
+          "resourceArn": [
+            {
+              "suffix": "repository/mr002-evaluator-p5"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "_status": "PROPOSAL ONLY — NOT APPLIED",
+  "_why_not_applied": "This role changes administrative access paths for the account's only human principal. It is submitted for adjudication rather than applied, consistent with the direction that policy work affecting administrative controls be separately governed.",
+  "_truthful_disposition": {
+    "separation_of_duties": "NOT_ACHIEVED — SINGLE-PRINCIPAL OPERATION",
+    "what_this_achieves": "separation of operating CONTEXT and CREDENTIALS, not separation of human authority",
+    "what_this_does_not_achieve": "prevention against the management-account root/admin; the same human retains a break-glass administrative path",
+    "operational_custodian": "Jay Wang (or the legally appropriate named individual) — a real accountable person, not the adjudicator role and not the artifact producer"
+  },
+  "role_name": "MR002Custody",
+  "trust_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "AssumeOnlyWithMFA",
+        "Effect": "Allow",
+        "Principal": {"AWS": "arn:aws:iam::219024422756:user/JayWang"},
+        "Action": "sts:AssumeRole",
+        "Condition": {
+          "Bool": {"aws:MultiFactorAuthPresent": "true"},
+          "NumericLessThan": {"aws:MultiFactorAuthAge": "3600"}
+        }
+      }
+    ]
+  },
+  "permissions_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "CustodyRepositoryOperations",
+        "Effect": "Allow",
+        "Action": [
+          "ecr:DescribeRepositories",
+          "ecr:DescribeImages",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:GetLifecyclePolicy",
+          "ecr:GetRepositoryPolicy",
+          "ecr:ListImages",
+          "ecr:GetAuthorizationToken"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "CustodyRoleMayNotWeakenItsOwnOversight",
+        "Effect": "Deny",
+        "Action": [
+          "cloudtrail:StopLogging",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:UpdateTrail",
+          "cloudtrail:PutEventSelectors",
+          "events:DeleteRule",
+          "events:DisableRule",
+          "events:RemoveTargets",
+          "events:PutRule",
+          "sns:SetTopicAttributes",
+          "sns:DeleteTopic",
+          "sns:RemovePermission",
+          "sns:Unsubscribe",
+          "s3:PutBucketPolicy",
+          "s3:DeleteBucketPolicy",
+          "s3:DeleteBucket",
+          "s3:PutBucketVersioning",
+          "s3:PutObjectRetention",
+          "s3:BypassGovernanceRetention",
+          "iam:UpdateAssumeRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:AttachRolePolicy"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "CustodyRoleIsNotADeletionPath",
+        "Effect": "Deny",
+        "Action": [
+          "ecr:BatchDeleteImage",
+          "ecr:DeleteRepository",
+          "ecr:DeleteRepositoryPolicy",
+          "ecr:SetRepositoryPolicy",
+          "ecr:PutLifecyclePolicy",
+          "ecr:DeleteLifecyclePolicy",
+          "ecr:PutImageTagMutability"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "break_glass": {
+    "path": "the existing administrative identity (arn:aws:iam::219024422756:user/JayWang)",
+    "constraint": "use must be exceptional and observable",
+    "observability": "every listed destructive and control-plane call is covered by the mr002-custody-ecr-mutation and mr002-custody-control-plane EventBridge rules, which notify arn:aws:sns:us-east-1:219024422756:workbench-paper-alarms",
+    "required_before_use": "a recorded governance decision",
+    "honest_limitation": "the break-glass path is NOT technically prevented and cannot be in a management account; it is DETECTED, not blocked"
+  },
+  "open_decisions_for_adjudication": [
+    "whether to apply this role at all, or to defer until a member-account migration",
+    "whether the everyday administrative identity should be narrowed once this role exists",
+    "the named operational custodian of record, distinct from adjudicator and producer"
+  ]
+}
