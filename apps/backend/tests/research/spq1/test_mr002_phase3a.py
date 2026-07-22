@@ -65,8 +65,8 @@ def test_4_ordinary_dev_credentials_cannot_read_sealed():
 def test_5_access_history_detects_unauthorized_read():
     h = load("SealedPartitionAccessHistory_v1.0.json")
     assert "authorized (bool)" in h["record_fields"]
-    assert h["required_zero"]["validation_access_events_before_authorization"] == 0
-    assert h["required_zero"]["oos_access_events_before_validation"] == 0
+    assert h["required_runtime_gate_values"]["validation_access_events_before_authorization"] == 0
+    assert h["required_runtime_gate_values"]["oos_access_events_before_validation"] == 0
     # two-record distinction (per-run ledger vs program-history access log)
     s = load("MR002_Phase3A_SealedPartitionControlSpecification_v1.0.json")
     assert set(s["two_required_records"]) == {"OpenedObjectLedger", "SealedStoreAccessLog"}
@@ -128,15 +128,77 @@ def test_11_short_unavailable_behavior_matches_registered_model():
 
 def test_12_metric_roles_cannot_change_after_publication():
     m = load("MR002_Phase3A_MetricRoleRegistry_v1.0.json")
-    assert set(m["metric_roles"].values()) <= set(m["role_domain"])
-    assert m["metric_roles"]["net_oos_sharpe_ge_0.70"] == "PRIMARY_GATE"
-    assert m["metric_roles"]["conservative_availability_borrow_ssr_economic_operability"] == "SECONDARY_GATE"
-    assert m["metric_roles"]["frictionless_short_attribution"] == "DIAGNOSTIC_ONLY"
+    roles = {k: v["metric_role"] for k, v in m["metrics"].items()}
+    assert set(roles.values()) <= set(m["role_domain"])
+    assert roles["net_oos_sharpe_ge_0.70"] == "PRIMARY_GATE"
+    assert roles["conservative_availability_borrow_ssr_economic_operability"] == "SECONDARY_GATE"
+    assert roles["frictionless_short_attribution"] == "DIAGNOSTIC_ONLY"
     assert "cannot change after publication" in m["immutability"]
-    # the registry is hash-bound in the publication manifest
+    # every metric carries a valid sample_stage
+    assert all(e["sample_stage"] in m["sample_stage_domain"] for e in m["metrics"].values())
     pub = load("MR002_Phase3A_PublicationManifest_v1.0.json")
     got = hashlib.sha256((P3A / "MR002_Phase3A_MetricRoleRegistry_v1.0.json").read_bytes()).hexdigest()
     assert pub["artifact_sha256"]["MetricRoleRegistry"] == got
+
+
+def test_16_oos_only_gates_cannot_execute_during_validation():
+    v = load("MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json")
+    prohibited = set(v["oos_only_metrics_prohibited_during_validation"])
+    # the three OOS primary gates must be prohibited during validation
+    assert "net_oos_sharpe_ge_0.70" in prohibited
+    assert "one_sided_95pct_bootstrap_lower_bound_daily_mean_net_return_gt_0" in prohibited
+    assert "dsr_significance_ge_0.95_N5" in prohibited
+    # validation stage does not compute OOS primary gates
+    computed = set(v["metrics_computed_during_validation"])
+    assert not (computed & {"net_oos_sharpe_ge_0.70", "dsr_significance_ge_0.95_N5"})
+    assert set(v["allowed_verdicts"]) == {"VALIDATION_ADVANCE_REQUEST", "VALIDATION_DO_NOT_ADVANCE",
+                                          "VALIDATION_INCONCLUSIVE", "INTEGRITY_FAILURE"}
+    # every metric in the role registry has a sample_stage (role alone can't misroute a metric)
+    m = load("MR002_Phase3A_MetricRoleRegistry_v1.0.json")
+    assert all("sample_stage" in e for e in m["metrics"].values())
+
+
+def test_17_validation_advancement_rule_is_hash_bound():
+    r = load("ValidationRunSpecification_v1.0.json")
+    got = hashlib.sha256(
+        (P3A / "MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json").read_bytes()).hexdigest()
+    assert r["validation_stage_decision_sha256"] == got
+    assert r["bound_specifications"]["ValidationStageDecisionSpecification"] == got
+
+
+def test_18_both_decision_and_enrichment_schemas_are_run_bound():
+    r = load("ValidationRunSpecification_v1.0.json")
+    bs = r["bound_schemas"]
+    assert bs["SignalDecisionRecord_schema_sha256"] == \
+        "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f"
+    enrich = hashlib.sha256((P3A / "ExecutionEnrichmentSchema_v1.0.json").read_bytes()).hexdigest()
+    assert bs["ExecutionEnrichmentSchema_sha256"] == enrich
+    assert "fail closed" in bs["fail_closed"].lower()
+    assert "ExecutionEnrichmentSchema" in r["bound_specifications"]
+
+
+def test_19_seal_templates_not_mistaken_for_runtime_evidence():
+    for name in ("SealedPartitionAccessHistory_v1.0.json", "SealVerificationReport_v1.0.json",
+                 "SealedPartitionContentCommitment_v1.0.json"):
+        a = load(name)
+        assert a["artifact_kind"] == "SPECIFICATION_TEMPLATE"
+        assert a["contains_runtime_evidence"] is False
+        assert a["runtime_instance_required_before_authorization"] is True
+    ctrl = load("MR002_Phase3A_SealedPartitionControlSpecification_v1.0.json")
+    assert ctrl["artifact_kind"] == "SPECIFICATION_TEMPLATE"
+    assert "REQUIRED RUNTIME GATE VALUES" in ctrl["required_runtime_gate_values"]["note"]
+    # reserved runtime-evidence names exist
+    assert "ValidationPartitionAccessHistory_v1.0.json" in ctrl["reserved_runtime_evidence_names"]
+
+
+def test_20_package_and_manifest_counts_reconcile():
+    pub = load("MR002_Phase3A_PublicationManifest_v1.0.json")
+    assert pub["publication_manifest_self_excluded"] is True
+    assert pub["manifest_bound_artifact_count"] == len(pub["artifact_sha256"])
+    assert pub["package_file_count"] == pub["manifest_bound_artifact_count"] + 1
+    # actual files on disk == package_file_count (json + md), excluding the generator
+    files = [f for f in P3A.iterdir() if f.suffix in (".json", ".md")]
+    assert len(files) == pub["package_file_count"]
 
 
 def test_14_oos_stages_O1_O2_cannot_materialize_performance():
@@ -162,7 +224,7 @@ def test_publication_manifest_binds_every_artifact_and_holds_boundary():
     assert pub["dof_gate_signal_or_trial_affecting_zero"] is True
     assert pub["dsr_N"] == 5
     assert "validation_authorization=false" in pub["boundary"]
-    assert pub["artifact_count"] == len(pub["artifact_sha256"]) >= 24
+    assert pub["manifest_bound_artifact_count"] == len(pub["artifact_sha256"]) >= 24
     auth = load("ValidationAuthorization_v1.0.json")
     assert auth["validation_authorization"] is False
     assert auth["state"].startswith("REQUEST")

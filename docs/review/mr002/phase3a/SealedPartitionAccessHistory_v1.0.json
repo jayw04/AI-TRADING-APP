@@ -1,4 +1,6 @@
 {
+ "artifact_kind": "SPECIFICATION_TEMPLATE",
+ "contains_runtime_evidence": false,
  "content": "METADATA ONLY + proof of zero unauthorized access (NO partition values)",
  "record_fields": [
   "partition",
@@ -12,11 +14,16 @@
   "hash_chain_row"
  ],
  "record_type": "SealedPartitionAccessHistory",
- "required_zero": {
+ "required_runtime_gate_values": {
+  "note": "required at runtime; NOT evidenced by this template",
   "oos_access_events_before_oos_authorization": 0,
   "oos_access_events_before_validation": 0,
   "validation_access_events_before_authorization": 0
  },
- "status": "SPECIFICATION (populated from the audited CloudTrail export; contains no sealed values)",
+ "runtime_evidence_names": [
+  "ValidationPartitionAccessHistory_v1.0.json",
+  "OOSPartitionAccessHistory_v1.0.json"
+ ],
+ "runtime_instance_required_before_authorization": true,
  "version": "1.0"
 }

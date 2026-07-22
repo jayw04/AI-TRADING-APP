@@ -66,6 +66,12 @@ EVALUATOR_IDENTITIES = {os.path.basename(f): sha_file(os.path.join(EVAL, f))
 DSR_LEDGER_BOUND = PREREG_JSON["dsr"]["trial_ledger_sha256"]
 assert DSR_LEDGER_BOUND == "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b"
 
+# governing SignalDecisionRecord schema identity (Phase 2B producer; enrichment consumes it immutably)
+SIGNAL_DECISION_RECORD_SCHEMA_SHA = "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f"
+SIGNAL_DECISION_RECORD_MODEL_SHA = sha_file(os.path.join(
+    ROOT, "apps", "backend", "app", "research", "mr002", "spq1", "models.py"))
+SAMPLE_STAGE = {"VALIDATION", "OOS", "VALIDATION_AND_OOS_COMBINED", "POST_RESEARCH_OPERABILITY"}
+
 H = {}  # artifact -> sha256
 
 
@@ -237,14 +243,26 @@ seal_ctrl = {"record_type": "MR002_Phase3A_SealedPartitionControlSpecification",
         "the research team receives the Phase 3A package",
         "access_events": "CloudTrail S3 GetObject data events; hash-chained export; policy-state snapshots "
             "before and after each execution"},
-    "gates": {"validation_access_events_before_authorization": 0, "oos_access_events_before_validation": 0,
-              "oos_access_events_before_oos_authorization": 0},
+    "required_runtime_gate_values": {"note": "these are REQUIRED RUNTIME GATE VALUES to be evidenced by "
+        "custodian-produced runtime instances BEFORE authorization; Phase 3A does NOT evidence them",
+        "validation_access_events_before_authorization": 0, "oos_access_events_before_validation": 0,
+        "oos_access_events_before_oos_authorization": 0},
+    "artifact_kind": "SPECIFICATION_TEMPLATE", "contains_runtime_evidence": False,
+    "runtime_instance_required_before_authorization": True,
+    "reserved_runtime_evidence_names": ["ValidationPartitionAccessHistory_v1.0.json",
+        "ValidationPartitionContentCommitment_v1.0.json", "ValidationSealVerificationReport_v1.0.json",
+        "OOSPartitionAccessHistory_v1.0.json", "OOSPartitionContentCommitment_v1.0.json",
+        "OOSSealVerificationReport_v1.0.json"],
     "governing_binding": {"prereg_sha256": PREREG_SHA,
         "sealed_manifest_sha256": SEALED_MANIFEST_SHA}}
 H["SealedPartitionControlSpecification"] = dump(
     seal_ctrl, "MR002_Phase3A_SealedPartitionControlSpecification_v1.0.json")
 H["SealedPartitionContentCommitment"] = dump({
     "record_type": "SealedPartitionContentCommitment", "version": "1.0",
+    "artifact_kind": "SPECIFICATION_TEMPLATE", "contains_runtime_evidence": False,
+    "runtime_instance_required_before_authorization": True,
+    "runtime_evidence_names": ["ValidationPartitionContentCommitment_v1.0.json",
+        "OOSPartitionContentCommitment_v1.0.json"],
     "purpose": "custodian-produced, value-blind content commitment of the sealed validation & OOS "
         "partitions, committed before the research team receives Phase 3A; enables post-authorization "
         "structural verification without pre-authorization row access",
@@ -258,21 +276,28 @@ H["SealedPartitionContentCommitment"] = dump({
     "SealedPartitionContentCommitment_v1.0.json")
 H["SealedPartitionAccessHistory"] = dump({
     "record_type": "SealedPartitionAccessHistory", "version": "1.0",
+    "artifact_kind": "SPECIFICATION_TEMPLATE", "contains_runtime_evidence": False,
+    "runtime_instance_required_before_authorization": True,
+    "runtime_evidence_names": ["ValidationPartitionAccessHistory_v1.0.json",
+        "OOSPartitionAccessHistory_v1.0.json"],
     "content": "METADATA ONLY + proof of zero unauthorized access (NO partition values)",
     "record_fields": ["partition", "event_time_utc", "principal", "operation", "object_key_prefix",
         "authorized (bool)", "authorization_event_ref", "hash_chain_prev", "hash_chain_row"],
-    "required_zero": {"validation_access_events_before_authorization": 0,
-        "oos_access_events_before_validation": 0, "oos_access_events_before_oos_authorization": 0},
-    "status": "SPECIFICATION (populated from the audited CloudTrail export; contains no sealed values)"},
+    "required_runtime_gate_values": {"note": "required at runtime; NOT evidenced by this template",
+        "validation_access_events_before_authorization": 0,
+        "oos_access_events_before_validation": 0, "oos_access_events_before_oos_authorization": 0}},
     "SealedPartitionAccessHistory_v1.0.json")
 H["SealVerificationReport"] = dump({
     "record_type": "SealVerificationReport", "version": "1.0",
+    "artifact_kind": "SPECIFICATION_TEMPLATE", "contains_runtime_evidence": False,
+    "runtime_instance_required_before_authorization": True,
+    "runtime_evidence_names": ["ValidationSealVerificationReport_v1.0.json",
+        "OOSSealVerificationReport_v1.0.json"],
     "verifies": ["content commitment stable", "no access-before-authorization events",
         "OpenedObjectLedger reconciles against SealedStoreAccessLog",
         "OOS partition DENY in force during validation"],
     "distinction": {"OpenedObjectLedger": "per-run opened objects",
-        "SealedStoreAccessLog": "program-history access to the partition"},
-    "status": "SPECIFICATION (the run-time report; no verification values computed during Phase 3A)"},
+        "SealedStoreAccessLog": "program-history access to the partition"}},
     "SealVerificationReport_v1.0.json")
 
 
@@ -425,44 +450,91 @@ H["ExecutionEnrichmentSchema"] = dump({
 # WP 3A-6 — Metric roles, OOS-consumption, null-model
 # =====================================================================================
 ROLE = {"PRIMARY_GATE", "SECONDARY_GATE", "DIAGNOSTIC_ONLY", "INTEGRITY_ONLY"}
+# metric -> (role, sample_stage) ; sample_stage bound from prereg v1.0.4 gates_frozen "sample" fields
 metric_roles = {
-    "net_oos_sharpe_ge_0.70": "PRIMARY_GATE",
-    "one_sided_95pct_bootstrap_lower_bound_daily_mean_net_return_gt_0": "PRIMARY_GATE",
-    "dsr_significance_ge_0.95_N5": "PRIMARY_GATE",
-    "net_annualized_return_ge_0.03": "SECONDARY_GATE",
-    "net_max_drawdown_le_0.15": "SECONDARY_GATE",
-    "net_oos_calmar_ge_0.75": "SECONDARY_GATE",
-    "cost_stress_profitable_20bps_300bps": "SECONDARY_GATE",
-    "breadth_trades_ge_500_entrydates_ge_100_long_ge_100_short_ge_100": "SECONDARY_GATE",
-    "trade_concentration_single_le_0.10_top10_le_0.20": "SECONDARY_GATE",
-    "annual_profile_min_3_positive_years_largest_le_0.50": "SECONDARY_GATE",
-    "regime_gates_2of3_trend_positive_no_vol_sharpe_lt_-0.5": "SECONDARY_GATE",
-    "validation_positive_folds_ge_3_of_5": "SECONDARY_GATE",
-    "parameter_stability_A_and_C_net_profitable": "SECONDARY_GATE",
-    "conservative_availability_borrow_ssr_economic_operability": "SECONDARY_GATE",
-    "pbo_cscv": "DIAGNOSTIC_ONLY",
-    "positive_pnl_regime_concentration": "DIAGNOSTIC_ONLY",
-    "annual_herfindahl": "DIAGNOSTIC_ONLY",
-    "diversifier_tier_tag": "DIAGNOSTIC_ONLY",
-    "frictionless_short_attribution": "DIAGNOSTIC_ONLY",
-    "severe_cost_30bps_1000bps": "DIAGNOSTIC_ONLY",
-    "expected_L10_bootstrap_sensitivity": "DIAGNOSTIC_ONLY",
-    "zero_vol_peak_to_peak": "INTEGRITY_ONLY",
-    "data_and_pitsic_coverage_gates": "INTEGRITY_ONLY",
-    "exposure_limit_breach": "INTEGRITY_ONLY",
-    "replay_integrity": "INTEGRITY_ONLY",
+    "net_oos_sharpe_ge_0.70": ("PRIMARY_GATE", "OOS"),
+    "one_sided_95pct_bootstrap_lower_bound_daily_mean_net_return_gt_0": ("PRIMARY_GATE", "OOS"),
+    "dsr_significance_ge_0.95_N5": ("PRIMARY_GATE", "OOS"),
+    "net_annualized_return_ge_0.03": ("SECONDARY_GATE", "OOS"),
+    "net_max_drawdown_le_0.15": ("SECONDARY_GATE", "VALIDATION_AND_OOS_COMBINED"),
+    "net_oos_calmar_ge_0.75": ("SECONDARY_GATE", "OOS"),
+    "cost_stress_profitable_20bps_300bps": ("SECONDARY_GATE", "OOS"),
+    "breadth_trades_ge_500_entrydates_ge_100_long_ge_100_short_ge_100": ("SECONDARY_GATE", "OOS"),
+    "trade_concentration_single_le_0.10_top10_le_0.20": ("SECONDARY_GATE", "OOS"),
+    "annual_profile_min_3_positive_years_largest_le_0.50": ("SECONDARY_GATE", "VALIDATION_AND_OOS_COMBINED"),
+    "regime_gates_2of3_trend_positive_no_vol_sharpe_lt_-0.5": ("SECONDARY_GATE", "VALIDATION_AND_OOS_COMBINED"),
+    "validation_positive_folds_ge_3_of_5": ("SECONDARY_GATE", "VALIDATION"),
+    "parameter_stability_A_and_C_net_profitable": ("SECONDARY_GATE", "VALIDATION"),
+    "conservative_availability_borrow_ssr_economic_operability": ("SECONDARY_GATE", "POST_RESEARCH_OPERABILITY"),
+    "pbo_cscv": ("DIAGNOSTIC_ONLY", "VALIDATION"),
+    "positive_pnl_regime_concentration": ("DIAGNOSTIC_ONLY", "VALIDATION_AND_OOS_COMBINED"),
+    "annual_herfindahl": ("DIAGNOSTIC_ONLY", "VALIDATION_AND_OOS_COMBINED"),
+    "diversifier_tier_tag": ("DIAGNOSTIC_ONLY", "OOS"),
+    "frictionless_short_attribution": ("DIAGNOSTIC_ONLY", "OOS"),
+    "severe_cost_30bps_1000bps": ("DIAGNOSTIC_ONLY", "OOS"),
+    "expected_L10_bootstrap_sensitivity": ("DIAGNOSTIC_ONLY", "OOS"),
+    "dsr_trial_dispersion_validation": ("DIAGNOSTIC_ONLY", "VALIDATION"),
+    "zero_vol_peak_to_peak": ("INTEGRITY_ONLY", "VALIDATION_AND_OOS_COMBINED"),
+    "data_and_pitsic_coverage_gates": ("INTEGRITY_ONLY", "VALIDATION_AND_OOS_COMBINED"),
+    "exposure_limit_breach": ("INTEGRITY_ONLY", "VALIDATION_AND_OOS_COMBINED"),
+    "replay_integrity": ("INTEGRITY_ONLY", "VALIDATION_AND_OOS_COMBINED"),
 }
-assert set(metric_roles.values()) <= ROLE
+metric_entries = {m: {"metric_role": r, "sample_stage": s} for m, (r, s) in metric_roles.items()}
+assert all(r in ROLE and s in SAMPLE_STAGE for (r, s) in metric_roles.values())
+# integrity metrics apply at each stage independently (a stage-invariant check, not a combined statistic)
+for m in ("zero_vol_peak_to_peak", "data_and_pitsic_coverage_gates", "exposure_limit_breach",
+          "replay_integrity"):
+    metric_entries[m]["stage_note"] = "integrity check applied at EACH stage independently (not a combined-sample statistic)"
 H["MetricRoleRegistry"] = dump({
     "record_type": "MR002_Phase3A_MetricRoleRegistry", "version": "1.0",
-    "bound_from": "prereg v1.0.4 gates_frozen + roadmap v1.1.1 short-side classification",
-    "prereg_sha256": PREREG_SHA, "role_domain": sorted(ROLE), "metric_roles": metric_roles,
+    "bound_from": "prereg v1.0.4 gates_frozen (role + sample) + roadmap v1.1.1 short-side classification",
+    "prereg_sha256": PREREG_SHA, "role_domain": sorted(ROLE), "sample_stage_domain": sorted(SAMPLE_STAGE),
+    "metrics": metric_entries,
     "primary_gate_note": "the primary statistical test is net_oos_sharpe >= 0.70 (net return INCLUDING "
-        "50 bps/yr borrow financing) AND one-sided 95% bootstrap LB > 0 AND DSR >= 0.95 at N=5; it MUST "
-        "NOT be moved to the conservative-availability view",
-    "immutability": "metric roles are hash-bound to this registry; they cannot change after publication "
-        "(any change re-versions the registry and requires re-authorization)"},
+        "50 bps/yr borrow financing) AND one-sided 95% bootstrap LB > 0 AND DSR >= 0.95 at N=5; all three "
+        "have sample_stage=OOS and MUST NOT be evaluated during validation nor moved to the conservative view",
+    "sample_stage_rule": "role alone does not prevent a correct metric from being applied to the wrong "
+        "phase; every metric carries sample_stage, and OOS-sample metrics are prohibited during validation "
+        "(see ValidationStageDecisionSpecification)",
+    "immutability": "metric roles + sample_stages are hash-bound to this registry; they cannot change "
+        "after publication (any change re-versions the registry and requires re-authorization)"},
     "MR002_Phase3A_MetricRoleRegistry_v1.0.json")
+
+# --- WP 3A-6 addition: validation-stage advancement decision (SEPARATE from OOS gates) ---
+oos_only_prohibited = sorted(m for m, (r, s) in metric_roles.items()
+                             if s in ("OOS", "VALIDATION_AND_OOS_COMBINED") and r != "INTEGRITY_ONLY")
+validation_stage_metrics = sorted(m for m, (r, s) in metric_roles.items()
+                                  if s in ("VALIDATION",) or r == "INTEGRITY_ONLY")
+H["ValidationStageDecisionSpecification"] = dump({
+    "record_type": "MR002_Phase3A_ValidationStageDecisionSpecification", "version": "1.0",
+    "purpose": "freezes the validation-stage advancement rule SEPARATELY from the sealed-OOS primary "
+        "gates; validation does NOT evaluate net_oos_sharpe, the OOS bootstrap gate, or OOS DSR",
+    "prereg_sha256": PREREG_SHA,
+    "metrics_computed_during_validation": validation_stage_metrics + ["dsr_trial_dispersion_validation"],
+    "validation_gates": {
+        "validation_positive_folds_ge_3_of_5": {"config": "B", "rule": ">= 3 of 5 folds net-positive",
+            "source": "gates_frozen.validation_positive_folds_min_of_5 + positive_folds_sample"},
+        "parameter_stability_A_and_C_net_profitable": {"rule": "Configs A and C both net-profitable",
+            "source": "gates_frozen.parameter_stability + stability_sample=validation"}},
+    "validation_diagnostics": {"pbo_cscv": "DIAGNOSTIC (config-B per-fold; NEVER a validation gate)",
+        "dsr_trial_dispersion_validation": "validation annualized net Sharpes of A/B/C; frozen input to "
+            "the OOS DSR; NOT a validation pass/fail"},
+    "oos_only_metrics_prohibited_during_validation": oos_only_prohibited,
+    "oos_authorization_request_conditions": ["every validation integrity gate passes",
+        "Config B >= 3 of 5 folds net-positive", "Configs A and C both net-profitable",
+        "validation diagnostics show no single-year/sector/side/issuer concentration red flag",
+        "A/B/C behavior directionally coherent", "no post-validation tuning requested"],
+    "config_A_C_treatment": "the parameter-stability gate (A and C both net-profitable) is a VALIDATION "
+        "gate; A and C are neighboring robustness configs and NEVER substitute for B in the OOS run",
+    "dsr_dispersion_treatment": {"computed_during": "validation",
+        "source": "validation-period annualized net Sharpes of A, B, C; sample std ddof=1; /sqrt(252)",
+        "rng001_rng_entrylogic": "retained in N=5; EXCLUDED from dispersion",
+        "artifact": "MR002_DSR_TrialDispersion_Validation_v1.0.json (frozen before OOS; feeds OOS DSR)"},
+    "allowed_verdicts": ["VALIDATION_ADVANCE_REQUEST", "VALIDATION_DO_NOT_ADVANCE",
+        "VALIDATION_INCONCLUSIVE", "INTEGRITY_FAILURE"],
+    "advance_meaning": "VALIDATION_ADVANCE_REQUEST authorizes a REQUEST for separate OOS authorization; it "
+        "does NOT open OOS and does NOT evaluate any OOS gate"},
+    "MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json")
 H["ValidationMetricSpecification"] = dump({
     "record_type": "ValidationMetricSpecification", "version": "1.0",
     "sharpe_estimator": PREREG_JSON["sharpe_estimator"], "bootstrap": PREREG_JSON["bootstrap"],
@@ -603,13 +675,34 @@ H["ValidationRunSpecification"] = dump({
     "folds": PREREG_JSON["validation_folds_literal_governing"], "seam_rule": PREREG_JSON["seam_rule"],
     "configs": {"validation": "A, B, C", "oos_candidate": "B only"},
     "sequencing": PREREG_JSON["sequencing"],
+    "validation_stage_decision_ref": "MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json",
+    "validation_stage_decision_sha256": H["ValidationStageDecisionSpecification"],
+    "bound_schemas": {
+        "SignalDecisionRecord_schema_sha256": SIGNAL_DECISION_RECORD_SCHEMA_SHA,
+        "SignalDecisionRecord_model_module_sha256": SIGNAL_DECISION_RECORD_MODEL_SHA,
+        "ExecutionEnrichmentSchema_sha256": H["ExecutionEnrichmentSchema"],
+        "fail_closed": "the run MUST fail closed if EITHER the SignalDecisionRecord schema identity OR the "
+            "ExecutionEnrichmentSchema identity differs from the values bound here"},
     "bound_specifications": {k: H[k] for k in (
-        "MetricRoleRegistry", "ValidationMetricSpecification", "ValidationCostExecutionSpecification",
-        "ValidationNullModelSpecification", "OOSConsumptionProtocol",
-        "ExecutionEnrichmentEdgeCaseSpecification", "ExecutionEnrichmentCodeRegistry",
-        "ShortBorrowLocateModelSpecification", "SealedPartitionControlSpecification",
-        "NumericRuntimeIdentityManifest", "ValidationStructuralManifestSpecification",
-        "ValidationPartitionStructuralPreflight")},
+        "MetricRoleRegistry", "ValidationStageDecisionSpecification", "ValidationMetricSpecification",
+        "ValidationCostExecutionSpecification", "ValidationNullModelSpecification", "OOSConsumptionProtocol",
+        "ExecutionEnrichmentSchema", "ExecutionEnrichmentEdgeCaseSpecification",
+        "ExecutionEnrichmentCodeRegistry", "ShortBorrowLocateModelSpecification",
+        "SealedPartitionControlSpecification", "NumericRuntimeIdentityManifest",
+        "ValidationStructuralManifestSpecification", "ValidationPartitionStructuralPreflight",
+        "ValidationInputIdentityManifest")},
+    "runtime_critical_bindings_required_before_execution": {
+        "note": "the run specification proves EXACTLY what a future execution is allowed to consume; each "
+            "must be identity-verified (fail-closed on mismatch) before any validation access",
+        "ValidationInputIdentityManifest_sha256": H["ValidationInputIdentityManifest"],
+        "ExecutionEnrichmentSchema_sha256": H["ExecutionEnrichmentSchema"],
+        "SignalDecisionRecord_schema_sha256": SIGNAL_DECISION_RECORD_SCHEMA_SHA,
+        "SealedPartitionContentCommitment_runtime_instance": "ValidationPartitionContentCommitment_v1.0.json "
+            "(custodian-produced; required, not present in Phase 3A)",
+        "ValidationStructuralManifest_runtime_instance": "custodian value-blind structural manifest "
+            "(required, not present in Phase 3A)",
+        "evaluator_qualification_manifest": "REQUIRED (binds evaluator file+blob+sha256+version+commit+tree"
+            "+container+lock+synthetic evidence); the mr002_valoos_* module SHAs are the Phase 3A reference"},
     "boundary": "SPECIFICATION; validation_authorization=false; opens no data; computes no performance"},
     "ValidationRunSpecification_v1.0.json")
 H["ValidationAuthorization"] = dump({
@@ -676,9 +769,12 @@ submission_md = (
     "RECONSTRUCTED/CONSERVATIVE_PROXY/UNOBSERVABLE; no manufactured locate data; primary gate unchanged.\n"
     "- **3A-5 Enrichment contract** — immutable SignalDecisionRecord -> ExecutionEnrichedCandidateRecord "
     "schema, fail-closed edge-case spec, and a SEPARATE `EXECUTION_ENRICHMENT_*` code namespace.\n"
-    "- **3A-6 Metrics + OOS-consumption** — `MetricRoleRegistry` (primary/secondary/diagnostic/integrity), "
-    "metric spec, OOS-consumption protocol (stages O1-O5), null-model spec (binds the 5-trial ledger + "
-    "dispersion rule; the dispersion artifact is produced at validation run time, not Phase 3A).\n"
+    "- **3A-6 Metrics + OOS-consumption** — `MetricRoleRegistry` (primary/secondary/diagnostic/integrity, "
+    "each with a bound `sample_stage`), `ValidationStageDecisionSpecification` (validation advancement rule "
+    "SEPARATE from OOS gates; OOS-only metrics prohibited during validation; verdicts VALIDATION_ADVANCE_"
+    "REQUEST / DO_NOT_ADVANCE / INCONCLUSIVE / INTEGRITY_FAILURE), metric spec, OOS-consumption protocol "
+    "(stages O1-O5), null-model spec (binds the 5-trial ledger + dispersion rule; the dispersion artifact "
+    "is produced at validation run time, not Phase 3A).\n"
     "- **3A-7 Runtime + structural-preflight** — numeric-runtime identity manifest (versions, BLAS/LAPACK, "
     "thread vars, seeds, lockfile/container required at run time), structural-manifest spec (custodian, "
     "value-blind), and a preflight that operates only from precommitted metadata (`STRUCTURAL_PREFLIGHT`, "
@@ -686,16 +782,36 @@ submission_md = (
     "- **3A-8 Consolidated authorization** — `ValidationAuthorization` (REQUEST/CONTRACT, not a grant) + "
     "`ValidationRunSpecification` + `ValidationInputIdentityManifest` + `ValidationCostExecutionSpecification` "
     "+ this submission, all hash-bound in the publication manifest.\n\n"
+    "## Phase 3A HOLD corrections applied\n\n"
+    "1. `ValidationStageDecisionSpecification` added; `sample_stage` on every metric; OOS primary gates "
+    "(net_oos_sharpe/bootstrap/DSR) prohibited during validation.\n"
+    "2. Run spec now binds `ExecutionEnrichmentSchema` (5b2480c1...) AND the governing SignalDecisionRecord "
+    "schema (49c0e550...), fail-closed on either mismatch; runtime-critical artifacts bound directly.\n"
+    "3. Seal artifacts marked `artifact_kind=SPECIFICATION_TEMPLATE`, `contains_runtime_evidence=false`, "
+    "`runtime_instance_required_before_authorization=true`; zero-access values are REQUIRED RUNTIME GATE "
+    "VALUES (reserved runtime-evidence names for the validation/OOS instances).\n"
+    "4. Count reconciliation: **package_file_count = 26, manifest_bound_artifact_count = 25, "
+    "publication_manifest_self_excluded = true**; the manifest is bound externally by its Git blob/commit/"
+    "tree (in the correction commit).\n\n"
     "## Boundary\n\n"
     "Validation/OOS SEALED AND UNREAD. No returns, PnL, Sharpe, DSR, ranking, or verdict. Stops for review "
     "before any validation access.\n")
 H["ValidationAuthorizationSubmission"] = dump_md(submission_md, "ValidationAuthorizationSubmission_v1.0.md")
 
-# publication manifest binds every artifact by SHA-256
+# publication manifest binds every governed artifact by SHA-256 (it excludes ITSELF)
 pub = {"record_type": "MR002_Phase3A_PublicationManifest", "version": "1.0",
     "package": "SPQ-1 Phase 3A Validation Authorization Package (specifications only)",
     "governing_preregistration": {"file": PREREG, "commit": PREREG_COMMIT, "content_sha256": PREREG_SHA},
-    "artifact_sha256": H, "artifact_count": len(H),
+    "artifact_sha256": H,
+    "manifest_bound_artifact_count": len(H),
+    "package_file_count": len(H) + 1,
+    "publication_manifest_self_excluded": True,
+    "publication_manifest_binding": "the publication manifest does NOT hash itself; it is bound externally "
+        "by its Git blob SHA + the correction commit SHA + tree SHA recorded in the commit that lands it "
+        "(reported in the submission and the commit message)",
+    "seal_zero_access_note": "the seal artifacts are SPECIFICATION_TEMPLATEs; their zero-access values are "
+        "REQUIRED RUNTIME GATE VALUES to be evidenced by custodian runtime instances before authorization, "
+        "NOT values evidenced by this package",
     "diff_proof_all_reproduce": all_reproduce,
     "dof_gate_signal_or_trial_affecting_zero": len(signal_affecting) == 0,
     "dsr_N": PREREG_JSON["dsr"]["trials_N"],

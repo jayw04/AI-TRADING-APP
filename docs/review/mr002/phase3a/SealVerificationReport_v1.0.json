@@ -1,10 +1,16 @@
 {
+ "artifact_kind": "SPECIFICATION_TEMPLATE",
+ "contains_runtime_evidence": false,
  "distinction": {
   "OpenedObjectLedger": "per-run opened objects",
   "SealedStoreAccessLog": "program-history access to the partition"
  },
  "record_type": "SealVerificationReport",
- "status": "SPECIFICATION (the run-time report; no verification values computed during Phase 3A)",
+ "runtime_evidence_names": [
+  "ValidationSealVerificationReport_v1.0.json",
+  "OOSSealVerificationReport_v1.0.json"
+ ],
+ "runtime_instance_required_before_authorization": true,
  "verifies": [
   "content commitment stable",
   "no access-before-authorization events",

@@ -1,16 +1,25 @@
 {
+ "bound_schemas": {
+  "ExecutionEnrichmentSchema_sha256": "5b2480c1bc80abfc2d520bbc3f5c00399d20f5ca7b75f815d1e5a4bf2719f71f",
+  "SignalDecisionRecord_model_module_sha256": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+  "SignalDecisionRecord_schema_sha256": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f",
+  "fail_closed": "the run MUST fail closed if EITHER the SignalDecisionRecord schema identity OR the ExecutionEnrichmentSchema identity differs from the values bound here"
+ },
  "bound_specifications": {
   "ExecutionEnrichmentCodeRegistry": "0bddd73c311b790a4f3ff07831279d91edb9c005b12d03543d6594749d705e51",
   "ExecutionEnrichmentEdgeCaseSpecification": "792c6717c6e4344062ba84c1b762b6eb5b8cf51d4464cb40b280230540794d17",
-  "MetricRoleRegistry": "5337f0500672c7fabab4dcaedbd9ecfcd9bd7ff37243a52262e0309f9546bc17",
+  "ExecutionEnrichmentSchema": "5b2480c1bc80abfc2d520bbc3f5c00399d20f5ca7b75f815d1e5a4bf2719f71f",
+  "MetricRoleRegistry": "e8b8f74ce47f4c9e0cca32c4d658d7f2c34ec3987ce1741b89acd266f05bcc48",
   "NumericRuntimeIdentityManifest": "0ec253505a4d55befe35b1e832960e6a1de36e6e934fe8ac8a515270f2a8826a",
   "OOSConsumptionProtocol": "a4ceb6ee8bb3e262b7fd4981f262798e75c70b8a52a935b52361014831b23f87",
-  "SealedPartitionControlSpecification": "feed7eb5ec50a437221fd9354f5471df69a4a2b854f46a1b9837c77291ec136f",
+  "SealedPartitionControlSpecification": "4794845f3dd94646a5f0a772b5cda1356ef750c1581d33d271e2d3326af66dfc",
   "ShortBorrowLocateModelSpecification": "0b460345fdd8163869eccdcab7e593d92cd003764728a4544069133adff23a1a",
   "ValidationCostExecutionSpecification": "b8287e5a46694c04d019632d46884486098c4843f29cb7a945621e44ccbd41af",
-  "ValidationMetricSpecification": "dde66326ce896031bca132b9495672f5420fe50f651828e5a4f164ae2d290d73",
+  "ValidationInputIdentityManifest": "d965defcb293af1c4c22d14f63455194b7c803567aba9a44d93aaafe96423ebb",
+  "ValidationMetricSpecification": "899669edf62fbdcc6fc4c1c1a8f0535608dcfb23972cfcd9498188280cde6dca",
   "ValidationNullModelSpecification": "e9e6bb7e4de18a4d932f32cb338b425650128f8809a38fd3d61b6630d3fbd763",
   "ValidationPartitionStructuralPreflight": "0ff7c6042abd03ccd85eb08b79ffb1c842895787781827a1bbb6d01627a657b0",
+  "ValidationStageDecisionSpecification": "9b0800347acdc26f0a31cd96f66f048720e3077ed8444c4b4776a3028fa133fb",
   "ValidationStructuralManifestSpecification": "001390d1069f3f2d4e0c9c5755149639be13657bcf9ca7b7255a8fee9d3856fa"
  },
  "boundary": "SPECIFICATION; validation_authorization=false; opens no data; computes no performance",
@@ -53,6 +62,15 @@
  "governing_preregistration_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
  "record_type": "ValidationRunSpecification",
  "run_id": "MR002-SPQ1-VALIDATION-V1 (PROPOSED; not authorized to execute)",
+ "runtime_critical_bindings_required_before_execution": {
+  "ExecutionEnrichmentSchema_sha256": "5b2480c1bc80abfc2d520bbc3f5c00399d20f5ca7b75f815d1e5a4bf2719f71f",
+  "SealedPartitionContentCommitment_runtime_instance": "ValidationPartitionContentCommitment_v1.0.json (custodian-produced; required, not present in Phase 3A)",
+  "SignalDecisionRecord_schema_sha256": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f",
+  "ValidationInputIdentityManifest_sha256": "d965defcb293af1c4c22d14f63455194b7c803567aba9a44d93aaafe96423ebb",
+  "ValidationStructuralManifest_runtime_instance": "custodian value-blind structural manifest (required, not present in Phase 3A)",
+  "evaluator_qualification_manifest": "REQUIRED (binds evaluator file+blob+sha256+version+commit+tree+container+lock+synthetic evidence); the mr002_valoos_* module SHAs are the Phase 3A reference",
+  "note": "the run specification proves EXACTLY what a future execution is allowed to consume; each must be identity-verified (fail-closed on mismatch) before any validation access"
+ },
  "seam_rule": {
   "basis": "registered session ordinals (not calendar-day arithmetic)",
   "eligibility": "score decision session t only if all formation sessions AND full realization horizon lie within the SAME governed window",
@@ -71,6 +89,8 @@
   "validation_authorization": false,
   "validation_first": true
  },
+ "validation_stage_decision_ref": "MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json",
+ "validation_stage_decision_sha256": "9b0800347acdc26f0a31cd96f66f048720e3077ed8444c4b4776a3028fa133fb",
  "version": "1.0",
  "windows": {
   "alt_close_exit_last": "2023-02-09",

@@ -101,7 +101,7 @@
   "validation_positive_folds_min_of_5": 3
  },
  "metric_role_registry_ref": "MR002_Phase3A_MetricRoleRegistry_v1.0.json",
- "metric_role_registry_sha256": "5337f0500672c7fabab4dcaedbd9ecfcd9bd7ff37243a52262e0309f9546bc17",
+ "metric_role_registry_sha256": "e8b8f74ce47f4c9e0cca32c4d658d7f2c34ec3987ce1741b89acd266f05bcc48",
  "note": "definitions bound verbatim from prereg v1.0.4; no metric computed during Phase 3A",
  "record_type": "ValidationMetricSpecification",
  "sharpe_estimator": {

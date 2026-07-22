@@ -1,14 +1,11 @@
 {
+ "artifact_kind": "SPECIFICATION_TEMPLATE",
  "commitment_and_tamper_evidence": {
   "access_events": "CloudTrail S3 GetObject data events; hash-chained export; policy-state snapshots before and after each execution",
   "content_commitment": "custodian-produced value-blind content commitment (SHA-256 over canonical partition metadata + row-level content hash) committed BEFORE the research team receives the Phase 3A package"
  },
+ "contains_runtime_evidence": false,
  "extends": "prereg v1.0.4 sealed_access_protocol (CloudTrail S3 data events; dedicated IAM principal)",
- "gates": {
-  "oos_access_events_before_oos_authorization": 0,
-  "oos_access_events_before_validation": 0,
-  "validation_access_events_before_authorization": 0
- },
  "governing_binding": {
   "prereg_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
   "sealed_manifest_sha256": "96f7b3f96c61abb2d146ca25a58698471ae61454af13882ea15c9be9000112cd"
@@ -24,6 +21,21 @@
   "opened-object ledger for the authorized run",
   "post-run reconciliation against the store-level access log"
  ],
+ "required_runtime_gate_values": {
+  "note": "these are REQUIRED RUNTIME GATE VALUES to be evidenced by custodian-produced runtime instances BEFORE authorization; Phase 3A does NOT evidence them",
+  "oos_access_events_before_oos_authorization": 0,
+  "oos_access_events_before_validation": 0,
+  "validation_access_events_before_authorization": 0
+ },
+ "reserved_runtime_evidence_names": [
+  "ValidationPartitionAccessHistory_v1.0.json",
+  "ValidationPartitionContentCommitment_v1.0.json",
+  "ValidationSealVerificationReport_v1.0.json",
+  "OOSPartitionAccessHistory_v1.0.json",
+  "OOSPartitionContentCommitment_v1.0.json",
+  "OOSSealVerificationReport_v1.0.json"
+ ],
+ "runtime_instance_required_before_authorization": true,
  "storage_boundaries": {
   "credential_custody": "dedicated IAM principal; keys not in developer env; released only on the explicit authorization event",
   "oos_partition": "separate bucket/prefix; explicit DENY during validation",

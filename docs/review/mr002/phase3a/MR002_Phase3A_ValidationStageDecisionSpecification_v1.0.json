@@ -1,0 +1,73 @@
+{
+ "advance_meaning": "VALIDATION_ADVANCE_REQUEST authorizes a REQUEST for separate OOS authorization; it does NOT open OOS and does NOT evaluate any OOS gate",
+ "allowed_verdicts": [
+  "VALIDATION_ADVANCE_REQUEST",
+  "VALIDATION_DO_NOT_ADVANCE",
+  "VALIDATION_INCONCLUSIVE",
+  "INTEGRITY_FAILURE"
+ ],
+ "config_A_C_treatment": "the parameter-stability gate (A and C both net-profitable) is a VALIDATION gate; A and C are neighboring robustness configs and NEVER substitute for B in the OOS run",
+ "dsr_dispersion_treatment": {
+  "artifact": "MR002_DSR_TrialDispersion_Validation_v1.0.json (frozen before OOS; feeds OOS DSR)",
+  "computed_during": "validation",
+  "rng001_rng_entrylogic": "retained in N=5; EXCLUDED from dispersion",
+  "source": "validation-period annualized net Sharpes of A, B, C; sample std ddof=1; /sqrt(252)"
+ },
+ "metrics_computed_during_validation": [
+  "data_and_pitsic_coverage_gates",
+  "dsr_trial_dispersion_validation",
+  "exposure_limit_breach",
+  "parameter_stability_A_and_C_net_profitable",
+  "pbo_cscv",
+  "replay_integrity",
+  "validation_positive_folds_ge_3_of_5",
+  "zero_vol_peak_to_peak",
+  "dsr_trial_dispersion_validation"
+ ],
+ "oos_authorization_request_conditions": [
+  "every validation integrity gate passes",
+  "Config B >= 3 of 5 folds net-positive",
+  "Configs A and C both net-profitable",
+  "validation diagnostics show no single-year/sector/side/issuer concentration red flag",
+  "A/B/C behavior directionally coherent",
+  "no post-validation tuning requested"
+ ],
+ "oos_only_metrics_prohibited_during_validation": [
+  "annual_herfindahl",
+  "annual_profile_min_3_positive_years_largest_le_0.50",
+  "breadth_trades_ge_500_entrydates_ge_100_long_ge_100_short_ge_100",
+  "cost_stress_profitable_20bps_300bps",
+  "diversifier_tier_tag",
+  "dsr_significance_ge_0.95_N5",
+  "expected_L10_bootstrap_sensitivity",
+  "frictionless_short_attribution",
+  "net_annualized_return_ge_0.03",
+  "net_max_drawdown_le_0.15",
+  "net_oos_calmar_ge_0.75",
+  "net_oos_sharpe_ge_0.70",
+  "one_sided_95pct_bootstrap_lower_bound_daily_mean_net_return_gt_0",
+  "positive_pnl_regime_concentration",
+  "regime_gates_2of3_trend_positive_no_vol_sharpe_lt_-0.5",
+  "severe_cost_30bps_1000bps",
+  "trade_concentration_single_le_0.10_top10_le_0.20"
+ ],
+ "prereg_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+ "purpose": "freezes the validation-stage advancement rule SEPARATELY from the sealed-OOS primary gates; validation does NOT evaluate net_oos_sharpe, the OOS bootstrap gate, or OOS DSR",
+ "record_type": "MR002_Phase3A_ValidationStageDecisionSpecification",
+ "validation_diagnostics": {
+  "dsr_trial_dispersion_validation": "validation annualized net Sharpes of A/B/C; frozen input to the OOS DSR; NOT a validation pass/fail",
+  "pbo_cscv": "DIAGNOSTIC (config-B per-fold; NEVER a validation gate)"
+ },
+ "validation_gates": {
+  "parameter_stability_A_and_C_net_profitable": {
+   "rule": "Configs A and C both net-profitable",
+   "source": "gates_frozen.parameter_stability + stability_sample=validation"
+  },
+  "validation_positive_folds_ge_3_of_5": {
+   "config": "B",
+   "rule": ">= 3 of 5 folds net-positive",
+   "source": "gates_frozen.validation_positive_folds_min_of_5 + positive_folds_sample"
+  }
+ },
+ "version": "1.0"
+}
