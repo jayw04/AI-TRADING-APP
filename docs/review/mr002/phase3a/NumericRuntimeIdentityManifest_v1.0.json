@@ -1,0 +1,49 @@
+{
+ "drafting_reference_runtime": {
+  "blas": "scipy-openblas",
+  "blas_version": "0.3.29",
+  "lapack": "scipy-openblas",
+  "lapack_version": "0.3.29",
+  "machine": "AMD64",
+  "numpy": "2.2.6",
+  "pandas": "2.3.3",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.13.14",
+  "python_impl": "CPython",
+  "scipy": "1.18.0"
+ },
+ "frozen_solver_settings": {
+  "dtype": "float64",
+  "lapack": "gelsd/SVD",
+  "rcond": 1e-10,
+  "solver": "numpy.linalg.lstsq"
+ },
+ "lockfile_binding": "REQUIRED at validation run time (lockfile SHA-256 + container/env-build digest); not a placeholder value",
+ "mismatch_policy": "a numeric-runtime identity mismatch at run time FAIL-STOPS before any metric",
+ "record_type": "NumericRuntimeIdentityManifest",
+ "registered_seeds": {
+  "bootstrap_seed": 20260711,
+  "rng": "numpy_PCG64"
+ },
+ "required_bindings": [
+  "python version",
+  "numpy version",
+  "scipy version",
+  "pandas version",
+  "BLAS vendor+version",
+  "LAPACK vendor+version",
+  "LAPACK/solver driver",
+  "CPU architecture",
+  "thread-count env vars (OMP_NUM_THREADS, OPENBLAS_NUM_THREADS, MKL_NUM_THREADS, NUMEXPR_NUM_THREADS)",
+  "random-number generator algorithm",
+  "all registered seeds",
+  "locale",
+  "timezone",
+  "dependency lockfile SHA-256",
+  "container-image digest or environment-build identity",
+  "Python executable identity",
+  "NumPy/SciPy binary identities where available"
+ ],
+ "threading_policy": "for deterministic replay, either FREEZE the thread-count env vars or PROVE that varying them does not change governed output hashes",
+ "version": "1.0"
+}

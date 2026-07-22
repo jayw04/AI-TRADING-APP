@@ -1,0 +1,29 @@
+{
+ "null_count_definition": "a null count is structurally descriptive but still requires row access; it is value-blind ONLY when produced by the sealing/custodian process, NEVER by a direct developer query",
+ "postauthorization": "the authorized run verifies actual structure reproduces this precommitted manifest; recorded in BOTH SealedStoreAccessLog and OpenedObjectLedger",
+ "preauthorization_access": {
+  "permitted": [
+   "precommitted structural manifest",
+   "content commitment",
+   "sealed-store access history"
+  ],
+  "prohibited": [
+   "direct query of underlying validation/OOS rows"
+  ]
+ },
+ "producer": "trusted sealing/custodian process (audit-bound identity + access event), BEFORE sealing",
+ "record_type": "ValidationStructuralManifestSpecification",
+ "value_blind_fields": [
+  "partition content commitment",
+  "schema identity",
+  "table names",
+  "row counts",
+  "date bounds",
+  "session count",
+  "symbol/security counts",
+  "factor-series coverage",
+  "null-count summaries",
+  "latest source date"
+ ],
+ "version": "1.0"
+}

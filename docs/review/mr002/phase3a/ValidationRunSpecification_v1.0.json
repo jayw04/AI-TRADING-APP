@@ -1,0 +1,86 @@
+{
+ "bound_specifications": {
+  "ExecutionEnrichmentCodeRegistry": "0bddd73c311b790a4f3ff07831279d91edb9c005b12d03543d6594749d705e51",
+  "ExecutionEnrichmentEdgeCaseSpecification": "792c6717c6e4344062ba84c1b762b6eb5b8cf51d4464cb40b280230540794d17",
+  "MetricRoleRegistry": "5337f0500672c7fabab4dcaedbd9ecfcd9bd7ff37243a52262e0309f9546bc17",
+  "NumericRuntimeIdentityManifest": "0ec253505a4d55befe35b1e832960e6a1de36e6e934fe8ac8a515270f2a8826a",
+  "OOSConsumptionProtocol": "a4ceb6ee8bb3e262b7fd4981f262798e75c70b8a52a935b52361014831b23f87",
+  "SealedPartitionControlSpecification": "feed7eb5ec50a437221fd9354f5471df69a4a2b854f46a1b9837c77291ec136f",
+  "ShortBorrowLocateModelSpecification": "0b460345fdd8163869eccdcab7e593d92cd003764728a4544069133adff23a1a",
+  "ValidationCostExecutionSpecification": "b8287e5a46694c04d019632d46884486098c4843f29cb7a945621e44ccbd41af",
+  "ValidationMetricSpecification": "dde66326ce896031bca132b9495672f5420fe50f651828e5a4f164ae2d290d73",
+  "ValidationNullModelSpecification": "e9e6bb7e4de18a4d932f32cb338b425650128f8809a38fd3d61b6630d3fbd763",
+  "ValidationPartitionStructuralPreflight": "0ff7c6042abd03ccd85eb08b79ffb1c842895787781827a1bbb6d01627a657b0",
+  "ValidationStructuralManifestSpecification": "001390d1069f3f2d4e0c9c5755149639be13657bcf9ca7b7255a8fee9d3856fa"
+ },
+ "boundary": "SPECIFICATION; validation_authorization=false; opens no data; computes no performance",
+ "configs": {
+  "oos_candidate": "B only",
+  "validation": "A, B, C"
+ },
+ "folds": [
+  {
+   "first": "2020-01-13",
+   "fold": 1,
+   "last": "2020-08-21",
+   "sessions": 155
+  },
+  {
+   "first": "2020-08-24",
+   "fold": 2,
+   "last": "2021-04-06",
+   "sessions": 155
+  },
+  {
+   "first": "2021-04-07",
+   "fold": 3,
+   "last": "2021-11-12",
+   "sessions": 155
+  },
+  {
+   "first": "2021-11-15",
+   "fold": 4,
+   "last": "2022-06-28",
+   "sessions": 155
+  },
+  {
+   "first": "2022-06-29",
+   "fold": 5,
+   "last": "2023-02-08",
+   "sessions": 155
+  }
+ ],
+ "governing_preregistration_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+ "record_type": "ValidationRunSpecification",
+ "run_id": "MR002-SPQ1-VALIDATION-V1 (PROPOSED; not authorized to execute)",
+ "seam_rule": {
+  "basis": "registered session ordinals (not calendar-day arithmetic)",
+  "eligibility": "score decision session t only if all formation sessions AND full realization horizon lie within the SAME governed window",
+  "fold_rule": "5 contiguous non-overlapping nearly-equal partitions of the eligible validation sessions; any remainder assigned to the FINAL fold (frozen v0.3 rule; here exactly 155 each, 775/5, zero remainder so boundaries identical to v1.0)",
+  "formation_exclude_sessions": 69,
+  "realization_horizon_alt": 5,
+  "realization_horizon_governing": 6,
+  "realization_horizon_ratification": "OWNER-RATIFIED FINAL = 6 (next-open exit t+1..t+6). The 5-session close-exit alternative is REJECTED (historical rationale only; not executable configuration)."
+ },
+ "sequencing": {
+  "one_validation_execution": true,
+  "oos_config": "B_only",
+  "oos_inaccessible_during_validation": true,
+  "oos_openings": 1,
+  "oos_requires_separate_authorization_after_validation_PASS": true,
+  "validation_authorization": false,
+  "validation_first": true
+ },
+ "version": "1.0",
+ "windows": {
+  "alt_close_exit_last": "2023-02-09",
+  "alt_eligible_sessions": 776,
+  "eligible_sessions": 775,
+  "end": "2023-02-16",
+  "scoring_eligible_first": "2020-01-13",
+  "scoring_eligible_last": "2023-02-08",
+  "sessions": 850,
+  "start": "2019-10-03",
+  "status": "SEALED_AND_UNREAD"
+ }
+}

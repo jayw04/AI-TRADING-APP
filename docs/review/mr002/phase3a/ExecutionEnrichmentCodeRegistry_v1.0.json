@@ -1,0 +1,17 @@
+{
+ "codes": {
+  "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED": "split/dividend/merger/cash+stock/cash-acquisition not resolvable to a registered adjusted open (fail closed)",
+  "EXECUTION_ENRICHMENT_STOP:DELISTING": "delisted at/before t+1 (fail closed)",
+  "EXECUTION_ENRICHMENT_STOP:IDENTITY_CONFLICT": "symbol/permanent-security transition or non-injective identity at execution (fail closed; no post-hoc winner)",
+  "EXECUTION_ENRICHMENT_STOP:NO_OFFICIAL_OPEN": "no official open at t+1 (fail closed; no fallback price)",
+  "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT": "missing or conflicting open prices; adjusted-vs-unadjusted identity mismatch; calendar mismatch (execution session != registered next session)",
+  "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": "official-open source/identity missing or changed",
+  "EXECUTION_ENRICHMENT_STOP:TRADING_HALT": "t+1 halt / no execution session (fail closed)",
+  "EXECUTION_ENRICHMENT_SUCCESS": "official next-open t+1 attached; decision record bound; no future info",
+  "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": "any t+1 fact that would inject information after close t"
+ },
+ "invariant": "each code has exactly one terminal treatment, no silent fallback, one census category, one reconciliation path; enrichment codes are never reused for signal-production failures",
+ "namespace": "EXECUTION_ENRICHMENT_* (SEPARATE from signal-production refusal codes)",
+ "record_type": "ExecutionEnrichmentCodeRegistry",
+ "version": "1.0"
+}

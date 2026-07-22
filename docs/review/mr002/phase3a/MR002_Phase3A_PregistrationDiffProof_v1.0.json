@@ -1,0 +1,114 @@
+{
+ "all_reproduce": true,
+ "content_sha256_reproduces": true,
+ "facts": {
+  "adv_cap": {
+   "actual": 0.02,
+   "expected": 0.02,
+   "reproduces": true
+  },
+  "bootstrap_L_primary": {
+   "actual": 5,
+   "expected": 5,
+   "reproduces": true
+  },
+  "bootstrap_L_sensitivity": {
+   "actual": 10,
+   "expected": 10,
+   "reproduces": true
+  },
+  "bootstrap_name": {
+   "actual": "stationary (Politis-Romano, circular) bootstrap of daily net returns",
+   "expected": "stationary (Politis-Romano, circular) bootstrap of daily net returns",
+   "reproduces": true
+  },
+  "bootstrap_reps": {
+   "actual": 10000,
+   "expected": 10000,
+   "reproduces": true
+  },
+  "bootstrap_rng": {
+   "actual": "numpy_PCG64",
+   "expected": "numpy_PCG64",
+   "reproduces": true
+  },
+  "bootstrap_seed": {
+   "actual": 20260711,
+   "expected": 20260711,
+   "reproduces": true
+  },
+  "borrow_bps_per_year": {
+   "actual": 50,
+   "expected": 50,
+   "reproduces": true
+  },
+  "cost_side_bps": {
+   "actual": 10,
+   "expected": 10,
+   "reproduces": true
+  },
+  "dsr_N": {
+   "actual": 5,
+   "expected": 5,
+   "reproduces": true
+  },
+  "dsr_ledger": {
+   "actual": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "expected": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+   "reproduces": true
+  },
+  "folds": {
+   "actual": 5,
+   "expected": 5,
+   "reproduces": true
+  },
+  "nav_usd": {
+   "actual": 10000000,
+   "expected": 10000000,
+   "reproduces": true
+  },
+  "oos_window": {
+   "actual": [
+    "2023-05-30",
+    "2026-07-01"
+   ],
+   "expected": [
+    "2023-05-30",
+    "2026-07-01"
+   ],
+   "reproduces": true
+  },
+  "realization_horizon": {
+   "actual": 6,
+   "expected": 6,
+   "reproduces": true
+  },
+  "s_min": {
+   "actual": 0.7,
+   "expected": 0.7,
+   "reproduces": true
+  },
+  "validation_authorization": {
+   "actual": false,
+   "expected": false,
+   "reproduces": true
+  },
+  "validation_window": {
+   "actual": [
+    "2020-01-13",
+    "2023-02-08"
+   ],
+   "expected": [
+    "2020-01-13",
+    "2023-02-08"
+   ],
+   "reproduces": true
+  }
+ },
+ "governing_commit": "4385ec7728a81c0db965e2f44d6017e6116d027c",
+ "governing_preregistration_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+ "moving_block_absent": true,
+ "record_type": "MR002_Phase3A_PregistrationDiffProof",
+ "stationary_bootstrap_not_moving_block": "the ACTIVE bootstrap block is stationary; moving-block keys absent (the correction narrative names the superseded values but they are not the active rule)",
+ "version": "1.0"
+}

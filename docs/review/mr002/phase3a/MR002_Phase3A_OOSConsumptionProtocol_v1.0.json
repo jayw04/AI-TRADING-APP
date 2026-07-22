@@ -1,0 +1,39 @@
+{
+ "attestation_artifact": "OOSConsumptionStateAttestation_v1.0.json (produced at OOS run time, not Phase 3A)",
+ "consumptive_effect": "OOS opportunity consumed; NO repair-and-rerun under the same preregistration",
+ "consumptive_triggers": [
+  "returns",
+  "PnL",
+  "Sharpe",
+  "drawdown",
+  "win rate",
+  "config comparison",
+  "partial-period performance",
+  "any directional profitable/unprofitable statement"
+ ],
+ "non_consumptive_effect": "permits an ADJUDICATION REQUEST for one clean rerun; does NOT auto-authorize",
+ "non_consumptive_requires_all": [
+  "failure is orthogonal to performance",
+  "no portfolio return series was materialized",
+  "no metric was calculated",
+  "no metric was logged",
+  "no metric artifact was written",
+  "no metric was displayed to an operator",
+  "no configuration comparison was produced",
+  "no directional performance fact was observed",
+  "the failure and repair are fully audit-bound"
+ ],
+ "record_type": "MR002_Phase3A_OOSConsumptionProtocol",
+ "stage_rule": {
+  "O1_O2": "may qualify as non-consumptive if the no-metric proof holds",
+  "O3_or_later": "presumptively CONSUMES OOS unless the artifact chain proves no return/performance information was produced"
+ },
+ "stages": {
+  "O1": "seal verification and input preflight",
+  "O2": "enrichment and integrity reconciliation",
+  "O3": "portfolio replay",
+  "O4": "metric materialization",
+  "O5": "human-visible release"
+ },
+ "version": "1.0"
+}

@@ -1,0 +1,118 @@
+{
+ "bootstrap": {
+  "confidence": 0.95,
+  "confirmatory_gate": "primary expected-L=5 one-sided 95% lower bound of mean daily net return > 0",
+  "construction": "percentile",
+  "expected_block_length_primary_sessions": 5,
+  "expected_block_length_sensitivity_sessions": 10,
+  "fold_resampling": "per-fold, that fold daily-net-return series is stationary-bootstrapped identically (same expected-L / replications / seed)",
+  "governing_source": "v0.3 STATIONARY rule, established in v0.2, retained in v0.3, inherited by the owner-signed v1.0 freeze (70108c11); moving-block/L21/2000/seed42 REJECTED as transcription drift per MR002_Bootstrap_Source_Census_v1.0 + owner ruling 2026-07-20 (docs/review/comments.md Ruling 1)",
+  "mean_return_and_sharpe_use_same_samples": true,
+  "mechanics": "Politis-Romano stationary construction: p = 1/expected_L; first source index uniform in [0, n-1]; for every next bootstrap observation, with probability p start a new block at a uniformly selected source index, else advance the prior source index by one; wrap n-1 -> 0 (circular at the series boundary by construction); continue until exactly n observations. Fixed-length moving blocks are NOT substituted.",
+  "name": "stationary (Politis-Romano, circular) bootstrap of daily net returns",
+  "reference_implementation": "docs/review/mr002/evaluator/mr002_valoos_metrics.py (Increment 1 v1.2 synthetic-qualified primitive; the qualified evaluator binds the frozen impl)",
+  "replications_each": 10000,
+  "rng": "numpy_PCG64",
+  "same_method_validation_and_oos": true,
+  "seed": 20260711,
+  "sensitivity_role": "expected-L=10 result reported as robustness evidence ONLY; NOT a separate PASS gate (the frozen v0.3 text does not make it a gate)",
+  "sided": "one_sided_lower",
+  "statistic": "one-sided 95% percentile lower confidence bound of mean daily net return"
+ },
+ "dsr": {
+  "annualization": "sqrt(252)",
+  "benchmark_sharpe": 0.0,
+  "method": "Deflated Sharpe Ratio (Bailey/Lopez-de-Prado)",
+  "note": "trials_N=5 owner-ratified per the countersigned ledger (A/B/C + RNG-001 + RNG-EntryLogic). DSR is now executable in the evaluator.",
+  "role": "GATE (the governing significance gate)",
+  "sample_length": "eligible OOS sessions (775 governing)",
+  "significance_min": 0.95,
+  "skew_kurtosis": "sample skewness and kurtosis of the config-B net return series",
+  "status": "READY",
+  "trial_ledger_artifact": "MR002_DSR_TrialLedger_v1.0.json (IMMUTABLE, TRIAL_LEDGER_COUNTERSIGNED, N=5)",
+  "trial_ledger_candidate": "MR002_DSR_TrialLedger_Candidate_v1.0.json (N candidate 4 strict / 5 conservative; completeness unproven; owner countersigns)",
+  "trial_ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+  "trials_N": 5
+ },
+ "gates_frozen": {
+  "alpha": 0.05,
+  "annual_profile": {
+   "annual_herfindahl": "DIAGNOSTIC",
+   "largest_positive_year_max_fraction_of_sum_positive_annual_pnl": 0.5,
+   "min_positive_calendar_years": 3,
+   "sample": "validation + sealed OOS"
+  },
+  "bootstrap_sample": "sealed OOS",
+  "breadth": {
+   "min_completed_trades": 500,
+   "min_distinct_entry_dates": 100,
+   "min_long": 100,
+   "min_short": 100,
+   "sample": "sealed OOS"
+  },
+  "calmar_sample": "sealed OOS",
+  "capacity": "positive net edge at $10M under the 2% ADV participation cap",
+  "capacity_sample": "sealed OOS",
+  "cost_stress_gate": "profitable at 20 bps/side + 300 bps/yr borrow",
+  "cost_stress_sample": "sealed OOS",
+  "diversifier_tag": {
+   "also_requires": "cost-stress + DSR + breadth + trade-concentration + annual-profile + regime gates all pass",
+   "corr_vs_mom001_max": 0.3,
+   "note": "reported classification tag DIVERSIFIER_TIER_MET only; NOT a confirmatory PASS route",
+   "threshold_oos_sharpe": 0.4
+  },
+  "dsr_sample": "sealed OOS",
+  "dsr_significance_min": 0.95,
+  "dsr_trial_ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+  "dsr_trials_N": 5,
+  "maxdd_sample": "validation + sealed OOS COMBINED (sealed OOS also reported separately)",
+  "net_annualized_return_min": 0.03,
+  "net_max_drawdown_max": 0.15,
+  "net_oos_calmar_min": 0.75,
+  "net_return_sample": "sealed OOS at registered gross cap",
+  "oos_pass_requires_BOTH": [
+   "net_oos_sharpe_point_estimate >= 0.70",
+   "one_sided_95pct_bootstrap_lower_bound_of_daily_mean_net_return > 0"
+  ],
+  "parameter_stability": "configs A and C both net-profitable",
+  "pbo": "DIAGNOSTIC (N=3, underpowered) \u2014 NOT a PASS gate",
+  "positive_folds_sample": "validation, config B",
+  "positive_pnl_regime_concentration": "DIAGNOSTIC \u2014 NOT a rejection criterion",
+  "regime_definitions": {
+   "axes_not_combined": true,
+   "trend_regimes": "3 (per v0.3 \u00a710a definitions)",
+   "volatility_axis": "SPY trailing 21-session annualized realized vol: High >= 20%, Low < 20%"
+  },
+  "regime_gates": {
+   "low_exposure_rule": "regimes with < 60 sessions exposure reported n/a, not failed",
+   "min_trend_regimes_net_positive_of_3": 2,
+   "no_trend_regime_gt_fraction_of_total_LOSSES": 0.6,
+   "no_vol_regime_sharpe_below": -0.5,
+   "sample": "validation + sealed OOS"
+  },
+  "severe_cost_DIAGNOSTIC": "30 bps/side + 1000 bps/yr borrow (reported, NOT gated)",
+  "sharpe_sample": "sealed OOS",
+  "stability_sample": "validation",
+  "trade_concentration": {
+   "sample": "sealed OOS",
+   "single_stock_max_fraction_of_positive_pnl": 0.1,
+   "top10_trades_max_fraction_of_positive_trade_pnl": 0.2
+  },
+  "validation_positive_folds_min_of_5": 3
+ },
+ "metric_role_registry_ref": "MR002_Phase3A_MetricRoleRegistry_v1.0.json",
+ "metric_role_registry_sha256": "5337f0500672c7fabab4dcaedbd9ecfcd9bd7ff37243a52262e0309f9546bc17",
+ "note": "definitions bound verbatim from prereg v1.0.4; no metric computed during Phase 3A",
+ "record_type": "ValidationMetricSpecification",
+ "sharpe_estimator": {
+  "annualization": "sqrt(252)",
+  "frequency": "daily",
+  "mean": "arithmetic",
+  "precision": "float64",
+  "report_dp": 4,
+  "returns": "simple_net",
+  "std_ddof": 1,
+  "zero_vol": "INTEGRITY_STOP (peak-to-peak==0)"
+ },
+ "version": "1.0"
+}

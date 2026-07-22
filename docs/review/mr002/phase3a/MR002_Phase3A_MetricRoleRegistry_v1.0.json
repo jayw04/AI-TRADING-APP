@@ -1,0 +1,41 @@
+{
+ "bound_from": "prereg v1.0.4 gates_frozen + roadmap v1.1.1 short-side classification",
+ "immutability": "metric roles are hash-bound to this registry; they cannot change after publication (any change re-versions the registry and requires re-authorization)",
+ "metric_roles": {
+  "annual_herfindahl": "DIAGNOSTIC_ONLY",
+  "annual_profile_min_3_positive_years_largest_le_0.50": "SECONDARY_GATE",
+  "breadth_trades_ge_500_entrydates_ge_100_long_ge_100_short_ge_100": "SECONDARY_GATE",
+  "conservative_availability_borrow_ssr_economic_operability": "SECONDARY_GATE",
+  "cost_stress_profitable_20bps_300bps": "SECONDARY_GATE",
+  "data_and_pitsic_coverage_gates": "INTEGRITY_ONLY",
+  "diversifier_tier_tag": "DIAGNOSTIC_ONLY",
+  "dsr_significance_ge_0.95_N5": "PRIMARY_GATE",
+  "expected_L10_bootstrap_sensitivity": "DIAGNOSTIC_ONLY",
+  "exposure_limit_breach": "INTEGRITY_ONLY",
+  "frictionless_short_attribution": "DIAGNOSTIC_ONLY",
+  "net_annualized_return_ge_0.03": "SECONDARY_GATE",
+  "net_max_drawdown_le_0.15": "SECONDARY_GATE",
+  "net_oos_calmar_ge_0.75": "SECONDARY_GATE",
+  "net_oos_sharpe_ge_0.70": "PRIMARY_GATE",
+  "one_sided_95pct_bootstrap_lower_bound_daily_mean_net_return_gt_0": "PRIMARY_GATE",
+  "parameter_stability_A_and_C_net_profitable": "SECONDARY_GATE",
+  "pbo_cscv": "DIAGNOSTIC_ONLY",
+  "positive_pnl_regime_concentration": "DIAGNOSTIC_ONLY",
+  "regime_gates_2of3_trend_positive_no_vol_sharpe_lt_-0.5": "SECONDARY_GATE",
+  "replay_integrity": "INTEGRITY_ONLY",
+  "severe_cost_30bps_1000bps": "DIAGNOSTIC_ONLY",
+  "trade_concentration_single_le_0.10_top10_le_0.20": "SECONDARY_GATE",
+  "validation_positive_folds_ge_3_of_5": "SECONDARY_GATE",
+  "zero_vol_peak_to_peak": "INTEGRITY_ONLY"
+ },
+ "prereg_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+ "primary_gate_note": "the primary statistical test is net_oos_sharpe >= 0.70 (net return INCLUDING 50 bps/yr borrow financing) AND one-sided 95% bootstrap LB > 0 AND DSR >= 0.95 at N=5; it MUST NOT be moved to the conservative-availability view",
+ "record_type": "MR002_Phase3A_MetricRoleRegistry",
+ "role_domain": [
+  "DIAGNOSTIC_ONLY",
+  "INTEGRITY_ONLY",
+  "PRIMARY_GATE",
+  "SECONDARY_GATE"
+ ],
+ "version": "1.0"
+}

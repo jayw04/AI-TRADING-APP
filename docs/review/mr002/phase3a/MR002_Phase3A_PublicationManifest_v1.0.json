@@ -1,0 +1,41 @@
+{
+ "artifact_count": 24,
+ "artifact_sha256": {
+  "ExecutionEnrichmentCodeRegistry": "0bddd73c311b790a4f3ff07831279d91edb9c005b12d03543d6594749d705e51",
+  "ExecutionEnrichmentEdgeCaseSpecification": "792c6717c6e4344062ba84c1b762b6eb5b8cf51d4464cb40b280230540794d17",
+  "ExecutionEnrichmentSchema": "5b2480c1bc80abfc2d520bbc3f5c00399d20f5ca7b75f815d1e5a4bf2719f71f",
+  "GoverningSourceRegistry": "edb43137d9a02a5369114f8f76b42ce859ad2a607bd6db4a9702c491de1481c0",
+  "MetricRoleRegistry": "5337f0500672c7fabab4dcaedbd9ecfcd9bd7ff37243a52262e0309f9546bc17",
+  "MultiplicityAndDegreesOfFreedomAttestation": "ac316e010bdaa2a8c9f8d84cc0545769ea7eb34eb9a02b91cbf8c807d3779bc5",
+  "NumericRuntimeIdentityManifest": "0ec253505a4d55befe35b1e832960e6a1de36e6e934fe8ac8a515270f2a8826a",
+  "OOSConsumptionProtocol": "a4ceb6ee8bb3e262b7fd4981f262798e75c70b8a52a935b52361014831b23f87",
+  "PregistrationDiffProof": "68ab995ae09c5a0e21c9b7dcf4592284f9767d427ff838a6b6a70c574a9f4037",
+  "SealVerificationReport": "11eaa98924915adf6038c0d8b548af36bed0be7153cf72c75183c7def3e52869",
+  "SealedPartitionAccessHistory": "df053158b63d6c343966ebd7ad543c47527685bc022436028864b2b7c797e7b1",
+  "SealedPartitionContentCommitment": "be79c5bcd29ffaa7872c23d31414d2e14421e0cfeecd3aa2abefc50bf8f17307",
+  "SealedPartitionControlSpecification": "feed7eb5ec50a437221fd9354f5471df69a4a2b854f46a1b9837c77291ec136f",
+  "ShortAvailabilityLimitationsStatement": "edbf450d92a7691775b0d3036dcfea4c7b4ab8f472c733be1a80feda0723cf9e",
+  "ShortBorrowLocateModelSpecification": "0b460345fdd8163869eccdcab7e593d92cd003764728a4544069133adff23a1a",
+  "ValidationAuthorization": "934a1d1178ca962c2dbc717928b795126aa04fa47d4b49c28e0b74a6b3682d34",
+  "ValidationAuthorizationSubmission": "c569400651402db9add155e822bdb84e6e3cdcb9350d4644b0d119c1af4b15d7",
+  "ValidationCostExecutionSpecification": "b8287e5a46694c04d019632d46884486098c4843f29cb7a945621e44ccbd41af",
+  "ValidationInputIdentityManifest": "d965defcb293af1c4c22d14f63455194b7c803567aba9a44d93aaafe96423ebb",
+  "ValidationMetricSpecification": "dde66326ce896031bca132b9495672f5420fe50f651828e5a4f164ae2d290d73",
+  "ValidationNullModelSpecification": "e9e6bb7e4de18a4d932f32cb338b425650128f8809a38fd3d61b6630d3fbd763",
+  "ValidationPartitionStructuralPreflight": "0ff7c6042abd03ccd85eb08b79ffb1c842895787781827a1bbb6d01627a657b0",
+  "ValidationRunSpecification": "fc73c060e667f3f3fbd8c8e554bfc4c2ff6272f06f69920430eb91b623c3e950",
+  "ValidationStructuralManifestSpecification": "001390d1069f3f2d4e0c9c5755149639be13657bcf9ca7b7255a8fee9d3856fa"
+ },
+ "boundary": "DRAFTING ONLY. validation_authorization=false; validation/OOS SEALED AND UNREAD; no returns/performance computed; no credentials released; stop for review.",
+ "diff_proof_all_reproduce": true,
+ "dof_gate_signal_or_trial_affecting_zero": true,
+ "dsr_N": 5,
+ "governing_preregistration": {
+  "commit": "4385ec7728a81c0db965e2f44d6017e6116d027c",
+  "content_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "file": "MR002_ValidationOOS_Preregistration_v1.0.4.json"
+ },
+ "package": "SPQ-1 Phase 3A Validation Authorization Package (specifications only)",
+ "record_type": "MR002_Phase3A_PublicationManifest",
+ "version": "1.0"
+}

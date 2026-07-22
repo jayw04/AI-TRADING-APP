@@ -1,0 +1,25 @@
+{
+ "binding": "immutable SignalDecisionRecord -> ExecutionEnrichedCandidateRecord",
+ "enriched_candidate_record_fields": [
+  "decision_record_sha256",
+  "decision_session_t",
+  "execution_session_t_plus_1",
+  "official_open_source_identity",
+  "official_open_price_ref",
+  "realization_horizon",
+  "ExecutionEnrichmentDisposition",
+  "ExecutionEnrichmentCode",
+  "corporate_action_identity",
+  "conservative_short_flag"
+ ],
+ "execution": "next_open_t_plus_1",
+ "future_information_guard": "any t+1 fact bearing on close-t decision -> INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED",
+ "realization_horizon": 6,
+ "record_type": "ExecutionEnrichmentSchema",
+ "signal_decision_record_ref": {
+  "bound_by": "decision_record_sha256 (Phase 2B publication)",
+  "immutable": true,
+  "never_mutated_by_enrichment": true
+ },
+ "version": "1.0"
+}

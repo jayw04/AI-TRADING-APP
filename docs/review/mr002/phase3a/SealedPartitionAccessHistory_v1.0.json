@@ -1,0 +1,22 @@
+{
+ "content": "METADATA ONLY + proof of zero unauthorized access (NO partition values)",
+ "record_fields": [
+  "partition",
+  "event_time_utc",
+  "principal",
+  "operation",
+  "object_key_prefix",
+  "authorized (bool)",
+  "authorization_event_ref",
+  "hash_chain_prev",
+  "hash_chain_row"
+ ],
+ "record_type": "SealedPartitionAccessHistory",
+ "required_zero": {
+  "oos_access_events_before_oos_authorization": 0,
+  "oos_access_events_before_validation": 0,
+  "validation_access_events_before_authorization": 0
+ },
+ "status": "SPECIFICATION (populated from the audited CloudTrail export; contains no sealed values)",
+ "version": "1.0"
+}

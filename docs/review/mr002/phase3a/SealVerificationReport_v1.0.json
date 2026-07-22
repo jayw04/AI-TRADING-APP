@@ -1,0 +1,15 @@
+{
+ "distinction": {
+  "OpenedObjectLedger": "per-run opened objects",
+  "SealedStoreAccessLog": "program-history access to the partition"
+ },
+ "record_type": "SealVerificationReport",
+ "status": "SPECIFICATION (the run-time report; no verification values computed during Phase 3A)",
+ "verifies": [
+  "content commitment stable",
+  "no access-before-authorization events",
+  "OpenedObjectLedger reconciles against SealedStoreAccessLog",
+  "OOS partition DENY in force during validation"
+ ],
+ "version": "1.0"
+}

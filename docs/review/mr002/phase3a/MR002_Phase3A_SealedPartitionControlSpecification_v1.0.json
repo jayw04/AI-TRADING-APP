@@ -1,0 +1,38 @@
+{
+ "commitment_and_tamper_evidence": {
+  "access_events": "CloudTrail S3 GetObject data events; hash-chained export; policy-state snapshots before and after each execution",
+  "content_commitment": "custodian-produced value-blind content commitment (SHA-256 over canonical partition metadata + row-level content hash) committed BEFORE the research team receives the Phase 3A package"
+ },
+ "extends": "prereg v1.0.4 sealed_access_protocol (CloudTrail S3 data events; dedicated IAM principal)",
+ "gates": {
+  "oos_access_events_before_oos_authorization": 0,
+  "oos_access_events_before_validation": 0,
+  "validation_access_events_before_authorization": 0
+ },
+ "governing_binding": {
+  "prereg_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "sealed_manifest_sha256": "96f7b3f96c61abb2d146ca25a58698471ae61454af13882ea15c9be9000112cd"
+ },
+ "record_type": "MR002_Phase3A_SealedPartitionControlSpecification",
+ "required_properties": [
+  "separate validation and OOS storage boundaries",
+  "read credentials unavailable to ordinary development execution",
+  "append-only access audit",
+  "content commitments for sealed partitions",
+  "hash-chained or otherwise tamper-evident access events",
+  "explicit authorization event before credentials are released",
+  "opened-object ledger for the authorized run",
+  "post-run reconciliation against the store-level access log"
+ ],
+ "storage_boundaries": {
+  "credential_custody": "dedicated IAM principal; keys not in developer env; released only on the explicit authorization event",
+  "oos_partition": "separate bucket/prefix; explicit DENY during validation",
+  "release_mechanism": "owner-signed authorization event -> time-bounded credential release -> access recorded",
+  "validation_partition": "separate bucket/prefix; validation-only IAM policy"
+ },
+ "two_required_records": {
+  "OpenedObjectLedger": "what the AUTHORIZED PROGRAM opened (per-run)",
+  "SealedStoreAccessLog": "whether ANYTHING opened the partition across program history"
+ },
+ "version": "1.0"
+}

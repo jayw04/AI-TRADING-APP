@@ -1,0 +1,54 @@
+{
+ "census_categories": [
+  "successful enrichment",
+  "no-open",
+  "halt",
+  "delisting",
+  "corporate-action transition",
+  "identity conflict",
+  "missing source",
+  "future-information stop",
+  "other registered disposition"
+ ],
+ "census_note": "recomputed from the authorized partition; known cases may be registered in advance but are NOT a fixed expected-count gate",
+ "default": "FAIL CLOSED. No silent price substitution, previous-close fallback, later-open fallback, or post-hoc security winner.",
+ "each_outcome": {
+  "no_silent_fallback": true,
+  "one_census_category": true,
+  "one_reconciliation_path": true,
+  "one_terminal_treatment": true
+ },
+ "execution_rule_binding": {
+  "execution": "next_open_t_plus_1",
+  "forward_fill": "prohibited",
+  "realization_horizon": 6
+ },
+ "per_record_bindings": [
+  "ExecutionEnrichmentDisposition",
+  "ExecutionEnrichmentCode",
+  "decision_record_sha256",
+  "requested_execution_session",
+  "actual_source_session",
+  "corporate_action_identity",
+  "official_open_source_identity",
+  "terminal_treatment"
+ ],
+ "record_type": "MR002_Phase3A_ExecutionEnrichmentEdgeCaseSpecification",
+ "registered_edge_cases": {
+  "adjusted_vs_unadjusted_open_identity": "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT",
+  "calendar_mismatch": "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT",
+  "cash_only_acquisition": "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED",
+  "delisting": "EXECUTION_ENRICHMENT_STOP:DELISTING",
+  "dividend_or_distribution": "registered adjusted open OR CORPORATE_ACTION_UNRESOLVED",
+  "execution_session_ne_registered_next": "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT",
+  "future_information": "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED",
+  "merger_consideration": "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED",
+  "missing_or_conflicting_open": "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT",
+  "no_official_open": "EXECUTION_ENRICHMENT_STOP:NO_OFFICIAL_OPEN",
+  "split_close_t_to_open_t1": "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED (unless a registered adjusted open resolves it)",
+  "stock_and_cash_acquisition": "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED",
+  "symbol_or_permsec_transition": "EXECUTION_ENRICHMENT_STOP:IDENTITY_CONFLICT",
+  "trading_halt": "EXECUTION_ENRICHMENT_STOP:TRADING_HALT"
+ },
+ "version": "1.0"
+}

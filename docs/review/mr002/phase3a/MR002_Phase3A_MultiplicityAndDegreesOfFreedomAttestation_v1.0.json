@@ -1,0 +1,80 @@
+{
+ "changes": [
+  {
+   "affects_trial_count": false,
+   "change": "v1.0.3 -> v1.0.4 bootstrap transcription correction (moving-block -> frozen v0.3 stationary Politis-Romano)",
+   "classification": "GOVERNANCE_ONLY",
+   "evidence": "MR002_ValidationOOS_CorrectionRecord_v1.0.4.json",
+   "performance_observed": false,
+   "sha256": "33fbb78ce7679aaab2afc514cb0164f09e3331f87b8422b4827a0d2587c91b91"
+  },
+  {
+   "affects_trial_count": false,
+   "change": "Phase 2B calendar verification-harness correction (dev_calendar_sha256 vs RegisteredCalendar.identity false-stop)",
+   "classification": "INTEGRITY_ONLY",
+   "evidence": "tests/research/spq1/test_spq1_phase2b_2.py + runner cal_sha check",
+   "performance_observed": false
+  },
+  {
+   "affects_trial_count": false,
+   "change": "Non-injective request-identity collision amendment (run-spec v1.0 -> v1.1)",
+   "classification": "GOVERNANCE_ONLY",
+   "evidence": "RunSpecification_v1.1 (fd19aef5) + CollisionRuleAmendment_v1.1",
+   "performance_observed": false
+  },
+  {
+   "affects_trial_count": false,
+   "change": "Runner-side collision detection (collision_rule.py; frozen bb029a96 unchanged)",
+   "classification": "INTEGRITY_ONLY",
+   "evidence": "collision_rule.py + CollisionCensus",
+   "performance_observed": false
+  },
+  {
+   "affects_trial_count": false,
+   "change": "Terminal-key clarification (distinct_terminal_keys vs accepted-resolved)",
+   "classification": "EVIDENCE_ONLY",
+   "evidence": "MR002_SPQ1_Phase2B_2B3_TerminalKeyClarification_v1.0",
+   "performance_observed": false
+  },
+  {
+   "affects_trial_count": false,
+   "change": "Phase 2B artifact / schema corrections + 2B-2 full run + 2B-3 governance closeout",
+   "classification": "EVIDENCE_ONLY",
+   "evidence": "Phase 2B evidence commit 1cc98f5 + closeout 4c358ac",
+   "performance_observed": false
+  },
+  {
+   "affects_trial_count": false,
+   "change": "Post-Phase-2B roadmap v1.1 + v1.1.1 erratum (planning documents)",
+   "classification": "GOVERNANCE_ONLY",
+   "evidence": "MR002_Development_Plan_Next_Phases_v1.1{,.1}.md",
+   "performance_observed": false
+  }
+ ],
+ "classification_domain": [
+  "INTEGRITY_ONLY",
+  "EVIDENCE_ONLY",
+  "GOVERNANCE_ONLY",
+  "SIGNAL_OR_TRIAL_AFFECTING"
+ ],
+ "conclusions": {
+  "no_additional_trial_introduced": true,
+  "no_config_ABC_definition_changed": true,
+  "no_holding_period_changed": true,
+  "no_metric_gate_changed": true,
+  "no_performance_result_observed": true,
+  "no_portfolio_or_execution_rule_changed": true,
+  "no_signal_threshold_changed": true,
+  "no_universe_selection_rule_changed": true
+ },
+ "dsr_trial_ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+ "gate": {
+  "dsr_N_remains_5": true,
+  "dsr_multiplicity_N": 5,
+  "signal_or_trial_affecting_count": 0,
+  "signal_or_trial_affecting_count_is_zero": true
+ },
+ "record_type": "MR002_Phase3A_MultiplicityAndDegreesOfFreedomAttestation",
+ "scope": "every governed change from preregistration v1.0.3 through Phase 2B closure + the v1.0.4 bootstrap correction",
+ "version": "1.0"
+}

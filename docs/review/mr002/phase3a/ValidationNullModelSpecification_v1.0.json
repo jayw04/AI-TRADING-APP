@@ -1,0 +1,22 @@
+{
+ "confirms": "no additional trial arose after preregistration; DSR N remains 5",
+ "dispersion_rule": {
+  "estimator": "sample standard deviation, ddof=1",
+  "per_observation_conversion": "divide by sqrt(252)",
+  "required_pre_oos_artifact": "MR002_DSR_TrialDispersion_Validation_v1.0.json (generated DURING the authorized validation run, frozen before OOS; NOT computed in Phase 3A)",
+  "rng001_rng_entrylogic": "retained in N; EXCLUDED from dispersion (no comparable frozen Sharpes)",
+  "source": "validation-period annualized net Sharpes of A, B, and C"
+ },
+ "dsr_multiplicity_N": 5,
+ "purpose": "bind and explain the already-registered 5-trial DSR multiplicity ledger; invent NO sixth null, rerun NO RNG program unless preregistered, search NO alternative randomization, choose NO more favorable multiplicity adjustment",
+ "record_type": "ValidationNullModelSpecification",
+ "trial_ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+ "trial_set": [
+  "Config A",
+  "Config B",
+  "Config C",
+  "RNG-001",
+  "RNG-EntryLogic"
+ ],
+ "version": "1.0"
+}

@@ -1,0 +1,21 @@
+{
+ "commitment_scheme": {
+  "algorithm": "SHA-256 over canonical (sorted) partition content",
+  "custodian_binding": "custodian process identity + access event MUST be audit-bound",
+  "value_blind_metadata": [
+   "schema identity",
+   "table names",
+   "row counts",
+   "date bounds",
+   "session count",
+   "symbol/security counts",
+   "factor-series coverage",
+   "null-count summaries",
+   "latest source date"
+  ]
+ },
+ "purpose": "custodian-produced, value-blind content commitment of the sealed validation & OOS partitions, committed before the research team receives Phase 3A; enables post-authorization structural verification without pre-authorization row access",
+ "record_type": "SealedPartitionContentCommitment",
+ "status": "SPECIFICATION (actual commitments produced by the custodian before authorization; values not present in this drafting artifact)",
+ "version": "1.0"
+}

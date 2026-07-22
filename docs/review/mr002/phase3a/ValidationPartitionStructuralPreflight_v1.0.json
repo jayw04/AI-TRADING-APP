@@ -1,0 +1,31 @@
+{
+ "authorized_mode_preauthorization": "STRUCTURAL_PREFLIGHT",
+ "mode_domain": [
+  "STRUCTURAL_PREFLIGHT",
+  "PERFORMANCE_OBSERVATION"
+ ],
+ "must_not": [
+  "calculate returns",
+  "calculate signals",
+  "rank",
+  "calculate performance",
+  "query sealed rows directly"
+ ],
+ "operates_from": "precommitted sealing metadata ONLY until validation access is separately authorized",
+ "preauthorization_direct_validation_reads": 0,
+ "record_type": "ValidationPartitionStructuralPreflight",
+ "structural_checks": [
+  "partition identity",
+  "date range",
+  "session count",
+  "required table presence",
+  "row counts",
+  "symbol/security coverage",
+  "required factor-series coverage",
+  "schema identity",
+  "null-count summaries (custodian-produced)",
+  "latest available source date",
+  "no rows outside the registered partition"
+ ],
+ "version": "1.0"
+}

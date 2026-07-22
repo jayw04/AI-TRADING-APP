@@ -1,0 +1,63 @@
+{
+ "correction_record_sha256": "33fbb78ce7679aaab2afc514cb0164f09e3331f87b8422b4827a0d2587c91b91",
+ "dsr_trial_ledger_sha256": "deda5cec0bbb72dd845633e99682849e6cf0db949e252dba956a432fcb383e9b",
+ "evaluator_code_identities_prerequisite": {
+  "_gen_evidence.py": "70079c7918bc2b8c350cb8a28e2bf2aebbd855a0dfc87b0c66c66beb29c71652",
+  "_gen_evidence_inc2.py": "d4c47a9dc53aa7e455e207a4ecc2d21808a9adfc33b009b954cd3eb6db2602ef",
+  "_gen_evidence_inc3.py": "5736f061110cd4f419230195f1261f7f75216ee8d058061133004afcc63acf6d",
+  "mr002_valoos_candidates.py": "5e429c37af40b6913289b716051e36aaab55015e71087c44fab04815b8d2386c",
+  "mr002_valoos_construction.py": "e6af4eea60099b97663fd603da35d10d5bf9021ef2ac16b7d267f9fc3be601b3",
+  "mr002_valoos_costmodel.py": "b40fb1a4f4418edb27f3f0de5477228e7b36de1f47f561cf142dc19185047050",
+  "mr002_valoos_execution.py": "6249dee5a7a2dd9468c055ff8b626d4f64d675615aaf8923b3417aa34a0674d1",
+  "mr002_valoos_exposure.py": "5d18a45706e47dfceefafd5236928094714f64566931103dfd04f539a7f552bc",
+  "mr002_valoos_gates.py": "e14be3bfc91fcef910b5ff30e036926fba957cb8363d6808345c7afe10290935",
+  "mr002_valoos_identity.py": "36eb44741c2bf5ede80688d6527a0d89fdfa5ac1f37b44fc61341ac3aab701b1",
+  "mr002_valoos_metrics.py": "37131c77a25750418ff65e1c888fd938f432ea12a94ac0454709c900776132b7",
+  "mr002_valoos_nav.py": "17d3a841f2e802846e3268bef2496fd99cc3492802f57c97fd39e0e1acd32c3f",
+  "mr002_valoos_pipeline.py": "5e71ea392e728378d6d1004ff42de87fdfb4e9b5a94e5210c71c754441c6ae1d",
+  "mr002_valoos_portfolio_identity.py": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
+  "mr002_valoos_portfolio_state.py": "7129c11e832691b39abb9983b21b13ed2b4ce9c61e3316e329fc1052012a5d34",
+  "mr002_valoos_registry.py": "8fc8c1af19ef03a21387f5680d4959a952dbc9d1c53a352560deba8d5697add7",
+  "mr002_valoos_replay.py": "1d386de684348d7977e2147ab2f7f01b6e6fe17deaa739769550254648dca0a8",
+  "mr002_valoos_report.py": "e2b3b30fbf80416883754f6884910ee12dc2a923ccc56748fbdf82662dc9d415",
+  "test_increment1.py": "66beacfb3b5d3ba8d2383314b38253762439f5fca18043993ef703d1cc892742",
+  "test_increment2.py": "ed7f0e5606113c7ad9efc322c2401809785fcadde11e93d3d4aedcf494a6fa17",
+  "test_increment3.py": "3110201a789c1b144b35c504da817ff5fcd174a5b3771cfe28b462bc2ea06532"
+ },
+ "governing_frozen_sources": {
+  "authoritative_calendar_snapshot": {
+   "file": "apps/backend/data/mr002_research.duckdb",
+   "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+  },
+  "sealed_manifest": {
+   "file": "docs/implementation/evidence/mr_002/MR002_SealedManifest_v1.0.json",
+   "sha256": "96f7b3f96c61abb2d146ca25a58698471ae61454af13882ea15c9be9000112cd"
+  },
+  "session_index_extraction": {
+   "file": "docs/review/mr002/evaluator_prototype/MR002_SessionIndex_Extraction_Output.json",
+   "script_sha256": "908de368968fbb5d012ff456fd7925f541907e2b73a9851a416c9b3b5c1fe646",
+   "sha256": "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071"
+  },
+  "windows_design": {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.1_REFREEZE_CANDIDATE.md",
+   "sha256": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5"
+  }
+ },
+ "governing_gate_source": {
+  "authority": "the v0.3 gate table, frozen UNCHANGED into v1.0",
+  "census": "MR002_GateSource_Census_v1.0.json",
+  "sealed_manifest_binding": "MR002_SealedManifest_v1.0.json freeze_candidate_doc == 7b5ee09c",
+  "v0.3_gate_table_sha256": "1007db8204ad3dff...(docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md)",
+  "v1.0_FREEZE_CANDIDATE_sealed_bound_sha256": "7b5ee09c9a3e5cb170f6e475fa567d664b4594402daee2dc69ecae6c051890bc",
+  "v1.0_FROZEN_signed_sha256": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+ },
+ "governing_preregistration": {
+  "commit": "4385ec7728a81c0db965e2f44d6017e6116d027c",
+  "content_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "file": "MR002_ValidationOOS_Preregistration_v1.0.4.json"
+ },
+ "record_type": "ValidationInputIdentityManifest",
+ "sealed_manifest_sha256": "96f7b3f96c61abb2d146ca25a58698471ae61454af13882ea15c9be9000112cd",
+ "validation_partition": "SEALED_AND_UNREAD (identity bound via custodian content commitment, not read)",
+ "version": "1.0"
+}

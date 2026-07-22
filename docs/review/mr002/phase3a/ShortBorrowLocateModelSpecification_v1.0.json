@@ -1,0 +1,90 @@
+{
+ "governed_answers": {
+  "buy_to_cover_failure": "treated as a fail-closed INTEGRITY_STOP; no silent carry",
+  "cost_applied_to_accepted_shorts": "50 bps/yr borrow financing (primary); 300 bps/yr stress; 1000 bps/yr severe diagnostic",
+  "failed_entry_one_sided_or_ghost_position": "PROHIBITED - a refused short does not create a naked long; portfolio is reconstructed under the preregistered rule below (no ghost/one-sided position)",
+  "pending_short_exits": "buy-to-cover at next-open t+1 per the frozen execution rule; a pending exit is never dropped",
+  "portfolio_fails_or_reconstructed": "reconstructed under a preregistered conservative rule (scale the book to the achievable neutral gross), NOT a post-hoc discretionary fix; the exact rule is frozen in the conservative-view spec before validation",
+  "refused_delayed_or_resized": "REFUSED (fail-closed) in the conservative view; never silently resized to fabricate neutrality",
+  "short_cannot_be_located": "conservative view: the candidate short is REFUSED (REFUSED_SHORT_UNAVAILABLE) - not synthetically located; primary view: borrow available by assumption (borrow COST applied)",
+  "ssr_active": "conservative view applies an uptick restriction to the next-session short entry where reconstructable; otherwise disclosed as a limitation",
+  "unavailable_short_alters_dollar_neutrality": "conservative view: the paired long gross is reduced to preserve dollar-neutrality (long_gross == short_gross) under a preregistered reconstruction rule; it does NOT run one-sided"
+ },
+ "governing_binding": {
+  "prereg_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+ },
+ "prohibition": "do NOT manufacture historical locate data that does not exist; unobservable facts are labeled UNOBSERVABLE_LIMITATION and disclosed",
+ "record_type": "ShortBorrowLocateModelSpecification",
+ "relation_to_primary_gate": "the conservative view is a SECONDARY/ECONOMIC_OPERABILITY_GATE; it changes NO preregistered value and does not redefine net_oos_sharpe >= 0.70",
+ "rule_classification_domain": [
+  "OBSERVED_PIT_FACT",
+  "RECONSTRUCTED_PIT_FACT",
+  "CONSERVATIVE_PROXY",
+  "UNOBSERVABLE_LIMITATION"
+ ],
+ "rules": [
+  {
+   "class": "OBSERVED_PIT_FACT",
+   "data_source": "prereg v1.0.4 cost_model_frozen_values.borrow_bps_per_year",
+   "diagnostic": false,
+   "economic_effect": "reduces net short return",
+   "effective_date": "frozen",
+   "fallback": "n/a",
+   "primary_gate_input": true,
+   "rule": "borrow financing cost",
+   "value": "50 bps/yr (day-count 360); 300 bps/yr stress"
+  },
+  {
+   "class": "UNOBSERVABLE_LIMITATION",
+   "data_source": "none (no historical locate feed)",
+   "diagnostic": true,
+   "economic_effect": "may prevent or resize a short",
+   "effective_date": "n/a",
+   "fallback": "CONSERVATIVE_PROXY (below)",
+   "primary_gate_input": false,
+   "rule": "borrow availability / locate",
+   "value": "PIT borrow availability is generally not reconstructable for this data tier"
+  },
+  {
+   "class": "CONSERVATIVE_PROXY",
+   "data_source": "PIT price/ADV/market-cap already in the frozen universe",
+   "diagnostic": true,
+   "economic_effect": "reduces short breadth in the conservative view",
+   "effective_date": "close t",
+   "fallback": "refuse the short (no synthetic locate)",
+   "primary_gate_input": false,
+   "rule": "conservative availability proxy",
+   "value": "shortability proxy = a security is shortable only if it satisfies a preregistered liquidity/size floor at close t (exact floor bound in the conservative-view spec); otherwise REFUSED_SHORT_UNAVAILABLE"
+  },
+  {
+   "class": "RECONSTRUCTED_PIT_FACT",
+   "data_source": "PIT prior-close vs low (approx)",
+   "diagnostic": true,
+   "economic_effect": "delays/blocks some short entries in the conservative view",
+   "effective_date": "t+1",
+   "fallback": "disclose",
+   "primary_gate_input": false,
+   "rule": "Regulation SHO / SSR",
+   "value": "if reconstructable from PIT price (>=10% intraday decline trigger), apply uptick restriction to short entries the following session; else disclose as UNOBSERVABLE_LIMITATION"
+  }
+ ],
+ "version": "1.0",
+ "views": {
+  "DIAGNOSTIC_ONLY": {
+   "label": "FRICTIONLESS_SHORT_RESEARCH_DIAGNOSTIC / NOT AN IMPLEMENTABLE PERFORMANCE ESTIMATE",
+   "name": "zero-borrow-cost frictionless short attribution"
+  },
+  "PRIMARY_GATE": {
+   "borrow_availability": "assumed (frictionless availability)",
+   "borrow_bps_per_year": 50,
+   "borrow_financing_included": true,
+   "name": "preregistered net model",
+   "note": "this is the frozen preregistered research test; net_oos_sharpe >= 0.70 is computed on THIS series and MUST NOT move to the conservative view"
+  },
+  "SECONDARY_GATE_ECONOMIC_OPERABILITY": {
+   "name": "conservative availability/locate/SSR model",
+   "no_manufactured_locate_data": true,
+   "role": "may BLOCK product promotion; does NOT replace the primary statistical test"
+  }
+ }
+}

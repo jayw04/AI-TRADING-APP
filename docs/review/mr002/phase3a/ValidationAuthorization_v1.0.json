@@ -1,0 +1,16 @@
+{
+ "governing_preregistration_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+ "grants": "NOTHING - this artifact freezes the validation contract for owner adjudication; it does not release credentials, open data, or compute performance",
+ "preconditions_for_a_future_grant": [
+  "owner acceptance of this Phase 3A package",
+  "custodian content commitments produced + sealed-store access history = 0 unauthorized",
+  "numeric-runtime + structural-manifest specs satisfied",
+  "separate explicit owner authorization event"
+ ],
+ "record_type": "ValidationAuthorization",
+ "run_specification_ref": "ValidationRunSpecification_v1.0.json",
+ "run_specification_sha256": "fc73c060e667f3f3fbd8c8e554bfc4c2ff6272f06f69920430eb91b623c3e950",
+ "state": "REQUEST / CONTRACT (NOT a grant)",
+ "validation_authorization": false,
+ "version": "1.0"
+}
