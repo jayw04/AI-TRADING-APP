@@ -1,0 +1,28 @@
+{
+ "adjudicated_package_sha256": {
+  "AuthorizationRequestSubmission": "ea826919e35b53356a77aebfc2e838112c408d8c5256b098343e30b7e6d84eca",
+  "DeliverableRegister": "236a0497f79705aadee3132d17f0ca6551aa9be5e2cbb2b911b4786be1f7c137",
+  "ExecutionAuthorizationRequest": "3329630ac1ce4e63c05376b59f4de11630c119871729200786f0726e47bc367a",
+  "ExecutionGateTable": "f113a232c0536e0e130a11d9d6a3dbe01610e1ee70b9fc7633ab87e8ac290ff3",
+  "Phase3ALineageProof": "3de83591c0806dad6a712ab8873658616821181e3f462ed636c7e501428e8dea",
+  "PublicationManifest": "00582f5985938a89a8a31f7f7d591c16e3d888a1bca7ae3d4155a0a6e1a42c6d",
+  "RuntimePrerequisiteRegister": "0bc80e78cc1ede2ca7dfbed61500cda4e81e310220de3416fc46df6b8efd0ccc"
+ },
+ "adjudicated_package_unmodified": true,
+ "adjudication_date": "2026-07-22",
+ "artifact_sha256": {
+  "AuthorizationAdjudication": "16013d70bd4c41a9ba77150b6a839b85ba0c48974ca55558aa7f24c7298d8889",
+  "AuthorizationAdjudicationCountersignature": "d0d76905d49f324c3607250bc775bade47bfafa3b94e1a8a0bbd319008094c88",
+  "ValidationAuthorizationState": "a11f6e52b21381cba1ccb49feca1f608541d0c9e9e3f4ef57e4bfff6dc0c198e"
+ },
+ "boundary": "ADJUDICATION RECORD. validation_authorization=false; validation/OOS SEALED AND UNREAD; the single validation opening remains unconsumed; no credentials released; no performance computed.",
+ "governing_outcome": "D1 ACCEPTED / D2 AUTHORIZED WITH RESTRICTIONS / D3 DENIED WITHOUT PREJUDICE",
+ "grant_readiness": "NOT_READY",
+ "manifest_bound_artifact_count": 3,
+ "package": "SPQ-1 Phase 3B/C owner adjudication (D1 accepted / D2 restricted / D3 denied)",
+ "publication_manifest_self_excluded": true,
+ "record_type": "MR002_Phase3BC_AdjudicationManifest",
+ "reference_commit": "ea437ce9355650ab907079fea10243db5599a1a7",
+ "validation_authorization": false,
+ "version": "1.0"
+}

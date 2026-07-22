@@ -182,8 +182,116 @@ def test_14_publication_manifest_binds_every_artifact_and_holds_boundary():
     assert pub["manifest_bound_artifact_count"] == len(pub["artifact_sha256"])
     assert pub["package_file_count"] == pub["manifest_bound_artifact_count"] + 1
     files = [f for f in P3BC.iterdir() if f.suffix in (".json", ".md")]
-    assert len(files) == pub["package_file_count"]
+    request_package = []
     for name, want in pub["artifact_sha256"].items():
         cands = [f for f in files if f.name.startswith(f"MR002_Phase3BC_{name}_v1.0.")]
         assert len(cands) == 1, name
         assert hashlib.sha256(cands[0].read_bytes()).hexdigest() == want
+        request_package.append(cands[0])
+    # the request package is its bound artifacts + the self-excluded manifest; later adjudication
+    # artifacts live in the same directory but are bound by their own manifest
+    assert len(request_package) + 1 == pub["package_file_count"]
+
+
+# --------------------------------------------------------------------------------------
+# Owner adjudication (2026-07-22): D1 ACCEPTED / D2 RESTRICTED / D3 DENIED WITHOUT PREJUDICE
+# --------------------------------------------------------------------------------------
+ADJUDICATED_COMMIT = "ea437ce9355650ab907079fea10243db5599a1a7"
+
+
+def test_15_adjudication_binds_the_unmodified_request_package():
+    adj = load("MR002_Phase3BC_AuthorizationAdjudication_v1.0.json")
+    assert adj["reference_commit"] == ADJUDICATED_COMMIT
+    pub = load("MR002_Phase3BC_PublicationManifest_v1.0.json")
+    # every adjudicated hash is a live recomputation of the file that was adjudicated
+    for name, want in adj["adjudicated_artifact_sha256"].items():
+        cands = [f for f in P3BC.iterdir() if f.name.startswith(f"MR002_Phase3BC_{name}_v1.0.")]
+        assert len(cands) == 1, name
+        assert hashlib.sha256(cands[0].read_bytes()).hexdigest() == want
+        if name in pub["artifact_sha256"]:
+            assert pub["artifact_sha256"][name] == want, f"{name} drifted since adjudication"
+
+
+def test_16_d1_accepts_but_grants_nothing():
+    adj = load("MR002_Phase3BC_AuthorizationAdjudication_v1.0.json")
+    d1 = adj["D1"]
+    assert d1["verdict"] == "ACCEPTED"
+    assert d1["grants"].startswith("NOTHING")
+    assert adj["validation_authorization"] is False
+    assert any("NOT_READY" in a for a in d1["accepts"])
+    assert ADJUDICATED_COMMIT in d1["scope_binding"]
+
+
+def test_17_d2_is_production_only_and_excludes_p12_p13():
+    adj = load("MR002_Phase3BC_AuthorizationAdjudication_v1.0.json")
+    reg = load("MR002_Phase3BC_RuntimePrerequisiteRegister_v1.0.json")
+    d2 = adj["D2"]
+    assert d2["verdict"] == "AUTHORIZED_WITH_RESTRICTIONS"
+    ids = d2["authorized_prerequisite_ids"]
+    assert ids == [i for i in reg["blocking_unsatisfied_ids"] if i != "P12"]
+    assert "P12" not in ids and "P13" not in ids
+    assert "NOT the beginning of Phase 3B or 3C" in d2["character"]
+    prohibited = " ".join(d2["prohibited"]).lower()
+    for token in ("indirectly inferring", "computing model performance", "resolving p13 early",
+                  "retrospective", "placeholder", "beginning phase 3b"):
+        assert token in prohibited
+    assert "MUST remain unresolved" in d2["incompletable_rule"]
+    assert "ACTUAL RUNTIME INSTANCES" in d2["custodian_rule"]
+    assert "may NOT be silently replaced" in d2["evaluator_bind_rule"]
+
+
+def test_18_d2_does_not_mark_any_prerequisite_satisfied():
+    reg = load("MR002_Phase3BC_RuntimePrerequisiteRegister_v1.0.json")
+    # authorizing production is not satisfaction: the register is unchanged and still NOT_READY
+    assert reg["grant_readiness"] == "NOT_READY"
+    assert reg["counts"]["blocking_satisfied"] == 2
+
+
+def test_19_d3_denied_and_opening_unconsumed():
+    adj = load("MR002_Phase3BC_AuthorizationAdjudication_v1.0.json")
+    d3 = adj["D3"]
+    assert d3["verdict"] == "DENIED_WITHOUT_PREJUDICE"
+    conds = d3["readmission_requires_one_closed_verification_run_demonstrating"]
+    assert [c.split()[0] for c in conds] == [f"C{i}" for i in range(1, 11)]
+    assert any("UNCONSUMED" in c for c in d3["consequences"])
+    assert any("validation_authorization remains false" in c for c in d3["consequences"])
+    assert d3["verifier_status"].startswith("NOT_BUILT")
+    assert "under DENY" in adj["oos"]
+    assert adj["governing_outcome"] == \
+        "D1 ACCEPTED / D2 AUTHORIZED WITH RESTRICTIONS / D3 DENIED WITHOUT PREJUDICE"
+
+
+def test_20_authorization_state_is_a_false_rev0_cas_anchor():
+    st = load("MR002_Phase3BC_ValidationAuthorizationState_v1.0.json")
+    assert st["validation_authorization"] is False and st["_rev"] == 0
+    t = st["transition_rule"]
+    assert t["operation"] == "COMPARE_AND_SET"
+    assert t["from"] is False and t["to"] is True and t["expected_rev"] == 0
+    assert len(t["fail_closed_on_mismatch_of"]) == 6
+    assert t["on_mismatch"].startswith("FAIL CLOSED")
+    assert "durably recorded BEFORE any credential release" in t["durability"]
+
+
+def test_21_prerequisite_digest_recomputes_from_the_adjudicated_register():
+    st = load("MR002_Phase3BC_ValidationAuthorizationState_v1.0.json")
+    reg = load("MR002_Phase3BC_RuntimePrerequisiteRegister_v1.0.json")
+    digest = hashlib.sha256(json.dumps(
+        {p["id"]: p["status"] for p in reg["prerequisites"]},
+        sort_keys=True).encode("ascii")).hexdigest()
+    assert st["bound_identities"]["prerequisite_digest"] == digest
+    adj_sha = hashlib.sha256(
+        (P3BC / "MR002_Phase3BC_AuthorizationAdjudication_v1.0.json").read_bytes()).hexdigest()
+    assert st["adjudication_sha256"] == adj_sha
+
+
+def test_22_adjudication_manifest_binds_and_holds_boundary():
+    m = load("MR002_Phase3BC_AdjudicationManifest_v1.0.json")
+    assert m["validation_authorization"] is False
+    assert m["adjudicated_package_unmodified"] is True
+    assert m["grant_readiness"] == "NOT_READY"
+    assert "unconsumed" in m["boundary"]
+    assert m["manifest_bound_artifact_count"] == len(m["artifact_sha256"]) == 3
+    for name, want in m["artifact_sha256"].items():
+        cands = [f for f in P3BC.iterdir()
+                 if f.name.startswith(f"MR002_Phase3BC_{name.replace('Countersignature', '')}_v1.0.")]
+        assert any(hashlib.sha256(c.read_bytes()).hexdigest() == want for c in cands), name
