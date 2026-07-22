@@ -1,0 +1,12 @@
+{
+ "distinct_accepted_resolved_permanent_security_session_keys": 375728,
+ "distinct_terminal_keys": 425000,
+ "duplicate_resolved_permanent_security_session_keys": 0,
+ "note": "the original field was labeled 'resolved' but counted every terminal key including UNRESOLVED:<symbol> keys; distinct_terminal_keys = all units (425,000, all distinct), distinct_accepted_resolved_... = units whose permanent_security_id was accepted (375,728); the remaining 49,272 carry UNRESOLVED:<symbol> keys (70 non-injective collision + 49,202 permsec-resolution failures). The completed run is NOT regenerated for this nomenclature clarification (owner directive).",
+ "record_type": "MR002_SPQ1_Phase2B_2B3_TerminalKeyClarification",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "sum_check": 425000,
+ "supersedes_field": "UnitReconciliation.reconcile_by.permanent_security.distinct_resolved_terminal_keys",
+ "unresolved_terminal_keys": 49272,
+ "version": "1.0"
+}

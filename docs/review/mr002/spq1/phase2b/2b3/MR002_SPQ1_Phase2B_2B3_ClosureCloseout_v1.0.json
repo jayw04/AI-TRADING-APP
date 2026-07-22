@@ -1,0 +1,152 @@
+{
+ "acceptance_gate_summary": {
+  "gate_all_pass": true,
+  "hard_stop_triggered": false
+ },
+ "authorization_boundary": {
+  "NOT_authorized": [
+   "forward-return join",
+   "performance evaluation",
+   "ranking/economic interpretation",
+   "A/B/C comparison",
+   "significance/DSR",
+   "parameter tuning",
+   "portfolio construction",
+   "execution simulation",
+   "validation access",
+   "OOS access",
+   "order-path integration",
+   "production promotion"
+  ],
+  "phase2b3_scope": "governance closeout only",
+  "validation_oos": "SEALED AND UNREAD"
+ },
+ "bound_evidence_identities": {
+  "canonical_merge_sha256": "1d6defec7373a32bd213078fa656bd12069a4790a7c5b30fe2418b1ce7e526ef",
+  "collision_rule_module_identity": "d827cc422b93aef3e89eaac1b95956f520cc78c721e7f6bcb83e3ec7422b0c33",
+  "development_snapshot_content_sha256": "1c6a5121467ea68a18a0e1b779e7aed10f39b606a2c769517a938b8f6f4a359a",
+  "full_run_runner_identity": "9f913a76c6f831b5bcbe8c955414e4c6521f01591d37c318fff6f59b5a33fc88",
+  "governing_run_specification": "RunSpecification_v1.1",
+  "phase2b2_evidence_commit": "1cc98f55b71c5fa9751f4c7ea3df79f585804158",
+  "phase2b2_evidence_tree": "5efb62ec5a4304e09ef40c28260142b97cfe10c7",
+  "phase2b_orchestration_code_identity_frozen": "bb029a96bb0c9e31600bd0b7ab068c31f70bbc7ac23afce0a3ffe0cb4412845b",
+  "publication_core_sha256": "f72902c5aa6db19204658c8487cda53a42a11cb391ec555ba46e0dd365508aff",
+  "run_spec_sha256": "fd19aef5230bac56bc82be1efb1be55ba3fe5d4f9daae33608f49ebbfd4554c3"
+ },
+ "closure_statement": "Phase 2B establishes deterministic, PIT-governed development signal production and evidence integrity only. It makes no claim regarding profitability, statistical significance, robustness, portfolio utility, or production readiness.",
+ "collision_amendment_and_census": {
+  "collision_census_sha256": "cfe6b72969de2c1323ca8eaa36886c2ba63d7e9def1385788347e6cb44f29e50",
+  "collision_group_count": 35,
+  "collision_request_unit_count": 70,
+  "distinct_collision_symbol_sets": 3,
+  "maximum_collision_cardinality": 2,
+  "reconciliation": {
+   "affected_request_count": 70,
+   "collision_caused_security_identity_ambiguous_records": 70,
+   "note": "collision-caused stops are distinct from single-request PIT-resolution ambiguities; affected_request_count must equal collision_caused records.",
+   "reconciles": true,
+   "single_request_lineage_ambiguity_records": 50329
+  },
+  "refusal_cause_split": {
+   "collision_caused_noninjective": 70,
+   "note": "records under INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS are split by cause via MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1; the collision-caused subset is fully enumerated in the CollisionCensus.",
+   "single_request_lineage_ambiguity": 50329
+  },
+  "registered_pairs": [
+   "AGN/AGN1->PSEC-198103 (2015-03, 12 groups)",
+   "CB/CB1->PSEC-199850 (2016-01, 2 groups)",
+   "DD/DD1->PSEC-199769 (2017-08/09, 21 groups)"
+  ],
+  "rule_id": "MR002_SPQ1_NONINJECTIVE_REQUEST_IDENTITY_V1",
+  "run_spec_amendment": "v1.0 fd(747875e3) -> v1.1 (fd19aef5)"
+ },
+ "deterministic_replay_result": {
+  "checks": {
+   "aggregate_decision_record_hash_equal": true,
+   "aggregate_disposition_record_hash_equal": true,
+   "canonical_ordering_holds": true,
+   "collision_census_hash_equal": true,
+   "materialization_content_identity_equal": true,
+   "per_shard_content_sha256_equal": true,
+   "publication_core_hash_equal": true,
+   "record_counts_equal": true,
+   "refusal_census_hash_equal": true,
+   "security_census_hash_equal": true,
+   "session_census_hash_equal": true
+  },
+  "determinism_all_equal": true,
+  "replay_independence": {
+   "clean_output_directory": true,
+   "comparison_ignores_only_nongoverning_runtime_metadata": "temp snapshot filenames only; all governed artifacts + canonical record hashes must match",
+   "fresh_guard_and_opened_object_ledger": true,
+   "fresh_snapshot_materialization": true,
+   "fresh_unit_enumeration": true,
+   "no_reuse_of_passA_completed_shards": true,
+   "no_reuse_of_passA_merged_records": true
+  }
+ },
+ "final_unit_and_disposition_census": {
+  "development_sessions": 1700,
+  "dispositions": {
+   "INELIGIBLE": 40457,
+   "INTEGRITY_STOP": 50399,
+   "REFUSED_CODE_OR_DATA_IDENTITY": 13373,
+   "SIGNAL_DECISION_RECORD_EMITTED": 320771
+  },
+  "duplicate_request_keys": 0,
+  "duplicate_resolved_permanent_security_session_keys": 0,
+  "expected_units": 425000,
+  "missing_outcomes": 0,
+  "orphan_outcomes": 0,
+  "reconciles": true,
+  "shard_count": 82,
+  "shard_fact_reconstruction_equals_425000": true,
+  "terminal_codes": {
+   "INELIGIBLE:ELIGIBILITY_EVIDENCE_MISSING": 7742,
+   "INELIGIBLE:OLS_WINDOW_INSUFFICIENT": 25149,
+   "INELIGIBLE:SECTOR_PIT_IDENTITY_MISSING": 7566,
+   "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS": 50399,
+   "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH": 13373
+  },
+  "total_terminal_outcomes": 425000
+ },
+ "frozen_artifact_inventory": {
+  "MR002_SPQ1_Phase2B_2B2_CollisionCensus_v1.0.json": "fe61e0a01c41c38547aa3c6cbdf32b01d5a9afd3378726771dbaf6a35503bd05",
+  "MR002_SPQ1_Phase2B_2B2_DeterminismReport_v1.0.json": "d3cefd0250806c883a18cdb54980592af728aa9b9303a344bb9b90489e4a70f3",
+  "MR002_SPQ1_Phase2B_2B2_InputIdentityManifest_v1.0.json": "90aebbc1697a8d0352faefe2e2ea5583302e97a6d726fcb11b8414ba51746036",
+  "MR002_SPQ1_Phase2B_2B2_OpenedObjectLedger_v1.0.json": "450e20fce799a7e9d025aa5d3f59bd55647f263e73f7bdf7f574d414f38ae700",
+  "MR002_SPQ1_Phase2B_2B2_PublicationManifest_v1.0.json": "18e2e4745150b05850123c4ba8e9567376ee278c01846fd69894890788f2cf40",
+  "MR002_SPQ1_Phase2B_2B2_RefusalCensus_v1.0.json": "8e11a61331202415d9d7d4ecfad97dae11e82ee9fca8e3b99f740f2113fd648a",
+  "MR002_SPQ1_Phase2B_2B2_RestartReport_v1.0.json": "41e9ab68a93acd0c932abf62eef857b3d4bb1bc93e93486c7721c1487b1df281",
+  "MR002_SPQ1_Phase2B_2B2_RunManifest_v1.0.json": "e427aeeba7e021a17e010b4a02eecd4293ed26ac3bef162ef9f86186ee59d42e",
+  "MR002_SPQ1_Phase2B_2B2_SecurityCensus_v1.0.json": "c4bfc0de497ed94d2ebf3d125bb4792d5d58e121a2344188527c95d7ff9721d3",
+  "MR002_SPQ1_Phase2B_2B2_SessionCensus_v1.0.json": "4702920006f7ce3bf44761145f97118297485f849604e993b81038fd1049927e",
+  "MR002_SPQ1_Phase2B_2B2_ShardManifest_v1.0.json": "4169b58059363c5c7b0e8a2bfb3571817601d7eb7ad2a2fef7d66b74fb025d50",
+  "MR002_SPQ1_Phase2B_2B2_Submission_v1.0.md": "3c5de0f5186e4b47fd01f336eba1c00f7e8cd849d0fa350443a9665263b4bdb0",
+  "MR002_SPQ1_Phase2B_2B2_UnitReconciliation_v1.0.json": "f78098cae96befb2c399c7d28634553b36a8d7b7fd929411b3e6a94463c97a28"
+ },
+ "phase_2b_status": "COMPLETE",
+ "record_type": "MR002_SPQ1_Phase2B_2B3_ClosureCloseout",
+ "restart_result": {
+  "completed_shard_overwrite_blocked": true,
+  "remerge_after_resume_identical": true,
+  "resume_recompute_identical": true,
+  "resumed_shards": [
+   "2013-01-01",
+   "2016-06-01"
+  ]
+ },
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "scope": "administrative + governance closeout ONLY (no performance/forward-return/ranking/A-B-C/significance/tuning/portfolio/execution/validation/OOS/order-path/production)",
+ "stage": "SPQ-1 Phase 2B-3 governance closeout",
+ "terminal_key_clarification": {
+  "distinct_accepted_resolved_permanent_security_session_keys": 375728,
+  "distinct_terminal_keys": 425000,
+  "duplicate_resolved_permanent_security_session_keys": 0,
+  "note": "the original field was labeled 'resolved' but counted every terminal key including UNRESOLVED:<symbol> keys; distinct_terminal_keys = all units (425,000, all distinct), distinct_accepted_resolved_... = units whose permanent_security_id was accepted (375,728); the remaining 49,272 carry UNRESOLVED:<symbol> keys (70 non-injective collision + 49,202 permsec-resolution failures). The completed run is NOT regenerated for this nomenclature clarification (owner directive).",
+  "sum_check": 425000,
+  "supersedes_field": "UnitReconciliation.reconcile_by.permanent_security.distinct_resolved_terminal_keys",
+  "unresolved_terminal_keys": 49272
+ },
+ "version": "1.0"
+}

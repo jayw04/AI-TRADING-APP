@@ -1,0 +1,23 @@
+{
+ "artifact_count": 13,
+ "artifact_sha256": {
+  "MR002_SPQ1_Phase2B_2B2_CollisionCensus_v1.0.json": "fe61e0a01c41c38547aa3c6cbdf32b01d5a9afd3378726771dbaf6a35503bd05",
+  "MR002_SPQ1_Phase2B_2B2_DeterminismReport_v1.0.json": "d3cefd0250806c883a18cdb54980592af728aa9b9303a344bb9b90489e4a70f3",
+  "MR002_SPQ1_Phase2B_2B2_InputIdentityManifest_v1.0.json": "90aebbc1697a8d0352faefe2e2ea5583302e97a6d726fcb11b8414ba51746036",
+  "MR002_SPQ1_Phase2B_2B2_OpenedObjectLedger_v1.0.json": "450e20fce799a7e9d025aa5d3f59bd55647f263e73f7bdf7f574d414f38ae700",
+  "MR002_SPQ1_Phase2B_2B2_PublicationManifest_v1.0.json": "18e2e4745150b05850123c4ba8e9567376ee278c01846fd69894890788f2cf40",
+  "MR002_SPQ1_Phase2B_2B2_RefusalCensus_v1.0.json": "8e11a61331202415d9d7d4ecfad97dae11e82ee9fca8e3b99f740f2113fd648a",
+  "MR002_SPQ1_Phase2B_2B2_RestartReport_v1.0.json": "41e9ab68a93acd0c932abf62eef857b3d4bb1bc93e93486c7721c1487b1df281",
+  "MR002_SPQ1_Phase2B_2B2_RunManifest_v1.0.json": "e427aeeba7e021a17e010b4a02eecd4293ed26ac3bef162ef9f86186ee59d42e",
+  "MR002_SPQ1_Phase2B_2B2_SecurityCensus_v1.0.json": "c4bfc0de497ed94d2ebf3d125bb4792d5d58e121a2344188527c95d7ff9721d3",
+  "MR002_SPQ1_Phase2B_2B2_SessionCensus_v1.0.json": "4702920006f7ce3bf44761145f97118297485f849604e993b81038fd1049927e",
+  "MR002_SPQ1_Phase2B_2B2_ShardManifest_v1.0.json": "4169b58059363c5c7b0e8a2bfb3571817601d7eb7ad2a2fef7d66b74fb025d50",
+  "MR002_SPQ1_Phase2B_2B2_Submission_v1.0.md": "3c5de0f5186e4b47fd01f336eba1c00f7e8cd849d0fa350443a9665263b4bdb0",
+  "MR002_SPQ1_Phase2B_2B2_UnitReconciliation_v1.0.json": "f78098cae96befb2c399c7d28634553b36a8d7b7fd929411b3e6a94463c97a28"
+ },
+ "phase2b2_evidence_commit": "1cc98f55b71c5fa9751f4c7ea3df79f585804158",
+ "phase2b2_evidence_tree": "5efb62ec5a4304e09ef40c28260142b97cfe10c7",
+ "record_type": "MR002_SPQ1_Phase2B_2B3_ArtifactInventory",
+ "run_id": "MR002-SPQ1-P2B-DEV-V1",
+ "version": "1.0"
+}
