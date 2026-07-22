@@ -225,10 +225,20 @@ def capture_seam(strategy: Any, adapter: DriftCtxAdapter, day: date) -> SeamReco
     held = {k: v for k, v in adapter._positions.items() if v > 0}
     targets = tuple(strategy._select_targets(scores, held))
     gross = float(getattr(strategy, "_regime_gross", 0.0) or 0.0)
+    # Sizing is OBSERVED from the live class's own seam, never restated here. A harness that
+    # recomputed the weighting rule would agree with production by construction and could not
+    # detect a sizing change — the blind spot that let the equal-weight/hybrid question go
+    # unmeasured until the 21-year census. Fail closed if the seam is absent.
+    if not hasattr(strategy, "target_weights"):
+        raise AttributeError(
+            f"{type(strategy).__name__} exposes no `target_weights` sizing seam — the drift audit "
+            f"cannot observe production sizing and must not assume it")
     weights: dict[str, float] = {}
-    if targets:
-        w = min(1.0 / len(targets), float(strategy.params.get("max_position_pct", 0.20))) * gross
-        weights = {t: w for t in targets}
+    # No regime evaluated this session (on_bar returned before `_evaluate`) => the class made no
+    # exposure decision, so the seam claims none. This mirrors the pre-existing capture semantics
+    # (gross defaults to 0.0 above) and is a statement about the DECISION, not about the rule.
+    if targets and getattr(strategy, "_regime_gross", None) is not None:
+        weights = {str(t): float(w) for t, w in strategy.target_weights(list(targets)).items()}
     reasons = [s["payload"].get("reason", "") for s in adapter.signals_today]
     is_seed = any("seed" in r for r in reasons)
     trade = bool(adapter.submitted_today) or is_seed

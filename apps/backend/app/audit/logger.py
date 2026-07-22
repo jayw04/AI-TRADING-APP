@@ -116,8 +116,16 @@ class AuditAction(StrEnum):
     # for the acct-4 back-record). STRATEGY_ACTIVATION_BLOCKED_BY_HOLD records a REJECTED
     # activation attempt (not a mutation); deduplicated per (strategy_id, hold_rev, source,
     # run_id) so a boot loop does not spam the log.
+    # STRATEGY_HOLD_REASON_UPDATED re-labels a hold that STAYS ACTIVE THROUGHOUT, when the
+    # governing adjudication changes why the book is held. It is NOT clear-and-place: that
+    # would momentarily leave the strategy unheld and would reset the hold's lineage. The
+    # mutation requires status ACTIVE + the expected rev + the expected CURRENT reason_code,
+    # preserves effective_at and every extra key (legacy_marker, evidence snapshots),
+    # increments _rev, and never touches the activation cooldown. Payload carries
+    # old_reason_code/new_reason_code, previous_rev/new_rev and hold_remained_active=true.
     STRATEGY_HOLD_PLACED = "STRATEGY_HOLD_PLACED"
     STRATEGY_HOLD_CLEARED = "STRATEGY_HOLD_CLEARED"
+    STRATEGY_HOLD_REASON_UPDATED = "STRATEGY_HOLD_REASON_UPDATED"
     STRATEGY_ACTIVATION_BLOCKED_BY_HOLD = "STRATEGY_ACTIVATION_BLOCKED_BY_HOLD"
 
     # ---- Trader preferences (P5.5 §1) ----

@@ -595,3 +595,71 @@ async def test_substep2_restart_does_not_reseed_a_pending_book():
     blob = ctx._store["deployment"]
     assert blob["state"] == "DEPLOYMENT_PENDING"
     assert blob["active_seed_attempt"]["status"] == "ORDERS_OPEN"
+
+
+# ---- sizing seam (weighting-defect adjudication 2026-07-22) ----------------------
+#
+# momentum-daily sizes EQUAL WEIGHT ONLY. At max_names=5 with a hard 20% per-name cap, equal
+# weight is the only feasible fully-invested portfolio, so no inverse-vol tilt is expressible.
+# These tests pin (a) the config surface cannot claim otherwise, and (b) sizing has exactly one
+# source of truth that the §8 audit harness can observe.
+
+
+async def test_weighting_schema_offers_equal_only():
+    """The surface must not advertise sizing the code does not implement (schema/code drift)."""
+    assert MomentumDaily.params_schema["weighting"]["choices"] == ["equal"]
+    assert MomentumDaily.default_params["weighting"] == "equal"
+
+
+@pytest.mark.parametrize("bad", ["invvol_hybrid", "hybrid_50_50", "EQUAL"])
+async def test_unsupported_weighting_fails_closed(bad):
+    """A stored param row predating the adjudication must be REJECTED, not silently sized equal."""
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]))
+    with pytest.raises(ValueError, match="unsupported weighting"):
+        await _strat(ctx, weighting=bad).on_init()
+
+
+@pytest.mark.parametrize("k,expected", [(5, 0.20), (4, 0.20), (2, 0.20), (10, 0.10), (1, 0.20)])
+async def test_per_name_notional_is_equal_weight_capped_at_max_position_pct(k, expected):
+    """Equal weight, hard-capped. The cap binds below 5 names — the book then holds cash rather
+    than concentrating past the limit. It NEVER exceeds max_position_pct."""
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]))
+    s = _strat(ctx)
+    assert float(s._per_name_notional(Decimal(1), k)) == pytest.approx(expected)
+
+
+async def test_no_target_weight_ever_breaches_the_position_cap():
+    """The defect being corrected: the Stage-3 hybrid emitted up to 20.594% per name on 100% of
+    5-name sessions. Production must never produce a target above max_position_pct."""
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]))
+    s = _strat(ctx)
+    s._regime_gross = 1.0
+    for k in range(1, 12):
+        w = s.target_weights([f"T{i}" for i in range(k)])
+        assert max(w.values()) <= float(s.params["max_position_pct"]) + 1e-12
+
+
+async def test_target_weights_are_gross_scaled_and_sum_to_gross():
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]))
+    s = _strat(ctx)
+    s._regime_gross = 0.60
+    w = s.target_weights(["A", "B", "C", "D", "E"])
+    assert sum(w.values()) == pytest.approx(0.60)
+    assert all(v == pytest.approx(0.12) for v in w.values())
+    assert s.target_weights([]) == {}
+
+
+async def test_target_weights_agree_with_what_the_order_path_actually_sizes():
+    """The seam is OBSERVABLE truth, not a parallel restatement: the weights reported must equal
+    the notional the order path sizes, divided by investable equity. If these ever diverge the
+    audit harness would certify a portfolio production does not hold."""
+    ctx = _ctx(["AAA"], _scores([("AAA", 2.0)]))
+    s = _strat(ctx)
+    s._regime_gross = 0.98
+    targets = ["A", "B", "C", "D", "E"]
+    equity = Decimal("100000")
+    sized = s._per_name_notional(equity, len(targets))
+    reported = s.target_weights(targets)["A"]
+    # reported weight is a fraction of TOTAL equity (gross-scaled); the order path sizes against
+    # already-gross-scaled investable equity, so divide the gross back out for the comparison.
+    assert float(sized / equity) == pytest.approx(reported / 0.98)

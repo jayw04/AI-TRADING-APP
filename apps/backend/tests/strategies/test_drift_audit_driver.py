@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pandas as pd
+import pytest
 
 from app.strategies.context import Bar
 from app.strategies.deployment_state import initial_blob
@@ -198,3 +199,56 @@ def test_replica_thin_day_emits_no_scores_record():
         price_fn=lambda t, d: 100.0, backstop_days=10, weight_drift_pct=0.04,
         turnover_cost_bps=5.0, initial_equity=100_000.0)
     assert recs[1].trigger == "no_scores" and recs[1].trade_initiated is False
+
+
+# ---- the audit must OBSERVE production sizing, never restate it ------------------
+#
+# The 21-year census could not have detected a production sizing change: capture_seam
+# recomputed "equal weight, capped, gross-scaled" independently, so it agreed with the live
+# class by construction. These tests pin that the harness now reads the live class's own seam.
+
+
+async def test_capture_seam_reads_the_live_class_sizing_seam():
+    """Perturb ONLY the live class's seam; the captured weights must follow it. Under the old
+    restating implementation this test fails — the harness would report its own rule instead."""
+    adapter = _adapter()
+    strat = _strategy(adapter)
+    await strat.on_bar(Bar(symbol="AAA", timeframe="1Day", t=TS, o=1, h=1, l=1, c=1, v=1))
+
+    sentinel = {"AAA": 0.011, "BBB": 0.012, "CCC": 0.013, "DDD": 0.014, "EEE": 0.015}
+    strat.target_weights = lambda targets: {t: sentinel[t] for t in targets}
+    rec = capture_seam(strat, adapter, DAY)
+    assert rec.weights == sentinel
+
+
+class _NoSizingSeam:
+    """Delegates everything to the real strategy EXCEPT the sizing seam — a stand-in for a
+    strategy class that never exposed one."""
+
+    def __init__(self, inner):
+        object.__setattr__(self, "_inner", inner)
+
+    def __getattr__(self, name):
+        if name == "target_weights":
+            raise AttributeError(name)
+        return getattr(object.__getattribute__(self, "_inner"), name)
+
+
+async def test_capture_seam_fails_closed_without_a_sizing_seam():
+    """A strategy class exposing no sizing seam must abort the audit, not be assumed equal-weight."""
+    adapter = _adapter()
+    strat = _strategy(adapter)
+    await strat.on_bar(Bar(symbol="AAA", timeframe="1Day", t=TS, o=1, h=1, l=1, c=1, v=1))
+
+    with pytest.raises(AttributeError, match="target_weights"):
+        capture_seam(_NoSizingSeam(strat), adapter, DAY)
+
+
+async def test_captured_weights_respect_the_position_cap_on_every_session():
+    """Regression guard for the defect class: no captured target may exceed max_position_pct."""
+    adapter = _adapter()
+    strat = _strategy(adapter)
+    await strat.on_bar(Bar(symbol="AAA", timeframe="1Day", t=TS, o=1, h=1, l=1, c=1, v=1))
+    rec = capture_seam(strat, adapter, DAY)
+    cap = float(strat.params["max_position_pct"]) * rec.regime_gross
+    assert rec.weights and max(rec.weights.values()) <= cap + 1e-12

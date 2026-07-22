@@ -14,6 +14,7 @@ from app.db.models.audit_log import AuditLog
 from app.db.models.strategy_state import StrategyState
 from app.strategies.hold_service import (
     HoldConflict,
+    HoldReasonUpdateRefused,
     HoldService,
     HoldStateInvalid,
     HoldStoreUnavailable,
@@ -268,3 +269,142 @@ async def test_duplicate_boot_blocked_events_deduplicated(session_factory):
             session, strategy_id=SID, reason_code="RC", hold_rev=3,
             source="boot", run_id="run-2") is True
     assert await _audit_count(session_factory, "STRATEGY_ACTIVATION_BLOCKED_BY_HOLD") == 2
+
+
+# ---- update_reason (governing-adjudication relabel, 2026-07-22) ------------------
+#
+# Re-labelling an ACTIVE hold must never pass through a cleared state: clear-and-place
+# would momentarily unblock activation and detach the hold's lineage. These pin that the
+# hold stays continuously ACTIVE, that effective_at and all preserved provenance survive,
+# and that every fail-closed precondition refuses without writing state OR audit.
+
+OLD_RC = "AWAITING_COLD_START_FIX"
+NEW_RC = "AWAITING_WEIGHTING_DEFECT_ADJUDICATION"
+UPD = "STRATEGY_HOLD_REASON_UPDATED"
+
+
+async def _place_active(session_factory, reason_code=OLD_RC):
+    return await _svc(session_factory).place(
+        SID, reason_code=reason_code, reason="cold-start repair", effective_at=EFF,
+        placed_at=NOW, placed_by="user:4")
+
+
+async def test_update_reason_relabels_and_keeps_the_hold_continuously_active(session_factory):
+    svc = _svc(session_factory)
+    p = await _place_active(session_factory)
+    r = await svc.update_reason(
+        SID, expected_rev=p.record.rev, expected_reason_code=OLD_RC, new_reason_code=NEW_RC,
+        new_reason="weighting-defect impact not yet adjudicated",
+        updated_at=NOW, updated_by="user:4")
+    assert r.action == "updated" and r.previous_rev == 1 and r.new_rev == 2
+    cur = await svc.read(SID)
+    assert cur.is_active and cur.reason_code == NEW_RC and cur.rev == 2
+    assert cur.effective_at == EFF                      # the hold began when it began
+    # activation stays blocked THROUGHOUT — and no CLEARED event was ever emitted
+    async with session_factory() as s:
+        with pytest.raises(StrategyOnHold):
+            await assert_no_active_hold(s, SID)
+    assert await _audit_count(session_factory, "STRATEGY_HOLD_CLEARED") == 0
+
+
+async def test_update_reason_audit_records_the_full_transition(session_factory):
+    svc = _svc(session_factory)
+    p = await _place_active(session_factory)
+    await svc.update_reason(
+        SID, expected_rev=p.record.rev, expected_reason_code=OLD_RC, new_reason_code=NEW_RC,
+        new_reason="weighting-defect impact not yet adjudicated", updated_at=NOW,
+        updated_by="user:4", evidence_refs=["census final adjudication"])
+    rows = await _audit_rows(session_factory, UPD)
+    assert len(rows) == 1
+    payload = json.loads(rows[0].payload_json) if isinstance(rows[0].payload_json, str) \
+        else rows[0].payload_json
+    assert payload["old_reason_code"] == OLD_RC
+    assert payload["new_reason_code"] == NEW_RC
+    assert payload["hold_remained_active"] is True
+    assert payload["previous_rev"] == 1 and payload["new_rev"] == 2
+    assert payload["effective_at"] == EFF and payload["effective_at_unchanged"] is True
+    assert payload["source"] == "GOVERNING_ADJUDICATION_UPDATE"
+
+
+async def test_update_reason_preserves_keys_the_dataclass_does_not_model(session_factory):
+    """legacy_marker / evidence snapshots are carried on the blob but absent from
+    HoldRecord — a relabel must not silently drop preserved provenance."""
+    svc = _svc(session_factory)
+    p = await _place_active(session_factory)
+    async with session_factory() as s, s.begin():
+        row = (await s.execute(select(StrategyState).where(
+            StrategyState.strategy_id == SID,
+            StrategyState.key == K_OPERATIONAL_HOLD))).scalars().one()
+        blob = dict(row.value)
+        blob["legacy_marker"] = {"status": "PAUSED", "reason_code": OLD_RC}
+        blob["evidence_snapshot_sha256"] = "8fa766f3" * 8
+        row.value = blob
+
+    await svc.update_reason(
+        SID, expected_rev=p.record.rev, expected_reason_code=OLD_RC, new_reason_code=NEW_RC,
+        new_reason="relabel", updated_at=NOW, updated_by="user:4")
+    async with session_factory() as s:
+        stored = (await s.execute(select(StrategyState.value).where(
+            StrategyState.strategy_id == SID,
+            StrategyState.key == K_OPERATIONAL_HOLD))).scalars().one()
+    assert stored["legacy_marker"] == {"status": "PAUSED", "reason_code": OLD_RC}
+    assert stored["evidence_snapshot_sha256"] == "8fa766f3" * 8
+    assert stored["previous_reason_code"] == OLD_RC
+    assert stored["reason_code"] == NEW_RC and stored["_rev"] == 2
+
+
+@pytest.mark.parametrize("kwargs,exc_match", [
+    ({"expected_rev": 99, "expected_reason_code": OLD_RC}, "stale relabel"),
+    ({"expected_rev": 1, "expected_reason_code": "WRONG_RC"}, "!= expected"),
+])
+async def test_update_reason_fails_closed_on_bad_preconditions(session_factory, kwargs, exc_match):
+    svc = _svc(session_factory)
+    await _place_active(session_factory)
+    with pytest.raises(HoldReasonUpdateRefused, match=exc_match):
+        await svc.update_reason(SID, new_reason_code=NEW_RC, new_reason="x",
+                                updated_at=NOW, updated_by="user:4", **kwargs)
+    cur = await svc.read(SID)
+    assert cur.is_active and cur.reason_code == OLD_RC and cur.rev == 1   # untouched
+    assert await _audit_count(session_factory, UPD) == 0                  # and unaudited
+
+
+async def test_update_reason_refuses_on_a_cleared_hold(session_factory):
+    svc = _svc(session_factory)
+    p = await _place_active(session_factory)
+    await svc.clear(SID, expected_rev=p.record.rev, cleared_at=NOW, cleared_by="user:4")
+    with pytest.raises(HoldReasonUpdateRefused, match="not ACTIVE"):
+        await svc.update_reason(SID, expected_rev=2, expected_reason_code=OLD_RC,
+                                new_reason_code=NEW_RC, new_reason="x",
+                                updated_at=NOW, updated_by="user:4")
+    assert await _audit_count(session_factory, UPD) == 0
+
+
+async def test_update_reason_refuses_when_no_hold_exists(session_factory):
+    with pytest.raises(HoldReasonUpdateRefused, match="no hold to relabel"):
+        await _svc(session_factory).update_reason(
+            SID, expected_rev=1, expected_reason_code=OLD_RC, new_reason_code=NEW_RC,
+            new_reason="x", updated_at=NOW, updated_by="user:4")
+    assert await _audit_count(session_factory, UPD) == 0
+
+
+async def test_update_reason_is_idempotent_at_the_new_reason(session_factory):
+    svc = _svc(session_factory)
+    p = await _place_active(session_factory)
+    kw = dict(expected_rev=p.record.rev, expected_reason_code=OLD_RC, new_reason_code=NEW_RC,
+              new_reason="x", updated_at=NOW, updated_by="user:4")
+    await svc.update_reason(SID, **kw)
+    again = await svc.update_reason(SID, **kw)          # replay of the same command
+    assert again.action == "already_updated" and again.new_rev == 2
+    assert await _audit_count(session_factory, UPD) == 1   # exactly one event, not two
+
+
+async def test_update_reason_dry_run_writes_nothing(session_factory):
+    svc = _svc(session_factory)
+    p = await _place_active(session_factory)
+    r = await svc.update_reason(
+        SID, expected_rev=p.record.rev, expected_reason_code=OLD_RC, new_reason_code=NEW_RC,
+        new_reason="x", updated_at=NOW, updated_by="user:4", apply=False)
+    assert r.action == "would_update" and r.planned_blob["reason_code"] == NEW_RC
+    cur = await svc.read(SID)
+    assert cur.reason_code == OLD_RC and cur.rev == 1
+    assert await _audit_count(session_factory, UPD) == 0

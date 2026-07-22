@@ -184,6 +184,43 @@ fire is needed or wanted — a delayed tick is fail-safe (less action), not an i
 **Fix:** Strategy detail → CooldownIndicator → "Clear now" (audit-logged), or
 `POST /api/v1/strategies/$ID/cooldown/clear`.
 
+## "A hold's reason_code is stale / I see `STRATEGY_HOLD_REASON_UPDATED`"
+
+**What it is:** a hold that STAYED ACTIVE while the *governing reason* for holding
+changed (e.g. acct-4 strategy 11: the cold-start defect was repaired, but the
+weighting-defect adjudication now blocks activation). The event is a re-label, **not**
+a clear and **not** a new hold. Payload carries `old_reason_code`, `new_reason_code`,
+`previous_rev`/`new_rev`, `hold_remained_active: true`, and an unchanged `effective_at`.
+
+**Check:** the strategy must still be blocked. `assert_no_active_hold` should still
+raise `StrategyOnHold`, and there must be **no** `STRATEGY_HOLD_CLEARED` event between
+the place and the relabel — if there is one, the hold passed through an unheld window
+and that IS an incident (activation was possible during it).
+
+**Fix / to relabel:** never `UPDATE strategy_state` directly and never clear-and-place
+(clearing momentarily unblocks activation and detaches the hold's lineage). Use the
+sanctioned path, dry-run first:
+
+```
+docker compose exec -T backend python scripts/update_operational_hold_reason.py \
+    --strategy-id <ID> --expected-rev <current rev> \
+    --expected-reason-code <current> --new-reason-code <new> \
+    --new-reason "<why>" --updated-by <actor>          # then re-run with --apply
+```
+
+For **strategy 11 (acct 4)** specifically, exactly one transition is authorized —
+`AWAITING_COLD_START_FIX` → `AWAITING_PRODUCTION_SIZING_VALIDATION` — and only after the
+reviewed sizing-correction artifact is merged and deployed. Do not route through any
+interim label. **Clearing that hold and activating strategy 11 are NOT authorized**: production
+sizing has no valid performance evidence (the N=5 hybrid validation was invalidated), and a
+separate validation program is required first.
+
+It refuses (exit 5, no state, no audit) unless the hold exists, is ACTIVE, and matches
+both the asserted `--expected-rev` and `--expected-reason-code`. It preserves
+`effective_at` and every extra key (`legacy_marker`, evidence snapshots), and never
+touches the activation cooldown. **Clearing the hold remains a separate, separately
+adjudicated operation.**
+
 ## "Live order rejected with CONFIRMATION_MISMATCH"
 
 **Check:** the typed confirmation must equal the order symbol (case-insensitive,
