@@ -3,7 +3,7 @@
 **Date:** 2026-07-22 · **Status:** ✅ **RATIFIED (owner, 2026-07-22) — authorized to run.**
 **Supersedes:** `PREREG_weighting_defect_impact_study_v1.0.md` (PROPOSED; retained, superseded).
 **Governs:** the correction-impact analysis required by `weighting_defect_erratum_v1.0.md` §4.
-**Blocker:** `WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED`.
+**Blocker at time of ratification:** `WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED` (interim; never written to the live hold). **Post-study durable blocker:** `AWAITING_PRODUCTION_SIZING_VALIDATION`.
 
 Nothing here authorizes activation or clearing the hold.
 

@@ -32,14 +32,17 @@ the hold.**
 | item | value |
 |---|---|
 | protocol_commit | `54b8ea4` |
-| measurement_code_commit | `377d7af` (reference-loader fix; see §5) |
-| working_tree_clean at execution | **TRUE** — no cleanliness exception required |
+| measurement_code_commit — **preregistered arms** (§2–§4) | `377d7af` (reference-loader fix; see §5.1) |
+| measurement_code_commit — **production-faithful arm** (§7) | `391055d` (adds the production seam arm) |
+| working_tree_clean at execution | **TRUE** for both runs — no cleanliness exception required |
 | sep content digest | `d9472dfe40e6bd9997b16895bd44aad709a3f00c8aa8579d7626e05cbd07e2c7` ✓ re-verified fail-closed, matches countersigned census |
 | tickers content digest | `2f21b154fa6a4746a8ce4b5aa74d52d31151a65c7462b8544037bcf38d4f22f3` ✓ re-verified |
 | window | 2005-01-03 → 2026-06-12, 5,395 sessions |
 | execution | laptop, read-only, offline; no EC2, no live account/book/DB |
-| `weighting_defect_impact_v1.0.json` | 24,207 B · sha256 `41c3119667207c1663c49876860692310fffd921e2c94d0b7bede82c8edcce15` |
+| `weighting_defect_impact_v1.0.json` (preregistered arms) | 24,207 B · sha256 `41c3119667207c1663c49876860692310fffd921e2c94d0b7bede82c8edcce15` |
 | `weighting_defect_impact_execution.log` | 3,324 B · sha256 `d55b92936f3c644ec8a6ea55fa6c44a2904934be4c6a717a8ff1dfa61c336ac6` |
+| **`weighting_defect_impact_v1.1.json`** (adds the production-faithful arm; **governing**) | 38,093 B · sha256 `52123c2f0e23f16821741dc9f097eed7d0a6397ad02f0efe94f08524f3447c11` |
+| `weighting_defect_impact_v1.1_execution.log` | 5,556 B · sha256 `66b40034cf416269a39fd965994e68bc151f35eb4060cf6d22472088d3385500` |
 
 **Reproduction gate (hard stop, PREREG §2).** Arm A reproduced the committed
 `MR_MomentumDaily_Stage4_full.json` endpoints within 1e-9 relative and exactly on `trades` for **both**
@@ -279,3 +282,45 @@ validation valid evidence for production. That conclusion is already established
 - production was not faithfully represented on every rebalance.
 
 **Account 4 activation remains unauthorized regardless of the corrected run's outcome.**
+
+---
+
+## 8. Operational instructions — what is and is not authorized
+
+**PROHIBITED until production sizing is independently validated:**
+
+- ❌ **Clearing the operational hold on strategy 11.** The study did not return
+  `PRACTICALLY_EQUIVALENT`; only that verdict could have supported clearing.
+- ❌ **Activating strategy 11 / Account 4**, by any route, including manual registration.
+- ❌ **Starting the activation cooldown.** It has not begun and must not be started. The previously
+  discussed documented cooldown exception is moot — it presupposed a passing study.
+- ❌ **Treating Stage-3/Stage-4 performance evidence as covering production sizing.** It does not.
+
+**AUTHORIZED, after the reviewed artifact is merged and deployed:**
+
+- ✅ Exactly **one** hold-reason transition — `AWAITING_COLD_START_FIX` →
+  **`AWAITING_PRODUCTION_SIZING_VALIDATION`** — via `scripts/update_operational_hold_reason.py`
+  (dry-run first). Not through any interim label. `effective_at` preserved, `_rev` incremented,
+  hold continuously ACTIVE, no cooldown started.
+
+**Durable blocker wording:**
+
+```
+AWAITING_PRODUCTION_SIZING_VALIDATION
+  "Production sizing lacks valid performance evidence after the N=5 hybrid validation
+   was invalidated."
+```
+
+It names the **governing deficiency**, not a presumed remedy — the eventual validated solution could be
+separately validated equal weighting, a newly preregistered *feasible* inverse-volatility design, or
+another governed sizing method.
+
+## 9. The next program (new version, not another correction to this study)
+
+**Governing question:** *Does the exact production equal-weight, capped-with-cash strategy independently
+satisfy the required performance and risk standards?*
+
+It requires its **own preregistration, benchmark, acceptance thresholds, and out-of-sample framework** —
+not an extension of this correction-impact analysis. Revisiting the **number of names** or the **20% cap**
+is a **different** research program again, since those change the constraint set rather than validating the
+current one.

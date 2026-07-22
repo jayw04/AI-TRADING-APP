@@ -148,11 +148,22 @@ way in the more severe crash window.
 ### Activation gate — CLOSED to inheritance (impact study, 2026-07-22)
 
 ```
-BLOCKER:     WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED  -> ADJUDICATED, and NOT CLEARED
-             The study returned MATERIALLY_DIFFERENT. Under the ratified rule the equal-weight
-             variant REQUIRES ITS OWN VALIDATION. Activation by inheritance is foreclosed.
-Account 4:   strategy 11 PAUSED · operational_hold ACTIVE · cooldown NOT STARTED
+DURABLE BLOCKER (final, owner 2026-07-22):  AWAITING_PRODUCTION_SIZING_VALIDATION
+  "Production sizing lacks valid performance evidence after the N=5 hybrid validation
+   was invalidated."
+
+Account 4:  strategy 11 PAUSED · operational_hold ACTIVE · cooldown NOT STARTED
 ```
+
+**Why this wording.** It records the **governing deficiency**, not a presumed resolution. Equal weighting is
+the *current* production sizing, but the eventual validated solution could be separately validated equal
+weighting, a newly preregistered **feasible** inverse-volatility design, or another governed sizing method.
+Naming the remedy in the blocker would prematurely lock the outcome.
+
+The interim label `WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED` described a phase that is now
+**complete** — the impact study was run and adjudicated. It was never written to the live hold, and it is
+**skipped entirely**: the live transition is a single hop `AWAITING_COLD_START_FIX` →
+`AWAITING_PRODUCTION_SIZING_VALIDATION`, so the hold is relabelled exactly once.
 
 The five conditions previously listed for authorizing activation with equal weighting are **not met and
 cannot be met by this route**. Condition 2 (differences immaterial under the registered thresholds) failed

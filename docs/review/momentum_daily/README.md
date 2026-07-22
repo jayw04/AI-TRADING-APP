@@ -17,7 +17,7 @@ equals 1/N, so equal weight is the *only* feasible fully-invested portfolio and 
 clamp-and-renormalize loop could not converge — it emitted weights above its own cap on 100% of five-name
 sessions. Owner adjudication: production **stays equal-weight** (`max_position_pct` unchanged at 0.20), the
 seam is reclassified `VALIDATION_IMPLEMENTATION_DEFECT`, and the blocker is renamed
-`WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED` — now ADJUDICATED and NOT cleared: the impact study returned MATERIALLY_DIFFERENT. Account 4 remains PAUSED.
+**`AWAITING_PRODUCTION_SIZING_VALIDATION`** — the impact study is complete and returned MATERIALLY_DIFFERENT, so production sizing lacks valid performance evidence and must be validated in its own right. Account 4 remains PAUSED; activation, hold clearing and cooldown are all UNAUTHORIZED.
 - `drift_audit/weighting_defect_erratum_v1.0.md` — the reclassification + evidence (amends census findings §5-§7).
 - `drift_audit/weighting_defect_impact_study_v1.0.md` — ✅ STUDY RESULT: **MATERIALLY_DIFFERENT** (both the preregistered and the production-faithful arms). Equal-weight production requires its OWN validation; activation by inheritance is foreclosed. Artifacts `weighting_defect_impact_v1.1.json` + execution log.
 - `drift_audit/PREREG_weighting_defect_impact_study_v1.1.md` — ✅ RATIFIED protocol for the correction-impact study (Tier-2 gates confirmatory; endpoint metrics descriptive only; governing config = variant C graduated regime). Supersedes v1.0 (PROPOSED).

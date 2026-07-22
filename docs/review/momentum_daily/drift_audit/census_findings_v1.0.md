@@ -8,8 +8,9 @@
 > in the Stage‑3 harness — at N=5 the 20% cap equals 1/N, so the clamp‑and‑renormalize loop cannot
 > converge and emitted cap‑violating weights on 100% of five‑name sessions. Production equal weighting is
 > the feasible implementation of the registered constraints, not a drift from a validated alternative.
-> The activation blocker is renamed **`WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED`**; the hold
-> stands. Read the erratum alongside §6 and §7.
+> The impact study it required is COMPLETE and returned **`MATERIALLY_DIFFERENT`** — production sizing
+> does not inherit the hybrid's performance evidence. The durable blocker is
+> **`AWAITING_PRODUCTION_SIZING_VALIDATION`**; the hold stands. Read the erratum alongside §6 and §7.
 
 ## 1. Provenance integrity
 

@@ -28,13 +28,32 @@ Run INSIDE the backend container on the box:
     docker compose exec -T backend python scripts/update_operational_hold_reason.py \\
         --strategy-id 11 --expected-rev <rev> \\
         --expected-reason-code AWAITING_COLD_START_FIX \\
-        --new-reason-code AWAITING_WEIGHTING_DEFECT_ADJUDICATION \\
-        --new-reason "weighting-defect impact study not yet adjudicated" \\
+        --new-reason-code AWAITING_PRODUCTION_SIZING_VALIDATION \\
+        --new-reason "Production sizing lacks valid performance evidence after the N=5 hybrid validation was invalidated." \\
         --updated-by user:4 \\
-        --evidence-ref "census final adjudication" \\
-        --evidence-ref "erratum=weighting_defect_erratum_v1.0" \\
-        --implementation-commit b7a205a
+        --evidence-ref "census final adjudication = census_findings_v1.0" \\
+        --evidence-ref "erratum = weighting_defect_erratum_v1.0" \\
+        --evidence-ref "governing variant-C impact result = weighting_defect_impact_study_v1.0" \\
+        --evidence-ref "production-faithful sensitivity = weighting_defect_impact_v1.1.json" \\
+        --evidence-ref "verdict = MATERIALLY_DIFFERENT" \\
+        --implementation-commit <reviewed merge commit>
     # review the dry-run diff, then re-run with --apply
+
+EXACTLY ONE transition is authorized for strategy 11 (owner ruling, 2026-07-22):
+
+    AWAITING_COLD_START_FIX -> AWAITING_PRODUCTION_SIZING_VALIDATION
+
+Do NOT pass through AWAITING_WEIGHTING_DEFECT_ADJUDICATION. That phase is COMPLETE — the impact
+study ran and was adjudicated — the label was never written to the live hold, and relabelling twice
+would put two transitions in the audit trail where only one is true.
+
+Run this ONLY AFTER the reviewed artifact is merged and deployed. Until then the stale
+AWAITING_COLD_START_FIX reason is conservatively blocking, which is safe; a premature relabel would
+be less governable than leaving the historical reason in place.
+
+This relabels WHY the book is held. It does NOT clear the hold, does NOT start a cooldown, and does
+NOT authorize activation — all three remain unauthorized pending a separate validation of production
+sizing.
 """
 
 from __future__ import annotations

@@ -208,6 +208,13 @@ docker compose exec -T backend python scripts/update_operational_hold_reason.py 
     --new-reason "<why>" --updated-by <actor>          # then re-run with --apply
 ```
 
+For **strategy 11 (acct 4)** specifically, exactly one transition is authorized —
+`AWAITING_COLD_START_FIX` → `AWAITING_PRODUCTION_SIZING_VALIDATION` — and only after the
+reviewed sizing-correction artifact is merged and deployed. Do not route through any
+interim label. **Clearing that hold and activating strategy 11 are NOT authorized**: production
+sizing has no valid performance evidence (the N=5 hybrid validation was invalidated), and a
+separate validation program is required first.
+
 It refuses (exit 5, no state, no audit) unless the hold exists, is ACTIVE, and matches
 both the asserted `--expected-rev` and `--expected-reason-code`. It preserves
 `effective_at` and every extra key (`legacy_marker`, evidence snapshots), and never
