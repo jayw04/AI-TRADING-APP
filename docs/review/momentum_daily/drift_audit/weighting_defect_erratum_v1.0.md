@@ -206,9 +206,11 @@ winner or the acceptance verdict changes.
 **This is a correction-impact analysis for a defective sizing implementation — not strategy discovery, not
 retuning, and not another equivalence review.**
 
-Pre-registration: `PREREG_weighting_defect_impact_study_v1.0.md` (this directory). Materiality thresholds
-are proposed there and **require owner ratification before the study is run** — thresholding after seeing
-results would not be a pre-registration.
+Pre-registration: **`PREREG_weighting_defect_impact_study_v1.1.md`** (this directory) — RATIFIED by the
+owner 2026-07-22 (v1.0 PROPOSED, superseded). Confirmatory gates are **Tier 2 only** (volatility, rolling
+1/3/12-month return differences, costs, trade-date alignment, position feasibility); endpoint metrics are
+**descriptive only** and may not be used to claim threshold success. `PRACTICALLY_EQUIVALENT` requires
+**every** Tier-2 gate to pass — compensating failures are not permitted.
 
 ---
 

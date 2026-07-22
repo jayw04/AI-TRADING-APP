@@ -19,7 +19,8 @@ sessions. Owner adjudication: production **stays equal-weight** (`max_position_p
 seam is reclassified `VALIDATION_IMPLEMENTATION_DEFECT`, and the blocker is renamed
 `WEIGHTING_VALIDATION_DEFECT_IMPACT_NOT_YET_ADJUDICATED`. Account 4 remains PAUSED.
 - `drift_audit/weighting_defect_erratum_v1.0.md` — the reclassification + evidence (amends census findings §5-§7).
-- `drift_audit/PREREG_weighting_defect_impact_study_v1.0.md` — ⏸ proposed protocol for the correction-impact study; **thresholds await owner ratification, study NOT run.**
+- `drift_audit/PREREG_weighting_defect_impact_study_v1.1.md` — ✅ RATIFIED protocol for the correction-impact study (Tier-2 gates confirmatory; endpoint metrics descriptive only; governing config = variant C graduated regime). Supersedes v1.0 (PROPOSED).
+- `apps/backend/scripts/weighting_defect_impact_study.py` — the study driver (reuses the validated harness; `simulate_arm` is a disclosed transcription of stage4 `simulate`).
 
 ## Contents
 - `momentum_daily_coldstart_repair_plan_v1.0.md` — implementation plan (lifecycle state machine, idempotency/crash-recovery, `initial_seed` gating, migration, evidence-clock split, ADR 0044, fail-closed hold enforcement, drift audit, reactivation checklist, validation matrix, ratified decisions).
