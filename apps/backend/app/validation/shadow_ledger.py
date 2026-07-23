@@ -25,8 +25,16 @@ import os
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import date
+from typing import Protocol
 
 from app.strategies.drift_audit import SeamRecord
+
+
+class DayScores(Protocol):
+    """Duck-typed daily scores the strategy produces: ranked (best-first), score, rank."""
+    ranked: list[str]
+    score: dict[str, float]
+    rank: dict[str, int]
 
 # Registered base transaction cost (bps of turnover), PREREG §2. The stress multipliers ×1/×2/×3 are
 # applied by the §7F adjudicator over the sealed record — they are NOT baked into the base ledger.
@@ -39,7 +47,7 @@ FORWARD_STARTING_CAPITAL = 100_000.0
 # The retired baseline that must never be reused as the research ledger (guard).
 _RETIRED_BASELINE = 84466.41
 
-SelectFn = Callable[[object, "set[str]", "dict[str, int] | None"], "list[str]"]
+SelectFn = Callable[[DayScores, "set[str]", "dict[str, int] | None"], "list[str]"]
 WeighFn = Callable[["list[str]", date], "dict[str, float]"]
 PriceFn = Callable[[str, date], "float | None"]
 
@@ -102,7 +110,7 @@ class ShadowLedger:
                 last_px={}, held=[], since=0, prev_rank=None, applied_gross=1.0,
                 sessions_processed=0, starting_capital=starting_capital))
 
-    def step(self, d: date, ds: object | None, g: float, *,
+    def step(self, d: date, ds: DayScores | None, g: float, *,
              select_fn: SelectFn, weigh_fn: WeighFn, price_fn: PriceFn) -> SessionOutcome:
         """Advance the ledger by ONE session. Faithful transcription of the §7A-proven Stage-4 transition
         (`capture_replica_seams` loop body). `ds` is the day's DayScores (or None for a thin day)."""
