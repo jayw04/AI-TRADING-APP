@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import sys
 import time
@@ -103,6 +104,31 @@ DEFAULT_MAX_SETUP_NOTIONAL = D(os.environ.get("ADR0043_CHURN_MAX_SETUP_NOTIONAL"
 DEFAULT_MAX_OVERSHOOT = D(os.environ.get("ADR0043_CHURN_MAX_OVERSHOOT", "750"))
 DEFAULT_MAX_WALL_CLOCK_S = float(os.environ.get("ADR0043_CHURN_MAX_WALL_CLOCK_S", "5400"))
 
+# The maximum age (seconds) a governed quote may have before it is refused as stale. A setup order
+# sized against a stale price is exactly the kind of "size against a number that isn't the market"
+# the driver must not do. Runtime config may TIGHTEN this but never loosen it past the hard ceiling
+# below, and it is frozen into the plan so the signed evidence proves which bound governed the order.
+MAX_PERMITTED_QUOTE_AGE_S = 10.0
+DEFAULT_MAX_QUOTE_AGE_S = float(os.environ.get("ADR0043_CHURN_MAX_QUOTE_AGE_S", "10"))
+# The ONE market-data source the driver trusts for a flat setup symbol. Any other source is refused.
+APPROVED_QUOTE_SOURCE = "app.market_data.quotes:get_last_quote(IEX)"
+
+
+def validated_quote_age(value: float) -> float:
+    """A freshness bound the runtime may tighten but never loosen past the hard ceiling. Non-finite
+    (nan/inf), non-positive, or above-ceiling values are refused at construction — an operator cannot
+    set ``ADR0043_CHURN_MAX_QUOTE_AGE_S=86400`` and make a day-old quote pass. Pure and fail-closed."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError) as exc:
+        raise CanaryRefused(f"quote-age bound {value!r} is not a number") from exc
+    if not math.isfinite(v):
+        raise CanaryRefused("quote-age bound must be finite (not nan/inf)")
+    if v <= 0 or v > MAX_PERMITTED_QUOTE_AGE_S:
+        raise CanaryRefused(
+            f"quote-age bound must be within (0, {MAX_PERMITTED_QUOTE_AGE_S}] seconds (got {value})")
+    return v
+
 
 @dataclass(frozen=True)
 class ChurnBounds:
@@ -135,6 +161,7 @@ class FrozenPlan:
     limits_fp: str
     protected_qty: dict[str, str]
     started_at: str
+    max_quote_age_s: float = DEFAULT_MAX_QUOTE_AGE_S
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -143,6 +170,7 @@ class FrozenPlan:
             "limits_fingerprint": self.limits_fp,
             "protected_qty": dict(self.protected_qty),
             "started_at": self.started_at,
+            "max_quote_age_s": self.max_quote_age_s,
         }
 
 
@@ -294,14 +322,95 @@ def validate_symbols(symbols: tuple[str, ...]) -> tuple[str, ...]:
     return upper
 
 
+# ---------------------------------------------------------------------------- governed pricing
+@dataclass(frozen=True)
+class PricingResult:
+    """A sizing reference derived from a governed market quote, plus the quote fields that justify
+    it — captured in evidence so the chosen price can be audited against the market it came from."""
+
+    symbol: str
+    source: str
+    bid: D
+    ask: D
+    last: D | None
+    quote_ts: str
+    quote_age_s: float
+    reference_price: D
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "symbol": self.symbol, "source": self.source,
+            "bid": str(self.bid), "ask": str(self.ask),
+            "last": str(self.last) if self.last is not None else None,
+            "quote_ts": self.quote_ts, "quote_age_s": self.quote_age_s,
+            "reference_price": str(self.reference_price),
+        }
+
+
+def evaluate_quote(
+    *, symbol: str, quote: dict | None, now_ts: float, max_age_s: float,
+    approved_sources: frozenset[str],
+) -> PricingResult:
+    """Turn a governed quote into a fail-closed sizing reference for a FLAT setup symbol.
+
+    A flat churn symbol is not in the positions book, so its price cannot come from held positions
+    (the 2026-07-16 defect). It comes from the market-data feed and is REFUSED the moment it is
+    unavailable, from an untrusted source, zero/absent, crossed, or stale — before any order. Pure,
+    so every refusal is a unit test rather than a live discovery. A BUY setup order is sized against
+    the ASK: the conservative side (a higher price admits fewer shares, i.e. less exposure)."""
+    if quote is None:
+        raise CanaryRefused(
+            f"no governed quote for {symbol}; refusing to size an order without a live price")
+    src = quote.get("source")
+    if src not in approved_sources:
+        raise CanaryRefused(
+            f"quote for {symbol} is from unapproved source {src!r}; "
+            f"approved: {sorted(approved_sources)}")
+
+    def _dec(x: Any) -> D | None:
+        if x in (None, ""):
+            return None
+        try:
+            return D(str(x))
+        except Exception:
+            return None
+
+    bid, ask, last = _dec(quote.get("bid")), _dec(quote.get("ask")), _dec(quote.get("last"))
+    if bid is None or ask is None or bid <= 0 or ask <= 0:
+        raise CanaryRefused(
+            f"governed quote for {symbol} has non-positive/absent bid/ask (bid={bid}, ask={ask}); "
+            f"refusing to size against it")
+    if bid > ask:
+        raise CanaryRefused(
+            f"governed quote for {symbol} is crossed (bid {bid} > ask {ask}); refusing to price on it")
+    ts_raw = quote.get("ts")
+    if not ts_raw:
+        raise CanaryRefused(
+            f"governed quote for {symbol} carries no timestamp; cannot prove freshness")
+    try:
+        ts_epoch = datetime.fromisoformat(str(ts_raw)).timestamp()
+    except Exception as exc:
+        raise CanaryRefused(
+            f"governed quote for {symbol} has an unparseable timestamp {ts_raw!r}") from exc
+    age = now_ts - ts_epoch
+    if age > max_age_s or age < -max_age_s:
+        raise CanaryRefused(
+            f"governed quote for {symbol} is stale/clock-skewed (age {age:.1f}s, "
+            f"allowed +/-{max_age_s}s)")
+    return PricingResult(
+        symbol=symbol, source=str(src), bid=bid, ask=ask, last=last,
+        quote_ts=str(ts_raw), quote_age_s=round(age, 3), reference_price=ask)
+
+
 # ---------------------------------------------------------------------------- the driver
 class ChurnDriver:
     """Single-order, synchronous, bounded, fail-closed. Collaborators are injected so the offline
     tests drive the real sequencing without a broker."""
 
     def __init__(self, *, sf, adapter, router, evidence: Evidence, checkpoint: ChurnCheckpoint,
-                 consumer=None, settle=None, price_fn=None, bounds: ChurnBounds | None = None,
-                 symbols: tuple[str, ...] | None = None):
+                 consumer=None, settle=None, quote_fn=None, now_fn=None,
+                 max_quote_age_s: float = DEFAULT_MAX_QUOTE_AGE_S,
+                 bounds: ChurnBounds | None = None, symbols: tuple[str, ...] | None = None):
         self.sf = sf
         self.ad = adapter
         self.router = router
@@ -313,22 +422,35 @@ class ChurnDriver:
         self.sub = GovernedSubmitter(
             sf=sf, adapter=adapter, router=router, consumer=consumer, evidence=evidence,
             settle=settle)
-        self._price_fn = price_fn
+        self._quote_fn = quote_fn
+        self._now_fn = now_fn or time.time
+        # Validated + hard-bounded at construction: a loosened or non-finite freshness bound is
+        # refused before the driver can price a single order against a stale quote.
+        self._max_quote_age_s = validated_quote_age(max_quote_age_s)
         self._bounds = bounds
         self._symbols = symbols
         self.plan: FrozenPlan | None = None
         self._t0 = time.monotonic()
 
-    # ---- pricing (never synthetic) ------------------------------------------------------
-    async def price_of(self, symbol: str) -> D | None:
-        if self._price_fn is not None:
-            return await self._price_fn(symbol)
-        for p in self.ad.get_positions() or []:
-            if str(p.get("symbol")).upper() == symbol.upper():
-                qty, mv = D(str(p.get("qty") or 0)), D(str(p.get("market_value") or 0))
-                if qty and mv:
-                    return (mv / abs(qty)).quantize(D("0.01"))
-        return None
+    # ---- pricing: a governed market quote, never a held-position or synthetic price ------
+    async def _fetch_quote(self, symbol: str) -> dict | None:
+        """The governed quote source (injected in tests). Defaults to the repo-wide market-data
+        helper — NOT a Phase-0-only Alpaca client. A flat setup symbol is absent from the positions
+        book, so pricing off positions (the 2026-07-16 defect) cannot price it at all."""
+        if self._quote_fn is not None:
+            return await self._quote_fn(symbol)
+        from app.market_data.quotes import get_last_quote
+        q = await get_last_quote(symbol)
+        return {**q, "source": APPROVED_QUOTE_SOURCE} if q is not None else None
+
+    async def price_for(self, symbol: str) -> PricingResult:
+        """Fail-closed governed pricing for a (flat) setup symbol: refuses before any submission on
+        an unavailable, untrusted, zero, crossed, or stale quote."""
+        quote = await self._fetch_quote(symbol)
+        return evaluate_quote(
+            symbol=symbol, quote=quote, now_ts=self._now_fn(),
+            max_age_s=self._max_quote_age_s,
+            approved_sources=frozenset({APPROVED_QUOTE_SOURCE}))
 
     # ---- preflight: freeze the plan -----------------------------------------------------
     async def preflight(self) -> FrozenPlan:
@@ -352,12 +474,23 @@ class ChurnDriver:
                 f"setup symbols are not flat before the run: {residual}; a churn run must start "
                 f"from zero temporary exposure or its arithmetic means nothing")
 
+        # A resumed checkpoint froze a freshness bound; a restart may not silently adopt a different
+        # one (even a valid one). The bound is part of the plan, so it is checked like any other.
+        prior = self.cp.plan
+        if prior is not None and "max_quote_age_s" in prior and (
+                float(prior["max_quote_age_s"]) != float(self._max_quote_age_s)):
+            raise CanaryStop(
+                "CHURN_FRESHNESS_BOUND_CHANGED",
+                f"resumed run froze quote-age {prior['max_quote_age_s']}s but this invocation would "
+                f"use {self._max_quote_age_s}s; a restart may not adopt a different freshness bound")
+
         plan = FrozenPlan(
             symbols=symbols,
             bounds=self._bounds or ChurnBounds(target_loss=limits.max_daily_loss),
             limits_fp=limits_fingerprint(limits),
             protected_qty={s: str(pre.positions.get(s, D(0))) for s in sorted(NEVER_CHURN)},
             started_at=datetime.now(UTC).isoformat(),
+            max_quote_age_s=self._max_quote_age_s,
         )
         self.plan = plan
         self.cp.plan = plan.as_dict()
@@ -367,7 +500,8 @@ class ChurnDriver:
         return plan
 
     # ---- one leg: submit -> settle -> verify ---------------------------------------------
-    async def run_leg(self, leg: Leg, limits: Limits) -> dict:
+    async def run_leg(self, leg: Leg, limits: Limits, *,
+                      reference_price: D | None = None) -> dict:
         assert self.plan is not None
         cid = self.cp.client_id(leg.index)
         pre_local = await local_position_qty(self.sf, leg.symbol)
@@ -397,7 +531,9 @@ class ChurnDriver:
                     f"refusing to trust a checkpoint the ledger does not corroborate")
             self.cp.record_leg_intent(leg, client_order_id=cid, pre_local=str(pre_local),
                                       pre_broker=str(pre_broker))
-            price = await self.price_of(leg.symbol)
+            # The sizing reference for an opening BUY is captured (and evidenced) by run() from a
+            # governed quote; a risk-reducing SELL is a MARKET order whose reference is advisory and
+            # must never be blocked on a fresh quote. So run_leg takes the price, never fetches one.
             # Submit and settle are ONE decision: the seam cannot return an unsettled order that
             # reached the broker, so there is no state in which the driver advances without one.
             governed = await self.sub.submit_and_settle(
@@ -408,7 +544,7 @@ class ChurnDriver:
                     user_id=USER, account_id=ACCT, symbol_ticker=leg.symbol, side=leg.order_side,
                     qty=leg.qty, type=OrderType.MARKET, tif=TimeInForce.DAY,
                     source_type=OrderSourceType.STRATEGY, client_order_id=cid,
-                    reference_price=price,
+                    reference_price=reference_price,
                 ),
                 ticker=leg.symbol)
             order_id = governed.order_id
@@ -492,13 +628,19 @@ class ChurnDriver:
 
         while True:
             snap = await snapshot_state(self.sf, self.ad)
-            if snap.day_change <= -plan.bounds.target_loss:
-                break                                    # boundary reached — stop increasing risk
-            if snap.day_change <= -(plan.bounds.target_loss + plan.bounds.max_overshoot):
+            # Overshoot is evaluated BEFORE ordinary success. A day_change severe enough to overshoot
+            # ALSO satisfies the boundary, so checking the boundary first makes this dead code (the
+            # ordering defect). Frozen rule:
+            #   day_change == -(target + overshoot) -> permitted terminal boundary (break below)
+            #   day_change <  -(target + overshoot) -> CHURN_OVERSHOT
+            if snap.day_change < -(plan.bounds.target_loss + plan.bounds.max_overshoot):
                 raise CanaryStop(
                     "CHURN_OVERSHOT",
-                    f"day_change {snap.day_change} exceeded the frozen overshoot allowance "
-                    f"({plan.bounds.target_loss} + {plan.bounds.max_overshoot})")
+                    f"day_change {snap.day_change} is below the frozen floor "
+                    f"-({plan.bounds.target_loss} + {plan.bounds.max_overshoot}); Phase 0 may not "
+                    f"overshoot the boundary by more than the allowance")
+            if snap.day_change <= -plan.bounds.target_loss:
+                break                                    # boundary reached — stop increasing risk
             if round_trips >= plan.bounds.max_round_trips:
                 raise BreachUnreachable(
                     f"BREACH_UNREACHABLE: {round_trips} round trip(s) of {symbol} did not reach "
@@ -509,22 +651,24 @@ class ChurnDriver:
                     f"BREACH_UNREACHABLE: wall-clock budget {plan.bounds.max_wall_clock_s}s spent "
                     f"at day_change={snap.day_change}")
 
-            price = await self.price_of(symbol)
-            if price is None or price <= 0:
-                raise CanaryRefused(
-                    f"no live price for {symbol}; refusing to size an order against a synthetic "
-                    f"price (the 2026-07-16 defect)")
+            # Governed, fail-closed pricing for the flat setup symbol (refuses on unavailable /
+            # untrusted / zero / crossed / stale, before any submission).
+            pricing = await self.price_for(symbol)
             qty = admissible_shares(
-                price=price, limits=limits, gross_used=D(0),
+                price=pricing.reference_price, limits=limits, gross_used=D(0),
                 buying_power=D(str((self.ad.get_account() or {}).get("buying_power") or 0)),
                 ceiling=plan.bounds.max_setup_notional)
             if qty <= 0:
                 raise BreachUnreachable(
                     f"BREACH_UNREACHABLE: the account's own limits admit 0 shares of {symbol} at "
-                    f"{price}; sizing up is not an option")
+                    f"{pricing.reference_price}; sizing up is not an option")
+            self.ev.doc.setdefault("pricing", []).append({
+                **pricing.as_dict(), "calculated_qty": str(qty),
+                "notional": str((qty * pricing.reference_price).quantize(D("0.01"))),
+                "max_quote_age_s": plan.max_quote_age_s})
 
             buy = Leg(self.cp.next_index(), "BUY", symbol, qty)
-            await self.run_leg(buy, limits)
+            await self.run_leg(buy, limits, reference_price=pricing.reference_price)
             open_qty = qty
             # The closing leg is RISK-REDUCING and runs immediately, whether or not the buy just
             # crossed the boundary — leaving setup exposure open to "check the state first" is how
