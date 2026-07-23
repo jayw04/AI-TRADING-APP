@@ -1,0 +1,30 @@
+{
+  "schema": "adr0043-deploy-provenance/1",
+  "description": "Frozen provenance manifest for the ADR-0043 ENFORCE validation-box deploy. The builder refuses to produce an archive unless the source commit is EXACTLY validation_executable_baseline and its delta from prior_deploy_baseline matches this manifest path-for-path AND blob-for-blob. This exists because the squash-merge governance commit (ea6db6e) carries unrelated main-line changes (ADR-0044, a new migration, momentum-daily, drift-audit, risk-path deltas); the reviewed executable tree is the curated descendant of the prior deploy lineage, not main.",
+  "governance_merge_commit": "ea6db6e6d5dc338196ffca9919a7a2e2643e1f6c",
+  "implementation_baseline": "c8b3ac24b839d7b19c40979a9e4be859151dbab7",
+  "prior_deploy_baseline": "80a6c043",
+  "validation_executable_baseline": "07d3b824b660a33b3f67920b657ab2657b65bc1f",
+  "migration_delta_allowed": false,
+  "migration_path_globs": [
+    "apps/backend/alembic/versions/"
+  ],
+  "approved_application_paths": {
+    "apps/backend/app/orders/settlement.py": "ca0f241b6a5cec7901cd27d6597a1ffcaef0378b",
+    "apps/backend/scripts/adr0043_canary_lib.py": "b1a94f7495f99de86c4fbc43eece6e952b387d12",
+    "apps/backend/scripts/adr0043_canary_run.py": "61b25815a4dd166a41c118a4ce7a3376154a6f68",
+    "apps/backend/scripts/adr0043_churn_driver.py": "2161d9783ffbf1b1d04fe7a8f935437c201a6ba7",
+    "apps/backend/scripts/check_settlement_barrier.py": "a3d70872c07a124210fb47a1fba8cff59c72f7b4",
+    "apps/backend/scripts/check_settlement_barrier.sh": "7b9683741ddc266210d00d417d877d836040e26a",
+    "apps/backend/tests/orders/test_settlement.py": "87e6ed4ef8b26cda78da57fd3387c4c7bc45ec19",
+    "apps/backend/tests/risk/test_adr0043_canary_harness.py": "758649d1f911b3e4825b5dea7f8edcbe286eacd2",
+    "apps/backend/tests/risk/test_adr0043_churn_driver.py": "98509fa4a04d03b992d7c39546779dc76f432326",
+    "apps/backend/tests/risk/test_settlement_barrier_invariant.py": "c41023a80bd9071f8deee2b11da63abe0f341fb8"
+  },
+  "approved_operational_paths": {
+    ".github/workflows/ci.yml": "f083fab11f95b2ce735722c232a694996532cb39",
+    "CLAUDE.md": "ef9e34a152548cfea8f483264db5413e53a8e126",
+    "docs/implementation/ADR0043_SettlementBarrier_BaselineDiscrepancy_v1.0.md": "79a02bc4a88911bcc367f4fdf79fac96dbb047f4",
+    "scripts/reconcile_stuck_orders.py": "1ca7c2958654141cd55272042ced10dadb13184f"
+  }
+}
