@@ -117,12 +117,21 @@ GOVERNED_MATCH=true
 #     reviewed work merged after the accepted superset (reverting it to the accepted baseline
 #     superset), so the two directions are recorded distinctly rather than as one ambiguous list that
 #     would imply excluded files are present on the box.
-#       present-in-deploy  = files ADDED (A) or MODIFIED (M) in the deployed tree vs the baseline
-#       excluded-from-deploy = files DELETED (D): present in the baseline, ABSENT from the deploy
-SUPERSET_PRESENT="$(git diff --name-status "$IMPL_SHA" "$DEPLOYED_SHA" -- apps/ scripts/ \
-  | awk '$1=="A" || $1=="M" { print $2 }' | sed '/^$/d' || true)"
-SUPERSET_EXCLUDED="$(git diff --name-status "$IMPL_SHA" "$DEPLOYED_SHA" -- apps/ scripts/ \
-  | awk '$1=="D" { print $2 }' | sed '/^$/d' || true)"
+#       present-in-deploy    = ADDED (A) / MODIFIED (M) / TYPE-CHANGED (T): the path IS in the deploy
+#       excluded-from-deploy = DELETED (D): present in the baseline, ABSENT from the deploy
+# Rename/copy inference is DISABLED (--no-renames) so a rename is a deterministic delete(old)+add(new)
+# — old path lands in excluded, new path in present — instead of an R/C status that would slip past a
+# naive A/M/D match and drop BOTH paths from the marker. Any status we do not explicitly classify is a
+# hard refusal: the marker must never silently omit a path.
+NAME_STATUS="$(git diff --no-renames --name-status "$IMPL_SHA" "$DEPLOYED_SHA" -- apps/ scripts/)"
+UNKNOWN_STATUS="$(printf '%s\n' "$NAME_STATUS" | awk 'NF && $1 !~ /^[AMDT]$/ { print }')"
+if [ -n "$UNKNOWN_STATUS" ]; then
+  echo "FATAL: unrecognized git name-status in the non-ADR-0043 delta — refusing to classify (fail closed):"
+  printf '%s\n' "$UNKNOWN_STATUS" | sed 's/^/  /'
+  exit 3
+fi
+SUPERSET_PRESENT="$(printf '%s\n' "$NAME_STATUS" | awk '$1 ~ /^[AMT]$/ { print $2 }' | sed '/^$/d')"
+SUPERSET_EXCLUDED="$(printf '%s\n' "$NAME_STATUS" | awk '$1=="D" { print $2 }' | sed '/^$/d')"
 for f in $SUPERSET_PRESENT $SUPERSET_EXCLUDED; do
   for g in $GOVERNED_LIST; do
     if [ "$f" = "$g" ]; then
@@ -159,7 +168,7 @@ ${PRESENT_JSON}
   "baseline_paths_excluded_from_deploy": [
 ${EXCLUDED_JSON}
   ],
-  "reviewed_superset_delta_classification": "reviewed_non_adr0043_superset",
+  "application_delta_classification": "reviewed_non_adr0043_directional_delta",
   "built_at_utc": "$BUILT_AT",
   "builder": "$BUILDER",
   "artifact_type": "git-archive"
@@ -184,7 +193,7 @@ adr0043_implementation_commit : $IMPL_SHA (governed ADR-0043 paths pinned here)
 adr0043_original_baseline     : $ADR0043_ORIGINAL_BASELINE (historical PR8, recorded only)
 implementation_ancestry       : $ANCESTRY (git merge-base --is-ancestor, build machine)
 adr0043_governed_paths_match  : $GOVERNED_MATCH (byte-identical to the implementation baseline)
-present_in_deploy_delta       : $(printf '%s ' $SUPERSET_PRESENT)(added/modified over baseline; classification: reviewed_non_adr0043_superset)
+present_in_deploy_delta       : $(printf '%s ' $SUPERSET_PRESENT)(added/modified/type-changed, present in deploy; classification: reviewed_non_adr0043_directional_delta)
 excluded_from_deploy          : $(printf '%s ' $SUPERSET_EXCLUDED)(baseline files intentionally reverted/absent from the deploy)
 built_at_utc                  : $BUILT_AT
 builder                       : $BUILDER

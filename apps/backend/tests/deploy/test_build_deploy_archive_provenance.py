@@ -91,7 +91,8 @@ def test_accepts_when_governed_paths_match_the_implementation_baseline(repo):
     m = _marker(repo)
     assert m["adr0043_governed_paths_match"] is True
     assert m["implementation_ancestry_verified"] is True
-    assert m["reviewed_superset_delta_classification"] == "reviewed_non_adr0043_superset"
+    assert m["application_delta_classification"] == "reviewed_non_adr0043_directional_delta"
+    assert "reviewed_superset_delta_classification" not in m   # the stale "superset" field is gone
     assert OTHER_FILE in m["application_delta_after_adr0043_baseline"]
     assert GOVERNED_FILE not in m["application_delta_after_adr0043_baseline"]
 
@@ -118,6 +119,29 @@ def test_excluded_baseline_file_is_recorded_distinctly_not_as_present(repo):
     assert EXTRA not in m["application_delta_after_adr0043_baseline"]
     assert OTHER_FILE in m["application_delta_after_adr0043_baseline"]   # modified & present
     assert OTHER_FILE not in m["baseline_paths_excluded_from_deploy"]
+
+
+# (1c) a RENAMED non-governed file splits into excluded-old + present-new ------------------------
+
+def test_a_renamed_non_governed_file_splits_old_excluded_new_present(repo):
+    """Rename/copy inference is disabled so classification is deterministic: a rename is a
+    delete(old)+add(new). The OLD path must land in excluded, the NEW path in present — neither may
+    vanish (which an R/C status would cause under a naive A/M/D match). The file content is large and
+    identical across the rename precisely so Git's default rename detection WOULD fire if enabled."""
+    OLD = "apps/backend/app/strategies/renamed_from.py"
+    NEW = "apps/backend/app/strategies/renamed_to.py"
+    _write(repo, OLD, "renamable payload line\n" * 40)   # high-similarity: default -M would detect it
+    base = _commit(repo, "baseline with a renamable non-governed file")
+    (repo / OLD).rename(repo / NEW)                       # pure rename in the deployed commit
+    deployed = _commit(repo, "deploy renames the file")
+
+    r = _run(repo, deployed, impl_sha=base)
+    assert r.returncode == 0, r.stdout + r.stderr
+    m = _marker(repo)
+    assert OLD in m["baseline_paths_excluded_from_deploy"]
+    assert NEW in m["application_delta_after_adr0043_baseline"]
+    assert OLD not in m["application_delta_after_adr0043_baseline"]
+    assert NEW not in m["baseline_paths_excluded_from_deploy"]
 
 
 # (2) rejects a target that changes a governed file after the baseline --------------------------
