@@ -96,6 +96,30 @@ def test_accepts_when_governed_paths_match_the_implementation_baseline(repo):
     assert GOVERNED_FILE not in m["application_delta_after_adr0043_baseline"]
 
 
+# (1b) a baseline file EXCLUDED from the deploy is recorded as excluded, never as present ---------
+
+def test_excluded_baseline_file_is_recorded_distinctly_not_as_present(repo):
+    """A validation-box deploy may intentionally EXCLUDE reviewed work merged after the accepted
+    superset. Such a file (present in the baseline, absent from the deploy) must be recorded under
+    baseline_paths_excluded_from_deploy, and must NOT appear in the present-in-deploy delta — else
+    the marker would imply the box carries a file it does not."""
+    EXTRA = "apps/backend/app/strategies/extra_feature.py"
+    _write(repo, EXTRA, "extra v1\n")
+    base = _commit(repo, "baseline with an extra non-governed file")
+    (repo / EXTRA).unlink()                       # deploy reverts/excludes the extra file
+    _write(repo, OTHER_FILE, "other v2\n")        # and modifies another (present) non-governed file
+    deployed = _commit(repo, "deploy excludes the extra file, modifies another")
+
+    r = _run(repo, deployed, impl_sha=base)
+    assert r.returncode == 0, r.stdout + r.stderr
+    m = _marker(repo)
+    assert m["adr0043_governed_paths_match"] is True
+    assert EXTRA in m["baseline_paths_excluded_from_deploy"]
+    assert EXTRA not in m["application_delta_after_adr0043_baseline"]
+    assert OTHER_FILE in m["application_delta_after_adr0043_baseline"]   # modified & present
+    assert OTHER_FILE not in m["baseline_paths_excluded_from_deploy"]
+
+
 # (2) rejects a target that changes a governed file after the baseline --------------------------
 
 def test_rejects_a_target_that_changes_a_governed_path_after_the_baseline(repo):

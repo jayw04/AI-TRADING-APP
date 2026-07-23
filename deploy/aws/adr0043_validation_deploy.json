@@ -1,12 +1,12 @@
 {
   "schema": "adr0043-validation-deploy/1",
-  "description": "FROZEN identity of the ONE approved ADR-0043 validation-box deploy object. The hardened provisioner reads every identity from here — bucket, key, S3 object VersionId, sha256, byte size, and the two provenance commits. Runtime environment values are permitted ONLY as assertions that must equal these exactly; the provisioner refuses (before contacting S3) on any mismatch. Changing the approved object requires editing this committed manifest under review.",
+  "description": "FROZEN identity of the ONE approved ADR-0043 validation-box deploy object. The hardened provisioner reads every identity from here — bucket, key, S3 object VersionId, sha256, byte size, and the two provenance commits. Runtime environment values are permitted ONLY as assertions that must equal these exactly; the provisioner refuses (before contacting S3) on any mismatch. Changing the approved object requires editing this committed manifest under review. This revision advances the deploy to carry PR #480's governed churn-driver correction: the ADR-0043 implementation baseline advances to the #480 merge commit 4e63dc03, and the deployed tree is the already-accepted b0058bf reviewed superset with ONLY #480 applied (build source f98d082, a child of 4e63dc03 that reverts the post-b0058bf non-governed work; see the archive's DEPLOYED_BUILD_INFO.json baseline_paths_excluded_from_deploy).",
   "region": "us-east-1",
   "bucket": "workbench-backups-219024422756",
-  "key": "adr0043/b0058bf335628f8dbde09a93915314f3a1f7743b/source-5728813b9e534ecdabdc3df45e64bdb884c01b598c59a9d8ffddeb48d29043af.tar.gz",
-  "version_id": "kex9gT31wufwtjYXZ6ZuczVY9JOMcBVh",
-  "sha256": "5728813b9e534ecdabdc3df45e64bdb884c01b598c59a9d8ffddeb48d29043af",
-  "bytes": 4120679,
-  "deployed_repository_commit": "b0058bf335628f8dbde09a93915314f3a1f7743b",
-  "adr0043_implementation_commit": "ea6db6e6d5dc338196ffca9919a7a2e2643e1f6c"
+  "key": "adr0043/f98d082cfcdb891cfba5abfff27822b83064c7a9/source-c929caba9fa9094830314e852004aac2d698b72b34ec6b374767af165f7ee86f.tar.gz",
+  "version_id": "PsL3sJLsxaNlLg0GR17djXM_r_u69KcR",
+  "sha256": "c929caba9fa9094830314e852004aac2d698b72b34ec6b374767af165f7ee86f",
+  "bytes": 4126767,
+  "deployed_repository_commit": "f98d082cfcdb891cfba5abfff27822b83064c7a9",
+  "adr0043_implementation_commit": "4e63dc034efbdff50dc605ccd2aec440ce8a94f4"
 }
