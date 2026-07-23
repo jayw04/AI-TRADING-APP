@@ -34,6 +34,29 @@ HOST_ID="${WORKBENCH_HOST_ID:-ec2-paper}"
 LOSS_CONTROL_MODE="$(printf '%s' "${LOSS_CONTROL_MODE:-OFF}" | tr '[:lower:]' '[:upper:]')"
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 
+# --- ADR-0043 VALIDATION-BOX GUARD -------------------------------------------------------------
+# This provisioner is fine for the live box's own reviewed key, but it downloads by key only (no
+# object version), does not verify the approved SHA before extraction, extracts directly over the
+# running tree, and immediately rebuilds + restarts. The ADR-0043 validation-box deploy was approved
+# as an EXACT object VERSION + checksum with a staged, migration-gated, rollback-capable swap. So
+# this path REFUSES the validation box and directs the operator to the hardened provisioner. The
+# validation box is identified by its host id, by ENFORCE loss-control mode (validation-box only),
+# or by an adr0043/ code key — never fall back to bootstrap/code.tgz for it.
+_validation_box=0
+case "${HOST_ID}" in *adr0043*|*validation*|*canary*) _validation_box=1 ;; esac
+[ "$LOSS_CONTROL_MODE" = "ENFORCE" ] && _validation_box=1
+case "${CODE_KEY}" in adr0043/*) _validation_box=1 ;; esac
+if [ "$_validation_box" = "1" ]; then
+  echo "FATAL: this looks like the ADR-0043 validation box (host_id='${HOST_ID}',"      >&2
+  echo "       loss_control_mode='${LOSS_CONTROL_MODE}', code_key='${CODE_KEY}')."       >&2
+  echo "       Use the hardened, version+checksum-pinned, staged provisioner instead:"   >&2
+  echo "         CODE_KEY=... CODE_VERSION_ID=... EXPECTED_CODE_SHA256=... \\"            >&2
+  echo "         EXPECTED_CODE_BYTES=... bash deploy/aws/provision-adr0043-validation.sh" >&2
+  echo "       This unversioned path must never deploy to the validation box."           >&2
+  exit 2
+fi
+# --- end guard ---------------------------------------------------------------------------------
+
 mkdir -p "$APP/app" "$APP/data"
 
 # 1) code from S3 (CODE_KEY override keeps the validation box off the live bootstrap/code.tgz key)

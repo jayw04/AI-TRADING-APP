@@ -1,0 +1,12 @@
+{
+  "schema": "adr0043-validation-deploy/1",
+  "description": "FROZEN identity of the ONE approved ADR-0043 validation-box deploy object. The hardened provisioner reads every identity from here — bucket, key, S3 object VersionId, sha256, byte size, and the two provenance commits. Runtime environment values are permitted ONLY as assertions that must equal these exactly; the provisioner refuses (before contacting S3) on any mismatch. Changing the approved object requires editing this committed manifest under review.",
+  "region": "us-east-1",
+  "bucket": "workbench-backups-219024422756",
+  "key": "adr0043/b0058bf335628f8dbde09a93915314f3a1f7743b/source-5728813b9e534ecdabdc3df45e64bdb884c01b598c59a9d8ffddeb48d29043af.tar.gz",
+  "version_id": "kex9gT31wufwtjYXZ6ZuczVY9JOMcBVh",
+  "sha256": "5728813b9e534ecdabdc3df45e64bdb884c01b598c59a9d8ffddeb48d29043af",
+  "bytes": 4120679,
+  "deployed_repository_commit": "b0058bf335628f8dbde09a93915314f3a1f7743b",
+  "adr0043_implementation_commit": "ea6db6e6d5dc338196ffca9919a7a2e2643e1f6c"
+}
