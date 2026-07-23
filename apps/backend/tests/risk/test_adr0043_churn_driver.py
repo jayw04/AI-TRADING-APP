@@ -224,20 +224,39 @@ async def _set_day_change(session_factory, broker: FakeBroker):
         await s.commit()
 
 
+_NOW = 1_000_000.0
+
+
+def _quote_at(price, *, now=_NOW, age_s=0.0, source=None):
+    """A governed-quote dict shaped like app.market_data.quotes.get_last_quote's output."""
+    import scripts.adr0043_churn_driver as m
+
+    ts = datetime.fromtimestamp(now - age_s, UTC).isoformat()
+    ask = price
+    bid = None if price is None else price - D("0.02")
+    return {"symbol": "IEUS",
+            "bid": None if bid is None else str(bid),
+            "ask": None if ask is None else str(ask),
+            "last": None if ask is None else str(ask),
+            "ts": ts,
+            "source": m.APPROVED_QUOTE_SOURCE if source is None else source}
+
+
 def _driver(drv, session_factory, broker, *, router=None, settle=None, bounds=None,
-            symbols=("IEUS",), price=D("50")):
+            symbols=("IEUS",), price=D("50"), quote_fn=None, now=_NOW):
     import scripts.adr0043_canary_lib as lib
 
     router = router or FakeRouter(session_factory, broker)
     settle = settle or SettleSpy(session_factory, broker)
 
-    async def _price(_sym):
-        return price
+    if quote_fn is None:
+        async def quote_fn(_sym):
+            return None if price is None else _quote_at(price, now=now)
 
     return drv.ChurnDriver(
         sf=session_factory, adapter=broker, router=router, evidence=lib.Evidence(phase="TEST"),
         checkpoint=drv.ChurnCheckpoint.load(), consumer=MagicMock(), settle=settle,
-        price_fn=_price, bounds=bounds, symbols=symbols)
+        quote_fn=quote_fn, now_fn=lambda: now, bounds=bounds, symbols=symbols)
 
 
 # ============================================================ protected-position isolation
@@ -556,12 +575,143 @@ async def test_zero_admissible_size_is_breach_unreachable_not_a_bigger_order(drv
         await driver.run()
 
 
-async def test_no_live_price_refuses_rather_than_inventing_one(drv, session_factory, lib):
+# ============================================================ governed flat-symbol pricing
+
+
+def test_evaluate_quote_prices_a_flat_symbol_off_the_ask(drv):
+    """A flat setup symbol is priced from a governed quote's ASK (conservative), not from a held
+    position — the whole point of Finding 1."""
+    q = _quote_at(D("50"))                                    # bid 49.98 / ask 50.00
+    pr = drv.evaluate_quote(symbol="IEUS", quote=q, now_ts=_NOW, max_age_s=10,
+                            approved_sources=frozenset({drv.APPROVED_QUOTE_SOURCE}))
+    assert pr.reference_price == D("50") and pr.ask == D("50") and pr.bid == D("49.98")
+    assert pr.source == drv.APPROVED_QUOTE_SOURCE and pr.quote_age_s == 0.0
+
+
+@pytest.mark.parametrize(("mut", "match"), [
+    (lambda q: None, "no governed quote"),                    # unavailable
+    (lambda q: {**q, "source": "sketchy-feed"}, "unapproved source"),
+    (lambda q: {**q, "bid": "0", "ask": "0"}, "non-positive"),
+    (lambda q: {**q, "bid": "50.10", "ask": "50.00"}, "crossed"),
+    (lambda q: {**q, "ts": None}, "no timestamp"),
+])
+def test_evaluate_quote_fails_closed(drv, lib, mut, match):
+    base = _quote_at(D("50"))
+    with pytest.raises(lib.CanaryRefused, match=match):
+        drv.evaluate_quote(symbol="IEUS", quote=mut(base), now_ts=_NOW, max_age_s=10,
+                           approved_sources=frozenset({drv.APPROVED_QUOTE_SOURCE}))
+
+
+def test_evaluate_quote_refuses_a_stale_quote(drv, lib):
+    q = _quote_at(D("50"), age_s=30.0)                        # 30s old, allowance 10s
+    with pytest.raises(lib.CanaryRefused, match="stale"):
+        drv.evaluate_quote(symbol="IEUS", quote=q, now_ts=_NOW, max_age_s=10,
+                           approved_sources=frozenset({drv.APPROVED_QUOTE_SOURCE}))
+
+
+async def test_run_refuses_before_submission_when_quote_missing(drv, session_factory, lib):
+    await _seed(session_factory)                             # day_change 0 — not breached
+    broker = FakeBroker(loss_per_leg=D("0"))
+    router = FakeRouter(session_factory, broker)
+
+    async def _no_quote(_sym):
+        return None
+
+    driver = _driver(drv, session_factory, broker, router=router, quote_fn=_no_quote)
+    with pytest.raises(lib.CanaryRefused, match="no governed quote"):
+        await driver.run()
+    assert router.submits == 0, "a missing price must refuse BEFORE any order"
+
+
+async def test_run_refuses_before_submission_when_quote_stale(drv, session_factory, lib):
     await _seed(session_factory)
     broker = FakeBroker(loss_per_leg=D("0"))
-    driver = _driver(drv, session_factory, broker, price=None)
-    with pytest.raises(lib.CanaryRefused, match="synthetic price"):
+    router = FakeRouter(session_factory, broker)
+
+    async def _stale(_sym):
+        return _quote_at(D("50"), age_s=45.0)
+
+    driver = _driver(drv, session_factory, broker, router=router, quote_fn=_stale)
+    with pytest.raises(lib.CanaryRefused, match="stale"):
         await driver.run()
+    assert router.submits == 0
+
+
+async def test_run_sizes_and_evidences_quantity_from_the_captured_quote(drv, session_factory,
+                                                                        monkeypatch):
+    """The BUY quantity and notional are computed from the captured governed price, and the quote is
+    recorded in evidence (symbol, source, bid, ask, ts, age, reference, qty, notional)."""
+    await _seed(session_factory)
+    broker = FakeBroker(loss_per_leg=D("1100"))              # one round trip (2x1100) breaches 2000
+    router = FakeRouter(session_factory, broker)
+    settle = SettleSpy(session_factory, broker)
+    driver = _driver(drv, session_factory, broker, router=router, settle=settle,
+                     bounds=drv.ChurnBounds(target_loss=D("2000"), max_round_trips=6))
+
+    real_snapshot = drv.snapshot_state
+
+    async def _snapshot(sf, adapter):
+        await _set_day_change(sf, broker)
+        if broker.day_change <= D("-2000"):
+            await _trip_lock(sf)
+        return await real_snapshot(sf, adapter)
+
+    monkeypatch.setattr(drv, "snapshot_state", _snapshot)
+
+    outcome = await driver.run()
+    assert outcome["ready"] is True, outcome["detail"]
+
+    priced = driver.ev.doc["pricing"]
+    assert len(priced) == 1
+    p = priced[0]
+    # admissible size at ask 50 with the seeded limits (25000 notional ceiling / 50) = 500 shares.
+    assert p["reference_price"] == "50" and p["ask"] == "50" and p["bid"] == "49.98"
+    assert p["source"] == drv.APPROVED_QUOTE_SOURCE
+    assert p["calculated_qty"] == "500" and p["notional"] == "25000.00"
+    assert broker.positions[PROTECTED_TICKER] == D("19")     # protected untouched by the priced run
+
+
+# ============================================================ overshoot / loop control
+
+
+async def test_run_raises_overshoot_beyond_the_floor(drv, session_factory, lib):
+    """Finding 2: a value beyond target+overshoot must raise CHURN_OVERSHOT — reachable now that the
+    check precedes the boundary break — and stop before any order."""
+    await _seed(session_factory, day_change="-3000")         # floor is -(2000+750) = -2750
+    broker = FakeBroker(loss_per_leg=D("0"))
+    router = FakeRouter(session_factory, broker)
+    driver = _driver(drv, session_factory, broker, router=router,
+                     bounds=drv.ChurnBounds(target_loss=D("2000")))
+    with pytest.raises(lib.CanaryStop) as exc:
+        await driver.run()
+    assert exc.value.stop_reason == "CHURN_OVERSHOT"
+    assert router.submits == 0
+
+
+@pytest.mark.parametrize("dc", ["-2000", "-2500", "-2750"])  # at target / between / exactly at floor
+async def test_run_stops_successfully_within_the_overshoot_band(drv, session_factory, dc):
+    """At the target, between target and floor, and exactly at the floor: a normal terminal break,
+    not an overshoot. (Frozen rule: == floor is permitted; only < floor overshoots.)"""
+    await _seed(session_factory, day_change=dc)
+    broker = FakeBroker(loss_per_leg=D("0"))
+    router = FakeRouter(session_factory, broker)
+    driver = _driver(drv, session_factory, broker, router=router,
+                     bounds=drv.ChurnBounds(target_loss=D("2000")))
+    outcome = await driver.run()                             # returns (does not raise)
+    assert router.submits == 0, "broke at the boundary before ordering"
+    assert "day_change" in outcome
+
+
+async def test_run_continues_just_above_target(drv, session_factory, lib):
+    """Just short of the boundary the loop must CONTINUE (place an order), not break."""
+    await _seed(session_factory, day_change="-1999")
+    broker = FakeBroker(loss_per_leg=D("0"))
+    router = FakeRouter(session_factory, broker)
+    driver = _driver(drv, session_factory, broker, router=router,
+                     bounds=drv.ChurnBounds(target_loss=D("2000"), max_round_trips=1))
+    with pytest.raises(lib.BreachUnreachable):               # ordered once, then out of round trips
+        await driver.run()
+    assert router.submits == 2, "continued past target -> exactly one BUY + one SELL"
 
 
 # ============================================================ preflight + re-entry
