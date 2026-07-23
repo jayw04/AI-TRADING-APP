@@ -20,7 +20,7 @@ timestamps produced as the program is executed — a binding manifest, **not** o
 | deployed image (ec2-paper) | `sha256:098da002…` (deploy 2026-07-22) |
 | validation measurement-code commit | «bound at run-start» |
 | benchmark implementation SHA | «bound at run-start — benchmark code frozen before the forward start» |
-| complete trial-ledger SHA | «bound at run-start — assembled + frozen BEFORE the run (§7 D)» |
+| complete trial-ledger SHA (FROZEN v1.0) | `b7d9d71591cc449a1768f33a3f3f5e0dcdf8ae518710ecec13422f0a0a98eb6d` — N=45 conservative (doc-reduction floor 30) |
 | data store + digests | `factor_data_full.duckdb`; sep `d9472dfe…`, tickers `2f21b154…` (re-verified fail-closed) |
 | data cutoff | «bound at run-start» |
 | forward validation start (first eligible session) | «bound at run-start, countersigned» |
