@@ -23,10 +23,10 @@ timestamps produced as the program is executed — a binding manifest, **not** o
 | DGS3MO dataset digest (FROZEN) | `87d8ba2fc5981add5ea48bb5d365f79371fd457488a598e0043758c21ff825d1` · cutoff `2026-07-21` (2004-01-02..2026-07-21) |
 | complete trial-ledger SHA (FROZEN v1.0) | `b7d9d71591cc449a1768f33a3f3f5e0dcdf8ae518710ecec13422f0a0a98eb6d` — N=45 conservative (doc-reduction floor 30) |
 | data store + digests | `factor_data_full.duckdb`; sep `d9472dfe…`, tickers `2f21b154…` (re-verified fail-closed) |
-| data cutoff | «bound at run-start» |
-| forward validation start (first eligible session) | «bound at run-start, countersigned» |
+| data cutoff (FROZEN) | `2026-07-21` (= the DGS3MO observation cutoff) |
+| forward validation start (COUNTERSIGNED) | `2026-07-24` (first eligible market session; governing TZ America/New_York) |
 | transaction-cost assumptions | registered base `TURNOVER_COST_BPS=10.0`; stress ×1/×2/×3 (§7 F) |
-| authorized operator + countersignature | «bound at run-start» |
+| authorized operator + countersignature (COMPLETE) | Jay Wang · countersigned 2026-07-23T06:44:08-05:00 / 11:44:08Z — see `Section0_Countersignature_and_ForwardWindow_Opening_v1.0.md` |
 
 ---
 
