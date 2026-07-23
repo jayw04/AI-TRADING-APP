@@ -58,19 +58,14 @@ def _ctx_methods_used_by_momentum_daily() -> set[str]:
     return names
 
 
-# KNOWN, ADJUDICATED parity gaps between BacktestContext and the live StrategyContext (owner
-# ruling 2026-07-22: durable state is a SEPARATE follow-up, not this PR). momentum-daily's durable
-# state — the daily latch, the deployment-lifecycle blob, regime persistence, and the CAS-guarded
-# seed reconciliation — needs `get_state`/`set_state`/`compare_and_set_state`, none of which
-# BacktestContext implements, so momentum-daily cannot run through it at all (the §8 audit used the
-# DriftCtxAdapter, which does). Adding them is not like-for-like: compare-and-set in a
-# single-threaded replay, and whether state survives strategy-instance recreation, are real design
-# decisions that need their own adjudication before the equal-weight validation program.
+# KNOWN, ADJUDICATED parity gaps between BacktestContext and the live StrategyContext.
+# EMPTY as of 2026-07-22: the durable-state trio (get_state/set_state/compare_and_set_state) was
+# the last gap and is now closed — BacktestContext implements it with live-parity semantics
+# (mirroring the proven DriftCtxAdapter). Every ctx method momentum-daily uses now exists on BOTH.
 #
 # ⚠ THIS SET MAY ONLY SHRINK. A method removed from it must exist on BOTH contexts. Adding a name
-# here to silence the test would defeat its purpose — resolve the gap or adjudicate it, never
-# allowlist a NEW one.
-_KNOWN_BACKTEST_PARITY_GAPS = frozenset({"get_state", "set_state", "compare_and_set_state"})
+# here to silence the test would defeat its purpose — resolve the gap, never allowlist a NEW one.
+_KNOWN_BACKTEST_PARITY_GAPS = frozenset()
 
 
 def test_every_ctx_method_momentum_daily_uses_exists_on_both_contexts():
@@ -93,12 +88,11 @@ def test_every_ctx_method_momentum_daily_uses_exists_on_both_contexts():
     )
 
 
-def test_the_durable_state_gap_is_the_only_known_gap_and_is_documented():
-    """Pin the known-gap set explicitly, so closing `pending_buy_qty` (this PR) is visible and the
-    durable-state follow-up is on the record rather than implicit."""
-    assert {"get_state", "set_state", "compare_and_set_state"} == _KNOWN_BACKTEST_PARITY_GAPS
-    assert not hasattr(BacktestContext, "get_state")   # the follow-up has not silently landed
-    assert hasattr(BacktestContext, "pending_buy_qty")  # this PR's fix is present
+def test_no_known_parity_gaps_remain():
+    """The durable-state trio was the last gap and is now closed."""
+    assert len(_KNOWN_BACKTEST_PARITY_GAPS) == 0
+    for m in ("get_state", "set_state", "compare_and_set_state", "clear_state", "pending_buy_qty"):
+        assert hasattr(BacktestContext, m), m
 
 
 def test_pending_buy_qty_signatures_match():
