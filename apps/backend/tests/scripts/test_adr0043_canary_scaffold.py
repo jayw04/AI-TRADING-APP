@@ -157,3 +157,51 @@ async def test_sequence_repaired_so_next_insert_does_not_collide(session_factory
         await s.commit()
         nid = (await s.execute(text("SELECT id FROM users WHERE email='next@x'"))).scalar()
     assert nid == 4
+
+
+async def _force_low_sqlite_sequence(sf, name: str, seq: int):
+    """Bring sqlite_sequence into existence (via an AUTOINCREMENT helper) and set a LOW stored value
+    for `name`, simulating a drifted/restored sequence on an autoincrement table."""
+    async with sf() as s:
+        await s.execute(text("CREATE TABLE IF NOT EXISTS _ai_force (id INTEGER PRIMARY KEY AUTOINCREMENT)"))
+        await s.execute(text("INSERT INTO _ai_force DEFAULT VALUES"))
+        await s.execute(text("DELETE FROM sqlite_sequence WHERE name = :n"), {"n": name})
+        await s.execute(text("INSERT INTO sqlite_sequence (name, seq) VALUES (:n, :s)"), {"n": name, "s": seq})
+        await s.commit()
+
+
+async def test_idempotent_apply_repairs_a_corrupted_stored_sequence(session_factory):
+    await _seed_momentum(session_factory)
+    await scaf.scaffold(session_factory, apply=True)          # user3/account3 -> max(id)=3
+    await _force_low_sqlite_sequence(session_factory, "users", 1)   # stored seq drifted below max
+    res = await scaf.scaffold(session_factory, apply=True)    # exact idempotent rerun must REPAIR
+    assert res["mode"] == "idempotent_noop"
+    su = res["sequence"]["users"]
+    assert su["mechanism"] == "autoincrement"
+    assert su["actual_before"] == 1 and su["required_minimum"] == 3
+    assert su["repaired"] is True and su["actual_after"] == 3 and su["next"] == 4
+    # prove the STORED value in SQLite was really changed (not merely reported)
+    async with session_factory() as s:
+        stored = (await s.execute(text("SELECT seq FROM sqlite_sequence WHERE name='users'"))).scalar()
+    assert stored == 3
+    # and a subsequent ordinary insert receives id >= 4 (no collision with the explicit id 3)
+    async with session_factory() as s:
+        s.add(User(email="after-repair@x"))
+        await s.commit()
+        nid = (await s.execute(text("SELECT id FROM users WHERE email='after-repair@x'"))).scalar()
+    assert nid >= 4
+
+
+async def test_dry_run_reports_proposed_repair_but_leaves_stored_sequence_unchanged(session_factory):
+    await _seed_momentum(session_factory)
+    await scaf.scaffold(session_factory, apply=True)          # user3/account3 -> max(id)=3
+    await _force_low_sqlite_sequence(session_factory, "users", 1)
+    res = await scaf.scaffold(session_factory, apply=False)   # DRY RUN
+    su = res["sequence"]["users"]
+    # actual vs proposed are distinct, and nothing was repaired
+    assert su["actual_before"] == 1 and su["required_minimum"] == 3
+    assert su["repaired"] is False and su["actual_after"] == 1
+    # rollback left the real stored sequence untouched
+    async with session_factory() as s:
+        stored = (await s.execute(text("SELECT seq FROM sqlite_sequence WHERE name='users'"))).scalar()
+    assert stored == 1

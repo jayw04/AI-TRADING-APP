@@ -128,29 +128,57 @@ async def _preconditions(session) -> tuple[list[str], dict]:
     return v, report
 
 
+async def _stored_seq(session, tbl: str, has_seq_table) -> int | None:
+    if not has_seq_table:
+        return None
+    v = (await session.execute(text(
+        "SELECT seq FROM sqlite_sequence WHERE name = :n"), {"n": tbl})).scalar()
+    return None if v is None else int(v)
+
+
 async def _sequence_report(session, *, repair: bool) -> dict:
-    """Ensure later ordinary inserts cannot collide with the explicit id 3. Handles BOTH id-generation
-    mechanisms: AUTOINCREMENT tables (sqlite_sequence) are repaired to >= max(id); rowid tables need
-    no repair (next rowid is max(id)+1) but are verified and reported. Never assumes which applies."""
+    """Ensure later ordinary inserts cannot collide with the explicit id 3, and report ACTUAL vs
+    DESIRED distinctly (never an imagined repaired value).
+
+    Two mechanisms, detected per-table by whether a ``sqlite_sequence`` row exists:
+      * autoincrement — the stored ``seq`` is authoritative. When ``repair`` and it is below
+        ``max(id)`` we UPDATE it, then RE-READ the stored value from SQLite and verify it is now
+        ``>= max(id)`` (fail-closed otherwise). ``actual_after`` is always the re-read stored value,
+        so a dry run (``repair=False``) reports the true, unrepaired sequence, not the proposal.
+      * rowid — no ``sqlite_sequence`` row; the next rowid is ``max(id)+1`` by construction, so there
+        is nothing to repair; reported as such.
+    """
     report: dict = {}
     has_seq_table = (await session.execute(text(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'"))).scalar()
     for tbl in ("users", "accounts"):
         mx = int((await session.execute(text(f"SELECT COALESCE(MAX(id),0) FROM {tbl}"))).scalar())
-        seq = None
-        if has_seq_table:
-            seq = (await session.execute(text(
-                "SELECT seq FROM sqlite_sequence WHERE name = :n"), {"n": tbl})).scalar()
-        if seq is not None:
-            new = max(int(seq), mx)
-            if repair:
-                await session.execute(text(
-                    "UPDATE sqlite_sequence SET seq = :s WHERE name = :n"), {"s": new, "n": tbl})
-            report[tbl] = {"mechanism": "autoincrement", "max_id": mx, "seq": new, "next": new + 1}
-        else:
-            report[tbl] = {"mechanism": "rowid", "max_id": mx, "next": mx + 1}
-        if report[tbl]["next"] <= mx:
-            raise CanaryScaffoldError(f"sequence repair invariant failed for {tbl}: next <= max_id")
+        actual_before = await _stored_seq(session, tbl, has_seq_table)
+        required = mx if actual_before is None else max(actual_before, mx)
+        if actual_before is None:
+            report[tbl] = {
+                "mechanism": "rowid", "max_id": mx, "required_minimum": required,
+                "actual_before": None, "actual_after": None, "repaired": False, "next": mx + 1,
+            }
+            continue
+        repaired = False
+        if repair and actual_before < required:
+            await session.execute(text(
+                "UPDATE sqlite_sequence SET seq = :s WHERE name = :n"), {"s": required, "n": tbl})
+            repaired = True
+        actual_after = await _stored_seq(session, tbl, has_seq_table)  # RE-READ from SQLite
+        report[tbl] = {
+            "mechanism": "autoincrement", "max_id": mx, "required_minimum": required,
+            "actual_before": actual_before, "actual_after": actual_after,
+            "repaired": repaired, "next": (actual_after or 0) + 1,
+        }
+        if repair:  # verify the REAL stored value only when we actually repaired/committed
+            if actual_after is None or actual_after < mx:
+                raise CanaryScaffoldError(
+                    f"sequence repair failed for {tbl}: stored {actual_after} < max_id {mx}")
+            if actual_after + 1 <= mx:
+                raise CanaryScaffoldError(
+                    f"sequence next {actual_after + 1} <= max_id {mx} for {tbl}")
     return report
 
 
@@ -185,7 +213,9 @@ async def scaffold(session_factory, *, apply: bool = True) -> dict:
                     raise CanaryScaffoldError(
                         "canary identity conflict — refusing to edit rows into conformance: "
                         + "; ".join(bad))
-                seq = await _sequence_report(session, repair=False)
+                # exact idempotent match: repair the id-sequence if it drifted (e.g. after a restore),
+                # then verify — a conformant rerun must leave the scaffold FULLY safe, not just report so.
+                seq = await _sequence_report(session, repair=apply)
             else:
                 viol, _rep = await _preconditions(session)
                 if viol:
