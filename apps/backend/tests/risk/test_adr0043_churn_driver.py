@@ -243,7 +243,7 @@ def _quote_at(price, *, now=_NOW, age_s=0.0, source=None):
 
 
 def _driver(drv, session_factory, broker, *, router=None, settle=None, bounds=None,
-            symbols=("IEUS",), price=D("50"), quote_fn=None, now=_NOW):
+            symbols=("IEUS",), price=D("50"), quote_fn=None, now=_NOW, max_quote_age_s=None):
     import scripts.adr0043_canary_lib as lib
 
     router = router or FakeRouter(session_factory, broker)
@@ -253,10 +253,11 @@ def _driver(drv, session_factory, broker, *, router=None, settle=None, bounds=No
         async def quote_fn(_sym):
             return None if price is None else _quote_at(price, now=now)
 
+    extra = {} if max_quote_age_s is None else {"max_quote_age_s": max_quote_age_s}
     return drv.ChurnDriver(
         sf=session_factory, adapter=broker, router=router, evidence=lib.Evidence(phase="TEST"),
         checkpoint=drv.ChurnCheckpoint.load(), consumer=MagicMock(), settle=settle,
-        quote_fn=quote_fn, now_fn=lambda: now, bounds=bounds, symbols=symbols)
+        quote_fn=quote_fn, now_fn=lambda: now, bounds=bounds, symbols=symbols, **extra)
 
 
 # ============================================================ protected-position isolation
@@ -668,6 +669,9 @@ async def test_run_sizes_and_evidences_quantity_from_the_captured_quote(drv, ses
     assert p["reference_price"] == "50" and p["ask"] == "50" and p["bid"] == "49.98"
     assert p["source"] == drv.APPROVED_QUOTE_SOURCE
     assert p["calculated_qty"] == "500" and p["notional"] == "25000.00"
+    # the freshness bound that governed the order is frozen in the plan and stamped on the evidence
+    assert p["max_quote_age_s"] == 10.0
+    assert driver.plan.max_quote_age_s == 10.0 and driver.cp.plan["max_quote_age_s"] == 10.0
     assert broker.positions[PROTECTED_TICKER] == D("19")     # protected untouched by the priced run
 
 
@@ -712,6 +716,57 @@ async def test_run_continues_just_above_target(drv, session_factory, lib):
     with pytest.raises(lib.BreachUnreachable):               # ordered once, then out of round trips
         await driver.run()
     assert router.submits == 2, "continued past target -> exactly one BUY + one SELL"
+
+
+# ============================================================ quote-freshness bound (hard-capped)
+
+
+def test_validated_quote_age_accepts_within_the_ceiling(drv):
+    assert drv.validated_quote_age(5.0) == 5.0
+    assert drv.validated_quote_age(drv.MAX_PERMITTED_QUOTE_AGE_S) == drv.MAX_PERMITTED_QUOTE_AGE_S
+
+
+@pytest.mark.parametrize("bad", [
+    0.0,                                    # zero
+    -1.0,                                   # negative
+    float("nan"),                           # NaN
+    float("inf"),                           # infinity
+    10.0001,                                # just above the hard ceiling
+    86400.0,                                # a full day — the operator-loosening case
+])
+def test_validated_quote_age_refuses_out_of_range_or_non_finite(drv, lib, bad):
+    with pytest.raises(lib.CanaryRefused):
+        drv.validated_quote_age(bad)
+
+
+def test_construction_refuses_a_loosened_quote_age(drv, session_factory, lib):
+    """An operator cannot widen the freshness bound at construction (e.g. via the env default)."""
+    with pytest.raises(lib.CanaryRefused, match="within"):
+        _driver(drv, session_factory, FakeBroker(), max_quote_age_s=86400.0)
+
+
+async def test_a_tighter_quote_age_is_accepted_and_frozen(drv, session_factory):
+    await _seed(session_factory)
+    driver = _driver(drv, session_factory, FakeBroker(), max_quote_age_s=5.0)
+    plan = await driver.preflight()
+    assert plan.max_quote_age_s == 5.0
+    assert driver.cp.plan["max_quote_age_s"] == 5.0
+
+
+async def test_a_resumed_run_may_not_change_the_frozen_quote_age(drv, session_factory, lib):
+    """The freshness bound is part of the plan: a restart whose config would use a different (even
+    valid) bound is refused rather than silently adopting it."""
+    await _seed(session_factory)
+    first = _driver(drv, session_factory, FakeBroker())          # default bound 10.0, freezes + saves
+    await first.preflight()
+    assert first.cp.plan["max_quote_age_s"] == 10.0
+
+    # A second invocation resumes the SAME checkpoint file but is configured with a tighter bound.
+    resumed = _driver(drv, session_factory, FakeBroker(), max_quote_age_s=5.0)
+    assert resumed.cp.plan is not None and resumed.cp.plan["max_quote_age_s"] == 10.0
+    with pytest.raises(lib.CanaryStop, match="freshness bound") as exc:
+        await resumed.preflight()
+    assert exc.value.stop_reason == "CHURN_FRESHNESS_BOUND_CHANGED"
 
 
 # ============================================================ preflight + re-entry

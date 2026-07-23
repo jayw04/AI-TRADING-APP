@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import sys
 import time
@@ -105,10 +106,28 @@ DEFAULT_MAX_WALL_CLOCK_S = float(os.environ.get("ADR0043_CHURN_MAX_WALL_CLOCK_S"
 
 # The maximum age (seconds) a governed quote may have before it is refused as stale. A setup order
 # sized against a stale price is exactly the kind of "size against a number that isn't the market"
-# the driver must not do. Conservative default; env-overridable but never unbounded.
+# the driver must not do. Runtime config may TIGHTEN this but never loosen it past the hard ceiling
+# below, and it is frozen into the plan so the signed evidence proves which bound governed the order.
+MAX_PERMITTED_QUOTE_AGE_S = 10.0
 DEFAULT_MAX_QUOTE_AGE_S = float(os.environ.get("ADR0043_CHURN_MAX_QUOTE_AGE_S", "10"))
 # The ONE market-data source the driver trusts for a flat setup symbol. Any other source is refused.
 APPROVED_QUOTE_SOURCE = "app.market_data.quotes:get_last_quote(IEX)"
+
+
+def validated_quote_age(value: float) -> float:
+    """A freshness bound the runtime may tighten but never loosen past the hard ceiling. Non-finite
+    (nan/inf), non-positive, or above-ceiling values are refused at construction — an operator cannot
+    set ``ADR0043_CHURN_MAX_QUOTE_AGE_S=86400`` and make a day-old quote pass. Pure and fail-closed."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError) as exc:
+        raise CanaryRefused(f"quote-age bound {value!r} is not a number") from exc
+    if not math.isfinite(v):
+        raise CanaryRefused("quote-age bound must be finite (not nan/inf)")
+    if v <= 0 or v > MAX_PERMITTED_QUOTE_AGE_S:
+        raise CanaryRefused(
+            f"quote-age bound must be within (0, {MAX_PERMITTED_QUOTE_AGE_S}] seconds (got {value})")
+    return v
 
 
 @dataclass(frozen=True)
@@ -142,6 +161,7 @@ class FrozenPlan:
     limits_fp: str
     protected_qty: dict[str, str]
     started_at: str
+    max_quote_age_s: float = DEFAULT_MAX_QUOTE_AGE_S
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -150,6 +170,7 @@ class FrozenPlan:
             "limits_fingerprint": self.limits_fp,
             "protected_qty": dict(self.protected_qty),
             "started_at": self.started_at,
+            "max_quote_age_s": self.max_quote_age_s,
         }
 
 
@@ -403,7 +424,9 @@ class ChurnDriver:
             settle=settle)
         self._quote_fn = quote_fn
         self._now_fn = now_fn or time.time
-        self._max_quote_age_s = max_quote_age_s
+        # Validated + hard-bounded at construction: a loosened or non-finite freshness bound is
+        # refused before the driver can price a single order against a stale quote.
+        self._max_quote_age_s = validated_quote_age(max_quote_age_s)
         self._bounds = bounds
         self._symbols = symbols
         self.plan: FrozenPlan | None = None
@@ -451,12 +474,23 @@ class ChurnDriver:
                 f"setup symbols are not flat before the run: {residual}; a churn run must start "
                 f"from zero temporary exposure or its arithmetic means nothing")
 
+        # A resumed checkpoint froze a freshness bound; a restart may not silently adopt a different
+        # one (even a valid one). The bound is part of the plan, so it is checked like any other.
+        prior = self.cp.plan
+        if prior is not None and "max_quote_age_s" in prior and (
+                float(prior["max_quote_age_s"]) != float(self._max_quote_age_s)):
+            raise CanaryStop(
+                "CHURN_FRESHNESS_BOUND_CHANGED",
+                f"resumed run froze quote-age {prior['max_quote_age_s']}s but this invocation would "
+                f"use {self._max_quote_age_s}s; a restart may not adopt a different freshness bound")
+
         plan = FrozenPlan(
             symbols=symbols,
             bounds=self._bounds or ChurnBounds(target_loss=limits.max_daily_loss),
             limits_fp=limits_fingerprint(limits),
             protected_qty={s: str(pre.positions.get(s, D(0))) for s in sorted(NEVER_CHURN)},
             started_at=datetime.now(UTC).isoformat(),
+            max_quote_age_s=self._max_quote_age_s,
         )
         self.plan = plan
         self.cp.plan = plan.as_dict()
@@ -630,7 +664,8 @@ class ChurnDriver:
                     f"{pricing.reference_price}; sizing up is not an option")
             self.ev.doc.setdefault("pricing", []).append({
                 **pricing.as_dict(), "calculated_qty": str(qty),
-                "notional": str((qty * pricing.reference_price).quantize(D("0.01")))})
+                "notional": str((qty * pricing.reference_price).quantize(D("0.01"))),
+                "max_quote_age_s": plan.max_quote_age_s})
 
             buy = Leg(self.cp.next_index(), "BUY", symbol, qty)
             await self.run_leg(buy, limits, reference_price=pricing.reference_price)
