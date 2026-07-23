@@ -134,12 +134,6 @@ class BacktestContext:
         self._settled_fills: list[FillEvent] = []
         self._order_seq: int = 0
         self._fill_seq: int = 0
-        # Durable strategy state (P7 §7-A): the backtest twin of the live DB-backed
-        # strategy_state table. A backtest runs ONE context instance across the whole session
-        # sequence, so this dict persists across on_bar calls exactly as the DB row survives a
-        # live reload — the property that makes the daily latch, deployment-lifecycle blob, regime
-        # state and seed reconciliation reproduce here. See get_state / compare_and_set_state.
-        self._state: dict[str, Any] = {}
 
     @property
     def factors(self) -> Any:
@@ -519,48 +513,6 @@ class BacktestContext:
             out.append(OpenOrderObs(order_id=po.order_id, symbol=po.symbol.upper(),
                                     status="submitted", client_order_id=po.client_order_id))
         return out
-
-    # ---------- durable strategy state (live-parity, P7 §7-A) ----------
-    #
-    # The backtest twin of StrategyContext's DB-backed state. Semantics match the live contract
-    # for a single-threaded replay, and are identical to the proven DriftCtxAdapter the §8 audit
-    # drove momentum_daily through: get/set mirror one strategy_state row's value; the CAS enforces
-    # the same optimistic-concurrency rule on the blob's `_rev`. In replay there is never a
-    # concurrent writer, so the CAS succeeds iff `expected_rev` matches the stored `_rev` — exactly
-    # the live outcome when no other writer moved the rev. Returning zero-value stubs was rejected:
-    # a strategy whose latch/lifecycle/seed logic turns on these would behave differently here than
-    # live, which is the whole failure this parity work exists to close.
-
-    async def get_state(self, key: str, default: Any = None) -> Any:
-        """The stored value for ``key``, or ``default`` if unset (live-parity)."""
-        return self._state.get(key, default)
-
-    async def set_state(self, key: str, value: Any) -> None:
-        """Upsert the value for ``key`` — last-write-wins, like the live ``set_state``."""
-        self._state[key] = value
-
-    async def clear_state(self, key: str) -> None:
-        """Remove ``key`` if present."""
-        self._state.pop(key, None)
-
-    async def compare_and_set_state(
-        self, key: str, *, expected_rev: int | None, new_value: dict[str, Any]
-    ) -> bool:
-        """Atomic compare-and-set on a versioned state blob (live-parity).
-
-        Writes only if the stored blob's ``_rev`` still equals ``expected_rev`` — or, for
-        ``expected_rev is None``, only if NO value exists (create-if-absent). ``new_value`` MUST
-        carry its own incremented ``_rev``. Returns True iff the write applied.
-        """
-        cur = self._state.get(key)
-        cur_rev = cur.get("_rev") if isinstance(cur, dict) else None
-        if expected_rev is None:
-            if cur is not None:
-                return False
-        elif cur_rev != expected_rev:
-            return False
-        self._state[key] = new_value
-        return True
 
     async def pending_buy_qty(self) -> dict[str, Decimal]:
         """In-flight BUY quantity per ticker, keyed by ticker — the backtest twin of
