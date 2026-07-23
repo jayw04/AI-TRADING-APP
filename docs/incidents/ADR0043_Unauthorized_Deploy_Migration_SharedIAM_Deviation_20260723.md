@@ -130,8 +130,11 @@ Both are retained until the formal canary is complete and separately closed.
   container was restarted to validate the removal (validation backend `StartedAt` unchanged at
   2026-07-23T15:44:20Z). Validation identity/health unchanged post-removal (marker `b0058bf`,
   alembic `a4c7e1b93d20`, 0/0 orders/reservations, Alpaca + scheduler still disabled).
-- The `DeleteRolePolicy` CloudTrail event is expected under actor `user/JayWang`; CloudTrail lookup
-  indexing lags up to ~15 minutes after the call.
+- The `DeleteRolePolicy` CloudTrail event was observed and is recorded exactly:
+  - **Time:** 2026-07-23T16:01:03Z
+  - **Actor:** `arn:aws:iam::219024422756:user/JayWang`
+  - **Source IP:** 107.209.255.152
+  - **Result:** success; no `errorCode`
 
 ## 8. Governance disposition
 
