@@ -60,3 +60,33 @@ The §7 D gate requires `DSR: P(adjusted Sharpe > 0) ≥ 0.95` computed with **t
 Deflated Sharpe Ratio deflates by the number of trials that could have produced the best-looking
 result, so a **higher** count is the harder (safer) gate — which is why the conservative direction is
 to over-, not under-count. The frozen `N = 45` is used unless the owner issues a documented reduction.
+
+---
+
+## Owner adjudication / countersign — 2026-07-22
+
+Both flagged blocks **remain included**; no reduction authorized. Recorded here as documentation; the
+ledger rows and the SHA-bound `TrialLedger_v1.0.json` (`b7d9d715…`, commit `e812152`) are **unchanged**
+— no v1.1.
+
+```
+Effective DSR trial count:            45
+Raw rows:                             47
+Included:                             45
+Excluded mechanical reproductions:     2
+Reduction authorized:                 NONE
+```
+
+- **MOM-002 (12): included.** Materially related momentum research whose observed results informed the
+  strategy lineage (construction choices, expected performance, viable-vs-rejected configs, the
+  credibility of the momentum family) before this validation was designed. A different program label
+  does not excuse it from selection history.
+- **Factor screen (3): included.** Upstream factor-family selection (momentum chosen after comparing
+  three factors) — a multiple-testing event. Counted as the **three documented named factors**. The
+  count is **not raised speculatively** without evidence of additional inspected sub-configurations;
+  the underlying per-factor sub-configurations were **not recoverable**. Under the preregistered
+  conservative rule, that uncertainty is charged against the strategy, not forgiven.
+
+**Statement of bound:** `N = 45` is conservative relative to *documented* trials, and **may still be a
+lower bound** relative to unrecovered factor-screen sub-trials. It is frozen and used by the §7 D DSR
+gate; only a future *documented* adjustment could change it (none is authorized).
