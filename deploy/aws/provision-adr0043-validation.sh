@@ -75,6 +75,8 @@ assert_env AWS_REGION               "$REGION"          "region"
 # test seams (do NOT affect identity): swap the external tools without touching the box.
 AWS_BIN="${AWS_BIN:-aws}"
 COMPOSE="${COMPOSE:-docker compose -f docker-compose.yml -f docker-compose.prod.yml}"
+CURL="${CURL:-curl}"   # health-check client; seam-injected like AWS_BIN/COMPOSE so a PATH-hardened
+                       # provisioner (see line ~31) can still be faked by the hermetic test harness
 APP="${WORKBENCH_APP_DIR:-/opt/workbench}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/healthz}"
 START_WAIT="${START_WAIT:-25}"
@@ -148,7 +150,7 @@ rollback() {  # $1 = reason ; exits 4 (ROLLBACK_FAILED) or returns 0 (ROLLBACK_O
   ( cd "$CUR" && $COMPOSE up -d ) || rollback_failed "prior stack did not restart"
   # d) verify the PRIOR stack is healthy
   sleep "$START_WAIT"
-  if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+  if "$CURL" -fsS "$HEALTH_URL" >/dev/null 2>&1; then
     echo "ROLLBACK_OK: prior stack restored and healthy."
     return 0
   fi
@@ -162,7 +164,7 @@ if ! ( cd "$CUR" && $COMPOSE up -d --build ); then
   fatal "build/start failed — rolled back to the prior stack (healthy)."
 fi
 sleep "$START_WAIT"
-if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+if "$CURL" -fsS "$HEALTH_URL" >/dev/null 2>&1; then
   echo "HEALTHZ_OK — deployment healthy; prior tree $PREV retained for manual cleanup."
 else
   rollback "health check failed after start"

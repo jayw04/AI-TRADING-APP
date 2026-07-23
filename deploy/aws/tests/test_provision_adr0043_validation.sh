@@ -51,6 +51,8 @@ EOF
 chmod +x "$BIN"/aws "$BIN"/compose "$BIN"/curl
 export PATH="$BIN:$PATH"
 export AWS_BIN="$BIN/aws" COMPOSE="$BIN/compose"
+export CURL="$BIN/curl"   # bind the health-check seam: the provisioner hardens PATH, so curl must be
+                          # injected by env like aws/compose rather than relied on via PATH
 
 # ---- a synthetic S3 object (gzipped tar) with a chosen marker ---------------------------------
 mk_object() {  # <outfile> <governed:true|false> [deployed] [impl]
