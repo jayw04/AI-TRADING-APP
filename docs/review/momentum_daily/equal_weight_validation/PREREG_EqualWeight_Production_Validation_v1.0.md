@@ -19,7 +19,8 @@ timestamps produced as the program is executed — a binding manifest, **not** o
 | production strategy commit | `b0058bf335628f8dbde09a93915314f3a1f7743b` |
 | deployed image (ec2-paper) | `sha256:098da002…` (deploy 2026-07-22) |
 | validation measurement-code commit | «bound at run-start» |
-| benchmark implementation SHA | «bound at run-start — benchmark code frozen before the forward start» |
+| benchmark implementation SHAs (FROZEN 2026-07-22) | primary `PIT_UNIVERSE_EQUAL_WEIGHT_REGIME_MATCHED` `539cf6e` (#470) · `ACADEMIC_12_1_MOMENTUM_FACTOR` `4675073` (#471) · `CASH_OR_TBILL_RETURN` `b055b1c` (#472) |
+| DGS3MO dataset digest (FROZEN) | `87d8ba2fc5981add5ea48bb5d365f79371fd457488a598e0043758c21ff825d1` · cutoff `2026-07-21` (2004-01-02..2026-07-21) |
 | complete trial-ledger SHA (FROZEN v1.0) | `b7d9d71591cc449a1768f33a3f3f5e0dcdf8ae518710ecec13422f0a0a98eb6d` — N=45 conservative (doc-reduction floor 30) |
 | data store + digests | `factor_data_full.duckdb`; sep `d9472dfe…`, tickers `2f21b154…` (re-verified fail-closed) |
 | data cutoff | «bound at run-start» |
