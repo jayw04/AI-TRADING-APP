@@ -14,13 +14,17 @@ name: CI
 # 2. Docker images rebuild only when their Dockerfile or dependency manifest changes — a
 #    source-only merge cannot break the build. A workflow change or a manual dispatch
 #    rebuilds all images to fully re-verify before a release.
-# 3. LIGHT / FULL split (the big PR-cost saver). PRs run LIGHT: ruff + mypy + the fast
-#    grep-based invariant checks (no pytest, no coverage gates). The slow pytest +
-#    coverage gates run FULL — on every push to main, on the nightly schedule, and on
-#    manual dispatch. Trade-off: a test/coverage regression surfaces at merge or nightly
-#    rather than on the PR; acceptable because the repo has no required-check branch
-#    protection (PR checks never blocked merge) and the push-to-main run catches it
-#    immediately on main.
+# 3. LIGHT / FULL split, PATH-FILTERED and GATED PER PROJECT (hardened 2026-07-23 — closes the gap
+#    that let a red pytest merge on green LIGHT). A PR runs LIGHT (ruff + mypy + the fast invariant
+#    checks) for every project by default. A unit-tested classifier
+#    (apps/backend/scripts/ci_classify_changes.py) inspects the changed files and, for EACH Python
+#    project whose testable paths changed (a GLOBAL change — ci.yml / root manifests — flags all),
+#    that project's FULL suite (pytest + coverage, the `python-full` matrix job) also runs ON THE PR.
+#    Docs-only and unrelated frontend-only PRs stay LIGHT (FULL resolves to N/A). One stable aggregate
+#    job, `Python CI Gate`, ALWAYS runs, fails closed, and is the single required status check on main:
+#    green only when LIGHT passed AND either no Python project changed OR the FULL suite ran and passed
+#    for every changed project. Push-to-main / nightly / dispatch still run FULL unconditionally.
+#    NOTE: the required check is enforced by BRANCH PROTECTION, configured in repo settings (not here).
 on:
   push:
     branches: [main]
@@ -30,13 +34,13 @@ on:
       - 'docs/**'
   pull_request:
     branches: [main]
-    # Skip CI entirely when a change touches ONLY docs (a run is skipped only if EVERY
-    # changed path matches). For a one-off doc commit you can also put [skip ci] in the
-    # message — GitHub honours it natively.
-    paths-ignore:
-      - '**/*.md'
-      - 'Docs/**'
-      - 'docs/**'
+    # `ready_for_review` is included so the `Python CI Gate` re-runs (and produces its real verdict on
+    # the same head SHA) when a draft is marked ready — otherwise a required check could hang on a draft.
+    types: [opened, synchronize, reopened, ready_for_review]
+    # NOTE: no `paths-ignore` here. `Python CI Gate` is a REQUIRED check, and a required check that
+    # never runs (because every changed path was ignored) blocks a docs-only PR forever. Instead the
+    # workflow always runs on PRs and the unit-tested classifier resolves a docs-only PR to a cheap
+    # N/A pass (LIGHT only, no FULL). Push-to-main keeps its docs paths-ignore (no required-check there).
   # Manual full run: rebuilds all images and runs all Python projects. Use before a
   # stable milestone / release to verify everything at once.
   workflow_dispatch: {}
@@ -66,12 +70,25 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       py_projects: ${{ steps.py.outputs.py_projects }}
       docker_services: ${{ steps.docker.outputs.docker_services }}
+      # Per-project FULL flags from the unit-tested classifier (verifiable off GitHub; cannot silently
+      # drift). '<project>_code' == 'true' when that project's testable paths changed (or a GLOBAL path
+      # — ci.yml / root manifests — changed, which flags all). On push/dispatch/schedule all are 'true'.
+      backend_code: ${{ steps.classify.outputs.backend_code }}
+      mcp_server_code: ${{ steps.classify.outputs.mcp_server_code }}
+      mcp_workbench_code: ${{ steps.classify.outputs.mcp_workbench_code }}
+      agent_code: ${{ steps.classify.outputs.agent_code }}
+      # the FULL matrix: exactly the projects whose FULL suite must run this event.
+      py_full: ${{ steps.pyfull.outputs.py_full }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # list the full set of changed files (`all_files`) so the classifier can decide FULL vs LIGHT
+          list-files: json
           filters: |
+            all:
+              - '**'
             frontend:
               - 'apps/frontend/**'
             mcp_server:
@@ -98,6 +115,51 @@ jobs:
               - 'apps/frontend/pnpm-lock.yaml'
             workflow:
               - '.github/workflows/ci.yml'
+
+      # Decide, PER PROJECT, whether the FULL suite must run. On a PR the unit-tested classifier inspects
+      # the changed-file list; on push/dispatch/schedule all projects run FULL. FAILS CLOSED: a classifier
+      # error exits non-zero here, failing this job so `Python CI Gate` fails closed.
+      #
+      # SECURITY: the changed-file list is PR-controlled (untrusted). It is passed via an ENV VAR and
+      # written to a file — NEVER interpolated into the shell command — so a hostile filename (quotes,
+      # $(...), backticks, newlines) cannot alter the command. The classifier treats filenames as data.
+      - name: Classify changes (per-project FULL?)
+        id: classify
+        env:
+          CHANGED_FILES_JSON: ${{ steps.filter.outputs.all_files }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            printf '%s' "$CHANGED_FILES_JSON" > "$RUNNER_TEMP/changed.json"
+            out=$(python3 apps/backend/scripts/ci_classify_changes.py "$RUNNER_TEMP/changed.json") \
+              || { echo "::error::change classifier failed — failing closed"; exit 1; }
+          else
+            out=$'backend_code=true\nmcp_server_code=true\nmcp_workbench_code=true\nagent_code=true'
+          fi
+          echo "$out"
+          echo "$out" >> "$GITHUB_OUTPUT"
+
+      # The FULL matrix = exactly the projects that must run FULL. On push/dispatch/schedule all four;
+      # on a PR, those the classifier flagged. Empty ⇒ the `python-full` job is skipped (docs-only PR).
+      - name: Compute FULL matrix
+        id: pyfull
+        run: |
+          sel=()
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            sel=(backend mcp-server mcp-workbench agent)
+          else
+            [ "${{ steps.classify.outputs.backend_code }}" = "true" ]       && sel+=(backend)
+            [ "${{ steps.classify.outputs.mcp_server_code }}" = "true" ]    && sel+=(mcp-server)
+            [ "${{ steps.classify.outputs.mcp_workbench_code }}" = "true" ] && sel+=(mcp-workbench)
+            [ "${{ steps.classify.outputs.agent_code }}" = "true" ]         && sel+=(agent)
+          fi
+          json='[]'
+          for p in "${sel[@]:-}"; do
+            [ -z "$p" ] && continue
+            case "$p" in backend) s=app;; *) s=src;; esac
+            json=$(printf '%s' "$json" | jq -c --arg p "$p" --arg d "apps/$p" --arg s "$s" '. + [{project:$p,dir:$d,src:$s}]')
+          done
+          echo "py_full=$json" >> "$GITHUB_OUTPUT"
+          echo "FULL matrix: $json"
 
       # Backend always runs (load-bearing invariants). Aux projects run only when their
       # folder changes — except on push/dispatch or a workflow edit, where all run.
@@ -205,31 +267,9 @@ jobs:
         working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_alembic_single_head.py
 
-      # FULL only (push to main / nightly / dispatch): pytest + coverage gates are the
-      # slow part (~10 min). PRs run LIGHT — ruff + mypy + the fast bash invariant checks
-      # above/below — and the full test+coverage suite runs on every merge to main and
-      # nightly (the safety net). Trade-off: a test/coverage regression is caught at merge
-      # or nightly, not on the PR. The repo has no required-check branch protection, so PR
-      # checks never gated merge anyway; the push-to-main run catches it immediately on main.
-      - name: Pytest (full runs only)
-        if: github.event_name != 'pull_request'
-        working-directory: ${{ matrix.p.dir }}
-        run: pytest -q --cov=${{ matrix.p.src }} --cov-branch --cov-report=xml
-
-      - name: Risk engine branch-coverage gate (backend)
-        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
-        working-directory: ${{ matrix.p.dir }}
-        run: python scripts/check_risk_coverage.py
-
-      - name: P2 module branch-coverage gate (backend)
-        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
-        working-directory: ${{ matrix.p.dir }}
-        run: python scripts/check_p2_coverage.py
-
-      - name: P3 module branch-coverage gate (backend)
-        if: matrix.p.project == 'backend' && github.event_name != 'pull_request'
-        working-directory: ${{ matrix.p.dir }}
-        run: python scripts/check_p3_coverage.py
+      # NOTE: pytest + coverage no longer run in this matrix. Every project's FULL suite lives in the
+      # dedicated `python-full` job, which runs on push AND on a PR whenever the classifier flags that
+      # project — so a red pytest (backend OR aux) cannot merge on green LIGHT. This job is LIGHT only.
 
       - name: Strategy isolation invariant check (backend)
         if: matrix.p.project == 'backend'
@@ -286,6 +326,100 @@ jobs:
       - name: LLM-opt-in bypass-gating invariant check (backend)
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_llm_optin_bypass_gated.sh
+
+  # The FULL Python suite, one matrix entry PER PROJECT that must run FULL this event (see the FULL
+  # matrix). pytest + coverage for each; the backend entry additionally runs the risk/P2/P3 branch-
+  # coverage gates. Runs on every push / dispatch / schedule AND on a PR for each project the classifier
+  # flagged. Its success is the positive signal that FULL actually ran + passed; `Python CI Gate` keys
+  # off `needs.python-full.result`, so a code PR (backend OR aux) whose pytest is red cannot merge.
+  python-full:
+    name: Python FULL (${{ matrix.pf.project }})
+    needs: changes
+    if: needs.changes.outputs.py_full != '' && needs.changes.outputs.py_full != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pf: ${{ fromJSON(needs.changes.outputs.py_full) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ${{ matrix.pf.dir }}/pyproject.toml
+      - name: Install ${{ matrix.pf.project }}
+        working-directory: ${{ matrix.pf.dir }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Pytest (full, with coverage)
+        working-directory: ${{ matrix.pf.dir }}
+        run: pytest -q --cov=${{ matrix.pf.src }} --cov-branch --cov-report=xml
+      - name: Risk engine branch-coverage gate (backend)
+        if: matrix.pf.project == 'backend'
+        working-directory: ${{ matrix.pf.dir }}
+        run: python scripts/check_risk_coverage.py
+      - name: P2 module branch-coverage gate (backend)
+        if: matrix.pf.project == 'backend'
+        working-directory: ${{ matrix.pf.dir }}
+        run: python scripts/check_p2_coverage.py
+      - name: P3 module branch-coverage gate (backend)
+        if: matrix.pf.project == 'backend'
+        working-directory: ${{ matrix.pf.dir }}
+        run: python scripts/check_p3_coverage.py
+
+  # Stable, ALWAYS-RUN aggregate = the single required status check for main. It guards ALL Python
+  # projects (hence "Python CI Gate", not "Backend CI Gate"). Never skipped (so branch protection can
+  # require it without a PR hanging on a skipped check), and FAILS CLOSED unless: the classifier
+  # succeeded, the LIGHT/static checks passed, AND either no Python project changed OR the FULL suite
+  # ran and passed for every changed project. Require THIS name in branch protection — never a transient
+  # matrix job name or a manually dispatched run.
+  python-ci-gate:
+    name: Python CI Gate
+    needs: [changes, python-checks, python-full]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate gate (fail closed)
+        run: |
+          event="$GITHUB_EVENT_NAME"
+          changes_result="${{ needs.changes.result }}"
+          light_result="${{ needs.python-checks.result }}"
+          full_result="${{ needs.python-full.result }}"
+          b="${{ needs.changes.outputs.backend_code }}"
+          s="${{ needs.changes.outputs.mcp_server_code }}"
+          w="${{ needs.changes.outputs.mcp_workbench_code }}"
+          a="${{ needs.changes.outputs.agent_code }}"
+          echo "event=$event changes=$changes_result light=$light_result full=$full_result backend=$b mcp_server=$s mcp_workbench=$w agent=$a"
+
+          # 1) classifier must have succeeded (covers draft-skip, classifier failure, cancellation)
+          if [ "$changes_result" != "success" ]; then
+            echo "::error::classifier job result='$changes_result' (not success) — failing closed"; exit 1
+          fi
+          # 2) LIGHT / static checks must be green (ruff + mypy + fast invariant checks)
+          if [ "$light_result" != "success" ]; then
+            echo "::error::LIGHT/static checks result='$light_result' — failing closed"; exit 1
+          fi
+          # 3) FULL requirement
+          if [ "$event" != "pull_request" ]; then
+            if [ "$full_result" = "success" ]; then
+              echo "OK: $event — FULL suite passed for all projects."; exit 0
+            fi
+            echo "::error::FULL suite result='$full_result' on $event"; exit 1
+          fi
+          # validate the per-project flags (fail closed on any unknown value)
+          for v in "$b" "$s" "$w" "$a"; do
+            case "$v" in true|false) ;; *) echo "::error::unknown classifier flag '$v' — failing closed"; exit 1 ;; esac
+          done
+          if [ "$b" = "true" ] || [ "$s" = "true" ] || [ "$w" = "true" ] || [ "$a" = "true" ]; then
+            if [ "$full_result" = "success" ]; then
+              echo "OK: changed project(s) → FULL suite ran and passed."; exit 0
+            fi
+            echo "::error::a Python project changed but FULL suite result='$full_result'"; exit 1
+          fi
+          echo "OK: no testable Python code changed → FULL not applicable; LIGHT passed."; exit 0
 
   frontend-checks:
     name: Frontend
