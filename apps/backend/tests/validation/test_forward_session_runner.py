@@ -605,3 +605,24 @@ def test_a_decision_from_another_snapshot_stops_the_session(tmp_path, context_bu
     assert res.exception_code == "NO_VALID_INSTRUMENT_DECISION"
     assert "snapshot" in res.detail
     assert res.session_count == 0
+
+
+# ---- the durable-book write comes after the observation commits (R5c-2b2) ---------------------------
+
+def test_on_committed_fires_after_a_recorded_session(tmp_path, context_builder):
+    fired: list = []
+    r = _runner(tmp_path, context_builder)
+    r.on_committed = lambda sequence, iso: fired.append((sequence, iso))
+    res = _run(r, SESSION_1)
+    assert res.status is SessionRunStatus.RECORDED
+    assert fired == [(1, SESSION_1.isoformat())]                  # exactly once, with the sequence
+
+
+def test_on_committed_does_not_fire_when_the_session_stops(tmp_path, context_builder):
+    fired: list = []
+    r = _runner(tmp_path, context_builder,
+                provider=lambda d: _decision(d, weights={"AAA": 0.9, "BBB": 0.9}))  # non-conformant
+    r.on_committed = lambda sequence, iso: fired.append((sequence, iso))
+    res = _run(r, SESSION_1)
+    assert res.status is SessionRunStatus.INTEGRITY_STOP
+    assert fired == []                                            # the book is never written on a stop

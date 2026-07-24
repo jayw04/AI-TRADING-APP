@@ -185,6 +185,11 @@ class ForwardSessionRunner:
     # and again after every decision/data read, before publication: both must describe the same live
     # state. Distinct from `account4_probe`, which the commit protocol uses inside its own staging.
     authoritative_account4_probe: Callable[[], Account4Probe] | None = None
+    # Called AFTER the observation has committed and the ledger has saved — the point at which the
+    # instrument's own durable book is persisted (R5c-2b2). The observation is the source of truth: if
+    # this write is lost the next run sees BOOK_BEHIND_RECORD and stops for governed recovery, and the
+    # book is never reconstructed from the ledger. `sequence` is the committed sequence number.
+    on_committed: Callable[[int, str], None] | None = None
     durability: Durability | None = None
 
     # ── the entry point a scheduler calls ─────────────────────────────────────────────────────────
@@ -378,6 +383,13 @@ class ForwardSessionRunner:
         ledger.save(self.ledger_path, durability=dur)            # durable AFTER the commit
         with contextlib.suppress(OSError):
             snapshot.unlink()
+
+        # The instrument's own durable book is written LAST, in its own storage. It cannot share the
+        # observation's atomic write, so the crash window between them is explicit: a crash here leaves
+        # the observation committed and the book one session behind, which the next run diagnoses as
+        # BOOK_BEHIND_RECORD and stops — never a silent repair (see instrument_state_store).
+        if self.on_committed is not None:
+            self.on_committed(sequence, iso)
 
         logger.info("forward_session_recorded", session=iso, sequence=sequence,
                     session_count=new_count, traded=outcome.traded)
