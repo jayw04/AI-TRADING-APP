@@ -2,9 +2,10 @@
 
 - **Date raised:** 2026-07-24
 - **Severity:** **Risk-system availability defect** — `accounts_state` is an active risk input, not telemetry
-- **Status:** OPEN · `ROOT_CAUSE_UNKNOWN`
+- **Status:** OPEN · validation-host root cause `UNKNOWN`
 - **Classification:** `ACCOUNT_SYNC_SWEEP_NOT_REFRESHING` · `VALIDATION_ACCOUNT_STATE_STALE_SINCE_2026_07_22`
-- **Scope:** confirmed on the ADR-0043 validation host; **production not yet checked** — do not assume validation-only
+- **Scope:** **ADR-0043 validation host only.** Production impact **not observed**; the production
+  sweep was **healthy** at inspection time (2026-07-24T13:56:18Z, see below).
 
 ## Summary
 
@@ -28,6 +29,56 @@ equity_snapshots     EMPTY
 
 A healthy backend plus a two-day-old snapshot row means the sweep is either not scheduled, not
 running, or failing silently on this host. None of those has been established yet.
+
+## Production comparison (read-only inspection, 2026-07-24)
+
+```
+capture_utc              2026-07-24T13:56:18Z
+instance                 i-0d3294e91e6ad9e1d
+backend                  healthy
+observed sweep cadence   ~10 seconds
+accounts synchronized    1-7
+skipped                  none
+errors                   none
+accounts_state age       ~7-8 seconds across all seven accounts
+recent sync errors       none observed in 24 h
+```
+
+Every production account holds a state row refreshed seconds before capture, and every
+`account_sync_all_completed` event in the window reports `synced [1..7], skipped [], errors []`.
+Equity snapshots are one-per-day near the close on both hosts, which matches
+`run_daily_equity_snapshot` — that is the designed cadence, not a stall.
+
+Account 2 carried one open order at capture. That is observed operational state, **not** evidence of
+a sync defect.
+
+### What this does and does not establish
+
+- It proves the production sweep was healthy **at the inspection instant**. It is **not** a permanent
+  freshness guarantee, and nothing here monitors it continuously.
+- The **validation-host failure remains unexplained.**
+- The two hosts differ in deployment and scheduler topology, so **no root-cause inference should be
+  drawn** from production being healthy.
+- `ACCOUNT_STATE_STALE` remains a valid future control requirement regardless: **provenance does not
+  prove freshness**, and no control currently detects a pipeline that stops refreshing.
+
+### Inspection evidence discipline
+
+On an actively written database, `DB SHA before == after` is neither expected nor a valid no-write
+test — the application writer is committing every ~10 s. The correct statement of what was
+guaranteed:
+
+```
+operator write capability   structurally absent
+DB mount                    read-only  (-v /opt/workbench/data:/app/data:ro)
+SQLite connection           file:...?mode=ro
+statements executed         SELECT only
+application writer          remained active throughout
+DB hash                     CHANGED, due to normal backend writes
+```
+
+This inspection was **operator-read-only while concurrent application writes continued**. It is not
+described as "the database was unchanged", because it was not.
 
 ## Why this is a risk defect rather than observability debt
 
@@ -57,11 +108,18 @@ The `DAILY_PNL_UNAVAILABLE` rail (separate PR) does **not** catch this: the stor
 reads `BROKER_LAST_EQUITY`, which is true about the row's origin and says nothing about its age.
 **Provenance and freshness are different dimensions.**
 
+## It currently gates the ADR-0043 canary chain
+
+Not merely a hygiene issue on that host: `adr0043_canary_lib.py::snapshot_state`, as corrected,
+**refuses** with `ACCOUNT_STATE_ROW_MISSING` when the account has no `accounts_state` row — and
+account 3 on the validation host has none, precisely because the sweep is not running there. Phase 0
+therefore cannot proceed until that host's sweep produces a row through the sanctioned mechanism.
+
 ## Required follow-up
 
-1. **Establish the root cause** — is the sweep scheduled on this host, is it running, is it erroring?
-   Check production scheduling and recent `accounts_state.updated_at` values across all accounts
-   before concluding this is validation-only.
+1. **Establish the validation-host root cause** — is the sweep scheduled on that host, is it running,
+   is it erroring? `PENDING`; read-only and separate from this record. Production has now been
+   compared and is healthy, so the investigation is scoped to the validation host alone.
 2. **Freshness control** (separate PR): an `ACCOUNT_STATE_STALE` condition with the same shape as the
    unavailable-basis rail — reduction-only, verified reductions still permitted, new risk refused —
    but a **distinct reason and event**, because diagnosis and recovery differ:
