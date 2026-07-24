@@ -32,6 +32,7 @@ from app.validation.observation_store import (
     Durability,
     committed_observations,
 )
+from app.validation.production_bindings import PriceUnavailable
 from app.validation.shadow_ledger import ShadowLedger
 
 REPO = Path(__file__).resolve().parents[4]
@@ -526,3 +527,59 @@ def test_a_committed_observation_carries_the_readiness_evidence(tmp_path, contex
     rec = json.loads((r.store_dir / "observations" / "000001" / "open.json").read_bytes())
     assert rec["data_finality"]["verdict"] == "READY"
     assert "strategy_return" not in json.dumps(rec["data_finality"])       # still no performance
+
+
+# ---- every security the ledger accounts for must be markable this session (R5c) ---------------------
+
+def _strict_price(prices: dict):
+    """A production-shaped price function: raises for anything it cannot mark."""
+    def price(tk, d):
+        value = prices.get(tk)
+        if value is None:
+            raise PriceUnavailable(f"{tk} has no usable closeadj on {d.isoformat()}")
+        return value
+    return price
+
+
+def test_a_held_name_without_todays_mark_stops_the_session(tmp_path, context_builder):
+    """The name may have left the scoring universe entirely — it is still on the book, so the book
+    cannot be valued without carrying a stale price."""
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)                                            # book AAA + BBB
+    r.price_fn = _strict_price({"AAA": 100.0})                    # BBB can no longer be marked
+    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
+    assert res.exception_code == "NOT_READY_CURRENT_SESSION_MISSING"
+    assert "BBB" in res.detail
+    assert res.session_count == 1
+    assert not (r.store_dir / "observations" / "000002").exists()
+    assert ShadowLedger.load(r.ledger_path).state.sessions_processed == 1
+
+
+def test_a_decision_target_without_todays_mark_stops_the_session(tmp_path, context_builder):
+    """Nothing is held yet, so the refusal can only come from the target being sleeved."""
+    r = _runner(tmp_path, context_builder,
+                provider=lambda d: _decision(d, target=("AAA", "CCC")))
+    r.price_fn = _strict_price({"AAA": 100.0})                    # CCC has no mark
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "NOT_READY_CURRENT_SESSION_MISSING"
+    assert res.session_count == 0
+    assert not (r.store_dir / "observations").exists()
+    assert not r.ledger_path.exists()
+
+
+@pytest.mark.parametrize("bad", [None, 0.0, -1.0])
+def test_a_null_or_nonpositive_held_mark_stops_the_session(bad, tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    r.price_fn = lambda tk, d: (100.0 if tk == "AAA" else bad)
+    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
+    assert res.exception_code == "NOT_READY_CURRENT_SESSION_MISSING"
+    assert res.session_count == 1
+
+
+def test_a_session_with_every_mark_present_records(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    r.price_fn = _strict_price({"AAA": 101.0, "BBB": 51.0})
+    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
+    assert res.status is SessionRunStatus.RECORDED and res.session_count == 2

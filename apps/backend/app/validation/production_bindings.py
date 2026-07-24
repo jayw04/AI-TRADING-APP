@@ -9,23 +9,36 @@ store itself:
   * `pit_price_fn(store)` — the point-in-time price function the shadow ledger marks against;
   * `build_forward_context(...)` — the per-session `ForwardRunContext` on the frozen §0 bindings.
 
-## Source authority cannot be asserted, and today it cannot even be derived
+## Source authority is LINKED to a completed ingest execution, not asserted
 
-`ingest_runs` records that an ingest RAN — `(dataset, started_at, finished_at, rows, status)` — not what
-it COVERED. Deriving a coverage window from `MIN(actions.date)`/`MAX(actions.date)` would be exactly the
-invented coverage the governance forbids: the earliest row present is evidence of what was loaded, not
-of what was requested, and on an empty table it is no evidence at all.
+`ingest_runs` records that an ingest RAN — not what it COVERED — and deriving a coverage window from
+`MIN/MAX(actions.date)` would be exactly the invented coverage the governance forbids: the earliest row
+present is evidence of what was loaded, not of what was requested, and on an empty table it is no
+evidence at all.
 
-`declare_action_source` therefore reads `dataset_coverage` — the record a COMPLETED ingest writes,
-carrying the requested window and the immutable artifact identity — and returns a NON-authoritative
-declaration when that record is absent. The governed store has no such record today (its `actions`
-table is empty), so the honest result is "coverage unknown", and R5b's verdict stays
-NOT_PROVEN_INSUFFICIENT_DATA until an authoritative ACTIONS ingest exists.
+A coverage row is therefore written only by `FactorDataStore.finalize_dataset_ingest`, in the same
+transaction that marks the ingest complete, referencing that execution's `run_id`, with the artifact
+digest computed from the artifact file itself. `declare_action_source` re-checks the whole chain and
+returns a NON-authoritative declaration unless every link holds:
 
-## Prices are point-in-time by construction
+  * a coverage row exists for the dataset and its linked ingest run exists, matches the dataset,
+    finished, and completed `ok`;
+  * the recorded row count equals the run's row count and the window is not inverted;
+  * the artifact digest is exactly 64 lowercase hex characters and the artifact path is recorded;
+  * no running or failed ingest for that dataset has started since — such a run may have mutated the
+    dataset, so the earlier coverage no longer stands.
 
-`pit_price_fn` reads `closeadj` for the exact session only. It cannot return a later session's price
-because it never queries one: a lookahead would have to be introduced deliberately, not by accident.
+The governed store has no coverage row today (its `actions` table was never ingested), so the honest
+result is "coverage unknown" and R5b's verdict stays NOT_PROVEN_INSUFFICIENT_DATA.
+
+## Prices are point-in-time AND strict
+
+`pit_price_fn` reads `closeadj` for the exact session only — it cannot return a later session's price
+because it never queries one. But returning `None` for a missing mark is not neutral either: the ledger
+would keep the sleeve at its previous mark, which is a stale valuation dressed as an absence. The
+production binding is therefore `strict_pit_price_fn`, which RAISES on any missing, null or nonpositive
+mark it is asked for, so a session whose held or target names cannot all be marked stops instead of
+being valued on yesterday's prices.
 """
 
 from __future__ import annotations
@@ -66,24 +79,49 @@ def declare_action_source(store: Any, *, dataset: str = ACTIONS_DATASET) -> Acti
         raise BindingError(f"not a queryable store: {type(store).__name__}")
     try:
         row = con.execute(
-            "SELECT coverage_start, coverage_end, artifact_sha256, source_identity, recorded_at "
-            "FROM dataset_coverage WHERE dataset = ? AND LOWER(status) = 'ok' "
-            "ORDER BY recorded_at DESC LIMIT 1", [dataset]).fetchone()
+            "SELECT c.coverage_start, c.coverage_end, c.artifact_sha256, c.artifact_path, "
+            "c.source_identity, c.recorded_at, c.ingest_run_id "
+            "FROM dataset_coverage c JOIN ingest_runs r ON r.run_id = c.ingest_run_id "
+            "WHERE c.dataset = ? AND r.dataset = c.dataset AND LOWER(c.status) = 'ok' "
+            "AND LOWER(r.status) = 'ok' AND r.finished_at IS NOT NULL AND r.rows = c.rows_loaded "
+            "AND c.coverage_start <= c.coverage_end "
+            "ORDER BY c.recorded_at DESC LIMIT 1", [dataset]).fetchone()
     except Exception as exc:
-        # An older store predates the coverage table entirely: unknown coverage, never authoritative.
+        # An older store predates the coverage table or the run linkage entirely: coverage unknown.
         return ActionSourceDeclaration(
             identity=f"{dataset}:coverage-unrecorded ({type(exc).__name__})", authoritative=False)
     if row is None:
-        return ActionSourceDeclaration(identity=f"{dataset}:coverage-unrecorded", authoritative=False)
+        # No coverage row, or one whose linked execution is absent, failed, unfinished, of the wrong
+        # dataset, row-count-mismatched, or date-inverted. None of those confer authority.
+        return ActionSourceDeclaration(identity=f"{dataset}:coverage-unlinked", authoritative=False)
 
-    coverage_start, coverage_end, artifact, source_identity, _recorded = row
-    if not artifact or not source_identity:
+    coverage_start, coverage_end, artifact, artifact_path, source_identity, recorded_at, run_id = row
+    if not _is_sha256(artifact) or not str(artifact_path or "").strip() \
+            or not str(source_identity or "").strip():
         return ActionSourceDeclaration(
             identity=f"{dataset}:coverage-incomplete", authoritative=False,
             coverage_start=coverage_start, coverage_end=coverage_end)
+
+    # A running or failed ingest since the coverage was recorded may have mutated the dataset.
+    try:
+        unclean = con.execute(
+            "SELECT COUNT(*) FROM ingest_runs WHERE dataset = ? AND LOWER(status) <> 'ok' "
+            "AND started_at >= ?", [dataset, recorded_at]).fetchone()
+    except Exception:                                     # pragma: no cover - defensive
+        unclean = (1,)
+    if unclean and unclean[0]:
+        return ActionSourceDeclaration(
+            identity=f"{dataset}:superseded-by-unclean-ingest", authoritative=False,
+            coverage_start=coverage_start, coverage_end=coverage_end)
+
     return ActionSourceDeclaration(
-        identity=f"{source_identity}@{artifact}", authoritative=True,
+        identity=f"{source_identity}@{artifact}#{run_id}", authoritative=True,
         coverage_start=coverage_start, coverage_end=coverage_end)
+
+
+def _is_sha256(value: object) -> bool:
+    text = str(value or "")
+    return len(text) == 64 and all(c in "0123456789abcdef" for c in text)
 
 
 def pit_price_fn(store: Any) -> Callable[[str, date], float | None]:
@@ -102,6 +140,36 @@ def pit_price_fn(store: Any) -> Callable[[str, date], float | None]:
             "SELECT closeadj FROM sep WHERE ticker = ? AND date = ? AND closeadj IS NOT NULL",
             [ticker, session]).fetchone()
         return float(row[0]) if row is not None and row[0] is not None else None
+
+    return price
+
+
+class PriceUnavailable(IntegrityStop):
+    """A security the ledger must mark has no usable exact-session price. Fails closed: the session is
+    not valued on a stale mark, it is not valued at all."""
+
+
+def strict_pit_price_fn(store: Any) -> Callable[[str, date], float]:
+    """The PRODUCTION price function: point-in-time, and strict.
+
+    `pit_price_fn` returning None is not neutral — the shadow ledger's mark-to-market simply keeps the
+    sleeve at its previous mark, which is a stale valuation wearing an absence's clothes. Every price
+    the ledger asks for is a security it is actually accounting for (a current holding being marked, or
+    a decision target being sleeved), so a missing, null or nonpositive mark raises instead. The runner
+    maps that to NOT_READY_CURRENT_SESSION_MISSING: nothing booked, nothing committed, count unchanged.
+    """
+    lenient = pit_price_fn(store)
+
+    def price(ticker: str, session: date) -> float:
+        value = lenient(ticker, session)
+        if value is None:
+            raise PriceUnavailable(
+                f"{ticker} has no usable closeadj on {session.isoformat()}; a security the ledger must "
+                f"mark cannot be valued on an earlier session's price")
+        if value <= 0:
+            raise PriceUnavailable(
+                f"{ticker} has a nonpositive closeadj ({value}) on {session.isoformat()}")
+        return value
 
     return price
 

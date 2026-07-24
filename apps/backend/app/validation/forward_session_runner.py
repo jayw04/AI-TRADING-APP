@@ -23,6 +23,15 @@ isolation is re-proved by the authoritative before/after probes inside the commi
                      is unchanged, and the operational exception is appended to a log OUTSIDE the sealed
                      performance and OUTSIDE `observations/` (it can touch neither the chain nor count).
 
+## Every security the ledger accounts for must have THIS session's mark
+
+Data-finality proves the registered CONSTRUCTION is complete; it does not prove that the ledger can
+value its own book. A name can leave the scoring universe and still be held, so the runner validates
+the current holdings' marks before the decision is taken, and the production price function raises on
+any missing, null or nonpositive mark it is asked for afterwards — which covers every decision target
+as it is sleeved. Either way the session stops with NOT_READY_CURRENT_SESSION_MISSING: no booking, no
+observation, count unchanged. A sleeve is never carried at an earlier session's price.
+
 ## The session's DATA must be final before its decision is taken
 
 The runner refuses to evaluate a session whose inputs are not proven final, complete and correctly
@@ -100,6 +109,7 @@ from app.validation.observation_store import (
     committed_observations,
     default_durability,
 )
+from app.validation.production_bindings import PriceUnavailable
 from app.validation.session_recorder import record_forward_session
 from app.validation.shadow_ledger import PriceFn, SessionOutcome, ShadowLedger
 
@@ -245,6 +255,15 @@ class ForwardSessionRunner:
         if not finality.ready:
             return self._stop(iso, str(finality.verdict), finality.detail, count, exceptions)
 
+        # ── every security already on the book must be markable at THIS session ──
+        unmarkable = self._unmarkable(ledger.state.held, session_date)
+        if unmarkable:
+            return self._stop(
+                iso, "NOT_READY_CURRENT_SESSION_MISSING",
+                f"{len(unmarkable)} held security(ies) have no usable mark on {iso} "
+                f"(e.g. {unmarkable[:5]}) — the book cannot be valued without carrying a stale price",
+                count, exceptions)
+
         snapshot = self.store_dir / PRE_SESSION_SNAPSHOT
         if snapshot.exists():
             # A previous attempt died. Reconciliation above already proved ledger == record, so the
@@ -262,6 +281,10 @@ class ForwardSessionRunner:
                                      shadow_ledger_identity=self.shadow_ledger_identity)
         try:
             outcome = evaluator.evaluate_session(session_date, self.price_fn)
+        except PriceUnavailable as exc:
+            # A decision target (or a held name being re-sleeved) has no mark this session. The
+            # production price function refuses rather than valuing it at an earlier price.
+            return self._stop(iso, "NOT_READY_CURRENT_SESSION_MISSING", str(exc), count, exceptions)
         except IntegrityStop as exc:
             # Includes the absent-evaluation case: the instrument produced no real decision, so no
             # session is recorded. The in-memory booking (if any) is discarded — the ledger on disk is
@@ -324,6 +347,20 @@ class ForwardSessionRunner:
                                 detail="observation committed")
 
     # ── helpers ───────────────────────────────────────────────────────────────────────────────────
+    def _unmarkable(self, names: list[str], session_date: date) -> list[str]:
+        """Held securities with no usable exact-session mark. Works with either price function: the
+        strict production one raises (caught here), the lenient one returns None."""
+        missing: list[str] = []
+        for ticker in sorted(names):
+            try:
+                value = self.price_fn(ticker, session_date)
+            except PriceUnavailable:
+                missing.append(ticker)
+                continue
+            if value is None or value <= 0:
+                missing.append(ticker)
+        return missing
+
     def _count(self) -> int:
         try:
             return len(committed_observations(self.store_dir))

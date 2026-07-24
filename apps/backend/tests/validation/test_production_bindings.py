@@ -7,6 +7,7 @@ dataset was never ingested — the governed store today — must come back non-a
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date, datetime, timedelta
 
 import duckdb
@@ -17,9 +18,11 @@ from app.factor_data.store import FactorDataStore
 from app.validation.forward_window import FROZEN_CONFIG, IntegrityStop
 from app.validation.production_bindings import (
     BindingError,
+    PriceUnavailable,
     build_forward_context,
     declare_action_source,
     pit_price_fn,
+    strict_pit_price_fn,
 )
 
 SESSION = date(2026, 7, 24)
@@ -52,46 +55,141 @@ def test_a_store_without_a_coverage_record_is_never_authoritative(store):
     src = declare_action_source(store)
     assert src.authoritative is False
     assert src.coverage_start is None and src.coverage_end is None
-    assert "coverage-unrecorded" in src.identity
+    assert "unlinked" in src.identity        # no coverage row -> nothing to link to
 
 
-def test_a_completed_ingest_coverage_record_yields_an_authoritative_declaration(store):
-    store.record_dataset_coverage(
-        "actions", date(2005, 1, 1), date(2026, 7, 24),
-        artifact_sha256="a" * 64, source_identity="sharadar/ACTIONS",
-        rows_loaded=1_234_567, recorded_at=datetime(2026, 7, 24, 22, 0))
+def _finalize(store, artifact, *, dataset="actions", rows=3,
+              coverage=(date(2005, 1, 1), date(2026, 7, 24)),
+              started=datetime(2026, 7, 24, 21, 0), finished=datetime(2026, 7, 24, 22, 0),
+              source="sharadar/ACTIONS") -> str:
+    """The governed completion protocol: the ONLY path that can produce authoritative coverage."""
+    return store.finalize_dataset_ingest(
+        dataset, started_at=started, finished_at=finished, rows=rows,
+        coverage_start=coverage[0], coverage_end=coverage[1], artifact_path=artifact,
+        source_identity=source)
+
+
+@pytest.fixture
+def artifact(tmp_path):
+    p = tmp_path / "ACTIONS.csv"
+    p.write_bytes(b"date,action,ticker,value\n2026-07-24,dividend,AAA,1.0\n")
+    return p
+
+
+def test_a_finalized_ingest_yields_an_authoritative_declaration(store, artifact):
+    run_id = _finalize(store, artifact)
     src = declare_action_source(store)
     assert src.authoritative is True
     assert src.coverage_start == date(2005, 1, 1) and src.coverage_end == date(2026, 7, 24)
-    assert src.identity == "sharadar/ACTIONS@" + "a" * 64        # artifact identity is bound
     assert src.covers(date(2025, 1, 1), SESSION) is True
+    # the identity binds the artifact digest COMPUTED here and the execution that loaded it
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    assert src.identity == f"sharadar/ACTIONS@{digest}#{run_id}"
 
 
-def test_the_latest_completed_coverage_record_wins(store):
-    store.record_dataset_coverage("actions", date(2005, 1, 1), date(2026, 6, 30),
-                                  artifact_sha256="a" * 64, source_identity="sharadar/ACTIONS",
-                                  rows_loaded=1, recorded_at=datetime(2026, 6, 30, 22, 0))
-    store.record_dataset_coverage("actions", date(2005, 1, 1), date(2026, 7, 24),
-                                  artifact_sha256="b" * 64, source_identity="sharadar/ACTIONS",
-                                  rows_loaded=2, recorded_at=datetime(2026, 7, 24, 22, 0))
+def test_the_digest_is_computed_from_the_artifact_not_supplied(store, artifact):
+    _finalize(store, artifact)
+    recorded = store.con.execute("SELECT artifact_sha256 FROM dataset_coverage").fetchone()[0]
+    assert recorded == hashlib.sha256(artifact.read_bytes()).hexdigest()
+    artifact.write_bytes(b"different bytes entirely\n")
+    assert recorded != hashlib.sha256(artifact.read_bytes()).hexdigest()   # not recomputed later
+
+
+def test_the_latest_finalized_ingest_wins(store, artifact, tmp_path):
+    _finalize(store, artifact, coverage=(date(2005, 1, 1), date(2026, 6, 30)),
+              finished=datetime(2026, 6, 30, 22, 0))
+    later = tmp_path / "ACTIONS-2.csv"
+    later.write_bytes(b"newer artifact\n")
+    _finalize(store, later, coverage=(date(2005, 1, 1), date(2026, 7, 24)),
+              finished=datetime(2026, 7, 24, 22, 0))
     src = declare_action_source(store)
-    assert src.coverage_end == date(2026, 7, 24) and src.identity.endswith("b" * 64)
+    assert src.coverage_end == date(2026, 7, 24)
+    assert src.identity.split("@")[1].startswith(hashlib.sha256(later.read_bytes()).hexdigest())
 
 
-def test_an_unfinished_ingest_does_not_confer_authority(store):
-    store.record_dataset_coverage("actions", date(2005, 1, 1), date(2026, 7, 24),
-                                  artifact_sha256="a" * 64, source_identity="sharadar/ACTIONS",
-                                  rows_loaded=0, recorded_at=datetime(2026, 7, 24, 22, 0),
-                                  status="running")
+def test_an_absent_artifact_cannot_be_finalized(store, tmp_path):
+    with pytest.raises(ValueError, match="does not exist"):
+        _finalize(store, tmp_path / "nope.csv")
     assert declare_action_source(store).authoritative is False
 
 
-def test_a_coverage_record_without_an_artifact_identity_is_not_authoritative(store):
-    store.record_dataset_coverage("actions", date(2005, 1, 1), date(2026, 7, 24),
-                                  artifact_sha256="", source_identity="sharadar/ACTIONS",
-                                  rows_loaded=1, recorded_at=datetime(2026, 7, 24, 22, 0))
+def test_an_inverted_window_cannot_be_finalized(store, artifact):
+    with pytest.raises(ValueError, match="after coverage_end"):
+        _finalize(store, artifact, coverage=(date(2026, 7, 24), date(2005, 1, 1)))
+    assert declare_action_source(store).authoritative is False
+
+
+def test_an_empty_source_identity_cannot_be_finalized(store, artifact):
+    with pytest.raises(ValueError, match="source_identity"):
+        _finalize(store, artifact, source="   ")
+    assert declare_action_source(store).authoritative is False
+
+
+# ---- hand-written coverage rows confer nothing ------------------------------------------------------
+
+def _insert_raw_coverage(store, **over) -> None:
+    row = dict(dataset="actions", ingest_run_id="no-such-run", coverage_start=date(2005, 1, 1),
+               coverage_end=date(2026, 7, 24), artifact_sha256="a" * 64,
+               artifact_path="/invented/ACTIONS.csv", source_identity="sharadar/ACTIONS",
+               rows_loaded=3, recorded_at=datetime(2026, 7, 24, 22, 0), status="ok")
+    row.update(over)
+    store.con.execute(
+        "INSERT INTO dataset_coverage VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [row["dataset"], row["ingest_run_id"], row["coverage_start"], row["coverage_end"],
+         row["artifact_sha256"], row["artifact_path"], row["source_identity"], row["rows_loaded"],
+         row["recorded_at"], row["status"]])
+
+
+def test_an_unlinked_coverage_row_confers_nothing(store):
+    """A hand-inserted row with an invented digest and no real execution behind it."""
+    _insert_raw_coverage(store)
     src = declare_action_source(store)
-    assert src.authoritative is False and "coverage-incomplete" in src.identity
+    assert src.authoritative is False and "unlinked" in src.identity
+
+
+def test_coverage_tied_to_a_failed_or_running_ingest_confers_nothing(store):
+    for status in ("failed", "running"):
+        rid = store.record_ingest_run("actions", datetime(2026, 7, 24, 21, 0),
+                                      datetime(2026, 7, 24, 22, 0), 3, status)
+        _insert_raw_coverage(store, ingest_run_id=rid)
+        assert declare_action_source(store).authoritative is False
+
+
+def test_coverage_tied_to_an_unfinished_ingest_confers_nothing(store):
+    rid = store.record_ingest_run("actions", datetime(2026, 7, 24, 21, 0), None, 3, "ok")
+    _insert_raw_coverage(store, ingest_run_id=rid)
+    assert declare_action_source(store).authoritative is False
+
+
+def test_a_row_count_mismatch_confers_nothing(store):
+    rid = store.record_ingest_run("actions", datetime(2026, 7, 24, 21, 0),
+                                  datetime(2026, 7, 24, 22, 0), 3, "ok")
+    _insert_raw_coverage(store, ingest_run_id=rid, rows_loaded=999)
+    assert declare_action_source(store).authoritative is False
+
+
+def test_coverage_tied_to_another_datasets_ingest_confers_nothing(store):
+    rid = store.record_ingest_run("sep", datetime(2026, 7, 24, 21, 0),
+                                  datetime(2026, 7, 24, 22, 0), 3, "ok")
+    _insert_raw_coverage(store, ingest_run_id=rid)
+    assert declare_action_source(store).authoritative is False
+
+
+def test_an_invalid_artifact_digest_confers_nothing(store):
+    rid = store.record_ingest_run("actions", datetime(2026, 7, 24, 21, 0),
+                                  datetime(2026, 7, 24, 22, 0), 3, "ok")
+    _insert_raw_coverage(store, ingest_run_id=rid, artifact_sha256="not-a-digest")
+    src = declare_action_source(store)
+    assert src.authoritative is False and "incomplete" in src.identity
+
+
+def test_an_unclean_ingest_after_the_coverage_supersedes_it(store, artifact):
+    """A running or failed ingest since the coverage was recorded may have mutated the dataset."""
+    _finalize(store, artifact)
+    assert declare_action_source(store).authoritative is True
+    store.record_ingest_run("actions", datetime(2026, 7, 25, 3, 0), None, 0, "running")
+    src = declare_action_source(store)
+    assert src.authoritative is False and "superseded" in src.identity
 
 
 def test_a_store_predating_the_coverage_table_is_not_authoritative(tmp_path):
@@ -115,6 +213,24 @@ def test_a_non_queryable_store_fails_closed():
 
 
 # ---- point-in-time prices ------------------------------------------------------------------------------
+
+def test_the_strict_price_function_refuses_a_missing_mark(store):
+    """The production binding: a security the ledger must mark is never valued at an earlier price."""
+    price = strict_pit_price_fn(store)
+    assert price("AAA", SESSION) == pytest.approx(10.5)
+    with pytest.raises(PriceUnavailable, match="no usable closeadj"):
+        price("BBB", PRIOR)                                       # closeadj IS NULL
+    with pytest.raises(PriceUnavailable, match="no usable closeadj"):
+        price("BBB", SESSION)                                     # no row at all
+    with pytest.raises(PriceUnavailable, match="no usable closeadj"):
+        price("AAA", SESSION + timedelta(days=1))                 # a later session
+
+
+def test_the_strict_price_function_refuses_a_nonpositive_mark(store):
+    store.con.execute("UPDATE sep SET closeadj = 0 WHERE ticker = 'AAA' AND date = ?", [SESSION])
+    with pytest.raises(PriceUnavailable, match="nonpositive"):
+        strict_pit_price_fn(store)("AAA", SESSION)
+
 
 def test_the_price_function_reads_the_session_only(store):
     price = pit_price_fn(store)
