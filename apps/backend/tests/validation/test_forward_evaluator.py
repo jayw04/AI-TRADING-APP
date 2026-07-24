@@ -24,6 +24,7 @@ from app.validation.forward_window import FROZEN_CONFIG, PRODUCTION_STRATEGY_COM
 from app.validation.shadow_ledger import ShadowLedger
 
 DURABLE = "instrument-durable-state-901"
+SNAPSHOT = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 LEDGER_ID = "shadow-ledger-accounting-901"
 MAX_POSITION_PCT = float(FROZEN_CONFIG["max_position_pct"])
 MAX_NAMES = int(FROZEN_CONFIG["max_names"])
@@ -55,9 +56,10 @@ def _istate(*, held=("AAA", "BBB"), current=None, target=None, gross=1.0, since=
         weight_drift_threshold=drift_thr, backstop_days=backstop)
 
 
-def _decision(rec, *, identity=PRODUCTION_STRATEGY_COMMIT, durable=DURABLE, istate=None):
+def _decision(rec, *, identity=PRODUCTION_STRATEGY_COMMIT, durable=DURABLE, istate=None,
+              snapshot=SNAPSHOT):
     return ForwardDecision(record=rec, instrument_identity=identity, durable_state_id=durable,
-                           instrument_state=istate or _istate())
+                           instrument_state=istate or _istate(), snapshot_digest=snapshot)
 
 
 def _ledger():
@@ -67,7 +69,8 @@ def _ledger():
 
 def _evaluator(ledger, provider):
     return ForwardEvaluator(ledger=ledger, decision_provider=provider,
-                            shadow_ledger_identity=LEDGER_ID)
+                            shadow_ledger_identity=LEDGER_ID,
+                            expected_snapshot_digest=SNAPSHOT)
 
 
 def _price(tk, d):
@@ -141,7 +144,7 @@ def test_governed_short_frozen_binding_accepts_only_the_full_runtime_sha(short_l
     frozen_short = PRODUCTION_STRATEGY_COMMIT[:short_len]
     led = _ledger()
     ev = ForwardEvaluator(ledger=led, decision_provider=lambda d: _decision(_rec()),
-                          shadow_ledger_identity=LEDGER_ID,
+                          shadow_ledger_identity=LEDGER_ID, expected_snapshot_digest=SNAPSHOT,
                           expected_instrument_identity=frozen_short)
     assert ev.evaluate_session(date(2026, 7, 24), _price).traded is True
 
@@ -149,7 +152,7 @@ def test_governed_short_frozen_binding_accepts_only_the_full_runtime_sha(short_l
 @pytest.mark.parametrize("short_len", [1, 7, 11])
 def test_frozen_binding_shorter_than_the_governed_minimum_fails_closed(short_len):
     ev = ForwardEvaluator(ledger=_ledger(), decision_provider=lambda d: _decision(_rec()),
-                          shadow_ledger_identity=LEDGER_ID,
+                          shadow_ledger_identity=LEDGER_ID, expected_snapshot_digest=SNAPSHOT,
                           expected_instrument_identity=PRODUCTION_STRATEGY_COMMIT[:short_len])
     with pytest.raises(ForwardEvaluationError, match="instrument identity"):
         ev.evaluate_session(date(2026, 7, 24), _price)
@@ -157,7 +160,7 @@ def test_frozen_binding_shorter_than_the_governed_minimum_fails_closed(short_len
 
 def test_short_frozen_binding_that_is_not_a_prefix_fails_closed():
     ev = ForwardEvaluator(ledger=_ledger(), decision_provider=lambda d: _decision(_rec()),
-                          shadow_ledger_identity=LEDGER_ID,
+                          shadow_ledger_identity=LEDGER_ID, expected_snapshot_digest=SNAPSHOT,
                           expected_instrument_identity=OTHER_FULL_SHA[:16])
     with pytest.raises(ForwardEvaluationError, match="instrument identity"):
         ev.evaluate_session(date(2026, 7, 24), _price)
@@ -347,3 +350,44 @@ def test_forward_evaluator_imports_no_order_path():
     forbidden = ("order_router", "broker", "alpaca", "services.order")
     hits = [m for m in modules if any(f in m for f in forbidden)]
     assert not hits, f"forward evaluator must be non-ordering; forbidden imports: {hits}"
+
+
+# ---- (9) the decision must belong to THIS run's instrument snapshot (R5c-2a review) -----------------
+
+def test_an_evaluator_without_an_expected_snapshot_digest_refuses():
+    """Carrying a digest is not checking one: with no expected digest configured, a decision cannot be
+    tied to the state it was taken under, so nothing may be booked."""
+    ev = ForwardEvaluator(ledger=_ledger(), decision_provider=lambda d: _decision(_rec()),
+                          shadow_ledger_identity=LEDGER_ID)
+    with pytest.raises(ForwardEvaluationError, match="no expected instrument-snapshot digest"):
+        ev.evaluate_session(date(2026, 7, 24), _price)
+
+
+def test_a_decision_without_a_snapshot_digest_is_refused():
+    ev = _evaluator(_ledger(), lambda d: _decision(_rec(), snapshot=""))
+    with pytest.raises(ForwardEvaluationError, match="carries no instrument-snapshot digest"):
+        ev.evaluate_session(date(2026, 7, 24), _price)
+
+
+@pytest.mark.parametrize("digest", [
+    "a" * 64,                                    # another run's snapshot
+    SNAPSHOT[:-1] + "0",                         # one character off
+    "   ",                                       # whitespace
+])
+def test_a_decision_from_another_snapshot_is_refused(digest):
+    ev = _evaluator(_ledger(), lambda d: _decision(_rec(), snapshot=digest))
+    with pytest.raises(ForwardEvaluationError, match="snapshot"):
+        ev.evaluate_session(date(2026, 7, 24), _price)
+
+
+def test_the_exact_run_snapshot_digest_is_accepted():
+    led = _ledger()
+    out = _evaluator(led, lambda d: _decision(_rec())).evaluate_session(date(2026, 7, 24), _price)
+    assert out.traded is True and led.state.sessions_processed == 1
+
+
+def test_a_genuine_zero_gross_decision_with_the_correct_digest_books():
+    led = _ledger()
+    ev = _evaluator(led, lambda d: _decision(_rec(target=("AAA", "BBB"), gross=0.0)))
+    out = ev.evaluate_session(date(2026, 7, 24), _price)
+    assert out.traded is True and sum(out.record.weights.values()) == 0.0

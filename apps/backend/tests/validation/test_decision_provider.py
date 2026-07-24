@@ -207,13 +207,14 @@ def test_an_empty_durable_state_identity_is_refused(instrument):
 
 
 def test_a_second_decision_for_the_same_session_is_refused(instrument):
-    """Deciding twice is refused. In practice the FIRST refusal is even stronger: the instrument
-    mutated its own durable state while deciding, so the snapshot no longer describes the state a
-    second decision would be taken under."""
+    """Deciding twice is refused. In practice an even stronger refusal fires first: deciding moved the
+    instrument's own book and durable state, so the snapshot no longer describes the state a second
+    decision would be taken under."""
     strategy, adapter = instrument
     provider = _provider(strategy, adapter, _snapshot(strategy, adapter))
     provider(SESSION)
-    with pytest.raises(DecisionProviderError, match="durable state changed|already decided"):
+    with pytest.raises(DecisionProviderError,
+                       match="instrument_book_digest|durable state changed|already decided"):
         provider(SESSION)
 
 
@@ -284,3 +285,76 @@ def test_the_decision_carries_the_instruments_own_state_book(instrument):
     assert state.weight_drift_threshold == pytest.approx(strategy.params["weight_drift_pct"])
     assert state.backstop_days == strategy.params["backstop_max_days"]
     assert set(state.held) == set(state.current_weights)
+
+
+# ---- the snapshot binds the CONTEXT that supplies the decision's inputs (R5c-2a review) -------------
+
+def test_the_snapshot_binds_the_bound_context_not_a_description(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    assert snap.adapter_class.endswith(":DriftCtxAdapter")
+    assert snap.adapter_strategy_id == STRATEGY_ID
+    assert len(snap.universe_digest) == 64
+    # provider identities are derived from the bound callables, not from caller-supplied strings
+    assert snap.scores_provider_identity.endswith(":_scores")
+    assert snap.bars_provider_identity.endswith(":_bars")
+    assert len(snap.instrument_book_digest) == 64 and len(snap.context_digest) == 64
+
+
+def test_a_different_scores_provider_is_refused(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+
+    def other_scores(day):
+        return _scores(day)
+
+    adapter.scores_provider = other_scores
+    with pytest.raises(DecisionProviderError, match="scores_provider_identity"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_a_different_bars_provider_is_refused(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+
+    def other_bars(symbol, as_of, n):
+        return _bars(symbol, as_of, n)
+
+    adapter.bars_provider = other_bars
+    with pytest.raises(DecisionProviderError, match="bars_provider_identity"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_a_different_strategy_registration_is_refused(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    adapter.strategy_id = 99
+    with pytest.raises(DecisionProviderError, match="adapter_strategy_id"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_a_changed_universe_is_refused(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    adapter.symbols = [*SYMBOLS, "GGG"]
+    with pytest.raises(DecisionProviderError, match="universe_digest"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_a_changed_instrument_book_is_refused(instrument):
+    """Equity or positions moving between the snapshot and the decision changes what the instrument
+    would decide, so the snapshot no longer describes this decision."""
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    adapter.equity = adapter.equity + 1
+    with pytest.raises(DecisionProviderError, match="instrument_book_digest"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_the_context_digest_covers_each_bound_field(instrument):
+    from app.validation.decision_provider import context_identity
+
+    strategy, adapter = instrument
+    base = context_identity(adapter)["context_digest"]
+    adapter.strategy_id = 42
+    assert context_identity(adapter)["context_digest"] != base

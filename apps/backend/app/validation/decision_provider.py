@@ -30,6 +30,9 @@ The snapshot is account-independent: it binds the instrument's own state, never 
   * the context is bound to Account 4, or to the ledger's own accounting identity;
   * no snapshot was taken, or the instrument's durable state moved between the snapshot and the
     decision (snapshot digest mismatch);
+  * the adapter/context supplying the decision's inputs is not the one the snapshot bound — a different
+    adapter class, strategy registration, universe, scores provider, bars/regime provider or
+    instrument book;
   * the decision's shape is structurally invalid (targets/weights disagree, non-finite numbers).
 
 A genuinely evaluated zero-gross decision is valid and books normally. An ABSENT evaluation — the class
@@ -80,6 +83,15 @@ class InstrumentSnapshot:
     durable_state_keys: tuple[str, ...]
     regime_source_identity: str             # the market-proxy construction the regime reads
     store_identity_sha256: str              # R5c-1's value-level data-store identity
+    # the CONTEXT that supplies the decision's inputs, derived from what is actually bound — not from
+    # descriptive strings a caller passes alongside it
+    adapter_class: str = ""
+    adapter_strategy_id: int = -1
+    universe_digest: str = ""
+    scores_provider_identity: str = ""
+    bars_provider_identity: str = ""
+    instrument_book_digest: str = ""
+    context_digest: str = ""
     snapshot_digest: str = ""
 
     def with_digest(self) -> InstrumentSnapshot:
@@ -111,6 +123,7 @@ def capture_instrument_snapshot(
     """
     params = dict(getattr(strategy, "params", {}) or {})
     state = dict(getattr(adapter, "_state", {}) or {})
+    ctx = context_identity(adapter)
     snap = InstrumentSnapshot(
         session_date=session_date.isoformat(),
         captured_at=captured_at,
@@ -123,8 +136,45 @@ def capture_instrument_snapshot(
         durable_state_keys=tuple(sorted(state)),
         regime_source_identity=regime_source_identity,
         store_identity_sha256=store_identity_sha256,
+        **ctx,
     )
     return snap.with_digest()
+
+
+def _callable_identity(fn: Any) -> str:
+    """An identity DERIVED from the bound implementation: module:qualname, plus the bound arguments of
+    a functools.partial. Never a descriptive string a caller supplies."""
+    import functools
+
+    if isinstance(fn, functools.partial):
+        return (f"partial({_callable_identity(fn.func)}"
+                f"|args={_digest(list(fn.args))[:16]}|kw={_digest(sorted(fn.keywords))[:16]})")
+    module = getattr(fn, "__module__", None) or type(fn).__module__
+    qualname = getattr(fn, "__qualname__", None) or type(fn).__qualname__
+    return f"{module}:{qualname}"
+
+
+def context_identity(adapter: Any) -> dict[str, Any]:
+    """The decision CONTEXT's identity, read off the adapter that is actually wired.
+
+    A snapshot that named the right store and regime while the adapter was bound to different provider
+    functions, a different strategy registration or a different universe would describe a decision that
+    was never taken. These fields are recomputed immediately before the decision and must match.
+    """
+    symbols = [str(s).upper() for s in (getattr(adapter, "symbols", []) or [])]
+    positions = {str(k).upper(): str(v) for k, v in
+                 dict(getattr(adapter, "_positions", {}) or {}).items()}
+    book = {"equity": str(getattr(adapter, "equity", "")), "positions": positions}
+    fields = {
+        "adapter_class": f"{type(adapter).__module__}:{type(adapter).__qualname__}",
+        "adapter_strategy_id": int(getattr(adapter, "strategy_id", -1) or -1),
+        "universe_digest": _digest(sorted(symbols)),
+        "scores_provider_identity": _callable_identity(getattr(adapter, "scores_provider", None)),
+        "bars_provider_identity": _callable_identity(getattr(adapter, "bars_provider", None)),
+        "instrument_book_digest": _digest(book),
+    }
+    fields["context_digest"] = _digest(fields)
+    return fields
 
 
 @dataclass
@@ -166,6 +216,15 @@ class ProductionDecisionProvider:
             raise DecisionProviderError(
                 "the decision context is bound to Account 4; the forward validation reads no Account-4 "
                 "state and drives no Account-4 instrument")
+
+        # the CONTEXT that supplies the decision's inputs must be the one the snapshot bound
+        live_ctx = context_identity(self.adapter)
+        for field_name, live_value in live_ctx.items():
+            bound = getattr(self.snapshot, field_name)
+            if live_value != bound:
+                raise DecisionProviderError(
+                    f"the decision context's {field_name} is {live_value!r} but the snapshot bound "
+                    f"{bound!r} — the instrument is not wired to the inputs this run snapshotted")
 
         # the instrument's own state must still be the state the snapshot was taken under
         live_state_digest = _digest(dict(getattr(self.adapter, "_state", {}) or {}))
