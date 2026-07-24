@@ -6,50 +6,60 @@ be evaluated the runner must PROVE — not assume — that every input the regis
 present, complete and final for that exact date.
 
 The registered construction is the census one and is not negotiable here (owner ruling 2026-07-24):
-scores from `FactorDataStore` → `_CachedPriceStore` → `backtest_momentum_stage2.compute_day`; regime
-from `stage4.build_market_proxy` / `gross_series` over the BROAD EQUAL-WEIGHT market proxy (not SPY, not
-any convenience benchmark) with a 200-session MA warm-up; prices from the same store's `closeadj`. This
-module does not compute any of those values — it proves the data they will read is final, and records
-the evidence. Nothing here reveals a factor value, a return, a ranking or a portfolio result.
+scores from `FactorDataStore` → `_CachedPriceStore` → `backtest_momentum_stage2.compute_day` (which is
+`universe_asof(n=200)` → `compute_momentum_batch(252/21)`); regime from `stage4.build_market_proxy` /
+`gross_series` over the BROAD EQUAL-WEIGHT proxy — the month-end union of `universe_asof(n=500)`, not
+SPY and not any convenience benchmark — with a 200-session MA; prices from the same store's `closeadj`.
+
+This module computes no factor value, return, ranking or portfolio result. It calls the SAME universe
+construction the decision will call, so coverage is measured against the exact set of names the frozen
+computation consumes, and it records what it found next to what the construction required.
 
 ## Verdicts
 
-  READY                             every check passed for this session
+  READY                             every registered input is present, complete and final
   NOT_READY_DATA_STALE              the store's finalized cutoff precedes the session
-  NOT_READY_CURRENT_SESSION_MISSING the session itself has no (or unusable) rows
-  NOT_READY_LOOKBACK_INCOMPLETE     252 / 21 / 200-session history is not complete
-  NOT_READY_PROXY_INCOMPLETE        market-proxy constituents are missing or too thin
+  NOT_READY_CURRENT_SESSION_MISSING a name the construction admits has no usable mark on the session
+  NOT_READY_LOOKBACK_INCOMPLETE     a scoring candidate lacks the exact 252+21-session history
+  NOT_READY_PROXY_INCOMPLETE        a proxy constituent cannot contribute its return, on this session
+                                    or on any of the 200 MA sessions
   NOT_READY_INGEST_IN_PROGRESS      an ingest is running, or the last one did not finish clean
-  INTEGRITY_STOP_DATA_CONFLICT      the data contradicts itself (duplicates, or the store changed
+  NOT_READY_ADJUSTMENT_UNVERIFIED   corporate actions touch the consumed window and their reflection in
+                                    `closeadj` is not proven
+  INTEGRITY_STOP_DATA_CONFLICT      the data contradicts itself (duplicates, or the store moved
                                     underneath a run)
 
 A NOT_READY_* verdict is the system working. The known stale-SEP condition on the box is exactly what
-this gate is for: it is surfaced accurately, never bypassed.
+this gate is for: surfaced accurately, never bypassed.
 
-## Two honest limits, recorded rather than papered over
+## Coverage is construction-derived, not threshold-derived
 
-1. **There is no ingest-version column.** `ingest_runs` records `(dataset, started_at, finished_at,
-   rows, status)` and `sep` rows carry no batch id, so "all reads resolve from one immutable ingest
-   version" cannot be read off the data. It is CONSTRUCTED here: a content identity digest over the
-   session's own lookback window plus the ingest-run history, captured before the reads and re-verified
-   after them (`verify_store_unchanged`). A change mid-session is `INTEGRITY_STOP_DATA_CONFLICT`.
+There are no coverage minima. A name is either supplied to the frozen computation or it is not, and if
+it is not, the reason must be a frozen eligibility RULE (listed after the window began, delisted before
+the session) rather than a hole in the data. Every count is reported as a numerator over the
+construction's own denominator, so "how much data was missing" is never a matter of interpretation.
 
-2. **Corporate-action *reflection* cannot be proven from this schema.** We can prove the actions ingest
-   is clean and record the actions touching the window; we cannot prove every action is already baked
-   into `closeadj`. The evidence therefore carries `adjustment_reflection_proven = False` rather than a
-   status field that would imply a proof the data cannot support.
+## Corporate actions gate the session until reflection is proven
 
-## Coverage thresholds are OPERATIONAL, not research parameters
+The schema cannot show that an action is already baked into `closeadj`. Rather than record
+`adjustment_reflection_proven=False` beside a READY verdict, an unproven adjustment in the consumed
+window is `NOT_READY_ADJUSTMENT_UNVERIFIED` (owner ruling 2026-07-24). `adjustment_verifier` is the seam
+a future verifier plugs into; there is none today, so any window containing an action is refused.
 
-The minimum constituent counts below decide only whether a session RUNS. They cannot change a decision,
-a weight, a benchmark or a gate — a session either has enough data to be evaluated faithfully or it is
-refused. They are injectable, conservative by default, and recorded in the evidence so that what was
-required is always visible next to what was found.
+## The store identity is value-level
+
+`ingest_runs` carries no batch id and `sep` rows carry no version, so "all reads resolve from one
+immutable ingest version" is CONSTRUCTED: a streaming SHA-256 over the deterministically ordered ROWS
+the decision will consume — every `sep` field, the `tickers` PIT-eligibility fields, the window's
+actions, and the ingest history. Aggregate counts would let a single changed `closeadj` slip through
+unnoticed; hashing the values themselves does not. `verify_store_unchanged` re-streams it after the
+session's reads, and any difference is `INTEGRITY_STOP_DATA_CONFLICT`.
 """
 
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
@@ -58,13 +68,18 @@ from typing import Any
 
 from app.validation.forward_window import IntegrityStop
 
-# The registered lookbacks (§2): 252-session momentum window, 21-session skip, 200-session regime MA.
+# The registered construction constants (§2 / stage2 / stage4 frozen controls).
 MOMENTUM_LOOKBACK_SESSIONS = 252
 MOMENTUM_SKIP_SESSIONS = 21
 REGIME_MA_SESSIONS = 200
+SCORING_UNIVERSE_N = 200                  # stage2 UNIVERSE_N
+PROXY_UNIVERSE_N = 500                    # stage4 build_market_proxy basket
 
 # Datasets a forward session reads. An unclean ingest in any of them blocks the session.
-REQUIRED_DATASETS = ("sep",)
+REQUIRED_DATASETS = ("sep", "actions")
+
+_ROW_SEP = "\x1e"
+_FIELD_SEP = "\x1f"
 
 
 class DataReadiness(StrEnum):
@@ -74,27 +89,27 @@ class DataReadiness(StrEnum):
     NOT_READY_LOOKBACK_INCOMPLETE = "NOT_READY_LOOKBACK_INCOMPLETE"
     NOT_READY_PROXY_INCOMPLETE = "NOT_READY_PROXY_INCOMPLETE"
     NOT_READY_INGEST_IN_PROGRESS = "NOT_READY_INGEST_IN_PROGRESS"
+    NOT_READY_ADJUSTMENT_UNVERIFIED = "NOT_READY_ADJUSTMENT_UNVERIFIED"
     INTEGRITY_STOP_DATA_CONFLICT = "INTEGRITY_STOP_DATA_CONFLICT"
 
 
 class DataFinalityError(IntegrityStop):
-    """The store could not be interrogated at all (unreadable / wrong shape). Fails closed: a session
-    whose data cannot be examined is never evaluated."""
+    """The store could not be interrogated at all (unreadable / wrong shape), or it moved underneath a
+    run. Fails closed: a session whose data cannot be examined is never evaluated."""
 
 
 @dataclass(frozen=True)
-class FinalityThresholds:
-    """Operational data-quality minima — they gate whether a session runs, never what it decides."""
+class ConstructionSpec:
+    """The frozen construction the gate measures against. These are the registered values the decision
+    itself uses — not tunable admission thresholds."""
     momentum_lookback_sessions: int = MOMENTUM_LOOKBACK_SESSIONS
     momentum_skip_sessions: int = MOMENTUM_SKIP_SESSIONS
     regime_ma_sessions: int = REGIME_MA_SESSIONS
-    min_session_constituents: int = 200        # names priced on the session itself
-    min_full_lookback_constituents: int = 100  # names with a COMPLETE momentum lookback
-    min_proxy_constituents: int = 100          # names contributing a return to the market proxy
+    scoring_universe_n: int = SCORING_UNIVERSE_N
+    proxy_universe_n: int = PROXY_UNIVERSE_N
 
     @property
     def required_history_sessions(self) -> int:
-        """The longest history any registered input needs, ending at the session."""
         return max(self.momentum_lookback_sessions + self.momentum_skip_sessions,
                    self.regime_ma_sessions)
 
@@ -108,70 +123,99 @@ class DataFinalityEvidence:
     detail: str
     # store + ingest identity
     store_path: str
-    store_identity_sha256: str                 # content digest over the window + ingest history
-    ingest_identity_sha256: str                # digest over the ingest-run history alone
+    store_identity_sha256: str                 # STREAMING value-level digest of the consumed rows
+    ingest_identity_sha256: str
     ingest_runs_observed: int
     ingest_unclean_datasets: tuple[str, ...]
     # finality
-    max_finalized_session: str | None          # the store's finalized SEP cutoff
-    finality_basis: str                        # how finality was established for this session
-    # session coverage
+    max_finalized_session: str | None
+    finality_basis: str
+    # session coverage — numerator over the construction's own denominator
+    session_eligible_universe: int
+    session_complete: int
+    session_excluded_by_rule: int
+    session_missing: int
     session_row_count: int
-    session_constituents: int
     session_max_lastupdated: str | None
     # lookback coverage
     lookback_sessions_available: int
     lookback_sessions_required: int
     lookback_earliest: str | None
     lookback_latest: str | None
-    full_lookback_constituents: int
+    momentum_candidates: int
+    full_lookback_candidates: int
     # market-proxy coverage
-    proxy_constituents: int
-    thin_proxy_sessions: int                   # sessions in the MA window below the proxy minimum
+    proxy_expected_constituents: int
+    proxy_contributing_constituents: int
+    proxy_sessions_checked: int
+    proxy_sessions_incomplete: int
     # conflicts
     duplicate_row_count: int
-    # corporate actions — recorded, with the limit of what can be proven stated in the field itself
+    # corporate actions
     corporate_actions_in_window: int
     corporate_actions_max_date: str | None
     adjustment_reflection_proven: bool
-    # what was required
-    thresholds: dict[str, int] = field(default_factory=dict)
+    # what the construction required
+    construction: dict[str, int] = field(default_factory=dict)
+    missing_examples: tuple[str, ...] = ()     # a few names, for operational diagnosis
 
     @property
     def ready(self) -> bool:
         return self.verdict is DataReadiness.READY
 
     def to_open_provenance(self) -> dict[str, Any]:
-        """The dict recorded next to an observation (or a readiness report). Verdict is a string so the
-        payload is stable JSON."""
         d = asdict(self)
         d["verdict"] = str(self.verdict)
         d["ingest_unclean_datasets"] = list(self.ingest_unclean_datasets)
+        d["missing_examples"] = list(self.missing_examples)
         return d
 
 
+UniverseFn = Callable[[date, int], list[str]]
+AdjustmentVerifier = Callable[[date, int], bool]
+
+
 class _Store:
-    """Thin read-only SQL surface over the factor store. Accepts either a `FactorDataStore` (its
-    `.con`) or a duckdb connection, so the gate can be exercised against a synthetic fixture without
-    importing the ingest path."""
+    """Thin read-only SQL surface over the factor store. Accepts a `FactorDataStore` (its `.con`) or a
+    duckdb connection, so the gate can be exercised without importing the ingest path."""
 
     def __init__(self, store: Any) -> None:
         con = getattr(store, "con", store)
         if not hasattr(con, "execute"):
             raise DataFinalityError(f"not a queryable store: {type(store).__name__}")
         self.con = con
+        self.raw = store
         self.path = str(getattr(store, "db_path", "") or getattr(con, "database", "") or "unknown")
 
     def one(self, sql: str, params: list | None = None) -> tuple:
         try:
             row = self.con.execute(sql, params or []).fetchone()
-        except Exception as exc:                          # duckdb raises many concrete types
+        except Exception as exc:
             raise DataFinalityError(f"store query failed: {exc}") from exc
         return tuple(row) if row is not None else ()
 
     def all(self, sql: str, params: list | None = None) -> list[tuple]:
         try:
             return [tuple(r) for r in self.con.execute(sql, params or []).fetchall()]
+        except Exception as exc:
+            raise DataFinalityError(f"store query failed: {exc}") from exc
+
+    def stream_into(self, digest: Any, sql: str, params: list | None = None,
+                    *, batch: int = 10_000) -> None:
+        """Feed a query's deterministically ordered rows into `digest` without materializing them."""
+        digest.update(sql.encode("utf-8"))
+        try:
+            cur = self.con.execute(sql, params or [])
+            while True:
+                rows = cur.fetchmany(batch)
+                if not rows:
+                    break
+                for r in rows:
+                    digest.update(
+                        (_FIELD_SEP.join("" if v is None else str(v) for v in r) + _ROW_SEP)
+                        .encode("utf-8"))
+        except DataFinalityError:
+            raise
         except Exception as exc:
             raise DataFinalityError(f"store query failed: {exc}") from exc
 
@@ -188,19 +232,43 @@ def _digest(parts: list[Any]) -> str:
     return hashlib.sha256("|".join("" if p is None else str(p) for p in parts).encode()).hexdigest()
 
 
+def store_identity(st: _Store, earliest: Any, session_date: date) -> str:
+    """A STREAMING value-level digest over exactly the rows a session's construction consumes.
+
+    Aggregates (counts, dates, coverage) cannot serve here: changing one `closeadj` leaves every
+    aggregate intact while changing what the strategy decides. The digest therefore covers each `sep`
+    field in the window, the `tickers` rows that drive PIT eligibility, the window's corporate actions,
+    and the ingest history — each streamed in a deterministic order.
+    """
+    h = hashlib.sha256()
+    lo = earliest if earliest is not None else session_date
+    st.stream_into(h,
+                   "SELECT ticker, date, open, high, low, close, volume, closeadj, closeunadj, "
+                   "lastupdated FROM sep WHERE date BETWEEN ? AND ? ORDER BY ticker, date",
+                   [lo, session_date])
+    st.stream_into(h,
+                   "SELECT ticker, sector, isdelisted, firstpricedate, lastpricedate, lastupdated "
+                   "FROM tickers ORDER BY ticker")
+    st.stream_into(h,
+                   "SELECT date, action, ticker, value, contraticker FROM actions "
+                   "WHERE date BETWEEN ? AND ? ORDER BY date, ticker, action, value",
+                   [lo, session_date])
+    st.stream_into(h,
+                   "SELECT dataset, started_at, finished_at, rows, status FROM ingest_runs "
+                   "ORDER BY dataset, started_at, finished_at, status")
+    return h.hexdigest()
+
+
 def _ingest_identity(st: _Store) -> tuple[str, int, tuple[str, ...]]:
-    """A digest over the ingest-run history, the number of runs, and the datasets whose ingest is not
-    clean (still running, failed, or never run at all)."""
     rows = st.all("SELECT dataset, started_at, finished_at, rows, status FROM ingest_runs "
                   "ORDER BY dataset, started_at, finished_at")
     digest = _digest([f"{d}~{_iso(s)}~{_iso(f)}~{r}~{stat}" for d, s, f, r, stat in rows])
-
     unclean: list[str] = []
     for dataset in REQUIRED_DATASETS:
         runs = [r for r in rows if r[0] == dataset]
         if not runs:
-            continue                                       # no bookkeeping at all: not evidence of a
-            # partial ingest, and the finality basis below still has to be established independently.
+            continue                 # no bookkeeping is not evidence of a partial ingest; finality and
+            # the adjustment rule below still have to be established on their own evidence.
         if any(str(r[4]).lower() == "running" for r in runs):
             unclean.append(f"{dataset}:running")
             continue
@@ -211,117 +279,133 @@ def _ingest_identity(st: _Store) -> tuple[str, int, tuple[str, ...]]:
 
 
 def _session_close_utc(session_date: date) -> datetime | None:
-    """The session's authoritative close in UTC (XNYS), used to decide whether an ingest that finished
-    could have contained the complete session. None if the calendar cannot answer."""
     try:
         import pandas_market_calendars as mcal
         schedule = mcal.get_calendar("XNYS").schedule(start_date=session_date, end_date=session_date)
         if schedule.empty:
             return None
         return schedule.iloc[0]["market_close"].tz_convert("UTC").to_pydatetime()
-    except Exception:                                      # pragma: no cover - calendar absence is
-        return None                                        # handled by eval_calendar's own gate
+    except Exception:                                      # pragma: no cover
+        return None
+
+
+def _default_universe_fn(store: Any) -> UniverseFn:
+    """Bind to the REAL registered universe construction — the same call the decision makes."""
+    from app.factor_data.universe import universe_asof
+
+    def fn(as_of: date, n: int) -> list[str]:
+        return list(universe_asof(store, as_of, n=n))
+
+    return fn
+
+
+@dataclass(frozen=True)
+class _TickerFacts:
+    first_price: date | None
+    last_price: date | None
+    delisted: bool
+
+
+def _ticker_facts(st: _Store, tickers: list[str]) -> dict[str, _TickerFacts]:
+    if not tickers:
+        return {}
+    ph = ",".join("?" * len(tickers))
+    rows = st.all(f"SELECT ticker, firstpricedate, lastpricedate, isdelisted FROM tickers "
+                  f"WHERE ticker IN ({ph})", list(tickers))
+    return {r[0]: _TickerFacts(first_price=r[1], last_price=r[2], delisted=bool(r[3])) for r in rows}
+
+
+def _excluded_by_rule(facts: _TickerFacts | None, window_start: date, session_date: date) -> bool:
+    """True when a frozen eligibility RULE — not a data hole — explains an absent mark: the name was
+    listed after the window began (it cannot carry the history the computation consumes), or it was
+    delisted before the session."""
+    if facts is None:
+        return False                                  # unknown name: not excused by any rule
+    if facts.first_price is not None and facts.first_price > window_start:
+        return True
+    return bool(facts.delisted and facts.last_price is not None and facts.last_price < session_date)
 
 
 def assess_data_finality(
     store: Any,
     session_date: date,
     *,
-    thresholds: FinalityThresholds | None = None,
+    construction: ConstructionSpec | None = None,
+    universe_fn: UniverseFn | None = None,
+    adjustment_verifier: AdjustmentVerifier | None = None,
 ) -> DataFinalityEvidence:
     """Assess whether `session_date` may be evaluated, and return the evidence either way.
 
-    Checks run in a deliberate order — the most fundamental contradiction first, so the verdict names
-    the root condition rather than a downstream symptom:
-
-      1. an ingest that is running or did not finish clean (the data may be mid-flight);
-      2. the store's finalized cutoff versus the session (staleness);
-      3. the session's own rows (present, priced, enough constituents);
-      4. duplicate (ticker, date) rows anywhere in the window (self-contradicting data);
-      5. the 252 / 21 / 200-session history behind the session (lookback completeness);
-      6. market-proxy constituent coverage on the session and across the MA window.
+    Checks run root-condition first: unclean ingest → staleness and the finality basis → the session's
+    own coverage against the registered universe → self-contradiction → the exact lookback the scoring
+    candidates consume → the market proxy's own constituent set across the session and the MA window →
+    corporate-action reflection.
     """
-    th = thresholds or FinalityThresholds()
+    spec = construction or ConstructionSpec()
     st = _Store(store)
+    uni = universe_fn or _default_universe_fn(store)
     iso = session_date.isoformat()
 
     ingest_digest, ingest_count, unclean = _ingest_identity(st)
 
-    window = st.all(
-        "SELECT DISTINCT date FROM sep WHERE date <= ? ORDER BY date DESC LIMIT ?",
-        [session_date, th.required_history_sessions])
+    window = st.all("SELECT DISTINCT date FROM sep WHERE date <= ? ORDER BY date DESC LIMIT ?",
+                    [session_date, spec.required_history_sessions])
     window_dates = [r[0] for r in window]
     earliest = window_dates[-1] if window_dates else None
     latest = window_dates[0] if window_dates else None
 
-    max_session = st.one("SELECT MAX(date) FROM sep")
-    max_finalized = max_session[0] if max_session else None
+    max_row = st.one("SELECT MAX(date) FROM sep")
+    max_finalized = max_row[0] if max_row else None
 
-    sess = st.one("SELECT COUNT(*), COUNT(DISTINCT ticker), MAX(lastupdated) FROM sep "
-                  "WHERE date = ? AND closeadj IS NOT NULL", [session_date])
-    session_rows, session_names, session_lastupdated = (sess or (0, 0, None))
+    sess = st.one("SELECT COUNT(*), MAX(lastupdated) FROM sep WHERE date = ? AND closeadj IS NOT NULL",
+                  [session_date])
+    session_rows, session_lastupdated = (sess or (0, None))
 
-    dup = st.one("SELECT COUNT(*) FROM (SELECT ticker, date FROM sep WHERE date <= ? AND date >= ? "
-                 "GROUP BY ticker, date HAVING COUNT(*) > 1)",
-                 [session_date, earliest or session_date])
-    duplicates = int(dup[0]) if dup else 0
+    dup_row = st.one(
+        "SELECT COUNT(*) FROM (SELECT ticker, date FROM sep WHERE date BETWEEN ? AND ? "
+        "GROUP BY ticker, date HAVING COUNT(*) > 1)", [earliest or session_date, session_date])
+    duplicates = int(dup_row[0]) if dup_row else 0
 
-    full_lookback = 0
-    thin_proxy = 0
-    proxy_names = 0
-    if earliest is not None:
-        need = min(th.momentum_lookback_sessions + th.momentum_skip_sessions, len(window_dates))
-        row = st.one(
-            "SELECT COUNT(*) FROM (SELECT ticker FROM sep WHERE date BETWEEN ? AND ? "
-            "AND closeadj IS NOT NULL GROUP BY ticker HAVING COUNT(DISTINCT date) >= ?)",
-            [earliest, session_date, need])
-        full_lookback = int(row[0]) if row else 0
-
-        ma_dates = window_dates[:th.regime_ma_sessions]
-        ma_earliest = ma_dates[-1] if ma_dates else session_date
-        row = st.one(
-            "SELECT COUNT(*) FROM (SELECT date FROM sep WHERE date BETWEEN ? AND ? "
-            "AND closeadj IS NOT NULL GROUP BY date HAVING COUNT(DISTINCT ticker) < ?)",
-            [ma_earliest, session_date, th.min_proxy_constituents])
-        thin_proxy = int(row[0]) if row else 0
-
-        # proxy constituents = names priced on BOTH this session and the previous one (a proxy
-        # constituent must contribute a RETURN, which needs two consecutive marks)
-        if len(window_dates) >= 2:
-            prev = window_dates[1]
-            row = st.one(
-                "SELECT COUNT(*) FROM (SELECT ticker FROM sep WHERE date IN (?, ?) "
-                "AND closeadj IS NOT NULL GROUP BY ticker HAVING COUNT(DISTINCT date) = 2)",
-                [prev, session_date])
-            proxy_names = int(row[0]) if row else 0
-
-    actions = st.one("SELECT COUNT(*), MAX(date) FROM actions WHERE date BETWEEN ? AND ?",
+    act_row = st.one("SELECT COUNT(*), MAX(date) FROM actions WHERE date BETWEEN ? AND ?",
                      [earliest or session_date, session_date])
-    actions_count, actions_max = (actions or (0, None))
+    actions_count, actions_max = (act_row or (0, None))
 
-    store_identity = _digest([
-        ingest_digest, _iso(max_finalized), _iso(earliest), _iso(latest), len(window_dates),
-        session_rows, session_names, duplicates, full_lookback, proxy_names,
-        _window_content_hash(st, earliest, session_date),
-    ])
+    identity = store_identity(st, earliest, session_date)
 
-    def evidence(verdict: DataReadiness, detail: str, basis: str = "") -> DataFinalityEvidence:
+    state: dict[str, Any] = {
+        "session_eligible_universe": 0, "session_complete": 0, "session_excluded_by_rule": 0,
+        "session_missing": 0, "momentum_candidates": 0, "full_lookback_candidates": 0,
+        "proxy_expected": 0, "proxy_contributing": 0, "proxy_sessions_checked": 0,
+        "proxy_sessions_incomplete": 0, "missing_examples": (),
+    }
+
+    def evidence(verdict: DataReadiness, detail: str, basis: str = "",
+                 proven: bool = False) -> DataFinalityEvidence:
         return DataFinalityEvidence(
             session_date=iso, verdict=verdict, detail=detail, store_path=st.path,
-            store_identity_sha256=store_identity, ingest_identity_sha256=ingest_digest,
+            store_identity_sha256=identity, ingest_identity_sha256=ingest_digest,
             ingest_runs_observed=ingest_count, ingest_unclean_datasets=unclean,
             max_finalized_session=_iso(max_finalized), finality_basis=basis,
-            session_row_count=int(session_rows or 0), session_constituents=int(session_names or 0),
+            session_eligible_universe=state["session_eligible_universe"],
+            session_complete=state["session_complete"],
+            session_excluded_by_rule=state["session_excluded_by_rule"],
+            session_missing=state["session_missing"],
+            session_row_count=int(session_rows or 0),
             session_max_lastupdated=_iso(session_lastupdated),
             lookback_sessions_available=len(window_dates),
-            lookback_sessions_required=th.required_history_sessions,
+            lookback_sessions_required=spec.required_history_sessions,
             lookback_earliest=_iso(earliest), lookback_latest=_iso(latest),
-            full_lookback_constituents=full_lookback, proxy_constituents=proxy_names,
-            thin_proxy_sessions=thin_proxy, duplicate_row_count=duplicates,
+            momentum_candidates=state["momentum_candidates"],
+            full_lookback_candidates=state["full_lookback_candidates"],
+            proxy_expected_constituents=state["proxy_expected"],
+            proxy_contributing_constituents=state["proxy_contributing"],
+            proxy_sessions_checked=state["proxy_sessions_checked"],
+            proxy_sessions_incomplete=state["proxy_sessions_incomplete"],
+            duplicate_row_count=duplicates,
             corporate_actions_in_window=int(actions_count or 0),
             corporate_actions_max_date=_iso(actions_max),
-            adjustment_reflection_proven=False,
-            thresholds=asdict(th))
+            adjustment_reflection_proven=proven,
+            construction=asdict(spec), missing_examples=state["missing_examples"])
 
     # (1) mid-flight or unclean ingest
     if unclean:
@@ -338,97 +422,189 @@ def assess_data_finality(
         basis = f"a later session ({_iso(max_finalized)}) is present, so {iso} is settled"
     else:
         close = _session_close_utc(session_date)
-        finished = st.one("SELECT MAX(finished_at) FROM ingest_runs "
-                          "WHERE dataset = 'sep' AND LOWER(status) = 'ok'")
-        finished_at = finished[0] if finished else None
+        fin_row = st.one("SELECT MAX(finished_at) FROM ingest_runs WHERE dataset = 'sep' "
+                         "AND LOWER(status) = 'ok'")
+        finished_at = fin_row[0] if fin_row else None
         if close is None or finished_at is None:
-            return evidence(
-                DataReadiness.NOT_READY_DATA_STALE,
-                f"{iso} is the store's last session and no clean sep ingest completing after its "
-                f"close can be evidenced — the session cannot be shown to be final")
-        naive_close = close.replace(tzinfo=None)
+            return evidence(DataReadiness.NOT_READY_DATA_STALE,
+                            f"{iso} is the store's last session and no clean sep ingest completing "
+                            f"after its close can be evidenced — it cannot be shown to be final")
         stamp = finished_at.replace(tzinfo=None) if isinstance(finished_at, datetime) else None
-        if stamp is None or stamp < naive_close:
-            return evidence(
-                DataReadiness.NOT_READY_DATA_STALE,
-                f"the last clean sep ingest finished {_iso(finished_at)}, before the {iso} close "
-                f"{_iso(close)} — the session's data is not established as final")
+        if stamp is None or stamp < close.replace(tzinfo=None):
+            return evidence(DataReadiness.NOT_READY_DATA_STALE,
+                            f"the last clean sep ingest finished {_iso(finished_at)}, before the {iso} "
+                            f"close {_iso(close)} — the session's data is not established as final")
         basis = (f"{iso} is the store's last session; a clean sep ingest finished {_iso(finished_at)}, "
                  f"after the {_iso(close)} close")
 
-    # (3) the session itself
-    if session_rows == 0:
+    # (3) the session's coverage, measured against the REGISTERED universe construction
+    try:
+        universe = uni(session_date, spec.scoring_universe_n)
+    except Exception as exc:
         return evidence(DataReadiness.NOT_READY_CURRENT_SESSION_MISSING,
-                        f"no usable (closeadj) rows for session {iso}", basis)
-    if session_names < th.min_session_constituents:
+                        f"the registered universe could not be constructed for {iso}: {exc}", basis)
+    state["session_eligible_universe"] = len(universe)
+    if not universe:
+        return evidence(DataReadiness.NOT_READY_CURRENT_SESSION_MISSING,
+                        f"the registered universe for {iso} is empty", basis)
+
+    window_start = earliest or session_date
+    facts = _ticker_facts(st, universe)
+    priced_today = {r[0] for r in st.all(
+        "SELECT DISTINCT ticker FROM sep WHERE date = ? AND closeadj IS NOT NULL", [session_date])}
+
+    complete, excluded, missing = [], [], []
+    for t in universe:
+        if t in priced_today:
+            complete.append(t)
+        elif _excluded_by_rule(facts.get(t), window_start, session_date):
+            excluded.append(t)
+        else:
+            missing.append(t)
+    state.update(session_complete=len(complete), session_excluded_by_rule=len(excluded),
+                 session_missing=len(missing), missing_examples=tuple(sorted(missing)[:10]))
+    if missing:
         return evidence(
             DataReadiness.NOT_READY_CURRENT_SESSION_MISSING,
-            f"session {iso} prices {session_names} name(s), below the required "
-            f"{th.min_session_constituents} — coverage is partial", basis)
+            f"{len(missing)} of {len(universe)} registered universe name(s) have no usable mark on "
+            f"{iso} and no frozen rule explains the absence (e.g. {sorted(missing)[:5]})", basis)
 
     # (4) self-contradiction
     if duplicates:
         return evidence(DataReadiness.INTEGRITY_STOP_DATA_CONFLICT,
-                        f"{duplicates} duplicate (ticker, date) row(s) in the lookback window", basis)
+                        f"{duplicates} duplicate (ticker, date) row(s) in the consumed window", basis)
 
-    # (5) history behind the session
-    if len(window_dates) < th.required_history_sessions:
+    # (5) the exact history the scoring candidates consume
+    if len(window_dates) < spec.required_history_sessions:
         return evidence(
             DataReadiness.NOT_READY_LOOKBACK_INCOMPLETE,
-            f"{len(window_dates)} session(s) of history available, {th.required_history_sessions} "
-            f"required (252+21 momentum / 200 regime MA)", basis)
-    if full_lookback < th.min_full_lookback_constituents:
+            f"{len(window_dates)} session(s) of history available, {spec.required_history_sessions} "
+            f"required ({spec.momentum_lookback_sessions}+{spec.momentum_skip_sessions} momentum / "
+            f"{spec.regime_ma_sessions} regime MA)", basis)
+
+    candidates = [t for t in universe if not _excluded_by_rule(facts.get(t), window_start, session_date)]
+    state["momentum_candidates"] = len(candidates)
+    full = _names_with_full_history(st, candidates, window_start, session_date,
+                                    len(window_dates))
+    state["full_lookback_candidates"] = len(full)
+    short = sorted(set(candidates) - full)
+    if short:
+        state["missing_examples"] = tuple(short[:10])
         return evidence(
             DataReadiness.NOT_READY_LOOKBACK_INCOMPLETE,
-            f"{full_lookback} name(s) carry a complete momentum lookback, below the required "
-            f"{th.min_full_lookback_constituents}", basis)
+            f"{len(short)} of {len(candidates)} scoring candidate(s) lack the exact "
+            f"{spec.required_history_sessions}-session history the computation consumes "
+            f"(e.g. {short[:5]})", basis)
 
-    # (6) the market proxy
-    if proxy_names < th.min_proxy_constituents:
+    # (6) the market proxy's OWN constituent set
+    proxy_verdict = _assess_proxy(st, uni, spec, window_dates, session_date, state)
+    if proxy_verdict is not None:
+        return evidence(DataReadiness.NOT_READY_PROXY_INCOMPLETE, proxy_verdict, basis)
+
+    # (7) corporate-action reflection — unproven adjustments refuse the session
+    proven = bool(adjustment_verifier(session_date, int(actions_count or 0))) \
+        if adjustment_verifier is not None else False
+    if actions_count and not proven:
         return evidence(
-            DataReadiness.NOT_READY_PROXY_INCOMPLETE,
-            f"{proxy_names} market-proxy constituent(s) priced on {iso} and the prior session, below "
-            f"the required {th.min_proxy_constituents}", basis)
-    if thin_proxy:
-        return evidence(
-            DataReadiness.NOT_READY_PROXY_INCOMPLETE,
-            f"{thin_proxy} session(s) in the 200-session MA window are below the proxy minimum — the "
-            f"regime MA would be computed over incomplete constituents", basis)
+            DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED,
+            f"{actions_count} corporate action(s) touch the consumed window (latest "
+            f"{_iso(actions_max)}) and their reflection in closeadj is not proven — no adjustment "
+            f"verifier exists", basis, proven)
 
-    return evidence(DataReadiness.READY, "all registered inputs are present, complete and final", basis)
+    return evidence(DataReadiness.READY,
+                    "all registered inputs are present, complete and final", basis, proven)
 
 
-def _window_content_hash(st: _Store, earliest: Any, session_date: date) -> str:
-    """A deterministic content hash over the exact rows the session's construction will read. Bounded
-    work (the lookback window, not the whole table) and stable across processes."""
-    if earliest is None:
-        return "empty"
-    row = st.one(
-        "SELECT COUNT(*), SUM(hash(ticker || '|' || CAST(date AS VARCHAR) || '|' || "
-        "COALESCE(CAST(closeadj AS VARCHAR), ''))::HUGEINT) FROM sep WHERE date BETWEEN ? AND ?",
-        [earliest, session_date])
-    return f"{row[0]}:{row[1]}" if row else "unavailable"
+def _names_with_full_history(st: _Store, names: list[str], window_start: Any, session_date: date,
+                             required_sessions: int) -> set[str]:
+    """The subset of `names` carrying a usable mark on EVERY session of the consumed window."""
+    if not names:
+        return set()
+    ph = ",".join("?" * len(names))
+    rows = st.all(
+        f"SELECT ticker FROM sep WHERE ticker IN ({ph}) AND date BETWEEN ? AND ? "
+        f"AND closeadj IS NOT NULL GROUP BY ticker HAVING COUNT(DISTINCT date) >= ?",
+        [*names, window_start, session_date, required_sessions])
+    return {r[0] for r in rows}
+
+
+def _assess_proxy(st: _Store, uni: UniverseFn, spec: ConstructionSpec, window_dates: list[date],
+                  session_date: date, state: dict[str, Any]) -> str | None:
+    """Measure the market proxy against ITS OWN construction: the month-end union of
+    `universe_asof(n=500)` over the MA window, each constituent needing consecutive marks to contribute
+    a return. Returns a failure detail, or None when the proxy is complete.
+
+    `build_market_proxy` averages returns with `skipna=True`, so a missing constituent is silently
+    dropped by the construction — which is exactly why completeness has to be proven here.
+    """
+    ma_dates = sorted(window_dates[:spec.regime_ma_sessions])
+    if len(ma_dates) < 2:
+        return f"only {len(ma_dates)} proxy session(s) available; the 200-session MA cannot be formed"
+
+    month_ends = [d for i, d in enumerate(ma_dates)
+                  if i + 1 == len(ma_dates) or (ma_dates[i + 1].year, ma_dates[i + 1].month)
+                  != (d.year, d.month)]
+    basket: set[str] = set()
+    for d in month_ends:
+        try:
+            basket |= set(uni(d, spec.proxy_universe_n))
+        except Exception:                     # the construction itself suppresses these (stage4 §)
+            continue
+    if not basket:
+        return "the market-proxy basket is empty — no month-end universe could be constructed"
+
+    names = sorted(basket)
+    facts = _ticker_facts(st, names)
+    window_start = ma_dates[0]
+    expected = [t for t in names
+                if not _excluded_by_rule(facts.get(t), window_start, session_date)]
+    state["proxy_expected"] = len(expected)
+    state["proxy_sessions_checked"] = len(ma_dates)
+
+    ph = ",".join("?" * len(expected)) if expected else "''"
+    rows = st.all(
+        f"SELECT date, COUNT(DISTINCT ticker) FROM sep WHERE ticker IN ({ph}) "
+        f"AND date BETWEEN ? AND ? AND closeadj IS NOT NULL GROUP BY date",
+        [*expected, window_start, session_date])
+    per_session = {r[0]: int(r[1]) for r in rows}
+    state["proxy_contributing"] = per_session.get(session_date, 0)
+
+    incomplete = [d for d in ma_dates if per_session.get(d, 0) != len(expected)]
+    state["proxy_sessions_incomplete"] = len(incomplete)
+    if state["proxy_contributing"] != len(expected):
+        return (f"{state['proxy_contributing']} of {len(expected)} proxy constituent(s) are priced on "
+                f"{session_date.isoformat()} — the equal-weight return would silently drop the rest")
+    if incomplete:
+        return (f"{len(incomplete)} of {len(ma_dates)} proxy session(s) in the MA window are missing a "
+                f"constituent mark (e.g. {[d.isoformat() for d in incomplete[:3]]}) — the 200-session "
+                f"MA would be computed over an incomplete basket")
+    return None
 
 
 def verify_store_unchanged(store: Any, session_date: date, expected: DataFinalityEvidence, *,
-                           thresholds: FinalityThresholds | None = None) -> None:
-    """Re-assess after the session's reads and require the store identity to be unchanged.
+                           construction: ConstructionSpec | None = None) -> None:
+    """Re-stream the value-level identity after the session's reads and require it to be unchanged.
 
     This is how "all data reads resolve from the same immutable ingest version" is established in a
-    schema that carries no ingest-version column: not by trusting a field, but by proving the content
-    the reads resolved against did not move underneath them.
+    schema with no ingest-version column: not by trusting a field, but by proving the VALUES the reads
+    resolved against did not move underneath them.
     """
-    now = assess_data_finality(store, session_date, thresholds=thresholds)
-    if now.store_identity_sha256 != expected.store_identity_sha256:
+    spec = construction or ConstructionSpec()
+    st = _Store(store)
+    window = st.all("SELECT DISTINCT date FROM sep WHERE date <= ? ORDER BY date DESC LIMIT ?",
+                    [session_date, spec.required_history_sessions])
+    earliest = window[-1][0] if window else None
+    now = store_identity(st, earliest, session_date)
+    if now != expected.store_identity_sha256:
         raise DataFinalityError(
             f"the factor store changed during session {session_date.isoformat()}: identity "
-            f"{expected.store_identity_sha256[:16]}… → {now.store_identity_sha256[:16]}… — the "
-            f"session's reads did not resolve against one immutable state")
+            f"{expected.store_identity_sha256[:16]}… → {now[:16]}… — the session's reads did not "
+            f"resolve against one immutable state")
 
 
 def whole_file_digest(path: Path, *, chunk: int = 1 << 20) -> str:
-    """SHA-256 of the store file itself — the census-style pin. Optional (it is minutes of I/O on a
-    multi-gigabyte store); the content identity above is what every session records."""
+    """SHA-256 of the store file itself — the census-style pin. Optional additional evidence; the
+    streaming value-level identity above is what every session records."""
     h = hashlib.sha256()
     with open(path, "rb") as fh:
         while block := fh.read(chunk):
