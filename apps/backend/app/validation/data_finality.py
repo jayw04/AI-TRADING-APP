@@ -187,10 +187,13 @@ class AdjustmentEvidence(Protocol):
     def to_open_provenance(self) -> dict[str, Any]: ...
 
 
-# (window_start, session_date, relevant_tickers) -> evidence. The relevance set is the union of the
-# scoring candidates and the whole market-proxy basket, so a security that left the universe mid-window
-# but priced into the consumed history is still covered.
-AdjustmentVerifier = Callable[[date, date, list[str]], AdjustmentEvidence]
+# (window_start, session_date, relevant_tickers, store_identity_sha256) -> evidence.
+#
+# The relevance set is the union of the scoring candidates and the whole market-proxy basket, so a
+# security that left the universe mid-window but priced into the consumed history is still covered.
+# The STORE IDENTITY is passed IN rather than recomputed: the adjustment verdict must be bound to the
+# same identified store this assessment describes, and a separately recomputed value could differ.
+AdjustmentVerifier = Callable[[date, date, list[str], str], AdjustmentEvidence]
 
 
 class _Store:
@@ -532,16 +535,24 @@ def assess_data_finality(
             f"no adjustment verifier is configured, so corporate-action reflection over the consumed "
             f"window cannot be proven ({actions_count} declared action row(s), latest "
             f"{_iso(actions_max)}); an absent action table is not evidence that none occurred", basis)
-    result = adjustment_verifier(window_start, session_date, list(state["relevance_tickers"]))
+    result = adjustment_verifier(window_start, session_date, list(state["relevance_tickers"]), identity)
+    adjustment = result.to_open_provenance()
+    bound = str(adjustment.get("store_identity_sha256", ""))
+    if bound != identity:
+        return evidence(
+            DataReadiness.INTEGRITY_STOP_DATA_CONFLICT,
+            f"the adjustment verification is bound to store identity {bound[:16] or '<empty>'}… but "
+            f"this assessment describes {identity[:16]}… — the two do not describe the same data",
+            basis, False, adjustment)
     if not result.proven:
         return evidence(
             DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED,
             "corporate-action reflection over the consumed window is not proven: "
-            f"{result.to_open_provenance().get('detail', '')}",
-            basis, False, result.to_open_provenance())
+            f"{adjustment.get('detail', '')}",
+            basis, False, adjustment)
 
     return evidence(DataReadiness.READY, "all registered inputs are present, complete and final",
-                    basis, True, result.to_open_provenance())
+                    basis, True, adjustment)
 
 
 def _names_with_full_history(st: _Store, names: list[str], window_start: Any, session_date: date,
