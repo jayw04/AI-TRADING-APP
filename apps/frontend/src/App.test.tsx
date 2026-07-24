@@ -16,6 +16,7 @@ const PAPER_ACCOUNT = {
   portfolio_value: "10000",
   day_change: "0",
   day_change_pct: "0",
+  day_change_basis: "BROKER_LAST_EQUITY",
   daytrade_count: 0,
   pattern_day_trader: false,
   trading_blocked: false,

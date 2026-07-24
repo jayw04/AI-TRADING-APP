@@ -14,6 +14,7 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
 from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.session import get_session
+from app.services.day_change_basis import UNAVAILABLE
 
 router = APIRouter(prefix="/account", tags=["account"])
 
@@ -69,6 +70,12 @@ async def get_account(
         else Decimal(0)
     )
 
+    # The day figures are decided once, at sync time, and stored with their provenance — this
+    # endpoint never re-derives them, so the dashboard and the persisted risk-path input can never
+    # disagree. When no baseline was found the numbers are placeholders, and reporting them as
+    # `null` is what stops the UI showing a $0.00 "flat day" that nobody measured.
+    measured = state.day_change_basis != UNAVAILABLE
+
     return AccountResponse(
         account_id=account.id,
         mode=account.mode.value,
@@ -78,8 +85,9 @@ async def get_account(
         last_equity=state.last_equity,
         buying_power=state.buying_power,
         portfolio_value=state.portfolio_value,
-        day_change=state.day_change,
-        day_change_pct=state.day_change_pct,
+        day_change=state.day_change if measured else None,
+        day_change_pct=state.day_change_pct if measured else None,
+        day_change_basis=state.day_change_basis,
         starting_equity=starting_equity,
         total_return=total_return,
         total_return_pct=total_return_pct,
