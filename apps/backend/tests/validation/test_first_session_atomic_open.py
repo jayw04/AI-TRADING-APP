@@ -24,10 +24,10 @@ from app.validation.first_session import (
     Account4StateProbe,
     Durability,
     WindowOpenError,
-    _publish_no_overwrite,
     assert_open_record_has_no_sealed_content,
     committed_session_count,
     open_first_window_session,
+    publish_no_overwrite,
     validate_committed_observation,
 )
 from app.validation.forward_window import ForwardRunContext, IntegrityStop
@@ -271,7 +271,7 @@ def test_publish_refuses_to_overwrite_an_existing_target(tmp_path):
     final.mkdir()
     (final / "y").write_text("existing", encoding="utf-8")
     with pytest.raises(WindowOpenError, match="no-overwrite"):
-        _publish_no_overwrite(staging, final)
+        publish_no_overwrite(staging, final)
     assert (final / "y").read_text(encoding="utf-8") == "existing"   # target untouched
     assert staging.exists()                                          # source not consumed
 
