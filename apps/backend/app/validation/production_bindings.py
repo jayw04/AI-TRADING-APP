@@ -25,6 +25,8 @@ returns a NON-authoritative declaration unless every link holds:
     finished, and completed `ok`;
   * the recorded row count equals the run's row count and the window is not inverted;
   * the artifact digest is exactly 64 lowercase hex characters and the artifact path is recorded;
+  * **the recorded artifact still exists and still hashes to that digest** — authority rests on an
+    immutable artifact, so a file that was replaced, corrupted or deleted after the ingest revokes it;
   * no running or failed ingest for that dataset has started since — such a run may have mutated the
     dataset, so the earlier coverage no longer stands.
 
@@ -43,6 +45,7 @@ being valued on yesterday's prices.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from datetime import date
 from pathlib import Path
@@ -69,10 +72,11 @@ class BindingError(IntegrityStop):
 def declare_action_source(store: Any, *, dataset: str = ACTIONS_DATASET) -> ActionSourceDeclaration:
     """Derive the corporate-action source declaration from the store's own ingest provenance.
 
-    Authoritative ONLY when a completed ingest recorded its coverage window and artifact identity. No
-    record → `authoritative=False` with no coverage, which is the truthful state of a store whose
-    ACTIONS dataset was never ingested (the governed store today). The identity carries the artifact
-    digest so a later verification cannot be re-read against a different load of the same dataset.
+    Authoritative ONLY when a completed ingest recorded its coverage window and artifact identity AND
+    that artifact still hashes to the recorded digest. No record → `authoritative=False` with no
+    coverage, which is the truthful state of a store whose ACTIONS dataset was never ingested (the
+    governed store today). The returned identity carries the artifact digest and the ingest run id, so
+    a later verification cannot be re-read against a different load of the same dataset.
     """
     con = getattr(store, "con", store)
     if not hasattr(con, "execute"):
@@ -102,6 +106,14 @@ def declare_action_source(store: Any, *, dataset: str = ACTIONS_DATASET) -> Acti
             identity=f"{dataset}:coverage-incomplete", authoritative=False,
             coverage_start=coverage_start, coverage_end=coverage_end)
 
+    # Authority rests on an IMMUTABLE artifact, so the artifact is re-verified — not merely referenced.
+    # A recorded digest with valid syntax proves nothing about the bytes on disk today.
+    ok, reason = _artifact_matches(artifact_path, str(artifact))
+    if not ok:
+        return ActionSourceDeclaration(
+            identity=f"{dataset}:{reason}", authoritative=False,
+            coverage_start=coverage_start, coverage_end=coverage_end)
+
     # A running or failed ingest since the coverage was recorded may have mutated the dataset.
     try:
         unclean = con.execute(
@@ -122,6 +134,28 @@ def declare_action_source(store: Any, *, dataset: str = ACTIONS_DATASET) -> Acti
 def _is_sha256(value: object) -> bool:
     text = str(value or "")
     return len(text) == 64 and all(c in "0123456789abcdef" for c in text)
+
+
+def _artifact_matches(artifact_path: object, expected_sha256: str) -> tuple[bool, str]:
+    """Re-verify the recorded artifact against its recorded digest.
+
+    Deliberately NOT cached: the whole point is that the bytes are re-read. (A cache would have to key
+    on path + size + mtime + expected digest, and for an ACTIONS artifact the hash is cheap enough that
+    the safer thing is simply to do it.) Returns (ok, reason) where the reason names what failed.
+    """
+    path = Path(str(artifact_path or ""))
+    try:
+        if not path.is_file():
+            return False, "artifact-missing"
+        digest = hashlib.sha256()
+        with open(path, "rb") as fh:
+            while block := fh.read(1 << 20):
+                digest.update(block)
+    except OSError:
+        return False, "artifact-unreadable"
+    if digest.hexdigest() != expected_sha256:
+        return False, "artifact-digest-mismatch"
+    return True, ""
 
 
 def pit_price_fn(store: Any) -> Callable[[str, date], float | None]:

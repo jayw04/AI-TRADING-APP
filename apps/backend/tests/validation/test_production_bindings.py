@@ -125,6 +125,47 @@ def test_an_empty_source_identity_cannot_be_finalized(store, artifact):
     assert declare_action_source(store).authoritative is False
 
 
+# ---- the artifact itself is re-verified, not merely referenced -------------------------------------
+
+def test_a_deleted_artifact_revokes_authority(store, artifact):
+    _finalize(store, artifact)
+    assert declare_action_source(store).authoritative is True
+    artifact.unlink()
+    src = declare_action_source(store)
+    assert src.authoritative is False and "artifact-missing" in src.identity
+
+
+def test_changed_artifact_bytes_revoke_authority(store, artifact):
+    """Authority rests on an immutable artifact: same path, different bytes is a different artifact."""
+    _finalize(store, artifact)
+    artifact.write_bytes(b"date,action,ticker,value\n2026-07-24,dividend,AAA,2.0\n")
+    src = declare_action_source(store)
+    assert src.authoritative is False and "artifact-digest-mismatch" in src.identity
+
+
+def test_an_artifact_path_pointing_at_a_different_file_revokes_authority(store, artifact, tmp_path):
+    _finalize(store, artifact)
+    other = tmp_path / "OTHER.csv"
+    other.write_bytes(b"a completely different artifact\n")
+    store.con.execute("UPDATE dataset_coverage SET artifact_path = ?", [str(other)])
+    src = declare_action_source(store)
+    assert src.authoritative is False and "artifact-digest-mismatch" in src.identity
+
+
+def test_a_truncated_artifact_revokes_authority(store, artifact):
+    _finalize(store, artifact)
+    artifact.write_bytes(b"")
+    assert declare_action_source(store).authoritative is False
+
+
+def test_an_unchanged_artifact_remains_authoritative(store, artifact):
+    _finalize(store, artifact)
+    assert declare_action_source(store).authoritative is True
+    assert declare_action_source(store).authoritative is True     # re-read, not cached by path
+    artifact.touch()                                              # metadata changes, bytes do not
+    assert declare_action_source(store).authoritative is True
+
+
 # ---- hand-written coverage rows confer nothing ------------------------------------------------------
 
 def _insert_raw_coverage(store, **over) -> None:
