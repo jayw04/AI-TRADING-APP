@@ -3,21 +3,27 @@
 Option B (owner-ruled): the REAL frozen `MomentumDaily` decides each session (via the §7A-proven
 `drift_audit_driver.capture_seam` path against a `DriftCtxAdapter` — production equal weight, 20% cap,
 real select / pending-buy / durable state), and the non-ordering shadow ledger BOOKS that decision at
-the registered `TURNOVER_COST_BPS = 10.0` (R2a's `book_decision`). The instrument's durable state and the
-shadow-ledger accounting state are SEPARATE books (the instrument decides on its own book; the ledger is
-the governed performance overlay).
+the registered `TURNOVER_COST_BPS = 10.0` (R2a's `book_decision`).
 
-This module is the seam between them, and it FAILS CLOSED (owner boundary checks, 2026-07-23) unless, for
-each eligible session:
+TWO SEPARATE BOOKS, USED FOR SEPARATE PURPOSES (owner ruling 2026-07-23):
+  • the INSTRUMENT decision-state book — membership, target/current weights, previous rank, regime state,
+    pending-buy + durable state — is the ONLY authority for whether MomentumDaily's drift/membership/
+    regime/backstop gate should have fired. It is what `capture_seam` consumes.
+  • the SHADOW LEDGER is the governed $100K performance accounting at registered 10-bps turnover cost
+    (sealed returns / turnover / cost drag). It intentionally DIVERGES from the instrument book by
+    cumulative cost drag, so it must NEVER be used to validate a gate decision.
+
+This module is the seam, and it FAILS CLOSED (owner boundary checks) unless, for each eligible session:
   1. the decision's date exactly equals the session being processed;
   2. the decision came from the real frozen production instrument (identity == PRODUCTION_STRATEGY_COMMIT);
   3. weights and regime_gross are finite and structurally valid;
-  4. `trade_initiated=False` conceals no regime / membership / drift / backstop transition;
+  4. `trade_initiated=False` conceals no regime / membership / drift / backstop transition — verified
+     against the INSTRUMENT's own decision-state book (LOAD-BEARING). Shadow-ledger drift may be reported
+     as a DIAGNOSTIC but never invalidates the run or overrides the instrument decision.
   5. exactly one decision is accepted per eligible session;
   6. no broker / OrderRouter / order-submission / Account-4 mutation path is reachable (structural);
   7. the production durable-state identity and the shadow-ledger accounting identity are distinct;
-  8. the registered 10-bps turnover cost is the ONLY performance cost the ledger applies (no BacktestContext
-     commission / slippage leaks into the sealed performance) — enforced by `book_decision` (R2a).
+  8. the registered 10-bps turnover cost is the ONLY performance cost the ledger applies (`book_decision`).
 """
 
 from __future__ import annotations
@@ -42,14 +48,31 @@ class ForwardEvaluationError(IntegrityStop):
 
 
 @dataclass(frozen=True)
+class InstrumentDecisionState:
+    """The production instrument's OWN decision-state book — the exact inputs MomentumDaily / capture_seam
+    consume for the trade gate. This is the ONLY authority for gate validation. The shadow ledger (a
+    cost-adjusted performance overlay) is NEVER used here: it diverges by registered cost drag and would
+    raise false drift discrepancies even when the production decision is correct."""
+    held: tuple[str, ...]                            # current members in the instrument book
+    current_weights: dict[str, float]                 # instrument's CURRENT (drifted) portfolio weights
+    last_applied_target_weights: dict[str, float]     # target from the last rebalance (drift baseline)
+    prior_applied_gross: float                        # regime state applied before this session
+    sessions_since_rebalance: int                     # the instrument's own backstop counter
+    weight_drift_threshold: float                     # production drift threshold
+    backstop_days: int                                # production backstop
+
+
+@dataclass(frozen=True)
 class ForwardDecision:
-    """One session's decision from the live production instrument, with the provenance the boundary
-    checks require. `record` is the §7A-proven `capture_seam` output; `instrument_identity` is the git
-    commit of the frozen production strategy that produced it; `durable_state_id` identifies the
-    instrument's OWN durable strategy-state store (must be distinct from the ledger accounting store)."""
+    """One session's decision from the live production instrument, with the provenance + instrument
+    decision-state the boundary checks require. `record` is the §7A-proven `capture_seam` output;
+    `instrument_identity` is the git commit of the frozen production strategy; `durable_state_id`
+    identifies the instrument's OWN durable strategy-state store (distinct from the ledger accounting
+    store); `instrument_state` is the gate-input snapshot used to verify `trade_initiated`."""
     record: SeamRecord
     instrument_identity: str
     durable_state_id: str
+    instrument_state: InstrumentDecisionState
 
 
 DecisionProvider = Callable[[date], ForwardDecision]
@@ -58,12 +81,15 @@ DecisionProvider = Callable[[date], ForwardDecision]
 @dataclass
 class ForwardEvaluator:
     """Drives one governed forward session: obtain the live production decision, run the fail-closed
-    boundary checks, then book it into the shadow ledger at the registered turnover cost."""
+    boundary checks (gate validation against the INSTRUMENT book), then book it into the shadow ledger
+    at the registered turnover cost. `shadow_ledger_drift_diagnostics` records the (non-gating) drift of
+    the cost-adjusted ledger book per session — diagnostic only."""
     ledger: ShadowLedger
     decision_provider: DecisionProvider
     shadow_ledger_identity: str
     expected_instrument_identity: str = PRODUCTION_STRATEGY_COMMIT
     _processed_sessions: set[str] = field(default_factory=set)
+    shadow_ledger_drift_diagnostics: dict[str, float] = field(default_factory=dict)
 
     def evaluate_session(self, session_date: date, price_fn: PriceFn) -> SessionOutcome:
         iso = session_date.isoformat()
@@ -94,8 +120,11 @@ class ForwardEvaluator:
         # (3) weights + regime_gross finite and structurally valid
         _validate_decision_values(rec)
 
-        # (4) a False trade must conceal no regime / membership / drift / backstop transition
-        self._assert_no_concealed_transition(rec)
+        # (4) a False trade must conceal no transition — verified against the INSTRUMENT's own book
+        _assert_no_concealed_transition(rec, decision.instrument_state)
+
+        # diagnostic only: the cost-adjusted shadow book's drift (never gates, never overrides)
+        self.shadow_ledger_drift_diagnostics[iso] = self._shadow_ledger_drift()
 
         # (8) book at the registered turnover cost ONLY — book_decision (R2a) applies no other cost
         outcome = self.ledger.book_decision(session_date, rec, price_fn=price_fn)
@@ -103,35 +132,42 @@ class ForwardEvaluator:
         self._processed_sessions.add(iso)
         return outcome
 
-    def _assert_no_concealed_transition(self, rec: SeamRecord) -> None:
-        """If the instrument declares no trade, verify no gate condition is actually present. Membership
-        (name set), regime (gross), and backstop (`since`) are book-independent — the ledger's `held`,
-        `applied_gross`, and `since` mirror the instrument because the ledger books the instrument's own
-        decisions. Drift is checked against the ledger's book as a conservative integrity guard (the two
-        books diverge slightly by the cumulative registered cost; see the PR note)."""
-        if rec.trade_initiated:
-            return
+    def _shadow_ledger_drift(self) -> float:
+        """The cost-adjusted ledger book's max weight drift vs its last target — DIAGNOSTIC ONLY."""
         s = self.ledger.state
-        held = set(s.held)
+        if not s.held or s.equity <= 0 or not s.target_w:
+            return 0.0
+        return max(abs(s.sleeves.get(tk, 0.0) / s.equity - s.target_w.get(tk, 0.0)) for tk in s.held)
 
-        if set(rec.target_names) != held:
+
+def _assert_no_concealed_transition(rec: SeamRecord, st: InstrumentDecisionState) -> None:
+    """If the instrument declares no trade, verify — against the INSTRUMENT's own decision-state book —
+    that no gate condition was actually present. Uses exactly the state and calculations MomentumDaily
+    consumes (membership set, regime gross, `since` vs backstop, and current-vs-last-target weight
+    drift). The shadow ledger is NOT consulted here."""
+    if rec.trade_initiated:
+        return
+    held = set(st.held)
+
+    if set(rec.target_names) != held:
+        raise ForwardEvaluationError(
+            f"trade_initiated=False conceals a MEMBERSHIP change: targets "
+            f"{sorted(rec.target_names)} != instrument-held {sorted(held)}")
+    if abs(rec.regime_gross - st.prior_applied_gross) > _GROSS_EPS:
+        raise ForwardEvaluationError(
+            f"trade_initiated=False conceals a REGIME transition: gross {rec.regime_gross} != "
+            f"instrument prior_applied {st.prior_applied_gross}")
+    if st.sessions_since_rebalance >= st.backstop_days:
+        raise ForwardEvaluationError(
+            f"trade_initiated=False conceals a BACKSTOP: instrument since "
+            f"{st.sessions_since_rebalance} >= {st.backstop_days}")
+    if held:
+        max_drift = max(abs(st.current_weights.get(tk, 0.0) - st.last_applied_target_weights.get(tk, 0.0))
+                        for tk in held)
+        if max_drift > st.weight_drift_threshold:
             raise ForwardEvaluationError(
-                f"trade_initiated=False conceals a MEMBERSHIP change: targets "
-                f"{sorted(rec.target_names)} != held {sorted(held)}")
-        if abs(rec.regime_gross - s.applied_gross) > _GROSS_EPS:
-            raise ForwardEvaluationError(
-                f"trade_initiated=False conceals a REGIME transition: gross {rec.regime_gross} != "
-                f"applied {s.applied_gross}")
-        if s.since >= self.ledger.backstop_days:
-            raise ForwardEvaluationError(
-                f"trade_initiated=False conceals a BACKSTOP: since {s.since} >= "
-                f"{self.ledger.backstop_days}")
-        if held and s.equity > 0 and s.target_w:
-            max_drift = max(abs(s.sleeves.get(tk, 0.0) / s.equity - s.target_w.get(tk, 0.0))
-                            for tk in held)
-            if max_drift > self.ledger.weight_drift_pct:
-                raise ForwardEvaluationError(
-                    f"trade_initiated=False conceals DRIFT: {max_drift} > {self.ledger.weight_drift_pct}")
+                f"trade_initiated=False conceals DRIFT (instrument book): {max_drift} > "
+                f"{st.weight_drift_threshold}")
 
 
 def _validate_decision_values(rec: SeamRecord) -> None:

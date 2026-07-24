@@ -1,6 +1,7 @@
 """Forward per-session evaluator (R2b) — the fail-closed boundary checks carrying the live production
-decision into the shadow ledger. One test per owner boundary check (2026-07-23), plus happy paths and
-the structural non-ordering guard.
+decision into the shadow ledger. Gate validation (boundary #4) is against the INSTRUMENT's own
+decision-state book; shadow-ledger drift is diagnostic only and never invalidates (owner ruling
+2026-07-23). One test per boundary check, plus happy paths and the structural non-ordering guard.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from app.validation.forward_evaluator import (
     ForwardDecision,
     ForwardEvaluationError,
     ForwardEvaluator,
+    InstrumentDecisionState,
 )
 from app.validation.forward_window import PRODUCTION_STRATEGY_COMMIT
 from app.validation.shadow_ledger import ShadowLedger
@@ -32,8 +34,19 @@ def _rec(*, date_="2026-07-24", target=("AAA", "BBB"), weights=None, gross=1.0, 
                       trade_initiated=trade, trigger="changed" if trade else "reviewed_no_trigger")
 
 
-def _decision(rec, *, identity=PRODUCTION_STRATEGY_COMMIT, durable=DURABLE):
-    return ForwardDecision(record=rec, instrument_identity=identity, durable_state_id=durable)
+def _istate(*, held=("AAA", "BBB"), current=None, target=None, gross=1.0, since=0,
+            drift_thr=0.02, backstop=21):
+    tw = target if target is not None else {t: 0.5 for t in held}
+    cw = current if current is not None else dict(tw)                   # no drift by default
+    return InstrumentDecisionState(
+        held=tuple(held), current_weights=cw, last_applied_target_weights=tw,
+        prior_applied_gross=gross, sessions_since_rebalance=since,
+        weight_drift_threshold=drift_thr, backstop_days=backstop)
+
+
+def _decision(rec, *, identity=PRODUCTION_STRATEGY_COMMIT, durable=DURABLE, istate=None):
+    return ForwardDecision(record=rec, instrument_identity=identity, durable_state_id=durable,
+                           instrument_state=istate or _istate())
 
 
 def _ledger():
@@ -50,9 +63,9 @@ def _price(tk, d):
     return {"AAA": 100.0, "BBB": 50.0, "CCC": 200.0}[tk]
 
 
-# ---- happy path: a valid decision books and advances the count -----------------------------------
+# ---- happy paths ---------------------------------------------------------------------------------
 
-def test_valid_decision_is_booked_and_count_advances():
+def test_valid_trade_decision_is_booked_and_count_advances():
     led = _ledger()
     ev = _evaluator(led, lambda d: _decision(_rec()))
     out = ev.evaluate_session(date(2026, 7, 24), _price)
@@ -61,15 +74,13 @@ def test_valid_decision_is_booked_and_count_advances():
     assert set(led.state.held) == {"AAA", "BBB"}
 
 
-def test_valid_no_trade_decision_passes_when_nothing_is_concealed():
+def test_valid_no_trade_decision_passes_when_instrument_conceals_nothing():
     led = _ledger()
-    provider = {"d": lambda d: _decision(_rec(date_=d.isoformat()))}
-    ev = _evaluator(led, lambda d: provider["d"](d))
-    ev.evaluate_session(date(2026, 7, 24), _price)                      # establish held {AAA,BBB}, gross 1.0
-    # a genuine no-trade: same members, same gross, no drift, since<backstop
-    provider["d"] = lambda d: _decision(_rec(date_=d.isoformat(), trade=False))
-    out = ev.evaluate_session(date(2026, 7, 27), _price)
-    assert out.traded is False and led.state.sessions_processed == 2
+    ev = _evaluator(led, lambda d: _decision(
+        _rec(date_=d.isoformat(), trade=False),
+        istate=_istate(held=("AAA", "BBB"), gross=1.0, since=3)))       # consistent: no gate fired
+    out = ev.evaluate_session(date(2026, 7, 24), _price)
+    assert out.traded is False and led.state.sessions_processed == 1
 
 
 # ---- (1) date must match the session --------------------------------------------------------------
@@ -108,55 +119,59 @@ def test_invalid_regime_gross_fails_closed(gross):
         ev.evaluate_session(date(2026, 7, 24), _price)
 
 
-# ---- (4) trade_initiated=False must conceal no transition ----------------------------------------
-
-def _seed(ev):
-    ev.evaluate_session(date(2026, 7, 24), _price)                      # held {AAA,BBB}, gross 1.0, since 0
-
+# ---- (4) trade_initiated=False conceals nothing — vs the INSTRUMENT book --------------------------
 
 def test_no_trade_concealing_membership_change_fails_closed():
-    led = _ledger()
-    provider = {"d": lambda d: _decision(_rec())}
-    ev = _evaluator(led, lambda d: provider["d"](d))
-    _seed(ev)
-    provider["d"] = lambda d: _decision(_rec(date_=d.isoformat(), target=("AAA", "CCC"), trade=False))
+    # instrument holds {AAA,BBB} but this session selected {AAA,CCC} with no trade
+    ev = _evaluator(_ledger(), lambda d: _decision(
+        _rec(target=("AAA", "CCC"), trade=False), istate=_istate(held=("AAA", "BBB"))))
     with pytest.raises(ForwardEvaluationError, match="MEMBERSHIP"):
-        ev.evaluate_session(date(2026, 7, 27), _price)
+        ev.evaluate_session(date(2026, 7, 24), _price)
 
 
 def test_no_trade_concealing_regime_transition_fails_closed():
-    led = _ledger()
-    provider = {"d": lambda d: _decision(_rec())}
-    ev = _evaluator(led, lambda d: provider["d"](d))
-    _seed(ev)
-    provider["d"] = lambda d: _decision(_rec(date_=d.isoformat(), gross=0.6, trade=False))
+    ev = _evaluator(_ledger(), lambda d: _decision(
+        _rec(gross=0.6, trade=False), istate=_istate(gross=1.0)))       # gross moved 1.0 -> 0.6
     with pytest.raises(ForwardEvaluationError, match="REGIME"):
-        ev.evaluate_session(date(2026, 7, 27), _price)
+        ev.evaluate_session(date(2026, 7, 24), _price)
 
 
 def test_no_trade_concealing_backstop_fails_closed():
-    led = _ledger()
-    provider = {"d": lambda d: _decision(_rec())}
-    ev = _evaluator(led, lambda d: provider["d"](d))
-    _seed(ev)
-    led.state.since = led.backstop_days                                # a backstop is now due
-    provider["d"] = lambda d: _decision(_rec(date_=d.isoformat(), trade=False))
+    ev = _evaluator(_ledger(), lambda d: _decision(
+        _rec(trade=False), istate=_istate(since=21, backstop=21)))      # backstop due
     with pytest.raises(ForwardEvaluationError, match="BACKSTOP"):
-        ev.evaluate_session(date(2026, 7, 27), _price)
+        ev.evaluate_session(date(2026, 7, 24), _price)
 
 
-def test_no_trade_concealing_drift_fails_closed():
+def test_no_trade_concealing_instrument_drift_fails_closed():
+    # instrument's OWN current vs last-target drift exceeds the threshold, but it declared no trade
+    ev = _evaluator(_ledger(), lambda d: _decision(
+        _rec(trade=False),
+        istate=_istate(current={"AAA": 0.9, "BBB": 0.1}, target={"AAA": 0.5, "BBB": 0.5},
+                       drift_thr=0.02)))
+    with pytest.raises(ForwardEvaluationError, match="DRIFT"):
+        ev.evaluate_session(date(2026, 7, 24), _price)
+
+
+# ---- shadow-ledger drift is DIAGNOSTIC ONLY — it never invalidates a correct instrument decision --
+
+def test_shadow_ledger_drift_is_diagnostic_only():
     led = _ledger()
-    provider = {"d": lambda d: _decision(_rec())}
-    ev = _evaluator(led, lambda d: provider["d"](d))
-    _seed(ev)
-    # force a large book drift vs the last target so the no-trade claim is inconsistent
+    # seed a real trade so the shadow book has positions + a last target
+    ev = _evaluator(led, lambda d: _decision(_rec(date_=d.isoformat())))
+    ev.evaluate_session(date(2026, 7, 24), _price)
+    # force the SHADOW book to be heavily drifted (cost-adjusted overlay), while the INSTRUMENT book is
+    # perfectly on-target and declares no trade — this must PASS and merely record the shadow drift.
     led.state.sleeves = {"AAA": 90_000.0, "BBB": 10_000.0}
     led.state.equity = 100_000.0
     led.state.target_w = {"AAA": 0.5, "BBB": 0.5}
-    provider["d"] = lambda d: _decision(_rec(date_=d.isoformat(), trade=False))
-    with pytest.raises(ForwardEvaluationError, match="DRIFT"):
-        ev.evaluate_session(date(2026, 7, 27), _price)
+    ev.decision_provider = lambda d: _decision(
+        _rec(date_=d.isoformat(), trade=False),
+        istate=_istate(held=("AAA", "BBB"), current={"AAA": 0.5, "BBB": 0.5},
+                       target={"AAA": 0.5, "BBB": 0.5}))                # instrument: NO drift
+    out = ev.evaluate_session(date(2026, 7, 27), _price)                # must NOT raise
+    assert out.traded is False
+    assert ev.shadow_ledger_drift_diagnostics["2026-07-27"] == pytest.approx(0.4)   # recorded, not gating
 
 
 # ---- (5) exactly one decision per session --------------------------------------------------------
