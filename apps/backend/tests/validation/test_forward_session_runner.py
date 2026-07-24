@@ -26,12 +26,13 @@ from app.validation.forward_session_runner import (
     ForwardSessionRunner,
     SessionRunStatus,
 )
-from app.validation.forward_window import ForwardRunContext
+from app.validation.forward_window import ForwardRunContext, IntegrityStop
 from app.validation.observation_store import (
     Account4StateProbe,
     Durability,
     committed_observations,
 )
+from app.validation.production_bindings import PriceUnavailable
 from app.validation.shadow_ledger import ShadowLedger
 
 REPO = Path(__file__).resolve().parents[4]
@@ -104,7 +105,38 @@ def context_builder(artifacts):
     return build
 
 
-def _runner(tmp_path, context_builder, *, provider=None) -> ForwardSessionRunner:
+class _StubFinality:
+    """The readiness evidence the runner consumes: a verdict, a detail and open provenance."""
+
+    def __init__(self, ready: bool = True, verdict: str = "READY", detail: str = "stub ready"):
+        self.ready = ready
+        self.verdict = verdict
+        self.detail = detail
+
+    def to_open_provenance(self) -> dict:
+        return {"verdict": self.verdict, "detail": self.detail, "session_evidence": "stub"}
+
+
+class _StubReadiness:
+    """Stands in for the R5a/R5b gate. `moved` makes the post-decision store re-check fail."""
+
+    def __init__(self, evidence: _StubFinality | None = None, *, raises: bool = False,
+                 moved: bool = False):
+        self.evidence = evidence or _StubFinality()
+        self.raises = raises
+        self.moved = moved
+
+    def assess(self, session_date):
+        if self.raises:
+            raise IntegrityStop("the factor store could not be interrogated")
+        return self.evidence
+
+    def verify_unchanged(self, session_date, evidence):
+        if self.moved:
+            raise IntegrityStop("the factor store changed during session")
+
+
+def _runner(tmp_path, context_builder, *, provider=None, readiness=None) -> ForwardSessionRunner:
     return ForwardSessionRunner(
         store_dir=tmp_path / "store", ledger_path=tmp_path / "store" / "ledger.json",
         decision_provider=provider or (lambda d: _decision(d)), price_fn=_price,
@@ -112,7 +144,8 @@ def _runner(tmp_path, context_builder, *, provider=None) -> ForwardSessionRunner
         ledger_factory=lambda: ShadowLedger.start(starting_capital=100_000.0,
                                                   turnover_cost_bps=10.0, backstop_days=21,
                                                   weight_drift_pct=0.02),
-        deployed_tree_identity=TREE, shadow_ledger_identity=LEDGER_ID)
+        deployed_tree_identity=TREE, shadow_ledger_identity=LEDGER_ID,
+        readiness=readiness if readiness is not None else _StubReadiness())
 
 
 def _stop_lines(store: Path) -> list[dict]:
@@ -441,3 +474,112 @@ def test_stop_log_creation_fsyncs_the_file_and_its_parent_directory(tmp_path, co
     _run(r, SESSION_2, ts="2026-07-27T21:10:00Z")              # appends to an existing log
     assert log in dur.files
     assert r.store_dir not in dur.dirs                         # only on creation, not on every append
+
+
+# ---- the session's data must be proven final before the decision is taken (R5c) ----------------------
+
+def test_no_readiness_gate_configured_refuses(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    r.readiness = None
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "DATA_READINESS_UNAVAILABLE"
+    assert res.session_count == 0
+    assert not (r.store_dir / "observations").exists()
+
+
+@pytest.mark.parametrize("verdict", [
+    "NOT_READY_DATA_STALE", "NOT_READY_ADJUSTMENT_UNVERIFIED", "NOT_READY_LOOKBACK_INCOMPLETE",
+    "INTEGRITY_STOP_DATA_CONFLICT",
+])
+def test_an_unready_verdict_becomes_the_stop_code_verbatim(verdict, tmp_path, context_builder):
+    """The taxonomy survives into the record: an operator reads why the session did not run, not a
+    generic failure."""
+    r = _runner(tmp_path, context_builder,
+                readiness=_StubReadiness(_StubFinality(ready=False, verdict=verdict,
+                                                       detail=f"{verdict} detail")))
+    res = _run(r, SESSION_1)
+    assert res.status is SessionRunStatus.INTEGRITY_STOP
+    assert res.exception_code == verdict
+    assert res.session_count == 0
+    assert verdict in [ln["code"] for ln in _stop_lines(r.store_dir)]
+
+
+def test_a_readiness_assessment_that_fails_closed_refuses(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder, readiness=_StubReadiness(raises=True))
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "DATA_READINESS_UNAVAILABLE"
+
+
+def test_a_store_that_moves_during_the_session_commits_nothing(tmp_path, context_builder):
+    """The decision was taken against data that then changed: nothing is committed and the durable
+    ledger still holds the pre-session state."""
+    r = _runner(tmp_path, context_builder, readiness=_StubReadiness(moved=True))
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "DATA_STORE_CHANGED_DURING_SESSION"
+    assert res.session_count == 0
+    assert not (r.store_dir / "observations" / "000001").exists()
+    assert not r.ledger_path.exists()
+
+
+def test_a_committed_observation_carries_the_readiness_evidence(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    rec = json.loads((r.store_dir / "observations" / "000001" / "open.json").read_bytes())
+    assert rec["data_finality"]["verdict"] == "READY"
+    assert "strategy_return" not in json.dumps(rec["data_finality"])       # still no performance
+
+
+# ---- every security the ledger accounts for must be markable this session (R5c) ---------------------
+
+def _strict_price(prices: dict):
+    """A production-shaped price function: raises for anything it cannot mark."""
+    def price(tk, d):
+        value = prices.get(tk)
+        if value is None:
+            raise PriceUnavailable(f"{tk} has no usable closeadj on {d.isoformat()}")
+        return value
+    return price
+
+
+def test_a_held_name_without_todays_mark_stops_the_session(tmp_path, context_builder):
+    """The name may have left the scoring universe entirely — it is still on the book, so the book
+    cannot be valued without carrying a stale price."""
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)                                            # book AAA + BBB
+    r.price_fn = _strict_price({"AAA": 100.0})                    # BBB can no longer be marked
+    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
+    assert res.exception_code == "NOT_READY_CURRENT_SESSION_MISSING"
+    assert "BBB" in res.detail
+    assert res.session_count == 1
+    assert not (r.store_dir / "observations" / "000002").exists()
+    assert ShadowLedger.load(r.ledger_path).state.sessions_processed == 1
+
+
+def test_a_decision_target_without_todays_mark_stops_the_session(tmp_path, context_builder):
+    """Nothing is held yet, so the refusal can only come from the target being sleeved."""
+    r = _runner(tmp_path, context_builder,
+                provider=lambda d: _decision(d, target=("AAA", "CCC")))
+    r.price_fn = _strict_price({"AAA": 100.0})                    # CCC has no mark
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "NOT_READY_CURRENT_SESSION_MISSING"
+    assert res.session_count == 0
+    assert not (r.store_dir / "observations").exists()
+    assert not r.ledger_path.exists()
+
+
+@pytest.mark.parametrize("bad", [None, 0.0, -1.0])
+def test_a_null_or_nonpositive_held_mark_stops_the_session(bad, tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    r.price_fn = lambda tk, d: (100.0 if tk == "AAA" else bad)
+    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
+    assert res.exception_code == "NOT_READY_CURRENT_SESSION_MISSING"
+    assert res.session_count == 1
+
+
+def test_a_session_with_every_mark_present_records(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    r.price_fn = _strict_price({"AAA": 101.0, "BBB": 51.0})
+    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
+    assert res.status is SessionRunStatus.RECORDED and res.session_count == 2

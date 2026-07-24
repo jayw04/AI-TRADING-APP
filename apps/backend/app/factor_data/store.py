@@ -12,6 +12,7 @@ vendor bytes.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date, datetime
 from pathlib import Path
 
@@ -89,7 +90,28 @@ CREATE TABLE IF NOT EXISTS actions (
 -- ingest bookkeeping (idempotency; single-shot ingest — no checkpoint cursor)
 CREATE TABLE IF NOT EXISTS ingest_runs (
   dataset VARCHAR, started_at TIMESTAMP, finished_at TIMESTAMP,
-  rows    BIGINT, status VARCHAR   -- 'running'|'ok'|'failed'
+  rows    BIGINT, status VARCHAR,  -- 'running'|'ok'|'failed'
+  run_id  VARCHAR                  -- identity a coverage record references (added additively)
+);
+
+-- dataset COVERAGE provenance (forward-validation R5c). `ingest_runs` records that an ingest ran, not
+-- what it covered, so a consumer cannot tell "this window is clean" from "we happen to hold no rows
+-- in it". A coverage row is written ONLY by `finalize_dataset_ingest`, in the SAME transaction that
+-- marks the ingest complete, and it REFERENCES that execution. The artifact digest is computed from
+-- the artifact file itself — a caller cannot supply one. A consumer needing source authority reads
+-- this, re-checks the linkage, and refuses on any inconsistency, rather than inferring coverage from
+-- MIN/MAX of whatever rows happen to be present.
+CREATE TABLE IF NOT EXISTS dataset_coverage (
+  dataset         VARCHAR NOT NULL,   -- 'sep' | 'actions' | ...
+  ingest_run_id   VARCHAR NOT NULL,   -- -> ingest_runs.run_id (the execution that loaded it)
+  coverage_start  DATE    NOT NULL,   -- the window the ingest REQUESTED
+  coverage_end    DATE    NOT NULL,
+  artifact_sha256 VARCHAR NOT NULL,   -- computed from the artifact here, never supplied
+  artifact_path   VARCHAR NOT NULL,
+  source_identity VARCHAR NOT NULL,   -- vendor/dataset/version as fetched
+  rows_loaded     BIGINT NOT NULL,
+  recorded_at     TIMESTAMP NOT NULL,
+  status          VARCHAR NOT NULL    -- 'ok' only for a COMPLETED ingest
 );
 
 -- point-in-time fundamentals (FMP /stable layer, ADR 0018). One row per
@@ -177,6 +199,8 @@ class FactorDataStore:
             # on get_sectors() degrading when the column is absent.
             for col in ("sector", "industry"):
                 self.con.execute(f"ALTER TABLE tickers ADD COLUMN IF NOT EXISTS {col} VARCHAR")
+            # Additive migration for stores predating the coverage linkage (R5c).
+            self.con.execute("ALTER TABLE ingest_runs ADD COLUMN IF NOT EXISTS run_id VARCHAR")
         logger.info("factor_data_store_open", path=str(self.path), read_only=read_only)
 
     def __enter__(self) -> FactorDataStore:
@@ -331,12 +355,87 @@ class FactorDataStore:
 
     def record_ingest_run(
         self, dataset: str, started_at: datetime, finished_at: datetime,
-        rows: int, status: str,
-    ) -> None:
+        rows: int, status: str, run_id: str | None = None,
+    ) -> str:
+        """Record one ingest execution and return its `run_id` — deterministic from the run's own
+        fields plus the current run count, so it is reproducible and cannot collide with an earlier
+        identical run."""
+        rid = run_id or self._derive_run_id(dataset, started_at, finished_at, rows, status)
         self.con.execute(
-            "INSERT INTO ingest_runs VALUES (?, ?, ?, ?, ?)",
-            [dataset, started_at, finished_at, rows, status],
+            "INSERT INTO ingest_runs (dataset, started_at, finished_at, rows, status, run_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            [dataset, started_at, finished_at, rows, status, rid],
         )
+        return rid
+
+    def _derive_run_id(self, dataset: str, started_at: datetime, finished_at: datetime | None,
+                       rows: int, status: str) -> str:
+        seq = self.con.execute("SELECT COUNT(*) FROM ingest_runs").fetchone()
+        payload = f"{dataset}|{started_at}|{finished_at}|{rows}|{status}|{seq[0] if seq else 0}"
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+
+    def finalize_dataset_ingest(
+        self, dataset: str, *, started_at: datetime, finished_at: datetime, rows: int,
+        coverage_start: date, coverage_end: date, artifact_path: Path | str,
+        source_identity: str,
+    ) -> str:
+        """The GOVERNED completion protocol for an ingest: mark the run complete AND record what it
+        covered, in one transaction, with the artifact digest computed here from the artifact itself.
+
+        There is deliberately no separate way to record authoritative coverage: a row a later consumer
+        will treat as source authority must be produced by the execution that actually loaded the data,
+        never backfilled beside it.
+        """
+        if coverage_start > coverage_end:
+            raise ValueError(f"coverage_start {coverage_start} is after coverage_end {coverage_end}")
+        if not source_identity.strip():
+            raise ValueError("source_identity is required")
+        path = Path(artifact_path)
+        if not path.is_file():
+            raise ValueError(f"artifact {path} does not exist; its digest cannot be computed")
+        digest = hashlib.sha256()
+        with open(path, "rb") as fh:
+            while block := fh.read(1 << 20):
+                digest.update(block)
+
+        self.con.execute("BEGIN TRANSACTION")
+        try:
+            rid = self.record_ingest_run(dataset, started_at, finished_at, rows, "ok")
+            self.con.execute(
+                "INSERT INTO dataset_coverage VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [dataset, rid, coverage_start, coverage_end, digest.hexdigest(), str(path),
+                 source_identity.strip(), rows, finished_at, "ok"],
+            )
+            self.con.execute("COMMIT")
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
+        return rid
+
+    def dataset_coverage(self, dataset: str) -> tuple | None:
+        """The most recent COMPLETED coverage for `dataset`, JOINED to the ingest execution that
+        produced it, with the recorded row count required to agree with that run. Returns None when no
+        coverage row has a matching completed run — an unlinked, unfinished or mismatched record
+        confers nothing."""
+        row = self.con.execute(
+            "SELECT c.dataset, c.coverage_start, c.coverage_end, c.artifact_sha256, c.artifact_path, "
+            "c.source_identity, c.rows_loaded, c.recorded_at, c.ingest_run_id "
+            "FROM dataset_coverage c JOIN ingest_runs r ON r.run_id = c.ingest_run_id "
+            "WHERE c.dataset = ? AND r.dataset = c.dataset AND LOWER(c.status) = 'ok' "
+            "AND LOWER(r.status) = 'ok' AND r.finished_at IS NOT NULL AND r.rows = c.rows_loaded "
+            "AND c.coverage_start <= c.coverage_end "
+            "ORDER BY c.recorded_at DESC LIMIT 1",
+            [dataset],
+        ).fetchone()
+        return tuple(row) if row is not None else None
+
+    def unclean_ingest_since(self, dataset: str, when: datetime) -> bool:
+        """True when a running/failed ingest for `dataset` started at or after `when` — it may have
+        mutated the dataset since that coverage was recorded, so the coverage no longer stands."""
+        row = self.con.execute(
+            "SELECT COUNT(*) FROM ingest_runs WHERE dataset = ? AND LOWER(status) <> 'ok' "
+            "AND started_at >= ?", [dataset, when]).fetchone()
+        return bool(row and row[0])
 
     # ---- queries ------------------------------------------------------------
 
