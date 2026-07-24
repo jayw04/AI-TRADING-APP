@@ -96,9 +96,10 @@ def artifacts():
 
 
 @pytest.fixture
-def runtime(artifacts):
+def runtime(artifacts, tmp_path):
     dgs3mo, trial_ledger = artifacts
     import app.validation.forward_window as fw
+    from app.validation.chain_witness import Ed25519AnchorSigner, FileExternalAnchorSink
 
     def context_builder(session: date) -> ForwardRunContext:
         return ForwardRunContext(
@@ -110,11 +111,16 @@ def runtime(artifacts):
             ledger_is_shadow_or_separate_paper=True, references_account4_capital=False,
             references_retired_baseline=False)
 
+    signer = Ed25519AnchorSigner.generate(witness_identity="orchestration-test-witness")
+    # the external witness lives OUTSIDE the observation store (store lives at tmp_path/"store")
+    sink = FileExternalAnchorSink(tmp_path / "external_witness", identity="ext-test")
     return SessionRuntime(
         store=object(), accessor=_Accessor(), store_identity=STORE_IDENTITY,
         universe_fn=lambda session, n: NAMES[:n], proxy_closes=_proxy_closes(),
         session_dates=SESSIONS, strict_price_fn=_price, account4_probe=_probe,
-        context_builder=context_builder, readiness=_StubReadiness(), market_symbol=MARKET)
+        context_builder=context_builder, readiness=_StubReadiness(),
+        anchor_signer=signer, anchor_verifier=signer.verifier(), external_anchor_sink=sink,
+        market_symbol=MARKET)
 
 
 class _StubFinality:
@@ -368,7 +374,10 @@ def test_the_committed_tip_is_anchored(runtime, tmp_path):
     commit_sha = hashlib.sha256(
         (tmp_path / "store" / "observations" / "000001" / "commit.json").read_bytes()).hexdigest()
     assert anchors[0].commit_sha256 == commit_sha    # the anchor witnesses the committed tip
-    verify_anchor_consistency(tmp_path / "store")    # the runner's own pre-commit gate would pass
+    assert anchors[0].witness_signature              # signed across the trust boundary
+    # signatures + the external witness all check (the runner's own pre-commit gate)
+    verify_anchor_consistency(tmp_path / "store", verifier=runtime.anchor_verifier,
+                              external_sink=runtime.external_anchor_sink)
 
 
 def test_an_anchor_write_failure_after_commit_is_a_distinct_condition(runtime, tmp_path, monkeypatch):
@@ -414,4 +423,36 @@ def test_a_tampered_anchor_stops_even_a_rerun(runtime, tmp_path):
     path.write_text(json.dumps(obj, sort_keys=True) + "\n", encoding="utf-8")
     result = _run(runtime, SESSION_1, tmp_path)    # a no-op re-run must still stop
     assert result.status is SessionRunStatus.INTEGRITY_STOP
-    assert result.exception_code in ("ANCHOR_LOG_INVALID", "ANCHOR_DIVERGES_FROM_RECORD")
+    assert result.exception_code in ("ANCHOR_LOG_INVALID", "ANCHOR_SIGNATURE_INVALID",
+                                     "ANCHOR_DIVERGES_FROM_RECORD")
+
+
+def test_both_post_commit_writes_can_fail_independently(runtime, tmp_path, monkeypatch):
+    """Blocker 2: the anchor and the book are INDEPENDENT post-commit attempts — a failure of one does
+    not suppress the other, and both failing yields a distinct, precise status that preserves each
+    divergence model for adjudication."""
+    from app.validation import forward_session_runner as frunner
+    from app.validation import session_orchestration as orch
+    from app.validation.chain_anchor import AnchorError
+
+    monkeypatch.setattr(frunner, "append_anchor",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            AnchorError("x", code="ANCHOR_WRITE_FAILED")))
+    monkeypatch.setattr(orch, "_book_writer",
+                        lambda lifecycle, adapter: (lambda seq, iso: (_ for _ in ()).throw(
+                            OSError("disk full"))))
+    result = _run(runtime, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED
+    assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert "BOOK_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert len(committed_observations(tmp_path / "store")) == 1   # the observation still committed
+
+
+def test_a_missing_independent_witness_fails_closed(runtime, tmp_path):
+    """Without a configured witness (signer/verifier/external sink) the record cannot be tamper-evidently
+    anchored, so the runner refuses to commit rather than leave an unwitnessed record."""
+    no_witness = replace(runtime, anchor_signer=None)
+    result = _run(no_witness, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    assert result.exception_code == "INDEPENDENT_WITNESS_UNAVAILABLE"
+    assert len(committed_observations(tmp_path / "store")) == 0   # nothing committed

@@ -6,20 +6,20 @@ unchanged later tip*. But a local attacker who rewrites observation 7 can recomp
 suffix — the chain is only tamper-evident against a root or tip recorded somewhere the rewrite cannot
 reach (the #494 review requirement).
 
-This module is that somewhere: a SEPARATE, append-only, independently hash-chained log
-(`chain_anchors.jsonl` at the store ROOT, never under `observations/`) that records each committed chain
-tip. Each anchor line binds two things:
+This module is the local half of that record, and it is made INDEPENDENT of a local attacker by binding
+each tip to a separate trust boundary (`chain_witness`):
 
-  * the OBSERVATION chain — `commit_sha256` (the tip) and its own `previous_commit_sha256`; and
-  * the ANCHOR chain — `previous_anchor_sha256`, the digest of the previous anchor LINE.
+  * every anchor line is SIGNED by a key the observation-store writer does not hold — an attacker with
+    local write access can alter the tip bytes but cannot forge the signature for the altered tip
+    (rewrite protection); and
+  * every signed tip is also recorded in an EXTERNAL append-only sink with separately governed write
+    authority — an attacker who truncates the local log to hide the latest sessions cannot remove the
+    externally recorded tip (truncation/rollback protection).
 
-Tamper-evidence comes from CROSS-VERIFICATION, not from either chain alone. To rewrite observation 7 and
-its suffix without detection, an attacker must ALSO rewrite anchor lines 7..N so both chains still agree —
-and `verify_anchor_consistency` refuses any state where they do not: an anchor that witnesses a tip the
-store does not have, a committed tip that no anchor witnesses, or a per-sequence digest that differs.
-Once an anchor line is written it is the independent record; a missing or divergent anchor STOPS the run
-for governed adjudication and is NEVER regenerated from the (possibly rewritten) observation — silently
-re-deriving a missing anchor from the store would defeat the entire purpose.
+The local anchor log (`chain_anchors.jsonl`, at the store ROOT, never under `observations/`) additionally
+carries its OWN hash chain (`previous_anchor_sha256`) so its internal integrity is self-checking. But
+tamper-evidence against the requirement's attacker comes from the signature + external sink, verified by
+`verify_anchor_consistency`, which needs the public verifying key and the sink to pass.
 
 Nothing here touches Account 4 or imports the order path.
 """
@@ -29,9 +29,17 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
+from app.validation.chain_witness import (
+    AnchorSigner,
+    AnchorVerifier,
+    ExternalAnchorSink,
+    SignedReceipt,
+    WitnessedTip,
+    WitnessError,
+)
 from app.validation.forward_window import IntegrityStop
 from app.validation.observation_store import (
     CommittedObservation,
@@ -42,10 +50,16 @@ from app.validation.observation_store import (
 
 ANCHOR_LOG_FILENAME = "chain_anchors.jsonl"        # store ROOT — never under observations/
 
+# the anchor-line fields that make up the SIGNED/DIGESTED core (the witness fields are added around it)
+_CORE_FIELDS = ("sequence", "session_date", "commit_sha256", "previous_commit_sha256",
+                "previous_anchor_sha256", "deployed_tree_identity", "anchored_at")
+_WITNESS_FIELDS = ("witness_signature", "witness_public_key_id", "witness_identity")
+
 
 class AnchorError(IntegrityStop):
-    """The chain-tip anchor log is invalid, or it diverges from the committed observation record. Fails
-    closed: nothing is anchored, and a divergence is never repaired by regenerating the anchor."""
+    """The chain-tip anchor log is invalid, or it diverges from the committed observation record or the
+    external witness. Fails closed: nothing is anchored, and a divergence is never repaired by
+    regenerating the anchor."""
 
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message)
@@ -55,8 +69,8 @@ class AnchorError(IntegrityStop):
 @dataclass(frozen=True)
 class AnchorRecord:
     """One anchor line: an independent witness of a committed chain tip. `anchor_sha256` is derived from
-    the body (every field below) and stored alongside it; `previous_anchor_sha256` is the digest of the
-    previous anchor line, so the anchor log is itself an append-only hash chain."""
+    the CORE fields; `previous_anchor_sha256` is the digest of the previous anchor line (the log's own
+    chain); and the witness fields carry the separate-trust-boundary signature over the tip."""
     sequence: int
     session_date: str
     commit_sha256: str                     # the committed tip's commit.json digest (the observation chain)
@@ -64,12 +78,24 @@ class AnchorRecord:
     previous_anchor_sha256: str | None     # digest of the previous anchor LINE (None for sequence 1)
     deployed_tree_identity: str
     anchored_at: str                       # ISO8601 UTC — caller-supplied (Date.now unavailable)
+    witness_signature: str                 # base64 Ed25519 signature over the witnessed tip
+    witness_public_key_id: str             # fingerprint of the signing key
+    witness_identity: str                  # human identity of the external witness
 
-    def body(self) -> dict:
-        return asdict(self)
+    def core_body(self) -> dict:
+        return {k: getattr(self, k) for k in _CORE_FIELDS}
 
     def anchor_sha256(self) -> str:
-        return _digest(self.body())
+        return _digest(self.core_body())
+
+    def witnessed_tip(self) -> WitnessedTip:
+        return WitnessedTip(sequence=self.sequence, session_date=self.session_date,
+                            commit_sha256=self.commit_sha256, anchor_sha256=self.anchor_sha256())
+
+    def receipt(self) -> SignedReceipt:
+        return SignedReceipt(signature_b64=self.witness_signature,
+                             public_key_id=self.witness_public_key_id,
+                             witness_identity=self.witness_identity)
 
 
 def _digest(payload: dict) -> str:
@@ -84,14 +110,20 @@ def _line_digest(line: str) -> str:
 
 
 def _serialize(record: AnchorRecord) -> str:
-    """The canonical one-line JSON for an anchor: the body plus its own `anchor_sha256` (no newline)."""
-    return json.dumps({**record.body(), "anchor_sha256": record.anchor_sha256()}, sort_keys=True)
+    """The canonical one-line JSON for an anchor: the core body, its `anchor_sha256`, and the witness
+    fields (no newline)."""
+    payload = {**record.core_body(), "anchor_sha256": record.anchor_sha256(),
+               "witness_signature": record.witness_signature,
+               "witness_public_key_id": record.witness_public_key_id,
+               "witness_identity": record.witness_identity}
+    return json.dumps(payload, sort_keys=True)
 
 
 def read_anchors(store_dir: Path) -> list[AnchorRecord]:
-    """The fully validated anchor log, in order. FAILS CLOSED (AnchorError code ANCHOR_LOG_INVALID) on an
-    unreadable or malformed line, an `anchor_sha256` that does not verify, a broken anchor-chain link, a
-    non-contiguous sequence, or a session date that does not strictly increase. An absent log is empty."""
+    """The fully validated anchor log, in order — structural integrity only (self-digest, own chain,
+    contiguity, dates, witness fields present). Signature and external-sink verification is done by
+    `verify_anchor_consistency`, which holds the trusted keys. FAILS CLOSED (AnchorError code
+    ANCHOR_LOG_INVALID). An absent log is empty."""
     path = store_dir / ANCHOR_LOG_FILENAME
     if not path.exists():
         return []
@@ -109,13 +141,17 @@ def read_anchors(store_dir: Path) -> list[AnchorRecord]:
         except json.JSONDecodeError as exc:
             raise AnchorError(f"anchor line {i} is not valid JSON: {exc}",
                               code="ANCHOR_LOG_INVALID") from exc
-        stored = obj.pop("anchor_sha256", None)
+        stored_anchor = obj.pop("anchor_sha256", None)
+        missing = [f for f in (*_CORE_FIELDS, *_WITNESS_FIELDS) if f not in obj]
+        if missing:
+            raise AnchorError(f"anchor line {i} is missing field(s) {missing}",
+                              code="ANCHOR_LOG_INVALID")
         try:
             record = AnchorRecord(**obj)
         except TypeError as exc:
             raise AnchorError(f"anchor line {i} has an unexpected field set: {exc}",
                               code="ANCHOR_LOG_INVALID") from exc
-        if record.anchor_sha256() != stored:
+        if record.anchor_sha256() != stored_anchor:
             raise AnchorError(f"anchor line {i}: anchor_sha256 does not verify — the line was altered",
                               code="ANCHOR_LOG_INVALID")
         if record.sequence != i:
@@ -136,32 +172,14 @@ def read_anchors(store_dir: Path) -> list[AnchorRecord]:
     return records
 
 
-def verify_anchor_consistency(
-    store_dir: Path, committed: list[CommittedObservation] | None = None,
-) -> list[AnchorRecord]:
-    """Cross-verify the anchor log against the committed observation record and FAIL CLOSED on any
-    divergence. Returns the validated anchors on success.
-
-    The two independently-stored chains must witness exactly the same tips:
-
-      ANCHOR_AHEAD_OF_RECORD     more anchors than committed observations — an anchor witnesses a tip the
-                                 store does not have (an observation was removed, or an anchor forged).
-      ANCHOR_BEHIND_RECORD       a committed tip that no anchor witnesses (a crash between the commit and
-                                 the anchor append leaves this state — recovered by governed adjudication,
-                                 NEVER by regenerating the anchor from the store).
-      ANCHOR_DIVERGES_FROM_RECORD  a per-sequence commit digest, previous link or session date differs —
-                                 the observation chain was rewritten but the independent anchor was not.
-    """
-    anchors = read_anchors(store_dir)
-    obs = committed if committed is not None else committed_observations(store_dir)
-
+def _assert_matches_observations(anchors: list[AnchorRecord],
+                                 obs: list[CommittedObservation]) -> None:
+    """The local anchors and the committed observations must witness exactly the same tips."""
     if len(anchors) > len(obs):
         raise AnchorError(
             f"the anchor log records {len(anchors)} tip(s) but committed storage holds {len(obs)} "
             f"observation(s) — an anchor witnesses a tip that does not exist",
             code="ANCHOR_AHEAD_OF_RECORD")
-
-    # every anchor must match the observation at its sequence (the tamper cross-check)
     for anchor, observation in zip(anchors, obs, strict=False):
         if (anchor.commit_sha256 != observation.commit_sha256
                 or anchor.previous_commit_sha256 != observation.previous_commit_sha256
@@ -172,7 +190,6 @@ def verify_anchor_consistency(
                 f"{observation.commit_sha256[:16]}… / {observation.session_date} — the observation chain "
                 f"was rewritten but the independent anchor was not",
                 code="ANCHOR_DIVERGES_FROM_RECORD")
-
     if len(anchors) < len(obs):
         missing = [o.sequence for o in obs[len(anchors):]]
         raise AnchorError(
@@ -180,20 +197,76 @@ def verify_anchor_consistency(
             f"unwitnessed; recovery is a governed adjudication, the anchor is never regenerated from the "
             f"observation it is meant to witness",
             code="ANCHOR_BEHIND_RECORD")
+
+
+def _assert_witnessed(anchors: list[AnchorRecord], verifier: AnchorVerifier,
+                      external_sink: ExternalAnchorSink) -> None:
+    """Every local anchor's signature must verify, and the EXTERNAL sink must witness exactly the same
+    tips — the cross-boundary checks that make the anchor independent of a local attacker.
+
+      ANCHOR_SIGNATURE_INVALID   a tip was altered after it was signed (or signed by an untrusted key).
+      EXTERNAL_WITNESS_AHEAD     the external sink holds tip(s) the local log does not — the local log
+                                 (and its observations) were TRUNCATED to hide the latest sessions.
+      EXTERNAL_WITNESS_BEHIND    a local tip the external sink never recorded — an unwitnessed tip.
+      EXTERNAL_WITNESS_DIVERGES  the sink and the local log disagree about a tip at the same sequence.
+    """
+    for anchor in anchors:
+        try:
+            verifier.verify(anchor.witnessed_tip(), anchor.receipt())      # rewrite protection
+        except WitnessError as exc:
+            raise AnchorError(str(exc), code=exc.code) from exc
+
+    external = external_sink.read_all()
+    if len(external) > len(anchors):
+        extra = [tip.sequence for tip, _ in external[len(anchors):]]
+        raise AnchorError(
+            f"the external witness holds tip(s) {extra} the local anchor log does not — the local record "
+            f"was truncated to hide committed session(s)", code="EXTERNAL_WITNESS_AHEAD")
+    for (etip, ereceipt), anchor in zip(external, anchors, strict=False):
+        if etip.commit_sha256 != anchor.commit_sha256 or etip.anchor_sha256 != anchor.anchor_sha256():
+            raise AnchorError(
+                f"the external witness for sequence {etip.sequence} records a different tip than the "
+                f"local anchor log", code="EXTERNAL_WITNESS_DIVERGES")
+        try:
+            verifier.verify(etip, ereceipt)
+        except WitnessError as exc:
+            raise AnchorError(f"the external witness for sequence {etip.sequence} carries an invalid "
+                              f"signature: {exc}", code="ANCHOR_SIGNATURE_INVALID") from exc
+    if len(external) < len(anchors):
+        missing = [a.sequence for a in anchors[len(external):]]
+        raise AnchorError(
+            f"local anchor(s) {missing} were never recorded in the external witness — the tip is not "
+            f"independently witnessed", code="EXTERNAL_WITNESS_BEHIND")
+
+
+def verify_anchor_consistency(
+    store_dir: Path, committed: list[CommittedObservation] | None = None, *,
+    verifier: AnchorVerifier, external_sink: ExternalAnchorSink,
+) -> list[AnchorRecord]:
+    """Cross-verify the anchor log against the committed observation record AND the independent witness,
+    and FAIL CLOSED on any divergence. Returns the validated anchors on success.
+
+    Three chains must agree: the committed observations, the local anchor log, and the external witness.
+    The local↔observation checks catch a rewrite that touched both local stores; the signature and
+    external-sink checks catch a rewrite or truncation confined to the local write-authority domain."""
+    anchors = read_anchors(store_dir)
+    obs = committed if committed is not None else committed_observations(store_dir)
+    _assert_matches_observations(anchors, obs)
+    _assert_witnessed(anchors, verifier, external_sink)
     return anchors
 
 
 def append_anchor(
-    store_dir: Path, *, deployed_tree_identity: str, anchored_at: str,
-    durability: Durability | None = None,
+    store_dir: Path, *, signer: AnchorSigner, external_sink: ExternalAnchorSink,
+    deployed_tree_identity: str, anchored_at: str, durability: Durability | None = None,
 ) -> AnchorRecord:
-    """Anchor the CURRENT committed chain tip in the independent log, and return the anchor written.
+    """Anchor the CURRENT committed chain tip: sign it across the trust boundary, record it in the
+    external witness, and append it to the local log. Returns the anchor written.
 
-    Reads the fully validated committed record and the fully validated anchor log, requires the anchors to
-    be a consistent prefix of the observations, then appends ONE anchor for the latest committed tip. If
-    the tip is already anchored (a safe re-run after a successful commit) this is a verified no-op. Fails
-    closed if the anchor log is ahead of, or divergent from, the observation record; never regenerates a
-    missing interior anchor.
+    Requires the existing anchors to be a consistent prefix of the committed observations; NEVER
+    regenerates a missing interior anchor. If the tip is already anchored (a safe re-run) this is a
+    verified no-op. The external witness is written before the local line, so a crash between them leaves
+    the local log behind the sink, which the next run diagnoses (EXTERNAL_WITNESS_AHEAD) and stops.
     """
     dur = durability or default_durability()
     obs = committed_observations(store_dir)
@@ -205,7 +278,6 @@ def append_anchor(
         raise AnchorError(
             f"the anchor log is ahead of the record ({len(anchors)} > {len(obs)})",
             code="ANCHOR_AHEAD_OF_RECORD")
-    # the existing anchors must already witness the observations they cover (no interior divergence)
     for anchor, observation in zip(anchors, obs, strict=False):
         if (anchor.commit_sha256 != observation.commit_sha256
                 or anchor.previous_commit_sha256 != observation.previous_commit_sha256
@@ -227,15 +299,29 @@ def append_anchor(
     path = store_dir / ANCHOR_LOG_FILENAME
     prev_line_digest: str | None = None
     if anchors:
-        # the digest of the previous anchor LINE, taken from the file exactly as stored
         existing_lines = [ln for ln in path.read_text(encoding="utf-8").split("\n") if ln != ""]
         prev_line_digest = _line_digest(existing_lines[-1])
+
+    core = {"sequence": tip.sequence, "session_date": tip.session_date,
+            "commit_sha256": tip.commit_sha256, "previous_commit_sha256": tip.previous_commit_sha256,
+            "previous_anchor_sha256": prev_line_digest, "deployed_tree_identity": deployed_tree_identity,
+            "anchored_at": anchored_at}
+    anchor_digest = _digest(core)
+    witnessed = WitnessedTip(sequence=tip.sequence, session_date=tip.session_date,
+                             commit_sha256=tip.commit_sha256, anchor_sha256=anchor_digest)
+    receipt = signer.attest(witnessed)                      # crosses the trust boundary (separate key)
 
     record = AnchorRecord(
         sequence=tip.sequence, session_date=tip.session_date, commit_sha256=tip.commit_sha256,
         previous_commit_sha256=tip.previous_commit_sha256, previous_anchor_sha256=prev_line_digest,
-        deployed_tree_identity=deployed_tree_identity, anchored_at=anchored_at)
+        deployed_tree_identity=deployed_tree_identity, anchored_at=anchored_at,
+        witness_signature=receipt.signature_b64, witness_public_key_id=receipt.public_key_id,
+        witness_identity=receipt.witness_identity)
     line = _serialize(record)
+
+    # the EXTERNAL immutable witness first, then the local log — a crash between them leaves the local log
+    # behind the sink, which the next run detects (EXTERNAL_WITNESS_AHEAD) rather than silently accepting.
+    external_sink.publish(witnessed, receipt)
 
     created = not path.exists()
     try:

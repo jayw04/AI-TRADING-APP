@@ -105,6 +105,12 @@ import structlog
 
 from app.validation.account4_probe import Account4Probe, assert_account4_unchanged
 from app.validation.chain_anchor import AnchorError, append_anchor, verify_anchor_consistency
+from app.validation.chain_witness import (
+    AnchorSigner,
+    AnchorVerifier,
+    ExternalAnchorSink,
+    WitnessError,
+)
 from app.validation.data_finality import DataFinalityEvidence
 from app.validation.eval_calendar import (
     eligible_sessions,
@@ -151,8 +157,13 @@ class SessionRunStatus(StrEnum):
     RECORDED_BUT_BOOK_UNPERSISTED = "RECORDED_BUT_BOOK_UNPERSISTED"
     # The observation committed but the independent chain-tip anchor (R5d) was not written. Like the book
     # case this is NOT retryable as an ordinary failure: the record advanced. The next run sees
-    # ANCHOR_BEHIND_RECORD and stops for governed adjudication — the anchor is never regenerated.
+    # ANCHOR_BEHIND_RECORD (or EXTERNAL_WITNESS_AHEAD) and stops for governed adjudication — the anchor
+    # is never regenerated.
     RECORDED_BUT_ANCHOR_UNWRITTEN = "RECORDED_BUT_ANCHOR_UNWRITTEN"
+    # BOTH post-commit durability writes failed. The anchor and the book attempts are INDEPENDENT (a
+    # failure of one never suppresses the other), so this distinct status preserves each component's
+    # divergence model for governed adjudication.
+    RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED = "RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED"
     INTEGRITY_STOP = "INTEGRITY_STOP"
 
 
@@ -207,6 +218,13 @@ class ForwardSessionRunner:
     # this write is lost the next run sees BOOK_BEHIND_RECORD and stops for governed recovery, and the
     # book is never reconstructed from the ledger. `sequence` is the committed sequence number.
     on_committed: Callable[[int, str], None] | None = None
+    # The independent chain-tip witness (R5d). REQUIRED: the record cannot be tamper-evidently anchored
+    # without a signer whose private key the store-writer does not hold, the public verifier, and an
+    # external append-only sink with separately governed write authority. Absent any of them the runner
+    # fails closed rather than committing an unwitnessed record.
+    anchor_signer: AnchorSigner | None = None
+    anchor_verifier: AnchorVerifier | None = None
+    external_anchor_sink: ExternalAnchorSink | None = None
     durability: Durability | None = None
 
     # ── the entry point a scheduler calls ─────────────────────────────────────────────────────────
@@ -230,12 +248,19 @@ class ForwardSessionRunner:
         last = records[-1] if records else None
 
         # ── the independent chain-tip anchor must agree with the committed record (R5d) ──
-        # Cross-verify the separately-stored anchor log against the observation chain BEFORE any outcome,
-        # so a rewritten observation (whose independent anchor was not also rewritten), an unwitnessed
-        # tip, or a forged anchor stops even a no-op re-run. The anchor is never regenerated to paper over
-        # a divergence.
+        # Cross-verify the observation chain against the local anchor log, its signatures, AND the
+        # external witness BEFORE any outcome, so a rewritten observation (whose independent anchor was
+        # not also rewritten), an unwitnessed tip, a forged signature, or a truncation of the local log
+        # stops even a no-op re-run. The anchor is never regenerated to paper over a divergence.
+        if (self.anchor_signer is None or self.anchor_verifier is None
+                or self.external_anchor_sink is None):
+            return self._stop(
+                iso, "INDEPENDENT_WITNESS_UNAVAILABLE",
+                "no independent chain-tip witness (signer, public verifier and external sink) is "
+                "configured; the committed record cannot be tamper-evidently anchored", count, exceptions)
         try:
-            verify_anchor_consistency(self.store_dir, records)
+            verify_anchor_consistency(self.store_dir, records, verifier=self.anchor_verifier,
+                                      external_sink=self.external_anchor_sink)
         except AnchorError as exc:
             return self._stop(iso, exc.code, str(exc), count, exceptions)
 
@@ -432,42 +457,36 @@ class ForwardSessionRunner:
         with contextlib.suppress(OSError):
             snapshot.unlink()
 
-        # ── record the committed tip in the INDEPENDENT anchor log (R5d) ──
-        # The observation is the source of truth; the anchor is its separate tamper-witness. A crash
-        # between the commit and this append leaves the tip unwitnessed, which the next run diagnoses as
-        # ANCHOR_BEHIND_RECORD and stops — the anchor is never regenerated from the observation.
+        # ── the two INDEPENDENT post-commit durability writes (R5d review) ──
+        # The observation is the source of truth. The chain-tip anchor (its separate tamper-witness) and
+        # the instrument's own durable book are each written now, in their own storage. The attempts are
+        # INDEPENDENT: a failure of one never suppresses the other, so a crash cannot hide a second
+        # divergence. Each unwritten artifact is diagnosed on the next run — ANCHOR_BEHIND_RECORD /
+        # EXTERNAL_WITNESS_AHEAD for the anchor, BOOK_BEHIND_RECORD for the book — and never silently
+        # repaired.
+        anchor_error: Exception | None = None
         try:
-            append_anchor(self.store_dir, deployed_tree_identity=self.deployed_tree_identity,
+            append_anchor(self.store_dir, signer=self.anchor_signer,
+                          external_sink=self.external_anchor_sink,
+                          deployed_tree_identity=self.deployed_tree_identity,
                           anchored_at=run_timestamp, durability=self.durability)
-        except (AnchorError, OSError) as exc:
+        except (AnchorError, WitnessError, OSError) as exc:
+            anchor_error = exc
             logger.error("forward_session_anchor_unwritten", session=iso, sequence=sequence,
                          detail=str(exc))
-            return SessionRunResult(
-                status=SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN, session_date=iso,
-                session_count=new_count, sequence=sequence,
-                operational_exceptions=(*exceptions, "ANCHOR_WRITE_FAILED_POST_COMMIT"),
-                detail=f"the observation committed (sequence {sequence}) but its independent chain-tip "
-                       f"anchor was not written: {exc}. The record has advanced — do NOT retry this "
-                       f"session; the next run will stop with ANCHOR_BEHIND_RECORD for governed "
-                       f"adjudication.")
 
-        # The instrument's own durable book is written LAST, in its own storage. It cannot share the
-        # observation's atomic write, so the crash window between them is explicit: a crash here leaves
-        # the observation committed and the book one session behind, which the next run diagnoses as
-        # BOOK_BEHIND_RECORD and stops — never a silent repair (see instrument_state_store).
+        book_error: Exception | None = None
         if self.on_committed is not None:
             try:
                 self.on_committed(sequence, iso)
             except Exception as exc:      # noqa: BLE001 - post-commit: the record already advanced
+                book_error = exc
                 logger.error("forward_session_book_unpersisted", session=iso, sequence=sequence,
                              detail=str(exc))
-                return SessionRunResult(
-                    status=SessionRunStatus.RECORDED_BUT_BOOK_UNPERSISTED, session_date=iso,
-                    session_count=new_count, sequence=sequence,
-                    operational_exceptions=(*exceptions, "BOOK_WRITE_FAILED_POST_COMMIT"),
-                    detail=f"the observation committed (sequence {sequence}) but the instrument book "
-                           f"write failed: {exc}. The record has advanced — do NOT retry this session; "
-                           f"the next run will stop with BOOK_BEHIND_RECORD for governed recovery.")
+
+        if anchor_error is not None or book_error is not None:
+            return self._post_commit_divergence(iso, sequence, new_count, exceptions,
+                                                anchor_error, book_error)
 
         logger.info("forward_session_recorded", session=iso, sequence=sequence,
                     session_count=new_count, traded=outcome.traded)
@@ -477,6 +496,36 @@ class ForwardSessionRunner:
                                 detail="observation committed")
 
     # ── helpers ───────────────────────────────────────────────────────────────────────────────────
+    def _post_commit_divergence(
+        self, iso: str, sequence: int, new_count: int, exceptions: list[str],
+        anchor_error: Exception | None, book_error: Exception | None,
+    ) -> SessionRunResult:
+        """The precise post-commit durability status: which of the two INDEPENDENT writes (the chain-tip
+        anchor, the instrument book) did not land. The observation is committed either way — the record
+        advanced, so none of these is retried as an ordinary session."""
+        ops = list(exceptions)
+        parts: list[str] = []
+        if anchor_error is not None:
+            ops.append("ANCHOR_WRITE_FAILED_POST_COMMIT")
+            parts.append(f"its independent chain-tip anchor was not written ({anchor_error})")
+        if book_error is not None:
+            ops.append("BOOK_WRITE_FAILED_POST_COMMIT")
+            parts.append(f"the instrument book was not persisted ({book_error})")
+
+        if anchor_error is not None and book_error is not None:
+            status = SessionRunStatus.RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED
+        elif anchor_error is not None:
+            status = SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
+        else:
+            status = SessionRunStatus.RECORDED_BUT_BOOK_UNPERSISTED
+
+        detail = (f"the observation committed (sequence {sequence}) but " + "; and ".join(parts)
+                  + ". The record has advanced — do NOT retry this session; the next run stops for "
+                  "governed adjudication (ANCHOR_BEHIND_RECORD/EXTERNAL_WITNESS_AHEAD for the anchor, "
+                  "BOOK_BEHIND_RECORD for the book).")
+        return SessionRunResult(status=status, session_date=iso, session_count=new_count,
+                                sequence=sequence, operational_exceptions=tuple(ops), detail=detail)
+
     def _decision_evidence(self, evaluator: ForwardEvaluator, outcome: SessionOutcome) -> dict | None:
         """The provider-call evidence the decision was taken from, bound into the committed record.
 
