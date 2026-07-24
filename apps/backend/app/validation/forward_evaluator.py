@@ -98,6 +98,7 @@ class ForwardDecision:
     durable_state_id: str
     instrument_state: InstrumentDecisionState
     snapshot_digest: str = ""          # the instrument snapshot this decision was taken under (R5c-2)
+    input_evidence_digest: str = ""    # digest of the provider calls this decision was taken from (R5c-2b2)
 
 
 DecisionProvider = Callable[[date], ForwardDecision]
@@ -116,6 +117,7 @@ class ForwardEvaluator:
     expected_instrument_identity: str = PRODUCTION_STRATEGY_COMMIT
     _processed_sessions: set[str] = field(default_factory=set)
     shadow_ledger_drift_diagnostics: dict[str, float] = field(default_factory=dict)
+    last_decision: ForwardDecision | None = field(default=None, init=False)
 
     def evaluate_session(self, session_date: date, price_fn: PriceFn) -> SessionOutcome:
         iso = session_date.isoformat()
@@ -131,6 +133,7 @@ class ForwardEvaluator:
                 "belong to this run's snapshot, so nothing may be booked")
 
         decision = self.decision_provider(session_date)
+        self.last_decision = decision
         rec = decision.record
 
         if not str(decision.snapshot_digest or "").strip():

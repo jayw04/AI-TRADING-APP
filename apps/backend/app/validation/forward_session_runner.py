@@ -144,6 +144,10 @@ class SessionRunStatus(StrEnum):
     NOT_ELIGIBLE = "NOT_ELIGIBLE"
     ALREADY_RECORDED = "ALREADY_RECORDED"
     RECORDED = "RECORDED"
+    # The observation committed but a post-commit durable write (the instrument book) failed. This is
+    # NOT an ordinary session failure and MUST NOT be retried as one: the record advanced. The next run
+    # sees BOOK_BEHIND_RECORD and stops for governed recovery.
+    RECORDED_BUT_BOOK_UNPERSISTED = "RECORDED_BUT_BOOK_UNPERSISTED"
     INTEGRITY_STOP = "INTEGRITY_STOP"
 
 
@@ -180,11 +184,24 @@ class ForwardSessionRunner:
     deployed_tree_identity: str
     shadow_ledger_identity: str
     readiness: DataReadinessCheck | None = None
-    expected_snapshot_digest: str = ""      # the instrument snapshot THIS run was set up with
+    expected_snapshot_digest: str = ""      # a pre-captured digest (the stub path); production captures below
+    # The SINGLE instrument snapshot, captured at the pre-evaluation boundary (R5c-2b2): after readiness,
+    # the held-name price reads and the pre-session ledger snapshot, and immediately before the
+    # authoritative Account-4 probe — so it bounds the instrument state as close to the decision as
+    # possible and a lengthy readiness/data check cannot leave it stale. `snapshot_capture` returns the
+    # snapshot; `bind_snapshot` hands it to the decision provider. When both are absent the runner uses
+    # the pre-configured `expected_snapshot_digest` (the tests' stub path).
+    snapshot_capture: Callable[[date], object] | None = None
+    bind_snapshot: Callable[[object], None] | None = None
     # The AUTHORITATIVE Account-4 read (R5c-2b). Taken immediately before the instrument is evaluated
     # and again after every decision/data read, before publication: both must describe the same live
     # state. Distinct from `account4_probe`, which the commit protocol uses inside its own staging.
     authoritative_account4_probe: Callable[[], Account4Probe] | None = None
+    # Called AFTER the observation has committed and the ledger has saved — the point at which the
+    # instrument's own durable book is persisted (R5c-2b2). The observation is the source of truth: if
+    # this write is lost the next run sees BOOK_BEHIND_RECORD and stops for governed recovery, and the
+    # book is never reconstructed from the ledger. `sequence` is the committed sequence number.
+    on_committed: Callable[[int, str], None] | None = None
     durability: Durability | None = None
 
     # ── the entry point a scheduler calls ─────────────────────────────────────────────────────────
@@ -291,12 +308,32 @@ class ForwardSessionRunner:
         dur = self.durability or default_durability()
         ledger.save(snapshot, durability=dur)                    # audited rollback input
 
+        # ── the SINGLE instrument snapshot, taken HERE — the pre-evaluation boundary ──
+        # After readiness, the held-name price reads and the pre-session ledger snapshot, and immediately
+        # before the authoritative Account-4 probe and the evaluation. Taken this late so it bounds the
+        # instrument's state as close to the decision as possible: a lengthy readiness or data-finality
+        # check cannot leave it stale. A pre-configured digest (the stub path) is used only when no
+        # capture is wired.
+        expected_digest = str(self.expected_snapshot_digest or "").strip()
+        if self.snapshot_capture is not None:
+            try:
+                instrument_snapshot = self.snapshot_capture(session_date)
+            except IntegrityStop as exc:
+                return self._stop(iso, "INSTRUMENT_SNAPSHOT_UNAVAILABLE", str(exc), count, exceptions)
+            if self.bind_snapshot is not None:
+                try:
+                    self.bind_snapshot(instrument_snapshot)
+                except IntegrityStop as exc:
+                    return self._stop(iso, "INSTRUMENT_SNAPSHOT_UNAVAILABLE", str(exc), count,
+                                      exceptions)
+            expected_digest = str(getattr(instrument_snapshot, "snapshot_digest", "") or "").strip()
+
         # ── the decision + the booking (nothing is written to the record yet) ──
-        if not str(self.expected_snapshot_digest or "").strip():
+        if not expected_digest:
             return self._stop(
                 iso, "INSTRUMENT_SNAPSHOT_UNAVAILABLE",
-                "no instrument-snapshot digest was configured for this run; a decision could not be "
-                "tied to the state it was taken under", count, exceptions)
+                "no instrument snapshot was captured for this run; a decision could not be tied to the "
+                "state it was taken under", count, exceptions)
         # ── the AUTHORITATIVE Account-4 read, IMMEDIATELY before the instrument is evaluated ──
         # Last of everything: after the readiness assessment, the held-name price reads and the
         # pre-session snapshot. The unchecked interval between this probe and publication is the window
@@ -310,7 +347,7 @@ class ForwardSessionRunner:
 
         evaluator = ForwardEvaluator(ledger=ledger, decision_provider=self.decision_provider,
                                      shadow_ledger_identity=self.shadow_ledger_identity,
-                                     expected_snapshot_digest=self.expected_snapshot_digest)
+                                     expected_snapshot_digest=expected_digest)
         try:
             outcome = evaluator.evaluate_session(session_date, self.price_fn)
         except PriceUnavailable as exc:
@@ -343,6 +380,7 @@ class ForwardSessionRunner:
                 return self._stop(iso, "ACCOUNT4_STATE_CHANGED_DURING_SESSION", str(exc), count,
                                   exceptions)
 
+        decision_evidence = self._decision_evidence(evaluator, outcome)
         operational = _operational_flags(exceptions)
         sealed = _sealed_performance(outcome, ledger)
         # The shadow ledger routes no orders, so `orders` is 0 by construction — the counter describes
@@ -358,7 +396,7 @@ class ForwardSessionRunner:
                     account4_probe=self.account4_probe,
                     rebalances=rebalances, orders=orders, seeds=seeds, operational=operational,
                     sealed_performance=sealed, store_dir=self.store_dir, durability=self.durability,
-                    data_finality=finality.to_open_provenance())
+                    data_finality=finality.to_open_provenance(), decision_evidence=decision_evidence)
                 sequence = first_prov.observation_sequence
             else:
                 _, prov, new_count = record_forward_session(
@@ -368,7 +406,7 @@ class ForwardSessionRunner:
                     account4_probe=self.account4_probe,
                     rebalances=rebalances, orders=orders, seeds=seeds, operational=operational,
                     sealed_performance=sealed, store_dir=self.store_dir, durability=self.durability,
-                    data_finality=finality.to_open_provenance())
+                    data_finality=finality.to_open_provenance(), decision_evidence=decision_evidence)
                 sequence = prov.observation_sequence
         except IntegrityStop as exc:
             # Not committed => not booked: the ledger is saved only after a successful commit, so the
@@ -379,6 +417,24 @@ class ForwardSessionRunner:
         with contextlib.suppress(OSError):
             snapshot.unlink()
 
+        # The instrument's own durable book is written LAST, in its own storage. It cannot share the
+        # observation's atomic write, so the crash window between them is explicit: a crash here leaves
+        # the observation committed and the book one session behind, which the next run diagnoses as
+        # BOOK_BEHIND_RECORD and stops — never a silent repair (see instrument_state_store).
+        if self.on_committed is not None:
+            try:
+                self.on_committed(sequence, iso)
+            except Exception as exc:      # noqa: BLE001 - post-commit: the record already advanced
+                logger.error("forward_session_book_unpersisted", session=iso, sequence=sequence,
+                             detail=str(exc))
+                return SessionRunResult(
+                    status=SessionRunStatus.RECORDED_BUT_BOOK_UNPERSISTED, session_date=iso,
+                    session_count=new_count, sequence=sequence,
+                    operational_exceptions=(*exceptions, "BOOK_WRITE_FAILED_POST_COMMIT"),
+                    detail=f"the observation committed (sequence {sequence}) but the instrument book "
+                           f"write failed: {exc}. The record has advanced — do NOT retry this session; "
+                           f"the next run will stop with BOOK_BEHIND_RECORD for governed recovery.")
+
         logger.info("forward_session_recorded", session=iso, sequence=sequence,
                     session_count=new_count, traded=outcome.traded)
         return SessionRunResult(status=SessionRunStatus.RECORDED, session_date=iso,
@@ -387,6 +443,25 @@ class ForwardSessionRunner:
                                 detail="observation committed")
 
     # ── helpers ───────────────────────────────────────────────────────────────────────────────────
+    def _decision_evidence(self, evaluator: ForwardEvaluator, outcome: SessionOutcome) -> dict | None:
+        """The provider-call evidence the decision was taken from, bound into the committed record.
+
+        The digest carried by the immutable ForwardDecision must equal the digest of the evidence the
+        decision provider bound for this evaluation — otherwise the record would attest to inputs the
+        decision did not use. Absent a binding provider this is simply None (the tests' stub path)."""
+        decision = evaluator.last_decision
+        bound = getattr(self.decision_provider, "bound_evidence", None)
+        if decision is None or bound is None:
+            return None
+        provenance = bound.to_open_provenance()
+        expected = getattr(bound, "digest", lambda: "")()
+        if decision.input_evidence_digest and expected and decision.input_evidence_digest != expected:
+            raise IntegrityStop(
+                "the decision's input-evidence digest does not match the evidence bound for this "
+                "evaluation — the record cannot attest to inputs the decision did not use")
+        provenance["input_evidence_digest"] = decision.input_evidence_digest
+        return provenance
+
     def _unmarkable(self, names: list[str], session_date: date) -> list[str]:
         """Held securities with no usable exact-session mark. Works with either price function: the
         strict production one raises (caught here), the lenient one returns None."""
