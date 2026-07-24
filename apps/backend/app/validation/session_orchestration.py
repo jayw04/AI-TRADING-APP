@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from app.validation.account4_probe import Account4Probe
+from app.validation.chain_witness import AnchorSigner, AnchorVerifier, ExternalAnchorSink
 from app.validation.decision_provider import (
     InstrumentSnapshot,
     ProductionDecisionProvider,
@@ -56,6 +57,11 @@ class SessionRuntime:
     account4_probe: Callable[[], Account4Probe]       # the authoritative live read
     context_builder: Callable[[date], ForwardRunContext]
     readiness: Any                                    # R5a/R5b gate: assess + verify_unchanged
+    # the independent chain-tip witness (R5d): a signer whose private key the store-writer does not hold,
+    # its public verifier, and an external append-only sink with separately governed write authority
+    anchor_signer: AnchorSigner
+    anchor_verifier: AnchorVerifier
+    external_anchor_sink: ExternalAnchorSink
     market_symbol: str = "SPY"
 
 
@@ -193,6 +199,8 @@ def run_production_session(
         readiness=runtime.readiness,
         authoritative_account4_probe=runtime.account4_probe,
         snapshot_capture=capture_snapshot, bind_snapshot=bind_snapshot,
+        anchor_signer=runtime.anchor_signer, anchor_verifier=runtime.anchor_verifier,
+        external_anchor_sink=runtime.external_anchor_sink,
         on_committed=_book_writer(lifecycle, adapter))
 
     return runner.run_session(session, run_timestamp=run_timestamp)
