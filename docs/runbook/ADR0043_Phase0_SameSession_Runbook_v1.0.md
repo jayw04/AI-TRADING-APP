@@ -13,7 +13,19 @@
 >    transfer that blob to the host → mount read‑only into the *unchanged* deployed image → record
 >    host/container SHA equality. Until that lands, every run of Step A/B is **exploratory and
 >    non‑authoritative**.
-> 2. **The canary harness's loss observation is disarmed** —
+> 2. **The deployed runtime binds the harness to the WRONG user and account** —
+>    `docs/incidents/ADR0043_Runtime_Target_Binding_Mismatch_20260724.md`. `/opt/workbench/.env`
+>    carries `ADR0043_USER=1` / `ADR0043_ACCOUNT=1` while the plan freezes **3/3**, and the harness
+>    reads them from the environment. Any run launched with `--env-file` alone binds to the wrong
+>    account and the wrong credentials. **No evidence produced under that environment is admissible.**
+> 3. **This host performs NO automatic account synchronization.** `WORKBENCH_SCHEDULER_ENABLED=false`
+>    (intentionally — the validation box is non-autonomous), so `accounts_state` is never refreshed
+>    here and account 3 has no row at all. Earlier revisions of this runbook assumed a sweep that
+>    cannot occur. Reconciliation must come from a sanctioned **account-scoped** synchronization for
+>    3/3 only — never `sync_all`, and never by enabling the global scheduler, which would arm
+>    synchronization for every local account including account 1.
+>    See `docs/incidents/ADR0043_Validation_Scheduler_Disarmed_20260724.md`.
+> 4. **The canary harness's loss observation is disarmed** —
 >    `docs/incidents/ADR0043_Harness_AccountState_Missing_Defaults_To_Zero_20260724.md`. The driver
 >    reads its authoritative loss from an `accounts_state` row that does not exist for account 3 and
 >    silently substitutes zero, so Phase‑0's live stopping (§5) and overshoot (§10) measurements do
@@ -51,6 +63,18 @@
 > The staged orchestrator is **operator setup tooling**, not the frozen canary harness. It only reads,
 > except the single immutable session‑baseline write behind `--capture-baseline`. It is mounted into the
 > container at run time (never baked into the deployed image), preserving the runtime‑continuity invariant.
+
+> ### ⚠ Every governed value must be re‑asserted on the command line
+>
+> `--env-file` alone is not sufficient: the file has already been observed carrying a wrong binding.
+> The execution command must re‑assert every governed value **after** the environment loads, and the
+> harness must print and verify — before loading credentials or constructing an order path —
+> user/account `3/3`, credential prefix `PKZYTY…`, broker `PA34USW0Q8UO`, `!= PA3QRX9KSPXA`,
+> protected `MSFT`, legs `MSFT:19`, churn `IEUS,KOKU`. A mismatch is a pre‑submission refusal.
+>
+> ```
+> docker compose -f docker-compose.yml -f docker-compose.prod.yml exec >   -e ADR0043_USER=3 -e ADR0043_ACCOUNT=3 -e ADR0043_PROTECTED=MSFT >   -e ADR0043_LEGS=MSFT:19 -e ADR0043_CHURN=IEUS,KOKU >   -e WORKBENCH_LOSS_CONTROL_MODE=ENFORCE >   backend python -m scripts.adr0043_canary_run
+> ```
 
 ## Step A — Read‑only precheck (safe any time, including now)
 
