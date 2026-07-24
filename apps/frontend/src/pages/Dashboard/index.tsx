@@ -98,7 +98,12 @@ export default function Dashboard() {
                 label="Today's Change"
                 value={formatMoney(acc.day_change)}
                 valueClassName={pnlClassName(acc.day_change)}
-                sub={formatPercent(acc.day_change_pct)}
+                // No baseline ⇒ "—" rather than a $0.00 flat day nobody measured.
+                sub={
+                  acc.day_change_basis === "UNAVAILABLE"
+                    ? "no day baseline available"
+                    : formatPercent(acc.day_change_pct)
+                }
                 big
               />
             </div>

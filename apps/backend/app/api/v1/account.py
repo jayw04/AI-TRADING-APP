@@ -14,45 +14,9 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
 from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.session import get_session
+from app.services.day_change_basis import UNAVAILABLE
 
 router = APIRouter(prefix="/account", tags=["account"])
-
-
-async def _snapshot_day_baseline(
-    session: AsyncSession, account_id: int
-) -> Decimal | None:
-    """Prior close equity from the snapshot time series when broker last_equity is missing.
-
-    Prefer the second-most-recent point when two exist (latest may be today's close tick);
-    otherwise use the sole snapshot."""
-    equities = (
-        await session.execute(
-            select(EquitySnapshot.equity)
-            .where(EquitySnapshot.account_id == account_id)
-            .order_by(EquitySnapshot.ts.desc())
-            .limit(2)
-        )
-    ).scalars().all()
-    if len(equities) >= 2:
-        return equities[1]
-    if len(equities) == 1:
-        return equities[0]
-    return None
-
-
-def _day_metrics(
-    *,
-    equity: Decimal,
-    last_equity: Decimal,
-    snapshot_baseline: Decimal | None,
-) -> tuple[Decimal, Decimal]:
-    """Compute today's change for the dashboard (fractional day_change_pct)."""
-    baseline = last_equity if last_equity > 0 else snapshot_baseline
-    if baseline is None or baseline <= 0:
-        return Decimal(0), Decimal(0)
-    day_change = equity - baseline
-    day_change_pct = day_change / baseline
-    return day_change, day_change_pct
 
 
 @router.get("", response_model=AccountResponse)
@@ -106,16 +70,11 @@ async def get_account(
         else Decimal(0)
     )
 
-    snapshot_baseline = (
-        await _snapshot_day_baseline(session, account.id)
-        if state.last_equity <= 0
-        else None
-    )
-    day_change, day_change_pct = _day_metrics(
-        equity=state.equity,
-        last_equity=state.last_equity,
-        snapshot_baseline=snapshot_baseline,
-    )
+    # The day figures are decided once, at sync time, and stored with their provenance — this
+    # endpoint never re-derives them, so the dashboard and the persisted risk-path input can never
+    # disagree. When no baseline was found the numbers are placeholders, and reporting them as
+    # `null` is what stops the UI showing a $0.00 "flat day" that nobody measured.
+    measured = state.day_change_basis != UNAVAILABLE
 
     return AccountResponse(
         account_id=account.id,
@@ -126,8 +85,9 @@ async def get_account(
         last_equity=state.last_equity,
         buying_power=state.buying_power,
         portfolio_value=state.portfolio_value,
-        day_change=day_change,
-        day_change_pct=day_change_pct,
+        day_change=state.day_change if measured else None,
+        day_change_pct=state.day_change_pct if measured else None,
+        day_change_basis=state.day_change_basis,
         starting_equity=starting_equity,
         total_return=total_return,
         total_return_pct=total_return_pct,

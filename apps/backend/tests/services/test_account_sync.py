@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock
 
@@ -6,9 +7,15 @@ from sqlalchemy import select
 
 from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
+from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.models.user import User
 from app.events.bus import EventBus
 from app.services.account_sync import AccountSyncService
+from app.services.day_change_basis import (
+    BROKER_LAST_EQUITY,
+    PRIOR_SESSION_CLOSE_PROXY,
+    UNAVAILABLE,
+)
 
 
 @pytest.fixture
@@ -173,27 +180,101 @@ async def test_sync_all_without_registry_falls_back_to_primary(
     assert len(rows) == 1  # sync_once ran for the primary account
 
 
-async def test_account_sync_zero_last_equity_does_not_set_day_change_to_equity(
-    session_factory,
-) -> None:
-    """Fresh paper accounts may report last_equity=0; must not equate day P&L to full equity."""
-    await _seed_paper_account(session_factory)
+def _adapter_without_last_equity(equity: str = "102177.42") -> MagicMock:
     adapter = MagicMock()
     adapter.is_paper = True
     adapter.get_account.return_value = {
         "status": "ACTIVE",
         "cash": "50000.00",
-        "equity": "102177.42",
+        "equity": equity,
         "last_equity": "0",
         "buying_power": "150000.00",
-        "portfolio_value": "102177.42",
+        "portfolio_value": equity,
         "daytrade_count": 0,
         "pattern_day_trader": False,
         "trading_blocked": False,
         "account_blocked": False,
     }
-    svc = AccountSyncService(adapter, session_factory, EventBus())
-    payload = await svc.sync_once()
+    return adapter
+
+
+async def test_broker_basis_is_recorded_on_the_happy_path(
+    session_factory, mock_adapter_paper
+) -> None:
+    await _seed_paper_account(session_factory)
+    payload = await AccountSyncService(
+        mock_adapter_paper, session_factory, EventBus()
+    ).sync_once()
+    assert payload["day_change_basis"] == BROKER_LAST_EQUITY
+    async with session_factory() as session:
+        row = (await session.execute(select(AccountState))).scalars().one()
+    assert row.day_change_basis == BROKER_LAST_EQUITY
+    assert row.day_change == Decimal("-1249.58")
+
+
+async def test_zero_last_equity_without_history_is_unavailable_not_zero(
+    session_factory,
+) -> None:
+    """Fresh paper accounts report last_equity=0. `equity - 0` would book the whole account as
+    today's change; a bare 0 would claim a measured flat day. Both are assertions about an
+    unmeasured quantity, so the row is labelled UNAVAILABLE and the number is a placeholder."""
+    await _seed_paper_account(session_factory)
+    payload = await AccountSyncService(
+        _adapter_without_last_equity(), session_factory, EventBus()
+    ).sync_once()
+
     assert payload["equity"] == Decimal("102177.42")
-    assert payload["day_change"] == Decimal(0)
-    assert payload["day_change_pct"] == Decimal(0)
+    assert payload["day_change_basis"] == UNAVAILABLE
+    assert payload["day_change"] != Decimal("102177.42")  # never the whole book
+
+    async with session_factory() as session:
+        row = (await session.execute(select(AccountState))).scalars().one()
+    assert row.day_change_basis == UNAVAILABLE
+
+
+async def test_zero_last_equity_falls_back_to_the_prior_close_proxy(session_factory) -> None:
+    """End-to-end: a real down day survives the missing broker baseline, negative and intact."""
+    await _seed_paper_account(session_factory)
+    async with session_factory() as session:
+        session.add(
+            EquitySnapshot(
+                account_id=1,
+                ts=datetime.now(UTC) - timedelta(days=1),
+                equity=Decimal("84000"),
+                cash=Decimal(0),
+                portfolio_value=Decimal("84000"),
+                day_change_pct=Decimal(0),
+            )
+        )
+        await session.commit()
+
+    payload = await AccountSyncService(
+        _adapter_without_last_equity("80000"), session_factory, EventBus()
+    ).sync_once()
+
+    assert payload["day_change_basis"] == PRIOR_SESSION_CLOSE_PROXY
+    assert payload["day_change"] == Decimal("-4000")
+    async with session_factory() as session:
+        row = (await session.execute(select(AccountState))).scalars().one()
+    assert row.day_change == Decimal("-4000")  # the persisted risk-path input agrees
+
+
+async def test_stale_history_does_not_become_a_baseline(session_factory) -> None:
+    await _seed_paper_account(session_factory)
+    async with session_factory() as session:
+        session.add(
+            EquitySnapshot(
+                account_id=1,
+                ts=datetime.now(UTC) - timedelta(days=9),
+                equity=Decimal("84000"),
+                cash=Decimal(0),
+                portfolio_value=Decimal("84000"),
+                day_change_pct=Decimal(0),
+            )
+        )
+        await session.commit()
+
+    payload = await AccountSyncService(
+        _adapter_without_last_equity("80000"), session_factory, EventBus()
+    ).sync_once()
+    assert payload["day_change_basis"] == UNAVAILABLE
