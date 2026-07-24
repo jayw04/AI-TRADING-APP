@@ -194,6 +194,8 @@ class OpenObservation:
     # performance). Recorded with the observation so a committed session carries the evidence that its
     # inputs were final, not merely the claim that they were.
     data_finality: dict | None = None
+    # the provider-call evidence the decision was taken from (R5c-2b2): open provenance, no performance
+    decision_evidence: dict | None = None
 
 
 def seal_performance(payload: dict) -> tuple[str, bytes]:

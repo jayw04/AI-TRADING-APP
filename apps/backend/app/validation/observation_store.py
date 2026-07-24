@@ -118,7 +118,8 @@ def canon(payload: dict) -> bytes:
 
 def build_open_record(ctx: ForwardRunContext, *, rebalances: int, orders: int, seeds: int,
                       operational: dict, sealed_sha: str,
-                      data_finality: dict | None = None) -> OpenObservation:
+                      data_finality: dict | None = None,
+                      decision_evidence: dict | None = None) -> OpenObservation:
     """Assemble the operator-visible OPEN record for a session (no performance — sealed by digest)."""
     return OpenObservation(
         session_date=ctx.session_date.isoformat(), integrity_verdict="PASS",
@@ -134,6 +135,7 @@ def build_open_record(ctx: ForwardRunContext, *, rebalances: int, orders: int, s
         operational_exceptions=list(operational.get("operational_exceptions", [])),
         sealed_performance_sha256=sealed_sha,
         data_finality=data_finality,
+        decision_evidence=decision_evidence,
     )
 
 

@@ -120,6 +120,7 @@ def open_first_window_session(
     store_dir: Path,
     durability: Durability | None = None,
     data_finality: dict | None = None,
+    decision_evidence: dict | None = None,
 ) -> tuple[OpenObservation, FirstObservationProvenance, int]:
     """Run the gate, then COMMIT the first observation as one atomic, no-overwrite directory publish,
     and return the session count derived from validated committed storage (1 on success). Refuses if
@@ -135,7 +136,8 @@ def open_first_window_session(
     sealed_sha, sealed_bytes = seal_performance(sealed_performance)
     open_obs = build_open_record(ctx, rebalances=rebalances, orders=orders, seeds=seeds,
                                  operational=operational, sealed_sha=sealed_sha,
-                                 data_finality=data_finality)
+                                 data_finality=data_finality,
+                                 decision_evidence=decision_evidence)
     open_dict = asdict(open_obs)
     assert_open_record_has_no_sealed_content(open_dict, sealed_performance)
     open_bytes = canon(open_dict)

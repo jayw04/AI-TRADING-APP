@@ -222,7 +222,7 @@ class ProductionBarsProvider:
             index=pd.to_datetime([d for d, _ in series]))
         frame.index.name = "t"
         self.output_evidence.append(validate_bars(
-            frame, symbol=sym, as_of=as_of, spec=self.spec,
+            frame, symbol=sym, as_of=as_of, spec=self.spec, requested_n=n,
             store_sessions=self.session_dates, provider_identity=self.forward_identity(),
             is_market_symbol=sym == self.market_symbol.upper()))
         return frame
@@ -298,7 +298,7 @@ def validate_scores(frame: Any, session: date, spec: ScoresSpec, *, provider_ide
 
 def validate_bars(frame: Any, *, symbol: str, as_of: date, spec: BarsSpec,
                   store_sessions: tuple[date, ...], provider_identity: str,
-                  is_market_symbol: bool) -> dict[str, Any]:
+                  is_market_symbol: bool, requested_n: int = -1) -> dict[str, Any]:
     """Refuse a bar series that runs past the session, repeats a mark, or invents a date."""
     if frame is None or getattr(frame, "empty", True):
         raise ProviderOutputError(f"no bars for {symbol} as of {as_of.isoformat()}")
@@ -348,7 +348,11 @@ def validate_bars(frame: Any, *, symbol: str, as_of: date, spec: BarsSpec,
                 f"the {symbol} close on {d.isoformat()} is not a usable price ({raw!r})")
         closes.append(close)
 
-    if is_market_symbol and len(index) < spec.ma_sessions:
+    # The 200-session completeness applies to the REGIME call — the one that requests the MA window
+    # (requested_n >= ma_sessions). A caller asking the market proxy for fewer bars for another purpose
+    # gets what it asked for; the regime cannot be run on an incomplete MA.
+    needs_ma = is_market_symbol and (requested_n < 0 or requested_n >= spec.ma_sessions)
+    if needs_ma and len(index) < spec.ma_sessions:
         raise ProviderOutputError(
             f"the market proxy has {len(index)} session(s) as of {as_of.isoformat()}, below the "
             f"{spec.ma_sessions}-session moving average the regime requires")
@@ -357,6 +361,7 @@ def validate_bars(frame: Any, *, symbol: str, as_of: date, spec: BarsSpec,
         "provider_identity": provider_identity,
         "symbol": symbol,
         "as_of": as_of.isoformat(),
+        "requested_n": requested_n,
         "sessions": len(index),
         "first_session": index[0].isoformat(),
         "last_session": index[-1].isoformat(),
