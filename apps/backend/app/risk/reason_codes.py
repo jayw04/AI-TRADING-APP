@@ -24,6 +24,10 @@ class ReasonCode(StrEnum):
     # (INTEGRITY_STOP, or a reduction-only state refusing a non-reducing order). Distinct from the
     # legacy CIRCUIT_BREAKER so evidence can tell which control acted.
     LOSS_CONTROL_STOP = "LOSS_CONTROL_STOP"
+    # The day-change basis is UNAVAILABLE, so the daily-loss gate could not measure. New or
+    # increasing risk is refused while verified reductions still pass. Deliberately NOT
+    # CIRCUIT_BREAKER or a daily-loss code: no loss was measured and no threshold was crossed.
+    DAILY_PNL_UNAVAILABLE = "DAILY_PNL_UNAVAILABLE"
     MAX_ORDERS_PER_DAY = "MAX_ORDERS_PER_DAY"
     INSUFFICIENT_BUYING_POWER = "INSUFFICIENT_BUYING_POWER"
     # P5 §6 — live order safety (OrderRouter-level rejections, pre-risk-engine).

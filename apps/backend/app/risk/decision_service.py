@@ -80,6 +80,10 @@ ZERO = Decimal(0)
 LOCK_UNLOCKED = "UNLOCKED"
 LOCK_DAILY_LOSS = "DAILY_LOSS"
 LOCK_BREAKER = "BREAKER"
+# The day-change basis is UNAVAILABLE: the account is locked because the control cannot MEASURE,
+# not because a threshold was crossed. Every decision recorded under it carries no daily-P&L value,
+# because there is none — recording 0 would put an unmeasured "flat day" into the ledger.
+LOCK_DAILY_PNL_UNAVAILABLE = "DAILY_PNL_UNAVAILABLE"
 
 # One lock per account. Classification, reservation and ledger insertion must not interleave
 # for the same account, or two reductions can each be approved against the same capacity.

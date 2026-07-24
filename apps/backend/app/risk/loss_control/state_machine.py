@@ -30,6 +30,9 @@ TRIGGER_PREFLIGHT_PASS = "PREFLIGHT_PASS"  # full preflight PASS → RECOVERY_CO
 TRIGGER_PREFLIGHT_FAIL = "PREFLIGHT_FAIL"  # a check failed → back to the lock, else INTEGRITY_STOP
 TRIGGER_COOLDOWN_COMPLETE = "COOLDOWN_COMPLETE"  # all §D1.4 conditions hold → NORMAL
 TRIGGER_HEALTH_REGRESSED = "HEALTH_REGRESSED"  # health regressed during cooldown → INTEGRITY_STOP
+# The day-change basis is unavailable: today's P&L is UNKNOWN, so the daily-loss control cannot
+# see. Protection applies WITHOUT asserting a loss or a crossed threshold.
+TRIGGER_DAILY_PNL_UNAVAILABLE = "DAILY_PNL_UNAVAILABLE"
 
 ALL_TRIGGERS: frozenset[str] = frozenset(
     {
@@ -41,6 +44,7 @@ ALL_TRIGGERS: frozenset[str] = frozenset(
         TRIGGER_PREFLIGHT_FAIL,
         TRIGGER_COOLDOWN_COMPLETE,
         TRIGGER_HEALTH_REGRESSED,
+        TRIGGER_DAILY_PNL_UNAVAILABLE,
     }
 )
 
@@ -49,9 +53,14 @@ _CONTROL_DAILY_LOSS = "DAILY_LOSS"
 _CONTROL_BREAKER = "CIRCUIT_BREAKER"
 _CONTROL_INTEGRITY = "INTEGRITY"
 _CONTROL_RECOVERY = "RECOVERY"
+_CONTROL_MEASUREMENT = "MEASUREMENT_UNAVAILABLE"
 
 _REDUCTION_ONLY_STATES = frozenset(
-    {C.STATE_REDUCTION_ONLY_DAILY_LOSS, C.STATE_REDUCTION_ONLY_BREAKER}
+    {
+        C.STATE_REDUCTION_ONLY_DAILY_LOSS,
+        C.STATE_REDUCTION_ONLY_BREAKER,
+        C.STATE_REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE,
+    }
 )
 
 # A recovery can only have originated from a lock or an integrity stop. This origin is a PERSISTED
@@ -122,6 +131,17 @@ def decide_transition(
             return TransitionDecision(
                 True, C.STATE_REDUCTION_ONLY_BREAKER, _CONTROL_BREAKER, "breaker trip"
             )
+        if trigger == TRIGGER_DAILY_PNL_UNAVAILABLE:
+            # Protection without a measurement. There is deliberately NO trigger anywhere in this
+            # graph that returns this state to NORMAL: a basis becoming available again is not
+            # evidence about the window during which nothing was being measured, so the only way
+            # out is the sanctioned recovery path, exactly as for a measured lock.
+            return TransitionDecision(
+                True,
+                C.STATE_REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE,
+                _CONTROL_MEASUREMENT,
+                "daily P&L basis unavailable",
+            )
 
     elif state in _REDUCTION_ONLY_STATES or state == C.STATE_INTEGRITY_STOP:
         if trigger == TRIGGER_RECOVERY_REQUEST:
@@ -173,6 +193,9 @@ _REDUCTION_ONLY_FOR_ORDERS = frozenset(
     {
         C.STATE_REDUCTION_ONLY_DAILY_LOSS,
         C.STATE_REDUCTION_ONLY_BREAKER,
+        # Unmeasurable P&L is reduction-only, NOT an integrity stop: the account state is perfectly
+        # well known, so a reduction is still verifiable — it is the daily P&L that is unknown.
+        C.STATE_REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE,
         C.STATE_RECOVERY_PREFLIGHT,  # still locked while the preflight runs
         C.STATE_RECOVERY_COOLDOWN,  # §D6 re-arm: reductions allowed, new risk disabled
     }
