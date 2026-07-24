@@ -93,6 +93,7 @@ class ForwardDecision:
     instrument_identity: str
     durable_state_id: str
     instrument_state: InstrumentDecisionState
+    snapshot_digest: str = ""          # the instrument snapshot this decision was taken under (R5c-2)
 
 
 DecisionProvider = Callable[[date], ForwardDecision]
