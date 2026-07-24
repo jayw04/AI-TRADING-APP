@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from app.db.enums import StrategyStatus
+from app.db.enums import TERMINAL_ORDER_STATUSES, OrderStatus, StrategyStatus
 from app.validation.account4_probe import (
     GOVERNED_NON_RUNNING_STATUSES,
     Account4ProbeError,
@@ -41,21 +41,27 @@ def _hold(*, status: str = "ACTIVE", reason: str = HOLD_REASON, rev: int = 2,
 
 def _make_db(path: Path, *, account_id: int = 4, broker: str = BROKER, mode: str = MODE,
              status: str = "idle", hold: str | None = None, positions=(), open_orders=(),
-             include_hold: bool = True) -> Path:
+             include_hold: bool = True, user_id: int = 4, strategy_user_id: int | None = None,
+             extra_accounts=()) -> Path:
     con = sqlite3.connect(path)
     con.executescript(
         """
-        CREATE TABLE accounts (id INTEGER PRIMARY KEY, broker TEXT, mode TEXT, label TEXT);
-        CREATE TABLE strategies (id INTEGER PRIMARY KEY, status TEXT);
+        CREATE TABLE accounts (id INTEGER PRIMARY KEY, user_id INTEGER, broker TEXT, mode TEXT,
+                               label TEXT);
+        CREATE TABLE strategies (id INTEGER PRIMARY KEY, user_id INTEGER, status TEXT);
         CREATE TABLE strategy_state (id INTEGER PRIMARY KEY, strategy_id INTEGER, key TEXT, value TEXT);
         CREATE TABLE symbols (id INTEGER PRIMARY KEY, ticker TEXT);
         CREATE TABLE positions (id INTEGER PRIMARY KEY, account_id INTEGER, symbol_id INTEGER,
                                 side TEXT, qty TEXT, market_value TEXT);
         CREATE TABLE orders (id INTEGER PRIMARY KEY, account_id INTEGER, status TEXT);
         """)
-    con.execute("INSERT INTO accounts VALUES (?, ?, ?, ?)",
-                [account_id, broker, mode, "momentum-daily forward"])
-    con.execute("INSERT INTO strategies VALUES (?, ?)", [STRATEGY_ID, status])
+    con.execute("INSERT INTO accounts VALUES (?, ?, ?, ?, ?)",
+                [account_id, user_id, broker, mode, "momentum-daily forward"])
+    for extra_id, extra_user, extra_broker, extra_mode in extra_accounts:
+        con.execute("INSERT INTO accounts VALUES (?, ?, ?, ?, ?)",
+                    [extra_id, extra_user, extra_broker, extra_mode, "other"])
+    con.execute("INSERT INTO strategies VALUES (?, ?, ?)",
+                [STRATEGY_ID, strategy_user_id if strategy_user_id is not None else user_id, status])
     if include_hold:
         con.execute("INSERT INTO strategy_state VALUES (1, ?, 'operational_hold', ?)",
                     [STRATEGY_ID, hold if hold is not None else _hold()])
@@ -131,7 +137,9 @@ def test_every_known_status_is_adjudicated(status, tmp_path):
     if status in GOVERNED_NON_RUNNING_STATUSES:
         assert _probe(path).account4_is_safely_paused_and_held is True
     else:
-        with pytest.raises(Account4ProbeError, match="non-running set"):
+        # `live` is refused a step earlier still: the engine would resolve it to an alpaca/LIVE
+        # account, which this deployment does not register at all.
+        with pytest.raises(Account4ProbeError, match="non-running set|no alpaca/live account"):
             _probe(path)
 
 
@@ -308,3 +316,85 @@ def test_an_order_appearing_between_probes_stops_the_session(tmp_path):
     with pytest.raises(Account4ProbeError):                       # the second probe refuses outright
         _probe(path)
     assert before.open_order_count == 0
+
+
+# ---- the probed strategy must be the one Account 4 would actually run --------------------------------
+
+def test_the_binding_is_reproduced_from_the_engines_own_resolution_rule(db):
+    p = _probe(db)
+    assert p.binding_user_id == 4
+    assert p.resolved_account_id == 4
+    assert p.candidate_account_ids == (4,)
+
+
+def test_a_strategy_belonging_to_another_user_is_refused(tmp_path):
+    """Supplying two IDs together is not evidence that they are bound."""
+    path = _make_db(tmp_path / "otheruser.sqlite", user_id=4, strategy_user_id=7)
+    with pytest.raises(Account4ProbeError, match=r"not Account 4's strategy"):
+        _probe(path)
+
+
+def test_a_strategy_that_resolves_to_another_account_is_refused(tmp_path):
+    """Same user, but the engine would dispatch this strategy to a different account."""
+    path = _make_db(tmp_path / "otheracct.sqlite", account_id=4, user_id=4,
+                    extra_accounts=[(2, 4, "alpaca", "paper")])
+    with pytest.raises(Account4ProbeError, match="ambiguous"):
+        _probe(path)
+
+
+def test_an_account_4_that_is_not_the_resolved_account_is_refused(tmp_path):
+    """Account 4 exists and owns the strategy's user, but is not the account the rule resolves to
+    because its broker/mode registration does not match the engine's lookup."""
+    path = _make_db(tmp_path / "mismatch.sqlite", account_id=4, user_id=4, broker="alpaca",
+                    mode="paper", extra_accounts=[])
+    con = sqlite3.connect(path)
+    con.execute("UPDATE accounts SET broker = 'other-broker' WHERE id = 4")
+    con.commit()
+    con.close()
+    with pytest.raises(Account4ProbeError, match="expects alpaca/paper|no alpaca/paper account"):
+        _probe(path)
+
+
+def test_a_missing_binding_is_refused(tmp_path):
+    path = _make_db(tmp_path / "nobinding.sqlite", user_id=4, mode="live")
+    with pytest.raises(Account4ProbeError, match="expects alpaca/paper|no alpaca/paper account"):
+        _probe(path)
+
+
+def test_a_binding_change_between_probes_stops_the_session(tmp_path):
+    path = _make_db(tmp_path / "bindmove.sqlite")
+    before = _probe(path)
+    con = sqlite3.connect(path)
+    con.execute("INSERT INTO accounts VALUES (9, 4, 'alpaca', 'paper', 'a second paper account')")
+    con.commit()
+    con.close()
+    with pytest.raises(Account4ProbeError, match="ambiguous"):   # the second probe refuses outright
+        _probe(path)
+    assert before.candidate_account_ids == (4,)
+
+
+# ---- order openness is a TERMINAL allowlist ---------------------------------------------------------
+
+@pytest.mark.parametrize("status", sorted(s.value for s in OrderStatus))
+def test_every_known_order_status_is_adjudicated(status, tmp_path):
+    """Every status the governed schema defines: terminal ones are ignored, all others count as open."""
+    path = _make_db(tmp_path / f"order-{status}.sqlite", open_orders=[status])
+    terminal = {str(s) for s in TERMINAL_ORDER_STATUSES}
+    if status in terminal:
+        assert _probe(path).open_order_count == 0
+    else:
+        with pytest.raises(Account4ProbeError, match="open order"):
+            _probe(path)
+
+
+def test_an_unknown_order_status_fails_closed(tmp_path):
+    """A renamed, misspelled or newly added status must not slip past as 'not open'."""
+    path = _make_db(tmp_path / "unknown-order.sqlite", open_orders=["pending_submision"])
+    with pytest.raises(Account4ProbeError, match="unknown status"):
+        _probe(path)
+
+
+def test_an_order_with_no_status_fails_closed(tmp_path):
+    path = _make_db(tmp_path / "nostatus.sqlite", open_orders=[""])
+    with pytest.raises(Account4ProbeError, match="no status"):
+        _probe(path)

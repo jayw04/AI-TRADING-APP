@@ -23,6 +23,18 @@ incapable of executing and not transitional. `backtest` (working), `pending_live
 `halted` (degraded), `error`, and every running status fail closed, as does any status this module has
 never seen. A future status is refused until it is adjudicated, never accepted by default.
 
+## The probed strategy must be the one Account 4 would actually run
+
+There is no `strategies.account_id` and no binding table: the engine resolves a strategy's account at
+dispatch time as `Account.user_id == strategy.user_id AND broker == 'alpaca' AND mode == (live if the
+strategy is LIVE else paper)`, taking the first match. The probe reproduces that rule rather than
+trusting two IDs a caller supplied together — otherwise an unrelated idle-and-held strategy could stand
+in as evidence while Account 4's real strategy remained runnable.
+
+An ambiguous binding (several accounts matching the rule) fails closed: the engine would take one of
+them and the evidence could not say which. The binding is part of `comparison_digest`, so a registration
+that moves mid-session stops the run.
+
 ## Pre-decision and pre-commit probes must be identical
 
 A hold cleared, a strategy resumed, an order appearing or a position moving between the two probes means
@@ -41,6 +53,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from app.db.enums import TERMINAL_ORDER_STATUSES as _TERMINAL_ORDER_STATUSES
+from app.db.enums import OrderStatus
 from app.validation.forward_window import ACCOUNT_4_ID, IntegrityStop
 
 # The ONLY statuses this schema defines as incapable of executing and not transitional.
@@ -52,8 +66,11 @@ from app.validation.forward_window import ACCOUNT_4_ID, IntegrityStop
 #   halted / error           -> degraded; the reason is unadjudicated here
 GOVERNED_NON_RUNNING_STATUSES = frozenset({"idle"})
 
-# Non-terminal order states: an order in any of these can still reach the broker.
-OPEN_ORDER_STATUSES = ("pending_risk", "pending_submit", "submitted", "partially_filled")
+# Order openness is decided by a TERMINAL ALLOWLIST, never by naming the open states: a new, renamed or
+# misspelled status must count as in-flight rather than slip past a denylist. The values come from the
+# governed schema (`app.db.enums`), and any status that schema does not define fails closed.
+TERMINAL_ORDER_STATUS_VALUES = frozenset(str(s) for s in _TERMINAL_ORDER_STATUSES)
+KNOWN_ORDER_STATUS_VALUES = frozenset(str(s) for s in OrderStatus)
 
 HOLD_STATE_KEY = "operational_hold"
 HOLD_SCHEMA_VERSION = 1
@@ -65,8 +82,9 @@ RECOGNIZED_HOLD_REASON_CODES = frozenset({
 
 # The fields the pre-decision and pre-commit probes must agree on.
 COMPARED_FIELDS = (
-    "account_id", "broker", "broker_mode", "raw_strategy_status", "hold_status",
-    "hold_reason_code", "hold_rev", "positions_digest", "open_order_count",
+    "account_id", "broker", "broker_mode", "binding_user_id", "resolved_account_id",
+    "candidate_account_ids", "raw_strategy_status", "hold_status", "hold_reason_code", "hold_rev",
+    "positions_digest", "open_order_count",
 )
 
 
@@ -84,6 +102,9 @@ class Account4Probe:
     broker_mode: str
     account_label: str | None
     strategy_id: int
+    binding_user_id: int                  # the user both the account and the strategy belong to
+    resolved_account_id: int              # the account the ENGINE would dispatch this strategy to
+    candidate_account_ids: tuple[int, ...]
     raw_strategy_status: str
     hold_present: bool
     hold_schema_version: int | None
@@ -177,9 +198,36 @@ def probe_account4(
                 f"Account {ACCOUNT_4_ID} is registered as {broker}/{broker_mode}, but this deployment "
                 f"expects {expected_broker}/{expected_broker_mode}")
 
-        strategy = _one(con, "SELECT id, status FROM strategies WHERE id = ?", [strategy_id],
+        account_user = _one(con, "SELECT user_id FROM accounts WHERE id = ?", [account_id],
+                            what=f"account {account_id}'s owner")[0]
+        strategy = _one(con, "SELECT id, status, user_id FROM strategies WHERE id = ?", [strategy_id],
                         what=f"strategy {strategy_id}")
         raw_status = str(strategy[1] or "").strip().lower()
+        strategy_user = strategy[2]
+        if strategy_user is None or int(strategy_user) != int(account_user):
+            raise Account4ProbeError(
+                f"strategy {strategy_id} belongs to user {strategy_user!r}, but Account "
+                f"{account_id} belongs to user {account_user!r} — the probed strategy is not "
+                f"Account {account_id}'s strategy")
+
+        # Reproduce the engine's own dispatch-time resolution rather than trusting two supplied IDs.
+        wanted_mode = "live" if raw_status == "live" else "paper"
+        candidates = [int(r[0]) for r in con.execute(
+            "SELECT id FROM accounts WHERE user_id = ? AND LOWER(broker) = 'alpaca' "
+            "AND LOWER(mode) = ? ORDER BY id", [strategy_user, wanted_mode]).fetchall()]
+        if not candidates:
+            raise Account4ProbeError(
+                f"no alpaca/{wanted_mode} account is registered for user {strategy_user} — strategy "
+                f"{strategy_id} has no resolvable account binding")
+        if len(candidates) > 1:
+            raise Account4ProbeError(
+                f"strategy {strategy_id}'s account binding is ambiguous: accounts {candidates} all "
+                f"match the engine's resolution rule, so the evidence cannot say which one it would run")
+        resolved_account_id = candidates[0]
+        if resolved_account_id != account_id:
+            raise Account4ProbeError(
+                f"strategy {strategy_id} resolves to account {resolved_account_id}, not "
+                f"{account_id} — it is not the strategy Account {account_id} would run")
         if not raw_status:
             raise Account4ProbeError(f"strategy {strategy_id} has no status recorded")
         non_running = raw_status in GOVERNED_NON_RUNNING_STATUSES
@@ -194,11 +242,10 @@ def probe_account4(
             "WHERE p.account_id = ?", [account_id]).fetchall()
         digest = positions_digest([(r[0], r[1], r[2]) for r in position_rows])
 
-        placeholders = ",".join("?" * len(OPEN_ORDER_STATUSES))
-        open_orders = con.execute(
-            f"SELECT COUNT(*) FROM orders WHERE account_id = ? AND status IN ({placeholders})",
-            [account_id, *OPEN_ORDER_STATUSES]).fetchone()
-        open_order_count = int(open_orders[0]) if open_orders else 0
+        order_rows = con.execute(
+            "SELECT status, COUNT(*) FROM orders WHERE account_id = ? GROUP BY status",
+            [account_id]).fetchall()
+        open_order_count = _count_open_orders(order_rows, account_id)
     except sqlite3.Error as exc:
         raise Account4ProbeError(f"the live Account-4 read failed: {exc}") from exc
     finally:
@@ -211,6 +258,8 @@ def probe_account4(
 
     compared = {
         "account_id": account_id, "broker": broker, "broker_mode": broker_mode,
+        "binding_user_id": int(account_user), "resolved_account_id": resolved_account_id,
+        "candidate_account_ids": candidates,
         "raw_strategy_status": raw_status, "hold_status": hold["status"],
         "hold_reason_code": hold["reason_code"], "hold_rev": hold["rev"],
         "positions_digest": digest, "open_order_count": open_order_count,
@@ -219,7 +268,9 @@ def probe_account4(
         probed_at=datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         account_id=account_id, broker=broker, broker_mode=broker_mode,
         account_label=str(label) if label is not None else None,
-        strategy_id=strategy_id, raw_strategy_status=raw_status,
+        strategy_id=strategy_id, binding_user_id=int(account_user),
+        resolved_account_id=resolved_account_id, candidate_account_ids=tuple(candidates),
+        raw_strategy_status=raw_status,
         hold_present=bool(hold["present"]), hold_schema_version=hold["schema_version"],
         hold_status=hold["status"], hold_reason_code=hold["reason_code"], hold_rev=hold["rev"],
         positions_count=len(position_rows), positions_digest=digest,
@@ -262,6 +313,29 @@ def _assert_safe(probe: Account4Probe) -> None:
             f"have none in flight")
     if not probe.account4_is_safely_paused_and_held:      # pragma: no cover - defensive
         raise Account4ProbeError("the derived safety verdict is false")
+
+
+def _count_open_orders(rows: list[tuple], account_id: int) -> int:
+    """Every order that is not PROVEN terminal counts as in flight.
+
+    A denylist of open states would let a new, renamed or misspelled status through unnoticed; an
+    allowlist of terminal states cannot. A status the governed schema does not define is refused
+    outright rather than guessed at.
+    """
+    open_count = 0
+    for raw_status, count in rows:
+        status = str(raw_status or "").strip().lower()
+        if not status:
+            raise Account4ProbeError(
+                f"Account {account_id} holds {count} order(s) with no status; openness cannot be "
+                f"established")
+        if status not in KNOWN_ORDER_STATUS_VALUES:
+            raise Account4ProbeError(
+                f"Account {account_id} holds {count} order(s) in unknown status {status!r}; the "
+                f"governed schema does not define it, so it cannot be treated as terminal")
+        if status not in TERMINAL_ORDER_STATUS_VALUES:
+            open_count += int(count)
+    return open_count
 
 
 def _parse_hold(raw: Any, strategy_id: int) -> dict[str, Any]:
