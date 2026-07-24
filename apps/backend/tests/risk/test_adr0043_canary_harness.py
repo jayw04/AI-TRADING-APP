@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal as D
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -34,10 +34,38 @@ def lib(tmp_path, monkeypatch):
     return importlib.reload(m)
 
 
+BASELINE_EQUITY = D("100000")
+
+#: A fixed mid-session Friday — the loss measurement only exists inside a trading session, so a
+#: real-clock suite would fail every weekend and holiday.
+FROZEN_NOW = datetime(2026, 7, 17, 17, 0, tzinfo=UTC)  # 13:00 ET
+
+
+@pytest.fixture(autouse=True)
+def _frozen_measurement_clock(monkeypatch):
+    import scripts.adr0043_canary_lib as m
+
+    monkeypatch.setattr(m, "_utcnow", lambda: FROZEN_NOW)
+
+
+def _session_date() -> str:
+    from app.risk.loss_control.session_baseline import resolve_session_date
+
+    date = resolve_session_date(FROZEN_NOW)
+    assert date is not None, "FROZEN_NOW must be inside a real trading session"
+    return date
+
+
 def _snap(m, **over):
     base = dict(
         at="2026-07-20T18:00:00+00:00", day_change=D("-6000"), equity=D("94000"),
-        last_equity=D("100000"), max_daily_loss=D("5000"), breaker_tripped_at=None,
+        last_equity=D("100000"),
+        loss=m.SessionLoss(
+            day_change=D("-6000"), equity=D("94000"), baseline_equity=BASELINE_EQUITY,
+            baseline_id=1, baseline_captured_at="2026-07-17T13:31:00+00:00",
+            market_session_date="2026-07-17",
+        ),
+        max_daily_loss=D("5000"), breaker_tripped_at=None,
         loss_control_state=m.STATE_REDUCTION_ONLY_DAILY_LOSS, loss_control_state_version=3,
         last_sequence_no=3, positions={"MSFT": D("19")}, open_orders=0,
     )
@@ -270,10 +298,13 @@ class _FakeEvaluator:
         return SimpleNamespace(verdict="HOLD", transitioned_to=None, account_id=account_id)
 
 
-def _adapter():
+def _adapter(equity=BASELINE_EQUITY):
     a = MagicMock()
     a.get_positions.return_value = []
     a.list_orders.return_value = []
+    # The loss is measured from LIVE broker equity on every snapshot, so a fake adapter that does
+    # not report equity is not a usable stand-in for the account.
+    a.get_account.return_value = {"equity": str(equity)}
     return a
 
 
@@ -285,12 +316,24 @@ def canary_env(tmp_path, monkeypatch):
     return m
 
 
-async def _seed_account(session_factory):
+async def _seed_account(session_factory, *, equity=BASELINE_EQUITY, baseline=BASELINE_EQUITY):
+    """Seed the account plus the two rows the loss measurement requires: the live state row and the
+    immutable session baseline. ``baseline=None`` omits the baseline, which must REFUSE."""
+    from app.db.models.account_state import AccountState
+    from app.db.models.risk_session_baseline import RiskSessionBaseline
+
     async with session_factory() as s:
         s.add(User(id=3, email="c@t"))
         s.add(Account(id=3, user_id=3, broker="alpaca", mode=AccountMode.paper, label="C"))
         s.add(Symbol(id=1, ticker="MSFT", exchange="X", asset_class="us_equity", name="Microsoft",
                      active=True))
+        s.add(AccountState(account_id=3, equity=D(equity), last_equity=D(equity),
+                           updated_at=datetime.now(UTC)))
+        if baseline is not None:
+            s.add(RiskSessionBaseline(
+                account_id=3, market_session_date=_session_date(), baseline_equity=D(baseline),
+                baseline_source="RECONCILED_OPEN", captured_at=FROZEN_NOW - timedelta(hours=3),
+                status="ACTIVE", created_by="TEST"))
         await s.commit()
 
 
@@ -629,11 +672,12 @@ class _SettleSpy:
         return self.result
 
 
-def _positioned_adapter(qty="18"):
+def _positioned_adapter(qty="18", equity=BASELINE_EQUITY):
     a = MagicMock()
     a.get_positions.return_value = [{"symbol": "MSFT", "qty": qty}]
     a.list_orders.return_value = []
     a.get_order.return_value = {"status": "new", "filled_qty": "0"}
+    a.get_account.return_value = {"equity": str(equity)}
     return a
 
 
