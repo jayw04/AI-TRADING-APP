@@ -11,6 +11,15 @@ this module carries that observation into the evaluator unchanged. A provider th
 those would agree with production by construction and could not detect a change in it — the blind spot
 the 21-year census was built to close.
 
+## Identity is derived from what is bound, and must be STABLE
+
+Two closures built by the same factory over different stores share a module and a qualified name, as do
+two bound methods on differently-configured provider instances. `provider_identity` therefore binds the
+code object and the closed-over configuration as well — and when it cannot establish an identity that
+would reproduce in another process (a closure over an object with no governed identity), it RAISES
+rather than returning a name that could collide. A provider may present its own identity explicitly by
+exposing `forward_identity()`, which is the contract production wiring should use.
+
 ## The snapshot is taken BEFORE the decision reads mutable state
 
 A decision is only interpretable against the state it was taken from, so the run captures an
@@ -33,6 +42,10 @@ The snapshot is account-independent: it binds the instrument's own state, never 
   * the adapter/context supplying the decision's inputs is not the one the snapshot bound — a different
     adapter class, strategy registration, universe, scores provider, bars/regime provider or
     instrument book;
+  * the live instrument itself is not the one the snapshot bound — a different class, different
+    parameters, or a different deployment lifecycle;
+  * an input provider cannot present a STABLE identity (a closure over an object with no governed
+    identity, an unconfigurable callable): unverifiable is refused, never assumed equal;
   * the decision's shape is structurally invalid (targets/weights disagree, non-finite numbers).
 
 A genuinely evaluated zero-gross decision is valid and books normally. An ABSENT evaluation — the class
@@ -44,6 +57,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import math
 from dataclasses import asdict, dataclass, field
@@ -76,7 +90,7 @@ class InstrumentSnapshot:
     captured_at: str                        # ISO8601 UTC, caller-supplied
     strategy_identity: str                  # the frozen production commit
     strategy_class: str                     # module:qualname actually instantiated
-    strategy_status: str                    # the harness instance's status (never Account 4's)
+    lifecycle_identity: str                 # DERIVED from the instrument's own deployment blob
     params: dict                            # the registered configuration in force
     params_digest: str
     durable_state_digest: str               # the instrument's own persisted state blob
@@ -113,7 +127,6 @@ def capture_instrument_snapshot(
     regime_source_identity: str,
     store_identity_sha256: str,
     strategy_identity: str = PRODUCTION_STRATEGY_COMMIT,
-    strategy_status: str = "FORWARD_VALIDATION_SHADOW",
 ) -> InstrumentSnapshot:
     """Snapshot the instrument BEFORE it reads or mutates state for this session.
 
@@ -121,17 +134,17 @@ def capture_instrument_snapshot(
     (deployment lifecycle, seed attempts, last-applied targets), and the record needs to prove it did
     not move, not to publish it.
     """
-    params = dict(getattr(strategy, "params", {}) or {})
     state = dict(getattr(adapter, "_state", {}) or {})
     ctx = context_identity(adapter)
+    live = instrument_identity(strategy, adapter)
     snap = InstrumentSnapshot(
         session_date=session_date.isoformat(),
         captured_at=captured_at,
         strategy_identity=strategy_identity,
-        strategy_class=f"{type(strategy).__module__}:{type(strategy).__qualname__}",
-        strategy_status=strategy_status,
-        params=params,
-        params_digest=_digest(params),
+        strategy_class=live["strategy_class"],
+        lifecycle_identity=live["lifecycle_identity"],
+        params=dict(getattr(strategy, "params", {}) or {}),
+        params_digest=live["params_digest"],
         durable_state_digest=_digest(state),
         durable_state_keys=tuple(sorted(state)),
         regime_source_identity=regime_source_identity,
@@ -141,17 +154,136 @@ def capture_instrument_snapshot(
     return snap.with_digest()
 
 
-def _callable_identity(fn: Any) -> str:
-    """An identity DERIVED from the bound implementation: module:qualname, plus the bound arguments of
-    a functools.partial. Never a descriptive string a caller supplies."""
+class UnstableIdentity(DecisionProviderError):
+    """A provider cannot present an identity that would reproduce in another process. Refused rather
+    than approximated: an identity that collides across differently-bound inputs is worse than none."""
+
+
+_STABLE_SCALARS = (str, int, float, bool, bytes, type(None))
+
+
+def _stable_value(value: Any) -> str | None:
+    """A deterministic rendering of `value`, or None when it cannot be rendered stably.
+
+    `repr()` of an ordinary object embeds its memory address, so it differs between processes: a
+    snapshot built on it would neither reproduce nor distinguish two differently-configured providers.
+    Only scalars, paths, plain containers of those, and objects presenting `forward_identity()` count.
+    """
+    from pathlib import Path as _Path
+
+    if isinstance(value, _STABLE_SCALARS):
+        return f"{type(value).__name__}:{value!r}"
+    if isinstance(value, _Path):
+        return f"Path:{value.as_posix()}"
+    if isinstance(value, date):
+        return f"date:{value.isoformat()}"
+    if callable(getattr(value, "forward_identity", None)):
+        return f"identity:{value.forward_identity()}"
+    if isinstance(value, list | tuple):
+        rendered_items = [_stable_value(v) for v in value]
+        if any(item is None for item in rendered_items):
+            return None
+        return "seq[" + "|".join(str(item) for item in rendered_items) + "]"
+    if isinstance(value, set | frozenset):
+        parts = sorted(str(_stable_value(v)) for v in value)
+        return None if any(p == "None" for p in parts) else f"set[{'|'.join(parts)}]"
+    if isinstance(value, dict):
+        items = []
+        for k in sorted(map(str, value)):
+            rendered = _stable_value(value[k])
+            if rendered is None:
+                return None
+            items.append(f"{k}={rendered}")
+        return f"map[{'|'.join(items)}]"
+    return None
+
+
+def _code_digest(fn: Any) -> str:
+    code = getattr(fn, "__code__", None)
+    if code is None:
+        return "no-code"
+    consts = [_stable_value(c) or "<opaque>" for c in getattr(code, "co_consts", ())]
+    return _digest([bytes(code.co_code).hex(), list(code.co_names), list(code.co_varnames), consts])
+
+
+def _closure_identity(fn: Any) -> str:
+    """The values a function closed over. Unstable cells fail closed — two closures from one factory
+    over different stores must not share an identity."""
+    cells = getattr(fn, "__closure__", None) or ()
+    names = getattr(getattr(fn, "__code__", None), "co_freevars", ()) or ()
+    if not cells:
+        return "no-closure"
+    parts = []
+    for name, cell in zip(names, cells, strict=False):
+        try:
+            value = cell.cell_contents
+        except ValueError:                       # an empty cell (recursive definition)
+            parts.append(f"{name}=<empty>")
+            continue
+        rendered = _stable_value(value)
+        if rendered is None:
+            raise UnstableIdentity(
+                f"the provider closes over {name!r} ({type(value).__name__}), which presents no stable "
+                f"identity; expose forward_identity() on it or bind the provider explicitly")
+        parts.append(f"{name}={rendered}")
+    return _digest(parts)
+
+
+def provider_identity(fn: Any) -> str:
+    """A STABLE identity for an input provider, derived from the implementation and everything it is
+    bound to. Raises `UnstableIdentity` when that cannot be established.
+
+    Production wiring should give providers an explicit `forward_identity()` (bound store path, digest,
+    construction parameters) rather than relying on this to infer semantics."""
     import functools
 
+    if fn is None:
+        raise UnstableIdentity("no provider is bound")
+    if callable(getattr(fn, "forward_identity", None)):
+        return f"declared:{fn.forward_identity()}"
     if isinstance(fn, functools.partial):
-        return (f"partial({_callable_identity(fn.func)}"
-                f"|args={_digest(list(fn.args))[:16]}|kw={_digest(sorted(fn.keywords))[:16]})")
-    module = getattr(fn, "__module__", None) or type(fn).__module__
-    qualname = getattr(fn, "__qualname__", None) or type(fn).__qualname__
-    return f"{module}:{qualname}"
+        return (f"partial({provider_identity(fn.func)}|args={_digest([_stable_value(a) or _unstable(a)
+                for a in fn.args])[:16]}"
+                f"|kw={_digest({k: _stable_value(v) or _unstable(v) for k, v in fn.keywords.items()})[:16]})")
+    if inspect.ismethod(fn):                      # a bound method: the INSTANCE is part of the identity
+        owner = fn.__self__
+        state = _stable_value(dict(getattr(owner, "__dict__", {}) or {}))
+        if state is None:
+            raise UnstableIdentity(
+                f"the provider is a bound method of {type(owner).__name__}, whose configuration "
+                f"presents no stable identity; expose forward_identity() on it")
+        return (f"method:{type(owner).__module__}:{type(owner).__qualname__}.{fn.__name__}"
+                f"|state={_digest(state)[:16]}|code={_code_digest(fn.__func__)[:16]}")
+    if inspect.isfunction(fn):
+        return (f"function:{fn.__module__}:{fn.__qualname__}|code={_code_digest(fn)[:16]}"
+                f"|closure={_closure_identity(fn)[:16]}")
+    if callable(fn):                              # a callable object: class + its configuration
+        state = _stable_value(dict(getattr(fn, "__dict__", {}) or {}))
+        if state is None:
+            raise UnstableIdentity(
+                f"the provider object {type(fn).__name__} presents no stable configuration identity; "
+                f"expose forward_identity() on it")
+        return f"object:{type(fn).__module__}:{type(fn).__qualname__}|state={_digest(state)[:16]}"
+    raise UnstableIdentity(f"{fn!r} is not callable and cannot identify a provider")
+
+
+def _unstable(value: Any) -> str:
+    raise UnstableIdentity(
+        f"a bound argument of type {type(value).__name__} presents no stable identity")
+
+
+def instrument_identity(strategy: Any, adapter: Any) -> dict[str, str]:
+    """The LIVE instrument's identity: the class, its parameters, and the deployment lifecycle it is
+    actually in. Re-derived immediately before the decision and compared with the snapshot — a snapshot
+    that recorded parameters is not the same as one that proves the instrument still has them."""
+    deployment = dict((getattr(adapter, "_state", {}) or {}).get("deployment", {}) or {})
+    lifecycle = (f"{deployment.get('state', 'UNINITIALIZED')}@rev{deployment.get('_rev', 'none')}"
+                 f"|seed={bool(deployment.get('active_seed_attempt'))}")
+    return {
+        "strategy_class": f"{type(strategy).__module__}:{type(strategy).__qualname__}",
+        "params_digest": _digest(dict(getattr(strategy, "params", {}) or {})),
+        "lifecycle_identity": lifecycle,
+    }
 
 
 def context_identity(adapter: Any) -> dict[str, Any]:
@@ -169,8 +301,8 @@ def context_identity(adapter: Any) -> dict[str, Any]:
         "adapter_class": f"{type(adapter).__module__}:{type(adapter).__qualname__}",
         "adapter_strategy_id": int(getattr(adapter, "strategy_id", -1) or -1),
         "universe_digest": _digest(sorted(symbols)),
-        "scores_provider_identity": _callable_identity(getattr(adapter, "scores_provider", None)),
-        "bars_provider_identity": _callable_identity(getattr(adapter, "bars_provider", None)),
+        "scores_provider_identity": provider_identity(getattr(adapter, "scores_provider", None)),
+        "bars_provider_identity": provider_identity(getattr(adapter, "bars_provider", None)),
         "instrument_book_digest": _digest(book),
     }
     fields["context_digest"] = _digest(fields)
@@ -216,6 +348,15 @@ class ProductionDecisionProvider:
             raise DecisionProviderError(
                 "the decision context is bound to Account 4; the forward validation reads no Account-4 "
                 "state and drives no Account-4 instrument")
+
+        # the LIVE instrument must still be the instrument the snapshot bound
+        live_instrument = instrument_identity(self.strategy, self.adapter)
+        for field_name, live_value in live_instrument.items():
+            bound = getattr(self.snapshot, field_name)
+            if live_value != bound:
+                raise DecisionProviderError(
+                    f"the live instrument's {field_name} is {live_value!r} but the snapshot bound "
+                    f"{bound!r} — the instrument changed after the snapshot was taken")
 
         # the CONTEXT that supplies the decision's inputs must be the one the snapshot bound
         live_ctx = context_identity(self.adapter)

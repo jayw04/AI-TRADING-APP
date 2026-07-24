@@ -214,7 +214,8 @@ def test_a_second_decision_for_the_same_session_is_refused(instrument):
     provider = _provider(strategy, adapter, _snapshot(strategy, adapter))
     provider(SESSION)
     with pytest.raises(DecisionProviderError,
-                       match="instrument_book_digest|durable state changed|already decided"):
+                       match="lifecycle_identity|instrument_book_digest|durable state changed"
+                             "|already decided"):
         provider(SESSION)
 
 
@@ -296,8 +297,8 @@ def test_the_snapshot_binds_the_bound_context_not_a_description(instrument):
     assert snap.adapter_strategy_id == STRATEGY_ID
     assert len(snap.universe_digest) == 64
     # provider identities are derived from the bound callables, not from caller-supplied strings
-    assert snap.scores_provider_identity.endswith(":_scores")
-    assert snap.bars_provider_identity.endswith(":_bars")
+    assert ":_scores|code=" in snap.scores_provider_identity     # implementation, not just a name
+    assert ":_bars|code=" in snap.bars_provider_identity
     assert len(snap.instrument_book_digest) == 64 and len(snap.context_digest) == 64
 
 
@@ -358,3 +359,168 @@ def test_the_context_digest_covers_each_bound_field(instrument):
     base = context_identity(adapter)["context_digest"]
     adapter.strategy_id = 42
     assert context_identity(adapter)["context_digest"] != base
+
+
+# ---- the LIVE instrument is revalidated, not just recorded (R5c-2a re-review) -----------------------
+
+def test_a_parameter_changed_after_the_snapshot_is_refused(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    strategy.params["max_names"] = 3
+    with pytest.raises(DecisionProviderError, match="params_digest"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_a_parameter_added_after_the_snapshot_is_refused(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    strategy.params["an_unregistered_knob"] = True
+    with pytest.raises(DecisionProviderError, match="params_digest"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_a_parameter_removed_after_the_snapshot_is_refused(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    strategy.params.pop("weight_drift_pct")
+    with pytest.raises(DecisionProviderError, match="params_digest"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_a_different_strategy_class_is_refused(instrument):
+    """The snapshot describes the instrument it was taken of; substituting another class is refused
+    even when the identity string and parameters are copied across."""
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+
+    class SubstituteInstrument:
+        params = dict(strategy.params)
+
+        async def on_bar(self, bar):        # pragma: no cover - never reached
+            raise AssertionError("the substitute must never be evaluated")
+
+    with pytest.raises(DecisionProviderError, match="strategy_class"):
+        _provider(SubstituteInstrument(), adapter, snap)(SESSION)
+
+
+def test_a_lifecycle_change_after_the_snapshot_is_refused(instrument):
+    """The lifecycle identity is DERIVED from the instrument's own deployment blob, so a deployment
+    state that advances between snapshot and decision invalidates the snapshot."""
+    from strategies_user.templates.momentum_daily import _K_DEPLOYMENT
+
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    blob = dict(adapter._state[_K_DEPLOYMENT])
+    blob["state"] = "DEPLOYED"
+    adapter._state[_K_DEPLOYMENT] = blob
+    with pytest.raises(DecisionProviderError, match="lifecycle_identity|durable state changed"):
+        _provider(strategy, adapter, snap)(SESSION)
+
+
+def test_the_lifecycle_identity_is_derived_from_the_deployment_blob(instrument):
+    strategy, adapter = instrument
+    snap = _snapshot(strategy, adapter)
+    assert snap.lifecycle_identity.startswith("NEVER_DEPLOYED@rev")
+
+
+def test_an_unchanged_instrument_is_accepted(instrument):
+    strategy, adapter = instrument
+    decision = _provider(strategy, adapter, _snapshot(strategy, adapter))(SESSION)
+    assert decision.record.date == SESSION.isoformat()
+
+
+# ---- provider identity is instance- and closure-complete -------------------------------------------
+
+def test_two_closures_from_one_factory_over_different_stores_differ():
+    from app.validation.decision_provider import provider_identity
+
+    def make_scores(store_path: str):
+        def scores(day):                      # same module, same qualname, different binding
+            return store_path
+        return scores
+
+    a, b = make_scores("/data/store-a.duckdb"), make_scores("/data/store-b.duckdb")
+    assert provider_identity(a) != provider_identity(b)
+    assert provider_identity(a) == provider_identity(make_scores("/data/store-a.duckdb"))
+
+
+def test_the_same_bound_method_on_two_instances_differs():
+    from app.validation.decision_provider import provider_identity
+
+    class Provider:
+        def __init__(self, store: str):
+            self.store = store
+
+        def scores(self, day):
+            return self.store
+
+    assert provider_identity(Provider("a").scores) != provider_identity(Provider("b").scores)
+    assert provider_identity(Provider("a").scores) == provider_identity(Provider("a").scores)
+
+
+def test_two_callable_objects_of_one_class_with_different_configuration_differ():
+    from app.validation.decision_provider import provider_identity
+
+    class Scores:
+        def __init__(self, store: str):
+            self.store = store
+
+        def __call__(self, day):
+            return self.store
+
+    assert provider_identity(Scores("a")) != provider_identity(Scores("b"))
+    assert provider_identity(Scores("a")) == provider_identity(Scores("a"))
+
+
+def test_equal_implementation_and_configuration_share_an_identity():
+    from functools import partial
+
+    from app.validation.decision_provider import provider_identity
+
+    def scores(store, day):
+        return store
+
+    assert provider_identity(partial(scores, "a")) == provider_identity(partial(scores, "a"))
+    assert provider_identity(partial(scores, "a")) != provider_identity(partial(scores, "b"))
+
+
+def test_an_unstable_closure_fails_closed():
+    """A closure over an object with no governed identity cannot reproduce in another process, so it is
+    refused rather than given a name that would collide with a differently-bound provider."""
+    from app.validation.decision_provider import UnstableIdentity, provider_identity
+
+    class OpaqueStore:                        # no forward_identity(), default repr carries an address
+        pass
+
+    def make(store):
+        def scores(day):
+            return store
+        return scores
+
+    with pytest.raises(UnstableIdentity, match="stable identity"):
+        provider_identity(make(OpaqueStore()))
+
+
+def test_a_provider_may_declare_its_own_identity():
+    """The contract production wiring should use: an explicit identity derived from the bound store."""
+    from app.validation.decision_provider import provider_identity
+
+    class DeclaredStore:
+        def forward_identity(self) -> str:
+            return "duckdb:/data/factor.duckdb@sha256:abc"
+
+    def make(store):
+        def scores(day):
+            return store
+        return scores
+
+    identity = provider_identity(make(DeclaredStore()))
+    assert "closure=" in identity
+    assert provider_identity(make(DeclaredStore())) == identity
+
+
+def test_an_absent_provider_fails_closed():
+    from app.validation.decision_provider import UnstableIdentity, provider_identity
+
+    with pytest.raises(UnstableIdentity, match="no provider is bound"):
+        provider_identity(None)
