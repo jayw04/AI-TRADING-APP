@@ -352,3 +352,66 @@ def test_the_next_run_after_an_unpersisted_book_stops_for_recovery(runtime, tmp_
     assert result.exception_code == "INSTRUMENT_BOOK_DIVERGENCE"
     # the record advanced but the book did not, so the next run stops for governed recovery
     assert "never begun" in result.detail or "BOOK_BEHIND_RECORD" in result.detail
+
+
+# ---- the independent chain-tip anchor (R5d) ---------------------------------------------------------
+
+def test_the_committed_tip_is_anchored(runtime, tmp_path):
+    import hashlib
+
+    from app.validation.chain_anchor import read_anchors, verify_anchor_consistency
+
+    result = _run(runtime, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED
+    anchors = read_anchors(tmp_path / "store")
+    assert len(anchors) == 1
+    commit_sha = hashlib.sha256(
+        (tmp_path / "store" / "observations" / "000001" / "commit.json").read_bytes()).hexdigest()
+    assert anchors[0].commit_sha256 == commit_sha    # the anchor witnesses the committed tip
+    verify_anchor_consistency(tmp_path / "store")    # the runner's own pre-commit gate would pass
+
+
+def test_an_anchor_write_failure_after_commit_is_a_distinct_condition(runtime, tmp_path, monkeypatch):
+    """The observation commits, then the independent anchor write fails: the record advanced, so this is
+    NOT an ordinary retryable failure — and the observation is committed but unwitnessed."""
+    from app.validation import forward_session_runner as frunner
+    from app.validation.chain_anchor import AnchorError, read_anchors
+
+    def boom(*a, **k):
+        raise AnchorError("injected anchor failure", code="ANCHOR_WRITE_FAILED")
+
+    monkeypatch.setattr(frunner, "append_anchor", boom)
+    result = _run(runtime, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
+    assert result.sequence == 1 and result.session_count == 1
+    assert "do NOT retry" in result.detail
+    assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert len(committed_observations(tmp_path / "store")) == 1   # observation committed
+    assert read_anchors(tmp_path / "store") == []                 # but the tip is unwitnessed
+
+
+def test_a_run_over_an_unwitnessed_tip_stops(runtime, tmp_path):
+    """A committed tip whose independent anchor is missing (a crash between the commit and the anchor
+    append) is a governed stop on the next run — the anchor is never regenerated from the observation."""
+    from app.validation.chain_anchor import ANCHOR_LOG_FILENAME
+
+    _run(runtime, SESSION_1, tmp_path)             # records, anchors, and persists the book
+    (tmp_path / "store" / ANCHOR_LOG_FILENAME).write_text("", encoding="utf-8")   # lose the anchor only
+    result = _run(runtime, SESSION_2, tmp_path, ts="2026-07-27T20:10:00Z")
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    assert result.exception_code == "ANCHOR_BEHIND_RECORD"        # the tip is unwitnessed — governed stop
+
+
+def test_a_tampered_anchor_stops_even_a_rerun(runtime, tmp_path):
+    """Rewriting the observation chain without rewriting the independent anchor is detected — even by a
+    no-op re-run of an already-recorded session."""
+    from app.validation.chain_anchor import ANCHOR_LOG_FILENAME
+
+    _run(runtime, SESSION_1, tmp_path)              # records + anchors
+    path = tmp_path / "store" / ANCHOR_LOG_FILENAME
+    obj = json.loads(path.read_text(encoding="utf-8").split("\n")[0])
+    obj["commit_sha256"] = "0" * 64                # the anchor now witnesses a different tip
+    path.write_text(json.dumps(obj, sort_keys=True) + "\n", encoding="utf-8")
+    result = _run(runtime, SESSION_1, tmp_path)    # a no-op re-run must still stop
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    assert result.exception_code in ("ANCHOR_LOG_INVALID", "ANCHOR_DIVERGES_FROM_RECORD")

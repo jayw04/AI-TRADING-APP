@@ -104,6 +104,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from app.validation.account4_probe import Account4Probe, assert_account4_unchanged
+from app.validation.chain_anchor import AnchorError, append_anchor, verify_anchor_consistency
 from app.validation.data_finality import DataFinalityEvidence
 from app.validation.eval_calendar import (
     eligible_sessions,
@@ -148,6 +149,10 @@ class SessionRunStatus(StrEnum):
     # NOT an ordinary session failure and MUST NOT be retried as one: the record advanced. The next run
     # sees BOOK_BEHIND_RECORD and stops for governed recovery.
     RECORDED_BUT_BOOK_UNPERSISTED = "RECORDED_BUT_BOOK_UNPERSISTED"
+    # The observation committed but the independent chain-tip anchor (R5d) was not written. Like the book
+    # case this is NOT retryable as an ordinary failure: the record advanced. The next run sees
+    # ANCHOR_BEHIND_RECORD and stops for governed adjudication — the anchor is never regenerated.
+    RECORDED_BUT_ANCHOR_UNWRITTEN = "RECORDED_BUT_ANCHOR_UNWRITTEN"
     INTEGRITY_STOP = "INTEGRITY_STOP"
 
 
@@ -223,6 +228,16 @@ class ForwardSessionRunner:
 
         count = len(records)
         last = records[-1] if records else None
+
+        # ── the independent chain-tip anchor must agree with the committed record (R5d) ──
+        # Cross-verify the separately-stored anchor log against the observation chain BEFORE any outcome,
+        # so a rewritten observation (whose independent anchor was not also rewritten), an unwitnessed
+        # tip, or a forged anchor stops even a no-op re-run. The anchor is never regenerated to paper over
+        # a divergence.
+        try:
+            verify_anchor_consistency(self.store_dir, records)
+        except AnchorError as exc:
+            return self._stop(iso, exc.code, str(exc), count, exceptions)
 
         # ── durable-state reconciliation FIRST — before any no-op return ──
         # A same-date retry must not report a healthy no-op while the ledger is behind the record: that
@@ -416,6 +431,25 @@ class ForwardSessionRunner:
         ledger.save(self.ledger_path, durability=dur)            # durable AFTER the commit
         with contextlib.suppress(OSError):
             snapshot.unlink()
+
+        # ── record the committed tip in the INDEPENDENT anchor log (R5d) ──
+        # The observation is the source of truth; the anchor is its separate tamper-witness. A crash
+        # between the commit and this append leaves the tip unwitnessed, which the next run diagnoses as
+        # ANCHOR_BEHIND_RECORD and stops — the anchor is never regenerated from the observation.
+        try:
+            append_anchor(self.store_dir, deployed_tree_identity=self.deployed_tree_identity,
+                          anchored_at=run_timestamp, durability=self.durability)
+        except (AnchorError, OSError) as exc:
+            logger.error("forward_session_anchor_unwritten", session=iso, sequence=sequence,
+                         detail=str(exc))
+            return SessionRunResult(
+                status=SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN, session_date=iso,
+                session_count=new_count, sequence=sequence,
+                operational_exceptions=(*exceptions, "ANCHOR_WRITE_FAILED_POST_COMMIT"),
+                detail=f"the observation committed (sequence {sequence}) but its independent chain-tip "
+                       f"anchor was not written: {exc}. The record has advanced — do NOT retry this "
+                       f"session; the next run will stop with ANCHOR_BEHIND_RECORD for governed "
+                       f"adjudication.")
 
         # The instrument's own durable book is written LAST, in its own storage. It cannot share the
         # observation's atomic write, so the crash window between them is explicit: a crash here leaves
