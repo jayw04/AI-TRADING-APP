@@ -92,47 +92,72 @@ class SnapshotOnce:
 
 @dataclass(frozen=True)
 class BarsCallSpec:
-    """What a single evaluation's bars calls must look like.
+    """The EXACT bars-call argument set a single frozen evaluation may make.
 
-    The frozen strategy legitimately makes several bars calls per session — the REGIME call (the market
-    proxy over the MA window), a shorter market read, and one price read per seeded name — and the exact
-    number is path-dependent (a seed day fetches per-name bars a non-seed day does not). So the governed
-    invariant is not a literal count but the properties that must hold whatever the path:
+    The frozen strategy's bars calls are deterministic in KIND, and each kind has a governed argument;
+    the only path-dependence is how many per-name price reads a seed day makes. So the governed invariant
+    is the exact set of permitted calls, not a broad band:
 
-      * exactly ONE regime call — the market symbol requesting at least the MA window;
-      * every call is as-of the session;
-      * every call's n is within a governed band;
-      * no two calls share the same (symbol, n) — an exact-duplicate call is redundant and suspicious.
+      * exactly ONE regime call — the market symbol requesting at least the MA window (the class asks for
+        `market_ma_days + 1`, so `n >= ma_sessions` identifies it and nothing else);
+      * at most ONE exit-confirmation market read — the market symbol at `exit_confirm_window_n`
+        (`exit_confirm_closes + 4`); permitted only when the spec carries that governed n;
+      * every other call is a per-NAME price read: its symbol must belong to this session's expected
+        universe (or the pre-decision holdings), and its n must be exactly the governed price-read n;
+      * every call is as-of the session; no two calls share the same (symbol, n).
+
+    An UNRELATED symbol, or the market proxy at some other n, or a name read at an ungoverned n, is
+    refused — those cannot be the frozen strategy's calls, so a decision carrying them cannot be
+    attributed to it.
     """
     market_symbol: str
     ma_sessions: int = 200
-    min_n: int = 1
-    max_n: int = 100_000
+    exit_confirm_window_n: int | None = None      # SPY n == exit_confirm_closes + 4 (None => forbidden)
+    name_read_n: int = 1                           # the governed per-name price-read n
+    allowed_security_symbols: frozenset[str] = frozenset()
 
     def validate(self, calls: list[dict[str, Any]], session_date: date) -> None:
         if not calls:
             raise AssemblyError("the evaluation made no regime/bars call: inputs cannot be identified")
-        regime = [c for c in calls
-                  if str(c.get("symbol", "")).upper() == self.market_symbol.upper()
-                  and int(c.get("requested_n", 0)) >= self.ma_sessions]
-        if len(regime) != 1:
-            raise AssemblyError(
-                f"the evaluation made {len(regime)} regime call(s) (market proxy {self.market_symbol} "
-                f"with n >= {self.ma_sessions}), expected exactly 1")
+        iso = session_date.isoformat()
+        market = self.market_symbol.upper()
+        regime = 0
+        exit_reads = 0
         seen: set[tuple[str, int]] = set()
         for call in calls:
             symbol = str(call.get("symbol", "")).upper()
             n = int(call.get("requested_n", -1))
-            if call.get("as_of") not in (None, session_date.isoformat()):
-                raise AssemblyError(
-                    f"a bars call carries as_of {call.get('as_of')!r}, not {session_date.isoformat()}")
-            if n >= 0 and not (self.min_n <= n <= self.max_n):
-                raise AssemblyError(
-                    f"a bars call requested n={n}, outside the governed band "
-                    f"[{self.min_n}, {self.max_n}]")
+            if call.get("as_of") not in (None, iso):
+                raise AssemblyError(f"a bars call carries as_of {call.get('as_of')!r}, not {iso}")
             if (symbol, n) in seen:
                 raise AssemblyError(f"the evaluation made a duplicate bars call for ({symbol}, n={n})")
             seen.add((symbol, n))
+            if symbol == market:
+                if n >= self.ma_sessions:
+                    regime += 1
+                elif self.exit_confirm_window_n is not None and n == self.exit_confirm_window_n:
+                    exit_reads += 1
+                else:
+                    raise AssemblyError(
+                        f"the market proxy {self.market_symbol} was read at n={n}; the only governed "
+                        f"market reads are the regime call (n >= {self.ma_sessions}) and the "
+                        f"exit-confirmation read (n = {self.exit_confirm_window_n})")
+            else:
+                if symbol not in self.allowed_security_symbols:
+                    raise AssemblyError(
+                        f"a bars call reads {symbol!r}, which is not in the session's expected universe "
+                        f"or holdings — it cannot be one of the frozen strategy's per-name reads")
+                if n != self.name_read_n:
+                    raise AssemblyError(
+                        f"the per-name bars call for {symbol!r} requested n={n}, not the governed "
+                        f"price-read n={self.name_read_n}")
+        if regime != 1:
+            raise AssemblyError(
+                f"the evaluation made {regime} regime call(s) (market proxy {self.market_symbol} with "
+                f"n >= {self.ma_sessions}), expected exactly 1")
+        if exit_reads > 1:
+            raise AssemblyError(
+                f"the evaluation made {exit_reads} exit-confirmation market reads, expected at most 1")
 
 
 # ── the evidence bound into the immutable decision ──────────────────────────────────────────────────
@@ -165,6 +190,11 @@ class EvidenceBindingDecisionProvider:
     scores_provider: Any
     bars_provider: Any
     bars_call_spec: BarsCallSpec
+    # The frozen path scores the CURRENT session a deterministic number of times: once in `_evaluate`
+    # and once in `capture_seam`'s re-derivation — two calls, the same cross-section. A prior session may
+    # be scored ONLY as the exit-confirmation lookback, at most `exit_confirm_closes - 1` times.
+    expected_current_session_scores_calls: int = 2
+    max_prior_session_scores_calls: int = 0
     bound_evidence: BoundProviderEvidence | None = field(default=None, init=False)
 
     def __call__(self, session_date: date) -> ForwardDecision:
@@ -179,25 +209,40 @@ class EvidenceBindingDecisionProvider:
             raise AssemblyError("the evaluation made no scores call: inputs cannot be identified")
 
         iso = session_date.isoformat()
-        # No scores call may read a FUTURE session — that would be lookahead. The frozen strategy does
-        # legitimately read a prior session (the exit-confirmation lookback), so earlier dates are
-        # allowed and recorded; only the future is forbidden.
+        current: list[dict[str, Any]] = []
+        prior: list[dict[str, Any]] = []
         for evidence in scores_new:
-            when = evidence.get("session_date")
-            if when is not None and str(when) > iso:
+            when = str(evidence.get("session_date"))
+            if when > iso:
                 raise AssemblyError(
                     f"a scores call reads session {when!r}, later than {iso} — the decision may not "
                     f"see the future")
-        # The session's OWN cross-section must be present and internally consistent: at least one call
-        # as-of the session, and exactly one distinct frame among them.
-        session_calls = [e for e in scores_new if str(e.get("session_date")) == iso]
-        if not session_calls:
-            raise AssemblyError(f"the evaluation never scored the session {iso} itself")
-        distinct = {e.get("frame_digest") for e in session_calls}
+            (current if when == iso else prior).append(evidence)
+
+        # exactly the governed number of current-session calls, and they must agree — the decision's own
+        # cross-section is one consistent frame, read the deterministic number of times.
+        if len(current) != self.expected_current_session_scores_calls:
+            raise AssemblyError(
+                f"the evaluation scored the session {iso} {len(current)} time(s), expected exactly "
+                f"{self.expected_current_session_scores_calls} (the `_evaluate` + `capture_seam` reads)")
+        distinct = {e.get("frame_digest") for e in current}
         if len(distinct) != 1:
             raise AssemblyError(
                 f"the evaluation read {len(distinct)} distinct scored frames for {iso}; the decision's "
                 f"own cross-section must be one consistent set")
+
+        # any prior-session call is the governed exit-confirmation lookback: bounded in count and one per
+        # distinct earlier session — never an arbitrary earlier date, and never repeated.
+        if len(prior) > self.max_prior_session_scores_calls:
+            raise AssemblyError(
+                f"the evaluation scored {len(prior)} prior session(s), above the governed "
+                f"exit-confirmation bound {self.max_prior_session_scores_calls}")
+        prior_dates = [str(e.get("session_date")) for e in prior]
+        if len(set(prior_dates)) != len(prior_dates):
+            raise AssemblyError(
+                f"the evaluation scored a prior session more than once ({sorted(prior_dates)}); the "
+                f"exit-confirmation lookback reads each earlier close at most once")
+
         self.bars_call_spec.validate(bars_new, session_date)
 
         bound = BoundProviderEvidence(

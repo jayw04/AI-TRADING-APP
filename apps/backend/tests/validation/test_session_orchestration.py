@@ -9,6 +9,7 @@ the single-snapshot and post-commit-durability invariants enforced.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -191,6 +192,111 @@ def test_rerunning_a_recorded_session_is_a_no_op(runtime, tmp_path):
     result = _run(runtime, SESSION_1, tmp_path)
     assert result.status is SessionRunStatus.ALREADY_RECORDED
     assert len(committed_observations(tmp_path / "store")) == 1
+
+
+# ---- the governed execution order -------------------------------------------------------------------
+
+def test_the_full_session_order_is_governed(runtime, tmp_path, monkeypatch):
+    """The one property Blocker 1 turns on: the instrument snapshot is taken at the pre-evaluation
+    boundary — after readiness, the held-name price reads and the pre-session ledger snapshot, and
+    immediately before the authoritative Account-4 probe and the evaluation — never earlier. The whole
+    governed order is asserted end to end."""
+    from app.validation import forward_session_runner as frunner
+    from app.validation import session_orchestration as orch
+    from app.validation.shadow_ledger import ShadowLedger
+
+    order: list[str] = []
+
+    class _RecReadiness:
+        def assess(self, s):
+            order.append("readiness")
+            return _StubFinality()
+
+        def verify_unchanged(self, s, e):
+            order.append("store_unchanged")
+            return None
+
+    real_probe = runtime.account4_probe
+
+    def rec_probe():
+        order.append("account4_probe")
+        return real_probe()
+
+    recorded_runtime = replace(runtime, readiness=_RecReadiness(), account4_probe=rec_probe)
+
+    real_unmarkable = frunner.ForwardSessionRunner._unmarkable
+
+    def rec_unmarkable(self, names, sd):
+        order.append("held_reads")
+        return real_unmarkable(self, names, sd)
+
+    real_save = ShadowLedger.save
+
+    def rec_save(self, path, **kw):
+        order.append("ledger_snapshot" if str(path).endswith(frunner.PRE_SESSION_SNAPSHOT)
+                     else "ledger_persist")
+        return real_save(self, path, **kw)
+
+    real_capture = orch.capture_instrument_snapshot
+
+    def rec_capture(*a, **k):
+        order.append("instrument_snapshot")
+        return real_capture(*a, **k)
+
+    real_eval = frunner.ForwardEvaluator.evaluate_session
+
+    def rec_eval(self, sd, pf):
+        order.append("evaluate")
+        return real_eval(self, sd, pf)
+
+    real_assert = frunner.assert_account4_unchanged
+
+    def rec_assert(a, b):
+        order.append("account4_post")
+        return real_assert(a, b)
+
+    real_open = frunner.open_first_window_session
+
+    def rec_open(*a, **k):
+        order.append("commit")
+        return real_open(*a, **k)
+
+    real_writer = orch._book_writer
+
+    def rec_writer(lifecycle, adapter):
+        inner = real_writer(lifecycle, adapter)
+
+        def w(seq, iso):
+            order.append("book_write")
+            return inner(seq, iso)
+
+        return w
+
+    monkeypatch.setattr(frunner.ForwardSessionRunner, "_unmarkable", rec_unmarkable)
+    monkeypatch.setattr(ShadowLedger, "save", rec_save)
+    monkeypatch.setattr(orch, "capture_instrument_snapshot", rec_capture)
+    monkeypatch.setattr(frunner.ForwardEvaluator, "evaluate_session", rec_eval)
+    monkeypatch.setattr(frunner, "assert_account4_unchanged", rec_assert)
+    monkeypatch.setattr(frunner, "open_first_window_session", rec_open)
+    monkeypatch.setattr(orch, "_book_writer", rec_writer)
+
+    result = _run(recorded_runtime, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED
+
+    def first(label: str) -> int:
+        assert label in order, f"{label} never happened: {order}"
+        return order.index(label)
+
+    # the governed chain, in order
+    assert (first("readiness") < first("held_reads") < first("ledger_snapshot")
+            < first("instrument_snapshot") < first("account4_probe") < first("evaluate")
+            < first("store_unchanged") < first("account4_post") < first("commit")
+            < first("book_write"))
+    # the instrument book is written only after the ledger persists, which is only after the commit
+    assert order.index("commit") < order.index("ledger_persist") < first("book_write")
+    # an authoritative post-probe read falls between the reads finishing and the commit
+    post_reads = [i for i, lbl in enumerate(order) if lbl == "account4_probe" and i > first("evaluate")]
+    assert any(first("store_unchanged") < i < first("commit") for i in post_reads)
 
 
 # ---- the single-snapshot invariant ------------------------------------------------------------------

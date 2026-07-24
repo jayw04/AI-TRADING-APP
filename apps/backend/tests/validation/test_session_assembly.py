@@ -64,11 +64,12 @@ def _bars_call(symbol: str, n: int, as_of: date = SESSION) -> dict:
     return {"symbol": symbol, "requested_n": n, "as_of": as_of.isoformat()}
 
 
-SPEC = BarsCallSpec(market_symbol="SPY", ma_sessions=200)
+SPEC = BarsCallSpec(market_symbol="SPY", ma_sessions=200, exit_confirm_window_n=6,
+                    name_read_n=1, allowed_security_symbols=frozenset({"AAA", "BBB"}))
 
 
 def test_the_governed_bars_call_set_is_accepted():
-    # one regime call + a shorter market read + per-name price reads: the real pattern
+    # one regime call + the exit-confirmation market read + per-name price reads: the real pattern
     calls = [_bars_call("SPY", 201), _bars_call("SPY", 6), _bars_call("AAA", 1), _bars_call("BBB", 1)]
     SPEC.validate(calls, SESSION)                   # no raise
 
@@ -93,10 +94,27 @@ def test_an_exact_duplicate_bars_call_is_refused():
         SPEC.validate([_bars_call("SPY", 201), _bars_call("AAA", 1), _bars_call("AAA", 1)], SESSION)
 
 
-def test_an_out_of_band_n_is_refused():
-    spec = BarsCallSpec(market_symbol="SPY", ma_sessions=200, max_n=300)
-    with pytest.raises(AssemblyError, match="outside the governed band"):
-        spec.validate([_bars_call("SPY", 201), _bars_call("AAA", 9999)], SESSION)
+def test_an_unrelated_security_is_refused():
+    # a symbol outside the session's expected universe/holdings — neither a duplicate nor a regime call
+    with pytest.raises(AssemblyError, match="not in the session's expected universe"):
+        SPEC.validate([_bars_call("SPY", 201), _bars_call("ZZZ", 1)], SESSION)
+
+
+def test_the_market_proxy_at_an_ungoverned_n_is_refused():
+    with pytest.raises(AssemblyError, match="only governed market reads"):
+        SPEC.validate([_bars_call("SPY", 201), _bars_call("SPY", 50)], SESSION)
+
+
+def test_a_name_read_at_an_ungoverned_n_is_refused():
+    with pytest.raises(AssemblyError, match="not the governed price-read n=1"):
+        SPEC.validate([_bars_call("SPY", 201), _bars_call("AAA", 5)], SESSION)
+
+
+def test_an_exit_confirmation_read_is_forbidden_when_the_spec_carries_no_window():
+    spec = BarsCallSpec(market_symbol="SPY", ma_sessions=200, exit_confirm_window_n=None,
+                        name_read_n=1, allowed_security_symbols=frozenset({"AAA"}))
+    with pytest.raises(AssemblyError, match="only governed market reads"):
+        spec.validate([_bars_call("SPY", 201), _bars_call("SPY", 6)], SESSION)
 
 
 def test_no_bars_call_at_all_is_refused():
@@ -123,21 +141,29 @@ def _decision(session_date: date, *, snapshot="d" * 64) -> ForwardDecision:
                            instrument_state=state, snapshot_digest=snapshot)
 
 
-def _binding(scores, bars, *, on_call):
-    return EvidenceBindingDecisionProvider(inner=on_call, scores_provider=scores, bars_provider=bars,
-                                           bars_call_spec=SPEC)
+def _binding(scores, bars, *, on_call, current: int = 2, prior: int = 1):
+    return EvidenceBindingDecisionProvider(
+        inner=on_call, scores_provider=scores, bars_provider=bars, bars_call_spec=SPEC,
+        expected_current_session_scores_calls=current, max_prior_session_scores_calls=prior)
 
 
 def _score(session: date, digest: str = "frame-a") -> dict:
     return {"session_date": session.isoformat(), "frame_digest": digest}
 
 
+def _score_session_twice(scores, bars, session_date):
+    """The frozen current-session pattern: two current-session score reads (`_evaluate` + `capture_seam`)
+    sharing one frame, and the single regime bars call."""
+    scores.output_evidence.append(_score(session_date))
+    scores.output_evidence.append(_score(session_date))
+    bars.output_evidence.append(_bars_call("SPY", 201))
+
+
 def test_the_evidence_digest_is_carried_into_the_immutable_decision():
     scores, bars = _EvidenceList(), _EvidenceList()
 
     def run(session_date):
-        scores.output_evidence.append(_score(session_date))
-        bars.output_evidence.append(_bars_call("SPY", 201))
+        _score_session_twice(scores, bars, session_date)
         return _decision(session_date)
 
     provider = _binding(scores, bars, on_call=run)
@@ -151,37 +177,73 @@ def test_the_prior_session_lookback_is_allowed_but_the_future_is_not():
     scores, bars = _EvidenceList(), _EvidenceList()
 
     def run(session_date):
-        scores.output_evidence.append(_score(session_date))
+        _score_session_twice(scores, bars, session_date)
         scores.output_evidence.append(_score(PRIOR))          # the exit-confirmation lookback
-        bars.output_evidence.append(_bars_call("SPY", 201))
         return _decision(session_date)
 
     provider = _binding(scores, bars, on_call=run)
     provider(SESSION)                                          # allowed
-    assert len(provider.bound_evidence.scores) == 2
+    assert len(provider.bound_evidence.scores) == 3
 
     scores2, bars2 = _EvidenceList(), _EvidenceList()
 
     def run_future(session_date):
-        scores2.output_evidence.append(_score(session_date))
+        _score_session_twice(scores2, bars2, session_date)
         scores2.output_evidence.append(_score(date(2026, 7, 25)))   # future
-        bars2.output_evidence.append(_bars_call("SPY", 201))
         return _decision(session_date)
 
     with pytest.raises(AssemblyError, match="see the future"):
         _binding(scores2, bars2, on_call=run_future)(SESSION)
 
 
-def test_the_session_must_be_scored():
+def test_exactly_two_current_session_scores_calls_are_required():
     scores, bars = _EvidenceList(), _EvidenceList()
 
     def run(session_date):
-        scores.output_evidence.append(_score(PRIOR))          # only the prior day, never the session
+        scores.output_evidence.append(_score(session_date))   # only ONE current-session read
         bars.output_evidence.append(_bars_call("SPY", 201))
         return _decision(session_date)
 
-    with pytest.raises(AssemblyError, match="never scored the session"):
+    with pytest.raises(AssemblyError, match="scored the session .* 1 time"):
         _binding(scores, bars, on_call=run)(SESSION)
+
+
+def test_a_third_current_session_scores_call_is_refused():
+    scores, bars = _EvidenceList(), _EvidenceList()
+
+    def run(session_date):
+        _score_session_twice(scores, bars, session_date)
+        scores.output_evidence.append(_score(session_date))   # an extra current-session read
+        return _decision(session_date)
+
+    with pytest.raises(AssemblyError, match="scored the session .* 3 time"):
+        _binding(scores, bars, on_call=run)(SESSION)
+
+
+def test_too_many_prior_session_scores_calls_are_refused():
+    scores, bars = _EvidenceList(), _EvidenceList()
+
+    def run(session_date):
+        _score_session_twice(scores, bars, session_date)
+        scores.output_evidence.append(_score(PRIOR))
+        scores.output_evidence.append(_score(date(2026, 7, 22)))   # a second prior session
+        return _decision(session_date)
+
+    with pytest.raises(AssemblyError, match="above the governed exit-confirmation bound"):
+        _binding(scores, bars, on_call=run, prior=1)(SESSION)
+
+
+def test_a_repeated_prior_session_is_refused():
+    scores, bars = _EvidenceList(), _EvidenceList()
+
+    def run(session_date):
+        _score_session_twice(scores, bars, session_date)
+        scores.output_evidence.append(_score(PRIOR))
+        scores.output_evidence.append(_score(PRIOR))          # the same earlier close, twice
+        return _decision(session_date)
+
+    with pytest.raises(AssemblyError, match="scored a prior session more than once"):
+        _binding(scores, bars, on_call=run, prior=2)(SESSION)
 
 
 def test_two_distinct_frames_for_the_session_are_refused():
@@ -213,14 +275,13 @@ def test_only_this_evaluations_calls_are_bound():
     scores.output_evidence.append(_score(date(2020, 1, 1)))   # an earlier, unrelated call
 
     def run(session_date):
-        scores.output_evidence.append(_score(session_date))
-        bars.output_evidence.append(_bars_call("SPY", 201))
+        _score_session_twice(scores, bars, session_date)
         return _decision(session_date)
 
     provider = _binding(scores, bars, on_call=run)
     provider(SESSION)
-    assert len(provider.bound_evidence.scores) == 1           # not the 2020 call
-    assert provider.bound_evidence.scores[0]["session_date"] == SESSION.isoformat()
+    assert len(provider.bound_evidence.scores) == 2           # not the 2020 call
+    assert all(s["session_date"] == SESSION.isoformat() for s in provider.bound_evidence.scores)
 
 
 def test_the_bound_evidence_open_provenance_carries_the_digest():

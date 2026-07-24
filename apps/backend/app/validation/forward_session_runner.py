@@ -184,7 +184,15 @@ class ForwardSessionRunner:
     deployed_tree_identity: str
     shadow_ledger_identity: str
     readiness: DataReadinessCheck | None = None
-    expected_snapshot_digest: str = ""      # the instrument snapshot THIS run was set up with
+    expected_snapshot_digest: str = ""      # a pre-captured digest (the stub path); production captures below
+    # The SINGLE instrument snapshot, captured at the pre-evaluation boundary (R5c-2b2): after readiness,
+    # the held-name price reads and the pre-session ledger snapshot, and immediately before the
+    # authoritative Account-4 probe — so it bounds the instrument state as close to the decision as
+    # possible and a lengthy readiness/data check cannot leave it stale. `snapshot_capture` returns the
+    # snapshot; `bind_snapshot` hands it to the decision provider. When both are absent the runner uses
+    # the pre-configured `expected_snapshot_digest` (the tests' stub path).
+    snapshot_capture: Callable[[date], object] | None = None
+    bind_snapshot: Callable[[object], None] | None = None
     # The AUTHORITATIVE Account-4 read (R5c-2b). Taken immediately before the instrument is evaluated
     # and again after every decision/data read, before publication: both must describe the same live
     # state. Distinct from `account4_probe`, which the commit protocol uses inside its own staging.
@@ -300,12 +308,32 @@ class ForwardSessionRunner:
         dur = self.durability or default_durability()
         ledger.save(snapshot, durability=dur)                    # audited rollback input
 
+        # ── the SINGLE instrument snapshot, taken HERE — the pre-evaluation boundary ──
+        # After readiness, the held-name price reads and the pre-session ledger snapshot, and immediately
+        # before the authoritative Account-4 probe and the evaluation. Taken this late so it bounds the
+        # instrument's state as close to the decision as possible: a lengthy readiness or data-finality
+        # check cannot leave it stale. A pre-configured digest (the stub path) is used only when no
+        # capture is wired.
+        expected_digest = str(self.expected_snapshot_digest or "").strip()
+        if self.snapshot_capture is not None:
+            try:
+                instrument_snapshot = self.snapshot_capture(session_date)
+            except IntegrityStop as exc:
+                return self._stop(iso, "INSTRUMENT_SNAPSHOT_UNAVAILABLE", str(exc), count, exceptions)
+            if self.bind_snapshot is not None:
+                try:
+                    self.bind_snapshot(instrument_snapshot)
+                except IntegrityStop as exc:
+                    return self._stop(iso, "INSTRUMENT_SNAPSHOT_UNAVAILABLE", str(exc), count,
+                                      exceptions)
+            expected_digest = str(getattr(instrument_snapshot, "snapshot_digest", "") or "").strip()
+
         # ── the decision + the booking (nothing is written to the record yet) ──
-        if not str(self.expected_snapshot_digest or "").strip():
+        if not expected_digest:
             return self._stop(
                 iso, "INSTRUMENT_SNAPSHOT_UNAVAILABLE",
-                "no instrument-snapshot digest was configured for this run; a decision could not be "
-                "tied to the state it was taken under", count, exceptions)
+                "no instrument snapshot was captured for this run; a decision could not be tied to the "
+                "state it was taken under", count, exceptions)
         # ── the AUTHORITATIVE Account-4 read, IMMEDIATELY before the instrument is evaluated ──
         # Last of everything: after the readiness assessment, the held-name price reads and the
         # pre-session snapshot. The unchecked interval between this probe and publication is the window
@@ -319,7 +347,7 @@ class ForwardSessionRunner:
 
         evaluator = ForwardEvaluator(ledger=ledger, decision_provider=self.decision_provider,
                                      shadow_ledger_identity=self.shadow_ledger_identity,
-                                     expected_snapshot_digest=self.expected_snapshot_digest)
+                                     expected_snapshot_digest=expected_digest)
         try:
             outcome = evaluator.evaluate_session(session_date, self.price_fn)
         except PriceUnavailable as exc:

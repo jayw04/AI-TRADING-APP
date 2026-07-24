@@ -23,6 +23,7 @@ from typing import Any
 
 from app.validation.account4_probe import Account4Probe
 from app.validation.decision_provider import (
+    InstrumentSnapshot,
     ProductionDecisionProvider,
     capture_instrument_snapshot,
 )
@@ -137,22 +138,46 @@ def run_production_session(
             session_count=count, exception_code="INSTRUMENT_BOOK_DIVERGENCE",
             detail=str(exc), operational_exceptions=("INSTRUMENT_BOOK_DIVERGENCE",))
 
-    # ONE snapshot, taken now, before the decision reads mutable state
-    snapshot_once = SnapshotOnce(capture_instrument_snapshot)
-    snapshot = snapshot_once(
-        strategy, adapter, session, captured_at=run_timestamp,
-        regime_source_identity=regime_source_identity, store_identity_sha256=runtime.store_identity)
-
     inner_provider = ProductionDecisionProvider(
-        strategy=strategy, adapter=adapter, snapshot=snapshot,
+        strategy=strategy, adapter=adapter, snapshot=None,
         durable_state_id=instrument_durable_state_id, fill_price_fn=runtime.strict_price_fn)
-    # The Option-B wiring makes a deterministic number of provider calls per evaluation: the frozen
-    # class scores once during `_evaluate`, and `capture_seam` re-derives the seam scores once more —
-    # both for the same session. The regime reads the market proxy exactly once. These counts are the
-    # governed cardinality; a departure means the decision's inputs cannot be identified.
+
+    # The Option-B wiring makes a DETERMINISTIC set of provider calls per evaluation, and the governed
+    # cardinality is derived from the FROZEN params (never magic numbers):
+    #   scores — the frozen class scores the CURRENT session twice (once in `_evaluate`, once in
+    #     `capture_seam`), and reads each of `exit_confirm_closes - 1` prior sessions once for the
+    #     exit-confirmation lookback;
+    #   bars — exactly one regime call (market proxy at `market_ma_days + 1`, n >= ma_sessions), at most
+    #     one exit-confirmation market read (`exit_confirm_closes + 4`), and one n=1 price read per name,
+    #     every name drawn from this session's PIT universe or the pre-decision holdings.
+    params = _frozen_params()
+    exit_confirm = int(params.get("exit_confirm_closes", 2))
+    bars_spec = BarsCallSpec(
+        market_symbol=runtime.market_symbol,
+        ma_sessions=int(params.get("market_ma_days", 200)),
+        exit_confirm_window_n=(exit_confirm + 4) if exit_confirm > 1 else None,
+        name_read_n=1,
+        allowed_security_symbols=_allowed_security_symbols(runtime, adapter, session))
     decision_provider = EvidenceBindingDecisionProvider(
         inner=inner_provider, scores_provider=scores, bars_provider=bars,
-        bars_call_spec=BarsCallSpec(market_symbol=runtime.market_symbol, ma_sessions=200))
+        bars_call_spec=bars_spec,
+        expected_current_session_scores_calls=2,
+        max_prior_session_scores_calls=max(0, exit_confirm - 1))
+
+    # The ONE snapshot is captured INSIDE the runner, at the pre-evaluation boundary (after readiness,
+    # the held-name price reads and the pre-session ledger snapshot). SnapshotOnce refuses a second
+    # capture; bind_snapshot hands it to the decision provider.
+    snapshot_once = SnapshotOnce(capture_instrument_snapshot)
+
+    def capture_snapshot(session_date: date) -> InstrumentSnapshot:
+        snap = snapshot_once(
+            strategy, adapter, session_date, captured_at=run_timestamp,
+            regime_source_identity=regime_source_identity, store_identity_sha256=runtime.store_identity)
+        assert isinstance(snap, InstrumentSnapshot)
+        return snap
+
+    def bind_snapshot(snap: Any) -> None:
+        inner_provider.bind_snapshot(snap)
 
     def ledger_factory() -> ShadowLedger:
         return ShadowLedger.start(starting_capital=starting_capital,
@@ -164,12 +189,24 @@ def run_production_session(
         price_fn=runtime.strict_price_fn, account4_probe=_commit_probe(runtime),
         context_builder=runtime.context_builder, ledger_factory=ledger_factory,
         deployed_tree_identity=deployed_tree_identity, shadow_ledger_identity=shadow_ledger_identity,
-        expected_snapshot_digest=snapshot.snapshot_digest,
         readiness=runtime.readiness,
         authoritative_account4_probe=runtime.account4_probe,
+        snapshot_capture=capture_snapshot, bind_snapshot=bind_snapshot,
         on_committed=_book_writer(lifecycle, adapter))
 
     return runner.run_session(session, run_timestamp=run_timestamp)
+
+
+def _allowed_security_symbols(runtime: SessionRuntime, adapter: Any, session: date) -> frozenset[str]:
+    """The per-name bars reads the frozen strategy may make: this session's exact PIT universe plus any
+    security already on the instrument's book (a held name that has left the scoring universe is still
+    marked). A bars call for anything else cannot be one of the strategy's reads and is refused."""
+    try:
+        universe = {str(s).upper() for s in runtime.universe_fn(session, 200)}
+    except Exception:                             # pragma: no cover - the run stops on it downstream
+        universe = set()
+    holdings = {str(k).upper() for k in dict(getattr(adapter, "_positions", {}) or {})}
+    return frozenset(universe | holdings)
 
 
 def _book_writer(lifecycle: InstrumentBookLifecycle, adapter: Any) -> Callable[[int, str], None]:

@@ -319,12 +319,22 @@ class ProductionDecisionProvider:
     """
     strategy: Any
     adapter: Any
-    snapshot: InstrumentSnapshot
+    # The single instrument snapshot is bound at the runner's pre-evaluation boundary (R5c-2b2) — after
+    # readiness, the held-name price reads and the pre-session ledger snapshot — so it bounds the state
+    # as close to the decision as possible. Until then it is None, and deciding without it fails closed.
+    snapshot: InstrumentSnapshot | None
     durable_state_id: str
     fill_price_fn: Any                       # (symbol, session) -> float | None, for same-day settle
     expected_identity: str = PRODUCTION_STRATEGY_COMMIT
     settle_after_decision: bool = True
     _sessions_seen: set[str] = field(default_factory=set)
+
+    def bind_snapshot(self, snapshot: InstrumentSnapshot) -> None:
+        """Bind the one snapshot the runner captured at the pre-evaluation boundary. A second binding is
+        refused — exactly one snapshot ties the decision to the state it was taken under."""
+        if self.snapshot is not None:
+            raise DecisionProviderError("the instrument snapshot was already bound for this run")
+        self.snapshot = snapshot
 
     def __call__(self, session_date: date) -> ForwardDecision:
         iso = session_date.isoformat()
