@@ -27,7 +27,11 @@ from app.validation.forward_session_runner import (
     SessionRunStatus,
 )
 from app.validation.forward_window import ForwardRunContext
-from app.validation.observation_store import Account4StateProbe, committed_observations
+from app.validation.observation_store import (
+    Account4StateProbe,
+    Durability,
+    committed_observations,
+)
 from app.validation.shadow_ledger import ShadowLedger
 
 REPO = Path(__file__).resolve().parents[4]
@@ -278,10 +282,11 @@ def test_corrupt_committed_storage_stops_the_run(tmp_path, context_builder):
 def test_out_of_order_session_stops_the_run(tmp_path, context_builder):
     r = _runner(tmp_path, context_builder)
     _run(r, SESSION_1)
+    _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
     _run(r, SESSION_3, ts="2026-07-28T20:10:00Z")
-    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")               # earlier than the last committed
+    res = _run(r, SESSION_2, ts="2026-07-27T21:10:00Z")               # earlier than the last committed
     assert res.exception_code == "SESSION_OUT_OF_ORDER"
-    assert res.session_count == 2
+    assert res.session_count == 3
 
 
 def test_stale_pre_session_snapshot_is_recorded_and_the_session_still_runs(tmp_path, context_builder):
@@ -294,6 +299,88 @@ def test_stale_pre_session_snapshot_is_recorded_and_the_session_still_runs(tmp_p
     rec = json.loads((r.store_dir / "observations" / "000002" / "open.json").read_bytes())
     assert rec["operational_exceptions"] == ["STALE_PRE_SESSION_SNAPSHOT"]
     assert "STALE_PRE_SESSION_SNAPSHOT" in [ln["code"] for ln in _stop_lines(r.store_dir)]
+
+
+def test_same_date_retry_after_a_lost_ledger_save_reports_the_mismatch(tmp_path, context_builder):
+    """The exact crash this runner exists to surface: observation committed, ledger save lost, scheduler
+    retries the SAME date. A healthy-looking ALREADY_RECORDED would defer discovery to a later session."""
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    ledger_after_first = r.ledger_path.read_bytes()
+    _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
+    r.ledger_path.write_bytes(ledger_after_first)                     # the session-2 save never landed
+    res = _run(r, SESSION_2, ts="2026-07-27T21:10:00Z")               # same-date retry
+    assert res.status is SessionRunStatus.INTEGRITY_STOP
+    assert res.exception_code == "LEDGER_BEHIND_RECORD"
+    assert res.session_count == 2
+    assert "LEDGER_BEHIND_RECORD" in [ln["code"] for ln in _stop_lines(r.store_dir)]
+
+
+def test_same_date_retry_with_a_ledger_ahead_reports_the_mismatch(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    led = ShadowLedger.load(r.ledger_path)
+    led.state.sessions_processed = 2
+    led.save(r.ledger_path)
+    res = _run(r, SESSION_1)                                          # same date, ledger ahead
+    assert res.exception_code == "LEDGER_AHEAD_OF_RECORD"
+
+
+def test_first_session_crash_before_the_ledger_save_is_reported_on_retry(tmp_path, context_builder):
+    """Sequence 1 committed but the ledger was never written: the retry must diagnose it, not open a
+    fresh ledger over an existing record."""
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    r.ledger_path.unlink()
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "LEDGER_UNAVAILABLE"
+    assert res.session_count == 1
+
+
+def test_same_date_retry_with_a_consistent_ledger_is_still_a_no_op(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    res = _run(r, SESSION_1)
+    assert res.status is SessionRunStatus.ALREADY_RECORDED and res.session_count == 1
+
+
+# ---- one observation per ELIGIBLE session ---------------------------------------------------------
+
+def test_skipping_an_eligible_session_is_refused(tmp_path, context_builder):
+    """Monday committed, Tuesday eligible but never run, Wednesday requested → refused, not recorded."""
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")                     # Monday 07-27
+    res = _run(r, date(2026, 7, 29), ts="2026-07-29T20:10:00Z")       # Wednesday; Tuesday skipped
+    assert res.status is SessionRunStatus.INTEGRITY_STOP
+    assert res.exception_code == "MISSED_ELIGIBLE_SESSION"
+    assert "2026-07-28" in res.detail                                  # names the missed session
+    assert res.session_count == 2
+    assert not (r.store_dir / "observations" / "000003").exists()
+    assert ShadowLedger.load(r.ledger_path).state.sessions_processed == 2
+
+
+def test_a_weekend_is_not_a_missed_session(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)                                                 # Friday 07-24
+    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")               # Monday 07-27
+    assert res.status is SessionRunStatus.RECORDED and res.sequence == 2
+
+
+def test_a_holiday_is_not_a_missed_session(tmp_path, context_builder):
+    """Friday 2026-09-04 → Tuesday 2026-09-08 across Labor Day: no false gap."""
+    r = _runner(tmp_path, context_builder)
+    _run(r, date(2026, 9, 4), ts="2026-09-04T20:10:00Z")
+    res = _run(r, date(2026, 9, 8), ts="2026-09-08T20:10:00Z")
+    assert res.status is SessionRunStatus.RECORDED and res.sequence == 2
+
+
+def test_the_first_observation_may_begin_on_any_eligible_session(tmp_path, context_builder):
+    """§0 path A: the record starts at the first eligible session after deployment readiness — the
+    next-eligible rule governs continuation, not inception."""
+    r = _runner(tmp_path, context_builder)
+    res = _run(r, date(2026, 8, 14), ts="2026-08-14T20:10:00Z")
+    assert res.status is SessionRunStatus.RECORDED and res.sequence == 1 and res.session_count == 1
 
 
 # ---- the frozen-binding gate still governs every session ------------------------------------------
@@ -317,3 +404,40 @@ def test_context_built_for_the_wrong_session_stops_the_run(tmp_path, context_bui
     res = _run(r, SESSION_1)
     assert res.exception_code == "CONTEXT_SESSION_MISMATCH"
     assert res.session_count == 0
+
+
+# ---- the stop log uses the injected durability policy ---------------------------------------------
+
+def test_stop_log_creation_fsyncs_the_file_and_its_parent_directory(tmp_path, context_builder):
+    class _RecordingDurability(Durability):
+        def __init__(self):
+            self.files: list[Path] = []
+            self.dirs: list[Path] = []
+
+        def fsync_file(self, path: Path) -> None:
+            self.files.append(path)
+
+        def fsync_dir(self, path: Path) -> None:
+            self.dirs.append(path)
+
+    dur = _RecordingDurability()
+    r = _runner(tmp_path, context_builder)
+    r.durability = dur
+    _run(r, SESSION_1)                                         # a clean session writes no stop log
+    log = r.store_dir / STOP_LOG_FILENAME
+    assert not log.exists()
+
+    # A stop raised BEFORE the pre-session snapshot isolates the stop log's own durability calls.
+    (r.store_dir / "observations" / "000001" / "manifest.json").write_bytes(b"{}\n")
+    dur.files.clear()
+    dur.dirs.clear()
+    res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
+    assert res.exception_code == "COMMITTED_RECORD_INVALID"
+    assert log in dur.files                                    # the appended bytes are fsynced
+    assert r.store_dir in dur.dirs                             # the new directory entry is fsynced
+
+    dur.files.clear()
+    dur.dirs.clear()
+    _run(r, SESSION_2, ts="2026-07-27T21:10:00Z")              # appends to an existing log
+    assert log in dur.files
+    assert r.store_dir not in dur.dirs                         # only on creation, not on every append

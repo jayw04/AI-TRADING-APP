@@ -68,6 +68,27 @@ def test_reversed_range_fails_closed():
         eligible_sessions(date(2026, 7, 31), date(2026, 7, 24))
 
 
+# ---- next_eligible_session: what makes "no session may be skipped" enforceable --------------------
+
+@pytest.mark.parametrize(("after", "expected"), [
+    (date(2026, 7, 24), date(2026, 7, 27)),        # Friday  -> Monday (a weekend is not a gap)
+    (date(2026, 7, 27), date(2026, 7, 28)),        # Monday  -> Tuesday
+    (date(2026, 9, 4), date(2026, 9, 8)),          # Friday  -> Tuesday across Labor Day
+    (date(2026, 11, 25), date(2026, 11, 27)),      # Wed     -> Friday across Thanksgiving
+    (date(2026, 12, 24), date(2026, 12, 28)),      # Thu     -> Monday across Christmas
+])
+def test_next_eligible_session_skips_only_non_sessions(after, expected):
+    assert ec.next_eligible_session(after) == expected
+
+
+def test_next_eligible_session_is_strictly_after_its_argument():
+    assert ec.next_eligible_session(START) > START
+
+
+def test_next_eligible_session_never_precedes_the_frozen_start():
+    assert ec.next_eligible_session(date(2020, 1, 2)) == START
+
+
 def test_missing_calendar_package_fails_closed(monkeypatch):
     """No silent fallback to a curated holiday list: without the authoritative calendar the run stops."""
     real_import = builtins.__import__

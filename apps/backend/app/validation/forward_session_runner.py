@@ -12,8 +12,11 @@ isolation is re-proved by the authoritative before/after probes inside the commi
 ## The four outcomes (there is no fifth, and none of them is a guess)
 
   NOT_ELIGIBLE       the date is not an XNYS session, or precedes the frozen forward start. No writes.
-  ALREADY_RECORDED   this session's observation is already committed. No writes, no double booking —
-                     re-running the scheduler is safe by construction.
+  ALREADY_RECORDED   this session's observation is already committed AND the durable ledger agrees with
+                     the committed record. No writes, no double booking — re-running the scheduler is
+                     safe by construction. Note the ledger check: a same-date retry after a crash
+                     between the commit and the ledger save is a LEDGER_BEHIND_RECORD stop, never a
+                     healthy no-op, because reconciliation runs BEFORE this return.
   RECORDED           the instrument produced exactly one real decision, the ledger booked it at the
                      registered turnover cost, and the observation committed. The count advanced by 1.
   INTEGRITY_STOP     a permitted stop (§5.4). NOTHING is booked, NOTHING is committed, the session count
@@ -30,6 +33,17 @@ runner records the refusal as an operational exception instead of a session.
 
 A genuine zero-gross decision is a different thing and remains valid: the instrument evaluated, emitted
 `regime_gross = 0.0` with matching zero-valued weights, and that decision books and commits normally.
+
+## One observation per ELIGIBLE session — a skipped session is refused, never stepped over
+
+A chain that is contiguous by sequence can still have lost a session: commit Monday, never run Tuesday,
+run Wednesday, and sequences 1-2-3 look perfect while the governed record silently means something
+different from what it claims. So after the first observation exists, the requested session must equal
+the next eligible XNYS session after the last committed one. A later date stops with
+MISSED_ELIGIBLE_SESSION and names the sessions that were never recorded. Nothing is back-filled — the
+hole is closed by governed adjudication, not by a runner deciding to catch up. Weekends and holidays are
+not holes: they are simply not sessions. Sequence 1 is exempt (§0 path A: the record begins at the first
+eligible session after deployment readiness).
 
 ## Durable-state discipline (crash safety, and why nothing is silently repaired)
 
@@ -61,7 +75,11 @@ from pathlib import Path
 
 import structlog
 
-from app.validation.eval_calendar import is_eligible_session
+from app.validation.eval_calendar import (
+    eligible_sessions,
+    is_eligible_session,
+    next_eligible_session,
+)
 from app.validation.first_session import open_first_window_session
 from app.validation.forward_evaluator import DecisionProvider, ForwardEvaluator
 from app.validation.forward_window import ForwardRunContext, IntegrityStop
@@ -136,20 +154,15 @@ class ForwardSessionRunner:
         try:
             records = committed_observations(self.store_dir)     # fail-closed, fully validated
         except IntegrityStop as exc:
-            return self._stop(iso, "COMMITTED_RECORD_INVALID", str(exc), 0, exceptions)
+            return self._stop(iso, "COMMITTED_RECORD_INVALID", str(exc), -1, exceptions)
 
         count = len(records)
-        if records and records[-1].session_date == iso:
-            return SessionRunResult(status=SessionRunStatus.ALREADY_RECORDED, session_date=iso,
-                                    session_count=count, sequence=records[-1].sequence,
-                                    detail="this session is already committed — nothing to do")
-        if records and records[-1].session_date > iso:
-            return self._stop(
-                iso, "SESSION_OUT_OF_ORDER",
-                f"session {iso} precedes the last committed session {records[-1].session_date}",
-                count, exceptions)
+        last = records[-1] if records else None
 
-        # ── durable-state reconciliation BEFORE anything is booked ──
+        # ── durable-state reconciliation FIRST — before any no-op return ──
+        # A same-date retry must not report a healthy no-op while the ledger is behind the record: that
+        # is exactly the crash shape (observation committed, ledger save lost) this runner exists to
+        # surface, and hiding it here would defer discovery to some later session.
         try:
             ledger = self._load_or_open_ledger(count)
         except IntegrityStop as exc:
@@ -163,6 +176,38 @@ class ForwardSessionRunner:
                 f"ledger has processed {processed} session(s) but committed storage holds {count}; "
                 f"recovery is an explicit audited operation — this runner will not repair it",
                 count, exceptions)
+
+        if last and last.session_date == iso:
+            return SessionRunResult(status=SessionRunStatus.ALREADY_RECORDED, session_date=iso,
+                                    session_count=count, sequence=last.sequence,
+                                    detail="this session is already committed and the ledger agrees "
+                                           "with the record — nothing to do")
+        if last and last.session_date > iso:
+            return self._stop(
+                iso, "SESSION_OUT_OF_ORDER",
+                f"session {iso} precedes the last committed session {last.session_date}",
+                count, exceptions)
+
+        # ── no eligible session may be stepped over ──
+        # The chain being contiguous by SEQUENCE is not enough: the record claims one observation per
+        # eligible session, so the requested session must be the next eligible one after the last
+        # committed session. A skipped session is refused, never back-filled — closing the hole is a
+        # governed adjudication, not a runner decision. (Sequence 1 is exempt: §0 path A lets the record
+        # begin at the first eligible session after deployment readiness.)
+        if last:
+            try:
+                expected = next_eligible_session(date.fromisoformat(last.session_date))
+            except IntegrityStop as exc:
+                return self._stop(iso, "ELIGIBILITY_UNDETERMINED", str(exc), count, exceptions)
+            if session_date != expected:
+                skipped = [d.isoformat() for d in eligible_sessions(expected, session_date)
+                           if d != session_date]
+                return self._stop(
+                    iso, "MISSED_ELIGIBLE_SESSION",
+                    f"the next eligible session after {last.session_date} is {expected.isoformat()}, "
+                    f"not {iso}; eligible session(s) never recorded: {skipped}. The record will not "
+                    f"skip a session and will not back-fill one — this needs governed adjudication",
+                    count, exceptions)
 
         snapshot = self.store_dir / PRE_SESSION_SNAPSHOT
         if snapshot.exists():
@@ -265,13 +310,19 @@ class ForwardSessionRunner:
     def _append_stop_log(self, iso: str, code: str, detail: str, count: int) -> None:
         """Append the operational exception OUTSIDE the sealed performance and OUTSIDE observations/.
         It carries no performance and cannot alter the chain or the session count. A failure to record
-        the exception is itself fatal — a stop that leaves no trace is not a governed stop."""
+        the exception is itself fatal — a stop that leaves no trace is not a governed stop.
+
+        Durability goes through the SAME injected policy the commit protocol uses: the appended bytes
+        are fsynced, and on first creation the parent directory is fsynced too so the new directory
+        entry survives a crash."""
         line = json.dumps({"session_date": iso, "code": code, "detail": detail,
                            "session_count_at_stop": count,
                            "deployed_tree_identity": self.deployed_tree_identity}, sort_keys=True)
         path = self.store_dir / STOP_LOG_FILENAME
+        dur = self.durability or default_durability()
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
+            self.store_dir.mkdir(parents=True, exist_ok=True)
+            created = not path.exists()
             with open(path, "a", encoding="utf-8") as fh:
                 fh.write(line + "\n")
                 fh.flush()
@@ -279,6 +330,9 @@ class ForwardSessionRunner:
         except OSError as exc:
             raise IntegrityStop(
                 f"could not record the operational exception {code} for {iso}: {exc}") from exc
+        dur.fsync_file(path)
+        if created:
+            dur.fsync_dir(self.store_dir)
 
 
 def _operational_flags(exceptions: list[str]) -> dict:

@@ -18,11 +18,17 @@ intraday timing of the run is the scheduler's business, not the record's.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from app.validation.forward_window import FORWARD_START, GOVERNING_TZ, IntegrityStop
 
-__all__ = ["EvalCalendarError", "eligible_sessions", "is_eligible_session", "is_trading_session"]
+__all__ = [
+    "EvalCalendarError",
+    "eligible_sessions",
+    "is_eligible_session",
+    "is_trading_session",
+    "next_eligible_session",
+]
 
 
 class EvalCalendarError(IntegrityStop):
@@ -80,6 +86,24 @@ def eligible_sessions(start: date, end: date) -> list[date]:
         raise EvalCalendarError(
             f"XNYS schedule lookup failed for {lo.isoformat()}..{end.isoformat()}: {exc}") from exc
     return [ts.date() for ts in schedule.index]
+
+
+def next_eligible_session(after: date) -> date:
+    """The first eligible session STRICTLY after `after` (never `after` itself).
+
+    This is what makes "one governed observation per eligible session" enforceable: the runner requires
+    the session it is asked to record to be exactly this date, so a session that was never run cannot be
+    stepped over silently. Weekends and holidays are not gaps — they are simply not sessions.
+    """
+    floor = date.fromisoformat(FORWARD_START)
+    lo = max(after + timedelta(days=1), floor)
+    for span in (14, 60, 400):                      # widen rather than assume a maximum market closure
+        found = eligible_sessions(lo, lo + timedelta(days=span))
+        if found:
+            return found[0]
+    raise EvalCalendarError(
+        f"no XNYS session found within 400 days after {after.isoformat()} — the calendar cannot be "
+        f"trusted to advance the record")
 
 
 def governing_timezone() -> str:
