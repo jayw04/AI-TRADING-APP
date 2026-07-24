@@ -15,8 +15,14 @@ TWO SEPARATE BOOKS, USED FOR SEPARATE PURPOSES (owner ruling 2026-07-23):
 
 This module is the seam, and it FAILS CLOSED (owner boundary checks) unless, for each eligible session:
   1. the decision's date exactly equals the session being processed;
-  2. the decision came from the real frozen production instrument (identity == PRODUCTION_STRATEGY_COMMIT);
-  3. weights and regime_gross are finite and structurally valid;
+  2. the decision came from the real frozen production instrument — an EXACT full-SHA identity match
+     against PRODUCTION_STRATEGY_COMMIT (a short frozen binding is honoured only at a governed minimum
+     length, and the runtime identity must always be the full SHA);
+  3. the decision is structurally the one it claims to be: 0 ≤ regime_gross ≤ 1, no duplicate targets,
+     no more targets than the frozen max_names, the weighted names are EXACTLY the target names, the
+     weights sum within the regime's own gross, and each weight is the frozen equal-weight/20%-cap
+     result the registered production rule would produce (the instrument supplies the weights; this
+     check only refuses a sizing shape that rule could not have produced);
   4. `trade_initiated=False` conceals no regime / membership / drift / backstop transition — verified
      against the INSTRUMENT's own decision-state book (LOAD-BEARING). Shadow-ledger drift may be reported
      as a DIAGNOSTIC but never invalidates the run or overrides the instrument decision.
@@ -35,11 +41,25 @@ from datetime import date
 
 from app.strategies.drift_audit import SeamRecord
 from app.validation.first_session import IntegrityStop
-from app.validation.forward_window import PRODUCTION_STRATEGY_COMMIT
+from app.validation.forward_window import FROZEN_CONFIG, PRODUCTION_STRATEGY_COMMIT
 from app.validation.shadow_ledger import PriceFn, SessionOutcome, ShadowLedger
 
 _GROSS_EPS = 1e-9
-_WEIGHT_SUM_EPS = 1e-9
+_WEIGHT_EPS = 1e-9
+
+# Registered sizing parameters (§2, frozen) — the decision-structure checks are derived from the
+# frozen configuration, never from a literal restated here.
+_FROZEN_WEIGHTING = str(FROZEN_CONFIG["weighting"])
+_MAX_NAMES = int(str(FROZEN_CONFIG["max_names"]))                    # parsed, not asserted: a frozen
+_MAX_POSITION_PCT = float(str(FROZEN_CONFIG["max_position_pct"]))    # config that is not numeric fails
+                                                                      # loudly at import, not silently
+
+# A full git object name; the runtime identity must always be one.
+_SHA_LEN = 40
+_HEX = frozenset("0123456789abcdef")
+# A frozen binding may legitimately be stored short in legacy configuration, but never shorter than
+# this — an arbitrary prefix is not an identity.
+_MIN_GOVERNED_SHORT_SHA = 12
 
 
 class ForwardEvaluationError(IntegrityStop):
@@ -171,18 +191,66 @@ def _assert_no_concealed_transition(rec: SeamRecord, st: InstrumentDecisionState
 
 
 def _validate_decision_values(rec: SeamRecord) -> None:
-    if not math.isfinite(rec.regime_gross) or rec.regime_gross < 0.0:
-        raise ForwardEvaluationError(f"regime_gross not finite/non-negative: {rec.regime_gross}")
+    """Prove the decision is STRUCTURALLY the one it claims to be — not merely that its numbers are
+    finite. A record may not declare targets AAA/BBB while carrying weights for unrelated names, may
+    not exceed the regime's own gross, and (for the frozen equal-weight instrument) may not carry a
+    sizing shape the registered production rule could not have produced."""
+    g = rec.regime_gross
+    if not math.isfinite(g) or not (0.0 <= g <= 1.0):
+        raise ForwardEvaluationError(f"regime_gross not finite/in [0, 1]: {g}")
+
+    names = list(rec.target_names)
+    if len(set(names)) != len(names):
+        raise ForwardEvaluationError(f"target_names contains duplicates: {names}")
+    if len(names) > _MAX_NAMES:
+        raise ForwardEvaluationError(
+            f"{len(names)} targets exceeds the frozen max_names={_MAX_NAMES}: {names}")
+    if set(rec.weights) != set(names):
+        raise ForwardEvaluationError(
+            f"weights describe {sorted(rec.weights)} but the decision targets {sorted(names)} — the "
+            f"weights do not describe the stated decision")
+
     total = 0.0
     for tk, w in rec.weights.items():
         if not math.isfinite(w) or w < 0.0:
             raise ForwardEvaluationError(f"weight for {tk!r} not finite/non-negative: {w}")
         total += w
-    if total > 1.0 + _WEIGHT_SUM_EPS:
-        raise ForwardEvaluationError(f"weights sum {total} exceeds fully-invested 1.0")
+    if total > g + _WEIGHT_EPS:
+        raise ForwardEvaluationError(
+            f"weights sum {total} exceeds the regime-allowed gross {g}")
+
+    if not names:
+        return
+    # Registered sizing conformance. The instrument SUPPLIES the weights (they are never restated as
+    # the source of truth — see `drift_audit_driver.capture_seam`); this check only refuses to book a
+    # decision whose sizing shape the frozen registered rule could not have produced. If the frozen
+    # weighting is ever something other than equal weight, this check must be re-derived, so it fails
+    # closed rather than silently passing an unrecognised rule.
+    if _FROZEN_WEIGHTING != "equal":
+        raise ForwardEvaluationError(
+            f"registered sizing conformance covers equal weight only; frozen weighting is "
+            f"{_FROZEN_WEIGHTING!r} — re-derive this check before booking any session")
+    expected = min(1.0 / len(names), _MAX_POSITION_PCT) * g
+    for tk, w in rec.weights.items():
+        if abs(w - expected) > _WEIGHT_EPS:
+            raise ForwardEvaluationError(
+                f"weight for {tk!r} is {w}, not the frozen equal-weight result {expected} "
+                f"(min(1/{len(names)}, {_MAX_POSITION_PCT}) × gross {g})")
+
+
+def _is_full_sha(s: str) -> bool:
+    return len(s) == _SHA_LEN and set(s) <= _HEX
 
 
 def _commit_matches(actual: str, frozen: str) -> bool:
-    """A commit matches if either is a prefix of the other (frozen SHAs may be stored short)."""
-    a, f = actual.strip(), frozen.strip()
-    return bool(a) and bool(f) and (a.startswith(f) or f.startswith(a))
+    """Exact commit identity. The RUNTIME identity must always be a full 40-hex git object name, and
+    it must equal the frozen binding. A frozen binding stored short in legacy configuration is honoured
+    only at a governed minimum length (12 hex characters) and only as a prefix of that full runtime SHA
+    — arbitrary bidirectional prefix matching would let an identity like "b" satisfy the production
+    provenance boundary."""
+    a, f = actual.strip().lower(), frozen.strip().lower()
+    if not _is_full_sha(a):
+        return False
+    if _is_full_sha(f):
+        return a == f
+    return len(f) >= _MIN_GOVERNED_SHORT_SHA and set(f) <= _HEX and a.startswith(f)
