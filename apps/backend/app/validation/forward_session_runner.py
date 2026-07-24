@@ -1,0 +1,363 @@
+"""Forward-validation session runner — one governed observation per eligible session (R4).
+
+This is the wiring between the eligibility calendar, the per-session evaluator (R2b) and the chained
+observation store (R3). It is the piece a scheduler invokes: fire it once a day, and it decides —
+deterministically, and without ever guessing — whether this date is an eligible session, whether the
+session is already recorded, whether the durable state is consistent enough to proceed, and whether the
+instrument actually produced a decision.
+
+The run is NON-ORDERING. Nothing here imports the order path, the broker or Account 4's book; Account-4
+isolation is re-proved by the authoritative before/after probes inside the commit protocol.
+
+## The four outcomes (there is no fifth, and none of them is a guess)
+
+  NOT_ELIGIBLE       the date is not an XNYS session, or precedes the frozen forward start. No writes.
+  ALREADY_RECORDED   this session's observation is already committed AND the durable ledger agrees with
+                     the committed record. No writes, no double booking — re-running the scheduler is
+                     safe by construction. Note the ledger check: a same-date retry after a crash
+                     between the commit and the ledger save is a LEDGER_BEHIND_RECORD stop, never a
+                     healthy no-op, because reconciliation runs BEFORE this return.
+  RECORDED           the instrument produced exactly one real decision, the ledger booked it at the
+                     registered turnover cost, and the observation committed. The count advanced by 1.
+  INTEGRITY_STOP     a permitted stop (§5.4). NOTHING is booked, NOTHING is committed, the session count
+                     is unchanged, and the operational exception is appended to a log OUTSIDE the sealed
+                     performance and OUTSIDE `observations/` (it can touch neither the chain nor count).
+
+## An eligible session whose instrument did not evaluate is an INTEGRITY_STOP (owner ruling 2026-07-24)
+
+A production path that returns before `_evaluate` has not produced the required instrument decision.
+Recording that as an ordinary flat/no-trade observation would falsely claim the strategy was evaluated
+and chose not to trade. The runner therefore never synthesizes `weights={}` / `trade_initiated=False`
+to stand in for an absent evaluation — the evaluator's boundary checks refuse such a record, and the
+runner records the refusal as an operational exception instead of a session.
+
+A genuine zero-gross decision is a different thing and remains valid: the instrument evaluated, emitted
+`regime_gross = 0.0` with matching zero-valued weights, and that decision books and commits normally.
+
+## One observation per ELIGIBLE session — a skipped session is refused, never stepped over
+
+A chain that is contiguous by sequence can still have lost a session: commit Monday, never run Tuesday,
+run Wednesday, and sequences 1-2-3 look perfect while the governed record silently means something
+different from what it claims. So after the first observation exists, the requested session must equal
+the next eligible XNYS session after the last committed one. A later date stops with
+MISSED_ELIGIBLE_SESSION and names the sessions that were never recorded. Nothing is back-filled — the
+hole is closed by governed adjudication, not by a runner deciding to catch up. Weekends and holidays are
+not holes: they are simply not sessions. Sequence 1 is exempt (§0 path A: the record begins at the first
+eligible session after deployment readiness).
+
+## Durable-state discipline (crash safety, and why nothing is silently repaired)
+
+Committed storage is the source of truth for how many sessions exist. Before anything is booked, the
+runner requires the ledger's own `sessions_processed` to equal that committed count. If they disagree —
+the two ways a crash mid-commit can leave them — the runner STOPS with a precise diagnosis rather than
+re-booking a session or rolling a ledger back on its own:
+
+  LEDGER_AHEAD_OF_RECORD    booked, then died before the observation committed. Re-running would double
+                            book. The pre-session snapshot is the audited recovery input.
+  LEDGER_BEHIND_RECORD      the observation committed but the ledger save did not land. The committed
+                            sealed payload is the audited recovery input.
+
+Recovery is an explicit, audited operation, never an automatic one (ADR 0044 invariant 7: auditable,
+never silently repaired). The successful path writes a pre-session snapshot, books in memory, commits
+the observation, saves the ledger, and only then drops the snapshot.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import os
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import date
+from enum import StrEnum
+from pathlib import Path
+
+import structlog
+
+from app.validation.eval_calendar import (
+    eligible_sessions,
+    is_eligible_session,
+    next_eligible_session,
+)
+from app.validation.first_session import open_first_window_session
+from app.validation.forward_evaluator import DecisionProvider, ForwardEvaluator
+from app.validation.forward_window import ForwardRunContext, IntegrityStop
+from app.validation.observation_store import (
+    Account4StateProbe,
+    Durability,
+    committed_observations,
+    default_durability,
+)
+from app.validation.session_recorder import record_forward_session
+from app.validation.shadow_ledger import PriceFn, SessionOutcome, ShadowLedger
+
+logger = structlog.get_logger(__name__)
+
+STOP_LOG_FILENAME = "integrity_stops.jsonl"        # store ROOT — never under observations/
+PRE_SESSION_SNAPSHOT = "ledger.pre-session.json"
+
+
+class SessionRunStatus(StrEnum):
+    NOT_ELIGIBLE = "NOT_ELIGIBLE"
+    ALREADY_RECORDED = "ALREADY_RECORDED"
+    RECORDED = "RECORDED"
+    INTEGRITY_STOP = "INTEGRITY_STOP"
+
+
+@dataclass(frozen=True)
+class SessionRunResult:
+    """What one scheduler invocation did. `session_count` is always the storage-derived count AFTER the
+    run, so a scheduler can log the record's true length without reading the store itself."""
+    status: SessionRunStatus
+    session_date: str
+    session_count: int
+    sequence: int | None = None                    # the committed sequence when RECORDED
+    exception_code: str | None = None              # set on INTEGRITY_STOP
+    detail: str = ""
+    operational_exceptions: tuple[str, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        return self.status is not SessionRunStatus.INTEGRITY_STOP
+
+
+@dataclass
+class ForwardSessionRunner:
+    """One governed forward session per invocation. Every collaborator is injected: the decision
+    provider (R5 supplies the data-coupled production one), the price function, the Account-4 probe, the
+    per-session run context builder, and the ledger factory used ONLY to open a fresh ledger before the
+    first session."""
+    store_dir: Path
+    ledger_path: Path
+    decision_provider: DecisionProvider
+    price_fn: PriceFn
+    account4_probe: Callable[[], Account4StateProbe]
+    context_builder: Callable[[date], ForwardRunContext]
+    ledger_factory: Callable[[], ShadowLedger]
+    deployed_tree_identity: str
+    shadow_ledger_identity: str
+    durability: Durability | None = None
+
+    # ── the entry point a scheduler calls ─────────────────────────────────────────────────────────
+    def run_session(self, session_date: date, *, run_timestamp: str) -> SessionRunResult:
+        """Run (at most) one observation for `session_date`. `run_timestamp` is the caller-supplied
+        ISO8601 UTC instant of this invocation — recorded as the preflight execution timestamp."""
+        iso = session_date.isoformat()
+        exceptions: list[str] = []
+
+        if not is_eligible_session(session_date):
+            return SessionRunResult(status=SessionRunStatus.NOT_ELIGIBLE, session_date=iso,
+                                    session_count=self._count(),
+                                    detail="not an XNYS session on/after the frozen forward start")
+
+        try:
+            records = committed_observations(self.store_dir)     # fail-closed, fully validated
+        except IntegrityStop as exc:
+            return self._stop(iso, "COMMITTED_RECORD_INVALID", str(exc), -1, exceptions)
+
+        count = len(records)
+        last = records[-1] if records else None
+
+        # ── durable-state reconciliation FIRST — before any no-op return ──
+        # A same-date retry must not report a healthy no-op while the ledger is behind the record: that
+        # is exactly the crash shape (observation committed, ledger save lost) this runner exists to
+        # surface, and hiding it here would defer discovery to some later session.
+        try:
+            ledger = self._load_or_open_ledger(count)
+        except IntegrityStop as exc:
+            return self._stop(iso, "LEDGER_UNAVAILABLE", str(exc), count, exceptions)
+
+        processed = ledger.state.sessions_processed
+        if processed != count:
+            code = "LEDGER_AHEAD_OF_RECORD" if processed > count else "LEDGER_BEHIND_RECORD"
+            return self._stop(
+                iso, code,
+                f"ledger has processed {processed} session(s) but committed storage holds {count}; "
+                f"recovery is an explicit audited operation — this runner will not repair it",
+                count, exceptions)
+
+        if last and last.session_date == iso:
+            return SessionRunResult(status=SessionRunStatus.ALREADY_RECORDED, session_date=iso,
+                                    session_count=count, sequence=last.sequence,
+                                    detail="this session is already committed and the ledger agrees "
+                                           "with the record — nothing to do")
+        if last and last.session_date > iso:
+            return self._stop(
+                iso, "SESSION_OUT_OF_ORDER",
+                f"session {iso} precedes the last committed session {last.session_date}",
+                count, exceptions)
+
+        # ── no eligible session may be stepped over ──
+        # The chain being contiguous by SEQUENCE is not enough: the record claims one observation per
+        # eligible session, so the requested session must be the next eligible one after the last
+        # committed session. A skipped session is refused, never back-filled — closing the hole is a
+        # governed adjudication, not a runner decision. (Sequence 1 is exempt: §0 path A lets the record
+        # begin at the first eligible session after deployment readiness.)
+        if last:
+            try:
+                expected = next_eligible_session(date.fromisoformat(last.session_date))
+            except IntegrityStop as exc:
+                return self._stop(iso, "ELIGIBILITY_UNDETERMINED", str(exc), count, exceptions)
+            if session_date != expected:
+                skipped = [d.isoformat() for d in eligible_sessions(expected, session_date)
+                           if d != session_date]
+                return self._stop(
+                    iso, "MISSED_ELIGIBLE_SESSION",
+                    f"the next eligible session after {last.session_date} is {expected.isoformat()}, "
+                    f"not {iso}; eligible session(s) never recorded: {skipped}. The record will not "
+                    f"skip a session and will not back-fill one — this needs governed adjudication",
+                    count, exceptions)
+
+        snapshot = self.store_dir / PRE_SESSION_SNAPSHOT
+        if snapshot.exists():
+            # A previous attempt died. Reconciliation above already proved ledger == record, so the
+            # snapshot is redundant — but the crash is recorded rather than quietly overwritten.
+            exceptions.append("STALE_PRE_SESSION_SNAPSHOT")
+            self._append_stop_log(iso, "STALE_PRE_SESSION_SNAPSHOT",
+                                  "a previous attempt left a pre-session snapshot; state reconciled",
+                                  count)
+
+        dur = self.durability or default_durability()
+        ledger.save(snapshot, durability=dur)                    # audited rollback input
+
+        # ── the decision + the booking (nothing is written to the record yet) ──
+        evaluator = ForwardEvaluator(ledger=ledger, decision_provider=self.decision_provider,
+                                     shadow_ledger_identity=self.shadow_ledger_identity)
+        try:
+            outcome = evaluator.evaluate_session(session_date, self.price_fn)
+        except IntegrityStop as exc:
+            # Includes the absent-evaluation case: the instrument produced no real decision, so no
+            # session is recorded. The in-memory booking (if any) is discarded — the ledger on disk is
+            # untouched because it is saved only after a successful commit.
+            return self._stop(iso, "NO_VALID_INSTRUMENT_DECISION", str(exc), count, exceptions)
+
+        ctx = self.context_builder(session_date)
+        if ctx.session_date != session_date:
+            return self._stop(iso, "CONTEXT_SESSION_MISMATCH",
+                              f"context built for {ctx.session_date} but the session is {iso}",
+                              count, exceptions)
+
+        operational = _operational_flags(exceptions)
+        sealed = _sealed_performance(outcome, ledger)
+        # The shadow ledger routes no orders, so `orders` is 0 by construction — the counter describes
+        # the ledger, not a broker.
+        rebalances, orders, seeds = (1 if outcome.traded else 0), 0, (1 if outcome.record.is_seed else 0)
+
+        try:
+            if count == 0:                                       # the governed window-open transition
+                _, first_prov, new_count = open_first_window_session(
+                    ctx, preflight_timestamp=run_timestamp,
+                    deployed_tree_identity=self.deployed_tree_identity,
+                    shadow_ledger_identity=self.shadow_ledger_identity,
+                    account4_probe=self.account4_probe,
+                    rebalances=rebalances, orders=orders, seeds=seeds, operational=operational,
+                    sealed_performance=sealed, store_dir=self.store_dir, durability=self.durability)
+                sequence = first_prov.observation_sequence
+            else:
+                _, prov, new_count = record_forward_session(
+                    ctx, preflight_timestamp=run_timestamp,
+                    deployed_tree_identity=self.deployed_tree_identity,
+                    shadow_ledger_identity=self.shadow_ledger_identity,
+                    account4_probe=self.account4_probe,
+                    rebalances=rebalances, orders=orders, seeds=seeds, operational=operational,
+                    sealed_performance=sealed, store_dir=self.store_dir, durability=self.durability)
+                sequence = prov.observation_sequence
+        except IntegrityStop as exc:
+            # Not committed => not booked: the ledger is saved only after a successful commit, so the
+            # durable ledger still holds the pre-session state.
+            return self._stop(iso, "OBSERVATION_NOT_COMMITTED", str(exc), count, exceptions)
+
+        ledger.save(self.ledger_path, durability=dur)            # durable AFTER the commit
+        with contextlib.suppress(OSError):
+            snapshot.unlink()
+
+        logger.info("forward_session_recorded", session=iso, sequence=sequence,
+                    session_count=new_count, traded=outcome.traded)
+        return SessionRunResult(status=SessionRunStatus.RECORDED, session_date=iso,
+                                session_count=new_count, sequence=sequence,
+                                operational_exceptions=tuple(exceptions),
+                                detail="observation committed")
+
+    # ── helpers ───────────────────────────────────────────────────────────────────────────────────
+    def _count(self) -> int:
+        try:
+            return len(committed_observations(self.store_dir))
+        except IntegrityStop:
+            return -1                                            # unknown: storage is invalid
+
+    def _load_or_open_ledger(self, count: int) -> ShadowLedger:
+        if self.ledger_path.exists():
+            try:
+                return ShadowLedger.load(self.ledger_path)
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                raise IntegrityStop(f"durable ledger at {self.ledger_path} is unreadable: {exc}") from exc
+        if count != 0:
+            raise IntegrityStop(
+                f"committed storage holds {count} observation(s) but the durable ledger is missing — "
+                f"a forward record may not continue on a fresh ledger")
+        return self.ledger_factory()
+
+    def _stop(self, iso: str, code: str, detail: str, count: int,
+              exceptions: list[str]) -> SessionRunResult:
+        self._append_stop_log(iso, code, detail, count)
+        logger.warning("forward_session_integrity_stop", session=iso, code=code, detail=detail,
+                       session_count=count)
+        return SessionRunResult(status=SessionRunStatus.INTEGRITY_STOP, session_date=iso,
+                                session_count=count, exception_code=code, detail=detail,
+                                operational_exceptions=tuple([*exceptions, code]))
+
+    def _append_stop_log(self, iso: str, code: str, detail: str, count: int) -> None:
+        """Append the operational exception OUTSIDE the sealed performance and OUTSIDE observations/.
+        It carries no performance and cannot alter the chain or the session count. A failure to record
+        the exception is itself fatal — a stop that leaves no trace is not a governed stop.
+
+        Durability goes through the SAME injected policy the commit protocol uses: the appended bytes
+        are fsynced, and on first creation the parent directory is fsynced too so the new directory
+        entry survives a crash."""
+        line = json.dumps({"session_date": iso, "code": code, "detail": detail,
+                           "session_count_at_stop": count,
+                           "deployed_tree_identity": self.deployed_tree_identity}, sort_keys=True)
+        path = self.store_dir / STOP_LOG_FILENAME
+        dur = self.durability or default_durability()
+        try:
+            self.store_dir.mkdir(parents=True, exist_ok=True)
+            created = not path.exists()
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(line + "\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+        except OSError as exc:
+            raise IntegrityStop(
+                f"could not record the operational exception {code} for {iso}: {exc}") from exc
+        dur.fsync_file(path)
+        if created:
+            dur.fsync_dir(self.store_dir)
+
+
+def _operational_flags(exceptions: list[str]) -> dict:
+    """The OPEN, operator-visible §7H operational counters for this session (the execution counters —
+    rebalances / orders / seeds — are passed separately, so there is one source for each)."""
+    return {
+        "scheduled_eval_completed": True,
+        "missed_rebalances": 0,
+        "duplicate_orders_or_seeds": 0,
+        "cap_breaches": 0,
+        "broker_local_divergence": 0,
+        "unresolved_reservations": 0,
+        "manual_perf_affecting_interventions": 0,
+        "operational_exceptions": list(exceptions),
+    }
+
+
+def _sealed_performance(outcome: SessionOutcome, ledger: ShadowLedger) -> dict:
+    """The SEALED payload: everything that could inform a performance judgement. It is written to a
+    segregated artifact and referenced from the open record by digest only (§5.4 no-peeking)."""
+    start = ledger.state.starting_capital
+    return {
+        "strategy_return": outcome.session_return,
+        "turnover": outcome.turnover,
+        "turnover_cost": outcome.cost_drag,
+        "equity_after": outcome.equity_after,
+        "cumulative_return": (outcome.equity_after / start - 1.0) if start > 0 else 0.0,
+    }
