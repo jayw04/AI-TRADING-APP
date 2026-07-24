@@ -23,6 +23,11 @@ LOSS_CONTROL_STATE_VERSION = 1
 STATE_NORMAL = "NORMAL"
 STATE_REDUCTION_ONLY_DAILY_LOSS = "REDUCTION_ONLY_DAILY_LOSS"
 STATE_REDUCTION_ONLY_BREAKER = "REDUCTION_ONLY_BREAKER"
+# The day-change basis is UNAVAILABLE: no broker prior-close and no eligible prior-close snapshot,
+# so today's P&L is UNKNOWN. Distinct from REDUCTION_ONLY_DAILY_LOSS on purpose — nothing here
+# asserts a measured loss or a crossed threshold. It is the protection you apply when you cannot
+# see, not the one you apply when you have seen something bad.
+STATE_REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE = "REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE"
 STATE_INTEGRITY_STOP = "INTEGRITY_STOP"
 STATE_RECOVERY_PREFLIGHT = "RECOVERY_PREFLIGHT"
 STATE_RECOVERY_COOLDOWN = "RECOVERY_COOLDOWN"
@@ -32,6 +37,7 @@ ALL_STATES: frozenset[str] = frozenset(
         STATE_NORMAL,
         STATE_REDUCTION_ONLY_DAILY_LOSS,
         STATE_REDUCTION_ONLY_BREAKER,
+        STATE_REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE,
         STATE_INTEGRITY_STOP,
         STATE_RECOVERY_PREFLIGHT,
         STATE_RECOVERY_COOLDOWN,
@@ -63,12 +69,17 @@ TRIP_TYPE_DAILY_LOSS = "DAILY_LOSS"
 TRIP_TYPE_CIRCUIT_BREAKER = "CIRCUIT_BREAKER"
 TRIP_TYPE_MANUAL_HALT = "MANUAL_HALT"
 TRIP_TYPE_CONTROL_INTEGRITY = "CONTROL_INTEGRITY"
+# The control could not MEASURE, as opposed to having measured something bad. Deliberately not
+# TRIP_TYPE_DAILY_LOSS: recording an unmeasurable P&L as a daily-loss trip would put a loss that
+# was never observed into the audit trail and into every downstream reading of it.
+TRIP_TYPE_MEASUREMENT_UNAVAILABLE = "MEASUREMENT_UNAVAILABLE"
 ALL_TRIP_TYPES: frozenset[str] = frozenset(
     {
         TRIP_TYPE_DAILY_LOSS,
         TRIP_TYPE_CIRCUIT_BREAKER,
         TRIP_TYPE_MANUAL_HALT,
         TRIP_TYPE_CONTROL_INTEGRITY,
+        TRIP_TYPE_MEASUREMENT_UNAVAILABLE,
     }
 )
 
@@ -86,9 +97,13 @@ TRIP_CAUSE_ORDER_STATE_UNCERTAIN = "ORDER_STATE_UNCERTAIN"
 TRIP_CAUSE_CONTROL_CONFIGURATION_INVALID = "CONTROL_CONFIGURATION_INVALID"
 TRIP_CAUSE_REDUCTION_NOT_VERIFIABLE = "REDUCTION_NOT_VERIFIABLE"
 TRIP_CAUSE_OPERATOR_EMERGENCY = "OPERATOR_EMERGENCY"
+#: No usable day-change basis: the amount is UNKNOWN and no threshold is asserted to have been
+#: crossed. The trip reason is the absence of a measurement, never a measurement.
+TRIP_CAUSE_DAILY_PNL_UNAVAILABLE = "DAILY_PNL_UNAVAILABLE"
 TRIP_CAUSE_UNKNOWN = "UNKNOWN"
 ALL_TRIP_CAUSES: frozenset[str] = frozenset(
     {
+        TRIP_CAUSE_DAILY_PNL_UNAVAILABLE,
         TRIP_CAUSE_REALIZED_AND_MARK_TO_MARKET_LOSS,
         TRIP_CAUSE_LOSS_VELOCITY,
         TRIP_CAUSE_BROKER_STATE_UNCERTAIN,

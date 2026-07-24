@@ -26,6 +26,7 @@ from app.db.models.signal import Signal
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
 from app.risk import OrderRequest
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 from app.strategies.context import StrategyContext
 
 
@@ -295,6 +296,7 @@ async def test_get_account_equity_returns_snapshot(session_factory, seeded):
     async with session_factory() as session:
         session.add(
             AccountState(
+                day_change_basis=BROKER_LAST_EQUITY,
                 account_id=1, cash=Decimal("9000"), equity=Decimal("10500.50"),
                 last_equity=Decimal("10000"), buying_power=Decimal("38000"),
                 portfolio_value=Decimal("10500.50"), status="ACTIVE",

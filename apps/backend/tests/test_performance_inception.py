@@ -15,6 +15,7 @@ from app.db.models.account_state import AccountState
 from app.db.models.benchmark_snapshot import BenchmarkSnapshot
 from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.models.user import User
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D7 = datetime(2026, 7, 7, 16, 10, tzinfo=UTC)
 D17 = datetime(2026, 7, 17, 16, 10, tzinfo=UTC)
@@ -34,6 +35,7 @@ async def app_inception(session_factory, monkeypatch):
         s.add(Account(id=1, user_id=1, broker="alpaca", mode=AccountMode.paper,
                       label="Paper", performance_inception_at=D17))
         s.add(AccountState(
+            day_change_basis=BROKER_LAST_EQUITY,
             account_id=1, cash=Decimal("5000"), equity=Decimal("110000"),
             last_equity=Decimal("110000"), buying_power=Decimal("150000"),
             portfolio_value=Decimal("110000"), daytrade_count=0, day_change=Decimal("0"),

@@ -24,6 +24,7 @@ from app.events.bus import EventBus
 from app.llm.anthropic_client import AnthropicCall, AnthropicClientNotConfigured
 from app.llm.runtime import AgentRuntime, AgentRuntimeError
 from app.security import CredentialKind, CredentialStore
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 
 def _now() -> datetime:
@@ -94,6 +95,7 @@ async def seeded(session_factory):
         )
         db.add(
             AccountState(
+                day_change_basis=BROKER_LAST_EQUITY,
                 account_id=1,
                 cash=Decimal("50000"),
                 equity=Decimal("100000"),

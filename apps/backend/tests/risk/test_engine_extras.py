@@ -46,6 +46,7 @@ from app.db.models.user import User
 from app.risk.engine import RiskEngine
 from app.risk.reason_codes import ReasonCode
 from app.risk.types import OrderRequest
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 
 def _now() -> datetime:
@@ -102,6 +103,7 @@ async def seeded(session_factory):
         )
         session.add(
             AccountState(
+                day_change_basis=BROKER_LAST_EQUITY,
                 account_id=1,
                 cash=Decimal("100000"),
                 equity=Decimal("100000"),

@@ -16,6 +16,7 @@ from app.llm.system_prompt import (
     build_system_prompt,
     gather_user_context,
 )
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 
 def _now() -> datetime:
@@ -45,6 +46,7 @@ async def test_gather_user_context_with_paper_account(session_factory):
         )
         db.add(
             AccountState(
+                day_change_basis=BROKER_LAST_EQUITY,
                 account_id=1,
                 cash=Decimal("50000"),
                 equity=Decimal("100000"),
