@@ -67,9 +67,13 @@ class _Accessor:
         return self._frame
 
 
+UNIVERSE = [f"T{i:04d}" for i in range(200)]
+
+
 def _scores_provider(**kw) -> ProductionScoresProvider:
     return ProductionScoresProvider(
         accessor=kw.pop("accessor", _Accessor()), store_identity=kw.pop("store_identity", STORE_A),
+        universe_fn=kw.pop("universe_fn", lambda session, n: UNIVERSE[:n]),
         spec=kw.pop("spec", ScoresSpec()), trading_days=kw.pop("trading_days", lambda d: d in SESSIONS))
 
 
@@ -178,7 +182,7 @@ def test_a_construction_failure_is_refused_not_swallowed():
 
 def test_duplicate_symbols_are_refused():
     frame = _scores_frame(tickers=["AAA", "BBB", "AAA"] + [f"T{i}" for i in range(40)])
-    with pytest.raises(ProviderOutputError, match="duplicate symbol"):
+    with pytest.raises(ProviderOutputError, match="duplicate canonical symbol"):
         validate_scores(frame, SESSION, ScoresSpec(), provider_identity="x")
 
 
@@ -273,10 +277,11 @@ def test_an_invented_session_is_refused_as_a_forward_fill():
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), 0.0, -1.0])
 def test_an_unusable_price_is_refused(bad):
+    """Non-finite closes are refused as non-finite; zero and negative as unusable prices."""
     index = pd.to_datetime([SESSIONS[-2], SESSIONS[-1]])
     frame = pd.DataFrame({"c": [10.0, bad], "o": [1.0] * 2, "h": [1.0] * 2, "l": [1.0] * 2,
                           "v": [1] * 2}, index=index)
-    with pytest.raises(ProviderOutputError, match="not a usable price"):
+    with pytest.raises(ProviderOutputError, match="not a usable price|not finite"):
         validate_bars(frame, symbol="AAA", as_of=SESSION, spec=BarsSpec(),
                       store_sessions=SESSIONS, provider_identity="x", is_market_symbol=False)
 
@@ -311,3 +316,138 @@ def test_a_name_with_no_marks_is_refused():
     provider = _bars_provider(name_prices=lambda s, d: None)
     with pytest.raises(ProviderOutputError, match="no bars"):
         provider("AAA", SESSION, 10)
+
+
+# ---- scores must belong to the requested PIT universe ------------------------------------------------
+
+def test_a_symbol_outside_the_requested_universe_is_refused():
+    """The count is unchanged — one valid name is swapped for an outsider."""
+    tickers = [*UNIVERSE[:59], "OUTSIDER"]
+    provider = _scores_provider(accessor=_Accessor(_scores_frame(tickers=tickers)))
+    with pytest.raises(ProviderOutputError, match="PIT universe"):
+        provider(SESSION)
+
+
+def test_a_subset_of_the_universe_is_accepted():
+    """The construction legitimately drops names with insufficient usable history."""
+    provider = _scores_provider(accessor=_Accessor(_scores_frame(tickers=UNIVERSE[:40])))
+    provider(SESSION)
+    evidence = provider.last_output_evidence
+    assert evidence["scored_names"] == 40
+    assert evidence["expected_universe_size"] == 200
+    assert evidence["expected_universe_digest"] != evidence["returned_symbol_set_digest"]
+
+
+def test_more_names_than_the_universe_held_is_refused():
+    provider = _scores_provider(universe_fn=lambda session, n: UNIVERSE[:35],
+                                accessor=_Accessor(_scores_frame(tickers=UNIVERSE[:60])))
+    with pytest.raises(ProviderOutputError, match="PIT universe|scored from a universe"):
+        provider(SESSION)
+
+
+def test_a_universe_construction_failure_is_governed():
+    def boom(session, n):
+        raise RuntimeError("no universe")
+
+    with pytest.raises(ProviderOutputError, match="PIT universe could not be constructed"):
+        _scores_provider(universe_fn=boom)(SESSION)
+
+
+def test_the_evidence_records_both_universe_digests():
+    provider = _scores_provider(accessor=_Accessor(_scores_frame(tickers=UNIVERSE[:60])))
+    provider(SESSION)
+    evidence = provider.last_output_evidence
+    assert len(evidence["expected_universe_digest"]) == 64
+    assert len(evidence["returned_symbol_set_digest"]) == 64
+
+
+# ---- symbols are canonical --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("pair", [("MSFT", "msft"), ("MSFT", " MSFT "), ("MSFT", "Msft")])
+def test_canonical_symbol_collisions_are_refused(pair):
+    tickers = [*pair, *[f"T{i}" for i in range(40)]]
+    with pytest.raises(ProviderOutputError, match="duplicate canonical symbol|non-canonical"):
+        validate_scores(_scores_frame(tickers=tickers), SESSION, ScoresSpec(), provider_identity="x")
+
+
+@pytest.mark.parametrize("raw", ["msft", " MSFT ", "Msft"])
+def test_a_non_canonical_symbol_is_refused_rather_than_rewritten(raw):
+    tickers = [raw, *[f"T{i}" for i in range(40)]]
+    with pytest.raises(ProviderOutputError, match="non-canonical symbol"):
+        validate_scores(_scores_frame(tickers=tickers), SESSION, ScoresSpec(), provider_identity="x")
+
+
+# ---- malformed outputs stay inside the governed error model ------------------------------------------
+
+@pytest.mark.parametrize("bad", ["not-a-number", None, complex(1, 2)])
+def test_a_nonnumeric_score_is_governed(bad):
+    frame = _scores_frame()
+    frame["score"] = frame["score"].astype(object)
+    frame.iat[2, frame.columns.get_loc("score")] = bad
+    with pytest.raises(ProviderOutputError, match="not numeric|not finite"):
+        validate_scores(frame, SESSION, ScoresSpec(), provider_identity="x")
+
+
+def test_a_value_whose_float_conversion_raises_is_governed():
+    class _Explodes:
+        def __float__(self):
+            raise ValueError("no float for you")
+
+    frame = _scores_frame()
+    frame["momentum"] = frame["momentum"].astype(object)
+    frame.loc[frame.index[1], "momentum"] = _Explodes()
+    with pytest.raises(ProviderOutputError, match="not numeric"):
+        validate_scores(frame, SESSION, ScoresSpec(), provider_identity="x")
+
+
+def test_a_non_frame_score_output_is_governed():
+    with pytest.raises(ProviderOutputError, match="not a frame|returned nothing"):
+        validate_scores(["not", "a", "frame"], SESSION, ScoresSpec(), provider_identity="x")
+
+
+def test_bars_missing_a_required_column_are_governed():
+    index = pd.to_datetime([SESSIONS[-2], SESSIONS[-1]])
+    frame = pd.DataFrame({"o": [1.0, 1.0], "h": [1.0, 1.0], "l": [1.0, 1.0], "v": [1, 1]},
+                         index=index)                     # no "c"
+    with pytest.raises(ProviderOutputError, match="missing column"):
+        validate_bars(frame, symbol="AAA", as_of=SESSION, spec=BarsSpec(),
+                      store_sessions=SESSIONS, provider_identity="x", is_market_symbol=False)
+
+
+def test_a_nonnumeric_close_is_governed():
+    index = pd.to_datetime([SESSIONS[-2], SESSIONS[-1]])
+    frame = pd.DataFrame({"c": [10.0, "not-a-price"], "o": [1.0] * 2, "h": [1.0] * 2,
+                          "l": [1.0] * 2, "v": [1] * 2}, index=index)
+    with pytest.raises(ProviderOutputError, match="not numeric"):
+        validate_bars(frame, symbol="AAA", as_of=SESSION, spec=BarsSpec(),
+                      store_sessions=SESSIONS, provider_identity="x", is_market_symbol=False)
+
+
+def test_a_non_date_index_is_governed():
+    frame = pd.DataFrame({"c": [10.0, 11.0], "o": [1.0] * 2, "h": [1.0] * 2, "l": [1.0] * 2,
+                          "v": [1] * 2}, index=["yesterday", "today"])
+    with pytest.raises(ProviderOutputError, match="non-date index value"):
+        validate_bars(frame, symbol="AAA", as_of=SESSION, spec=BarsSpec(),
+                      store_sessions=SESSIONS, provider_identity="x", is_market_symbol=False)
+
+
+# ---- evidence is append-only so the assembly can bind the exact call ---------------------------------
+
+def test_output_evidence_is_append_only():
+    """A later call must not overwrite the evidence for the decision being committed."""
+    provider = _scores_provider()
+    provider(SESSION)
+    first = dict(provider.last_output_evidence)
+    provider(SESSIONS[-2])
+    assert len(provider.output_evidence) == 2
+    assert provider.output_evidence[0] == first          # the earlier call's evidence is intact
+    assert provider.last_output_evidence["session_date"] == SESSIONS[-2].isoformat()
+
+
+def test_bars_evidence_is_append_only():
+    provider = _bars_provider()
+    provider(MARKET, SESSION, 220)
+    provider("AAA", SESSION, 10)
+    assert len(provider.output_evidence) == 2
+    assert provider.output_evidence[0]["symbol"] == MARKET
+    assert provider.output_evidence[1]["symbol"] == "AAA"
