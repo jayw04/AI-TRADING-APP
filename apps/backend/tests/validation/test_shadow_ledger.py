@@ -109,6 +109,34 @@ def test_forward_walk_reproduces_capture_replica_seams():
     assert len(got) == len(days)
 
 
+# ---- book_decision (Option B): injected decision accounts identically to step() ------------------
+
+def test_book_decision_accounts_identically_to_step():
+    """The Option-B bridge: booking step()'s own decisions via book_decision must reproduce step()'s
+    equity path exactly — same proven MTM + turnover-cost accounting, decision injected not recomputed."""
+    days, day_scores, gross = _scenario()
+
+    led_step = ShadowLedger.start(starting_capital=100_000.0, turnover_cost_bps=10.0,
+                                  backstop_days=21, weight_drift_pct=0.02)
+    recs, eq_step = [], []
+    for d in days:
+        out = led_step.step(d, day_scores.get(d), gross.get(d, 1.0),
+                            select_fn=_select, weigh_fn=_weigh, price_fn=_price)
+        recs.append(out.record)
+        eq_step.append(led_step.state.equity)
+
+    led_book = ShadowLedger.start(starting_capital=100_000.0, turnover_cost_bps=10.0,
+                                  backstop_days=21, weight_drift_pct=0.02)
+    eq_book = []
+    for d, rec in zip(days, recs, strict=True):
+        led_book.book_decision(d, rec, price_fn=_price)
+        eq_book.append(led_book.state.equity)
+
+    assert eq_book == eq_step                                 # identical equity path, session for session
+    assert led_book.state.held == led_step.state.held
+    assert led_book.state.sessions_processed == led_step.state.sessions_processed == len(days)
+
+
 # ---- equity / turnover-cost / mark-to-market math (hand-computed) --------------------------------
 
 def test_equity_cost_and_mtm_math_hand_computed():

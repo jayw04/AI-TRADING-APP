@@ -119,17 +119,7 @@ class ShadowLedger:
         (`capture_replica_seams` loop body). `ds` is the day's DayScores (or None for a thin day)."""
         s = self.state
         equity_before = s.equity
-
-        # mark-to-market held sleeves (simulate 177-188)
-        if s.held:
-            for tk in list(s.held):
-                p = price_fn(tk, d)
-                if p is not None:
-                    lp = s.last_px.get(tk, 0.0)
-                    if lp > 0:
-                        s.sleeves[tk] *= 1.0 + (p / lp - 1.0)
-                    s.last_px[tk] = p
-            s.equity = sum(s.sleeves.values()) + s.cash
+        self._mark_to_market(d, price_fn)
 
         if ds is None:                                    # thin day: no decision
             s.since += 1
@@ -169,6 +159,55 @@ class ShadowLedger:
                                   equity_after=s.equity, session_return=_ret(equity_before, s.equity),
                                   turnover=0.0, cost_drag=0.0)
 
+        turnover, cost_drag = self._apply_rebalance(d, neww, g, price_fn)
+        s.sessions_processed += 1
+        return SessionOutcome(record=rec, traded=True, equity_before=equity_before,
+                              equity_after=s.equity, session_return=_ret(equity_before, s.equity),
+                              turnover=turnover, cost_drag=cost_drag)
+
+    def book_decision(self, d: date, record: SeamRecord, *, price_fn: PriceFn) -> SessionOutcome:
+        """Book an EXTERNALLY-computed decision (from the live MomentumDaily instrument) into the ledger
+        using the REGISTERED turnover-cost accounting. Same proven MTM + turnover-cost transition as
+        `step()` — the decision (`record.weights` = the gross-scaled targets, `record.trade_initiated`)
+        is INJECTED, not recomputed. This is the Option-B integration point: the real production strategy
+        decides; the shadow ledger accounts at the registered `TURNOVER_COST_BPS`."""
+        s = self.state
+        equity_before = s.equity
+        self._mark_to_market(d, price_fn)
+
+        if not record.trade_initiated:
+            s.since += 1
+            s.sessions_processed += 1
+            return SessionOutcome(record=record, traded=False, equity_before=equity_before,
+                                  equity_after=s.equity, session_return=_ret(equity_before, s.equity),
+                                  turnover=0.0, cost_drag=0.0)
+
+        neww = dict(record.weights)
+        turnover, cost_drag = self._apply_rebalance(d, neww, record.regime_gross, price_fn)
+        s.sessions_processed += 1
+        return SessionOutcome(record=record, traded=True, equity_before=equity_before,
+                              equity_after=s.equity, session_return=_ret(equity_before, s.equity),
+                              turnover=turnover, cost_drag=cost_drag)
+
+    # ── shared accounting primitives (used by step() and book_decision) ─────────────────────────────
+    def _mark_to_market(self, d: date, price_fn: PriceFn) -> None:
+        """Mark held sleeves to the session's prices and refresh equity (simulate 177-188)."""
+        s = self.state
+        if s.held:
+            for tk in list(s.held):
+                p = price_fn(tk, d)
+                if p is not None:
+                    lp = s.last_px.get(tk, 0.0)
+                    if lp > 0:
+                        s.sleeves[tk] *= 1.0 + (p / lp - 1.0)
+                    s.last_px[tk] = p
+            s.equity = sum(s.sleeves.values()) + s.cash
+
+    def _apply_rebalance(self, d: date, neww: dict[str, float], gross: float,
+                         price_fn: PriceFn) -> tuple[float, float]:
+        """Apply a rebalance to the gross-scaled target weights `neww`: turnover cost at the registered
+        bps, then re-sleeve. Returns (turnover, cost_drag). Mutates state (incl. `since = 0`)."""
+        s = self.state
         cash_w = 1.0 - sum(neww.values())
         curw = {tk: (s.sleeves.get(tk, 0.0) / s.equity if s.equity > 0 else 0.0)
                 for tk in set(s.sleeves) | set(neww)}
@@ -183,12 +222,9 @@ class ShadowLedger:
         s.last_px = {tk: (price_fn(tk, d) or 0.0) for tk in neww}
         s.target_w = dict(neww)
         s.held = sorted(neww)                             # set semantics; sorted only for serialization
-        s.applied_gross = g
+        s.applied_gross = gross
         s.since = 0
-        s.sessions_processed += 1
-        return SessionOutcome(record=rec, traded=True, equity_before=equity_before,
-                              equity_after=s.equity, session_return=_ret(equity_before, s.equity),
-                              turnover=turnover, cost_drag=cost_drag)
+        return turnover, cost_drag
 
     # ── durability ────────────────────────────────────────────────────────────────────────────────
     def to_json(self) -> str:
