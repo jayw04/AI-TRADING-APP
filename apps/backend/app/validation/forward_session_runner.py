@@ -32,6 +32,15 @@ any missing, null or nonpositive mark it is asked for afterwards — which cover
 as it is sleeved. Either way the session stops with NOT_READY_CURRENT_SESSION_MISSING: no booking, no
 observation, count unchanged. A sleeve is never carried at an earlier session's price.
 
+## Account 4 is probed immediately before the decision and again before publication
+
+The authoritative probe runs LAST among the preflight checks — after the lengthy readiness, artifact and
+data work — so the interval in which the live book could move unnoticed is as short as the session
+allows. It runs again after every decision and data read, before anything is published, and the two must
+describe the same live state: a hold cleared, a strategy resumed, an order appearing or a position
+moving stops the session (ACCOUNT4_STATE_CHANGED_DURING_SESSION) even when each probe is individually
+safe. The probe path only reads; it never touches an Account-4 mutation surface.
+
 ## The session's DATA must be final before its decision is taken
 
 The runner refuses to evaluate a session whose inputs are not proven final, complete and correctly
@@ -94,6 +103,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from app.validation.account4_probe import Account4Probe, assert_account4_unchanged
 from app.validation.data_finality import DataFinalityEvidence
 from app.validation.eval_calendar import (
     eligible_sessions,
@@ -171,6 +181,10 @@ class ForwardSessionRunner:
     shadow_ledger_identity: str
     readiness: DataReadinessCheck | None = None
     expected_snapshot_digest: str = ""      # the instrument snapshot THIS run was set up with
+    # The AUTHORITATIVE Account-4 read (R5c-2b). Taken immediately before the instrument is evaluated
+    # and again after every decision/data read, before publication: both must describe the same live
+    # state. Distinct from `account4_probe`, which the commit protocol uses inside its own staging.
+    authoritative_account4_probe: Callable[[], Account4Probe] | None = None
     durability: Durability | None = None
 
     # ── the entry point a scheduler calls ─────────────────────────────────────────────────────────
@@ -256,6 +270,16 @@ class ForwardSessionRunner:
         if not finality.ready:
             return self._stop(iso, str(finality.verdict), finality.detail, count, exceptions)
 
+        # ── the AUTHORITATIVE Account-4 read, immediately before the instrument is evaluated ──
+        # Deliberately last among the preflight checks: the unchecked interval between this probe and
+        # publication is the window in which the live book could move unnoticed, so it is kept short.
+        account4_before: Account4Probe | None = None
+        if self.authoritative_account4_probe is not None:
+            try:
+                account4_before = self.authoritative_account4_probe()
+            except IntegrityStop as exc:
+                return self._stop(iso, "ACCOUNT4_STATE_UNSAFE", str(exc), count, exceptions)
+
         # ── every security already on the book must be markable at THIS session ──
         unmarkable = self._unmarkable(ledger.state.held, session_date)
         if unmarkable:
@@ -309,6 +333,14 @@ class ForwardSessionRunner:
             self.readiness.verify_unchanged(session_date, finality)
         except IntegrityStop as exc:
             return self._stop(iso, "DATA_STORE_CHANGED_DURING_SESSION", str(exc), count, exceptions)
+
+        # ── and prove Account 4 did not move either, before anything is published ──
+        if self.authoritative_account4_probe is not None and account4_before is not None:
+            try:
+                assert_account4_unchanged(account4_before, self.authoritative_account4_probe())
+            except IntegrityStop as exc:
+                return self._stop(iso, "ACCOUNT4_STATE_CHANGED_DURING_SESSION", str(exc), count,
+                                  exceptions)
 
         operational = _operational_flags(exceptions)
         sealed = _sealed_performance(outcome, ledger)
