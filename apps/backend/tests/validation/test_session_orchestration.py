@@ -456,3 +456,86 @@ def test_a_missing_independent_witness_fails_closed(runtime, tmp_path):
     assert result.status is SessionRunStatus.INTEGRITY_STOP
     assert result.exception_code == "INDEPENDENT_WITNESS_UNAVAILABLE"
     assert len(committed_observations(tmp_path / "store")) == 0   # nothing committed
+
+
+# ---- witness-implementation failures are normalized into governed results (R5d re-review) ------------
+
+class _RaisingSigner:
+    """A signer whose client raises a raw SDK-style exception (as a KMS/HSM client might)."""
+
+    def attest(self, tip):
+        raise RuntimeError("KMS AccessDenied")
+
+    def identity(self):
+        return "raising-signer"
+
+
+class _RaisingPublishSink:
+    """An external sink that reads fine (so pre-commit passes) but whose publish raises a raw client
+    exception (as an S3/Object-Lock client might)."""
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def publish(self, tip, receipt):
+        raise RuntimeError("S3 PutObject timeout")
+
+    def read_all(self):
+        return self._inner.read_all()
+
+    def identity(self):
+        return "raising-publish-sink"
+
+
+class _RaisingReadSink:
+    def publish(self, tip, receipt):
+        pass
+
+    def read_all(self):
+        raise RuntimeError("S3 ListObjects transport error")
+
+    def identity(self):
+        return "raising-read-sink"
+
+
+def test_a_raw_external_read_failure_becomes_a_governed_stop(runtime, tmp_path):
+    """A raw exception from the external sink during pre-run verification is normalized into an integrity
+    stop, never allowed to escape run_session()."""
+    broken = replace(runtime, external_anchor_sink=_RaisingReadSink())
+    result = _run(broken, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    assert result.exception_code == "INDEPENDENT_WITNESS_UNAVAILABLE"
+    assert len(committed_observations(tmp_path / "store")) == 0
+
+
+def test_a_raw_signer_failure_does_not_suppress_the_book_write(runtime, tmp_path):
+    """The observation has advanced; a raw signer-client exception must not stop the book from persisting.
+    The anchor is unwritten, the book is written."""
+    broken = replace(runtime, anchor_signer=_RaisingSigner())
+    result = _run(broken, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
+    assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert len(committed_observations(tmp_path / "store")) == 1
+    assert (tmp_path / "store" / "instrument_book.json").exists()      # the book DID persist
+
+
+def test_a_raw_sink_publish_failure_does_not_suppress_the_book_write(runtime, tmp_path):
+    broken = replace(runtime, external_anchor_sink=_RaisingPublishSink(runtime.external_anchor_sink))
+    result = _run(broken, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
+    assert len(committed_observations(tmp_path / "store")) == 1
+    assert (tmp_path / "store" / "instrument_book.json").exists()      # the book DID persist
+
+
+def test_a_raw_signer_failure_with_a_failing_book_is_the_combined_status(runtime, tmp_path, monkeypatch):
+    from app.validation import session_orchestration as orch
+
+    monkeypatch.setattr(orch, "_book_writer",
+                        lambda lifecycle, adapter: (lambda seq, iso: (_ for _ in ()).throw(
+                            OSError("disk full"))))
+    broken = replace(runtime, anchor_signer=_RaisingSigner())
+    result = _run(broken, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED
+    assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert "BOOK_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert len(committed_observations(tmp_path / "store")) == 1        # the observation still committed

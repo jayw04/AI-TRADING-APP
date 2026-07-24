@@ -105,12 +105,7 @@ import structlog
 
 from app.validation.account4_probe import Account4Probe, assert_account4_unchanged
 from app.validation.chain_anchor import AnchorError, append_anchor, verify_anchor_consistency
-from app.validation.chain_witness import (
-    AnchorSigner,
-    AnchorVerifier,
-    ExternalAnchorSink,
-    WitnessError,
-)
+from app.validation.chain_witness import AnchorSigner, AnchorVerifier, ExternalAnchorSink
 from app.validation.data_finality import DataFinalityEvidence
 from app.validation.eval_calendar import (
     eligible_sessions,
@@ -464,13 +459,16 @@ class ForwardSessionRunner:
         # divergence. Each unwritten artifact is diagnosed on the next run — ANCHOR_BEHIND_RECORD /
         # EXTERNAL_WITNESS_AHEAD for the anchor, BOOK_BEHIND_RECORD for the book — and never silently
         # repaired.
+        # BOTH attempts catch broadly and independently: the observation has already advanced, so
+        # whatever concrete client exception the signer/sink raises (KMS/HSM/S3 SDK: timeout,
+        # credentials, transport, service) must NOT be allowed to escape and suppress the book write.
         anchor_error: Exception | None = None
         try:
             append_anchor(self.store_dir, signer=self.anchor_signer,
                           external_sink=self.external_anchor_sink,
                           deployed_tree_identity=self.deployed_tree_identity,
                           anchored_at=run_timestamp, durability=self.durability)
-        except (AnchorError, WitnessError, OSError) as exc:
+        except Exception as exc:      # noqa: BLE001 - post-commit: must not suppress the book attempt
             anchor_error = exc
             logger.error("forward_session_anchor_unwritten", session=iso, sequence=sequence,
                          detail=str(exc))

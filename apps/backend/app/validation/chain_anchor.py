@@ -199,6 +199,33 @@ def _assert_matches_observations(anchors: list[AnchorRecord],
             code="ANCHOR_BEHIND_RECORD")
 
 
+def _verify_signature(verifier: AnchorVerifier, tip: WitnessedTip, receipt: SignedReceipt, *,
+                      what: str) -> None:
+    """Verify one signature, normalizing EVERY failure into a governed AnchorError — a WitnessError keeps
+    its specific code (ANCHOR_SIGNATURE_INVALID); any other implementation exception (a broken verifier,
+    an SDK error) becomes INDEPENDENT_WITNESS_UNAVAILABLE. No raw exception escapes the witness boundary."""
+    try:
+        verifier.verify(tip, receipt)
+    except WitnessError as exc:
+        raise AnchorError(f"{what}: {exc}", code=exc.code) from exc
+    except Exception as exc:      # noqa: BLE001 - any verifier/SDK failure must become a governed stop
+        raise AnchorError(f"{what}: the signature could not be verified: {exc}",
+                          code="INDEPENDENT_WITNESS_UNAVAILABLE") from exc
+
+
+def _read_external(external_sink: ExternalAnchorSink) -> list[tuple[WitnessedTip, SignedReceipt]]:
+    """Read the external witness, normalizing EVERY failure into a governed AnchorError. A corrupt sink
+    record keeps its WitnessError code; a connector/transport/credentials exception from a real sink
+    (S3/Object-Lock client, network) becomes INDEPENDENT_WITNESS_UNAVAILABLE rather than escaping."""
+    try:
+        return external_sink.read_all()
+    except WitnessError as exc:
+        raise AnchorError(str(exc), code=exc.code) from exc
+    except Exception as exc:      # noqa: BLE001 - any sink/SDK failure must become a governed stop
+        raise AnchorError(f"the external witness could not be read: {exc}",
+                          code="INDEPENDENT_WITNESS_UNAVAILABLE") from exc
+
+
 def _assert_witnessed(anchors: list[AnchorRecord], verifier: AnchorVerifier,
                       external_sink: ExternalAnchorSink) -> None:
     """Every local anchor's signature must verify, and the EXTERNAL sink must witness exactly the same
@@ -211,12 +238,10 @@ def _assert_witnessed(anchors: list[AnchorRecord], verifier: AnchorVerifier,
       EXTERNAL_WITNESS_DIVERGES  the sink and the local log disagree about a tip at the same sequence.
     """
     for anchor in anchors:
-        try:
-            verifier.verify(anchor.witnessed_tip(), anchor.receipt())      # rewrite protection
-        except WitnessError as exc:
-            raise AnchorError(str(exc), code=exc.code) from exc
+        _verify_signature(verifier, anchor.witnessed_tip(), anchor.receipt(),   # rewrite protection
+                          what=f"local anchor {anchor.sequence}")
 
-    external = external_sink.read_all()
+    external = _read_external(external_sink)
     if len(external) > len(anchors):
         extra = [tip.sequence for tip, _ in external[len(anchors):]]
         raise AnchorError(
@@ -227,11 +252,7 @@ def _assert_witnessed(anchors: list[AnchorRecord], verifier: AnchorVerifier,
             raise AnchorError(
                 f"the external witness for sequence {etip.sequence} records a different tip than the "
                 f"local anchor log", code="EXTERNAL_WITNESS_DIVERGES")
-        try:
-            verifier.verify(etip, ereceipt)
-        except WitnessError as exc:
-            raise AnchorError(f"the external witness for sequence {etip.sequence} carries an invalid "
-                              f"signature: {exc}", code="ANCHOR_SIGNATURE_INVALID") from exc
+        _verify_signature(verifier, etip, ereceipt, what=f"external witness {etip.sequence}")
     if len(external) < len(anchors):
         missing = [a.sequence for a in anchors[len(external):]]
         raise AnchorError(
