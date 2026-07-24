@@ -235,27 +235,22 @@ class EvidenceBindingDecisionProvider:
                 f"the evaluation read {len(distinct)} distinct scored frames for {iso}; the decision's "
                 f"own cross-section must be one consistent set")
 
-        # any prior-session call is the governed exit-confirmation lookback: it must read ONLY the exact
-        # immediately-preceding governed store sessions — never an arbitrary earlier date, never a
-        # non-store date, never a skipped or extra one, and never the same close twice.
+        # the prior-session reads are the governed exit-confirmation lookback, and the frozen path reads
+        # EVERY one of the preceding `exit_confirm_closes - 1` store sessions. So the observed prior
+        # reads must EXACTLY and COMPLETELY equal the governed window — this single check refuses a
+        # missing required read, a partial most-recent subset, a skipped session, an older or non-store
+        # date, an extra date, and (via the duplicate guard below) the same close read twice.
         allowed = tuple(self.allowed_prior_score_sessions)
         prior_dates = [str(e.get("session_date")) for e in prior]
-        if len(prior) > len(allowed):
-            raise AssemblyError(
-                f"the evaluation scored {len(prior)} prior session(s), above the governed "
-                f"exit-confirmation window of {len(allowed)} session(s) {list(allowed)}")
         if len(set(prior_dates)) != len(prior_dates):
             raise AssemblyError(
                 f"the evaluation scored a prior session more than once ({sorted(prior_dates)}); the "
                 f"exit-confirmation lookback reads each earlier close at most once")
-        # the k prior reads must be exactly the k MOST-RECENT sessions of the allowed window: this
-        # rejects an older date, a non-store date, and a skipped expected date all at once.
-        expected_prefix = set(list(reversed(allowed))[:len(prior_dates)])
-        if set(prior_dates) != expected_prefix:
+        if tuple(sorted(prior_dates)) != allowed:
             raise AssemblyError(
-                f"the prior-session score read(s) {sorted(prior_dates)} are not the immediately "
-                f"preceding governed store session(s) {sorted(expected_prefix)} — the exit-confirmation "
-                f"lookback reads only the exact preceding store sessions")
+                f"the prior-session score read(s) {sorted(prior_dates)} do not exactly match the "
+                f"governed exit-confirmation window {list(allowed)} — the lookback must read each of the "
+                f"immediately preceding store sessions, no more and no fewer")
 
         self.bars_call_spec.validate(bars_new, session_date)
 

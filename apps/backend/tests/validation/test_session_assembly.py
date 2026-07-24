@@ -167,7 +167,7 @@ def test_the_evidence_digest_is_carried_into_the_immutable_decision():
         _score_session_twice(scores, bars, session_date)
         return _decision(session_date)
 
-    provider = _binding(scores, bars, on_call=run)
+    provider = _binding(scores, bars, on_call=run, allowed_prior=())   # no exit-confirmation window here
     decision = provider(SESSION)
     # the digest is INSIDE the returned decision, not just a side field
     assert decision.input_evidence_digest == provider.bound_evidence.digest()
@@ -231,12 +231,12 @@ def test_too_many_prior_session_scores_calls_are_refused():
         return _decision(session_date)
 
     # the governed window admits exactly one prior session
-    with pytest.raises(AssemblyError, match="above the governed exit-confirmation window"):
-        _binding(scores, bars, on_call=run, allowed_prior=(PRIOR.isoformat(),))(SESSION)
+    with pytest.raises(AssemblyError, match="do not exactly match the governed exit-confirmation"):
+        _binding(scores, bars, on_call=run, allowed_prior=(PRIOR_ISO,))(SESSION)
 
 
 def test_an_arbitrary_earlier_date_is_refused():
-    """The count bound alone would let a 2020 read pass; the exact-window check refuses it."""
+    """A date-unaware count bound would let a 2020 read pass; the exact-window check refuses it."""
     scores, bars = _EvidenceList(), _EvidenceList()
 
     def run(session_date):
@@ -244,8 +244,50 @@ def test_an_arbitrary_earlier_date_is_refused():
         scores.output_evidence.append(_score(date(2020, 1, 2)))    # not the preceding store session
         return _decision(session_date)
 
-    with pytest.raises(AssemblyError, match="not the immediately preceding governed store session"):
-        _binding(scores, bars, on_call=run, allowed_prior=(PRIOR.isoformat(),))(SESSION)
+    with pytest.raises(AssemblyError, match="do not exactly match the governed exit-confirmation"):
+        _binding(scores, bars, on_call=run, allowed_prior=(PRIOR_ISO,))(SESSION)
+
+
+def test_a_missing_required_prior_read_is_refused():
+    """The window requires one prior read; reading none cannot be the frozen path."""
+    scores, bars = _EvidenceList(), _EvidenceList()
+
+    def run(session_date):
+        _score_session_twice(scores, bars, session_date)           # current only, no prior lookback
+        return _decision(session_date)
+
+    with pytest.raises(AssemblyError, match="do not exactly match the governed exit-confirmation"):
+        _binding(scores, bars, on_call=run, allowed_prior=(PRIOR_ISO,))(SESSION)
+
+
+def test_a_partial_prior_window_is_refused():
+    """A three-session window read only at its most-recent session is incomplete, so it is refused."""
+    scores, bars = _EvidenceList(), _EvidenceList()
+    window = ("2026-07-21", "2026-07-22", "2026-07-23")
+
+    def run(session_date):
+        _score_session_twice(scores, bars, session_date)
+        scores.output_evidence.append(_score(PRIOR))               # only the newest of the window
+        return _decision(session_date)
+
+    with pytest.raises(AssemblyError, match="do not exactly match the governed exit-confirmation"):
+        _binding(scores, bars, on_call=run, allowed_prior=window)(SESSION)
+
+
+def test_the_exact_prior_window_is_accepted():
+    """Reading every session of the governed window — no more, no fewer — is accepted."""
+    scores, bars = _EvidenceList(), _EvidenceList()
+    window = ("2026-07-21", "2026-07-22", "2026-07-23")
+
+    def run(session_date):
+        _score_session_twice(scores, bars, session_date)
+        for iso in window:
+            scores.output_evidence.append(_score(date.fromisoformat(iso)))
+        return _decision(session_date)
+
+    provider = _binding(scores, bars, on_call=run, allowed_prior=window)
+    provider(SESSION)                                              # no raise
+    assert len(provider.bound_evidence.scores) == 5               # 2 current + 3 prior
 
 
 def test_a_repeated_prior_session_is_refused():
@@ -258,7 +300,7 @@ def test_a_repeated_prior_session_is_refused():
         return _decision(session_date)
 
     with pytest.raises(AssemblyError, match="scored a prior session more than once"):
-        _binding(scores, bars, on_call=run, allowed_prior=("2026-07-22", PRIOR.isoformat()))(SESSION)
+        _binding(scores, bars, on_call=run, allowed_prior=("2026-07-22", PRIOR_ISO))(SESSION)
 
 
 def test_two_distinct_frames_for_the_session_are_refused():
@@ -293,7 +335,7 @@ def test_only_this_evaluations_calls_are_bound():
         _score_session_twice(scores, bars, session_date)
         return _decision(session_date)
 
-    provider = _binding(scores, bars, on_call=run)
+    provider = _binding(scores, bars, on_call=run, allowed_prior=())   # no exit-confirmation window here
     provider(SESSION)
     assert len(provider.bound_evidence.scores) == 2           # not the 2020 call
     assert all(s["session_date"] == SESSION.isoformat() for s in provider.bound_evidence.scores)
