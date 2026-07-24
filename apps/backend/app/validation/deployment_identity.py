@@ -147,14 +147,17 @@ def verify_deployment_identity(
         raise DeploymentEvidenceMissing(
             f"the embedded build stamp at {build_path} records no valid commit "
             f"({build.get('commit')!r})")
+    # Cleanliness is load-bearing evidence, so it must be the JSON boolean itself. "false", "dirty",
+    # 0 and 1 are all truthy-or-falsy in Python and none of them is a recorded fact.
     tree_clean = build.get("tree_clean")
-    if tree_clean is None:
-        raise DeploymentEvidenceMissing(
-            f"the embedded build stamp at {build_path} does not record working-tree cleanliness")
-    if not bool(tree_clean):
+    if tree_clean is False:
         raise DeploymentEvidenceMismatch(
             f"the artifact was built from a DIRTY working tree at {commit}; a commit does not identify "
             f"code that had uncommitted changes compiled into it")
+    if tree_clean is not True:
+        raise DeploymentEvidenceMissing(
+            f"the embedded build stamp at {build_path} records tree_clean as {tree_clean!r}; it must be "
+            f"the JSON boolean true or false")
     build_digest = build.get("image_digest")
     if build_digest is not None and not _is_digest(build_digest):
         raise DeploymentEvidenceMismatch(
@@ -164,9 +167,19 @@ def verify_deployment_identity(
     runtime_digest: str | None = None
     runtime_source: str | None = None
     if "runtime_digest" in required:
-        if runtime_digest_path is not None and Path(runtime_digest_path).is_file():
-            runtime_digest = Path(runtime_digest_path).read_text(encoding="utf-8").strip()
-            runtime_source = str(runtime_digest_path)
+        runtime_path = Path(runtime_digest_path) if runtime_digest_path is not None else None
+        if runtime_path is not None and runtime_path.exists():
+            # A configured file that EXISTS is the evidence: a read failure is broken deployment
+            # evidence, never a reason to quietly fall back to the environment.
+            try:
+                if not runtime_path.is_file():
+                    raise DeploymentEvidenceMissing(
+                        f"the runtime artifact digest at {runtime_path} is not a regular file")
+                runtime_digest = runtime_path.read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                raise DeploymentEvidenceMissing(
+                    f"the runtime artifact digest at {runtime_path} is unreadable: {exc}") from exc
+            runtime_source = str(runtime_path)
         elif runtime_digest_env and os.environ.get(runtime_digest_env, "").strip():
             runtime_digest = os.environ[runtime_digest_env].strip()
             runtime_source = f"env:{runtime_digest_env}"

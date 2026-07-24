@@ -111,7 +111,7 @@ def test_a_build_stamp_without_a_commit_is_missing_evidence(deployment):
 
 def test_a_build_stamp_without_cleanliness_is_missing_evidence(deployment):
     _write(deployment["build"], {"commit": COMMIT, "image_digest": DIGEST})
-    with pytest.raises(DeploymentEvidenceMissing, match="working-tree cleanliness"):
+    with pytest.raises(DeploymentEvidenceMissing, match="must be the JSON boolean"):
         _verify(deployment)
 
 
@@ -184,3 +184,58 @@ def test_the_pin_never_becomes_the_identity(deployment):
     assert ev.agreed_commit == OTHER_COMMIT            # derived from the sources, which agree
     with pytest.raises(DeploymentEvidenceMismatch):
         _verify(deployment, expected_commit=COMMIT)    # the pin cannot override the sources
+
+
+# ---- tree_clean must be the JSON boolean, not merely truthy -----------------------------------------
+
+@pytest.mark.parametrize("value", ["false", "true", "dirty", 0, 1, [], {}, "", None])
+def test_a_non_boolean_tree_clean_is_malformed_evidence(value, deployment):
+    """"false" and 1 are truthy; "" and 0 are falsy. None of them is a recorded fact, so all are
+    missing/malformed evidence rather than a clean or dirty verdict."""
+    _write(deployment["build"], {"commit": COMMIT, "tree_clean": value, "image_digest": DIGEST})
+    with pytest.raises(DeploymentEvidenceMissing, match="must be the JSON boolean"):
+        _verify(deployment)
+
+
+def test_tree_clean_false_is_a_dirty_artifact_mismatch(deployment):
+    _write(deployment["build"], {"commit": COMMIT, "tree_clean": False, "image_digest": DIGEST})
+    with pytest.raises(DeploymentEvidenceMismatch, match="DIRTY working tree"):
+        _verify(deployment)
+
+
+def test_tree_clean_true_is_accepted(deployment):
+    _write(deployment["build"], {"commit": COMMIT, "tree_clean": True, "image_digest": DIGEST})
+    assert _verify(deployment).embedded_build_tree_clean is True
+
+
+# ---- runtime-digest I/O failures stay inside the governed error model --------------------------------
+
+def test_a_runtime_digest_path_that_is_a_directory_is_missing_evidence(deployment, tmp_path):
+    """It exists, so it is the configured evidence — and it cannot be read. That is broken deployment
+    evidence, not a reason to fall back to the environment."""
+    as_dir = tmp_path / "digest_dir"
+    as_dir.mkdir()
+    with pytest.raises(DeploymentEvidenceMissing, match="not a regular file"):
+        _verify(deployment, runtime_digest_path=as_dir, runtime_digest_env="WORKBENCH_IMAGE_DIGEST")
+
+
+def test_an_unreadable_runtime_digest_does_not_fall_back_to_the_environment(deployment, monkeypatch):
+    monkeypatch.setenv("WORKBENCH_IMAGE_DIGEST", DIGEST)
+
+    real_read_text = type(deployment["runtime"]).read_text
+
+    def boom(self, *args, **kwargs):
+        if self == deployment["runtime"]:
+            raise PermissionError("permission denied")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(deployment["runtime"]), "read_text", boom)
+    with pytest.raises(DeploymentEvidenceMissing, match="unreadable"):
+        _verify(deployment, runtime_digest_env="WORKBENCH_IMAGE_DIGEST")
+
+
+def test_the_environment_is_used_only_when_no_runtime_file_exists(deployment, monkeypatch):
+    monkeypatch.setenv("WORKBENCH_IMAGE_DIGEST", DIGEST)
+    ev = _verify(deployment, runtime_digest_path=deployment["root"] / "never_written",
+                 runtime_digest_env="WORKBENCH_IMAGE_DIGEST")
+    assert ev.runtime_digest_source == "env:WORKBENCH_IMAGE_DIGEST"
