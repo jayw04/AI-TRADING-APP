@@ -1,5 +1,27 @@
 # ADR‑0043 Phase‑0 — Same‑Session Runbook v1.0 (staged; execute at a future open)
 
+> ## ⛔ Status: Step B is HELD — this runbook cannot yet produce authoritative evidence
+>
+> As filed, **no authoritative session baseline may be captured by this procedure.** Two blocking
+> conditions, both recorded 2026‑07‑24:
+>
+> 1. **The staged operator scripts are not governed instruments.** `adr0043_session_open.py` and
+>    `adr0043_reachability.py` exist only on the validation host at `/home/ubuntu/adr0043_staging/`
+>    and in a session scratchpad. They are unreviewed and unversioned, so their output cannot be
+>    accepted as the authoritative Phase‑0 baseline / preflight evidence. Governing them requires
+>    the operator‑tooling PR: review → merge → identify the exact merged git blob → verify SHA‑256 →
+>    transfer that blob to the host → mount read‑only into the *unchanged* deployed image → record
+>    host/container SHA equality. Until that lands, every run of Step A/B is **exploratory and
+>    non‑authoritative**.
+> 2. **The canary harness's loss observation is disarmed** —
+>    `docs/incidents/ADR0043_Harness_AccountState_Missing_Defaults_To_Zero_20260724.md`. The driver
+>    reads its authoritative loss from an `accounts_state` row that does not exist for account 3 and
+>    silently substitutes zero, so Phase‑0's live stopping (§5) and overshoot (§10) measurements do
+>    not work. A dedicated fix PR is required before any Phase‑0 session.
+>
+> Everything in the Step‑A execution log is therefore **preliminary and non‑binding**, including
+> the 2026‑07‑24 07:37 ET entry. Reachability verdicts recorded here are planning inputs only.
+
 > Companion to `docs/implementation/ADR0043_Phase0_FrozenExecutionPlan_v1.0.md`. **No broker orders /
 > no breach are performed by any command in this runbook** — it ends at the frozen readiness package
 > and STOPS for explicit broker‑submission authorization.
@@ -53,6 +75,13 @@ Expect: `READY_FOR_BASELINE_AND_PREFLIGHT: true`, `2_identity.identity_ok: true`
 `5_limits.sha_unchanged: true`. `1_session.market_open_now` is `false` outside RTH.
 
 ## Step B — At the chosen Phase‑0 session OPEN (before any activity): capture baseline + preflight
+
+> ⛔ **HELD.** Do not run `--capture-baseline` until the operator‑tooling PR has merged and the exact
+> merged blobs are verified on the validation host (see the status banner). A baseline minted by an
+> unreviewed script is unauditable, and the same‑session rule means it cannot be retro‑justified —
+> missing a session is always preferable. Step A without `--capture-baseline` remains permitted, and
+> its output must be classified `EXPLORATORY_PREOPEN_OR_SESSION_READINESS` /
+> `NON_AUTHORITATIVE` / `NO_BASELINE_CAPTURE` / `NO_ORDERS`.
 
 Run the SAME command with `--capture-baseline`. The tool refuses the baseline unless the market is
 **currently open** and identity/positions/flat/limits are all green — so it can only mint a
@@ -110,6 +139,10 @@ Every Step‑A run is appended here. Step A submits no orders and captures no ba
 evidence that the frozen prerequisites still hold at the moment it ran.
 
 ### 2026‑07‑24 07:37 ET (pre‑open, read‑only)
+
+`EXPLORATORY_PREOPEN_OR_SESSION_READINESS` · `NON_AUTHORITATIVE` · `NO_BASELINE_CAPTURE` · `NO_ORDERS`
+
+Produced by the **ungoverned** staged script. Planning input only; it establishes nothing.
 
 | Check | Result |
 |---|---|

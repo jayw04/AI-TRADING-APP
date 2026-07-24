@@ -1,5 +1,18 @@
 # ADR‑0043 Phase‑0 — Frozen Execution Plan v1.0 (prep complete; broker submission HELD)
 
+> ## ⛔ 2026‑07‑24 — two of this plan's controls are currently DISARMED
+>
+> `docs/incidents/ADR0043_Harness_AccountState_Missing_Defaults_To_Zero_20260724.md`: the harness
+> reads its authoritative loss from `accounts_state.day_change` for account 3, a row that does not
+> exist on the validation host, and substitutes zero for the missing row. As a result **§5's loss
+> objective / terminal range and §10's hard overshoot floor cannot fire as written.** The frozen
+> values below remain the governing intent; the *measurement* behind them must be corrected (to
+> `current equity − immutable current-session session-baseline equity`, with named refusals for
+> missing/mismatched/contradictory state) in a dedicated reviewed PR before any Phase‑0 session.
+>
+> Independently, the operator tooling that produces the readiness package is not yet version
+> controlled, so no authoritative baseline may be captured. See the runbook's status banner.
+
 > **Status:** non‑session‑bound preparation COMPLETE and frozen. Session baseline capture, the
 > read‑only preflight, the **binding** in‑session quote re‑derivation, and the loss‑generating breach
 > are **HELD** for a single future market session under separate authorization. **No broker orders have
