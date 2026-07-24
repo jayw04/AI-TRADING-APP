@@ -372,3 +372,44 @@ def test_capture_requires_a_positive_count_and_a_valid_date(book):
         capture_from_adapter(adapter, sessions_recorded=0, last_session_date=SESSION)
     with pytest.raises(InstrumentBookError, match="not an ISO date"):
         capture_from_adapter(adapter, sessions_recorded=1, last_session_date="whenever")
+
+
+# ---- canonical ticker collisions fail closed ---------------------------------------------------------
+
+@pytest.mark.parametrize("second_key", ["msft", " MSFT ", " msft ", "Msft"])
+def test_colliding_tickers_are_refused_on_load(second_key, book, tmp_path):
+    """Two keys that canonicalize to one symbol are a conflict, not a merge — the second would
+    otherwise overwrite the first while the book still digested cleanly."""
+    path = _write_raw(tmp_path / "collide.json", book,
+                      positions={"MSFT": "19", second_key: "7"})
+    with pytest.raises(InstrumentBookError, match="duplicate canonical symbol"):
+        load_instrument_book(path)
+
+
+@pytest.mark.parametrize("second_key", ["msft", " MSFT "])
+def test_colliding_tickers_are_refused_on_capture(second_key):
+    """A malformed adapter map must not lose a holding on the way into the book."""
+    adapter = _fresh_adapter("19")
+    adapter._positions[second_key] = Decimal("7")
+    with pytest.raises(InstrumentBookError, match="duplicate canonical symbol"):
+        capture_from_adapter(adapter, sessions_recorded=1, last_session_date=SESSION)
+
+
+def test_colliding_quantities_are_never_summed(book, tmp_path):
+    path = _write_raw(tmp_path / "sum.json", book, positions={"MSFT": "19", "msft": "19"})
+    with pytest.raises(InstrumentBookError, match="not summed"):
+        load_instrument_book(path)
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "	"])
+def test_an_empty_ticker_is_refused(blank, book, tmp_path):
+    path = _write_raw(tmp_path / "blank.json", book, positions={blank: "19"})
+    with pytest.raises(InstrumentBookError, match="empty ticker"):
+        load_instrument_book(path)
+
+
+def test_a_zero_holding_still_collides_before_it_is_dropped(book, tmp_path):
+    """The collision check runs before the zero-drop, so a conflicting pair cannot hide behind a zero."""
+    path = _write_raw(tmp_path / "zerocollide.json", book, positions={"MSFT": "19", "msft": "0"})
+    with pytest.raises(InstrumentBookError, match="duplicate canonical symbol"):
+        load_instrument_book(path)

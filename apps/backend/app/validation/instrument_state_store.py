@@ -87,6 +87,10 @@ def _exact_positions(raw: Any) -> dict[str, str]:
 
     A long-only instrument carries no negative quantity, and a zero holding is not a position — keeping
     one would make two identical books digest differently depending on how they got there.
+
+    Two keys that canonicalize to the same symbol (`MSFT` and ` msft `) are a CONFLICT, not a merge. The
+    quantities are never summed: summing would be a repair, and it would conceal an upstream book that
+    has two disagreeing entries for one holding while still producing a valid, self-consistent digest.
     """
     if not isinstance(raw, dict):
         raise InstrumentBookError(f"positions must be an object, got {type(raw).__name__}")
@@ -96,6 +100,11 @@ def _exact_positions(raw: Any) -> dict[str, str]:
         if not symbol:
             raise InstrumentBookError("a position carries an empty ticker")
         canonical = _exact_decimal(qty, field=f"position {symbol}")
+        if symbol in out:
+            raise InstrumentBookError(
+                f"positions contain duplicate canonical symbol {symbol!r} ({out[symbol]} and "
+                f"{canonical}); the quantities are not summed, because a disagreement about one "
+                f"holding is not something this book may repair")
         if Decimal(canonical) == 0:
             continue
         out[symbol] = canonical
