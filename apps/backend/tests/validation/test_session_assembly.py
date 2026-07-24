@@ -30,6 +30,7 @@ from app.validation.session_assembly import (
 
 SESSION = date(2026, 7, 24)
 PRIOR = date(2026, 7, 23)
+PRIOR_ISO = PRIOR.isoformat()
 DEPLOYMENT = {"state": "NEVER_DEPLOYED", "_rev": 0, "has_ever_deployed": False,
               "first_deployed_at": None, "active_seed_attempt": None}
 
@@ -64,7 +65,7 @@ def _bars_call(symbol: str, n: int, as_of: date = SESSION) -> dict:
     return {"symbol": symbol, "requested_n": n, "as_of": as_of.isoformat()}
 
 
-SPEC = BarsCallSpec(market_symbol="SPY", ma_sessions=200, exit_confirm_window_n=6,
+SPEC = BarsCallSpec(market_symbol="SPY", regime_window_n=201, exit_confirm_window_n=6,
                     name_read_n=1, allowed_security_symbols=frozenset({"AAA", "BBB"}))
 
 
@@ -79,9 +80,13 @@ def test_no_regime_call_is_refused():
         SPEC.validate([_bars_call("SPY", 6), _bars_call("AAA", 1)], SESSION)
 
 
-def test_two_regime_calls_are_refused():
-    with pytest.raises(AssemblyError, match="2 regime call"):
-        SPEC.validate([_bars_call("SPY", 201), _bars_call("SPY", 250)], SESSION)
+def test_the_regime_call_must_be_exactly_the_governed_window():
+    # ma_sessions itself (200), ma_sessions + 2 (202), and a very large value are all NOT the frozen
+    # regime request (market_ma_days + 1 = 201) — each is a different construction and refused, even
+    # though 500/100000 carry more than enough history for a 200-session MA.
+    for bad_n in (200, 202, 500, 100_000):
+        with pytest.raises(AssemblyError, match="only governed market reads"):
+            SPEC.validate([_bars_call("SPY", bad_n), _bars_call("AAA", 1)], SESSION)
 
 
 def test_a_future_as_of_bars_call_is_refused():
@@ -100,18 +105,13 @@ def test_an_unrelated_security_is_refused():
         SPEC.validate([_bars_call("SPY", 201), _bars_call("ZZZ", 1)], SESSION)
 
 
-def test_the_market_proxy_at_an_ungoverned_n_is_refused():
-    with pytest.raises(AssemblyError, match="only governed market reads"):
-        SPEC.validate([_bars_call("SPY", 201), _bars_call("SPY", 50)], SESSION)
-
-
 def test_a_name_read_at_an_ungoverned_n_is_refused():
     with pytest.raises(AssemblyError, match="not the governed price-read n=1"):
         SPEC.validate([_bars_call("SPY", 201), _bars_call("AAA", 5)], SESSION)
 
 
 def test_an_exit_confirmation_read_is_forbidden_when_the_spec_carries_no_window():
-    spec = BarsCallSpec(market_symbol="SPY", ma_sessions=200, exit_confirm_window_n=None,
+    spec = BarsCallSpec(market_symbol="SPY", regime_window_n=201, exit_confirm_window_n=None,
                         name_read_n=1, allowed_security_symbols=frozenset({"AAA"}))
     with pytest.raises(AssemblyError, match="only governed market reads"):
         spec.validate([_bars_call("SPY", 201), _bars_call("SPY", 6)], SESSION)
@@ -141,10 +141,11 @@ def _decision(session_date: date, *, snapshot="d" * 64) -> ForwardDecision:
                            instrument_state=state, snapshot_digest=snapshot)
 
 
-def _binding(scores, bars, *, on_call, current: int = 2, prior: int = 1):
+def _binding(scores, bars, *, on_call, current: int = 2, allowed_prior=(PRIOR_ISO,)):
     return EvidenceBindingDecisionProvider(
         inner=on_call, scores_provider=scores, bars_provider=bars, bars_call_spec=SPEC,
-        expected_current_session_scores_calls=current, max_prior_session_scores_calls=prior)
+        expected_current_session_scores_calls=current,
+        allowed_prior_score_sessions=tuple(allowed_prior))
 
 
 def _score(session: date, digest: str = "frame-a") -> dict:
@@ -229,8 +230,22 @@ def test_too_many_prior_session_scores_calls_are_refused():
         scores.output_evidence.append(_score(date(2026, 7, 22)))   # a second prior session
         return _decision(session_date)
 
-    with pytest.raises(AssemblyError, match="above the governed exit-confirmation bound"):
-        _binding(scores, bars, on_call=run, prior=1)(SESSION)
+    # the governed window admits exactly one prior session
+    with pytest.raises(AssemblyError, match="above the governed exit-confirmation window"):
+        _binding(scores, bars, on_call=run, allowed_prior=(PRIOR.isoformat(),))(SESSION)
+
+
+def test_an_arbitrary_earlier_date_is_refused():
+    """The count bound alone would let a 2020 read pass; the exact-window check refuses it."""
+    scores, bars = _EvidenceList(), _EvidenceList()
+
+    def run(session_date):
+        _score_session_twice(scores, bars, session_date)
+        scores.output_evidence.append(_score(date(2020, 1, 2)))    # not the preceding store session
+        return _decision(session_date)
+
+    with pytest.raises(AssemblyError, match="not the immediately preceding governed store session"):
+        _binding(scores, bars, on_call=run, allowed_prior=(PRIOR.isoformat(),))(SESSION)
 
 
 def test_a_repeated_prior_session_is_refused():
@@ -243,7 +258,7 @@ def test_a_repeated_prior_session_is_refused():
         return _decision(session_date)
 
     with pytest.raises(AssemblyError, match="scored a prior session more than once"):
-        _binding(scores, bars, on_call=run, prior=2)(SESSION)
+        _binding(scores, bars, on_call=run, allowed_prior=("2026-07-22", PRIOR.isoformat()))(SESSION)
 
 
 def test_two_distinct_frames_for_the_session_are_refused():

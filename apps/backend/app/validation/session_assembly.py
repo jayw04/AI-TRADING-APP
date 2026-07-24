@@ -98,8 +98,9 @@ class BarsCallSpec:
     the only path-dependence is how many per-name price reads a seed day makes. So the governed invariant
     is the exact set of permitted calls, not a broad band:
 
-      * exactly ONE regime call — the market symbol requesting at least the MA window (the class asks for
-        `market_ma_days + 1`, so `n >= ma_sessions` identifies it and nothing else);
+      * exactly ONE regime call — the market symbol at EXACTLY `regime_window_n` (`market_ma_days + 1`,
+        the frozen request); a market read at any other n is a different construction and is refused,
+        even one carrying more than enough history for the MA;
       * at most ONE exit-confirmation market read — the market symbol at `exit_confirm_window_n`
         (`exit_confirm_closes + 4`); permitted only when the spec carries that governed n;
       * every other call is a per-NAME price read: its symbol must belong to this session's expected
@@ -111,9 +112,9 @@ class BarsCallSpec:
     attributed to it.
     """
     market_symbol: str
-    ma_sessions: int = 200
-    exit_confirm_window_n: int | None = None      # SPY n == exit_confirm_closes + 4 (None => forbidden)
-    name_read_n: int = 1                           # the governed per-name price-read n
+    regime_window_n: int = 201                      # EXACT SPY n for the regime call (market_ma_days + 1)
+    exit_confirm_window_n: int | None = None        # SPY n == exit_confirm_closes + 4 (None => forbidden)
+    name_read_n: int = 1                            # the governed per-name price-read n
     allowed_security_symbols: frozenset[str] = frozenset()
 
     def validate(self, calls: list[dict[str, Any]], session_date: date) -> None:
@@ -133,14 +134,14 @@ class BarsCallSpec:
                 raise AssemblyError(f"the evaluation made a duplicate bars call for ({symbol}, n={n})")
             seen.add((symbol, n))
             if symbol == market:
-                if n >= self.ma_sessions:
+                if n == self.regime_window_n:
                     regime += 1
                 elif self.exit_confirm_window_n is not None and n == self.exit_confirm_window_n:
                     exit_reads += 1
                 else:
                     raise AssemblyError(
                         f"the market proxy {self.market_symbol} was read at n={n}; the only governed "
-                        f"market reads are the regime call (n >= {self.ma_sessions}) and the "
+                        f"market reads are the regime call (n = {self.regime_window_n}) and the "
                         f"exit-confirmation read (n = {self.exit_confirm_window_n})")
             else:
                 if symbol not in self.allowed_security_symbols:
@@ -153,8 +154,8 @@ class BarsCallSpec:
                         f"price-read n={self.name_read_n}")
         if regime != 1:
             raise AssemblyError(
-                f"the evaluation made {regime} regime call(s) (market proxy {self.market_symbol} with "
-                f"n >= {self.ma_sessions}), expected exactly 1")
+                f"the evaluation made {regime} regime call(s) (market proxy {self.market_symbol} at "
+                f"n = {self.regime_window_n}), expected exactly 1")
         if exit_reads > 1:
             raise AssemblyError(
                 f"the evaluation made {exit_reads} exit-confirmation market reads, expected at most 1")
@@ -192,9 +193,12 @@ class EvidenceBindingDecisionProvider:
     bars_call_spec: BarsCallSpec
     # The frozen path scores the CURRENT session a deterministic number of times: once in `_evaluate`
     # and once in `capture_seam`'s re-derivation — two calls, the same cross-section. A prior session may
-    # be scored ONLY as the exit-confirmation lookback, at most `exit_confirm_closes - 1` times.
+    # be scored ONLY as the exit-confirmation lookback, and ONLY the exact immediately-preceding governed
+    # store sessions — `allowed_prior_score_sessions`, an ascending tuple of ISO dates (the preceding
+    # `exit_confirm_closes - 1` store sessions). An arbitrary earlier date, a non-store date, a skipped
+    # expected date or an extra date is refused: a maximum count alone would let a 2020 read pass.
     expected_current_session_scores_calls: int = 2
-    max_prior_session_scores_calls: int = 0
+    allowed_prior_score_sessions: tuple[str, ...] = ()
     bound_evidence: BoundProviderEvidence | None = field(default=None, init=False)
 
     def __call__(self, session_date: date) -> ForwardDecision:
@@ -231,17 +235,27 @@ class EvidenceBindingDecisionProvider:
                 f"the evaluation read {len(distinct)} distinct scored frames for {iso}; the decision's "
                 f"own cross-section must be one consistent set")
 
-        # any prior-session call is the governed exit-confirmation lookback: bounded in count and one per
-        # distinct earlier session — never an arbitrary earlier date, and never repeated.
-        if len(prior) > self.max_prior_session_scores_calls:
+        # any prior-session call is the governed exit-confirmation lookback: it must read ONLY the exact
+        # immediately-preceding governed store sessions — never an arbitrary earlier date, never a
+        # non-store date, never a skipped or extra one, and never the same close twice.
+        allowed = tuple(self.allowed_prior_score_sessions)
+        prior_dates = [str(e.get("session_date")) for e in prior]
+        if len(prior) > len(allowed):
             raise AssemblyError(
                 f"the evaluation scored {len(prior)} prior session(s), above the governed "
-                f"exit-confirmation bound {self.max_prior_session_scores_calls}")
-        prior_dates = [str(e.get("session_date")) for e in prior]
+                f"exit-confirmation window of {len(allowed)} session(s) {list(allowed)}")
         if len(set(prior_dates)) != len(prior_dates):
             raise AssemblyError(
                 f"the evaluation scored a prior session more than once ({sorted(prior_dates)}); the "
                 f"exit-confirmation lookback reads each earlier close at most once")
+        # the k prior reads must be exactly the k MOST-RECENT sessions of the allowed window: this
+        # rejects an older date, a non-store date, and a skipped expected date all at once.
+        expected_prefix = set(list(reversed(allowed))[:len(prior_dates)])
+        if set(prior_dates) != expected_prefix:
+            raise AssemblyError(
+                f"the prior-session score read(s) {sorted(prior_dates)} are not the immediately "
+                f"preceding governed store session(s) {sorted(expected_prefix)} — the exit-confirmation "
+                f"lookback reads only the exact preceding store sessions")
 
         self.bars_call_spec.validate(bars_new, session_date)
 

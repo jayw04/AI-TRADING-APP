@@ -147,14 +147,14 @@ def run_production_session(
     #   scores — the frozen class scores the CURRENT session twice (once in `_evaluate`, once in
     #     `capture_seam`), and reads each of `exit_confirm_closes - 1` prior sessions once for the
     #     exit-confirmation lookback;
-    #   bars — exactly one regime call (market proxy at `market_ma_days + 1`, n >= ma_sessions), at most
-    #     one exit-confirmation market read (`exit_confirm_closes + 4`), and one n=1 price read per name,
+    #   bars — exactly one regime call (market proxy at EXACTLY `market_ma_days + 1`), at most one
+    #     exit-confirmation market read (`exit_confirm_closes + 4`), and one n=1 price read per name,
     #     every name drawn from this session's PIT universe or the pre-decision holdings.
     params = _frozen_params()
     exit_confirm = int(params.get("exit_confirm_closes", 2))
     bars_spec = BarsCallSpec(
         market_symbol=runtime.market_symbol,
-        ma_sessions=int(params.get("market_ma_days", 200)),
+        regime_window_n=int(params.get("market_ma_days", 200)) + 1,   # the EXACT frozen regime request
         exit_confirm_window_n=(exit_confirm + 4) if exit_confirm > 1 else None,
         name_read_n=1,
         allowed_security_symbols=_allowed_security_symbols(runtime, adapter, session))
@@ -162,7 +162,8 @@ def run_production_session(
         inner=inner_provider, scores_provider=scores, bars_provider=bars,
         bars_call_spec=bars_spec,
         expected_current_session_scores_calls=2,
-        max_prior_session_scores_calls=max(0, exit_confirm - 1))
+        allowed_prior_score_sessions=_preceding_store_sessions(
+            runtime.session_dates, session, max(0, exit_confirm - 1)))
 
     # The ONE snapshot is captured INSIDE the runner, at the pre-evaluation boundary (after readiness,
     # the held-name price reads and the pre-session ledger snapshot). SnapshotOnce refuses a second
@@ -195,6 +196,16 @@ def run_production_session(
         on_committed=_book_writer(lifecycle, adapter))
 
     return runner.run_session(session, run_timestamp=run_timestamp)
+
+
+def _preceding_store_sessions(session_dates: tuple[date, ...], session: date, k: int) -> tuple[str, ...]:
+    """The exact immediately-preceding `k` governed store sessions before `session`, ascending ISO —
+    the only prior sessions the frozen exit-confirmation lookback may score. Derived from the store's
+    own calendar, never from a bare count."""
+    if k <= 0:
+        return ()
+    before = [d for d in session_dates if d < session]
+    return tuple(d.isoformat() for d in before[-k:])
 
 
 def _allowed_security_symbols(runtime: SessionRuntime, adapter: Any, session: date) -> frozenset[str]:
