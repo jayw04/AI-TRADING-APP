@@ -171,6 +171,222 @@ class SettlementBarrierFailed(CanaryStop):
         super().__init__("SETTLEMENT_BARRIER_FAILED", detail, diagnostics)
 
 
+class LossMeasurementUnavailable(CanaryStop):
+    """The authoritative session loss cannot be measured, so the run has no ruler.
+
+    Every §5 terminal-range check and the §10 overshoot floor are expressed in this number. If it
+    cannot be measured, those controls are not merely imprecise — they are absent, and the harness
+    must stop rather than continue with a placeholder. See
+    ``docs/incidents/ADR0043_Harness_AccountState_Missing_Defaults_To_Zero_20260724.md``.
+    """
+
+
+# ------------------------------------------------------------------- session loss measurement
+# The ADR-0043 loss is `current equity − immutable current-session baseline equity`, which is the
+# production mechanism this canary exists to prove. It is NOT `accounts_state.day_change`: that
+# column is a cache of a broker field, refreshed by a sync sweep that may not run at all on the
+# validation host, and reading it with a `or 0` default silently converted "no measurement" into
+# "measured zero" — disarming both the breach observation and the overshoot floor.
+LOSS_BASIS_SESSION_BASELINE = "SESSION_BASELINE"
+
+# Named refusals. Each one names a specific way the measurement can be untrustworthy; none of them
+# may be softened into a number.
+STOP_ACCOUNT_STATE_ROW_MISSING = "ACCOUNT_STATE_ROW_MISSING"
+STOP_CURRENT_EQUITY_UNAVAILABLE = "CURRENT_EQUITY_UNAVAILABLE"
+STOP_SESSION_BASELINE_MISSING = "SESSION_BASELINE_MISSING"
+STOP_SESSION_BASELINE_WRONG_SESSION = "SESSION_BASELINE_WRONG_SESSION"
+STOP_SESSION_BASELINE_ACCOUNT_MISMATCH = "SESSION_BASELINE_ACCOUNT_MISMATCH"
+STOP_SESSION_BASELINE_AFTER_FIRST_SUBMISSION = "SESSION_BASELINE_AFTER_FIRST_SUBMISSION"
+STOP_SESSION_BASELINE_CONTRADICTORY = "SESSION_BASELINE_CONTRADICTORY"
+STOP_NOT_A_TRADING_SESSION = "NOT_A_TRADING_SESSION"
+
+_BASELINE_STATUS_ACTIVE = "ACTIVE"
+
+
+def _utcnow() -> datetime:
+    """The measurement clock, as a seam. The offline harness tests pin it to a fixed trading
+    instant so their assertions do not depend on the day the suite happens to run."""
+    return datetime.now(UTC)
+
+
+@dataclass(frozen=True)
+class SessionLoss:
+    """The measured session loss and the exact evidence it was derived from."""
+
+    day_change: D
+    equity: D
+    baseline_equity: D
+    baseline_id: int
+    baseline_captured_at: str
+    market_session_date: str
+    basis: str = LOSS_BASIS_SESSION_BASELINE
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "basis": self.basis,
+            "day_change": str(self.day_change),
+            "equity": str(self.equity),
+            "baseline_equity": str(self.baseline_equity),
+            "baseline_id": self.baseline_id,
+            "baseline_captured_at": self.baseline_captured_at,
+            "market_session_date": self.market_session_date,
+        }
+
+
+def broker_equity(adapter, *, attempts: int = 5, backoff_s: float = 0.5) -> D:
+    """Live account equity from the broker, with bounded retries, or a named stop.
+
+    Read from the broker on EVERY call rather than from `accounts_state`: the driver must see the
+    account move as legs settle, and a cached row that no sweep is updating would hold the loss
+    constant across the whole run — indistinguishable from "the churn is not working".
+
+    5xx flaps against Alpaca are routine (§9 of the frozen plan), so a single failure is retried;
+    exhausting the attempts is a stop, never a fallback value.
+    """
+    last_error: str | None = None
+    for attempt in range(attempts):
+        try:
+            raw = adapter.get_account()
+            value = (raw or {}).get("equity")
+            if value is None or str(value) == "":
+                last_error = "broker returned no equity field"
+            else:
+                return D(str(value))
+        except Exception as exc:  # noqa: BLE001 — type + bounded message only (never the object)
+            last_error = f"{type(exc).__name__}: {str(exc)[:200]}"
+        if attempt < attempts - 1:
+            time.sleep(backoff_s * (2**attempt))
+    raise LossMeasurementUnavailable(
+        STOP_CURRENT_EQUITY_UNAVAILABLE,
+        f"could not read account equity from the broker in {attempts} attempts",
+        {"last_error": last_error},
+    )
+
+
+def select_active_baseline(rows: list[dict[str, Any]], session_date: str) -> dict[str, Any]:
+    """The one ACTIVE baseline for ``session_date``, or a named refusal.
+
+    Pure, so the decision can be exercised directly. The unique constraint on
+    ``(account_id, market_session_date)`` is the primary defence against two ACTIVE baselines; this
+    is the second one, for a database that reaches the harness without it (a restore, a copy) — the
+    ambiguity is refused rather than resolved by picking a row.
+    """
+    today = [r for r in rows if r["market_session_date"] == session_date]
+    if not today:
+        other = sorted({str(r["market_session_date"]) for r in rows})
+        raise LossMeasurementUnavailable(
+            STOP_SESSION_BASELINE_WRONG_SESSION if other else STOP_SESSION_BASELINE_MISSING,
+            f"no baseline for session {session_date}"
+            + (f"; the account holds baselines for {other} only" if other else ""),
+            {"session_date": session_date, "baseline_session_dates": other},
+        )
+    active = [r for r in today if r["status"] == _BASELINE_STATUS_ACTIVE]
+    if not active:
+        raise LossMeasurementUnavailable(
+            STOP_SESSION_BASELINE_MISSING,
+            f"session {session_date} has baseline rows but none is ACTIVE",
+            {"statuses": [r["status"] for r in today]},
+        )
+    if len(active) > 1:
+        raise LossMeasurementUnavailable(
+            STOP_SESSION_BASELINE_CONTRADICTORY,
+            f"{len(active)} ACTIVE baselines for session {session_date}; the measurement is ambiguous",
+            {"baseline_ids": [r["id"] for r in active]},
+        )
+    return active[0]
+
+
+async def measure_session_loss(sf, adapter, *, now: datetime | None = None) -> SessionLoss:
+    """`current equity − immutable current-session baseline equity`, or a named stop.
+
+    Refuses — never returns a number — when the session is not a trading session, when the baseline
+    is missing / belongs to another session / is contradictory / was captured after activity had
+    already begun, or when current equity cannot be read.
+
+    A baseline whose recorded equity is numerically ``0`` is PRESENT, not missing: the checks below
+    test for absence with ``is None``, never for falsiness. That distinction is the whole defect.
+    """
+    from app.market.session import default_market_session
+    from app.risk.loss_control.session_baseline import resolve_session_date
+
+    now = now or _utcnow()
+    session_date = resolve_session_date(now)
+    if session_date is None:
+        raise LossMeasurementUnavailable(
+            STOP_NOT_A_TRADING_SESSION,
+            "no ET trading session for the current instant; a session baseline cannot exist",
+            {"now": now.isoformat()},
+        )
+
+    async with sf() as s:
+        rows = [
+            dict(r._mapping)
+            for r in (
+                await s.execute(
+                    text(
+                        "SELECT id, account_id, market_session_date, baseline_equity, captured_at, "
+                        "status FROM risk_session_baselines WHERE account_id = :a"
+                    ),
+                    {"a": ACCT},
+                )
+            ).fetchall()
+        ]
+        account_user = (
+            await s.execute(text("SELECT user_id FROM accounts WHERE id = :a"), {"a": ACCT})
+        ).scalar()
+        open_utc = default_market_session().classify(now).regular_open
+        first_submission = (
+            await s.execute(
+                text(
+                    "SELECT MIN(created_at) FROM orders "
+                    "WHERE account_id = :a AND created_at >= :o"
+                ),
+                {"a": ACCT, "o": open_utc},
+            )
+        ).scalar()
+
+    if account_user is None or int(account_user) != USER:
+        raise LossMeasurementUnavailable(
+            STOP_SESSION_BASELINE_ACCOUNT_MISMATCH,
+            f"account {ACCT} does not belong to the configured canary user {USER}",
+            {"account_user_id": account_user, "expected_user_id": USER},
+        )
+
+    row = select_active_baseline(rows, session_date)
+    if int(row["account_id"]) != ACCT:
+        raise LossMeasurementUnavailable(
+            STOP_SESSION_BASELINE_ACCOUNT_MISMATCH,
+            f"baseline {row['id']} belongs to account {row['account_id']}, not {ACCT}",
+            {"baseline_account_id": row["account_id"], "expected_account_id": ACCT},
+        )
+    if row["baseline_equity"] is None:
+        raise LossMeasurementUnavailable(
+            STOP_SESSION_BASELINE_MISSING,
+            f"baseline {row['id']} records no equity",
+            {"baseline_id": row["id"]},
+        )
+
+    captured_at = str(row["captured_at"])
+    if first_submission is not None and captured_at > str(first_submission):
+        raise LossMeasurementUnavailable(
+            STOP_SESSION_BASELINE_AFTER_FIRST_SUBMISSION,
+            "the baseline was captured after this session's first order; it cannot describe the "
+            "account as it stood before activity",
+            {"captured_at": captured_at, "first_submission_at": str(first_submission)},
+        )
+
+    equity = broker_equity(adapter)
+    baseline_equity = D(str(row["baseline_equity"]))
+    return SessionLoss(
+        day_change=equity - baseline_equity,
+        equity=equity,
+        baseline_equity=baseline_equity,
+        baseline_id=int(row["id"]),
+        baseline_captured_at=captured_at,
+        market_session_date=session_date,
+    )
+
+
 # ---------------------------------------------------------------------------- state snapshot
 @dataclass(frozen=True)
 class StateSnapshot:
@@ -178,9 +394,14 @@ class StateSnapshot:
     0042 this also captures the durable loss-control state — the property under test."""
 
     at: str
+    #: `equity - baseline_equity`, measured through `measure_session_loss`. Never a default.
     day_change: D
+    #: Live broker equity at the instant of this snapshot.
     equity: D
-    last_equity: D
+    #: From `accounts_state`, kept for evidence only — NOTHING derives the loss from it.
+    last_equity: D | None
+    #: The full provenance of `day_change`, carried into the evidence package.
+    loss: SessionLoss
     max_daily_loss: D | None
     breaker_tripped_at: str | None
     loss_control_state: str | None
@@ -203,7 +424,8 @@ class StateSnapshot:
             "at": self.at,
             "day_change": str(self.day_change),
             "equity": str(self.equity),
-            "last_equity": str(self.last_equity),
+            "last_equity": str(self.last_equity) if self.last_equity is not None else None,
+            "loss": self.loss.as_dict(),
             "max_daily_loss": str(self.max_daily_loss) if self.max_daily_loss else None,
             "breaker_tripped_at": self.breaker_tripped_at,
             "loss_control_state": self.loss_control_state,
@@ -228,18 +450,30 @@ def _count_open(adapter) -> int:
     )
 
 
-async def snapshot_state(sf, adapter) -> StateSnapshot:
-    """The pre-order record. Whether the loss-control lock is engaged is MEASURED, not inferred."""
+async def snapshot_state(sf, adapter, *, now: datetime | None = None) -> StateSnapshot:
+    """The pre-order record. Whether the loss-control lock is engaged is MEASURED, not inferred.
+
+    The loss itself comes from ``measure_session_loss`` — live broker equity against the immutable
+    session baseline — so it is re-read on every call and cannot sit constant while the book moves.
+    ``accounts_state`` contributes only ``last_equity``, kept for evidence and used for nothing.
+
+    Raises ``LossMeasurementUnavailable`` rather than returning a snapshot the run cannot trust: a
+    missing ``accounts_state`` row, an absent or contradictory baseline, or an unreadable equity all
+    stop the run with a named reason.
+    """
     async with sf() as s:
         row = (
             await s.execute(
-                text(
-                    "SELECT day_change, equity, last_equity FROM accounts_state "
-                    "WHERE account_id = :a"
-                ),
+                text("SELECT last_equity FROM accounts_state WHERE account_id = :a"),
                 {"a": ACCT},
             )
-        ).mappings().first() or {}
+        ).mappings().first()
+        if row is None:
+            raise LossMeasurementUnavailable(
+                STOP_ACCOUNT_STATE_ROW_MISSING,
+                f"no accounts_state row for account {ACCT}; the account's live state is unknown",
+                {"account_id": ACCT},
+            )
         tripped = (
             await s.execute(
                 text("SELECT circuit_breaker_tripped_at FROM accounts WHERE id = :a"),
@@ -265,12 +499,15 @@ async def snapshot_state(sf, adapter) -> StateSnapshot:
             )
         ).mappings().first()
 
+    loss = await measure_session_loss(sf, adapter, now=now)
     cap_d = D(str(cap)) if cap is not None else None
+    last_equity = row["last_equity"]
     return StateSnapshot(
         at=datetime.now(UTC).isoformat(),
-        day_change=D(str(row.get("day_change") or 0)),
-        equity=D(str(row.get("equity") or 0)),
-        last_equity=D(str(row.get("last_equity") or 0)),
+        day_change=loss.day_change,
+        equity=loss.equity,
+        last_equity=D(str(last_equity)) if last_equity is not None else None,
+        loss=loss,
         max_daily_loss=cap_d,
         breaker_tripped_at=str(tripped) if tripped else None,
         loss_control_state=lc["state"] if lc else None,

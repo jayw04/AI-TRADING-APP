@@ -10,7 +10,7 @@ never touches the protected leg the canary's assertions depend on.
 from __future__ import annotations
 
 import importlib
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal as D
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -27,6 +27,22 @@ from app.db.models.user import User
 PROTECTED_TICKER = "MSFT"
 CHURN_TICKER = "IEUS"
 
+#: The account's equity at the session open. The harness measures `equity - baseline`, so the rig
+#: moves equity and the expected day-change follows from arithmetic, not from a settable field.
+BASELINE_EQUITY = D("84000")
+
+#: A fixed mid-session Friday. The loss measurement is only defined inside a trading session, so a
+#: real-clock suite would fail every weekend and holiday; pinning it also fixes the session date the
+#: seeded baseline must carry.
+FROZEN_NOW = datetime(2026, 7, 17, 17, 0, tzinfo=UTC)  # 13:00 ET
+
+
+@pytest.fixture(autouse=True)
+def _frozen_measurement_clock(monkeypatch):
+    import scripts.adr0043_canary_lib as lib
+
+    monkeypatch.setattr(lib, "_utcnow", lambda: FROZEN_NOW)
+
 
 @pytest.fixture
 def drv(tmp_path, monkeypatch):
@@ -36,6 +52,7 @@ def drv(tmp_path, monkeypatch):
     import scripts.adr0043_churn_driver as m
 
     importlib.reload(lib)
+    monkeypatch.setattr(lib, "_utcnow", lambda: FROZEN_NOW)  # survives the reload above
     return importlib.reload(m)
 
 
@@ -54,15 +71,22 @@ class FakeBroker:
     loses a fixed amount, so the driver's loop terminates on a real day_change rather than a flag."""
 
     def __init__(self, *, loss_per_leg=D("0"), price=D("50"), protected=D("19"),
-                 buying_power=D("100000")):
+                 buying_power=D("100000"), equity=BASELINE_EQUITY):
         self.positions: dict[str, D] = {PROTECTED_TICKER: protected}
         self.price = price
         self.loss_per_leg = loss_per_leg
-        self.day_change = D("0")
+        # Equity is what the harness now measures against the immutable session baseline; the rig
+        # moves the ACCOUNT, not a cached day_change column, because that is what a real churn does.
+        self.equity = D(equity)
         self.buying_power = buying_power
         self.orders: list[dict] = []
         self.open_orders: list[dict] = []
         self.fail_symbol_move: str | None = None
+
+    @property
+    def day_change(self) -> D:
+        """Derived, never set: `equity - baseline`, the same arithmetic the harness performs."""
+        return self.equity - BASELINE_EQUITY
 
     # ---- reads ----
     def get_positions(self):
@@ -72,7 +96,7 @@ class FakeBroker:
         ]
 
     def get_account(self):
-        return {"buying_power": str(self.buying_power)}
+        return {"buying_power": str(self.buying_power), "equity": str(self.equity)}
 
     def list_orders(self, *a, **k):
         return list(self.open_orders)
@@ -87,7 +111,7 @@ class FakeBroker:
     def fill(self, *, symbol, side, qty, client_order_id):
         signed = qty if side == "BUY" else -qty
         self.positions[symbol] = self.positions.get(symbol, D(0)) + signed
-        self.day_change -= self.loss_per_leg
+        self.equity -= self.loss_per_leg
         bo = {"id": f"b-{len(self.orders) + 1}", "status": "filled", "filled_qty": str(qty),
               "filled_avg_price": str(self.price), "client_order_id": client_order_id,
               "symbol": symbol, "side": side.lower(), "qty": str(qty)}
@@ -190,10 +214,15 @@ class SettleSpy:
 # ---------------------------------------------------------------------------- seeding
 
 
-async def _seed(session_factory, *, max_daily_loss="2000", day_change="0"):
+async def _seed(session_factory, *, max_daily_loss="2000", baseline: str | None = "84000"):
+    """Seed the rig, including the immutable session baseline the harness measures against.
+
+    ``baseline=None`` omits the baseline row entirely — the state the validation host was actually
+    in, and the one the harness must refuse rather than read as a zero loss."""
     from app.db.enums import RiskScopeType
     from app.db.models.account_state import AccountState
     from app.db.models.risk_limits import RiskLimits
+    from app.db.models.risk_session_baseline import RiskSessionBaseline
     async with session_factory() as s:
         s.add(User(id=3, email="c@t"))
         s.add(Account(id=3, user_id=3, broker="alpaca", mode=AccountMode.paper, label="C"))
@@ -209,19 +238,30 @@ async def _seed(session_factory, *, max_daily_loss="2000", day_change="0"):
             max_gross_exposure=D("200000"), max_daily_loss=D(max_daily_loss),
             max_orders_per_day=500, allow_short=False,
             created_at=datetime.now(UTC), updated_at=datetime.now(UTC)))
+        # day_change is deliberately left at its column default: nothing reads it any more, and a
+        # stale value here must not be able to influence a single assertion.
         s.add(AccountState(
-            account_id=3, day_change=D(day_change), equity=D("84000"), last_equity=D("84000"),
+            account_id=3, equity=BASELINE_EQUITY, last_equity=BASELINE_EQUITY,
             updated_at=datetime.now(UTC)))
+        if baseline is not None:
+            s.add(RiskSessionBaseline(
+                account_id=3,
+                market_session_date=_session_date(),
+                baseline_equity=D(baseline),
+                baseline_source="RECONCILED_OPEN",
+                captured_at=FROZEN_NOW - timedelta(hours=3),  # before any order the rig creates
+                status="ACTIVE",
+                created_by="TEST"))
         await s.commit()
     await _sync_position(session_factory, PROTECTED_TICKER, D("19"))
 
 
-async def _set_day_change(session_factory, broker: FakeBroker):
-    from sqlalchemy import text
-    async with session_factory() as s:
-        await s.execute(text("UPDATE accounts_state SET day_change = :dc WHERE account_id = 3"),
-                        {"dc": str(broker.day_change)})
-        await s.commit()
+def _session_date() -> str:
+    """The frozen instant's ET session date, from the calendar authority the harness itself uses."""
+    from app.risk.loss_control.session_baseline import resolve_session_date
+    date = resolve_session_date(FROZEN_NOW)
+    assert date is not None, "FROZEN_NOW must be inside a real trading session"
+    return date
 
 
 _NOW = 1_000_000.0
@@ -387,7 +427,6 @@ async def test_buy_settles_sell_settles_round_trip_closes(drv, session_factory):
     buy = drv.Leg(0, "BUY", CHURN_TICKER, D("10"))
     await driver.run_leg(buy, limits)
     assert broker.positions[CHURN_TICKER] == D("10")
-    await _set_day_change(session_factory, broker)
 
     sell = drv.Leg(1, "SELL", CHURN_TICKER, D("10"))
     await driver.run_leg(sell, limits)
@@ -652,7 +691,6 @@ async def test_run_sizes_and_evidences_quantity_from_the_captured_quote(drv, ses
     real_snapshot = drv.snapshot_state
 
     async def _snapshot(sf, adapter):
-        await _set_day_change(sf, broker)
         if broker.day_change <= D("-2000"):
             await _trip_lock(sf)
         return await real_snapshot(sf, adapter)
@@ -675,14 +713,51 @@ async def test_run_sizes_and_evidences_quantity_from_the_captured_quote(drv, ses
     assert broker.positions[PROTECTED_TICKER] == D("19")     # protected untouched by the priced run
 
 
+# ============================================================ loss measurement is a precondition
+
+
+async def test_no_order_is_submitted_before_the_baseline_is_proven(drv, session_factory, lib):
+    """The validation-host state: no session baseline for the account. The driver's guards are all
+    expressed in a measured loss, so with no baseline it has no ruler — and a run with no ruler must
+    submit nothing rather than churn to its cap and report a breach it never observed."""
+    await _seed(session_factory, baseline=None)
+    broker = FakeBroker(loss_per_leg=D("1200"))
+    router = FakeRouter(session_factory, broker)
+    driver = _driver(drv, session_factory, broker, router=router,
+                     bounds=drv.ChurnBounds(target_loss=D("2000")))
+
+    with pytest.raises(lib.LossMeasurementUnavailable) as exc:
+        await driver.run()
+    assert exc.value.stop_reason == lib.STOP_SESSION_BASELINE_MISSING
+    assert router.submits == 0
+
+
+async def test_a_missing_account_state_row_stops_before_any_order(drv, session_factory, lib):
+    from sqlalchemy import text
+
+    await _seed(session_factory)
+    async with session_factory() as s:
+        await s.execute(text("DELETE FROM accounts_state WHERE account_id = 3"))
+        await s.commit()
+    broker = FakeBroker(loss_per_leg=D("1200"))
+    router = FakeRouter(session_factory, broker)
+    driver = _driver(drv, session_factory, broker, router=router,
+                     bounds=drv.ChurnBounds(target_loss=D("2000")))
+
+    with pytest.raises(lib.LossMeasurementUnavailable) as exc:
+        await driver.run()
+    assert exc.value.stop_reason == lib.STOP_ACCOUNT_STATE_ROW_MISSING
+    assert router.submits == 0
+
+
 # ============================================================ overshoot / loop control
 
 
 async def test_run_raises_overshoot_beyond_the_floor(drv, session_factory, lib):
     """Finding 2: a value beyond target+overshoot must raise CHURN_OVERSHOT — reachable now that the
     check precedes the boundary break — and stop before any order."""
-    await _seed(session_factory, day_change="-3000")         # floor is -(2000+750) = -2750
-    broker = FakeBroker(loss_per_leg=D("0"))
+    await _seed(session_factory)                             # floor is -(2000+750) = -2750
+    broker = FakeBroker(loss_per_leg=D("0"), equity=BASELINE_EQUITY - D("3000"))
     router = FakeRouter(session_factory, broker)
     driver = _driver(drv, session_factory, broker, router=router,
                      bounds=drv.ChurnBounds(target_loss=D("2000")))
@@ -696,8 +771,8 @@ async def test_run_raises_overshoot_beyond_the_floor(drv, session_factory, lib):
 async def test_run_stops_successfully_within_the_overshoot_band(drv, session_factory, dc):
     """At the target, between target and floor, and exactly at the floor: a normal terminal break,
     not an overshoot. (Frozen rule: == floor is permitted; only < floor overshoots.)"""
-    await _seed(session_factory, day_change=dc)
-    broker = FakeBroker(loss_per_leg=D("0"))
+    await _seed(session_factory)
+    broker = FakeBroker(loss_per_leg=D("0"), equity=BASELINE_EQUITY + D(dc))
     router = FakeRouter(session_factory, broker)
     driver = _driver(drv, session_factory, broker, router=router,
                      bounds=drv.ChurnBounds(target_loss=D("2000")))
@@ -708,8 +783,8 @@ async def test_run_stops_successfully_within_the_overshoot_band(drv, session_fac
 
 async def test_run_continues_just_above_target(drv, session_factory, lib):
     """Just short of the boundary the loop must CONTINUE (place an order), not break."""
-    await _seed(session_factory, day_change="-1999")
-    broker = FakeBroker(loss_per_leg=D("0"))
+    await _seed(session_factory)
+    broker = FakeBroker(loss_per_leg=D("0"), equity=BASELINE_EQUITY - D("1999"))
     router = FakeRouter(session_factory, broker)
     driver = _driver(drv, session_factory, broker, router=router,
                      bounds=drv.ChurnBounds(target_loss=D("2000"), max_round_trips=1))
@@ -847,7 +922,6 @@ async def test_full_run_establishes_the_lock_and_leaves_setup_flat(drv, session_
     real_snapshot = drv.snapshot_state
 
     async def _snapshot(sf, adapter):
-        await _set_day_change(sf, broker)
         if broker.day_change <= D("-2000"):
             await _trip_lock(sf)
         return await real_snapshot(sf, adapter)
