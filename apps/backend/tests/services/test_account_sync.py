@@ -171,3 +171,29 @@ async def test_sync_all_without_registry_falls_back_to_primary(
     async with session_factory() as session:
         rows = (await session.execute(select(AccountState))).scalars().all()
     assert len(rows) == 1  # sync_once ran for the primary account
+
+
+async def test_account_sync_zero_last_equity_does_not_set_day_change_to_equity(
+    session_factory,
+) -> None:
+    """Fresh paper accounts may report last_equity=0; must not equate day P&L to full equity."""
+    await _seed_paper_account(session_factory)
+    adapter = MagicMock()
+    adapter.is_paper = True
+    adapter.get_account.return_value = {
+        "status": "ACTIVE",
+        "cash": "50000.00",
+        "equity": "102177.42",
+        "last_equity": "0",
+        "buying_power": "150000.00",
+        "portfolio_value": "102177.42",
+        "daytrade_count": 0,
+        "pattern_day_trader": False,
+        "trading_blocked": False,
+        "account_blocked": False,
+    }
+    svc = AccountSyncService(adapter, session_factory, EventBus())
+    payload = await svc.sync_once()
+    assert payload["equity"] == Decimal("102177.42")
+    assert payload["day_change"] == Decimal(0)
+    assert payload["day_change_pct"] == Decimal(0)

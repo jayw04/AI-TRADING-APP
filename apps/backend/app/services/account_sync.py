@@ -194,10 +194,15 @@ def _normalize_account(raw: dict[str, Any]) -> dict[str, Any]:
     """Map Alpaca's account fields to `AccountState` column names."""
     equity = _to_decimal(raw.get("equity"))
     last_equity = _to_decimal(raw.get("last_equity"))
-    day_change = equity - last_equity
-    day_change_pct = (
-        (day_change / last_equity * Decimal(100)) if last_equity > 0 else Decimal(0)
-    )
+    # Alpaca may omit or zero last_equity on fresh paper accounts; equity − 0 would
+    # mis-report the full book as "today's change". Leave day metrics at zero here;
+    # GET /account falls back to equity_snapshots when last_equity is unusable.
+    if last_equity > 0:
+        day_change = equity - last_equity
+        day_change_pct = day_change / last_equity  # fraction (matches total_return_pct)
+    else:
+        day_change = Decimal(0)
+        day_change_pct = Decimal(0)
     return {
         "cash": _to_decimal(raw.get("cash")),
         "equity": equity,
