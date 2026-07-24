@@ -13,6 +13,15 @@ This is the INSTRUMENT's book, and it is not the shadow ledger. The two are deli
 They diverge by cumulative cost drag by design, which is exactly why a decision must never be validated
 against the ledger (owner ruling 2026-07-23) and why the two are persisted separately here.
 
+## Values are validated and canonicalized at every boundary
+
+The self-digest proves the bytes did not change; it proves nothing about whether they mean anything.
+`Decimal("NaN")` and `Decimal("Infinity")` construct happily and are not portfolio state, `true` is not
+a session count, and 19 / 19.0 / 19.00 must be one value with one identity. Equity and quantities are
+therefore validated as finite decimals and canonicalized on open, load and capture; zero holdings are
+dropped; session metadata must be an exact non-negative integer with a last-session date that is null
+exactly when no session has been seen.
+
 ## The same crash-safety discipline as the ledger
 
 Committed storage is the source of truth for how many sessions exist. The book records how many it has
@@ -35,7 +44,8 @@ import hashlib
 import json
 import os
 from dataclasses import asdict, dataclass, field
-from decimal import Decimal
+from datetime import date as _date
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +57,74 @@ SCHEMA_VERSION = 1
 # The only durable key a genuinely fresh book may carry. Everything else — the regime memory, the
 # backstop clock, the last applied targets — is written by a session that has already happened.
 FRESH_BOOK_STATE_KEYS = frozenset({"deployment"})
+
+
+def _exact_decimal(raw: Any, *, field: str, allow_zero: bool = True,
+                   allow_negative: bool = False) -> str:
+    """Validate and CANONICALIZE a stored quantity.
+
+    The self-digest proves the bytes did not change; it says nothing about whether they mean anything.
+    `Decimal("NaN")` and `Decimal("Infinity")` construct happily and are not portfolio state — they
+    would flow into sizing and comparisons without necessarily raising. Canonicalizing here also means
+    19, 19.0 and 19.00 are one value with one book identity, rather than three.
+    """
+    try:
+        value = Decimal(str(raw))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise InstrumentBookError(f"{field} is not a decimal: {raw!r}") from exc
+    if not value.is_finite():
+        raise InstrumentBookError(f"{field} is not finite: {raw!r}")
+    if not allow_negative and value < 0:
+        raise InstrumentBookError(f"{field} is negative: {raw!r}")
+    if not allow_zero and value == 0:
+        raise InstrumentBookError(f"{field} is zero: {raw!r}")
+    normalized = value.normalize()
+    return format(normalized if normalized != 0 else Decimal(0), "f")
+
+
+def _exact_positions(raw: Any) -> dict[str, str]:
+    """Canonical position book: finite, non-negative quantities, zero holdings DROPPED.
+
+    A long-only instrument carries no negative quantity, and a zero holding is not a position — keeping
+    one would make two identical books digest differently depending on how they got there.
+    """
+    if not isinstance(raw, dict):
+        raise InstrumentBookError(f"positions must be an object, got {type(raw).__name__}")
+    out: dict[str, str] = {}
+    for ticker, qty in raw.items():
+        symbol = str(ticker).upper().strip()
+        if not symbol:
+            raise InstrumentBookError("a position carries an empty ticker")
+        canonical = _exact_decimal(qty, field=f"position {symbol}")
+        if Decimal(canonical) == 0:
+            continue
+        out[symbol] = canonical
+    return out
+
+
+def _exact_session_count(raw: Any) -> int:
+    """An exact, non-negative JSON integer. `true` is not 1 and 1.5 is not 1."""
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise InstrumentBookError(f"sessions_recorded must be an integer, got {raw!r}")
+    if raw < 0:
+        raise InstrumentBookError(f"sessions_recorded is negative: {raw}")
+    return raw
+
+
+def _exact_session_date(raw: Any, *, sessions_recorded: int) -> str | None:
+    """Null exactly when no session has been seen; a valid ISO date otherwise."""
+    if sessions_recorded == 0:
+        if raw is not None:
+            raise InstrumentBookError(
+                f"a book with no recorded sessions carries last_session_date {raw!r}")
+        return None
+    if raw is None:
+        raise InstrumentBookError(
+            f"a book with {sessions_recorded} recorded session(s) carries no last_session_date")
+    try:
+        return _date.fromisoformat(str(raw)).isoformat()
+    except ValueError as exc:
+        raise InstrumentBookError(f"last_session_date {raw!r} is not an ISO date") from exc
 
 
 class InstrumentBookError(IntegrityStop):
@@ -105,8 +183,8 @@ def open_fresh_book(*, starting_capital: float | Decimal, deployment_blob: dict[
             f"decide as though the record had never begun")
     return InstrumentBook(
         schema_version=SCHEMA_VERSION, state={"deployment": dict(deployment_blob)}, positions={},
-        equity=str(Decimal(str(starting_capital))), sessions_recorded=0,
-        last_session_date=None).with_digest()
+        equity=_exact_decimal(starting_capital, field="starting capital", allow_zero=False),
+        sessions_recorded=0, last_session_date=None).with_digest()
 
 
 def load_instrument_book(path: Path | str) -> InstrumentBook | None:
@@ -125,12 +203,17 @@ def load_instrument_book(path: Path | str) -> InstrumentBook | None:
             f"the instrument book at {p} is schema version {payload.get('schema_version')!r}, not "
             f"{SCHEMA_VERSION}")
     try:
+        sessions = _exact_session_count(payload["sessions_recorded"])
         book = InstrumentBook(
             schema_version=SCHEMA_VERSION, state=dict(payload["state"]),
-            positions={str(k).upper(): str(v) for k, v in dict(payload["positions"]).items()},
-            equity=str(payload["equity"]), sessions_recorded=int(payload["sessions_recorded"]),
-            last_session_date=payload.get("last_session_date"),
+            positions=_exact_positions(payload["positions"]),
+            equity=_exact_decimal(payload["equity"], field="equity", allow_zero=False),
+            sessions_recorded=sessions,
+            last_session_date=_exact_session_date(payload.get("last_session_date"),
+                                                  sessions_recorded=sessions),
             book_digest=str(payload.get("book_digest", "")))
+    except InstrumentBookError as exc:
+        raise InstrumentBookError(f"the instrument book at {p} is invalid: {exc}") from exc
     except (KeyError, TypeError, ValueError) as exc:
         raise InstrumentBookError(f"the instrument book at {p} is malformed: {exc}") from exc
     if book.book_digest != book.with_digest().book_digest:
@@ -230,12 +313,17 @@ def apply_to_adapter(book: InstrumentBook, adapter: Any) -> None:
 def capture_from_adapter(adapter: Any, *, sessions_recorded: int,
                          last_session_date: str) -> InstrumentBook:
     """Take the instrument's book AFTER a session, ready to persist once the observation commits."""
-    positions = {str(k).upper(): str(v) for k, v in
-                 dict(getattr(adapter, "_positions", {}) or {}).items()}
+    count = _exact_session_count(sessions_recorded)
+    if count < 1:
+        raise InstrumentBookError(
+            "a book captured after a session must record at least one session")
     return InstrumentBook(
         schema_version=SCHEMA_VERSION, state=dict(getattr(adapter, "_state", {}) or {}),
-        positions=positions, equity=str(getattr(adapter, "equity", Decimal(0))),
-        sessions_recorded=sessions_recorded, last_session_date=last_session_date).with_digest()
+        positions=_exact_positions(dict(getattr(adapter, "_positions", {}) or {})),
+        equity=_exact_decimal(getattr(adapter, "equity", 0), field="equity", allow_zero=False),
+        sessions_recorded=count,
+        last_session_date=_exact_session_date(last_session_date,
+                                              sessions_recorded=count)).with_digest()
 
 
 @dataclass

@@ -9,7 +9,7 @@ committed storage is the source of truth, and a divergence is diagnosed rather t
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+from dataclasses import asdict, replace
 from decimal import Decimal
 
 import pytest
@@ -17,6 +17,7 @@ import pytest
 from app.validation.instrument_state_store import (
     InstrumentBookError,
     InstrumentBookPaths,
+    _digest,
     apply_to_adapter,
     assert_genuinely_fresh,
     capture_from_adapter,
@@ -247,3 +248,127 @@ def test_freshness_is_only_required_of_an_empty_record(book):
                          last_session_date=SESSION).with_digest()
     reconcile_with_record(continuing, committed_count=2, last_committed_session=SESSION,
                           expected_starting_capital=100_000)
+
+
+# ---- decimal state is validated and canonicalized ----------------------------------------------------
+
+def _write_raw(path, book, **overrides):
+    """Write a book file with fields overridden AFTER digesting, so the digest still verifies."""
+    payload = {**asdict(book.with_digest()), **overrides}
+    body = {k: v for k, v in payload.items() if k != "book_digest"}
+    payload["book_digest"] = _digest(body)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize("bad", ["NaN", "sNaN", "-NaN", "Infinity", "-Infinity", "inf", "twelve",
+                                 "", None])
+def test_a_nonfinite_or_malformed_equity_is_refused(bad, book, tmp_path):
+    """A digest proves the bytes did not change; it proves nothing about whether they mean anything."""
+    path = _write_raw(tmp_path / "equity.json", book, equity=bad)
+    with pytest.raises(InstrumentBookError, match="not finite|not a decimal|is zero"):
+        load_instrument_book(path)
+
+
+@pytest.mark.parametrize("bad", ["NaN", "Infinity", "-Infinity", "-NaN", "not-a-number"])
+def test_a_nonfinite_or_malformed_quantity_is_refused(bad, book, tmp_path):
+    path = _write_raw(tmp_path / "qty.json", book, positions={"MSFT": bad})
+    with pytest.raises(InstrumentBookError, match="not finite|not a decimal"):
+        load_instrument_book(path)
+
+
+def test_a_negative_quantity_is_refused(book, tmp_path):
+    path = _write_raw(tmp_path / "neg.json", book, positions={"MSFT": "-19"})
+    with pytest.raises(InstrumentBookError, match="negative"):
+        load_instrument_book(path)
+
+
+def test_a_zero_equity_is_refused(book, tmp_path):
+    path = _write_raw(tmp_path / "zero.json", book, equity="0")
+    with pytest.raises(InstrumentBookError, match="is zero"):
+        load_instrument_book(path)
+
+
+@pytest.mark.parametrize("written", ["19.0", "19.00", "1E+2", "0.500"])
+def test_a_non_canonical_file_is_refused_as_written_outside_the_runner(written, book, tmp_path):
+    """The digest is taken over the CANONICAL form, so a file carrying 19.00 where the runner would
+    have written 19 did not come from the runner."""
+    path = _write_raw(tmp_path / "canon.json", book, positions={"MSFT": written})
+    with pytest.raises(InstrumentBookError, match="fails its own digest"):
+        load_instrument_book(path)
+
+
+@pytest.mark.parametrize(("written", "canonical"), [("19", "19"), ("19.0", "19"), ("19.00", "19"),
+                                                    ("1E+2", "100"), ("0.500", "0.5")])
+def test_equivalent_quantities_share_one_identity(written, canonical):
+    """19, 19.0 and 19.00 are one value with one book identity, wherever they enter."""
+    adapter = _Adapter()
+    adapter._state = {"deployment": dict(DEPLOYMENT)}
+    adapter._positions = {"MSFT": Decimal(written)}
+    adapter.equity = Decimal("100000")
+    captured = capture_from_adapter(adapter, sessions_recorded=1, last_session_date=SESSION)
+    assert captured.positions["MSFT"] == canonical
+    assert captured.book_digest == capture_from_adapter(
+        _fresh_adapter(canonical), sessions_recorded=1, last_session_date=SESSION).book_digest
+
+
+def _fresh_adapter(qty: str) -> _Adapter:
+    adapter = _Adapter()
+    adapter._state = {"deployment": dict(DEPLOYMENT)}
+    adapter._positions = {"MSFT": Decimal(qty)}
+    adapter.equity = Decimal("100000")
+    return adapter
+
+
+def test_zero_holdings_are_dropped_rather_than_stored():
+    adapter = _fresh_adapter("19")
+    adapter._positions["F"] = Decimal("0")
+    captured = capture_from_adapter(adapter, sessions_recorded=1, last_session_date=SESSION)
+    assert captured.positions == {"MSFT": "19"}          # a zero holding is not a position
+
+
+def test_capture_canonicalizes_what_the_adapter_holds(book):
+    adapter = _Adapter()
+    apply_to_adapter(book, adapter)
+    adapter._positions = {"msft": Decimal("19.00"), "f": Decimal("0")}
+    adapter.equity = Decimal("100000.000")
+    captured = capture_from_adapter(adapter, sessions_recorded=1, last_session_date=SESSION)
+    assert captured.positions == {"MSFT": "19"}          # canonical, zero dropped, upper-cased
+    assert captured.equity == "100000"
+
+
+# ---- session metadata is validated structurally ------------------------------------------------------
+
+@pytest.mark.parametrize("bad", [-1, True, False, 1.5, "2", None])
+def test_a_malformed_session_count_is_refused(bad, book, tmp_path):
+    path = _write_raw(tmp_path / "count.json", book, sessions_recorded=bad)
+    with pytest.raises(InstrumentBookError, match="must be an integer|is negative"):
+        load_instrument_book(path)
+
+
+def test_a_zero_session_book_with_a_last_session_date_is_refused_at_load(book, tmp_path):
+    path = _write_raw(tmp_path / "dated.json", book, sessions_recorded=0, last_session_date=SESSION)
+    with pytest.raises(InstrumentBookError, match="no recorded sessions carries last_session_date"):
+        load_instrument_book(path)
+
+
+def test_a_recorded_book_without_a_last_session_date_is_refused(book, tmp_path):
+    path = _write_raw(tmp_path / "undated.json", book, sessions_recorded=2, last_session_date=None)
+    with pytest.raises(InstrumentBookError, match="carries no last_session_date"):
+        load_instrument_book(path)
+
+
+@pytest.mark.parametrize("bad", ["not-a-date", "2026-13-01", "2026-07-99", True])
+def test_a_malformed_last_session_date_is_refused(bad, book, tmp_path):
+    path = _write_raw(tmp_path / "baddate.json", book, sessions_recorded=1, last_session_date=bad)
+    with pytest.raises(InstrumentBookError, match="not an ISO date"):
+        load_instrument_book(path)
+
+
+def test_capture_requires_a_positive_count_and_a_valid_date(book):
+    adapter = _Adapter()
+    apply_to_adapter(book, adapter)
+    with pytest.raises(InstrumentBookError, match="at least one session"):
+        capture_from_adapter(adapter, sessions_recorded=0, last_session_date=SESSION)
+    with pytest.raises(InstrumentBookError, match="not an ISO date"):
+        capture_from_adapter(adapter, sessions_recorded=1, last_session_date="whenever")
