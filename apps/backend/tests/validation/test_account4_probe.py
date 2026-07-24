@@ -120,7 +120,7 @@ def test_the_probe_feeds_the_commit_protocols_own_before_after_probe(db):
 # ---- the status-to-safety mapping is governed and narrow --------------------------------------------
 
 def test_the_governed_non_running_set_is_exactly_idle():
-    assert GOVERNED_NON_RUNNING_STATUSES == frozenset({"idle"})
+    assert frozenset({"idle"}) == GOVERNED_NON_RUNNING_STATUSES
 
 
 @pytest.mark.parametrize("status", sorted(s.value for s in StrategyStatus))
