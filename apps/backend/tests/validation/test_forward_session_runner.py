@@ -48,6 +48,7 @@ HOLIDAY = date(2026, 9, 7)                         # Labor Day
 DURABLE_ID = "instrument-durable-state-901"
 LEDGER_ID = "shadow-ledger-accounting-901"
 TREE = "c1efd8e"
+SNAPSHOT = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 MAX_POSITION_PCT = float(fw.FROZEN_CONFIG["max_position_pct"])
 
 
@@ -76,7 +77,8 @@ def _decision(d: date, *, target=("AAA", "BBB"), gross=0.98, trade=True, weights
         last_applied_target_weights=_weights(target, gross), prior_applied_gross=gross,
         sessions_since_rebalance=0, weight_drift_threshold=0.02, backstop_days=21)
     return ForwardDecision(record=rec, instrument_identity=fw.PRODUCTION_STRATEGY_COMMIT,
-                           durable_state_id=DURABLE_ID, instrument_state=state)
+                           durable_state_id=DURABLE_ID, instrument_state=state,
+                           snapshot_digest=SNAPSHOT)
 
 
 @pytest.fixture
@@ -145,7 +147,8 @@ def _runner(tmp_path, context_builder, *, provider=None, readiness=None) -> Forw
                                                   turnover_cost_bps=10.0, backstop_days=21,
                                                   weight_drift_pct=0.02),
         deployed_tree_identity=TREE, shadow_ledger_identity=LEDGER_ID,
-        readiness=readiness if readiness is not None else _StubReadiness())
+        readiness=readiness if readiness is not None else _StubReadiness(),
+        expected_snapshot_digest=SNAPSHOT)
 
 
 def _stop_lines(store: Path) -> list[dict]:
@@ -583,3 +586,22 @@ def test_a_session_with_every_mark_present_records(tmp_path, context_builder):
     r.price_fn = _strict_price({"AAA": 101.0, "BBB": 51.0})
     res = _run(r, SESSION_2, ts="2026-07-27T20:10:00Z")
     assert res.status is SessionRunStatus.RECORDED and res.session_count == 2
+
+
+def test_a_run_without_an_instrument_snapshot_digest_refuses(tmp_path, context_builder):
+    """The runner must know which snapshot this session's decision belongs to before it books it."""
+    r = _runner(tmp_path, context_builder)
+    r.expected_snapshot_digest = ""
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "INSTRUMENT_SNAPSHOT_UNAVAILABLE"
+    assert res.session_count == 0
+    assert not (r.store_dir / "observations").exists()
+
+
+def test_a_decision_from_another_snapshot_stops_the_session(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder,
+                provider=lambda d: replace(_decision(d), snapshot_digest="a" * 64))
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "NO_VALID_INSTRUMENT_DECISION"
+    assert "snapshot" in res.detail
+    assert res.session_count == 0

@@ -29,7 +29,11 @@ This module is the seam, and it FAILS CLOSED (owner boundary checks) unless, for
   5. exactly one decision is accepted per eligible session;
   6. no broker / OrderRouter / order-submission / Account-4 mutation path is reachable (structural);
   7. the production durable-state identity and the shadow-ledger accounting identity are distinct;
-  8. the registered 10-bps turnover cost is the ONLY performance cost the ledger applies (`book_decision`).
+  8. the registered 10-bps turnover cost is the ONLY performance cost the ledger applies (`book_decision`);
+  9. the decision was taken under THIS run's instrument snapshot — `expected_snapshot_digest` must be
+     configured and must equal the decision's own `snapshot_digest`. Carrying a digest is not the same
+     as checking one: without this, a provider regression returning an empty, stale or arbitrary digest
+     would still be booked.
 """
 
 from __future__ import annotations
@@ -93,6 +97,7 @@ class ForwardDecision:
     instrument_identity: str
     durable_state_id: str
     instrument_state: InstrumentDecisionState
+    snapshot_digest: str = ""          # the instrument snapshot this decision was taken under (R5c-2)
 
 
 DecisionProvider = Callable[[date], ForwardDecision]
@@ -107,6 +112,7 @@ class ForwardEvaluator:
     ledger: ShadowLedger
     decision_provider: DecisionProvider
     shadow_ledger_identity: str
+    expected_snapshot_digest: str = ""
     expected_instrument_identity: str = PRODUCTION_STRATEGY_COMMIT
     _processed_sessions: set[str] = field(default_factory=set)
     shadow_ledger_drift_diagnostics: dict[str, float] = field(default_factory=dict)
@@ -118,8 +124,23 @@ class ForwardEvaluator:
         if iso in self._processed_sessions:
             raise ForwardEvaluationError(f"session {iso} already evaluated — exactly one decision per session")
 
+        # (9) the run's snapshot must be configured, and the decision must belong to it
+        if not str(self.expected_snapshot_digest or "").strip():
+            raise ForwardEvaluationError(
+                "no expected instrument-snapshot digest is configured — a decision cannot be shown to "
+                "belong to this run's snapshot, so nothing may be booked")
+
         decision = self.decision_provider(session_date)
         rec = decision.record
+
+        if not str(decision.snapshot_digest or "").strip():
+            raise ForwardEvaluationError(
+                "the decision carries no instrument-snapshot digest; it cannot be tied to the state it "
+                "was taken under")
+        if decision.snapshot_digest != self.expected_snapshot_digest:
+            raise ForwardEvaluationError(
+                f"the decision was taken under snapshot {decision.snapshot_digest[:16]}… but this run's "
+                f"snapshot is {self.expected_snapshot_digest[:16]}…")
 
         # (1) date must match the session being processed
         if rec.date != iso:

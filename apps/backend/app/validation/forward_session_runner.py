@@ -170,6 +170,7 @@ class ForwardSessionRunner:
     deployed_tree_identity: str
     shadow_ledger_identity: str
     readiness: DataReadinessCheck | None = None
+    expected_snapshot_digest: str = ""      # the instrument snapshot THIS run was set up with
     durability: Durability | None = None
 
     # ── the entry point a scheduler calls ─────────────────────────────────────────────────────────
@@ -277,8 +278,14 @@ class ForwardSessionRunner:
         ledger.save(snapshot, durability=dur)                    # audited rollback input
 
         # ── the decision + the booking (nothing is written to the record yet) ──
+        if not str(self.expected_snapshot_digest or "").strip():
+            return self._stop(
+                iso, "INSTRUMENT_SNAPSHOT_UNAVAILABLE",
+                "no instrument-snapshot digest was configured for this run; a decision could not be "
+                "tied to the state it was taken under", count, exceptions)
         evaluator = ForwardEvaluator(ledger=ledger, decision_provider=self.decision_provider,
-                                     shadow_ledger_identity=self.shadow_ledger_identity)
+                                     shadow_ledger_identity=self.shadow_ledger_identity,
+                                     expected_snapshot_digest=self.expected_snapshot_digest)
         try:
             outcome = evaluator.evaluate_session(session_date, self.price_fn)
         except PriceUnavailable as exc:
