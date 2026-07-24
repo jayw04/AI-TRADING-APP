@@ -8,6 +8,7 @@ starting-capital guard (no retired 84466.41), durable save/reload, and a structu
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -16,7 +17,44 @@ import pytest
 
 from app.strategies.drift_audit_driver import capture_replica_seams
 from app.validation import shadow_ledger as sl_mod
+from app.validation.first_session import Durability
 from app.validation.shadow_ledger import ShadowLedger, ShadowLedgerError
+
+
+class _Noop(Durability):
+    """A durability adapter that no-ops both fsyncs (a 'passing' adapter for happy-path saves)."""
+
+    def fsync_file(self, path):
+        pass
+
+    def fsync_dir(self, path):
+        pass
+
+
+class _FailFileFsync(_Noop):
+    def fsync_file(self, path):
+        raise RuntimeError("injected file fsync failure")
+
+
+class _FailDirFsync(_Noop):
+    def fsync_dir(self, path):
+        raise RuntimeError("injected parent-dir fsync failure")
+
+
+class _OrderSpy(_Noop):
+    """Records the fsync call order and whether the destination held the NEW content at dir-fsync time."""
+
+    def __init__(self, dest):
+        self.dest = dest
+        self.calls: list[str] = []
+        self.dir_saw_new_content = False
+
+    def fsync_file(self, path):
+        self.calls.append("file")
+
+    def fsync_dir(self, path):
+        self.calls.append("dir")
+        self.dir_saw_new_content = self.dest.exists() and "sessions_processed" in self.dest.read_text()
 
 
 @dataclass
@@ -145,6 +183,51 @@ def test_durable_save_reload_roundtrip(tmp_path):
                       select_fn=_select, weigh_fn=_weigh, price_fn=_price)
     assert reloaded.state.equity == pytest.approx(cont.state.equity)
     assert reloaded.state.held == cont.state.held
+
+
+# ---- rename durability: fsync parent dir after replace; fail closed; never lose the real ledger ---
+
+def _fresh():
+    return ShadowLedger.start(starting_capital=100_000.0, turnover_cost_bps=10.0,
+                              backstop_days=21, weight_drift_pct=0.02)
+
+
+def test_file_fsync_failure_does_not_replace_the_existing_ledger(tmp_path):
+    p = tmp_path / "ledger.json"
+    _fresh().save(p, durability=_Noop())                     # an existing authoritative ledger
+    before = p.read_text(encoding="utf-8")
+    new = _fresh()
+    new.step(date(2020, 1, 2), _DS(["AAA", "BBB"], {"AAA": 2.0, "BBB": 1.0}, {"AAA": 1, "BBB": 2}),
+             1.0, select_fn=_select, weigh_fn=_weigh, price_fn=_price)      # different state
+    with pytest.raises(RuntimeError, match="file fsync"):
+        new.save(p, durability=_FailFileFsync())
+    assert p.read_text(encoding="utf-8") == before           # existing ledger untouched
+    assert not (tmp_path / "ledger.json.tmp").exists()       # temp cleaned up
+
+
+def test_os_replace_failure_preserves_the_existing_ledger(tmp_path, monkeypatch):
+    p = tmp_path / "ledger.json"
+    _fresh().save(p, durability=_Noop())
+    before = p.read_text(encoding="utf-8")
+    monkeypatch.setattr(os, "replace", lambda *a, **k: (_ for _ in ()).throw(OSError("boom")))
+    with pytest.raises(OSError, match="boom"):
+        _fresh().save(p, durability=_Noop())
+    assert p.read_text(encoding="utf-8") == before           # existing ledger preserved
+    assert not (tmp_path / "ledger.json.tmp").exists()       # temp cleaned up
+
+
+def test_parent_dir_fsync_runs_after_replacement(tmp_path):
+    p = tmp_path / "ledger.json"
+    spy = _OrderSpy(p)
+    _fresh().save(p, durability=spy)
+    assert spy.calls == ["file", "dir"]                      # file fsync, THEN dir fsync
+    assert spy.dir_saw_new_content is True                   # replace happened before the dir fsync
+
+
+def test_parent_dir_fsync_failure_is_reported_as_failure(tmp_path):
+    p = tmp_path / "ledger.json"
+    with pytest.raises(RuntimeError, match="parent-dir fsync"):
+        _fresh().save(p, durability=_FailDirFsync())         # NOT silently swallowed
 
 
 # ---- non-ordering (structural): the shadow ledger never IMPORTS the order path -------------------

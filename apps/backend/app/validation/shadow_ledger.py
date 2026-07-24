@@ -20,14 +20,17 @@ adjudicator, not here — this ledger carries the base run). Nothing in this mod
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import date
+from pathlib import Path
 from typing import Protocol
 
 from app.strategies.drift_audit import SeamRecord
+from app.validation.first_session import Durability, default_durability
 
 
 class DayScores(Protocol):
@@ -200,18 +203,33 @@ class ShadowLedger:
         return cls(turnover_cost_bps=d["turnover_cost_bps"], backstop_days=d["backstop_days"],
                    weight_drift_pct=d["weight_drift_pct"], state=ShadowLedgerState(**d["state"]))
 
-    def save(self, path) -> None:
-        """Atomically persist the ledger (temp + fsync + os.replace) so a crash never leaves a partial."""
+    def save(self, path: Path, *, durability: Durability | None = None) -> None:
+        """Atomically persist the ledger with FULL rename durability: write temp → fsync the temp file
+        → os.replace → fsync the PARENT DIRECTORY. Fails closed on any durability error (production
+        Linux — the parent-dir fsync failure is NOT suppressed). A pre-rename failure removes the temp
+        and NEVER deletes the authoritative existing ledger; a post-replace fsync failure is reported as
+        a failure (the new file is on disk but its rename durability is not guaranteed)."""
+        dur = durability or default_durability()
+        path.parent.mkdir(parents=True, exist_ok=True)
         data = self.to_json().encode("utf-8")
         tmp = path.with_suffix(path.suffix + ".tmp")
-        with open(tmp, "wb") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
+        replaced = False
+        try:
+            with open(tmp, "wb") as f:
+                f.write(data)
+                f.flush()
+            dur.fsync_file(tmp)                 # (1) temp durable BEFORE replace (injectable; fails closed)
+            os.replace(tmp, path)               # (2) atomic swap
+            replaced = True
+            dur.fsync_dir(path.parent)          # (3) parent-dir fsync AFTER replace (rename durability)
+        except BaseException:
+            if not replaced:                    # pre-rename failure: drop the temp, keep the real ledger
+                with contextlib.suppress(OSError):
+                    tmp.unlink()
+            raise
 
     @classmethod
-    def load(cls, path) -> ShadowLedger:
+    def load(cls, path: Path) -> ShadowLedger:
         return cls.from_json(path.read_text(encoding="utf-8"))
 
 
