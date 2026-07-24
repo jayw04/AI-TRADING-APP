@@ -34,9 +34,9 @@ observation, count unchanged. A sleeve is never carried at an earlier session's 
 
 ## Account 4 is probed immediately before the decision and again before publication
 
-The authoritative probe runs LAST among the preflight checks — after the lengthy readiness, artifact and
-data work — so the interval in which the live book could move unnoticed is as short as the session
-allows. It runs again after every decision and data read, before anything is published, and the two must
+The authoritative probe runs LAST of everything — after the readiness assessment, after the held-name
+price reads, after the pre-session ledger snapshot, and immediately before the instrument is evaluated —
+so the interval in which the live book could move unnoticed holds nothing lengthy. It runs again after every decision and data read, before anything is published, and the two must
 describe the same live state: a hold cleared, a strategy resumed, an order appearing or a position
 moving stops the session (ACCOUNT4_STATE_CHANGED_DURING_SESSION) even when each probe is individually
 safe. The probe path only reads; it never touches an Account-4 mutation surface.
@@ -270,16 +270,6 @@ class ForwardSessionRunner:
         if not finality.ready:
             return self._stop(iso, str(finality.verdict), finality.detail, count, exceptions)
 
-        # ── the AUTHORITATIVE Account-4 read, immediately before the instrument is evaluated ──
-        # Deliberately last among the preflight checks: the unchecked interval between this probe and
-        # publication is the window in which the live book could move unnoticed, so it is kept short.
-        account4_before: Account4Probe | None = None
-        if self.authoritative_account4_probe is not None:
-            try:
-                account4_before = self.authoritative_account4_probe()
-            except IntegrityStop as exc:
-                return self._stop(iso, "ACCOUNT4_STATE_UNSAFE", str(exc), count, exceptions)
-
         # ── every security already on the book must be markable at THIS session ──
         unmarkable = self._unmarkable(ledger.state.held, session_date)
         if unmarkable:
@@ -307,6 +297,17 @@ class ForwardSessionRunner:
                 iso, "INSTRUMENT_SNAPSHOT_UNAVAILABLE",
                 "no instrument-snapshot digest was configured for this run; a decision could not be "
                 "tied to the state it was taken under", count, exceptions)
+        # ── the AUTHORITATIVE Account-4 read, IMMEDIATELY before the instrument is evaluated ──
+        # Last of everything: after the readiness assessment, the held-name price reads and the
+        # pre-session snapshot. The unchecked interval between this probe and publication is the window
+        # in which the live book could move unnoticed, so nothing lengthy is left inside it.
+        account4_before: Account4Probe | None = None
+        if self.authoritative_account4_probe is not None:
+            try:
+                account4_before = self.authoritative_account4_probe()
+            except IntegrityStop as exc:
+                return self._stop(iso, "ACCOUNT4_STATE_UNSAFE", str(exc), count, exceptions)
+
         evaluator = ForwardEvaluator(ledger=ledger, decision_provider=self.decision_provider,
                                      shadow_ledger_identity=self.shadow_ledger_identity,
                                      expected_snapshot_digest=self.expected_snapshot_digest)
