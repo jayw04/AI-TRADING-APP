@@ -71,6 +71,9 @@ _RECOVERY_ORIGIN_STATES = frozenset(
     {
         C.STATE_REDUCTION_ONLY_DAILY_LOSS,
         C.STATE_REDUCTION_ONLY_BREAKER,
+        # A failed preflight returns HERE, not to NORMAL: the measurement gap is not closed by the
+        # attempt to recover from it.
+        C.STATE_REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE,
         C.STATE_INTEGRITY_STOP,
     }
 )

@@ -26,6 +26,7 @@ from app.db.models.symbol import Symbol
 from app.db.models.user import User
 from app.risk.loss_control import constants as C
 from app.risk.loss_control import preflight as pf
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D = Decimal
 NOW = datetime(2026, 7, 20, 15, 0, tzinfo=UTC)
@@ -149,7 +150,7 @@ async def test_session_baseline_valid_and_invalid(base):
 
 async def test_daily_loss_recomputed(base):
     async with base() as s:
-        s.add(AccountState(account_id=1, cash=D("1"), equity=D("94000"), last_equity=D("100000"),
+        s.add(AccountState(day_change_basis=BROKER_LAST_EQUITY, account_id=1, cash=D("1"), equity=D("94000"), last_equity=D("100000"),
                            buying_power=D("1"), portfolio_value=D("94000"), daytrade_count=0,
                            day_change=D("-6000"), day_change_pct=D("0"), status="ACTIVE",
                            updated_at=NOW, raw_payload={}))

@@ -28,6 +28,7 @@ from app.db.models.symbol import Symbol
 from app.db.models.user import User
 from app.risk.circuit_breaker import CircuitBreakerError, CircuitBreakerService
 from app.risk.engine import RiskEngine
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D = Decimal
 TODAY = "2026-07-20"
@@ -61,6 +62,7 @@ def _pin_session_date(monkeypatch, module, date=TODAY) -> None:
 
 def _state(equity="98000", last_equity="95000", day_change="-6000") -> AccountState:
     return AccountState(
+        day_change_basis=BROKER_LAST_EQUITY,
         account_id=1, cash=D("1"), equity=D(equity), last_equity=D(last_equity),
         buying_power=D("1"), portfolio_value=D(equity), daytrade_count=0,
         day_change=D(day_change), day_change_pct=D("0"), status="ACTIVE",

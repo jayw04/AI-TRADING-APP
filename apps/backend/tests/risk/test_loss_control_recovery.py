@@ -32,6 +32,7 @@ from app.risk.loss_control.state_machine import (
     TRIGGER_INTEGRITY_VIOLATION,
     TRIGGER_RECOVERY_REQUEST,
 )
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D = Decimal
 NOW = datetime(2026, 7, 20, 15, 0, tzinfo=UTC)
@@ -55,7 +56,7 @@ async def seeded(session_factory):
         s.add(Account(id=1, user_id=OWNER_ID, broker="alpaca", mode=AccountMode.paper, label="P"))
         s.add(Symbol(id=1, ticker="AAPL", exchange="NASDAQ", asset_class="us_equity",
                      name="Apple", active=True))
-        s.add(AccountState(account_id=1, cash=D("1"), equity=D("94000"), last_equity=D("100000"),
+        s.add(AccountState(day_change_basis=BROKER_LAST_EQUITY, account_id=1, cash=D("1"), equity=D("94000"), last_equity=D("100000"),
                            buying_power=D("1"), portfolio_value=D("94000"), daytrade_count=0,
                            day_change=D("-6000"), day_change_pct=D("0"), status="ACTIVE",
                            updated_at=NOW, raw_payload={}))

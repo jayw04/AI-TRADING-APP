@@ -36,6 +36,7 @@ from app.db.models.agent_session import AgentSession
 from app.db.models.agent_tool_invocation import AgentToolInvocation
 from app.db.models.user import User
 from app.llm.anthropic_client import AnthropicCall
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 
 def _now() -> datetime:
@@ -77,6 +78,7 @@ async def _seed(factory: async_sessionmaker) -> None:
         )
         db.add(
             AccountState(
+                day_change_basis=BROKER_LAST_EQUITY,
                 account_id=1,
                 cash=Decimal("50000"),
                 equity=Decimal("100000"),
