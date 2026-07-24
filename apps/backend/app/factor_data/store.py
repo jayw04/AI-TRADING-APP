@@ -92,6 +92,22 @@ CREATE TABLE IF NOT EXISTS ingest_runs (
   rows    BIGINT, status VARCHAR   -- 'running'|'ok'|'failed'
 );
 
+-- dataset COVERAGE provenance (forward-validation R5c). `ingest_runs` records that an ingest ran, not
+-- what it covered, so a consumer cannot tell "this window is clean" from "we happen to hold no rows in
+-- it". A completed ingest records the window it requested and the immutable identity of the artifact
+-- it loaded; a consumer that needs source authority reads THIS and refuses when it is absent, rather
+-- than inferring coverage from MIN/MAX of the rows that happen to be present.
+CREATE TABLE IF NOT EXISTS dataset_coverage (
+  dataset         VARCHAR NOT NULL,   -- 'sep' | 'actions' | ...
+  coverage_start  DATE    NOT NULL,   -- the window the ingest REQUESTED
+  coverage_end    DATE    NOT NULL,
+  artifact_sha256 VARCHAR NOT NULL,   -- immutable identity of the loaded artifact
+  source_identity VARCHAR NOT NULL,   -- vendor/dataset/version as fetched
+  rows_loaded     BIGINT,
+  recorded_at     TIMESTAMP NOT NULL,
+  status          VARCHAR NOT NULL    -- 'ok' only for a COMPLETED ingest
+);
+
 -- point-in-time fundamentals (FMP /stable layer, ADR 0018). One row per
 -- (ticker, period, period_end), merged across income/balance/cash-flow/key-metrics.
 -- accepted_date = the SEC-acceptance timestamp = the date the statement was
@@ -337,6 +353,32 @@ class FactorDataStore:
             "INSERT INTO ingest_runs VALUES (?, ?, ?, ?, ?)",
             [dataset, started_at, finished_at, rows, status],
         )
+
+    def record_dataset_coverage(
+        self, dataset: str, coverage_start: date, coverage_end: date, *,
+        artifact_sha256: str, source_identity: str, rows_loaded: int, recorded_at: datetime,
+        status: str = "ok",
+    ) -> None:
+        """Record what a COMPLETED ingest covered and which artifact it loaded.
+
+        Consumers that need source authority (the forward-validation adjustment verifier) read this
+        instead of guessing a coverage window from the rows present. Write it only when the ingest
+        actually finished: an absent row must keep meaning "coverage unknown"."""
+        self.con.execute(
+            "INSERT INTO dataset_coverage VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [dataset, coverage_start, coverage_end, artifact_sha256, source_identity,
+             rows_loaded, recorded_at, status],
+        )
+
+    def dataset_coverage(self, dataset: str) -> tuple | None:
+        """The most recently recorded COMPLETED coverage for `dataset`, or None when unknown."""
+        row = self.con.execute(
+            "SELECT dataset, coverage_start, coverage_end, artifact_sha256, source_identity, "
+            "rows_loaded, recorded_at, status FROM dataset_coverage "
+            "WHERE dataset = ? AND LOWER(status) = 'ok' ORDER BY recorded_at DESC LIMIT 1",
+            [dataset],
+        ).fetchone()
+        return tuple(row) if row is not None else None
 
     # ---- queries ------------------------------------------------------------
 

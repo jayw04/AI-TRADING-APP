@@ -190,6 +190,10 @@ class OpenObservation:
     operational_exceptions: list[str] = field(default_factory=list)
     # the sealed payload is referenced by digest only
     sealed_performance_sha256: str | None = None
+    # open data-finality provenance for the session (counts, dates, digests, verdicts — never
+    # performance). Recorded with the observation so a committed session carries the evidence that its
+    # inputs were final, not merely the claim that they were.
+    data_finality: dict | None = None
 
 
 def seal_performance(payload: dict) -> tuple[str, bytes]:

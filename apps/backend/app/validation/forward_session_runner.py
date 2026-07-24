@@ -23,6 +23,15 @@ isolation is re-proved by the authoritative before/after probes inside the commi
                      is unchanged, and the operational exception is appended to a log OUTSIDE the sealed
                      performance and OUTSIDE `observations/` (it can touch neither the chain nor count).
 
+## The session's DATA must be final before its decision is taken
+
+The runner refuses to evaluate a session whose inputs are not proven final, complete and correctly
+adjusted (R5a/R5b): the readiness verdict becomes the stop code, so `NOT_READY_DATA_STALE` or
+`NOT_READY_ADJUSTMENT_UNVERIFIED` appears verbatim in the record rather than a generic failure. With no
+gate configured the runner refuses outright. After the decision is taken the store identity is
+re-verified, so a store that moved underneath the reads is `DATA_STORE_CHANGED_DURING_SESSION` and
+nothing is committed. A committed observation carries the readiness evidence that justified it.
+
 ## An eligible session whose instrument did not evaluate is an INTEGRITY_STOP (owner ruling 2026-07-24)
 
 A production path that returns before `_evaluate` has not produced the required instrument decision.
@@ -72,9 +81,11 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import structlog
 
+from app.validation.data_finality import DataFinalityEvidence
 from app.validation.eval_calendar import (
     eligible_sessions,
     is_eligible_session,
@@ -91,6 +102,17 @@ from app.validation.observation_store import (
 )
 from app.validation.session_recorder import record_forward_session
 from app.validation.shadow_ledger import PriceFn, SessionOutcome, ShadowLedger
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from typing import Protocol
+
+    class DataReadinessCheck(Protocol):
+        """The data-finality gate (R5a/R5b), as the runner consumes it: assess the session before
+        anything is booked, and prove afterwards that the store did not move underneath the reads."""
+
+        def assess(self, session_date: date) -> DataFinalityEvidence: ...
+
+        def verify_unchanged(self, session_date: date, evidence: DataFinalityEvidence) -> None: ...
 
 logger = structlog.get_logger(__name__)
 
@@ -137,6 +159,7 @@ class ForwardSessionRunner:
     ledger_factory: Callable[[], ShadowLedger]
     deployed_tree_identity: str
     shadow_ledger_identity: str
+    readiness: DataReadinessCheck | None = None
     durability: Durability | None = None
 
     # ── the entry point a scheduler calls ─────────────────────────────────────────────────────────
@@ -209,6 +232,19 @@ class ForwardSessionRunner:
                     f"skip a session and will not back-fill one — this needs governed adjudication",
                     count, exceptions)
 
+        # ── the session's DATA must be final before anything is decided or booked ──
+        if self.readiness is None:
+            return self._stop(
+                iso, "DATA_READINESS_UNAVAILABLE",
+                "no data-finality gate is configured; the session's inputs cannot be shown to be "
+                "final, complete and correctly adjusted", count, exceptions)
+        try:
+            finality = self.readiness.assess(session_date)
+        except IntegrityStop as exc:
+            return self._stop(iso, "DATA_READINESS_UNAVAILABLE", str(exc), count, exceptions)
+        if not finality.ready:
+            return self._stop(iso, str(finality.verdict), finality.detail, count, exceptions)
+
         snapshot = self.store_dir / PRE_SESSION_SNAPSHOT
         if snapshot.exists():
             # A previous attempt died. Reconciliation above already proved ledger == record, so the
@@ -238,6 +274,12 @@ class ForwardSessionRunner:
                               f"context built for {ctx.session_date} but the session is {iso}",
                               count, exceptions)
 
+        # the reads are done: prove the store did not move underneath them
+        try:
+            self.readiness.verify_unchanged(session_date, finality)
+        except IntegrityStop as exc:
+            return self._stop(iso, "DATA_STORE_CHANGED_DURING_SESSION", str(exc), count, exceptions)
+
         operational = _operational_flags(exceptions)
         sealed = _sealed_performance(outcome, ledger)
         # The shadow ledger routes no orders, so `orders` is 0 by construction — the counter describes
@@ -252,7 +294,8 @@ class ForwardSessionRunner:
                     shadow_ledger_identity=self.shadow_ledger_identity,
                     account4_probe=self.account4_probe,
                     rebalances=rebalances, orders=orders, seeds=seeds, operational=operational,
-                    sealed_performance=sealed, store_dir=self.store_dir, durability=self.durability)
+                    sealed_performance=sealed, store_dir=self.store_dir, durability=self.durability,
+                    data_finality=finality.to_open_provenance())
                 sequence = first_prov.observation_sequence
             else:
                 _, prov, new_count = record_forward_session(
@@ -261,7 +304,8 @@ class ForwardSessionRunner:
                     shadow_ledger_identity=self.shadow_ledger_identity,
                     account4_probe=self.account4_probe,
                     rebalances=rebalances, orders=orders, seeds=seeds, operational=operational,
-                    sealed_performance=sealed, store_dir=self.store_dir, durability=self.durability)
+                    sealed_performance=sealed, store_dir=self.store_dir, durability=self.durability,
+                    data_finality=finality.to_open_provenance())
                 sequence = prov.observation_sequence
         except IntegrityStop as exc:
             # Not committed => not booked: the ledger is saved only after a successful commit, so the

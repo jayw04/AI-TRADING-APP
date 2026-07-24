@@ -26,7 +26,7 @@ from app.validation.forward_session_runner import (
     ForwardSessionRunner,
     SessionRunStatus,
 )
-from app.validation.forward_window import ForwardRunContext
+from app.validation.forward_window import ForwardRunContext, IntegrityStop
 from app.validation.observation_store import (
     Account4StateProbe,
     Durability,
@@ -104,7 +104,38 @@ def context_builder(artifacts):
     return build
 
 
-def _runner(tmp_path, context_builder, *, provider=None) -> ForwardSessionRunner:
+class _StubFinality:
+    """The readiness evidence the runner consumes: a verdict, a detail and open provenance."""
+
+    def __init__(self, ready: bool = True, verdict: str = "READY", detail: str = "stub ready"):
+        self.ready = ready
+        self.verdict = verdict
+        self.detail = detail
+
+    def to_open_provenance(self) -> dict:
+        return {"verdict": self.verdict, "detail": self.detail, "session_evidence": "stub"}
+
+
+class _StubReadiness:
+    """Stands in for the R5a/R5b gate. `moved` makes the post-decision store re-check fail."""
+
+    def __init__(self, evidence: _StubFinality | None = None, *, raises: bool = False,
+                 moved: bool = False):
+        self.evidence = evidence or _StubFinality()
+        self.raises = raises
+        self.moved = moved
+
+    def assess(self, session_date):
+        if self.raises:
+            raise IntegrityStop("the factor store could not be interrogated")
+        return self.evidence
+
+    def verify_unchanged(self, session_date, evidence):
+        if self.moved:
+            raise IntegrityStop("the factor store changed during session")
+
+
+def _runner(tmp_path, context_builder, *, provider=None, readiness=None) -> ForwardSessionRunner:
     return ForwardSessionRunner(
         store_dir=tmp_path / "store", ledger_path=tmp_path / "store" / "ledger.json",
         decision_provider=provider or (lambda d: _decision(d)), price_fn=_price,
@@ -112,7 +143,8 @@ def _runner(tmp_path, context_builder, *, provider=None) -> ForwardSessionRunner
         ledger_factory=lambda: ShadowLedger.start(starting_capital=100_000.0,
                                                   turnover_cost_bps=10.0, backstop_days=21,
                                                   weight_drift_pct=0.02),
-        deployed_tree_identity=TREE, shadow_ledger_identity=LEDGER_ID)
+        deployed_tree_identity=TREE, shadow_ledger_identity=LEDGER_ID,
+        readiness=readiness if readiness is not None else _StubReadiness())
 
 
 def _stop_lines(store: Path) -> list[dict]:
@@ -441,3 +473,56 @@ def test_stop_log_creation_fsyncs_the_file_and_its_parent_directory(tmp_path, co
     _run(r, SESSION_2, ts="2026-07-27T21:10:00Z")              # appends to an existing log
     assert log in dur.files
     assert r.store_dir not in dur.dirs                         # only on creation, not on every append
+
+
+# ---- the session's data must be proven final before the decision is taken (R5c) ----------------------
+
+def test_no_readiness_gate_configured_refuses(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    r.readiness = None
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "DATA_READINESS_UNAVAILABLE"
+    assert res.session_count == 0
+    assert not (r.store_dir / "observations").exists()
+
+
+@pytest.mark.parametrize("verdict", [
+    "NOT_READY_DATA_STALE", "NOT_READY_ADJUSTMENT_UNVERIFIED", "NOT_READY_LOOKBACK_INCOMPLETE",
+    "INTEGRITY_STOP_DATA_CONFLICT",
+])
+def test_an_unready_verdict_becomes_the_stop_code_verbatim(verdict, tmp_path, context_builder):
+    """The taxonomy survives into the record: an operator reads why the session did not run, not a
+    generic failure."""
+    r = _runner(tmp_path, context_builder,
+                readiness=_StubReadiness(_StubFinality(ready=False, verdict=verdict,
+                                                       detail=f"{verdict} detail")))
+    res = _run(r, SESSION_1)
+    assert res.status is SessionRunStatus.INTEGRITY_STOP
+    assert res.exception_code == verdict
+    assert res.session_count == 0
+    assert verdict in [ln["code"] for ln in _stop_lines(r.store_dir)]
+
+
+def test_a_readiness_assessment_that_fails_closed_refuses(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder, readiness=_StubReadiness(raises=True))
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "DATA_READINESS_UNAVAILABLE"
+
+
+def test_a_store_that_moves_during_the_session_commits_nothing(tmp_path, context_builder):
+    """The decision was taken against data that then changed: nothing is committed and the durable
+    ledger still holds the pre-session state."""
+    r = _runner(tmp_path, context_builder, readiness=_StubReadiness(moved=True))
+    res = _run(r, SESSION_1)
+    assert res.exception_code == "DATA_STORE_CHANGED_DURING_SESSION"
+    assert res.session_count == 0
+    assert not (r.store_dir / "observations" / "000001").exists()
+    assert not r.ledger_path.exists()
+
+
+def test_a_committed_observation_carries_the_readiness_evidence(tmp_path, context_builder):
+    r = _runner(tmp_path, context_builder)
+    _run(r, SESSION_1)
+    rec = json.loads((r.store_dir / "observations" / "000001" / "open.json").read_bytes())
+    assert rec["data_finality"]["verdict"] == "READY"
+    assert "strategy_return" not in json.dumps(rec["data_finality"])       # still no performance
