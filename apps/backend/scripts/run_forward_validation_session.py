@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Forward-validation CLI (R5c-2b) — readiness, or one governed session.
+"""Forward-validation readiness CLI (R5c-2b1).
 
 The production entry point. It builds the entire runner ITSELF from the governed deployment
 configuration; the only invocation-time inputs are the mode, the session date and the authorization
@@ -10,22 +10,18 @@ an operator can point at is not evidence.
                   It does NOT construct the instrument, does NOT take a snapshot, does NOT evaluate,
                   book or commit. Nothing it does can change durable strategy state.
 
-    run-session   requires explicit authorization. Runs every readiness check, then takes exactly ONE
-                  instrument snapshot and hands its digest to the provider, the evaluator and the
-                  runner alike, evaluates the real instrument, books at the registered turnover cost,
-                  and commits one observation — stopping at the first red prerequisite.
-
-Being runnable does not open the forward window: a session still requires the data gate to be READY
-(which needs the authoritative ACTIONS ingest), Account 4 safely paused and held, an identified
-deployment, and the operator's authorization for that specific session.
+There is deliberately NO run-session command in this increment. Assembling a runnable session — the
+data-coupled scores/bars providers, the single instrument snapshot shared by provider, evaluator and
+runner, the shadow ledger and observation store, and the authoritative pre/post Account-4 probe — is
+R5c-2b2 and arrives as its own reviewed increment. A command that refused every invocation while being
+named `run-session` would misrepresent what this deployment can do.
 
     python scripts/run_forward_validation_session.py readiness [--session-date YYYY-MM-DD]
-    python scripts/run_forward_validation_session.py run-session --authorize <token> [--session-date …]
 
 Exit codes:
-    0  READY / RECORDED / ALREADY_RECORDED / NOT_ELIGIBLE   — nothing for the operator to do
-    1  NOT_READY / INTEGRITY_STOP                            — a governed refusal, evidence recorded
-    2  configuration refusal or an unexpected error          — the run never reached the record
+    0  READY / NOT_ELIGIBLE          — nothing for the operator to do
+    1  NOT_READY / INTEGRITY_STOP    — a governed refusal, with the evidence that produced it
+    2  configuration refusal or an unexpected error
 """
 
 from __future__ import annotations
@@ -57,8 +53,6 @@ from app.validation.production_bindings import (  # noqa: E402
     build_forward_context,
     declare_action_source,
 )
-
-AUTHORIZATION_ENV = "FORWARD_VALIDATION_AUTHORIZATION"
 
 
 class _StoreScoresProvider:
@@ -135,12 +129,15 @@ def _open_store(config: ForwardDeploymentConfig):
     return FactorDataStore(db_path=str(config.factor_store_path), read_only=True)
 
 
-def _adjustment_verifier(store: Any, config: ForwardDeploymentConfig, store_identity: str):
+def _adjustment_verifier(store: Any, config: ForwardDeploymentConfig):
     from app.validation.adjustment_verifier import verify_adjustments
 
     source = declare_action_source(store)
 
-    def verifier(window_start: date, session_date: date, tickers: list[str]):
+    def verifier(window_start: date, session_date: date, tickers: list[str],
+                 store_identity: str):
+        # The identity is the one the finality assessment computed, so the adjustment verdict and the
+        # surrounding readiness evidence are bound to the same identified store.
         return verify_adjustments(store, window_start=window_start, session_date=session_date,
                                   relevant_tickers=tickers, source=source,
                                   store_identity_sha256=store_identity)
@@ -182,8 +179,8 @@ def run_readiness(config: ForwardDeploymentConfig, session: date) -> _ReadinessR
             "identity": source.identity, "authoritative": source.authoritative,
             "coverage_start": str(source.coverage_start), "coverage_end": str(source.coverage_end)}
 
-        finality = assess_data_finality(store, session,
-                                        adjustment_verifier=_adjustment_verifier(store, config, ""))
+        finality = assess_data_finality(
+            store, session, adjustment_verifier=_adjustment_verifier(store, config))
         evidence["data_finality"] = finality.to_open_provenance()
 
         scores = _StoreScoresProvider(store, finality.store_identity_sha256, 200, 252, 21)
@@ -210,33 +207,11 @@ def run_readiness(config: ForwardDeploymentConfig, session: date) -> _ReadinessR
         store.close()
 
 
-def run_session(config: ForwardDeploymentConfig, session: date, *, authorization: str) -> int:
-    """One governed session. Requires explicit authorization and fails closed on every red prerequisite.
-
-    The data-coupled providers land in the deployment increment (R5d); until they do, this refuses
-    rather than evaluating the instrument against a provider that cannot read.
-    """
-    readiness = run_readiness(config, session)
-    if readiness.verdict != "READY":
-        readiness.emit()
-        return 1
-    print(json.dumps({
-        "mode": "run-session", "session_date": session.isoformat(), "status": "REFUSED",
-        "detail": "readiness passes, but the data-coupled scores/bars providers are not yet wired "
-                  "(R5d). A session is never evaluated against providers that cannot read.",
-        "authorization_present": bool(authorization),
-    }, indent=2))
-    return 2
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("mode", choices=["readiness", "run-session"])
+    parser.add_argument("mode", choices=["readiness"])
     parser.add_argument("--session-date", type=date.fromisoformat, default=None,
                         help=f"session to assess (default: today in {GOVERNING_TZ})")
-    parser.add_argument("--authorize", default="",
-                        help="explicit authorization for run-session (or set "
-                             f"{AUTHORIZATION_ENV})")
     args = parser.parse_args(argv)
 
     session = args.session_date or _governing_today()
@@ -247,19 +222,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        if args.mode == "readiness":
-            return run_readiness(config, session).emit()
-
-        import os
-
-        authorization = args.authorize or os.environ.get(AUTHORIZATION_ENV, "")
-        if not authorization.strip():
-            print(json.dumps({
-                "mode": "run-session", "status": "REFUSED",
-                "detail": "run-session requires explicit authorization; readiness needs none",
-            }, indent=2))
-            return 2
-        return run_session(config, session, authorization=authorization)
+        return run_readiness(config, session).emit()
     except IntegrityStop as exc:
         print(json.dumps({"mode": args.mode, "session_date": session.isoformat(),
                           "status": "INTEGRITY_STOP", "detail": str(exc)}, indent=2))
@@ -270,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
 
-__all__ = ["DataFinalityEvidence", "main", "run_readiness", "run_session", "verify_store_unchanged"]
+__all__ = ["DataFinalityEvidence", "main", "run_readiness", "verify_store_unchanged"]
 
 if __name__ == "__main__":
     raise SystemExit(main())

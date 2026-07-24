@@ -90,23 +90,25 @@ def store(tmp_path):
 
 class _StubAdjustment:
     """A stand-in for the R5b verifier's evidence object. The gate must DERIVE its verdict from this,
-    never from a caller-supplied boolean."""
+    never from a caller-supplied boolean — and must check the store identity it is bound to."""
 
-    def __init__(self, proven: bool, detail: str = "stub"):
+    def __init__(self, proven: bool, detail: str = "stub", store_identity: str = ""):
         self.proven = proven
         self._detail = detail
+        self._store_identity = store_identity
 
     def to_open_provenance(self) -> dict:
         return {"verdict": "PROVEN" if self.proven else "NOT_PROVEN_INSUFFICIENT_DATA",
-                "detail": self._detail, "proven": self.proven}
+                "detail": self._detail, "proven": self.proven,
+                "store_identity_sha256": self._store_identity}
 
 
-def _proven(window_start, session_date, tickers):
-    return _StubAdjustment(True, "all relevant actions reflected (stub)")
+def _proven(window_start, session_date, tickers, store_identity):
+    return _StubAdjustment(True, "all relevant actions reflected (stub)", store_identity)
 
 
-def _not_proven(window_start, session_date, tickers):
-    return _StubAdjustment(False, "reflection not proven (stub)")
+def _not_proven(window_start, session_date, tickers, store_identity):
+    return _StubAdjustment(False, "reflection not proven (stub)", store_identity)
 
 
 def _assess(store, session=SESSION, **kw):
@@ -373,10 +375,11 @@ def test_the_relevance_set_passed_to_the_verifier_covers_candidates_and_the_prox
     including names that left the universe mid-window but priced into the consumed history."""
     seen: dict = {}
 
-    def capture(window_start, session_date, tickers):
+    def capture(window_start, session_date, tickers, store_identity):
         seen["window_start"] = window_start
         seen["tickers"] = tickers
-        return _StubAdjustment(True)
+        seen["store_identity"] = store_identity
+        return _StubAdjustment(True, store_identity=store_identity)
 
     _assess(store, adjustment_verifier=capture)
     assert seen["window_start"] < SESSION
@@ -386,10 +389,10 @@ def test_the_relevance_set_passed_to_the_verifier_covers_candidates_and_the_prox
 
 def test_the_real_verifier_wires_through_the_gate(store):
     """End-to-end with R5b: an authoritative source, a clean window, no undeclared adjustment."""
-    def verifier(window_start, session_date, tickers):
+    def verifier(window_start, session_date, tickers, store_identity):
         return verify_adjustments(store, window_start=window_start, session_date=session_date,
                                   relevant_tickers=tickers, source=REAL_SOURCE,
-                                  store_identity_sha256="test")
+                                  store_identity_sha256=store_identity)
 
     ev = _assess(store, adjustment_verifier=verifier)
     assert ev.verdict is DataReadiness.READY
@@ -403,10 +406,10 @@ def test_the_real_verifier_refuses_an_undeclared_adjustment(store):
     store.con.execute("UPDATE sep SET close = close * 0.5 WHERE ticker = 'T0000' AND date >= ?",
                       [ex_date])
 
-    def verifier(window_start, session_date, tickers):
+    def verifier(window_start, session_date, tickers, store_identity):
         return verify_adjustments(store, window_start=window_start, session_date=session_date,
                                   relevant_tickers=tickers, source=REAL_SOURCE,
-                                  store_identity_sha256="test")
+                                  store_identity_sha256=store_identity)
 
     ev = _assess(store, adjustment_verifier=verifier)
     assert ev.verdict is DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED
@@ -485,3 +488,48 @@ def test_whole_file_digest_is_deterministic(tmp_path: Path):
     p.write_bytes(b"forward-validation" * 1000)
     assert whole_file_digest(p) == whole_file_digest(p)
     assert len(whole_file_digest(p)) == 64
+
+
+# ---- the adjustment verdict is bound to the identity THIS assessment computed -----------------------
+
+def test_the_adjustment_evidence_carries_the_assessments_own_store_identity(store):
+    ev = _assess(store)
+    assert ev.verdict is DataReadiness.READY
+    assert ev.adjustment_evidence["store_identity_sha256"] == ev.store_identity_sha256
+    assert ev.store_identity_sha256 != ""
+
+
+def test_the_verifier_is_handed_the_computed_identity(store):
+    seen: dict = {}
+
+    def capture(window_start, session_date, tickers, store_identity):
+        seen["store_identity"] = store_identity
+        return _StubAdjustment(True, store_identity=store_identity)
+
+    ev = _assess(store, adjustment_verifier=capture)
+    assert seen["store_identity"] == ev.store_identity_sha256 != ""
+
+
+@pytest.mark.parametrize("bound", ["", "a" * 64, "not-the-identity"])
+def test_adjustment_evidence_bound_to_another_identity_is_refused(bound, store):
+    """A green adjustment verdict proves nothing unless it was run against the same identified store
+    the surrounding readiness evidence describes."""
+    def mismatched(window_start, session_date, tickers, store_identity):
+        return _StubAdjustment(True, "proven against a different store", bound)
+
+    ev = _assess(store, adjustment_verifier=mismatched)
+    assert ev.verdict is DataReadiness.INTEGRITY_STOP_DATA_CONFLICT
+    assert "do not describe the same data" in ev.detail
+
+
+def test_the_real_verifier_binds_the_same_identity_end_to_end(store):
+    def verifier(window_start, session_date, tickers, store_identity):
+        return verify_adjustments(store, window_start=window_start, session_date=session_date,
+                                  relevant_tickers=tickers, source=REAL_SOURCE,
+                                  store_identity_sha256=store_identity)
+
+    ev = _assess(store, adjustment_verifier=verifier)
+    assert ev.verdict is DataReadiness.READY
+    assert ev.adjustment_evidence["store_identity_sha256"] == ev.store_identity_sha256
+    # the relevance digest the verifier recorded is bound to that same identity
+    assert len(ev.adjustment_evidence["relevance_set_sha256"]) == 64

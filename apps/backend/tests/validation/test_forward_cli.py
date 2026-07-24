@@ -127,11 +127,11 @@ def test_the_configuration_is_located_by_the_deployment(deployment):
 
 
 def test_the_cli_exposes_no_path_arguments():
-    """Only the mode, the session date and the authorization token are invocation-time inputs."""
+    """Only the mode and the session date are invocation-time inputs."""
     source = (BACKEND / "scripts" / "run_forward_validation_session.py").read_text(encoding="utf-8")
     flags = {line.split('"')[1] for line in source.splitlines()
              if "add_argument(" in line and '"--' in line}
-    assert flags == {"--session-date", "--authorize"}
+    assert flags == {"--session-date"}
 
 
 def test_a_missing_configuration_is_refused(tmp_path, monkeypatch):
@@ -215,26 +215,26 @@ def test_the_provider_identities_bind_the_store_and_construction(deployment):
         assert "stage4.build_market_proxy|store=" in identities["bars"]
 
 
-# ---- run-session requires explicit authorization ----------------------------------------------------
+# ---- this increment offers readiness ONLY -----------------------------------------------------------
 
-def test_run_session_without_authorization_is_refused(deployment, capsys, monkeypatch):
-    monkeypatch.delenv(cli.AUTHORIZATION_ENV, raising=False)
-    assert cli.main(["run-session", "--session-date", SESSION.isoformat()]) == 2
-    assert "requires explicit authorization" in capsys.readouterr().out
+def test_the_cli_offers_no_run_session_mode():
+    """R5c-2b1 ships readiness. A command that refused every invocation while being named
+    `run-session` would misrepresent what the deployment can do; the assembly is R5c-2b2."""
+    source = (BACKEND / "scripts" / "run_forward_validation_session.py").read_text(encoding="utf-8")
+    assert 'choices=["readiness"]' in source
+    assert "def run_session(" not in source
+    assert "--authorize" not in source
+
+
+def test_an_unknown_mode_is_rejected(deployment):
+    with pytest.raises(SystemExit):
+        cli.main(["run-session"])
 
 
 def test_readiness_requires_no_authorization(deployment, capsys):
     exit_code = cli.main(["readiness", "--session-date", SESSION.isoformat()])
     assert exit_code in (0, 1)                     # a verdict, not a refusal to run
     assert "readiness" in capsys.readouterr().out
-
-
-def test_run_session_stops_when_readiness_is_red(deployment, capsys):
-    """Authorization does not override a red prerequisite."""
-    assert cli.main(["run-session", "--authorize", "operator-token",
-                     "--session-date", SESSION.isoformat()]) in (1, 2)
-    out = capsys.readouterr().out
-    assert "RECORDED" not in out
 
 
 def test_a_missing_configuration_refuses_before_anything_else(tmp_path, monkeypatch, capsys):
