@@ -25,6 +25,12 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
 from app.events.bus import EventBus
 from app.risk.loss_control.session_baseline import SessionBaselineShadow
+from app.services.day_change_basis import (
+    UNAVAILABLE,
+    UNMEASURED,
+    from_broker_last_equity,
+    prior_session_close_proxy,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -108,6 +114,7 @@ class AccountSyncService:
         here."""
         async with self._session_factory() as session:
             now = datetime.now(UTC)
+            await self._resolve_day_change(session, account_id, payload, now)
             stmt = sqlite_insert(AccountState).values(
                 account_id=account_id, **payload, updated_at=now, raw_payload=raw,
             )
@@ -122,6 +129,7 @@ class AccountSyncService:
                     "daytrade_count": stmt.excluded.daytrade_count,
                     "day_change": stmt.excluded.day_change,
                     "day_change_pct": stmt.excluded.day_change_pct,
+                    "day_change_basis": stmt.excluded.day_change_basis,
                     "status": stmt.excluded.status,
                     "pattern_day_trader": stmt.excluded.pattern_day_trader,
                     "trading_blocked": stmt.excluded.trading_blocked,
@@ -147,6 +155,44 @@ class AccountSyncService:
             {"account_id": account_id,
              **{k: str(v) if isinstance(v, Decimal) else v for k, v in payload.items()}},
         )
+
+    async def _resolve_day_change(
+        self,
+        session: AsyncSession,
+        account_id: int,
+        payload: dict[str, Any],
+        now: datetime,
+    ) -> None:
+        """Fill in the day-change fields that ``_normalize_account`` could not decide alone.
+
+        ``_normalize_account`` is a pure mapping of the broker payload, so it can only reach
+        ``BROKER_LAST_EQUITY`` or ``UNAVAILABLE``. The prior-close proxy needs the equity-snapshot
+        history, so it is resolved here, against the same session the upsert runs in. Mutates
+        ``payload`` in place so the persisted row, the returned payload, and the published event all
+        carry one consistent answer — the caller must not have consumed them yet.
+
+        A failure to read the snapshot history leaves the basis ``UNAVAILABLE``. It never invents a
+        number, and it never interrupts the sync.
+        """
+        if payload["day_change_basis"] != UNAVAILABLE:
+            return
+        try:
+            fallback = await prior_session_close_proxy(
+                session, account_id, payload["equity"], now
+            )
+        except Exception:
+            logger.exception("account_sync_day_change_proxy_failed", account_id=account_id)
+            return
+        if fallback is None:
+            logger.info(
+                "account_sync_day_change_unavailable",
+                account_id=account_id,
+                reason="no_usable_last_equity_and_no_eligible_prior_close_snapshot",
+            )
+            return
+        payload["day_change"] = fallback.day_change
+        payload["day_change_pct"] = fallback.day_change_pct
+        payload["day_change_basis"] = fallback.basis
 
     async def _maybe_capture_session_baseline(
         self,
@@ -194,15 +240,14 @@ def _normalize_account(raw: dict[str, Any]) -> dict[str, Any]:
     """Map Alpaca's account fields to `AccountState` column names."""
     equity = _to_decimal(raw.get("equity"))
     last_equity = _to_decimal(raw.get("last_equity"))
-    # Alpaca may omit or zero last_equity on fresh paper accounts; equity − 0 would
-    # mis-report the full book as "today's change". Leave day metrics at zero here;
-    # GET /account falls back to equity_snapshots when last_equity is unusable.
-    if last_equity > 0:
-        day_change = equity - last_equity
-        day_change_pct = day_change / last_equity  # fraction (matches total_return_pct)
-    else:
-        day_change = Decimal(0)
-        day_change_pct = Decimal(0)
+    # Alpaca omits or zeroes last_equity on fresh paper accounts, and `equity - 0` would report the
+    # entire book as today's change. With no baseline the answer is UNKNOWN, not zero — the caller
+    # (`_resolve_day_change`) may still reach the prior-close proxy, which needs a DB session this
+    # pure mapping does not have.
+    measured = from_broker_last_equity(equity, last_equity)
+    day_change = measured.day_change if measured else UNMEASURED.day_change
+    day_change_pct = measured.day_change_pct if measured else UNMEASURED.day_change_pct
+    day_change_basis = measured.basis if measured else UNMEASURED.basis
     return {
         "cash": _to_decimal(raw.get("cash")),
         "equity": equity,
@@ -212,6 +257,7 @@ def _normalize_account(raw: dict[str, Any]) -> dict[str, Any]:
         "daytrade_count": int(raw.get("daytrade_count") or 0),
         "day_change": day_change,
         "day_change_pct": day_change_pct,
+        "day_change_basis": day_change_basis,
         "status": str(raw.get("status") or "UNKNOWN"),
         "pattern_day_trader": bool(raw.get("pattern_day_trader") or False),
         "trading_blocked": bool(raw.get("trading_blocked") or False),
