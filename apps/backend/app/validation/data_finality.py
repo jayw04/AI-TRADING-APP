@@ -24,8 +24,9 @@ computation consumes, and it records what it found next to what the construction
   NOT_READY_PROXY_INCOMPLETE        a proxy constituent cannot contribute its return, on this session
                                     or on any of the 200 MA sessions
   NOT_READY_INGEST_IN_PROGRESS      an ingest is running, or the last one did not finish clean
-  NOT_READY_ADJUSTMENT_UNVERIFIED   corporate actions touch the consumed window and their reflection in
-                                    `closeadj` is not proven
+  NOT_READY_ADJUSTMENT_UNVERIFIED   corporate-action reflection over the consumed window is not proven
+                                    (including: no verifier configured, or the declared set is
+                                    incomplete)
   INTEGRITY_STOP_DATA_CONFLICT      the data contradicts itself (duplicates, or the store moved
                                     underneath a run)
 
@@ -39,12 +40,15 @@ it is not, the reason must be a frozen eligibility RULE (listed after the window
 the session) rather than a hole in the data. Every count is reported as a numerator over the
 construction's own denominator, so "how much data was missing" is never a matter of interpretation.
 
-## Corporate actions gate the session until reflection is proven
+## Corporate actions gate the session until reflection is PROVEN
 
-The schema cannot show that an action is already baked into `closeadj`. Rather than record
-`adjustment_reflection_proven=False` beside a READY verdict, an unproven adjustment in the consumed
-window is `NOT_READY_ADJUSTMENT_UNVERIFIED` (owner ruling 2026-07-24). `adjustment_verifier` is the seam
-a future verifier plugs into; there is none today, so any window containing an action is refused.
+The schema cannot show that an action is already baked into `closeadj`, and — critically — an EMPTY
+`actions` table is not evidence that no action occurred. The governed store holds zero action rows while
+`closeadj` departs from `close` on ~48% of its 39M rows, so a row count would let a session pass
+vacuously. Reflection must therefore be proven by an `adjustment_verifier` (R5b) whose evidence object
+the gate reads; the gate derives `adjustment_reflection_proven` from that verdict and never accepts an
+independently supplied boolean. No verifier configured means nothing is proven, which means the session
+does not run (owner ruling 2026-07-24).
 
 ## The store identity is value-level
 
@@ -64,7 +68,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from app.validation.forward_window import IntegrityStop
 
@@ -155,6 +159,7 @@ class DataFinalityEvidence:
     corporate_actions_in_window: int
     corporate_actions_max_date: str | None
     adjustment_reflection_proven: bool
+    adjustment_evidence: dict[str, Any] | None
     # what the construction required
     construction: dict[str, int] = field(default_factory=dict)
     missing_examples: tuple[str, ...] = ()     # a few names, for operational diagnosis
@@ -172,7 +177,20 @@ class DataFinalityEvidence:
 
 
 UniverseFn = Callable[[date, int], list[str]]
-AdjustmentVerifier = Callable[[date, int], bool]
+
+
+class AdjustmentEvidence(Protocol):
+    """What an adjustment verifier returns. The gate DERIVES `adjustment_reflection_proven` from this
+    evidence — it never accepts an independently supplied boolean."""
+    proven: bool
+
+    def to_open_provenance(self) -> dict[str, Any]: ...
+
+
+# (window_start, session_date, relevant_tickers) -> evidence. The relevance set is the union of the
+# scoring candidates and the whole market-proxy basket, so a security that left the universe mid-window
+# but priced into the consumed history is still covered.
+AdjustmentVerifier = Callable[[date, date, list[str]], AdjustmentEvidence]
 
 
 class _Store:
@@ -376,11 +394,11 @@ def assess_data_finality(
         "session_eligible_universe": 0, "session_complete": 0, "session_excluded_by_rule": 0,
         "session_missing": 0, "momentum_candidates": 0, "full_lookback_candidates": 0,
         "proxy_expected": 0, "proxy_contributing": 0, "proxy_sessions_checked": 0,
-        "proxy_sessions_incomplete": 0, "missing_examples": (),
+        "proxy_sessions_incomplete": 0, "missing_examples": (), "relevance_tickers": (),
     }
 
-    def evidence(verdict: DataReadiness, detail: str, basis: str = "",
-                 proven: bool = False) -> DataFinalityEvidence:
+    def evidence(verdict: DataReadiness, detail: str, basis: str = "", proven: bool = False,
+                 adjustment: dict[str, Any] | None = None) -> DataFinalityEvidence:
         return DataFinalityEvidence(
             session_date=iso, verdict=verdict, detail=detail, store_path=st.path,
             store_identity_sha256=identity, ingest_identity_sha256=ingest_digest,
@@ -404,7 +422,7 @@ def assess_data_finality(
             duplicate_row_count=duplicates,
             corporate_actions_in_window=int(actions_count or 0),
             corporate_actions_max_date=_iso(actions_max),
-            adjustment_reflection_proven=proven,
+            adjustment_reflection_proven=proven, adjustment_evidence=adjustment,
             construction=asdict(spec), missing_examples=state["missing_examples"])
 
     # (1) mid-flight or unclean ingest
@@ -484,6 +502,7 @@ def assess_data_finality(
 
     candidates = [t for t in universe if not _excluded_by_rule(facts.get(t), window_start, session_date)]
     state["momentum_candidates"] = len(candidates)
+    state["relevance_tickers"] = tuple(sorted(set(state["relevance_tickers"]) | set(candidates)))
     full = _names_with_full_history(st, candidates, window_start, session_date,
                                     len(window_dates))
     state["full_lookback_candidates"] = len(full)
@@ -501,18 +520,28 @@ def assess_data_finality(
     if proxy_verdict is not None:
         return evidence(DataReadiness.NOT_READY_PROXY_INCOMPLETE, proxy_verdict, basis)
 
-    # (7) corporate-action reflection — unproven adjustments refuse the session
-    proven = bool(adjustment_verifier(session_date, int(actions_count or 0))) \
-        if adjustment_verifier is not None else False
-    if actions_count and not proven:
+    # (7) corporate-action reflection — PROVEN by a verifier, or the session does not run.
+    #
+    # An empty `actions` table is NOT evidence that no action occurred: the governed store holds zero
+    # action rows while `closeadj` departs from `close` on ~48% of its 39M rows. Counting rows would let
+    # a session pass vacuously, so reflection must be proven by a verifier that also detects adjustment
+    # events the declared set does not explain. With no verifier configured, nothing is proven.
+    if adjustment_verifier is None:
         return evidence(
             DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED,
-            f"{actions_count} corporate action(s) touch the consumed window (latest "
-            f"{_iso(actions_max)}) and their reflection in closeadj is not proven — no adjustment "
-            f"verifier exists", basis, proven)
+            f"no adjustment verifier is configured, so corporate-action reflection over the consumed "
+            f"window cannot be proven ({actions_count} declared action row(s), latest "
+            f"{_iso(actions_max)}); an absent action table is not evidence that none occurred", basis)
+    result = adjustment_verifier(window_start, session_date, list(state["relevance_tickers"]))
+    if not result.proven:
+        return evidence(
+            DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED,
+            "corporate-action reflection over the consumed window is not proven: "
+            f"{result.to_open_provenance().get('detail', '')}",
+            basis, False, result.to_open_provenance())
 
-    return evidence(DataReadiness.READY,
-                    "all registered inputs are present, complete and final", basis, proven)
+    return evidence(DataReadiness.READY, "all registered inputs are present, complete and final",
+                    basis, True, result.to_open_provenance())
 
 
 def _names_with_full_history(st: _Store, names: list[str], window_start: Any, session_date: date,
@@ -560,6 +589,9 @@ def _assess_proxy(st: _Store, uni: UniverseFn, spec: ConstructionSpec, window_da
                 if not _excluded_by_rule(facts.get(t), window_start, session_date)]
     state["proxy_expected"] = len(expected)
     state["proxy_sessions_checked"] = len(ma_dates)
+    # Relevance for adjustment verification is the WHOLE basket, not just today's expected set: a name
+    # that left the universe mid-window still priced into the consumed history.
+    state["relevance_tickers"] = tuple(sorted(set(state["relevance_tickers"]) | basket))
 
     ph = ",".join("?" * len(expected)) if expected else "''"
     rows = st.all(

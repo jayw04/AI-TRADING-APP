@@ -17,6 +17,7 @@ import pandas as pd
 import pytest
 
 from app.factor_data.store import FactorDataStore
+from app.validation.adjustment_verifier import ActionSourceDeclaration, verify_adjustments
 from app.validation.data_finality import (
     ConstructionSpec,
     DataFinalityError,
@@ -35,6 +36,8 @@ N_TICKERS = 260
 # The gate measures against the frozen construction; the only values shrunk for the fixture are the
 # universe sizes — a 260-name synthetic store cannot supply a 200/500-name universe.
 SPEC = ConstructionSpec(scoring_universe_n=50, proxy_universe_n=80)
+REAL_SOURCE = ActionSourceDeclaration(identity="sharadar/ACTIONS@test", authoritative=True,
+                                      coverage_start=date(2020, 1, 1), coverage_end=date(2027, 1, 1))
 
 
 def _sessions(end: date, n: int) -> list[date]:
@@ -53,12 +56,14 @@ TICKERS = [f"T{i:04d}" for i in range(N_TICKERS)]
 
 def _sep_frame(sessions: list[date], tickers: list[str]) -> pd.DataFrame:
     """Dollar volume decreases with the ticker index, so top-N membership is stable: removing a single
-    session's row must not silently reshuffle the universe out from under a test."""
+    session's row must not silently reshuffle the universe out from under a test. `closeadj` tracks
+    `close` exactly, so the fixture contains NO adjustment event — each test introduces the one it is
+    about."""
     return pd.DataFrame([
         {"ticker": t, "date": d, "open": 10.0, "high": 10.0, "low": 10.0, "close": 10.0,
-         "volume": 10_000_000 - 10_000 * int(t[1:]), "closeadj": 10.0 + i * 0.01,
+         "volume": 10_000_000 - 10_000 * int(t[1:]), "closeadj": 10.0,
          "closeunadj": 10.0, "lastupdated": d}
-        for i, d in enumerate(sessions) for t in tickers])
+        for d in sessions for t in tickers])
 
 
 def _tickers_frame(tickers: list[str], first: date, last: date) -> pd.DataFrame:
@@ -83,8 +88,30 @@ def store(tmp_path):
     st.close()
 
 
+class _StubAdjustment:
+    """A stand-in for the R5b verifier's evidence object. The gate must DERIVE its verdict from this,
+    never from a caller-supplied boolean."""
+
+    def __init__(self, proven: bool, detail: str = "stub"):
+        self.proven = proven
+        self._detail = detail
+
+    def to_open_provenance(self) -> dict:
+        return {"verdict": "PROVEN" if self.proven else "NOT_PROVEN_INSUFFICIENT_DATA",
+                "detail": self._detail, "proven": self.proven}
+
+
+def _proven(window_start, session_date, tickers):
+    return _StubAdjustment(True, "all relevant actions reflected (stub)")
+
+
+def _not_proven(window_start, session_date, tickers):
+    return _StubAdjustment(False, "reflection not proven (stub)")
+
+
 def _assess(store, session=SESSION, **kw):
     kw.setdefault("construction", SPEC)
+    kw.setdefault("adjustment_verifier", _proven)
     return assess_data_finality(store, session, **kw)
 
 
@@ -314,36 +341,76 @@ def test_an_earlier_failure_followed_by_a_clean_run_does_not_block(store):
     assert _assess(store).verdict is DataReadiness.READY
 
 
-# ---- corporate-action reflection --------------------------------------------------------------------------------------
+# ---- corporate-action reflection is PROVEN by the verifier, or the session does not run --------------
 
-def test_an_action_in_the_consumed_window_refuses_the_session(store):
-    """No adjustment verifier exists, so an action touching the window means the session cannot be
-    shown to read correctly adjusted prices. READY beside an unproven material input is not allowed."""
-    _add_action(store, ALL_SESSIONS[-50])
-    ev = _assess(store)
+def test_no_verifier_configured_refuses_the_session(store):
+    """An absent action table is not evidence that no action occurred, so nothing can be proven
+    without a verifier — even on a store whose `actions` table is empty."""
+    ev = assess_data_finality(store, SESSION, construction=SPEC)          # no verifier supplied
     assert ev.verdict is DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED
-    assert ev.corporate_actions_in_window == 1
     assert ev.adjustment_reflection_proven is False
+    assert ev.corporate_actions_in_window == 0                            # and it still refuses
+    assert "not evidence that none occurred" in ev.detail
 
 
-def test_an_action_outside_the_consumed_window_does_not_refuse(store):
-    _add_action(store, ALL_SESSIONS[0] - timedelta(days=30))       # before the window starts
-    ev = _assess(store)
-    assert ev.verdict is DataReadiness.READY and ev.corporate_actions_in_window == 0
-
-
-def test_a_verifier_that_proves_reflection_lets_the_session_proceed(store):
-    """The seam a future adjustment verifier plugs into. There is none today — this test documents the
-    intended path, it does not create one."""
-    _add_action(store, ALL_SESSIONS[-50])
-    ev = _assess(store, adjustment_verifier=lambda session, n_actions: True)
-    assert ev.verdict is DataReadiness.READY and ev.adjustment_reflection_proven is True
-
-
-def test_a_verifier_that_cannot_prove_reflection_still_refuses(store):
-    _add_action(store, ALL_SESSIONS[-50])
-    ev = _assess(store, adjustment_verifier=lambda session, n_actions: False)
+def test_the_gate_derives_its_verdict_from_the_verifier_evidence(store):
+    ev = _assess(store, adjustment_verifier=_not_proven)
     assert ev.verdict is DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED
+    assert ev.adjustment_reflection_proven is False
+    assert ev.adjustment_evidence is not None
+    assert ev.adjustment_evidence["proven"] is False                      # the evidence is embedded
+
+
+def test_a_proven_verifier_lets_the_session_proceed(store):
+    ev = _assess(store, adjustment_verifier=_proven)
+    assert ev.verdict is DataReadiness.READY
+    assert ev.adjustment_reflection_proven is True
+    assert ev.adjustment_evidence["verdict"] == "PROVEN"
+
+
+def test_the_relevance_set_passed_to_the_verifier_covers_candidates_and_the_proxy_basket(store):
+    """The verifier is asked about the union of the scoring candidates and the whole proxy basket —
+    including names that left the universe mid-window but priced into the consumed history."""
+    seen: dict = {}
+
+    def capture(window_start, session_date, tickers):
+        seen["window_start"] = window_start
+        seen["tickers"] = tickers
+        return _StubAdjustment(True)
+
+    _assess(store, adjustment_verifier=capture)
+    assert seen["window_start"] < SESSION
+    assert len(seen["tickers"]) >= SPEC.proxy_universe_n                  # basket ∪ candidates
+    assert "T0000" in seen["tickers"] and "T0079" in seen["tickers"]
+
+
+def test_the_real_verifier_wires_through_the_gate(store):
+    """End-to-end with R5b: an authoritative source, a clean window, no undeclared adjustment."""
+    def verifier(window_start, session_date, tickers):
+        return verify_adjustments(store, window_start=window_start, session_date=session_date,
+                                  relevant_tickers=tickers, source=REAL_SOURCE,
+                                  store_identity_sha256="test")
+
+    ev = _assess(store, adjustment_verifier=verifier)
+    assert ev.verdict is DataReadiness.READY
+    assert ev.adjustment_evidence["verdict"] == "NO_RELEVANT_ACTIONS"
+
+
+def test_the_real_verifier_refuses_an_undeclared_adjustment(store):
+    """The vacuous-pass hole, closed end to end: the `actions` table is empty (as the governed store's
+    is today) while the adjusted series visibly steps against the raw series."""
+    ex_date = ALL_SESSIONS[-40]
+    store.con.execute("UPDATE sep SET close = close * 0.5 WHERE ticker = 'T0000' AND date >= ?",
+                      [ex_date])
+
+    def verifier(window_start, session_date, tickers):
+        return verify_adjustments(store, window_start=window_start, session_date=session_date,
+                                  relevant_tickers=tickers, source=REAL_SOURCE,
+                                  store_identity_sha256="test")
+
+    ev = _assess(store, adjustment_verifier=verifier)
+    assert ev.verdict is DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED
+    assert ev.adjustment_evidence["unexplained_adjustment_count"] >= 1
 
 
 # ---- the value-level store identity ----------------------------------------------------------------------------------------
