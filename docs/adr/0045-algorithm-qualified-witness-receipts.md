@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-07-25 |
-| Status | Draft |
+| Status | Accepted |
 | Phase | Forward validation (Workstream B, R5e onward) — Account-4 critical path |
 | Supersedes | — |
 | Related | 0018 (factor-data isolation), 0032 (AWS migration), 0044 (deployment lifecycle and fail-closed holds) |
@@ -213,7 +213,8 @@ digest and nothing else.
 
 - Key spec `ECC_NIST_P256`, usage `SIGN_VERIFY`, signing algorithm `ECDSA_SHA_256`.
 - `Sign` is called with `MessageType=DIGEST` and `Message` = the 32-byte SHA-256 of the canonical
-  envelope. The runner computes the digest; the envelope itself is never sent to KMS.
+  envelope. The runner computes the digest; the envelope itself is never sent to KMS. The verifier's
+  counterpart is the prehashed contract below — the two must be read together.
 - The `Sign` response's `KeyId` and `SigningAlgorithm` are checked against the pinned configuration and
   refused on mismatch — they corroborate, they do not select.
 - `GetPublicKey` output is DER SPKI (X.509 `SubjectPublicKeyInfo`), together with the metadata above.
@@ -233,10 +234,43 @@ Order is load-bearing. Before any cryptography runs, the verifier requires:
 3. `receipt.key_id` equals the pinned key ARN
 4. `receipt.public_key_fingerprint` equals `sha256(installed_spki_bytes)`
 
-Only then does it load the P-256 public key from the installed DER SPKI and verify the DER signature
-over the canonical envelope with `ECDSA(SHA256)`. Checking identity first means a receipt from the
-wrong key or algorithm is refused as a mismatch rather than as a signature failure — the operator sees
-which of the two actually happened.
+Checking identity first means a receipt from the wrong key or algorithm is refused as a mismatch rather
+than as a signature failure — the operator sees which of the two actually happened.
+
+#### The verification contract is PREHASHED, and this is not optional
+
+The verifier reconstructs the canonical envelope, computes its SHA-256 digest, and requires that digest
+to equal `receipt.message_digest`. It then verifies the DER ECDSA signature over **those 32 digest
+bytes** using ECDSA with `Prehashed(SHA-256)`. **It must not apply SHA-256 to the digest a second
+time.**
+
+```
+canonical envelope
+  → independently compute SHA-256
+  → require equality with receipt.message_digest      (else WITNESS_MESSAGE_DIGEST_MISMATCH)
+  → verify DER ECDSA signature over those 32 bytes
+    using ECDSA(Prehashed(SHA-256))                   (else ANCHOR_SIGNATURE_INVALID)
+```
+
+Concretely:
+
+```python
+public_key.verify(
+    signature,                       # DER, from the receipt
+    message_digest_bytes,            # the 32 bytes, NOT the envelope
+    ec.ECDSA(utils.Prehashed(hashes.SHA256())),
+)
+```
+
+The trap this closes: KMS with `MessageType=DIGEST` signs `SHA256(envelope)` as the hash itself. Passing
+those same digest bytes to `ec.ECDSA(hashes.SHA256())` would hash them *again*, so the verifier would be
+checking a signature over `SHA256(SHA256(envelope))` and every valid signature would fail.
+
+Verifying the original envelope with ordinary `ECDSA(SHA256())` is mathematically equivalent, because it
+recomputes the same digest internally. It is **not** the contract chosen here: the prehashed form
+mirrors the KMS `MessageType=DIGEST` call exactly, and it makes `message_digest` a verified part of the
+procedure rather than a decorative field nothing checks. One contract is pinned so that an implementer
+cannot pick the other and leave the digest unexamined.
 
 ### Key rotation
 
@@ -257,7 +291,14 @@ key is an evidence-retention decision as much as a credential one.
 | `WITNESS_KEY_IDENTITY_MISMATCH` | `key_id` or `public_key_fingerprint` disagrees with pinned material |
 | `WITNESS_KEY_CONTRACT_MISMATCH` | `GetPublicKey` key spec / usage / algorithms disagree with the configured contract |
 | `WITNESS_SIGNER_KEY_ARN_MISMATCH` | the `Sign` response names a key other than the pinned ARN |
+| `WITNESS_MESSAGE_DIGEST_MISMATCH` | the recomputed envelope digest differs from `receipt.message_digest` |
 | `ANCHOR_SIGNATURE_INVALID` | the signature does not verify (retained from R5d) |
+
+`WITNESS_MESSAGE_DIGEST_MISMATCH` is deliberately distinct from `ANCHOR_SIGNATURE_INVALID`. An altered
+or incorrectly serialized envelope is a different operational finding from a mathematically invalid
+signature: the first says the record no longer reconstructs, the second says the signature was never
+valid over what it claims to cover. Collapsing them would lose that distinction exactly when an
+operator needs it.
 
 ### Configuration
 
@@ -361,6 +402,10 @@ communicate afterwards.
 
 ---
 
-⚠ **Status is `Draft`.** No implementation may begin until this ADR is explicitly accepted. Real ACTIONS
-ingestion, host deployment, opening the forward window and the first Account-4 observation each remain
-separately unauthorized. Account 4 is PAUSED with the operational hold ACTIVE, and session count is 0.
+⚠ **Status is `Accepted`** (owner review of `18c5b422`, accepted on correction of the prehashed-ECDSA
+verification contract). Acceptance authorizes the protocol-generalization work only.
+
+Everything downstream remains separately unauthorized: `boto3` as a dependency, the AWS KMS signer and
+S3 Object-Lock sink, provisioning `ec2-forward-validation`, real ACTIONS ingestion, opening the forward
+window, and the first Account-4 observation. Account 4 is PAUSED with the operational hold ACTIVE, and
+session count is 0.
