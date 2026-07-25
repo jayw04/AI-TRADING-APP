@@ -32,7 +32,12 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-import boto3
+# NOTE: boto3 is deliberately NOT imported at module scope. It is required only by
+# the EXPORT path, which talks to the registry; the offline verification path
+# (--verify) is pure stdlib. A top-level import would make the custodian's
+# air-gapped review depend on the AWS SDK being installed, which is exactly the
+# dependency invariant 4 of the recovery submission forbids. The import lives at
+# its single point of use in main().
 
 REGION = "us-east-1"
 REPOSITORY = "mr002-evaluator-p5"
@@ -355,6 +360,9 @@ def main(staging: Path):
     archive = staging / "mr002-evaluator-p5-recovery.tar"
 
     print(f"Walking OCI graph from {REPOSITORY} ...", flush=True)
+    # Imported here, not at module scope: only the export path needs the AWS SDK.
+    import boto3
+
     ecr = boto3.client("ecr", region_name=REGION)
     objects, inventory = walk_graph(ecr)
     print(f"  {len(objects)} objects, all digest-verified", flush=True)

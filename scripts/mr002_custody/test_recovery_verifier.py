@@ -16,7 +16,11 @@ must NOT be sufficient to pass.
 No AWS access, no network, no real archive required — every case is synthesized.
 """
 import hashlib
+import importlib
+import importlib.util
 import json
+import pathlib
+import sys
 import tarfile
 
 import pytest
@@ -294,6 +298,58 @@ def test_verifier_never_claims_to_satisfy_requirement_7(tmp_path, graph):
     blobs, top, index_doc = graph
     result = verify_archive(build_archive(tmp_path, blobs, index_doc), bound_index=top)
     assert result["satisfies_requirement_7"] is False
+    assert result["offline"] is True
+
+
+class _BlockAWSSDK:
+    """Meta-path finder that makes the AWS SDK unimportable, as on an air-gapped box."""
+
+    BLOCKED = ("boto3", "botocore")
+
+    def find_module(self, fullname, path=None):  # pragma: no cover - legacy protocol
+        return None
+
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split(".")[0] in self.BLOCKED:
+            raise ModuleNotFoundError(f"No module named {fullname!r}", name=fullname)
+        return None
+
+
+def test_offline_verification_does_not_require_the_aws_sdk(tmp_path, graph):
+    """The custodian's air-gapped review must not depend on boto3 being installed.
+
+    Invariant 4 of the recovery submission says the offline verifier never requires
+    registry access. A module-scope `import boto3` violated that in spirit and in
+    fact: on a genuinely clean machine the --verify path failed at IMPORT, before
+    any verification logic ran, so the one procedure the custodian performs against
+    the medium was unavailable exactly where it is most needed.
+
+    This reimports the module from source with the SDK blocked and runs a full
+    verification through it, so the guarantee holds even in an environment where
+    boto3 happens to be installed.
+    """
+    blobs, top, index_doc = graph
+    archive = build_archive(tmp_path, blobs, index_doc)
+
+    source = pathlib.Path(__file__).resolve().parent / "export_recovery_copy.py"
+    blocker = _BlockAWSSDK()
+    sys.meta_path.insert(0, blocker)
+    saved = {name: sys.modules.pop(name) for name in list(sys.modules)
+             if name.split(".")[0] in _BlockAWSSDK.BLOCKED}
+    try:
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module("boto3")
+
+        spec = importlib.util.spec_from_file_location("_export_recovery_copy_no_aws", source)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)  # would raise if boto3 were imported at module scope
+
+        result = module.verify_archive(archive, bound_index=top)
+    finally:
+        sys.meta_path.remove(blocker)
+        sys.modules.update(saved)
+
+    assert result["verdict"] == "PASS"
     assert result["offline"] is True
 
 

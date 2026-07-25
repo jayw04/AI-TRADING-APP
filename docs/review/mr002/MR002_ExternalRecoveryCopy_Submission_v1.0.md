@@ -168,6 +168,44 @@ VERDICT: PASS  (offline; no network, no AWS; NOT an execution gate)
 This is what the custodian runs against the medium at each scheduled review. It works
 air-gapped. **It is not an execution gate and does not satisfy Requirement 7.**
 
+### Correction applied 2026-07-25 — the offline path no longer requires the AWS SDK
+
+The disclosed limitation that `--verify` still needed `boto3` **installed** is now closed. The
+module imported the SDK at module scope for the export path, so on a genuinely clean machine the
+custodian's procedure failed at **import**, before any verification logic ran — the one check
+performed against the medium was unavailable precisely where it is most needed. Stripping
+credentials from the environment, as demonstrated above, does not exercise this: it proves the
+verifier makes no AWS *calls*, not that it runs without the SDK *present*.
+
+The import now lives at its single point of use inside the export path. The verification path is
+pure standard library, and `--verify` is dispatched before that path is ever reached.
+
+Re-verified on a workstation with **no `boto3` and no `botocore` installed at all** — the exact
+condition that previously failed — against the real staged archive:
+
+```
+outer (wrapper)  : sha256:c3cf3b9e3cb1f5a5ce94f79ede72163ab1389803fbd3f0dfc91d8744604f9f8a
+inner (semantic) : sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9
+objects present  : 13   referenced: 13
+bound identity   : MATCHES
+VERDICT: PASS  (offline; no network, no AWS; NOT an execution gate)   exit 0
+```
+
+Pinned by `test_offline_verification_does_not_require_the_aws_sdk`, which reimports the module
+from source with `boto3`/`botocore` forced unimportable and runs a full verification through it,
+so the guarantee holds even in an environment where the SDK happens to be installed.
+
+This restores **invariant 4** to its full meaning: the offline verifier depends on neither
+registry access nor the client library used to reach it. Verification logic, archive bytes, both
+identities, and the object graph are **unchanged** — this is an import-placement and test change
+only. No custody status changes: independent offline custody and account-loss recovery remain
+**UNSATISFIED**, Requirement 7 remains **SPECIFIED_NOT_IMPLEMENTED**, and
+`validation_authorization` remains **false**.
+
+⚠ Separately noted, not a defect: `custody_monitor.py` legitimately requires the SDK — it is an
+AWS-side Lambda, not part of the custodian's offline procedure — so its tests do not collect on
+an SDK-free workstation. The offline path must never acquire that dependency; the monitor may.
+
 ---
 
 ## 6. Owner actions still required — the control is NOT yet complete
