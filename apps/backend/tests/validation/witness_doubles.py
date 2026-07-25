@@ -93,14 +93,24 @@ class _NestedWrapperSignerDouble(_WrapperSignerDouble):
 
 
 class _ObjectLockSinkDouble:
-    """An `ExternalAnchorSink` that reports write-once enforcement queried from its storage."""
+    """An `ExternalAnchorSink` that reports write-once enforcement queried from its storage, and binds
+    that report to the storage its publish/read path uses.
+
+    `attested_identity` and `publication_identity` default to `scope` — the correctly wired case. The
+    mis-wired adapter (attest bucket A, publish bucket B) is built by setting them apart, which is what
+    `build_split_storage_sink` does.
+    """
 
     def __init__(self, *, scope: str, mode: str = "COMPLIANCE",
-                 source: str = ATTESTATION_FROM_STORAGE, enforced: bool = True) -> None:
+                 source: str = ATTESTATION_FROM_STORAGE, enforced: bool = True,
+                 attested_identity: str | None = None,
+                 publication_identity: str | None = None) -> None:
         self._scope = scope
         self._mode = mode
         self._source = source
         self._enforced = enforced
+        self._attested_identity = scope if attested_identity is None else attested_identity
+        self._publication_identity = scope if publication_identity is None else publication_identity
         self.records: list[tuple[WitnessedTip, SignedReceipt]] = []
 
     def publish(self, tip: WitnessedTip, receipt: SignedReceipt) -> None:
@@ -110,12 +120,17 @@ class _ObjectLockSinkDouble:
         return sorted(self.records, key=lambda r: r[0].sequence)
 
     def identity(self) -> str:
-        return f"object-lock://{self._scope}"
+        return self._scope
+
+    def publication_storage_identity(self) -> str:
+        """Derived from the client `publish`/`read_all` write through — never from configuration."""
+        return self._publication_identity
 
     def immutability_attestation(self) -> ImmutabilityAttestation:
         return ImmutabilityAttestation(
             enforced=self._enforced, mode=self._mode, scope=self._scope, source=self._source,
-            checked_at="2026-07-25T00:00:00Z", detail="GetObjectLockConfiguration")
+            checked_at="2026-07-25T00:00:00Z", storage_identity=self._attested_identity,
+            detail="GetObjectLockConfiguration")
 
 
 class _SilentSinkDouble(_ObjectLockSinkDouble):
@@ -167,6 +182,34 @@ def build_exploding_signer(**_: Any) -> Any:
 
 def build_sink(*, scope: str = "s3://anchors/prod", mode: str = "COMPLIANCE") -> Any:
     return _ObjectLockSinkDouble(scope=scope, mode=mode)
+
+
+def build_split_storage_sink(**_: Any) -> Any:
+    """The mis-wired adapter: Object Lock verified on bucket A, tips written to bucket B. Every other
+    field of the attestation is impeccable."""
+    return _ObjectLockSinkDouble(scope="s3://anchors/prod",
+                                 attested_identity="s3://anchors/prod",
+                                 publication_identity="s3://anchors/scratch")
+
+
+def build_unbound_attestation_sink(**_: Any) -> Any:
+    """Attests write-once enforcement without naming which storage answered."""
+    return _ObjectLockSinkDouble(scope="s3://anchors/prod", attested_identity="")
+
+
+def build_no_publication_identity_sink(**_: Any) -> Any:
+    class _NoPublisher(_ObjectLockSinkDouble):
+        publication_storage_identity = None       # type: ignore[assignment]
+
+    return _NoPublisher(scope="s3://anchors/prod")
+
+
+def build_unreportable_publication_sink(**_: Any) -> Any:
+    class _Unreportable(_ObjectLockSinkDouble):
+        def publication_storage_identity(self) -> str:
+            raise ConnectionError("publication client unavailable")
+
+    return _Unreportable(scope="s3://anchors/prod")
 
 
 def build_declared_sink(**_: Any) -> Any:

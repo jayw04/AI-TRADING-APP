@@ -47,8 +47,11 @@ none. From inside the process, key custody is not decidable:
     `attest` would pass. Making that evasion the only way through is the point; it is not a proof.
   * The challenge in (6) proves the configured signer CAN sign for the trusted key. It does not prove
     that only the signer can — if the same key is also reachable locally, both facts hold at once.
-  * (7) is the sink's own report. A sink implementation that lies about its storage is not detected here;
-    what is detected is a sink that cannot answer, answers "not enforced", or answers from configuration.
+  * (7) is the sink's own report. A sink implementation that lies about its storage — fabricating all
+    four identities consistently — is not detected here; what is detected is a sink that cannot answer,
+    answers "not enforced", answers from configuration, or answers about storage OTHER than the one it
+    publishes through. That last one is a wiring error rather than an attack, and it is the failure this
+    gate most realistically prevents.
   * Whether the signing service's key and the sink's credentials are beyond the reach of whoever operates
     this host is a deployment fact. A sufficiently privileged operator controls both.
 
@@ -109,9 +112,17 @@ class WitnessEnforcementError(IntegrityStop):
 class ImmutabilityAttestation:
     """What a sink reports about the write-once enforcement of its underlying storage.
 
-    `source` is the load-bearing field. `STORAGE` means the sink asked the storage and this is its
-    answer (an Object-Lock configuration read, a WORM retention query); `DECLARED` means someone wrote it
-    in a configuration file. Only the former is accepted.
+    Two fields are load-bearing.
+
+    `source` — `STORAGE` means the sink asked the storage and this is its answer (an Object-Lock
+    configuration read, a WORM retention query); `DECLARED` means someone wrote it in a configuration
+    file. Only the former is accepted.
+
+    `storage_identity` — the canonical identity of the storage that was ASKED, derived from the query
+    response rather than copied from configuration. Without it the attestation floats free of the object
+    it describes: an adapter that queries an immutable bucket A while publishing to a mutable bucket B
+    satisfies every other field here, and the record's truncation resistance quietly rests on B. It must
+    equal the identity the sink publishes and reads through — see `_assert_sink_is_immutable`.
     """
 
     enforced: bool
@@ -119,19 +130,28 @@ class ImmutabilityAttestation:
     scope: str                 # what the lock covers — bucket/prefix/volume
     source: str                # ATTESTATION_FROM_STORAGE | ATTESTATION_DECLARED
     checked_at: str            # ISO8601 UTC — when the storage was asked
+    storage_identity: str = ""  # the canonical identity of the storage that answered
     detail: str = ""
 
     def to_open_provenance(self) -> dict[str, Any]:
         return {"enforced": self.enforced, "mode": self.mode, "scope": self.scope,
-                "source": self.source, "checked_at": self.checked_at, "detail": self.detail}
+                "source": self.source, "checked_at": self.checked_at,
+                "storage_identity": self.storage_identity, "detail": self.detail}
 
 
 @runtime_checkable
 class ImmutableAnchorSink(Protocol):
-    """An `ExternalAnchorSink` that can evidence its own write-once enforcement. Production sinks must
-    implement this; a sink that cannot answer the question is refused rather than assumed."""
+    """An `ExternalAnchorSink` that can evidence its own write-once enforcement AND bind that evidence to
+    the storage it actually writes through. Production sinks must implement both; a sink that cannot
+    answer either question is refused rather than assumed.
+
+    `publication_storage_identity` must be derived from the client `publish`/`read_all` use — not from
+    configuration — so that a mis-wired adapter cannot attest one bucket and publish to another.
+    """
 
     def immutability_attestation(self) -> ImmutabilityAttestation: ...
+
+    def publication_storage_identity(self) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -327,8 +347,9 @@ def _challenge_signer(signer: AnchorSigner, verifier: AnchorVerifier, *, nonce: 
             "receipt_public_key_id": receipt.public_key_id, "nonce": nonce}
 
 
-def _assert_sink_is_immutable(sink: Any) -> ImmutabilityAttestation:
-    """Require the sink to evidence write-once enforcement, from the storage itself."""
+def _assert_sink_is_immutable(sink: Any, *, configured_identity: str) -> ImmutabilityAttestation:
+    """Require the sink to evidence write-once enforcement from the storage itself, AND to bind that
+    evidence to the storage it publishes through."""
     # Checked by callability rather than `isinstance(sink, ImmutableAnchorSink)`: a runtime_checkable
     # Protocol passes on an attribute that merely EXISTS, so a sink with the name bound to None — or to
     # anything uncallable — would satisfy the isinstance and fail at the call. `ImmutableAnchorSink`
@@ -365,7 +386,62 @@ def _assert_sink_is_immutable(sink: Any) -> ImmutabilityAttestation:
         raise WitnessEnforcementError(
             "witness.sink attested write-once enforcement without naming the mode and scope it covers",
             code="WITNESS_SINK_IMMUTABILITY_UNPROVEN")
+
+    _assert_attestation_binds_the_publication_storage(
+        sink, attestation, configured_identity=configured_identity)
     return attestation
+
+
+def _assert_attestation_binds_the_publication_storage(
+        sink: Any, attestation: ImmutabilityAttestation, *, configured_identity: str) -> None:
+    """Require one storage identity across the declaration, the object, the lock query and the writer.
+
+    An attestation that is not bound to the publication path proves nothing about where tips land. The
+    ordinary way this goes wrong is not malice but wiring: an adapter that reads its Object-Lock
+    configuration from one bucket and publishes to another — a copy-paste in a deployment manifest, a
+    prefix that drifted, a client constructed twice from different settings — reports `enforced=True`
+    from storage while the record accumulates in a bucket anyone can truncate.
+
+    So all four must be exactly equal:
+
+        the identity the deployment DECLARED   (witness.sink.identity)
+        the identity the object REPORTS        (ExternalAnchorSink.identity)
+        the identity the LOCK QUERY answered   (ImmutabilityAttestation.storage_identity)
+        the identity the WRITER uses           (publication_storage_identity)
+
+    This cannot detect an implementation that fabricates all four — that is the stated "a sink can lie"
+    limit. It does structurally exclude the mis-wired adapter, which is an ordinary configuration error
+    rather than an attack, and which no other check in this gate would catch.
+    """
+    attested = str(attestation.storage_identity or "").strip()
+    if not attested:
+        raise WitnessEnforcementError(
+            "witness.sink attested write-once enforcement without naming WHICH storage answered; an "
+            "attestation that is not bound to the publication path proves nothing about where tips land",
+            code="WITNESS_SINK_STORAGE_MISBOUND")
+
+    publisher = getattr(sink, "publication_storage_identity", None)
+    if not callable(publisher):
+        raise WitnessEnforcementError(
+            f"witness.sink {type(sink).__name__} cannot report the storage its publish/read path uses, "
+            f"so its immutability attestation cannot be bound to where tips are actually written",
+            code="WITNESS_SINK_STORAGE_MISBOUND")
+    try:
+        publication_identity = str(publisher() or "").strip()
+    except Exception as exc:                      # noqa: BLE001 - unreachable writer is a refusal
+        raise WitnessEnforcementError(
+            f"witness.sink could not report its publication storage: {type(exc).__name__}: {exc}",
+            code="WITNESS_SINK_STORAGE_MISBOUND") from exc
+
+    reported = _safe_identity(sink).strip()
+    declared = str(configured_identity or "").strip()
+    identities = {"declared": declared, "reported": reported,
+                  "attested": attested, "publication": publication_identity}
+    if len(set(identities.values())) != 1:
+        raise WitnessEnforcementError(
+            f"witness.sink storage identities disagree: {identities}; the storage whose write-once "
+            f"enforcement was verified must be exactly the storage the sink publishes and reads through",
+            code="WITNESS_SINK_STORAGE_MISBOUND")
 
 
 # ── the gate ─────────────────────────────────────────────────────────────────────────────────────────
@@ -404,7 +480,7 @@ def enforce_production_witness(config: WitnessConfig, *, nonce: str) -> Producti
         raise WitnessEnforcementError(
             f"witness.sink {type(sink).__name__} does not satisfy the ExternalAnchorSink interface",
             code="WITNESS_SINK_NOT_IMMUTABLE")
-    attestation = _assert_sink_is_immutable(sink)
+    attestation = _assert_sink_is_immutable(sink, configured_identity=config.sink.identity)
 
     return ProductionWitness(
         signer=signer, verifier=verifier, sink=sink,

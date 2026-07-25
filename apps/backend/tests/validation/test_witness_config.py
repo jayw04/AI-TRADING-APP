@@ -6,6 +6,8 @@ declaration is complete enough to attribute, and it never hands the runner a key
 
 from __future__ import annotations
 
+import base64
+
 import pytest
 
 from app.validation.witness_config import (
@@ -118,6 +120,101 @@ def test_a_configuration_naming_signing_material_is_refused(name):
     with pytest.raises(WitnessConfigError, match="private signing material") as exc:
         load_witness_config(bad)
     assert exc.value.code == "WITNESS_PRIVATE_KEY_IN_CONFIG"
+
+
+@pytest.mark.parametrize("name", [
+    "secret", "secrets", "access_key", "credential", "credentials", "private_bytes", "signing_key",
+    "key_bytes", "d", "p", "q", "dp", "dq", "qi", "k",
+])
+def test_fields_that_ARE_the_material_are_refused_by_exact_name(name):
+    """JWK private components and the bare secret names. `secret_arn` and `credentials_profile` stay
+    configurable because they name where custody lives — see the test below."""
+    bad = {**GOOD, "sink": {**GOOD["sink"], "options": {name: "x"}}}
+    with pytest.raises(WitnessConfigError, match="names private signing material") as exc:
+        load_witness_config(bad)
+    assert exc.value.code == "WITNESS_PRIVATE_KEY_IN_CONFIG"
+
+
+# ---- raw key material under an innocuous field name (the check that closes the name-only gap) --------
+
+def _seed_forms():
+    seed = bytes(range(32))
+    return {
+        "base64 ed25519 seed": base64.b64encode(seed).decode("ascii"),
+        "urlsafe base64 seed": base64.urlsafe_b64encode(seed).decode("ascii").rstrip("="),
+        "64-char hex seed": seed.hex(),
+        "uppercase hex seed": seed.hex().upper(),
+        "hex with whitespace": " ".join(seed.hex()[i:i + 8] for i in range(0, 64, 8)),
+        "64-byte hex material": (seed + seed).hex(),
+        "48-byte base64 material": base64.b64encode(seed + seed[:16]).decode("ascii"),
+    }
+
+
+@pytest.mark.parametrize("label,value", sorted(_seed_forms().items()))
+@pytest.mark.parametrize("field", ["credential_blob", "blob", "material", "handle", "opaque"])
+def test_raw_key_material_under_an_innocuous_name_is_refused(label, value, field):
+    """A base64 Ed25519 seed under `credential_blob` carries exactly as much signing power as one under
+    `private_key`. Name-based detection alone is not a control."""
+    bad = {**GOOD, "signer": {**GOOD["signer"], "options": {field: value}}}
+    with pytest.raises(WitnessConfigError, match="key material") as exc:
+        load_witness_config(bad)
+    assert exc.value.code == "WITNESS_PRIVATE_KEY_IN_CONFIG"
+    assert label                                   # the parametrisation names the encoding under test
+
+
+def test_key_material_is_refused_before_any_factory_is_imported(monkeypatch):
+    """The refusal must precede import: a factory that is reached has already been handed the value."""
+    import importlib
+
+    def forbidden(*a, **k):                        # pragma: no cover - must never be reached
+        raise AssertionError("a factory was imported despite key material in the configuration")
+
+    monkeypatch.setattr(importlib, "import_module", forbidden)
+    bad = {**GOOD, "signer": {**GOOD["signer"],
+                              "options": {"credential_blob": base64.b64encode(bytes(32)).decode()}}}
+    with pytest.raises(WitnessConfigError, match="key material"):
+        load_witness_config(bad)
+
+
+def test_a_byte_array_of_a_private_key_length_is_refused():
+    bad = {**GOOD, "signer": {**GOOD["signer"], "options": {"octets": list(range(32))}}}
+    with pytest.raises(WitnessConfigError, match="32-byte array of key material"):
+        load_witness_config(bad)
+
+
+@pytest.mark.parametrize("value", [
+    "arn:aws:kms:us-east-1:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+    "s3://workbench-anchors/prod",
+    "https://signer.internal:8443/sign",
+    "us-east-1", "anchors", "prod/witness", "svc-1",
+])
+def test_ordinary_configuration_values_are_not_mistaken_for_key_material(value):
+    """The check must leave the production shape configurable: ARNs, URIs, regions, buckets, handles."""
+    assert_no_private_key_material({"endpoint": value})
+
+
+@pytest.mark.parametrize("name", ["image_digest", "artifact_sha256", "bundle_checksum", "etag"])
+def test_a_content_address_named_as_one_is_still_configurable(name):
+    """64 hex characters are legitimately a digest. The narrow escape is by field name, and it is only
+    an escape for the hex lengths a content address takes."""
+    assert_no_private_key_material({name: "a" * 64})
+
+
+def test_the_digest_escape_does_not_extend_to_base64_material():
+    with pytest.raises(WitnessConfigError, match="key material"):
+        assert_no_private_key_material({"image_digest": base64.b64encode(bytes(range(32))).decode()})
+
+
+def test_key_material_nested_anywhere_in_the_block_is_found():
+    seed = base64.b64encode(bytes(range(32))).decode("ascii")
+    with pytest.raises(WitnessConfigError, match="key material"):
+        assert_no_private_key_material({"sink": {"options": {"pool": [{"entry": seed}]}}})
+
+
+def test_an_openssh_private_key_header_is_refused():
+    key = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNz\n-----END OPENSSH PRIVATE KEY-----"
+    with pytest.raises(WitnessConfigError, match="inline PEM private key"):
+        assert_no_private_key_material({"blob": key})
 
 
 def test_an_inline_pem_private_key_is_refused_under_any_key_name():

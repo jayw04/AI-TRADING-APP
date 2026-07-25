@@ -42,13 +42,14 @@ def service_key(tmp_path):
 
 
 def _config(service_key, *, profile="PRODUCTION", signer="build_signer", sink="build_sink",
-            signer_options=None, sink_options=None, public_key_path=None) -> WitnessConfig:
+            signer_options=None, sink_options=None, public_key_path=None,
+            sink_identity="s3://anchors/prod") -> WitnessConfig:
     return load_witness_config({
         "profile": profile,
         "public_key_path": str(public_key_path or service_key["path"]),
         "signer": {"factory": f"{DOUBLES}:{signer}", "identity": "kms://anchor-witness",
                    "options": signer_options or {}},
-        "sink": {"factory": f"{DOUBLES}:{sink}", "identity": "s3://anchors/prod",
+        "sink": {"factory": f"{DOUBLES}:{sink}", "identity": sink_identity,
                  "options": sink_options or {}},
     })
 
@@ -74,7 +75,8 @@ def test_the_evidence_records_that_the_key_did_not_come_from_the_signer(service_
 
 def test_factory_options_are_passed_through(service_key):
     witness = enforce_production_witness(
-        _config(service_key, sink_options={"scope": "s3://anchors/alt", "mode": "GOVERNANCE"}),
+        _config(service_key, sink_identity="s3://anchors/alt",
+                sink_options={"scope": "s3://anchors/alt", "mode": "GOVERNANCE"}),
         nonce=NONCE)
     assert witness.evidence["sink"]["immutability"]["scope"] == "s3://anchors/alt"
 
@@ -305,11 +307,63 @@ def test_an_attestation_of_the_wrong_type_is_refused(service_key):
                                    nonce=NONCE)
 
 
+# ---- the attestation is bound to the storage that actually publishes --------------------------------
+
+def test_a_sink_attesting_one_bucket_and_publishing_to_another_is_refused(service_key):
+    """The ordinary wiring error the other checks cannot see: Object Lock verified on bucket A, tips
+    written to bucket B. `enforced=True`, `source=STORAGE`, mode and scope all impeccable — and the
+    record's truncation resistance rests on storage anyone can truncate."""
+    with pytest.raises(WitnessEnforcementError, match="storage identities disagree") as exc:
+        enforce_production_witness(_config(service_key, sink="build_split_storage_sink"), nonce=NONCE)
+    assert exc.value.code == "WITNESS_SINK_STORAGE_MISBOUND"
+    assert "s3://anchors/scratch" in str(exc.value)
+
+
+def test_an_attestation_that_names_no_storage_is_refused(service_key):
+    with pytest.raises(WitnessEnforcementError, match="without naming WHICH storage") as exc:
+        enforce_production_witness(
+            _config(service_key, sink="build_unbound_attestation_sink"), nonce=NONCE)
+    assert exc.value.code == "WITNESS_SINK_STORAGE_MISBOUND"
+
+
+def test_a_sink_that_cannot_report_its_publication_storage_is_refused(service_key):
+    with pytest.raises(WitnessEnforcementError, match="cannot report the storage") as exc:
+        enforce_production_witness(
+            _config(service_key, sink="build_no_publication_identity_sink"), nonce=NONCE)
+    assert exc.value.code == "WITNESS_SINK_STORAGE_MISBOUND"
+
+
+def test_an_unreachable_publication_client_is_a_refusal_not_a_crash(service_key):
+    with pytest.raises(WitnessEnforcementError, match="could not report its publication storage") as e:
+        enforce_production_witness(
+            _config(service_key, sink="build_unreportable_publication_sink"), nonce=NONCE)
+    assert e.value.code == "WITNESS_SINK_STORAGE_MISBOUND"
+
+
+def test_a_sink_publishing_to_storage_the_deployment_did_not_declare_is_refused(service_key):
+    """The declared identity is one of the four that must agree, so an adapter silently pointed at
+    different storage than the governed configuration names cannot pass."""
+    with pytest.raises(WitnessEnforcementError, match="storage identities disagree"):
+        enforce_production_witness(
+            _config(service_key, sink_identity="s3://anchors/declared"), nonce=NONCE)
+
+
+def test_all_four_identities_are_recorded_when_they_agree(service_key):
+    witness = enforce_production_witness(_config(service_key), nonce=NONCE)
+    immutability = witness.evidence["sink"]["immutability"]
+    assert immutability["storage_identity"] == "s3://anchors/prod"
+    assert witness.evidence["sink"]["reported_identity"] == "s3://anchors/prod"
+    assert witness.evidence["sink"]["identity"] == "s3://anchors/prod"
+
+
 def test_the_attestation_is_published_in_full(service_key):
     attestation = ImmutabilityAttestation(
         enforced=True, mode="COMPLIANCE", scope="s3://anchors/prod", source="STORAGE",
-        checked_at="2026-07-25T00:00:00Z", detail="GetObjectLockConfiguration")
-    assert attestation.to_open_provenance()["detail"] == "GetObjectLockConfiguration"
+        checked_at="2026-07-25T00:00:00Z", storage_identity="s3://anchors/prod",
+        detail="GetObjectLockConfiguration")
+    provenance = attestation.to_open_provenance()
+    assert provenance["detail"] == "GetObjectLockConfiguration"
+    assert provenance["storage_identity"] == "s3://anchors/prod"
 
 
 # ---- the accepted witness is usable ------------------------------------------------------------------
