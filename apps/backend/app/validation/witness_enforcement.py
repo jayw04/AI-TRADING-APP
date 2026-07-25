@@ -36,6 +36,16 @@ witness triple for a governed run, and it fails closed unless every property bel
      assertion (`source = DECLARED`) is refused. "The deployment says the bucket has Object Lock" is not
      evidence that it does, and the entire truncation-resistance argument rests on it.
 
+  8. **The verifying key is read from a file the deployment controls** (R5e-2). The path must be a real
+     regular file — not a symlink, and not reached through one — owned by this process's user or root,
+     and neither it nor its directory group- or world-writable. Without this, (6) is circular in a
+     second way: an attacker who can swap the key file installs one whose private half they hold, and
+     the challenge then verifies perfectly against it.
+
+Issuance is token-guarded (R5e-2): the gate is not merely the sanctioned way to obtain the witness
+triple, it is the only ordinary way — `ProductionWitness` refuses to be constructed without a private
+sentinel that only this module holds. See its docstring for the precise claim.
+
 ## What this gate does NOT claim
 
 Stated precisely, because a governance control that is believed to do more than it does is worse than
@@ -70,7 +80,11 @@ import base64
 import binascii
 import hashlib
 import importlib
-from dataclasses import dataclass
+import os
+import stat
+import uuid
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -154,18 +168,184 @@ class ImmutableAnchorSink(Protocol):
     def publication_storage_identity(self) -> str: ...
 
 
+# The issuance token. `ProductionWitness` refuses to exist without it, and only `enforce_production_
+# witness` holds it — so the carrier a `SessionRuntime` accepts cannot be assembled by ordinary
+# construction. See `ProductionWitness` for what this does and does not establish.
+_ISSUANCE_TOKEN = object()
+
+
 @dataclass(frozen=True)
 class ProductionWitness:
     """The enforced witness triple, plus the evidence that produced it. The runner receives exactly these
-    objects; there is no path that reaches it with an unenforced signer or sink."""
+    objects; there is no path that reaches it with an unenforced signer or sink.
+
+    ## Why this cannot simply be constructed
+
+    R5e-1 made `enforce_production_witness` the sanctioned way to obtain the triple, but a plain frozen
+    dataclass is constructible by anyone: `ProductionWitness(signer=Ed25519AnchorSigner(...), ...)` would
+    have produced a carrier the runner accepts, wired to exactly the reference implementations the gate
+    exists to exclude — and it would have looked deliberate in review. So issuance is token-guarded: the
+    constructor refuses unless handed a module-private sentinel that only the gate holds.
+
+    This makes the enforced path the ONLY ordinary way to obtain a witness. A caller who wants to bypass
+    it must import a private name (`_ISSUANCE_TOKEN`) — which is visible in review and cannot happen by
+    accident, by refactor, or by a future `run-session` variant wiring the triple itself.
+
+    **Stated honestly, as with the rest of this gate:** this prevents the ordinary bypass and the wiring
+    error. It is not a defence against an actor already executing arbitrary code in this process — such
+    an actor can import the private token, rebind module attributes, or construct the object through
+    `object.__new__`. In-process integrity is not decidable from inside the process; what is achieved
+    here is that no honest path reaches the runner unenforced.
+    """
 
     signer: AnchorSigner
     verifier: AnchorVerifier
     sink: ExternalAnchorSink
     evidence: dict[str, Any]
+    # Positioned last with a default so the field never appears in evidence, comparisons or reprs; it
+    # carries no information beyond "the gate issued this".
+    issued_by: Any = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.issued_by is not _ISSUANCE_TOKEN:
+            raise WitnessEnforcementError(
+                "a ProductionWitness may only be issued by enforce_production_witness(); constructing "
+                "the triple directly would hand the runner a signer and sink that no gate has checked, "
+                "which is precisely the wiring this control exists to exclude",
+                code="WITNESS_NOT_ENFORCED")
+
+
+# ── the fresh invocation identifier ──────────────────────────────────────────────────────────────────
+
+def new_invocation_identifier() -> str:
+    """A canonical UTC identifier, unique to this invocation, used as the signer challenge nonce.
+
+    The challenge is only meaningful if it is FRESH. A nonce derived from the wall clock alone repeats
+    whenever two invocations land in the same second — and a repeated nonce means a signature captured
+    from an earlier challenge satisfies a later one, so a signer that has lost access to the trusted key
+    (a revoked KMS grant, a rotated credential, a substituted endpoint replaying a recorded response)
+    would still appear to hold it. The random component makes the probe unrepeatable in practice.
+
+    Format: `YYYYMMDDTHHMMSSZ-<32 hex>` — sorts chronologically, carries the invocation time for
+    evidence, and is unambiguous about being UTC. Freshness is a SEPARATE property from the
+    `sequence = 0` / non-date-session probe construction, which is what stops a challenge signature from
+    ever being replayed as a real tip; this stops it being replayed as another CHALLENGE.
+    """
+    now = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    return f"{now}-{uuid.uuid4().hex}"
 
 
 # ── the deployment-installed verifying key ───────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class KeyPathEvidence:
+    """What was established about the file the verifying key was read from."""
+
+    path: str
+    resolved_path: str
+    ownership_and_mode_enforced: bool     # False where the platform has no POSIX ownership semantics
+    owner_uid: int | None = None
+    mode: str | None = None
+    detail: str = ""
+
+    def to_open_provenance(self) -> dict[str, Any]:
+        return {"path": self.path, "resolved_path": self.resolved_path,
+                "ownership_and_mode_enforced": self.ownership_and_mode_enforced,
+                "owner_uid": self.owner_uid, "mode": self.mode, "detail": self.detail}
+
+
+def verify_key_path(public_key_path: Path) -> KeyPathEvidence:
+    """Establish that the verifying key is read from a file the deployment controls.
+
+    The whole trust argument rests on `witness.public_key_path` holding the key the DEPLOYMENT installed.
+    That argument is only as strong as the file: if the path is a symlink, whoever controls the link
+    chooses which key is read; if the file or its directory is group- or world-writable, whoever holds
+    that access can replace the key with one whose private half they hold, and a substituted signer then
+    passes the challenge in `_challenge_signer` perfectly. Either way the gate would report a verified
+    trust boundary while verifying against an attacker's key — a false attestation, which is worse than
+    no attestation.
+
+    Refused: a symlink (at the final component or anywhere above it), a non-regular file, a file not
+    owned by this process's user or root, and group- or world-writable permissions on the file or on the
+    directory holding it (a writable directory permits replacement regardless of the file's own mode).
+
+    ⚠ Ownership and mode are POSIX properties. On platforms without them — Windows, where `st_uid` is
+    always 0 and `st_mode` carries no group/other bits — those checks CANNOT be performed and are
+    reported as unenforced rather than silently passed. The symlink and regular-file checks still apply.
+    A production deployment is POSIX; a Windows run is a development convenience, and its evidence says
+    so rather than claiming a check it did not make.
+    """
+    raw = Path(public_key_path)
+    try:
+        link_status = raw.lstat()
+    except OSError as exc:
+        raise WitnessEnforcementError(
+            f"the deployment-installed verifying key at {raw} is unreadable: {exc}; the signer's own "
+            f"key is not an acceptable substitute", code="WITNESS_PUBLIC_KEY_UNAVAILABLE") from exc
+
+    if stat.S_ISLNK(link_status.st_mode):
+        raise WitnessEnforcementError(
+            f"the verifying key path {raw} is a symbolic link; whoever can re-point the link chooses "
+            f"which key the signer is challenged against, so the key must be a real file installed by "
+            f"the deployment", code="WITNESS_PUBLIC_KEY_PATH_UNTRUSTED")
+
+    resolved = raw.resolve()
+    if resolved != raw.absolute():
+        raise WitnessEnforcementError(
+            f"the verifying key path {raw} resolves to {resolved} through a symbolic link in one of its "
+            f"parent directories; the path the deployment governs must be the path that is read",
+            code="WITNESS_PUBLIC_KEY_PATH_UNTRUSTED")
+    if not stat.S_ISREG(link_status.st_mode):
+        raise WitnessEnforcementError(
+            f"the verifying key path {raw} is not a regular file",
+            code="WITNESS_PUBLIC_KEY_PATH_UNTRUSTED")
+
+    if not hasattr(os, "geteuid"):                # Windows and any non-POSIX platform
+        return KeyPathEvidence(
+            path=str(raw), resolved_path=str(resolved), ownership_and_mode_enforced=False,
+            detail="not a POSIX platform: ownership and permission checks were NOT performed; the "
+                   "symlink and regular-file checks were")
+
+    euid = os.geteuid()
+    if link_status.st_uid not in (euid, 0):
+        raise WitnessEnforcementError(
+            f"the verifying key at {raw} is owned by uid {link_status.st_uid}, neither this process's "
+            f"user ({euid}) nor root; a key another account can rewrite is not a deployment-installed "
+            f"key", code="WITNESS_PUBLIC_KEY_PATH_UNTRUSTED")
+
+    _assert_not_writable_by_others(raw, link_status.st_mode, what="verifying key")
+    parent = raw.parent
+    try:
+        parent_status = parent.stat()
+    except OSError as exc:
+        raise WitnessEnforcementError(
+            f"the directory holding the verifying key ({parent}) cannot be examined: {exc}",
+            code="WITNESS_PUBLIC_KEY_PATH_UNTRUSTED") from exc
+    if parent_status.st_uid not in (euid, 0):
+        raise WitnessEnforcementError(
+            f"the directory holding the verifying key ({parent}) is owned by uid {parent_status.st_uid}, "
+            f"neither this process's user ({euid}) nor root; its owner can replace the key file",
+            code="WITNESS_PUBLIC_KEY_PATH_UNTRUSTED")
+    _assert_not_writable_by_others(parent, parent_status.st_mode, what="directory holding the key")
+
+    return KeyPathEvidence(
+        path=str(raw), resolved_path=str(resolved), ownership_and_mode_enforced=True,
+        owner_uid=link_status.st_uid, mode=oct(stat.S_IMODE(link_status.st_mode)),
+        detail="regular file, not a symlink, owned by this user or root, not group- or world-writable, "
+               "in a directory with the same properties")
+
+
+def _assert_not_writable_by_others(path: Path, mode: int, *, what: str) -> None:
+    """Refuse group- or world-writable key material. Read access is not the concern — a PUBLIC key is
+    meant to be readable; write access is, because it permits substitution."""
+    offending = stat.S_IMODE(mode) & (stat.S_IWGRP | stat.S_IWOTH)
+    if offending:
+        raise WitnessEnforcementError(
+            f"the {what} at {path} has mode {oct(stat.S_IMODE(mode))}, which is "
+            f"{'group' if offending & stat.S_IWGRP else 'world'}-writable; anyone with that access can "
+            f"substitute the key the signer is challenged against",
+            code="WITNESS_PUBLIC_KEY_PATH_UNTRUSTED")
+
 
 def load_trusted_verifier(public_key_path: Path) -> AnchorVerifier:
     """Build the verifier from the key the DEPLOYMENT installed — never from the signer.
@@ -462,7 +642,10 @@ def enforce_production_witness(config: WitnessConfig, *, nonce: str) -> Producti
     from app.validation.chain_witness import Ed25519AnchorSigner, FileExternalAnchorSink
 
     # The trusted key FIRST: if the deployment cannot produce the verifying key it installed, there is
-    # nothing to challenge the signer against and no reason to reach out to it at all.
+    # nothing to challenge the signer against and no reason to reach out to it at all. The PATH is
+    # established before the bytes are read — a key read from a symlink or a world-writable file would
+    # make the challenge attest to whatever an attacker installed.
+    key_evidence = verify_key_path(config.public_key_path)
     verifier = load_trusted_verifier(config.public_key_path)
 
     signer = _resolve_factory(config.signer, name="signer")
@@ -484,8 +667,11 @@ def enforce_production_witness(config: WitnessConfig, *, nonce: str) -> Producti
 
     return ProductionWitness(
         signer=signer, verifier=verifier, sink=sink,
+        issued_by=_ISSUANCE_TOKEN,
         evidence={
             "profile": config.profile.value,
+            "invocation": nonce,
+            "verifying_key_path": key_evidence.to_open_provenance(),
             "signer": {**config.signer.to_open_provenance(),
                        "resolved_type": type(signer).__name__,
                        "reported_identity": _safe_identity(signer),
@@ -514,8 +700,11 @@ __all__ = [
     "CHALLENGE_SESSION",
     "ImmutabilityAttestation",
     "ImmutableAnchorSink",
+    "KeyPathEvidence",
     "ProductionWitness",
     "WitnessEnforcementError",
     "enforce_production_witness",
     "load_trusted_verifier",
+    "new_invocation_identifier",
+    "verify_key_path",
 ]

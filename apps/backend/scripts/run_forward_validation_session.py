@@ -1,27 +1,34 @@
 #!/usr/bin/env python3
-"""Forward-validation readiness CLI (R5c-2b1).
+"""Forward-validation session CLI — readiness and the governed run (R5c-2b1, run-session added R5e-2).
 
-The production entry point. It builds the entire runner ITSELF from the governed deployment
-configuration; the only invocation-time inputs are the mode, the session date and the authorization
-token. No path, identity or registered parameter can be supplied on the command line, because evidence
-an operator can point at is not evidence.
+The production entry point, with two modes:
 
     readiness     every data, artifact, deployment, binding and Account-4 check — and nothing else.
                   It does NOT construct the instrument, does NOT take a snapshot, does NOT evaluate,
                   book or commit. Nothing it does can change durable strategy state.
 
-There is deliberately NO run-session command in this increment. Assembling a runnable session — the
-data-coupled scores/bars providers, the single instrument snapshot shared by provider, evaluator and
-runner, the shadow ledger and observation store, and the authoritative pre/post Account-4 probe — is
-R5c-2b2 and arrives as its own reviewed increment. A command that refused every invocation while being
-named `run-session` would misrepresent what this deployment can do.
+    run-session   (R5e-2) resolve the governed configuration into a runnable session and run it: one
+                  evaluation of the real frozen instrument, booked into the shadow ledger, committed to
+                  the observation store and anchored across the enforced witness boundary. At most ONE
+                  observation per session; a session already recorded is a no-op.
 
-    python scripts/run_forward_validation_session.py readiness [--session-date YYYY-MM-DD]
+Both modes build everything themselves from the governed deployment configuration. The only
+invocation-time inputs are the mode and the session date — no path, identity or registered parameter can
+be supplied on the command line, because evidence an operator can point at is not evidence.
+
+`run-session` is the ONLY externally exposed way to record an observation, and it reaches the runner
+exclusively through `session_composition.build_session_runtime`, which resolves the witness through
+`enforce_production_witness` and nothing else.
+
+    python scripts/run_forward_validation_session.py readiness   [--session-date YYYY-MM-DD]
+    python scripts/run_forward_validation_session.py run-session [--session-date YYYY-MM-DD]
 
 Exit codes:
-    0  READY / NOT_ELIGIBLE          — nothing for the operator to do
-    1  NOT_READY / INTEGRITY_STOP    — a governed refusal, with the evidence that produced it
+    0  READY / NOT_ELIGIBLE / RECORDED / ALREADY_RECORDED   — nothing for the operator to do
+    1  NOT_READY / INTEGRITY_STOP                           — a governed refusal, with its evidence
     2  configuration refusal or an unexpected error
+    3  the observation COMMITTED but a post-commit durable write did not — never retry as an ordinary
+       failure: the record advanced, and the next run stops for governed recovery
 """
 
 from __future__ import annotations
@@ -216,9 +223,50 @@ def run_readiness(config: ForwardDeploymentConfig, session: date) -> _ReadinessR
         store.close()
 
 
+# The post-commit-durability statuses. The observation COMMITTED; a durable write after it did not. A
+# scheduler must never retry these as ordinary failures — the record has advanced, and the next run
+# stops for governed recovery rather than repairing anything.
+_POST_COMMIT_INCOMPLETE = frozenset({
+    "RECORDED_BUT_BOOK_UNPERSISTED",
+    "RECORDED_BUT_ANCHOR_UNWRITTEN",
+    "RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED",
+})
+
+
+def run_session(config: ForwardDeploymentConfig, session: date) -> tuple[dict[str, Any], int]:
+    """Resolve the governed configuration into a runnable session, run it, and report.
+
+    The composition root owns every dependency; this function owns only the reporting and the exit
+    code. It deliberately does NOT pre-screen eligibility or readiness — the runner performs both as
+    part of the governed sequence, and duplicating them here would create a second place where a
+    session can be judged runnable.
+    """
+    from app.validation.session_composition import build_session_runtime
+    from app.validation.session_orchestration import run_production_session
+
+    resolved = build_session_runtime(config, session)
+    try:
+        result = run_production_session(resolved.runtime, session, **resolved.run_kwargs)
+    finally:
+        resolved.close()
+
+    status = str(result.status)
+    report = {
+        "mode": "run-session", "session_date": result.session_date, "status": status,
+        "session_count": result.session_count, "sequence": result.sequence,
+        "exception_code": result.exception_code, "detail": result.detail,
+        "operational_exceptions": list(result.operational_exceptions),
+        "invocation": resolved.evidence.get("invocation"),
+        "evidence": resolved.evidence,
+    }
+    if status in _POST_COMMIT_INCOMPLETE:
+        return report, 3
+    return report, (1 if status == "INTEGRITY_STOP" else 0)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("mode", choices=["readiness"])
+    parser.add_argument("mode", choices=["readiness", "run-session"])
     parser.add_argument("--session-date", type=date.fromisoformat, default=None,
                         help=f"session to assess (default: today in {GOVERNING_TZ})")
     args = parser.parse_args(argv)
@@ -231,6 +279,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
+        if args.mode == "run-session":
+            report, code = run_session(config, session)
+            print(json.dumps(report, indent=2, default=str))
+            return code
         return run_readiness(config, session).emit()
     except IntegrityStop as exc:
         # Governed refusals carry a code (the witness gate's codes name which property failed); older
@@ -248,7 +300,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
 
-__all__ = ["DataFinalityEvidence", "main", "run_readiness", "verify_store_unchanged"]
+__all__ = ["DataFinalityEvidence", "main", "run_readiness", "run_session",
+           "verify_store_unchanged"]
 
 if __name__ == "__main__":
     raise SystemExit(main())

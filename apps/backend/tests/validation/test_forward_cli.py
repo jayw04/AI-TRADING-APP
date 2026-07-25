@@ -293,18 +293,35 @@ def test_the_provider_identities_bind_the_store_and_construction(deployment):
 
 # ---- this increment offers readiness ONLY -----------------------------------------------------------
 
-def test_the_cli_offers_no_run_session_mode():
-    """R5c-2b1 ships readiness. A command that refused every invocation while being named
-    `run-session` would misrepresent what the deployment can do; the assembly is R5c-2b2."""
+def test_the_cli_now_offers_run_session_and_still_takes_no_operator_evidence():
+    """R5c-2b1 deliberately shipped readiness ALONE, because a command named `run-session` that refused
+    every invocation would have misrepresented the deployment. R5e-2 supplies the composition root, so
+    the mode is now real — and this test flipped with it, rather than the mode being added quietly.
+
+    What must NOT change: the invocation surface. The only inputs are the mode and the session date. An
+    operator who could pass a store path, a ledger identity or an authorization token could point the
+    record at evidence of their own making.
+    """
     source = (BACKEND / "scripts" / "run_forward_validation_session.py").read_text(encoding="utf-8")
-    assert 'choices=["readiness"]' in source
-    assert "def run_session(" not in source
+    assert 'choices=["readiness", "run-session"]' in source
+    assert "def run_session(" in source
     assert "--authorize" not in source
+    for forbidden in ("--factor-store", "--app-db", "--build-info-path", "--ledger-path",
+                      "--store-dir", "--starting-capital"):
+        assert forbidden not in source, f"the CLI accepts operator-supplied {forbidden}"
+
+
+def test_the_run_session_mode_reaches_the_runner_only_through_the_composition_root():
+    """There must be exactly one way to build a session: if the CLI grew its own wiring, the witness
+    gate would have a second path around it."""
+    source = (BACKEND / "scripts" / "run_forward_validation_session.py").read_text(encoding="utf-8")
+    assert "from app.validation.session_composition import build_session_runtime" in source
+    assert "SessionRuntime(" not in source, "the CLI assembles a runtime itself"
 
 
 def test_an_unknown_mode_is_rejected(deployment):
     with pytest.raises(SystemExit):
-        cli.main(["run-session"])
+        cli.main(["evaluate-and-activate"])
 
 
 def test_readiness_requires_no_authorization(deployment, capsys):

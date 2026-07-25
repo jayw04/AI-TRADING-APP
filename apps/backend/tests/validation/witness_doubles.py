@@ -246,3 +246,29 @@ def build_wrong_attestation_sink(**_: Any) -> Any:
             return {"enforced": True}             # not an ImmutabilityAttestation
 
     return _Bad(scope="s3://anchors/prod")
+
+
+# ── the single sanctioned test-only issuance path ────────────────────────────────────────────────────
+#
+# `ProductionWitness` is token-guarded (R5e-2): it refuses to be constructed without a private sentinel
+# that only `enforce_production_witness` holds. That is the point — no ordinary caller can hand the
+# runner an unenforced witness.
+#
+# Some tests nonetheless need a carrier the gate would never issue: the orchestration's failure-mode
+# tests drive a signer that raises, a sink that cannot publish, and R5d's reference implementations,
+# none of which can pass the gate by construction. So this module — and ONLY this module — reaches for
+# the private token, deliberately and in one visible place. `test_only_the_doubles_module_can_issue`
+# pins that: no module under `app/` may import it.
+#
+# If you are tempted to import `_ISSUANCE_TOKEN` in production code, the thing you actually want is
+# `enforce_production_witness`.
+
+def issue_witness_for_tests(signer: Any, verifier: Any, sink: Any,
+                            evidence: dict[str, Any] | None = None) -> Any:
+    """Build a `ProductionWitness` WITHOUT the gate. Tests only — never a production path."""
+    from app.validation.witness_enforcement import _ISSUANCE_TOKEN, ProductionWitness
+
+    return ProductionWitness(
+        signer=signer, verifier=verifier, sink=sink,
+        evidence=evidence if evidence is not None else {"profile": "TEST_DOUBLE", "enforced": False},
+        issued_by=_ISSUANCE_TOKEN)

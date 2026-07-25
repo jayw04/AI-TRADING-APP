@@ -42,6 +42,7 @@ from app.validation.session_assembly import (
     SnapshotOnce,
 )
 from app.validation.shadow_ledger import ShadowLedger
+from app.validation.witness_enforcement import ProductionWitness
 
 
 @dataclass(frozen=True)
@@ -57,12 +58,38 @@ class SessionRuntime:
     account4_probe: Callable[[], Account4Probe]       # the authoritative live read
     context_builder: Callable[[date], ForwardRunContext]
     readiness: Any                                    # R5a/R5b gate: assess + verify_unchanged
-    # the independent chain-tip witness (R5d): a signer whose private key the store-writer does not hold,
-    # its public verifier, and an external append-only sink with separately governed write authority
-    anchor_signer: AnchorSigner
-    anchor_verifier: AnchorVerifier
-    external_anchor_sink: ExternalAnchorSink
+    # The independent chain-tip witness (R5d), as ONE enforced carrier (R5e-2).
+    #
+    # These were three independently injectable fields — `anchor_signer`, `anchor_verifier`,
+    # `external_anchor_sink` — which meant a caller could assemble a runtime wired to R5d's reference
+    # implementations and never reach `enforce_production_witness` at all. The gate existed and the
+    # runner simply did not have to go through it. Carrying the enforced `ProductionWitness` instead
+    # makes the gate structural: the only ordinary way to obtain one is to pass it (see
+    # `ProductionWitness`, which refuses direct construction).
+    witness: ProductionWitness
     market_symbol: str = "SPY"
+
+    def __post_init__(self) -> None:
+        # Typed fields are not checked at runtime, so the carrier is asserted rather than assumed: a
+        # duck-typed stand-in exposing `.signer`/`.verifier`/`.sink` would otherwise reintroduce exactly
+        # the bypass this field exists to close.
+        if not isinstance(self.witness, ProductionWitness):
+            raise IntegrityStop(
+                f"SessionRuntime.witness is {type(self.witness).__name__}, not an enforced "
+                f"ProductionWitness; a governed session's chain tips must be witnessed across the "
+                f"boundary enforce_production_witness() checks")
+
+    @property
+    def anchor_signer(self) -> AnchorSigner:
+        return self.witness.signer
+
+    @property
+    def anchor_verifier(self) -> AnchorVerifier:
+        return self.witness.verifier
+
+    @property
+    def external_anchor_sink(self) -> ExternalAnchorSink:
+        return self.witness.sink
 
 
 def build_strategy_and_adapter(runtime: SessionRuntime, *, strategy_id: int, session: date,
