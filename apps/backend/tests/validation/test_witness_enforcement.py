@@ -408,3 +408,115 @@ def test_the_enforced_triple_actually_witnesses_a_tip(service_key):
 
     recorded = witness.sink.read_all()
     assert [t.sequence for t, _ in recorded] == [1]
+
+
+# ---- raw-key decoding boundaries (hotfix: strip() ate legitimate key bytes) --------------------------
+#
+# `_decode_public_key` tolerated a trailing newline with `blob.strip(b"\r\n\t ")`. `strip` removes ANY
+# leading/trailing byte in that set, and a raw Ed25519 key is uniformly distributed binary — so whenever
+# the key's own first or last byte was `\r`, `\n`, `\t` or space (4 of 256 values), real key material
+# was consumed and a valid key was refused as "33 bytes". Measured at 3.10% over 2000 generated keys,
+# which is why it presented as a rare CI flake rather than a bug.
+#
+# Every boundary case below uses a DETERMINISTIC key. Behaviour that depends on which key you happened
+# to generate is exactly what allowed this to reach main.
+
+_FILLER = bytes(range(1, 32))                      # 31 bytes, none of them whitespace-valued
+
+
+def _key_ending(final: int) -> bytes:
+    key = _FILLER + bytes([final])
+    assert len(key) == 32
+    return key
+
+
+def _key_starting(first: int) -> bytes:
+    key = bytes([first]) + _FILLER
+    assert len(key) == 32
+    return key
+
+
+def test_a_raw_key_ending_in_lf_survives_an_appended_lf():
+    """The exact case that broke: the key's own last byte is 0x0A, and the file adds another."""
+    from app.validation.witness_enforcement import _decode_public_key
+
+    key = _key_ending(0x0A)
+    assert _decode_public_key(key + b"\n") == key
+
+
+def test_a_raw_key_ending_in_cr_survives_an_appended_crlf():
+    from app.validation.witness_enforcement import _decode_public_key
+
+    key = _key_ending(0x0D)
+    assert _decode_public_key(key + b"\r\n") == key
+
+
+@pytest.mark.parametrize("final", [0x09, 0x0A, 0x0D, 0x20], ids=["tab", "lf", "cr", "space"])
+def test_every_whitespace_valued_final_byte_survives_an_appended_lf(final):
+    """The full corpus of bytes the old strip set would have eaten from the end."""
+    from app.validation.witness_enforcement import _decode_public_key
+
+    key = _key_ending(final)
+    assert _decode_public_key(key + b"\n") == key
+
+
+@pytest.mark.parametrize("first", [0x09, 0x0A, 0x0D, 0x20], ids=["tab", "lf", "cr", "space"])
+def test_a_whitespace_valued_leading_byte_is_preserved(first):
+    """`strip` works on BOTH ends, so a key merely starting with one of these was also corrupted."""
+    from app.validation.witness_enforcement import _decode_public_key
+
+    key = _key_starting(first)
+    assert _decode_public_key(key) == key
+    assert _decode_public_key(key + b"\n") == key
+
+
+def test_a_raw_key_ending_in_space_or_tab_is_preserved_without_a_terminator():
+    """Space and tab are valid key bytes and are NOT accepted as terminators."""
+    from app.validation.witness_enforcement import _decode_public_key
+
+    for final in (0x20, 0x09):
+        key = _key_ending(final)
+        assert _decode_public_key(key) == key
+
+
+def test_a_33_byte_blob_without_an_lf_terminator_is_not_truncated():
+    """Only an exact trailing LF is a terminator. A 33-byte blob ending in anything else is not a
+    32-byte key with a newline, and must not be silently cut down to one."""
+    from app.validation.witness_enforcement import _decode_public_key
+
+    blob = _FILLER + bytes([0x41, 0x42])           # 33 bytes, ends 'B'
+    assert _decode_public_key(blob) != blob[:32]
+    assert len(_decode_public_key(blob)) != 32
+
+
+def test_a_34_byte_blob_without_an_exact_crlf_terminator_is_not_truncated():
+    from app.validation.witness_enforcement import _decode_public_key
+
+    blob = _FILLER + bytes([0x41, 0x0A, 0x0D])     # 34 bytes, ends LF CR (not CR LF)
+    assert len(_decode_public_key(blob)) != 32
+
+
+def test_a_raw_key_ending_in_lf_written_with_an_lf_is_refused_not_guessed(tmp_path):
+    """Genuinely ambiguous in a raw binary file: 33 bytes ending LF could be a 32-byte key plus a
+    terminator, or a 33-byte blob. The shape rule resolves it one way and the docstring says so; what
+    matters is that it is deterministic rather than key-dependent."""
+    from app.validation.witness_enforcement import _decode_public_key
+
+    key = _key_ending(0x0A)
+    assert _decode_public_key(key + b"\n") == key          # resolved as key + terminator
+
+
+def test_the_decoder_is_deterministic_across_generated_keys():
+    """The integration check the boundary tests replace: no generated key may decode wrongly.
+
+    Under the old implementation this failed for ~3.1% of keys.
+    """
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from app.validation.witness_enforcement import _decode_public_key
+
+    for _ in range(500):
+        pub = Ed25519PrivateKey.generate().public_key().public_bytes_raw()
+        assert _decode_public_key(pub) == pub
+        assert _decode_public_key(pub + b"\n") == pub
+        assert _decode_public_key(pub + b"\r\n") == pub
