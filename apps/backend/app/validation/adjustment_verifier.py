@@ -179,6 +179,106 @@ class ActionCheck:
     detail: str
 
 
+# ── bounded per-action evidence (A3) ─────────────────────────────────────────────────────────────────
+#
+# `checks` was unbounded: one `ActionCheck` per relevant (ticker, ex-date) group, all of them carried
+# into the committed observation. Over a 200-session MA window across ~200 names that is thousands of
+# entries, and the observation is immutable — an unbounded payload is not merely large, it is a size no
+# one chose.
+#
+# Both dimensions are capped, because a row-count limit alone still permits an oversized payload from
+# long identifiers or metadata.
+
+MAX_EVIDENCE_ACTIONS = 200
+MAX_EVIDENCE_SERIALIZED_BYTES = 256 * 1024
+
+SELECTION_RULE = (
+    "longest deterministic prefix of the relevant actions ordered by "
+    "(action_date, action_types, ticker, action_digest) whose FINAL canonical serialization fits "
+    "both max_actions and max_serialized_bytes; an entry that would breach either cap ends the prefix"
+)
+
+
+def _check_payload(check: ActionCheck) -> dict[str, Any]:
+    """Exactly the representation that lands in the record — what the byte cap must be measured on."""
+    return {**asdict(check), "verdict": str(check.verdict), "action_class": str(check.action_class)}
+
+
+def _canonical_bytes(payloads: list[dict[str, Any]]) -> bytes:
+    import json
+
+    return json.dumps(payloads, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+
+
+def action_digest(check: ActionCheck) -> str:
+    """A canonical digest of one check — the final tie-breaker, so ordering never depends on incidental
+    database order or on dict iteration."""
+    return hashlib.sha256(_canonical_bytes([_check_payload(check)])).hexdigest()
+
+
+def _selection_key(check: ActionCheck) -> tuple[str, str, str, str]:
+    return (check.action_date, "|".join(check.action_types), check.ticker, action_digest(check))
+
+
+@dataclass(frozen=True)
+class BoundedActionEvidence:
+    """What was included, what was left out, and the rule that decided."""
+    total_action_count: int
+    included_action_count: int
+    omitted_action_count: int
+    serialized_bytes: int
+    max_actions: int
+    max_serialized_bytes: int
+    truncated: bool
+    selection_rule: str
+
+
+def bound_action_evidence(
+    checks: tuple[ActionCheck, ...], *, max_actions: int | None = None,
+    max_serialized_bytes: int | None = None,
+) -> tuple[tuple[ActionCheck, ...], BoundedActionEvidence]:
+    """Select the longest deterministic prefix of `checks` that fits both caps.
+
+    The byte cap is enforced on the FINAL canonical serialization, re-measured after each candidate is
+    added — not estimated from Python object sizes, which bear no relation to the bytes actually
+    recorded.
+
+    A single oversized action cannot slip past the cap: it simply fails to fit, which ends the prefix.
+    If the very first entry does not fit, none are included and `truncated` is True — a prefix rule
+    keeps the selection reproducible, whereas skipping-and-continuing would make inclusion depend on
+    the sizes of entries around it.
+    """
+    # Resolved from the module constants at CALL time, not captured as default arguments. A default
+    # argument binds at definition time, which would make the caps look configurable while being frozen
+    # at import — the constants would silently stop being the source of truth.
+    max_actions = MAX_EVIDENCE_ACTIONS if max_actions is None else max_actions
+    max_serialized_bytes = (MAX_EVIDENCE_SERIALIZED_BYTES if max_serialized_bytes is None
+                            else max_serialized_bytes)
+
+    ordered = sorted(checks, key=_selection_key)
+    included: list[ActionCheck] = []
+    payloads: list[dict[str, Any]] = []
+    size = len(_canonical_bytes([]))
+
+    for check in ordered:
+        if len(included) >= max_actions:
+            break
+        candidate = [*payloads, _check_payload(check)]
+        candidate_size = len(_canonical_bytes(candidate))
+        if candidate_size > max_serialized_bytes:
+            break
+        included.append(check)
+        payloads = candidate
+        size = candidate_size
+
+    omitted = len(ordered) - len(included)
+    return tuple(included), BoundedActionEvidence(
+        total_action_count=len(ordered), included_action_count=len(included),
+        omitted_action_count=omitted, serialized_bytes=size, max_actions=max_actions,
+        max_serialized_bytes=max_serialized_bytes, truncated=bool(omitted),
+        selection_rule=SELECTION_RULE)
+
+
 @dataclass(frozen=True)
 class UnexplainedAdjustment:
     """An adjustment event visible in the series with no declared action to explain it."""
@@ -213,6 +313,9 @@ class AdjustmentVerificationEvidence:
     unexplained_adjustment_count: int
     detail: str
     tolerance: dict[str, float | str] = field(default_factory=dict)
+    # A3: `checks` is a BOUNDED selection; `action_evidence` says how bounded and by what rule, so a
+    # reader never has to guess whether a short list means "few actions" or "many, truncated".
+    action_evidence: BoundedActionEvidence | None = None
     checks: tuple[ActionCheck, ...] = ()
     unexplained_examples: tuple[UnexplainedAdjustment, ...] = ()
 
@@ -305,9 +408,12 @@ def verify_adjustments(
                  checks: tuple[ActionCheck, ...] = (),
                  unexplained: tuple[UnexplainedAdjustment, ...] = (),
                  unexplained_count: int = 0) -> AdjustmentVerificationEvidence:
+        # Counted over EVERY check, before bounding. Truncating the payload must not distort the
+        # verdict census — the counts are how a reader knows what the omitted entries were.
         by_verdict: dict[str, int] = {}
         for c in checks:
             by_verdict[str(c.verdict)] = by_verdict.get(str(c.verdict), 0) + 1
+        bounded_checks, bounded = bound_action_evidence(checks)
         proven = verdict in (AdjustmentVerdict.PROVEN, AdjustmentVerdict.NO_RELEVANT_ACTIONS)
         return AdjustmentVerificationEvidence(
             session_date=session_date.isoformat(), window_start=window_start.isoformat(),
@@ -322,7 +428,8 @@ def verify_adjustments(
             relevant_ticker_count=len(names), relevance_set_sha256=digest,
             store_identity_sha256=store_identity_sha256, checks_by_verdict=by_verdict,
             unexplained_adjustment_count=unexplained_count, detail=detail,
-            tolerance=tol.basis(), checks=checks, unexplained_examples=unexplained)
+            tolerance=tol.basis(), action_evidence=bounded, checks=bounded_checks,
+            unexplained_examples=unexplained)
 
     if not names:
         return evidence(AdjustmentVerdict.NOT_PROVEN_INSUFFICIENT_DATA,

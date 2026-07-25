@@ -12,9 +12,13 @@ vendor bytes.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import re
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pandas as pd
@@ -181,6 +185,43 @@ def _to_bool(series: pd.Series) -> pd.Series:
     return series.map(
         lambda v: str(v).strip().upper() in {"Y", "TRUE", "1"} if v is not None else None
     )
+
+
+ACTIONS_DATASET = "actions"
+
+
+@dataclass(frozen=True)
+class ActionsIngestReceipt:
+    """What one governed ACTIONS ingest loaded, and the artifact identity it is bound to."""
+    run_id: str
+    dataset: str
+    rows: int
+    coverage_start: date
+    coverage_end: date
+    artifact_path: str
+    artifact_sha256: str
+    source_identity: str
+
+    def to_open_provenance(self) -> dict[str, Any]:
+        return {"run_id": self.run_id, "dataset": self.dataset, "rows": self.rows,
+                "coverage_start": self.coverage_start.isoformat(),
+                "coverage_end": self.coverage_end.isoformat(),
+                "artifact_path": self.artifact_path, "artifact_sha256": self.artifact_sha256,
+                "source_identity": self.source_identity}
+
+
+class DatasetIngestMismatch(ValueError):
+    """The persisted dataset does not support the coverage an ingest is trying to record.
+
+    A subclass of ValueError so existing callers that catch ValueError keep working, while a caller
+    that wants to distinguish "the store disagrees with the declaration" from "the arguments were
+    malformed" can.
+    """
+
+
+def _as_date(value: Any) -> Any:
+    """Normalise a store-returned temporal value to a plain `date` for comparison."""
+    return value.date() if isinstance(value, datetime) else value
 
 
 class FactorDataStore:
@@ -400,17 +441,201 @@ class FactorDataStore:
 
         self.con.execute("BEGIN TRANSACTION")
         try:
-            rid = self.record_ingest_run(dataset, started_at, finished_at, rows, "ok")
-            self.con.execute(
-                "INSERT INTO dataset_coverage VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [dataset, rid, coverage_start, coverage_end, digest.hexdigest(), str(path),
-                 source_identity.strip(), rows, finished_at, "ok"],
-            )
+            rid = self._finalize_within_transaction(
+                dataset, started_at=started_at, finished_at=finished_at, rows=rows,
+                coverage_start=coverage_start, coverage_end=coverage_end,
+                artifact_digest=digest.hexdigest(), artifact_path=path,
+                source_identity=source_identity)
             self.con.execute("COMMIT")
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
         return rid
+
+    def _finalize_within_transaction(
+        self, dataset: str, *, started_at: datetime, finished_at: datetime, rows: int,
+        coverage_start: date, coverage_end: date, artifact_digest: str, artifact_path: Path,
+        source_identity: str,
+    ) -> str:
+        """The ONLY place that writes the three completion facts — the coverage row, the completed
+        ingest run, and the artifact binding. Assumes a transaction is already open.
+
+        Extracted so a governed ingest can persist its rows and finalize inside ONE transaction
+        (A4) without a second code path acquiring the ability to record completion. `finalize_dataset_
+        ingest` remains the public entry point and simply wraps this in its own transaction.
+        """
+        # POST-INGEST REVALIDATION (A2). Until now the receipt recorded what the CALLER said it
+        # loaded. `rows`, `coverage_start` and `coverage_end` were taken on trust, so a caller that
+        # transformed correctly but persisted partially — or declared a window wider than the data —
+        # produced an authoritative-looking coverage row that the store itself contradicted.
+        #
+        # The governed chain is: source artifact -> transform -> persisted store -> READ BACK ->
+        # checks -> receipt. So the declaration is verified against what is actually in the table,
+        # inside the same transaction that writes the receipt: either both hold or neither is
+        # recorded.
+        self._verify_persisted_dataset(
+            dataset, rows=rows, coverage_start=coverage_start, coverage_end=coverage_end)
+        rid = self.record_ingest_run(dataset, started_at, finished_at, rows, "ok")
+        self.con.execute(
+            "INSERT INTO dataset_coverage VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [dataset, rid, coverage_start, coverage_end, artifact_digest, str(artifact_path),
+             source_identity.strip(), rows, finished_at, "ok"],
+        )
+        return rid
+
+    def ingest_actions_from_artifact(
+        self, artifact_path: Path | str, *, source_identity: str,
+        started_at: datetime, finished_at: datetime,
+    ) -> ActionsIngestReceipt:
+        """The GOVERNED ACTIONS ingest (A4): load an immutable artifact and finalize it atomically.
+
+        One transaction covers the data AND the completion evidence, so a refusal leaves the
+        authoritative table exactly as it was — no half-ingested rows anyone could later mistake for
+        data. Diagnostics belong outside the authoritative dataset, not inside it as debris.
+
+        The declaration comes from the ARTIFACT (row count and date span as parsed from the source),
+        while `_verify_persisted_dataset` checks it against the PERSISTED table. That asymmetry is the
+        whole point: if the transform loses rows — a NULL ticker dropped by the insert, a malformed
+        date that `TRY_CAST` turns into NULL — the two disagree and the ingest rolls back. Deriving the
+        declaration from the persisted rows instead would make the check tautological.
+
+        The load is a full replace: coverage is a property of the whole dataset, so an ingest claiming a
+        window must own the table rather than merging into whatever was there before.
+        """
+        path = Path(artifact_path)
+        if not path.is_file():
+            raise ValueError(f"artifact {path} does not exist; its digest cannot be computed")
+        digest = hashlib.sha256()
+        with open(path, "rb") as fh:
+            while block := fh.read(1 << 20):
+                digest.update(block)
+
+        frame = pd.read_csv(path)
+        frame.columns = [str(c).strip().lower() for c in frame.columns]
+        declared_rows = len(frame)
+        if declared_rows == 0:
+            raise DatasetIngestMismatch(
+                f"the ACTIONS artifact {path} parsed to zero rows; an empty artifact cannot establish "
+                f"coverage")
+        parsed_dates = pd.to_datetime(frame.get("date"), errors="coerce")
+        if parsed_dates.isna().any():
+            raise DatasetIngestMismatch(
+                f"the ACTIONS artifact {path} has {int(parsed_dates.isna().sum())} row(s) whose date "
+                f"could not be parsed; every action must carry a date to fall inside a coverage window")
+        coverage_start = parsed_dates.min().date()
+        coverage_end = parsed_dates.max().date()
+
+        # An action with no security can never be matched to one, so it would sit in the table
+        # inflating the action count while being unverifiable in either direction — present enough to
+        # count, absent enough to never be checked. Refused at the source rather than stored.
+        tickers = frame.get("ticker")
+        blank = 0 if tickers is None else int(
+            (tickers.isna() | (tickers.astype(str).str.strip() == "")).sum())
+        if tickers is None or blank:
+            raise DatasetIngestMismatch(
+                f"the ACTIONS artifact {path} has {blank or 'no ticker column and so all'} row(s) with "
+                f"no ticker; an action that names no security cannot be verified against any series")
+
+        self.con.execute("BEGIN TRANSACTION")
+        try:
+            frame = frame.reindex(columns=_ACTIONS_COLS)
+            self.con.register("incoming_actions", frame)
+            self.con.execute("DELETE FROM actions")
+            self.con.execute(
+                "INSERT INTO actions SELECT TRY_CAST(date AS DATE), action, ticker, name, "
+                "TRY_CAST(value AS DOUBLE), contraticker FROM incoming_actions")
+            rid = self._finalize_within_transaction(
+                ACTIONS_DATASET, started_at=started_at, finished_at=finished_at, rows=declared_rows,
+                coverage_start=coverage_start, coverage_end=coverage_end,
+                artifact_digest=digest.hexdigest(), artifact_path=path,
+                source_identity=source_identity)
+            self.con.execute("COMMIT")
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
+        finally:
+            with contextlib.suppress(Exception):
+                self.con.unregister("incoming_actions")
+
+        return ActionsIngestReceipt(
+            run_id=rid, dataset=ACTIONS_DATASET, rows=declared_rows,
+            coverage_start=coverage_start, coverage_end=coverage_end,
+            artifact_path=str(path), artifact_sha256=digest.hexdigest(),
+            source_identity=source_identity.strip())
+
+    def _verify_persisted_dataset(
+        self, dataset: str, *, rows: int, coverage_start: date, coverage_end: date,
+    ) -> None:
+        """Require the persisted table to actually support the coverage being claimed (A2).
+
+        Refuses, with no receipt written, when the store disagrees with the declaration:
+
+          * the dataset has no table here — nothing was persisted to cover;
+          * the persisted row count differs from the declared count;
+          * an empty dataset is being given a coverage window — an empty table is no evidence of any
+            window at all, which is the invented coverage the governance forbids;
+          * a dated dataset carries undated rows — a row with no date is outside every window, so the
+            claim cannot be true of all of it;
+          * the persisted date bounds are not exactly the declared window.
+
+        Bounds must match EXACTLY rather than merely fit inside: a window wider than the data asserts
+        coverage that was never loaded, and one narrower silently disowns rows that are present.
+        """
+        table = self._resolve_dataset_table(dataset)
+        columns = {
+            str(r[0]).lower() for r in self.con.execute(
+                "SELECT column_name FROM information_schema.columns WHERE lower(table_name) = ?",
+                [table.lower()]).fetchall()
+        }
+        counted = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()      # noqa: S608
+        total = int(counted[0]) if counted else 0
+        if total != rows:
+            raise DatasetIngestMismatch(
+                f"the ingest declares {rows} row(s) for dataset {dataset!r} but the persisted table "
+                f"holds {total}; the receipt would attest to data the store does not contain")
+        if total == 0:
+            raise DatasetIngestMismatch(
+                f"dataset {dataset!r} is empty, so the window "
+                f"{coverage_start}..{coverage_end} is not evidenced by anything; an empty table cannot "
+                f"establish coverage")
+
+        if "date" not in columns:
+            return                                # undated dataset (e.g. tickers): row count is all
+
+        bounds = self.con.execute(                                                  # noqa: S608
+            f"SELECT COUNT(*) FILTER (WHERE date IS NULL), MIN(date), MAX(date) FROM {table}"
+        ).fetchone()
+        if bounds is None:                        # pragma: no cover - an aggregate always returns a row
+            raise DatasetIngestMismatch(f"dataset {dataset!r} could not be read back")
+        undated, dmin, dmax = bounds
+        if int(undated):
+            raise DatasetIngestMismatch(
+                f"dataset {dataset!r} has {int(undated)} row(s) with no date; they fall outside every "
+                f"coverage window, so the declared window cannot be true of the whole dataset")
+        got_start, got_end = _as_date(dmin), _as_date(dmax)
+        if (got_start, got_end) != (coverage_start, coverage_end):
+            raise DatasetIngestMismatch(
+                f"the ingest declares coverage {coverage_start}..{coverage_end} for dataset "
+                f"{dataset!r} but the persisted rows span {got_start}..{got_end}; the recorded window "
+                f"must be exactly what was loaded, neither wider nor narrower")
+
+    def _resolve_dataset_table(self, dataset: str) -> str:
+        """The table a dataset name refers to, confirmed to exist.
+
+        The name reaches SQL as an identifier, so it is constrained to a plain lowercase identifier and
+        then checked against the catalogue — a dataset that names no table cannot have been persisted,
+        and an unconstrained name has no business being interpolated.
+        """
+        name = dataset.strip().lower()
+        if not re.fullmatch(r"[a-z_][a-z0-9_]*", name):
+            raise ValueError(f"dataset {dataset!r} is not a plain identifier")
+        row = self.con.execute(
+            "SELECT table_name FROM information_schema.tables WHERE lower(table_name) = ?",
+            [name]).fetchone()
+        if row is None:
+            raise DatasetIngestMismatch(
+                f"dataset {dataset!r} has no table in this store, so nothing was persisted for it")
+        return str(row[0])
 
     def dataset_coverage(self, dataset: str) -> tuple | None:
         """The most recent COMPLETED coverage for `dataset`, JOINED to the ingest execution that
