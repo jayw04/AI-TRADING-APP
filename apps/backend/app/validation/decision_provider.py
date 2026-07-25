@@ -185,16 +185,41 @@ def _stable_value(value: Any) -> str | None:
             return None
         return "seq[" + "|".join(str(item) for item in rendered_items) + "]"
     if isinstance(value, set | frozenset):
-        parts = sorted(str(_stable_value(v)) for v in value)
-        return None if any(p == "None" for p in parts) else f"set[{'|'.join(parts)}]"
+        # Members are rendered first and checked for None directly. The previous form compared the
+        # STRINGIFIED rendering against "None", which is a sentinel-by-string-comparison — the same
+        # class of fragility as the dict defect below, even though no successful rendering can
+        # currently collide with it (every one carries a type prefix or a bracket).
+        rendered_members = [_stable_value(v) for v in value]
+        if any(member is None for member in rendered_members):
+            return None
+        return "set[" + "|".join(sorted(str(m) for m in rendered_members)) + "]"
     if isinstance(value, dict):
-        items = []
-        for k in sorted(map(str, value)):
-            rendered = _stable_value(value[k])
-            if rendered is None:
+        # Keys are CANONICALIZED, not stringified.
+        #
+        # The previous form did `for k in sorted(map(str, value))` and then looked up `value[k]` — with
+        # `k` now a string. Two defects followed, both verified:
+        #
+        #   * a non-string key raised KeyError, so `{1: "x"}` crashed the whole snapshot;
+        #   * two keys that stringify alike silently collapsed — `{1: "x", "1": "y"}` rendered as
+        #     `map[1=str:'y'|1=str:'y']`, losing one entry AND misattributing the other.
+        #
+        # The second is the dangerous one: this function exists to distinguish differently-configured
+        # providers, and a collision made two structurally different configurations digest identically.
+        # Encoding the key through `_stable_value` carries its TYPE, so `1` and `"1"` cannot collide.
+        entries: list[tuple[str, str]] = []
+        for key, item in value.items():
+            rendered_key = _stable_value(key)
+            rendered_item = _stable_value(item)
+            if rendered_key is None or rendered_item is None:
                 return None
-            items.append(f"{k}={rendered}")
-        return f"map[{'|'.join(items)}]"
+            entries.append((rendered_key, rendered_item))
+        entries.sort(key=lambda pair: pair[0])
+        if len({k for k, _ in entries}) != len(entries):
+            # Two distinct keys with the same canonical encoding. Refused rather than rendered: an
+            # ambiguous mapping has no single correct digest, and picking one silently is how the
+            # previous version lost data.
+            return None
+        return "map[" + "|".join(f"{k}={v}" for k, v in entries) + "]"
     return None
 
 

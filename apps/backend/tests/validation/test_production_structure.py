@@ -212,3 +212,82 @@ def test_the_gate_is_reachable_where_it_should_be(name):
     importers = _imported_names("witness_enforcement", name)
     assert "app/validation/session_composition.py" in importers
     assert "scripts/run_forward_validation_session.py" in importers
+
+
+# ── A4: exactly one authoritative completion path ────────────────────────────────────────────────────
+#
+# The coverage row, the completed ingest run and the artifact binding are the three facts a consumer
+# treats as source authority. If any other production code could write them, "authoritative" would mean
+# "someone asserted it" again — the exact weakness the governed protocol exists to remove.
+
+_FINALIZER_FILE = "app/factor_data/store.py"
+
+
+def test_only_the_store_finalizer_writes_dataset_coverage():
+    """No production module outside the finalizer may INSERT/UPDATE/DELETE `dataset_coverage`."""
+    offenders: dict[str, list[str]] = {}
+    for path in _production_files():
+        rel = path.relative_to(BACKEND).as_posix()
+        if rel == _FINALIZER_FILE:
+            continue
+        text = path.read_text(encoding="utf-8")
+        hits = [line.strip() for line in text.splitlines()
+                if "dataset_coverage" in line
+                and any(verb in line.upper() for verb in ("INSERT", "UPDATE", "DELETE"))]
+        if hits:
+            offenders[rel] = hits
+    assert offenders == {}, f"production code writes dataset_coverage outside the finalizer: {offenders}"
+
+
+def test_no_completed_actions_ingest_run_is_recorded_outside_the_finalizer():
+    """Scoped to the ACTIONS dataset deliberately, and the reason matters.
+
+    Other datasets (`sep`, `sf1`, `vix`) have long-standing ingest scripts that record completed runs,
+    and those are fine: source authority requires a coverage row AND a linked completed run, and only
+    the finalizer writes coverage rows — which the test above pins. A completed run alone confers
+    nothing, so a blanket ban would be governance theatre and would drag unrelated scripts into this
+    change.
+
+    What must not exist is a second way to mark an ACTIONS ingest complete, because that is the dataset
+    whose authority the forward validation rests on.
+    """
+    offenders: dict[str, list[int]] = {}
+    for path in _production_files():
+        rel = path.relative_to(BACKEND).as_posix()
+        if rel == _FINALIZER_FILE:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:                        # pragma: no cover
+            continue
+        hits: list[int] = []
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call)
+                    and _callee_name(node).endswith("record_ingest_run")):
+                continue
+            names_actions = any(
+                (isinstance(a, ast.Constant) and a.value == "actions")
+                or (isinstance(a, ast.Name) and a.id.endswith("ACTIONS_DATASET"))
+                or (isinstance(a, ast.Attribute) and a.attr.endswith("ACTIONS_DATASET"))
+                for a in node.args)
+            completed = any(isinstance(a, ast.Constant) and a.value == "ok" for a in node.args)
+            if names_actions and completed:
+                hits.append(node.lineno)
+        if hits:
+            offenders[rel] = hits
+    assert offenders == {}, (
+        f"production code marks an ACTIONS ingest complete outside the finalizer: {offenders}")
+
+
+def test_exactly_one_production_actions_finalization_call_site():
+    """The governed ACTIONS ingest is the single production caller of the finalizer."""
+    sites = _call_sites("factor_data.store", "finalize_dataset_ingest")
+    assert sites == {}, (
+        f"finalize_dataset_ingest is called from production code outside the store: {sites}; the "
+        f"governed ACTIONS path is store.ingest_actions_from_artifact")
+
+    store = (BACKEND / _FINALIZER_FILE).read_text(encoding="utf-8")
+    assert store.count("def _finalize_within_transaction(") == 1
+    assert store.count("_finalize_within_transaction(") == 3, (
+        "expected exactly the definition plus two callers (finalize_dataset_ingest and the governed "
+        "ACTIONS ingest); a third caller is a new completion path")

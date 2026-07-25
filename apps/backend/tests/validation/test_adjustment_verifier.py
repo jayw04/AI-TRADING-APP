@@ -325,3 +325,147 @@ def test_a_penny_stock_rounding_difference_is_within_tolerance(store):
     assert ev.verdict is AdjustmentVerdict.PROVEN
     assert ev.checks[0].relative_residual is not None
     assert ev.checks[0].relative_residual <= ev.checks[0].relative_tolerance
+
+
+# ---- A3: bounded per-action evidence ----------------------------------------------------------------
+#
+# `checks` was unbounded — one entry per relevant (ticker, ex-date) group, all of them carried into an
+# IMMUTABLE observation. Both dimensions are capped now, because a count limit alone still permits an
+# oversized payload from long identifiers or metadata.
+
+def _check(ticker="AAA", when="2026-07-24", types=("dividend",), detail=""):
+    from app.validation.adjustment_verifier import ActionCheck, ActionClass, AdjustmentVerdict
+
+    return ActionCheck(
+        ticker=ticker, action_date=when, action_types=tuple(types),
+        action_class=ActionClass.CASH_DIVIDEND, declared_split_multiplier=None,
+        declared_cash_per_share=1.0, prev_close=10.0, close=11.0, prev_closeadj=10.0,
+        closeadj=11.0, expected_ratio=1.1, observed_ratio=1.1, absolute_residual=0.0,
+        relative_residual=0.0, absolute_tolerance=0.0, relative_tolerance=1e-6,
+        verdict=AdjustmentVerdict.PROVEN, detail=detail)
+
+
+def test_the_action_count_cap_bounds_the_payload():
+    from app.validation.adjustment_verifier import bound_action_evidence
+
+    checks = tuple(_check(ticker=f"T{i:04d}") for i in range(50))
+    included, ev = bound_action_evidence(checks, max_actions=10, max_serialized_bytes=10_000_000)
+    assert len(included) == 10
+    assert (ev.total_action_count, ev.included_action_count, ev.omitted_action_count) == (50, 10, 40)
+    assert ev.truncated is True and ev.max_actions == 10
+
+
+def test_the_byte_cap_is_measured_on_the_final_canonical_serialization():
+    """Not estimated from Python object sizes, which bear no relation to the recorded bytes."""
+    from app.validation.adjustment_verifier import _canonical_bytes, bound_action_evidence
+
+    checks = tuple(_check(ticker=f"T{i:04d}") for i in range(50))
+    included, ev = bound_action_evidence(checks, max_actions=1000, max_serialized_bytes=2000)
+    assert ev.serialized_bytes <= 2000
+    assert ev.truncated is True and ev.omitted_action_count > 0
+    # the reported size IS the size of what is carried
+    from app.validation.adjustment_verifier import _check_payload
+
+    assert ev.serialized_bytes == len(_canonical_bytes([_check_payload(c) for c in included]))
+
+
+def test_a_single_oversized_action_cannot_bypass_the_cap():
+    """One entry larger than the whole budget must not be admitted 'because it is the first'.
+
+    And it must never be admitted PARTIALLY: an action record is atomic evidence, so the prefix either
+    carries it whole or not at all. A truncated record would be worse than an omitted one — it would
+    look like evidence while being unreconstructable.
+    """
+    from app.validation.adjustment_verifier import _canonical_bytes, bound_action_evidence
+
+    huge = _check(detail="x" * 5000)
+    included, ev = bound_action_evidence((huge,), max_actions=100, max_serialized_bytes=1000)
+    assert included == ()
+    assert ev.included_action_count == 0 and ev.omitted_action_count == 1
+    assert ev.total_action_count == 1
+    assert ev.truncated is True and ev.serialized_bytes <= 1000
+    # exactly the empty serialization — nothing partial was written
+    assert ev.serialized_bytes == len(_canonical_bytes([]))
+
+
+def test_an_oversized_leading_action_stops_the_prefix_without_skipping_ahead():
+    """The prefix rule is strict: a smaller entry that sorts AFTER an oversized one is not promoted.
+
+    Skip-and-continue would make inclusion depend on the sizes of neighbouring entries, so the same
+    action set could be selected differently by an unrelated change elsewhere in the window.
+    """
+    from app.validation.adjustment_verifier import bound_action_evidence
+
+    oversized = _check(ticker="AAA", when="2026-01-01", detail="x" * 5000)
+    small = _check(ticker="ZZZ", when="2026-12-31")
+    included, ev = bound_action_evidence(
+        (oversized, small), max_actions=100, max_serialized_bytes=1500)
+
+    assert included == (), "a later small entry must not be promoted past the stopped prefix"
+    assert (ev.total_action_count, ev.included_action_count, ev.omitted_action_count) == (2, 0, 2)
+    assert ev.truncated is True and ev.serialized_bytes <= 1500
+
+
+def test_the_selection_order_is_deterministic_and_not_database_order():
+    """Ordered by (action_date, action_types, ticker, action_digest) — never incidental row order."""
+    from app.validation.adjustment_verifier import bound_action_evidence
+
+    a = _check(ticker="ZZZ", when="2026-01-02")
+    b = _check(ticker="AAA", when="2026-01-01")
+    c = _check(ticker="MMM", when="2026-01-01")
+    forward, _ = bound_action_evidence((a, b, c), max_actions=3, max_serialized_bytes=10_000_000)
+    shuffled, _ = bound_action_evidence((c, a, b), max_actions=3, max_serialized_bytes=10_000_000)
+    assert [x.ticker for x in forward] == ["AAA", "MMM", "ZZZ"]      # date first, then ticker
+    assert [x.ticker for x in shuffled] == [x.ticker for x in forward]
+
+
+def test_an_untruncated_payload_reports_itself_as_such():
+    from app.validation.adjustment_verifier import bound_action_evidence
+
+    checks = tuple(_check(ticker=f"T{i}") for i in range(3))
+    included, ev = bound_action_evidence(checks, max_actions=100, max_serialized_bytes=10_000_000)
+    assert len(included) == 3
+    assert ev.truncated is False and ev.omitted_action_count == 0
+    assert ev.selection_rule and "deterministic prefix" in ev.selection_rule
+
+
+def test_truncating_the_payload_never_distorts_the_verdict_census(store, monkeypatch):
+    """THE correctness property of A3, end to end.
+
+    `checks_by_verdict` is how a reader learns what the omitted entries were. If it were counted over
+    the bounded selection, truncation would quietly rewrite the census and a window with 40 proven
+    actions would report as though it had 2 — the payload would be smaller AND the record would be
+    wrong, which is worse than the unbounded version it replaced.
+    """
+    import app.validation.adjustment_verifier as av
+
+    for i, ticker in enumerate(TICKERS[:3]):
+        for offset in (4, 6, 8):
+            ex = SESSIONS[10 + offset + i]
+            _apply_event(store, ticker, ex, close=50.0, closeadj=100.0)
+            _add_action(store, ticker, ex, "split", 2.0)
+
+    monkeypatch.setattr(av, "MAX_EVIDENCE_ACTIONS", 2)
+    ev = _verify(store)
+
+    counted = sum(ev.checks_by_verdict.values())
+    assert ev.action_evidence is not None
+    assert ev.action_evidence.truncated is True
+    assert len(ev.checks) <= 2 < counted, "the payload is bounded but the census is not"
+    assert counted == ev.action_evidence.total_action_count
+    assert (ev.action_evidence.included_action_count + ev.action_evidence.omitted_action_count
+            == ev.action_evidence.total_action_count)
+
+
+def test_the_bounded_payload_is_reported_in_open_provenance(store):
+    """An operator reading the record must be able to tell a short list from a truncated one."""
+    _apply_event(store, TICKERS[0], EX_DATE, close=50.0, closeadj=100.0)
+    _add_action(store, TICKERS[0], EX_DATE, "split", 2.0)
+    provenance = _verify(store).to_open_provenance()
+
+    bounded = provenance["action_evidence"]
+    for key in ("total_action_count", "included_action_count", "omitted_action_count",
+                "serialized_bytes", "max_actions", "max_serialized_bytes", "truncated",
+                "selection_rule"):
+        assert key in bounded, f"{key} missing from the bounded-evidence diagnostics"
+    assert bounded["truncated"] is False

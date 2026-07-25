@@ -51,6 +51,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from app.factor_data.store import ACTIONS_DATASET as _STORE_ACTIONS_DATASET
 from app.validation.adjustment_verifier import ActionSourceDeclaration
 from app.validation.forward_window import (
     BENCHMARK_COMMITS,
@@ -62,7 +63,9 @@ from app.validation.forward_window import (
     IntegrityStop,
 )
 
-ACTIONS_DATASET = "actions"
+# Re-exported from the store, which owns dataset naming. Defined in one place so the ingest that
+# writes the coverage row and the consumer that reads it can never drift apart on the name.
+ACTIONS_DATASET = _STORE_ACTIONS_DATASET
 
 
 class BindingError(IntegrityStop):

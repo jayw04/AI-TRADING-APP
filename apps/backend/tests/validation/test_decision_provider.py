@@ -524,3 +524,112 @@ def test_an_absent_provider_fails_closed():
 
     with pytest.raises(UnstableIdentity, match="no provider is bound"):
         provider_identity(None)
+
+
+# ---- A1: dict canonicalization in the provider-identity renderer -------------------------------------
+#
+# `_stable_value` exists to distinguish differently-configured providers, so a dict rendering that
+# crashes or collides defeats its whole purpose. Both defects below were live and verified before the
+# fix; these pin them.
+
+def test_a_non_string_dict_key_no_longer_crashes_the_snapshot():
+    """The old form did `for k in sorted(map(str, value))` then `value[k]` with `k` stringified, so an
+    int key raised KeyError and took the entire instrument snapshot down with it."""
+    from app.validation.decision_provider import _stable_value
+
+    assert _stable_value({1: "x"}) == "map[int:1=str:'x']"
+    assert _stable_value({date(2026, 7, 24): "x"}) is not None
+
+
+def test_dict_keys_that_stringify_alike_stay_distinct():
+    """THE dangerous one. `{1: "x", "1": "y"}` used to render `map[1=str:'y'|1=str:'y']` — one entry
+    lost, the other misattributed — so two structurally different provider configurations produced an
+    IDENTICAL snapshot digest. Encoding the key through `_stable_value` carries its type."""
+    from app.validation.decision_provider import _stable_value
+
+    both = _stable_value({1: "x", "1": "y"})
+    assert both == "map[int:1=str:'x'|str:'1'=str:'y']"
+    assert _stable_value({1: "x"}) != _stable_value({"1": "x"})
+
+
+def test_dict_rendering_is_order_independent():
+    from app.validation.decision_provider import _stable_value
+
+    assert _stable_value({"a": 1, "b": 2}) == _stable_value({"b": 2, "a": 1})
+
+
+def test_an_ambiguous_canonical_key_encoding_is_refused_not_guessed():
+    """Two distinct keys with the same canonical encoding have no single correct digest. Refused,
+    because silently picking one is exactly how the previous version lost data."""
+    from app.validation.decision_provider import _stable_value
+
+    class _Same:
+        def forward_identity(self) -> str:
+            return "identical"
+
+    assert _stable_value({_Same(): "x", _Same(): "y"}) is None
+
+
+def test_an_unrenderable_key_or_value_still_refuses():
+    from app.validation.decision_provider import _stable_value
+
+    assert _stable_value({"k": object()}) is None
+    assert _stable_value({object(): "v"}) is None
+
+
+def test_set_rendering_is_unchanged_and_still_refuses_unstable_members():
+    """The set branch detected unrenderable members by comparing the STRINGIFIED rendering against
+    "None" — sentinel-by-string-comparison, the same fragility class as the dict defect. The output
+    format is deliberately unchanged."""
+    from app.validation.decision_provider import _stable_value
+
+    assert _stable_value({1, 2, 3}) == "set[int:1|int:2|int:3]"
+    assert _stable_value({"None"}) == "set[str:'None']"      # not mistaken for an unrenderable member
+    assert _stable_value({object()}) is None
+
+
+def test_bool_and_int_keys_stay_distinct_but_python_collapses_them_first():
+    """Documents the ACTUAL boundary, which is a language limit rather than a canonicalizer defect.
+
+    `_stable_value` CAN distinguish a bool key from an int key, because the rendering is type-qualified.
+    What it cannot do is recover a distinction Python already destroyed: `True == 1` and
+    `hash(True) == hash(1)`, so `{True: "x", 1: "y"}` is already a ONE-entry dict keyed by `True` before
+    this function is ever called. Nothing downstream can undo that, and pretending otherwise would be a
+    false assurance.
+    """
+    from app.validation.decision_provider import _stable_value
+
+    assert _stable_value({True: "x"}) != _stable_value({1: "x"})
+    assert _stable_value({True: "x"}) == "map[bool:True=str:'x']"
+
+    # noqa F601 is the point of the test, not an oversight: ruff reports "Dictionary key literal `1`
+    # repeated (`1` hashes to the same value as `True`)", which is precisely the collapse being
+    # documented. Written as a literal so the behaviour is visible at the call site.
+    collapsed = {True: "x", 1: "y"}  # noqa: F601
+    assert len(collapsed) == 1                       # Python, not us
+    assert _stable_value(collapsed) == "map[bool:True=str:'y']"
+
+
+def test_nested_mappings_render_deterministically():
+    from app.validation.decision_provider import _stable_value
+
+    assert (_stable_value({"a": {"b": {1: 2}}})
+            == "map[str:'a'=map[str:'b'=map[int:1=int:2]]]")
+    assert _stable_value({"a": {"b": 1}}) != _stable_value({"a": {"b": "1"}})
+
+
+def test_delimiters_inside_values_cannot_forge_a_second_entry():
+    """A separator-injection collision class: the format uses `|` between entries and `=` between key
+    and value, so a key or value containing those characters must not be able to imitate a different
+    structure. It cannot, because `repr` is injective for strings — it re-quotes or escapes — and every
+    rendering carries a type prefix. These are the crafted attempts.
+    """
+    from app.validation.decision_provider import _stable_value
+
+    two_entries = _stable_value({"a": 1, "b": 2})
+    forged = _stable_value({"a'=int:1|str:'b": 2})
+    assert two_entries == "map[str:'a'=int:1|str:'b'=int:2]"
+    assert forged != two_entries
+
+    assert _stable_value({"a": "x|y=z"}) != _stable_value({"a": "x", "y": "z"})
+    assert _stable_value([1, 2]) != _stable_value([[1], [2]])
