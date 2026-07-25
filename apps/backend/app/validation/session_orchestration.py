@@ -42,7 +42,7 @@ from app.validation.session_assembly import (
     SnapshotOnce,
 )
 from app.validation.shadow_ledger import ShadowLedger
-from app.validation.witness_enforcement import ProductionWitness
+from app.validation.witness_enforcement import ProductionWitness, assert_enforced
 
 
 @dataclass(frozen=True)
@@ -70,14 +70,11 @@ class SessionRuntime:
     market_symbol: str = "SPY"
 
     def __post_init__(self) -> None:
-        # Typed fields are not checked at runtime, so the carrier is asserted rather than assumed: a
-        # duck-typed stand-in exposing `.signer`/`.verifier`/`.sink` would otherwise reintroduce exactly
-        # the bypass this field exists to close.
-        if not isinstance(self.witness, ProductionWitness):
-            raise IntegrityStop(
-                f"SessionRuntime.witness is {type(self.witness).__name__}, not an enforced "
-                f"ProductionWitness; a governed session's chain tips must be witnessed across the "
-                f"boundary enforce_production_witness() checks")
+        # Typed fields are not checked at runtime, so the carrier is asserted rather than assumed. This
+        # is the single shared check (`assert_enforced`): exact type — never `isinstance`, which a
+        # subclass would satisfy — plus the issuance marker the gate attaches by identity. A duck-typed
+        # stand-in, a `dataclasses.replace()` rebuild and a hand-built value are all refused here.
+        assert_enforced(self.witness)
 
     @property
     def anchor_signer(self) -> AnchorSigner:

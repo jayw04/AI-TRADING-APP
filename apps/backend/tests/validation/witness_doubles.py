@@ -260,15 +260,14 @@ def build_wrong_attestation_sink(**_: Any) -> Any:
 # the private token, deliberately and in one visible place. `test_only_the_doubles_module_can_issue`
 # pins that: no module under `app/` may import it.
 #
-# If you are tempted to import `_ISSUANCE_TOKEN` in production code, the thing you actually want is
-# `enforce_production_witness`.
+# If you are tempted to import `_mark_enforced` or `_ISSUANCE_SENTINEL` in production code, the thing
+# you actually want is `enforce_production_witness`.
 
 def issue_witness_for_tests(signer: Any, verifier: Any, sink: Any,
                             evidence: dict[str, Any] | None = None) -> Any:
     """Build a `ProductionWitness` WITHOUT the gate. Tests only — never a production path."""
-    from app.validation.witness_enforcement import _ISSUANCE_TOKEN, ProductionWitness
+    from app.validation.witness_enforcement import ProductionWitness, _mark_enforced
 
-    return ProductionWitness(
+    return _mark_enforced(ProductionWitness(
         signer=signer, verifier=verifier, sink=sink,
-        evidence=evidence if evidence is not None else {"profile": "TEST_DOUBLE", "enforced": False},
-        issued_by=_ISSUANCE_TOKEN)
+        evidence=evidence if evidence is not None else {"profile": "TEST_DOUBLE", "enforced": False}))

@@ -37,7 +37,7 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +60,10 @@ from app.validation.production_bindings import (  # noqa: E402
     build_forward_context,
     declare_action_source,
 )
-from app.validation.witness_enforcement import enforce_production_witness  # noqa: E402
+from app.validation.witness_enforcement import (  # noqa: E402
+    enforce_production_witness,
+    new_invocation_identifier,
+)
 
 
 class _StoreScoresProvider:
@@ -127,10 +130,6 @@ def _governing_today() -> date:
     return datetime.now(ZoneInfo(GOVERNING_TZ)).date()
 
 
-def _now_iso() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
 def _open_store(config: ForwardDeploymentConfig):
     from app.factor_data.store import FactorDataStore
 
@@ -159,7 +158,8 @@ def _probe(config: ForwardDeploymentConfig) -> Account4Probe:
                           expected_broker_mode=config.expected_broker_mode)
 
 
-def run_readiness(config: ForwardDeploymentConfig, session: date) -> _ReadinessReport:
+def run_readiness(config: ForwardDeploymentConfig, session: date,
+                  *, invocation: str | None = None) -> _ReadinessReport:
     """Every check the run performs, and NOTHING that can change durable strategy state.
 
     The instrument is never constructed, no snapshot is taken, `on_bar` is never called, nothing is
@@ -185,7 +185,15 @@ def run_readiness(config: ForwardDeploymentConfig, session: date) -> _ReadinessR
     # the first commit. The gate resolves the deployment's own signer and sink, challenges the signer
     # against the deployment-installed verifying key, and refuses the reference implementations. It
     # writes nothing: the challenge signs a probe tip outside the committed numbering.
-    witness = enforce_production_witness(config.witness, nonce=_now_iso())
+    #
+    # ONE fresh identifier per command invocation, generated here and used for both the challenge and
+    # this report. `_now_iso()` used to supply it: second-resolution, so two readiness runs inside the
+    # same second challenged with the SAME nonce, and a signature recorded from one satisfied the other.
+    # A readiness identifier is never carried into a later run-session command either — each invocation
+    # gets its own.
+    invocation_id = invocation or new_invocation_identifier()
+    evidence["invocation"] = invocation_id
+    witness = enforce_production_witness(config.witness, nonce=invocation_id)
     evidence["witness"] = witness.evidence
 
     store = _open_store(config)
