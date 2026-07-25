@@ -53,6 +53,7 @@ from app.validation.production_bindings import (  # noqa: E402
     build_forward_context,
     declare_action_source,
 )
+from app.validation.witness_enforcement import enforce_production_witness  # noqa: E402
 
 
 class _StoreScoresProvider:
@@ -172,6 +173,14 @@ def run_readiness(config: ForwardDeploymentConfig, session: date) -> _ReadinessR
         return _ReadinessReport(iso, "NOT_ELIGIBLE",
                                 "not an XNYS session on/after the frozen forward start", evidence)
 
+    # The anchor trust boundary (R5e). Enforced HERE, in readiness, because a deployment whose signer is
+    # unreachable or whose sink cannot prove write-once should learn it before a session is due — not at
+    # the first commit. The gate resolves the deployment's own signer and sink, challenges the signer
+    # against the deployment-installed verifying key, and refuses the reference implementations. It
+    # writes nothing: the challenge signs a probe tip outside the committed numbering.
+    witness = enforce_production_witness(config.witness, nonce=_now_iso())
+    evidence["witness"] = witness.evidence
+
     store = _open_store(config)
     try:
         source = declare_action_source(store)
@@ -224,8 +233,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return run_readiness(config, session).emit()
     except IntegrityStop as exc:
-        print(json.dumps({"mode": args.mode, "session_date": session.isoformat(),
-                          "status": "INTEGRITY_STOP", "detail": str(exc)}, indent=2))
+        # Governed refusals carry a code (the witness gate's codes name which property failed); older
+        # stops carry only a message. Report whichever is present rather than inventing one.
+        stop = {"mode": args.mode, "session_date": session.isoformat(),
+                "status": "INTEGRITY_STOP", "detail": str(exc)}
+        code = getattr(exc, "code", None)
+        if code:
+            stop["code"] = str(code)
+        print(json.dumps(stop, indent=2))
         return 1
     except Exception as exc:                      # noqa: BLE001 - the entry point reports, never hides
         print(json.dumps({"mode": args.mode, "session_date": session.isoformat(), "status": "ERROR",

@@ -126,7 +126,14 @@ class AnchorVerifier:
 class Ed25519AnchorSigner:
     """Reference `AnchorSigner`: an Ed25519 keypair. In production this object lives in the separate
     signing service and only its `attest` is reachable; the runner is given the public key (via
-    `verifier()`) and a client, never these private-key bytes."""
+    `verifier()`) and a client, never these private-key bytes.
+
+    DEVELOPMENT AND TESTS ONLY. Held in the runner's own process, this key gives the observation-store
+    writer the ability to forge any signature, so it is not a separate trust boundary at all. R5e's
+    `witness_enforcement.enforce_production_witness` refuses it — via the marker below — for any governed
+    session."""
+
+    IS_REFERENCE_IMPLEMENTATION = True
 
     def __init__(self, private_key: Ed25519PrivateKey, *, witness_identity: str) -> None:
         self._private = private_key
@@ -171,7 +178,14 @@ class FileExternalAnchorSink:
     """Reference `ExternalAnchorSink`: one no-overwrite JSON file per tip under a root that MUST be
     outside the observation store and, in production, on write-once storage with separate credentials
     (the class cannot enforce that here — deployment does). No-overwrite publish models the append-only,
-    never-rewrite property; a second publish of the same sequence fails closed."""
+    never-rewrite property; a second publish of the same sequence fails closed.
+
+    DEVELOPMENT AND TESTS ONLY. A directory the store-writer can reach is not separately governed: the
+    same actor who truncates the local anchor log truncates this alongside it. R5e's
+    `witness_enforcement.enforce_production_witness` refuses it — via the marker below — for any governed
+    session."""
+
+    IS_REFERENCE_IMPLEMENTATION = True
 
     def __init__(self, root: Path, *, identity: str) -> None:
         self._root = root
