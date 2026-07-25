@@ -19,6 +19,7 @@ import pytest
 
 from app.strategies.drift_audit import SeamRecord
 from app.validation import forward_window as fw
+from app.validation.chain_witness import Ed25519AnchorSigner, FileExternalAnchorSink
 from app.validation.forward_evaluator import ForwardDecision, InstrumentDecisionState
 from app.validation.forward_session_runner import (
     PRE_SESSION_SNAPSHOT,
@@ -138,6 +139,10 @@ class _StubReadiness:
             raise IntegrityStop("the factor store changed during session")
 
 
+_SIGNER = Ed25519AnchorSigner.generate(witness_identity="runner-test-witness")
+_VERIFIER = _SIGNER.verifier()
+
+
 def _runner(tmp_path, context_builder, *, provider=None, readiness=None) -> ForwardSessionRunner:
     return ForwardSessionRunner(
         store_dir=tmp_path / "store", ledger_path=tmp_path / "store" / "ledger.json",
@@ -148,7 +153,9 @@ def _runner(tmp_path, context_builder, *, provider=None, readiness=None) -> Forw
                                                   weight_drift_pct=0.02),
         deployed_tree_identity=TREE, shadow_ledger_identity=LEDGER_ID,
         readiness=readiness if readiness is not None else _StubReadiness(),
-        expected_snapshot_digest=SNAPSHOT)
+        expected_snapshot_digest=SNAPSHOT,
+        anchor_signer=_SIGNER, anchor_verifier=_VERIFIER,
+        external_anchor_sink=FileExternalAnchorSink(tmp_path / "external_witness", identity="ext"))
 
 
 def _stop_lines(store: Path) -> list[dict]:

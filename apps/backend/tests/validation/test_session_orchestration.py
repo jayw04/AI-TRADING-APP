@@ -96,9 +96,10 @@ def artifacts():
 
 
 @pytest.fixture
-def runtime(artifacts):
+def runtime(artifacts, tmp_path):
     dgs3mo, trial_ledger = artifacts
     import app.validation.forward_window as fw
+    from app.validation.chain_witness import Ed25519AnchorSigner, FileExternalAnchorSink
 
     def context_builder(session: date) -> ForwardRunContext:
         return ForwardRunContext(
@@ -110,11 +111,16 @@ def runtime(artifacts):
             ledger_is_shadow_or_separate_paper=True, references_account4_capital=False,
             references_retired_baseline=False)
 
+    signer = Ed25519AnchorSigner.generate(witness_identity="orchestration-test-witness")
+    # the external witness lives OUTSIDE the observation store (store lives at tmp_path/"store")
+    sink = FileExternalAnchorSink(tmp_path / "external_witness", identity="ext-test")
     return SessionRuntime(
         store=object(), accessor=_Accessor(), store_identity=STORE_IDENTITY,
         universe_fn=lambda session, n: NAMES[:n], proxy_closes=_proxy_closes(),
         session_dates=SESSIONS, strict_price_fn=_price, account4_probe=_probe,
-        context_builder=context_builder, readiness=_StubReadiness(), market_symbol=MARKET)
+        context_builder=context_builder, readiness=_StubReadiness(),
+        anchor_signer=signer, anchor_verifier=signer.verifier(), external_anchor_sink=sink,
+        market_symbol=MARKET)
 
 
 class _StubFinality:
@@ -352,3 +358,184 @@ def test_the_next_run_after_an_unpersisted_book_stops_for_recovery(runtime, tmp_
     assert result.exception_code == "INSTRUMENT_BOOK_DIVERGENCE"
     # the record advanced but the book did not, so the next run stops for governed recovery
     assert "never begun" in result.detail or "BOOK_BEHIND_RECORD" in result.detail
+
+
+# ---- the independent chain-tip anchor (R5d) ---------------------------------------------------------
+
+def test_the_committed_tip_is_anchored(runtime, tmp_path):
+    import hashlib
+
+    from app.validation.chain_anchor import read_anchors, verify_anchor_consistency
+
+    result = _run(runtime, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED
+    anchors = read_anchors(tmp_path / "store")
+    assert len(anchors) == 1
+    commit_sha = hashlib.sha256(
+        (tmp_path / "store" / "observations" / "000001" / "commit.json").read_bytes()).hexdigest()
+    assert anchors[0].commit_sha256 == commit_sha    # the anchor witnesses the committed tip
+    assert anchors[0].witness_signature              # signed across the trust boundary
+    # signatures + the external witness all check (the runner's own pre-commit gate)
+    verify_anchor_consistency(tmp_path / "store", verifier=runtime.anchor_verifier,
+                              external_sink=runtime.external_anchor_sink)
+
+
+def test_an_anchor_write_failure_after_commit_is_a_distinct_condition(runtime, tmp_path, monkeypatch):
+    """The observation commits, then the independent anchor write fails: the record advanced, so this is
+    NOT an ordinary retryable failure — and the observation is committed but unwitnessed."""
+    from app.validation import forward_session_runner as frunner
+    from app.validation.chain_anchor import AnchorError, read_anchors
+
+    def boom(*a, **k):
+        raise AnchorError("injected anchor failure", code="ANCHOR_WRITE_FAILED")
+
+    monkeypatch.setattr(frunner, "append_anchor", boom)
+    result = _run(runtime, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
+    assert result.sequence == 1 and result.session_count == 1
+    assert "do NOT retry" in result.detail
+    assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert len(committed_observations(tmp_path / "store")) == 1   # observation committed
+    assert read_anchors(tmp_path / "store") == []                 # but the tip is unwitnessed
+
+
+def test_a_run_over_an_unwitnessed_tip_stops(runtime, tmp_path):
+    """A committed tip whose independent anchor is missing (a crash between the commit and the anchor
+    append) is a governed stop on the next run — the anchor is never regenerated from the observation."""
+    from app.validation.chain_anchor import ANCHOR_LOG_FILENAME
+
+    _run(runtime, SESSION_1, tmp_path)             # records, anchors, and persists the book
+    (tmp_path / "store" / ANCHOR_LOG_FILENAME).write_text("", encoding="utf-8")   # lose the anchor only
+    result = _run(runtime, SESSION_2, tmp_path, ts="2026-07-27T20:10:00Z")
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    assert result.exception_code == "ANCHOR_BEHIND_RECORD"        # the tip is unwitnessed — governed stop
+
+
+def test_a_tampered_anchor_stops_even_a_rerun(runtime, tmp_path):
+    """Rewriting the observation chain without rewriting the independent anchor is detected — even by a
+    no-op re-run of an already-recorded session."""
+    from app.validation.chain_anchor import ANCHOR_LOG_FILENAME
+
+    _run(runtime, SESSION_1, tmp_path)              # records + anchors
+    path = tmp_path / "store" / ANCHOR_LOG_FILENAME
+    obj = json.loads(path.read_text(encoding="utf-8").split("\n")[0])
+    obj["commit_sha256"] = "0" * 64                # the anchor now witnesses a different tip
+    path.write_text(json.dumps(obj, sort_keys=True) + "\n", encoding="utf-8")
+    result = _run(runtime, SESSION_1, tmp_path)    # a no-op re-run must still stop
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    assert result.exception_code in ("ANCHOR_LOG_INVALID", "ANCHOR_SIGNATURE_INVALID",
+                                     "ANCHOR_DIVERGES_FROM_RECORD")
+
+
+def test_both_post_commit_writes_can_fail_independently(runtime, tmp_path, monkeypatch):
+    """Blocker 2: the anchor and the book are INDEPENDENT post-commit attempts — a failure of one does
+    not suppress the other, and both failing yields a distinct, precise status that preserves each
+    divergence model for adjudication."""
+    from app.validation import forward_session_runner as frunner
+    from app.validation import session_orchestration as orch
+    from app.validation.chain_anchor import AnchorError
+
+    monkeypatch.setattr(frunner, "append_anchor",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            AnchorError("x", code="ANCHOR_WRITE_FAILED")))
+    monkeypatch.setattr(orch, "_book_writer",
+                        lambda lifecycle, adapter: (lambda seq, iso: (_ for _ in ()).throw(
+                            OSError("disk full"))))
+    result = _run(runtime, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED
+    assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert "BOOK_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert len(committed_observations(tmp_path / "store")) == 1   # the observation still committed
+
+
+def test_a_missing_independent_witness_fails_closed(runtime, tmp_path):
+    """Without a configured witness (signer/verifier/external sink) the record cannot be tamper-evidently
+    anchored, so the runner refuses to commit rather than leave an unwitnessed record."""
+    no_witness = replace(runtime, anchor_signer=None)
+    result = _run(no_witness, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    assert result.exception_code == "INDEPENDENT_WITNESS_UNAVAILABLE"
+    assert len(committed_observations(tmp_path / "store")) == 0   # nothing committed
+
+
+# ---- witness-implementation failures are normalized into governed results (R5d re-review) ------------
+
+class _RaisingSigner:
+    """A signer whose client raises a raw SDK-style exception (as a KMS/HSM client might)."""
+
+    def attest(self, tip):
+        raise RuntimeError("KMS AccessDenied")
+
+    def identity(self):
+        return "raising-signer"
+
+
+class _RaisingPublishSink:
+    """An external sink that reads fine (so pre-commit passes) but whose publish raises a raw client
+    exception (as an S3/Object-Lock client might)."""
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def publish(self, tip, receipt):
+        raise RuntimeError("S3 PutObject timeout")
+
+    def read_all(self):
+        return self._inner.read_all()
+
+    def identity(self):
+        return "raising-publish-sink"
+
+
+class _RaisingReadSink:
+    def publish(self, tip, receipt):
+        pass
+
+    def read_all(self):
+        raise RuntimeError("S3 ListObjects transport error")
+
+    def identity(self):
+        return "raising-read-sink"
+
+
+def test_a_raw_external_read_failure_becomes_a_governed_stop(runtime, tmp_path):
+    """A raw exception from the external sink during pre-run verification is normalized into an integrity
+    stop, never allowed to escape run_session()."""
+    broken = replace(runtime, external_anchor_sink=_RaisingReadSink())
+    result = _run(broken, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    assert result.exception_code == "INDEPENDENT_WITNESS_UNAVAILABLE"
+    assert len(committed_observations(tmp_path / "store")) == 0
+
+
+def test_a_raw_signer_failure_does_not_suppress_the_book_write(runtime, tmp_path):
+    """The observation has advanced; a raw signer-client exception must not stop the book from persisting.
+    The anchor is unwritten, the book is written."""
+    broken = replace(runtime, anchor_signer=_RaisingSigner())
+    result = _run(broken, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
+    assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert len(committed_observations(tmp_path / "store")) == 1
+    assert (tmp_path / "store" / "instrument_book.json").exists()      # the book DID persist
+
+
+def test_a_raw_sink_publish_failure_does_not_suppress_the_book_write(runtime, tmp_path):
+    broken = replace(runtime, external_anchor_sink=_RaisingPublishSink(runtime.external_anchor_sink))
+    result = _run(broken, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
+    assert len(committed_observations(tmp_path / "store")) == 1
+    assert (tmp_path / "store" / "instrument_book.json").exists()      # the book DID persist
+
+
+def test_a_raw_signer_failure_with_a_failing_book_is_the_combined_status(runtime, tmp_path, monkeypatch):
+    from app.validation import session_orchestration as orch
+
+    monkeypatch.setattr(orch, "_book_writer",
+                        lambda lifecycle, adapter: (lambda seq, iso: (_ for _ in ()).throw(
+                            OSError("disk full"))))
+    broken = replace(runtime, anchor_signer=_RaisingSigner())
+    result = _run(broken, SESSION_1, tmp_path)
+    assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED
+    assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert "BOOK_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
+    assert len(committed_observations(tmp_path / "store")) == 1        # the observation still committed
