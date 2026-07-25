@@ -25,8 +25,12 @@ from app.validation.forward_deployment_config import (
     DeploymentConfigError,
     load_deployment_config,
 )
+from app.validation.witness_config import WitnessConfigError
+from app.validation.witness_enforcement import WitnessEnforcementError
+from tests.validation import witness_doubles as doubles
 
 BACKEND = Path(__file__).resolve().parents[2]
+DOUBLES = "tests.validation.witness_doubles"
 COMMIT = "b0058bf335628f8dbde09a93915314f3a1f7743b"
 DIGEST = "sha256:" + "b" * 64
 SESSION = date(2026, 7, 24)
@@ -88,6 +92,9 @@ def deployment(tmp_path, monkeypatch):
     (tmp_path / "image_digest").write_text(DIGEST, encoding="utf-8")
     (tmp_path / "DGS3MO.csv").write_text("date,value\n", encoding="utf-8")
     (tmp_path / "TrialLedger.json").write_text("{}", encoding="utf-8")
+    # The anchor trust boundary (R5e). Only the PUBLIC key is installed; the signing key stays inside
+    # the stand-in service, which is what `witness_doubles` models.
+    (tmp_path / "anchor_witness.pub").write_bytes(doubles.provision_service_key("cli-svc"))
 
     config = {
         "factor_store_path": str(_factor_store(tmp_path / "factor.duckdb")),
@@ -110,6 +117,13 @@ def deployment(tmp_path, monkeypatch):
         "turnover_cost_bps": 10.0,
         "backstop_days": 10,
         "weight_drift_pct": 0.04,
+        "witness": {
+            "profile": "PRODUCTION",
+            "public_key_path": str(tmp_path / "anchor_witness.pub"),
+            "signer": {"factory": f"{DOUBLES}:build_signer", "identity": "kms://anchor-witness",
+                       "options": {"handle": "cli-svc"}},
+            "sink": {"factory": f"{DOUBLES}:build_sink", "identity": "s3://anchors/prod"},
+        },
     }
     path = tmp_path / "forward_validation.json"
     path.write_text(json.dumps(config), encoding="utf-8")
@@ -167,6 +181,68 @@ def test_a_container_deployment_must_configure_a_runtime_digest_source(deploymen
     monkeypatch.setenv(CONFIG_ENV, str(path))
     with pytest.raises(DeploymentConfigError, match="runtime_digest_path or runtime_digest_env"):
         load_deployment_config()
+
+
+# ---- the deployment must declare an anchor trust boundary (R5e) -------------------------------------
+
+def test_a_deployment_without_a_witness_block_cannot_be_loaded(deployment, monkeypatch):
+    """Not defaulted to the reference implementations at the call site: a deployment that cannot
+    independently witness its chain tips is not a runnable deployment."""
+    bad = dict(deployment["config"])
+    del bad["witness"]
+    path = deployment["root"] / "nowitness.json"
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    monkeypatch.setenv(CONFIG_ENV, str(path))
+    with pytest.raises(DeploymentConfigError, match="incomplete"):
+        load_deployment_config()
+
+
+def test_a_witness_block_carrying_signing_material_is_refused(deployment, monkeypatch):
+    bad = dict(deployment["config"])
+    bad["witness"] = {**bad["witness"],
+                      "signer": {**bad["witness"]["signer"], "options": {"private_key": "abc"}}}
+    path = deployment["root"] / "keyed.json"
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    monkeypatch.setenv(CONFIG_ENV, str(path))
+    with pytest.raises(WitnessConfigError, match="private signing material"):
+        load_deployment_config()
+
+
+def test_readiness_enforces_the_witness_and_publishes_its_evidence(deployment):
+    report = cli.run_readiness(load_deployment_config(), SESSION)
+    witness = report.evidence["witness"]
+    assert witness["signer"]["key_challenge"]["challenged"] is True
+    assert witness["sink"]["immutability"]["source"] == "STORAGE"
+    assert witness["verifying_key"]["obtained_from_signer"] is False
+
+
+def test_readiness_refuses_a_reference_witness(deployment, monkeypatch):
+    """An operator learns the boundary is a development stand-in BEFORE a session is due — not at the
+    first commit."""
+    bad = dict(deployment["config"])
+    bad["witness"] = {**bad["witness"], "profile": "REFERENCE"}
+    path = deployment["root"] / "refwitness.json"
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    monkeypatch.setenv(CONFIG_ENV, str(path))
+    with pytest.raises(WitnessEnforcementError, match="development implementations"):
+        cli.run_readiness(load_deployment_config(), SESSION)
+
+
+def test_a_witness_refusal_reports_its_code(deployment, monkeypatch, capsys):
+    bad = dict(deployment["config"])
+    bad["witness"] = {**bad["witness"], "profile": "REFERENCE"}
+    path = deployment["root"] / "refwitness2.json"
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    monkeypatch.setenv(CONFIG_ENV, str(path))
+    assert cli.main(["readiness", "--session-date", SESSION.isoformat()]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["status"] == "INTEGRITY_STOP"
+    assert out["code"] == "WITNESS_PROFILE_NOT_PRODUCTION"
+
+
+def test_the_witness_evidence_does_not_leak_option_values(deployment):
+    report = cli.run_readiness(load_deployment_config(), SESSION)
+    assert report.evidence["witness"]["signer"]["option_keys"] == ["handle"]
 
 
 # ---- readiness verifies everything and changes nothing ----------------------------------------------

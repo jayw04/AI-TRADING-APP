@@ -22,6 +22,7 @@ from typing import Any
 
 from app.validation.deployment_identity import DeploymentModel
 from app.validation.forward_window import ACCOUNT_4_ID, IntegrityStop
+from app.validation.witness_config import WitnessConfig, load_witness_config
 
 CONFIG_ENV = "FORWARD_VALIDATION_CONFIG"
 DEFAULT_CONFIG_PATH = Path("/etc/workbench/forward_validation.json")
@@ -32,6 +33,10 @@ _REQUIRED_KEYS = (
     "deployment_model", "ledger_account_id", "strategy_id", "expected_broker",
     "expected_broker_mode", "shadow_ledger_identity", "instrument_durable_state_id",
     "starting_capital", "turnover_cost_bps", "backstop_days", "weight_drift_pct",
+    # R5e: the anchor trust boundary is part of what the deployment IS. A deployment that cannot
+    # independently witness its chain tips cannot run a governed session, so the block is required
+    # here rather than defaulted to the reference implementations at the call site.
+    "witness",
 )
 
 
@@ -61,6 +66,7 @@ class ForwardDeploymentConfig:
     turnover_cost_bps: float
     backstop_days: int
     weight_drift_pct: float
+    witness: WitnessConfig                 # the anchor trust boundary this deployment witnesses across
     runtime_digest_path: Path | None = None
     runtime_digest_env: str | None = None
     expected_commit: str | None = None
@@ -71,6 +77,9 @@ class ForwardDeploymentConfig:
         d = {k: (str(v) if isinstance(v, Path) else v) for k, v in asdict(self).items()
              if k not in {"raw"}}
         d["deployment_model"] = str(self.deployment_model)
+        # The witness block presents itself: `asdict` would flatten it into Paths and enums, and the
+        # component options are summarised by key rather than copied into operator-visible evidence.
+        d["witness"] = self.witness.to_open_provenance()
         return d
 
 
@@ -137,6 +146,7 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
         turnover_cost_bps=float(payload["turnover_cost_bps"]),
         backstop_days=int(payload["backstop_days"]),
         weight_drift_pct=float(payload["weight_drift_pct"]),
+        witness=load_witness_config(payload.get("witness")),
         runtime_digest_path=(Path(payload["runtime_digest_path"])
                              if payload.get("runtime_digest_path") else None),
         runtime_digest_env=(str(payload["runtime_digest_env"])
