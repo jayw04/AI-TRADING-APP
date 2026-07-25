@@ -27,6 +27,7 @@ from app.validation.session_orchestration import (
     SessionRuntime,
     run_production_session,
 )
+from tests.validation.witness_doubles import issue_witness_for_tests
 
 REPO = Path(__file__).resolve().parents[4]
 DATA = REPO / "docs/review/momentum_daily/equal_weight_validation"
@@ -119,7 +120,7 @@ def runtime(artifacts, tmp_path):
         universe_fn=lambda session, n: NAMES[:n], proxy_closes=_proxy_closes(),
         session_dates=SESSIONS, strict_price_fn=_price, account4_probe=_probe,
         context_builder=context_builder, readiness=_StubReadiness(),
-        anchor_signer=signer, anchor_verifier=signer.verifier(), external_anchor_sink=sink,
+        witness=issue_witness_for_tests(signer, signer.verifier(), sink),
         market_symbol=MARKET)
 
 
@@ -140,6 +141,23 @@ class _StubReadiness:
 
     def verify_unchanged(self, session_date, evidence):
         return None
+
+
+_KEEP = object()
+
+
+def _with_witness(runtime, *, signer=_KEEP, verifier=_KEEP, sink=_KEEP):
+    """Swap one leg of the enforced witness carrier, keeping the others.
+
+    The three legs used to be independent `SessionRuntime` fields, so a failure-mode test could
+    `replace(runtime, anchor_signer=...)` directly. R5e-2 collapsed them into one enforced carrier, so a
+    test that wants a raising signer rebuilds the carrier instead. `_KEEP` distinguishes "leave this
+    leg alone" from "set it to None", which is itself a case under test.
+    """
+    return replace(runtime, witness=issue_witness_for_tests(
+        runtime.witness.signer if signer is _KEEP else signer,
+        runtime.witness.verifier if verifier is _KEEP else verifier,
+        runtime.witness.sink if sink is _KEEP else sink))
 
 
 def _run(runtime, session, tmp_path, **kw):
@@ -451,7 +469,7 @@ def test_both_post_commit_writes_can_fail_independently(runtime, tmp_path, monke
 def test_a_missing_independent_witness_fails_closed(runtime, tmp_path):
     """Without a configured witness (signer/verifier/external sink) the record cannot be tamper-evidently
     anchored, so the runner refuses to commit rather than leave an unwitnessed record."""
-    no_witness = replace(runtime, anchor_signer=None)
+    no_witness = _with_witness(runtime, signer=None)
     result = _run(no_witness, SESSION_1, tmp_path)
     assert result.status is SessionRunStatus.INTEGRITY_STOP
     assert result.exception_code == "INDEPENDENT_WITNESS_UNAVAILABLE"
@@ -501,7 +519,7 @@ class _RaisingReadSink:
 def test_a_raw_external_read_failure_becomes_a_governed_stop(runtime, tmp_path):
     """A raw exception from the external sink during pre-run verification is normalized into an integrity
     stop, never allowed to escape run_session()."""
-    broken = replace(runtime, external_anchor_sink=_RaisingReadSink())
+    broken = _with_witness(runtime, sink=_RaisingReadSink())
     result = _run(broken, SESSION_1, tmp_path)
     assert result.status is SessionRunStatus.INTEGRITY_STOP
     assert result.exception_code == "INDEPENDENT_WITNESS_UNAVAILABLE"
@@ -511,7 +529,7 @@ def test_a_raw_external_read_failure_becomes_a_governed_stop(runtime, tmp_path):
 def test_a_raw_signer_failure_does_not_suppress_the_book_write(runtime, tmp_path):
     """The observation has advanced; a raw signer-client exception must not stop the book from persisting.
     The anchor is unwritten, the book is written."""
-    broken = replace(runtime, anchor_signer=_RaisingSigner())
+    broken = _with_witness(runtime, signer=_RaisingSigner())
     result = _run(broken, SESSION_1, tmp_path)
     assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
     assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
@@ -520,7 +538,7 @@ def test_a_raw_signer_failure_does_not_suppress_the_book_write(runtime, tmp_path
 
 
 def test_a_raw_sink_publish_failure_does_not_suppress_the_book_write(runtime, tmp_path):
-    broken = replace(runtime, external_anchor_sink=_RaisingPublishSink(runtime.external_anchor_sink))
+    broken = _with_witness(runtime, sink=_RaisingPublishSink(runtime.witness.sink))
     result = _run(broken, SESSION_1, tmp_path)
     assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_UNWRITTEN
     assert len(committed_observations(tmp_path / "store")) == 1
@@ -533,7 +551,7 @@ def test_a_raw_signer_failure_with_a_failing_book_is_the_combined_status(runtime
     monkeypatch.setattr(orch, "_book_writer",
                         lambda lifecycle, adapter: (lambda seq, iso: (_ for _ in ()).throw(
                             OSError("disk full"))))
-    broken = replace(runtime, anchor_signer=_RaisingSigner())
+    broken = _with_witness(runtime, signer=_RaisingSigner())
     result = _run(broken, SESSION_1, tmp_path)
     assert result.status is SessionRunStatus.RECORDED_BUT_ANCHOR_AND_BOOK_UNPERSISTED
     assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions

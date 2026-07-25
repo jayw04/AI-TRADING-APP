@@ -129,10 +129,17 @@ class WitnessConfig:
     signer: WitnessComponentConfig
     sink: WitnessComponentConfig
     public_key_path: Path        # the DEPLOYMENT-installed verifying key — never obtained from the signer
+    # The boundary the key-path walk starts from (R5e-2). Every component from here down to the key is
+    # verified for ownership, mode and symlink freedom. Optional: when absent the walk starts at the
+    # filesystem root, which is correct but stricter than some deployments need — OS-managed ancestors
+    # are root-owned and pass, yet naming the root the deployment actually governs states the intent and
+    # avoids depending on assumptions about ancestors it does not control.
+    trusted_root: Path | None = None
 
     def to_open_provenance(self) -> dict[str, Any]:
         return {"profile": self.profile.value, "signer": self.signer.to_open_provenance(),
-                "sink": self.sink.to_open_provenance(), "public_key_path": str(self.public_key_path)}
+                "sink": self.sink.to_open_provenance(), "public_key_path": str(self.public_key_path),
+                "trusted_root": str(self.trusted_root) if self.trusted_root else None}
 
 
 def _decoded_key_material(text: str, *, digest_named: bool) -> str | None:
@@ -283,11 +290,19 @@ def load_witness_config(payload: Any) -> WitnessConfig:
             "rather than obtained from the signer, or a substituted signer would supply the very key its "
             "signatures are checked against", code="WITNESS_CONFIG_INCOMPLETE")
 
+    trusted_root = str(payload.get("trusted_root") or "").strip()
+    if trusted_root and not Path(trusted_root).is_absolute():
+        raise WitnessConfigError(
+            f"witness.trusted_root {trusted_root!r} must be absolute; a relative root would depend on "
+            f"the working directory of whoever launched the run",
+            code="WITNESS_CONFIG_INCOMPLETE")
+
     return WitnessConfig(
         profile=profile,
         signer=_component(payload.get("signer"), name="signer"),
         sink=_component(payload.get("sink"), name="sink"),
         public_key_path=Path(public_key_path),
+        trusted_root=Path(trusted_root) if trusted_root else None,
     )
 
 

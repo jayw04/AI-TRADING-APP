@@ -26,11 +26,21 @@ from app.validation.forward_deployment_config import (
     load_deployment_config,
 )
 from app.validation.witness_config import WitnessConfigError
-from app.validation.witness_enforcement import WitnessEnforcementError
+from app.validation.witness_enforcement import (
+    WitnessEnforcementError,
+    _can_enforce_path_guarantees,
+)
 from tests.validation import witness_doubles as doubles
 
 BACKEND = Path(__file__).resolve().parents[2]
 DOUBLES = "tests.validation.witness_doubles"
+
+# R5e-2 made a PRODUCTION witness fail closed where POSIX ownership/no-follow guarantees cannot be
+# established. Readiness resolves a real production witness, so on Windows these test nothing and are
+# skipped rather than weakened; Linux CI runs them all.
+POSIX_ONLY = pytest.mark.skipif(
+    not _can_enforce_path_guarantees(),
+    reason="readiness resolves a PRODUCTION witness, which fails closed off POSIX by design")
 COMMIT = "b0058bf335628f8dbde09a93915314f3a1f7743b"
 DIGEST = "sha256:" + "b" * 64
 SESSION = date(2026, 7, 24)
@@ -118,6 +128,10 @@ def deployment(tmp_path, monkeypatch):
         "backstop_days": 10,
         "weight_drift_pct": 0.04,
         "witness": {
+            # tmp_path itself is the trusted root: pytest's temporaries live under a world-writable
+            # /tmp, which the R5e-2 key-path walk correctly refuses. Deployments name the root they
+            # actually govern for exactly this reason.
+            "trusted_root": str(tmp_path),
             "profile": "PRODUCTION",
             "public_key_path": str(tmp_path / "anchor_witness.pub"),
             "signer": {"factory": f"{DOUBLES}:build_signer", "identity": "kms://anchor-witness",
@@ -208,6 +222,7 @@ def test_a_witness_block_carrying_signing_material_is_refused(deployment, monkey
         load_deployment_config()
 
 
+@POSIX_ONLY
 def test_readiness_enforces_the_witness_and_publishes_its_evidence(deployment):
     report = cli.run_readiness(load_deployment_config(), SESSION)
     witness = report.evidence["witness"]
@@ -240,6 +255,7 @@ def test_a_witness_refusal_reports_its_code(deployment, monkeypatch, capsys):
     assert out["code"] == "WITNESS_PROFILE_NOT_PRODUCTION"
 
 
+@POSIX_ONLY
 def test_the_witness_evidence_does_not_leak_option_values(deployment):
     report = cli.run_readiness(load_deployment_config(), SESSION)
     assert report.evidence["witness"]["signer"]["option_keys"] == ["handle"]
@@ -247,6 +263,7 @@ def test_the_witness_evidence_does_not_leak_option_values(deployment):
 
 # ---- readiness verifies everything and changes nothing ----------------------------------------------
 
+@POSIX_ONLY
 def test_readiness_never_constructs_or_invokes_the_instrument(deployment, monkeypatch):
     """The structural boundary: snapshot creation and `on_bar` belong exclusively to run-session."""
     from strategies_user.templates.momentum_daily import MomentumDaily
@@ -263,6 +280,7 @@ def test_readiness_never_constructs_or_invokes_the_instrument(deployment, monkey
     assert "data_finality" in report.evidence or report.verdict == "NOT_ELIGIBLE"
 
 
+@POSIX_ONLY
 def test_readiness_reports_the_deployment_identity_and_account4_state(deployment):
     report = cli.run_readiness(load_deployment_config(), SESSION)
     assert report.evidence["deployment_identity"]["agreed_commit"] == COMMIT
@@ -283,6 +301,7 @@ def test_readiness_writes_no_observation_and_no_ledger(deployment):
     assert not config.observation_store_dir.exists()
 
 
+@POSIX_ONLY
 def test_the_provider_identities_bind_the_store_and_construction(deployment):
     report = cli.run_readiness(load_deployment_config(), SESSION)
     identities = report.evidence.get("provider_identities")
@@ -293,18 +312,35 @@ def test_the_provider_identities_bind_the_store_and_construction(deployment):
 
 # ---- this increment offers readiness ONLY -----------------------------------------------------------
 
-def test_the_cli_offers_no_run_session_mode():
-    """R5c-2b1 ships readiness. A command that refused every invocation while being named
-    `run-session` would misrepresent what the deployment can do; the assembly is R5c-2b2."""
+def test_the_cli_now_offers_run_session_and_still_takes_no_operator_evidence():
+    """R5c-2b1 deliberately shipped readiness ALONE, because a command named `run-session` that refused
+    every invocation would have misrepresented the deployment. R5e-2 supplies the composition root, so
+    the mode is now real — and this test flipped with it, rather than the mode being added quietly.
+
+    What must NOT change: the invocation surface. The only inputs are the mode and the session date. An
+    operator who could pass a store path, a ledger identity or an authorization token could point the
+    record at evidence of their own making.
+    """
     source = (BACKEND / "scripts" / "run_forward_validation_session.py").read_text(encoding="utf-8")
-    assert 'choices=["readiness"]' in source
-    assert "def run_session(" not in source
+    assert 'choices=["readiness", "run-session"]' in source
+    assert "def run_session(" in source
     assert "--authorize" not in source
+    for forbidden in ("--factor-store", "--app-db", "--build-info-path", "--ledger-path",
+                      "--store-dir", "--starting-capital"):
+        assert forbidden not in source, f"the CLI accepts operator-supplied {forbidden}"
+
+
+def test_the_run_session_mode_reaches_the_runner_only_through_the_composition_root():
+    """There must be exactly one way to build a session: if the CLI grew its own wiring, the witness
+    gate would have a second path around it."""
+    source = (BACKEND / "scripts" / "run_forward_validation_session.py").read_text(encoding="utf-8")
+    assert "from app.validation.session_composition import build_session_runtime" in source
+    assert "SessionRuntime(" not in source, "the CLI assembles a runtime itself"
 
 
 def test_an_unknown_mode_is_rejected(deployment):
     with pytest.raises(SystemExit):
-        cli.main(["run-session"])
+        cli.main(["evaluate-and-activate"])
 
 
 def test_readiness_requires_no_authorization(deployment, capsys):

@@ -19,12 +19,13 @@ from app.validation.chain_witness import (
     WitnessedTip,
 )
 from app.validation.witness_config import WitnessConfig, WitnessConfigError, load_witness_config
-from app.validation.witness_enforcement import (
+from app.validation.witness_enforcement import (  # noqa: I001
     CHALLENGE_SEQUENCE,
     ImmutabilityAttestation,
     WitnessEnforcementError,
+    _can_enforce_path_guarantees,
+    build_trusted_verifier,
     enforce_production_witness,
-    load_trusted_verifier,
 )
 from tests.validation import witness_doubles as doubles
 
@@ -32,20 +33,38 @@ DOUBLES = "tests.validation.witness_doubles"
 NONCE = "2026-07-25T00:00:00Z"
 
 
+# R5e-2 closed the key path with POSIX-only guarantees — ownership, O_NOFOLLOW, and dir_fd-relative
+# opens — and made a PRODUCTION witness FAIL CLOSED where they cannot be established. Windows can
+# establish none of them, so every test that drives the real gate is meaningless there and is skipped
+# rather than weakened. Linux CI runs all of them; see the R5e-2 submission for the exact counts.
+POSIX_ONLY = pytest.mark.skipif(
+    not _can_enforce_path_guarantees(),
+    reason="a PRODUCTION witness requires POSIX ownership/no-follow guarantees; the gate fails closed "
+           "here by design, so exercising it on this platform would test nothing")
+
+
 @pytest.fixture
 def service_key(tmp_path):
-    """A key provisioned inside the stand-in signing service; only its PUBLIC bytes are installed."""
+    """A key provisioned inside the stand-in signing service; only its PUBLIC bytes are installed.
+
+    `root` is the trusted root the config declares. It must be `tmp_path` itself, NOT an ancestor:
+    pytest's temporary directories live under a world-writable `/tmp`, which the key-path walk correctly
+    refuses. A deployment names the root it actually governs for exactly this reason.
+    """
+    if not _can_enforce_path_guarantees():
+        pytest.skip("PRODUCTION witness enforcement requires POSIX; it fails closed here by design")
     public_bytes = doubles.provision_service_key("svc-1")
     path = tmp_path / "anchor_witness.pub"
     path.write_bytes(public_bytes)
-    return {"public_bytes": public_bytes, "path": path}
+    return {"public_bytes": public_bytes, "path": path, "root": tmp_path}
 
 
 def _config(service_key, *, profile="PRODUCTION", signer="build_signer", sink="build_sink",
             signer_options=None, sink_options=None, public_key_path=None,
-            sink_identity="s3://anchors/prod") -> WitnessConfig:
+            sink_identity="s3://anchors/prod", trusted_root=None) -> WitnessConfig:
     return load_witness_config({
         "profile": profile,
+        "trusted_root": str(trusted_root or service_key["root"]),
         "public_key_path": str(public_key_path or service_key["path"]),
         "signer": {"factory": f"{DOUBLES}:{signer}", "identity": "kms://anchor-witness",
                    "options": signer_options or {}},
@@ -131,7 +150,8 @@ def test_both_reference_classes_carry_the_marker():
 def test_a_factory_resolving_into_the_reference_module_is_refused_before_import(
         service_key, signer_factory, sink_factory):
     config = load_witness_config({
-        "profile": "PRODUCTION", "public_key_path": str(service_key["path"]),
+        "profile": "PRODUCTION", "trusted_root": str(service_key["root"]),
+        "public_key_path": str(service_key["path"]),
         "signer": {"factory": signer_factory, "identity": "kms://x"},
         "sink": {"factory": sink_factory, "identity": "s3://y"}})
     with pytest.raises(WitnessEnforcementError, match="reference implementations"):
@@ -167,7 +187,8 @@ def test_a_factory_that_cannot_construct_is_a_refusal_not_a_crash(service_key):
 
 def test_an_unresolvable_factory_is_a_refusal(service_key):
     config = load_witness_config({
-        "profile": "PRODUCTION", "public_key_path": str(service_key["path"]),
+        "profile": "PRODUCTION", "trusted_root": str(service_key["root"]),
+        "public_key_path": str(service_key["path"]),
         "signer": {"factory": "no.such.module:build", "identity": "x"},
         "sink": {"factory": f"{DOUBLES}:build_sink", "identity": "y"}})
     with pytest.raises(WitnessEnforcementError, match="could not be resolved"):
@@ -182,6 +203,10 @@ def test_key_material_in_factory_options_is_refused_at_the_gate_too(service_key)
     config = _config(service_key)
     poisoned = WitnessConfig(
         profile=config.profile, sink=config.sink, public_key_path=config.public_key_path,
+        # Carried deliberately. Omitting it defaults the key-path walk to the filesystem root, and on
+        # any ordinary Linux box `/tmp` is mode 0o1777 — so the walk refuses (correctly) before this
+        # test reaches the key-material scan it is actually about. Linux CI caught exactly that.
+        trusted_root=config.trusted_root,
         signer=WitnessComponentConfig(factory=f"{DOUBLES}:build_signer", identity="x",
                                       options={"private_key": "abc"}))
     with pytest.raises(WitnessConfigError, match="private signing material"):
@@ -250,7 +275,8 @@ def test_the_key_is_accepted_in_the_encodings_a_deployment_installs(tmp_path, en
     public_bytes = doubles.provision_service_key("svc-enc")
     path = tmp_path / "k.pub"
     path.write_bytes(encode(public_bytes))
-    assert load_trusted_verifier(path).public_key_id == AnchorVerifier(public_bytes).public_key_id
+    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_id
+            == AnchorVerifier(public_bytes).public_key_id)
 
 
 def test_a_raw_key_written_with_a_trailing_newline_is_still_read(tmp_path):
@@ -259,14 +285,15 @@ def test_a_raw_key_written_with_a_trailing_newline_is_still_read(tmp_path):
     public_bytes = doubles.provision_service_key("svc-nl")
     path = tmp_path / "k.pub"
     path.write_bytes(public_bytes + b"\n")
-    assert load_trusted_verifier(path).public_key_id == AnchorVerifier(public_bytes).public_key_id
+    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_id
+            == AnchorVerifier(public_bytes).public_key_id)
 
 
 def test_a_key_of_the_wrong_length_is_refused_not_truncated(tmp_path):
     path = tmp_path / "short.pub"
     path.write_bytes(b"too short")
     with pytest.raises(WitnessEnforcementError, match="is 9 bytes"):
-        load_trusted_verifier(path)
+        build_trusted_verifier(path.read_bytes(), source=str(path))
 
 
 # ---- the sink proves its own immutability -----------------------------------------------------------
