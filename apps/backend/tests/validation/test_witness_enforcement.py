@@ -203,6 +203,10 @@ def test_key_material_in_factory_options_is_refused_at_the_gate_too(service_key)
     config = _config(service_key)
     poisoned = WitnessConfig(
         profile=config.profile, sink=config.sink, public_key_path=config.public_key_path,
+        # Carried deliberately. Omitting it defaults the key-path walk to the filesystem root, and on
+        # any ordinary Linux box `/tmp` is mode 0o1777 — so the walk refuses (correctly) before this
+        # test reaches the key-material scan it is actually about. Linux CI caught exactly that.
+        trusted_root=config.trusted_root,
         signer=WitnessComponentConfig(factory=f"{DOUBLES}:build_signer", identity="x",
                                       options={"private_key": "abc"}))
     with pytest.raises(WitnessConfigError, match="private signing material"):
