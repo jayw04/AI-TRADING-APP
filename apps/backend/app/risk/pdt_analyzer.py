@@ -56,9 +56,24 @@ class PdtStatus:
 
 
 class PdtAnalyzer:
-    def __init__(self, *, session: AsyncSession, broker_registry: Any = None) -> None:
+    def __init__(
+        self,
+        *,
+        session: AsyncSession,
+        broker_registry: Any = None,
+        as_of: datetime | None = None,
+    ) -> None:
+        """`as_of` pins the evaluation instant that anchors the rolling window.
+
+        Production always leaves it None (the window anchors to the wall clock).
+        It exists so tests can state a fixed evaluation timestamp instead of
+        deriving fixtures from `datetime.now()` — offsets from an unpinned clock
+        make the rolling-window boundary a function of when the suite happens to
+        run. Passing None reproduces the previous behaviour exactly.
+        """
         self._session = session
         self._broker_registry = broker_registry
+        self._as_of = as_of
 
     async def compute(self, account_id: int) -> PdtStatus:
         account = await self._session.get(Account, account_id)
@@ -148,7 +163,7 @@ class PdtAnalyzer:
             return None
 
     def _business_days_ago(self, n: int) -> datetime:
-        d = datetime.now(UTC)
+        d = self._as_of if self._as_of is not None else datetime.now(UTC)
         days_back = 0
         while days_back < n:
             d = d - timedelta(days=1)
