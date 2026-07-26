@@ -104,7 +104,8 @@ def deployment(tmp_path, monkeypatch):
     (tmp_path / "TrialLedger.json").write_text("{}", encoding="utf-8")
     # The anchor trust boundary (R5e). Only the PUBLIC key is installed; the signing key stays inside
     # the stand-in service, which is what `witness_doubles` models.
-    (tmp_path / "anchor_witness.pub").write_bytes(doubles.provision_service_key("cli-svc"))
+    (tmp_path / "anchor_witness.pub").write_bytes(
+        doubles.provision_p256_service_key("cli-svc"))
 
     config = {
         "factor_store_path": str(_factor_store(tmp_path / "factor.duckdb")),
@@ -133,9 +134,13 @@ def deployment(tmp_path, monkeypatch):
             # actually govern for exactly this reason.
             "trusted_root": str(tmp_path),
             "profile": "PRODUCTION",
+            # PRODUCTION pins P-256 (ADR 0045); an Ed25519 signer here is refused at config load.
+            "algorithm": "ECDSA_SHA_256_P256",
+            "key_id": "arn:aws:kms:us-east-1:219024422756:key/1234abcd",
             "public_key_path": str(tmp_path / "anchor_witness.pub"),
-            "signer": {"factory": f"{DOUBLES}:build_signer", "identity": "kms://anchor-witness",
-                       "options": {"handle": "cli-svc"}},
+            "signer": {"factory": f"{DOUBLES}:build_p256_signer",
+                       "identity": "kms://anchor-witness",
+                       "options": {"handle": "cli-svc", "key_arn": "arn:aws:kms:us-east-1:219024422756:key/1234abcd"}},
             "sink": {"factory": f"{DOUBLES}:build_sink", "identity": "s3://anchors/prod"},
         },
     }
@@ -258,7 +263,9 @@ def test_a_witness_refusal_reports_its_code(deployment, monkeypatch, capsys):
 @POSIX_ONLY
 def test_the_witness_evidence_does_not_leak_option_values(deployment):
     report = cli.run_readiness(load_deployment_config(), SESSION)
-    assert report.evidence["witness"]["signer"]["option_keys"] == ["handle"]
+    # The KMS-shaped signer takes a handle AND the key ARN; both are KEY NAMES, and the assertion is
+    # that VALUES never appear in evidence — which is what this test is actually about.
+    assert report.evidence["witness"]["signer"]["option_keys"] == ["handle", "key_arn"]
 
 
 # ---- readiness verifies everything and changes nothing ----------------------------------------------

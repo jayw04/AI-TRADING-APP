@@ -19,6 +19,10 @@ from app.validation.witness_config import (
 
 GOOD = {
     "profile": "PRODUCTION",
+    # ADR 0045: a PRODUCTION deployment must name the algorithm and the key it pins, or it fails to
+    # load. There is no default — a verifier that inferred either would be choosing its own authority.
+    "algorithm": "ECDSA_SHA_256_P256",
+    "key_id": "arn:aws:kms:us-east-1:219024422756:key/1234abcd-12ab-34cd-56ef-1234567890ab",
     "public_key_path": "/etc/workbench/anchor_witness.pub",
     "signer": {"factory": "deployment.witness:build_signer", "identity": "kms://anchor-witness",
                "options": {"key_arn": "arn:aws:kms:us-east-1:1:key/abc", "region": "us-east-1"}},

@@ -27,10 +27,12 @@ from app.validation.witness_enforcement import (  # noqa: I001
     build_trusted_verifier,
     enforce_production_witness,
 )
+from app.validation.witness_protocol import fingerprint_public_key
 from tests.validation import witness_doubles as doubles
 
 DOUBLES = "tests.validation.witness_doubles"
 NONCE = "2026-07-25T00:00:00Z"
+KEY_ARN = "arn:aws:kms:us-east-1:219024422756:key/1234abcd"
 
 
 # R5e-2 closed the key path with POSIX-only guarantees — ownership, O_NOFOLLOW, and dir_fd-relative
@@ -53,21 +55,27 @@ def service_key(tmp_path):
     """
     if not _can_enforce_path_guarantees():
         pytest.skip("PRODUCTION witness enforcement requires POSIX; it fails closed here by design")
-    public_bytes = doubles.provision_service_key("svc-1")
+    # P-256 DER SPKI, exactly as KMS GetPublicKey returns it. An Ed25519 key here would be refused at
+    # config load, because PRODUCTION pins ECDSA_SHA_256_P256 (ADR 0045) — so a production-gate test
+    # must be driven by production-shaped material or it would test nothing.
+    public_bytes = doubles.provision_p256_service_key("svc-1")
     path = tmp_path / "anchor_witness.pub"
     path.write_bytes(public_bytes)
     return {"public_bytes": public_bytes, "path": path, "root": tmp_path}
 
 
-def _config(service_key, *, profile="PRODUCTION", signer="build_signer", sink="build_sink",
+def _config(service_key, *, profile="PRODUCTION", signer="build_p256_signer", sink="build_sink",
             signer_options=None, sink_options=None, public_key_path=None,
             sink_identity="s3://anchors/prod", trusted_root=None) -> WitnessConfig:
     return load_witness_config({
         "profile": profile,
+        "algorithm": "ECDSA_SHA_256_P256",
+        "key_id": KEY_ARN,
         "trusted_root": str(trusted_root or service_key["root"]),
         "public_key_path": str(public_key_path or service_key["path"]),
         "signer": {"factory": f"{DOUBLES}:{signer}", "identity": "kms://anchor-witness",
-                   "options": signer_options or {}},
+                   "options": signer_options if signer_options is not None
+                   else {"handle": "svc-1", "key_arn": KEY_ARN}},
         "sink": {"factory": f"{DOUBLES}:{sink}", "identity": sink_identity,
                  "options": sink_options or {}},
     })
@@ -78,7 +86,8 @@ def _config(service_key, *, profile="PRODUCTION", signer="build_signer", sink="b
 def test_a_production_witness_is_accepted_and_evidenced(service_key):
     witness = enforce_production_witness(_config(service_key), nonce=NONCE)
 
-    assert witness.verifier.public_key_id == AnchorVerifier(service_key["public_bytes"]).public_key_id
+    assert witness.verifier.public_key_fingerprint == fingerprint_public_key(
+        service_key["public_bytes"])
     assert witness.evidence["profile"] == "PRODUCTION"
     assert witness.evidence["signer"]["key_challenge"]["challenged"] is True
     assert witness.evidence["sink"]["immutability"]["enforced"] is True
@@ -145,14 +154,19 @@ def test_both_reference_classes_carry_the_marker():
 
 @pytest.mark.parametrize("signer_factory,sink_factory", [
     ("app.validation.chain_witness:Ed25519AnchorSigner", f"{DOUBLES}:build_sink"),
-    (f"{DOUBLES}:build_signer", "app.validation.chain_witness:FileExternalAnchorSink"),
+    # a PASSING p256 signer, so the refusal under test is the SINK's reference module,
+    # not the signer failing an unrelated key challenge first.
+    (f"{DOUBLES}:build_p256_signer", "app.validation.chain_witness:FileExternalAnchorSink"),
 ])
 def test_a_factory_resolving_into_the_reference_module_is_refused_before_import(
         service_key, signer_factory, sink_factory):
     config = load_witness_config({
         "profile": "PRODUCTION", "trusted_root": str(service_key["root"]),
+        "algorithm": "ECDSA_SHA_256_P256", "key_id": KEY_ARN,
         "public_key_path": str(service_key["path"]),
-        "signer": {"factory": signer_factory, "identity": "kms://x"},
+        "signer": {"factory": signer_factory, "identity": "kms://x",
+                   "options": {"handle": "svc-1", "key_arn": KEY_ARN}
+                   if "p256" in signer_factory else {}},
         "sink": {"factory": sink_factory, "identity": "s3://y"}})
     with pytest.raises(WitnessEnforcementError, match="reference implementations"):
         enforce_production_witness(config, nonce=NONCE)
@@ -188,6 +202,7 @@ def test_a_factory_that_cannot_construct_is_a_refusal_not_a_crash(service_key):
 def test_an_unresolvable_factory_is_a_refusal(service_key):
     config = load_witness_config({
         "profile": "PRODUCTION", "trusted_root": str(service_key["root"]),
+        "algorithm": "ECDSA_SHA_256_P256", "key_id": KEY_ARN,
         "public_key_path": str(service_key["path"]),
         "signer": {"factory": "no.such.module:build", "identity": "x"},
         "sink": {"factory": f"{DOUBLES}:build_sink", "identity": "y"}})
@@ -207,6 +222,9 @@ def test_key_material_in_factory_options_is_refused_at_the_gate_too(service_key)
         # any ordinary Linux box `/tmp` is mode 0o1777 — so the walk refuses (correctly) before this
         # test reaches the key-material scan it is actually about. Linux CI caught exactly that.
         trusted_root=config.trusted_root,
+        # Same reasoning as trusted_root: without the pinned algorithm the verifier defaults to
+        # Ed25519 and refuses the 91-byte P-256 SPKI before reaching the key-material scan.
+        algorithm=config.algorithm, key_id=config.key_id,
         signer=WitnessComponentConfig(factory=f"{DOUBLES}:build_signer", identity="x",
                                       options={"private_key": "abc"}))
     with pytest.raises(WitnessConfigError, match="private signing material"):
@@ -219,7 +237,7 @@ def test_a_signer_holding_a_different_key_is_refused(service_key, tmp_path):
     """The substitution R5d could not detect until the first `verify_anchor_consistency` — after a
     session had been evaluated."""
     other = tmp_path / "other.pub"
-    other.write_bytes(doubles.provision_service_key("svc-other"))
+    other.write_bytes(doubles.provision_p256_service_key("svc-other"))
     with pytest.raises(WitnessEnforcementError, match="does not hold the trusted key") as exc:
         enforce_production_witness(_config(service_key, public_key_path=other), nonce=NONCE)
     assert exc.value.code == "WITNESS_SIGNER_KEY_UNTRUSTED"
@@ -275,8 +293,8 @@ def test_the_key_is_accepted_in_the_encodings_a_deployment_installs(tmp_path, en
     public_bytes = doubles.provision_service_key("svc-enc")
     path = tmp_path / "k.pub"
     path.write_bytes(encode(public_bytes))
-    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_id
-            == AnchorVerifier(public_bytes).public_key_id)
+    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_fingerprint
+            == AnchorVerifier(public_bytes).public_key_fingerprint)
 
 
 def test_a_raw_key_written_with_a_trailing_newline_is_still_read(tmp_path):
@@ -285,8 +303,8 @@ def test_a_raw_key_written_with_a_trailing_newline_is_still_read(tmp_path):
     public_bytes = doubles.provision_service_key("svc-nl")
     path = tmp_path / "k.pub"
     path.write_bytes(public_bytes + b"\n")
-    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_id
-            == AnchorVerifier(public_bytes).public_key_id)
+    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_fingerprint
+            == AnchorVerifier(public_bytes).public_key_fingerprint)
 
 
 def test_a_key_of_the_wrong_length_is_refused_not_truncated(tmp_path):
@@ -496,10 +514,11 @@ def test_a_34_byte_blob_without_an_exact_crlf_terminator_is_not_truncated():
     assert len(_decode_public_key(blob)) != 32
 
 
-def test_a_raw_key_ending_in_lf_written_with_an_lf_is_refused_not_guessed(tmp_path):
-    """Genuinely ambiguous in a raw binary file: 33 bytes ending LF could be a 32-byte key plus a
-    terminator, or a 33-byte blob. The shape rule resolves it one way and the docstring says so; what
-    matters is that it is deterministic rather than key-dependent."""
+def test_a_raw_key_ending_in_lf_with_an_appended_lf_is_resolved_deterministically(tmp_path):
+    """Genuinely ambiguous at the byte level: 33 bytes ending LF could be a 32-byte key plus a
+    terminator, or a 33-byte blob. The shape rule resolves it as key-plus-terminator, and what matters
+    is that the resolution is DETERMINISTIC rather than dependent on the key material — the old
+    `strip()` decided based on the key's own bytes, which is how it corrupted ~1 key in 32."""
     from app.validation.witness_enforcement import _decode_public_key
 
     key = _key_ending(0x0A)

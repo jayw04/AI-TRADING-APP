@@ -127,7 +127,10 @@ def test_the_first_tip_is_anchored(ctx, tmp_path):
     assert rec.sequence == 1
     assert rec.commit_sha256 == obs[0].commit_sha256
     assert rec.previous_commit_sha256 is None and rec.previous_anchor_sha256 is None
-    assert rec.witness_signature and rec.witness_public_key_id == VERIFIER.public_key_id
+    # v2: the COMPLETE receipt is persisted, not a three-field projection.
+    assert rec.witness_receipt.signature
+    assert rec.witness_receipt.public_key_fingerprint == VERIFIER.public_key_fingerprint
+    assert rec.witness_receipt.protocol_version == 2
     anchors = read_anchors(store)
     assert len(anchors) == 1 and anchors[0].commit_sha256 == obs[0].commit_sha256
     _verify(store, sink)                                # signatures + external witness all check
@@ -244,7 +247,9 @@ def test_an_altered_tip_fails_the_signature(ctx, tmp_path):
     rewritten_obs = [replace(obs[0], commit_sha256="b" * 64)]
     with pytest.raises(AnchorError) as ei:
         _verify(store, sink, rewritten_obs)
-    assert ei.value.code == "ANCHOR_SIGNATURE_INVALID"
+    # v2 refuses on the DIGEST before cryptography: an altered tip produces a different
+    # envelope, so the record no longer reconstructs.
+    assert ei.value.code == "WITNESS_MESSAGE_DIGEST_MISMATCH"
 
 
 def test_a_foreign_signing_key_is_refused(ctx, tmp_path):
@@ -255,7 +260,10 @@ def test_a_foreign_signing_key_is_refused(ctx, tmp_path):
     _anchor(store, sink, signer=OTHER_SIGNER)          # signed by the wrong key + recorded externally
     with pytest.raises(AnchorError) as ei:
         _verify(store, sink)                            # verifier trusts SIGNER, not OTHER_SIGNER
-    assert ei.value.code == "ANCHOR_SIGNATURE_INVALID"
+    # v2 refuses on IDENTITY before cryptography: a foreign key means the receipt's
+    # fingerprint disagrees with the installed one, which is a mismatch rather than a bad
+    # signature. The operator learns which of the two actually happened.
+    assert ei.value.code == "WITNESS_KEY_IDENTITY_MISMATCH"
 
 
 def test_a_truncated_local_log_is_caught_by_the_external_witness(ctx, tmp_path):
@@ -358,12 +366,86 @@ def _reseal(obj: dict) -> str:
     """Rebuild a self-valid anchor line: recompute anchor_sha256 over the CORE body so the LINE verifies
     (the signature is over the tip, not recomputed — only what a keyless attacker could redo)."""
     core = {k: v for k, v in obj.items()
-            if k not in ("anchor_sha256", "witness_signature", "witness_public_key_id",
+            if k not in ("anchor_sha256", "witness_receipt",
                          "witness_identity")}
-    rest = {k: obj[k] for k in ("witness_signature", "witness_public_key_id", "witness_identity")
+    rest = {k: obj[k] for k in ("witness_receipt",)
             if k in obj}
     return json.dumps({**core, "anchor_sha256": _digest(core), **rest}, sort_keys=True)
 
 
 def _write_lines(path: Path, lines: list[str]) -> None:
     path.write_text("".join(ln + "\n" for ln in lines), encoding="utf-8")
+
+
+# ---- local <-> external receipt equality (the unsigned-evidence divergence gap) ----------------------
+#
+# `signed_at` and `witness_identity` sit OUTSIDE the signed envelope by design, so two receipts that
+# differ only in those fields BOTH verify, and the tip comparison passes too. Without a whole-receipt
+# comparison the system would accept two disagreeing evidence records as though they agreed — and the
+# external immutable sink is supposed to protect the published receipt in full, not just the tip.
+
+def _anchored(ctx, tmp_path):
+    store = tmp_path / "ledger"
+    sink = _sink(tmp_path)
+    _open(ctx, store)
+    _anchor(store, sink)
+    return store, sink
+
+
+def _rewrite_local_receipt(store, **overrides):
+    path = store / ANCHOR_LOG_FILENAME
+    obj = _load_line(path, 0)
+    receipt = {**json.loads(obj["witness_receipt"]), **overrides}
+    obj["witness_receipt"] = json.dumps(receipt, sort_keys=True, separators=(",", ":"))
+    path.write_text(_dump(obj) + "\n", encoding="utf-8")
+
+
+def _rewrite_external_receipt(tmp_path, **overrides):
+    files = sorted((tmp_path / "external_witness").rglob("*"))
+    target = next(f for f in files if f.is_file())
+    obj = json.loads(target.read_text(encoding="utf-8"))
+    key = "receipt" if "receipt" in obj else "signed_receipt"
+    obj[key] = {**obj[key], **overrides}
+    target.write_text(json.dumps(obj, sort_keys=True), encoding="utf-8")
+
+
+@pytest.mark.parametrize("field,value", [("signed_at", "2030-01-01T00:00:00Z"),
+                                         ("witness_identity", "renamed-locally")])
+def test_a_locally_mutated_unsigned_field_diverges_from_the_external_receipt(ctx, tmp_path,
+                                                                            field, value):
+    """Both receipts still verify — these fields are unsigned — but they no longer agree."""
+    store, sink = _anchored(ctx, tmp_path)
+    _rewrite_local_receipt(store, **{field: value})
+    with pytest.raises(AnchorError) as exc:
+        _verify(store, sink)
+    assert exc.value.code == "EXTERNAL_WITNESS_DIVERGES"
+
+
+@pytest.mark.parametrize("field,value", [("signed_at", "2030-01-01T00:00:00Z"),
+                                         ("witness_identity", "renamed-externally")])
+def test_an_externally_mutated_unsigned_field_diverges_from_the_local_receipt(ctx, tmp_path,
+                                                                             field, value):
+    """The mirror: mutating the PUBLISHED copy is caught just the same."""
+    store, sink = _anchored(ctx, tmp_path)
+    _rewrite_external_receipt(tmp_path, **{field: value})
+    with pytest.raises(AnchorError) as exc:
+        _verify(store, sink)
+    assert exc.value.code == "EXTERNAL_WITNESS_DIVERGES"
+
+
+def test_identical_receipts_still_verify(ctx, tmp_path):
+    """The guard must not reject agreement — otherwise it would prove nothing."""
+    store, sink = _anchored(ctx, tmp_path)
+    _verify(store, sink)
+
+
+def test_the_receipt_is_persisted_as_the_canonical_protocol_string(ctx, tmp_path):
+    """The persistence boundary is literal: storage holds exactly what the protocol's own serializer
+    produced, so no independent field enumeration can drift from it."""
+    from app.validation.witness_protocol import deserialize_receipt, serialize_receipt
+
+    store, _ = _anchored(ctx, tmp_path)
+    obj = _load_line(store / ANCHOR_LOG_FILENAME, 0)
+    stored = obj["witness_receipt"]
+    assert isinstance(stored, str), "the receipt is persisted as the canonical protocol string"
+    assert serialize_receipt(deserialize_receipt(stored)) == stored     # exact round-trip

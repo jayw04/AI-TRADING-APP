@@ -47,13 +47,19 @@ from app.validation.observation_store import (
     committed_observations,
     default_durability,
 )
+from app.validation.witness_protocol import deserialize_receipt, serialize_receipt
 
 ANCHOR_LOG_FILENAME = "chain_anchors.jsonl"        # store ROOT — never under observations/
 
 # the anchor-line fields that make up the SIGNED/DIGESTED core (the witness fields are added around it)
 _CORE_FIELDS = ("sequence", "session_date", "commit_sha256", "previous_commit_sha256",
                 "previous_anchor_sha256", "deployed_tree_identity", "anchored_at")
-_WITNESS_FIELDS = ("witness_signature", "witness_public_key_id", "witness_identity")
+# The persisted witness is the COMPLETE receipt, under one key. The old projection
+# (witness_signature / witness_public_key_id / witness_identity) is retired: it discarded
+# protocol_version, algorithm, key_id, the full fingerprint, message_digest and signed_at, so a stored
+# anchor could not be re-verified from storage alone and a later reader would have had to rebuild the
+# missing fields from whatever configuration happened to be current — which is not evidence.
+_WITNESS_FIELDS = ("witness_receipt",)
 
 
 class AnchorError(IntegrityStop):
@@ -78,9 +84,7 @@ class AnchorRecord:
     previous_anchor_sha256: str | None     # digest of the previous anchor LINE (None for sequence 1)
     deployed_tree_identity: str
     anchored_at: str                       # ISO8601 UTC — caller-supplied (Date.now unavailable)
-    witness_signature: str                 # base64 Ed25519 signature over the witnessed tip
-    witness_public_key_id: str             # fingerprint of the signing key
-    witness_identity: str                  # human identity of the external witness
+    witness_receipt: SignedReceipt         # the COMPLETE protocol-v2 receipt, stored whole
 
     def core_body(self) -> dict:
         return {k: getattr(self, k) for k in _CORE_FIELDS}
@@ -93,9 +97,8 @@ class AnchorRecord:
                             commit_sha256=self.commit_sha256, anchor_sha256=self.anchor_sha256())
 
     def receipt(self) -> SignedReceipt:
-        return SignedReceipt(signature_b64=self.witness_signature,
-                             public_key_id=self.witness_public_key_id,
-                             witness_identity=self.witness_identity)
+        """The stored receipt, exactly as the signer emitted it — never reassembled from parts."""
+        return self.witness_receipt
 
 
 def _digest(payload: dict) -> str:
@@ -112,10 +115,14 @@ def _line_digest(line: str) -> str:
 def _serialize(record: AnchorRecord) -> str:
     """The canonical one-line JSON for an anchor: the core body, its `anchor_sha256`, and the witness
     fields (no newline)."""
+    # The receipt is serialized by the PROTOCOL, not enumerated here. A storage layer that builds its
+    # own mapping can bypass the strict parse on the way back in, and a later schema change would land
+    # without the receipt boundary noticing.
+    # The canonical protocol STRING, produced by the protocol's own serializer. Storing the exact
+    # string (rather than a nested object this module assembles) makes the persistence boundary literal
+    # and keeps the byte-for-byte form available for the local<->external comparison above.
     payload = {**record.core_body(), "anchor_sha256": record.anchor_sha256(),
-               "witness_signature": record.witness_signature,
-               "witness_public_key_id": record.witness_public_key_id,
-               "witness_identity": record.witness_identity}
+               "witness_receipt": serialize_receipt(record.witness_receipt)}
     return json.dumps(payload, sort_keys=True)
 
 
@@ -146,6 +153,14 @@ def read_anchors(store_dir: Path) -> list[AnchorRecord]:
         if missing:
             raise AnchorError(f"anchor line {i} is missing field(s) {missing}",
                               code="ANCHOR_LOG_INVALID")
+        # The receipt is rebuilt by the PROTOCOL's strict parser, so a stored receipt that is missing
+        # a field, carries an unknown one, or was written by a different protocol is refused HERE —
+        # at the receipt boundary — rather than being silently accepted into an AnchorRecord.
+        try:
+            obj["witness_receipt"] = deserialize_receipt(obj["witness_receipt"])
+        except WitnessError as exc:
+            raise AnchorError(f"anchor line {i} has an invalid witness receipt: {exc}",
+                              code="ANCHOR_LOG_INVALID") from exc
         try:
             record = AnchorRecord(**obj)
         except TypeError as exc:
@@ -252,6 +267,18 @@ def _assert_witnessed(anchors: list[AnchorRecord], verifier: AnchorVerifier,
             raise AnchorError(
                 f"the external witness for sequence {etip.sequence} records a different tip than the "
                 f"local anchor log", code="EXTERNAL_WITNESS_DIVERGES")
+        # The WHOLE receipt must agree, not just the tip it covers.
+        #
+        # `signed_at` and `witness_identity` are deliberately OUTSIDE the signed envelope, so two
+        # receipts carrying different values for them both verify, and the tip comparison above passes
+        # too. Without this check the system would accept two different evidence records as though they
+        # agreed. The external immutable sink is supposed to protect the PUBLISHED receipt in full —
+        # including its unsigned evidence — and that guarantee only exists if divergence is detected.
+        if serialize_receipt(ereceipt) != serialize_receipt(anchor.receipt()):
+            raise AnchorError(
+                f"the external witness receipt for sequence {etip.sequence} differs from the locally "
+                f"persisted receipt — the two evidence records disagree even though both signatures "
+                f"verify", code="EXTERNAL_WITNESS_DIVERGES")
         _verify_signature(verifier, etip, ereceipt, what=f"external witness {etip.sequence}")
     if len(external) < len(anchors):
         missing = [a.sequence for a in anchors[len(external):]]
@@ -336,8 +363,7 @@ def append_anchor(
         sequence=tip.sequence, session_date=tip.session_date, commit_sha256=tip.commit_sha256,
         previous_commit_sha256=tip.previous_commit_sha256, previous_anchor_sha256=prev_line_digest,
         deployed_tree_identity=deployed_tree_identity, anchored_at=anchored_at,
-        witness_signature=receipt.signature_b64, witness_public_key_id=receipt.public_key_id,
-        witness_identity=receipt.witness_identity)
+        witness_receipt=receipt)
     line = _serialize(record)
 
     # the EXTERNAL immutable witness first, then the local log — a crash between them leaves the local log

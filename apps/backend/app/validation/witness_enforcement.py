@@ -104,6 +104,11 @@ from app.validation.witness_config import (
     WitnessProfile,
     assert_no_private_key_material,
 )
+from app.validation.witness_protocol import (
+    ALGORITHM_ECDSA_SHA256_P256,
+    ALGORITHM_ED25519,
+    WitnessProtocolError,
+)
 
 # The probe tip the signer is challenged with. `sequence = 0` is outside the committed numbering (real
 # tips start at 1) and the session field is not a date, so a challenge signature can never be presented
@@ -528,20 +533,37 @@ def describe_unenforceable_key_path(public_key_path: Path) -> KeyPathEvidence:
                "check was performed and no production witness may rely on this")
 
 
-def build_trusted_verifier(key_bytes: bytes, *, source: str) -> AnchorVerifier:
-    """Build the verifier from bytes already read from a verified descriptor - never from a pathname.
+def build_trusted_verifier(key_bytes: bytes, *, source: str, algorithm: str | None = None,
+                           key_id: str | None = None) -> AnchorVerifier:
+    """Build the verifier from bytes already read from a verified descriptor — never from a pathname,
+    and never from anything the signer returned.
 
-    Accepts the three encodings a deployment realistically installs: 32 raw bytes, 64 hex characters, or
-    base64. A key of the wrong length is refused rather than truncated into something that would verify
-    nothing.
+    Key material is interpreted according to the PINNED algorithm (ADR 0045):
+
+      * `ECDSA_SHA_256_P256` — the installed bytes are DER SubjectPublicKeyInfo, exactly as
+        `GetPublicKey` returns them, and are passed through UNCHANGED. Decoding them as text or
+        trimming them would change the very bytes the fingerprint is computed over.
+      * `ED25519` (reference) — 32 raw bytes, tolerating the encodings a deployment realistically
+        installs: raw, 64 hex characters, or base64.
+
+    A key of the wrong shape for the pinned algorithm is refused rather than coerced.
     """
+    pinned = algorithm or ALGORITHM_ED25519
+    if pinned == ALGORITHM_ECDSA_SHA256_P256:
+        try:
+            return AnchorVerifier(key_bytes, algorithm=pinned, key_id=key_id)
+        except WitnessProtocolError as exc:
+            raise WitnessEnforcementError(
+                f"the verifying key at {source} is not usable for {pinned}: {exc}",
+                code="WITNESS_PUBLIC_KEY_UNAVAILABLE") from exc
+
     public_bytes = _decode_public_key(key_bytes)
     if len(public_bytes) != 32:
         raise WitnessEnforcementError(
             f"the verifying key at {source} is {len(public_bytes)} bytes; an Ed25519 public key is 32",
             code="WITNESS_PUBLIC_KEY_UNAVAILABLE")
     try:
-        return AnchorVerifier(public_bytes)
+        return AnchorVerifier(public_bytes, algorithm=pinned, key_id=key_id)
     except Exception as exc:                      # noqa: BLE001 - any decode failure is a refusal
         raise WitnessEnforcementError(
             f"the verifying key at {source} is not a valid Ed25519 public key: {exc}",
@@ -567,8 +589,11 @@ def _decode_public_key(blob: bytes) -> bytes:
     `rstrip` is avoided for the same reason. Only an exact trailing LF or CRLF on an otherwise
     correctly-sized blob is recognised.
 
-    A key whose final byte is itself 0x0A and which is written with a trailing LF is genuinely
-    ambiguous in a raw binary file; such a blob is refused rather than guessed at.
+    A 33-byte blob ending in LF is inherently ambiguous at the byte level: it could be a 32-byte raw
+    key followed by a terminator, or a 33-byte blob. Under this installation contract it is
+    deterministically interpreted as a 32-byte raw key followed by an LF terminator. The decoder never
+    makes that decision based on the VALUE of the key bytes themselves — which is precisely what the
+    old `strip()` did, and why it corrupted roughly one key in 32.
     """
     if len(blob) == 32:
         return blob                               # raw, exactly
@@ -715,11 +740,17 @@ def _challenge_signer(signer: AnchorSigner, verifier: AnchorVerifier, *, nonce: 
     except Exception as exc:                      # noqa: BLE001 - any verification failure is a refusal
         raise WitnessEnforcementError(
             f"the signer's attestation does not verify under the deployment-installed key "
-            f"{verifier.public_key_id!r}; the configured signer does not hold the trusted key: {exc}",
+            f"{verifier.public_key_fingerprint!r}; the configured signer does not hold the trusted "
+            f"key: {exc}",
             code="WITNESS_SIGNER_KEY_UNTRUSTED") from exc
 
-    return {"challenged": True, "public_key_id": verifier.public_key_id,
-            "receipt_public_key_id": receipt.public_key_id, "nonce": nonce}
+    # Evidence records BOTH fingerprints so a reader can see the comparison that was made, not just
+    # that one was. `verify_receipt` has already refused any disagreement — this is the record of it.
+    return {"challenged": True,
+            "trusted_public_key_fingerprint": verifier.public_key_fingerprint,
+            "receipt_public_key_fingerprint": receipt.public_key_fingerprint,
+            "receipt_algorithm": receipt.algorithm, "receipt_key_id": receipt.key_id,
+            "protocol_version": receipt.protocol_version, "nonce": nonce}
 
 
 def _assert_sink_is_immutable(sink: Any, *, configured_identity: str) -> ImmutabilityAttestation:
@@ -846,7 +877,11 @@ def enforce_production_witness(config: WitnessConfig, *, nonce: str) -> Producti
     verified_key = verify_and_read_public_key(config.public_key_path,
                                               trusted_root=config.trusted_root)
     key_evidence = verified_key.evidence
-    verifier = build_trusted_verifier(verified_key.raw, source=str(config.public_key_path))
+    # The verifier is constructed from the PINNED algorithm and key ARN (ADR 0045), never from anything
+    # a signer returns. `load_witness_config` has already refused a PRODUCTION profile that does not
+    # name both, so these are present by the time composition runs.
+    verifier = build_trusted_verifier(verified_key.raw, source=str(config.public_key_path),
+                                      algorithm=config.algorithm, key_id=config.key_id)
 
     signer = _resolve_factory(config.signer, name="signer")
     _assert_not_reference(signer, name="signer", reference_types=(Ed25519AnchorSigner,))
@@ -880,7 +915,9 @@ def enforce_production_witness(config: WitnessConfig, *, nonce: str) -> Producti
                      "resolved_type": type(sink).__name__,
                      "reported_identity": _safe_identity(sink),
                      "immutability": attestation.to_open_provenance()},
-            "verifying_key": {"public_key_id": verifier.public_key_id,
+            "verifying_key": {"public_key_fingerprint": verifier.public_key_fingerprint,
+                              "algorithm": verifier.pinned.algorithm,
+                              "key_id": verifier.pinned.key_id,
                               "source_path": str(config.public_key_path),
                               "obtained_from_signer": False},
         }))

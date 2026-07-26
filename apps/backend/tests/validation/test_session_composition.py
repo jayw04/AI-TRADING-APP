@@ -441,7 +441,7 @@ def _governed_config(tmp_path: Path, *, profile: str = "PRODUCTION",
     is exactly what the option is for.
     """
     key_path = tmp_path / "witness.pub"
-    key_path.write_bytes(wd.provision_service_key("svc-1"))
+    key_path.write_bytes(wd.provision_p256_service_key("svc-1"))
     if hasattr(os, "chmod"):
         key_path.chmod(0o600)
 
@@ -473,9 +473,12 @@ def _governed_config(tmp_path: Path, *, profile: str = "PRODUCTION",
         "witness": {
             "profile": profile,
             "trusted_root": str(tmp_path),
+            "algorithm": "ECDSA_SHA_256_P256",
+            "key_id": "arn:aws:kms:us-east-1:219024422756:key/1234abcd",
             "public_key_path": str(key_path),
-            "signer": {"factory": "tests.validation.witness_doubles:build_signer",
-                       "identity": "kms://anchor-witness", "options": {}},
+            "signer": {"factory": "tests.validation.witness_doubles:build_p256_signer",
+                       "identity": "kms://anchor-witness",
+                       "options": {"handle": "svc-1", "key_arn": "arn:aws:kms:us-east-1:219024422756:key/1234abcd"}},
             "sink": {"factory": "tests.validation.witness_doubles:build_sink",
                      "identity": "s3://anchors/prod", "options": {}},
         },

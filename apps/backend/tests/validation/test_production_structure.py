@@ -291,3 +291,166 @@ def test_exactly_one_production_actions_finalization_call_site():
     assert store.count("_finalize_within_transaction(") == 3, (
         "expected exactly the definition plus two callers (finalize_dataset_ingest and the governed "
         "ACTIONS ingest); a third caller is a new completion path")
+
+
+def _code_only(path: Path) -> str:
+    """Source with comments AND string literals removed.
+
+    A name scan over raw text cannot tell a live code path from a comment explaining why that path was
+    REMOVED — and this module's own removal notes name the retired fields deliberately. Tokenizing and
+    dropping comments and strings makes the guard search semantics rather than prose.
+    """
+    import io
+    import tokenize
+
+    kept: list[str] = []
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(path.read_text(encoding="utf-8")).readline):
+            if tok.type in (tokenize.COMMENT, tokenize.STRING):
+                continue
+            kept.append(tok.string)
+    except (tokenize.TokenError, IndentationError):   # pragma: no cover - a broken file fails elsewhere
+        return ""
+    return " ".join(kept)
+
+
+# ── ADR 0045: no v1 or reference-algorithm path survives in PRODUCTION code ──────────────────────────
+#
+# These scan PRODUCTION trees only (`app/` and `scripts/`). A guard that also scanned the test tree
+# would be satisfied by test code and would miss the thing that matters — what the deployment runs.
+
+def test_no_production_module_pins_the_reference_algorithm():
+    """`ALGORITHM_ED25519` is a REFERENCE identifier. Production may name it in an allowlist definition
+    or refuse it, but no production module may select it as the pinned production algorithm."""
+    offenders: dict[str, list[str]] = {}
+    allowed = {"app/validation/witness_protocol.py",      # defines the identifier and the allowlists
+               "app/validation/chain_witness.py",         # the reference signer/verifier themselves
+               "app/validation/witness_enforcement.py"}   # refuses it / defaults the reference verifier
+    for path in _production_files():
+        rel = path.relative_to(BACKEND).as_posix()
+        if rel in allowed:
+            continue
+        if "ALGORITHM_ED25519" in _code_only(path):
+            offenders[rel] = ["ALGORITHM_ED25519"]
+    assert offenders == {}, f"production code outside the protocol/reference modules pins Ed25519: {offenders}"
+
+
+def test_no_v1_receipt_parser_or_compatibility_path_remains():
+    """Protocol v1 is retired without migration (ADR 0045 clause 7). Nothing may parse, upgrade or fall
+    back to it."""
+    banned = ("signature_b64", "public_key_id", "PROTOCOL_VERSION_1", "protocol_version == 1",
+              "protocol_version=1", "from_v1", "upgrade_receipt")
+    offenders: dict[str, list[str]] = {}
+    for path in _production_files():
+        code = _code_only(path)
+        hits = [token for token in banned if token in code]
+        if hits:
+            offenders[path.relative_to(BACKEND).as_posix()] = hits
+    assert offenders == {}, f"a retired v1 receipt path survives in production code: {offenders}"
+
+
+def test_no_retired_witness_projection_field_is_read_or_written_in_production():
+    """The three-field projection is gone. `witness_identity` is NOT retired — it is a v2 receipt
+    field — so only the two genuinely retired names are banned."""
+    offenders: dict[str, list[str]] = {}
+    for path in _production_files():
+        code = _code_only(path)
+        hits = [t for t in ("witness_signature", "witness_public_key_id") if t in code]
+        if hits:
+            offenders[path.relative_to(BACKEND).as_posix()] = hits
+    assert offenders == {}, f"retired witness projection fields survive in production: {offenders}"
+
+
+def test_every_production_signed_receipt_construction_supplies_all_eight_fields():
+    """A partially-constructed receipt would rely on defaults that do not exist — and if they ever did,
+    the stored evidence would be missing what the in-memory object had."""
+    required = {"protocol_version", "algorithm", "key_id", "public_key_fingerprint",
+                "message_digest", "signature", "signed_at", "witness_identity"}
+    offenders: dict[str, list[int]] = {}
+    for path in _production_files():
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:                        # pragma: no cover
+            continue
+        bound = _local_names_for(tree, "witness_protocol", "SignedReceipt")
+        if not bound:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and _callee_name(node) in bound:
+                supplied = {kw.arg for kw in node.keywords if kw.arg}
+                if not required.issubset(supplied):
+                    offenders.setdefault(path.relative_to(BACKEND).as_posix(), []).append(node.lineno)
+    assert offenders == {}, f"a production SignedReceipt is built without all eight fields: {offenders}"
+
+
+def test_only_the_protocol_serializer_crosses_the_persistence_boundary():
+    """Storage must not enumerate receipt fields or reach for `asdict`: a layer that builds its own
+    mapping can bypass the strict parse on the way back in."""
+    offenders: dict[str, list[str]] = {}
+    for path in _production_files():
+        rel = path.relative_to(BACKEND).as_posix()
+        if rel == "app/validation/witness_protocol.py":
+            continue
+        code = _code_only(path)
+        if "witness_receipt" not in code:
+            continue
+        hits = [line.strip() for line in path.read_text(encoding="utf-8").splitlines()
+                if "asdict(" in line and "receipt" in line.lower()
+                and not line.strip().startswith("#")]
+        if hits:
+            offenders[rel] = hits
+    assert offenders == {}, f"a persistence layer serializes a receipt itself: {offenders}"
+
+
+# ── the witness exception hierarchy is one rooted tree (fail-closed boundaries) ──────────────────────
+
+def test_the_witness_error_hierarchy_has_one_root_under_integrity_stop():
+    """`WitnessProtocolError` was once a SIBLING of `WitnessError`, so a protocol failure could slip
+    past `except WitnessError` boundaries and change rollback behaviour silently. Both relationships
+    are pinned so that cannot recur."""
+    from app.validation.forward_window import IntegrityStop
+    from app.validation.witness_config import WitnessConfigError
+    from app.validation.witness_protocol import (
+        WitnessError,
+        WitnessPersistenceError,
+        WitnessProtocolError,
+        WitnessVerificationError,
+    )
+
+    for subclass in (WitnessProtocolError, WitnessVerificationError, WitnessPersistenceError,
+                     WitnessConfigError):
+        assert issubclass(subclass, WitnessError), subclass
+        assert issubclass(subclass, IntegrityStop), subclass
+
+
+def test_an_existing_integrity_stop_boundary_still_catches_a_configuration_error():
+    """Behavioural, not just structural: reparenting `WitnessConfigError` under `WitnessError` must not
+    have changed how an existing `except IntegrityStop` control path behaves."""
+    from app.validation.forward_window import IntegrityStop
+    from app.validation.witness_config import WitnessConfigError
+
+    caught = None
+    try:
+        raise WitnessConfigError("declaration incomplete", code="WITNESS_CONFIG_INCOMPLETE")
+    except IntegrityStop as exc:                   # the historical boundary
+        caught = exc
+    assert isinstance(caught, WitnessConfigError)
+    assert caught.code == "WITNESS_CONFIG_INCOMPLETE"
+
+
+def test_structural_parsing_precedes_policy_checks_in_configuration_load():
+    """A malformed value and a prohibited value are different findings. Reporting the policy error
+    first would mask the malformed one, which is what happened before this ordering was fixed."""
+    from app.validation.witness_config import WitnessConfigError, load_witness_config
+
+    # PRODUCTION profile, missing algorithm/key_id (a policy fault) AND a malformed signer options
+    # block (a structural fault). The STRUCTURAL error must be the one reported.
+    with pytest.raises(WitnessConfigError) as exc:
+        load_witness_config({
+            "profile": "PRODUCTION",
+            "public_key_path": "/etc/workbench/witness.pub",
+            "signer": {"factory": "deployment.witness:build_signer", "identity": "kms://x",
+                       "options": "not-an-object"},
+            "sink": {"factory": "deployment.witness:build_sink", "identity": "s3://y"},
+        })
+    assert "options must be an object" in str(exc.value)
