@@ -69,6 +69,13 @@ dependencies = [
     # spine lives in data/factor_data.duckdb (gitignored). Read-only data path:
     # it never imports the order path/risk engine (ADR 0018).
     "duckdb>=1.1",
+    # ADR 0046 (Step 4A): AWS KMS witness signer for forward validation. The
+    # private signing key lives in KMS and is never present in this process —
+    # the property the whole witness boundary exists to obtain.
+    # ONLY app/validation/aws/ may import this (and boto3/botocore/aiobotocore/
+    # types_boto3*/mypy_boto3*); check_aws_sdk_isolation.sh enforces it in both
+    # directions, the same shape as the anthropic allowlist under ADR 0006 v2.
+    "boto3>=1.35,<2.0",
 ]
 
 [project.optional-dependencies]
