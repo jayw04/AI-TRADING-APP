@@ -298,6 +298,25 @@ it):
   "Resource": "arn:aws:kms:us-east-1:219024422756:key/<uuid>" }
 ```
 
+**Implementation status correction — the witness permission set is EIGHT actions, not seven
+(2026-07-26).** Decision 15 above scopes Step 4A's *signer* to two KMS actions, and that remains
+correct. What was incomplete is the combined 4A+4B set this ADR's Step 4B section and the Step 4C plan
+described: they listed seven, and the real integration run in Step 4C was **denied** because
+`build_s3_object_lock_sink` calls `s3:GetBucketLocation` to verify the configured region against the
+bucket's actual region. The governed set is:
+
+```
+kms:GetPublicKey · kms:Sign
+s3:GetBucketLocation · s3:GetBucketVersioning · s3:GetBucketObjectLockConfiguration
+s3:ListBucket · s3:PutObject · s3:GetObject
+```
+
+The adapter was right and the permission contract was wrong. `botocore.stub.Stubber` cannot enforce
+IAM, so Steps 4A and 4B passed while carrying a requirement a real deployment would have been denied —
+which is exactly the class of defect an integration proof exists to surface, and the reason stubs were
+declared insufficient in the first place. Recorded rather than silently corrected: a deployment built
+from the seven-action list would fail at sink construction.
+
 **Test obligations for the implementation PR.** Stubbed throughout: a successful attest produces a
 receipt that `AnchorVerifier` accepts under a real P-256 key; the `Sign` call is asserted to carry
 `MessageType='DIGEST'`, `SigningAlgorithm='ECDSA_SHA_256'` and a 32-byte `Message`; a returned `KeyId`
