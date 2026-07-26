@@ -17,6 +17,7 @@ seam already accepts a production signer, so the adapter plugs in without touchi
 from __future__ import annotations
 
 import hashlib
+from typing import Any
 
 import boto3
 import pytest
@@ -60,7 +61,71 @@ POSIX_ONLY = pytest.mark.skipif(
 
 
 @pytest.fixture
-def deployment(tmp_path, monkeypatch):
+def aws(monkeypatch):
+    """The single patch point for `boto3.client`, dispatching by service name.
+
+    Two things make a per-test or per-fixture patch wrong here, and both produce a PASSING test that
+    proves nothing:
+
+      * `app.validation.aws.kms_signer.boto3` and `app.validation.aws.s3_sink.boto3` are the SAME
+        module object, so two fixtures each patching "their" module silently clobber each other and one
+        adapter receives the other's client.
+      * A test that captures `real_client = boto3.client` in its own body captures whatever a fixture
+        already installed — so a test meaning to substitute a different client ends up wrapping the
+        original stub, and the behaviour it intended to break never breaks.
+
+    So the genuine factory is captured ONCE, here, before anything is patched, and tests register a
+    builder per service instead of patching again.
+    """
+    real_client = boto3.client                    # captured before any patching
+    builders: dict[str, Any] = {}
+
+    def _dispatch(service: str, **kwargs: Any) -> Any:
+        if service not in builders:
+            raise AssertionError(
+                f"no stub is registered for AWS service {service!r}; the test must register one "
+                f"rather than reach a real client")
+        return builders[service](real_client)
+
+    monkeypatch.setattr("app.validation.aws.kms_signer.boto3.client", _dispatch)
+    return builders
+
+
+def _kms_stub(real_client: Any, *, der: bytes, private: Any, sign: bool = True) -> Any:
+    """A KMS client stubbed to return `der` from GetPublicKey and, optionally, a REAL signature over
+    the gate's deterministic challenge probe.
+
+    The signature has to be real: a canned one would make the challenge fail and the test would prove
+    the opposite of what it claims.
+    """
+    client = real_client("kms", region_name="us-east-1", aws_access_key_id="t",
+                         aws_secret_access_key="t", aws_session_token="t")
+    stub = Stubber(client)
+    stub.add_response("get_public_key",
+                      {"KeyId": KEY_ARN, "KeySpec": KMS_KEY_SPEC,
+                       "SigningAlgorithms": [KMS_SIGNING_ALGORITHM], "PublicKey": der},
+                      {"KeyId": KEY_ARN})
+    if sign:
+        probe_digest = hashlib.sha256(f"{CHALLENGE_SESSION}|{NONCE}".encode()).hexdigest()
+        probe = WitnessedTip(sequence=CHALLENGE_SEQUENCE, session_date=CHALLENGE_SESSION,
+                             commit_sha256=probe_digest,
+                             anchor_sha256=hashlib.sha256(probe_digest.encode()).hexdigest())
+        identity = WitnessSigningIdentity(
+            protocol_version=PROTOCOL_VERSION, algorithm=ALGORITHM_ECDSA_SHA256_P256,
+            key_id=KEY_ARN, public_key_fingerprint=fingerprint_public_key(der))
+        digest = envelope_digest(build_witness_envelope(probe, identity))
+        signature = private.sign(digest, ec.ECDSA(utils.Prehashed(hashes.SHA256())))
+        stub.add_response("sign",
+                          {"KeyId": KEY_ARN, "Signature": signature,
+                           "SigningAlgorithm": KMS_SIGNING_ALGORITHM},
+                          {"KeyId": KEY_ARN, "Message": digest, "MessageType": "DIGEST",
+                           "SigningAlgorithm": KMS_SIGNING_ALGORITHM})
+    stub.activate()
+    return client
+
+
+@pytest.fixture
+def deployment(tmp_path, aws):
     """A deployment-installed P-256 key, plus a KMS stub holding the matching private half.
 
     `trusted_root` is `tmp_path` itself rather than an ancestor: pytest's temporary directories live
@@ -71,40 +136,8 @@ def deployment(tmp_path, monkeypatch):
     key_path = tmp_path / "anchor_witness.der"
     key_path.write_bytes(der)
 
-    real_client = boto3.client
-    state: dict = {"private": private, "der": der, "path": key_path, "root": tmp_path}
-
-    def _fake_client(service, **kwargs):
-        client = real_client("kms", region_name="us-east-1", aws_access_key_id="t",
-                             aws_secret_access_key="t", aws_session_token="t")
-        stub = Stubber(client)
-        stub.add_response("get_public_key",
-                          {"KeyId": KEY_ARN, "KeySpec": KMS_KEY_SPEC,
-                           "SigningAlgorithms": [KMS_SIGNING_ALGORITHM], "PublicKey": state["der"]},
-                          {"KeyId": KEY_ARN})
-        # The gate challenges the signer with a deterministic probe tip. Its digest is reconstructed
-        # here so the stub can return a REAL signature over it — a canned one would make the challenge
-        # fail and the test would prove the opposite of what it claims.
-        probe_digest = hashlib.sha256(f"{CHALLENGE_SESSION}|{NONCE}".encode()).hexdigest()
-        probe = WitnessedTip(sequence=CHALLENGE_SEQUENCE, session_date=CHALLENGE_SESSION,
-                             commit_sha256=probe_digest,
-                             anchor_sha256=hashlib.sha256(probe_digest.encode()).hexdigest())
-        identity = WitnessSigningIdentity(
-            protocol_version=PROTOCOL_VERSION, algorithm=ALGORITHM_ECDSA_SHA256_P256,
-            key_id=KEY_ARN, public_key_fingerprint=fingerprint_public_key(state["der"]))
-        digest = envelope_digest(build_witness_envelope(probe, identity))
-        signature = state["private"].sign(digest, ec.ECDSA(utils.Prehashed(hashes.SHA256())))
-        stub.add_response("sign",
-                          {"KeyId": KEY_ARN, "Signature": signature,
-                           "SigningAlgorithm": KMS_SIGNING_ALGORITHM},
-                          {"KeyId": KEY_ARN, "Message": digest, "MessageType": "DIGEST",
-                           "SigningAlgorithm": KMS_SIGNING_ALGORITHM})
-        stub.activate()
-        state["stub"] = stub
-        return client
-
-    monkeypatch.setattr("app.validation.aws.kms_signer.boto3.client", _fake_client)
-    return state
+    aws["kms"] = lambda real: _kms_stub(real, der=der, private=private)
+    return {"private": private, "der": der, "path": key_path, "root": tmp_path, "aws": aws}
 
 
 def _config(deployment, *, signer_options=None):
@@ -143,7 +176,7 @@ def test_the_gate_accepts_the_kms_signer_and_evidences_the_challenge(deployment)
 
 
 @POSIX_ONLY
-def test_a_signer_wired_to_a_different_key_is_refused_by_the_challenge(deployment, monkeypatch):
+def test_a_signer_wired_to_a_different_key_is_refused_by_the_challenge(deployment):
     """The wrong-key wiring the returned-ARN rule exists to expose.
 
     The signer is pointed at a key whose material differs from the installed one. Nothing about the
@@ -151,31 +184,21 @@ def test_a_signer_wired_to_a_different_key_is_refused_by_the_challenge(deploymen
     """
     other = ec.generate_private_key(ec.SECP256R1())
     other_der = other.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
-    real_client = boto3.client
+    # Re-register the KMS builder rather than patching boto3 again — see the `aws` fixture for why a
+    # second patch would quietly wrap the first stub instead of replacing it.
+    deployment["aws"]["kms"] = lambda real: _kms_stub(real, der=other_der, private=other)
 
-    def _wrong_key_client(service, **kwargs):
-        client = real_client("kms", region_name="us-east-1", aws_access_key_id="t",
-                             aws_secret_access_key="t", aws_session_token="t")
-        stub = Stubber(client)
-        stub.add_response("get_public_key",
-                          {"KeyId": KEY_ARN, "KeySpec": KMS_KEY_SPEC,
-                           "SigningAlgorithms": [KMS_SIGNING_ALGORITHM], "PublicKey": other_der},
-                          {"KeyId": KEY_ARN})
-        stub.activate()
-        return client
-
-    monkeypatch.setattr("app.validation.aws.kms_signer.boto3.client", _wrong_key_client)
     with pytest.raises(WitnessEnforcementError) as exc:
         enforce_production_witness(_config(deployment), nonce=NONCE)
     assert exc.value.code == "WITNESS_SIGNER_KEY_UNTRUSTED"
 
 
 @POSIX_ONLY
-def test_an_unreachable_kms_is_a_refusal_not_a_degraded_run(deployment, monkeypatch):
-    def _exploding_client(service, **kwargs):
+def test_an_unreachable_kms_is_a_refusal_not_a_degraded_run(deployment):
+    def _unreachable(_real):
         raise RuntimeError("KMS endpoint unreachable")
 
-    monkeypatch.setattr("app.validation.aws.kms_signer.boto3.client", _exploding_client)
+    deployment["aws"]["kms"] = _unreachable
     with pytest.raises(WitnessEnforcementError) as exc:
         enforce_production_witness(_config(deployment), nonce=NONCE)
     assert exc.value.code == "WITNESS_SIGNER_NOT_SEPARATELY_CONTROLLED"
