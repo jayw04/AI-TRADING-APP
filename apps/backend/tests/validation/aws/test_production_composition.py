@@ -232,3 +232,81 @@ def test_credentials_in_signer_options_are_refused_before_the_factory_is_importe
                 "sink": {"factory": f"{DOUBLES}:build_sink", "identity": "s3://a", "options": {}},
             })
         assert exc.value.code == "WITNESS_PRIVATE_KEY_IN_CONFIG"
+
+
+# ── Step 4B: the whole production witness, both real adapters ────────────────────────────────────────
+
+SINK_FACTORY = "app.validation.aws.s3_sink:build_s3_object_lock_sink"
+BUCKET = "workbench-forward-anchors"
+SINK_PREFIX = "mr002/anchors"
+SINK_IDENTITY = f"s3://{BUCKET}/{SINK_PREFIX}"
+
+
+@pytest.fixture
+def s3_stubbed(monkeypatch):
+    """A stubbed S3 whose bucket answers 'versioned, Object-Locked, COMPLIANCE, 100 years'."""
+    real_client = boto3.client
+
+    def _fake_client(service, **kwargs):
+        client = real_client("s3", region_name="us-east-1", aws_access_key_id="t",
+                             aws_secret_access_key="t", aws_session_token="t")
+        stub = Stubber(client)
+        stub.add_response("get_bucket_location", {}, {"Bucket": BUCKET})     # us-east-1 omits it
+        stub.add_response("get_bucket_versioning", {"Status": "Enabled"}, {"Bucket": BUCKET})
+        stub.add_response("get_object_lock_configuration",
+                          {"ObjectLockConfiguration": {
+                              "ObjectLockEnabled": "Enabled",
+                              "Rule": {"DefaultRetention": {"Mode": "COMPLIANCE", "Days": 36500}}}},
+                          {"Bucket": BUCKET})
+        stub.activate()
+        return client
+
+    monkeypatch.setattr("app.validation.aws.s3_sink.boto3.client", _fake_client)
+
+
+def _full_config(deployment, *, sink_identity=SINK_IDENTITY):
+    return load_witness_config({
+        "profile": "PRODUCTION",
+        "algorithm": "ECDSA_SHA_256_P256",
+        "key_id": KEY_ARN,
+        "trusted_root": str(deployment["root"]),
+        "public_key_path": str(deployment["path"]),
+        "signer": {"factory": SIGNER_FACTORY, "identity": IDENTITY,
+                   "options": {"key_arn": KEY_ARN, "witness_identity": IDENTITY}},
+        "sink": {"factory": SINK_FACTORY, "identity": sink_identity,
+                 "options": {"bucket": BUCKET, "prefix": SINK_PREFIX, "region": "us-east-1"}},
+    })
+
+
+@POSIX_ONLY
+def test_the_gate_accepts_the_real_kms_signer_and_the_real_s3_sink(deployment, s3_stubbed):
+    """The complete production witness triple, assembled the way a deployment assembles it.
+
+    Nothing is a double here except AWS itself: the config is governed configuration, the factories are
+    the real factory strings, and the gate is the real gate. This is the property Steps 4A and 4B exist
+    together to establish.
+    """
+    witness = enforce_production_witness(_full_config(deployment), nonce=NONCE)
+
+    assert type(witness.signer).__name__ == "KmsAnchorSigner"
+    assert type(witness.sink).__name__ == "S3ObjectLockAnchorSink"
+
+    immutability = witness.evidence["sink"]["immutability"]
+    assert immutability["enforced"] is True
+    assert immutability["source"] == "STORAGE"        # asked of the bucket, not declared
+    assert immutability["mode"] == "COMPLIANCE"
+    assert "36500 day(s)" in immutability["detail"]   # the retention PERIOD is in the evidence
+    # The four identities the gate requires to be one.
+    assert immutability["storage_identity"] == SINK_IDENTITY
+    assert witness.evidence["sink"]["reported_identity"] == SINK_IDENTITY
+    assert witness.evidence["signer"]["key_challenge"]["challenged"] is True
+
+
+@POSIX_ONLY
+def test_a_sink_declared_as_one_bucket_but_writing_to_another_is_refused(deployment, s3_stubbed):
+    """The mis-wiring the identity binding exists to catch: the declaration names a bucket the
+    adapter does not write through, so the attestation would float free of the record."""
+    with pytest.raises(WitnessEnforcementError) as exc:
+        enforce_production_witness(
+            _full_config(deployment, sink_identity="s3://some-other-bucket/anchors"), nonce=NONCE)
+    assert exc.value.code == "WITNESS_SINK_STORAGE_MISBOUND"
