@@ -264,6 +264,10 @@ def resolve_witness(config: ForwardDeploymentConfig, *,
     caller-chosen challenge, and one reused across runs would let a recorded signature stand in for a
     live one. `invocation_id` exists so a test can pin it, and so the run and its evidence agree on the
     identifier — never so an operator can supply it.
+
+    The platform boundary (ADR 0047 §7) is enforced inside `enforce_production_witness`, not here: it
+    belongs to every production witness rather than to this one caller, and siting it in the gate means
+    the readiness CLI and the Step 4D preflight inherit it too.
     """
     nonce = invocation_id or new_invocation_identifier()
     return enforce_production_witness(config.witness, nonce=nonce), nonce
