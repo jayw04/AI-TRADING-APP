@@ -350,25 +350,63 @@ def in_process_negatives(*, key_arn: str, bucket: str, prefix: str, region: str,
         "sink declared as a bucket it does not write through", "WITNESS_SINK_STORAGE_MISBOUND",
         lambda: compose(sink_identity=f"s3://{bucket}-not-this-one/{prefix}")))
 
-    # Duplicate publication, against the real bucket: identical is a no-op, divergent is refused.
+    # ── duplicate publication ────────────────────────────────────────────────────────────────────
+    #
+    # The distinction being proven, and the reason the first version of this got it wrong:
+    #
+    #   same tip + the SAME RECEIPT BYTES  -> idempotent no-op
+    #   same tip + a FRESH attestation     -> divergent evidence, refused
+    #
+    # A re-attestation of an identical tip can never reproduce the stored bytes. ECDSA signing is
+    # randomised (a fresh `k` per signature) and `signed_at` advances, so the receipt differs even
+    # though the key, the tip and the envelope are the same. The original case here re-attested and
+    # called the result "identical", so it exercised divergence twice and never tested idempotency at
+    # all — the sink was right to refuse it.
+    #
+    # The only bytes that CAN be identical are the ones already in the sink, so the idempotency case
+    # reads the stored record back and republishes exactly that. That is also the real-world shape of
+    # the case: `append_anchor` publishes externally BEFORE writing the local line, so a crash between
+    # the two leaves the next run republishing a receipt the sink already holds.
     config = witness_config(key_arn=key_arn, bucket=bucket, prefix=prefix, region=region,
                             public_key_path=public_key_path, trusted_root=trusted_root)
     witness = enforce_production_witness(config, nonce=_now())
     tip = synthetic_tip()
-    receipt = witness.signer.attest(tip)
 
-    def republish_identical() -> None:
-        witness.sink.publish(tip, receipt)        # must NOT raise
+    stored = [(t, r) for t, r in witness.sink.read_all() if t.sequence == tip.sequence]
+    if not stored:
+        cases.append({"case": "idempotent republication of the stored receipt",
+                      "expected_code": "NO_REFUSAL", "observed_code": None, "refused": False,
+                      "matched": False,
+                      "detail": "no record is stored at this sequence, so idempotency could not be "
+                                "exercised; run `prove` against a bucket that already holds the tip"})
+    else:
+        stored_tip, stored_receipt = stored[0]
+        before = serialize_receipt(stored_receipt)
 
-    duplicate = _case("identical duplicate publication", "no refusal", republish_identical)
-    cases.append({**duplicate, "expected_code": "NO_REFUSAL",
-                  "matched": duplicate["refused"] is False})
+        def republish_stored_bytes() -> None:
+            witness.sink.publish(stored_tip, stored_receipt)   # must NOT raise
 
+        idempotent = _case("idempotent republication of the stored receipt", "NO_REFUSAL",
+                           republish_stored_bytes)
+        # "No write occurred" is asserted, not assumed: the record must still be a single entry whose
+        # canonical bytes are unchanged. A silent overwrite would show up here as a differing payload.
+        after = [(t, r) for t, r in witness.sink.read_all() if t.sequence == tip.sequence]
+        unchanged = len(after) == 1 and serialize_receipt(after[0][1]) == before
+        cases.append({**idempotent,
+                      "matched": idempotent["refused"] is False and unchanged,
+                      "record_unchanged_after_republish": unchanged})
+
+    # A fresh attestation of the SAME tip: different signature and signed_at, therefore divergent.
+    fresh = witness.signer.attest(tip)
+    cases.append(_case("fresh re-attestation of the same tip", "EXTERNAL_WITNESS_DIVERGES",
+                       lambda: witness.sink.publish(tip, fresh)))
+
+    # A different tip at the same sequence: divergent for a second, independent reason.
     divergent = WitnessedTip(sequence=tip.sequence, session_date=tip.session_date,
                              commit_sha256=hashlib.sha256(b"divergent").hexdigest(),
                              anchor_sha256=tip.anchor_sha256)
-    cases.append(_case("divergent duplicate publication", "EXTERNAL_WITNESS_DIVERGES",
-                       lambda: witness.sink.publish(divergent, receipt)))
+    cases.append(_case("divergent tip at the same sequence", "EXTERNAL_WITNESS_DIVERGES",
+                       lambda: witness.sink.publish(divergent, fresh)))
     return cases
 
 

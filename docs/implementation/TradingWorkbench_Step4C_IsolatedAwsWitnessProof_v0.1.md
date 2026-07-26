@@ -54,14 +54,18 @@ finding that the Windows behaviour is acceptable. That remains open in issue #52
 ```
 Temporary EC2 integration runner  (Amazon Linux, SSM-managed, no inbound)
         |
-        |-- instance profile: workbench-step4c-integration
-        |     |-- kms:GetPublicKey          on the one key ARN
-        |     |-- kms:Sign                  on the one key ARN
-        |     |-- s3:PutObject              on the one bucket/prefix
-        |     |-- s3:GetObject              on the one bucket/prefix
-        |     |-- s3:ListBucket             on the one bucket
-        |     |-- s3:GetBucketVersioning    on the one bucket
-        |     `-- s3:GetBucketObjectLockConfiguration
+        |-- instance profile: Step4CIntegrationRunner
+        |     |-- Step4CWitnessProof  (inline) — the EIGHT witness actions:
+        |     |     |-- kms:GetPublicKey          on the one key ARN
+        |     |     |-- kms:Sign                  on the one key ARN
+        |     |     |-- s3:PutObject              on the one bucket/prefix
+        |     |     |-- s3:GetObject              on the one bucket/prefix
+        |     |     |-- s3:ListBucket             on the one bucket, s3:prefix-conditioned
+        |     |     |-- s3:GetBucketVersioning    on the one bucket
+        |     |     |-- s3:GetBucketObjectLockConfiguration
+        |     |     `-- s3:GetBucketLocation      on the one bucket
+        |     `-- AmazonSSMManagedInstanceCore (attached) — host management, SEPARATE and
+        |           excluded from the witness-authority analysis
         |
         |-- dedicated NON-PRODUCTION KMS key   (ECC_NIST_P256, SIGN_VERIFY)
         `-- dedicated S3 bucket                (versioning + Object Lock at creation)
@@ -71,6 +75,16 @@ Deliberately **absent** from the role: `kms:*`, `s3:DeleteObject`,
 `s3:PutBucketObjectLockConfiguration`, `s3:BypassGovernanceRetention`, and any wildcard resource. The
 runner must be unable to remove a tip, weaken the lock, or override retention — that inability is part
 of what the proof demonstrates.
+
+> **`s3:GetBucketLocation` was added after the first run refused (2026-07-26).** This document and
+> ADR 0046 both originally specified SEVEN actions. The real integration run was denied at
+> `build_s3_object_lock_sink`, which calls `GetBucketLocation` to verify the configured region against
+> the bucket's actual region — the "two sources of truth must not disagree" check. The permission
+> contract, not the adapter, was incomplete: `Stubber` cannot enforce IAM, so Steps 4A and 4B passed
+> while carrying a requirement the deployment would have been denied. **That refusal is retained as a
+> successful finding of the least-privilege proof, not as a failure** — finding it here is precisely
+> why an integration proof exists. Full IAM simulation across every adapter call confirmed this was the
+> only gap.
 
 No access to: Alpaca or any broker, production databases, Account 4, ACTIONS data, existing witness
 buckets, or existing application secrets.
@@ -83,7 +97,7 @@ make teardown ambiguous.
 ## 4. Execution order
 
 1. Create the KMS key and the S3 bucket (§5 — bucket creation is irreversible in the retention sense).
-2. Create the instance profile and role with exactly the seven actions above.
+2. Create the instance profile and role with exactly the eight witness actions above, plus the separate SSM host-management policy.
 3. Launch the temporary EC2 instance: SSM-managed, security group outbound HTTPS only, no inbound.
 4. Install the exact tested commit into a clean virtualenv on the host.
 5. Export the KMS public key (DER SPKI) and install it under production ownership/mode rules.
@@ -180,10 +194,19 @@ Each must produce a **governed refusal**, and each refusal code is recorded in t
 | 8 | Object Lock absent / non-enforcing | attestation `enforced=false` → `WITNESS_SINK_NOT_IMMUTABLE` |
 | 9 | Overwrite of an existing object | refused by `IfNoneMatch` + Object Lock |
 | 10 | Divergent duplicate publication | `EXTERNAL_WITNESS_DIVERGES` |
-| 11 | Identical duplicate publication | **no-op, no error** (the one positive in this table) |
+| 11 | Republication of **the stored receipt bytes** | **no-op, no error, record unchanged** (the one positive in this table) |
+| 11b | **Fresh re-attestation** of the same tip | `EXTERNAL_WITNESS_DIVERGES` |
 | 12 | Configuration reads denied | `WITNESS_SINK_IMMUTABILITY_UNPROVEN` |
 | 13 | KMS or S3 unavailable | `INDEPENDENT_WITNESS_UNAVAILABLE` |
 | 14 | Execution on Windows / non-POSIX | `AWS_WITNESS_PLATFORM_UNSUPPORTED` |
+
+Cases 11 and 11b are the distinction the first run got wrong. **Only the stored bytes can be
+byte-identical**: ECDSA signing is randomised (a fresh `k` per signature) and `signed_at` advances, so
+re-attesting the same tip with the same key produces a different receipt and is correctly refused as
+divergent evidence. The idempotency case therefore reads the record back from the sink and republishes
+exactly that — which is also the real-world shape, since `append_anchor` publishes externally *before*
+writing the local line, so a crash between the two leaves the next run republishing a receipt the sink
+already holds.
 
 Cases 7, 8 and 12 need conditions the least-privilege role cannot itself create; they are exercised
 against a second, deliberately-misconfigured bucket and by temporarily narrowing the role, both recorded
