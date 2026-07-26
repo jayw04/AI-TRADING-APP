@@ -27,6 +27,7 @@ from app.validation.witness_enforcement import (  # noqa: I001
     build_trusted_verifier,
     enforce_production_witness,
 )
+from app.validation.witness_protocol import fingerprint_public_key
 from tests.validation import witness_doubles as doubles
 
 DOUBLES = "tests.validation.witness_doubles"
@@ -85,7 +86,8 @@ def _config(service_key, *, profile="PRODUCTION", signer="build_p256_signer", si
 def test_a_production_witness_is_accepted_and_evidenced(service_key):
     witness = enforce_production_witness(_config(service_key), nonce=NONCE)
 
-    assert witness.verifier.public_key_fingerprint == AnchorVerifier(service_key["public_bytes"]).public_key_fingerprint
+    assert witness.verifier.public_key_fingerprint == fingerprint_public_key(
+        service_key["public_bytes"])
     assert witness.evidence["profile"] == "PRODUCTION"
     assert witness.evidence["signer"]["key_challenge"]["challenged"] is True
     assert witness.evidence["sink"]["immutability"]["enforced"] is True
@@ -152,7 +154,9 @@ def test_both_reference_classes_carry_the_marker():
 
 @pytest.mark.parametrize("signer_factory,sink_factory", [
     ("app.validation.chain_witness:Ed25519AnchorSigner", f"{DOUBLES}:build_sink"),
-    (f"{DOUBLES}:build_signer", "app.validation.chain_witness:FileExternalAnchorSink"),
+    # a PASSING p256 signer, so the refusal under test is the SINK's reference module,
+    # not the signer failing an unrelated key challenge first.
+    (f"{DOUBLES}:build_p256_signer", "app.validation.chain_witness:FileExternalAnchorSink"),
 ])
 def test_a_factory_resolving_into_the_reference_module_is_refused_before_import(
         service_key, signer_factory, sink_factory):
@@ -160,7 +164,9 @@ def test_a_factory_resolving_into_the_reference_module_is_refused_before_import(
         "profile": "PRODUCTION", "trusted_root": str(service_key["root"]),
         "algorithm": "ECDSA_SHA_256_P256", "key_id": KEY_ARN,
         "public_key_path": str(service_key["path"]),
-        "signer": {"factory": signer_factory, "identity": "kms://x"},
+        "signer": {"factory": signer_factory, "identity": "kms://x",
+                   "options": {"handle": "svc-1", "key_arn": KEY_ARN}
+                   if "p256" in signer_factory else {}},
         "sink": {"factory": sink_factory, "identity": "s3://y"}})
     with pytest.raises(WitnessEnforcementError, match="reference implementations"):
         enforce_production_witness(config, nonce=NONCE)
@@ -216,6 +222,9 @@ def test_key_material_in_factory_options_is_refused_at_the_gate_too(service_key)
         # any ordinary Linux box `/tmp` is mode 0o1777 — so the walk refuses (correctly) before this
         # test reaches the key-material scan it is actually about. Linux CI caught exactly that.
         trusted_root=config.trusted_root,
+        # Same reasoning as trusted_root: without the pinned algorithm the verifier defaults to
+        # Ed25519 and refuses the 91-byte P-256 SPKI before reaching the key-material scan.
+        algorithm=config.algorithm, key_id=config.key_id,
         signer=WitnessComponentConfig(factory=f"{DOUBLES}:build_signer", identity="x",
                                       options={"private_key": "abc"}))
     with pytest.raises(WitnessConfigError, match="private signing material"):
