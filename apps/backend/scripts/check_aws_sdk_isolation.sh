@@ -36,6 +36,12 @@ set -e
 
 APP_ROOT="apps/backend/app"
 TEST_ROOT="apps/backend/tests"
+# Closed 2026-07-26 (Step 4C): the original invariant scanned app/ and tests/ ONLY, so an operational
+# script under scripts/ could have imported the SDK — or the adapter package — with nothing noticing.
+# That is exactly where a 4C-style harness would naturally have been written. scripts/ has NO allowlist:
+# a script needing AWS runs the adapter package as a module (`python -m app.validation.aws.<mod>`), so
+# the SDK entry point stays the one CI polices.
+SCRIPT_ROOT="apps/backend/scripts"
 
 # Any AWS SDK distribution, including the typing stubs.
 SDK_IMPORT_RE='^[[:space:]]*(import|from)[[:space:]]+(boto3|botocore|aiobotocore|types_boto3[A-Za-z0-9_]*|mypy_boto3[A-Za-z0-9_]*)([.[:space:]]|$)'
@@ -87,6 +93,14 @@ FOUND=$(scan "$APP_ROOT" "$ADAPTER_IMPORT_RE" "${ALLOWED_DIRS[@]}")
 
 FOUND=$(scan "$TEST_ROOT" "$ADAPTER_IMPORT_RE" "${ALLOWED_TEST_DIRS[@]}")
 [ -n "$FOUND" ] && VIOLATIONS+="app.validation.aws imported outside the adapter tests:"$'\n'"$FOUND"$'\n\n'
+
+# 3. SCRIPTS — no allowlist at all. Operational scripts reach AWS by running the adapter package as a
+#    module, never by importing the SDK or the package themselves.
+FOUND=$(scan "$SCRIPT_ROOT" "$SDK_IMPORT_RE")
+[ -n "$FOUND" ] && VIOLATIONS+="AWS SDK imported in an operational script (use \`python -m app.validation.aws.<module>\`):"$'\n'"$FOUND"$'\n\n'
+
+FOUND=$(scan "$SCRIPT_ROOT" "$ADAPTER_IMPORT_RE")
+[ -n "$FOUND" ] && VIOLATIONS+="app.validation.aws imported in an operational script (run it as a module instead):"$'\n'"$FOUND"$'\n\n'
 
 if [ -n "$VIOLATIONS" ]; then
     echo "ERROR: AWS SDK isolation violated (ADR 0046)."
