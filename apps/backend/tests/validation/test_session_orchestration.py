@@ -392,7 +392,10 @@ def test_the_committed_tip_is_anchored(runtime, tmp_path):
     commit_sha = hashlib.sha256(
         (tmp_path / "store" / "observations" / "000001" / "commit.json").read_bytes()).hexdigest()
     assert anchors[0].commit_sha256 == commit_sha    # the anchor witnesses the committed tip
-    assert anchors[0].witness_signature              # signed across the trust boundary
+    # v2: the COMPLETE receipt is persisted, so the anchor carries the algorithm and key identity it
+    # was signed under — not just an opaque signature blob.
+    assert anchors[0].witness_receipt.signature      # signed across the trust boundary
+    assert anchors[0].witness_receipt.protocol_version == 2
     # signatures + the external witness all check (the runner's own pre-commit gate)
     verify_anchor_consistency(tmp_path / "store", verifier=runtime.anchor_verifier,
                               external_sink=runtime.external_anchor_sink)
@@ -557,3 +560,73 @@ def test_a_raw_signer_failure_with_a_failing_book_is_the_combined_status(runtime
     assert "ANCHOR_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
     assert "BOOK_WRITE_FAILED_POST_COMMIT" in result.operational_exceptions
     assert len(committed_observations(tmp_path / "store")) == 1        # the observation still committed
+
+
+# ---- protocol failures follow the same fail-closed path as any witness failure (ADR 0045) -----------
+
+def test_a_protocol_error_before_commit_leaves_everything_unchanged(runtime, tmp_path):
+    """A v2 protocol failure must fail CLOSED exactly as the older witness failures did.
+
+    This is the regression for the exception-hierarchy correction: `WitnessProtocolError` used to be a
+    SIBLING of `WitnessError`, so a protocol failure could have slipped past `except WitnessError`
+    boundaries and changed rollback behaviour without any obvious test failure.
+
+    ⚠ ARCHITECTURAL NOTE on where this can be injected. The observation commits BEFORE the anchor is
+    appended (observation-first, R5d) — `verify_anchor_consistency` runs pre-run at the entrance, and
+    `append_anchor` runs post-commit. There is therefore NO point at which a candidate anchor exists
+    while the commit is still pending: a protocol failure during anchoring is deliberately not a
+    rollback, it is `RECORDED_BUT_ANCHOR_UNWRITTEN`, because the record has already advanced. So the
+    genuinely rollback-capable injection point is the pre-commit verification of the EXISTING chain,
+    which is what this exercises: session 1 is recorded and anchored, its stored receipt is then
+    corrupted, and the session-2 run must stop having changed nothing.
+    """
+    from app.validation.chain_anchor import ANCHOR_LOG_FILENAME
+    from app.validation.observation_store import committed_observations
+
+    _run(runtime, SESSION_1, tmp_path)                       # a real recorded + anchored session
+    store_dir = tmp_path / "store"
+    anchor_path = store_dir / ANCHOR_LOG_FILENAME
+
+    before_observations = [(o.sequence, o.session_date) for o in committed_observations(store_dir)]
+    before_anchor_bytes = anchor_path.read_bytes()
+    external = tmp_path / "external_witness"
+    before_external = sorted(p.name for p in external.rglob("*") if p.is_file())
+
+    # Corrupt the PERSISTED receipt into one the protocol refuses: a retired protocol version. The
+    # line stays structurally valid JSON, so this is a protocol refusal, not a parse failure.
+    obj = json.loads(anchor_path.read_text(encoding="utf-8").split("\n")[0])
+    obj["witness_receipt"] = {**obj["witness_receipt"], "protocol_version": 1}
+    anchor_path.write_text(json.dumps(obj, sort_keys=True) + "\n", encoding="utf-8")
+    tampered_anchor_bytes = anchor_path.read_bytes()   # the state the RUN must not change
+
+    result = _run(runtime, SESSION_2, tmp_path)
+
+    assert result.status is SessionRunStatus.INTEGRITY_STOP
+    # all four outcomes together
+    after = [(o.sequence, o.session_date) for o in committed_observations(store_dir)]
+    assert after == before_observations, "no observation may be committed"
+    assert result.session_count == len(before_observations), "the sequence must not advance"
+    # compared against the TAMPERED bytes: the run must neither append nor "repair" the anchor log.
+    assert anchor_path.read_bytes() == tampered_anchor_bytes, "the anchor store must be unchanged"
+    assert before_anchor_bytes != tampered_anchor_bytes    # the tamper really did land
+    assert sorted(p.name for p in external.rglob("*") if p.is_file()) == before_external, (
+        "the external sink must be unchanged")
+    # and the refusal is recorded EXACTLY ONCE, not once per layer that saw it
+    assert result.exception_code == "WITNESS_PROTOCOL_VERSION_UNSUPPORTED"
+    assert result.operational_exceptions == ("WITNESS_PROTOCOL_VERSION_UNSUPPORTED",)
+    assert len(result.operational_exceptions) == 1
+
+
+def test_the_stored_receipt_corruption_is_reported_as_a_witness_finding(runtime, tmp_path):
+    """The refusal names a witness/anchor cause rather than surfacing as an unrelated error."""
+    from app.validation.chain_anchor import ANCHOR_LOG_FILENAME
+
+    _run(runtime, SESSION_1, tmp_path)
+    path = tmp_path / "store" / ANCHOR_LOG_FILENAME
+    obj = json.loads(path.read_text(encoding="utf-8").split("\n")[0])
+    obj["witness_receipt"] = {**obj["witness_receipt"], "protocol_version": 1}
+    path.write_text(json.dumps(obj, sort_keys=True) + "\n", encoding="utf-8")
+
+    result = _run(runtime, SESSION_2, tmp_path)
+    assert result.exception_code in ("ANCHOR_LOG_INVALID", "INDEPENDENT_WITNESS_UNAVAILABLE",
+                                     "WITNESS_PROTOCOL_VERSION_UNSUPPORTED")

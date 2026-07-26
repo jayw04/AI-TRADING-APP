@@ -36,7 +36,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from app.validation.forward_window import IntegrityStop
+from app.validation.witness_protocol import PRODUCTION_ALGORITHMS, WitnessError
 
 # The module holding R5d's reference implementations. A production factory may never resolve into it.
 REFERENCE_WITNESS_MODULE = "app.validation.chain_witness"
@@ -76,13 +76,12 @@ _BASE64_CANDIDATE_RE = re.compile(r"[A-Za-z0-9+/_-]{40,512}={0,2}")
 _DIGEST_NAME_RE = re.compile(r"(^|[_-])(sha256|sha512|digest|fingerprint|checksum|etag)$", re.I)
 
 
-class WitnessConfigError(IntegrityStop):
+class WitnessConfigError(WitnessError):
     """The deployment's witness declaration is absent, malformed, or carries signing material the runner
-    must never hold. Fails closed."""
+    must never hold. Fails closed.
 
-    def __init__(self, message: str, *, code: str) -> None:
-        super().__init__(message)
-        self.code = code
+    The base already stores `code`; no override is needed, and defining one would risk the two drifting.
+    """
 
 
 class WitnessProfile(StrEnum):
@@ -135,11 +134,17 @@ class WitnessConfig:
     # are root-owned and pass, yet naming the root the deployment actually governs states the intent and
     # avoids depending on assumptions about ancestors it does not control.
     trusted_root: Path | None = None
+    # ADR 0045. Both REQUIRED for the PRODUCTION profile and validated at load, so a deployment that
+    # cannot say which algorithm and which key it pins fails to load rather than failing later during
+    # composition — by which point a store may already be open.
+    algorithm: str | None = None
+    key_id: str | None = None
 
     def to_open_provenance(self) -> dict[str, Any]:
         return {"profile": self.profile.value, "signer": self.signer.to_open_provenance(),
                 "sink": self.sink.to_open_provenance(), "public_key_path": str(self.public_key_path),
-                "trusted_root": str(self.trusted_root) if self.trusted_root else None}
+                "trusted_root": str(self.trusted_root) if self.trusted_root else None,
+                "algorithm": self.algorithm, "key_id": self.key_id}
 
 
 def _decoded_key_material(text: str, *, digest_named: bool) -> str | None:
@@ -297,10 +302,33 @@ def load_witness_config(payload: Any) -> WitnessConfig:
             f"the working directory of whoever launched the run",
             code="WITNESS_CONFIG_INCOMPLETE")
 
+    # Components are parsed FIRST. A structural fault (a malformed factory reference, options that
+    # are not an object) is a different and more basic finding than a policy fault (a production
+    # profile that names no algorithm), and reporting the policy error first would mask it.
+    signer = _component(payload.get("signer"), name="signer")
+    sink = _component(payload.get("sink"), name="sink")
+
+    algorithm = str(payload.get("algorithm") or "").strip()
+    key_id = str(payload.get("key_id") or "").strip()
+    if profile is WitnessProfile.PRODUCTION:
+        if not algorithm or not key_id:
+            raise WitnessConfigError(
+                "witness.algorithm and witness.key_id are both required for the PRODUCTION profile; a "
+                "deployment that cannot name the algorithm and key it pins cannot verify against them",
+                code="WITNESS_CONFIG_INCOMPLETE")
+        if algorithm not in PRODUCTION_ALGORITHMS:
+            raise WitnessConfigError(
+                f"witness.algorithm {algorithm!r} is not a production algorithm; PRODUCTION pins one of "
+                f"{sorted(PRODUCTION_ALGORITHMS)}. Reference algorithms are refused here even though "
+                f"they are allowlisted for the REFERENCE profile",
+                code="WITNESS_ALGORITHM_NOT_PINNED")
+
     return WitnessConfig(
         profile=profile,
-        signer=_component(payload.get("signer"), name="signer"),
-        sink=_component(payload.get("sink"), name="sink"),
+        algorithm=algorithm or None,
+        key_id=key_id or None,
+        signer=signer,
+        sink=sink,
         public_key_path=Path(public_key_path),
         trusted_root=Path(trusted_root) if trusted_root else None,
     )

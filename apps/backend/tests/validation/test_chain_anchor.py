@@ -127,7 +127,10 @@ def test_the_first_tip_is_anchored(ctx, tmp_path):
     assert rec.sequence == 1
     assert rec.commit_sha256 == obs[0].commit_sha256
     assert rec.previous_commit_sha256 is None and rec.previous_anchor_sha256 is None
-    assert rec.witness_signature and rec.witness_public_key_id == VERIFIER.public_key_id
+    # v2: the COMPLETE receipt is persisted, not a three-field projection.
+    assert rec.witness_receipt.signature
+    assert rec.witness_receipt.public_key_fingerprint == VERIFIER.public_key_fingerprint
+    assert rec.witness_receipt.protocol_version == 2
     anchors = read_anchors(store)
     assert len(anchors) == 1 and anchors[0].commit_sha256 == obs[0].commit_sha256
     _verify(store, sink)                                # signatures + external witness all check
@@ -244,7 +247,9 @@ def test_an_altered_tip_fails_the_signature(ctx, tmp_path):
     rewritten_obs = [replace(obs[0], commit_sha256="b" * 64)]
     with pytest.raises(AnchorError) as ei:
         _verify(store, sink, rewritten_obs)
-    assert ei.value.code == "ANCHOR_SIGNATURE_INVALID"
+    # v2 refuses on the DIGEST before cryptography: an altered tip produces a different
+    # envelope, so the record no longer reconstructs.
+    assert ei.value.code == "WITNESS_MESSAGE_DIGEST_MISMATCH"
 
 
 def test_a_foreign_signing_key_is_refused(ctx, tmp_path):
@@ -255,7 +260,10 @@ def test_a_foreign_signing_key_is_refused(ctx, tmp_path):
     _anchor(store, sink, signer=OTHER_SIGNER)          # signed by the wrong key + recorded externally
     with pytest.raises(AnchorError) as ei:
         _verify(store, sink)                            # verifier trusts SIGNER, not OTHER_SIGNER
-    assert ei.value.code == "ANCHOR_SIGNATURE_INVALID"
+    # v2 refuses on IDENTITY before cryptography: a foreign key means the receipt's
+    # fingerprint disagrees with the installed one, which is a mismatch rather than a bad
+    # signature. The operator learns which of the two actually happened.
+    assert ei.value.code == "WITNESS_KEY_IDENTITY_MISMATCH"
 
 
 def test_a_truncated_local_log_is_caught_by_the_external_witness(ctx, tmp_path):
@@ -358,9 +366,9 @@ def _reseal(obj: dict) -> str:
     """Rebuild a self-valid anchor line: recompute anchor_sha256 over the CORE body so the LINE verifies
     (the signature is over the tip, not recomputed — only what a keyless attacker could redo)."""
     core = {k: v for k, v in obj.items()
-            if k not in ("anchor_sha256", "witness_signature", "witness_public_key_id",
+            if k not in ("anchor_sha256", "witness_receipt",
                          "witness_identity")}
-    rest = {k: obj[k] for k in ("witness_signature", "witness_public_key_id", "witness_identity")
+    rest = {k: obj[k] for k in ("witness_receipt",)
             if k in obj}
     return json.dumps({**core, "anchor_sha256": _digest(core), **rest}, sort_keys=True)
 

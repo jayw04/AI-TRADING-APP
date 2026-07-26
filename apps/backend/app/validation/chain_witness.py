@@ -28,67 +28,47 @@ Nothing here touches Account 4 or imports the order path.
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import os
-from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-    Ed25519PrivateKey,
-    Ed25519PublicKey,
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+from app.validation.witness_protocol import (
+    ALGORITHM_ED25519,
+    PROTOCOL_VERSION,
+    SignedReceipt,
+    WitnessedTip,
+    WitnessError,
+    WitnessSigningIdentity,
+    build_verifier,
+    build_witness_envelope,
+    envelope_digest,
+    fingerprint_public_key,
+    verify_receipt,
 )
 
-from app.validation.forward_window import IntegrityStop
+# `WitnessError` is defined by the protocol module and re-exported here, so the hierarchy has one root
+# and the dependency direction stays protocol <- chain_witness.
 
 
-class WitnessError(IntegrityStop):
-    """The independent witness could not be produced or verified. Fails closed."""
-
-    def __init__(self, message: str, *, code: str) -> None:
-        super().__init__(message)
-        self.code = code
-
-
-@dataclass(frozen=True)
-class WitnessedTip:
-    """The compact identity of a committed chain tip that is signed and externally recorded. It binds the
-    observation tip (`commit_sha256`) and the LOCAL anchor line (`anchor_sha256`), so the external witness
-    and the local log cannot silently disagree about which tip was witnessed."""
-    sequence: int
-    session_date: str
-    commit_sha256: str
-    anchor_sha256: str
-
-    def signing_bytes(self) -> bytes:
-        return json.dumps(
-            {"sequence": self.sequence, "session_date": self.session_date,
-             "commit_sha256": self.commit_sha256, "anchor_sha256": self.anchor_sha256},
-            sort_keys=True, separators=(",", ":")).encode("utf-8")
+# `WitnessedTip` and `SignedReceipt` now live in `witness_protocol` — the protocol owns its own schema,
+# and this module owns signer custody and sinks. Re-exported so existing importers keep working.
+#
+# The old `public_key_id()` (sha256 truncated to 16 hex characters) is GONE. A receipt carries the FULL
+# `public_key_fingerprint`; truncating a mismatch detector to 64 bits bought nothing.
 
 
-@dataclass(frozen=True)
-class SignedReceipt:
-    """A signature over a `WitnessedTip`, plus the identity of the key that produced it."""
-    signature_b64: str
-    public_key_id: str
-    witness_identity: str
+def reference_key_id(public_bytes: bytes) -> str:
+    """The key identity of the Ed25519 REFERENCE signer, derived from its own key.
 
-    def to_dict(self) -> dict:
-        return {"signature_b64": self.signature_b64, "public_key_id": self.public_key_id,
-                "witness_identity": self.witness_identity}
-
-    @classmethod
-    def from_dict(cls, d: dict) -> SignedReceipt:
-        return cls(signature_b64=str(d["signature_b64"]), public_key_id=str(d["public_key_id"]),
-                   witness_identity=str(d["witness_identity"]))
-
-
-def public_key_id(public_bytes: bytes) -> str:
-    """A stable fingerprint of a public verifying key."""
-    return hashlib.sha256(public_bytes).hexdigest()[:16]
+    Production key identity is the pinned KMS key ARN and comes from governed configuration. This is the
+    reference implementation naming itself, not a value synthesized to fill a required field — and the
+    `reference:` prefix means it can never be mistaken for a production ARN.
+    """
+    return f"reference:ed25519:{fingerprint_public_key(public_bytes)[:16]}"
 
 
 @runtime_checkable
@@ -102,25 +82,32 @@ class AnchorSigner(Protocol):
 
 
 class AnchorVerifier:
-    """Verifies tip signatures using ONLY the public key — safe to hold locally. A mismatch between the
-    receipt's `public_key_id` and this verifier's key, or a bad signature, fails closed."""
+    """Verifies tip receipts using ONLY public material — safe to hold locally.
 
-    def __init__(self, public_bytes: bytes) -> None:
-        self._public = Ed25519PublicKey.from_public_bytes(public_bytes)
-        self._public_bytes = public_bytes
-        self.public_key_id = public_key_id(public_bytes)
+    A facade over the protocol's typed verifier strategies. It holds the deployment's PINNED identity
+    and delegates to `verify_receipt`, which checks protocol version, algorithm, key identity and
+    envelope digest BEFORE any cryptography runs.
+
+    The reference default is Ed25519 with the key naming itself. A production caller constructs this
+    explicitly with the pinned algorithm and key ARN from governed configuration — the verifier never
+    infers either from a receipt.
+    """
+
+    def __init__(self, installed_key_bytes: bytes, *, algorithm: str = ALGORITHM_ED25519,
+                 key_id: str | None = None) -> None:
+        self._installed = installed_key_bytes
+        self.pinned = WitnessSigningIdentity(
+            protocol_version=PROTOCOL_VERSION, algorithm=algorithm,
+            key_id=key_id if key_id is not None else reference_key_id(installed_key_bytes),
+            public_key_fingerprint=fingerprint_public_key(installed_key_bytes))
+        self._verifier = build_verifier(algorithm, installed_key_bytes)
+
+    @property
+    def public_key_fingerprint(self) -> str:
+        return self.pinned.public_key_fingerprint
 
     def verify(self, tip: WitnessedTip, receipt: SignedReceipt) -> None:
-        if receipt.public_key_id != self.public_key_id:
-            raise WitnessError(
-                f"the receipt was signed by key {receipt.public_key_id!r}, not the trusted witness key "
-                f"{self.public_key_id!r}", code="ANCHOR_SIGNATURE_INVALID")
-        try:
-            self._public.verify(base64.b64decode(receipt.signature_b64), tip.signing_bytes())
-        except (InvalidSignature, ValueError, TypeError) as exc:
-            raise WitnessError(
-                f"the witness signature for tip {tip.sequence} does not verify — the tip was altered "
-                f"after it was signed", code="ANCHOR_SIGNATURE_INVALID") from exc
+        verify_receipt(tip, receipt, pinned=self.pinned, verifier=self._verifier)
 
 
 class Ed25519AnchorSigner:
@@ -139,26 +126,45 @@ class Ed25519AnchorSigner:
         self._private = private_key
         self._witness_identity = witness_identity
         self._public_bytes = private_key.public_key().public_bytes_raw()
-        self.public_key_id = public_key_id(self._public_bytes)
+        self.public_key_fingerprint = fingerprint_public_key(self._public_bytes)
+        self._identity = WitnessSigningIdentity(
+            protocol_version=PROTOCOL_VERSION, algorithm=ALGORITHM_ED25519,
+            key_id=reference_key_id(self._public_bytes),
+            public_key_fingerprint=self.public_key_fingerprint)
 
     @classmethod
     def generate(cls, *, witness_identity: str) -> Ed25519AnchorSigner:
         return cls(Ed25519PrivateKey.generate(), witness_identity=witness_identity)
 
     def attest(self, tip: WitnessedTip) -> SignedReceipt:
-        signature = self._private.sign(tip.signing_bytes())
-        return SignedReceipt(signature_b64=base64.b64encode(signature).decode("ascii"),
-                             public_key_id=self.public_key_id, witness_identity=self._witness_identity)
+        """Emit a COMPLETE protocol-v2 receipt.
+
+        Ed25519 is not a prehashed scheme, so the signature covers the envelope bytes directly. The
+        digest is still recorded — it is what lets a reader prove the envelope reconstructs, which is a
+        separate question from whether the signature is valid.
+        """
+        envelope = build_witness_envelope(tip, self._identity)
+        signature = self._private.sign(envelope)
+        return SignedReceipt(
+            protocol_version=PROTOCOL_VERSION,
+            algorithm=ALGORITHM_ED25519,
+            key_id=self._identity.key_id,
+            public_key_fingerprint=self.public_key_fingerprint,
+            message_digest=envelope_digest(envelope).hex(),
+            signature=base64.b64encode(signature).decode("ascii"),
+            signed_at=datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            witness_identity=self._witness_identity)
 
     def identity(self) -> str:
-        return f"{self._witness_identity}@{self.public_key_id}"
+        return f"{self._witness_identity}@{self.public_key_fingerprint[:16]}"
 
     def public_bytes(self) -> bytes:
         return self._public_bytes
 
     def verifier(self) -> AnchorVerifier:
         """The public-key-only verifier the runner holds (the private key stays here)."""
-        return AnchorVerifier(self._public_bytes)
+        return AnchorVerifier(self._public_bytes, algorithm=ALGORITHM_ED25519,
+                              key_id=self._identity.key_id)
 
 
 @runtime_checkable

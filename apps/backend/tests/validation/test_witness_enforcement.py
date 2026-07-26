@@ -78,7 +78,7 @@ def _config(service_key, *, profile="PRODUCTION", signer="build_signer", sink="b
 def test_a_production_witness_is_accepted_and_evidenced(service_key):
     witness = enforce_production_witness(_config(service_key), nonce=NONCE)
 
-    assert witness.verifier.public_key_id == AnchorVerifier(service_key["public_bytes"]).public_key_id
+    assert witness.verifier.public_key_fingerprint == AnchorVerifier(service_key["public_bytes"]).public_key_fingerprint
     assert witness.evidence["profile"] == "PRODUCTION"
     assert witness.evidence["signer"]["key_challenge"]["challenged"] is True
     assert witness.evidence["sink"]["immutability"]["enforced"] is True
@@ -275,8 +275,8 @@ def test_the_key_is_accepted_in_the_encodings_a_deployment_installs(tmp_path, en
     public_bytes = doubles.provision_service_key("svc-enc")
     path = tmp_path / "k.pub"
     path.write_bytes(encode(public_bytes))
-    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_id
-            == AnchorVerifier(public_bytes).public_key_id)
+    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_fingerprint
+            == AnchorVerifier(public_bytes).public_key_fingerprint)
 
 
 def test_a_raw_key_written_with_a_trailing_newline_is_still_read(tmp_path):
@@ -285,8 +285,8 @@ def test_a_raw_key_written_with_a_trailing_newline_is_still_read(tmp_path):
     public_bytes = doubles.provision_service_key("svc-nl")
     path = tmp_path / "k.pub"
     path.write_bytes(public_bytes + b"\n")
-    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_id
-            == AnchorVerifier(public_bytes).public_key_id)
+    assert (build_trusted_verifier(path.read_bytes(), source=str(path)).public_key_fingerprint
+            == AnchorVerifier(public_bytes).public_key_fingerprint)
 
 
 def test_a_key_of_the_wrong_length_is_refused_not_truncated(tmp_path):
@@ -496,10 +496,11 @@ def test_a_34_byte_blob_without_an_exact_crlf_terminator_is_not_truncated():
     assert len(_decode_public_key(blob)) != 32
 
 
-def test_a_raw_key_ending_in_lf_written_with_an_lf_is_refused_not_guessed(tmp_path):
-    """Genuinely ambiguous in a raw binary file: 33 bytes ending LF could be a 32-byte key plus a
-    terminator, or a 33-byte blob. The shape rule resolves it one way and the docstring says so; what
-    matters is that it is deterministic rather than key-dependent."""
+def test_a_raw_key_ending_in_lf_with_an_appended_lf_is_resolved_deterministically(tmp_path):
+    """Genuinely ambiguous at the byte level: 33 bytes ending LF could be a 32-byte key plus a
+    terminator, or a 33-byte blob. The shape rule resolves it as key-plus-terminator, and what matters
+    is that the resolution is DETERMINISTIC rather than dependent on the key material — the old
+    `strip()` decided based on the key's own bytes, which is how it corrupted ~1 key in 32."""
     from app.validation.witness_enforcement import _decode_public_key
 
     key = _key_ending(0x0A)

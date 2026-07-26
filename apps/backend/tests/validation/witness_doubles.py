@@ -20,11 +20,21 @@ from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from app.validation.chain_witness import SignedReceipt, WitnessedTip, public_key_id
+from app.validation.chain_witness import reference_key_id
 from app.validation.witness_enforcement import (
     ATTESTATION_DECLARED,
     ATTESTATION_FROM_STORAGE,
     ImmutabilityAttestation,
+)
+from app.validation.witness_protocol import (
+    ALGORITHM_ED25519,
+    PROTOCOL_VERSION,
+    SignedReceipt,
+    WitnessedTip,
+    WitnessSigningIdentity,
+    build_witness_envelope,
+    envelope_digest,
+    fingerprint_public_key,
 )
 
 # The "separate signing service": key material lives here, never on the object the runner holds.
@@ -43,6 +53,27 @@ def public_bytes_for(handle: str) -> bytes:
     return _SERVICE_KEYS[handle].public_key().public_bytes_raw()
 
 
+def _v2_receipt(private_key, public_bytes: bytes, tip: WitnessedTip,
+                witness_identity: str) -> SignedReceipt:
+    """Emit a COMPLETE protocol-v2 receipt from a doubles' Ed25519 key.
+
+    The doubles sign the same canonical envelope production does — there is no test-only shortcut
+    envelope, because a double that signed different bytes would prove nothing about the real path.
+    """
+    identity = WitnessSigningIdentity(
+        protocol_version=PROTOCOL_VERSION, algorithm=ALGORITHM_ED25519,
+        key_id=reference_key_id(public_bytes),
+        public_key_fingerprint=fingerprint_public_key(public_bytes))
+    envelope = build_witness_envelope(tip, identity)
+    signature = private_key.sign(envelope)
+    return SignedReceipt(
+        protocol_version=PROTOCOL_VERSION, algorithm=ALGORITHM_ED25519,
+        key_id=identity.key_id, public_key_fingerprint=identity.public_key_fingerprint,
+        message_digest=envelope_digest(envelope).hex(),
+        signature=base64.b64encode(signature).decode("ascii"),
+        signed_at="2026-07-24T20:00:00Z", witness_identity=witness_identity)
+
+
 class _RemoteSignerDouble:
     """An `AnchorSigner` that calls out to the stand-in service. Holds a handle, not a key."""
 
@@ -52,11 +83,7 @@ class _RemoteSignerDouble:
 
     def attest(self, tip: WitnessedTip) -> SignedReceipt:
         key = _SERVICE_KEYS[self.handle]
-        signature = key.sign(tip.signing_bytes())
-        return SignedReceipt(
-            signature_b64=base64.b64encode(signature).decode("ascii"),
-            public_key_id=public_key_id(key.public_key().public_bytes_raw()),
-            witness_identity=self.endpoint)
+        return _v2_receipt(key, key.public_key().public_bytes_raw(), tip, self.endpoint)
 
     def identity(self) -> str:
         return f"remote-signer://{self.endpoint}#{self.handle}"
@@ -76,10 +103,7 @@ class _WrapperSignerDouble:
         self._key = Ed25519PrivateKey.generate()
 
     def attest(self, tip: WitnessedTip) -> SignedReceipt:      # pragma: no cover - refused first
-        signature = self._key.sign(tip.signing_bytes())
-        return SignedReceipt(signature_b64=base64.b64encode(signature).decode("ascii"),
-                             public_key_id=public_key_id(self._key.public_key().public_bytes_raw()),
-                             witness_identity="wrapper")
+        return _v2_receipt(self._key, self._key.public_key().public_bytes_raw(), tip, "wrapper")
 
     def identity(self) -> str:
         return "wrapper-signer"
@@ -271,3 +295,105 @@ def issue_witness_for_tests(signer: Any, verifier: Any, sink: Any,
     return _mark_enforced(ProductionWitness(
         signer=signer, verifier=verifier, sink=sink,
         evidence=evidence if evidence is not None else {"profile": "TEST_DOUBLE", "enforced": False}))
+
+
+# ── production-shaped P-256 doubles (ADR 0045) ───────────────────────────────────────────────────────
+#
+# The PRODUCTION profile pins ECDSA_SHA_256_P256, so a production-gate test must be driven by a
+# production-shaped signer. An Ed25519 double under a PRODUCTION profile is refused at config load —
+# correctly — which would leave the gate's own behaviour untested.
+#
+# These model KMS: the key lives in the stand-in service, the object holds only a handle, the signer
+# signs a PRECOMPUTED SHA-256 digest (MessageType=DIGEST), and the installed public material is DER
+# SubjectPublicKeyInfo exactly as GetPublicKey returns it.
+
+_P256_SERVICE_KEYS: dict[str, Any] = {}
+
+
+def provision_p256_service_key(handle: str) -> bytes:
+    """Create a P-256 key inside the stand-in service; return ONLY its DER SPKI public bytes."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    _P256_SERVICE_KEYS[handle] = key
+    return key.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+
+
+def p256_public_bytes_for(handle: str) -> bytes:
+    from cryptography.hazmat.primitives import serialization
+
+    return _P256_SERVICE_KEYS[handle].public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+
+
+class _P256RemoteSignerDouble:
+    """A KMS-shaped `AnchorSigner`: holds a handle and an ARN, never a key object."""
+
+    #: The only message type this key is configured for. KMS ECDSA_SHA_256 signs a precomputed digest.
+    MESSAGE_TYPE = "DIGEST"
+
+    def __init__(self, handle: str, key_arn: str) -> None:
+        self.handle = handle                      # a string; the attribute walk finds no key object
+        self.key_arn = key_arn
+
+    def kms_sign(self, message: bytes, *, message_type: str = "DIGEST") -> bytes:
+        """The modelled KMS `Sign` boundary. Refuses loudly rather than silently accepting.
+
+        The ADR pins `MessageType=DIGEST` with a 32-byte SHA-256 digest. If this double quietly
+        accepted a whole envelope, the contract could regress to `MessageType=RAW` without any test
+        noticing — and RAW is a different signing convention, not a convenience.
+        """
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import ec, utils
+
+        if message_type != self.MESSAGE_TYPE:
+            raise ValueError(
+                f"this key is configured for MessageType={self.MESSAGE_TYPE}; "
+                f"{message_type!r} submission is refused")
+        if not isinstance(message, bytes) or len(message) != 32:
+            raise ValueError(
+                f"expected exactly 32 SHA-256 digest bytes, got "
+                f"{len(message) if isinstance(message, bytes) else type(message).__name__} — a raw "
+                f"envelope was probably submitted instead of its digest")
+        return _P256_SERVICE_KEYS[self.handle].sign(
+            message, ec.ECDSA(utils.Prehashed(hashes.SHA256())))
+
+    def attest(self, tip):
+        from cryptography.hazmat.primitives import serialization
+
+        from app.validation.witness_protocol import (
+            ALGORITHM_ECDSA_SHA256_P256,
+            PROTOCOL_VERSION,
+            SignedReceipt,
+            WitnessSigningIdentity,
+            build_witness_envelope,
+            envelope_digest,
+            fingerprint_public_key,
+        )
+
+        key = _P256_SERVICE_KEYS[self.handle]
+        spki = key.public_key().public_bytes(
+            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+        identity = WitnessSigningIdentity(
+            protocol_version=PROTOCOL_VERSION, algorithm=ALGORITHM_ECDSA_SHA256_P256,
+            key_id=self.key_arn, public_key_fingerprint=fingerprint_public_key(spki))
+        envelope = build_witness_envelope(tip, identity)
+        digest = envelope_digest(envelope)
+        # KMS MessageType=DIGEST: the 32-byte digest is what gets signed, and the signature is DER.
+        signature = self.kms_sign(digest, message_type="DIGEST")
+        return SignedReceipt(
+            protocol_version=PROTOCOL_VERSION, algorithm=ALGORITHM_ECDSA_SHA256_P256,
+            key_id=self.key_arn, public_key_fingerprint=identity.public_key_fingerprint,
+            message_digest=digest.hex(),
+            signature=base64.b64encode(signature).decode("ascii"),
+            signed_at="2026-07-24T20:00:00Z", witness_identity=f"kms://{self.key_arn}")
+
+    def identity(self) -> str:
+        return f"kms-signer://{self.key_arn}#{self.handle}"
+
+
+def build_p256_signer(*, handle: str = "p256-svc",
+                      key_arn: str = "arn:aws:kms:us-east-1:219024422756:key/1234abcd", **_: Any):
+    return _P256RemoteSignerDouble(handle, key_arn)
