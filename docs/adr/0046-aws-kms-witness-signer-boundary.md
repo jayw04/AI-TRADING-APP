@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-07-26 |
-| Status | Draft |
+| Status | Accepted (2026-07-26) |
 | Phase | Forward validation (Workstream B, Step 4A) — Account-4 critical path |
 | Supersedes | — |
 | Related | 0045 (algorithm-qualified witness receipts), 0032 (AWS EC2 paper stack deployment), 0006 v2 (LLM in order path gated — the import-allowlist precedent), 0037 (EAD governance / order-path isolation), 0044 (deployment lifecycle and fail-closed holds) |
@@ -49,9 +49,12 @@ sanctioned entry point is a witness-signer factory named in the governed configu
    `anthropic`, with a comment naming this ADR and the allowlisted import location. It is not an
    optional extra and not accessed through a wrapper library.
 
-2. **A new CI invariant, `check_aws_sdk_isolation.sh`, restricts `boto3`/`botocore` imports to
-   `apps/backend/app/validation/aws/` and the tests for that package.** Any import elsewhere fails CI.
-   Disabling the invariant requires an ADR.
+2. **A new CI invariant, `check_aws_sdk_isolation.sh`, restricts AWS SDK imports to
+   `apps/backend/app/validation/aws/`**, with test imports permitted only in the corresponding signer
+   and sink tests. The refused set is not just `import boto3`: it covers **`boto3`, `botocore`,
+   `aiobotocore`, `types_boto3*` and `mypy_boto3*`**. Type-only imports are included deliberately — a
+   stub package is still an ungoverned dependency path, and "it is only for typing" is how the boundary
+   erodes. Any such import elsewhere fails CI. Disabling the invariant requires an ADR.
 
 3. **The adapter lives in-repo** at `app/validation/aws/kms_signer.py`, exporting exactly one public
    factory, `build_kms_anchor_signer`. This **revises** the "adapters live outside this repository"
@@ -91,6 +94,13 @@ sanctioned entry point is a witness-signer factory named in the governed configu
     resource are refused at construction, because an alias can be repointed at a different key without
     the configuration changing.
 
+    **Comparison is exact string equality, after grammar validation and nothing else.** The configured
+    ARN, `GetPublicKey`'s `KeyId` and `Sign`'s `KeyId` must be textually identical. The adapter performs
+    no alias resolution, no ARN reconstruction from parts, no case normalization and no key-id
+    substitution: a "semantically equivalent" ARN that does not match character-for-character is a
+    refusal. Anything that rewrites an identity before comparing it can make two different keys compare
+    equal, which is the one thing this check exists to prevent.
+
 11. **`ECC_NIST_P256` with `ECDSA_SHA_256` only.** Any other key spec or signing algorithm — including
     the KMS Ed25519 specs — is refused, matching the single production algorithm ADR 0045 pins.
 
@@ -104,10 +114,10 @@ sanctioned entry point is a witness-signer factory named in the governed configu
     pinned algorithm; any disagreement is a refusal. The response is held in memory for the life of the
     signer, never written to disk, and never used to construct a verifier.
 
-14. **Returned KMS metadata is checked against the pinned identity.** The `KeyId` and
-    `SigningAlgorithm` on the `Sign` response must match the pinned ARN and algorithm, and the receipt
-    records the ARN **KMS returned**, not the configured string. A signer wired to the wrong key
-    therefore produces a receipt that the existing signer challenge refuses.
+14. **Returned KMS metadata is checked against the pinned identity**, by the exact-equality rule in
+    (10). The `KeyId` and `SigningAlgorithm` on the `Sign` response must match the pinned ARN and
+    algorithm, and the receipt records the ARN **KMS returned**, not the configured string. A signer
+    wired to the wrong key therefore produces a receipt that the existing signer challenge refuses.
 
 15. **Least-privilege IAM for Step 4A is exactly two actions — `kms:Sign` and `kms:GetPublicKey` —
     scoped to the single pinned key ARN.** No `kms:*`, no wildcard resource, no S3 permissions.
@@ -247,8 +257,11 @@ retries={"mode": "standard", "max_attempts": 3}, connect_timeout=5, read_timeout
 
 **New CI invariant** `apps/backend/scripts/check_aws_sdk_isolation.sh`, built as an **allowlist** in the
 shape of `check_no_llm_in_order_path.sh` rather than a denylist over enumerated paths: every module is
-presumed forbidden from importing `boto3`/`botocore` unless it sits under an `ALLOWED_DIRS` entry, which
-for Step 4A is `app/validation/aws` alone. The allowlist form is the load-bearing choice — a denylist
+presumed forbidden from importing the AWS SDK unless it sits under an `ALLOWED_DIRS` entry, which for
+Step 4A is `app/validation/aws` alone (plus the corresponding tests). The matched patterns are
+`boto3`, `botocore`, `aiobotocore`, `types_boto3*` and `mypy_boto3*`, in both `import X` and
+`from X import` forms, including inside `if TYPE_CHECKING:` blocks. The allowlist form is the
+load-bearing choice — a denylist
 over named directories silently permits a new file added somewhere nobody listed, which is exactly the
 PR nobody looks closely at. The invariant also asserts the reverse direction: no module outside
 `app/validation/aws/**` and its tests imports that package, so the factory string in governed
@@ -276,6 +289,11 @@ malformed ARN is refused at construction; a `GetPublicKey` SPKI that differs fro
 refused; and credential, network, throttling-after-retries, key-disabled and malformed-response
 conditions each raise `WitnessError` rather than escaping. A test asserts no live network call is
 attempted.
+
+Two cases exist specifically to pin the exact-equality rule: a returned `KeyId` that differs from the
+configured ARN **only by letter case**, and one that names the same key **by bare key id rather than
+full ARN**, are both refused. A future implementer reaching for a "helpful" normalization step should
+fail these tests.
 
 ## Consequences
 
