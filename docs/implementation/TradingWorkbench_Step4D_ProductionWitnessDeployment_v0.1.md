@@ -29,19 +29,23 @@ requires a separate adjudication on the activation-readiness report §8 produces
 
 Step 4C ran **seven** in-process negative cases. Its plan listed fourteen; the remaining seven needed
 conditions a least-privilege role cannot create for itself and were deferred. Four of the nine cases
-Step 4D's scope requires were therefore **never exercised against real AWS**:
+Step 4D's scope requires were therefore **never exercised against real AWS**.
 
-| Required by 4D | Ran in 4C? | How 4D reaches it |
+Evidence states are ADR 0047 (11): **PROVEN IN 4C** (observed against real AWS in a fixture that no
+longer exists) · **PROVEN IN 4D** (observed during this deployment) · **EXPECTED** (a code-defined
+prediction, not evidence). Nothing below is PROVEN IN 4D until the live run says so.
+
+| Required by 4D | State entering 4D | How 4D reaches it |
 |---|---|---|
-| Wrong installed key | ✅ observed `WITNESS_SIGNER_KEY_UNTRUSTED` | in-process, foreign SPKI |
-| Alias / bare key id | ✅ observed `WITNESS_SIGNER_NOT_SEPARATELY_CONTROLLED` | in-process |
-| Wrong bucket or prefix | ✅ observed `WITNESS_SINK_STORAGE_MISBOUND` | in-process |
-| **Wrong key ARN** (valid grammar, real but different key) | ❌ | a **temporary** second KMS key, scheduled for deletion at teardown |
-| **Object Lock / versioning misconfigured** | ❌ | a **temporary** bucket with neither, deleted at teardown |
-| **Missing IAM permission** | ❌ | the standing role narrowed, one action at a time, then restored |
-| **KMS unavailable** | ❌ | `AWS_ENDPOINT_URL_KMS` at an unroutable address for one invocation |
-| **S3 unavailable** | ❌ | `AWS_ENDPOINT_URL_S3`, likewise |
-| **Unsupported platform** | ✅ real refusal on the Windows dev machine | `tests/validation/aws/test_platform_guard.py`, plus the new production-composition assertion |
+| Wrong installed key | **PROVEN IN 4C** — `WITNESS_SIGNER_KEY_UNTRUSTED` | in-process, foreign SPKI |
+| Alias / bare key id | **PROVEN IN 4C** — `WITNESS_SIGNER_NOT_SEPARATELY_CONTROLLED` | in-process |
+| Wrong bucket or prefix | **PROVEN IN 4C** — `WITNESS_SINK_STORAGE_MISBOUND` | in-process |
+| Wrong key ARN (valid grammar, real but different key) | **EXPECTED** | a **temporary** second KMS key, scheduled for deletion at teardown |
+| Object Lock / versioning misconfigured | **EXPECTED** | a **temporary** bucket with neither, deleted at teardown |
+| Missing IAM permission | **EXPECTED** | the standing role narrowed, one action at a time, then restored |
+| KMS unavailable | **EXPECTED** | `AWS_ENDPOINT_URL_KMS` at an unroutable address for one invocation |
+| S3 unavailable | **EXPECTED** | `AWS_ENDPOINT_URL_S3`, likewise |
+| Unsupported platform | **PROVEN IN 4C** — real refusal on the Windows dev machine | `tests/validation/`, plus the new gate assertion |
 
 If the endpoint-URL environment variables do not reach the adapters' clients — they are constructed with
 an explicit `region_name` and `Config`, and this has not been verified against boto3 1.35+ on the host —
@@ -250,8 +254,16 @@ completion; none may be waived by a subsequent run without recording why.
 - N1–N10 all refuse, with observed codes recorded and any prediction mismatch adjudicated.
 - Every temporary resource is removed and every narrowed permission verified restored.
 - The evidence package is assembled, hashed, copied off-host and independently re-hashed.
+- Every case in the package carries an evidence state per ADR 0047 (11), and **no case is labelled
+  PROVEN IN 4D on the strength of a prediction**. A case that never executed stays EXPECTED and is named
+  as an uncovered requirement in the activation-readiness report rather than counted as a pass.
 - No unresolved deployment finding remains.
 - Account 4 PAUSED · hold ACTIVE · session count 0 · window NOT OPEN · cooldown NOT STARTED.
+
+The activation-readiness report §4 step 11 produces must state the three counts separately — PROVEN IN
+4D, PROVEN IN 4C only, and EXPECTED — and must not aggregate them into a single "all negative cases
+pass". A reader deciding whether to activate Account 4 needs to know which refusals have actually been
+seen on the production boundary and which are still code reading.
 
 ## 10. Out of scope
 

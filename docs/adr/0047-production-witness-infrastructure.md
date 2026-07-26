@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-07-26 |
-| Status | Draft |
+| Status | Accepted (2026-07-26) |
 | Phase | Forward validation (Workstream B, Step 4D) — Account-4 critical path |
 | Supersedes | — |
 | Related | 0046 (AWS SDK dependency and the KMS witness-signer boundary), 0045 (algorithm-qualified witness receipts), 0032 (AWS EC2 paper stack deployment), 0044 (deployment lifecycle and fail-closed operational holds), 0017 (OS trust store), issue #522 |
@@ -127,7 +127,29 @@ out of the AWS package so production composition can enforce it.
     operational hold, or activating Account 4. Account 4 remains PAUSED with its hold ACTIVE and its
     session count at zero. Activation requires a separate adjudication on a separate report.
 
-11. **Key and bucket lifecycle are operator-governed invariants, not IAM locks.** The production key
+11. **Every claim about fail-closed behaviour carries an evidence state, and the three are not
+    interchangeable.** Any artifact that asserts a refusal — the Step 4D evidence package, the
+    activation-readiness report, this ADR, the plan — must label each one:
+
+    | State | Means |
+    |---|---|
+    | **PROVEN IN 4C** | Observed against real AWS during the Step 4C integration proof, in a fixture that no longer exists. |
+    | **PROVEN IN 4D** | Observed during this production deployment, against the production key, bucket, role and host. |
+    | **EXPECTED / NOT YET OBSERVED** | A code-defined refusal awaiting live execution. A prediction. |
+
+    **The activation-readiness report must not treat a predicted refusal code as equivalent to observed
+    fail-closed behaviour**, and no artifact may describe an EXPECTED case as proven. The distinction is
+    not pedantry: Step 4C's own first run recorded an idempotency case as passing that had never
+    exercised idempotency at all, and the eight-action permission contract was written from a
+    seven-action prediction that a real deployment would have been denied. Predictions here have already
+    been wrong twice, in the two places where being wrong mattered most.
+
+    A state may only advance by observation. A case whose observed code differs from its prediction is
+    recorded with both and adjudicated; it does not become PROVEN by having refused, only by having
+    refused as the governed contract says it should — and if the contract was wrong, the contract is
+    what changes.
+
+12. **Key and bucket lifecycle are operator-governed invariants, not IAM locks.** The production key
     must not be scheduled for deletion or disabled, and the bucket's Object Lock configuration must not
     be weakened, while the forward window is open or its evidence is live. These are enforced by the
     absence of the permissions in (4) for the runner, and by convention for the administrator —
@@ -274,7 +296,7 @@ importing `witness_platform` in a fresh interpreter pulls in neither the SDK nor
 `app.validation.aws` — the structural property the whole move exists to obtain.
 
 **Deletion protection.** The runner's inability to delete comes from Decision (4). The administrator's
-restraint is a convention under Decision (11), supported by tags (`workbench-purpose`,
+restraint is a convention under Decision (12), supported by tags (`workbench-purpose`,
 `workbench-production=true`) so an accidental cleanup script has something to key off. The account's
 existing budget alarms cover the marginal cost, which is roughly one dollar a month for the key plus the
 instance.
@@ -334,7 +356,7 @@ and affects every module in the backend rather than the witness path. Doing it i
 provisioning step would put a broad change to the platform's TLS handling behind a review whose subject
 is an S3 bucket.
 
-**A key policy or bucket policy denying deletion to the account root.** Would make Decision (11)
+**A key policy or bucket policy denying deletion to the account root.** Would make Decision (12)
 structural. Rejected because an AWS key policy that denies the root principal is an unrecoverable state,
 and a bucket policy that denies configuration changes to everyone is nearly one; the failure it creates
 is worse and less reversible than the failure it prevents.

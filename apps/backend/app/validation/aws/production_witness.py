@@ -460,24 +460,51 @@ def run_preflight(*, key_arn: str, bucket: str, region: str, public_key_path: Pa
 
 # ── negative battery ─────────────────────────────────────────────────────────────────────────────────
 
+#: ADR 0047 (11). The three states are not interchangeable and the package must never blur them.
+PROVEN_IN_4D = "PROVEN_IN_4D"                 # refused here, with the governed code
+OBSERVED_UNMATCHED = "OBSERVED_UNMATCHED"     # refused here, with a DIFFERENT code — adjudicate
+NOT_REFUSED = "NOT_REFUSED"                   # it went through; the control does not hold
+EXPECTED_NOT_OBSERVED = "EXPECTED_NOT_OBSERVED"   # never executed; a prediction, not evidence
+
+
 def _case(name: str, expected: str, fn: Any) -> dict[str, Any]:
     """Run one negative case and record what actually happened.
 
-    A case that does NOT raise is recorded as `refused: false` rather than crashing the battery: the
-    package must show every case's real outcome, and a harness that aborted on the first surprise would
-    hide the rest.
+    A case that does NOT raise is recorded rather than crashing the battery: the package must show
+    every case's real outcome, and a harness that aborted on the first surprise would hide the rest.
+
+    The `evidence_state` is the field that matters downstream. ADR 0047 (11) forbids the
+    activation-readiness report from treating a predicted refusal as observed fail-closed behaviour,
+    and a state computed here — from what happened — is harder to lose than a convention applied when
+    the report is written.
     """
     try:
         fn()
     except (WitnessError, WitnessEnforcementError, S3SinkError, ClientError) as exc:
         observed = getattr(exc, "code", None) or type(exc).__name__
+        matched = observed == expected
         return {"case": name, "expected_code": expected, "observed_code": observed,
-                "refused": True, "matched": observed == expected, "detail": str(exc)[:400]}
+                "refused": True, "matched": matched, "detail": str(exc)[:400],
+                "evidence_state": PROVEN_IN_4D if matched else OBSERVED_UNMATCHED}
     except Exception as exc:                          # noqa: BLE001 - an untyped failure is evidence
         return {"case": name, "expected_code": expected, "observed_code": type(exc).__name__,
-                "refused": True, "matched": False, "detail": str(exc)[:400]}
+                "refused": True, "matched": False, "detail": str(exc)[:400],
+                "evidence_state": OBSERVED_UNMATCHED}
     return {"case": name, "expected_code": expected, "observed_code": None, "refused": False,
-            "matched": False, "detail": "the operation was NOT refused"}
+            "matched": False, "detail": "the operation was NOT refused",
+            "evidence_state": NOT_REFUSED}
+
+
+def _uncovered(name: str, expected: str, why: str) -> dict[str, Any]:
+    """A required case the invocation could not reach.
+
+    Emitted rather than omitted. A battery that silently drops the cases whose resources were not
+    supplied reads, in the package, exactly like a battery that ran them — which is how a coverage gap
+    becomes a claim. Step 4C's plan listed fourteen cases and its run exercised seven; the difference
+    was recoverable only by reading both documents side by side.
+    """
+    return {"case": name, "expected_code": expected, "observed_code": None, "refused": None,
+            "matched": False, "detail": why, "evidence_state": EXPECTED_NOT_OBSERVED}
 
 
 def _case_as_check(name: str, expected: str, fn: Any) -> dict[str, Any]:
@@ -487,16 +514,35 @@ def _case_as_check(name: str, expected: str, fn: Any) -> dict[str, Any]:
                   f"refused={outcome['refused']}")
 
 
+#: Cases only an administrator can arrange, and the refusal each must produce once arranged.
+OPERATOR_DRIVEN_CASES = {
+    "N7 missing IAM permission": "INDEPENDENT_WITNESS_UNAVAILABLE",
+    "N9 Object Lock or versioning misconfigured": "WITNESS_SINK_NOT_IMMUTABLE",
+}
+
+OPERATOR_CASE_HOWTO = {
+    "N7 missing IAM permission":
+        "operator-driven: narrow the role (remove one witness action), re-run with "
+        "--operator-case 'N7 missing IAM permission', then restore and verify restoration",
+    "N9 Object Lock or versioning misconfigured":
+        "operator-driven: create a temporary bucket with neither Object Lock nor versioning, re-run "
+        "with --bucket <that bucket> --operator-case 'N9 Object Lock or versioning misconfigured', "
+        "then delete it",
+}
+
+
 def run_negatives(*, key_arn: str, bucket: str, region: str, public_key_path: Path,
                   trusted_root: Path, prefix: str = PREFLIGHT_PREFIX,
                   foreign_key_path: Path | None = None,
                   foreign_key_arn: str | None = None,
-                  unreachable_endpoint: str | None = None) -> list[dict[str, Any]]:
+                  unreachable_endpoint: str | None = None,
+                  operator_case: str | None = None) -> list[dict[str, Any]]:
     """N1–N9. Re-runnable: nothing here depends on a fresh publication succeeding.
 
     The cases needing infrastructure the least-privilege role cannot create — a second key, an unlocked
-    bucket, a narrowed policy — take their resources as arguments. A role able to manufacture its own
-    counterexamples would be a role able to weaken its own guarantees.
+    bucket, a narrowed policy — take their resources as arguments, or are driven one at a time through
+    `operator_case` against an environment the administrator has deliberately broken. A role able to
+    manufacture its own counterexamples would be a role able to weaken its own guarantees.
     """
     nonce = _now()
 
@@ -511,12 +557,26 @@ def run_negatives(*, key_arn: str, bucket: str, region: str, public_key_path: Pa
                            sink_identity=overrides.get("sink_identity")),
             nonce=nonce)
 
+    if operator_case is not None:
+        # ONE case, against the environment the operator has just arranged. Deliberately exclusive: the
+        # other cases would refuse for the arranged reason rather than their own, and recording those
+        # as passes would be evidence of nothing.
+        if operator_case not in OPERATOR_DRIVEN_CASES:
+            raise PreflightError(
+                f"{operator_case!r} is not an operator-driven case; expected one of "
+                f"{sorted(OPERATOR_DRIVEN_CASES)}",
+                code="STEP4D_UNKNOWN_OPERATOR_CASE")
+        return [_case(operator_case, OPERATOR_DRIVEN_CASES[operator_case], compose)]
+
     cases: list[dict[str, Any]] = []
 
     # N1 — a trust root that is not this key's. The signer challenge is what catches it.
     if foreign_key_path is not None:
         cases.append(_case("N1 wrong installed key", "WITNESS_SIGNER_KEY_UNTRUSTED",
                            lambda: compose(public_key_path=foreign_key_path)))
+    else:
+        cases.append(_uncovered("N1 wrong installed key", "WITNESS_SIGNER_KEY_UNTRUSTED",
+                                "no --foreign-key-path was supplied"))
 
     # N2 — a real, different key. Which refusal fires depends on whether the role may use it, and BOTH
     # answers are informative: denied proves the IAM scoping, untrusted proves the trust root. The
@@ -524,6 +584,10 @@ def run_negatives(*, key_arn: str, bucket: str, region: str, public_key_path: Pa
     if foreign_key_arn is not None:
         cases.append(_case("N2 wrong key ARN (real, different key)", "WITNESS_SIGNER_KEY_UNTRUSTED",
                            lambda: compose(key_arn=foreign_key_arn)))
+    else:
+        cases.append(_uncovered("N2 wrong key ARN (real, different key)",
+                                "WITNESS_SIGNER_KEY_UNTRUSTED",
+                                "no --foreign-key-arn was supplied"))
 
     # N3 / N4 — identities that could be repointed at a different key without the config changing.
     cases.append(_case("N3 alias ARN", "WITNESS_SIGNER_NOT_SEPARATELY_CONTROLLED",
@@ -538,6 +602,19 @@ def run_negatives(*, key_arn: str, bucket: str, region: str, public_key_path: Pa
                            lambda: _with_endpoint("KMS", unreachable_endpoint, compose)))
         cases.append(_case("N6 S3 unavailable", "WITNESS_SINK_IMMUTABILITY_UNPROVEN",
                            lambda: _with_endpoint("S3", unreachable_endpoint, compose)))
+    else:
+        cases.append(_uncovered("N5 KMS unavailable", "INDEPENDENT_WITNESS_UNAVAILABLE",
+                                "no --unreachable-endpoint was supplied"))
+        cases.append(_uncovered("N6 S3 unavailable", "WITNESS_SINK_IMMUTABILITY_UNPROVEN",
+                                "no --unreachable-endpoint was supplied"))
+
+    # N7 and N9 cannot be reached from inside a correctly-scoped runner: one needs the role narrowed,
+    # the other a bucket without Object Lock, and a role able to create either could weaken its own
+    # guarantees. The operator drives each with `--operator-case`, which composes against the
+    # deliberately-broken environment it has just arranged. Recorded as uncovered here so a run that
+    # skipped them cannot read as complete.
+    for case, expected in OPERATOR_DRIVEN_CASES.items():
+        cases.append(_uncovered(case, expected, OPERATOR_CASE_HOWTO[case]))
 
     # N8 — a declared identity the sink does not write through. The four-identity equality check.
     cases.append(_case("N8 wrong bucket declared", "WITNESS_SINK_STORAGE_MISBOUND",
@@ -577,6 +654,18 @@ def _write_bundle(path: Path, bundle: dict[str, Any]) -> str:
     digest = hashlib.sha256(body).hexdigest()
     path.with_suffix(path.suffix + ".sha256").write_text(f"{digest}  {path.name}\n", encoding="utf-8")
     return digest
+
+
+def _state_counts(cases: list[dict[str, Any]]) -> dict[str, int]:
+    """The three ADR 0047 (11) states, counted separately and never summed.
+
+    The activation-readiness report is required to present these apart. Emitting them apart here means
+    a report that aggregates them has to do so deliberately.
+    """
+    counts = {PROVEN_IN_4D: 0, OBSERVED_UNMATCHED: 0, NOT_REFUSED: 0, EXPECTED_NOT_OBSERVED: 0}
+    for case in cases:
+        counts[case["evidence_state"]] = counts.get(case["evidence_state"], 0) + 1
+    return counts
 
 
 def _envelope(command: str, commit: str, started_at: str) -> dict[str, Any]:
@@ -621,6 +710,8 @@ def main(argv: list[str] | None = None) -> int:
                            help="a real, different KMS key ARN, for the wrong-key-identity case")
             p.add_argument("--unreachable-endpoint", default=None,
                            help="an unroutable endpoint URL, for the service-unavailable cases")
+            p.add_argument("--operator-case", default=None, choices=sorted(OPERATOR_DRIVEN_CASES),
+                           help="run ONLY this operator-arranged case against the current environment")
 
     args = parser.parse_args(argv)
 
@@ -659,11 +750,21 @@ def main(argv: list[str] | None = None) -> int:
                               trusted_root=args.trusted_root, prefix=args.prefix,
                               foreign_key_path=args.foreign_key_path,
                               foreign_key_arn=args.foreign_key_arn,
-                              unreachable_endpoint=args.unreachable_endpoint)
+                              unreachable_endpoint=args.unreachable_endpoint,
+                              operator_case=args.operator_case)
         bundle["negative_cases"] = cases
-        unrefused = [c for c in cases if not c["refused"]]
-        bundle["outcome"] = "PASS" if not unrefused else "FAIL"
-        bundle["unmatched_codes"] = [c["case"] for c in cases if c["refused"] and not c["matched"]]
+        bundle["evidence_states"] = _state_counts(cases)
+
+        # A battery is PASS only when every case it contains was OBSERVED to refuse with the governed
+        # code. An unrun case is NOT a pass — that conflation is how 4C's seven-of-fourteen coverage
+        # became invisible. A case refused with a different code is reported for adjudication, and does
+        # not silently become evidence either.
+        bundle["outcome"] = "PASS" if all(
+            c["evidence_state"] == PROVEN_IN_4D for c in cases) else "FAIL"
+        bundle["unmatched_codes"] = [c["case"] for c in cases
+                                     if c["evidence_state"] == OBSERVED_UNMATCHED]
+        bundle["not_observed"] = [c["case"] for c in cases
+                                  if c["evidence_state"] == EXPECTED_NOT_OBSERVED]
 
     bundle["completed_at"] = _now()
     digest = _write_bundle(args.out, bundle)

@@ -17,20 +17,29 @@ import json
 import os
 import platform
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from app.validation.aws.production_witness import (
+    EXPECTED_NOT_OBSERVED,
+    NOT_REFUSED,
+    OBSERVED_UNMATCHED,
     OPERATIONAL_PREFIX,
+    OPERATOR_DRIVEN_CASES,
     PREFLIGHT_PREFIX,
+    PROVEN_IN_4D,
     REQUIRED_LOCK_MODE,
     REQUIRED_RETENTION_DAYS,
     SYNTHETIC_SESSION,
     PreflightError,
     _case,
+    _state_counts,
+    _uncovered,
     _with_endpoint,
     _write_bundle,
     main,
+    run_negatives,
     run_preflight,
     synthetic_tip,
     witness_config,
@@ -148,6 +157,7 @@ def test_an_operation_that_is_not_refused_is_recorded_as_a_failure():
     outcome = _case("N-example", "SOME_CODE", lambda: None)
     assert outcome["refused"] is False and outcome["matched"] is False
     assert outcome["observed_code"] is None
+    assert outcome["evidence_state"] == NOT_REFUSED
 
 
 def test_a_refusal_with_the_wrong_code_is_recorded_refused_but_unmatched():
@@ -167,6 +177,73 @@ def test_an_untyped_failure_is_still_recorded_as_evidence():
 
     outcome = _case("N-example", "EXPECTED_CODE", _raise)
     assert outcome["refused"] is True and outcome["observed_code"] == "ZeroDivisionError"
+    assert outcome["evidence_state"] == OBSERVED_UNMATCHED
+
+
+# ── ADR 0047 (11): the three evidence states are not interchangeable ─────────────────────────────────
+
+def test_a_case_that_refuses_with_the_governed_code_is_the_only_one_that_becomes_evidence():
+    from app.validation.witness_protocol import WitnessError
+
+    def _raise():
+        raise WitnessError("nope", code="EXPECTED_CODE")
+
+    assert _case("N", "EXPECTED_CODE", _raise)["evidence_state"] == PROVEN_IN_4D
+
+
+def test_an_unreachable_case_is_emitted_rather_than_omitted():
+    """A battery that silently drops the cases whose resources were not supplied reads, in the package,
+    exactly like a battery that ran them. That is how 4C's seven-of-fourteen coverage became invisible
+    until two documents were read side by side."""
+    uncovered = _uncovered("N2 wrong key ARN", "WITNESS_SIGNER_KEY_UNTRUSTED", "not supplied")
+    assert uncovered["evidence_state"] == EXPECTED_NOT_OBSERVED
+    assert uncovered["refused"] is None and uncovered["matched"] is False
+
+
+def test_a_battery_missing_its_operator_driven_cases_reports_them_as_not_observed(tmp_path):
+    """Run with no foreign key, no foreign ARN and no unreachable endpoint: the reachable cases still
+    run, and every unreachable one is present and named."""
+    cases = _run_negatives_offline(tmp_path)
+    states = {c["case"]: c["evidence_state"] for c in cases}
+    for required in ("N1 wrong installed key", "N2 wrong key ARN (real, different key)",
+                     "N5 KMS unavailable", "N6 S3 unavailable",
+                     *OPERATOR_DRIVEN_CASES):
+        assert states[required] == EXPECTED_NOT_OBSERVED, required
+
+
+def test_an_incomplete_battery_cannot_report_pass(tmp_path):
+    """The rule that keeps a prediction from being counted as a control."""
+    cases = _run_negatives_offline(tmp_path)
+    counts = _state_counts(cases)
+    assert counts[EXPECTED_NOT_OBSERVED] > 0
+    assert not all(c["evidence_state"] == PROVEN_IN_4D for c in cases)
+
+
+def test_the_state_counts_are_reported_separately_and_never_summed():
+    cases = [{"evidence_state": PROVEN_IN_4D}, {"evidence_state": PROVEN_IN_4D},
+             {"evidence_state": EXPECTED_NOT_OBSERVED}, {"evidence_state": OBSERVED_UNMATCHED}]
+    assert _state_counts(cases) == {PROVEN_IN_4D: 2, OBSERVED_UNMATCHED: 1,
+                                    NOT_REFUSED: 0, EXPECTED_NOT_OBSERVED: 1}
+
+
+def test_an_unknown_operator_case_is_refused(tmp_path):
+    with pytest.raises(PreflightError) as exc:
+        run_negatives(key_arn=KEY_ARN, bucket=BUCKET, region="us-east-1",
+                      public_key_path=tmp_path / "k.der", trusted_root=tmp_path,
+                      operator_case="N42 something invented")
+    assert exc.value.code == "STEP4D_UNKNOWN_OPERATOR_CASE"
+
+
+def _run_negatives_offline(tmp_path) -> list[dict[str, Any]]:
+    """The battery with nothing supplied.
+
+    The reachable cases each try to compose a real witness and fail — on this machine at the platform
+    boundary, on Linux at the missing key file — which is fine: what is under test here is the
+    bookkeeping, and `_case` records whatever happened. No AWS call is made either way; the conftest
+    severs the transport.
+    """
+    return run_negatives(key_arn=KEY_ARN, bucket=BUCKET, region="us-east-1",
+                         public_key_path=tmp_path / "k.der", trusted_root=tmp_path)
 
 
 # ── the endpoint override must not leak ──────────────────────────────────────────────────────────────
