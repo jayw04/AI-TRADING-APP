@@ -595,7 +595,10 @@ def test_a_protocol_error_before_commit_leaves_everything_unchanged(runtime, tmp
     # Corrupt the PERSISTED receipt into one the protocol refuses: a retired protocol version. The
     # line stays structurally valid JSON, so this is a protocol refusal, not a parse failure.
     obj = json.loads(anchor_path.read_text(encoding="utf-8").split("\n")[0])
-    obj["witness_receipt"] = {**obj["witness_receipt"], "protocol_version": 1}
+    # `witness_receipt` is persisted as the canonical protocol STRING, so it is parsed, mutated and
+    # re-serialized rather than spread as a dict.
+    receipt_obj = {**json.loads(obj["witness_receipt"]), "protocol_version": 1}
+    obj["witness_receipt"] = json.dumps(receipt_obj, sort_keys=True, separators=(",", ":"))
     anchor_path.write_text(json.dumps(obj, sort_keys=True) + "\n", encoding="utf-8")
     tampered_anchor_bytes = anchor_path.read_bytes()   # the state the RUN must not change
 
@@ -624,7 +627,10 @@ def test_the_stored_receipt_corruption_is_reported_as_a_witness_finding(runtime,
     _run(runtime, SESSION_1, tmp_path)
     path = tmp_path / "store" / ANCHOR_LOG_FILENAME
     obj = json.loads(path.read_text(encoding="utf-8").split("\n")[0])
-    obj["witness_receipt"] = {**obj["witness_receipt"], "protocol_version": 1}
+    # `witness_receipt` is persisted as the canonical protocol STRING, so it is parsed, mutated and
+    # re-serialized rather than spread as a dict.
+    receipt_obj = {**json.loads(obj["witness_receipt"]), "protocol_version": 1}
+    obj["witness_receipt"] = json.dumps(receipt_obj, sort_keys=True, separators=(",", ":"))
     path.write_text(json.dumps(obj, sort_keys=True) + "\n", encoding="utf-8")
 
     result = _run(runtime, SESSION_2, tmp_path)

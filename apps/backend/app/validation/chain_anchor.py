@@ -47,7 +47,7 @@ from app.validation.observation_store import (
     committed_observations,
     default_durability,
 )
-from app.validation.witness_protocol import WitnessProtocolError
+from app.validation.witness_protocol import deserialize_receipt, serialize_receipt
 
 ANCHOR_LOG_FILENAME = "chain_anchors.jsonl"        # store ROOT — never under observations/
 
@@ -118,8 +118,11 @@ def _serialize(record: AnchorRecord) -> str:
     # The receipt is serialized by the PROTOCOL, not enumerated here. A storage layer that builds its
     # own mapping can bypass the strict parse on the way back in, and a later schema change would land
     # without the receipt boundary noticing.
+    # The canonical protocol STRING, produced by the protocol's own serializer. Storing the exact
+    # string (rather than a nested object this module assembles) makes the persistence boundary literal
+    # and keeps the byte-for-byte form available for the local<->external comparison above.
     payload = {**record.core_body(), "anchor_sha256": record.anchor_sha256(),
-               "witness_receipt": record.witness_receipt.to_dict()}
+               "witness_receipt": serialize_receipt(record.witness_receipt)}
     return json.dumps(payload, sort_keys=True)
 
 
@@ -154,8 +157,8 @@ def read_anchors(store_dir: Path) -> list[AnchorRecord]:
         # a field, carries an unknown one, or was written by a different protocol is refused HERE —
         # at the receipt boundary — rather than being silently accepted into an AnchorRecord.
         try:
-            obj["witness_receipt"] = SignedReceipt.from_dict(obj["witness_receipt"])
-        except WitnessProtocolError as exc:
+            obj["witness_receipt"] = deserialize_receipt(obj["witness_receipt"])
+        except WitnessError as exc:
             raise AnchorError(f"anchor line {i} has an invalid witness receipt: {exc}",
                               code="ANCHOR_LOG_INVALID") from exc
         try:
@@ -264,6 +267,18 @@ def _assert_witnessed(anchors: list[AnchorRecord], verifier: AnchorVerifier,
             raise AnchorError(
                 f"the external witness for sequence {etip.sequence} records a different tip than the "
                 f"local anchor log", code="EXTERNAL_WITNESS_DIVERGES")
+        # The WHOLE receipt must agree, not just the tip it covers.
+        #
+        # `signed_at` and `witness_identity` are deliberately OUTSIDE the signed envelope, so two
+        # receipts carrying different values for them both verify, and the tip comparison above passes
+        # too. Without this check the system would accept two different evidence records as though they
+        # agreed. The external immutable sink is supposed to protect the PUBLISHED receipt in full —
+        # including its unsigned evidence — and that guarantee only exists if divergence is detected.
+        if serialize_receipt(ereceipt) != serialize_receipt(anchor.receipt()):
+            raise AnchorError(
+                f"the external witness receipt for sequence {etip.sequence} differs from the locally "
+                f"persisted receipt — the two evidence records disagree even though both signatures "
+                f"verify", code="EXTERNAL_WITNESS_DIVERGES")
         _verify_signature(verifier, etip, ereceipt, what=f"external witness {etip.sequence}")
     if len(external) < len(anchors):
         missing = [a.sequence for a in anchors[len(external):]]

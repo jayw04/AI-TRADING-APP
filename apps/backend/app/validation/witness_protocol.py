@@ -43,6 +43,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from cryptography.exceptions import InvalidSignature
@@ -254,11 +255,20 @@ class SignedReceipt:
                 raise WitnessProtocolError(
                     f"{field_name} is {type(d[field_name]).__name__}, not a string",
                     code="WITNESS_RECEIPT_MALFORMED")
+        # Shape FIRST, then a real calendar parse. The regex alone accepts impossible values such as
+        # 2026-99-99T29:88:77Z — digit-shaped but not a timestamp. The field is advertised as
+        # canonically readable evidence, so it has to actually be readable.
         if not _SIGNED_AT_RE.match(d["signed_at"]):
             raise WitnessProtocolError(
                 f"signed_at {d['signed_at']!r} is not canonical UTC (YYYY-MM-DDTHH:MM:SSZ); offsets, "
                 f"fractional seconds and naive timestamps are refused",
                 code="WITNESS_RECEIPT_MALFORMED")
+        try:
+            datetime.strptime(d["signed_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        except ValueError as exc:
+            raise WitnessProtocolError(
+                f"signed_at {d['signed_at']!r} has the canonical shape but is not a real UTC "
+                f"timestamp: {exc}", code="WITNESS_RECEIPT_MALFORMED") from exc
         return cls(
             protocol_version=version, algorithm=str(d["algorithm"]), key_id=str(d["key_id"]),
             public_key_fingerprint=str(d["public_key_fingerprint"]),

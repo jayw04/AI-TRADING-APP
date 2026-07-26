@@ -398,3 +398,23 @@ def test_another_curve_is_refused_for_the_p256_verifier():
     with pytest.raises(WitnessProtocolError) as exc:
         build_verifier(ALGORITHM_ECDSA_SHA256_P256, spki)
     assert exc.value.code == "WITNESS_PUBLIC_KEY_UNUSABLE"
+
+
+@pytest.mark.parametrize("value", ["2026-99-99T29:88:77Z", "2026-13-01T00:00:00Z",
+                                   "2026-02-30T00:00:00Z", "2026-01-01T25:00:00Z",
+                                   "2026-01-01T00:60:00Z"])
+def test_signed_at_must_be_a_real_timestamp_not_merely_digit_shaped(value):
+    """The regex enforces the FORM; it happily accepts impossible values like 2026-99-99T29:88:77Z.
+
+    `signed_at` is advertised as canonically readable evidence, so it has to actually be readable —
+    shape validation alone would let an unparseable value into the permanent record.
+    """
+    with pytest.raises(WitnessProtocolError) as exc:
+        SignedReceipt.from_dict({**_good_dict(), "signed_at": value})
+    assert exc.value.code == "WITNESS_RECEIPT_MALFORMED"
+
+
+def test_a_real_leap_day_is_accepted():
+    """The calendar check must not reject valid dates — 2028 is a leap year."""
+    receipt = SignedReceipt.from_dict({**_good_dict(), "signed_at": "2028-02-29T23:59:59Z"})
+    assert receipt.signed_at == "2028-02-29T23:59:59Z"
