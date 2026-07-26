@@ -242,26 +242,31 @@ SINK_PREFIX = "mr002/anchors"
 SINK_IDENTITY = f"s3://{BUCKET}/{SINK_PREFIX}"
 
 
+def _s3_stub(real_client: Any) -> Any:
+    """An S3 client whose bucket answers 'versioned, Object-Locked, COMPLIANCE, 100 years'."""
+    client = real_client("s3", region_name="us-east-1", aws_access_key_id="t",
+                         aws_secret_access_key="t", aws_session_token="t")
+    stub = Stubber(client)
+    stub.add_response("get_bucket_location", {}, {"Bucket": BUCKET})     # us-east-1 omits it
+    stub.add_response("get_bucket_versioning", {"Status": "Enabled"}, {"Bucket": BUCKET})
+    stub.add_response("get_object_lock_configuration",
+                      {"ObjectLockConfiguration": {
+                          "ObjectLockEnabled": "Enabled",
+                          "Rule": {"DefaultRetention": {"Mode": "COMPLIANCE", "Days": 36500}}}},
+                      {"Bucket": BUCKET})
+    stub.activate()
+    return client
+
+
 @pytest.fixture
-def s3_stubbed(monkeypatch):
-    """A stubbed S3 whose bucket answers 'versioned, Object-Locked, COMPLIANCE, 100 years'."""
-    real_client = boto3.client
+def s3_stubbed(aws):
+    """Register the S3 builder on the SHARED dispatcher.
 
-    def _fake_client(service, **kwargs):
-        client = real_client("s3", region_name="us-east-1", aws_access_key_id="t",
-                             aws_secret_access_key="t", aws_session_token="t")
-        stub = Stubber(client)
-        stub.add_response("get_bucket_location", {}, {"Bucket": BUCKET})     # us-east-1 omits it
-        stub.add_response("get_bucket_versioning", {"Status": "Enabled"}, {"Bucket": BUCKET})
-        stub.add_response("get_object_lock_configuration",
-                          {"ObjectLockConfiguration": {
-                              "ObjectLockEnabled": "Enabled",
-                              "Rule": {"DefaultRetention": {"Mode": "COMPLIANCE", "Days": 36500}}}},
-                          {"Bucket": BUCKET})
-        stub.activate()
-        return client
-
-    monkeypatch.setattr("app.validation.aws.s3_sink.boto3.client", _fake_client)
+    Emphatically not a second `monkeypatch.setattr`: `kms_signer.boto3` and `s3_sink.boto3` are one
+    module object, so patching "the S3 one" would replace the KMS stub too and the signer would be
+    handed an S3 client. Registering a builder is what lets both adapters be stubbed at once.
+    """
+    aws["s3"] = _s3_stub
 
 
 def _full_config(deployment, *, sink_identity=SINK_IDENTITY):
