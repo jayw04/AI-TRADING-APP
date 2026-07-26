@@ -52,6 +52,65 @@ CALLER="$(aws sts get-caller-identity --output json)"
 CALLER_ACCOUNT="$(echo "$CALLER" | jq -r .Account)"
 [ "$CALLER_ACCOUNT" = "$ACCOUNT" ] || die "caller is in account $CALLER_ACCOUNT, expected $ACCOUNT"
 
+KEY_DESCRIPTION="Trading Workbench forward-validation witness signer (ADR 0047)"
+
+# ── the governed parameters, rendered once ───────────────────────────────────────────────────────────
+#
+# Both the policy that gets installed and the point-of-no-return echo come from these two functions, and
+# `--plan` calls them too. That last part is deliberate: the echo is a `jq` program that runs at the one
+# moment in this script where a failure is least acceptable, and `--plan` is where it gets exercised —
+# on the host that will run it, against the same jq build, before anything irreversible has happened.
+# An untested expression guarding an irreversible step is not a guard.
+
+witness_policy() {   # $1 = key ARN
+  cat <<POLICY
+{ "Version": "2012-10-17", "Statement": [
+  { "Sid": "SignWithTheOneKey", "Effect": "Allow",
+    "Action": ["kms:GetPublicKey", "kms:Sign"],
+    "Resource": "$1" },
+  { "Sid": "ProveTheBucketIsWriteOnce", "Effect": "Allow",
+    "Action": ["s3:GetBucketLocation", "s3:GetBucketVersioning",
+               "s3:GetBucketObjectLockConfiguration"],
+    "Resource": "arn:aws:s3:::$BUCKET" },
+  { "Sid": "ListOnlyTheGovernedPrefixes", "Effect": "Allow",
+    "Action": "s3:ListBucket",
+    "Resource": "arn:aws:s3:::$BUCKET",
+    "Condition": { "StringLike": { "s3:prefix": ["$OPERATIONAL_PREFIX/*", "$PREFLIGHT_PREFIX/*"] } } },
+  { "Sid": "WriteAndReadTheGovernedPrefixes", "Effect": "Allow",
+    "Action": ["s3:PutObject", "s3:GetObject"],
+    "Resource": ["arn:aws:s3:::$BUCKET/$OPERATIONAL_PREFIX/*",
+                 "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/*"] }
+] }
+POLICY
+}
+
+# The eight actions are EXTRACTED from the policy that will actually be installed, never restated.
+# A restatement is a second source of truth, and this is the one place that must not have one.
+parameter_echo() {   # $1 = key ARN
+  jq -n \
+    --arg account "$ACCOUNT" --arg region "$REGION" --arg bucket "$BUCKET" \
+    --arg key_arn "$1" --arg key_desc "$KEY_DESCRIPTION" \
+    --arg mode "$RETENTION_MODE" --argjson days "$RETENTION_DAYS" \
+    --arg op "$OPERATIONAL_PREFIX" --arg pf "$PREFLIGHT_PREFIX" \
+    --arg itype "$INSTANCE_TYPE" --arg host "$HOST_NAME" --arg role "$ROLE" \
+    --argjson policy "$(witness_policy "$1")" \
+    '{
+       adr: "0047",
+       aws_account: $account,
+       region: $region,
+       bucket: $bucket,
+       kms: { key_arn: $key_arn, description: $key_desc,
+              tags: [{TagKey: "workbench-purpose", TagValue: "forward-validation-witness"},
+                     {TagKey: "workbench-production", TagValue: "true"}],
+              key_spec: "ECC_NIST_P256", key_usage: "SIGN_VERIFY", alias: null },
+       object_lock: { mode: $mode, days: $days, irreversible: true },
+       prefixes: { operational: ($op + "/"), preflight: ($pf + "/") },
+       host: { name: $host, instance_type: $itype, role: $role },
+       witness_policy: $policy,
+       witness_actions: ($policy.Statement | map(.Action) | flatten | sort)
+     }'
+}
+
 cat <<PLAN
 Step 4D production witness boundary — ADR 0047
 
@@ -74,7 +133,17 @@ Step 4D production witness boundary — ADR 0047
 PLAN
 
 if [ "$MODE" = "--plan" ]; then
-  log "plan only; nothing was created"
+  # Render the point-of-no-return echo now, with a placeholder ARN, so the jq program that guards the
+  # irreversible step is proven on this host before --apply can reach it.
+  echo "── the point-of-no-return echo, rehearsed (key ARN is a placeholder) ──────────"
+  PLAN_ECHO="$(parameter_echo "arn:aws:kms:$REGION:$ACCOUNT:key/NOT-YET-CREATED")" \
+    || die "the parameter echo failed to render; fix that before --apply, because it guards the "\
+"irreversible step"
+  echo "$PLAN_ECHO"
+  PLAN_ACTIONS="$(echo "$PLAN_ECHO" | jq '.witness_actions | length')"
+  [ "$PLAN_ACTIONS" = "8" ] || die "the witness policy grants $PLAN_ACTIONS actions, not the ratified 8"
+  echo
+  log "plan only; nothing was created (witness_actions=$PLAN_ACTIONS)"
   exit 0
 fi
 [ "$MODE" = "--apply" ] || die "usage: $0 [--plan|--apply]"
@@ -100,7 +169,7 @@ KEY_JSON="$(aws kms create-key \
   --region "$REGION" \
   --key-spec ECC_NIST_P256 \
   --key-usage SIGN_VERIFY \
-  --description "Trading Workbench forward-validation witness signer (ADR 0047)" \
+  --description "$KEY_DESCRIPTION" \
   --tags TagKey=workbench-purpose,TagValue=forward-validation-witness \
          TagKey=workbench-production,TagValue=true \
   --output json)"
@@ -110,6 +179,48 @@ journal --argjson k "$KEY_JSON" '.kms = $k.KeyMetadata'
 
 # Deliberately NO alias. ADR 0047 (1): an alias can be repointed at a different key without the governed
 # configuration changing, and the gate refuses aliases anyway — creating none removes the temptation.
+
+WITNESS_POLICY="$(witness_policy "$KEY_ARN")"
+
+# ── 1b. POINT OF NO RETURN — machine-readable parameter echo ─────────────────────────────────────────
+#
+# Everything up to here is reversible: a KMS key can be scheduled for deletion. The next command is not.
+# `create-bucket --object-lock-enabled-for-bucket` followed by a COMPLIANCE default retention commits
+# every object ever written to it, and the bucket itself, for the full period with no remedy available
+# to anyone including the account root.
+#
+# So the last thing before it is a machine-readable echo of every governed parameter, emitted as JSON
+# rather than as prose: an operator confirming a formatted paragraph is confirming that it reads
+# plausibly, while a JSON object can be diffed against the ADR, captured, and archived alongside the
+# evidence. The eight actions are extracted FROM the policy document that will actually be installed,
+# not restated — a restatement is a second source of truth and this is the one place that must not have
+# one.
+
+ECHO_FILE="${ECHO_FILE:-step4d_parameter_echo.json}"
+PARAMETER_ECHO="$(parameter_echo "$KEY_ARN")"
+
+# The tags are asserted against what KMS actually recorded, not against what was requested: the echo
+# claims the key is tagged, and a claim the operator is about to confirm should be read back.
+aws kms list-resource-tags --region "$REGION" --key-id "$KEY_ARN" --output json \
+  | jq -e '[.Tags[] | select(.TagKey == "workbench-production" and .TagValue == "true")] | length == 1' \
+  >/dev/null || die "the created key does not carry workbench-production=true"
+
+echo "$PARAMETER_ECHO" > "$ECHO_FILE"
+echo
+echo "── POINT OF NO RETURN ─────────────────────────────────────────────────────────"
+echo "$PARAMETER_ECHO"
+echo "── the next command is irreversible; the echo above is also in $ECHO_FILE ─────"
+echo
+
+ACTION_COUNT="$(echo "$PARAMETER_ECHO" | jq '.witness_actions | length')"
+[ "$ACTION_COUNT" = "8" ] || die "the witness policy grants $ACTION_COUNT actions, not the ratified 8"
+
+echo "Type exactly:  CREATE THE BUCKET"
+read -r CONFIRM_BUCKET
+[ "$CONFIRM_BUCKET" = "CREATE THE BUCKET" ] || \
+  die "not confirmed at the point of no return; the KMS key exists and can be scheduled for deletion"
+
+journal --argjson e "$PARAMETER_ECHO" '.parameter_echo = $e'
 
 # ── 2. the witness bucket — IRREVERSIBLE ─────────────────────────────────────────────────────────────
 
@@ -142,26 +253,9 @@ log "bucket $BUCKET is now COMPLIANCE-locked for $RETENTION_DAYS days"
 TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow",
   "Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
 
-WITNESS_POLICY="$(cat <<POLICY
-{ "Version": "2012-10-17", "Statement": [
-  { "Sid": "SignWithTheOneKey", "Effect": "Allow",
-    "Action": ["kms:GetPublicKey", "kms:Sign"],
-    "Resource": "$KEY_ARN" },
-  { "Sid": "ProveTheBucketIsWriteOnce", "Effect": "Allow",
-    "Action": ["s3:GetBucketLocation", "s3:GetBucketVersioning",
-               "s3:GetBucketObjectLockConfiguration"],
-    "Resource": "arn:aws:s3:::$BUCKET" },
-  { "Sid": "ListOnlyTheGovernedPrefixes", "Effect": "Allow",
-    "Action": "s3:ListBucket",
-    "Resource": "arn:aws:s3:::$BUCKET",
-    "Condition": { "StringLike": { "s3:prefix": ["$OPERATIONAL_PREFIX/*", "$PREFLIGHT_PREFIX/*"] } } },
-  { "Sid": "WriteAndReadTheGovernedPrefixes", "Effect": "Allow",
-    "Action": ["s3:PutObject", "s3:GetObject"],
-    "Resource": ["arn:aws:s3:::$BUCKET/$OPERATIONAL_PREFIX/*",
-                 "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/*"] }
-] }
-POLICY
-)"
+# $WITNESS_POLICY was rendered in §1 and shown in the point-of-no-return echo. Installing exactly the
+# document that was confirmed — rather than rebuilding an equivalent one here — is the whole reason it
+# is built once: two constructions of "the same" policy are two things that can drift.
 
 log "creating role $ROLE"
 aws iam create-role --role-name "$ROLE" --assume-role-policy-document "$TRUST" \
