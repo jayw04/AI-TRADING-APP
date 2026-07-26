@@ -102,10 +102,20 @@ class WitnessProfile(StrEnum):
 class WitnessComponentConfig:
     """One witness component (the signer or the sink) as the deployment declares it.
 
-    `factory` is a `module:callable` the DEPLOYMENT installs — the production adapters (a signing-service
-    client, an Object-Lock sink) live outside this repository so that adding one does not add an external
-    dependency to the order-path image. `options` is passed to the factory verbatim and is scanned for
-    key material before anything is imported.
+    `factory` is a `module:callable` the DEPLOYMENT names. The production adapters live IN this
+    repository, under `app/validation/aws/` (ADR 0046) — an earlier version of this docstring said they
+    would live outside it, so that adding one added no external dependency to the order-path image. That
+    was reconsidered: it would have placed the code deciding *what gets signed, with which key, over
+    which bytes* outside review, tests, CI and version-pinning, where a `MessageType=RAW` or an echoed
+    key ARN is caught by nothing until a signature fails to verify. The dependency concern is met
+    instead by `check_aws_sdk_isolation.sh`, which makes AWS unreachable from anywhere but that one
+    package.
+
+    What stays with the deployment is the authority that mattered: this factory string decides WHETHER
+    an adapter is used at all, and a deployment that does not name one does not get one.
+
+    `options` is passed to the factory verbatim — note that the sibling `identity` is NOT, so a factory
+    needing it takes its own option — and is scanned for key material before anything is imported.
     """
 
     factory: str

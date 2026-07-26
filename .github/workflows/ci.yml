@@ -295,6 +295,10 @@ jobs:
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_reference_only_invariant.sh
 
+      - name: AWS SDK isolation invariant check (ADR 0046, backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_aws_sdk_isolation.sh
+
       - name: Loss-control structural invariants (ADR 0043, backend)
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_loss_control_invariants.sh
