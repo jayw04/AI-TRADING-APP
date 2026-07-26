@@ -263,7 +263,9 @@ def test_a_witness_refusal_reports_its_code(deployment, monkeypatch, capsys):
 @POSIX_ONLY
 def test_the_witness_evidence_does_not_leak_option_values(deployment):
     report = cli.run_readiness(load_deployment_config(), SESSION)
-    assert report.evidence["witness"]["signer"]["option_keys"] == ["handle"]
+    # The KMS-shaped signer takes a handle AND the key ARN; both are KEY NAMES, and the assertion is
+    # that VALUES never appear in evidence — which is what this test is actually about.
+    assert report.evidence["witness"]["signer"]["option_keys"] == ["handle", "key_arn"]
 
 
 # ---- readiness verifies everything and changes nothing ----------------------------------------------

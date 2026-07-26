@@ -31,6 +31,7 @@ from tests.validation import witness_doubles as doubles
 
 DOUBLES = "tests.validation.witness_doubles"
 NONCE = "2026-07-25T00:00:00Z"
+KEY_ARN = "arn:aws:kms:us-east-1:219024422756:key/1234abcd"
 
 
 # R5e-2 closed the key path with POSIX-only guarantees — ownership, O_NOFOLLOW, and dir_fd-relative
@@ -53,21 +54,27 @@ def service_key(tmp_path):
     """
     if not _can_enforce_path_guarantees():
         pytest.skip("PRODUCTION witness enforcement requires POSIX; it fails closed here by design")
-    public_bytes = doubles.provision_service_key("svc-1")
+    # P-256 DER SPKI, exactly as KMS GetPublicKey returns it. An Ed25519 key here would be refused at
+    # config load, because PRODUCTION pins ECDSA_SHA_256_P256 (ADR 0045) — so a production-gate test
+    # must be driven by production-shaped material or it would test nothing.
+    public_bytes = doubles.provision_p256_service_key("svc-1")
     path = tmp_path / "anchor_witness.pub"
     path.write_bytes(public_bytes)
     return {"public_bytes": public_bytes, "path": path, "root": tmp_path}
 
 
-def _config(service_key, *, profile="PRODUCTION", signer="build_signer", sink="build_sink",
+def _config(service_key, *, profile="PRODUCTION", signer="build_p256_signer", sink="build_sink",
             signer_options=None, sink_options=None, public_key_path=None,
             sink_identity="s3://anchors/prod", trusted_root=None) -> WitnessConfig:
     return load_witness_config({
         "profile": profile,
+        "algorithm": "ECDSA_SHA_256_P256",
+        "key_id": KEY_ARN,
         "trusted_root": str(trusted_root or service_key["root"]),
         "public_key_path": str(public_key_path or service_key["path"]),
         "signer": {"factory": f"{DOUBLES}:{signer}", "identity": "kms://anchor-witness",
-                   "options": signer_options or {}},
+                   "options": signer_options if signer_options is not None
+                   else {"handle": "svc-1", "key_arn": KEY_ARN}},
         "sink": {"factory": f"{DOUBLES}:{sink}", "identity": sink_identity,
                  "options": sink_options or {}},
     })
@@ -151,6 +158,7 @@ def test_a_factory_resolving_into_the_reference_module_is_refused_before_import(
         service_key, signer_factory, sink_factory):
     config = load_witness_config({
         "profile": "PRODUCTION", "trusted_root": str(service_key["root"]),
+        "algorithm": "ECDSA_SHA_256_P256", "key_id": KEY_ARN,
         "public_key_path": str(service_key["path"]),
         "signer": {"factory": signer_factory, "identity": "kms://x"},
         "sink": {"factory": sink_factory, "identity": "s3://y"}})
@@ -188,6 +196,7 @@ def test_a_factory_that_cannot_construct_is_a_refusal_not_a_crash(service_key):
 def test_an_unresolvable_factory_is_a_refusal(service_key):
     config = load_witness_config({
         "profile": "PRODUCTION", "trusted_root": str(service_key["root"]),
+        "algorithm": "ECDSA_SHA_256_P256", "key_id": KEY_ARN,
         "public_key_path": str(service_key["path"]),
         "signer": {"factory": "no.such.module:build", "identity": "x"},
         "sink": {"factory": f"{DOUBLES}:build_sink", "identity": "y"}})
@@ -219,7 +228,7 @@ def test_a_signer_holding_a_different_key_is_refused(service_key, tmp_path):
     """The substitution R5d could not detect until the first `verify_anchor_consistency` — after a
     session had been evaluated."""
     other = tmp_path / "other.pub"
-    other.write_bytes(doubles.provision_service_key("svc-other"))
+    other.write_bytes(doubles.provision_p256_service_key("svc-other"))
     with pytest.raises(WitnessEnforcementError, match="does not hold the trusted key") as exc:
         enforce_production_witness(_config(service_key, public_key_path=other), nonce=NONCE)
     assert exc.value.code == "WITNESS_SIGNER_KEY_UNTRUSTED"
