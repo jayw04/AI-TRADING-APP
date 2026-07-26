@@ -232,14 +232,31 @@ apps/backend/tests/validation/aws/test_kms_signer.py
   "signer": {
     "factory": "app.validation.aws.kms_signer:build_kms_anchor_signer",
     "identity": "kms-witness-forward-validation",
-    "options": { "key_arn": "arn:aws:kms:us-east-1:219024422756:key/<uuid>" }
+    "options": {
+      "key_arn": "arn:aws:kms:us-east-1:219024422756:key/<uuid>",
+      "witness_identity": "kms-witness-forward-validation"
+    }
   },
   "sink": { "...": "Step 4B" }
 }
 ```
 
 `options` carries no credentials; `assert_no_private_key_material` runs over it before the factory is
-imported, and `key_arn` is a pointer to where custody lives, not custody itself.
+imported, and `key_arn` is a pointer to where custody lives, not custody itself. `witness_identity` is
+repeated inside `options` because `_resolve_factory` passes **only** `options` to the factory — the
+sibling `signer.identity` never reaches it. The two are expected to agree, and the enforcement evidence
+records both, so a disagreement is visible in the readiness report rather than hidden.
+
+**Where the installed-key comparison happens.** The adapter does not read `witness.public_key_path`
+itself; that file has a hardened read (`verify_and_read_public_key`, with ownership, mode and symlink
+checks from the trusted root down) and giving the adapter a second, weaker read path would be a
+regression. Instead the adapter fingerprints the SPKI **`GetPublicKey` returned** and records it on the
+receipt, and the existing signer challenge in `enforce_production_witness` refuses any receipt whose
+fingerprint differs from the installed key's. The equality required by Decision (13) is therefore
+enforced by the trusted verifier rather than self-reported by the adapter — which is the stronger
+siting, and the one consistent with "the signer's response is evidence, never authority." What the
+adapter checks for itself is the SPKI's *self-consistency*: exact `KeyId`, `KeySpec` of `ECC_NIST_P256`,
+`ECDSA_SHA_256` among the advertised signing algorithms, and a parseable P-256 key.
 
 **Signer contract.** `KmsAnchorSigner` satisfies the existing `AnchorSigner` protocol
 (`attest(tip) -> SignedReceipt`, `identity() -> str`) and holds only a boto3 client — no key object, so
