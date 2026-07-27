@@ -37,8 +37,10 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import json
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 from app.validation.account4_probe import Account4Probe, probe_account4
@@ -50,7 +52,17 @@ from app.validation.data_finality import (
 )
 from app.validation.deployment_identity import verify_deployment_identity
 from app.validation.forward_deployment_config import ForwardDeploymentConfig
-from app.validation.forward_window import ForwardRunContext, IntegrityStop
+from app.validation.forward_window import (
+    DGS3MO_SNAPSHOT_SHA256,
+    TRIAL_LEDGER_SHA256,
+    ForwardRunContext,
+    IntegrityStop,
+)
+from app.validation.governed_corpus import (
+    GovernedConstruction,
+    require_observation_identities,
+    resolve_governed_construction,
+)
 from app.validation.production_bindings import build_forward_context, strict_pit_price_fn
 from app.validation.session_orchestration import SessionRuntime
 from app.validation.witness_enforcement import (
@@ -159,6 +171,38 @@ def _open_store(config: ForwardDeploymentConfig) -> Any:
             f"{type(exc).__name__}: {exc}") from exc
 
 
+def _expected_delta_sessions(base_cutoff: date, session: date) -> tuple[date, ...]:
+    """The governed trading sessions a delta chain must cover: strictly after the base cutoff,
+    through the observed session.
+
+    Sourced from the authoritative XNYS calendar, deliberately NOT from the store's own calendar
+    (`_session_calendar`). A missing delta means the store lacks that session, so a store-derived
+    calendar would not list it and the gap would validate clean against itself. The check only means
+    something when the expectation comes from outside the artifact being checked.
+    """
+    from app.validation.eval_calendar import is_trading_session
+
+    out: list[date] = []
+    day = base_cutoff + timedelta(days=1)
+    while day <= session:
+        if is_trading_session(day):
+            out.append(day)
+        day += timedelta(days=1)
+    return tuple(out)
+
+
+def _deployment_corpus_block(config: ForwardDeploymentConfig) -> Any:
+    """The `corpus` identity block the deploy step recorded. Re-read from the manifest rather than
+    passed along, so it is the same file `verify_deployment_identity` just authenticated."""
+    try:
+        payload = json.loads(Path(config.deployment_manifest_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CompositionError(
+            f"the deployment manifest at {config.deployment_manifest_path} became unreadable while "
+            f"resolving the governed construction: {exc}") from exc
+    return payload.get("corpus") if isinstance(payload, dict) else None
+
+
 def _session_calendar(store: Any, session: date) -> tuple[date, ...]:
     """The governed store's own trading calendar, ending at the session.
 
@@ -256,6 +300,38 @@ def _context_builder(config: ForwardDeploymentConfig):
     return builder
 
 
+def _resolve_governed_construction(config: ForwardDeploymentConfig,
+                                   session: date) -> GovernedConstruction:
+    """Validate the governed construction for this session, fail-closed (ADR 0048)."""
+    corpus_block = _deployment_corpus_block(config)
+    base_cutoff = _declared_base_cutoff(corpus_block, config)
+    return resolve_governed_construction(
+        corpus_manifest_path=config.corpus_manifest_path,
+        dgs3mo_manifest_path=config.dgs3mo_manifest_path,
+        dgs3mo_path=config.dgs3mo_path,
+        trial_ledger_path=config.trial_ledger_path,
+        frozen_dgs3mo_sha256=DGS3MO_SNAPSHOT_SHA256,
+        frozen_trial_ledger_sha256=TRIAL_LEDGER_SHA256,
+        deployment_manifest_corpus_block=corpus_block,
+        observation_session=session,
+        expected_sessions=_expected_delta_sessions(base_cutoff, session),
+    )
+
+
+def _declared_base_cutoff(corpus_block: Any, config: ForwardDeploymentConfig) -> date:
+    """The base cutoff the CORPUS MANIFEST declares — read before validation only to size the expected
+    session list. It is not trusted: `resolve_governed_construction` re-reads the manifest and refuses
+    unless every identity agrees with the deployment manifest, so a manipulated cutoff here produces a
+    session list that the chain then fails to match."""
+    try:
+        payload = json.loads(Path(config.corpus_manifest_path).read_text(encoding="utf-8"))
+        return date.fromisoformat(str(payload["base_coverage_through"]))
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        raise CompositionError(
+            f"the corpus manifest at {config.corpus_manifest_path} declares no readable "
+            f"base_coverage_through: {exc}") from exc
+
+
 def resolve_witness(config: ForwardDeploymentConfig, *,
                     invocation_id: str | None = None) -> tuple[ProductionWitness, str]:
     """Enforce the deployment's witness for THIS invocation. The only production source of a witness.
@@ -294,6 +370,13 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
     evidence["invocation"] = invocation
     evidence["witness"] = witness.evidence
 
+    # ADR 0048: establish WHICH governed construction this session is authorized to consume, before
+    # the store is opened. A chain with a hole, a repeat, a reordering or a drifted frozen artifact
+    # must refuse here rather than after the reads — and the refusal must not depend on the very store
+    # whose construction is in question.
+    governed = _resolve_governed_construction(config, session)
+    evidence["governed_construction"] = governed.to_open_provenance()
+
     construction = ConstructionSpec()
     store = _open_store(config)
     try:
@@ -304,6 +387,15 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         readiness = _GovernedReadiness(store, config, construction)
         finality = readiness.assess(session)
         evidence["data_finality"] = finality.to_open_provenance()
+
+        # Both identities, from their own sources, in every observation. `store_identity_sha256` is
+        # taken from the finality evidence exactly as `data_finality` computed it — this records it
+        # alongside the construction identity and does not recompute, retime, or otherwise touch it.
+        evidence["identities"] = require_observation_identities(
+            {"corpus_manifest_sha256": governed.corpus_manifest_sha256,
+             "store_identity_sha256": finality.store_identity_sha256},
+            corpus_manifest_sha256=governed.corpus_manifest_sha256,
+            store_identity_sha256=finality.store_identity_sha256)
 
         runtime = SessionRuntime(
             store=store, accessor=_accessor(store),

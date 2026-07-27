@@ -328,6 +328,19 @@ PR carries:
 **Excluded from this PR:** corpus files · generated evidence bundles · copied DGS3MO or trial-ledger
 duplicates · session-host delivery artifacts · CI-tiering work · Step 4D operability-code cleanup.
 
+### 6.3 One implementation deviation, disclosed
+
+The six manifest identities of §1.2 are recorded across **two** artifacts rather than one.
+`store_identity_sha256` is a property of a session's reads and does not exist until a session
+performs them; a deployment manifest is finalized before observation #1. Requiring it in the manifest
+would force the generator to invent a value — the same fabricated-evidence failure
+`deployment_identity.py` exists to refuse. It is therefore mandatory in **observation evidence**,
+where it is real, alongside `corpus_manifest_sha256`; the deployment manifest carries the other five
+plus `dgs3mo_manifest_sha256`. A manifest **may** still declare a store identity (a per-session
+manifest legitimately can) and it is then verified against the session's actual value rather than
+trusted. Recorded in ADR 0048 (8); the "both identities, mandatory, never aliases" property of §1.2
+is unchanged and is enforced by `require_observation_identities`.
+
 ---
 
 ## 7. What this ruling does and does not establish

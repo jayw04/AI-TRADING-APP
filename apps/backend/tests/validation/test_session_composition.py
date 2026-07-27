@@ -46,6 +46,7 @@ from app.validation.witness_enforcement import (
 )
 from app.validation.witness_platform import PlatformUnsupported, platform_is_supported
 from tests.validation import witness_doubles as wd
+from tests.validation.governed_construction_fixture import install_governed_construction
 from tests.validation.witness_doubles import issue_witness_for_tests
 
 SESSION = date(2026, 7, 24)
@@ -468,9 +469,11 @@ def _governed_config(tmp_path: Path, *, profile: str = "PRODUCTION",
         key_path.chmod(0o600)
 
     commit = "b0058bf335628f8dbde09a93915314f3a1f7743b"
+    corpus_block = install_governed_construction(tmp_path, SESSION)
     (tmp_path / "build_info.json").write_text(
         json.dumps({"commit": commit, "tree_clean": True}), encoding="utf-8")
-    (tmp_path / "manifest.json").write_text(json.dumps({"commit": commit}), encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(
+        json.dumps({"commit": commit, "corpus": corpus_block}), encoding="utf-8")
 
     payload = {
         "factor_store_path": factor_store_path or str(tmp_path / "factor.duckdb"),
@@ -481,6 +484,8 @@ def _governed_config(tmp_path: Path, *, profile: str = "PRODUCTION",
         "trial_ledger_path": str(tmp_path / "TrialLedger.json"),
         "build_info_path": str(tmp_path / "build_info.json"),
         "deployment_manifest_path": str(tmp_path / "manifest.json"),
+        "corpus_manifest_path": str(tmp_path / "corpus_manifest.json"),
+        "dgs3mo_manifest_path": str(tmp_path / "dgs3mo_manifest.json"),
         "deployment_model": "SOURCE_CHECKOUT",
         "ledger_account_id": 901,
         "strategy_id": 11,

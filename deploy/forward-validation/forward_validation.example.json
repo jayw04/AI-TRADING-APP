@@ -1,0 +1,58 @@
+{
+  "_comment": "TEMPLATE — NOT A DEPLOYMENT. Source-controlled defaults and shape only; see forward_validation.schema.json. The installed file lives at /etc/workbench/forward_validation.json (or FORWARD_VALIDATION_CONFIG) and is never committed. Every path below names an artifact INSTALLED on the host; none is a repository path, because a committed copy of a governed artifact is a copy that can drift from the artifact it names.",
+
+  "factor_store_path": "/opt/workbench/forward/data/factor_data_full.duckdb",
+  "app_db_path": "/opt/workbench/forward/data/workbench.sqlite",
+  "observation_store_dir": "/opt/workbench/forward/observations",
+  "ledger_path": "/opt/workbench/forward/shadow_ledger.json",
+
+  "_frozen_comment": "Installed by EXACT hash from the countersigned preregistration. Never regenerated, normalized or reserialized.",
+  "dgs3mo_path": "/opt/workbench/forward/governed/DGS3MO.csv",
+  "trial_ledger_path": "/opt/workbench/forward/governed/TrialLedger_v1.0.json",
+
+  "_generated_comment": "Produced by apps/backend/scripts/generate_deployment_evidence.py at deploy time.",
+  "build_info_path": "/opt/workbench/forward/evidence/build_info.json",
+  "deployment_manifest_path": "/opt/workbench/forward/evidence/deployment_manifest.json",
+
+  "_construction_comment": "The governed construction: immutable base plus ordered, countersigned deltas (ADR 0048).",
+  "corpus_manifest_path": "/opt/workbench/forward/governed/corpus_manifest.json",
+  "dgs3mo_manifest_path": "/opt/workbench/forward/governed/dgs3mo_manifest.json",
+
+  "deployment_model": "SOURCE_CHECKOUT",
+
+  "ledger_account_id": 901,
+  "strategy_id": 11,
+  "expected_broker": "alpaca",
+  "expected_broker_mode": "paper",
+  "shadow_ledger_identity": "shadow-ledger-accounting-901",
+  "instrument_durable_state_id": "instrument-durable-state-901",
+
+  "starting_capital": 100000.0,
+  "turnover_cost_bps": 10.0,
+  "backstop_days": 10,
+  "weight_drift_pct": 0.04,
+
+  "witness": {
+    "profile": "PRODUCTION",
+    "algorithm": "ECDSA_SHA_256_P256",
+    "key_id": "arn:aws:kms:us-east-1:219024422756:key/3691fc60-ce99-4b6f-b223-2e9dad93c8ea",
+    "public_key_path": "/opt/workbench/witness/anchor_public_key.der",
+    "trusted_root": "/opt/workbench",
+    "signer": {
+      "factory": "app.validation.aws.kms_signer:build_kms_anchor_signer",
+      "identity": "kms://workbench-forward-validation-witness",
+      "options": {
+        "key_arn": "arn:aws:kms:us-east-1:219024422756:key/3691fc60-ce99-4b6f-b223-2e9dad93c8ea"
+      }
+    },
+    "sink": {
+      "factory": "app.validation.aws.s3_sink:build_s3_object_lock_sink",
+      "identity": "s3://workbench-witness-forward-validation-219024422756/witness/",
+      "options": {
+        "bucket": "workbench-witness-forward-validation-219024422756",
+        "prefix": "witness/",
+        "region": "us-east-1"
+      }
+    }
+  }
+}

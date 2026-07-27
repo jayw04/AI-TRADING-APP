@@ -127,16 +127,27 @@ change during execution**.
 for the other.** The first five manifest fields describe the authorized construction; the last proves
 what the session actually consumed.
 
-### 8. The deployment manifest records all six identities
+### 8. Six identities are recorded, across two artifacts — because one of them does not exist yet
 
 ```
-base_corpus_sha256
-ordered_delta_manifest_sha256s
-governed_universe_sha256
-actions_manifest_sha256
-corpus_manifest_sha256
-store_identity_sha256
+base_corpus_sha256              ─┐
+ordered_delta_manifest_sha256s   │
+governed_universe_sha256         ├─ the deployment manifest: the AUTHORIZED CONSTRUCTION
+actions_manifest_sha256          │  (plus dgs3mo_manifest_sha256, per (11))
+corpus_manifest_sha256          ─┘
+store_identity_sha256           ─── every OBSERVATION: what the session actually consumed
 ```
+
+The first five describe the authorized construction and are fixed when the deployment is assembled.
+The sixth is a property of a session's reads and **does not exist until a session performs them**. A
+deployment manifest is finalized before observation #1, so requiring it there would force the
+generator to invent a value — precisely the "faithful attestation to hand-made evidence" the
+deployment-identity module exists to prevent. It is therefore mandatory in **observation evidence**,
+where it is real, alongside `corpus_manifest_sha256`. Both are required in every observation and
+neither substitutes for the other, which is the property (7) states.
+
+A deployment manifest **may** still declare a store identity — a per-session manifest legitimately
+can — and when it does it is verified against the session's actual value rather than trusted.
 
 ### 9. Every observation binds to the exact base-plus-delta manifest it used
 
