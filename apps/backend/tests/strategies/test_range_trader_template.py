@@ -37,6 +37,10 @@ def _ctx(position_qty: Decimal | None = None):
     ctx.log_signal = AsyncMock(return_value=1)
     # Sizing reads live equity (None → fall back to initial_equity_estimate).
     ctx.get_account_equity = AsyncMock(return_value=None)
+    # Cold-start OR backfill: default empty so existing tests keep live-accumulation semantics.
+    import pandas as pd
+
+    ctx.get_recent_bars = AsyncMock(return_value=pd.DataFrame())
     return ctx
 
 
@@ -312,6 +316,46 @@ async def test_opening_range_no_entry_while_forming() -> None:
     # A low price during the window must NOT trigger an entry — levels aren't set yet.
     await strat.on_bar(_bar(OR_BAR_1, c=50.0))
     ctx.submit_order.assert_not_called()
+
+
+async def test_opening_range_cold_start_backfills_from_bars() -> None:
+    """Missed OR window (restart mid-session): rebuild levels from 1Min bars, then trade."""
+    import pandas as pd
+    from zoneinfo import ZoneInfo
+
+    et = ZoneInfo("America/New_York")
+    # AFTER_OR is 2026-06-10 10:05 ET — OR window that day is 09:30–10:00.
+    or_df = pd.DataFrame(
+        {
+            "t": [
+                datetime(2026, 6, 10, 9, 35, tzinfo=et).astimezone(UTC),
+                datetime(2026, 6, 10, 9, 50, tzinfo=et).astimezone(UTC),
+            ],
+            "o": [100.0, 101.0],
+            "h": [100.1, 101.1],
+            "l": [99.9, 100.9],
+            "c": [100.0, 101.0],
+            "v": [1000, 1000],
+        }
+    )
+    ctx = _ctx(position_qty=None)
+    ctx.get_recent_bars = AsyncMock(return_value=or_df)
+    strat = RangeTrader(
+        ctx=ctx,
+        params=_params(
+            level_mode="opening_range",
+            opening_range_minutes=30,
+            stop_buffer_pct=0.01,
+        ),
+    )
+    await strat.on_init()
+    # First bar is post-OR with no live accumulation → cold-start fills dyn_levels.
+    await strat.on_bar(_bar(AFTER_OR, c=99.9))
+    assert strat._sym["AAPL"].dyn_levels is not None
+    assert strat._sym["AAPL"].dyn_levels[0] == 99.9
+    assert strat._sym["AAPL"].dyn_levels[1] == 101.1
+    ctx.submit_order.assert_called_once()
+    ctx.log_signal.assert_called()  # UI everyday rule: emit range_levels
 
 
 # ---- multi-symbol independence (one Range Trader over a candidate universe) ----

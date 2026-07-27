@@ -32,6 +32,9 @@ Levels come from one of two modes (``level_mode``):
     This is the default so the strategy (and its proposal eval) simulate live,
     daily-adaptive rules rather than a frozen snapshot — evaluating fixed levels
     measures a historical artifact, not the strategy (review E5).
+    Everyday rule (2026-07-27): after the OR window, if levels were never built
+    live (cold start / restore), rebuild from 1Min bars and emit ``range_levels``
+    so the Strategy UI always shows today's buy/sell/stop.
   - ``fixed``: the ``entry/exit/stop`` PARAMETERS. 0 (unset) by default, so a
     freshly applied strategy with no Range Insight is inert until set. These are
     frozen — they do not track the current day's price (an explicit static study).
@@ -54,9 +57,10 @@ re-implemented here.)
 
 from __future__ import annotations
 
-from datetime import time
+from datetime import datetime, time
 from decimal import Decimal
 from typing import Any, ClassVar
+from zoneinfo import ZoneInfo
 
 from app.db.enums import (
     OrderSide,
@@ -351,6 +355,11 @@ class RangeTrader(Strategy):
         st.cum_v += vol
         st.vwap = st.cum_pv / st.cum_v if st.cum_v else None
 
+        # Cold-start / missed-OR backfill: if we arrive after the window with no
+        # live-built range (e.g. engine restart mid-session), rebuild from 1Min bars
+        # so trading and the Range Levels UI both have today's levels.
+        await self._ensure_opening_levels(p, symbol, tod, st)
+
         # Resolve this symbol's levels: fixed (params) or dynamic opening-range. In
         # opening_range mode this also accumulates the symbol's range while it forms.
         entry, exit_, stop = self._resolve_levels(p, bar, tod, st)
@@ -509,6 +518,48 @@ class RangeTrader(Strategy):
                 st.pending = None
 
     # ---- helpers ----
+
+    async def _ensure_opening_levels(
+        self, p: dict[str, Any], symbol: str, tod: time, st: _SymState
+    ) -> None:
+        """After the OR window, backfill ``st.dyn_levels`` from bars if still unset.
+
+        Covers cold start / restore that missed the live accumulation window so
+        today's levels still exist for trading and the UI signal emit."""
+        if p.get("level_mode", "opening_range") != "opening_range":
+            return
+        if st.dyn_levels is not None:
+            return
+        or_minutes = int(p.get("opening_range_minutes", 30))
+        or_end = _shift(SESSION_OPEN, or_minutes)
+        if tod < or_end:
+            return  # still forming via live bars in _resolve_levels
+        try:
+            # Enough 1Min bars to cover 09:30→OR_end even mid-session.
+            df = await self.ctx.get_recent_bars(symbol, "1Min", n=max(90, or_minutes + 30))
+        except Exception:  # noqa: BLE001 — degrade to no levels; do not crash on_bar
+            return
+        if df is None or df.empty or "t" not in df.columns:
+            return
+        from app.services.range_opening_levels import (
+            filter_bars_to_window,
+            levels_from_or_bars,
+            opening_range_window,
+        )
+
+        # Prefer the bar's ET day (already rolled into st.trade_day) over wall clock.
+        day = datetime.fromisoformat(st.trade_day).date() if st.trade_day else datetime.now(
+            ZoneInfo("America/New_York")
+        ).date()
+        start, end = opening_range_window(day, opening_range_minutes=or_minutes)
+        windowed = filter_bars_to_window(df, start, end)
+        levels = levels_from_or_bars(
+            windowed, stop_buffer_pct=float(p.get("stop_buffer_pct", 0.005))
+        )
+        if levels is None:
+            return
+        st.or_low, st.or_high = levels[0], levels[1]
+        st.dyn_levels = levels
 
     def _resolve_levels(
         self, p: dict[str, Any], bar: Any, tod: time, st: _SymState

@@ -80,7 +80,7 @@ export default function RangeLevelsPanel({ strategyId }: { strategyId?: number }
       <div className="flex items-baseline justify-between px-3 py-2 border-b border-neutral-800">
         <h3 className="text-sm font-semibold text-neutral-100">Range levels</h3>
         <span className="text-[11px] text-neutral-500">
-          buy = support · sell = resistance · updates 15s
+          today&apos;s ET levels · buy = support · sell = resistance · 15s
         </span>
       </div>
       <table className="w-full text-sm">
