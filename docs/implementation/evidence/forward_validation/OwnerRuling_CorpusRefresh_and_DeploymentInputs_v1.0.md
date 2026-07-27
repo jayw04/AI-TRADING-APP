@@ -87,6 +87,14 @@ and substituting one for the other would weaken the runtime proof.
 
 **They must not be aliases or substitutes.** Both are mandatory in every observation.
 
+**Enforced structurally, not by value comparison (ruling 2026-07-27).** Requiring the two digests to
+differ is **rejected** as the proof: unequal values do not establish separate derivation, and a
+defect hashing two different wrappers around one declaration would pass such a check. Instead
+`corpus_manifest_sha256` must be *recomputed* from the canonical governed construction manifest,
+`store_identity_sha256` may come only from the existing streamed value-level row digest, and the
+runtime refuses either field sourced from the other. Equality is **recorded as an audit condition**,
+never a governed refusal.
+
 The deployment manifest additionally records all six of:
 
 ```

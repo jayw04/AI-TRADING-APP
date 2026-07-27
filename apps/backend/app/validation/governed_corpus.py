@@ -585,6 +585,67 @@ REQUIRED_MANIFEST_IDENTITIES = (
 #: Both identities are mandatory in every observation, and neither substitutes for the other.
 REQUIRED_OBSERVATION_IDENTITIES = ("corpus_manifest_sha256", "store_identity_sha256")
 
+_IDENTITY_TOKEN = object()
+
+
+class IdentitySource(StrEnum):
+    """Where an identity was derived from. Carried with the value so independence is a property of
+    the object rather than a claim about it."""
+    GOVERNED_CONSTRUCTION_MANIFEST = "GOVERNED_CONSTRUCTION_MANIFEST"
+    STREAMED_CONSUMED_ROWS = "STREAMED_CONSUMED_ROWS"
+
+
+@dataclass(frozen=True)
+class BoundIdentity:
+    """A digest that knows how it was produced.
+
+    Independence between the two observation identities is enforced STRUCTURALLY, by construction,
+    not by comparing their values. Two SHA-256 strings being unequal proves nothing about where they
+    came from: a defect that hashed two different wrappers around the same underlying declaration
+    would produce unequal digests and sail through a value comparison. What must be true is that one
+    is recomputed from the canonical governed construction and the other comes only from the streamed
+    value-level row digest — so that is what is checked.
+    """
+    value: str
+    source: IdentitySource
+
+    def __post_init__(self) -> None:
+        if getattr(self, "_token", None) is not _IDENTITY_TOKEN:
+            raise ManifestIdentityConflict(
+                "a BoundIdentity may only be produced by construction_identity() or "
+                "consumed_rows_identity(); a hand-built one carries no provenance")
+
+
+def _issue(value: str, source: IdentitySource) -> BoundIdentity:
+    identity = BoundIdentity.__new__(BoundIdentity)
+    object.__setattr__(identity, "_token", _IDENTITY_TOKEN)
+    object.__setattr__(identity, "value", value)
+    object.__setattr__(identity, "source", source)
+    return identity
+
+
+def construction_identity(manifest: CorpusManifest) -> BoundIdentity:
+    """RECOMPUTED from the canonical governed construction manifest. It cannot be sourced from the
+    store because nothing about the store is an input to it."""
+    if not isinstance(manifest, CorpusManifest):
+        raise ManifestIdentityConflict(
+            f"the construction identity must be recomputed from a CorpusManifest, not from "
+            f"{type(manifest).__name__}")
+    return _issue(manifest.corpus_manifest_sha256, IdentitySource.GOVERNED_CONSTRUCTION_MANIFEST)
+
+
+def consumed_rows_identity(finality: Any) -> BoundIdentity:
+    """Taken ONLY from the existing streamed value-level row digest, off the finality evidence that
+    computed it. Handing this the construction manifest is a type error, not a value that happens to
+    look wrong."""
+    from app.validation.data_finality import DataFinalityEvidence
+
+    if not isinstance(finality, DataFinalityEvidence):
+        raise ManifestIdentityConflict(
+            f"the value-level store identity must come from DataFinalityEvidence, not from "
+            f"{type(finality).__name__}; it is a property of what the session READ")
+    return _issue(finality.store_identity_sha256, IdentitySource.STREAMED_CONSUMED_ROWS)
+
 
 def require_declared_identities(declared: Any, *, computed: dict[str, Any]) -> dict[str, Any]:
     """Reject a deployment manifest whose corpus identities are missing or conflict with the
@@ -632,14 +693,31 @@ def require_declared_identities(declared: Any, *, computed: dict[str, Any]) -> d
     return dict(declared)
 
 
-def require_observation_identities(evidence: Any, *, corpus_manifest_sha256: str,
-                                   store_identity_sha256: str) -> dict[str, str]:
-    """Require BOTH identities in an observation, and require each to equal the real value.
+def require_observation_identities(evidence: Any, *, construction: BoundIdentity,
+                                   consumed: BoundIdentity) -> dict[str, Any]:
+    """Require BOTH identities in an observation, each matching the value its own source produced.
 
     They are not aliases and neither substitutes for the other (ADR 0048 (7)): the first proves which
     construction was authorized, the second proves the consumed rows did not move during execution.
-    An observation carrying one of them is not admissible evidence for the other.
+
+    Independence is enforced by PROVENANCE, not by value. Requiring the two digests to differ would
+    be the wrong proof twice over — unequal values do not establish separate derivation, and a defect
+    hashing two different wrappers around one declaration would pass such a check. So each argument
+    must be a `BoundIdentity` carrying the correct source, which only its own factory can issue.
+
+    Equality of the two digests is astronomically unlikely and is RECORDED as an audit condition. It
+    is not a refusal: with provenance enforced, equal values would be a coincidence rather than a
+    substitution, and refusing on it would stop a governed session for the wrong reason.
     """
+    if not isinstance(construction, BoundIdentity) or \
+            construction.source is not IdentitySource.GOVERNED_CONSTRUCTION_MANIFEST:
+        raise ManifestIdentityConflict(
+            "the construction identity was not recomputed from the governed construction manifest")
+    if not isinstance(consumed, BoundIdentity) or \
+            consumed.source is not IdentitySource.STREAMED_CONSUMED_ROWS:
+        raise ManifestIdentityConflict(
+            "the value-level store identity did not come from the streamed consumed-row digest")
+
     if not isinstance(evidence, dict):
         raise ManifestIdentityConflict("the observation carries no identity block")
     missing = [k for k in REQUIRED_OBSERVATION_IDENTITIES if evidence.get(k) in (None, "")]
@@ -647,18 +725,21 @@ def require_observation_identities(evidence: Any, *, corpus_manifest_sha256: str
         raise ManifestIdentityConflict(
             f"the observation is missing {sorted(missing)}; both the construction identity and the "
             f"value-level store identity are mandatory in every observation")
-    if evidence["corpus_manifest_sha256"] != corpus_manifest_sha256:
+    if evidence["corpus_manifest_sha256"] != construction.value:
         raise ManifestIdentityConflict(
             f"the observation declares corpus_manifest_sha256 "
             f"{str(evidence['corpus_manifest_sha256'])[:16]}… but the session assembled "
-            f"{corpus_manifest_sha256[:16]}…")
-    if evidence["store_identity_sha256"] != store_identity_sha256:
+            f"{construction.value[:16]}…")
+    if evidence["store_identity_sha256"] != consumed.value:
         raise ManifestIdentityConflict(
             f"the observation declares store_identity_sha256 "
             f"{str(evidence['store_identity_sha256'])[:16]}… but the session read "
-            f"{store_identity_sha256[:16]}…")
-    if evidence["corpus_manifest_sha256"] == evidence["store_identity_sha256"]:
-        raise ManifestIdentityConflict(
-            "the observation records the same digest as both its construction identity and its "
-            "value-level store identity; they prove different properties and cannot be aliases")
-    return {k: str(evidence[k]) for k in REQUIRED_OBSERVATION_IDENTITIES}
+            f"{consumed.value[:16]}…")
+
+    out: dict[str, Any] = {k: str(evidence[k]) for k in REQUIRED_OBSERVATION_IDENTITIES}
+    out["identity_sources"] = {"corpus_manifest_sha256": str(construction.source),
+                               "store_identity_sha256": str(consumed.source)}
+    if construction.value == consumed.value:
+        # Recorded, never refused. Provenance already proves they were derived separately.
+        out["audit_condition"] = "IDENTITIES_COINCIDENTALLY_EQUAL"
+    return out

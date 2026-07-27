@@ -60,6 +60,8 @@ from app.validation.forward_window import (
 )
 from app.validation.governed_corpus import (
     GovernedConstruction,
+    construction_identity,
+    consumed_rows_identity,
     require_observation_identities,
     resolve_governed_construction,
 )
@@ -388,14 +390,16 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         finality = readiness.assess(session)
         evidence["data_finality"] = finality.to_open_provenance()
 
-        # Both identities, from their own sources, in every observation. `store_identity_sha256` is
-        # taken from the finality evidence exactly as `data_finality` computed it — this records it
-        # alongside the construction identity and does not recompute, retime, or otherwise touch it.
+        # Both identities, from their own sources, in every observation. Independence is structural:
+        # the construction identity is RECOMPUTED from the governed manifest, and the value-level one
+        # is taken off the finality evidence that computed it — `data_finality` is not recomputed,
+        # retimed, or otherwise touched here.
+        construction_id = construction_identity(governed.corpus)
+        consumed_id = consumed_rows_identity(finality)
         evidence["identities"] = require_observation_identities(
-            {"corpus_manifest_sha256": governed.corpus_manifest_sha256,
-             "store_identity_sha256": finality.store_identity_sha256},
-            corpus_manifest_sha256=governed.corpus_manifest_sha256,
-            store_identity_sha256=finality.store_identity_sha256)
+            {"corpus_manifest_sha256": construction_id.value,
+             "store_identity_sha256": consumed_id.value},
+            construction=construction_id, consumed=consumed_id)
 
         runtime = SessionRuntime(
             store=store, accessor=_accessor(store),

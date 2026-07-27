@@ -268,30 +268,107 @@ class TestDeclaredIdentities:
         require_declared_identities(self.block(), computed=self.computed())
 
 
-class TestObservationIdentities:
-    def test_both_are_required(self):
-        with pytest.raises(ManifestIdentityConflict, match="both the construction identity"):
-            require_observation_identities({"corpus_manifest_sha256": "7" * 64},
-                                           corpus_manifest_sha256="7" * 64,
-                                           store_identity_sha256="8" * 64)
+def _finality(store_identity: str):
+    """A `DataFinalityEvidence` carrying a chosen value-level digest, built the way the real one is."""
+    from app.validation.data_finality import DataFinalityEvidence
 
-    def test_they_may_not_be_aliases(self):
-        with pytest.raises(ManifestIdentityConflict, match="cannot be aliases"):
-            require_observation_identities(
-                {"corpus_manifest_sha256": "7" * 64, "store_identity_sha256": "7" * 64},
-                corpus_manifest_sha256="7" * 64, store_identity_sha256="7" * 64)
+    fields = {f: 0 for f in DataFinalityEvidence.__dataclass_fields__}
+    fields.update({"session_date": "2026-07-27", "verdict": None, "detail": "", "store_path": "x",
+                   "store_identity_sha256": store_identity, "ingest_identity_sha256": "i",
+                   "ingest_unclean_datasets": (), "max_finalized_session": None,
+                   "finality_basis": "", "session_max_lastupdated": None})
+    return DataFinalityEvidence(**fields)  # type: ignore[arg-type]
+
+
+class TestObservationIdentities:
+    """Independence is enforced by PROVENANCE, never by comparing two digests. Unequal values do not
+    establish separate derivation, and a defect hashing two wrappers around one declaration would
+    pass a value comparison."""
+
+    def _pair(self, *, construction_manifest=None, store_identity="8" * 64):
+        from app.validation.governed_corpus import construction_identity, consumed_rows_identity
+
+        m = construction_manifest or manifest(delta(S27))
+        return construction_identity(m), consumed_rows_identity(_finality(store_identity))
+
+    def test_both_are_required(self):
+        c, s = self._pair()
+        with pytest.raises(ManifestIdentityConflict, match="both the construction identity"):
+            require_observation_identities({"corpus_manifest_sha256": c.value},
+                                           construction=c, consumed=s)
 
     def test_a_declared_value_that_is_not_what_the_session_did_is_refused(self):
+        c, s = self._pair()
         with pytest.raises(ManifestIdentityConflict, match="but the session read"):
             require_observation_identities(
-                {"corpus_manifest_sha256": "7" * 64, "store_identity_sha256": "0" * 64},
-                corpus_manifest_sha256="7" * 64, store_identity_sha256="8" * 64)
+                {"corpus_manifest_sha256": c.value, "store_identity_sha256": "0" * 64},
+                construction=c, consumed=s)
 
-    def test_agreement_returns_both(self):
+    def test_agreement_records_both_and_their_sources(self):
+        c, s = self._pair()
         out = require_observation_identities(
-            {"corpus_manifest_sha256": "7" * 64, "store_identity_sha256": "8" * 64},
-            corpus_manifest_sha256="7" * 64, store_identity_sha256="8" * 64)
-        assert out == {"corpus_manifest_sha256": "7" * 64, "store_identity_sha256": "8" * 64}
+            {"corpus_manifest_sha256": c.value, "store_identity_sha256": s.value},
+            construction=c, consumed=s)
+        assert out["corpus_manifest_sha256"] == c.value
+        assert out["store_identity_sha256"] == s.value
+        assert out["identity_sources"] == {
+            "corpus_manifest_sha256": "GOVERNED_CONSTRUCTION_MANIFEST",
+            "store_identity_sha256": "STREAMED_CONSUMED_ROWS"}
+        assert "audit_condition" not in out
+
+    # ── structural independence ──────────────────────────────────────────────────────────────────
+
+    def test_the_store_identity_may_not_be_sourced_from_the_construction(self):
+        from app.validation.governed_corpus import consumed_rows_identity
+
+        with pytest.raises(ManifestIdentityConflict, match="property of what the session READ"):
+            consumed_rows_identity(manifest(delta(S27)))
+
+    def test_the_construction_identity_may_not_be_sourced_from_the_store(self):
+        from app.validation.governed_corpus import construction_identity
+
+        with pytest.raises(ManifestIdentityConflict, match="recomputed from a CorpusManifest"):
+            construction_identity(_finality("8" * 64))  # type: ignore[arg-type]
+
+    def test_a_hand_built_identity_carries_no_provenance(self):
+        from app.validation.governed_corpus import BoundIdentity, IdentitySource
+
+        with pytest.raises(ManifestIdentityConflict, match="carries no provenance"):
+            BoundIdentity(value="7" * 64, source=IdentitySource.STREAMED_CONSUMED_ROWS)
+
+    def test_a_construction_identity_in_the_consumed_slot_is_refused(self):
+        """The substitution the value comparison was supposed to catch — caught by provenance."""
+        from app.validation.governed_corpus import construction_identity
+
+        c = construction_identity(manifest(delta(S27)))
+        with pytest.raises(ManifestIdentityConflict, match="streamed consumed-row digest"):
+            require_observation_identities(
+                {"corpus_manifest_sha256": c.value, "store_identity_sha256": c.value},
+                construction=c, consumed=c)
+
+    def test_changing_consumed_values_moves_only_the_store_identity(self):
+        c1, s1 = self._pair(store_identity="1" * 64)
+        c2, s2 = self._pair(store_identity="2" * 64)
+        assert s1.value != s2.value, "the consumed-row digest must track what was read"
+        assert c1.value == c2.value, "the authorized construction did not change"
+
+    def test_changing_authorized_construction_moves_only_the_manifest_identity(self):
+        c1, s1 = self._pair(construction_manifest=manifest(delta(S27)))
+        c2, s2 = self._pair(construction_manifest=manifest(delta(S27), delta(S28)))
+        assert c1.value != c2.value, "a different authorized construction is a different identity"
+        assert s1.value == s2.value, "the store was read identically"
+
+    def test_equal_digests_are_recorded_as_an_audit_condition_not_refused(self):
+        """Astronomically unlikely, and not a governed refusal: with provenance enforced, equality is
+        a coincidence rather than a substitution, and stopping a session for it would be wrong."""
+        from app.validation.governed_corpus import construction_identity, consumed_rows_identity
+
+        c = construction_identity(manifest(delta(S27)))
+        s = consumed_rows_identity(_finality(c.value))
+        out = require_observation_identities(
+            {"corpus_manifest_sha256": c.value, "store_identity_sha256": c.value},
+            construction=c, consumed=s)
+        assert out["audit_condition"] == "IDENTITIES_COINCIDENTALLY_EQUAL"
 
 
 # ─────────────────────────────────────────────────────────────────────────────────────────────────

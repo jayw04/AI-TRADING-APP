@@ -127,6 +127,19 @@ change during execution**.
 for the other.** The first five manifest fields describe the authorized construction; the last proves
 what the session actually consumed.
 
+**Independence is enforced by PROVENANCE, not by comparing the two values.** Each identity is carried
+as a `BoundIdentity` that records its source, issuable only by its own factory: the construction
+identity is *recomputed* from the canonical governed construction manifest, and the value-level one
+can be taken only from the `DataFinalityEvidence` that streamed it. Passing one into the other's slot
+is refused as a provenance error.
+
+Requiring the two digests to *differ* is explicitly rejected as the proof. Unequal values do not
+establish separate derivation — a defect that hashed two different wrappers around the same
+underlying declaration would produce unequal digests and pass such a check — and equality of two
+SHA-256 values, while astronomically unlikely, would then stop a governed session for a coincidence
+rather than a substitution. Equality is therefore **recorded as an audit condition**
+(`IDENTITIES_COINCIDENTALLY_EQUAL`), never refused.
+
 ### 8. Six identities are recorded, across two artifacts — because one of them does not exist yet
 
 ```
@@ -213,6 +226,16 @@ against a store mutating underneath it satisfies the first and violates the seco
 reads a stable but unauthorized store satisfies the second and violates the first. Collapsing them
 leaves one of those two failures undetectable, and the drafting history here is itself the evidence:
 the first formulation of this decision proposed exactly that collapse.
+
+**Why provenance and not a value comparison.** The first implementation of (7) refused an observation
+whose two digests were equal, reasoning that identical values meant one had been substituted for the
+other. That is the wrong control in both directions. It does not catch the substitution it targets —
+a defect wrapping one declaration two ways yields two unequal digests — and it converts an
+astronomically improbable coincidence into a governed stop. What actually needs to be true is that
+the two values came from different derivations, so that is what the type system carries and the gate
+checks. The tests state it as behaviour: changing consumed values moves the store identity and leaves
+the construction identity fixed; changing authorized construction metadata moves the construction
+identity and leaves the store identity fixed.
 
 **Why DGS3MO is in scope.** It is small enough that freezing it looks harmless, which is precisely
 why it would have been frozen. A year of carried-forward yield is a benchmark error introduced by
