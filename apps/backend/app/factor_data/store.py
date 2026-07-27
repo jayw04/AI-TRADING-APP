@@ -510,7 +510,16 @@ class FactorDataStore:
             while block := fh.read(1 << 20):
                 digest.update(block)
 
-        frame = pd.read_csv(path)
+        # `keep_default_na=False`: pandas' default NA strings include "NA", and there is a real
+        # security whose ticker IS "NA" (three ACTIONS rows carry it). Parsed with the defaults, those
+        # rows arrive with a NaN ticker, the blank-ticker guard below fires, and the ENTIRE governed
+        # ingest is refused — reporting "row(s) with no ticker" about rows that name a security
+        # perfectly well. A fail-closed refusal on a false premise is still a wrong answer.
+        #
+        # The guard is not weakened by this: a genuinely empty field parses to "" rather than NaN and
+        # is still caught by the `.str.strip() == ""` arm. Numeric columns are unaffected because the
+        # insert casts them with TRY_CAST, which turns "" into NULL.
+        frame = pd.read_csv(path, keep_default_na=False, na_values=[])
         frame.columns = [str(c).strip().lower() for c in frame.columns]
         declared_rows = len(frame)
         if declared_rows == 0:

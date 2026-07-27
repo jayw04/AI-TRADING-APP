@@ -485,6 +485,26 @@ def test_an_action_with_no_ticker_is_refused_at_the_source(store, tmp_path):
     assert declare_action_source(store).authoritative is False
 
 
+def test_the_ticker_NA_is_a_security_not_a_missing_value(store, tmp_path):
+    """Found against the real SHARADAR/ACTIONS dataset, which carries three rows for ticker "NA".
+
+    `pd.read_csv` treats "NA" as a null by default, so those rows arrived with a NaN ticker, the
+    blank-ticker guard above fired, and the ENTIRE governed ingest was refused — reporting "row(s)
+    with no ticker" about rows naming a security perfectly well. A fail-closed refusal on a false
+    premise is still a wrong answer, and here it blocked the authoritative ACTIONS ingest outright.
+    """
+    artifact = _artifact_csv(tmp_path, [
+        ("2026-07-20", "dividend", "AAA", 1.0),
+        ("2026-07-21", "split", "NA", 2.0),
+        ("2026-07-22", "dividend", "NAN", 0.5)])
+    receipt = _ingest(store, artifact)
+
+    assert receipt.rows == 3
+    stored = {r[0] for r in store.con.execute("SELECT ticker FROM actions").fetchall()}
+    assert stored == {"AAA", "NA", "NAN"}
+    assert declare_action_source(store).authoritative is True
+
+
 def test_a_finalization_refusal_rolls_back_the_persisted_rows(store, tmp_path, monkeypatch):
     """THE A4 transactional guarantee: data and completion evidence live or die together.
 
