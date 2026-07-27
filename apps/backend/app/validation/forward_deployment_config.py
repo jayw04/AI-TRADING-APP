@@ -30,6 +30,10 @@ DEFAULT_CONFIG_PATH = Path("/etc/workbench/forward_validation.json")
 _REQUIRED_KEYS = (
     "factor_store_path", "app_db_path", "observation_store_dir", "ledger_path",
     "dgs3mo_path", "trial_ledger_path", "build_info_path", "deployment_manifest_path",
+    # ADR 0048: a deployment that cannot name its governed construction — the immutable base and the
+    # ordered deltas it assembled — cannot record which data a session was authorized to consume.
+    # Required here rather than defaulted, for the same reason the witness block is.
+    "corpus_manifest_path", "dgs3mo_manifest_path",
     "deployment_model", "ledger_account_id", "strategy_id", "expected_broker",
     "expected_broker_mode", "shadow_ledger_identity", "instrument_durable_state_id",
     "starting_capital", "turnover_cost_bps", "backstop_days", "weight_drift_pct",
@@ -55,6 +59,8 @@ class ForwardDeploymentConfig:
     trial_ledger_path: Path
     build_info_path: Path
     deployment_manifest_path: Path
+    corpus_manifest_path: Path
+    dgs3mo_manifest_path: Path
     deployment_model: DeploymentModel
     ledger_account_id: int
     strategy_id: int
@@ -135,6 +141,8 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
         trial_ledger_path=Path(payload["trial_ledger_path"]),
         build_info_path=Path(payload["build_info_path"]),
         deployment_manifest_path=Path(payload["deployment_manifest_path"]),
+        corpus_manifest_path=Path(payload["corpus_manifest_path"]),
+        dgs3mo_manifest_path=Path(payload["dgs3mo_manifest_path"]),
         deployment_model=model,
         ledger_account_id=ledger_account_id,
         strategy_id=int(payload["strategy_id"]),

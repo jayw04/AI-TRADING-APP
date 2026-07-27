@@ -31,6 +31,7 @@ from app.validation.witness_enforcement import (
     _can_enforce_path_guarantees,
 )
 from tests.validation import witness_doubles as doubles
+from tests.validation.governed_construction_fixture import install_governed_construction
 
 BACKEND = Path(__file__).resolve().parents[2]
 DOUBLES = "tests.validation.witness_doubles"
@@ -95,13 +96,15 @@ def _factor_store(path: Path) -> Path:
 @pytest.fixture
 def deployment(tmp_path, monkeypatch):
     """A complete, self-consistent deployment description."""
+    # ADR 0048: the frozen DGS3MO snapshot and trial ledger are installed by EXACT hash, so the
+    # fixture uses the real committed artifacts — a stand-in is refused, which is the point.
+    corpus_block = install_governed_construction(tmp_path, SESSION)
     (tmp_path / "build_info.json").write_text(
         json.dumps({"commit": COMMIT, "tree_clean": True, "image_digest": DIGEST}), encoding="utf-8")
     (tmp_path / "deployment_manifest.json").write_text(
-        json.dumps({"commit": COMMIT, "image_digest": DIGEST}), encoding="utf-8")
+        json.dumps({"commit": COMMIT, "image_digest": DIGEST, "corpus": corpus_block}),
+        encoding="utf-8")
     (tmp_path / "image_digest").write_text(DIGEST, encoding="utf-8")
-    (tmp_path / "DGS3MO.csv").write_text("date,value\n", encoding="utf-8")
-    (tmp_path / "TrialLedger.json").write_text("{}", encoding="utf-8")
     # The anchor trust boundary (R5e). Only the PUBLIC key is installed; the signing key stays inside
     # the stand-in service, which is what `witness_doubles` models.
     (tmp_path / "anchor_witness.pub").write_bytes(
@@ -116,6 +119,8 @@ def deployment(tmp_path, monkeypatch):
         "trial_ledger_path": str(tmp_path / "TrialLedger.json"),
         "build_info_path": str(tmp_path / "build_info.json"),
         "deployment_manifest_path": str(tmp_path / "deployment_manifest.json"),
+        "corpus_manifest_path": str(tmp_path / "corpus_manifest.json"),
+        "dgs3mo_manifest_path": str(tmp_path / "dgs3mo_manifest.json"),
         "runtime_digest_path": str(tmp_path / "image_digest"),
         "deployment_model": "CONTAINER",
         "ledger_account_id": 901,
