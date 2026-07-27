@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
+from zoneinfo import ZoneInfo
+
+import pandas as pd
 
 from app.strategies.context import Bar
 from strategies_user.templates.range_trader import RangeTrader
@@ -38,8 +41,6 @@ def _ctx(position_qty: Decimal | None = None):
     # Sizing reads live equity (None → fall back to initial_equity_estimate).
     ctx.get_account_equity = AsyncMock(return_value=None)
     # Cold-start OR backfill: default empty so existing tests keep live-accumulation semantics.
-    import pandas as pd
-
     ctx.get_recent_bars = AsyncMock(return_value=pd.DataFrame())
     return ctx
 
@@ -320,9 +321,6 @@ async def test_opening_range_no_entry_while_forming() -> None:
 
 async def test_opening_range_cold_start_backfills_from_bars() -> None:
     """Missed OR window (restart mid-session): rebuild levels from 1Min bars, then trade."""
-    import pandas as pd
-    from zoneinfo import ZoneInfo
-
     et = ZoneInfo("America/New_York")
     # AFTER_OR is 2026-06-10 10:05 ET — OR window that day is 09:30–10:00.
     or_df = pd.DataFrame(
