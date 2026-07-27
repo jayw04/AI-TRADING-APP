@@ -38,6 +38,7 @@ from app.risk.engine import RiskEngine
 from app.risk.loss_control import constants as C
 from app.risk.reason_codes import ReasonCode
 from app.risk.types import OrderRequest
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D = Decimal
 NOW = datetime(2026, 7, 20, 15, 0, tzinfo=UTC)
@@ -73,7 +74,7 @@ async def _set_state(session_factory, state, *, account_id=1, version=0):
 
 async def _breaching_state(session_factory):
     async with session_factory() as s:
-        s.add(AccountState(account_id=1, cash=D("0"), equity=D("94000"), last_equity=D("100000"),
+        s.add(AccountState(day_change_basis=BROKER_LAST_EQUITY, account_id=1, cash=D("0"), equity=D("94000"), last_equity=D("100000"),
                            buying_power=D("0"), portfolio_value=D("94000"), daytrade_count=0,
                            day_change=D("-6000"), day_change_pct=D("0"), status="ACTIVE",
                            updated_at=NOW, raw_payload={}))

@@ -245,7 +245,12 @@ async def test_control_event_sequence_unique_per_account(session_factory, acct):
 
 def test_constants_vocabulary_is_well_formed():
     assert C.LOSS_CONTROL_STATE_VERSION == 1
-    assert len(C.ALL_STATES) == 6
+    # ADR 0043 §D1 defines six states; the seventh is REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE, added
+    # for the case where the daily-loss control cannot MEASURE (no usable day-change basis) as
+    # opposed to having measured a breach. The count is asserted rather than computed so that
+    # adding a state stays a deliberate, reviewed act — the ADR text needs the same amendment.
+    assert len(C.ALL_STATES) == 7
+    assert C.STATE_REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE in C.ALL_STATES
     # The precedence ladder is the normative ordering, most-restrictive first.
     assert C.PRECEDENCE_LADDER == (
         C.OUTCOME_INTEGRITY_STOP,

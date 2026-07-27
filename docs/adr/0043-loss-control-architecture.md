@@ -105,16 +105,20 @@ stateDiagram-v2
     [*] --> NORMAL
     NORMAL --> REDUCTION_ONLY_DAILY_LOSS: confirmed daily-loss threshold
     NORMAL --> REDUCTION_ONLY_BREAKER: rate / emergency trigger
+    NORMAL --> REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE: no trustworthy daily-P&L basis
     NORMAL --> INTEGRITY_STOP: unknown broker / position / baseline state
     REDUCTION_ONLY_DAILY_LOSS --> INTEGRITY_STOP: state becomes unknown
     REDUCTION_ONLY_BREAKER --> INTEGRITY_STOP: state becomes unknown
     REDUCTION_ONLY_DAILY_LOSS --> RECOVERY_PREFLIGHT: sanctioned recovery request
     REDUCTION_ONLY_BREAKER --> RECOVERY_PREFLIGHT: sanctioned recovery request
+    REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE --> INTEGRITY_STOP: state becomes unknown
+    REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE --> RECOVERY_PREFLIGHT: sanctioned recovery request
     INTEGRITY_STOP --> RECOVERY_PREFLIGHT: sanctioned recovery request (after repair)
     RECOVERY_PREFLIGHT --> RECOVERY_COOLDOWN: complete PASS
     RECOVERY_PREFLIGHT --> INTEGRITY_STOP: any check fails
     RECOVERY_PREFLIGHT --> REDUCTION_ONLY_DAILY_LOSS: fail, prior lock was daily-loss
     RECOVERY_PREFLIGHT --> REDUCTION_ONLY_BREAKER: fail, prior lock was breaker
+    RECOVERY_PREFLIGHT --> REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE: fail, prior lock was unmeasurable P&L
     RECOVERY_COOLDOWN --> NORMAL: all D1.4 conditions hold
     RECOVERY_COOLDOWN --> INTEGRITY_STOP: any D1.4 condition regresses
 ```
@@ -143,7 +147,42 @@ The two controls own different concerns:
   `CONTROL_INTEGRITY_FAILURE`, `MANUAL_EMERGENCY`. Risk-increasing/neutral → REFUSE; verified
   risk-reducing (known state) → ALLOW; administrative reset → REFUSE until preflight passes.
 
-**D1.5 — "Reduction-only" is exact.** In `REDUCTION_ONLY_DAILY_LOSS` and `REDUCTION_ONLY_BREAKER`, the
+**D1.3a — `REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE` (amendment, 2026-07-24).** The seventh state, bringing
+`ALL_STATES` from six to seven. It is a first-class state, not an alias of `REDUCTION_ONLY_DAILY_LOSS`
+and not an implementation detail.
+
+> Entered when the system cannot establish a trustworthy daily-P&L basis. This state does not assert
+> that a daily-loss threshold was crossed and records no measured loss amount. It refuses new or
+> increasing risk while continuing to admit independently verified risk-reducing orders. Restoration
+> of the measurement source does not clear the state automatically; exit requires the sanctioned
+> recovery workflow, including preflight and cooldown.
+
+*Why it is distinct from `REDUCTION_ONLY_DAILY_LOSS`.* That state is the consequence of a
+**measurement**: a number was computed and it crossed the cap. This one is the consequence of the
+**absence** of a measurement. Collapsing them would put a loss nobody observed into the audit trail
+and into every downstream reading of it, so the trip taxonomy gets its own entries —
+trip_type `MEASUREMENT_UNAVAILABLE`, trip_cause `DAILY_PNL_UNAVAILABLE` — and the recorded daily-P&L
+value is **absent**, never `0`.
+
+*Why it is not `INTEGRITY_STOP`.* Account and position state are perfectly well known here, so a
+reduction remains *verifiable* under D2. It is only the day's P&L that is unknown. Escalating to a
+full stop would reproduce the 2026-07-13 failure, in which a control that could not see also refused
+the book's own de-risking while it bled from −$5,504 to −$7,501.
+
+*Motivation.* An unavailable measurement must fail closed **against risk expansion** without
+reproducing the reduction trap. Before this amendment the placeholder P&L value made the daily-loss
+gate evaluate as though the day were flat, so the control silently disappeared on exactly the account
+whose P&L could not be established.
+
+*Scope boundary — this state does NOT establish freshness.* It covers the **absence** of a
+trustworthy basis. It says nothing about the **age** of `accounts_state` or of broker equity: a row
+that stops refreshing keeps a legitimate-looking provenance label indefinitely, and this state will
+not catch it. Provenance and freshness are different dimensions. Detecting a stalled measurement
+pipeline requires a distinct control and a distinct reason (`ACCOUNT_STATE_STALE`), specified
+separately — see `docs/incidents/ACCOUNT_SYNC_SWEEP_NOT_REFRESHING_20260724.md`.
+
+**D1.5 — "Reduction-only" is exact.** In `REDUCTION_ONLY_DAILY_LOSS`, `REDUCTION_ONLY_BREAKER` and
+`REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE`, the
 account admits **only verified risk-reducing orders under known state**. **Risk-neutral orders are
 refused** (not merely "not increasing") — the exemption is for *reductions*, not for anything that fails
 to increase risk. Risk-increasing orders are refused. This is normative, not implied.

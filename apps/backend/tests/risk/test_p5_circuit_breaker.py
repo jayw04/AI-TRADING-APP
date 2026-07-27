@@ -29,6 +29,7 @@ from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
 from app.risk.circuit_breaker import CircuitBreakerError, CircuitBreakerService
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 
 def _now() -> datetime:
@@ -358,7 +359,7 @@ def _account_state(**over) -> AccountState:
         status="ACTIVE", updated_at=_now(), raw_payload={},
     )
     fields.update(over)
-    return AccountState(**fields)
+    return AccountState(day_change_basis=BROKER_LAST_EQUITY, **fields)
 
 
 async def test_daily_pnl_ignores_carried_over_unrealized_loss(seeded):

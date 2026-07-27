@@ -27,6 +27,7 @@ from app.risk.loss_control.session_baseline import (
     ShadowResult,
 )
 from app.services.account_sync import AccountSyncService
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D = Decimal
 TRADING_NOW = datetime(2026, 7, 20, 15, 0, tzinfo=UTC)  # Monday 11:00 ET — a real session
@@ -151,7 +152,7 @@ async def test_capture_receives_current_broker_equity_not_stale_persisted(sessio
     await _seed_paper_account(session_factory)
     # A stale AccountState already holds an OLD equity...
     async with session_factory() as s:
-        s.add(AccountState(account_id=1, cash=D("1"), equity=D("1.00"), last_equity=D("1.00"),
+        s.add(AccountState(day_change_basis=BROKER_LAST_EQUITY, account_id=1, cash=D("1"), equity=D("1.00"), last_equity=D("1.00"),
                            buying_power=D("1"), portfolio_value=D("1"), daytrade_count=0,
                            day_change=D("0"), day_change_pct=D("0"), status="ACTIVE",
                            pattern_day_trader=False, trading_blocked=False, account_blocked=False,

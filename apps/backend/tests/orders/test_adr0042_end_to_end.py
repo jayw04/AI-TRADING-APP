@@ -43,6 +43,7 @@ from app.db.models.user import User
 from app.events.bus import EventBus
 from app.orders.router import OrderRouter
 from app.risk import OrderRequest, RiskEngine
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D = Decimal
 
@@ -74,6 +75,7 @@ async def seeded(session_factory):
         s.add(Position(user_id=1, account_id=1, symbol_id=1, qty=D("500"),
                        avg_entry_price=D("100"), side="long", updated_at=_now()))
         s.add(AccountState(
+            day_change_basis=BROKER_LAST_EQUITY,
             account_id=1, cash=D("1000"), equity=D("100000") + BREACHED_DAY_PNL,
             last_equity=D("100000"), buying_power=D("1000"),
             portfolio_value=D("100000"), daytrade_count=0,

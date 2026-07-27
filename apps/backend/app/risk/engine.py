@@ -44,6 +44,7 @@ from app.risk.circuit_breaker import CircuitBreakerError, CircuitBreakerService
 from app.risk.decision_service import (
     LOCK_BREAKER,
     LOCK_DAILY_LOSS,
+    LOCK_DAILY_PNL_UNAVAILABLE,
     RiskDecisionService,
     permits_while_locked,
 )
@@ -64,10 +65,12 @@ from app.risk.loss_control.session_baseline import resolve_session_date
 from app.risk.loss_control.state_machine import (
     TRIGGER_BREAKER_TRIP,
     TRIGGER_DAILY_LOSS_BREACH,
+    TRIGGER_DAILY_PNL_UNAVAILABLE,
 )
 from app.risk.reason_codes import ReasonCode
 from app.risk.risk_effect import ActionType, ProposedAction
 from app.risk.types import OrderRequest, RiskOutcome
+from app.services.day_change_basis import UNAVAILABLE as DAY_CHANGE_UNAVAILABLE
 
 logger = structlog.get_logger(__name__)
 
@@ -82,6 +85,7 @@ _LC_REDUCTION_DEPENDENT_STATES = frozenset(
     {
         LC.STATE_REDUCTION_ONLY_DAILY_LOSS,
         LC.STATE_REDUCTION_ONLY_BREAKER,
+        LC.STATE_REDUCTION_ONLY_DAILY_PNL_UNAVAILABLE,
         LC.STATE_RECOVERY_PREFLIGHT,
         LC.STATE_RECOVERY_COOLDOWN,
     }
@@ -430,6 +434,35 @@ class RiskEngine:
                             session, req, reduction_cache,
                             legacy_decision=RiskDecision.REJECT,
                             legacy_reasons=[ReasonCode.CIRCUIT_BREAKER],
+                            legacy_outcome="REFUSE", legacy_permits=False,
+                        )
+
+                # 9b. The basis itself is UNAVAILABLE — today's P&L is UNKNOWN, so the gate above
+                # could not have detected a breach if one had happened. Protection applies, and it
+                # is REDUCTION-ONLY, never a full block: the 2026-07-13 incident is what happens
+                # when a control that cannot see also refuses the book's own de-risking.
+                #
+                # Nothing here asserts a loss. The breaker is NOT tripped (that would record a
+                # measured daily-loss trip nobody measured), the amount stays None, and the durable
+                # state carries its own cause so the audit trail says "could not measure" rather
+                # than "lost money".
+                elif state is not None and state.day_change_basis == DAY_CHANGE_UNAVAILABLE:
+                    guard = await self._trigger_and_guard(
+                        session, req, TRIGGER_DAILY_PNL_UNAVAILABLE
+                    )
+                    if guard is not None:
+                        return guard
+                    if not await self._permits_verified_reduction(
+                        req,
+                        lock_state=LOCK_DAILY_PNL_UNAVAILABLE,
+                        lock_reason="daily_pnl_unavailable",
+                        daily_pnl=None,
+                        cache=reduction_cache,
+                    ):
+                        return await self._finalize_with_loss_control(
+                            session, req, reduction_cache,
+                            legacy_decision=RiskDecision.REJECT,
+                            legacy_reasons=[ReasonCode.DAILY_PNL_UNAVAILABLE],
                             legacy_outcome="REFUSE", legacy_permits=False,
                         )
 

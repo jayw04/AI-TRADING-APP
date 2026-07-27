@@ -23,6 +23,7 @@ from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 PROTECTED_TICKER = "MSFT"
 CHURN_TICKER = "IEUS"
@@ -210,6 +211,7 @@ async def _seed(session_factory, *, max_daily_loss="2000", day_change="0"):
             max_orders_per_day=500, allow_short=False,
             created_at=datetime.now(UTC), updated_at=datetime.now(UTC)))
         s.add(AccountState(
+            day_change_basis=BROKER_LAST_EQUITY,
             account_id=3, day_change=D(day_change), equity=D("84000"), last_equity=D("84000"),
             updated_at=datetime.now(UTC)))
         await s.commit()
