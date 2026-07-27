@@ -44,6 +44,7 @@ from app.validation.witness_enforcement import (
     new_invocation_identifier,
     verify_and_read_public_key,
 )
+from app.validation.witness_platform import PlatformUnsupported, platform_is_supported
 from tests.validation import witness_doubles as wd
 from tests.validation.witness_doubles import issue_witness_for_tests
 
@@ -198,6 +199,27 @@ def test_the_composition_root_generates_its_own_nonce_per_invocation(monkeypatch
     sc.resolve_witness(config)
     sc.resolve_witness(config)
     assert len(seen) == 2 and seen[0] != seen[1]
+
+
+@pytest.mark.skipif(platform_is_supported(), reason="the unsupported-platform refusal")
+def test_the_production_path_refuses_a_witness_off_the_supported_platform(tmp_path):
+    """ADR 0047 §7: a PRODUCTION witness cannot be resolved on a platform the boundary excludes.
+
+    Before this, the boundary lived in `app/validation/aws/platform_guard.py`, which
+    `check_aws_sdk_isolation.sh` forbids the gate and the composition root from importing — so nothing
+    on the production path could enforce it, and a Windows deployment would get as far as constructing
+    AWS clients before failing obliquely (issue #522).
+
+    What this pins is ORDER, not merely outcome. Off POSIX the key-path check refuses a PRODUCTION
+    witness anyway, with `WITNESS_PUBLIC_KEY_PATH_UNENFORCEABLE` — so a test asserting only "it
+    refused" would pass with the boundary deleted. Asserting the platform code is what distinguishes
+    the two.
+    """
+    from app.validation import session_composition as sc
+
+    with pytest.raises(PlatformUnsupported) as exc:
+        sc.resolve_witness(_governed_config(tmp_path))
+    assert exc.value.code == "AWS_WITNESS_PLATFORM_UNSUPPORTED"
 
 
 def test_readiness_no_longer_uses_a_repeatable_nonce_source():

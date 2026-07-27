@@ -15,6 +15,12 @@ witness triple for a governed run, and it fails closed unless every property bel
 
   1. **The profile is PRODUCTION.** A deployment that declares REFERENCE gets a precise refusal naming
      what it declared, rather than tripping over a later check.
+  1b. **The platform is one the boundary permits** (ADR 0047 §7). Asserted immediately after (1) and
+     before everything else: Linux/POSIX, because the key-path guarantees in (8) are POSIX-only and
+     because botocore client construction under ADR-0017's process-global TLS injection can exhaust the
+     recursion limit on Windows (issue #522). After (1) rather than before it, so a REFERENCE
+     deployment — which constructs no client and reads no protected key — still gets the accurate
+     refusal rather than a true but unhelpful one.
   2. **No signing material is reachable through the configuration** (`witness_config`, re-asserted here).
   3. **Neither factory resolves into the reference module.** A production factory that imports out of
      `app.validation.chain_witness` is, by construction, one of the implementations this gate exists to
@@ -104,6 +110,7 @@ from app.validation.witness_config import (
     WitnessProfile,
     assert_no_private_key_material,
 )
+from app.validation.witness_platform import assert_supported_platform
 from app.validation.witness_protocol import (
     ALGORITHM_ECDSA_SHA256_P256,
     ALGORITHM_ED25519,
@@ -864,6 +871,19 @@ def enforce_production_witness(config: WitnessConfig, *, nonce: str) -> Producti
             f"the deployment declares witness.profile={config.profile.value}; the reference signer and "
             f"filesystem sink are development implementations and can never witness a governed session",
             code="WITNESS_PROFILE_NOT_PRODUCTION")
+
+    # The platform boundary, immediately after the profile check and before anything else (ADR 0047 §7).
+    #
+    # Deliberately AFTER the profile check rather than before it: a REFERENCE deployment constructs no
+    # AWS client and touches no POSIX-protected trust root, so refusing it on platform grounds would be
+    # true but unhelpful — "this is not a production profile" is the accurate finding there.
+    #
+    # Deliberately BEFORE the key path, the factories and the challenge: this is the gate every
+    # production witness passes through, so siting the assertion here means the composition root, the
+    # readiness CLI and the Step 4D harness all inherit it rather than each remembering to assert it.
+    # Off POSIX the key-path check below would refuse anyway, but later and less accurately — and under
+    # issue #522 a Windows deployment could reach botocore client construction first.
+    assert_supported_platform(context="a production witness")
 
     from app.validation.chain_witness import Ed25519AnchorSigner, FileExternalAnchorSink
 

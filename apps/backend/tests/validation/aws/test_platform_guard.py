@@ -1,7 +1,12 @@
-"""The Step 4C platform boundary (issue #522, owner ruling 2026-07-26).
+"""The platform boundary as reached through the AWS package, and the runtime attestation.
+
+The boundary itself moved to `app/validation/witness_platform.py` in ADR 0047 §7 so the production gate
+could assert it without importing this package; these tests stay because the re-export is what every
+existing 4C-era caller uses, and because a re-export that silently stopped refusing would be invisible
+otherwise. `tests/validation/test_witness_platform.py` covers the predicate at its new home.
 
 One of these tests is unusual and worth naming: on the developer's Windows laptop
-`test_a_non_linux_invocation_is_refused` exercises the REAL refusal, not a simulated one — this is the
+`test_the_refusal_is_real_on_this_machine` exercises the REAL refusal, not a simulated one — this is the
 platform the guard exists to stop. On Linux CI the same guarantee is reached by forcing the platform
 values, so the property is proven on both.
 """
@@ -61,13 +66,19 @@ def test_a_platform_whose_os_family_disagrees_is_refused(monkeypatch):
 
 
 def test_the_refusal_names_why_it_refused():
-    """An operator hitting this must learn it is a boundary, not a bug."""
+    """An operator hitting this must learn it is a boundary, not a bug.
+
+    The message changed in ADR 0047 §7 when the boundary moved to `witness_platform` and stopped being
+    specific to the Step 4C fixture: it no longer claims the refusal is about what a temporary EC2
+    integration host would prove, because the boundary now also governs the permanent deployment. What
+    it must still name is the two reasons it exists.
+    """
     if LINUX:
         pytest.skip("the message is asserted on the platform that is actually refused")
     with pytest.raises(PlatformUnsupported) as exc:
         assert_supported_platform()
     message = str(exc.value)
-    assert "instance-role" in message              # what the EC2 host proves that this one cannot
+    assert "POSIX ownership" in message            # the trust-root guarantees this platform lacks
     assert "#522" in message                       # where the Windows interaction is tracked
 
 
