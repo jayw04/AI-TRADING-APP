@@ -43,6 +43,14 @@ MODE="${1:---plan}"
 log() { printf '%s  %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+# `"$@"`, not `"$1"`: every caller passes --arg/--argjson pairs BEFORE the filter, so taking only the
+# first argument fed jq a bare `--argjson` with nothing after it. That broke the first live run,
+# immediately after the KMS key was created and before the bucket — and `--plan` could not have caught
+# it, because `--plan` never wrote a journal. Defined up here, beside the other helpers, so the plan
+# rehearsal below can exercise it; a rehearsal that skips the code paths `--apply` uses rehearses the
+# wrong thing.
+journal() { jq "$@" "$JOURNAL" > "$JOURNAL.tmp" && mv "$JOURNAL.tmp" "$JOURNAL"; }
+
 # ── preconditions ────────────────────────────────────────────────────────────────────────────────────
 
 command -v aws >/dev/null || die "aws CLI not found"
@@ -142,8 +150,22 @@ if [ "$MODE" = "--plan" ]; then
   echo "$PLAN_ECHO"
   PLAN_ACTIONS="$(echo "$PLAN_ECHO" | jq '.witness_actions | length')"
   [ "$PLAN_ACTIONS" = "8" ] || die "the witness policy grants $PLAN_ACTIONS actions, not the ratified 8"
+
+  # Rehearse a journal write against a throwaway file, with the same --argjson shape --apply uses.
+  # This is the check that would have caught the `journal "$1"` defect before it reached live AWS.
+  # Deliberately beside the real journal rather than in $TMPDIR: on Git Bash `mktemp` returns an MSYS
+  # path (/tmp/...) that a native-Windows jq cannot open, so a $TMPDIR rehearsal would fail on the
+  # operator's machine for a reason that has nothing to do with what it is testing. The real journal is
+  # CWD-relative too, so this exercises the same path shape --apply uses.
+  PLAN_JOURNAL="./.step4d_plan_journal.$$.json"
+  echo '{}' > "$PLAN_JOURNAL"
+  ( JOURNAL="$PLAN_JOURNAL"; journal --argjson e "$PLAN_ECHO" '.parameter_echo = $e' ) \
+    || { rm -f "$PLAN_JOURNAL"; die "the journal writer failed; --apply would break mid-provisioning"; }
+  jq -e '.parameter_echo.witness_actions | length == 8' "$PLAN_JOURNAL" >/dev/null \
+    || { rm -f "$PLAN_JOURNAL"; die "the journal writer did not record the parameter echo"; }
+  rm -f "$PLAN_JOURNAL" "$PLAN_JOURNAL.tmp"
   echo
-  log "plan only; nothing was created (witness_actions=$PLAN_ACTIONS)"
+  log "plan only; nothing was created (witness_actions=$PLAN_ACTIONS, journal writer OK)"
   exit 0
 fi
 [ "$MODE" = "--apply" ] || die "usage: $0 [--plan|--apply]"
@@ -160,7 +182,6 @@ aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null && \
 echo '{}' | jq --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   '{step:"4D", phase:"operator-provisioning", provisioned_by:"OPERATOR", started_at:$t}' > "$JOURNAL"
 
-journal() { jq "$1" "$JOURNAL" > "$JOURNAL.tmp" && mv "$JOURNAL.tmp" "$JOURNAL"; }
 
 # ── 1. the signing key ───────────────────────────────────────────────────────────────────────────────
 
@@ -283,26 +304,59 @@ log "simulating the witness policy"
 SIM='[]'
 simulate() {  # $1 action, $2 resource, $3 expected decision
   local d
+  # A failed call (throttling, NoSuchEntity while the role is still propagating) yields no decision;
+  # recorded as ERROR so the classifier below can treat it as transient rather than as a verdict.
   d="$(aws iam simulate-principal-policy --policy-source-arn "$ROLE_ARN" \
-        --action-names "$1" --resource-arns "$2" --output json \
-        | jq -r '.EvaluationResults[0].EvalDecision')"
+        --action-names "$1" --resource-arns "$2" --output json 2>/dev/null \
+        | jq -r '.EvaluationResults[0].EvalDecision // empty')"
+  [ -n "$d" ] || d="ERROR"
   printf '  %-46s %-28s %s\n' "$1" "$3" "$d"
   SIM="$(echo "$SIM" | jq --arg a "$1" --arg r "$2" --arg e "$3" --arg d "$d" \
         '. + [{action:$a, resource:$r, expected:$e, decision:$d, agrees:($d == $e)}]')"
 }
 
-for a in kms:GetPublicKey kms:Sign;                                      do simulate "$a" "$KEY_ARN" allowed; done
-for a in s3:GetBucketLocation s3:GetBucketVersioning s3:GetBucketObjectLockConfiguration; do
-  simulate "$a" "arn:aws:s3:::$BUCKET" allowed; done
-for a in s3:PutObject s3:GetObject; do
-  simulate "$a" "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/x.json" allowed; done
+simulation_matrix() {
+  SIM='[]'
+  for a in kms:GetPublicKey kms:Sign;                                    do simulate "$a" "$KEY_ARN" allowed; done
+  for a in s3:GetBucketLocation s3:GetBucketVersioning s3:GetBucketObjectLockConfiguration; do
+    simulate "$a" "arn:aws:s3:::$BUCKET" allowed; done
+  for a in s3:PutObject s3:GetObject; do
+    simulate "$a" "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/x.json" allowed; done
 
-# Must be denied. These are the properties the least-privilege claim actually rests on.
-for a in s3:DeleteObject s3:DeleteObjectVersion s3:PutBucketVersioning \
-         s3:PutBucketObjectLockConfiguration s3:BypassGovernanceRetention; do
-  simulate "$a" "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/x.json" implicitDeny; done
-for a in kms:ScheduleKeyDeletion kms:DisableKey kms:CreateKey; do
-  simulate "$a" "$KEY_ARN" implicitDeny; done
+  # Must be denied. These are the properties the least-privilege claim actually rests on.
+  for a in s3:DeleteObject s3:DeleteObjectVersion s3:PutBucketVersioning \
+           s3:PutBucketObjectLockConfiguration s3:BypassGovernanceRetention; do
+    simulate "$a" "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/x.json" implicitDeny; done
+  for a in kms:ScheduleKeyDeletion kms:DisableKey kms:CreateKey; do
+    simulate "$a" "$KEY_ARN" implicitDeny; done
+}
+
+# IAM is eventually consistent, and this runs seconds after put-role-policy. A not-yet-propagated grant
+# reads as implicitDeny — indistinguishable, in one sample, from a policy that is genuinely missing it.
+# So a NOT-YET-ALLOWED result is retried and a WRONG result is not: an explicitDeny where an allow is
+# expected, or an allow where a deny is expected, is a real misconfiguration and gets worse, not better,
+# with waiting. The whole matrix must agree within ONE attempt — a contract assembled from several
+# attempts is not a contract that ever held at once.
+SIM_DEADLINE=$(( $(date +%s) + 90 ))
+while :; do
+  simulation_matrix
+  DISAGREE="$(echo "$SIM" | jq -c '[.[] | select(.agrees | not)]')"
+  [ "$(echo "$DISAGREE" | jq 'length')" = "0" ] && break
+
+  WRONG="$(echo "$DISAGREE" | jq '[.[] | select(
+      (.expected == "allowed"      and (.decision != "implicitDeny" and .decision != "ERROR")) or
+      (.expected == "implicitDeny" and .decision == "allowed"))] | length')"
+  if [ "$WRONG" != "0" ]; then
+    echo "$DISAGREE" | jq .
+    die "the simulated permissions contradict the contract — this is not propagation; STOP"
+  fi
+  if [ "$(date +%s)" -ge "$SIM_DEADLINE" ]; then
+    echo "$DISAGREE" | jq .
+    die "IAM did not converge on the witness contract within 90s; STOP and investigate"
+  fi
+  log "IAM still propagating ($(echo "$DISAGREE" | jq 'length') pending); retrying in 5s"
+  sleep 5
+done
 
 journal --argjson s "$SIM" '.iam.simulation = $s'
 echo "$SIM" | jq -e 'all(.agrees)' >/dev/null \
