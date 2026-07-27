@@ -137,8 +137,10 @@ export interface Account {
   last_equity: string;
   buying_power: string;
   portfolio_value: string;
-  day_change: string;
-  day_change_pct: string;
+  /** null when no day baseline exists — see day_change_basis. Never a stand-in "0". */
+  day_change: string | null;
+  day_change_pct: string | null;
+  day_change_basis: "BROKER_LAST_EQUITY" | "PRIOR_SESSION_CLOSE_PROXY" | "UNAVAILABLE" | string;
   starting_equity: string;
   total_return: string;
   total_return_pct: string;
