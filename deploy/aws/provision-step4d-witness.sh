@@ -304,26 +304,59 @@ log "simulating the witness policy"
 SIM='[]'
 simulate() {  # $1 action, $2 resource, $3 expected decision
   local d
+  # A failed call (throttling, NoSuchEntity while the role is still propagating) yields no decision;
+  # recorded as ERROR so the classifier below can treat it as transient rather than as a verdict.
   d="$(aws iam simulate-principal-policy --policy-source-arn "$ROLE_ARN" \
-        --action-names "$1" --resource-arns "$2" --output json \
-        | jq -r '.EvaluationResults[0].EvalDecision')"
+        --action-names "$1" --resource-arns "$2" --output json 2>/dev/null \
+        | jq -r '.EvaluationResults[0].EvalDecision // empty')"
+  [ -n "$d" ] || d="ERROR"
   printf '  %-46s %-28s %s\n' "$1" "$3" "$d"
   SIM="$(echo "$SIM" | jq --arg a "$1" --arg r "$2" --arg e "$3" --arg d "$d" \
         '. + [{action:$a, resource:$r, expected:$e, decision:$d, agrees:($d == $e)}]')"
 }
 
-for a in kms:GetPublicKey kms:Sign;                                      do simulate "$a" "$KEY_ARN" allowed; done
-for a in s3:GetBucketLocation s3:GetBucketVersioning s3:GetBucketObjectLockConfiguration; do
-  simulate "$a" "arn:aws:s3:::$BUCKET" allowed; done
-for a in s3:PutObject s3:GetObject; do
-  simulate "$a" "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/x.json" allowed; done
+simulation_matrix() {
+  SIM='[]'
+  for a in kms:GetPublicKey kms:Sign;                                    do simulate "$a" "$KEY_ARN" allowed; done
+  for a in s3:GetBucketLocation s3:GetBucketVersioning s3:GetBucketObjectLockConfiguration; do
+    simulate "$a" "arn:aws:s3:::$BUCKET" allowed; done
+  for a in s3:PutObject s3:GetObject; do
+    simulate "$a" "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/x.json" allowed; done
 
-# Must be denied. These are the properties the least-privilege claim actually rests on.
-for a in s3:DeleteObject s3:DeleteObjectVersion s3:PutBucketVersioning \
-         s3:PutBucketObjectLockConfiguration s3:BypassGovernanceRetention; do
-  simulate "$a" "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/x.json" implicitDeny; done
-for a in kms:ScheduleKeyDeletion kms:DisableKey kms:CreateKey; do
-  simulate "$a" "$KEY_ARN" implicitDeny; done
+  # Must be denied. These are the properties the least-privilege claim actually rests on.
+  for a in s3:DeleteObject s3:DeleteObjectVersion s3:PutBucketVersioning \
+           s3:PutBucketObjectLockConfiguration s3:BypassGovernanceRetention; do
+    simulate "$a" "arn:aws:s3:::$BUCKET/$PREFLIGHT_PREFIX/x.json" implicitDeny; done
+  for a in kms:ScheduleKeyDeletion kms:DisableKey kms:CreateKey; do
+    simulate "$a" "$KEY_ARN" implicitDeny; done
+}
+
+# IAM is eventually consistent, and this runs seconds after put-role-policy. A not-yet-propagated grant
+# reads as implicitDeny — indistinguishable, in one sample, from a policy that is genuinely missing it.
+# So a NOT-YET-ALLOWED result is retried and a WRONG result is not: an explicitDeny where an allow is
+# expected, or an allow where a deny is expected, is a real misconfiguration and gets worse, not better,
+# with waiting. The whole matrix must agree within ONE attempt — a contract assembled from several
+# attempts is not a contract that ever held at once.
+SIM_DEADLINE=$(( $(date +%s) + 90 ))
+while :; do
+  simulation_matrix
+  DISAGREE="$(echo "$SIM" | jq -c '[.[] | select(.agrees | not)]')"
+  [ "$(echo "$DISAGREE" | jq 'length')" = "0" ] && break
+
+  WRONG="$(echo "$DISAGREE" | jq '[.[] | select(
+      (.expected == "allowed"      and (.decision != "implicitDeny" and .decision != "ERROR")) or
+      (.expected == "implicitDeny" and .decision == "allowed"))] | length')"
+  if [ "$WRONG" != "0" ]; then
+    echo "$DISAGREE" | jq .
+    die "the simulated permissions contradict the contract — this is not propagation; STOP"
+  fi
+  if [ "$(date +%s)" -ge "$SIM_DEADLINE" ]; then
+    echo "$DISAGREE" | jq .
+    die "IAM did not converge on the witness contract within 90s; STOP and investigate"
+  fi
+  log "IAM still propagating ($(echo "$DISAGREE" | jq 'length') pending); retrying in 5s"
+  sleep 5
+done
 
 journal --argjson s "$SIM" '.iam.simulation = $s'
 echo "$SIM" | jq -e 'all(.agrees)' >/dev/null \
