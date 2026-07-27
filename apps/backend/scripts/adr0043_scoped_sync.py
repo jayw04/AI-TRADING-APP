@@ -64,6 +64,17 @@ from app.db.models.account_state import AccountState
 from app.db.models.position import Position
 from app.db.models.risk_reservation import RESERVATION_HELD
 
+# The day-change PROVENANCE logic is shared with the sweep (#495). ``day_change_basis`` is a pure,
+# loop-free module — importing it brings no account iteration with it, so property 5 survives — and
+# sharing it means this tool writes the same row the sweep would rather than a second opinion.
+# Re-deriving "is there a usable baseline?" here is exactly the drift #495 exists to prevent.
+from app.services.day_change_basis import (
+    UNAVAILABLE,
+    UNMEASURED,
+    from_broker_last_equity,
+    prior_session_close_proxy,
+)
+
 # The read-only proxy, the flat check, the atomic write and the refusal family are SHARED with
 # ``adr0043_session_open``. One read-only broker view across the ADR-0043 tooling means there is one
 # allowlist to audit, and its ``calls`` log lets this run record exactly which broker methods it
@@ -144,15 +155,22 @@ def _to_decimal(v: Any, default: str = "0") -> D:
 def normalize_account_snapshot(raw: dict[str, Any]) -> dict[str, Any]:
     """Map Alpaca's account payload onto ``accounts_state`` columns.
 
-    Deliberately a local copy rather than an import of the sweep service's private normalizer:
-    importing ``app.services.account_sync`` would put the looping sweep one attribute access away
-    from this module, and property 5 is meant to be provable by reading this file. A test pins this
-    function's output equal to the service's on a representative payload, so the copy cannot drift.
+    The column mapping is a local copy rather than an import of the sweep service's private
+    normalizer: importing ``app.services.account_sync`` would put the looping sweep one attribute
+    access away, and property 5 is meant to be provable by reading this file. A test pins this
+    function's output equal to the service's, so the copy cannot drift.
+
+    The day-change PROVENANCE, however, is shared outright (#495). Alpaca omits or zeroes
+    ``last_equity`` on fresh paper accounts, and ``equity - 0`` would report the entire book as
+    today's change while a plain ``0`` would claim a measured flat day. Both are assertions about a
+    quantity nobody measured — and this column feeds the legacy daily-loss basis, so it is a
+    risk-path input, not a display nit. With no broker baseline the answer here is UNMEASURED;
+    :func:`resolve_day_change` may still reach the prior-close proxy, which needs a DB session this
+    pure mapping does not have.
     """
     equity = _to_decimal(raw.get("equity"))
     last_equity = _to_decimal(raw.get("last_equity"))
-    day_change = equity - last_equity
-    day_change_pct = (day_change / last_equity * D(100)) if last_equity > 0 else D(0)
+    measured = from_broker_last_equity(equity, last_equity) or UNMEASURED
     return {
         "cash": _to_decimal(raw.get("cash")),
         "equity": equity,
@@ -160,13 +178,39 @@ def normalize_account_snapshot(raw: dict[str, Any]) -> dict[str, Any]:
         "buying_power": _to_decimal(raw.get("buying_power")),
         "portfolio_value": _to_decimal(raw.get("portfolio_value") or raw.get("equity")),
         "daytrade_count": int(raw.get("daytrade_count") or 0),
-        "day_change": day_change,
-        "day_change_pct": day_change_pct,
+        "day_change": measured.day_change,
+        "day_change_pct": measured.day_change_pct,
+        "day_change_basis": measured.basis,
         "status": str(raw.get("status") or "UNKNOWN"),
         "pattern_day_trader": bool(raw.get("pattern_day_trader") or False),
         "trading_blocked": bool(raw.get("trading_blocked") or False),
         "account_blocked": bool(raw.get("account_blocked") or False),
     }
+
+
+async def resolve_day_change(session, payload: dict[str, Any], now: datetime) -> None:
+    """Fill in the day-change fields the pure mapping could not decide, exactly as the sweep does.
+
+    Mutates ``payload`` in place so the persisted row and the reported row carry one answer. Scoped
+    to account 3 by the constant, like every other read here.
+
+    A failure to read the snapshot history leaves the basis ``UNAVAILABLE``: it never invents a
+    number to fill the gap, because an unmeasured baseline reported as a measured one is the exact
+    defect #495 landed to prevent.
+    """
+    if payload["day_change_basis"] != UNAVAILABLE:
+        return
+    try:
+        fallback = await prior_session_close_proxy(
+            session, SCOPED_ACCOUNT_ID, payload["equity"], now
+        )
+    except Exception:
+        return
+    if fallback is None:
+        return
+    payload["day_change"] = fallback.day_change
+    payload["day_change_pct"] = fallback.day_change_pct
+    payload["day_change_basis"] = fallback.basis
 
 
 def count_open_orders(orders: list[dict[str, Any]] | None) -> int:
@@ -334,6 +378,9 @@ async def write_account_3(sf, *, raw_account: dict[str, Any], positions: list[di
     written: dict[str, Any] = {"accounts_state": None, "positions_upserted": [], "positions_deleted": []}
 
     async with sf() as s:
+        # Before the upsert, against the SAME session — so the persisted row and the reported row
+        # cannot disagree about which baseline the day-change rests on.
+        await resolve_day_change(s, payload, now)
         stmt = sqlite_insert(AccountState).values(
             account_id=SCOPED_ACCOUNT_ID, **payload, updated_at=now, raw_payload=raw_account
         )
@@ -350,6 +397,7 @@ async def write_account_3(sf, *, raw_account: dict[str, Any], positions: list[di
                     "daytrade_count",
                     "day_change",
                     "day_change_pct",
+                    "day_change_basis",
                     "status",
                     "pattern_day_trader",
                     "trading_blocked",
@@ -546,10 +594,14 @@ async def _scoped_sync(
         evidence["after"] = await read_local_state(sf)
         evidence["outcome"] = "COMMITTED"
     else:
+        # The preview resolves the day-change basis exactly as the commit would. A dry run that
+        # showed UNAVAILABLE where --commit would write PRIOR_SESSION_CLOSE_PROXY would be
+        # describing a different write than the one an operator is about to authorize.
+        preview = normalize_account_snapshot(raw_account)
+        async with sf() as s:
+            await resolve_day_change(s, preview, datetime.now(UTC))
         evidence["written"] = {
-            "would_write_accounts_state": {
-                k: str(v) for k, v in normalize_account_snapshot(raw_account).items()
-            },
+            "would_write_accounts_state": {k: str(v) for k, v in preview.items()},
             "would_upsert_positions": [
                 {"ticker": str(p.get("symbol")), "qty": str(p.get("qty"))} for p in positions
             ],

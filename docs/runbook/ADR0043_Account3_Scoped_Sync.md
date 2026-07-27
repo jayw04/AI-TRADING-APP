@@ -83,9 +83,25 @@ and detail, the account-3 rows as they stood before, and the exact write that wo
 Confirm by eye:
 
 - `target.user_id` = 3, `target.account_id` = 3;
-- `checks[].result` — all three `PASS` (`account_row_binding`, `broker_identity`, `frozen_manifest`);
+- `checks[].result` — all four `PASS`: `account_row_binding`, `broker_identity`, `frozen_manifest`,
+  `account_flat`;
 - `broker_identity` detail names `PA34USW0Q8UO`;
-- `frozen_manifest` detail reads `MSFT 19 long, 0 open orders, 0 HELD reservations`.
+- `frozen_manifest` detail reads `broker holds exactly the frozen manifest (MSFT 19 long)`;
+- `account_flat` detail reads `open_orders=0 held_reservations=0`;
+- `broker_calls` is exactly `["get_account", "get_positions", "list_orders"]` — the broker surface
+  this run actually reached, recorded from the read-only view's own call log;
+- `written.would_write_accounts_state.day_change_basis` — see below.
+
+### The day-change basis
+
+The evidence names the provenance of the day-change figure (`BROKER_LAST_EQUITY`,
+`PRIOR_SESSION_CLOSE_PROXY`, or `UNAVAILABLE`), resolved exactly as the account sweep resolves it.
+`UNAVAILABLE` is **not** an error and does not refuse the sync — it means no usable baseline exists,
+so the number is a placeholder and the label is the truth. That column feeds the legacy daily-loss
+basis, so record which basis the run wrote; do not read a `0` day-change as a measured flat day.
+
+The dry run resolves the basis the same way `--commit` does, so the preview describes the write an
+operator is actually authorizing.
 
 ### 3. Commit
 
@@ -110,6 +126,7 @@ They are the pre/post halves of the governed mutation record.
 | `REFUSED: ... EXPLICITLY FORBIDDEN` | the credentials resolved to account 1's broker account | **stop.** The credential binding on the host is wrong. This is the `RUNTIME_TARGET_BINDING_MISMATCH` class of defect. |
 | `REFUSED: connected broker account ... != expected` | user 3's credentials point somewhere unexpected | stop; verify the installed canary credentials |
 | `REFUSED: ... does not match the frozen Phase-0 manifest` | the account moved | stop; investigate what moved it. Do **not** sync. |
+| `REFUSED: ... open orders or held reservations` | the account is not flat | stop; something is in flight or a reservation leaked |
 | `REFUSED: account 3 belongs to user N` | the DB binding disagrees with the frozen target | stop; nothing was decrypted |
 | `REFUSED: ... paper-only` | account 3 is marked live | stop |
 | `ScopedSyncRefused: broker method ... is not reachable` | a code change tried to act through this tool | fix the code; this tool reads |

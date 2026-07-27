@@ -12,11 +12,19 @@ from __future__ import annotations
 import ast
 import inspect
 import json
+from datetime import UTC, datetime
 from decimal import Decimal as D
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
+from app.services.day_change_basis import (
+    BROKER_LAST_EQUITY,
+    PRIOR_SESSION_CLOSE_PROXY,
+    UNAVAILABLE,
+    DayChange,
+)
 from scripts import adr0043_scoped_sync as mod
 from scripts.adr0043_scoped_sync import (
     EXPECTED_BROKER_ACCOUNT,
@@ -288,10 +296,79 @@ def test_normalizer_matches_the_sweep_service_exactly():
     assert normalize_account_snapshot(raw) == _normalize_account(raw)
 
 
-def test_normalizer_handles_a_zero_last_equity_without_dividing():
+def test_no_broker_baseline_is_unmeasured_not_the_whole_book():
+    """A zero ``last_equity`` has no baseline. ``equity - 0`` would report the ENTIRE book as
+    today's change, and this column feeds the legacy daily-loss basis — so it is UNAVAILABLE, and
+    the label, not the number, is the truth (#495)."""
     out = normalize_account_snapshot({"equity": "100", "last_equity": "0"})
-    assert out["day_change"] == D(100)
+    assert out["day_change_basis"] == UNAVAILABLE
+    assert out["day_change"] == D(0)
     assert out["day_change_pct"] == D(0)
+
+
+def test_a_broker_baseline_is_labelled_as_such():
+    out = normalize_account_snapshot({"equity": "10250", "last_equity": "10000"})
+    assert out["day_change_basis"] == BROKER_LAST_EQUITY
+    assert out["day_change"] == D(250)
+
+
+@pytest.mark.asyncio
+async def test_the_prior_close_proxy_is_resolved_for_account_three_only():
+    """The proxy fallback mirrors the sweep's, scoped by the constant — a preview or a write must
+    never reach another account's equity-snapshot history."""
+    seen: list[int] = []
+
+    async def fake_proxy(session, account_id, equity, now):
+        seen.append(account_id)
+        return None
+
+    payload = normalize_account_snapshot({"equity": "100", "last_equity": "0"})
+    with mock.patch.object(mod, "prior_session_close_proxy", fake_proxy):
+        await mod.resolve_day_change(object(), payload, datetime(2026, 7, 27, tzinfo=UTC))
+    assert seen == [SCOPED_ACCOUNT_ID]
+    assert payload["day_change_basis"] == UNAVAILABLE
+
+
+@pytest.mark.asyncio
+async def test_a_resolved_proxy_replaces_the_unmeasured_placeholder():
+    async def fake_proxy(session, account_id, equity, now):
+        return DayChange(
+            day_change=D(25),
+            day_change_pct=D("0.0025"),
+            basis=PRIOR_SESSION_CLOSE_PROXY,
+            baseline_equity=D(9975),
+        )
+
+    payload = normalize_account_snapshot({"equity": "10000", "last_equity": "0"})
+    with mock.patch.object(mod, "prior_session_close_proxy", fake_proxy):
+        await mod.resolve_day_change(object(), payload, datetime(2026, 7, 27, tzinfo=UTC))
+    assert payload["day_change_basis"] == PRIOR_SESSION_CLOSE_PROXY
+    assert payload["day_change"] == D(25)
+
+
+@pytest.mark.asyncio
+async def test_a_broker_baseline_is_never_overwritten_by_the_proxy():
+    async def fake_proxy(session, account_id, equity, now):  # pragma: no cover
+        raise AssertionError("the proxy must not run when the broker supplied a baseline")
+
+    payload = normalize_account_snapshot({"equity": "10250", "last_equity": "10000"})
+    with mock.patch.object(mod, "prior_session_close_proxy", fake_proxy):
+        await mod.resolve_day_change(object(), payload, datetime(2026, 7, 27, tzinfo=UTC))
+    assert payload["day_change_basis"] == BROKER_LAST_EQUITY
+
+
+@pytest.mark.asyncio
+async def test_a_failing_snapshot_read_leaves_the_basis_unavailable():
+    """It never invents a number to fill the gap, and it never aborts the sync."""
+
+    async def boom(session, account_id, equity, now):
+        raise RuntimeError("equity_snapshots unreadable")
+
+    payload = normalize_account_snapshot({"equity": "100", "last_equity": "0"})
+    with mock.patch.object(mod, "prior_session_close_proxy", boom):
+        await mod.resolve_day_change(object(), payload, datetime(2026, 7, 27, tzinfo=UTC))
+    assert payload["day_change_basis"] == UNAVAILABLE
+    assert payload["day_change"] == D(0)
 
 
 # ---------------------------------------------------------------------------- end-to-end behaviour
