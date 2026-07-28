@@ -226,6 +226,7 @@ user owns the FINRA decision.
 | `CIRCUIT_BREAKER_RESET` | A user reset a tripped breaker | Verify `reset_by_user_id` is the account owner; strategies remain HALTED |
 | `RISK_LIMITS_UPDATED` | A user edited risk limits | Review `changes.old`/`changes.new`; watch for loosened caps before a loss event |
 | `LOSS_CONTROL_ENFORCED` | The ADR 0043 loss-control **state machine** contributed to an order rejection in `ENFORCE` mode | See the scenario below — read the provenance, do **not** bootstrap or force `NORMAL` |
+| `LOSS_CONTROL_STATE_BOOTSTRAPPED` | An account's `risk_loss_control_state` row was explicitly **first-provisioned** to `NORMAL` via the governed bootstrap tool | See the scenario below — verify it was first provisioning (no prior row, no control events), through the reviewed tool, under an approved package |
 
 (When the P5 §8 on-call playbook is authored, these scenarios move there.)
 
@@ -273,8 +274,13 @@ integrity refusal — NOT a trading-limit adjustment request.** Do not treat it 
 tight".
 
 **Operator action:**
-- **Do not** bootstrap the account or manually force its state to `NORMAL` — that would paper over
-  the integrity condition the fail-closed exists to surface.
+- **Do not** bootstrap the account or manually force its state to `NORMAL` as a *reaction to the
+  stop* — that would paper over the integrity condition the fail-closed exists to surface.
+  **One narrow exception:** if the account has **never** been provisioned (no
+  `risk_loss_control_state` row has ever existed and there are zero `risk_control_events` for it),
+  the stop is a *provisioning gap*, and the sanctioned fix is the governed first-provisioning
+  bootstrap — see the `LOSS_CONTROL_STATE_BOOTSTRAPPED` scenario below. An account that HAS
+  operated under loss control is never re-bootstrapped.
 - Keep `ENFORCE` disabled, or return the account to its previously authorized mode
   (`OFF`/`SHADOW`), while investigating.
 - Recovery from a loss-control lock runs through the **checked recovery preflight** (PR6) into
@@ -286,6 +292,29 @@ tight".
 - The three loss-control flags are independent (`SESSION_BASELINE_SHADOW_ENABLED`,
   `SESSION_BASELINE_ENFORCEMENT_ENABLED`, `LOSS_CONTROL_MODE`); toggling `LOSS_CONTROL_MODE` back to
   `OFF`/`SHADOW` neither disables baseline capture nor changes the daily-loss basis.
+
+## `LOSS_CONTROL_STATE_BOOTSTRAPPED` — first provisioning of the durable state row (ADR 0043 Phase 0)
+
+**What it means.** An account's `risk_loss_control_state` row was explicitly created at `NORMAL`
+(state_version 0, last_sequence_no 0, current `control_version`) via the governed bootstrap tool
+`scripts/adr0043_bootstrap_loss_control.py` — the deliberate provisioning step the enforcement gate
+requires *before* `ENFORCE` traffic, performed through `LossControlService.get_state_row` (the
+service's own race-safe bootstrap). This is a **provisioning act, not a state-machine transition**:
+no `risk_control_events` row accompanies it, by design. (Origin: 2026-07-28 Phase-0 attempt 1, where
+the canary account reached its first `ENFORCE` order without this row and correctly INTEGRITY_STOPped.)
+
+**Verify when you see one:**
+1. `payload.reason` — a named provisioning program (e.g. `ADR0043_CANARY_PROVISIONING`), and
+   `payload.authority` names the reviewed tool + an approved execution package.
+2. It was FIRST provisioning: no prior `risk_loss_control_state` row existed and the account has
+   zero `risk_control_events`. The tool refuses to run over an existing row in any state; a
+   bootstrap audit row for an account **with** loss-control history is itself a finding.
+3. The evidence file for the run exists (atomic JSON, before/after row state, side-effect counters
+   unchanged, broker identity check) — the tool writes it on success and refusal alike.
+
+**Operator action:** none if the three checks pass. If any fails, treat it as an unauthorized state
+mutation: preserve the audit row and evidence, and escalate — never "fix" by editing loss-control
+state directly.
 
 ## Recovery preflight — the sanctioned way out of a loss-control lock (ADR 0043 PR6)
 

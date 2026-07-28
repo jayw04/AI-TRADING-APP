@@ -39,6 +39,7 @@ from scripts.adr0043_session_open import (
     check_flat,
     check_instance,
     check_limits,
+    check_loss_control,
     check_positions,
     check_session_open,
     fetch_account,
@@ -384,6 +385,7 @@ def test_readiness_requires_every_gate_not_merely_the_last():
         "4_positions": {"ok": True},
         "5_flat": {"clean": True},
         "6_limits": {"sha_unchanged": True},
+        "6b_loss_control": {"ok": True},
     }
     assert build_package(cfg=_cfg(), steps=steps, captured_at=_when(), capture_requested=False)[
         "READY_FOR_BASELINE_AND_PREFLIGHT"
@@ -392,6 +394,82 @@ def test_readiness_requires_every_gate_not_merely_the_last():
     assert not build_package(
         cfg=_cfg(), steps=partial, captured_at=_when(), capture_requested=False
     )["READY_FOR_BASELINE_AND_PREFLIGHT"]
+
+
+def test_readiness_requires_the_persisted_loss_control_state():
+    """The 2026-07-28 attempt-1 finding: a package must not read execution-ready over an absent or
+    non-NORMAL durable loss-control row — that exact row is what the ENFORCE order gate reads."""
+    steps = {
+        "1_instance": {"ok": True},
+        "2_database": {"ok": True},
+        "3_identity": {"ok": True},
+        "4_positions": {"ok": True},
+        "5_flat": {"clean": True},
+        "6_limits": {"sha_unchanged": True},
+        "6b_loss_control": {"ok": False, "refusal_code": "LOSS_CONTROL_STATE_MISSING"},
+    }
+    assert not build_package(
+        cfg=_cfg(), steps=steps, captured_at=_when(), capture_requested=False
+    )["READY_FOR_BASELINE_AND_PREFLIGHT"]
+
+
+# ------------------------------------------------------------------ the loss-control gate
+
+
+def _lc_row(**over):
+    from app.risk.loss_control.constants import LOSS_CONTROL_STATE_VERSION
+
+    row = {"state": "NORMAL", "state_version": 0, "last_sequence_no": 0,
+           "control_version": LOSS_CONTROL_STATE_VERSION}
+    row.update(over)
+    return row
+
+
+def test_loss_control_reports_the_exact_persisted_state_and_versions():
+    step = check_loss_control(_lc_row(), required=False)
+    assert step["ok"] is True
+    assert step["row_present"] is True
+    assert step["state"] == "NORMAL"
+    assert step["state_version"] == 0
+    assert step["last_sequence_no"] == 0
+    assert step["control_version"] == step["governed_control_version"]
+
+
+@pytest.mark.parametrize(
+    ("row", "code"),
+    [
+        (None, "LOSS_CONTROL_STATE_MISSING"),
+        (_lc_row(state="INTEGRITY_STOP"), "LOSS_CONTROL_STATE_NOT_NORMAL"),
+        (_lc_row(state="REDUCTION_ONLY_DAILY_LOSS"), "LOSS_CONTROL_STATE_NOT_NORMAL"),
+        (_lc_row(state_version=None), "LOSS_CONTROL_STATE_VERSION_INVALID"),
+        (_lc_row(state_version=-2), "LOSS_CONTROL_STATE_VERSION_INVALID"),
+        (_lc_row(control_version=999), "LOSS_CONTROL_STATE_VERSION_INVALID"),
+    ],
+)
+def test_an_invalid_loss_control_state_is_reported_not_ready(row, code):
+    """The precheck REPORTS (the package must carry the exact persisted state either way)…"""
+    step = check_loss_control(row, required=False)
+    assert step["ok"] is False
+    assert step["refusal_code"] == code
+
+
+@pytest.mark.parametrize(
+    ("row", "code"),
+    [
+        (None, "LOSS_CONTROL_STATE_MISSING"),
+        (_lc_row(state="INTEGRITY_STOP"), "LOSS_CONTROL_STATE_NOT_NORMAL"),
+        (_lc_row(control_version=999), "LOSS_CONTROL_STATE_VERSION_INVALID"),
+    ],
+)
+def test_a_capture_run_refuses_an_invalid_loss_control_state(row, code):
+    """…while a capture run REFUSES outright, with the driver preflight's own named codes."""
+    with pytest.raises(SessionOpenRefused) as exc:
+        check_loss_control(row, required=True)
+    assert exc.value.code == code
+
+
+def test_a_valid_normal_row_passes_a_capture_run():
+    assert check_loss_control(_lc_row(), required=True)["ok"] is True
 
 
 def test_the_package_is_written_atomically(tmp_path):
