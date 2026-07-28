@@ -85,7 +85,8 @@ class AuditAction(StrEnum):
     # NORMAL via the governed bootstrap tool (scripts/adr0043_bootstrap_loss_control.py), BEFORE
     # enforcement traffic. This is a provisioning act, NOT a state-machine transition: no
     # risk_control_events row accompanies it. Payload: account_id, initial_state, state_version,
-    # reason, authority. See docs/runbook/on-call.md.
+    # reason, authority. Written atomically with the state row itself (one transaction).
+    # See docs/runbook/risk-gates.md.
     LOSS_CONTROL_STATE_BOOTSTRAPPED = "LOSS_CONTROL_STATE_BOOTSTRAPPED"
 
     # ---- Operations & Reliability (P11 §3) ----

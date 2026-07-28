@@ -9,7 +9,7 @@ Phase-0 attempt 1 (2026-07-28) stopped at leg 0 with `LOSS_CONTROL_STOP`: in `EN
 gate reads the durable loss-control state via `LossControlService.load_state_row`, which
 deliberately never bootstraps, and account 3 had no `risk_loss_control_state` row — an
 `INTEGRITY_STOP`, correctly fail-closed (owner ruling: `VALID / INCONCLUSIVE`, provisioning RED).
-Explicit initialization is `get_state_row` — race-safe `INSERT ... ON CONFLICT DO NOTHING` —
+Explicit initialization is the service's race-safe `INSERT ... ON CONFLICT DO NOTHING` bootstrap —
 performed deliberately **before** enforcement traffic. `scripts/adr0043_bootstrap_loss_control.py`
 is that deliberate act for exactly one account.
 
@@ -20,9 +20,12 @@ is that deliberate act for exactly one account.
   adapter (`build_scoped_adapter` — user-3 credentials only, no `BrokerRegistry.load_all`);
   refuses `PA3QRX9KSPXA` (momentum, account 1) **by name**.
 - **Refuses if a row already exists in any state** — first provisioning only.
-- The ONE write is `LossControlService.get_state_row(3)` — never ad-hoc SQL. Expected result,
-  verified from a fresh read: `state=NORMAL`, `state_version=0`, `last_sequence_no=0`,
-  `control_version=` the governed constant.
+- The ONE write is `LossControlService.bootstrap_state_row(3)` — never ad-hoc SQL — executed in
+  **one atomic transaction with the governance audit record**: insert, in-transaction validation
+  (`state=NORMAL`, `state_version=0`, `last_sequence_no=0`, governed `control_version`), an
+  authorship check (a conflict no-op row is refused, never claimed), the typed audit row, and a
+  no-transition proof all commit together or roll back together. Verified again from a fresh
+  post-commit read.
 - Governance record: one typed audit row `LOSS_CONTROL_STATE_BOOTSTRAPPED`
   (reason `ADR0043_CANARY_PROVISIONING`). **No `risk_control_events` row is fabricated** — a
   bootstrap is not a NORMAL → NORMAL transition.

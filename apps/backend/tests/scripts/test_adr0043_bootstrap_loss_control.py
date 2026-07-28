@@ -27,6 +27,7 @@ from scripts.adr0043_bootstrap_loss_control import (
     BOOTSTRAP_ACCOUNT_ID,
     BOOTSTRAP_USER_ID,
     REFUSE_BOOTSTRAP_RESULT,
+    REFUSE_NOT_CREATOR,
     REFUSE_ROW_EXISTS,
     REFUSE_UNPROTECTED_ADAPTER,
     BootstrapRefused,
@@ -89,12 +90,15 @@ def test_no_registry_and_no_global_credential_decryption():
 
 
 def test_no_ad_hoc_sql_writes_the_state_row():
-    """The ONE write goes through ``LossControlService.get_state_row``; the module must contain no
+    """The ONE write goes through ``LossControlService.bootstrap_state_row``; the module must contain no
     INSERT/UPDATE/DELETE statement of its own."""
     lowered = CODE.lower()
     for verb in ("insert into", "update risk_", "delete from"):
         assert verb not in lowered, f"ad-hoc SQL write found: {verb!r}"
-    assert "get_state_row" in CODE
+    assert "bootstrap_state_row" in CODE
+    assert "get_state_row(" not in CODE.replace("bootstrap_state_row(", ""), (
+        "get_state_row commits internally; the tool must use the transaction-owned path"
+    )
 
 
 def test_the_bootstrap_is_not_recorded_as_a_state_transition():
@@ -420,6 +424,153 @@ async def test_an_unexpected_persisted_row_is_refused_after_commit(
             sf=session_factory, adapter_factory=_factory(), commit=True, out=tmp_path / "ev.json"
         )
     assert exc.value.code == REFUSE_BOOTSTRAP_RESULT
+
+
+# ---------------------------------------------------------------------------- atomicity
+
+
+async def test_an_audit_write_failure_rolls_back_the_state_row(
+    session_factory, tmp_path, monkeypatch
+):
+    """PR #535 review: the row and the governance record commit together or not at all. A durable
+    NORMAL row with no audit record would be unretryable (the tool refuses existing rows)."""
+    await _seed(session_factory)
+
+    class _BoomAudit:
+        @staticmethod
+        def write(*a, **k):
+            raise RuntimeError("audit chain unavailable")
+
+    monkeypatch.setattr(mod, "AuditLogger", _BoomAudit)
+    with pytest.raises(RuntimeError, match="audit chain unavailable"):
+        await bootstrap_loss_control(
+            sf=session_factory, adapter_factory=_factory(), commit=True, out=tmp_path / "ev.json"
+        )
+    assert await _lc_row(session_factory, 3) is None, (
+        "the state row must roll back with the failed audit write"
+    )
+    assert await _audit_rows(session_factory) == []
+
+
+async def test_a_row_validation_failure_rolls_back_everything(
+    session_factory, tmp_path, monkeypatch
+):
+    await _seed(session_factory)
+    monkeypatch.setattr(mod, "assess_bootstrap_row", lambda row: (False, "forced failure"))
+    with pytest.raises(BootstrapRefused) as exc:
+        await bootstrap_loss_control(
+            sf=session_factory, adapter_factory=_factory(), commit=True, out=tmp_path / "ev.json"
+        )
+    assert exc.value.code == REFUSE_BOOTSTRAP_RESULT
+    assert await _lc_row(session_factory, 3) is None, "the invalid row must not become durable"
+    assert await _audit_rows(session_factory) == []
+
+
+async def test_commit_yields_exactly_one_row_and_one_audit_record(session_factory, tmp_path):
+    await _seed(session_factory)
+    await bootstrap_loss_control(
+        sf=session_factory, adapter_factory=_factory(), commit=True, out=tmp_path / "ev.json"
+    )
+    async with session_factory() as s:
+        rows = (
+            await s.execute(
+                text("SELECT COUNT(*) FROM risk_loss_control_state WHERE account_id = 3")
+            )
+        ).scalar()
+        audits = (
+            await s.execute(
+                text(
+                    "SELECT COUNT(*) FROM audit_log "
+                    "WHERE action = 'LOSS_CONTROL_STATE_BOOTSTRAPPED'"
+                )
+            )
+        ).scalar()
+    assert rows == 1
+    assert audits == 1
+
+
+async def test_a_second_execution_refuses_and_changes_nothing(session_factory, tmp_path):
+    await _seed(session_factory)
+    await bootstrap_loss_control(
+        sf=session_factory, adapter_factory=_factory(), commit=True, out=tmp_path / "ev1.json"
+    )
+    row_before = await _lc_row(session_factory, 3)
+    audits_before = await _audit_rows(session_factory)
+    with pytest.raises(BootstrapRefused) as exc:
+        await bootstrap_loss_control(
+            sf=session_factory, adapter_factory=_factory(), commit=True, out=tmp_path / "ev2.json"
+        )
+    assert exc.value.code == REFUSE_ROW_EXISTS
+    assert await _lc_row(session_factory, 3) == row_before
+    assert await _audit_rows(session_factory) == audits_before
+
+
+async def test_a_concurrently_created_row_is_never_claimed(
+    session_factory, tmp_path, monkeypatch
+):
+    """Simulate the race window: the absence check sees no row, but by insert time one exists — the
+    ON CONFLICT insert no-ops. The tool must refuse rather than record authorship of a row it did
+    not create, and the pre-existing row must survive unchanged."""
+    await _seed(session_factory)
+    async with session_factory() as s:
+        await s.execute(
+            text(
+                "INSERT INTO risk_loss_control_state (account_id, state, state_version, "
+                "last_sequence_no, control_version, updated_at) VALUES (3, 'NORMAL', 0, 0, "
+                ":cv, :now)"
+            ),
+            {"cv": lc_constants.LOSS_CONTROL_STATE_VERSION, "now": datetime.now(UTC)},
+        )
+        await s.commit()
+    concurrent_row = await _lc_row(session_factory, 3)
+
+    real_read = mod.read_loss_control_row
+    calls = {"n": 0}
+
+    async def racing_read(sf, account_id):
+        # The FIRST account-3 read (the absence gate) misses the concurrent row; every later read
+        # sees the truth.
+        if account_id == BOOTSTRAP_ACCOUNT_ID:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return None
+        return await real_read(sf, account_id)
+
+    monkeypatch.setattr(mod, "read_loss_control_row", racing_read)
+    with pytest.raises(BootstrapRefused) as exc:
+        await bootstrap_loss_control(
+            sf=session_factory, adapter_factory=_factory(), commit=True, out=tmp_path / "ev.json"
+        )
+    assert exc.value.code == REFUSE_NOT_CREATOR
+    assert await _audit_rows(session_factory) == [], (
+        "no authorship record may exist for a row this run did not create"
+    )
+    assert await _lc_row(session_factory, 3) == concurrent_row, (
+        "the concurrently created row must survive unchanged"
+    )
+
+
+async def test_service_bootstrap_is_transaction_owned_and_reports_authorship(session_factory):
+    """``bootstrap_state_row`` must not commit (the caller owns the transaction) and must report
+    whether THIS call inserted the row."""
+    from app.risk.loss_control.service import LossControlService
+
+    await _seed(session_factory)
+    async with session_factory() as s:
+        row, created = await LossControlService(s).bootstrap_state_row(3)
+        assert created is True
+        assert row.state == "NORMAL"
+        await s.rollback()
+    assert await _lc_row(session_factory, 3) is None, "an uncommitted bootstrap must roll back"
+
+    async with session_factory() as s:
+        _row1, created1 = await LossControlService(s).bootstrap_state_row(3)
+        assert created1 is True
+        await s.commit()
+    async with session_factory() as s:
+        _row2, created2 = await LossControlService(s).bootstrap_state_row(3)
+        assert created2 is False, "a pre-existing row is not this call's creation"
+        await s.rollback()
 
 
 async def test_a_refusal_still_records_the_checks_that_passed(session_factory, tmp_path):

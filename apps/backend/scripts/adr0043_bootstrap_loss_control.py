@@ -8,7 +8,7 @@ bootstraps — and an absent row is an ``INTEGRITY_STOP`` in ENFORCE mode. That 
 The canary account was provisioned (user/account scaffold, credentials, limits row, ``accounts_state``
 scoped sync) without the one row the enforcement gate requires: ``risk_loss_control_state``.
 
-Explicit initialization is ``LossControlService.get_state_row`` — the race-safe
+Explicit initialization is ``LossControlService.bootstrap_state_row`` — the race-safe
 ``INSERT ... ON CONFLICT DO NOTHING`` bootstrap the service itself provides — performed deliberately
 BEFORE enforcement traffic, never inside an order decision. This tool is that deliberate act, for
 exactly one account, under the same structural narrowness as the scoped sync:
@@ -87,6 +87,9 @@ REFUSE_ROW_EXISTS = "LOSS_CONTROL_STATE_ALREADY_PRESENT"
 REFUSE_UNPROTECTED_ADAPTER = "BOOTSTRAP_ADAPTER_NOT_READ_ONLY"
 REFUSE_BOOTSTRAP_RESULT = "BOOTSTRAP_RESULT_UNEXPECTED"
 REFUSE_SIDE_EFFECT = "BOOTSTRAP_SIDE_EFFECT_DETECTED"
+# The insert was a conflict no-op: a row appeared between the absence check and the insert. The
+# tool did not create it and must not record authorship of it (PR #535 review).
+REFUSE_NOT_CREATOR = "BOOTSTRAP_ROW_NOT_CREATED_BY_THIS_RUN"
 
 
 class BootstrapRefused(ScopedSyncRefused):
@@ -304,37 +307,81 @@ async def _bootstrap(
         print(f"outcome: {evidence['outcome']}", flush=True)
         return evidence
 
-    # THE write: the service's own race-safe bootstrap, never ad-hoc SQL. get_state_row commits.
+    # THE atomic provisioning transaction (PR #535 review): the state row and its governance audit
+    # record become durable TOGETHER or not at all. The service's transaction-owned
+    # ``bootstrap_state_row`` performs the race-safe insert WITHOUT committing; validation, the
+    # authorship check, the typed audit record and the no-transition proof all happen inside the
+    # same transaction, and any failure rolls the whole act back — no half-provisioned account, no
+    # NORMAL row without a durable attribution.
     async with sf() as s:
-        await LossControlService(s).get_state_row(BOOTSTRAP_ACCOUNT_ID)
+        try:
+            svc_row, created = await LossControlService(s).bootstrap_state_row(
+                BOOTSTRAP_ACCOUNT_ID
+            )
+            row_dict = {
+                "account_id": svc_row.account_id,
+                "state": svc_row.state,
+                "state_version": svc_row.state_version,
+                "last_sequence_no": svc_row.last_sequence_no,
+                "control_version": svc_row.control_version,
+            }
+            ok, detail = assess_bootstrap_row(row_dict)
+            if not check("bootstrapped_row", ok, detail):
+                raise BootstrapRefused(REFUSE_BOOTSTRAP_RESULT, detail, {"row": row_dict})
+            if not check(
+                "bootstrap_authorship",
+                created,
+                "this run inserted the row" if created else "insert was a conflict no-op",
+            ):
+                raise BootstrapRefused(
+                    REFUSE_NOT_CREATOR,
+                    "the insert was a no-op: a row appeared between the absence check and the "
+                    "insert. This run did not create it and records no authorship of it.",
+                    {"row": row_dict},
+                )
+            # The governance record — a provisioning act, NOT a fabricated NORMAL -> NORMAL
+            # transition. The hash chain extends via the model's insert hook at flush.
+            AuditLogger.write(
+                s,
+                actor_type=AuditActorType.USER,
+                actor_id="adr0043_bootstrap_loss_control",
+                action=AUDIT_ACTION,
+                target_type="risk_loss_control_state",
+                target_id=BOOTSTRAP_ACCOUNT_ID,
+                payload={
+                    "account_id": BOOTSTRAP_ACCOUNT_ID,
+                    "initial_state": EXPECTED_STATE,
+                    "state_version": EXPECTED_STATE_VERSION,
+                    "reason": AUDIT_REASON,
+                    "authority": AUDIT_AUTHORITY,
+                },
+            )
+            await s.flush()
+            in_txn_events = (
+                await s.execute(
+                    text("SELECT COUNT(*) FROM risk_control_events WHERE account_id = :a"),
+                    {"a": BOOTSTRAP_ACCOUNT_ID},
+                )
+            ).scalar() or 0
+            if in_txn_events:
+                raise BootstrapRefused(
+                    REFUSE_SIDE_EFFECT,
+                    f"{in_txn_events} risk_control_events row(s) exist for the account inside the "
+                    f"bootstrap transaction; a bootstrap must not produce a transition",
+                    {"risk_control_events": in_txn_events},
+                )
+            await s.commit()
+        except BaseException:
+            await s.rollback()
+            raise
+    check("audit_recorded", True, f"audit action {AUDIT_ACTION} committed atomically with the row")
 
-    # Verified from a FRESH read of what was actually persisted, not from the returned object.
+    # Belt and braces: verified again from a FRESH post-commit read of what was actually persisted.
     after_row = await read_loss_control_row(sf, BOOTSTRAP_ACCOUNT_ID)
     evidence["after_row"] = after_row
     ok, detail = assess_bootstrap_row(after_row)
-    if not check("bootstrapped_row", ok, detail):
+    if not check("persisted_row", ok, detail):
         raise BootstrapRefused(REFUSE_BOOTSTRAP_RESULT, detail, {"after_row": after_row})
-
-    # The governance record — an audit entry describing a provisioning act, NOT a fabricated
-    # NORMAL -> NORMAL transition. The hash chain extends via the model's insert hook.
-    async with sf() as s:
-        AuditLogger.write(
-            s,
-            actor_type=AuditActorType.USER,
-            actor_id="adr0043_bootstrap_loss_control",
-            action=AUDIT_ACTION,
-            target_type="risk_loss_control_state",
-            target_id=BOOTSTRAP_ACCOUNT_ID,
-            payload={
-                "account_id": BOOTSTRAP_ACCOUNT_ID,
-                "initial_state": EXPECTED_STATE,
-                "state_version": EXPECTED_STATE_VERSION,
-                "reason": AUDIT_REASON,
-                "authority": AUDIT_AUTHORITY,
-            },
-        )
-        await s.commit()
-    check("audit_recorded", True, f"audit action {AUDIT_ACTION} written")
 
     evidence["counters_after"] = after_counters = await side_effect_counters(sf)
     ok, problems = assess_side_effects(before_counters, after_counters, committed=True)
