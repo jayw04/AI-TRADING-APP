@@ -118,7 +118,9 @@ class LossControlService:
             )
             .on_conflict_do_nothing(index_elements=["account_id"])
         )
-        result = await self._session.execute(stmt)
+        # DML yields a `CursorResult` at runtime though typed as `Result`; `rowcount` is the
+        # authorship witness here (same pattern as `request_transition`'s CAS below).
+        result = cast("CursorResult[Any]", await self._session.execute(stmt))
         return bool(result.rowcount)
 
     async def bootstrap_state_row(
