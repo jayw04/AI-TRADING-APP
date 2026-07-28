@@ -126,8 +126,25 @@ def _strat(ctx, **over):
 
 # ---- family 0: schema/version sync -----------------------------------------------------
 
+# Genuinely intentional schema-vs-code default divergences ONLY (Tier-3 review
+# requirement). Empty by design: any entry needs a documented governance reason.
+_INTENTIONAL_SCHEMA_DIFFS: dict[str, object] = {}
+
+
 def test_schema_matches_default_params() -> None:
+    """Keys AND default values must match between params_schema and default_params. A
+    schema default contradicting the governed runtime default (e.g. enforce_beta_cap)
+    could let a schema-initialized registration silently recreate the WS-1
+    governor-registration ambiguity — the exact class of defect v1.3 exists to close."""
     assert set(CombinedBook.params_schema) == set(CombinedBook.default_params)
+    for key, spec in CombinedBook.params_schema.items():
+        if "default" not in spec:
+            continue
+        expected = (_INTENTIONAL_SCHEMA_DIFFS[key] if key in _INTENTIONAL_SCHEMA_DIFFS
+                    else CombinedBook.default_params[key])
+        assert spec["default"] == expected, (
+            f"params_schema['{key}']['default'] = {spec['default']!r} contradicts "
+            f"default_params[{key!r}] = {CombinedBook.default_params[key]!r}")
 
 
 def test_v13_settled_defaults() -> None:

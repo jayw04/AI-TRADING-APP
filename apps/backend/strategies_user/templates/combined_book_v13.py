@@ -21,12 +21,15 @@ config — ERC was used once to *derive* ~40/60, then pinned). Faithful to the v
     **correlation-aware tilt ON (λ=0.5)** — down-weights whatever is currently equity-correlated,
     leans into the live hedges (PORT-001 §11 #1; sibling has run this live since 2026-06-25).
 
-**Look-through equity-beta-cap governor (lever #2, PORT-001 §11 #2 / §6.2) — de-risk only, default
-OFF.** After the blend, optionally trim the equity-beta names (stocks + SPY/EFA/EEM) down when their
-look-through risk contribution exceeds a budget (0.80), raising cash — the non-equity legs (bonds /
-gold / commodities / USD / KMLM) untouched. Shipped ``enforce_beta_cap=False`` (book unchanged) with
-``beta_cap_report_only=True`` so the would-be haircut is logged on the live book (the dry-run) before
-the owner enables it. See ``app/research/factor_lab/beta_cap.py``.
+**Look-through equity-beta-cap governor (lever #2, PORT-001 §11 #2 / §6.2) — de-risk only,
+ENFORCED BY DEFAULT in governance v1.3.** After the blend, trim the equity-beta names (stocks +
+SPY/EFA/EEM) down when their look-through risk contribution exceeds a budget (0.80), raising cash
+— the non-equity legs (bonds / gold / commodities / USD / KMLM) untouched, the released allocation
+retained as explicit cash (never auto-redistributed). Enforcement is the governed v1.3/C40 policy
+(the 2026-07-07 owner activation, CF-1-adjudicated, is baked in as the default so a registration
+path that omits the param cannot silently recreate the WS-1 governor-registration ambiguity);
+``beta_cap_report_only=True`` keeps the telemetry logging alongside enforcement. See
+``app/research/factor_lab/beta_cap.py`` and ADR 0049.
 
 HONEST VERDICT (carried on every artifact): crash-protected BETA + diversification, NOT alpha
 (combined alpha t=0.82 insignificant; stock-selection alpha refuted under PIT). The product's
@@ -97,7 +100,8 @@ class CombinedBook(Strategy):
         "ca_corr_floor": 0.0,
         "ca_corr_cap": 2.0,
         "ca_corr_proxy": "SPY",
-        # --- look-through equity-beta-cap governor (PORT-001 lever #2; DE-RISK ONLY, default OFF) ---
+        # --- look-through equity-beta-cap governor (PORT-001 lever #2; DE-RISK ONLY;
+        # --- v1.3/C40: ENFORCED BY DEFAULT — the governed policy, ADR 0049) ---
         "enforce_beta_cap": True,       # v1.3 spec: governor ENFORCED (CF-1-adjudicated policy)
         "beta_cap_report_only": True,   # when not enforcing, still LOG the would-be haircut (dry-run)
         "beta_cap_max_rc": 0.80,        # max equity-beta risk-contribution share
@@ -194,12 +198,17 @@ class CombinedBook(Strategy):
             "description": "Equity proxy the tilt correlates each asset against (skipped if absent from the panel)."
         },
         "enforce_beta_cap": {
-            "type": "boolean", "default": False,
-            "description": "Apply the look-through equity-beta-cap governor (de-risk only). False = book unchanged (PORT-001 §6.2)."
+            "type": "boolean", "default": True,
+            "description": "Apply the look-through equity-beta-cap governor (de-risk only). "
+                           "ENFORCED BY DEFAULT under governance v1.3/C40 (ADR 0049): the "
+                           "governor is the ruled policy, and the default guarantees a "
+                           "registration that omits the param cannot silently disable it."
         },
         "beta_cap_report_only": {
             "type": "boolean", "default": True,
-            "description": "When not enforcing, still compute + log the would-be equity-beta haircut (the live dry-run)."
+            "description": "Keep the per-rebalance governor telemetry (the beta_cap signal) "
+                           "logging. With enforcement on this is logging continuity, not a "
+                           "dry-run; dry-run mode is enforce_beta_cap=False + report_only=True."
         },
         "beta_cap_max_rc": {
             "type": "number", "min": 0.1, "max": 1.0, "default": 0.80,
