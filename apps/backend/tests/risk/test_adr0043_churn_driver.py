@@ -214,16 +214,27 @@ class SettleSpy:
 # ---------------------------------------------------------------------------- seeding
 
 
-async def _seed(session_factory, *, max_daily_loss="2000", baseline: str | None = "84000"):
+async def _seed(session_factory, *, max_daily_loss="2000", baseline: str | None = "84000",
+                loss_control_row: bool = True):
     """Seed the rig, including the immutable session baseline the harness measures against.
 
     ``baseline=None`` omits the baseline row entirely — the state the validation host was actually
-    in, and the one the harness must refuse rather than read as a zero loss."""
+    in, and the one the harness must refuse rather than read as a zero loss.
+    ``loss_control_row=False`` omits the durable NORMAL state row — the 2026-07-28 attempt-1
+    provisioning gap, which preflight must now refuse by name rather than discover at the first
+    submit."""
     from app.db.enums import RiskScopeType
     from app.db.models.account_state import AccountState
     from app.db.models.risk_limits import RiskLimits
     from app.db.models.risk_session_baseline import RiskSessionBaseline
+    from app.risk.loss_control import constants as lc_constants
     async with session_factory() as s:
+        if loss_control_row:
+            from app.db.models.risk_loss_control_state import RiskLossControlState
+            s.add(RiskLossControlState(
+                account_id=3, state=lc_constants.STATE_NORMAL, state_version=0,
+                last_sequence_no=0, control_version=lc_constants.LOSS_CONTROL_STATE_VERSION,
+                updated_at=datetime.now(UTC)))
         s.add(User(id=3, email="c@t"))
         s.add(Account(id=3, user_id=3, broker="alpaca", mode=AccountMode.paper, label="C"))
         s.add(Symbol(id=1, ticker=PROTECTED_TICKER, exchange="X", asset_class="us_equity",
@@ -857,7 +868,7 @@ async def test_preflight_refuses_when_setup_symbols_are_not_flat(drv, session_fa
 
 
 async def test_preflight_refuses_inside_an_existing_lock(drv, session_factory, lib):
-    await _seed(session_factory)
+    await _seed(session_factory, loss_control_row=False)
     from sqlalchemy import text
     async with session_factory() as s:
         await s.execute(text(
@@ -867,8 +878,50 @@ async def test_preflight_refuses_inside_an_existing_lock(drv, session_factory, l
             {"now": datetime.now(UTC)})
         await s.commit()
     driver = _driver(drv, session_factory, FakeBroker())
-    with pytest.raises(lib.CanaryRefused, match="already in loss-control state"):
+    with pytest.raises(lib.CanaryRefused, match="LOSS_CONTROL_STATE_NOT_NORMAL"):
         await driver.preflight()
+
+
+async def test_preflight_refuses_a_missing_loss_control_row_by_name(drv, session_factory, lib):
+    """The 2026-07-28 attempt-1 gap: no durable state row. The ENFORCE order gate INTEGRITY_STOPs
+    on it, so preflight must refuse it BEFORE a leg is priced — not discover it at the first
+    submit."""
+    await _seed(session_factory, loss_control_row=False)
+    driver = _driver(drv, session_factory, FakeBroker())
+    with pytest.raises(lib.CanaryRefused, match="LOSS_CONTROL_STATE_MISSING"):
+        await driver.preflight()
+
+
+async def test_preflight_refuses_a_wrong_control_version_by_name(drv, session_factory, lib):
+    await _seed(session_factory, loss_control_row=False)
+    from sqlalchemy import text
+    async with session_factory() as s:
+        await s.execute(text(
+            "INSERT INTO risk_loss_control_state (account_id, state, state_version, "
+            "last_sequence_no, control_version, updated_at) "
+            "VALUES (3, 'NORMAL', 0, 0, 999, :now)"),
+            {"now": datetime.now(UTC)})
+        await s.commit()
+    driver = _driver(drv, session_factory, FakeBroker())
+    with pytest.raises(lib.CanaryRefused, match="LOSS_CONTROL_STATE_VERSION_INVALID"):
+        await driver.preflight()
+
+
+def test_assess_loss_control_row_accepts_only_a_valid_normal_row(drv, lib):
+    from app.risk.loss_control.constants import LOSS_CONTROL_STATE_VERSION
+
+    good = {"state": "NORMAL", "state_version": 0, "last_sequence_no": 0,
+            "control_version": LOSS_CONTROL_STATE_VERSION}
+    drv.assess_loss_control_row(good)                      # does not raise
+    for bad, name in (
+        (None, "LOSS_CONTROL_STATE_MISSING"),
+        ({**good, "state": "INTEGRITY_STOP"}, "LOSS_CONTROL_STATE_NOT_NORMAL"),
+        ({**good, "state_version": None}, "LOSS_CONTROL_STATE_VERSION_INVALID"),
+        ({**good, "state_version": -1}, "LOSS_CONTROL_STATE_VERSION_INVALID"),
+        ({**good, "control_version": None}, "LOSS_CONTROL_STATE_VERSION_INVALID"),
+    ):
+        with pytest.raises(lib.CanaryRefused, match=name):
+            drv.assess_loss_control_row(bad)
 
 
 async def test_reentry_rebinds_a_completed_leg_instead_of_repeating_it(drv, session_factory):
@@ -938,23 +991,33 @@ async def test_full_run_establishes_the_lock_and_leaves_setup_flat(drv, session_
 
 
 async def _trip_lock(sf):
+    """Simulate the boundary trip: advance the (now pre-provisioned) NORMAL row to the lock, the
+    way the real CAS transition would, and append its control event exactly once."""
     from sqlalchemy import text
     async with sf() as s:
-        existing = (await s.execute(text(
-            "SELECT COUNT(*) FROM risk_loss_control_state WHERE account_id = 3"))).scalar()
-        if not existing:
+        state = (await s.execute(text(
+            "SELECT state FROM risk_loss_control_state WHERE account_id = 3"))).scalar()
+        if state == "REDUCTION_ONLY_DAILY_LOSS":
+            return
+        if state is None:
             await s.execute(text(
                 "INSERT INTO risk_loss_control_state (account_id, state, state_version, "
                 "last_sequence_no, control_version, updated_at) "
                 "VALUES (3, 'REDUCTION_ONLY_DAILY_LOSS', 1, 1, 1, :now)"),
                 {"now": datetime.now(UTC)})
+        else:
             await s.execute(text(
-                "INSERT INTO risk_control_events (account_id, sequence_no, control_type, "
-                "from_state, to_state, requested_transition, trip_type, initiator_type, "
-                "control_version, created_at) VALUES (3, 1, 'LOSS_CONTROL', 'NORMAL', "
-                "'REDUCTION_ONLY_DAILY_LOSS', 'TRIP', 'DAILY_LOSS_BREACH', 'SYSTEM', 1, :now)"),
+                "UPDATE risk_loss_control_state SET state = 'REDUCTION_ONLY_DAILY_LOSS', "
+                "state_version = state_version + 1, last_sequence_no = 1, updated_at = :now "
+                "WHERE account_id = 3"),
                 {"now": datetime.now(UTC)})
-            await s.commit()
+        await s.execute(text(
+            "INSERT INTO risk_control_events (account_id, sequence_no, control_type, "
+            "from_state, to_state, requested_transition, trip_type, initiator_type, "
+            "control_version, created_at) VALUES (3, 1, 'LOSS_CONTROL', 'NORMAL', "
+            "'REDUCTION_ONLY_DAILY_LOSS', 'TRIP', 'DAILY_LOSS_BREACH', 'SYSTEM', 1, :now)"),
+            {"now": datetime.now(UTC)})
+        await s.commit()
 
 
 async def _limits(session_factory):

@@ -60,6 +60,11 @@ REFUSE_POSITIONS = "POSITION_PRECONDITION_FAILED"
 REFUSE_NOT_FLAT = "ACCOUNT_NOT_FLAT"
 REFUSE_SESSION = "MARKET_NOT_CURRENTLY_OPEN"
 REFUSE_BASELINE_CONTRADICTORY = "CONTRADICTORY_SESSION_BASELINE"
+# Named to match the churn driver's preflight refusals — readiness and execution must call the
+# same condition the same thing (2026-07-28 Phase-0 attempt-1 finding).
+REFUSE_LOSS_CONTROL_MISSING = "LOSS_CONTROL_STATE_MISSING"
+REFUSE_LOSS_CONTROL_NOT_NORMAL = "LOSS_CONTROL_STATE_NOT_NORMAL"
+REFUSE_LOSS_CONTROL_VERSION = "LOSS_CONTROL_STATE_VERSION_INVALID"
 
 _SHA_FIELDS = (
     "user_id", "scope_type", "scope_id", "broker_mode", "max_daily_loss", "max_position_qty",
@@ -297,6 +302,58 @@ def check_flat(open_orders: int, held_reservations: int) -> dict[str, Any]:
     return {"open_orders": 0, "held_reservations": 0, "clean": True}
 
 
+def check_loss_control(row: dict[str, Any] | None, *, required: bool) -> dict[str, Any]:
+    """The persisted durable loss-control state, reported EXACTLY and gated on NORMAL.
+
+    Phase-0 attempt 1 (2026-07-28) died at the first submit because the ENFORCE order gate
+    INTEGRITY_STOPs on an absent ``risk_loss_control_state`` row while readiness tooling tolerated
+    it. The readiness package now reports the exact persisted state and versions, counts a
+    non-NORMAL/absent/invalid row as NOT ready, and — when the run is asked to write a baseline —
+    refuses outright with the same named codes the driver's preflight uses. An absent row is
+    provisioned explicitly via ``scripts/adr0043_bootstrap_loss_control.py``, never here.
+    """
+    from app.risk.loss_control.constants import LOSS_CONTROL_STATE_VERSION
+
+    step: dict[str, Any] = {
+        "state": row.get("state") if row else None,
+        "state_version": row.get("state_version") if row else None,
+        "last_sequence_no": row.get("last_sequence_no") if row else None,
+        "control_version": row.get("control_version") if row else None,
+        "governed_control_version": LOSS_CONTROL_STATE_VERSION,
+        "row_present": row is not None,
+    }
+    code = detail = None
+    if row is None:
+        code, detail = (
+            REFUSE_LOSS_CONTROL_MISSING,
+            "no risk_loss_control_state row; the ENFORCE order gate INTEGRITY_STOPs on an unknown "
+            "state — bootstrap explicitly (adr0043_bootstrap_loss_control) before Phase 0",
+        )
+    elif row.get("state") != "NORMAL":
+        code, detail = (
+            REFUSE_LOSS_CONTROL_NOT_NORMAL,
+            f"loss-control state is {row.get('state')!r}, not NORMAL",
+        )
+    elif not isinstance(row.get("state_version"), int) or row["state_version"] < 0:
+        code, detail = (
+            REFUSE_LOSS_CONTROL_VERSION,
+            f"state_version={row.get('state_version')!r} is not a non-negative integer",
+        )
+    elif row.get("control_version") != LOSS_CONTROL_STATE_VERSION:
+        code, detail = (
+            REFUSE_LOSS_CONTROL_VERSION,
+            f"control_version={row.get('control_version')!r} != governed "
+            f"{LOSS_CONTROL_STATE_VERSION}",
+        )
+    if code is not None:
+        step.update({"ok": False, "refusal_code": code, "detail": detail})
+        if required:
+            raise SessionOpenRefused(code, detail, {"row": row})
+        return step
+    step["ok"] = True
+    return step
+
+
 def check_session_open(market_open_now: bool | None, *, required: bool) -> dict[str, Any]:
     """`--capture-baseline` demands a positively observed open market. An unknown clock is not an
     open one: a baseline minted outside the session it claims to describe is unauditable, and the
@@ -373,7 +430,10 @@ def build_package(
 ) -> dict[str, Any]:
     ready = all(
         steps.get(k, {}).get("ok") or steps.get(k, {}).get("clean") or steps.get(k, {}).get("sha_unchanged")
-        for k in ("1_instance", "2_database", "3_identity", "4_positions", "5_flat", "6_limits")
+        for k in (
+            "1_instance", "2_database", "3_identity", "4_positions", "5_flat", "6_limits",
+            "6b_loss_control",
+        )
     )
     reach = steps.get("9_reachability", {})
     return {
@@ -504,6 +564,15 @@ async def main(argv: list[str] | None = None) -> int:
                 )
             ).fetchall()
         ]
+        loss_control_row = (
+            await session.execute(
+                text(
+                    "SELECT state, state_version, last_sequence_no, control_version "
+                    "FROM risk_loss_control_state WHERE account_id = :a"
+                ),
+                {"a": cfg.account_id},
+            )
+        ).mappings().first()
 
     open_orders = sum(
         1
@@ -514,6 +583,9 @@ async def main(argv: list[str] | None = None) -> int:
     steps["4_positions"] = check_positions(cfg, broker_positions, db_positions)
     steps["5_flat"] = check_flat(open_orders, int(held))
     steps["6_limits"] = check_limits(cfg, limit_rows)
+    steps["6b_loss_control"] = check_loss_control(
+        dict(loss_control_row) if loss_control_row else None, required=args.capture_baseline
+    )
 
     market_open_now: bool | None
     try:
