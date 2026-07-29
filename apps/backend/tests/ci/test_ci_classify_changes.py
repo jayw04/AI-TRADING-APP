@@ -15,7 +15,13 @@ from pathlib import Path
 
 import pytest
 
-from scripts.ci_classify_changes import PROJECTS, classify, main, requires_full
+from scripts.ci_classify_changes import (
+    PROJECTS,
+    classify,
+    main,
+    requires_adr0043_by_backend_attribution,
+    requires_full,
+)
 
 CLASSIFIER = Path(__file__).resolve().parents[2] / "scripts" / "ci_classify_changes.py"
 
@@ -145,7 +151,7 @@ def test_adversarial_filename_does_not_execute_in_subprocess(tmp_path):
     assert "backend_code=true" in proc.stdout and "agent_code=true" in proc.stdout
 
 
-# ---- CLI contract: one `<project>_code=<bool>` line per project ---------------------------------
+# ---- CLI contract: one `<project>_code=<bool>` line per project, then `adr0043_gate` ------------
 
 def test_cli_emits_a_line_per_project(tmp_path, capsys):
     f = tmp_path / "changed.json"
@@ -153,7 +159,8 @@ def test_cli_emits_a_line_per_project(tmp_path, capsys):
     assert main(["ci_classify_changes.py", str(f)]) == 0
     lines = capsys.readouterr().out.strip().splitlines()
     assert lines == ["backend_code=true", "mcp_server_code=false",
-                     "mcp_workbench_code=false", "agent_code=false"]
+                     "mcp_workbench_code=false", "agent_code=false",
+                     "adr0043_gate=true"]
 
 
 def test_cli_docs_only_all_false(tmp_path, capsys):
@@ -162,7 +169,8 @@ def test_cli_docs_only_all_false(tmp_path, capsys):
     assert main(["ci_classify_changes.py", str(f)]) == 0
     assert capsys.readouterr().out.strip().splitlines() == [
         "backend_code=false", "mcp_server_code=false",
-        "mcp_workbench_code=false", "agent_code=false"]
+        "mcp_workbench_code=false", "agent_code=false",
+        "adr0043_gate=false"]
 
 
 # ---- FAIL CLOSED on malformed input -------------------------------------------------------------
@@ -189,3 +197,133 @@ def test_subprocess_exit_code_is_nonzero_on_bad_input(tmp_path):
     f.write_text("not json at all", encoding="utf-8")
     proc = subprocess.run([sys.executable, str(CLASSIFIER), str(f)], capture_output=True, text=True)
     assert proc.returncode != 0 and proc.stdout.strip() == ""
+
+
+# ---- ADR 0043 loss-control gate selection (PR 1: path gating) -----------------------------------
+#
+# The gate runs `pytest tests/risk` with scoped branch coverage on app.risk.loss_control. Only a
+# backend-project change (or a GLOBAL path) can move its outcome. These tests pin BOTH directions:
+# it must fire for anything that can affect loss control, and must NOT fire for work that cannot.
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "apps/backend/app/risk/loss_control/gate.py",       # the modules under the coverage floor
+        "apps/backend/app/risk/loss_control/state_machine.py",
+        "apps/backend/app/risk/engine.py",                  # risk engine
+        "apps/backend/app/services/order_router.py",        # order path
+        "apps/backend/app/db/models/risk_limits.py",        # account-state controls
+        "apps/backend/alembic/versions/abc_add_column.py",  # migrations
+        "apps/backend/app/services/some_shared_service.py", # transitively shared services
+        "apps/backend/tests/risk/test_loss_control.py",     # the tests implementing the gate
+        "apps/backend/scripts/check_adr0043_coverage.py",   # the gate's own checker
+        "apps/backend/pyproject.toml",                      # backend dependency surface
+    ],
+)
+def test_adr0043_gate_runs_for_paths_that_can_affect_loss_control(path):
+    assert requires_adr0043_by_backend_attribution([path]) is True
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "apps/frontend/src/components/Chart.tsx",           # unrelated frontend work
+        "apps/frontend/package.json",
+        "docs/adr/0043-loss-control.md",                    # documentation, even about ADR 0043
+        "docs/review/mr002/evidence.json",
+        "README.md",
+        "apps/mcp-server/src/tools.py",                     # isolated auxiliary projects
+        "apps/mcp-workbench/src/server.py",
+        "apps/agent/src/runtime.py",
+        "manifests/s3/objects/repo-docs-adr.v1.json",
+        "reports/daily.md",
+    ],
+)
+def test_adr0043_gate_skipped_for_paths_that_cannot(path):
+    assert requires_adr0043_by_backend_attribution([path]) is False
+
+
+def test_adr0043_gate_runs_for_global_paths():
+    # A workflow or root-manifest change re-verifies everything, including this gate.
+    assert requires_adr0043_by_backend_attribution([".github/workflows/ci.yml"]) is True
+    assert requires_adr0043_by_backend_attribution(["uv.lock"]) is True
+
+
+def test_adr0043_gate_defaults_UP_on_an_empty_changeset():
+    # Deliberately DIFFERENT from FULL selection: for FULL, "nothing changed" means LIGHT; here an
+    # empty list means the changed-file list could not be determined, so ambiguity defaults upward.
+    assert requires_adr0043_by_backend_attribution([]) is True
+    assert classify([])["backend"] is False          # the documented divergence
+
+
+def test_adr0043_gate_runs_when_a_mixed_changeset_touches_backend():
+    # One backend file among many irrelevant ones must still arm the gate.
+    assert requires_adr0043_by_backend_attribution(
+        ["apps/frontend/src/App.tsx", "docs/x.md", "apps/backend/app/risk/engine.py"]
+    ) is True
+
+
+def test_adr0043_gate_never_selects_lower_than_backend_full():
+    # The core safety property: the gate must fire whenever backend FULL fires. If a future
+    # narrowing breaks this, a loss-control regression could reach main under a green result.
+    samples = [
+        ["apps/backend/app/risk/loss_control/service.py"],
+        ["apps/backend/tests/risk/test_gate.py"],
+        ["deploy/aws/stack.yaml"],
+        ["scripts/some_root_script.py"],
+        [".github/workflows/ci.yml"],
+        ["apps/frontend/src/App.tsx"],
+        ["docs/note.md"],
+        [],
+    ]
+    for paths in samples:
+        if classify(paths)["backend"]:
+            assert requires_adr0043_by_backend_attribution(paths) is True, paths
+
+
+def test_cli_emits_the_adr0043_gate_line(tmp_path, capsys):
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps(["apps/backend/app/risk/engine.py"]), encoding="utf-8")
+    assert main(["ci_classify_changes.py", str(f)]) == 0
+    assert "adr0043_gate=true" in capsys.readouterr().out.splitlines()
+
+
+def test_cli_emits_gate_false_for_a_frontend_only_change(tmp_path, capsys):
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps(["apps/frontend/src/App.tsx"]), encoding="utf-8")
+    assert main(["ci_classify_changes.py", str(f)]) == 0
+    assert "adr0043_gate=false" in capsys.readouterr().out.splitlines()
+
+
+def test_adr0043_gate_handles_renames():
+    """A rename surfaces as changed path(s). Whichever side is backend must arm the gate.
+
+    dorny/paths-filter reports renamed files; depending on config the OLD path, the NEW path,
+    or both appear. All three shapes must be safe, so a file moving OUT of the backend still
+    arms the gate (its removal can change what tests/risk imports).
+    """
+    # backend -> backend
+    assert requires_adr0043_by_backend_attribution(
+        ["apps/backend/app/risk/old_name.py", "apps/backend/app/risk/new_name.py"]) is True
+    # backend -> frontend, both sides listed
+    assert requires_adr0043_by_backend_attribution(
+        ["apps/backend/app/helper.py", "apps/frontend/src/helper.ts"]) is True
+    # backend -> frontend, only the OLD (backend) path listed
+    assert requires_adr0043_by_backend_attribution(["apps/backend/app/helper.py"]) is True
+    # frontend -> frontend: nothing backend on either side
+    assert requires_adr0043_by_backend_attribution(
+        ["apps/frontend/src/a.tsx", "apps/frontend/src/b.tsx"]) is False
+
+
+def test_adr0043_gate_mixed_path_matrix():
+    """Mixed changesets: one backend path anywhere in the set must arm the gate."""
+    irrelevant = ["docs/x.md", "apps/frontend/src/App.tsx", "apps/agent/src/r.py", "reports/d.md"]
+    assert requires_adr0043_by_backend_attribution(irrelevant) is False
+    for backend_path in (
+        "apps/backend/app/risk/loss_control/gate.py",
+        "apps/backend/tests/risk/test_x.py",
+        "apps/backend/alembic/versions/x.py",
+        "deploy/aws/stack.yaml",
+        ".github/workflows/ci.yml",
+    ):
+        assert requires_adr0043_by_backend_attribution(irrelevant + [backend_path]) is True, backend_path

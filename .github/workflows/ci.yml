@@ -77,6 +77,10 @@ jobs:
       mcp_server_code: ${{ steps.classify.outputs.mcp_server_code }}
       mcp_workbench_code: ${{ steps.classify.outputs.mcp_workbench_code }}
       agent_code: ${{ steps.classify.outputs.agent_code }}
+      # ADR 0043 loss-control test + branch-coverage gate selection. 'true' whenever a backend or
+      # GLOBAL path changed, on every push/dispatch/schedule, and on any classifier ambiguity —
+      # it defaults UP. Only backend paths move that outcome — see requires_adr0043_by_backend_attribution.
+      adr0043_gate: ${{ steps.classify.outputs.adr0043_gate }}
       # the FULL matrix: exactly the projects whose FULL suite must run this event.
       py_full: ${{ steps.pyfull.outputs.py_full }}
     steps:
@@ -133,7 +137,7 @@ jobs:
             out=$(python3 apps/backend/scripts/ci_classify_changes.py "$RUNNER_TEMP/changed.json") \
               || { echo "::error::change classifier failed — failing closed"; exit 1; }
           else
-            out=$'backend_code=true\nmcp_server_code=true\nmcp_workbench_code=true\nagent_code=true'
+            out=$'backend_code=true\nmcp_server_code=true\nmcp_workbench_code=true\nagent_code=true\nadr0043_gate=true'
           fi
           echo "$out"
           echo "$out" >> "$GITHUB_OUTPUT"
@@ -252,8 +256,17 @@ jobs:
       # the full risk suite (which exercises the loss-control tests), produces a scoped branch
       # coverage report (its own file, so it never clobbers the FULL run's coverage.xml), and
       # fails if any required loss-control module is below 0.95 OR absent from the report.
+      # PATH-GATED (GITHUB-OPS-001 cost work, PR 1). Measured 96 s x 582 backend LIGHT jobs in
+      # July 2026 = 933 min = 11.7% of the month's billable minutes. A 120-PR replay shows 80.8%
+      # of those invocations are LEGITIMATE (the PR touched backend paths); the AVOIDABLE portion
+      # is ~178 runner-min/month. `tests/risk` and `app.risk.loss_control` live entirely inside
+      # apps/backend/, so only a backend or GLOBAL path change can alter the outcome.
+      # `adr0043_gate` is 'true' for every push/dispatch/schedule and on classifier ambiguity
+      # (empty changeset ⇒ true), so this NEVER skips when the gate could matter. The predicate is
+      # unit-tested in apps/backend/tests/ci/test_ci_classify_changes.py, including the invariant
+      # that it can never select lower than backend FULL.
       - name: ADR 0043 loss-control tests + branch-coverage gate (backend)
-        if: matrix.p.project == 'backend'
+        if: matrix.p.project == 'backend' && needs.changes.outputs.adr0043_gate == 'true'
         working-directory: ${{ matrix.p.dir }}
         run: |
           pytest -q tests/risk --cov=app.risk.loss_control --cov-branch \
@@ -396,8 +409,13 @@ jobs:
           s="${{ needs.changes.outputs.mcp_server_code }}"
           w="${{ needs.changes.outputs.mcp_workbench_code }}"
           a="${{ needs.changes.outputs.agent_code }}"
+          g="${{ needs.changes.outputs.adr0043_gate }}"
           echo "event=$event changes=$changes_result light=$light_result full=$full_result backend=$b mcp_server=$s mcp_workbench=$w agent=$a"
+          echo "adr0043_gate=$g (ADR 0043 loss-control tests + branch-coverage gate; 'false' ⇒ no backend path changed)"
 
+          # 0) the ADR 0043 gate flag must be a known value. An empty/garbage value would make the
+          #    step's `if` silently evaluate false and SKIP the loss-control gate — fail closed instead.
+          case "$g" in true|false) ;; *) echo "::error::unknown adr0043_gate flag '$g' — failing closed"; exit 1 ;; esac
           # 1) classifier must have succeeded (covers draft-skip, classifier failure, cancellation)
           if [ "$changes_result" != "success" ]; then
             echo "::error::classifier job result='$changes_result' (not success) — failing closed"; exit 1
