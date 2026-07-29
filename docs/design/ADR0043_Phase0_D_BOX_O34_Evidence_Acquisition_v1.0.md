@@ -1,0 +1,115 @@
+# ADR-0043 Phase-0 D-BOX — O3/O4 Evidence Acquisition (Successor Package)
+
+| Field | Value |
+|-------|-------|
+| Document ID | ADR0043-PH0-D-BOX-O34-EVIDENCE-ACQ-001 v1.0 |
+| Status | **DESIGN-ONLY — NON-EXECUTABLE UNDER CAMPAIGN-001 v1.1** |
+| Created | 2026-07-29 |
+| Parent campaign | ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.1 (Option 2A) |
+| Controlling design | ADR0043-PH0-CTRL-001 v1.1 |
+| Integration design | ADR0043-PH0-INTEGRATION-DESIGN-001 v1.0 |
+| Broker order submission | **HOLD — not authorized by this package** |
+| D-BOX package execution | **Not authorized** (separate campaign start required) |
+| D-WIRE | **Deferred** |
+
+This package defines **prospective** rules for constructing future bindable O3 and O4
+evidence after the governed locate established that no pre-existing corpus / observation
+sets are available. It does **not** create datasets, does **not** seal a freeze manifest,
+and does **not** authorize campaign packages beyond what CAMPAIGN-001 v1.1 already allows.
+
+---
+
+## 1. Purpose
+
+Enable a **future** campaign version to bind:
+
+1. an **O3** sealed historical-replay corpus; and
+2. separate **O4-A** decision-time and **O4-B** forensic observation sets;
+
+each with identity, size, SHA-256, provenance, eligibility window, and observation counts —
+without look-ahead contamination of O4-A.
+
+---
+
+## 2. Observation-set construction rules (prospective)
+
+### 2.1 Shared rules
+
+| Rule | Requirement |
+|------|-------------|
+| Account scope | Account **3** only for any account-scoped evidence |
+| Immutability | Once sealed, archive is append-forbidden; supersession requires a new archive id |
+| Identity | Stable `observation_set_id` / `sealed_archive_id` assigned at seal time |
+| Hash | SHA-256 of canonical archive bytes; pinned in freeze manifest |
+| Storage | Local sealed path and/or S3 object with **Version ID** + SHA-256 (fail closed) |
+| Provenance | Written seal record: constructor, host, tooling commit, source systems, exclusions |
+| No invention | Temporary / “TBD during execution” names **forbidden** in any freeze seal |
+
+### 2.2 O3 historical-replay corpus
+
+| Field | Prospective requirement |
+|-------|-------------------------|
+| Content | Eligible historical observations sufficient to exercise integrated plan, quote provenance, authority, loss, checkpoint, and recovery behavior; support false-reachable scoring and model-coverage recording |
+| Eligibility window | Explicit UTC `[start, end]` frozen **before** evaluation; no post-hoc extension without superseding archive |
+| Sampling | Document inclusion rules, stratum definitions, and exclusion list (halts, bad ticks, out-of-scope symbols, non-account-3 events) |
+| Exclusions | Record every excluded class with reason codes |
+| Archive procedure | Deterministic pack → SHA-256 → seal record → optional S3 pin → bind into a **new** freeze manifest |
+| Relation to AMD-08 | Sealed-set open/unseal remains a logged procedure; this package supplies the corpus that AMD-08 would open |
+
+### 2.3 O4-A decision-time set
+
+| Field | Prospective requirement |
+|-------|-------------------------|
+| Content | Evidence available **before first broker submission only** (quotes, model/runtime presence, plan/authority inputs) |
+| Decision-time cutoff | Explicit timestamp / event marker: **first submission boundary**; everything after is out of set |
+| Prohibition | **No future knowledge** — fills, terminal broker state, and post-submit quotes **must not** appear in O4-A |
+| Expected gate use | O4-A replay → `INDETERMINATE` + `INSUFFICIENT_EXECUTION_COST` (or `MODEL_UNAVAILABLE` if model absent) |
+| Counts | Observation / plan count recorded at seal |
+| Time range | UTC range ending at or before the decision-time cutoff |
+
+### 2.4 O4-B forensic / terminal set
+
+| Field | Prospective requirement |
+|-------|-------------------------|
+| Content | Complete terminal evidence **including fills** and terminal loss/accounting inputs |
+| Boundary | Distinct archive from O4-A; mixing into O4-A is a refuse condition |
+| Expected gate use | O4-B replay → `UNREACHABLE_WITHIN_CAPS` |
+| Counts | Observation / fill / plan counts recorded at seal |
+| Time range | UTC range covering terminalization of the same episodes (documented linkage to O4-A episode ids without merging blobs) |
+
+### 2.5 No-mix rule (load-bearing)
+
+O4-A and O4-B are **separate sealed archives**. A harness or evaluator that combines fields
+from both into one bundle must **refuse**. Episode linkage (shared ids) is allowed in
+metadata; payload mixing is not.
+
+---
+
+## 3. Archive and hash procedure (prospective)
+
+1. Freeze construction config (eligibility window, sampling, exclusions, cutoff).
+2. Materialize archive bytes under a staging path (not yet authoritative).
+3. Compute SHA-256; write seal record (constructor, tooling commit, counts, windows).
+4. Promote to sealed path / upload S3 with Version ID.
+5. Bind into a **new** freeze-manifest document (not an in-place edit of a sealed body).
+6. Owner acknowledgment before any campaign that consumes the archive.
+
+---
+
+## 4. What this package does **not** authorize
+
+- Broker order submission or generation of new live fills
+- Using production paper stack `b0058bf` as the construction runtime without a separate
+  isolation ruling
+- Treating WP7 hermetic fixtures or freeze-test stubs as sealed observation sets
+- Reopening O3/O4/O5 inside CAMPAIGN-001 v1.1 without a new campaign-scope version
+- D-WIRE eligibility
+
+---
+
+## 5. Disposition
+
+**DESIGN-ONLY.** Execution of construction requires a separate owner authorization that
+references this document ID and does not lift HOLD.
+
+*End of ADR0043-PH0-D-BOX-O34-EVIDENCE-ACQ-001 v1.0.*

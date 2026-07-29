@@ -3,8 +3,9 @@
 | Field | Value |
 |-------|-------|
 | Document ID | ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.0 |
-| Status | **FROZEN FOR CAMPAIGN — contingent on effective ADR0043-PH0-D-BOX-001** |
+| Status | **SUPERSEDED by ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.1** (Option 2A — absent O3/O4 identities) |
 | Freeze date | 2026-07-29 |
+| Superseded by | `docs/design/ADR0043_Phase0_D_BOX_Campaign_Scope_v1.1.md` |
 | Supersedes | ADR0043-PH0-D-BOX-CAMPAIGN-001 v0.1 |
 | Authorization ruling | ADR0043-PH0-D-BOX-001 |
 | Integration design | ADR0043-PH0-INTEGRATION-DESIGN-001 v1.0 |

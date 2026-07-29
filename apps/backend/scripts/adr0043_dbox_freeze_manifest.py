@@ -207,9 +207,25 @@ def readiness_check(doc: dict[str, Any]) -> list[str]:
                     f"broker read[{i}] missing side-effect-free proof"
                 )
 
-    datasets = body.get("datasets", {}).get("entries")
-    if not isinstance(datasets, list) or len(datasets) < 1:
+    datasets_block = body.get("datasets", {})
+    datasets = (
+        datasets_block.get("entries") if isinstance(datasets_block, dict) else None
+    )
+    o3_absent = (
+        isinstance(datasets_block, dict)
+        and str(datasets_block.get("o3_status", "")).upper() == "ABSENT"
+        and "INCONCLUSIVE" in str(
+            datasets_block.get("o3_predetermined_disposition", "")
+        ).upper()
+    )
+    if not isinstance(datasets, list):
+        errors.append("datasets.entries must be an array")
+    elif len(datasets) < 1 and not o3_absent:
         errors.append("datasets.entries must be a non-empty array")
+    elif len(datasets) < 1 and o3_absent:
+        # Option 2A / CAMPAIGN-001 v1.1: O3 corpus absent — empty entries[] is required
+        # (do not invent placeholder corpus rows).
+        pass
     else:
         for i, ds in enumerate(datasets):
             if not isinstance(ds, dict):
@@ -243,6 +259,8 @@ def readiness_check(doc: dict[str, Any]) -> list[str]:
                     f"datasets.entries[{i}].storage must be 's3' or 'local_sealed'"
                 )
 
+    # Deferred O4 gates (CAMPAIGN-001 v1.1 Option 2A): observation_set_id may be ABSENT
+    # when execution_status=DEFERRED and predetermined disposition is INCONCLUSIVE.
     writes = body.get("permitted_writes", {}).get("operations")
     if not isinstance(writes, list):
         errors.append("permitted_writes.operations must be an array")
@@ -301,14 +319,27 @@ def readiness_check(doc: dict[str, Any]) -> list[str]:
                                 f"pass_criteria.{gate}.{list_key} placeholder"
                             )
             if gate in {"O4-A", "O4-B"}:
-                for req in ("observation_set_id", "replay_boundary"):
-                    v = c.get(req)
-                    if v is None or v == "" or (
-                        isinstance(v, str) and PLACEHOLDER_RE.search(v)
-                    ):
+                deferred = (
+                    str(c.get("execution_status", "")).upper() == "DEFERRED"
+                    and "INCONCLUSIVE"
+                    in str(c.get("predetermined_disposition", "")).upper()
+                    and str(c.get("observation_set_id", "")).upper() == "ABSENT"
+                )
+                if deferred:
+                    # Option 2A: do not invent observation-set identities.
+                    if not c.get("replay_boundary"):
                         errors.append(
-                            f"pass_criteria.{gate} missing bound {req}"
+                            f"pass_criteria.{gate} missing replay_boundary"
                         )
+                else:
+                    for req in ("observation_set_id", "replay_boundary"):
+                        v = c.get(req)
+                        if v is None or v == "" or (
+                            isinstance(v, str) and PLACEHOLDER_RE.search(v)
+                        ):
+                            errors.append(
+                                f"pass_criteria.{gate} missing bound {req}"
+                            )
             if gate == "O5":
                 for req in (
                     "clopper_pearson_confidence",
