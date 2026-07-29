@@ -70,8 +70,8 @@ This ruling is **effective**. Conditions satisfied:
 | Ruling path | `docs/design/ADR0043_Phase0_Offline_Completion_Owner_Ruling_v1.0.md` |
 | Ruling commit (proposed text on `main`) | `e877715b87a6b656435b92e82882eef6d3baabf8` via merge `1ac153c153a5ecaa21ff5874b145d8c46f53dd85` |
 | Ruling SHA-256 (proposed text) | `4856a9fc275b6f2c29c5f1d8979fb373276cca72608c68863995dc6b86748739` |
-| Ruling commit (EFFECTIVE signed text) | *(bound to the commit that lands this APPROVED revision on `main`)* |
-| Ruling SHA-256 (EFFECTIVE signed text) | *(bound after that commit; see follow-up bind commit if needed)* |
+| Ruling commit (EFFECTIVE signed text) | `792f2587a471ffc2cf704ebd77156d0b6f85c978` |
+| Ruling SHA-256 (EFFECTIVE signed text) | `494fb749b457dbb19b6b99cc2b9c4764f9b0045325fe958c9307f4928f3669b2` (file bytes at `792f258`; this bind commit updates only the Publication identity table) |
 
 ---
 
