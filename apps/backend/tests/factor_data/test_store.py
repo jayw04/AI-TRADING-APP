@@ -78,15 +78,20 @@ def test_ingest_tickers_survives_legacy_column_order(tmp_path) -> None:
             "category VARCHAR, isdelisted BOOLEAN, firstpricedate DATE, lastpricedate DATE, "
             "lastupdated DATE, sector VARCHAR, industry VARCHAR)"
         )
+        # …then the migration the store applies on open, which is how a real pre-`permaticker` store
+        # acquires the column. It lands LAST physically — a second reason the insert must map by name.
+        s.con.execute("ALTER TABLE tickers ADD COLUMN IF NOT EXISTS permaticker VARCHAR")
+
         df = pd.DataFrame([dict(
-            ticker="AAA", name="Alpha", exchange="NYSE", category="Domestic Common Stock",
+            ticker="AAA", permaticker="123456", name="Alpha", exchange="NYSE",
+            category="Domestic Common Stock",
             sector="Basic Materials", industry="Chemicals", isdelisted="N",
             firstpricedate="2010-01-01", lastpricedate="2026-07-06", lastupdated="2026-07-07",
         )])
         assert s.ingest_tickers(df) == 1   # positional INSERT would raise ConversionException here
         assert s.con.execute(
-            "SELECT sector, isdelisted FROM tickers WHERE ticker = 'AAA'"
-        ).fetchone() == ("Basic Materials", False)
+            "SELECT sector, isdelisted, permaticker FROM tickers WHERE ticker = 'AAA'"
+        ).fetchone() == ("Basic Materials", False, "123456")
     finally:
         s.close()
 

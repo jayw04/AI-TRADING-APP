@@ -71,6 +71,11 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from app.validation.forward_window import IntegrityStop
+from app.validation.security_lineage import (
+    LINEAGE_BRIDGE_HOLE_MIN_SESSIONS,
+    SessionLineageFilter,
+    assess_bridge_risk,
+)
 
 # The registered construction constants (§2 / stage2 / stage4 frozen controls).
 MOMENTUM_LOOKBACK_SESSIONS = 252
@@ -92,6 +97,7 @@ class DataReadiness(StrEnum):
     NOT_READY_CURRENT_SESSION_MISSING = "NOT_READY_CURRENT_SESSION_MISSING"
     NOT_READY_LOOKBACK_INCOMPLETE = "NOT_READY_LOOKBACK_INCOMPLETE"
     NOT_READY_PROXY_INCOMPLETE = "NOT_READY_PROXY_INCOMPLETE"
+    NOT_READY_LINEAGE_BRIDGE_RISK = "NOT_READY_LINEAGE_BRIDGE_RISK"
     NOT_READY_INGEST_IN_PROGRESS = "NOT_READY_INGEST_IN_PROGRESS"
     NOT_READY_ADJUSTMENT_UNVERIFIED = "NOT_READY_ADJUSTMENT_UNVERIFIED"
     INTEGRITY_STOP_DATA_CONFLICT = "INTEGRITY_STOP_DATA_CONFLICT"
@@ -163,6 +169,15 @@ class DataFinalityEvidence:
     # what the construction required
     construction: dict[str, int] = field(default_factory=dict)
     missing_examples: tuple[str, ...] = ()     # a few names, for operational diagnosis
+    # Security-identity resolution (PERMATICKER_EFFECTIVE_INTERVAL_V1). Carries the contract version,
+    # the raw and lineage-eligible counts, and every exclusion with its reason and permanent ids.
+    # Recorded so the 691 → 672 → 664 path reads as three named steps rather than one unexplained
+    # reduction: raw → lineage-eligible (here) → rule-eligible (`proxy_expected_constituents`) →
+    # contributing (`proxy_contributing_constituents`).
+    lineage: dict[str, Any] | None = None
+    # Kept SEPARATE from the exclusion counts on purpose: a name may be lineage-excluded without
+    # threatening the frozen proxy, and only the bridge shape stops the session.
+    lineage_proxy_bridge_check: dict[str, Any] | None = None
 
     @property
     def ready(self) -> bool:
@@ -375,6 +390,17 @@ def assess_data_finality(
     earliest = window_dates[-1] if window_dates else None
     latest = window_dates[0] if window_dates else None
 
+    # ── security-identity resolution, applied at the ONE seam every consumer draws from ──
+    # Wrapping the universe callable — rather than filtering inside each consumer — is what makes it
+    # impossible for ranking, the proxy basket, the completeness numerator or the decision itself to
+    # see a pre-filter candidate. A name whose lookback crosses a permanent-lineage boundary is not
+    # merely excused from a denominator; it never reaches the computation at all.
+    lineage_filter: SessionLineageFilter | None = None
+    if earliest is not None:
+        lineage_filter = SessionLineageFilter(store, session_date=session_date,
+                                              lookback_start=earliest)
+        uni = lineage_filter.wrap(uni)
+
     max_row = st.one("SELECT MAX(date) FROM sep")
     max_finalized = max_row[0] if max_row else None
 
@@ -398,6 +424,7 @@ def assess_data_finality(
         "session_missing": 0, "momentum_candidates": 0, "full_lookback_candidates": 0,
         "proxy_expected": 0, "proxy_contributing": 0, "proxy_sessions_checked": 0,
         "proxy_sessions_incomplete": 0, "missing_examples": (), "relevance_tickers": (),
+        "bridge_check": None,
     }
 
     def evidence(verdict: DataReadiness, detail: str, basis: str = "", proven: bool = False,
@@ -426,7 +453,9 @@ def assess_data_finality(
             corporate_actions_in_window=int(actions_count or 0),
             corporate_actions_max_date=_iso(actions_max),
             adjustment_reflection_proven=proven, adjustment_evidence=adjustment,
-            construction=asdict(spec), missing_examples=state["missing_examples"])
+            construction=asdict(spec), missing_examples=state["missing_examples"],
+            lineage=(lineage_filter.assessment().to_evidence() if lineage_filter else None),
+            lineage_proxy_bridge_check=state["bridge_check"])
 
     # (1) mid-flight or unclean ingest
     if unclean:
@@ -520,6 +549,43 @@ def assess_data_finality(
 
     # (6) the market proxy's OWN constituent set
     proxy_verdict = _assess_proxy(st, uni, spec, window_dates, session_date, state)
+
+    # (6b) could a lineage-excluded symbol FABRICATE a return inside the frozen proxy?
+    #
+    # `build_market_proxy` is a frozen validated artifact that calls `universe_asof` directly, so its
+    # basket cannot be filtered — an excluded name is still in its panel. Almost always that is
+    # harmless: `pct_change` across a one-sided hole is NaN and `skipna` drops it. The exception is
+    # marks on BOTH sides of a long hole, where two disconnected segments get bridged into one
+    # enormous fabricated return that flows into the index and the regime it drives.
+    #
+    # Since the replica may not be modified, eligibility upstream is the control point: the session
+    # refuses BEFORE the proxy is used, rather than the caveat being carried forward as a standing
+    # assumption. This can only ever add a refusal — it never restores a name to eligibility.
+    if lineage_filter is not None:
+        ma_window = sorted(window_dates[:spec.regime_ma_sessions])
+        risks = assess_bridge_risk(store, lineage_filter.assessment().excluded, window=ma_window)
+        state["bridge_check"] = {
+            "examined_exclusions": lineage_filter.assessment().excluded_count,
+            "risky_exclusions": len(risks),
+            "min_hole_sessions": LINEAGE_BRIDGE_HOLE_MIN_SESSIONS,
+            "window_start": ma_window[0].isoformat() if ma_window else None,
+            "window_end": ma_window[-1].isoformat() if ma_window else None,
+            "window_sessions": len(ma_window),
+            "verdict": "PASS" if not risks else "REFUSE",
+            "risks": [r.to_evidence() for r in risks],
+        }
+        if risks:
+            names = ", ".join(
+                f"{r.ticker} (perma {r.permaticker}, {r.hole_sessions} session hole "
+                f"{r.hole_start}..{r.hole_end}, last mark before {r.last_mark_before}, first after "
+                f"{r.first_mark_after})" for r in risks)
+            return evidence(
+                DataReadiness.NOT_READY_LINEAGE_BRIDGE_RISK,
+                f"{len(risks)} lineage-excluded symbol(s) hold marks on BOTH sides of a hole of at "
+                f"least {LINEAGE_BRIDGE_HOLE_MIN_SESSIONS} governed sessions inside the proxy window: "
+                f"{names}. The frozen market-proxy construction would bridge those disconnected "
+                f"segments into a fabricated return", basis)
+
     if proxy_verdict is not None:
         return evidence(DataReadiness.NOT_READY_PROXY_INCOMPLETE, proxy_verdict, basis)
 

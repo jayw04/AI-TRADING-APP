@@ -17,7 +17,7 @@ cutoff up to the session.
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from app.validation.governed_corpus import (
@@ -33,6 +33,19 @@ UNIVERSE_SHA = "a" * 64
 BASE_CORPUS_SHA = "d" * 64
 ACTIONS_MANIFEST_SHA = "e" * 64
 
+#: The embedded TICKERS construction. `coverage_cutoff` is filled per-session by the installer, since
+#: a security master that stops before the session cannot say which securities were tradeable during it.
+TICKERS_BLOCK = {
+    "schema_version": "TICKERS_V2_PERMATICKER",
+    "columns": ["permaticker", "ticker", "name", "firstpricedate", "lastpricedate"],
+    "rows": 2,
+    "permanent_ids": 2,
+    "row_identity_sha256": "b" * 64,
+    "artifact_sha256": "c" * 64,
+    "source_identity": "SHARADAR/TICKERS (table=SEP)",
+    "countersignature": "TickersManifest_v1.0",
+}
+
 
 def install_governed_construction(tmp_path: Path, session: date) -> dict:
     """Write the frozen artifacts and both manifests. Returns the deployment manifest `corpus` block."""
@@ -43,6 +56,8 @@ def install_governed_construction(tmp_path: Path, session: date) -> dict:
     ledger = tmp_path / "TrialLedger.json"
     ledger.write_bytes((GOVERNED_ARTIFACTS / "TrialLedger_v1.0.json").read_bytes())
 
+    from app.validation.security_lineage import SECURITY_IDENTITY_CONTRACT
+
     corpus_path = tmp_path / "corpus_manifest.json"
     corpus_path.write_text(json.dumps({
         "base_corpus_sha256": BASE_CORPUS_SHA,
@@ -51,6 +66,15 @@ def install_governed_construction(tmp_path: Path, session: date) -> dict:
         "governed_universe_size": 14_150,
         "actions_manifest_sha256": ACTIONS_MANIFEST_SHA,
         "actions_authoritative": True,
+        # ADR 0048 as amended 2026-07-29: TICKERS is part of the bound construction, and the rule by
+        # which its rows resolve to securities is bound with it.
+        # TICKERS coverage naturally runs to "now", i.e. at or past the session. Held clear of the
+        # session here so it never becomes the binding constraint in tests that are about something
+        # else; the cutoff rule has its own dedicated cases in `test_governed_corpus`.
+        "tickers": TICKERS_BLOCK | {
+            "coverage_cutoff": (session + timedelta(days=30)).isoformat()},
+        "tickers_authoritative": True,
+        "security_identity_contract": SECURITY_IDENTITY_CONTRACT,
         "base_countersignature": "GoverningCorpus_Countersignature_v2.0",
         "deltas": [],
     }), encoding="utf-8")
@@ -80,6 +104,8 @@ def install_governed_construction(tmp_path: Path, session: date) -> dict:
         "ordered_delta_manifest_sha256s": list(corpus.ordered_delta_manifest_sha256s),
         "governed_universe_sha256": corpus.governed_universe_sha256,
         "actions_manifest_sha256": corpus.actions_manifest_sha256,
+        "tickers_manifest_sha256": corpus.tickers_manifest_sha256,
+        "security_identity_contract": corpus.security_identity_contract,
         "corpus_manifest_sha256": corpus.corpus_manifest_sha256,
         "dgs3mo_manifest_sha256": dgs.dgs3mo_manifest_sha256,
     }

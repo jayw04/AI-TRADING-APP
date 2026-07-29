@@ -177,6 +177,11 @@ def deployment_manifest(repo: Path, *, build: dict[str, Any], corpus_manifest_pa
             "ordered_delta_manifest_sha256s": list(corpus.ordered_delta_manifest_sha256s),
             "governed_universe_sha256": corpus.governed_universe_sha256,
             "actions_manifest_sha256": corpus.actions_manifest_sha256,
+            # Surfaced INDEPENDENTLY of the corpus identity so an operator reading a mismatch can tell
+            # whether TICKERS content moved, the resolver's semantics moved, or some other component
+            # of the construction did. A single rolled-up digest would say only "something changed".
+            "tickers_manifest_sha256": corpus.tickers_manifest_sha256,
+            "security_identity_contract": corpus.security_identity_contract,
             "corpus_manifest_sha256": corpus.corpus_manifest_sha256,
             "dgs3mo_manifest_sha256": dgs3mo.dgs3mo_manifest_sha256,
             # store_identity_sha256 is deliberately ABSENT: it does not exist until a session performs
