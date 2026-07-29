@@ -181,7 +181,8 @@ authorization or an explicitly governed same-plan retry rule.
 | 4 | **WP3** Checkpoint integrity | CORR-07 / AMD-07 |
 | 5 | **WP4** Crash consistency | CORR-04 / AMD-20 |
 | 6 | **CORR-06** account isolation (AMD-12) | Own numbered package + exit gate; after WP4, before O1/O2 structural approval on the box; retry = account 3 only; canary acceptance = zero account-1 credential-metadata mutation |
-| 7 | WP5–WP9 | Dataset / model / gates; WP5 carries statistical-design freeze |
+| 7 | **WP5** Statistical-design freeze (AMD-02 / D2) | Floors 59/20/10; one replacement then lock; CP bounds; §3.6 assumptions |
+| 8 | WP6–WP9 | Estimator / dataset / gates |
 
 Phase-0 retry: account-3 only; no trading or risk-state mutation outside account 3.
 Formal canary acceptance: zero account-1 credential-metadata mutation.
