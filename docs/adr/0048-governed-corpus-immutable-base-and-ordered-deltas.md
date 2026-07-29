@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-07-27 |
-| Status | Proposed |
+| Date | 2026-07-27 (amended 2026-07-29) |
+| Status | Accepted — amended 2026-07-29 (TICKERS bound into the construction; security identity is `permaticker` + effective interval) |
 | Phase | Forward validation (Workstream B) — Account-4 critical path |
 | Supersedes | — |
 | Related | 0047 (production witness infrastructure), 0046 (AWS SDK dependency and the KMS witness-signer boundary), 0044 (deployment lifecycle and fail-closed operational holds), 0033 (historical data integrity), PREREG_EqualWeight_Production_Validation_v1.0 §0/§5/§7, GITHUB-OPS-001, owner ruling 2026-07-27 |
@@ -319,6 +319,96 @@ of exceptional. Rejected because it reintroduces exactly the property append-onl
 recorded observation whose inputs can change afterwards, through an ordinary path, without a
 superseding version anyone reviews.
 
+## Amendment — 2026-07-29: TICKERS joins the construction, and identity is permanent, not symbolic
+
+Ratified by the owner on 2026-07-29, after the first end-to-end readiness run of the deployed
+forward-validation host surfaced two defects this ADR as originally written could not have caught.
+
+### What the first real readiness run found
+
+**The registered universe was empty for every session after 2026-06-12.** `universe_asof` — the same
+call the decision makes — returned 500 names through 2026-06-12 and **zero** from 2026-06-15 onward,
+including **2026-07-24, the forward window's own start date**. The cause was not the SEP/ACTIONS
+corpus this ADR governs. It was `tickers`, ingested once on 2026-06-15 with `lastpricedate` topping
+out at 2026-06-12: the universe is a join of SEP volume against the TICKERS lifetime bounds, so a
+stale security master silently produces an empty universe rather than an error. The forward window
+could never have opened, on any date, and nothing in the governed construction would have said so.
+
+**A symbol is not a security.** `ECHO` resolved to a continuous 2008→2026 lifetime in TICKERS while
+its SEP series held a four-and-a-half-year hole, because the corpus was ingested before the vendor
+renamed EchoStar onto the symbol and retired `SATS`. Measured across the base: **66 orphaned keys**
+whose history the vendor has moved elsewhere, and **8 active symbols** carrying the conflation
+signature. This is a recurring mechanism — every vendor rename produces it — not an isolated bad row.
+
+### The decisions
+
+**1. The governed construction is five ordered parts.**
+
+```
+1. immutable SEP/ACTIONS base
+2. ordered SEP/ACTIONS deltas
+3. governed TICKERS construction
+4. DGS3MO base plus ordered extensions
+5. frozen preregistration artifacts
+```
+
+TICKERS is bound because the decision demonstrably depends on it. Leaving it outside would let two
+materially different constructions — one yielding an empty universe, one yielding 500 names — share
+the same authorized identity, which is precisely the property `corpus_manifest_sha256` exists to deny.
+
+**2. Five independently material identities.** None substitutes for another:
+
+| Identity | Proves |
+|---|---|
+| `governed_universe_sha256` | which universe the base is bound to |
+| `tickers_manifest_sha256` | which security master, at which cutoff, with which permanent ids |
+| `security_identity_contract` | the RULE by which rows resolve to securities |
+| `corpus_manifest_sha256` | the whole authorized construction |
+| `store_identity_sha256` | what the session actually consumed (unchanged, §7) |
+
+`tickers_manifest_sha256` binds schema version, selected vendor columns, row count, permanent-id
+count, a row-identity digest over `(permaticker, ticker, firstpricedate, lastpricedate)`, the coverage
+cutoff and the artifact hash. It is **computed from an embedded block**, not referenced by digest from
+a separate configured file — that removes a configuration-binding failure mode rather than adding one.
+
+**3. Security identity is `permaticker` + effective interval — `PERMATICKER_EFFECTIVE_INTERVAL_V1`.**
+The ticker is an attribute of that identity, never its primary key. Eligibility at session S requires
+one active lineage at S, **every SEP row in the required lookback resolving to that same lineage**,
+and metadata agreeing with the price history. Failing any of those, the candidate is excluded
+**before ranking and target construction** — not merely exempted from a completeness denominator,
+because a momentum score computed across a reuse boundary is a number for no company at all.
+
+A rename *within* one lineage stays eligible, including when the vendor retires the predecessor key
+on retro-map. That case is the norm, not the exception: on 2026-07-27 it covered `BNY←BK`, `FISV←FI`,
+`MRSH←MMC` and `KEEL←BITF`, all with complete histories. Only a predecessor resolving to a *different
+existing* permanent id is decisive; otherwise price/metadata continuity decides.
+
+**4. Version the rule, not just the data.** `security_identity_contract` is bound so a later resolver
+change cannot silently reinterpret identical artifacts. Changing the contract, or the governed
+`lineage_bridge_hole_min_sessions` threshold (initially **20**), changes the construction identity and
+requires review.
+
+**5. The frozen replica is not modified; eligibility upstream is the control point.**
+`build_market_proxy` calls `universe_asof` directly and cannot be filtered. Its unfiltered input is
+accepted **only** when data-finality proves no lineage-excluded symbol holds marks on *both* sides of
+a hole of at least 20 governed sessions — the one shape where `pct_change` bridges two disconnected
+segments into a fabricated return. Otherwise the session refuses before the proxy is used. One-sided
+gaps are ordinary delistings and new listings and remain non-blocking.
+
+**6. Layer 2 stays separate.** This amendment makes conflated names *ineligible*; it does not make
+their values correct. Reconstructing history under permanent identities, remapping retired aliases,
+and removing cross-company conflation is a distinct governed program producing a new whole-corpus
+identity and countersignature, with the current defective corpus preserved as superseded evidence.
+Per §4, that is not a delta.
+
+### Consequence accepted
+
+Excluded names shrink the universe. Measured for 2026-07-27: the scoring universe was unaffected at
+**200/200**; the proxy basket went 691 → 672 lineage-eligible → 664 expected after the existing rule
+exclusions, contributing **664/664** with **0/200** incomplete sessions. The preregistered minimum is
+evaluated against the *eligible* count, never the raw one, and no gate is relaxed to accommodate an
+exclusion: if filtering causes a gate to fail, the observation refuses.
+
 ## Re-evaluation triggers
 
 - **A delta is ever refused in operation** for a reason other than a genuine integrity stop — a
@@ -334,6 +424,15 @@ superseding version anyone reviews.
   assumes one base, one delta chain, and one program reading it.
 - **The universe definition changes.** The base is bound to exactly 14,150 tickers; a universe change
   is a new base, not a delta, and this ADR does not describe how the two would be reconciled.
+- **A lineage refusal fires in ordinary operation** rather than on a genuine reuse. The retired-
+  predecessor case was refused by an early draft and had to be corrected; the threshold between
+  "vendor alias retirement" and "security discontinuity" is empirical and may need restating.
+- **`lineage_bridge_hole_min_sessions` (20) rejects or admits the wrong shape.** It is an initial
+  governed parameter chosen to separate a disconnected segment from a data blemish, not a derived
+  constant.
+- **Layer 2 completes.** Once history is reconstructed under permanent identities, names excluded here
+  become eligible again, and the exclusion counts recorded in every observation are the measure of
+  what that repair recovered.
 - **`store_identity_sha256` and `corpus_manifest_sha256` ever disagree in a way the runtime cannot
   explain.** That is either a real integrity event or a defect in the separation this ADR rests on,
   and both need a decision rather than a patch.
