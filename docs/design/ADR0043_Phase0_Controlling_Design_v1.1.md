@@ -180,7 +180,7 @@ authorization or an explicitly governed same-plan retry rule.
 | 3 | **WP2** Reachability / decision adjudicator | Verdicts + reason codes; Tier D non-binding |
 | 4 | **WP3** Checkpoint integrity | CORR-07 / AMD-07 |
 | 5 | **WP4** Crash consistency | CORR-04 / AMD-20 |
-| 6 | **CORR-06** account isolation | Own numbered package + exit gate; after WP4, before O1/O2 structural approval on the box |
+| 6 | **CORR-06** account isolation (AMD-12) | Own numbered package + exit gate; after WP4, before O1/O2 structural approval on the box; retry = account 3 only; canary acceptance = zero account-1 credential-metadata mutation |
 | 7 | WP5–WP9 | Dataset / model / gates; WP5 carries statistical-design freeze |
 
 Phase-0 retry: account-3 only; no trading or risk-state mutation outside account 3.
