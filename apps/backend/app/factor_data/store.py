@@ -36,6 +36,11 @@ _SEP_COLS = [
     "volume", "closeadj", "closeunadj", "lastupdated",
 ]
 _TICKERS_COLS = [
+    # `permaticker` is the vendor's PERMANENT security identifier and leads the projection because it,
+    # not `ticker`, is the durable identity (owner ruling 2026-07-29). Symbols are reused across
+    # unrelated issuers and retro-mapped on rename, so a ticker-keyed row says nothing durable about
+    # WHICH security it describes. See `app/validation/security_lineage.py`.
+    "permaticker",
     "ticker", "name", "exchange", "category", "sector", "industry", "isdelisted",
     "firstpricedate", "lastpricedate", "lastupdated",
 ]
@@ -78,12 +83,17 @@ CREATE TABLE IF NOT EXISTS sep (
 -- the as-of ticker universe (delisting flags + price-date bounds drive PIT eligibility)
 CREATE TABLE IF NOT EXISTS tickers (
   ticker         VARCHAR PRIMARY KEY,
+  permaticker    VARCHAR,                     -- vendor PERMANENT security id; the durable identity
   name           VARCHAR, exchange VARCHAR, category VARCHAR,
   sector         VARCHAR, industry VARCHAR,   -- Sharadar classification (P10 §3 sector caps)
   isdelisted     BOOLEAN,
   firstpricedate DATE, lastpricedate DATE,
   lastupdated    DATE
 );
+-- Existing stores predate `permaticker`. Added idempotently rather than by rebuild so a live factor
+-- store upgrades in place; it is NOT backfilled from ticker equality (that would invent exactly the
+-- identity the column exists to establish), so an unrefreshed store fails identity resolution closed.
+ALTER TABLE tickers ADD COLUMN IF NOT EXISTS permaticker VARCHAR;
 
 -- corporate actions (splits / divs / delistings)
 CREATE TABLE IF NOT EXISTS actions (
@@ -287,9 +297,9 @@ class FactorDataStore:
             # 2026-07-07). An explicit column list maps by name, immune to the physical column order.
             """
             INSERT OR REPLACE INTO tickers
-                (ticker, name, exchange, category, sector, industry,
+                (ticker, permaticker, name, exchange, category, sector, industry,
                  isdelisted, firstpricedate, lastpricedate, lastupdated)
-            SELECT ticker, name, exchange, category, sector, industry,
+            SELECT ticker, CAST(permaticker AS VARCHAR), name, exchange, category, sector, industry,
                    TRY_CAST(isdelisted AS BOOLEAN),
                    TRY_CAST(firstpricedate AS DATE), TRY_CAST(lastpricedate AS DATE),
                    TRY_CAST(lastupdated AS DATE)

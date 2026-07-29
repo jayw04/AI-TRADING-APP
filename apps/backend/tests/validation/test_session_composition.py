@@ -373,6 +373,53 @@ def test_the_composition_root_refuses_a_store_it_cannot_open(tmp_path):
     assert "absent.duckdb" in str(exc.value)
 
 
+@POSIX_ONLY
+def test_the_bridge_refusal_lands_before_the_frozen_proxy_is_built(tmp_path, monkeypatch):
+    """`build_market_proxy` is frozen and builds its own UNFILTERED basket, so the one finding that
+    says its input could fabricate a return has to refuse before it runs.
+
+    Ordering is what is pinned, not merely the outcome: a test asserting only "it refused" would pass
+    with the check moved after the proxy — by which point the fabricated return has already been
+    averaged into the index and the regime it drives.
+    """
+    from app.validation import session_composition as sc
+    from app.validation.data_finality import DataReadiness
+
+    calls: list[str] = []
+
+    class _BridgeRisk:
+        verdict = DataReadiness.NOT_READY_LINEAGE_BRIDGE_RISK
+        detail = "1 lineage-excluded symbol(s) ... would bridge those disconnected segments into a " \
+                 "fabricated return"
+
+        def to_open_provenance(self):
+            return {}
+
+    class _Readiness:
+        def __init__(self, *args):
+            pass
+
+        def assess(self, session):
+            calls.append("finality")
+            return _BridgeRisk()
+
+    class _Store:
+        def close(self):
+            calls.append("store-closed")
+
+    monkeypatch.setattr(sc, "_open_store", lambda config: _Store())
+    monkeypatch.setattr(sc, "_session_calendar", lambda store, session: (session,))
+    monkeypatch.setattr(sc, "_GovernedReadiness", _Readiness)
+    monkeypatch.setattr(sc, "_build_proxy_closes",
+                        lambda *a, **k: calls.append("proxy") or ({}, "identity"))
+
+    with pytest.raises(CompositionError, match="fabricated return"):
+        build_session_runtime(_governed_config(tmp_path), SESSION)
+
+    assert "finality" in calls
+    assert "proxy" not in calls, "the frozen market proxy was built despite a bridge-risk refusal"
+
+
 def test_the_composition_root_enforces_the_witness_before_touching_data(tmp_path, monkeypatch):
     """Ordering is load-bearing: a REFERENCE-profile deployment must never reach the store."""
     from app.validation import session_composition as sc

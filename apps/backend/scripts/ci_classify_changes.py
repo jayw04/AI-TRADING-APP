@@ -35,6 +35,13 @@ GLOBAL_PATTERNS: tuple[str, ...] = (
     "requirements*.txt",
     "poetry.lock",
     "uv.lock",
+    # The committed deterministic resolutions (GITHUB-OPS-001). A change here alters the exact
+    # third-party graph every project installs, so it must re-verify ALL of them — never just
+    # the project whose file changed. Also covers the generator/gate, since a change to either
+    # can alter or stop validating what lands in constraints/.
+    "constraints/**",
+    "scripts/regenerate_dependency_locks.py",
+    "scripts/check_dependency_locks.py",
 )
 
 # Per-project ownership. A change under one of these ⇒ that project's FULL suite runs.

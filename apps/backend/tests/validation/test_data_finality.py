@@ -67,10 +67,14 @@ def _sep_frame(sessions: list[date], tickers: list[str]) -> pd.DataFrame:
 
 
 def _tickers_frame(tickers: list[str], first: date, last: date) -> pd.DataFrame:
+    # `permaticker` is mandatory under PERMATICKER_EFFECTIVE_INTERVAL_V1: a row without one refuses
+    # its lineage, so a fixture omitting it produces an empty universe rather than a ready store.
     return pd.DataFrame([
-        {"ticker": t, "name": t, "exchange": "NYSE", "category": "Domestic Common Stock",
+        {"ticker": t, "permaticker": f"P{i:06d}", "name": t, "exchange": "NYSE",
+         "category": "Domestic Common Stock",
          "sector": "Technology", "industry": "Software", "isdelisted": False,
-         "firstpricedate": first, "lastpricedate": last, "lastupdated": last} for t in tickers])
+         "firstpricedate": first, "lastpricedate": last, "lastupdated": last}
+        for i, t in enumerate(tickers)])
 
 
 @pytest.fixture
@@ -252,16 +256,17 @@ def test_duplicate_rows_are_an_integrity_stop(tmp_path):
     con = duckdb.connect(str(tmp_path / "dup.duckdb"))
     con.execute("CREATE TABLE sep (ticker VARCHAR, date DATE, open DOUBLE, high DOUBLE, low DOUBLE, "
                 "close DOUBLE, volume BIGINT, closeadj DOUBLE, closeunadj DOUBLE, lastupdated DATE)")
-    con.execute("CREATE TABLE tickers (ticker VARCHAR, sector VARCHAR, isdelisted BOOLEAN, "
-                "firstpricedate DATE, lastpricedate DATE, lastupdated DATE)")
+    con.execute("CREATE TABLE tickers (ticker VARCHAR, permaticker VARCHAR, sector VARCHAR, "
+                "isdelisted BOOLEAN, firstpricedate DATE, lastpricedate DATE, lastupdated DATE)")
     con.execute("CREATE TABLE actions (date DATE, action VARCHAR, ticker VARCHAR, value DOUBLE, "
                 "contraticker VARCHAR)")
     con.execute("CREATE TABLE ingest_runs (dataset VARCHAR, started_at TIMESTAMP, "
                 "finished_at TIMESTAMP, rows BIGINT, status VARCHAR)")
     con.executemany("INSERT INTO sep VALUES (?, ?, 10, 10, 10, 10, 1000000, 10, 10, ?)",
                     [(t, d, d) for d in ALL_SESSIONS for t in TICKERS[:60]])
-    con.executemany("INSERT INTO tickers VALUES (?, 'Tech', false, ?, ?, ?)",
-                    [(t, ALL_SESSIONS[0], ALL_SESSIONS[-1], ALL_SESSIONS[-1]) for t in TICKERS[:60]])
+    con.executemany("INSERT INTO tickers VALUES (?, ?, 'Tech', false, ?, ?, ?)",
+                    [(t, f"P{i:06d}", ALL_SESSIONS[0], ALL_SESSIONS[-1], ALL_SESSIONS[-1])
+                     for i, t in enumerate(TICKERS[:60])])
     con.execute("INSERT INTO sep VALUES ('T0000', ?, 10, 10, 10, 10, 1000000, 11, 10, ?)",
                 [SESSION, SESSION])                                   # the duplicate
     ev = assess_data_finality(con, SESSION, construction=SPEC,

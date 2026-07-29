@@ -7,7 +7,10 @@ name = "workbench-mcp"
 version = "0.0.1"
 description = "Trading Workbench MCP server (tools for Claude Code + runtime Agent Strategy)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.13"   # GOVERNED LINE: CI, runtime images and the committed
+# resolution in constraints/ are all CPython 3.12. 3.11 was advertised but never tested or
+# deployed; 3.13+ is untested. Restoring either needs its own compatibility decision, test
+# matrix and lock artifacts. Changing this line requires regenerating constraints/.
 authors = [{ name = "Jay Wang" }]
 dependencies = [
     # PINNED EXACTLY. `mcp 2.0.0` (released 2026-07-28) moved/removed `mcp.server.fastmcp`,
