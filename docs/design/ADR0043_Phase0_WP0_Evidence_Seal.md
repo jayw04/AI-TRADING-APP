@@ -49,7 +49,17 @@ path + existence + mode only, or encrypt under owner key.
       `exclusions` (with reasons).
 - [x] Independent re-verify command/script succeeds against the sealed store
       (checksum mismatch → fail closed). *(``verify`` subcommand)*
-- [ ] HOLD posture unchanged; no account 1–7 risk-state writes during the seal. *(operator confirms at box run)*
+- [x] HOLD posture unchanged; no account 1–7 risk-state writes during the seal. *(box seal 20260729T161843Z: hash-only; PASS verify)*
+
+## Box seal record (executed 2026-07-29)
+
+| Field | Value |
+|-------|-------|
+| Seal dir | `/opt/workbench/data/ops/adr0043_wp0_seals/20260729T161843Z` |
+| Verify | **PASS** (116 hashed entries) |
+| Controlling design | ADR0043-PH0-CTRL-001 v1.1 |
+| Roots | `DEPLOYED_BUILD_INFO.json`, `/opt/workbench/data/ops` |
+| Exclusions | credentials/password basenames; nested `adr0043_wp0_seals`; bulk DB/parquet by default |
 
 ## Deliverables
 
