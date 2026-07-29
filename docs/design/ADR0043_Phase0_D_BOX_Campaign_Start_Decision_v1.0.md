@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Ruling ID | ADR0043-PH0-D-BOX-START-001 |
-| Decision | **PROPOSED — NOT EFFECTIVE** (pending owner signature to authorize start) |
+| Decision | **APPROVED / EFFECTIVE** |
 | Scope | Partial structural packages only: **CORR-06 → O1 → O2** |
 | Bound freeze manifest | ADR0043-PH0-D-BOX-FREEZE-MANIFEST-002 |
 | Sealed artifact | `docs/design/ADR0043_Phase0_D_BOX_Freeze_Manifest_002_SEALED.json` |
@@ -13,16 +13,23 @@
 | Campaign label | **PARTIAL STRUCTURAL CAMPAIGN ONLY — NO D-WIRE ELIGIBILITY — O3/O4/O5 DEFERRED** |
 | Freeze tooling tip | `b6836eb5718ab20a7799bb261f3eea3e4054b11f` |
 | Campaign merge | `709e6136900d1e5e22bb0c074dc90ea35cadf22b` |
-| Status | **HOLD ON START** until this ruling is signed EFFECTIVE |
+| Seal publish merge | `14fe277e6352e8fbe60e934785cba9f31740d2b3` |
+| Status | **EFFECTIVE** — Option 2A start authorized |
+| Sign-off | Owner acknowledgment (Jay Wang) — typed governance acknowledgment |
+| Effective date (UTC) | `2026-07-29T23:54:33Z` |
+| Publication path | `docs/design/ADR0043_Phase0_D_BOX_Campaign_Start_Decision_v1.0.md` |
+| Publication commit | `5d187e3f9d21ef47fbbb6c8ef4568e7197236a0e` |
+| Publication file SHA-256 | `505bf50d96d699e8ef902cba2597a924ff772112b9f0df1d87e78601197fdf8e` |
 
 ---
 
 ## 1. Purpose
 
 This is the **separate** owner start decision required after seal of FREEZE-MANIFEST-002.
-Sealing proved readiness. **Sealing did not authorize execution.**
+Sealing proved readiness. **Sealing did not authorize execution**; this ruling does, for
+Option 2A only.
 
-When made **EFFECTIVE** by owner signature, this ruling authorizes **only**:
+This ruling authorizes **only**:
 
 1. **CORR-06** exit package  
 2. **O1** structural conformance package  
@@ -32,7 +39,7 @@ in that order, under CAMPAIGN-001 v1.1 and the sealed freeze identity above.
 
 ---
 
-## 2. Explicitly not authorized (even after this start is EFFECTIVE)
+## 2. Explicitly not authorized (even while this start is EFFECTIVE)
 
 | Item | Status |
 |------|--------|
@@ -60,10 +67,8 @@ and `verify-seal` exits 0.
 | Field | Value |
 |-------|-------|
 | Approving role | Owner |
-| Decision when signed | **APPROVED / EFFECTIVE** for Option 2A start only |
-| Sign-off | ________________ |
-| Effective date (UTC) | ________________ |
+| Decision | **APPROVED / EFFECTIVE** for Option 2A start only |
+| Sign-off | Owner acknowledgment (Jay Wang) — typed governance acknowledgment |
+| Effective date (UTC) | `2026-07-29T23:54:33Z` |
 
-Until signed, campaign start remains **HOLD**.
-
-*End of ADR0043-PH0-D-BOX-START-001 (PROPOSED).*
+*End of ADR0043-PH0-D-BOX-START-001 (EFFECTIVE).*
