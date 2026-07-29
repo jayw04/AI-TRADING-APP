@@ -222,6 +222,23 @@ def test_verify_seal_mismatch(mod, tmp_path: Path):
     assert mod.cmd_verify_seal(p) == 0
 
 
+def test_o3_absent_allows_empty_datasets(mod):
+    body = _minimal_ready_body()
+    body["datasets"] = {
+        "entries": [],
+        "o3_status": "ABSENT",
+        "o3_predetermined_disposition": "INCONCLUSIVE — REQUIRED CORPUS ABSENT",
+    }
+    for gate in ("O4-A", "O4-B"):
+        body["gate_packages"]["pass_criteria"][gate]["execution_status"] = "DEFERRED"
+        body["gate_packages"]["pass_criteria"][gate][
+            "predetermined_disposition"
+        ] = "INCONCLUSIVE — SET ABSENT"
+        body["gate_packages"]["pass_criteria"][gate]["observation_set_id"] = "ABSENT"
+    doc = {"manifest_body": body, "seal": {"manifest_status": "UNSEALED_DRAFT"}}
+    assert mod.readiness_check(doc) == []
+
+
 def test_script_has_no_order_path_imports():
     text = SCRIPT.read_text(encoding="utf-8")
     for needle in (
