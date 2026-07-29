@@ -66,7 +66,16 @@ def _iter_files(root: Path) -> list[Path]:
     return sorted(out)
 
 
-def _should_exclude(path: Path, *, include_db: bool) -> str | None:
+def _should_exclude(path: Path, *, include_db: bool, out_dir: Path | None = None) -> str | None:
+    if out_dir is not None:
+        try:
+            path.resolve().relative_to(out_dir.resolve())
+            return "seal_output_directory"
+        except ValueError:
+            pass
+    # Nested historical seals under ops/
+    if "adr0043_wp0_seals" in path.parts:
+        return "prior_or_nested_wp0_seal"
     if _DEFAULT_EXCLUDE_BASENAME.search(path.name):
         return "credential_or_secret_basename"
     if not include_db and path.suffix.lower() in {".sqlite", ".duckdb", ".parquet"}:
@@ -85,6 +94,7 @@ def build_seal(
     include_db: bool,
 ) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = out_dir.resolve()
     manifest: dict[str, str] = {}
     exclusions: list[dict[str, str]] = []
     inventory: list[dict[str, str]] = []
@@ -98,7 +108,7 @@ def build_seal(
             continue
         for path in _iter_files(root):
             rel_key = str(path.resolve())
-            why = _should_exclude(path, include_db=include_db)
+            why = _should_exclude(path, include_db=include_db, out_dir=out_dir)
             if why:
                 exclusions.append({"path": rel_key, "reason": why})
                 continue
