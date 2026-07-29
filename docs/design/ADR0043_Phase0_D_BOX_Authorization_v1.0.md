@@ -108,7 +108,7 @@ manifest (campaign §3) to be sealed before CORR-06 or any O-gate.
 | Integration design path | `docs/design/ADR0043_Phase0_Integration_Design_v1.0.md` |
 | Integration design commit | `05095a6f91520fbcd6e01e8b937ef9895af39fc6` |
 | Integration design SHA-256 | `5d0ab3c1adbb6a145345c6657cac2db2a9395644abe39127b559ae862f974078` |
-| `main` merge commit | *(record after PR merge)* |
+| `main` merge commit | `62f2770ac0a6d277fdfa5704a446792527a9e65a` (PR #548) |
 
 ---
 
