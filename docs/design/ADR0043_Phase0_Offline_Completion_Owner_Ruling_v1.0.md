@@ -4,10 +4,10 @@
 |-------|-------|
 | Ruling ID | ADR0043-PH0-OFFLINE-COMPLETE-001-RULING-001 |
 | Document ruled upon | ADR0043-PH0-OFFLINE-COMPLETE-001 v1.0 |
-| Decision | **PROPOSED APPROVAL — pending owner signature** |
+| Decision | **APPROVED** |
 | Scope | ADR-0043 Phase-0 offline implementation completion |
 | Ruling date | 2026-07-29 |
-| Status | **LOCAL DRAFT — not effective until owner signature and governed publication** |
+| Status | **EFFECTIVE** — owner-signed and published under recorded repository identity |
 
 ## Ruling
 
@@ -46,35 +46,33 @@ authorization requires a versioned amendment or superseding completion record.
 
 ## Effectiveness
 
-This ruling becomes effective only after:
+This ruling is **effective**. Conditions satisfied:
 
-1. owner signature;
-2. publication in the governed repository;
-3. recording of the ruling path and commit identity (and the completion-record path and
-   commit identity) in the Publication identity table below.
-
-Until those conditions are met, this document remains a **non-operative local draft**.
-Do not cite an unsigned draft as an operative approval.
+1. owner signature (below);
+2. publication in the governed repository (PR [#545](https://github.com/jayw04/AI-TRADING-APP/pull/545), merge `1ac153c153a5ecaa21ff5874b145d8c46f53dd85`);
+3. recording of completion-record and ruling path/commit identities in the Publication
+   identity table below (EFFECTIVE text bound by the commit that introduces this signed
+   revision).
 
 ## Sign-off
 
 | Role | Name | Date | Signature |
 |------|------|------|-----------|
-| Owner | Jay Wang | 2026-07-29 | |
+| Owner | Jay Wang | 2026-07-29 | Approved (owner directive 2026-07-29) |
 
 ## Publication identity
 
 | Item | Value |
 |------|-------|
 | Completion-record path | `docs/design/ADR0043_Phase0_Offline_Implementation_Completion_Record_v1.0.md` |
-| Completion-record commit | *(fill after governed publication)* |
-| Completion-record SHA-256 | *(optional; fill after publication)* |
+| Completion-record commit | `e877715b87a6b656435b92e82882eef6d3baabf8` (content); on `main` via merge `1ac153c153a5ecaa21ff5874b145d8c46f53dd85` |
+| Completion-record SHA-256 | `51e7205ee7d6ec5ffe163e6901b076f4c68c7eef1162c7d58c43a5116b7edfd4` |
 | Ruling path | `docs/design/ADR0043_Phase0_Offline_Completion_Owner_Ruling_v1.0.md` |
-| Ruling commit | *(fill after governed publication)* |
-| Ruling SHA-256 | *(optional; fill after publication)* |
+| Ruling commit (proposed text on `main`) | `e877715b87a6b656435b92e82882eef6d3baabf8` via merge `1ac153c153a5ecaa21ff5874b145d8c46f53dd85` |
+| Ruling SHA-256 (proposed text) | `4856a9fc275b6f2c29c5f1d8979fb373276cca72608c68863995dc6b86748739` |
+| Ruling commit (EFFECTIVE signed text) | *(bound to the commit that lands this APPROVED revision on `main`)* |
+| Ruling SHA-256 (EFFECTIVE signed text) | *(bound after that commit; see follow-up bind commit if needed)* |
 
 ---
 
-*Non-operative until owner-signed and published under a recorded repository identity.
-After signature + publication, change Decision to **APPROVED** and Status to
-**EFFECTIVE**, and complete the Publication identity table.*
+*Operative owner completion ruling for the Phase-0 offline baseline. HOLD unchanged.*
