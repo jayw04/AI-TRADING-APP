@@ -61,6 +61,12 @@ ALLOWED = {
     # OrderRouter + the risk engine), not a direct adapter call. It is the only
     # order call site in the file; there is no adapter/broker access.
     "strategies_user/templates/combined_book.py",
+    # Strategy 9 governance-v1.3 (C40, PR #537): the v1.3 combined-book template calls
+    # `self.ctx.submit_order(...)` to trade its rebalance diff — the same sanctioned
+    # context path (dispatches through OrderRouter + the risk engine), not a direct
+    # adapter call. It is the only order call site in the file; there is no
+    # adapter/broker access.
+    "strategies_user/templates/combined_book_v13.py",
     # P7 §7-A: the momentum-daily template (Workstream B) calls
     # `self.ctx.submit_order(...)` for its daily rebalance and the initial_seed
     # cold-start deployment — the same sanctioned context path (dispatches through
