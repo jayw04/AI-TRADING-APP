@@ -176,9 +176,10 @@ authorization or an explicitly governed same-plan retry rule.
 | Order | Package | Notes |
 |-------|---------|-------|
 | 1 | **WP0** Preserve and seal current evidence | First; exit gate before structural work that mutates evidence |
-| 2 | WP1–WP4 | As v1.0, under this controlling design |
-| 3 | **CORR-06** account isolation | Own numbered package + exit gate; after WP4, before O1/O2 |
-| 4 | WP5–WP9 | Dataset / model / gates; WP5 carries statistical-design freeze |
+| 2 | **WP1** ExecutionPlan authority + auth lifecycle (Gate O1) | Offline contracts; no broker |
+| 3 | WP2–WP4 | As v1.0, under this controlling design |
+| 4 | **CORR-06** account isolation | Own numbered package + exit gate; after WP4, before O1/O2 structural approval on the box |
+| 5 | WP5–WP9 | Dataset / model / gates; WP5 carries statistical-design freeze |
 
 Phase-0 retry: account-3 only; no trading or risk-state mutation outside account 3.
 Formal canary acceptance: zero account-1 credential-metadata mutation.
