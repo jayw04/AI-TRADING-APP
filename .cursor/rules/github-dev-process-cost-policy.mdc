@@ -1,0 +1,63 @@
+---
+description: GITHUB-OPS-001 v1.2 — batching, CI tiers, docs/S3 hybrid model, Actions cost discipline
+alwaysApply: true
+---
+
+# GitHub Development Process & Cost Optimization (v1.2)
+
+**Authority:** `docs/methodology/GitHub_Development_Process_and_Cost_Optimization_Policy_v1.2.md` (GITHUB-OPS-001).
+
+## Before you push or open a PR
+
+- **One coherent work item per PR** — no checkpoint PRs for unfinished work.
+- **1–3 remote pushes per work item** (default); batch review fixes into one push.
+- Run **local validation first**: ruff/format, focused pytest for affected modules, type checks where applicable.
+- Exclude temporary files, exploratory output, draft docs, secrets, and large binaries.
+
+## CI discipline (Actions cost is the primary metered cost)
+
+- Classify changes into **Tier 0–3**; do not trigger full CI mentally or via unnecessary pushes for low-risk edits.
+- **Tier 0:** docs/markdown only — no backend/frontend/image jobs.
+- **Tier 1–2:** isolated or cross-module app changes — affected tests only.
+- **Tier 3 (full CI required):** migrations, infra, auth, deployment, risk engine, order path, release candidates.
+- **As implemented:** `.github/workflows/ci.yml` runs a per-project **LIGHT** pass (ruff + mypy +
+  fast invariant checks) on every PR, and adds a project's **FULL** pass (pytest + coverage) when
+  `apps/backend/scripts/ci_classify_changes.py` flags it. `scripts/**` and `deploy/**` count as
+  *backend*; `.github/workflows/ci.yml` and root dependency manifests flag **all** projects.
+  `Python CI Gate` is the single required check and fails closed. Draft PRs run zero jobs.
+- Never weaken Trading Workbench **architectural invariants** or CI invariants for cost savings (see `CLAUDE.md`).
+
+## Documentation — where a document belongs (GITHUB-OPS-001 §6.1)
+
+- **Git** (governing, reviewable in a diff, readable in an incident without AWS):
+  `docs/adr/**`, `docs/runbook/**`, `docs/incidents/**`, `docs/methodology/*.md`,
+  `docs/design/*.md`, `docs/implementation/*.md`, `docs/observability/**`, `docs/*.md`.
+- **S3** (bulk): generated evidence, research archives, large data, and
+  `.docx`/`.xlsx`/`.pdf`/`.gz`/`.whl`/images — pinned by Version ID + SHA-256 in a manifest.
+- **Classifying a new document:** governing (someone reviews it, or reads it under
+  pressure) → Git. Generated/archival/bulky → S3 + manifest.
+- ⚠ **Status:** this is the classification rule, **not an enforced split** — all of `docs/**` is
+  currently tracked in Git and no fetch/publish tooling is merged. Do not add new bulk material to
+  Git; do not assume a missing `docs/` path can be fetched from S3.
+- ⚠ **Document storage is NOT the Actions cost remedy.** July 2026: 8,073 runner-min /
+  $48.44 compute vs ~$0.02 storage; `actions/checkout` measures 1.5s. Cost work is in `ci.yml`.
+
+## S3 artifacts
+
+- Large data and generated evidence belong in **S3**, with a **manifest in Git** carrying bucket, key, Version ID, SHA-256, schema version, owner, retention.
+- **No unpinned "latest"** — pin Version ID + verify checksum; fail closed on mismatch.
+- Routine PR CI uses **small Git fixtures**, never a network fetch.
+- Do not commit bulky datasets or generated evidence when an S3 manifest is the correct home.
+- ⚠ The `manifests/s3/` scheme and its fetch/publish/gate scripts are **designed but not merged**. Do not hand-roll a competing format — raise it instead.
+- **Never** use full `cloudformation deploy` of `workbench-paper-stack.yaml` for IAM-only tweaks during RTH (2026-07-27 instance replacement). Always create a change set and check for `Replacement: True` first.
+
+## Agent-specific behavior
+
+- Prefer **fewer, larger commits** over many tiny ones when the user has not asked for incremental commits.
+- **Do not commit** unless the user explicitly asks (existing user rule) — aligns with batching policy.
+- **Do not create markdown/docs** the user did not request unless they govern an approved milestone.
+- When suggesting next steps, avoid proposals that multiply CI runs (e.g., separate PRs per file, doc-only follow-ups).
+
+## Exceptions (immediate push/PR OK — note reason in PR)
+
+Production incident, security fix, migration needing review, governing ADR, release/deployment gate, collaboration blocker.
