@@ -7,7 +7,10 @@ name = "agent"
 version = "0.1.0"
 description = "Trading Workbench P6 stateless proposal-generation agent"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"   # GOVERNED LINE: CI, runtime images and the committed
+# resolution in constraints/ are all CPython 3.12. 3.11 was advertised but never tested or
+# deployed; 3.13+ is untested. Restoring either needs its own compatibility decision, test
+# matrix and lock artifacts. Changing this line requires regenerating constraints/.
 authors = [{ name = "Jay Wang" }]
 dependencies = [
     "httpx>=0.27",
