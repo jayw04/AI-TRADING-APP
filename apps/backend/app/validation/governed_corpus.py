@@ -49,6 +49,7 @@ from pathlib import Path
 from typing import Any
 
 from app.validation.forward_window import IntegrityStop
+from app.validation.security_lineage import SECURITY_IDENTITY_CONTRACT
 
 _HEX = frozenset("0123456789abcdef")
 
@@ -273,15 +274,35 @@ def validate_delta_chain(
 
 @dataclass(frozen=True)
 class CorpusManifest:
-    """The authorized construction of the governing SEP/ACTIONS corpus for one observation."""
+    """The authorized construction of the governing SEP/ACTIONS/TICKERS corpus for one observation.
+
+    TICKERS joined the bound construction on 2026-07-29, by owner ruling. It is not reference trivia:
+    `universe_asof` cannot resolve an eligible universe without current effective security metadata,
+    so two materially different constructions — one with a stale TICKERS that yields an EMPTY universe,
+    one with a current TICKERS that yields 500 names — would otherwise share the same authorized
+    identity. `security_identity_contract` is bound for the same reason one step further out: it pins
+    the RULE by which those rows are interpreted, so a later resolver change cannot silently
+    reinterpret identical artifacts.
+    """
     base_corpus_sha256: str
     base_coverage_through: date
     governed_universe_sha256: str
     governed_universe_size: int
     actions_manifest_sha256: str
     actions_authoritative: bool
+    # Embedded rather than referenced by digest: a separate file would have to be declared somewhere
+    # and then checked against, which is one more place for a manifest to name an artifact it did not
+    # actually assemble. Embedding makes `tickers_manifest_sha256` a COMPUTED identity, exactly like
+    # `corpus_manifest_sha256`, so there is no declared-vs-actual gap to police.
+    tickers: TickersManifest
+    tickers_authoritative: bool
+    security_identity_contract: str
     deltas: tuple[GovernedDelta, ...]
     base_countersignature: str
+
+    @property
+    def tickers_manifest_sha256(self) -> str:
+        return self.tickers.tickers_manifest_sha256
 
     def identity_payload(self) -> dict[str, Any]:
         return {
@@ -293,6 +314,10 @@ class CorpusManifest:
             "governed_universe_size": self.governed_universe_size,
             "actions_manifest_sha256": self.actions_manifest_sha256,
             "actions_authoritative": self.actions_authoritative,
+            "tickers": self.tickers.identity_payload(),
+            "tickers_manifest_sha256": self.tickers_manifest_sha256,
+            "tickers_authoritative": self.tickers_authoritative,
+            "security_identity_contract": self.security_identity_contract,
             "deltas": [d.identity_payload() for d in self.deltas],
         }
 
@@ -316,6 +341,24 @@ class CorpusManifest:
             raise CorpusConstructionError(
                 "the corpus manifest declares its ACTIONS dataset non-authoritative; a governed "
                 "session cannot evaluate corporate actions from a store that never ingested them")
+        if not self.tickers_authoritative:
+            raise CorpusConstructionError(
+                "the corpus manifest declares its TICKERS dataset non-authoritative; the registered "
+                "universe is resolved from effective security metadata, so a session cannot rank "
+                "securities it cannot identify")
+        if self.security_identity_contract != SECURITY_IDENTITY_CONTRACT:
+            raise CorpusConstructionError(
+                f"the corpus manifest names security identity contract "
+                f"{self.security_identity_contract!r} but this deployment implements "
+                f"{SECURITY_IDENTITY_CONTRACT!r}; the rule by which securities are identified is part "
+                f"of the authorized construction and is never assumed to match")
+        self.tickers.validate()
+        if self.tickers.coverage_cutoff < observation_session:
+            raise CorpusConstructionError(
+                f"the governed TICKERS construction is cut off at {self.tickers.coverage_cutoff} but "
+                f"the session being observed is {observation_session}; effective security metadata "
+                f"that stops before the session cannot establish which securities were tradeable "
+                f"during it")
         if self.governed_universe_size != GOVERNED_UNIVERSE_SIZE:
             raise CorpusConstructionError(
                 f"the corpus manifest declares a universe of {self.governed_universe_size}, not the "
@@ -328,6 +371,30 @@ class CorpusManifest:
             contiguity=Contiguity.SESSION_CALENDAR,
             expected_sessions=expected_sessions,
         )
+
+    def to_manifest_json(self) -> dict[str, Any]:
+        """The on-disk form, round-tripping exactly through `from_payload`. Shared with the generator
+        so there is one definition of the construction, not a producer's and a consumer's."""
+        return {
+            "base_corpus_sha256": self.base_corpus_sha256,
+            "base_coverage_through": self.base_coverage_through.isoformat(),
+            "governed_universe_sha256": self.governed_universe_sha256,
+            "governed_universe_size": self.governed_universe_size,
+            "actions_manifest_sha256": self.actions_manifest_sha256,
+            "actions_authoritative": self.actions_authoritative,
+            "tickers": self.tickers.to_manifest_json(),
+            "tickers_authoritative": self.tickers_authoritative,
+            "security_identity_contract": self.security_identity_contract,
+            "base_countersignature": self.base_countersignature,
+            "deltas": [
+                {"session_date": d.session_date.isoformat(),
+                 "coverage_through": d.coverage_through.isoformat(),
+                 "sha256": d.sha256, "source_sha256": d.source_sha256,
+                 "universe_sha256": d.universe_sha256, "rows": d.rows,
+                 "retrieved_at": d.retrieved_at, "countersignature": d.countersignature,
+                 "exclusions": list(d.exclusions)}
+                for d in self.deltas],
+        }
 
     @staticmethod
     def from_payload(payload: Any) -> CorpusManifest:
@@ -347,6 +414,16 @@ class CorpusManifest:
             raise CorpusConstructionError(
                 f"the corpus manifest records actions_authoritative as {authoritative!r}; it must be "
                 f"the JSON boolean true or false, not a value that merely reads as one")
+        tickers_authoritative = payload.get("tickers_authoritative")
+        if tickers_authoritative is not True and tickers_authoritative is not False:
+            raise CorpusConstructionError(
+                f"the corpus manifest records tickers_authoritative as {tickers_authoritative!r}; it "
+                f"must be the JSON boolean true or false, not a value that merely reads as one")
+        contract = str(payload.get("security_identity_contract", "")).strip()
+        if not contract:
+            raise CorpusConstructionError(
+                "the corpus manifest names no security_identity_contract; the rule by which tickers "
+                "are resolved to permanent securities is part of the authorized construction")
         size = payload.get("governed_universe_size")
         if not isinstance(size, int) or isinstance(size, bool):
             raise CorpusConstructionError(
@@ -365,6 +442,9 @@ class CorpusManifest:
             actions_manifest_sha256=_require_sha256(payload.get("actions_manifest_sha256"),
                                                     what="the ACTIONS manifest identity"),
             actions_authoritative=authoritative,
+            tickers=TickersManifest.from_payload(payload.get("tickers")),
+            tickers_authoritative=tickers_authoritative,
+            security_identity_contract=contract,
             deltas=tuple(GovernedDelta.from_payload(d, index=i) for i, d in enumerate(raw_deltas)),
             base_countersignature=countersignature,
         )
@@ -435,6 +515,137 @@ class Dgs3moManifest:
         )
 
 
+#: The governed TICKERS schema. Bumped when the selected vendor columns change, because a column set
+#: is part of what the construction IS: dropping `permaticker` turns identity resolution off, and a
+#: manifest that did not name its columns could not tell that from an unchanged one.
+TICKERS_SCHEMA_VERSION = "TICKERS_V2_PERMATICKER"
+
+#: The identity-bearing columns. `row_identity_sha256` digests exactly these, so a change to a
+#: security's permanent id, symbol or effective interval moves the manifest identity, while a churn-y
+#: descriptive field (sector reclassification, company-site URL) does not.
+TICKERS_IDENTITY_COLUMNS = ("permaticker", "ticker", "firstpricedate", "lastpricedate")
+
+
+def tickers_row_identity(rows: Any) -> str:
+    """Digest the identity-bearing projection of the TICKERS rows.
+
+    Sorted by permanent id then symbol so the identity is independent of row order — two deployments
+    that assembled the same securities produce the same digest whatever order the vendor returned.
+    """
+    projected = sorted([str(r[c] if isinstance(r, dict) else r[i]) for i, c
+                        in enumerate(TICKERS_IDENTITY_COLUMNS)] for r in rows)
+    return hashlib.sha256(canonical_json(projected)).hexdigest()
+
+
+@dataclass(frozen=True)
+class TickersManifest:
+    """The authorized construction of the governed TICKERS dataset (owner ruling, 2026-07-29).
+
+    Bound by ADR 0048 as amended because `universe_asof` cannot resolve an eligible universe without
+    it: a stale TICKERS yields an EMPTY universe and a current one yields 500 names, and those two
+    constructions must not be able to share an authorized identity.
+    """
+    schema_version: str
+    columns: tuple[str, ...]
+    rows: int
+    permanent_ids: int
+    row_identity_sha256: str
+    coverage_cutoff: date
+    artifact_sha256: str
+    source_identity: str
+    countersignature: str
+
+    def identity_payload(self) -> dict[str, Any]:
+        return {
+            "kind": "tickers_manifest",
+            "schema_version": self.schema_version,
+            "columns": list(self.columns),
+            "rows": self.rows,
+            "permanent_ids": self.permanent_ids,
+            "row_identity_sha256": self.row_identity_sha256,
+            "coverage_cutoff": self.coverage_cutoff.isoformat(),
+            "artifact_sha256": self.artifact_sha256,
+            "source_identity": self.source_identity,
+            "countersignature": self.countersignature,
+        }
+
+    @property
+    def tickers_manifest_sha256(self) -> str:
+        return hashlib.sha256(canonical_json(self.identity_payload())).hexdigest()
+
+    def validate(self) -> None:
+        if self.schema_version != TICKERS_SCHEMA_VERSION:
+            raise CorpusConstructionError(
+                f"the TICKERS manifest declares schema {self.schema_version!r} but this deployment "
+                f"implements {TICKERS_SCHEMA_VERSION!r}")
+        missing = [c for c in TICKERS_IDENTITY_COLUMNS if c not in self.columns]
+        if missing:
+            raise CorpusConstructionError(
+                f"the TICKERS manifest omits identity-bearing column(s) {missing}; without them a "
+                f"security cannot be resolved to a permanent lineage")
+        if self.rows <= 0 or self.permanent_ids <= 0:
+            raise CorpusConstructionError(
+                f"the TICKERS manifest records {self.rows} row(s) and {self.permanent_ids} permanent "
+                f"id(s); an empty security master evidences no universe at all")
+        if self.permanent_ids != self.rows:
+            raise CorpusConstructionError(
+                f"the TICKERS manifest records {self.rows} rows but only {self.permanent_ids} distinct "
+                f"permanent ids; a symbol mapping to several lineages is ambiguous by construction")
+
+    def to_manifest_json(self) -> dict[str, Any]:
+        """The on-disk form, round-tripping exactly through `from_payload`.
+
+        Generation and verification share this so a producer cannot drift from the consumer: any
+        generator that writes the block by hand would be a second, unreviewed definition of what a
+        TICKERS construction IS.
+        """
+        return {
+            "schema_version": self.schema_version,
+            "columns": list(self.columns),
+            "rows": self.rows,
+            "permanent_ids": self.permanent_ids,
+            "row_identity_sha256": self.row_identity_sha256,
+            "coverage_cutoff": self.coverage_cutoff.isoformat(),
+            "artifact_sha256": self.artifact_sha256,
+            "source_identity": self.source_identity,
+            "countersignature": self.countersignature,
+        }
+
+    @staticmethod
+    def from_payload(payload: Any) -> TickersManifest:
+        if not isinstance(payload, dict):
+            raise CorpusConstructionError("the TICKERS manifest is not an object")
+        try:
+            cutoff = date.fromisoformat(str(payload["coverage_cutoff"]))
+        except (KeyError, ValueError) as exc:
+            raise CorpusConstructionError(
+                f"the TICKERS manifest records no valid coverage_cutoff: {exc}") from exc
+        cols = payload.get("columns", [])
+        if not isinstance(cols, list) or not cols:
+            raise CorpusConstructionError(
+                "the TICKERS manifest records no selected vendor columns")
+        for key in ("rows", "permanent_ids"):
+            if not isinstance(payload.get(key), int) or isinstance(payload.get(key), bool):
+                raise CorpusConstructionError(
+                    f"the TICKERS manifest records {key} as {payload.get(key)!r}")
+        countersignature = str(payload.get("countersignature", "")).strip()
+        if not countersignature:
+            raise CorpusConstructionError("the TICKERS manifest carries no countersignature reference")
+        return TickersManifest(
+            schema_version=str(payload.get("schema_version", "")).strip(),
+            columns=tuple(str(c) for c in cols),
+            rows=int(payload["rows"]),
+            permanent_ids=int(payload["permanent_ids"]),
+            row_identity_sha256=_require_sha256(payload.get("row_identity_sha256"),
+                                                what="the TICKERS row identity"),
+            coverage_cutoff=cutoff,
+            artifact_sha256=_require_sha256(payload.get("artifact_sha256"),
+                                            what="the TICKERS artifact identity"),
+            source_identity=str(payload.get("source_identity", "")).strip(),
+            countersignature=countersignature,
+        )
+
+
 def _load_manifest_json(path: Path, *, what: str) -> dict:
     if not path.is_file():
         raise CorpusConstructionError(f"{what} is absent at {path}")
@@ -471,6 +682,8 @@ class GovernedConstruction:
             "governed_universe_sha256": self.corpus.governed_universe_sha256,
             "governed_universe_size": self.corpus.governed_universe_size,
             "actions_manifest_sha256": self.corpus.actions_manifest_sha256,
+            "tickers_manifest_sha256": self.corpus.tickers_manifest_sha256,
+            "security_identity_contract": self.corpus.security_identity_contract,
             "corpus_manifest_sha256": self.corpus_manifest_sha256,
             "corpus_coverage_through": self.corpus.coverage_through.isoformat(),
             "dgs3mo_base_sha256": self.dgs3mo.base_sha256,
@@ -527,6 +740,7 @@ def resolve_governed_construction(
         "ordered_delta_manifest_sha256s": corpus.ordered_delta_manifest_sha256s,
         "governed_universe_sha256": corpus.governed_universe_sha256,
         "actions_manifest_sha256": corpus.actions_manifest_sha256,
+        "tickers_manifest_sha256": corpus.tickers_manifest_sha256,
         "corpus_manifest_sha256": corpus.corpus_manifest_sha256,
     })
     declared_dgs3mo = deployment_manifest_corpus_block.get("dgs3mo_manifest_sha256")
@@ -579,6 +793,7 @@ REQUIRED_MANIFEST_IDENTITIES = (
     "ordered_delta_manifest_sha256s",
     "governed_universe_sha256",
     "actions_manifest_sha256",
+    "tickers_manifest_sha256",
     "corpus_manifest_sha256",
 )
 
@@ -663,7 +878,7 @@ def require_declared_identities(declared: Any, *, computed: dict[str, Any]) -> d
             f"the deployment manifest's corpus identity block is incomplete; missing {sorted(missing)}")
 
     for key in ("base_corpus_sha256", "governed_universe_sha256", "actions_manifest_sha256",
-                "corpus_manifest_sha256"):
+                "tickers_manifest_sha256", "corpus_manifest_sha256"):
         if not _is_sha256(declared.get(key)):
             raise ManifestIdentityConflict(
                 f"the deployment manifest declares {key}={declared.get(key)!r}, which is not a "

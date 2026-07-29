@@ -47,6 +47,7 @@ from app.validation.account4_probe import Account4Probe, probe_account4
 from app.validation.data_finality import (
     ConstructionSpec,
     DataFinalityEvidence,
+    DataReadiness,
     assess_data_finality,
     verify_store_unchanged,
 )
@@ -66,6 +67,7 @@ from app.validation.governed_corpus import (
     resolve_governed_construction,
 )
 from app.validation.production_bindings import build_forward_context, strict_pit_price_fn
+from app.validation.security_lineage import SessionLineageFilter
 from app.validation.session_orchestration import SessionRuntime
 from app.validation.witness_enforcement import (
     ProductionWitness,
@@ -269,11 +271,28 @@ def _build_proxy_closes(store: Any, config: ForwardDeploymentConfig, session_dat
     return closes, identity
 
 
-def _universe_fn(store: Any):
+def _universe_fn(store: Any, *, session: date, construction: ConstructionSpec):
+    """The registered universe construction, filtered to lineage-eligible securities.
+
+    The filter is applied HERE, at the single callable every downstream consumer draws from, so that
+    ranking, score computation, target sizing and tie-breaking cannot see a candidate whose lookback
+    crosses a permanent-lineage boundary. `universe_asof` itself is deliberately left untouched: it is
+    shared with the frozen replica and with historical conformance evidence, and changing it would
+    invalidate both.
+    """
     from app.factor_data.universe import universe_asof
 
+    window = store.con.execute(
+        "SELECT DISTINCT date FROM sep WHERE date <= ? ORDER BY date DESC LIMIT ?",
+        [session, construction.required_history_sessions]).fetchall()
+    if not window:
+        raise CompositionError(
+            f"the governed store holds no sessions on or before {session.isoformat()}; the lineage "
+            f"lookback cannot be established")
+    lineage = SessionLineageFilter(store, session_date=session, lookback_start=window[-1][0])
+
     def fn(as_of: date, n: int) -> list[str]:
-        return list(universe_asof(store, as_of, n=n))
+        return lineage.filter(list(universe_asof(store, as_of, n=n)))
 
     return fn
 
@@ -383,12 +402,21 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
     store = _open_store(config)
     try:
         session_dates = _session_calendar(store, session)
-        proxy_closes, regime_source_identity = _build_proxy_closes(
-            store, config, session_dates, construction)
 
+        # Data finality is assessed BEFORE the market proxy is constructed, and the order is
+        # load-bearing rather than stylistic. `build_market_proxy` is a frozen artifact that builds
+        # its own basket by calling `universe_asof` directly, so it cannot be filtered; the one
+        # finding that says its input could fabricate a return — the lineage bridge risk — therefore
+        # has to land before it runs. Refusing afterwards would mean the fabricated return had
+        # already been computed and averaged into the regime.
         readiness = _GovernedReadiness(store, config, construction)
         finality = readiness.assess(session)
         evidence["data_finality"] = finality.to_open_provenance()
+        if finality.verdict is DataReadiness.NOT_READY_LINEAGE_BRIDGE_RISK:
+            raise CompositionError(finality.detail)
+
+        proxy_closes, regime_source_identity = _build_proxy_closes(
+            store, config, session_dates, construction)
 
         # Both identities, from their own sources, in every observation. Independence is structural:
         # the construction identity is RECOMPUTED from the governed manifest, and the value-level one
@@ -404,7 +432,8 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         runtime = SessionRuntime(
             store=store, accessor=_accessor(store),
             store_identity=finality.store_identity_sha256,
-            universe_fn=_universe_fn(store), proxy_closes=proxy_closes,
+            universe_fn=_universe_fn(store, session=session, construction=construction),
+            proxy_closes=proxy_closes,
             session_dates=session_dates, strict_price_fn=strict_pit_price_fn(store),
             account4_probe=_probe_fn(config), context_builder=_context_builder(config),
             readiness=readiness, witness=witness)
