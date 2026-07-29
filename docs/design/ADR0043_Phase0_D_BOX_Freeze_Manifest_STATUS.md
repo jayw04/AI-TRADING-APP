@@ -19,8 +19,8 @@ Filled after the governing commit that publishes the EFFECTIVE start decision:
 | Field | Value |
 |-------|-------|
 | Path | `docs/design/ADR0043_Phase0_D_BOX_Campaign_Start_Decision_v1.0.md` |
-| Publication commit | *(after push)* |
-| Publication file SHA-256 (git blob) | *(after push)* |
+| Publication commit | `5d187e3f9d21ef47fbbb6c8ef4568e7197236a0e` |
+| Publication file SHA-256 (git blob) | `505bf50d96d699e8ef902cba2597a924ff772112b9f0df1d87e78601197fdf8e` |
 
 ## HOLD (unchanged)
 

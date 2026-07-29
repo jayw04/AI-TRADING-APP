@@ -18,8 +18,8 @@
 | Sign-off | Owner acknowledgment (Jay Wang) — typed governance acknowledgment |
 | Effective date (UTC) | `2026-07-29T23:54:33Z` |
 | Publication path | `docs/design/ADR0043_Phase0_D_BOX_Campaign_Start_Decision_v1.0.md` |
-| Publication commit | *(set in companion STATUS after this file's governing commit)* |
-| Publication file SHA-256 | *(set in companion STATUS after this file's governing commit)* |
+| Publication commit | `5d187e3f9d21ef47fbbb6c8ef4568e7197236a0e` |
+| Publication file SHA-256 | `505bf50d96d699e8ef902cba2597a924ff772112b9f0df1d87e78601197fdf8e` |
 
 ---
 
