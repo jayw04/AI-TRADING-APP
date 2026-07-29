@@ -10,7 +10,8 @@ workflow runs that project's FULL suite on the PR so a red suite blocks merge (b
 It is deliberately a small, pure, UNIT-TESTED function so the classification rule is verifiable off
 GitHub and cannot silently drift. The changed-file list arrives as untrusted data (a JSON array from a
 pull request) and is treated as data ONLY — never interpolated into a shell. The CLI prints one
-`<project>_code=<true|false>` line per project, ready to append to `$GITHUB_OUTPUT`.
+`<project>_code=<true|false>` line per project plus an `adr0043_gate=<true|false>` line,
+ready to append to `$GITHUB_OUTPUT`.
 
 FAIL CLOSED: any malformed input / unexpected error exits non-zero and prints nothing to stdout, so the
 classifier step fails, which makes `Python CI Gate` fail closed rather than wave a PR through.
@@ -85,6 +86,53 @@ def requires_full(changed_paths: list[str]) -> bool:
     return any(classify(changed_paths).values())
 
 
+def requires_adr0043_by_backend_attribution(changed_paths: list[str]) -> bool:
+    """True iff the ADR 0043 loss-control test + branch-coverage gate must run.
+
+    NAME: this is **conservative backend attribution**, NOT a precise ADR-0043 risk-path
+    classifier. It answers "could a backend change have moved this gate?", which is a
+    deliberately wider question than "does this change touch loss control?". The name says
+    so on purpose — do not rename it to something that implies precision it does not have.
+
+    That gate runs `pytest tests/risk` with scoped branch coverage on
+    `app.risk.loss_control` and enforces a 0.95 floor per module. It measured 96 s and
+    fired on every backend LIGHT job (582 runs in July 2026 = 11.7% of the month's
+    billable minutes), including on pull requests that could not possibly move it.
+
+    **Only a change under the `backend` project's paths — or a GLOBAL path — can alter
+    this gate's outcome.** `tests/risk` and `app.risk.loss_control` live entirely inside
+    `apps/backend/`; nothing in the frontend, the three auxiliary Python projects, the
+    docs tree, or the S3 manifests is imported by either. So the correct predicate is
+    exactly the already-hardened, already-unit-tested `backend` attribution — reusing it
+    rather than authoring a second, narrower risk-path list is deliberate: a bespoke list
+    would add new path semantics whose failure mode is *skipping a gate that was needed*,
+    which is the direction ADR 0043 exists to prevent.
+
+    Two deliberate differences from ``classify(...)["backend"]``:
+
+    * **An empty changeset returns True.** For FULL selection, "nothing changed" correctly
+      means LIGHT. Here it means *the changed-file list could not be determined*, and
+      classifier ambiguity must default upward — so the gate runs.
+    * **It is a named, separately-tested signal.** If ADR 0043's blast radius is later
+      narrowed (a genuinely separable risk-path subset), that change lands here with its
+      own tests and its own before/after measurement, without touching FULL selection.
+
+    ⚠ DO NOT "SIMPLIFY" THIS TO ``classify(paths)["backend"]``. The empty-changeset branch
+    below looks redundant and is not: collapsing it silently converts an *undetermined*
+    changed-file list from "run the gate" into "skip the gate", which is the precise
+    failure ADR 0043 exists to prevent. The divergence is pinned by
+    ``test_adr0043_gate_defaults_UP_on_an_empty_changeset``.
+
+    Narrowing further is a *separate* PR with its own historical replay. Do not inline it.
+
+    Measured (July 2026, 120-PR replay): fires on 80.8% of pull requests — that share is
+    legitimate required execution, not waste. Avoidable portion ≈ 178 runner-min/month.
+    """
+    if not changed_paths:
+        return True
+    return classify(changed_paths)["backend"]
+
+
 def _load(argv: list[str]) -> list[str]:
     """Load the changed-file list from a JSON file path (argv[1]) or stdin. Must be a JSON array of
     strings (as emitted by dorny/paths-filter `list-files: json`). Filenames are DATA, never executed."""
@@ -110,6 +158,8 @@ def main(argv: list[str]) -> int:
     flags = classify(paths)
     for proj in PROJECTS:
         print(f"{proj}_code={'true' if flags[proj] else 'false'}")
+    # ADR 0043 gate selection (see requires_adr0043_by_backend_attribution for why it is separate).
+    print(f"adr0043_gate={'true' if requires_adr0043_by_backend_attribution(paths) else 'false'}")
     return 0
 
 
