@@ -6,7 +6,7 @@
 | Decision | **APPROVED** |
 | Scope | Isolated Phase-0 **evidence campaign** only (formal O1–O5 + CORR-06 exit) |
 | Ruling date | 2026-07-29 |
-| Status | **EFFECTIVE upon governed publication** — owner-signed; bind publication identity below after publish |
+| Status | **EFFECTIVE** — owner-signed and published under recorded repository identity |
 | Governing design | ADR0043-PH0-CTRL-001 v1.1 |
 | Integration design | ADR0043-PH0-INTEGRATION-DESIGN-001 v1.0 (D-DESIGN-FREEZE granted) |
 | Offline baseline | `d1c2fbf` / tag `adr0043-phase0-offline-complete` |
@@ -83,14 +83,9 @@ implemented before load-bearing D-BOX evidence is accepted.
 
 ## 3. Effectiveness
 
-This ruling is **owner-signed**. It becomes **operative for campaign execution** only
-after:
-
-1. publication in the governed repository;
-2. recording of ruling path, commit, SHA-256, and campaign-scope path/commit/SHA-256 in
-   the Publication identity table below.
-
-Until publication identity is complete, do not treat the campaign as cleared to start.
+This ruling is **owner-signed** and **effective** for campaign execution under the
+Publication identity below. Campaign start still requires the pre-campaign freeze
+manifest (campaign §3) to be sealed before CORR-06 or any O-gate.
 
 ---
 
@@ -105,12 +100,15 @@ Until publication identity is complete, do not treat the campaign as cleared to 
 | Item | Value |
 |------|-------|
 | Ruling path | `docs/design/ADR0043_Phase0_D_BOX_Authorization_v1.0.md` |
-| Ruling commit | *(fill after governed publication)* |
-| Ruling SHA-256 | *(fill after governed publication)* |
+| Ruling commit (signed text) | `05095a6f91520fbcd6e01e8b937ef9895af39fc6` |
+| Ruling SHA-256 (file bytes at `05095a6`) | `9eba4233ed221695b4364a7bb0331700d8f0300e91920baaeeec4a794d56d8bd` |
 | Campaign scope path | `docs/design/ADR0043_Phase0_D_BOX_Campaign_Scope_v1.0.md` |
-| Campaign scope commit | *(fill after governed publication)* |
-| Campaign scope SHA-256 | *(fill after governed publication)* |
-| Integration design | ADR0043-PH0-INTEGRATION-DESIGN-001 v1.0 (local freeze; publish separately if/when instructed) |
+| Campaign scope commit | `05095a6f91520fbcd6e01e8b937ef9895af39fc6` |
+| Campaign scope SHA-256 | `f405bdb454a18d30423890087b292d6818429af7152a84e193bf57cce2412127` |
+| Integration design path | `docs/design/ADR0043_Phase0_Integration_Design_v1.0.md` |
+| Integration design commit | `05095a6f91520fbcd6e01e8b937ef9895af39fc6` |
+| Integration design SHA-256 | `5d0ab3c1adbb6a145345c6657cac2db2a9395644abe39127b559ae862f974078` |
+| `main` merge commit | *(record after PR merge)* |
 
 ---
 
