@@ -15,7 +15,13 @@ dependencies = [
     "structlog>=24.4",
     "fastapi>=0.110",       # P6 §1b: control-plane HTTP endpoint
     "uvicorn>=0.30",        # P6 §1b: ASGI server
-    "mcp>=1.0",             # P6 §1b: agent reads workbench state as an MCP client
+    # PINNED EXACTLY, matching apps/mcp-server and apps/mcp-workbench (#539). `mcp 2.0.0`
+    # (2026-07-28) reorganised the package and removed `mcp.server.fastmcp`, taking main red for
+    # ~21 hours. This project survived only because it uses the CLIENT surface (`ClientSession`,
+    # `mcp.client.sse`) rather than FastMCP — luck, not protection. #539 pinned the other two
+    # projects but not this one, leaving it one upstream release from the same outage.
+    # Keep this version identical across all three mcp-dependent projects.
+    "mcp==1.28.1",          # P6 §1b: agent reads workbench state as an MCP client
 ]
 
 [project.optional-dependencies]
