@@ -254,11 +254,10 @@ def readiness_check(doc: dict[str, Any]) -> list[str]:
             if w.get("kind") in {
                 "account_3_test_state",
                 "account_3_checkpoint",
-            }:
-                if not isinstance(targets, list) or len(targets) < 1:
-                    errors.append(
-                        f"permitted_writes.operations[{i}] requires non-empty targets[]"
-                    )
+            } and (not isinstance(targets, list) or len(targets) < 1):
+                errors.append(
+                    f"permitted_writes.operations[{i}] requires non-empty targets[]"
+                )
 
     gp = body.get("gate_packages", {})
     criteria = gp.get("pass_criteria") if isinstance(gp, dict) else None
