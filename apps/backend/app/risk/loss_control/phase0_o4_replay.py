@@ -139,7 +139,7 @@ def _synthetic_quotes_for_loss(
     symbols: tuple[str, ...],
     loss_per_rt: Decimal,
     caps: Caps,
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, dict[str, Any] | None]:
     """Encode a fill-derived loss/RT as a two-sided book so ``assess`` can project caps."""
     loss = normalize_round_trip_loss_amount(loss_per_rt)
     ask = Decimal("100.00")

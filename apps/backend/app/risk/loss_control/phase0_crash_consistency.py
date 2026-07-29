@@ -285,11 +285,12 @@ def reproduce_terminal_package(
     notes: list[str] = [classification.detail]
     if classification.scenario:
         notes.append(f"scenario={classification.scenario}")
+    journal_digest = _journal_digest(journal)
     body = {
         "run_id": journal.run_id,
         "account_id": journal.account_id,
         "status": str(classification.status),
-        "journal_digest": _journal_digest(journal),
+        "journal_digest": journal_digest,
         "broker_client_order_ids": list(broker.client_order_ids),
         "conclusive": classification.conclusive,
         "notes": notes,
@@ -304,7 +305,7 @@ def reproduce_terminal_package(
         run_id=journal.run_id,
         account_id=journal.account_id,
         status=classification.status,
-        journal_digest=body["journal_digest"],
+        journal_digest=journal_digest,
         broker_client_order_ids=tuple(broker.client_order_ids),
         package_digest=package_digest,
         conclusive=classification.conclusive,
