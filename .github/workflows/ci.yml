@@ -229,18 +229,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      # EXACT patch, not the "3.12" line. The committed resolutions in constraints/ are only
+      # valid for the interpreter that produced them; letting the runner image float would
+      # silently invalidate the reproducibility claim at the next image bump.
+      - name: Set up Python 3.12.13
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.12.13"
           cache: pip
-          cache-dependency-path: ${{ matrix.p.dir }}/pyproject.toml
+          cache-dependency-path: constraints/${{ matrix.p.project }}-py312.txt
 
-      - name: Install ${{ matrix.p.project }}
-        working-directory: ${{ matrix.p.dir }}
+      # Deterministic install (GITHUB-OPS-001). The third-party graph comes from the committed,
+      # fully hash-pinned resolution; --require-hashes makes an unexpected or tampered artifact a
+      # hard failure. The local project is installed separately with --no-deps because it is
+      # repository source, not a downloadable artifact with a package hash — and --no-deps
+      # guarantees pip cannot quietly resolve anything outside the locked graph.
+      - name: Install ${{ matrix.p.project }} (locked)
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install --require-hashes -r "constraints/${{ matrix.p.project }}-py312.txt"
+          pip install --no-deps -e "${{ matrix.p.dir }}[dev]"
 
       - name: Ruff
         working-directory: ${{ matrix.p.dir }}
@@ -275,6 +283,15 @@ jobs:
 
       # Migration-graph integrity — one head, no dangling parents. Runs on PRs too so a
       # mis-chained migration is caught before merge, not at deploy.
+      # Dependency-lock drift gate (GITHUB-OPS-001). Offline and fast: proves the committed
+      # resolutions still correspond to the manifests, every pinned entry carries a hash, and
+      # each file records the governed interpreter/platform/resolver tuple. Runs in the backend
+      # LIGHT job because backend is always in the matrix, so this fires on every run.
+      - name: Dependency lock drift gate (repo-wide)
+        if: matrix.p.project == 'backend'
+        working-directory: ${{ github.workspace }}
+        run: python scripts/check_dependency_locks.py
+
       - name: Alembic single-head check (backend)
         if: matrix.p.project == 'backend'
         working-directory: ${{ matrix.p.dir }}
@@ -360,17 +377,19 @@ jobs:
         pf: ${{ fromJSON(needs.changes.outputs.py_full) }}
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.12
+      # EXACT patch — see the note in python-checks.
+      - name: Set up Python 3.12.13
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.12.13"
           cache: pip
-          cache-dependency-path: ${{ matrix.pf.dir }}/pyproject.toml
-      - name: Install ${{ matrix.pf.project }}
-        working-directory: ${{ matrix.pf.dir }}
+          cache-dependency-path: constraints/${{ matrix.pf.project }}-py312.txt
+      # Deterministic install — see the note in python-checks.
+      - name: Install ${{ matrix.pf.project }} (locked)
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install --require-hashes -r "constraints/${{ matrix.pf.project }}-py312.txt"
+          pip install --no-deps -e "${{ matrix.pf.dir }}[dev]"
       - name: Pytest (full, with coverage)
         working-directory: ${{ matrix.pf.dir }}
         run: pytest -q --cov=${{ matrix.pf.src }} --cov-branch --cov-report=xml
@@ -442,6 +461,44 @@ jobs:
             echo "::error::a Python project changed but FULL suite result='$full_result'"; exit 1
           fi
           echo "OK: no testable Python code changed → FULL not applicable; LIGHT passed."; exit 0
+
+  # Fresh-resolution proof (GITHUB-OPS-001). Scheduled only — never on a PR — and deliberately
+  # OUTSIDE any dependency cache: `cache: pip` is not set and uv resolves cold. It proves the
+  # repository can still be built from the committed resolution in a clean environment, and that
+  # re-resolving reproduces the committed files byte-for-byte.
+  #
+  # This job exists BEFORE any environment caching is introduced, on purpose. Once a cache exists,
+  # every other job may be served from it; this is the one that is not, so a drifted or unbuildable
+  # locked graph cannot hide behind a warm cache.
+  # Owner: Engineering / Architecture. Review: monthly with the Actions cost report.
+  fresh-resolution-proof:
+    name: Fresh resolution proof (uncached)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.13"
+          # NOTE: no `cache:` here, on purpose — this job must not be served from a warm cache.
+      - name: Install the governed resolver
+        run: python -m pip install --quiet "uv==0.12.0"
+      - name: Re-resolve and require byte-identical output
+        run: python scripts/check_dependency_locks.py --recompile
+      - name: Clean install from the committed resolution (every project)
+        run: |
+          set -euo pipefail
+          for proj in backend mcp-server mcp-workbench agent; do
+            echo "::group::clean install ${proj}"
+            python -m venv "/tmp/venv-${proj}"
+            "/tmp/venv-${proj}/bin/python" -m pip install --quiet --upgrade pip
+            "/tmp/venv-${proj}/bin/python" -m pip install --no-cache-dir               --require-hashes -r "constraints/${proj}-py312.txt"
+            "/tmp/venv-${proj}/bin/python" -m pip install --no-cache-dir --no-deps               -e "apps/${proj}[dev]"
+            "/tmp/venv-${proj}/bin/python" -c "import sys; print(proj_ok := sys.version)"
+            echo "::endgroup::"
+          done
 
   frontend-checks:
     name: Frontend

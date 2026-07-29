@@ -327,3 +327,37 @@ def test_adr0043_gate_mixed_path_matrix():
         ".github/workflows/ci.yml",
     ):
         assert requires_adr0043_by_backend_attribution(irrelevant + [backend_path]) is True, backend_path
+
+
+# ---- deterministic dependency resolution: constraints are GLOBAL --------------------------
+#
+# A change to a committed resolution alters the exact third-party graph EVERY project installs,
+# so it must re-verify all of them — never just the project whose file changed. Same for the
+# generator and the drift gate, since either can change or stop validating what lands there.
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "constraints/backend-py312.txt",
+        "constraints/agent-py312.txt",
+        "constraints/mcp-server-py312.txt",
+        "constraints/mcp-workbench-py312.txt",
+        "scripts/regenerate_dependency_locks.py",
+        "scripts/check_dependency_locks.py",
+    ],
+)
+def test_dependency_resolution_paths_flag_every_project(path):
+    assert classify([path]) == dict.fromkeys(PROJECTS, True)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "constraints/backend-py312.txt",
+        "scripts/regenerate_dependency_locks.py",
+    ],
+)
+def test_dependency_resolution_paths_also_arm_the_adr0043_gate(path):
+    # A changed dependency graph can move loss-control behaviour or its coverage, so the
+    # ADR-0043 gate must fire too. It does, via backend attribution.
+    assert requires_adr0043_by_backend_attribution([path]) is True
