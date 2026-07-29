@@ -158,8 +158,15 @@ or terminate for safety; it may not increase quantity, substitute symbol, change
 route/order type, extend validity, or regenerate the plan under the same authorization.
 
 Required fields include: `plan_id`, `plan_schema_version`, `plan_hash`, `created_at`,
-`expires_at`, `quote_evidence_hash`, `model_artifact_hash`, `authorization_scope`,
-`maximum_authorized_legs`.
+`expires_at`, `quote_evidence_hash`, `model_artifact_hash`, `authorization_id`,
+`authorization_scope`, `account_id`, `broker_account_id`, `session_date`, `symbol`,
+`side_sequence`, `quantity`, `order_type`, `time_in_force`, `route`,
+`max_round_trips`, `maximum_authorized_legs`, `max_setup_notional`, `max_position_qty`,
+`baseline_id`, `loss_target`, `remaining_target_at_verdict`, `limits_digest`,
+`loss_control_state_version`, `deployment_commit`, `implementation_commit`.
+
+All of the above enter canonical serialization and `plan_hash`. Binding reachability
+(Tier A–C) must reassess against this exact frozen tuple — never max-over-symbols.
 
 ### Authorization lifecycle
 
@@ -207,11 +214,17 @@ Authorized **now** (offline only):
 
 1. This controlling design freeze artifact.
 2. WP0 seal procedure and exit criteria.
-3. Pure Python contracts for verdicts, reason codes, ExecutionPlan hashing, and
-   authorization lifecycle — **not** wired into `OrderRouter` / live broker submission.
+3. Offline WP1–WP9 and CORR-06 packages: pure Python contracts and hermetic tests for
+   ExecutionPlan authority, reachability adjudication, checkpoint integrity, crash
+   consistency, account isolation, statistical-design freeze, estimator ladder, O4
+   replay split, canonical loss accounting, and quote provenance — **not** wired into
+   `OrderRouter` / live broker submission.
 
 **Not authorized in this increment:** broker submission, canary run, ENFORCE flip on
 production accounts 1–7, cap changes, limits-digest edits.
+
+This section is aligned with §1 (offline contracts, WP0, Option C / structural-gate
+preparation authorized) and with PR #541’s delivered offline package set.
 
 ---
 

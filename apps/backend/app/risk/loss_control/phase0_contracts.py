@@ -5,7 +5,7 @@ submission.** Implements frozen AMD/owner rules for:
 
 * verdict + reason-code schema (AMD-14, D1)
 * non-negative loss amount (AMD-13)
-* ExecutionPlan hash / immutability fields (AMD-15)
+* ExecutionPlan hash / complete binding tuple (AMD-15)
 * authorization lifecycle (AMD-16) including expiry-after-partial rules (owner mod §3.3)
 * false-reachable severity (AMD-01 + owner mod §3.1)
 
@@ -23,7 +23,8 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
-PHASE0_CONTRACTS_SCHEMA_VERSION = 1
+PHASE0_CONTRACTS_SCHEMA_VERSION = 2
+PLAN_SCHEMA_VERSION = 2
 
 # --- verdicts (canonical) --------------------------------------------------------------------
 
@@ -31,7 +32,6 @@ VERDICT_REACHABLE = "REACHABLE"
 VERDICT_UNREACHABLE_WITHIN_CAPS = "UNREACHABLE_WITHIN_CAPS"
 VERDICT_INDETERMINATE = "INDETERMINATE"
 
-# Legacy alias used by older reachability scripts — map at boundaries, do not emit in new paths.
 LEGACY_VERDICT_BREACH_UNREACHABLE = "BREACH_UNREACHABLE"
 
 ALL_VERDICTS: frozenset[str] = frozenset(
@@ -79,29 +79,23 @@ TIER_B_PAPER_OR_EXECUTABLE_ESTIMATE = "B"
 TIER_C_QUOTE_DERIVED = "C"
 TIER_D_DISPLAYED_SPREAD = "D"
 
-#: Alpaca paper-account fills on the Phase-0 stack are Tier B, never Tier A.
 ALPACA_PAPER_FILL_TIER = TIER_B_PAPER_OR_EXECUTABLE_ESTIMATE
 
 # --- false-reachable severity ----------------------------------------------------------------
 
-CRITICAL_FALSE_REACHABLE_FRACTION = Decimal("0.80")  # below this → CRITICAL
-# Initial sealed validation: zero marginal cases permitted (owner freeze).
+CRITICAL_FALSE_REACHABLE_FRACTION = Decimal("0.80")
 INITIAL_MARGINAL_FALSE_REACHABLE_TOLERANCE = 0
 
 
 class FalseReachableSeverity(StrEnum):
     CRITICAL = "CRITICAL"
     MARGINAL = "MARGINAL"
-    NONE = "NONE"  # achieved ≥ 100% of remaining target
+    NONE = "NONE"
 
 
 def classify_false_reachable(
     achieved_fraction_of_remaining_target: Decimal,
 ) -> FalseReachableSeverity:
-    """Classify plan-level false-reachable severity.
-
-    Any fraction strictly below 1 is a false reachable; severity splits at 80%.
-    """
     if achieved_fraction_of_remaining_target >= Decimal("1"):
         return FalseReachableSeverity.NONE
     if achieved_fraction_of_remaining_target < CRITICAL_FALSE_REACHABLE_FRACTION:
@@ -110,7 +104,6 @@ def classify_false_reachable(
 
 
 def normalize_round_trip_loss_amount(amount: Decimal) -> Decimal:
-    """Enforce non-negative canonical loss (AMD-13). Negative input is rejected."""
     if amount < 0:
         raise ValueError(
             "round_trip_loss_amount must be ≥ 0 (conservative minimum supported loss); "
@@ -126,10 +119,17 @@ class AuthorizationState(StrEnum):
     ISSUED = "ISSUED"
     CLAIMED = "CLAIMED"
     ACTIVE = "ACTIVE"
+    #: Expiry after partial execution — risk-reducing / flatten only; not terminal.
+    ACTIVE_RISK_REDUCING_ONLY = "ACTIVE_RISK_REDUCING_ONLY"
+    #: Interrupted / needs reconciliation; not conclusive terminal.
+    RECOVERY_REQUIRED = "RECOVERY_REQUIRED"
     CONSUMED = "CONSUMED"
     REFUSED = "REFUSED"
     ABORTED = "ABORTED"
-    EXPIRED = "EXPIRED"
+    #: Expiry before any broker submission — terminal refuse.
+    EXPIRED_UNEXECUTED = "EXPIRED_UNEXECUTED"
+    #: Legacy alias name kept for callers; same terminal as EXPIRED_UNEXECUTED.
+    EXPIRED = "EXPIRED_UNEXECUTED"
 
 
 _AUTH_FORWARD: dict[AuthorizationState, frozenset[AuthorizationState]] = {
@@ -137,7 +137,7 @@ _AUTH_FORWARD: dict[AuthorizationState, frozenset[AuthorizationState]] = {
         {
             AuthorizationState.CLAIMED,
             AuthorizationState.REFUSED,
-            AuthorizationState.EXPIRED,
+            AuthorizationState.EXPIRED_UNEXECUTED,
         }
     ),
     AuthorizationState.CLAIMED: frozenset(
@@ -145,20 +145,35 @@ _AUTH_FORWARD: dict[AuthorizationState, frozenset[AuthorizationState]] = {
             AuthorizationState.ACTIVE,
             AuthorizationState.REFUSED,
             AuthorizationState.ABORTED,
-            AuthorizationState.EXPIRED,
+            AuthorizationState.EXPIRED_UNEXECUTED,
         }
     ),
     AuthorizationState.ACTIVE: frozenset(
         {
             AuthorizationState.CONSUMED,
             AuthorizationState.ABORTED,
-            AuthorizationState.EXPIRED,
+            AuthorizationState.ACTIVE_RISK_REDUCING_ONLY,
+            AuthorizationState.RECOVERY_REQUIRED,
+            AuthorizationState.EXPIRED_UNEXECUTED,
+        }
+    ),
+    AuthorizationState.ACTIVE_RISK_REDUCING_ONLY: frozenset(
+        {
+            AuthorizationState.CONSUMED,
+            AuthorizationState.RECOVERY_REQUIRED,
+            AuthorizationState.ABORTED,
+        }
+    ),
+    AuthorizationState.RECOVERY_REQUIRED: frozenset(
+        {
+            AuthorizationState.CONSUMED,
+            AuthorizationState.ABORTED,
         }
     ),
     AuthorizationState.CONSUMED: frozenset(),
     AuthorizationState.REFUSED: frozenset(),
     AuthorizationState.ABORTED: frozenset(),
-    AuthorizationState.EXPIRED: frozenset(),
+    AuthorizationState.EXPIRED_UNEXECUTED: frozenset(),
 }
 
 
@@ -168,8 +183,6 @@ def authorization_transition_allowed(current: AuthorizationState, nxt: Authoriza
 
 @dataclass(frozen=True)
 class ExpiryPolicyDecision:
-    """Owner-mod §3.3: what expiry permits after partial execution."""
-
     allow_risk_increasing: bool
     allow_risk_reducing_completion: bool
     allow_emergency_flatten: bool
@@ -178,11 +191,6 @@ class ExpiryPolicyDecision:
 
 
 def expiry_policy(*, any_leg_submitted: bool) -> ExpiryPolicyDecision:
-    """Return fail-closed expiry policy.
-
-    Before any submission: refuse further work (no new legs).
-    After partial fill: block risk-increasing; allow risk-reducing / flatten.
-    """
     if not any_leg_submitted:
         return ExpiryPolicyDecision(
             allow_risk_increasing=False,
@@ -200,12 +208,12 @@ def expiry_policy(*, any_leg_submitted: bool) -> ExpiryPolicyDecision:
     )
 
 
-# --- ExecutionPlan ---------------------------------------------------------------------------
+# --- ExecutionPlan (complete binding executable tuple) ---------------------------------------
 
 
 @dataclass(frozen=True)
 class ExecutionPlan:
-    """Immutable authorized plan fields (AMD-15). Driver may not mutate after authorize."""
+    """Immutable authorized plan — complete binding executable tuple (AMD-15 / O1)."""
 
     plan_id: str
     plan_schema_version: int
@@ -213,12 +221,33 @@ class ExecutionPlan:
     expires_at: datetime
     quote_evidence_hash: str
     model_artifact_hash: str
+    authorization_id: str
     authorization_scope: str
-    maximum_authorized_legs: int
+    account_id: int
+    broker_account_id: str
+    session_date: str
     symbol: str
-    side_sequence: tuple[str, ...]  # e.g. ("sell", "buy") for a round trip
-    max_quantity: str  # Decimal as string for stable hashing
-    # plan_hash is derived; callers should use ``with_hash`` / ``compute_plan_hash``.
+    side_sequence: tuple[str, ...]
+    quantity: str  # Decimal string — frozen authorized quantity
+    order_type: str
+    time_in_force: str
+    route: str
+    max_round_trips: int
+    maximum_authorized_legs: int
+    max_setup_notional: str
+    max_position_qty: str
+    baseline_id: str
+    loss_target: str
+    remaining_target_at_verdict: str
+    limits_digest: str
+    loss_control_state_version: int
+    deployment_commit: str
+    implementation_commit: str
+
+    @property
+    def max_quantity(self) -> str:
+        """Alias for quantity (legacy call sites)."""
+        return self.quantity
 
     def canonical_dict(self) -> dict[str, Any]:
         return {
@@ -228,11 +257,28 @@ class ExecutionPlan:
             "expires_at": self.expires_at.isoformat(),
             "quote_evidence_hash": self.quote_evidence_hash,
             "model_artifact_hash": self.model_artifact_hash,
+            "authorization_id": self.authorization_id,
             "authorization_scope": self.authorization_scope,
-            "maximum_authorized_legs": self.maximum_authorized_legs,
+            "account_id": int(self.account_id),
+            "broker_account_id": self.broker_account_id,
+            "session_date": self.session_date,
             "symbol": self.symbol,
             "side_sequence": list(self.side_sequence),
-            "max_quantity": self.max_quantity,
+            "quantity": self.quantity,
+            "order_type": self.order_type,
+            "time_in_force": self.time_in_force,
+            "route": self.route,
+            "max_round_trips": int(self.max_round_trips),
+            "maximum_authorized_legs": int(self.maximum_authorized_legs),
+            "max_setup_notional": self.max_setup_notional,
+            "max_position_qty": self.max_position_qty,
+            "baseline_id": self.baseline_id,
+            "loss_target": self.loss_target,
+            "remaining_target_at_verdict": self.remaining_target_at_verdict,
+            "limits_digest": self.limits_digest,
+            "loss_control_state_version": int(self.loss_control_state_version),
+            "deployment_commit": self.deployment_commit,
+            "implementation_commit": self.implementation_commit,
         }
 
 
@@ -243,12 +289,10 @@ def compute_plan_hash(plan: ExecutionPlan | Mapping[str, Any]) -> str:
 
 
 def fresh_data_may_mutate_plan() -> bool:
-    """Controlling design §3.4 — always False; safety reads cannot expand authority."""
     return False
 
 
 def o4a_expected_verdict_and_reason(*, model_available: bool) -> tuple[str, str]:
-    """D1 decision-time expectation when only Tier-D / insufficient cost evidence exists."""
     if not model_available:
         return VERDICT_INDETERMINATE, REASON_MODEL_UNAVAILABLE
     return VERDICT_INDETERMINATE, REASON_INSUFFICIENT_EXECUTION_COST
@@ -259,7 +303,6 @@ def o4b_expected_verdict() -> str:
 
 
 def sample_planning_floors() -> dict[str, int]:
-    """D2 provisional floors (planning only)."""
     return {
         "pooled_binding_reachable_plans": 59,
         "per_intended_symbol_stratum": 20,
@@ -271,6 +314,7 @@ def sample_planning_floors() -> dict[str, int]:
 def contracts_manifest() -> dict[str, Any]:
     return {
         "schema_version": PHASE0_CONTRACTS_SCHEMA_VERSION,
+        "plan_schema_version": PLAN_SCHEMA_VERSION,
         "controlling_design_id": "ADR0043-PH0-CTRL-001 v1.1",
         "verdicts": sorted(ALL_VERDICTS),
         "reason_codes": sorted(ALL_REASON_CODES),
@@ -290,6 +334,7 @@ __all__ = [
     "FalseReachableSeverity",
     "LEGACY_VERDICT_BREACH_UNREACHABLE",
     "PHASE0_CONTRACTS_SCHEMA_VERSION",
+    "PLAN_SCHEMA_VERSION",
     "authorization_transition_allowed",
     "classify_false_reachable",
     "compute_plan_hash",

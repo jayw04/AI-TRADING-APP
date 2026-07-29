@@ -4,7 +4,8 @@ Enforces AMD-15 / AMD-16 and Controlling Design v1.1 §5:
 
 * authorized plans are immutable (except safety reduce/terminate);
 * authorization lifecycle with fail-closed transitions;
-* expiry and fresh-data rules from the owner freeze;
+* expiry → ACTIVE_RISK_REDUCING_ONLY after partial execution (not terminal EXPIRED);
+* maximum_authorized_legs enforced on allow/record;
 * no second independent run after a broker submission under the same authorization.
 
 **Does not** import the order dispatch path, broker adapters, or submit orders.
@@ -34,6 +35,11 @@ class AuthorityRefuseReason(StrEnum):
     QUANTITY_INCREASE = "QUANTITY_INCREASE"
     SYMBOL_SUBSTITUTION = "SYMBOL_SUBSTITUTION"
     SIDE_SEQUENCE_CHANGE = "SIDE_SEQUENCE_CHANGE"
+    ORDER_TYPE_CHANGE = "ORDER_TYPE_CHANGE"
+    TIME_IN_FORCE_CHANGE = "TIME_IN_FORCE_CHANGE"
+    ROUTE_CHANGE = "ROUTE_CHANGE"
+    ACCOUNT_CHANGE = "ACCOUNT_CHANGE"
+    CAPS_CHANGE = "CAPS_CHANGE"
     EXPIRY_EXTENSION = "EXPIRY_EXTENSION"
     PLAN_REGENERATION = "PLAN_REGENERATION"
     FRESH_DATA_MUTATION = "FRESH_DATA_MUTATION"
@@ -42,6 +48,7 @@ class AuthorityRefuseReason(StrEnum):
     REUSE_AFTER_REFUSAL = "REUSE_AFTER_REFUSAL"
     NOT_ACTIVE = "NOT_ACTIVE"
     ALREADY_TERMINAL = "ALREADY_TERMINAL"
+    MAXIMUM_AUTHORIZED_LEGS_EXHAUSTED = "MAXIMUM_AUTHORIZED_LEGS_EXHAUSTED"
 
 
 @dataclass
@@ -69,18 +76,26 @@ class AuthorizationRecord:
             AuthorizationState.CONSUMED,
             AuthorizationState.REFUSED,
             AuthorizationState.ABORTED,
-            AuthorizationState.EXPIRED,
+            AuthorizationState.EXPIRED_UNEXECUTED,
+        }
+
+    def may_submit(self) -> bool:
+        return self.state in {
+            AuthorizationState.ACTIVE,
+            AuthorizationState.ACTIVE_RISK_REDUCING_ONLY,
         }
 
 
 def _qty(plan: ExecutionPlan) -> Decimal:
-    return Decimal(plan.max_quantity)
+    return Decimal(plan.quantity)
 
 
 class PlanAuthority:
     """Guardian for a single AuthorizationRecord."""
 
     def __init__(self, record: AuthorizationRecord) -> None:
+        if record.authorization_id != record.plan.authorization_id:
+            raise ValueError("authorization_id must match plan.authorization_id")
         if record.plan_hash != compute_plan_hash(record.plan):
             raise ValueError("AuthorizationRecord.plan_hash does not match plan contents")
         self._rec = record
@@ -99,7 +114,10 @@ class PlanAuthority:
                 f"{self._rec.state} → {nxt}",
             )
         self._rec.state = nxt
-        if nxt == AuthorizationState.EXPIRED:
+        if nxt in {
+            AuthorizationState.EXPIRED_UNEXECUTED,
+            AuthorizationState.ACTIVE_RISK_REDUCING_ONLY,
+        }:
             self._rec.expired = True
         return AuthorityDecision(True)
 
@@ -113,9 +131,12 @@ class PlanAuthority:
         return self.transition(AuthorizationState.REFUSED)
 
     def abort(self) -> AuthorityDecision:
-        if self._rec.state == AuthorizationState.ACTIVE:
-            return self.transition(AuthorizationState.ABORTED)
-        if self._rec.state == AuthorizationState.CLAIMED:
+        if self._rec.state in {
+            AuthorizationState.ACTIVE,
+            AuthorizationState.CLAIMED,
+            AuthorizationState.ACTIVE_RISK_REDUCING_ONLY,
+            AuthorizationState.RECOVERY_REQUIRED,
+        }:
             return self.transition(AuthorizationState.ABORTED)
         return AuthorityDecision(
             False,
@@ -124,21 +145,52 @@ class PlanAuthority:
         )
 
     def mark_expired(self) -> AuthorityDecision:
-        return self.transition(AuthorizationState.EXPIRED)
+        """Apply expiry: unexecuted → EXPIRED_UNEXECUTED; partial → ACTIVE_RISK_REDUCING_ONLY."""
+        if self._rec.legs_submitted > 0:
+            if self._rec.state == AuthorizationState.ACTIVE:
+                return self.transition(AuthorizationState.ACTIVE_RISK_REDUCING_ONLY)
+            if self._rec.state == AuthorizationState.ACTIVE_RISK_REDUCING_ONLY:
+                return AuthorityDecision(True, detail="already_risk_reducing_only")
+            return AuthorityDecision(
+                False,
+                AuthorityRefuseReason.INVALID_TRANSITION,
+                f"mark_expired from {self._rec.state}",
+            )
+        return self.transition(AuthorizationState.EXPIRED_UNEXECUTED)
+
+    def _legs_remaining(self) -> int:
+        return self._rec.plan.maximum_authorized_legs - self._rec.legs_submitted
 
     def note_broker_submission(self) -> AuthorityDecision:
         """Record a broker submission under this authorization (simulated offline)."""
-        if self._rec.state != AuthorizationState.ACTIVE:
+        if not self._rec.may_submit():
             return AuthorityDecision(False, AuthorityRefuseReason.NOT_ACTIVE)
+        if self._legs_remaining() <= 0:
+            return AuthorityDecision(
+                False,
+                AuthorityRefuseReason.MAXIMUM_AUTHORIZED_LEGS_EXHAUSTED,
+                f"legs_submitted={self._rec.legs_submitted} "
+                f"max={self._rec.plan.maximum_authorized_legs}",
+            )
+        # Atomic reservation for offline model (single-threaded); live path must CAS.
         self._rec.broker_submission_count += 1
         self._rec.legs_submitted += 1
         return AuthorityDecision(True)
 
     def consume(self) -> AuthorityDecision:
-        return self.transition(AuthorizationState.CONSUMED)
+        if self._rec.state in {
+            AuthorizationState.ACTIVE,
+            AuthorizationState.ACTIVE_RISK_REDUCING_ONLY,
+            AuthorizationState.RECOVERY_REQUIRED,
+        }:
+            return self.transition(AuthorizationState.CONSUMED)
+        return AuthorityDecision(
+            False,
+            AuthorityRefuseReason.INVALID_TRANSITION,
+            f"consume from {self._rec.state}",
+        )
 
     def assert_plan_unmodified(self, candidate: ExecutionPlan) -> AuthorityDecision:
-        """Refuse any material mutation of the frozen plan under this authorization."""
         cand_hash = compute_plan_hash(candidate)
         if cand_hash == self._rec.plan_hash:
             return AuthorityDecision(True)
@@ -147,6 +199,25 @@ class PlanAuthority:
             return AuthorityDecision(False, AuthorityRefuseReason.SYMBOL_SUBSTITUTION)
         if candidate.side_sequence != base.side_sequence:
             return AuthorityDecision(False, AuthorityRefuseReason.SIDE_SEQUENCE_CHANGE)
+        if candidate.order_type != base.order_type:
+            return AuthorityDecision(False, AuthorityRefuseReason.ORDER_TYPE_CHANGE)
+        if candidate.time_in_force != base.time_in_force:
+            return AuthorityDecision(False, AuthorityRefuseReason.TIME_IN_FORCE_CHANGE)
+        if candidate.route != base.route:
+            return AuthorityDecision(False, AuthorityRefuseReason.ROUTE_CHANGE)
+        if (
+            candidate.account_id != base.account_id
+            or candidate.broker_account_id != base.broker_account_id
+        ):
+            return AuthorityDecision(False, AuthorityRefuseReason.ACCOUNT_CHANGE)
+        if (
+            candidate.max_round_trips != base.max_round_trips
+            or candidate.max_setup_notional != base.max_setup_notional
+            or candidate.max_position_qty != base.max_position_qty
+            or candidate.loss_target != base.loss_target
+            or candidate.limits_digest != base.limits_digest
+        ):
+            return AuthorityDecision(False, AuthorityRefuseReason.CAPS_CHANGE)
         if _qty(candidate) > _qty(base):
             return AuthorityDecision(False, AuthorityRefuseReason.QUANTITY_INCREASE)
         if candidate.expires_at > base.expires_at:
@@ -156,7 +227,10 @@ class PlanAuthority:
         return AuthorityDecision(False, AuthorityRefuseReason.PLAN_HASH_MISMATCH)
 
     def allow_quantity_reduction(self, new_qty: Decimal) -> AuthorityDecision:
-        if self._rec.state != AuthorizationState.ACTIVE:
+        if self._rec.state not in {
+            AuthorizationState.ACTIVE,
+            AuthorizationState.ACTIVE_RISK_REDUCING_ONLY,
+        }:
             return AuthorityDecision(False, AuthorityRefuseReason.NOT_ACTIVE)
         if new_qty < 0 or new_qty > _qty(self._rec.plan):
             return AuthorityDecision(False, AuthorityRefuseReason.QUANTITY_INCREASE)
@@ -168,23 +242,31 @@ class PlanAuthority:
         return AuthorityDecision(True, detail="safety_reads_ok_no_authority_expansion")
 
     def allow_leg(self, *, risk_increasing: bool, now: datetime) -> AuthorityDecision:
-        """Gate a proposed leg under current auth state / expiry policy."""
+        """Gate a proposed leg under current auth state / expiry / leg ceiling."""
         if self._rec.state == AuthorizationState.REFUSED:
             return AuthorityDecision(False, AuthorityRefuseReason.REUSE_AFTER_REFUSAL)
 
         if self._rec.state == AuthorizationState.CONSUMED:
             return AuthorityDecision(False, AuthorityRefuseReason.REUSE_AFTER_BROKER_SUBMISSION)
 
+        if self._legs_remaining() <= 0:
+            return AuthorityDecision(
+                False,
+                AuthorityRefuseReason.MAXIMUM_AUTHORIZED_LEGS_EXHAUSTED,
+                f"legs_submitted={self._rec.legs_submitted} "
+                f"max={self._rec.plan.maximum_authorized_legs}",
+            )
+
         expired = self._rec.expired or now >= self._rec.plan.expires_at
-        if expired:
-            if (
-                self._rec.state == AuthorizationState.ACTIVE
-                and not self._rec.expired
-            ):
-                tr = self.transition(AuthorizationState.EXPIRED)
-                if not tr.allowed and self._rec.state != AuthorizationState.EXPIRED:
+        if expired or self._rec.state == AuthorizationState.ACTIVE_RISK_REDUCING_ONLY:
+            if self._rec.state == AuthorizationState.ACTIVE and not self._rec.expired:
+                tr = self.mark_expired()
+                if not tr.allowed:
                     return tr
-            self._rec.expired = True
+            if self._rec.state == AuthorizationState.EXPIRED_UNEXECUTED:
+                return AuthorityDecision(
+                    False, AuthorityRefuseReason.RISK_INCREASING_AFTER_EXPIRY
+                )
             policy = expiry_policy(any_leg_submitted=self._rec.legs_submitted > 0)
             if risk_increasing and not policy.allow_risk_increasing:
                 return AuthorityDecision(
@@ -196,6 +278,8 @@ class PlanAuthority:
                 return AuthorityDecision(
                     False, AuthorityRefuseReason.RISK_INCREASING_AFTER_EXPIRY
                 )
+            if self._rec.state != AuthorizationState.ACTIVE_RISK_REDUCING_ONLY:
+                return AuthorityDecision(False, AuthorityRefuseReason.NOT_ACTIVE)
             return AuthorityDecision(True, detail="post_expiry_risk_reducing_only")
 
         if self._rec.state != AuthorizationState.ACTIVE:
@@ -203,7 +287,6 @@ class PlanAuthority:
         return AuthorityDecision(True)
 
     def start_second_independent_run(self) -> AuthorityDecision:
-        """AMD-16: auth that produced a broker submission may not authorize a second run."""
         if self._rec.broker_submission_count > 0:
             return AuthorityDecision(False, AuthorityRefuseReason.REUSE_AFTER_BROKER_SUBMISSION)
         if self._rec.state == AuthorizationState.REFUSED:
@@ -212,6 +295,8 @@ class PlanAuthority:
 
 
 def issue_authorization(*, authorization_id: str, plan: ExecutionPlan) -> PlanAuthority:
+    if plan.authorization_id != authorization_id:
+        plan = replace(plan, authorization_id=authorization_id)
     rec = AuthorizationRecord(
         authorization_id=authorization_id,
         plan=plan,
@@ -222,17 +307,13 @@ def issue_authorization(*, authorization_id: str, plan: ExecutionPlan) -> PlanAu
 
 
 def with_extended_expiry(plan: ExecutionPlan, new_expires: datetime) -> ExecutionPlan:
-    """Test helper — produces a mutated plan (must be refused by authority)."""
     return replace(plan, expires_at=new_expires)
 
 
 def assert_no_order_path_imports() -> None:
-    """Structural guard: this module must not import order-path packages."""
     import app.risk.loss_control.phase0_authority as mod
 
     src = inspect.getsource(mod)
-    # Build needles without embedding the forbidden import lines verbatim in this function
-    # (otherwise the guard would match itself).
     needles = [
         "from app." + "services.order_router",
         "import app." + "services.order_router",

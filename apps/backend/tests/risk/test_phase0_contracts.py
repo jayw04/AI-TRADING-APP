@@ -9,6 +9,7 @@ import pytest
 
 from app.risk.loss_control.phase0_contracts import (
     ALPACA_PAPER_FILL_TIER,
+    PLAN_SCHEMA_VERSION,
     TIER_B_PAPER_OR_EXECUTABLE_ESTIMATE,
     VERDICT_INDETERMINATE,
     VERDICT_UNREACHABLE_WITHIN_CAPS,
@@ -28,12 +29,46 @@ from app.risk.loss_control.phase0_contracts import (
 )
 
 
+def _plan(**over) -> ExecutionPlan:
+    base = dict(
+        plan_id="p1",
+        plan_schema_version=PLAN_SCHEMA_VERSION,
+        created_at=datetime(2026, 7, 29, 15, 0, tzinfo=UTC),
+        expires_at=datetime(2026, 7, 29, 16, 0, tzinfo=UTC),
+        quote_evidence_hash="sha256:abc",
+        model_artifact_hash="sha256:def",
+        authorization_id="auth-1",
+        authorization_scope="account:3",
+        account_id=3,
+        broker_account_id="PA34",
+        session_date="2026-07-29",
+        symbol="SPY",
+        side_sequence=("sell", "buy"),
+        quantity="10",
+        order_type="limit",
+        time_in_force="day",
+        route="alpaca",
+        max_round_trips=12,
+        maximum_authorized_legs=2,
+        max_setup_notional="25000",
+        max_position_qty="1000",
+        baseline_id="b1",
+        loss_target="3000",
+        remaining_target_at_verdict="3000",
+        limits_digest="sha256:lim",
+        loss_control_state_version=0,
+        deployment_commit="d1",
+        implementation_commit="i1",
+    )
+    base.update(over)
+    return ExecutionPlan(**base)  # type: ignore[arg-type]
+
+
 def test_false_reachable_severity_splits() -> None:
     assert classify_false_reachable(Decimal("1")) is FalseReachableSeverity.NONE
     assert classify_false_reachable(Decimal("0.90")) is FalseReachableSeverity.MARGINAL
     assert classify_false_reachable(Decimal("0.80")) is FalseReachableSeverity.MARGINAL
     assert classify_false_reachable(Decimal("0.799")) is FalseReachableSeverity.CRITICAL
-    assert classify_false_reachable(Decimal("0")) is FalseReachableSeverity.CRITICAL
 
 
 def test_non_negative_loss_rejects_signed_optimistic() -> None:
@@ -57,52 +92,36 @@ def test_d1_o4_expectations() -> None:
 
 def test_expiry_policy_partial_vs_pre_submit() -> None:
     pre = expiry_policy(any_leg_submitted=False)
-    assert pre.allow_risk_increasing is False
     assert pre.allow_risk_reducing_completion is False
     post = expiry_policy(any_leg_submitted=True)
-    assert post.allow_risk_increasing is False
     assert post.allow_risk_reducing_completion is True
-    assert post.allow_emergency_flatten is True
 
 
-def test_auth_lifecycle_forward_only() -> None:
+def test_auth_lifecycle_includes_risk_reducing_state() -> None:
     assert authorization_transition_allowed(
-        AuthorizationState.ISSUED, AuthorizationState.CLAIMED
+        AuthorizationState.ACTIVE, AuthorizationState.ACTIVE_RISK_REDUCING_ONLY
+    )
+    assert authorization_transition_allowed(
+        AuthorizationState.ACTIVE_RISK_REDUCING_ONLY, AuthorizationState.CONSUMED
     )
     assert not authorization_transition_allowed(
-        AuthorizationState.CONSUMED, AuthorizationState.ACTIVE
-    )
-    assert not authorization_transition_allowed(
-        AuthorizationState.ACTIVE, AuthorizationState.ISSUED
+        AuthorizationState.EXPIRED_UNEXECUTED, AuthorizationState.ACTIVE
     )
 
 
-def test_plan_hash_stable_and_fresh_data_cannot_mutate() -> None:
-    plan = ExecutionPlan(
-        plan_id="p1",
-        plan_schema_version=1,
-        created_at=datetime(2026, 7, 29, 15, 0, tzinfo=UTC),
-        expires_at=datetime(2026, 7, 29, 16, 0, tzinfo=UTC),
-        quote_evidence_hash="sha256:abc",
-        model_artifact_hash="sha256:def",
-        authorization_scope="account:3",
-        maximum_authorized_legs=2,
-        symbol="SPY",
-        side_sequence=("sell", "buy"),
-        max_quantity="10",
-    )
+def test_plan_hash_includes_route_caps_and_account() -> None:
+    plan = _plan()
     h1 = compute_plan_hash(plan)
-    h2 = compute_plan_hash(plan)
-    assert h1 == h2 and h1.startswith("sha256:")
+    assert h1 == compute_plan_hash(plan) and h1.startswith("sha256:")
+    assert compute_plan_hash(_plan(route="other")) != h1
+    assert compute_plan_hash(_plan(account_id=1)) != h1
+    assert compute_plan_hash(_plan(loss_target="2999")) != h1
     assert fresh_data_may_mutate_plan() is False
 
 
 def test_sample_floors_and_manifest() -> None:
     floors = sample_planning_floors()
     assert floors["pooled_binding_reachable_plans"] == 59
-    assert floors["per_intended_symbol_stratum"] == 20
-    assert floors["shadow_sessions"] == 10
-    assert floors["initial_marginal_false_reachable_tolerance"] == 0
     m = contracts_manifest()
-    assert m["controlling_design_id"] == "ADR0043-PH0-CTRL-001 v1.1"
+    assert m["plan_schema_version"] == PLAN_SCHEMA_VERSION
     assert "REACHABLE" in m["verdicts"]

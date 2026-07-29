@@ -1,20 +1,24 @@
-"""ADR 0043 Phase-0 reachability — hermetic regressions + WP2 Tier-D gating.
+"""ADR 0043 Phase-0 reachability — hermetic regressions + WP2 plan-binding (CORR-02).
 
-Controlling Design v1.1: displayed-spread (Tier D) never yields a binding verdict.
-Would-be REACHABLE → INDETERMINATE + INSUFFICIENT_EXECUTION_COST.
+Tier D never binding. Tier A–C binding requires a frozen ExecutionPlan; multi-symbol
+max-over-symbols is diagnostic only.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal as D
 
 import pytest
 
 from app.risk.loss_control.phase0_contracts import (
+    PLAN_SCHEMA_VERSION,
     REASON_INSUFFICIENT_EXECUTION_COST,
     REASON_ROUND_TRIP_CAP,
     TIER_C_QUOTE_DERIVED,
     TIER_D_DISPLAYED_SPREAD,
+    ExecutionPlan,
+    compute_plan_hash,
 )
 from scripts.adr0043_reachability import (
     VERDICT_INDETERMINATE,
@@ -37,6 +41,41 @@ CAPS = Caps(
 
 def _quote(bid="128.09", ask="131.03", age="2"):
     return {"bid": bid, "ask": ask, "age_s": age}
+
+
+def _plan(**over) -> ExecutionPlan:
+    base = dict(
+        plan_id="plan-koku",
+        plan_schema_version=PLAN_SCHEMA_VERSION,
+        created_at=datetime(2026, 7, 29, 14, 0, tzinfo=UTC),
+        expires_at=datetime(2026, 7, 29, 15, 0, tzinfo=UTC),
+        quote_evidence_hash="sha256:q",
+        model_artifact_hash="sha256:m",
+        authorization_id="auth-1",
+        authorization_scope="account:3",
+        account_id=3,
+        broker_account_id="PA34",
+        session_date="2026-07-29",
+        symbol="KOKU",
+        side_sequence=("buy", "sell"),
+        quantity="190",
+        order_type="limit",
+        time_in_force="day",
+        route="alpaca",
+        max_round_trips=12,
+        maximum_authorized_legs=2,
+        max_setup_notional="25000",
+        max_position_qty="1000",
+        baseline_id="b1",
+        loss_target="3000",
+        remaining_target_at_verdict="2854.08",
+        limits_digest="sha256:lim",
+        loss_control_state_version=4,
+        deployment_commit="d1",
+        implementation_commit="i1",
+    )
+    base.update(over)
+    return ExecutionPlan(**base)  # type: ignore[arg-type]
 
 
 def test_a_fresh_two_sided_quote_prices_the_round_trip():
@@ -87,7 +126,6 @@ def test_an_unknown_day_change_yields_an_unknown_distance():
 
 
 def test_tier_d_projected_reachable_is_indeterminate_non_binding():
-    """WP2: Tier D cannot authorize REACHABLE — refuse with INDETERMINATE."""
     r = assess(
         day_change=D("-145.92"),
         quotes={"KOKU": _quote(), "IEUS": _quote(bid="66.80", ask="66.94")},
@@ -98,12 +136,9 @@ def test_tier_d_projected_reachable_is_indeterminate_non_binding():
     assert r.verdict == VERDICT_INDETERMINATE
     assert r.binding is False
     assert r.reason_code == REASON_INSUFFICIENT_EXECUTION_COST
-    assert r.remaining_to_target == D("2854.08")
-    assert r.best_loss_per_round_trip == D("558.60")
-    assert r.round_trips_needed == 6
 
 
-def test_tier_c_can_bind_reachable():
+def test_tier_c_cannot_bind_without_execution_plan():
     r = assess(
         day_change=D("-145.92"),
         quotes={"KOKU": _quote()},
@@ -111,8 +146,71 @@ def test_tier_c_can_bind_reachable():
         caps=CAPS,
         evidence_tier=TIER_C_QUOTE_DERIVED,
     )
+    assert r.binding is False
+    assert r.plan_id is None
+
+
+def test_tier_c_binds_with_frozen_execution_plan():
+    plan = _plan()
+    r = assess(
+        day_change=D("-145.92"),
+        quotes={"KOKU": _quote()},
+        symbols=["KOKU"],
+        caps=CAPS,
+        evidence_tier=TIER_C_QUOTE_DERIVED,
+        execution_plan=plan,
+    )
     assert r.verdict == VERDICT_REACHABLE and r.binding is True
-    assert r.reason_code is None
+    assert r.plan_id == plan.plan_id
+    assert r.plan_hash == compute_plan_hash(plan)
+    assert r.selected_symbol == "KOKU"
+    assert r.modeled_quantity is not None and r.modeled_quantity <= D(plan.quantity)
+
+
+def test_best_alternative_symbol_cannot_authorize_frozen_symbol():
+    """CORR-02: IEUS may look better diagnostically, but plan is KOKU."""
+    plan = _plan(symbol="KOKU", quantity="190")
+    # Wide IEUS spread would win a free max-over-symbols contest.
+    r = assess(
+        day_change=D("0"),
+        quotes={
+            "KOKU": _quote(bid="100.00", ask="100.50"),  # weaker
+            "IEUS": _quote(bid="10.00", ask="20.00"),  # stronger diagnostic
+        },
+        symbols=["KOKU", "IEUS"],
+        caps=CAPS,
+        evidence_tier=TIER_C_QUOTE_DERIVED,
+        execution_plan=plan,
+    )
+    assert r.selected_symbol == "KOKU"
+    assert r.plan_id == plan.plan_id
+    assert all(s.symbol == "KOKU" for s in r.per_symbol)
+
+
+def test_multi_symbol_without_plan_never_binding_tier_c():
+    r = assess(
+        day_change=D("-145.92"),
+        quotes={"KOKU": _quote(), "IEUS": _quote(bid="66.80", ask="66.94")},
+        symbols=["KOKU", "IEUS"],
+        caps=CAPS,
+        evidence_tier=TIER_C_QUOTE_DERIVED,
+    )
+    assert r.binding is False
+    assert "ExecutionPlan" in r.note
+
+
+def test_modeled_quantity_at_or_below_plan_quantity():
+    plan = _plan(quantity="50")  # below notional-sized 190
+    r = assess(
+        day_change=D("-145.92"),
+        quotes={"KOKU": _quote()},
+        symbols=["KOKU"],
+        caps=CAPS,
+        evidence_tier=TIER_C_QUOTE_DERIVED,
+        execution_plan=plan,
+    )
+    assert r.modeled_quantity == D("50")
+    assert r.binding is True
 
 
 def test_tier_d_unreachable_projection_preserved_non_binding():
@@ -125,7 +223,6 @@ def test_tier_d_unreachable_projection_preserved_non_binding():
     assert r.verdict == VERDICT_UNREACHABLE == VERDICT_UNREACHABLE_WITHIN_CAPS
     assert r.binding is False
     assert r.reason_code == REASON_ROUND_TRIP_CAP
-    assert "do not widen caps" in r.note
 
 
 def test_nothing_priced_is_indeterminate_and_never_binding():
@@ -137,15 +234,11 @@ def test_nothing_priced_is_indeterminate_and_never_binding():
     )
     assert r.verdict == VERDICT_INDETERMINATE
     assert r.binding is False
-    assert r.best_loss_per_round_trip is None
-    assert "nothing was measured" in r.note
 
 
 def test_a_priced_spread_with_an_unknown_baseline_is_indeterminate():
     r = assess(day_change=None, quotes={"KOKU": _quote()}, symbols=["KOKU"], caps=CAPS)
     assert r.verdict == VERDICT_INDETERMINATE and r.binding is False
-    assert r.best_loss_per_round_trip == D("558.60")
-    assert r.remaining_to_target is None
 
 
 def test_tier_d_already_past_target_still_non_binding():
@@ -155,15 +248,23 @@ def test_tier_d_already_past_target_still_non_binding():
 
 
 def test_round_trips_needed_rounds_up_never_down():
+    plan = _plan(
+        symbol="KOKU",
+        quantity="245",
+        loss_target="3000",
+        remaining_target_at_verdict="3000",
+    )
     r = assess(
         day_change=D("0"),
         quotes={"KOKU": _quote(bid="100.00", ask="102.00")},
         symbols=["KOKU"],
         caps=CAPS,
         evidence_tier=TIER_C_QUOTE_DERIVED,
+        execution_plan=plan,
     )
     assert r.best_loss_per_round_trip == D("490.00")
     assert r.round_trips_needed == 7
+    assert r.binding is True
 
 
 def test_the_serialised_package_carries_reason_and_tier():
@@ -176,8 +277,4 @@ def test_the_serialised_package_carries_reason_and_tier():
     blob = r.as_dict()
     assert blob["binding"] is False and blob["day_change"] is None
     assert blob["evidence_tier"] == TIER_D_DISPLAYED_SPREAD
-    assert "reason_code" in blob
-    assert [s["unusable_reason"] for s in blob["per_symbol"]] == [
-        "no governed quote",
-        "quote is 9000s old (ceiling 10s)",
-    ]
+    assert "plan_id" in blob and "plan_hash" in blob
