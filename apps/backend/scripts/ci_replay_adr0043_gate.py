@@ -74,10 +74,24 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--repo", default=REPO)
     ap.add_argument("--markdown", type=str, default="", help="Write a markdown report here")
     ap.add_argument("--workers", type=int, default=10)
+    ap.add_argument(
+        "--pr-numbers",
+        type=str,
+        default="",
+        help="Comma/newline-separated PR numbers, or a path to a file of them. Replays that EXACT "
+             "population instead of the default moving 'most recent closed' window. This is how a "
+             "previously published report is reproduced verbatim.",
+    )
     args = ap.parse_args(argv)
 
-    prs = [pr for pg in gh(f"repos/{args.repo}/pulls?state=closed&per_page=100&sort=updated&direction=desc")
-           for pr in pg][: args.sample]
+    if args.pr_numbers:
+        src = Path(args.pr_numbers)
+        raw = src.read_text(encoding="utf-8") if src.is_file() else args.pr_numbers
+        nums = [int(tok) for tok in raw.replace("\n", ",").split(",") if tok.strip()]
+        prs = [{"number": n, "title": ""} for n in nums]
+    else:
+        prs = [pr for pg in gh(f"repos/{args.repo}/pulls?state=closed&per_page=100&sort=updated&direction=desc")
+               for pr in pg][: args.sample]
     if not prs:
         print("ERROR: no PRs returned (is `gh` authenticated?)", file=sys.stderr)
         return 2
@@ -123,16 +137,43 @@ def main(argv: list[str] | None = None) -> int:
         m = [r for r in rows if any(fn(f) for f in r["files"])]
         if m:
             out.append(f"| {name} | {len(m)} | {sum(1 for r in m if r['gate'])} |\n")
-    out.append("\n## Sample of skipped PRs\n\n")
-    for r in skip[:15]:
+    out.append("\n## Skipped PRs (all)\n\n")
+    for r in sorted(skip, key=lambda r: -r["number"]):
         tops = sorted({f.split("/")[0] for f in r["files"]})
         out.append(f"- #{r['number']} {r['title']} — `{', '.join(tops)}`\n")
+
+    # REPRODUCIBILITY. The default population is a MOVING window ("most recent closed PRs"), so a
+    # later re-run samples a DIFFERENT set and cannot confirm this report. Pin the exact population
+    # here so the same result can be regenerated verbatim with --pr-numbers.
+    nums = sorted((r["number"] for r in rows), reverse=True)
+    out.append("\n## Sampled population (exact — for reproduction)\n\n")
+    out.append(
+        "The default sample is a *moving* window, so re-running plain `--sample 120` later will "
+        "select a different population. To reproduce THIS report verbatim, replay the pinned list:\n\n"
+    )
+    out.append("```bash\npython apps/backend/scripts/ci_replay_adr0043_gate.py \\\n")
+    out.append("  --pr-numbers docs/implementation/evidence/github_ops_001/adr0043_gate_replay_v1.0.population.txt\n")
+    out.append("```\n\n")
+    out.append(f"All {len(nums)} PRs in this run, newest first:\n\n```\n")
+    for i in range(0, len(nums), 15):
+        out.append(",".join(str(n) for n in nums[i:i + 15]) + "\n")
+    out.append("```\n\n")
+    out.append("### Per-PR decisions\n\n| PR | ADR-0043 gate | backend FULL |\n|---|---|---|\n")
+    for r in sorted(rows, key=lambda r: -r["number"]):
+        out.append(
+            f"| #{r['number']} | {'RUN' if r['gate'] else 'skip'} | "
+            f"{'yes' if r['backend_full'] else 'no'} |\n"
+        )
 
     text = "".join(out)
     print(text)
     if args.markdown:
         Path(args.markdown).write_text(text, encoding="utf-8")
-        print(f"\nreport -> {args.markdown}")
+        # Machine-readable population, so `--pr-numbers <file>` can replay it exactly.
+        pop = Path(args.markdown).with_suffix(".population.txt")
+        pop.write_text(",".join(str(n) for n in nums) + "\n", encoding="utf-8")
+        print(f"\nreport     -> {args.markdown}")
+        print(f"population -> {pop}")
 
     if violations:
         print(f"\nFAIL: {len(violations)} safety violation(s)", file=sys.stderr)
