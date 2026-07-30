@@ -1,0 +1,103 @@
+{
+  "package": "O4-A",
+  "campaign": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.2",
+  "start_ruling": "ADR0043-PH0-D-BOX-START-002",
+  "freeze_body_sha256": "b2e6090dfe26bd26fbf18a3eb1be02d7e69a49423559194b93e8a95d5d663270",
+  "archive_id": "O4A-CAND-20260730T022316Z",
+  "archive_sha256": "3ba73e61f5e8955a184d820c0aba4ed387de453c30fc6a22d168d84074403c49",
+  "archive_size_bytes": 190328,
+  "archive_path": "docs/design/evidence/dbox_o34_acq_001/constructed/20260730T022316Z/O4A_CANDIDATE.json",
+  "schema_id": "ADR0043-PH0-D-BOX-O34-O4A-ARCHIVE-SCHEMA-001",
+  "archive_kind": "O4A_DECISION_TIME",
+  "started_at_utc": "2026-07-30T18:23:58Z",
+  "completed_at_utc": "2026-07-30T18:23:58Z",
+  "git_commit": "b542d1c2228993b44bb3d3c8067ec9dc99d72d61",
+  "evaluator_version": "phase0_o4_replay.run_o4a@d1c2fbf+adapter",
+  "protocol_ids": [
+    "phase0_o4_replay.O4A",
+    "O4-A-v1"
+  ],
+  "caps": {
+    "loss_target": "3000",
+    "max_round_trips": 12,
+    "max_setup_notional": "25000",
+    "max_position_qty": "1000"
+  },
+  "structural_checks": {
+    "archive_sha256_match": true,
+    "archive_size_match": true,
+    "schema_id_match": true,
+    "archive_kind_match": true,
+    "archive_id_match": true,
+    "n_observations_287": true,
+    "all_287_ord_mappings": true,
+    "missing_cutoff_five_excluded": true,
+    "no_fill_lookahead": true,
+    "no_o4b_payload_mixing": true
+  },
+  "required_checks": {
+    "verdict_INDETERMINATE": "INCONCLUSIVE - decision_time_bundle_incomplete",
+    "reason_INSUFFICIENT_EXECUTION_COST_or_MODEL_UNAVAILABLE": "INCONCLUSIVE - decision_time_bundle_incomplete",
+    "no_fill_lookahead": "PASS",
+    "no_mix_with_O4B_evidence": "PASS"
+  },
+  "counts": {
+    "n_observations": 287,
+    "n_ord_parse_ok": 287,
+    "n_decision_time_complete": 0,
+    "n_incomplete": 287,
+    "n_protocol_pass": 0,
+    "n_protocol_fail_on_complete": 0,
+    "n_lookahead_hits": 0,
+    "n_mix_hits": 0
+  },
+  "missing_cutoff_expected_excluded": [
+    "ord:1244",
+    "ord:1250",
+    "ord:1252",
+    "ord:1256",
+    "ord:1259"
+  ],
+  "missing_cutoff_present_in_archive": [],
+  "parse_failures": [],
+  "lookahead_hits": [],
+  "mix_hits": [],
+  "incomplete_plan_ids_sample": [
+    "ord:1080",
+    "ord:1081",
+    "ord:1082",
+    "ord:1083",
+    "ord:1084",
+    "ord:1085",
+    "ord:1086",
+    "ord:1087",
+    "ord:1088",
+    "ord:1089",
+    "ord:1090",
+    "ord:1091",
+    "ord:1092",
+    "ord:1093",
+    "ord:1094",
+    "ord:1095",
+    "ord:1096",
+    "ord:1097",
+    "ord:1098",
+    "ord:1099"
+  ],
+  "protocol_fail_sample": [],
+  "row_results_sha256": "640688ab5398093c75cb1b9c83c50f34a8594e5f4dddc3d3ff5716641244a3c8",
+  "artifacts": {
+    "o4a_report.json": "this file",
+    "decision_time_bundle_hash.txt": "3ba73e61f5e8955a184d820c0aba4ed387de453c30fc6a22d168d84074403c49",
+    "o4a_row_results.json": "sibling full per-row results"
+  },
+  "disposition": "INCONCLUSIVE",
+  "disposition_reason": "decision_time_bundle_incomplete - 287/287 observations lack usable two-sided decision-time quotes; run_o4a yields STALE_EVIDENCE rather than INSUFFICIENT_EXECUTION_COST. Enrichment/reconstruction forbidden.",
+  "d_wire_effect": "NONE \u2014 O5 deferred; D-WIRE remains BLOCKED",
+  "prior_o3_disposition": "INCONCLUSIVE",
+  "inherited_packages_not_rerun": [
+    "CORR-06",
+    "O1",
+    "O2"
+  ]
+}
