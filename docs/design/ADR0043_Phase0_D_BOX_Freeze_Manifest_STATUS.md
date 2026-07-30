@@ -1,4 +1,4 @@
-# D-BOX Status — After O34-ACQ-AUTH-001 (Amended EFFECTIVE)
+# D-BOX Status — After O34-ACQ-FREEZE-001 Seal
 
 | Field | Value |
 |-------|-------|
@@ -7,8 +7,10 @@
 | Freeze-002 | **SEALED** body `d35de863…` |
 | D-WIRE | **BLOCKED** |
 | O34 acquisition | ADR0043-PH0-D-BOX-O34-ACQ-AUTH-001 **APPROVED / EFFECTIVE** (amended) |
-| Construction freeze | ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001 **UNSEALED DRAFT** |
-| Effective (UTC) | 2026-07-30T00:21:33Z |
+| Construction freeze | ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001 **SEALED** |
+| Freeze body SHA-256 | `80dfd8ec6d90182cdeabaab2d1457720ca417bcd5cb1511b4dd9d77989951bb0` |
+| Sealed at (UTC) | 2026-07-30T01:43:23Z |
+| Auth merge | `9a264e5c7e1aa376b65cab6cb514b7185acd5ea0` |
 | Auth content commit | `1db1a80ebac5d91d59a2b70b087a1783ec039b7f` |
 
 ## Package rollup
@@ -18,10 +20,10 @@
 | CORR-06 / O1 / O2 | **APPROVE** |
 | O3 / O4-A / O4-B / O5 | **INCONCLUSIVE** (deferred / absent) |
 
-## Authorized next step
+## Sequence position
 
-1. Seal **O34-ACQ-FREEZE-001** with all required fields **before** any record selection.  
-2. Construct **candidate** archives only (outcomes: CONSTRUCTED / QUALIFIED / REJECTED_AS_NON-BINDABLE).  
-3. Bind gate-ready archives only via independent qualification + later campaign amendment.
+`FILL → READINESS_VALIDATION → SEAL → COUNTERSIGN` **complete**.
+
+**Next (separate decision):** construction-start — capture exact live source snapshot SHA-256s per sealed protocol, then record selection. No exploratory selection yet.
 
 Still **not** authorized: broker orders, new observations, gate execution/reopen, D-WIRE, production imports.

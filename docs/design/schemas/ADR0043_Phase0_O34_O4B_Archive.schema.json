@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ADR0043-PH0-D-BOX-O34-O4B-ARCHIVE-SCHEMA-001",
+  "title": "O4-B forensic / terminal observation archive (candidate)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "archive_id",
+    "archive_kind",
+    "schema_id",
+    "account_scope",
+    "eligibility_window",
+    "observations",
+    "counts",
+    "construction_freeze_id",
+    "provenance"
+  ],
+  "properties": {
+    "archive_id": { "type": "string", "minLength": 1 },
+    "archive_kind": { "const": "O4B_FORENSIC" },
+    "schema_id": { "const": "ADR0043-PH0-D-BOX-O34-O4B-ARCHIVE-SCHEMA-001" },
+    "account_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workbench_account_id", "broker_account_id"],
+      "properties": {
+        "workbench_account_id": { "const": 3 },
+        "broker_account_id": { "const": "PA34USW0Q8UO" }
+      }
+    },
+    "eligibility_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_inclusive_utc", "end_exclusive_utc"],
+      "properties": {
+        "start_inclusive_utc": { "type": "string" },
+        "end_exclusive_utc": { "type": "string" }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "observation_id",
+          "plan_id",
+          "episode_id",
+          "o4a_episode_link",
+          "quotes",
+          "symbols",
+          "fills",
+          "fill_loss_per_round_trip",
+          "terminal_completeness",
+          "source_lineage"
+        ],
+        "properties": {
+          "observation_id": { "type": "string" },
+          "plan_id": { "type": "string" },
+          "episode_id": { "type": "string" },
+          "o4a_episode_link": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["episode_id"],
+            "properties": {
+              "episode_id": { "type": "string" },
+              "o4a_observation_id": { "type": ["string", "null"] }
+            }
+          },
+          "quotes": { "type": "object" },
+          "symbols": { "type": "array", "items": { "type": "string" } },
+          "day_change": { "type": ["string", "null"] },
+          "fills": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "object" }
+          },
+          "fill_loss_per_round_trip": { "type": "string" },
+          "terminal_broker_state": { "type": ["object", "null"] },
+          "terminal_loss_accounting_inputs": { "type": ["object", "null"] },
+          "evidence_tier": { "type": "string" },
+          "terminal_completeness": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["complete", "criteria_id"],
+            "properties": {
+              "complete": { "const": true },
+              "criteria_id": { "const": "O4B-TERM-COMPLETE-001" }
+            }
+          },
+          "source_lineage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_class", "source_snapshot_id", "source_row_key"],
+            "properties": {
+              "source_class": { "type": "string" },
+              "source_snapshot_id": { "type": "string" },
+              "source_row_key": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n_observations", "n_unique_plans", "n_fills"],
+      "properties": {
+        "n_observations": { "type": "integer", "minimum": 0 },
+        "n_unique_plans": { "type": "integer", "minimum": 0 },
+        "n_fills": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "construction_freeze_id": { "const": "ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001" },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["constructor", "tooling_commit", "constructed_at_utc"],
+      "properties": {
+        "constructor": { "type": "string" },
+        "tooling_commit": { "type": "string" },
+        "constructed_at_utc": { "type": "string" },
+        "host": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
