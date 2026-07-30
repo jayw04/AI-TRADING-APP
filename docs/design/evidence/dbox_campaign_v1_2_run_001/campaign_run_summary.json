@@ -6,20 +6,22 @@
   "opening_outcome": "PASS",
   "opening_at_utc": "2026-07-30T18:12:42Z",
   "packages": {
-    "CORR-06": "INHERITED APPROVE (Option 2A) \u2014 not rerun",
-    "O1": "INHERITED APPROVE (Option 2A) \u2014 not rerun",
-    "O2": "INHERITED APPROVE (Option 2A) \u2014 not rerun",
-    "O3": "INCONCLUSIVE \u2014 eligible_observation_count_below_protocol_minimum \u2014 n_eligible_full_replay=0 of n=292; QUALIFIED archive is sparse (quot",
-    "O4-A": "INCONCLUSIVE \u2014 decision_time_bundle_incomplete \u2014 287/287 observations lack usable two-sided decision-time quotes; run_o4a yields STALE_EVIDENCE rather than INSUFFICIENT_EXECUT",
-    "O4-B": "INCONCLUSIVE - forensic_bundle_incomplete - 286/286 observations missing surfaces required for UNREACHABLE_WITHIN_CAPS (day_change missing on 286; other missing groups=0). run_o4b yields INDETERM",
-    "O5": "INCONCLUSIVE (deferred; anchors [])"
+    "CORR-06": "Inherited APPROVE",
+    "O1": "Inherited APPROVE",
+    "O2": "Inherited APPROVE",
+    "O3": "INCONCLUSIVE - replay surfaces absent",
+    "O4-A": "INCONCLUSIVE - decision-time quotes absent",
+    "O4-B": "INCONCLUSIVE - day_change absent",
+    "Combined-O4": "INCONCLUSIVE",
+    "O5": "INCONCLUSIVE, anchors: []",
+    "D-WIRE": "BLOCKED"
   },
   "o3_disposition": "INCONCLUSIVE",
   "d_wire_eligibility": "BLOCKED",
   "hold_unchanged": true,
   "artifact_root": "docs/design/evidence/dbox_campaign_v1_2_run_001",
   "artifact_sha256": {
-    "campaign_run_summary.json": "1c859814c3d0d8a703df534550a6c091a1f519641c5a95dfb134c8b13f43b489",
+    "campaign_run_summary.json": "8db9c15fdff7545fd7d098c7efaf029980badc0c3c195cdbb6827f2783397a75",
     "decision_time_bundle_hash.txt": "ff37ba238e59b38b410b1bf9728f856ff61b4752b6b3d643cf9b747dd00fe024",
     "false_reachable_table.json": "a7d5f0fd1c90a7231b7f3647b85e05ab6aa4cc1bc863cfaff309c0d666d44887",
     "forensic_bundle_hash.txt": "d10e17314cdb14909910b192bd3724de443b92a22389659d54ab1cfdc017e615",
@@ -44,7 +46,17 @@
     "run_o4a_gate_v12.py": "5dd1b2e325ce854a69441d07ce3638b25f712a773d68bf1cc2a04394d4d793e8",
     "run_o4b_gate_v12.py": "594b52b47605f2e47cc70337fdc65d5d99999271dbf6dab9b9ffe41a293a7e6d"
   },
-  "next": "Campaign executable packages complete under START-002; O5 remains INCONCLUSIVE; D-WIRE BLOCKED; close-out pending owner",
+  "next": "Evidence-gap design recommended; no immediate successor campaign; D-WIRE fail-closed",
   "o4a_disposition": "INCONCLUSIVE",
-  "o4b_disposition": "INCONCLUSIVE"
+  "o4b_disposition": "INCONCLUSIVE",
+  "campaign_status": "CLOSED",
+  "close_ruling": "ADR0043-PH0-D-BOX-V12-CLOSE-001 APPROVED / EFFECTIVE",
+  "close_effective_utc": "2026-07-30T18:49:40Z",
+  "bindings": {
+    "start_002_merge": "952848c4696f9b8750c91c82967cdec065c6a804",
+    "freeze_003_body_sha256": "b2e6090dfe26bd26fbf18a3eb1be02d7e69a49423559194b93e8a95d5d663270",
+    "o3_evidence_merge": "b542d1c2228993b44bb3d3c8067ec9dc99d72d61",
+    "o4a_evidence_merge": "d85f4879e8188d4ea08543c57ff4a72bc5ed2f83",
+    "o4b_evidence_merge": "83813a68768330556f97bf290278411a10d7e95d"
+  }
 }
