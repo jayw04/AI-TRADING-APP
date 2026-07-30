@@ -1,0 +1,38 @@
+{
+  "record_id": "ADR0043-PH0-D-BOX-V12-RUN-001",
+  "campaign": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.2",
+  "freeze_body_sha256": "b2e6090dfe26bd26fbf18a3eb1be02d7e69a49423559194b93e8a95d5d663270",
+  "start_ruling": "ADR0043-PH0-D-BOX-START-002 EFFECTIVE",
+  "opening_outcome": "PASS",
+  "opening_at_utc": "2026-07-30T18:12:42Z",
+  "packages": {
+    "CORR-06": "INHERITED APPROVE (Option 2A) \u2014 not rerun",
+    "O1": "INHERITED APPROVE (Option 2A) \u2014 not rerun",
+    "O2": "INHERITED APPROVE (Option 2A) \u2014 not rerun",
+    "O3": "INCONCLUSIVE \u2014 eligible_observation_count_below_protocol_minimum \u2014 n_eligible_full_replay=0 of n=292; QUALIFIED archive is sparse (quot",
+    "O4-A": "NOT YET RUN",
+    "O4-B": "NOT YET RUN",
+    "O5": "INCONCLUSIVE (deferred; anchors [])"
+  },
+  "o3_disposition": "INCONCLUSIVE",
+  "d_wire_eligibility": "BLOCKED",
+  "hold_unchanged": true,
+  "artifact_root": "docs/design/evidence/dbox_campaign_v1_2_run_001",
+  "artifact_sha256": {
+    "campaign_run_summary.json": "950f2131caf21ff36a2a03110a30d733ae0d3e36425f589289162c6dfbbc25aa",
+    "false_reachable_table.json": "a7d5f0fd1c90a7231b7f3647b85e05ab6aa4cc1bc863cfaff309c0d666d44887",
+    "o3_adapter_pytest.txt": "38fdc9c706ae356c7245ed0d166f821b3a15a8b328886aebf2cc67e15b34aef0",
+    "o3_replay_report.json": "1abe0deb54950e7eec5640fa74bb7e1740d1e5dd23037677b7fa9be4417816b0",
+    "opening_archive_hashes.json": "aa356e56d2ae45111ecffeb53495da71853eae84e6867af32ec1deaaa8c97394",
+    "opening_body_hash.txt": "a52ea478f70308c9588335417f2d70b60fa076d437fe17572086cbfa9c039a44",
+    "opening_controls.json": "09ca58c17d27c42ad8b3e9933a35d02b2afbcd1cfe5b74406a45d2be946edf57",
+    "opening_git_status.txt": "0e2df3f4817b1d1a911fada5d97c3e3ad88084410a298b244384a5e2dda7bd53",
+    "opening_ord_probe.json": "c2d11fbbe7e67fd1dd8eea0d8a1ceb35bb9e523ac84d1ef573971cb1109df7c9",
+    "opening_production_exclusion.json": "a3ba22dab3377d660ad3072ad5cdd1415ffffef3cac182fde461f61322b3dfaa",
+    "OPENING_RECORD_v1.0.md": "036f364d5a80c899eb14864329ed3815f892656656ee21febd1c7bb06cd3f68a",
+    "opening_verify_seal.json": "7829e570bd02cd1f72beea1bbf9d029a55bbcd9d1dd909fa7c73faf98aad1bfe",
+    "opening_verify_seal.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run_o3_gate_v12.py": "872d0f272a08eb2e99bd86bb085cbd3db26460fc786fc82b60178c2f5ef1e2f6"
+  },
+  "next": "O4-A (only if campaign remains authorized; opening PASS retained)"
+}
