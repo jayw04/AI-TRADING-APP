@@ -3,19 +3,21 @@
 | Field | Value |
 |-------|-------|
 | Document ID | ADR0043-PH0-D-BOX-O34-EVIDENCE-ACQ-001 v1.0 |
-| Status | **DESIGN-ONLY — NON-EXECUTABLE UNDER CAMPAIGN-001 v1.1** |
+| Status | **DESIGN PACKAGE — construction/qualification authorized only under O34-ACQ-AUTH-001 + sealed O34-ACQ-FREEZE-001** |
 | Created | 2026-07-29 |
 | Parent campaign | ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.1 (Option 2A) |
 | Controlling design | ADR0043-PH0-CTRL-001 v1.1 |
 | Integration design | ADR0043-PH0-INTEGRATION-DESIGN-001 v1.0 |
+| Acquisition authorization | ADR0043-PH0-D-BOX-O34-ACQ-AUTH-001 (EFFECTIVE, amended) |
+| Construction freeze | ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001 (must seal before selection) |
 | Broker order submission | **HOLD — not authorized by this package** |
-| D-BOX package execution | **Not authorized** (separate campaign start required) |
-| D-WIRE | **Deferred** |
+| D-BOX gate package execution | **Not authorized** (no O3/O4/O5 PASS attempts under this package) |
+| D-WIRE | **Deferred / blocked** |
 
-This package defines **prospective** rules for constructing future bindable O3 and O4
-evidence after the governed locate established that no pre-existing corpus / observation
-sets are available. It does **not** create datasets, does **not** seal a freeze manifest,
-and does **not** authorize campaign packages beyond what CAMPAIGN-001 v1.1 already allows.
+This package defines rules for constructing **candidate** O3 and O4 archives after the
+governed locate established that no pre-existing bindable corpora exist. Construction and
+qualification require **O34-ACQ-AUTH-001** and a **sealed** construction freeze. This
+package does **not** reopen gates, lift HOLD, or make CONSTRUCTED archives gate-ready.
 
 ---
 
@@ -85,23 +87,49 @@ metadata; payload mixing is not.
 
 ---
 
-## 3. Archive and hash procedure (prospective)
+## 3. Construction freeze, outcomes, and stop conditions
 
-1. Freeze construction config (eligibility window, sampling, exclusions, cutoff).
-2. Materialize archive bytes under a staging path (not yet authoritative).
-3. Compute SHA-256; write seal record (constructor, tooling commit, counts, windows).
-4. Promote to sealed path / upload S3 with Version ID.
-5. Bind into a **new** freeze-manifest document (not an in-place edit of a sealed body).
-6. Owner acknowledgment before any campaign that consumes the archive.
+### 3.1 Construction freeze (before selection)
+
+Seal **ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001** before selecting records. Required contents
+and allow/prohibit lists are governed by **O34-ACQ-AUTH-001** §§1–2. No rule may change
+after outcome inspection without a superseding freeze and owner acknowledgment.
+
+### 3.2 Archive outcomes (construction ≠ gate-ready)
+
+| Outcome | Meaning |
+|---------|---------|
+| **CONSTRUCTED** | Candidate archive bytes + hashes under freeze rules |
+| **QUALIFIED** | Independent report proves provenance, no O4-A look-ahead, no O4 mix, lineage, counts, hash/schema, no synthetic/cross-program substitution |
+| **REJECTED_AS_NON-BINDABLE** | Failed qualification or stop condition |
+
+Only a later **campaign amendment** may bind a QUALIFIED archive as an O3/O4 input.
+
+### 3.3 Archive and hash procedure
+
+1. Seal construction freeze (all required fields).
+2. Materialize candidate archive bytes under a staging path (**CONSTRUCTED**, not gate-ready).
+3. Compute SHA-256; write construction seal record (constructor, tooling commit, counts, windows).
+4. Run independent qualification → QUALIFIED or REJECTED_AS_NON-BINDABLE.
+5. Optional S3 pin with Version ID + SHA-256 (fail closed).
+6. Campaign amendment + owner acknowledgment before any gate that consumes the archive.
+
+### 3.4 Stop conditions
+
+Stop and close INCONCLUSIVE, or require amendment, when: required snapshot unavailable;
+provenance unproven; decision-time cutoff unreconstructable; terminal completeness
+unestablished; deduplication ambiguous; sources mutated after bound snapshot; broker calls
+beyond authorized reads; or sample sufficiency would require generating new observations.
 
 ---
 
 ## 4. What this package does **not** authorize
 
-- Broker order submission or generation of new live fills
-- Using production paper stack `b0058bf` as the construction runtime without a separate
-  isolation ruling
-- Treating WP7 hermetic fixtures or freeze-test stubs as sealed observation sets
+- Broker order submission or generation of new live fills / sessions / observations
+- Manufacturing sample size; converting unit-test/synthetic fixtures into empirical rows
+- Silent import of another research program’s evidence
+- Treating WP7 hermetic fixtures or freeze-test stubs as empirical observation sets
+- Declaring CONSTRUCTED archives gate-ready without QUALIFIED + campaign amendment
 - Reopening O3/O4/O5 inside CAMPAIGN-001 v1.1 without a new campaign-scope version
 - D-WIRE eligibility
 
@@ -109,7 +137,8 @@ metadata; payload mixing is not.
 
 ## 5. Disposition
 
-**DESIGN-ONLY.** Execution of construction requires a separate owner authorization that
-references this document ID and does not lift HOLD.
+**Design package under EFFECTIVE O34-ACQ-AUTH-001.** Construction/qualification may proceed
+only after **O34-ACQ-FREEZE-001** is sealed. HOLD and D-WIRE block remain.
 
 *End of ADR0043-PH0-D-BOX-O34-EVIDENCE-ACQ-001 v1.0.*
+
