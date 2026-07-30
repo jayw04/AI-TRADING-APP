@@ -1,0 +1,30 @@
+{
+  "record_id": "ADR0043-PH0-D-BOX-OPTION2A-RUN-001",
+  "campaign": "ADR0043_PH0-D-BOX-CAMPAIGN-001 v1.1",
+  "option": "2A",
+  "freeze_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f",
+  "start_ruling": "ADR0043-PH0-D-BOX-START-001 EFFECTIVE",
+  "pre_corr06_verify_seal_exit": 0,
+  "pre_corr06_verify_seal_at_utc": "2026-07-30T00:06:26Z",
+  "git_commit_runtime": "7d12c68f0400fe2450992ad2083a744201a3182c",
+  "packages": {
+    "CORR-06": "APPROVE",
+    "O1": "APPROVE",
+    "O2": "APPROVE",
+    "O3": "INCONCLUSIVE \u2014 REQUIRED CORPUS ABSENT",
+    "O4-A": "INCONCLUSIVE \u2014 DECISION-TIME SET ABSENT",
+    "O4-B": "INCONCLUSIVE \u2014 FORENSIC SET ABSENT",
+    "O5": "INCONCLUSIVE"
+  },
+  "d_wire_eligibility": "BLOCKED",
+  "hold_unchanged": true,
+  "artifact_root": "C:/LLM-RAG-APP/ai-trading-app-adr0043-ph0/docs/design/evidence/dbox_option2a_run_001",
+  "artifact_sha256": {
+    "corr06_exit_report.json": "51436a47380ed8dc9574099ede40e2cd54e5b2c4f0f30b59d07350d24ff58c3c",
+    "o1_structural_report.json": "731141c9eed084079196f43c78ddd292b04d6f6cb528760f84c7317561fc3059",
+    "o2_property_report.json": "31644d61a9bb15fe3026d96bee3d955ca425de052af858ad6e1a936847c0c4f0",
+    "credential_metadata_pre_post_hashes.json": "4da944432067a582ddde4699784f31d6d10f0c1316e9dec9ba6be63dafc4f415",
+    "loss_reconcile_vectors.json": "8be03f5f1b96f98ce67fa3b114d303f51e05ee9bd0b43fc18c3ee87a940ab3ce",
+    "pre_corr06_verify_seal.json": "3a4f817b7f8aaa128936e599d47fb372acfdd40bb200fcd8128ba043b93fe159"
+  }
+}
