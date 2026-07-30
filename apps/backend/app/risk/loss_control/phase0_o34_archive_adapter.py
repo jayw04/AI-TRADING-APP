@@ -133,7 +133,7 @@ def harness_can_consume_ord_mapping() -> bool:
         return False
     except ValueError:
         pass
-    sample_a = {
+    sample_a: dict[str, Any] = {
         "plan_id": "ord:1",
         "quotes": {},
         "symbols": ["MSFT"],
@@ -143,7 +143,7 @@ def harness_can_consume_ord_mapping() -> bool:
         "terminal_broker_state": None,
         "post_submit_quotes": None,
     }
-    sample_b = {
+    sample_b: dict[str, Any] = {
         "plan_id": "ord:1",
         "quotes": {},
         "symbols": ["MSFT"],

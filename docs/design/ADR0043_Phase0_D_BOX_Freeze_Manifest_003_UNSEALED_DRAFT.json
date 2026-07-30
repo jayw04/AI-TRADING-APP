@@ -139,7 +139,7 @@
         "binding_note": "QUALIFIED archives use plan_id=ord:<orders.id> because no execution_plan table exists in bound sqlite snapshot; accepted harness input contract before start decision",
         "adapter": {
           "path": "apps/backend/app/risk/loss_control/phase0_o34_archive_adapter.py",
-          "sha256": "a2780e51782aca6853f895ae1a81deac426536535d16889ceb7f3a502d6ff89f",
+          "sha256": "e499ebd70c1d8a82091b8e6e6f8f706cc797a2c80046eb1c1e93a4c6c8ce36fc",
           "tests_path": "apps/backend/tests/risk/test_phase0_o34_archive_adapter.py",
           "tests_sha256": "d62e18998ec4875844850fa63e7f22364ff2ba64d51f6f27cbb1f9af47932752",
           "commit": "content_bound_pre_publish_tip_v1_2_o34"
