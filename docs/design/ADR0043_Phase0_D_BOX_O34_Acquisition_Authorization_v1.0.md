@@ -12,7 +12,8 @@
 | Option 2A evidence merge | `5cb711c5be35d53c3d42277adbd0dc379dead44c` |
 | Design package | ADR0043-PH0-D-BOX-O34-EVIDENCE-ACQ-001 **v1.0** |
 | Construction freeze manifest | ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001 |
-| PR | [#555](https://github.com/jayw04/AI-TRADING-APP/pull/555) (final content commit after this amendment) |
+| PR | [#555](https://github.com/jayw04/AI-TRADING-APP/pull/555) |
+| PR #555 final content commit | `1db1a80ebac5d91d59a2b70b087a1783ec039b7f` |
 | Broker order submission | **HOLD — not lifted** |
 | Gate execution / reopening | **Not authorized** |
 | D-WIRE | **Blocked / not authorized** |
@@ -144,7 +145,7 @@ Construction must **stop** and close **INCONCLUSIVE**, or require amendment, whe
 | Option 2A evidence merge | `5cb711c5be35d53c3d42277adbd0dc379dead44c` |
 | Design package | ADR0043-PH0-D-BOX-O34-EVIDENCE-ACQ-001 v1.0 |
 | Construction freeze ID | ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001 |
-| PR #555 final content commit | *(bound in follow-up publication pin)* |
+| PR #555 final content commit | `1db1a80ebac5d91d59a2b70b087a1783ec039b7f` |
 
 ---
 

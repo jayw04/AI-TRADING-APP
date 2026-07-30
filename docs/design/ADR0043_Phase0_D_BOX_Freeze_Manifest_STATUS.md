@@ -9,6 +9,7 @@
 | O34 acquisition | ADR0043-PH0-D-BOX-O34-ACQ-AUTH-001 **APPROVED / EFFECTIVE** (amended) |
 | Construction freeze | ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001 **UNSEALED DRAFT** |
 | Effective (UTC) | 2026-07-30T00:21:33Z |
+| Auth content commit | `1db1a80ebac5d91d59a2b70b087a1783ec039b7f` |
 
 ## Package rollup
 
