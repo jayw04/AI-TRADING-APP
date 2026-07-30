@@ -1,15 +1,15 @@
-# D-BOX Status — O34 Selection Blocked (Host Unreachable)
+# D-BOX Status — O34 Candidate Archives CONSTRUCTED
 
 | Field | Value |
 |-------|-------|
-| O34-ACQ-START-001 | **EFFECTIVE** (`811a808`) |
-| Capture | CAPTURE-001 `20260730T022316Z` — all mandatory sources **BOUND** |
-| Selection | **STOPPED** — SELECT-BLOCK-001 (snapshot path unreachable) |
-| Host | `13.217.236.134` SSH timeout |
+| Host SSH | **RESTORED** (SG allow `79.127.147.206/32`) |
+| Capture | CAPTURE-001 — bound |
+| Construction | CONSTRUCT-001 — **CONSTRUCTED** |
+| O3 / O4-A / O4-B | candidate archives hashed (see CONSTRUCT-001) |
+| Qualification | **PENDING** (independent) |
+| Gate ready | **false** |
 | D-WIRE / HOLD | **BLOCKED / HOLD** |
 
 ## Next
 
-Restore `workbench` SSH (or deliver sqlite bytes `26bae1f5…`), then run
-`docs/design/evidence/dbox_o34_acq_001/construct_o34_archives.py` against the bound
-snapshot. No selection until then.
+Independent qualification of CONSTRUCTED archives.
