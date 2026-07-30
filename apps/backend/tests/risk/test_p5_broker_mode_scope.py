@@ -26,6 +26,7 @@ from app.db.models.user import User
 from app.risk.engine import RiskEngine
 from app.risk.reason_codes import ReasonCode
 from app.risk.types import OrderRequest
+from tests.account_state_helpers import synced_account_state
 
 
 def _now() -> datetime:
@@ -39,6 +40,7 @@ async def _seed_account_and_symbol(session, *, mode=AccountMode.paper) -> None:
     session.add(
         Symbol(id=1, ticker="AAPL", name="Apple", asset_class="us_equity", active=True)
     )
+    session.add(synced_account_state(account_id=1))
     await session.commit()
 
 

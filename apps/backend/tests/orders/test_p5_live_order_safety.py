@@ -35,6 +35,7 @@ from app.orders.router import OrderRouter
 from app.risk.engine import RiskEngine
 from app.risk.types import OrderRequest
 from app.services.strategy_cooldown import StrategyCooldownService
+from tests.account_state_helpers import synced_account_state
 
 
 class _StubAdapter:
@@ -76,6 +77,8 @@ async def seeded(session_factory):
             code_path="x.py", params_json={}, symbols_json=[],
             schedule="event", created_at=_now(), updated_at=_now(),
         ))
+        session.add(synced_account_state(account_id=1))
+        session.add(synced_account_state(account_id=2))
         await session.commit()
     return session_factory
 

@@ -8,6 +8,7 @@ ADR 0004 v2 (the circuit-breaker hard-halt decision + start-of-day daily-loss me
 |---|---|---|
 | Market session (§9A) | Every order submission | Order rejected (`MARKET_SESSION_CLOSED`) |
 | Circuit breaker | Every order submission | Order rejected (`CIRCUIT_BREAKER`); account's active strategies HALTED |
+| Daily-loss basis available | Every order submission, when `max_daily_loss` is set | Order rejected (`DAILY_LOSS_BASIS_UNAVAILABLE`); breaker **not** tripped; VERIFIED reductions still pass |
 | Per-day order cap | Every order submission | Order rejected (`MAX_ORDERS_PER_DAY`) |
 | Pre-trade buying power (LIVE only) | Every LIVE order submission | Order rejected (`INSUFFICIENT_BUYING_POWER`) |
 | PDT warning | UI poll (60s) | Banner displayed; **no** blocking |
@@ -102,6 +103,44 @@ a drawdown that deepens with no order flow (e.g. overnight) trips + HALTs withou
 waiting for the next order. `evaluate()` is the non-raising sibling of `check()`
 (skips already-tripped / no-limit accounts); trips are audited identically with
 `payload.source="monitor"`. (Previously a known limitation — order-time check only.)
+
+## `DAILY_LOSS_BASIS_UNAVAILABLE` — the daily-loss limit cannot be evaluated
+
+**A configured daily-loss limit that cannot be evaluated is not a satisfied limit.** The
+daily-loss gate needs a start-of-day baseline. `accounts_state.day_change` carries `0` as a
+**placeholder** when none was found — the truth is in `day_change_basis`
+(`app/services/day_change_basis.py`), not in the number. Reading the number alone turned
+"unknown" into a measured flat day, so the gate could never fire and the ADR 0042 restricted
+mode was silently lost on exactly the accounts whose baseline had gone missing.
+
+Now, when `max_daily_loss` is configured and **either** no `accounts_state` row exists **or**
+`day_change_basis == "UNAVAILABLE"`:
+
+- the order is **rejected** with `DAILY_LOSS_BASIS_UNAVAILABLE`;
+- a **VERIFIED risk reduction still passes** — classified by the ADR 0042 classifier, not by a
+  second definition (a control must never trap the risk it exists to control, 2026-07-13);
+- the **circuit breaker is NOT tripped**. A trip is durable and needs a human to reset it; an
+  unevaluable basis is not a measured breach, so a boot-time sync race must not durably halt an
+  account;
+- everything stays **account-scoped** (ADR 0034). The global halt (`app/risk/halt.py`) is not
+  involved and other accounts keep trading;
+- `risk_decisions.lock_state` records `BASELINE_UNAVAILABLE`, and `daily_pnl` is `NULL` — the
+  placeholder is never persisted as a measurement.
+
+The `lock_reason` distinguishes the two causes, because their fixes differ:
+
+| `lock_reason` | Meaning | Operator action |
+|---|---|---|
+| `daily_loss_basis_unavailable:no_account_state` | No broker sync has ever populated this account | Confirm the account's credentials load and `AccountSyncService` is running; the state appears on the next successful sync |
+| `daily_loss_basis_unavailable:basis_unavailable` | Sync ran but found no usable baseline (broker omitted/zeroed `last_equity`, and no eligible prior-close snapshot) | Check `equity_snapshots` has a point within `MAX_PROXY_AGE` before the session open; a rebuilt DB has no history until one accrues |
+
+**Do not** "fix" this by writing a `day_change` value by hand or by forcing the basis label. The
+label is the control; falsifying it re-creates the exact defect. If an account must trade before a
+baseline exists, that is a limits decision (clear `max_daily_loss`), not a basis decision.
+
+**Expected after a DB rebuild:** every account reports this until the first successful sync, and
+accounts with no `equity_snapshots` history report it until a snapshot accrues. That is the gate
+working, not an outage.
 
 ## Per-day order cap
 

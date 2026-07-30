@@ -32,6 +32,7 @@ from app.db.models.user import User
 from app.orders.router import OrderRouter
 from app.risk.engine import RiskEngine
 from app.risk.types import OrderRequest
+from tests.account_state_helpers import synced_account_state
 
 
 class _StubAdapter:
@@ -100,6 +101,8 @@ async def _seed(session) -> None:
             created_at=_now(), updated_at=_now(),
         )
     )
+    session.add(synced_account_state(account_id=1))
+    session.add(synced_account_state(account_id=2))
     await session.commit()
 
 

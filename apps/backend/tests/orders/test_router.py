@@ -25,6 +25,7 @@ from app.db.models.user import User
 from app.events.bus import EventBus
 from app.orders.router import OrderRouter
 from app.risk import OrderRequest, RiskEngine
+from tests.account_state_helpers import synced_account_state
 
 
 def _now() -> datetime:
@@ -65,6 +66,7 @@ async def seeded(session_factory):
                 updated_at=_now(),
             )
         )
+        session.add(synced_account_state(account_id=1))
         await session.commit()
     yield
 

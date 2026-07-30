@@ -42,12 +42,14 @@ from app.risk.account_snapshot import fetch_snapshot
 from app.risk.buying_power import BuyingPowerChecker
 from app.risk.circuit_breaker import CircuitBreakerError, CircuitBreakerService
 from app.risk.decision_service import (
+    LOCK_BASELINE_UNAVAILABLE,
     LOCK_BREAKER,
     LOCK_DAILY_LOSS,
     RiskDecisionService,
     permits_while_locked,
 )
 from app.risk.halt import is_halted
+from app.risk.lock_state import REASON_BASIS_UNAVAILABLE, REASON_NO_ACCOUNT_STATE
 from app.risk.loss_control import constants as LC
 from app.risk.loss_control.daily_loss_basis import DailyLossBasis, select_daily_loss_basis
 from app.risk.loss_control.gate import (
@@ -68,6 +70,7 @@ from app.risk.loss_control.state_machine import (
 from app.risk.reason_codes import ReasonCode
 from app.risk.risk_effect import ActionType, ProposedAction
 from app.risk.types import OrderRequest, RiskOutcome
+from app.services.day_change_basis import UNAVAILABLE
 
 logger = structlog.get_logger(__name__)
 
@@ -376,6 +379,35 @@ class RiskEngine:
                         )
                     )
                 ).scalars().first()
+                # A configured limit that CANNOT BE EVALUATED is not a satisfied limit. With no
+                # AccountState row, or a basis of UNAVAILABLE (whose persisted `day_change` is a
+                # placeholder 0, not a measurement — services/day_change_basis.py), this gate used
+                # to fall straight through and admit the order. Fail closed instead: refuse to
+                # INCREASE risk, while a VERIFIED reduction still passes (ADR 0042).
+                #
+                # The breaker is deliberately NOT tripped here. A trip is durable and needs a human
+                # to reset it; an unevaluable basis is not a measured breach, and a boot-time sync
+                # race must not durably halt an account. Account-scoped throughout (ADR 0034) — the
+                # global halt in risk/halt.py is untouched.
+                # `and` short-circuits: the ADR-0042 reduction proof (a broker snapshot) is only
+                # attempted when the basis is actually unevaluable.
+                if (
+                    state is None or state.day_change_basis == UNAVAILABLE
+                ) and not await self._permits_verified_reduction(
+                    req,
+                    lock_state=LOCK_BASELINE_UNAVAILABLE,
+                    lock_reason=(
+                        REASON_NO_ACCOUNT_STATE if state is None else REASON_BASIS_UNAVAILABLE
+                    ),
+                    daily_pnl=None,
+                    cache=reduction_cache,
+                ):
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT,
+                        legacy_reasons=[ReasonCode.DAILY_LOSS_BASIS_UNAVAILABLE],
+                        legacy_outcome="REFUSE", legacy_permits=False,
+                    )
                 # ADR 0043 §D3: choose the daily-loss basis. Flag OFF → state.day_change unchanged
                 # (byte-for-byte legacy); flag ON → prefer the immutable session baseline, with
                 # structured evidence. The gate/threshold semantics are otherwise unchanged.
