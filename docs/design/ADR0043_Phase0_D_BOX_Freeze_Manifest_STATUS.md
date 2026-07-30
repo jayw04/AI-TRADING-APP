@@ -1,20 +1,32 @@
-# D-BOX Status — Post v1.2 CLOSE / Evidence-Gap Design
+# D-BOX Status — Evidence-Gap Acquisition Authorized (Pre-Seal)
 
 | Field | Value |
 |-------|-------|
 | Campaign v1.2 | **CLOSED** (V12-CLOSE-001 @ `4232c1a`) |
-| Execution authority | **None** under START-002 / FREEZE-003 |
+| FREEZE-003 / START-002 | **Exhausted** — no remaining gate authority |
 | D-WIRE | **BLOCKED** |
 | HOLD | Unchanged |
-| Active design | ADR0043-PH0-D-BOX-EVIDENCE-GAP-001 **v1.0** — **DESIGN-ONLY** |
-| Design path | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Design_v1.0.md` |
+| Design | ADR0043-PH0-D-BOX-EVIDENCE-GAP-001 **v1.0** @ `71d346d` |
+| Acquisition auth | ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-AUTH-001 **APPROVED / EFFECTIVE** |
+| Acquisition freeze | ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-FREEZE-001 **UNSEALED DRAFT** |
+| Acquisition start | **Not issued** |
+| Evidence access / selection / reconstruction / capture | **FORBIDDEN** until freeze **sealed** + separate start **EFFECTIVE** |
 
-## Evidence-gap coverage (prospective only)
+## Paths
 
-1. O3 replay-surface capture  
-2. O4-A two-sided decision-time quote capture  
-3. O4-B `day_change` / forensic baseline  
-4. O5 Tier-A anchor acquisition  
+| Artifact | Path |
+|----------|------|
+| Auth | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Acquisition_Authorization_v1.0.md` |
+| Freeze draft | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_ACQ_Freeze_Manifest_001_UNSEALED.md` |
+| Design | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Design_v1.0.md` |
 
-**No collection, production change, broker activity, or gate reopen** until a new
-authorization → freeze → start.
+## Next required sequence
+
+1. Complete all freeze `REQUIRED_FILL` bindings (no exploratory selection)  
+2. Readiness check  
+3. Seal + countersign EVIDENCE-GAP-ACQ-FREEZE-001  
+4. Separate acquisition-start decision  
+5. Acquisition / construction → independent qualification of **new** archives  
+6. Only then: new campaign scope / campaign freeze / gate-start  
+
+QUAL-001 / FREEZE-003 archives remain **immutable historical evidence**.
