@@ -239,6 +239,17 @@ def test_o3_absent_allows_empty_datasets(mod):
     assert mod.readiness_check(doc) == []
 
 
+def test_o34_executable_requires_harness_contract(mod):
+    body = _minimal_ready_body()
+    body["campaign"] = {
+        "campaign_id": "c",
+        "packages_executable": ["O3", "O4-A", "O4-B"],
+    }
+    doc = {"manifest_body": body, "seal": {"manifest_status": "UNSEALED_DRAFT"}}
+    errs = mod.readiness_check(doc)
+    assert any("harness_input_contract" in e for e in errs)
+
+
 def test_script_has_no_order_path_imports():
     text = SCRIPT.read_text(encoding="utf-8")
     for needle in (

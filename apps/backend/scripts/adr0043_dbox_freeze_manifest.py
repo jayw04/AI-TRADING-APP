@@ -382,6 +382,118 @@ def readiness_check(doc: dict[str, Any]) -> list[str]:
                     f"code_and_tools.freeze_manifest_validator.{req} incomplete"
                 )
 
+    # CAMPAIGN-001 v1.2: when O3/O4 are executable, ord: harness contract is
+    # load-bearing for readiness (fail closed if adapter cannot consume).
+    campaign = body.get("campaign", {})
+    executable = (
+        campaign.get("packages_executable")
+        if isinstance(campaign, dict)
+        else None
+    )
+    o34_exec = False
+    if isinstance(executable, list):
+        o34_exec = any(g in executable for g in ("O3", "O4-A", "O4-B"))
+    if o34_exec:
+        hic = (
+            tools.get("harness_input_contract")
+            if isinstance(tools, dict)
+            else None
+        )
+        if not isinstance(hic, dict):
+            errors.append(
+                "code_and_tools.harness_input_contract required when "
+                "O3/O4-A/O4-B are executable"
+            )
+        else:
+            mapping = str(hic.get("plan_id_mapping", ""))
+            if mapping != "ord:<orders.id>":
+                errors.append(
+                    "harness_input_contract.plan_id_mapping must be "
+                    "'ord:<orders.id>'"
+                )
+            adapter = hic.get("adapter")
+            if not isinstance(adapter, dict):
+                errors.append("harness_input_contract.adapter missing")
+            else:
+                for req in ("path", "sha256"):
+                    if not adapter.get(req) or (
+                        isinstance(adapter.get(req), str)
+                        and PLACEHOLDER_RE.search(str(adapter[req]))
+                    ):
+                        errors.append(
+                            f"harness_input_contract.adapter.{req} incomplete"
+                        )
+                if adapter.get("sha256") and not SHA256_RE.match(
+                    str(adapter["sha256"])
+                ):
+                    errors.append(
+                        "harness_input_contract.adapter.sha256 malformed"
+                    )
+            # Deterministic consumption probe (isolated; no order path).
+            try:
+                repo_root = Path(__file__).resolve().parents[3]
+                backend_root = repo_root / "apps" / "backend"
+                backend_s = str(backend_root)
+                if backend_s not in sys.path:
+                    sys.path.insert(0, backend_s)
+                from app.risk.loss_control.phase0_o34_archive_adapter import (
+                    harness_can_consume_ord_mapping,
+                    sha256_file,
+                )
+
+                if not harness_can_consume_ord_mapping():
+                    errors.append(
+                        "harness cannot consume plan_id=ord:<orders.id> "
+                        "deterministically"
+                    )
+                elif isinstance(adapter, dict) and adapter.get("path"):
+                    ap = repo_root / str(adapter["path"])
+                    if not ap.is_file():
+                        errors.append(
+                            f"harness adapter missing on disk: {adapter['path']}"
+                        )
+                    elif adapter.get("sha256") and sha256_file(ap) != str(
+                        adapter["sha256"]
+                    ):
+                        errors.append(
+                            "harness adapter sha256 mismatch vs on-disk file"
+                        )
+            except Exception as exc:  # noqa: BLE001 — fail closed
+                errors.append(
+                    f"harness_input_contract consumption probe failed: {exc}"
+                )
+
+        # Verify local_sealed O3/O4 archives exist and match pinned hashes.
+        if isinstance(datasets, list):
+            repo_root = Path(__file__).resolve().parents[3]
+            for i, ds in enumerate(datasets):
+                if not isinstance(ds, dict) or ds.get("storage") != "local_sealed":
+                    continue
+                role = str(ds.get("role", "")).upper()
+                if role not in {"O3", "O4-A", "O4-B", "O4A", "O4B"}:
+                    continue
+                rel = ds.get("path")
+                if not rel:
+                    continue
+                fp = repo_root / str(rel)
+                if not fp.is_file():
+                    errors.append(
+                        f"datasets.entries[{i}] missing on disk: {rel}"
+                    )
+                    continue
+                digest = hashlib.sha256(fp.read_bytes()).hexdigest()
+                if ds.get("sha256") and digest != str(ds["sha256"]):
+                    errors.append(
+                        f"datasets.entries[{i}] sha256 mismatch on disk"
+                    )
+                size = fp.stat().st_size
+                if ds.get("size_bytes") is not None and int(
+                    ds["size_bytes"]
+                ) != size:
+                    errors.append(
+                        f"datasets.entries[{i}] size_bytes mismatch on disk"
+                    )
+
     status = seal.get("manifest_status")
     if status == "SEALED":
         if not seal.get("body_sha256") or not SHA256_RE.match(
