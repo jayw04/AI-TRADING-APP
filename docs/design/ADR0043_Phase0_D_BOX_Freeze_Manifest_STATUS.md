@@ -1,26 +1,30 @@
-# D-BOX Status — EVIDENCE-GAP-ACQ-FREEZE-001 SEALED (start HOLD)
+# D-BOX Status — EVIDENCE-GAP-ACQ-START-001 EFFECTIVE
 
 | Field | Value |
 |-------|-------|
 | Campaign v1.2 | **CLOSED** |
-| FREEZE-003 / START-002 | **Exhausted** |
+| FREEZE-003 / START-002 | **Exhausted** (gates not reopened) |
 | ACQ-AUTH-001 | **EFFECTIVE** @ `29eece3` |
-| Acquisition freeze | ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-FREEZE-001 **SEALED** |
-| Body SHA-256 | `af7693f4b97fd7d9d4ad642ab1af47e9e9a2a8cd680f6a26c4d01fee8d57967e` |
-| Sealed at (UTC) | `2026-07-30T20:22:48Z` |
-| Content tip | PR #572 merge `853f5f620d3089e66e2a54261b33ee189e79c7cb` |
-| Acquisition start | **HOLD — not issued** |
-| Evidence access / selection / capture / construction | **FORBIDDEN** until separate start **EFFECTIVE** |
-| D-WIRE / HOLD | **BLOCKED** / unchanged |
+| Acquisition freeze | EVIDENCE-GAP-ACQ-FREEZE-001 **SEALED** body `af7693f4…` |
+| Freeze seal merge | `ec243c5` |
+| Acquisition start | ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-START-001 **APPROVED / EFFECTIVE** |
+| Authorized | Snapshot capture → recoverability inventory → construction → independent qualification |
+| Gates / D-WIRE | **Closed** / **BLOCKED** |
+| HOLD | Unchanged |
 
-## Artifacts
+## Sequence in force
+
+1. Stage 1 — opening + snapshot capture (before any SELECT / O5 search)  
+2. Stage 2 — inventory + recoverability (inspect frozen evidence; do not modify)  
+3. Stage 3 — construct **new** EVGAP archives (+ O5 locate manifest; `anchors: []` valid)  
+4. Stage 4 — independent qualification (`QUALIFIED` / `REJECTED_AS_NON_BINDABLE` / `INCONCLUSIVE`)  
+
+QUAL-001 archives remain immutable. No broker activity, production modification, or gate execution.
+
+## Paths
 
 | Artifact | Path |
 |----------|------|
+| Start | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Acquisition_Start_Decision_v1.0.md` |
 | Sealed freeze | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_ACQ_Freeze_Manifest_001_SEALED.json` |
-| Readiness | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_ACQ_Freeze_Readiness_v1.0.md` |
-| Auth | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Acquisition_Authorization_v1.0.md` |
-
-## Next
-
-Separate owner **acquisition-start** decision. Seal alone does **not** authorize evidence access.
+| Evidence root | `docs/design/evidence/dbox_evgap_acq_001/` |
