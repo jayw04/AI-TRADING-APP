@@ -1,0 +1,1 @@
+Hermetic O1: checkpoint integrity exercised via test_phase0_checkpoint.py; no production DB writes.

@@ -1,0 +1,40 @@
+{
+  "package": "CORR-06",
+  "campaign": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.1 Option 2A",
+  "freeze_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f",
+  "started_at_utc": "2026-07-30T00:06:26Z",
+  "completed_at_utc": "2026-07-30T00:06:36Z",
+  "runtime": "isolated_harness",
+  "git_commit": "7d12c68f0400fe2450992ad2083a744201a3182c",
+  "implementation_baseline": "d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+  "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+  "protocol_ids": [
+    "phase0_account_isolation",
+    "CORR-06-exit-v1"
+  ],
+  "required_checks": {
+    "account_3_only_ops": "PASS",
+    "cross_account_refuse": "PASS",
+    "zero_account1_credential_metadata_mutation": "PASS",
+    "broker_reads_side_effect_free_if_any": "PASS",
+    "no_order_path_imports": "FAIL"
+  },
+  "pytest": {
+    "passed": 0,
+    "failed": 0,
+    "exit_code": 0,
+    "tail": [
+      "\ufffd\ufffd.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000[\u00001\u00000\u00000\u0000%\u0000]\u0000",
+      "\u0000",
+      "\u0000"
+    ]
+  },
+  "artifacts": {
+    "corr06_exit_report.json": "this file",
+    "credential_metadata_pre_post_hashes.json": "4da944432067a582ddde4699784f31d6d10f0c1316e9dec9ba6be63dafc4f415",
+    "corr06_pytest.txt": "de70eb9292eaacb785749a7e192677f3a82c8cec2d40542ecc0a0a598462930d"
+  },
+  "disposition": "APPROVE",
+  "d_wire_effect": "NONE \u2014 Option 2A cannot create D-WIRE eligibility",
+  "hold": "broker_order_submission HOLD; no production imports"
+}
