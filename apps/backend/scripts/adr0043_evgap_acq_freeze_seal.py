@@ -64,33 +64,23 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
         "O3": {
             "schema_id": "ADR0043-PH0-D-BOX-EVGAP-O3-ARCHIVE-SCHEMA-001",
             "path": "docs/design/schemas/ADR0043_Phase0_EVGAP_O3_Archive.schema.json",
-            "sha256": file_sha(
-                "docs/design/schemas/ADR0043_Phase0_EVGAP_O3_Archive.schema.json"
-            ),
+            "sha256": file_sha("docs/design/schemas/ADR0043_Phase0_EVGAP_O3_Archive.schema.json"),
         },
         "O4_A": {
             "schema_id": "ADR0043-PH0-D-BOX-EVGAP-O4A-ARCHIVE-SCHEMA-001",
             "path": "docs/design/schemas/ADR0043_Phase0_EVGAP_O4A_Archive.schema.json",
-            "sha256": file_sha(
-                "docs/design/schemas/ADR0043_Phase0_EVGAP_O4A_Archive.schema.json"
-            ),
+            "sha256": file_sha("docs/design/schemas/ADR0043_Phase0_EVGAP_O4A_Archive.schema.json"),
         },
         "O4_B": {
             "schema_id": "ADR0043-PH0-D-BOX-EVGAP-O4B-ARCHIVE-SCHEMA-001",
             "path": "docs/design/schemas/ADR0043_Phase0_EVGAP_O4B_Archive.schema.json",
-            "sha256": file_sha(
-                "docs/design/schemas/ADR0043_Phase0_EVGAP_O4B_Archive.schema.json"
-            ),
+            "sha256": file_sha("docs/design/schemas/ADR0043_Phase0_EVGAP_O4B_Archive.schema.json"),
         },
     }
 
-    auth_path = (
-        "docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Acquisition_Authorization_v1.0.md"
-    )
+    auth_path = "docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Acquisition_Authorization_v1.0.md"
     design_path = "docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Design_v1.0.md"
-    seal_tool_path = (
-        "apps/backend/scripts/adr0043_evgap_acq_freeze_seal.py"
-    )
+    seal_tool_path = "apps/backend/scripts/adr0043_evgap_acq_freeze_seal.py"
 
     return {
         "document_purpose": (
@@ -103,29 +93,21 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
         "governing_refs": {
             "authorization_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-AUTH-001",
             "authorization_status": "APPROVED_EFFECTIVE",
-            "authorization_merge_commit": (
-                "29eece313b1b2e7541a20c0440101455b78b106d"
-            ),
+            "authorization_merge_commit": ("29eece313b1b2e7541a20c0440101455b78b106d"),
             "authorization_path": auth_path,
             "authorization_path_sha256": file_sha(auth_path),
             "design_package_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-001 v1.0",
-            "design_package_merge": (
-                "71d346d8bd5665a3037d451ec4118f70431b69df"
-            ),
+            "design_package_merge": ("71d346d8bd5665a3037d451ec4118f70431b69df"),
             "design_package_path": design_path,
             "design_package_sha256": file_sha(design_path),
             "v12_closeout_id": "ADR0043-PH0-D-BOX-V12-CLOSE-001",
-            "v12_closeout_merge": (
-                "4232c1adeb3f7a8741585d528930bac54cb2a318"
-            ),
+            "v12_closeout_merge": ("4232c1adeb3f7a8741585d528930bac54cb2a318"),
             "closed_campaign_freeze_id": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-003",
             "closed_campaign_freeze_body_sha256": (
                 "b2e6090dfe26bd26fbf18a3eb1be02d7e69a49423559194b93e8a95d5d663270"
             ),
             "closed_start_id": "ADR0043-PH0-D-BOX-START-002",
-            "qual001_archives_status": (
-                "IMMUTABLE_HISTORICAL_EVIDENCE_MUST_NOT_MUTATE"
-            ),
+            "qual001_archives_status": ("IMMUTABLE_HISTORICAL_EVIDENCE_MUST_NOT_MUTATE"),
             "qual001_archive_ids_forbidden_reuse": [
                 "O3-CAND-20260730T022316Z",
                 "O4A-CAND-20260730T022316Z",
@@ -136,9 +118,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                 "80dfd8ec6d90182cdeabaab2d1457720ca417bcd5cb1511b4dd9d77989951bb0"
             ),
             "prior_o34_acq_freeze_reuse_in_place": "FORBIDDEN",
-            "offline_baseline_commit": (
-                "d1c2fbf0a394c66728f6cc489577ae180ccdfb03"
-            ),
+            "offline_baseline_commit": ("d1c2fbf0a394c66728f6cc489577ae180ccdfb03"),
             "offline_baseline_tag": "adr0043-phase0-offline-complete",
             "controlling_design_id": "ADR0043-PH0-CTRL-001 v1.1",
             "integration_design_id": "ADR0043-PH0-INTEGRATION-DESIGN-001 v1.0",
@@ -165,9 +145,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
             "production_imports": "NOT_AUTHORIZED",
             "deployed_path_observation": "NOT_AUTHORIZED",
             "canary_enforce_caps_july24_changes": "NOT_AUTHORIZED",
-            "production_stack_commit_excluded": (
-                "b0058bf335628f8dbde09a93915314f3a1f7743b"
-            ),
+            "production_stack_commit_excluded": ("b0058bf335628f8dbde09a93915314f3a1f7743b"),
             "production_modification": "FORBIDDEN",
             "mutation_of_qual001_or_freeze003_archives": "FORBIDDEN",
             "acquisition_start": "HOLD_UNTIL_SEPARATE_START_DECISION",
@@ -235,19 +213,13 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "capture; prior O34 capture manifests are historical "
                         "reference only and are not re-selected here)"
                     ),
-                    "snapshot_binding_status": (
-                        "PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START"
-                    ),
-                    "snapshot_sha256": (
-                        "NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED"
-                    ),
+                    "snapshot_binding_status": ("PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START"),
+                    "snapshot_sha256": ("NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED"),
                     "mutation_after_bound_snapshot": "STOP_INCONCLUSIVE",
                 },
                 {
                     "source_id": "SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
-                    "source_class": (
-                        "application_audit_plan_checkpoint_terminal_records"
-                    ),
+                    "source_class": ("application_audit_plan_checkpoint_terminal_records"),
                     "read_only_location": (
                         "Account-3 scoped persistence classes on authorized "
                         "read-only host path /opt/workbench/data/workbench.sqlite "
@@ -258,12 +230,8 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "governed export dump bound at acquisition-start before "
                         "any SELECT/filter/join for selection."
                     ),
-                    "snapshot_binding_status": (
-                        "PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START"
-                    ),
-                    "snapshot_sha256": (
-                        "NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED"
-                    ),
+                    "snapshot_binding_status": ("PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START"),
+                    "snapshot_sha256": ("NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED"),
                     "snapshot_capture_method": (
                         "SHA-256 of sqlite file bytes (or governed export dump) "
                         "recorded in acquisition-start decision before any "
@@ -280,12 +248,8 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "eligibility_window; same sqlite host path as "
                         "SRC-APP-AUDIT-PLAN-CKPT-TERM-001"
                     ),
-                    "snapshot_binding_status": (
-                        "PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START"
-                    ),
-                    "snapshot_sha256": (
-                        "NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED"
-                    ),
+                    "snapshot_binding_status": ("PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START"),
+                    "snapshot_sha256": ("NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED"),
                     "mutation_after_bound_snapshot": "STOP_INCONCLUSIVE",
                 },
                 {
@@ -298,32 +262,20 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "locate-only after acquisition-start; no broker submit; "
                         "no new fills"
                     ),
-                    "snapshot_binding_status": (
-                        "PROTOCOL_BOUND_LOCATE_AT_ACQUISITION_START"
-                    ),
-                    "snapshot_sha256": (
-                        "NOT_YET_BOUND_ACQUISITION_START_REQUIRED"
-                    ),
+                    "snapshot_binding_status": ("PROTOCOL_BOUND_LOCATE_AT_ACQUISITION_START"),
+                    "snapshot_sha256": ("NOT_YET_BOUND_ACQUISITION_START_REQUIRED"),
                     "mutation_after_bound_snapshot": "STOP_INCONCLUSIVE",
-                    "empty_result_policy": (
-                        "anchors:[] VALID predetermined INCONCLUSIVE"
-                    ),
+                    "empty_result_policy": ("anchors:[] VALID predetermined INCONCLUSIVE"),
                 },
                 {
                     "source_id": "SRC-GOV-GIT-IMMUTABLE-001",
                     "source_class": "governing_git_and_design_pins",
                     "read_only_location": (
-                        "Repository commits and design artifacts listed in "
-                        "governing_refs"
+                        "Repository commits and design artifacts listed in governing_refs"
                     ),
                     "snapshot_binding_status": "BOUND",
-                    "snapshot_sha256": (
-                        "BOUND_VIA_GOVERNING_REFS_COMMITS_AND_FILE_SHA256"
-                    ),
-                    "note": (
-                        "Immutable governance pins only; not empirical "
-                        "observation rows"
-                    ),
+                    "snapshot_sha256": ("BOUND_VIA_GOVERNING_REFS_COMMITS_AND_FILE_SHA256"),
+                    "note": ("Immutable governance pins only; not empirical observation rows"),
                 },
             ],
         },
@@ -438,9 +390,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "assumed fees",
                         "evaluator defaults",
                     ],
-                    "incomplete_reason_code": (
-                        "MISSING_REPLAY_SURFACE:loss_accounting_inputs"
-                    ),
+                    "incomplete_reason_code": ("MISSING_REPLAY_SURFACE:loss_accounting_inputs"),
                 },
                 {
                     "target_surface": "recovery_inputs",
@@ -462,9 +412,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "terminal/crash-consistency packages and durable journal "
                         "records for the plan/run"
                     ],
-                    "as_of_constraint": (
-                        "package must already exist at frozen source cutoff"
-                    ),
+                    "as_of_constraint": ("package must already exist at frozen source cutoff"),
                     "reconstruction_rule": (
                         "Deterministic projection to TerminalPackage.as_dict; "
                         "lineage must prove package pre-existed in snapshot"
@@ -484,9 +432,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
                         "SRC-ACCT3-PAPER-PRIOR-AUTH-001",
                     ],
-                    "source_field_classes": [
-                        "orders/plan authorization records for account 3"
-                    ],
+                    "source_field_classes": ["orders/plan authorization records for account 3"],
                     "as_of_constraint": "pre-existing in bound snapshot",
                     "reconstruction_rule": (
                         "Deterministic projection; must remain account-3 scoped"
@@ -522,8 +468,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "two-sided quotes for intended symbols at or before cutoff"
                     ],
                     "as_of_constraint": (
-                        "quote timestamp <= FIRST_BROKER_SUBMISSION_BOUNDARY "
-                        "cutoff_at_utc"
+                        "quote timestamp <= FIRST_BROKER_SUBMISSION_BOUNDARY cutoff_at_utc"
                     ),
                     "reconstruction_rule": (
                         "Deterministic selection of last eligible two-sided quote "
@@ -605,9 +550,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                         "terminal completeness markers",
                     ],
                     "as_of_constraint": "pre-existing in bound snapshot",
-                    "reconstruction_rule": (
-                        "1:1 plan/fill reconcile; incomplete → O4B_INCOMPLETE"
-                    ),
+                    "reconstruction_rule": ("1:1 plan/fill reconcile; incomplete → O4B_INCOMPLETE"),
                     "prohibited_inference": ["manufactured fills"],
                     "incomplete_reason_code": "O4B_INCOMPLETE",
                 },
@@ -652,8 +595,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                 {
                     "target_surface": "o5_live_fill_anchors",
                     "target_contract": (
-                        "EVIDENCE-GAP-001 §7 Tier-A anchors[] with identity + "
-                        "SHA-256 + provenance"
+                        "EVIDENCE-GAP-001 §7 Tier-A anchors[] with identity + SHA-256 + provenance"
                     ),
                     "required_keys": [],
                     "source_ids": ["SRC-O5-TIERA-LOCATE-CORPUS-001"],
@@ -731,8 +673,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
             {
                 "rule_id": "EXC-003",
                 "description": (
-                    "Exclude phase0_o4_replay.py hermetic inline fixtures as "
-                    "empirical observations"
+                    "Exclude phase0_o4_replay.py hermetic inline fixtures as empirical observations"
                 ),
             },
             {
@@ -745,21 +686,17 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
             {
                 "rule_id": "EXC-005",
                 "description": (
-                    "Exclude ADR 0048 SEP/ACTIONS corpus and other "
-                    "non-ADR0043 Phase-0 programs"
+                    "Exclude ADR 0048 SEP/ACTIONS corpus and other non-ADR0043 Phase-0 programs"
                 ),
             },
             {
                 "rule_id": "EXC-006",
-                "description": (
-                    "Exclude adr0043_gate_replay_v1.0 CI PR replay artifacts"
-                ),
+                "description": ("Exclude adr0043_gate_replay_v1.0 CI PR replay artifacts"),
             },
             {
                 "rule_id": "EXC-007",
                 "description": (
-                    "Exclude acct7/v13 journals and wrong-purpose research "
-                    "program evidence"
+                    "Exclude acct7/v13 journals and wrong-purpose research program evidence"
                 ),
             },
             {
@@ -772,8 +709,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
             {
                 "rule_id": "EXC-009",
                 "description": (
-                    "Exclude unit-test fixtures and synthetic examples "
-                    "converted to empirical rows"
+                    "Exclude unit-test fixtures and synthetic examples converted to empirical rows"
                 ),
             },
             {
@@ -884,10 +820,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                     "Terminal loss/accounting inputs present or explicitly "
                     "reason-coded as unavailable with FAIL_CLOSED exclusion"
                 ),
-                (
-                    "Episode linkage to O4-A episode_id without merging "
-                    "O4-A/O4-B payloads"
-                ),
+                ("Episode linkage to O4-A episode_id without merging O4-A/O4-B payloads"),
             ],
             "forensic_baseline_for_qualified_binding": (
                 "Non-null day_change (or freeze-accepted equivalent with "
@@ -900,8 +833,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                 "manufacturing replacements → STOP_INCONCLUSIVE"
             ),
             "code_contract_alignment": (
-                "phase0_o4_replay.ForensicEvidence requires fills; "
-                "FORENSIC_MISSING_FILLS refuse"
+                "phase0_o4_replay.ForensicEvidence requires fills; FORENSIC_MISSING_FILLS refuse"
             ),
             "no_mix_with_o4a": "MANDATORY_SEPARATE_PIPELINES",
         },
@@ -966,16 +898,14 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
             {
                 "transform_id": "T-001",
                 "description": (
-                    "Deterministic field projection/normalization to EVGAP "
-                    "target archive schemas"
+                    "Deterministic field projection/normalization to EVGAP target archive schemas"
                 ),
                 "deterministic": True,
             },
             {
                 "transform_id": "T-002",
                 "description": (
-                    "Deterministic joins on precommitted keys (plan_id, "
-                    "episode_id, account_id)"
+                    "Deterministic joins on precommitted keys (plan_id, episode_id, account_id)"
                 ),
                 "deterministic": True,
             },
@@ -990,8 +920,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
             {
                 "transform_id": "T-004",
                 "description": (
-                    "Deterministic archive packaging (canonical JSON bytes) "
-                    "and SHA-256 computation"
+                    "Deterministic archive packaging (canonical JSON bytes) and SHA-256 computation"
                 ),
                 "deterministic": True,
             },
@@ -1040,27 +969,14 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
             ],
             "formulas": {
                 "n_source_count": (
-                    "COUNT distinct source_row_key on bound snapshots before "
-                    "window filter"
+                    "COUNT distinct source_row_key on bound snapshots before window filter"
                 ),
-                "n_window_eligible": (
-                    "COUNT after eligibility_window and INC/EXC filters"
-                ),
-                "n_deduplicated": (
-                    "COUNT after deduplication keys with FAIL_CLOSED on collision"
-                ),
-                "n_complete_o3": (
-                    "COUNT O3 rows meeting O3_QUALIFIED_BINDABLE completeness"
-                ),
-                "n_complete_o4a": (
-                    "COUNT O4-A rows meeting O4A_QUALIFIED_BINDABLE completeness"
-                ),
-                "n_complete_o4b": (
-                    "COUNT O4-B rows meeting O4B_QUALIFIED_BINDABLE completeness"
-                ),
-                "n_excluded_by_reason": (
-                    "SUM of reason-coded exclusions at each stage"
-                ),
+                "n_window_eligible": ("COUNT after eligibility_window and INC/EXC filters"),
+                "n_deduplicated": ("COUNT after deduplication keys with FAIL_CLOSED on collision"),
+                "n_complete_o3": ("COUNT O3 rows meeting O3_QUALIFIED_BINDABLE completeness"),
+                "n_complete_o4a": ("COUNT O4-A rows meeting O4A_QUALIFIED_BINDABLE completeness"),
+                "n_complete_o4b": ("COUNT O4-B rows meeting O4B_QUALIFIED_BINDABLE completeness"),
+                "n_excluded_by_reason": ("SUM of reason-coded exclusions at each stage"),
                 "n_emitted_o3": "COUNT O3 rows written to new EVGAP archive",
                 "n_emitted_o4a": "COUNT O4-A rows written to new EVGAP archive",
                 "n_emitted_o4b": "COUNT O4-B rows written to new EVGAP archive",
@@ -1090,9 +1006,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
         },
         "storage_paths": {
             "staging_root": "docs/design/evidence/dbox_evgap_acq_001/staging/",
-            "constructed_root": (
-                "docs/design/evidence/dbox_evgap_acq_001/constructed/"
-            ),
+            "constructed_root": ("docs/design/evidence/dbox_evgap_acq_001/constructed/"),
             "qualified_root": "docs/design/evidence/dbox_evgap_acq_001/qualified/",
             "rejected_root": "docs/design/evidence/dbox_evgap_acq_001/rejected/",
             "o5_locate_root": "docs/design/evidence/dbox_evgap_acq_001/o5_locate/",
@@ -1100,21 +1014,15 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                 "Optional S3 pin only after CONSTRUCTED; must include Version "
                 "ID + SHA-256 fail-closed; no unpinned latest"
             ),
-            "archive_hashes_at_freeze": (
-                "NOT_APPLICABLE_ARCHIVES_NOT_YET_CONSTRUCTED"
-            ),
+            "archive_hashes_at_freeze": ("NOT_APPLICABLE_ARCHIVES_NOT_YET_CONSTRUCTED"),
         },
         "archive_outcomes": {
             "CONSTRUCTED": "Candidate archive bytes + hashes under this freeze",
             "QUALIFIED": "Independent qualification report proves bindability",
             "REJECTED_AS_NON_BINDABLE": "Failed qualification or stop condition",
-            "INCONCLUSIVE": (
-                "Stop condition or empty eligible set including valid "
-                "O5 anchors:[]"
-            ),
+            "INCONCLUSIVE": ("Stop condition or empty eligible set including valid O5 anchors:[]"),
             "gate_ready_requires": (
-                "QUALIFIED plus later campaign scope/freeze/start — not "
-                "automatic from CONSTRUCTED"
+                "QUALIFIED plus later campaign scope/freeze/start — not automatic from CONSTRUCTED"
             ),
         },
         "qualification_criteria": {
@@ -1165,8 +1073,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
                 "extractors must be commit-pinned in acquisition-start before use"
             ),
             "synthetic_fixtures_policy": (
-                "Allowed for tooling tests only; EXC-009 excludes them from "
-                "empirical evidence"
+                "Allowed for tooling tests only; EXC-009 excludes them from empirical evidence"
             ),
         },
         "stop_conditions": [
@@ -1194,8 +1101,7 @@ def build_manifest_body(*, content_tip_commit: str) -> dict:
         },
         "rule_change_policy": {
             "after_outcome_inspection": (
-                "FORBIDDEN without superseding freeze manifest and owner "
-                "acknowledgment"
+                "FORBIDDEN without superseding freeze manifest and owner acknowledgment"
             ),
             "in_place_mutation_of_sealed_body": "FORBIDDEN",
         },
@@ -1293,23 +1199,16 @@ def main(argv: list[str] | None = None) -> int:
                 "sealed_at_utc": sealed_at,
                 "manifest_status": "SEALED",
                 "operator": "cursor-agent",
-                "operator_acknowledgment_kind": (
-                    "evidence_gap_acquisition_freeze_seal_operator"
-                ),
+                "operator_acknowledgment_kind": ("evidence_gap_acquisition_freeze_seal_operator"),
                 "owner_countersignature": (
-                    "Owner acknowledgment (Jay Wang) — typed governance "
-                    "acknowledgment"
+                    "Owner acknowledgment (Jay Wang) — typed governance acknowledgment"
                 ),
-                "owner_acknowledgment_kind": (
-                    "evidence_gap_acquisition_freeze_countersignature"
-                ),
+                "owner_acknowledgment_kind": ("evidence_gap_acquisition_freeze_countersignature"),
                 "post_seal_state": (
                     "SEALED — acquisition-start, snapshot capture, and record "
                     "selection NOT YET AUTHORIZED"
                 ),
-                "authorization_ruling_ref": (
-                    "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-AUTH-001"
-                ),
+                "authorization_ruling_ref": ("ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-AUTH-001"),
                 "freeze_completion_ruling": (
                     "Owner authorized freeze completion/readiness/seal/"
                     "countersign; acquisition start remains HOLD"

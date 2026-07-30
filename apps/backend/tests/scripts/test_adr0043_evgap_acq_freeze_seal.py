@@ -5,8 +5,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = ROOT / "apps" / "backend" / "scripts" / "adr0043_evgap_acq_freeze_seal.py"
 
@@ -33,10 +31,7 @@ def test_build_manifest_readiness_pass_with_dummy_tip(tmp_path, monkeypatch):
     assert errs == [], errs
     assert body["eligibility_window"]["end_exclusive_utc"] == "2026-07-30T19:39:07Z"
     assert body["account_3_identity"]["workbench_account_id"] == 3
-    assert (
-        body["hold_and_blocks"]["acquisition_start"]
-        == "HOLD_UNTIL_SEPARATE_START_DECISION"
-    )
+    assert body["hold_and_blocks"]["acquisition_start"] == "HOLD_UNTIL_SEPARATE_START_DECISION"
     assert "O3-CAND-20260730T022316Z" in body["archive_identity_rules"]["forbidden_archive_ids"]
 
 
