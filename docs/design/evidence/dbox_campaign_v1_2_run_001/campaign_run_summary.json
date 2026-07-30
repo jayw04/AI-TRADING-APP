@@ -11,7 +11,7 @@
     "O2": "INHERITED APPROVE (Option 2A) \u2014 not rerun",
     "O3": "INCONCLUSIVE \u2014 eligible_observation_count_below_protocol_minimum \u2014 n_eligible_full_replay=0 of n=292; QUALIFIED archive is sparse (quot",
     "O4-A": "INCONCLUSIVE \u2014 decision_time_bundle_incomplete \u2014 287/287 observations lack usable two-sided decision-time quotes; run_o4a yields STALE_EVIDENCE rather than INSUFFICIENT_EXECUT",
-    "O4-B": "NOT YET RUN",
+    "O4-B": "INCONCLUSIVE - forensic_bundle_incomplete - 286/286 observations missing surfaces required for UNREACHABLE_WITHIN_CAPS (day_change missing on 286; other missing groups=0). run_o4b yields INDETERM",
     "O5": "INCONCLUSIVE (deferred; anchors [])"
   },
   "o3_disposition": "INCONCLUSIVE",
@@ -19,14 +19,18 @@
   "hold_unchanged": true,
   "artifact_root": "docs/design/evidence/dbox_campaign_v1_2_run_001",
   "artifact_sha256": {
-    "campaign_run_summary.json": "9c16cca95eda6bb2c3231ccb6b6d9f00799f064bf203b069bbc26dde9e36cfc2",
+    "campaign_run_summary.json": "1c859814c3d0d8a703df534550a6c091a1f519641c5a95dfb134c8b13f43b489",
     "decision_time_bundle_hash.txt": "ff37ba238e59b38b410b1bf9728f856ff61b4752b6b3d643cf9b747dd00fe024",
     "false_reachable_table.json": "a7d5f0fd1c90a7231b7f3647b85e05ab6aa4cc1bc863cfaff309c0d666d44887",
+    "forensic_bundle_hash.txt": "d10e17314cdb14909910b192bd3724de443b92a22389659d54ab1cfdc017e615",
     "o3_adapter_pytest.txt": "38fdc9c706ae356c7245ed0d166f821b3a15a8b328886aebf2cc67e15b34aef0",
     "o3_replay_report.json": "1abe0deb54950e7eec5640fa74bb7e1740d1e5dd23037677b7fa9be4417816b0",
     "o4a_pytest.txt": "e45b1a173ef70ea47264a8e159abe2a576202307b94b51d588c7030d0da6e66f",
-    "o4a_report.json": "dcaa8f73b7134a5834c70a96d21c617050d8023d0af531babf19250026fca4da",
+    "o4a_report.json": "86bac4589517b02ad9bf6473835191246fd9cdcd70c1cd046f32c87e7d9d5725",
     "o4a_row_results.json": "0ba49b4dda39d76e8311ca9eb9c47d894b327c7ef47707d91da0d9d2640aa2cc",
+    "o4b_pytest.txt": "e45b1a173ef70ea47264a8e159abe2a576202307b94b51d588c7030d0da6e66f",
+    "o4b_report.json": "87ef18348e60398964a76026f934a3b2744ab442ff06ee4f189a05e80bbd3d06",
+    "o4b_row_results.json": "78ca770fa399dcf74124a3a9b56ab8ca967ff30841de143cadcd63fa09db7208",
     "opening_archive_hashes.json": "aa356e56d2ae45111ecffeb53495da71853eae84e6867af32ec1deaaa8c97394",
     "opening_body_hash.txt": "a52ea478f70308c9588335417f2d70b60fa076d437fe17572086cbfa9c039a44",
     "opening_controls.json": "09ca58c17d27c42ad8b3e9933a35d02b2afbcd1cfe5b74406a45d2be946edf57",
@@ -37,8 +41,10 @@
     "opening_verify_seal.json": "7829e570bd02cd1f72beea1bbf9d029a55bbcd9d1dd909fa7c73faf98aad1bfe",
     "opening_verify_seal.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "run_o3_gate_v12.py": "872d0f272a08eb2e99bd86bb085cbd3db26460fc786fc82b60178c2f5ef1e2f6",
-    "run_o4a_gate_v12.py": "5dd1b2e325ce854a69441d07ce3638b25f712a773d68bf1cc2a04394d4d793e8"
+    "run_o4a_gate_v12.py": "5dd1b2e325ce854a69441d07ce3638b25f712a773d68bf1cc2a04394d4d793e8",
+    "run_o4b_gate_v12.py": "594b52b47605f2e47cc70337fdc65d5d99999271dbf6dab9b9ffe41a293a7e6d"
   },
-  "next": "O4-B (opening PASS retained; O3/O4-A INCONCLUSIVE do not void START-002)",
-  "o4a_disposition": "INCONCLUSIVE"
+  "next": "Campaign executable packages complete under START-002; O5 remains INCONCLUSIVE; D-WIRE BLOCKED; close-out pending owner",
+  "o4a_disposition": "INCONCLUSIVE",
+  "o4b_disposition": "INCONCLUSIVE"
 }
