@@ -1,0 +1,815 @@
+{
+  "schema_version": 1,
+  "document_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-FREEZE-001",
+  "manifest_status": "UNSEALED",
+  "manifest_body": {
+    "document_purpose": "EVIDENCE-GAP acquisition freeze — precommits eligibility, source classes, contract-level field mappings, reconstruction/prohibited-inference rules, completeness/exclusion codes, planned count equations, schemas, O4-A/O4-B no-mix, and O5 locate-only protocol before any record selection, reconstruction, or capture",
+    "governing_refs": {
+      "authorization_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-AUTH-001",
+      "authorization_status": "APPROVED_EFFECTIVE",
+      "authorization_merge_commit": "29eece313b1b2e7541a20c0440101455b78b106d",
+      "authorization_path": "docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Acquisition_Authorization_v1.0.md",
+      "authorization_path_sha256": "2d88439e21e907bfb6e497f88bf052facdf4d44085b85fbcca3553e516cf80ce",
+      "design_package_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-001 v1.0",
+      "design_package_merge": "71d346d8bd5665a3037d451ec4118f70431b69df",
+      "design_package_path": "docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Design_v1.0.md",
+      "design_package_sha256": "e306dfd042373522deec77c78943c55d386e51ea2121de5c22b8b71fe8180d4f",
+      "v12_closeout_id": "ADR0043-PH0-D-BOX-V12-CLOSE-001",
+      "v12_closeout_merge": "4232c1adeb3f7a8741585d528930bac54cb2a318",
+      "closed_campaign_freeze_id": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-003",
+      "closed_campaign_freeze_body_sha256": "b2e6090dfe26bd26fbf18a3eb1be02d7e69a49423559194b93e8a95d5d663270",
+      "closed_start_id": "ADR0043-PH0-D-BOX-START-002",
+      "qual001_archives_status": "IMMUTABLE_HISTORICAL_EVIDENCE_MUST_NOT_MUTATE",
+      "qual001_archive_ids_forbidden_reuse": [
+        "O3-CAND-20260730T022316Z",
+        "O4A-CAND-20260730T022316Z",
+        "O4B-CAND-20260730T022316Z"
+      ],
+      "prior_o34_acq_freeze_id": "ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001",
+      "prior_o34_acq_freeze_body_sha256": "80dfd8ec6d90182cdeabaab2d1457720ca417bcd5cb1511b4dd9d77989951bb0",
+      "prior_o34_acq_freeze_reuse_in_place": "FORBIDDEN",
+      "offline_baseline_commit": "d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+      "offline_baseline_tag": "adr0043-phase0-offline-complete",
+      "controlling_design_id": "ADR0043-PH0-CTRL-001 v1.1",
+      "integration_design_id": "ADR0043-PH0-INTEGRATION-DESIGN-001 v1.0",
+      "content_tip_commit": "79aeb94e5e74888552600ad39593f5cbcf4a2c4a",
+      "seal_tooling_path": "apps/backend/scripts/adr0043_evgap_acq_freeze_seal.py",
+      "seal_tooling_path_sha256": "2f94847265e77af29b114445ff7de07643ba9e94b66dfb3fc359f480fd848ccc"
+    },
+    "account_3_identity": {
+      "workbench_account_id": 3,
+      "broker_account_id": "PA34USW0Q8UO",
+      "broker_environment": "paper",
+      "limits_digest_id": "july24_frozen_limits_row_id_3_audit_153",
+      "limits_digest_sha256": "da6659334909a68a2e800d429ff36e7c7de1d18f169082836c07de2973ef706f",
+      "july24_digest_mutation": "FORBIDDEN"
+    },
+    "hold_and_blocks": {
+      "broker_order_submission": "HOLD",
+      "new_live_fills_observations_sessions": "NOT_AUTHORIZED",
+      "prospective_instrumentation_new_evidence_population": "NOT_AUTHORIZED",
+      "gate_execution_or_reopening": "NOT_AUTHORIZED",
+      "d_wire": "BLOCKED",
+      "production_imports": "NOT_AUTHORIZED",
+      "deployed_path_observation": "NOT_AUTHORIZED",
+      "canary_enforce_caps_july24_changes": "NOT_AUTHORIZED",
+      "production_stack_commit_excluded": "b0058bf335628f8dbde09a93915314f3a1f7743b",
+      "production_modification": "FORBIDDEN",
+      "mutation_of_qual001_or_freeze003_archives": "FORBIDDEN",
+      "acquisition_start": "HOLD_UNTIL_SEPARATE_START_DECISION",
+      "evidence_row_access_before_seal_and_start": "FORBIDDEN"
+    },
+    "sequence_gate": {
+      "required_order": [
+        "FILL",
+        "PUBLISH_CONTENT_TIP",
+        "REBIND_COMMIT_TOOL_SCHEMA_IDENTITIES",
+        "READINESS_VALIDATION",
+        "SEAL",
+        "COUNTERSIGN",
+        "SEPARATE_ACQUISITION_START_DECISION",
+        "SNAPSHOT_CAPTURE",
+        "RECORD_SELECTION",
+        "CONSTRUCTION",
+        "INDEPENDENT_QUALIFICATION"
+      ],
+      "current_step_at_seal": "SEAL",
+      "record_selection_authorized_by_this_document": false,
+      "snapshot_capture_authorized_by_this_document": false,
+      "exploratory_selection_before_seal": "FORBIDDEN",
+      "source_inventory_inspection_for_selection_before_seal": "FORBIDDEN",
+      "candidate_row_queries_before_start": "FORBIDDEN",
+      "o5_anchor_content_search_before_start": "FORBIDDEN"
+    },
+    "time_standard": {
+      "timezone": "UTC",
+      "format": "RFC3339",
+      "precision": "second"
+    },
+    "eligibility_window": {
+      "start_inclusive_utc": "2026-06-30T00:00:00Z",
+      "end_exclusive_utc": "2026-07-30T19:39:07Z",
+      "bounds_policy": "start_inclusive_end_exclusive",
+      "start_basis": "ADR0032_AWS_paper_cutover_era_bound_from_governing_ops_docs_exogenous_not_outcome_inspection",
+      "end_basis": "EVIDENCE-GAP-ACQ-AUTH-001 publication merge timestamp 2026-07-30T19:39:07Z (PR #571 / 29eece3) — exclude post-authorization observations; exogenous to data quality"
+    },
+    "source_inventories": {
+      "policy": "Pin read-only locations and snapshot-binding protocol without selecting observation rows or inspecting candidate content. Live mutable stores require acquisition-start capture of exact file/object SHA-256 before selection. Capture is not selection. Locations reuse prior sealed O34 inventory identities as administrative metadata only.",
+      "entries": [
+        {
+          "source_id": "SRC-MKT-QUOTE-LAWFUL-001",
+          "source_class": "historical_market_and_quote_data",
+          "read_only_location": "Lawful local stores under prior Workbench authority: /opt/workbench/data/bar_cache and /opt/workbench/data/market_projection (concrete object Version IDs / tree SHA-256 bound at acquisition-start capture; prior O34 capture manifests are historical reference only and are not re-selected here)",
+          "snapshot_binding_status": "PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START",
+          "snapshot_sha256": "NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED",
+          "mutation_after_bound_snapshot": "STOP_INCONCLUSIVE"
+        },
+        {
+          "source_id": "SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
+          "source_class": "application_audit_plan_checkpoint_terminal_records",
+          "read_only_location": "Account-3 scoped persistence classes on authorized read-only host path /opt/workbench/data/workbench.sqlite (tables/classes previously published: orders, fills, accounts_state, audit_log, checkpoint/terminal package artifacts). Production stack b0058bf reference-only; must not be modified. SHA-256 of sqlite bytes or governed export dump bound at acquisition-start before any SELECT/filter/join for selection.",
+          "snapshot_binding_status": "PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START",
+          "snapshot_sha256": "NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED",
+          "snapshot_capture_method": "SHA-256 of sqlite file bytes (or governed export dump) recorded in acquisition-start decision before any selection query",
+          "mutation_after_bound_snapshot": "STOP_INCONCLUSIVE"
+        },
+        {
+          "source_id": "SRC-ACCT3-PAPER-PRIOR-AUTH-001",
+          "source_class": "account_3_paper_records_prior_authority",
+          "read_only_location": "Account workbench_account_id=3 / broker PA34USW0Q8UO paper records created under prior authority within eligibility_window; same sqlite host path as SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
+          "snapshot_binding_status": "PROTOCOL_BOUND_CAPTURE_AT_ACQUISITION_START",
+          "snapshot_sha256": "NOT_YET_CAPTURED_ACQUISITION_START_REQUIRED",
+          "mutation_after_bound_snapshot": "STOP_INCONCLUSIVE"
+        },
+        {
+          "source_id": "SRC-O5-TIERA-LOCATE-CORPUS-001",
+          "source_class": "preexisting_sealed_tier_a_live_fill_anchors",
+          "read_only_location": "Governing git design/evidence trees and any previously sealed Tier-A live-fill anchor manifests already published under ADR-0043 Phase-0 authority; locate-only after acquisition-start; no broker submit; no new fills",
+          "snapshot_binding_status": "PROTOCOL_BOUND_LOCATE_AT_ACQUISITION_START",
+          "snapshot_sha256": "NOT_YET_BOUND_ACQUISITION_START_REQUIRED",
+          "mutation_after_bound_snapshot": "STOP_INCONCLUSIVE",
+          "empty_result_policy": "anchors:[] VALID predetermined INCONCLUSIVE"
+        },
+        {
+          "source_id": "SRC-GOV-GIT-IMMUTABLE-001",
+          "source_class": "governing_git_and_design_pins",
+          "read_only_location": "Repository commits and design artifacts listed in governing_refs",
+          "snapshot_binding_status": "BOUND",
+          "snapshot_sha256": "BOUND_VIA_GOVERNING_REFS_COMMITS_AND_FILE_SHA256",
+          "note": "Immutable governance pins only; not empirical observation rows"
+        }
+      ]
+    },
+    "source_field_to_target_surface_mappings": {
+      "mapping_basis": "Defined from published archive schemas, phase0 Python contracts, and prior sealed source-class locations — not from candidate-row inspection",
+      "O3": [
+        {
+          "target_surface": "quote_provenance",
+          "target_contract": "app.risk.loss_control.phase0_quote_provenance.QuoteProvenance / ProvenancedQuote",
+          "required_keys": [
+            "provider",
+            "feed_type",
+            "venue_scope",
+            "subscription_entitlement",
+            "raw_payload_hash",
+            "normalization_version"
+          ],
+          "source_ids": [
+            "SRC-MKT-QUOTE-LAWFUL-001",
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001"
+          ],
+          "source_field_classes": [
+            "quote payload bytes for plan symbol",
+            "structured provenance metadata satisfying REQUIRED_FIELDS"
+          ],
+          "as_of_constraint": "as-of <= reconstructable replay/decision time for the plan from bound snapshot",
+          "reconstruction_rule": "Deterministic projection into QuoteProvenance.as_dict and ProvenancedQuote; refuse string-only sources",
+          "prohibited_inference": [
+            "synthesize quotes",
+            "later-market backfill",
+            "evaluator defaults",
+            "string-only provenance"
+          ],
+          "incomplete_reason_code": "MISSING_REPLAY_SURFACE:quote_provenance"
+        },
+        {
+          "target_surface": "checkpoint_tuple",
+          "target_contract": "app.risk.loss_control.phase0_checkpoint.CheckpointBinding",
+          "required_keys": [
+            "schema_version",
+            "run_id",
+            "session_id",
+            "account_id",
+            "plan_hash",
+            "authorization_id",
+            "loss_control_state",
+            "loss_control_state_version",
+            "payload"
+          ],
+          "source_ids": [
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001"
+          ],
+          "source_field_classes": [
+            "sealed checkpoint envelopes / binding tuples for account 3"
+          ],
+          "as_of_constraint": "checkpoint must bind to the same plan/episode; content_hash required on sealed envelope",
+          "reconstruction_rule": "Deterministic load via checkpoint integrity rules; fail closed on incomplete binding or hash mismatch",
+          "prohibited_inference": [
+            "evaluator default checkpoints",
+            "cross-session reuse",
+            "fabricated loss_control_state_version"
+          ],
+          "incomplete_reason_code": "MISSING_REPLAY_SURFACE:checkpoint_tuple"
+        },
+        {
+          "target_surface": "loss_accounting_inputs",
+          "target_contract": "app.risk.loss_control.phase0_loss_accounting.FillLeg + LossAccountingPolicy (ADR0043-PH0-LOSS-001)",
+          "required_keys": [
+            "legs_or_equivalent_inputs",
+            "formula_id"
+          ],
+          "source_ids": [
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
+            "SRC-ACCT3-PAPER-PRIOR-AUTH-001"
+          ],
+          "source_field_classes": [
+            "fill/leg economics attributable to plan",
+            "policy slots for ADR0043-PH0-LOSS-001"
+          ],
+          "as_of_constraint": "inputs must pre-exist in bound snapshot; no post-hoc invention of fees/prices",
+          "reconstruction_rule": "Deterministic assembly of FillLeg sequence + policy dict sufficient for compute_canonical_loss",
+          "prohibited_inference": [
+            "invented legs",
+            "assumed fees",
+            "evaluator defaults"
+          ],
+          "incomplete_reason_code": "MISSING_REPLAY_SURFACE:loss_accounting_inputs"
+        },
+        {
+          "target_surface": "recovery_inputs",
+          "target_contract": "app.risk.loss_control.phase0_crash_consistency.TerminalPackage (governed recovery object for O3)",
+          "required_keys": [
+            "run_id",
+            "account_id",
+            "status",
+            "journal_digest",
+            "broker_client_order_ids",
+            "package_digest",
+            "conclusive"
+          ],
+          "source_ids": [
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001"
+          ],
+          "source_field_classes": [
+            "terminal/crash-consistency packages and durable journal records for the plan/run"
+          ],
+          "as_of_constraint": "package must already exist at frozen source cutoff",
+          "reconstruction_rule": "Deterministic projection to TerminalPackage.as_dict; lineage must prove package pre-existed in snapshot",
+          "prohibited_inference": [
+            "fabricated recovery status",
+            "assumed conclusive=true",
+            "invented digests"
+          ],
+          "incomplete_reason_code": "MISSING_REPLAY_SURFACE:recovery_inputs"
+        },
+        {
+          "target_surface": "authority_inputs",
+          "target_contract": "order/plan authority dict retained from O34 family",
+          "required_keys": [
+            "account_3_scoped_authority_object"
+          ],
+          "source_ids": [
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
+            "SRC-ACCT3-PAPER-PRIOR-AUTH-001"
+          ],
+          "source_field_classes": [
+            "orders/plan authorization records for account 3"
+          ],
+          "as_of_constraint": "pre-existing in bound snapshot",
+          "reconstruction_rule": "Deterministic projection; must remain account-3 scoped",
+          "prohibited_inference": [
+            "cross-account authority"
+          ],
+          "incomplete_reason_code": "MISSING_REPLAY_SURFACE:authority_inputs"
+        },
+        {
+          "target_surface": "plan_id",
+          "target_contract": "phase0_o34_archive_adapter.parse_ord_plan_id",
+          "required_keys": [
+            "plan_id"
+          ],
+          "source_ids": [
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001"
+          ],
+          "source_field_classes": [
+            "orders.id mapped as ord:<orders.id>"
+          ],
+          "as_of_constraint": "n/a",
+          "reconstruction_rule": "plan_id=ord:<orders.id> unless superseding contract amended into a future freeze",
+          "prohibited_inference": [
+            "non-ord synthetic identities"
+          ],
+          "incomplete_reason_code": "MISSING_PROVENANCE"
+        }
+      ],
+      "O4_A": [
+        {
+          "target_surface": "decision_time_quotes",
+          "target_contract": "phase0_o4_replay.DecisionTimeEvidence.quotes / phase0_reachability two-sided bid/ask/age_s",
+          "required_keys": [
+            "bid",
+            "ask",
+            "age_s_or_equivalent_freshness"
+          ],
+          "source_ids": [
+            "SRC-MKT-QUOTE-LAWFUL-001"
+          ],
+          "source_field_classes": [
+            "two-sided quotes for intended symbols at or before cutoff"
+          ],
+          "as_of_constraint": "quote timestamp <= FIRST_BROKER_SUBMISSION_BOUNDARY cutoff_at_utc",
+          "reconstruction_rule": "Deterministic selection of last eligible two-sided quote at/before cutoff from bound market stores; empty book → exclude MISSING_DECISION_TIME_QUOTE",
+          "prohibited_inference": [
+            "post_submit_quotes",
+            "O4-B fills/terminal import",
+            "later market data",
+            "evaluator default quotes"
+          ],
+          "incomplete_reason_code": "MISSING_DECISION_TIME_QUOTE"
+        },
+        {
+          "target_surface": "model_available",
+          "target_contract": "DecisionTimeEvidence.model_available:bool",
+          "required_keys": [
+            "model_available"
+          ],
+          "source_ids": [
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001"
+          ],
+          "source_field_classes": [
+            "decision-time model-availability flag recorded for the plan"
+          ],
+          "as_of_constraint": "at decision time / at or before cutoff",
+          "reconstruction_rule": "Emit explicit boolean from pre-existing record; absence → exclude MISSING_PROVENANCE (do not default true)",
+          "prohibited_inference": [
+            "default-true fabrication"
+          ],
+          "incomplete_reason_code": "MISSING_PROVENANCE"
+        },
+        {
+          "target_surface": "cutoff_at_utc",
+          "target_contract": "FIRST_BROKER_SUBMISSION_BOUNDARY",
+          "required_keys": [
+            "cutoff_at_utc"
+          ],
+          "source_ids": [
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001"
+          ],
+          "source_field_classes": [
+            "orders.submitted_at or first broker submission attempt attributable to plan; else last pre-submit decision event"
+          ],
+          "as_of_constraint": "reconstructable from bound snapshot only",
+          "reconstruction_rule": "Same family as O34-ACQ-FREEZE-001 o4a_cutoff_rule; unreconstructable → MISSING_CUTOFF",
+          "prohibited_inference": [
+            "assumed cutoff",
+            "post-hoc ordering"
+          ],
+          "incomplete_reason_code": "MISSING_CUTOFF"
+        },
+        {
+          "target_surface": "o4a_prohibited_fields",
+          "target_contract": "EVGAP O4-A schema fills maxItems=0; terminal/post_submit null",
+          "required_keys": [],
+          "source_ids": [],
+          "source_field_classes": [],
+          "as_of_constraint": "n/a",
+          "reconstruction_rule": "fills must be empty; terminal_broker_state and post_submit_quotes must be null; day_change on O4-A rows must remain null (forensic baseline belongs to O4-B)",
+          "prohibited_inference": [
+            "any O4-B payload merge into O4-A"
+          ],
+          "incomplete_reason_code": "CROSS_PLANE_MIX"
+        }
+      ],
+      "O4_B": [
+        {
+          "target_surface": "fills_and_terminal_completeness",
+          "target_contract": "O4B-TERM-COMPLETE-001 / ForensicEvidence.fills",
+          "required_keys": [
+            "fills_min_1",
+            "terminal_completeness.complete",
+            "fill_loss_per_round_trip"
+          ],
+          "source_ids": [
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
+            "SRC-ACCT3-PAPER-PRIOR-AUTH-001"
+          ],
+          "source_field_classes": [
+            "fills table rows for plan/orders",
+            "terminal completeness markers"
+          ],
+          "as_of_constraint": "pre-existing in bound snapshot",
+          "reconstruction_rule": "1:1 plan/fill reconcile; incomplete → O4B_INCOMPLETE",
+          "prohibited_inference": [
+            "manufactured fills"
+          ],
+          "incomplete_reason_code": "O4B_INCOMPLETE"
+        },
+        {
+          "target_surface": "day_change",
+          "target_contract": "phase0_reachability.remaining_to_target / ForensicEvidence.day_change under LossAccountingPolicy.control_baseline_mode=BROKER_EQUITY (default Phase-0)",
+          "required_keys": [
+            "day_change",
+            "baseline_mode",
+            "as_of_utc"
+          ],
+          "source_ids": [
+            "SRC-ACCT3-PAPER-PRIOR-AUTH-001",
+            "SRC-APP-AUDIT-PLAN-CKPT-TERM-001"
+          ],
+          "source_field_classes": [
+            "account-3 broker equity / day P&L fields (accounts_state.raw_payload or governed equivalent) at forensic as-of"
+          ],
+          "as_of_constraint": "forensic as-of for the episode; provenance must record baseline_mode and as_of_utc",
+          "reconstruction_rule": "Deterministic extraction of decimal day_change under bound baseline mode; null/absent → MISSING_FORENSIC_BASELINE (not QUALIFIED for O4-B gate binding unless freeze-accepted equivalent present)",
+          "prohibited_inference": [
+            "assumption-filled day_change",
+            "O4-A-only substitution",
+            "later equity marks after forensic as-of",
+            "evaluator defaults"
+          ],
+          "incomplete_reason_code": "MISSING_FORENSIC_BASELINE"
+        }
+      ],
+      "O5": [
+        {
+          "target_surface": "o5_live_fill_anchors",
+          "target_contract": "EVIDENCE-GAP-001 §7 Tier-A anchors[] with identity + SHA-256 + provenance",
+          "required_keys": [],
+          "source_ids": [
+            "SRC-O5-TIERA-LOCATE-CORPUS-001"
+          ],
+          "source_field_classes": [
+            "pre-existing sealed Tier-A live-fill anchor manifests"
+          ],
+          "as_of_constraint": "anchor must pre-exist; no new fills",
+          "reconstruction_rule": "Locate and qualify only after acquisition-start; anchors:[] is a valid outcome",
+          "prohibited_inference": [
+            "generate fills",
+            "shadow-session execution",
+            "broker submission",
+            "placeholder anchors"
+          ],
+          "incomplete_reason_code": "O5_ANCHORS_EMPTY_VALID"
+        }
+      ]
+    },
+    "inclusion_rules": [
+      {
+        "rule_id": "INC-001",
+        "description": "Include account-3 (workbench_account_id=3, broker PA34USW0Q8UO) order/plan episodes with plan_created_at_utc (or orders.created_at equivalent) in eligibility_window"
+      },
+      {
+        "rule_id": "INC-002",
+        "description": "Include only records whose source_lineage resolves to a source_id in source_inventories.entries with successful snapshot binding at acquisition-start"
+      },
+      {
+        "rule_id": "INC-003",
+        "description": "O4-A rows may include only fields available at or before FIRST_BROKER_SUBMISSION_BOUNDARY for that episode"
+      },
+      {
+        "rule_id": "INC-004",
+        "description": "O4-B rows may include only episodes meeting O4B-TERM-COMPLETE-001 plus forensic baseline rule when emitting QUALIFIED-bindable rows"
+      },
+      {
+        "rule_id": "INC-005",
+        "description": "O3 QUALIFIED-bindable rows require all replay surfaces non-null: quote_provenance, authority_inputs, checkpoint_tuple, loss_accounting_inputs, recovery_inputs"
+      }
+    ],
+    "exclusion_rules": [
+      {
+        "rule_id": "EXC-001",
+        "description": "Exclude WP7 hermetic fixtures and inline KOKU / obs-a / obs-b / arc-1 test identities"
+      },
+      {
+        "rule_id": "EXC-002",
+        "description": "Exclude test_adr0043_dbox_freeze_manifest.py stubs"
+      },
+      {
+        "rule_id": "EXC-003",
+        "description": "Exclude phase0_o4_replay.py hermetic inline fixtures as empirical observations"
+      },
+      {
+        "rule_id": "EXC-004",
+        "description": "Exclude WP0 seal 20260729T161843Z production ops snapshot as O3/O4 empirical corpus"
+      },
+      {
+        "rule_id": "EXC-005",
+        "description": "Exclude ADR 0048 SEP/ACTIONS corpus and other non-ADR0043 Phase-0 programs"
+      },
+      {
+        "rule_id": "EXC-006",
+        "description": "Exclude adr0043_gate_replay_v1.0 CI PR replay artifacts"
+      },
+      {
+        "rule_id": "EXC-007",
+        "description": "Exclude acct7/v13 journals and wrong-purpose research program evidence"
+      },
+      {
+        "rule_id": "EXC-008",
+        "description": "Exclude Option 2A hermetic CORR-06/O1/O2 evidence root as O3/O4 empirical observations"
+      },
+      {
+        "rule_id": "EXC-009",
+        "description": "Exclude unit-test fixtures and synthetic examples converted to empirical rows"
+      },
+      {
+        "rule_id": "EXC-010",
+        "description": "Exclude non-account-3 events; exclude post-window records; exclude manufactured sample-size fillers"
+      },
+      {
+        "rule_id": "EXC-011",
+        "description": "Exclude production OrderRouter live path observation on deployed commit b0058bf"
+      },
+      {
+        "rule_id": "EXC-012",
+        "description": "Exclude mutation/reuse of QUAL-001 archive IDs O3/O4A/O4B-CAND-20260730T022316Z; those remain immutable historical evidence"
+      },
+      {
+        "rule_id": "EXC-013",
+        "description": "Exclude CAMPAIGN v1.2 run evidence root docs/design/evidence/dbox_campaign_v1_2_run_001/ as an empirical acquisition source (reference dispositions only)"
+      },
+      {
+        "rule_id": "EXC-014",
+        "description": "Exclude fabricating gap surfaces from O34 constructed archives that systematically null those surfaces"
+      }
+    ],
+    "deduplication": {
+      "o3_key_fields_ordered": [
+        "workbench_account_id",
+        "plan_id"
+      ],
+      "o4a_key_fields_ordered": [
+        "workbench_account_id",
+        "plan_id",
+        "evidence_plane"
+      ],
+      "o4b_key_fields_ordered": [
+        "workbench_account_id",
+        "plan_id",
+        "evidence_plane"
+      ],
+      "evidence_plane_values": [
+        "DECISION_TIME",
+        "FORENSIC"
+      ],
+      "plan_id_default": "ord:<orders.id>",
+      "collision_policy": "FAIL_CLOSED_STOP_INCONCLUSIVE"
+    },
+    "unit_of_observation": {
+      "definition": "One order/plan episode (plan_id=ord:<orders.id>) for account 3 within eligibility_window",
+      "o3_mapping": "One O3 observation row per included plan_id after dedup",
+      "o4a_mapping": "One O4-A observation row per included plan_id with reconstructable FIRST_BROKER_SUBMISSION_BOUNDARY cutoff",
+      "o4b_mapping": "One O4-B observation row per included plan_id meeting terminal completeness; linked to same episode_id as O4-A without payload merge"
+    },
+    "symbol_session_clustering": {
+      "cluster_key": [
+        "symbol",
+        "session_calendar_date_utc"
+      ],
+      "independence_assumption": "Plans in the same symbol-session cluster are positively dependent; report n_raw and n_eff<=n_raw",
+      "counting_policy": "Emit both raw observation counts and cluster counts; sample sufficiency must not invent new observations"
+    },
+    "o4a_cutoff_rule": {
+      "cutoff_event": "FIRST_BROKER_SUBMISSION_BOUNDARY",
+      "reconstruction_method": "For each plan_id, reconstruct cutoff_at_utc as the timestamp of the first broker submission attempt/order event attributable to that plan from audit/order/terminal records in the bound source snapshot (orders.submitted_at family); if no submission occurred, cutoff is the last pre-submit decision event recorded for the plan; if neither can be reconstructed → exclude MISSING_CUTOFF (do not invent)",
+      "prohibited_post_cutoff_fields": [
+        "fills",
+        "terminal_broker_state",
+        "post_submit_quotes"
+      ],
+      "lookahead_policy": "FAIL_CLOSED_REJECT_OR_STOP",
+      "no_mix_with_o4b": "MANDATORY_SEPARATE_ARCHIVES"
+    },
+    "o4b_terminal_completeness_rule": {
+      "criteria_id": "O4B-TERM-COMPLETE-001",
+      "criteria": [
+        "Non-empty fills array for the episode",
+        "Terminal loss/accounting inputs present or explicitly reason-coded as unavailable with FAIL_CLOSED exclusion",
+        "Episode linkage to O4-A episode_id without merging O4-A/O4-B payloads"
+      ],
+      "forensic_baseline_for_qualified_binding": "Non-null day_change (or freeze-accepted equivalent with baseline_mode + as_of_utc provenance) required for QUALIFIED O4-B gate binding",
+      "incomplete_observation_treatment": "EXCLUDE_WITH_REASON_CODE_O4B_INCOMPLETE or MISSING_FORENSIC_BASELINE; if exclusion would require manufacturing replacements → STOP_INCONCLUSIVE",
+      "code_contract_alignment": "phase0_o4_replay.ForensicEvidence requires fills; FORENSIC_MISSING_FILLS refuse",
+      "no_mix_with_o4a": "MANDATORY_SEPARATE_PIPELINES"
+    },
+    "o5_locate_only_protocol": {
+      "authorized_actions": [
+        "locate_preexisting_sealed_tier_a_anchors",
+        "independently_qualify_located_anchors"
+      ],
+      "forbidden_actions": [
+        "new_orders",
+        "generate_new_fills",
+        "shadow_session_execution",
+        "broker_submission"
+      ],
+      "empty_anchors_policy": "anchors:[] VALID → predetermined INCONCLUSIVE",
+      "content_search_before_acquisition_start": "FORBIDDEN"
+    },
+    "completeness_criteria": {
+      "O3_QUALIFIED_BINDABLE": "All of quote_provenance, authority_inputs, checkpoint_tuple, loss_accounting_inputs, recovery_inputs non-null and contract-valid",
+      "O4A_QUALIFIED_BINDABLE": "Reconstructable cutoff; non-empty two-sided decision-time quotes per intended symbol with freshness; explicit model_available; fills empty; no O4-B fields",
+      "O4B_QUALIFIED_BINDABLE": "O4B-TERM-COMPLETE-001 plus non-null day_change (or accepted equivalent) with baseline provenance",
+      "O5": "Tier-A anchors located and qualified, or anchors:[] valid"
+    },
+    "missing_data_treatment": {
+      "policy": "FAIL_CLOSED",
+      "reason_codes": [
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_PROVENANCE",
+        "MISSING_CUTOFF",
+        "MISSING_TERMINAL_COMPLETE",
+        "MISSING_REPLAY_SURFACE:quote_provenance",
+        "MISSING_REPLAY_SURFACE:checkpoint_tuple",
+        "MISSING_REPLAY_SURFACE:loss_accounting_inputs",
+        "MISSING_REPLAY_SURFACE:recovery_inputs",
+        "MISSING_REPLAY_SURFACE:authority_inputs",
+        "MISSING_DECISION_TIME_QUOTE",
+        "MISSING_FORENSIC_BASELINE",
+        "AMBIGUOUS_DEDUP",
+        "POST_SNAPSHOT_MUTATION",
+        "UNAUTHORIZED_BROKER_CALL",
+        "SAMPLE_REQUIRES_NEW_OBSERVATIONS",
+        "O4B_INCOMPLETE",
+        "CROSS_PROGRAM_EVIDENCE",
+        "CROSS_PLANE_MIX",
+        "SYNTHETIC_OR_FIXTURE",
+        "REQUIRED_FABRICATION",
+        "O5_ANCHORS_EMPTY_VALID"
+      ]
+    },
+    "permitted_transformations": [
+      {
+        "transform_id": "T-001",
+        "description": "Deterministic field projection/normalization to EVGAP target archive schemas",
+        "deterministic": true
+      },
+      {
+        "transform_id": "T-002",
+        "description": "Deterministic joins on precommitted keys (plan_id, episode_id, account_id)",
+        "deterministic": true
+      },
+      {
+        "transform_id": "T-003",
+        "description": "Deterministic classification into separate O3 / O4-A / O4-B pipelines per freeze rules",
+        "deterministic": true
+      },
+      {
+        "transform_id": "T-004",
+        "description": "Deterministic archive packaging (canonical JSON bytes) and SHA-256 computation",
+        "deterministic": true
+      },
+      {
+        "transform_id": "T-005",
+        "description": "Deterministic reason-code tagging for exclusions",
+        "deterministic": true
+      },
+      {
+        "transform_id": "T-006",
+        "description": "O5 locate-only enumeration of pre-existing sealed Tier-A anchor manifests after acquisition-start",
+        "deterministic": true
+      }
+    ],
+    "prohibited_substitutions": [
+      "Manufacturing observations to satisfy sample size",
+      "Converting unit-test fixtures or synthetic examples into empirical observations",
+      "Silent import of another research program evidence",
+      "Changing historical records",
+      "Generating new orders, fills, attempts, or sessions",
+      "Outcome-conditioned rewrite of eligibility or sampling rules after inspection",
+      "Mixing O4-A and O4-B payloads into one archive",
+      "Synthesizing quotes, checkpoints, loss inputs, recovery state, or day_change from assumptions",
+      "Using later market data as decision-time quotes",
+      "Importing O4-B data into O4-A",
+      "Filling missing surfaces from evaluator defaults",
+      "Mutating or reusing QUAL-001 archive IDs",
+      "Prospective instrumentation creating a new evidence population under this freeze"
+    ],
+    "expected_count_reconciliation": {
+      "policy": "Planned equations only; numeric empirical counts are NOT_APPLICABLE_BEFORE_SELECTION and must be filled only after acquisition-start selection; must reconcile or STOP",
+      "pipeline_stages_ordered": [
+        "source_count",
+        "window_eligible",
+        "deduplicated",
+        "complete",
+        "excluded_by_reason",
+        "emitted"
+      ],
+      "formulas": {
+        "n_source_count": "COUNT distinct source_row_key on bound snapshots before window filter",
+        "n_window_eligible": "COUNT after eligibility_window and INC/EXC filters",
+        "n_deduplicated": "COUNT after deduplication keys with FAIL_CLOSED on collision",
+        "n_complete_o3": "COUNT O3 rows meeting O3_QUALIFIED_BINDABLE completeness",
+        "n_complete_o4a": "COUNT O4-A rows meeting O4A_QUALIFIED_BINDABLE completeness",
+        "n_complete_o4b": "COUNT O4-B rows meeting O4B_QUALIFIED_BINDABLE completeness",
+        "n_excluded_by_reason": "SUM of reason-coded exclusions at each stage",
+        "n_emitted_o3": "COUNT O3 rows written to new EVGAP archive",
+        "n_emitted_o4a": "COUNT O4-A rows written to new EVGAP archive",
+        "n_emitted_o4b": "COUNT O4-B rows written to new EVGAP archive",
+        "identity": "source_count → window_eligible → deduplicated; complete + excluded_by_reason must equal prior stage; emitted ⊆ complete"
+      },
+      "pre_selection_numeric_counts": "NOT_APPLICABLE_BEFORE_SELECTION"
+    },
+    "target_archive_schemas": {
+      "O3": {
+        "schema_id": "ADR0043-PH0-D-BOX-EVGAP-O3-ARCHIVE-SCHEMA-001",
+        "path": "docs/design/schemas/ADR0043_Phase0_EVGAP_O3_Archive.schema.json",
+        "sha256": "55556ddfa90faa26621ff30d1074f544b81e1a95db69236bd6e450a066ec8319"
+      },
+      "O4_A": {
+        "schema_id": "ADR0043-PH0-D-BOX-EVGAP-O4A-ARCHIVE-SCHEMA-001",
+        "path": "docs/design/schemas/ADR0043_Phase0_EVGAP_O4A_Archive.schema.json",
+        "sha256": "c6c6fa76f26bdbc33349c5fcbe59642142746a4df36eca9b43ea2bfeaad5420d"
+      },
+      "O4_B": {
+        "schema_id": "ADR0043-PH0-D-BOX-EVGAP-O4B-ARCHIVE-SCHEMA-001",
+        "path": "docs/design/schemas/ADR0043_Phase0_EVGAP_O4B_Archive.schema.json",
+        "sha256": "bc0cd2346f00347b6fdcf1977128c67e69080916414312bb079c68d8e6abcad4"
+      }
+    },
+    "archive_identity_rules": {
+      "naming_pattern_o3": "O3-CAND-EVGAP-{capture_id}",
+      "naming_pattern_o4a": "O4A-CAND-EVGAP-{capture_id}",
+      "naming_pattern_o4b": "O4B-CAND-EVGAP-{capture_id}",
+      "forbidden_archive_ids": [
+        "O3-CAND-20260730T022316Z",
+        "O4A-CAND-20260730T022316Z",
+        "O4B-CAND-20260730T022316Z"
+      ],
+      "separate_pipelines": {
+        "O4_A": "DECISION_TIME only",
+        "O4_B": "FORENSIC only",
+        "payload_merge": "FORBIDDEN"
+      }
+    },
+    "storage_paths": {
+      "staging_root": "docs/design/evidence/dbox_evgap_acq_001/staging/",
+      "constructed_root": "docs/design/evidence/dbox_evgap_acq_001/constructed/",
+      "qualified_root": "docs/design/evidence/dbox_evgap_acq_001/qualified/",
+      "rejected_root": "docs/design/evidence/dbox_evgap_acq_001/rejected/",
+      "o5_locate_root": "docs/design/evidence/dbox_evgap_acq_001/o5_locate/",
+      "s3_policy": "Optional S3 pin only after CONSTRUCTED; must include Version ID + SHA-256 fail-closed; no unpinned latest",
+      "archive_hashes_at_freeze": "NOT_APPLICABLE_ARCHIVES_NOT_YET_CONSTRUCTED"
+    },
+    "archive_outcomes": {
+      "CONSTRUCTED": "Candidate archive bytes + hashes under this freeze",
+      "QUALIFIED": "Independent qualification report proves bindability",
+      "REJECTED_AS_NON_BINDABLE": "Failed qualification or stop condition",
+      "INCONCLUSIVE": "Stop condition or empty eligible set including valid O5 anchors:[]",
+      "gate_ready_requires": "QUALIFIED plus later campaign scope/freeze/start — not automatic from CONSTRUCTED"
+    },
+    "qualification_criteria": {
+      "independent_role": "Qualifier must be a separate operator/session from the constructor; constructor may not self-qualify",
+      "required_proofs": [
+        "complete_provenance",
+        "no_O4A_lookahead",
+        "no_O4A_O4B_evidence_mixing",
+        "reproducible_source_to_archive_row_lineage",
+        "count_reconciliation",
+        "hash_and_schema_validation",
+        "no_prohibited_synthetic_or_cross_program_substitution",
+        "no_prohibited_fabrication_of_gap_surfaces",
+        "gap_completeness_bars_for_qualified_binding"
+      ],
+      "permitted_outcomes": [
+        "QUALIFIED",
+        "REJECTED_AS_NON_BINDABLE",
+        "INCONCLUSIVE"
+      ],
+      "report_path_pattern": "docs/design/evidence/dbox_evgap_acq_001/qualification/QUAL-*.md"
+    },
+    "broker_reads": {
+      "policy": "None by default. Read-only broker history only if separately declared here and proven side-effect-free before use.",
+      "operations": [],
+      "undeclared_broker_calls": "STOP_INCONCLUSIVE_OR_REQUIRE_AMENDMENT"
+    },
+    "tooling_identities": {
+      "seal_script_path": "apps/backend/scripts/adr0043_evgap_acq_freeze_seal.py",
+      "seal_script_sha256": "2f94847265e77af29b114445ff7de07643ba9e94b66dfb3fc359f480fd848ccc",
+      "schema_paths": [
+        "docs/design/schemas/ADR0043_Phase0_EVGAP_O3_Archive.schema.json",
+        "docs/design/schemas/ADR0043_Phase0_EVGAP_O4A_Archive.schema.json",
+        "docs/design/schemas/ADR0043_Phase0_EVGAP_O4B_Archive.schema.json"
+      ],
+      "content_tip_commit": "79aeb94e5e74888552600ad39593f5cbcf4a2c4a",
+      "extraction_packaging_code": "NOT_YET_PRESENT — may be developed under ACQ-AUTH-001 with synthetic fixtures only before acquisition-start; empirical extractors must be commit-pinned in acquisition-start before use",
+      "synthetic_fixtures_policy": "Allowed for tooling tests only; EXC-009 excludes them from empirical evidence"
+    },
+    "stop_conditions": [
+      "Required source snapshot unavailable or unpinnable",
+      "Provenance cannot be proven",
+      "Decision-time cutoff cannot be reconstructed without invention",
+      "Terminal/forensic completeness cannot be established without fabrication",
+      "Deduplication is ambiguous",
+      "Source records modified after bound snapshot",
+      "Broker calls beyond authorized reads required",
+      "Sample sufficiency would require generating new observations",
+      "Gap surface recovery would require prohibited inference",
+      "Ambiguous lineage for any emitted row",
+      "Mapping cannot be executed without guessing unresolved sources"
+    ],
+    "predetermined_inconclusive_handling": {
+      "on_stop_condition": "Close acquisition/construction INCONCLUSIVE or require superseding freeze + owner acknowledgment; do not invent observations",
+      "on_empty_eligible_set": "INCONCLUSIVE — do not manufacture sample",
+      "on_o5_empty_anchors": "INCONCLUSIVE with anchors:[] — valid",
+      "does_not_lift_hold_or_d_wire": true
+    },
+    "rule_change_policy": {
+      "after_outcome_inspection": "FORBIDDEN without superseding freeze manifest and owner acknowledgment",
+      "in_place_mutation_of_sealed_body": "FORBIDDEN"
+    }
+  },
+  "provisional_body_sha256": "b4be00b080fab5ee1c25cc18b1988345a50857260e65e25c7ffadb900f9d2535",
+  "seal": null,
+  "note": "UNSEALED — not authoritative for evidence access; seal + separate acquisition-start still required"
+}
