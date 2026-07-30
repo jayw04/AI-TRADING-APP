@@ -1,31 +1,24 @@
-# D-BOX Status — CAMPAIGN-001 v1.2 / FREEZE-MANIFEST-003
+# D-BOX Status — CAMPAIGN-001 v1.2 / FREEZE-003 / START-002
 
 | Field | Value |
 |-------|-------|
-| Campaign scope | ADR0043-PH0-D-BOX-CAMPAIGN-001 **v1.2** |
-| Publication PR (package) | [#562](https://github.com/jayw04/AI-TRADING-APP/pull/562) **MERGED** |
-| Content tip | `9b62abb98b8adbcf9713cee006201e45f3015deb` |
-| Package merge tip | `974e374271aa04e0bd3d542faf856fcdddd3ff3c` |
-| Tip-rebind PR | [#563](https://github.com/jayw04/AI-TRADING-APP/pull/563) **MERGED** |
-| Rebind content tip | `141131782e812fc5a1ddb4b59d86fa7e6713e13d` |
-| Rebind merge tip | `4e3c799834e6abd420eda53ebb819dd9f1ce07b2` |
-| Sealed artifact | `docs/design/ADR0043_Phase0_D_BOX_Freeze_Manifest_003_SEALED.json` |
-| Document ID | ADR0043-PH0-D-BOX-FREEZE-MANIFEST-003 |
-| Manifest status | **SEALED** |
-| Canonical body SHA-256 | `b2e6090dfe26bd26fbf18a3eb1be02d7e69a49423559194b93e8a95d5d663270` |
-| Sealed at (UTC) | `2026-07-30T16:45:54Z` |
-| `verify-seal` | **ok** |
-| Prior freeze | FREEZE-002 **SEALED** body `d35de863…` — **not mutated in place** |
-| Option 2A inheritance | CORR-06/O1/O2 **INHERITED APPROVE** @ `5cb711c` + FREEZE-002 |
-| Executable | **O3 → O4-A → O4-B** only |
-| Deferred | **O5** INCONCLUSIVE (`anchors: []`) |
-| D-WIRE | **BLOCKED** even if O3/O4 all-PASS |
-| Runtime | isolated harness only; production `b0058bf` reference-only / no modify |
-| HOLD | all prior HOLD conditions preserved |
-| Campaign start | **HOLD** — separate v1.2 start ruling required |
+| Campaign | ADR0043-PH0-D-BOX-CAMPAIGN-001 **v1.2** |
+| Freeze | FREEZE-MANIFEST-003 **SEALED** |
+| Body SHA-256 | `b2e6090dfe26bd26fbf18a3eb1be02d7e69a49423559194b93e8a95d5d663270` |
+| Seal merge | `99a8537f78ad758eef5f23f803ce9eff098e83b6` |
+| Start ruling | ADR0043-PH0-D-BOX-START-002 |
+| Start decision | **APPROVED / EFFECTIVE** |
+| Start path | `docs/design/ADR0043_Phase0_D_BOX_Campaign_Start_Decision_v1.2.md` |
+| Effective (UTC) | `2026-07-30T16:54:15Z` |
+| Authorized | **O3 → O4-A → O4-B** only |
+| Inherited APPROVE | CORR-06 / O1 / O2 (Option 2A) — not rerun |
+| O5 / D-WIRE | INCONCLUSIVE / **BLOCKED** |
+| Opening controls | **Required before O3** — failure → HOLD |
+| Opening record | `docs/design/evidence/dbox_campaign_v1_2_run_001/OPENING_RECORD_v1.0.md` (create at open) |
+| Gate execution | Authorized **only after** opening controls PASS |
 
-## Post-seal state
+## Post-start state
 
-**SEALED AND READY FOR OWNER START DECISION — CAMPAIGN NOT YET AUTHORIZED TO RUN**
+**START-002 EFFECTIVE — O3/O4-A/O4-B AUTHORIZED SUBJECT TO OPENING CONTROLS.**
 
-Publication, merge, readiness, and sealing do **not** authorize gate execution.
+O3 must not begin until the opening-control checklist in START-002 §4 passes and is recorded.
