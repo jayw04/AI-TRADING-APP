@@ -1,20 +1,14 @@
-# D-BOX Status — After O34-ACQ-START-001
+# D-BOX Status — After O34 Snapshot Capture
 
 | Field | Value |
 |-------|-------|
-| Option 2A | **CLOSED** |
-| D-WIRE | **BLOCKED** |
-| O34 acquisition | ADR0043-PH0-D-BOX-O34-ACQ-AUTH-001 **EFFECTIVE** |
-| Construction freeze | ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001 **SEALED** `80dfd8ec…` |
-| Freeze publish merge | `a1f1fd3…` (PR #556) |
-| Construction start | ADR0043-PH0-D-BOX-O34-ACQ-START-001 **APPROVED / EFFECTIVE** |
-| Start effective (UTC) | 2026-07-30T02:10:51Z |
+| O34-ACQ-START-001 | **EFFECTIVE** — merge `811a808…` (PR #557) |
+| Freeze body SHA-256 | `80dfd8ec…` |
+| Capture | ADR0043-PH0-D-BOX-O34-ACQ-CAPTURE-001 — `20260730T022316Z` |
+| Mandatory snapshots | **ALL BOUND** |
+| Record selection | **permitted to begin** (not yet started) |
+| D-WIRE / HOLD | **BLOCKED / HOLD** |
 
-## Sequence position
+## Next
 
-Seal/countersign **complete**. Construction-start **EFFECTIVE**.
-
-**Immediate next:** capture mandatory source snapshots and bind SHA-256 / Version IDs.  
-**Record selection:** only after all mandatory snapshot bindings pass.
-
-Still **not** authorized: broker mutate/create, gate execution, campaign reopen, D-WIRE, production imports, canary/ENFORCE/caps/July24.
+Deterministic record selection and candidate archive construction under freeze INC/EXC rules, then independent qualification.
