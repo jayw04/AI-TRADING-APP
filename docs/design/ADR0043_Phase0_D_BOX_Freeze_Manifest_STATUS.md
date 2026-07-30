@@ -1,4 +1,4 @@
-# D-BOX Status — After Option 2A Close-Out
+# D-BOX Status — After O34-ACQ-AUTH-001 (Amended EFFECTIVE)
 
 | Field | Value |
 |-------|-------|
@@ -6,7 +6,9 @@
 | Evidence on `main` | merge `5cb711c…` / PR #554 |
 | Freeze-002 | **SEALED** body `d35de863…` |
 | D-WIRE | **BLOCKED** |
-| Next decision | ADR0043-PH0-D-BOX-O34-ACQ-AUTH-001 (**PROPOSED**) |
+| O34 acquisition | ADR0043-PH0-D-BOX-O34-ACQ-AUTH-001 **APPROVED / EFFECTIVE** (amended) |
+| Construction freeze | ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001 **UNSEALED DRAFT** |
+| Effective (UTC) | 2026-07-30T00:21:33Z |
 
 ## Package rollup
 
@@ -15,8 +17,10 @@
 | CORR-06 / O1 / O2 | **APPROVE** |
 | O3 / O4-A / O4-B / O5 | **INCONCLUSIVE** (deferred / absent) |
 
-## Next step
+## Authorized next step
 
-Owner signs **O34-ACQ-AUTH-001** to authorize construction of bindable O3/O4 archives
-(still no broker orders, no gate re-open, no D-WIRE). After sealed corpora exist, amend
-campaign scope + freeze manifest, then run O3/O4/O5 under a new campaign version.
+1. Seal **O34-ACQ-FREEZE-001** with all required fields **before** any record selection.  
+2. Construct **candidate** archives only (outcomes: CONSTRUCTED / QUALIFIED / REJECTED_AS_NON-BINDABLE).  
+3. Bind gate-ready archives only via independent qualification + later campaign amendment.
+
+Still **not** authorized: broker orders, new observations, gate execution/reopen, D-WIRE, production imports.

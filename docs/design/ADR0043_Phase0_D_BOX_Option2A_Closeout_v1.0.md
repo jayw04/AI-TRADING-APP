@@ -48,8 +48,10 @@ structural evidence already recorded.
 
 Further progress toward D-WIRE requires bindable O3/O4 (and adequate O5 Tier-A anchors)
 under **ADR0043-PH0-D-BOX-O34-EVIDENCE-ACQ-001**, then a **new** campaign-scope version and
-freeze manifest. Construction of those corpora requires a **separate** owner authorization
-(see companion O34 acquisition authorization).
+freeze manifest. Construction and qualification are authorized by
+**ADR0043-PH0-D-BOX-O34-ACQ-AUTH-001** (EFFECTIVE, amended), subject to sealed
+**ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001**. Gate binding still requires QUALIFIED archives
+plus a later campaign amendment.
 
 ---
 
