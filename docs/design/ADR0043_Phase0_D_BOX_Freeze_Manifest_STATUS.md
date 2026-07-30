@@ -1,28 +1,26 @@
-# D-BOX Status — EVIDENCE-GAP-ACQ-FREEZE-001 (content tip / pre-seal)
+# D-BOX Status — EVIDENCE-GAP-ACQ-FREEZE-001 SEALED (start HOLD)
 
 | Field | Value |
 |-------|-------|
 | Campaign v1.2 | **CLOSED** |
 | FREEZE-003 / START-002 | **Exhausted** |
 | ACQ-AUTH-001 | **EFFECTIVE** @ `29eece3` |
-| Acquisition freeze | **Content tip in progress** → readiness → seal (authorized); start **HOLD** |
-| Evidence access / selection / capture / construction | **FORBIDDEN** until seal + separate start |
+| Acquisition freeze | ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-FREEZE-001 **SEALED** |
+| Body SHA-256 | `af7693f4b97fd7d9d4ad642ab1af47e9e9a2a8cd680f6a26c4d01fee8d57967e` |
+| Sealed at (UTC) | `2026-07-30T20:22:48Z` |
+| Content tip | PR #572 merge `853f5f620d3089e66e2a54261b33ee189e79c7cb` |
+| Acquisition start | **HOLD — not issued** |
+| Evidence access / selection / capture / construction | **FORBIDDEN** until separate start **EFFECTIVE** |
 | D-WIRE / HOLD | **BLOCKED** / unchanged |
 
 ## Artifacts
 
 | Artifact | Path |
 |----------|------|
+| Sealed freeze | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_ACQ_Freeze_Manifest_001_SEALED.json` |
+| Readiness | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_ACQ_Freeze_Readiness_v1.0.md` |
 | Auth | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_Acquisition_Authorization_v1.0.md` |
-| Freeze tooling | `apps/backend/scripts/adr0043_evgap_acq_freeze_seal.py` |
-| EVGAP schemas | `docs/design/schemas/ADR0043_Phase0_EVGAP_{O3,O4A,O4B}_Archive.schema.json` |
-| Unsealed JSON | `docs/design/ADR0043_Phase0_D_BOX_Evidence_Gap_ACQ_Freeze_Manifest_001_UNSEALED.json` |
-| Sealed JSON | *(after readiness + seal)* |
 
-## Sequence remaining
+## Next
 
-1. Publish content tip (schemas + tooling + filled UNSEALED body)  
-2. Rebind content-tip / tool / schema identities to merge commit  
-3. Readiness validation  
-4. Seal + countersign  
-5. **Separate** acquisition-start (not authorized by freeze seal)
+Separate owner **acquisition-start** decision. Seal alone does **not** authorize evidence access.
