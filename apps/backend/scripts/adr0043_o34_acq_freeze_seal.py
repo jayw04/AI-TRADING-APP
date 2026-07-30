@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -75,7 +75,7 @@ def main() -> int:
         },
     }
 
-    sealed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    sealed_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     manifest_body: dict = {
         "document_purpose": (
