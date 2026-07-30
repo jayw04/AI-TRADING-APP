@@ -1,0 +1,7 @@
+{
+  "production_commit_reference_only": "b0058bf335628f8dbde09a93915314f3a1f7743b",
+  "current_head": "952848c4696f9b8750c91c82967cdec065c6a804",
+  "used_as_runtime": false,
+  "modified": false,
+  "operator_attestation": "Opening controls executed on isolated laptop worktree only; production ec2-paper / b0058bf neither used nor modified."
+}
