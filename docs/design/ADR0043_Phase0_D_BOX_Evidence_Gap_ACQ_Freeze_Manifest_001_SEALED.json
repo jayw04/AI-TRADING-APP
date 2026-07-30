@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "document_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-FREEZE-001",
-  "manifest_status": "UNSEALED",
   "manifest_body": {
     "document_purpose": "EVIDENCE-GAP acquisition freeze — precommits eligibility, source classes, contract-level field mappings, reconstruction/prohibited-inference rules, completeness/exclusion codes, planned count equations, schemas, O4-A/O4-B no-mix, and O5 locate-only protocol before any record selection, reconstruction, or capture",
     "governing_refs": {
@@ -809,7 +808,21 @@
       "in_place_mutation_of_sealed_body": "FORBIDDEN"
     }
   },
-  "provisional_body_sha256": "af7693f4b97fd7d9d4ad642ab1af47e9e9a2a8cd680f6a26c4d01fee8d57967e",
-  "seal": null,
-  "note": "UNSEALED — not authoritative for evidence access; seal + separate acquisition-start still required"
+  "seal": {
+    "algorithm": "sha256",
+    "canonicalization": "RFC8785-JCS",
+    "encoding": "UTF-8-no-BOM",
+    "final_newline": "excluded",
+    "body_sha256": "af7693f4b97fd7d9d4ad642ab1af47e9e9a2a8cd680f6a26c4d01fee8d57967e",
+    "sealed_at_utc": "2026-07-30T20:22:48Z",
+    "manifest_status": "SEALED",
+    "operator": "cursor-agent",
+    "operator_acknowledgment_kind": "evidence_gap_acquisition_freeze_seal_operator",
+    "owner_countersignature": "Owner acknowledgment (Jay Wang) — typed governance acknowledgment",
+    "owner_acknowledgment_kind": "evidence_gap_acquisition_freeze_countersignature",
+    "post_seal_state": "SEALED — acquisition-start, snapshot capture, and record selection NOT YET AUTHORIZED",
+    "authorization_ruling_ref": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-AUTH-001",
+    "freeze_completion_ruling": "Owner authorized freeze completion/readiness/seal/countersign; acquisition start remains HOLD",
+    "verifier_note": "SHA-256 over RFC8785-JCS of manifest_body only; same canonicalization as ADR0043 D-BOX campaign freeze tooling"
+  }
 }
