@@ -11,7 +11,7 @@
       "d_box_ruling_sha256": "9eba4233ed221695b4364a7bb0331700d8f0300e91920baaeeec4a794d56d8bd",
       "d_box_main_merge_commit": "62f2770ac0a6d277fdfa5704a446792527a9e65a",
       "campaign_scope_id": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.2",
-      "campaign_scope_sha256": "ae9c333c92ec8af5a43f37b116467956cb06ff796df28045f0640df74236d272",
+      "campaign_scope_sha256": "676fd5a5fa90dc1ef7fc874a090d8495ec7e5228f9a1e8b5cfa2252e9a1f5482",
       "offline_baseline_commit": "d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
       "offline_baseline_tag": "adr0043-phase0-offline-complete",
       "campaign_scope_path": "docs/design/ADR0043_Phase0_D_BOX_Campaign_Scope_v1.2.md",
@@ -82,18 +82,18 @@
     },
     "schema_binding": {
       "path": "docs/design/schemas/ADR0043_Phase0_D_BOX_Freeze_Manifest.schema.json",
-      "commit": "646d81abfdd98ce4ca99dde7821a26e869a50824",
-      "sha256": "fda6b9c557f210d885e6592bfbc266294cec1564a2017996a0ab9cf6b5bd4e57",
-      "tooling_merge_commit": "709e6136900d1e5e22bb0c074dc90ea35cadf22b",
-      "pr": "https://github.com/jayw04/AI-TRADING-APP/pull/550",
-      "note": "Schema file hash rebound at FREEZE-003 populate; additionalProperties policy unchanged from FREEZE-002 era"
+      "commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+      "sha256": "496b84cfbb238fbb974bc0623a0590ef6b937e43d731f0ed2f32361b8462fab6",
+      "tooling_merge_commit": "974e374271aa04e0bd3d542faf856fcdddd3ff3c",
+      "pr": "https://github.com/jayw04/AI-TRADING-APP/pull/562",
+      "note": "Rebound to published CAMPAIGN v1.2 content tip after PR #562 merge"
     },
     "code_and_tools": {
       "implementation_commit": "d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
       "implementation_commit_note": "Offline Phase-0 baseline (phase0_* + hermetic tests). Live paper deploy b0058bf lacks phase0_* — do not use production OrderRouter stack as campaign runtime.",
-      "deployment_commit": "content_bound_pre_publish_tip_v1_2_o34",
+      "deployment_commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
       "deployment_commit_note": "Isolated harness checkout only; not live paper deploy b0058bf335628f8dbde09a93915314f3a1f7743b",
-      "harness_commit": "content_bound_pre_publish_tip_v1_2_o34",
+      "harness_commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
       "production_stack_reference_only": {
         "deployed_repository_commit": "b0058bf335628f8dbde09a93915314f3a1f7743b",
         "deployed_build_info_sha256": "d42fbc35d1020d5f7a147166f63a58df5fa18e44a0567e25b6a3082c10586a64",
@@ -106,13 +106,13 @@
       },
       "freeze_manifest_validator": {
         "path": "apps/backend/scripts/adr0043_dbox_freeze_manifest.py",
-        "commit": "content_bound_pre_publish_tip_v1_2_o34",
-        "sha256": "5441b90b377ba4c1351896042ba6d9308807b0eee3da276c4835c770ea0aa5e5",
+        "commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+        "sha256": "652e31336a6606ee8f0e0733e0a924f417b0aafb72f97f2802d397979621bacc",
         "tests_path": "apps/backend/tests/scripts/test_adr0043_dbox_freeze_manifest.py",
-        "tests_sha256": "672452c9e44c0a96db0df0831d6bbb396c293beb1bab0d38ed7117e45a585518",
+        "tests_sha256": "3745583bb97b25d5c9cba150bab6241f3fb058bab1a4d49071efa111113472c0",
         "verification_doc_path": "docs/design/ADR0043_Phase0_D_BOX_Freeze_Tooling_Verification_v1.0.md",
         "verification_doc_sha256": "82c4a61945b53d6e64ea2e96622e9fe31ad6cfe243498c83448aed7a44452a79",
-        "local_pytest_result": "adapter + readiness probe pending local pytest at populate",
+        "local_pytest_result": "adapter + freeze-manifest tests green on PR tip; CI Python + FULL + Gate green on #562",
         "canonicalization": "RFC8785-JCS",
         "hash_algorithm": "sha256",
         "encoding": "UTF-8-no-BOM",
@@ -123,8 +123,8 @@
           "python apps/backend/scripts/adr0043_dbox_freeze_manifest.py verify-seal --manifest <sealed.json>",
           "pytest apps/backend/tests/scripts/test_adr0043_dbox_freeze_manifest.py -q"
         ],
-        "tooling_merge_commit": "646d81abfdd98ce4ca99dde7821a26e869a50824",
-        "pr": "none_yet_pre_publish"
+        "tooling_merge_commit": "974e374271aa04e0bd3d542faf856fcdddd3ff3c",
+        "pr": "https://github.com/jayw04/AI-TRADING-APP/pull/562"
       },
       "tooling": {
         "python": "3.12.13 (CI/Actions pin; constraints/backend-py312.txt)",
@@ -132,17 +132,17 @@
         "seal_tool": "apps/backend/scripts/adr0043_wp0_seal.py",
         "probe_note": "Local readiness probe used standby .venv Python 3.13.14 / pytest 9.0.3; governed campaign pin remains 3.12 + lockfile."
       },
-      "harness_commit_note": "Isolated harness only; adapter + campaign v1.2 content-bound pre-publish. Production b0058bf reference-only FORBIDDEN to modify.",
+      "harness_commit_note": "Isolated harness checkout at published content tip 9b62abb98b8adbcf9713cee006201e45f3015deb (merge 974e374271aa04e0bd3d542faf856fcdddd3ff3c). Production b0058bf reference-only FORBIDDEN to modify.",
       "harness_input_contract": {
         "plan_id_mapping": "ord:<orders.id>",
         "accepted": true,
         "binding_note": "QUALIFIED archives use plan_id=ord:<orders.id> because no execution_plan table exists in bound sqlite snapshot; accepted harness input contract before start decision",
         "adapter": {
           "path": "apps/backend/app/risk/loss_control/phase0_o34_archive_adapter.py",
-          "sha256": "e499ebd70c1d8a82091b8e6e6f8f706cc797a2c80046eb1c1e93a4c6c8ce36fc",
+          "sha256": "8e7215176ed2106f251e7f8c88d0164443bc16eb7bad1585af44767a9f787632",
           "tests_path": "apps/backend/tests/risk/test_phase0_o34_archive_adapter.py",
-          "tests_sha256": "d62e18998ec4875844850fa63e7f22364ff2ba64d51f6f27cbb1f9af47932752",
-          "commit": "content_bound_pre_publish_tip_v1_2_o34"
+          "tests_sha256": "69854937cf27a5e2e0ac8616c764da3d88cfd5901b5d4bbf9c438f142c00097f",
+          "commit": "9b62abb98b8adbcf9713cee006201e45f3015deb"
         },
         "readiness_fail_closed": "If harness cannot consume mapping deterministically, FREEZE-003 readiness FAILS",
         "o4_runners": "phase0_o4_replay DecisionTimeEvidence / ForensicEvidence via adapter row mappers",
@@ -150,13 +150,15 @@
       }
     },
     "repository_state": {
-      "git_commit_full": "content_bound_pre_publish_tip_v1_2_o34",
+      "git_commit_full": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+      "merge_commit_full": "974e374271aa04e0bd3d542faf856fcdddd3ff3c",
       "implementation_baseline": "d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
-      "working_tree": "DIRTY_PRE_PUBLISH — campaign v1.2 + adapter + validator readiness + FREEZE-003 uncommitted at populate",
-      "clean_tree_proof": "not_clean_pre_publish — seal requires published clean tip",
+      "working_tree": "CLEAN_AT_PUBLISHED_TIP — FREEZE-003 tip-rebind commit may follow; content identities bound to PR #562 tip",
+      "clean_tree_proof": "content tip 9b62abb98b8adbcf9713cee006201e45f3015deb published via 974e374271aa04e0bd3d542faf856fcdddd3ff3c / PR #562",
       "worktree_path_local": "C:/LLM-RAG-APP/ai-trading-app-adr0043-ph0",
       "branch": "main",
       "submodules": "none",
+      "publication_pr": "https://github.com/jayw04/AI-TRADING-APP/pull/562",
       "qualification_tip_on_main": "646d81abfdd98ce4ca99dde7821a26e869a50824"
     },
     "runtime_identity": {
@@ -766,17 +768,17 @@
     "final_newline": "excluded",
     "body_sha256": null,
     "sealed_at_utc": null,
-    "manifest_status": "UNSEALED_DRAFT",
+    "manifest_status": "READY_UNSEALED",
     "operator": null,
     "operator_acknowledgment_kind": "none",
     "owner_countersignature": null,
     "owner_acknowledgment_kind": "none",
     "verifier_script": {
       "path": "apps/backend/scripts/adr0043_dbox_freeze_manifest.py",
-      "commit": "content_bound_pre_publish_tip_v1_2_o34",
-      "sha256": "5441b90b377ba4c1351896042ba6d9308807b0eee3da276c4835c770ea0aa5e5"
+      "commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+      "sha256": "652e31336a6606ee8f0e0733e0a924f417b0aafb72f97f2802d397979621bacc"
     },
-    "post_seal_state": "UNSEALED — populate complete; readiness then seal",
+    "post_seal_state": "READY_UNSEALED — tip rebound to published PR #562; seal not yet authorized in this step",
     "campaign_start": "HOLD — requires separate owner start decision after seal"
   }
 }
