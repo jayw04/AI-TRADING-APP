@@ -12,6 +12,7 @@
 | New gate freeze / start | **Not authorized** |
 | D-WIRE / Gates | **BLOCKED** / **CLOSED** |
 | HOLD | Unchanged |
+| Temporary SSH `79.127.147.206/32` | **REVOKED** (see `SSH_CLEANUP_v1.0.md`) |
 
 ## Paths
 
