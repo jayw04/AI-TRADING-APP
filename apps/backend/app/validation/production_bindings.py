@@ -58,7 +58,6 @@ from app.validation.forward_window import (
     DGS3MO_OBSERVATION_CUTOFF,
     EFFECTIVE_DSR_TRIAL_COUNT,
     FROZEN_CONFIG,
-    VALIDATION_MEASUREMENT_COMMIT,
     ForwardRunContext,
     IntegrityStop,
 )
@@ -217,8 +216,15 @@ def build_forward_context(
     dgs3mo_path: Path,
     trial_ledger_path: Path,
     ledger_account_id: int,
+    # ⚠⚠ NO DEFAULT, and it never gets one again. This previously defaulted to
+    # VALIDATION_MEASUREMENT_COMMIT — the EXPECTED value — so unless a caller overrode it the gate
+    # compared the constant to itself and passed unconditionally. The actual deployed HEAD is a fact
+    # about the running process that only the caller knows; a default is a fabricated answer.
+    code_commit: str,
+    measurement_freeze: Any,
+    runtime_root: Path,
     is_nyse_trading_session: bool = True,
-    code_commit: str = VALIDATION_MEASUREMENT_COMMIT,
+    ancestry_marker: Path | None = None,
     config: dict | None = None,
 ) -> ForwardRunContext:
     """The per-session run context on the FROZEN §0 bindings.
@@ -244,4 +250,7 @@ def build_forward_context(
         ledger_is_shadow_or_separate_paper=True,
         references_account4_capital=False,
         references_retired_baseline=False,
+        measurement_freeze=measurement_freeze,
+        runtime_root=runtime_root,
+        ancestry_marker=ancestry_marker,
     )

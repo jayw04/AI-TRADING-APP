@@ -35,6 +35,7 @@ from app.validation.observation_store import (
 )
 from app.validation.production_bindings import PriceUnavailable
 from app.validation.shadow_ledger import ShadowLedger
+from tests.validation.freeze_fixture import TEST_DEPLOYED_COMMIT, freeze_kwargs
 
 REPO = Path(__file__).resolve().parents[4]
 DATA = REPO / "docs/review/momentum_daily/equal_weight_validation"
@@ -92,18 +93,19 @@ def artifacts():
 
 
 @pytest.fixture
-def context_builder(artifacts):
+def context_builder(artifacts, tmp_path):
     dgs3mo, trial_ledger = artifacts
 
     def build(session: date) -> ForwardRunContext:
         return ForwardRunContext(
             session_date=session, is_nyse_trading_session=True,
-            code_commit=fw.VALIDATION_MEASUREMENT_COMMIT,
+            code_commit=TEST_DEPLOYED_COMMIT,
             benchmark_commits=dict(fw.BENCHMARK_COMMITS), dgs3mo_path=dgs3mo,
             dgs3mo_cutoff=fw.DGS3MO_OBSERVATION_CUTOFF, trial_ledger_path=trial_ledger,
             effective_dsr_trial_count=45, config=dict(fw.FROZEN_CONFIG), ledger_account_id=901,
             ledger_is_shadow_or_separate_paper=True, references_account4_capital=False,
-            references_retired_baseline=False)
+            references_retired_baseline=False,
+            **freeze_kwargs(tmp_path))
 
     return build
 

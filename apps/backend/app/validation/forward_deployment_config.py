@@ -73,6 +73,14 @@ class ForwardDeploymentConfig:
     backstop_days: int
     weight_drift_pct: float
     witness: WitnessConfig                 # the anchor trust boundary this deployment witnesses across
+    #: The governed measurement freeze — the EXPECTED measurement identity, held outside the tree it
+    #: pins so it cannot be a fixed point. Defaults to the in-repo manifest path.
+    measurement_freeze_path: Path = Path("manifests/forward/measurement_freeze.json")
+    #: The root that CONTAINS the measured paths, whose executable content is digested and compared
+    #: against the freeze. On the box this is the extracted runtime; in a checkout, `apps/backend`.
+    runtime_root: Path = Path(".")
+    #: Deploy-time ancestry attestation, for runtimes with no git repository to ask.
+    ancestry_marker_path: Path | None = None
     runtime_digest_path: Path | None = None
     runtime_digest_env: str | None = None
     expected_commit: str | None = None

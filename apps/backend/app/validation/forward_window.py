@@ -18,10 +18,18 @@ import json
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 # ── Frozen bindings (§0, countersigned 2026-07-23) ────────────────────────────────────────────────
 PRODUCTION_STRATEGY_COMMIT = "b0058bf335628f8dbde09a93915314f3a1f7743b"
-VALIDATION_MEASUREMENT_COMMIT = "764883b58cb96936f23e49182dd02b70d969501b"
+#: ⚠⚠ SUPERSEDED — PRESERVED AS HISTORY, NOT USED AS A BINDING.
+#:
+#: The original §0 freeze (2026-07-22). It is retained so the record shows what was ratified before the
+#: amendment, and it must NOT be reintroduced as a check: an in-tree constant cannot name the commit
+#: that contains it, so this binding could never have held. The live binding is the governed manifest
+#: at `manifests/forward/measurement_freeze.json` — see `app/validation/measurement_freeze.py`.
+SUPERSEDED_VALIDATION_MEASUREMENT_COMMIT = "764883b58cb96936f23e49182dd02b70d969501b"
+VALIDATION_MEASUREMENT_COMMIT = SUPERSEDED_VALIDATION_MEASUREMENT_COMMIT  # back-compat alias
 BENCHMARK_COMMITS = {
     "PIT_UNIVERSE_EQUAL_WEIGHT_REGIME_MATCHED": "539cf6e",
     "ACADEMIC_12_1_MOMENTUM_FACTOR": "4675073",
@@ -57,7 +65,10 @@ class ForwardRunContext:
     """What the first-session run presents to the gate for verification."""
     session_date: date
     is_nyse_trading_session: bool          # America/New_York calendar eligibility (caller-supplied)
-    code_commit: str                        # git HEAD of the running validation code
+    #: The ACTUAL git HEAD of the running deployment. ⚠ Never defaulted to the expected value — that
+    #: made the check compare a constant to itself. It is supplied by the caller and checked against
+    #: the governed freeze manifest, which lives OUTSIDE the tree it pins.
+    code_commit: str
     benchmark_commits: dict[str, str]       # id → commit the run loaded
     dgs3mo_path: Path
     dgs3mo_cutoff: str
@@ -68,6 +79,13 @@ class ForwardRunContext:
     ledger_is_shadow_or_separate_paper: bool
     references_account4_capital: bool        # must be False
     references_retired_baseline: bool        # must be False
+    #: The governed measurement-freeze manifest and the runtime it describes. When present, the
+    #: measurement identity is verified against EXECUTABLE CONTENT (exact validation-tree digest) plus
+    #: ancestry, instead of a self-referential in-tree constant. Absent only in tests that predate the
+    #: freeze; a production caller supplies all three.
+    measurement_freeze: Any | None = None
+    runtime_root: Path | None = None
+    ancestry_marker: Path | None = None
 
 
 def _sha256(path: Path) -> str:
@@ -91,9 +109,28 @@ def preflight(ctx: ForwardRunContext) -> dict:
     """
     fails: list[str] = []
 
-    # code identity — the running code must be the production+measurement instrument
-    if not _short_matches(ctx.code_commit, VALIDATION_MEASUREMENT_COMMIT):
-        fails.append(f"measurement-code commit {ctx.code_commit} != {VALIDATION_MEASUREMENT_COMMIT}")
+    # ── code identity ──
+    #
+    # ⚠ The expected identity comes from the GOVERNED FREEZE MANIFEST, which lives outside the tree it
+    # pins. The superseded in-tree constant could not name the commit containing it (an unsolvable
+    # fixed point), and `build_forward_context` defaulted the ACTUAL commit to the EXPECTED constant,
+    # so the clause compared a constant to itself and could not fail.
+    if not str(ctx.code_commit or "").strip():
+        fails.append("no actual deployed commit was supplied — measurement identity is unknown, and "
+                     "an unknown instrument is never assumed to be the ratified one")
+    elif ctx.measurement_freeze is not None:
+        from app.validation.measurement_freeze import verify_deployment
+
+        if ctx.runtime_root is None:
+            fails.append("a measurement freeze was supplied without the runtime root to digest — the "
+                         "executable content cannot be verified")
+        else:
+            fails.extend(verify_deployment(
+                ctx.measurement_freeze, actual_commit=ctx.code_commit,
+                runtime_root=ctx.runtime_root, ancestry_marker=ctx.ancestry_marker))
+    else:
+        fails.append("no measurement-freeze manifest was supplied — the running measurement identity "
+                     "cannot be established, and the superseded in-tree constant is not a substitute")
     # (production strategy commit is an ancestor of the measurement commit; recorded, not re-derived)
 
     # benchmarks
@@ -151,7 +188,11 @@ def preflight(ctx: ForwardRunContext) -> dict:
         "session_date": ctx.session_date.isoformat(),
         "governing_tz": GOVERNING_TZ,
         "bindings_verified": {
-            "measurement_code_commit": VALIDATION_MEASUREMENT_COMMIT,
+            # The ACTUAL deployed commit and the frozen executable-content identity it was verified
+            # against — not the expected value echoed back at the reader.
+            "deployed_code_commit": ctx.code_commit,
+            "measurement_freeze": (ctx.measurement_freeze.to_open_provenance()
+                                   if ctx.measurement_freeze is not None else None),
             "production_strategy_commit": PRODUCTION_STRATEGY_COMMIT,
             "benchmark_commits": dict(BENCHMARK_COMMITS),
             "dgs3mo_sha256": DGS3MO_SNAPSHOT_SHA256, "dgs3mo_cutoff": DGS3MO_OBSERVATION_CUTOFF,

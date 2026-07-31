@@ -24,6 +24,7 @@ from app.validation.production_bindings import (
     pit_price_fn,
     strict_pit_price_fn,
 )
+from tests.validation.freeze_fixture import TEST_DEPLOYED_COMMIT, test_freeze
 
 SESSION = date(2026, 7, 24)
 PRIOR = date(2026, 7, 23)
@@ -316,8 +317,12 @@ def test_the_price_function_cannot_see_a_later_session(store):
 # ---- the per-session context is built on the FROZEN bindings ---------------------------------------------
 
 def test_the_context_carries_the_frozen_bindings(tmp_path):
+    freeze, root = test_freeze(tmp_path)
     ctx = build_forward_context(SESSION, dgs3mo_path=tmp_path / "DGS3MO.csv",
-                                trial_ledger_path=tmp_path / "ledger.json", ledger_account_id=901)
+                                trial_ledger_path=tmp_path / "ledger.json", ledger_account_id=901,
+                                code_commit=TEST_DEPLOYED_COMMIT, measurement_freeze=freeze,
+                                runtime_root=root)
+    assert ctx.code_commit == TEST_DEPLOYED_COMMIT, "the ACTUAL deployed HEAD, never a default"
     assert ctx.session_date == SESSION
     assert ctx.config == FROZEN_CONFIG                            # not a caller-supplied dict
     assert ctx.effective_dsr_trial_count == 45
@@ -328,8 +333,11 @@ def test_the_context_carries_the_frozen_bindings(tmp_path):
 
 def test_the_context_refuses_account_4_as_the_ledger(tmp_path):
     with pytest.raises(IntegrityStop, match="never be Account 4"):
+        freeze, root = test_freeze(tmp_path)
         build_forward_context(SESSION, dgs3mo_path=tmp_path / "d.csv",
-                              trial_ledger_path=tmp_path / "l.json", ledger_account_id=4)
+                              trial_ledger_path=tmp_path / "l.json", ledger_account_id=4,
+                              code_commit=TEST_DEPLOYED_COMMIT, measurement_freeze=freeze,
+                              runtime_root=root)
 
 
 # ---- A2: the receipt must be supported by the PERSISTED dataset --------------------------------------

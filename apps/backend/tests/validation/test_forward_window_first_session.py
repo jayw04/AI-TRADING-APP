@@ -19,6 +19,7 @@ from app.validation.forward_window import (
     build_first_session_record,
     preflight,
 )
+from tests.validation.freeze_fixture import TEST_DEPLOYED_COMMIT, freeze_kwargs
 
 REPO_ROOT_DATA = "docs/review/momentum_daily/equal_weight_validation"
 
@@ -41,13 +42,14 @@ def good_ctx(tmp_path):
     return ForwardRunContext(
         session_date=date(2026, 7, 24),
         is_nyse_trading_session=True,
-        code_commit=fw.VALIDATION_MEASUREMENT_COMMIT,
+        code_commit=TEST_DEPLOYED_COMMIT,
         benchmark_commits=dict(fw.BENCHMARK_COMMITS),
         dgs3mo_path=dgs3mo, dgs3mo_cutoff=fw.DGS3MO_OBSERVATION_CUTOFF,
         trial_ledger_path=ledger, effective_dsr_trial_count=45,
         config=dict(fw.FROZEN_CONFIG),
         ledger_account_id=999, ledger_is_shadow_or_separate_paper=True,
         references_account4_capital=False, references_retired_baseline=False,
+        **freeze_kwargs(tmp_path),
     )
 
 
@@ -69,9 +71,18 @@ def test_gate_passes_with_all_bindings_matched(good_ctx):
 # ---- every binding fails the gate CLOSED ----------------------------------------
 
 def test_wrong_measurement_commit_fails_closed(good_ctx):
+    """A HEAD that is neither the ratified commit nor a provable descendant fails CLOSED. The message
+    changed with the freeze amendment: identity now comes from the governed manifest, so the refusal
+    names the ancestry that could not be established rather than an in-tree constant."""
     _need_artifacts(good_ctx)
-    with pytest.raises(IntegrityStop, match="measurement-code commit"):
+    with pytest.raises(IntegrityStop, match="ancestry|not the ratified content"):
         preflight(replace(good_ctx, code_commit="deadbeef" * 5))
+
+
+def test_an_absent_actual_commit_fails_closed(good_ctx):
+    _need_artifacts(good_ctx)
+    with pytest.raises(IntegrityStop, match="measurement identity is unknown"):
+        preflight(replace(good_ctx, code_commit=""))
 
 
 def test_wrong_benchmark_commit_fails_closed(good_ctx):

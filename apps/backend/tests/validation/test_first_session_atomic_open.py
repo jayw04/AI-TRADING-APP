@@ -31,6 +31,7 @@ from app.validation.first_session import (
     validate_committed_observation,
 )
 from app.validation.forward_window import ForwardRunContext, IntegrityStop
+from tests.validation.freeze_fixture import TEST_DEPLOYED_COMMIT, freeze_kwargs
 
 REPO = Path(__file__).resolve().parents[4]
 DATA = REPO / "docs/review/momentum_daily/equal_weight_validation"
@@ -85,18 +86,19 @@ class _FailDirFsync(_NoopDurability):
 
 
 @pytest.fixture
-def ctx():
+def ctx(tmp_path):
     dgs3mo = DATA / "data/DGS3MO.csv"
     ledger = DATA / "TrialLedger_v1.0.json"
     if not (dgs3mo.exists() and ledger.exists()):
         pytest.skip("committed artifacts required")
     return ForwardRunContext(
         session_date=date(2026, 7, 24), is_nyse_trading_session=True,
-        code_commit=fw.VALIDATION_MEASUREMENT_COMMIT, benchmark_commits=dict(fw.BENCHMARK_COMMITS),
+        code_commit=TEST_DEPLOYED_COMMIT, benchmark_commits=dict(fw.BENCHMARK_COMMITS),
         dgs3mo_path=dgs3mo, dgs3mo_cutoff=fw.DGS3MO_OBSERVATION_CUTOFF,
         trial_ledger_path=ledger, effective_dsr_trial_count=45, config=dict(fw.FROZEN_CONFIG),
         ledger_account_id=901, ledger_is_shadow_or_separate_paper=True,
-        references_account4_capital=False, references_retired_baseline=False)
+        references_account4_capital=False, references_retired_baseline=False,
+            **freeze_kwargs(tmp_path))
 
 
 def _open(ctx, store_dir, *, probe=None, sealed=None, durability=None):
