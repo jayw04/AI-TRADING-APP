@@ -150,7 +150,35 @@ full_action_semantics_proven false
 combination is derived from evidence; it is not a target. If the evidence does not support the narrow
 claim, the run refuses — as it just did.
 
-## 4. What is unchanged
+## 4. The Phase C runner — two stages, separated by a file
+
+Removing the hard-coded constant from the library is not sufficient while the authorized production
+execution path still carries one. The runner (`apps/backend/scripts/forward_validation/
+phase_c_readiness.py`) is rewritten in this same increment, and moves into the repository so it is
+reviewed and CI-covered rather than living beside it.
+
+```
+STAGE 1  derive    run the frozen readiness construction, capture its relevance set,
+                   derive the attestation from THAT run, serialize it.   RETURNS ONLY A PATH.
+STAGE 2  validate  reload the attestation FROM DISK, check it against a SECOND,
+                   independent assessment.                               TAKES ONLY A PATH.
+```
+
+A runner that derived an attestation and then validated it against the same in-memory assessment would
+agree with itself by construction — the original defect wearing different clothes. The signatures make
+an in-memory handoff impossible rather than merely discouraged, and the tests mutate the artifact on
+disk between the stages to prove the reload is real.
+
+Stage 2 re-derives and refuses on divergence in: session date, corpus manifest identity, store
+identity, relevance-set digest, and the status census. There is no `EXPECTED_COUNTS` and no fallback.
+
+`GOVERNED_PREDICTION` — the outcome in §3, recorded before the run — is checked **after** stage 2 and
+is an input to nothing. It has no default binding inside stage 2, so it cannot become a fallback by a
+later edit. Its purpose is narrow and real: the narrow contract is self-consistent by design, so a
+corpus or deployment drift would produce a different but internally coherent census that every clause
+would accept. The prediction is the only check that catches that.
+
+## 5. What is unchanged
 
 Every other ruling, wording requirement and artifact identity in the countersignature, the complete
 package and Amendment 1 stands — including the SHOP/TLN quarantine language, the loader requirements
