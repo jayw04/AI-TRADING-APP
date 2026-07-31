@@ -57,7 +57,30 @@ QUIVER_GOVCONTRACTS = DataSource(
     renewal_date=None,                 # month-to-month
 )
 
-_REGISTRY: dict[str, DataSource] = {ds.source_name: ds for ds in (QUIVER_GOVCONTRACTS,)}
+# Alpaca market data (IEX feed) — movers screener + snapshots feeding the box-native
+# premarket gapper screener (GAP-NATIVE-001, ADR 0041). Existing approved dependency;
+# conservative flags: internal advisory display only, no redistribution, no external
+# derived signals. SIP is NOT entitled (probe 2026-07-10).
+ALPACA_SCREENER = DataSource(
+    source_id="DCAP-008",
+    source_name="alpaca_screener",
+    provider="Alpaca Markets",
+    datasets_enabled=("market_movers", "stock_snapshots"),
+    license_type="brokerage_market_data",
+    commercial_use_allowed=False,      # conservative default — internal advisory use only
+    redistribution_allowed=False,
+    cache_allowed=True,                # the daily gappers JSON is a persisted derivative
+    derived_signal_allowed=False,      # no external derived scores/rankings
+    refresh_frequency="daily (09:05 ET scan; movers/snapshots are real-time reads)",
+    known_latency="IEX feed only — premarket coverage thinner than consolidated tape",
+    point_in_time_supported=False,     # live reads; the dated gappers file is the PIT record
+    contact_owner="Jay Wang (GlobalComplyAI, LLC)",
+    renewal_date=None,
+)
+
+_REGISTRY: dict[str, DataSource] = {
+    ds.source_name: ds for ds in (QUIVER_GOVCONTRACTS, ALPACA_SCREENER)
+}
 
 
 def get_source(source_name: str) -> DataSource | None:

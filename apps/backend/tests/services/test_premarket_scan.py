@@ -74,7 +74,7 @@ def test_run_premarket_scan_funnel(monkeypatch: pytest.MonkeyPatch) -> None:
             {"symbol": "ZZZ", "price": 30.0, "gap_pct": 9.0, "premarket_volume": 5_000_000},
         ],
     }
-    monkeypatch.setattr(ps, "read_latest_gappers", lambda: payload)
+    monkeypatch.setattr(ps, "read_gappers_for", lambda _asof: payload)
     report = ps.run_premarket_scan(_FakeStore(con), asof=date(2024, 3, 1), top_n=15)
     assert report["stale"] is False
     assert report["gappers_in"] == 2
@@ -84,13 +84,89 @@ def test_run_premarket_scan_funnel(monkeypatch: pytest.MonkeyPatch) -> None:
     assert report["candidates"][0]["reason"] == "Gap + RVOL + ATR"
 
 
+def test_run_premarket_scan_passes_gappers_source_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR 0041: the payload's source lands in the report as gappers_source."""
+    payload = {
+        "date": "2024-03-01", "scanned_at": "2024-03-01T13:05:00Z", "stale": False,
+        "source": "box_native_alpaca_v1", "gappers": [],
+    }
+    monkeypatch.setattr(ps, "read_gappers_for", lambda _asof: payload)
+    report = ps.run_premarket_scan(_FakeStore(_con_with_bars()), asof=date(2024, 3, 1))
+    assert report["gappers_source"] == "box_native_alpaca_v1"
+
+
 def test_run_premarket_scan_fail_soft_when_no_gappers(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        ps, "read_latest_gappers",
-        lambda: {"date": None, "scanned_at": None, "count": 0, "gappers": [], "stale": True},
+        ps, "read_gappers_for",
+        lambda _asof: {"date": None, "scanned_at": None, "count": 0, "gappers": [],
+                       "stale": True, "source": None},
     )
     report = ps.run_premarket_scan(_FakeStore(_con_with_bars()), asof=date(2024, 3, 1))
     assert report["gappers_in"] == 0
     assert report["candidate_count"] == 0
     assert report["candidates"] == []
     assert report["stale"] is True
+
+
+def test_run_premarket_scan_asks_for_asofs_own_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The scan must resolve ``asof``'s gappers, not "the latest" — the PIT contract."""
+    asked: list[date] = []
+
+    def _fake(asof: date) -> dict:
+        asked.append(asof)
+        return {"date": None, "scanned_at": None, "count": 0, "gappers": [], "stale": True,
+                "source": None}
+
+    monkeypatch.setattr(ps, "read_gappers_for", _fake)
+    ps.run_premarket_scan(_FakeStore(_con_with_bars()), asof=date(2024, 3, 1))
+    assert asked == [date(2024, 3, 1)]
+
+
+def test_run_premarket_scan_never_substitutes_a_neighbouring_day(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression, end-to-end through the real reader: a missed scanner day yields an EMPTY
+    report, not the prior day's scan.
+
+    The old reader ignored ``asof`` and returned the newest file, so a day the scanner missed
+    silently recorded the previous day's candidates under today's ``asof`` — a duplicate in the
+    gate's forward series that back-filled to ``filled`` and counted toward the verdict.
+    """
+    import json as _json
+
+    from app.services import premarket_gappers as pg
+
+    external = tmp_path / "external"
+    native = tmp_path / "native"
+    external.mkdir()
+    native.mkdir()
+    monkeypatch.setattr(pg, "_directory", lambda: str(external))
+    monkeypatch.setattr(pg, "_native_directory", lambda: str(native))
+    # Only 03-01 was scanned; 03-04 was missed.
+    (external / "premarket_gappers_2024-03-01.json").write_text(
+        _json.dumps({
+            "scanned_at": "2024-03-01T13:00:00Z",
+            "gappers": [
+                {"symbol": "AAA", "price": 50.0, "gap_pct": 8.0, "premarket_volume": 4_000_000}
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    missed = ps.run_premarket_scan(_FakeStore(_con_with_bars("AAA", n=30)), asof=date(2024, 3, 4))
+    assert missed["gappers_in"] == 0, "must not inherit 2024-03-01's gappers"
+    assert missed["candidates"] == []
+    assert missed["date"] is None
+    assert missed["scanned_at"] is None
+    assert missed["gappers_source"] is None
+    assert missed["stale"] is True
+
+    # ...while the day that WAS scanned still reports normally.
+    scanned = ps.run_premarket_scan(
+        _FakeStore(_con_with_bars("AAA", n=30)), asof=date(2024, 3, 1)
+    )
+    assert scanned["gappers_in"] == 1
+    assert scanned["stale"] is False
+    assert scanned["gappers_source"] == pg.SOURCE_EXTERNAL
