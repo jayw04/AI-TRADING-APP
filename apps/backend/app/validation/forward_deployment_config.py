@@ -48,6 +48,13 @@ class DeploymentConfigError(IntegrityStop):
     """The deployment did not describe itself completely enough to run a governed session."""
 
 
+#: `apps/backend` — the root that contains the measured paths in a source checkout.
+DEFAULT_RUNTIME_ROOT = Path(__file__).resolve().parents[2]
+#: The in-repo governed freeze manifest, resolved from this module rather than the working directory.
+DEFAULT_MEASUREMENT_FREEZE_PATH = (
+    DEFAULT_RUNTIME_ROOT.parents[1] / "manifests" / "forward" / "measurement_freeze.json")
+
+
 @dataclass(frozen=True)
 class ForwardDeploymentConfig:
     """What the deployment says it is. Paths are resolved but NOT opened here."""
@@ -73,6 +80,18 @@ class ForwardDeploymentConfig:
     backstop_days: int
     weight_drift_pct: float
     witness: WitnessConfig                 # the anchor trust boundary this deployment witnesses across
+    #: The governed measurement freeze — the EXPECTED measurement identity, held outside the tree it
+    #: pins so it cannot be a fixed point.
+    #:
+    #: ⚠ Resolved from THIS module's location, not from the working directory. A CWD-relative default
+    #: silently resolves to a different file (or none) depending on where the process was started,
+    #: which for a governed binding is the difference between checking and not checking.
+    measurement_freeze_path: Path = DEFAULT_MEASUREMENT_FREEZE_PATH
+    #: The root that CONTAINS the measured paths, whose executable content is digested and compared
+    #: against the freeze. On the box this is the extracted runtime; in a checkout, `apps/backend`.
+    runtime_root: Path = DEFAULT_RUNTIME_ROOT
+    #: Deploy-time ancestry attestation, for runtimes with no git repository to ask.
+    ancestry_marker_path: Path | None = None
     runtime_digest_path: Path | None = None
     runtime_digest_env: str | None = None
     expected_commit: str | None = None

@@ -66,6 +66,7 @@ from app.validation.governed_corpus import (
     require_observation_identities,
     resolve_governed_construction,
 )
+from app.validation.measurement_freeze import load_measurement_freeze
 from app.validation.production_bindings import build_forward_context, strict_pit_price_fn
 from app.validation.security_lineage import SessionLineageFilter
 from app.validation.session_orchestration import SessionRuntime
@@ -312,11 +313,17 @@ def _probe_fn(config: ForwardDeploymentConfig):
     return probe
 
 
-def _context_builder(config: ForwardDeploymentConfig):
+def _context_builder(config: ForwardDeploymentConfig, *, deployed_commit: str, freeze: Any,
+                     runtime_root: Path, ancestry_marker: Path | None):
+    """⚠ `deployed_commit` is the EVIDENCE-DERIVED identity from `verify_deployment_identity`, not a
+    caller assertion and never a default. The freeze supplies what the deployment is EXPECTED to be;
+    these supply what it IS. The gate compares them."""
     def builder(session: date) -> ForwardRunContext:
         return build_forward_context(session, dgs3mo_path=config.dgs3mo_path,
                                      trial_ledger_path=config.trial_ledger_path,
-                                     ledger_account_id=config.ledger_account_id)
+                                     ledger_account_id=config.ledger_account_id,
+                                     code_commit=deployed_commit, measurement_freeze=freeze,
+                                     runtime_root=runtime_root, ancestry_marker=ancestry_marker)
 
     return builder
 
@@ -391,6 +398,15 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
     evidence["invocation"] = invocation
     evidence["witness"] = witness.evidence
 
+    # The EXPECTED measurement identity, from the governed manifest outside the tree it pins.
+    #
+    # ⚠ Loaded AFTER the witness and BEFORE any data work. The ordering is load-bearing in both
+    # directions: a non-production witness must refuse before anything else runs (a REFERENCE-profile
+    # deployment must never reach the store), and a deployment that is not the ratified measurement
+    # instrument must refuse before minutes of reads rather than after them.
+    measurement_freeze = load_measurement_freeze(config.measurement_freeze_path)
+    evidence["measurement_freeze"] = measurement_freeze.to_open_provenance()
+
     # ADR 0048: establish WHICH governed construction this session is authorized to consume, before
     # the store is opened. A chain with a hole, a repeat, a reordering or a drifted frozen artifact
     # must refuse here rather than after the reads — and the refusal must not depend on the very store
@@ -435,7 +451,10 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
             universe_fn=_universe_fn(store, session=session, construction=construction),
             proxy_closes=proxy_closes,
             session_dates=session_dates, strict_price_fn=strict_pit_price_fn(store),
-            account4_probe=_probe_fn(config), context_builder=_context_builder(config),
+            account4_probe=_probe_fn(config),
+            context_builder=_context_builder(
+                config, deployed_commit=deployment.agreed_commit, freeze=measurement_freeze,
+                runtime_root=config.runtime_root, ancestry_marker=config.ancestry_marker_path),
             readiness=readiness, witness=witness)
     except Exception:
         store.close()

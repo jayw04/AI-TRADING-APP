@@ -218,9 +218,19 @@ def run_readiness(config: ForwardDeploymentConfig, session: date,
         evidence["provider_identities"] = {
             "scores": provider_identity(scores), "bars": provider_identity(bars)}
 
+        # The ACTUAL deployed identity comes from the evidence-derived deployment probe above, never
+        # from a default or a caller assertion; the EXPECTED identity comes from the governed freeze.
+        from app.validation.measurement_freeze import load_measurement_freeze
+
+        freeze = load_measurement_freeze(config.measurement_freeze_path)
+        evidence["measurement_freeze"] = freeze.to_open_provenance()
         ctx = build_forward_context(session, dgs3mo_path=config.dgs3mo_path,
                                     trial_ledger_path=config.trial_ledger_path,
-                                    ledger_account_id=config.ledger_account_id)
+                                    ledger_account_id=config.ledger_account_id,
+                                    code_commit=deployment.agreed_commit,
+                                    measurement_freeze=freeze,
+                                    runtime_root=config.runtime_root,
+                                    ancestry_marker=config.ancestry_marker_path)
         evidence["context_session"] = ctx.session_date.isoformat()
 
         probe = _probe(config)
