@@ -6,7 +6,7 @@
     "app/validation"
   ],
   "measurement_commit": "d13310a32227c67163250566eca719d5f734dd53",
-  "ratified_increment_inventory_sha256": "a8cb26f25671480c2b1fe51a3f990ee1108f0eb494d0b6a926152170125f380a",
+  "ratified_increment_inventory_sha256": "3c324a25b7c72cab602ca33c184d10f8d1508d6c20544ea7e60e7cb0870850a4",
   "supersedes_measurement_commit": "764883b58cb96936f23e49182dd02b70d969501b",
   "validation_tree_identity_algorithm": "PATH_SORTED_SHA256_CRLF_TO_LF_V1",
   "validation_tree_sha256": "7ba754034dad92e3130bdfa5f88851853960efabee9ece73296bac74427e0795"

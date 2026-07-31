@@ -69,7 +69,13 @@ def entries_from_git(ref: str, repo: Path) -> list[tuple[str, bytes]]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--repo", default=".")
-    ap.add_argument("--ref", default="HEAD", help="the ref whose measured content is ratified")
+    ap.add_argument("--ref", default="HEAD",
+                    help="tree-ish whose measured CONTENT is digested. Pass a `git write-tree` tree "
+                         "SHA to digest the staged index without creating a commit — a throwaway "
+                         "commit would leak a transient, unreachable SHA into the governed record.")
+    ap.add_argument("--inventory-to", default=None,
+                    help="endpoint of the ratified-increment list. Defaults to --measurement-commit, "
+                         "which is stable and reachable; NEVER a working HEAD, which may be transient.")
     ap.add_argument("--measurement-commit", required=True,
                     help="the last ratified measurement-code commit (ancestry anchor)")
     ap.add_argument("--supersedes", required=True)
@@ -87,13 +93,21 @@ def main(argv: list[str] | None = None) -> int:
 
     # The ratified increments, generated rather than narrated — 28 commits is too many to hand-list
     # accurately, and a hand-list is exactly the sort of thing that quietly goes stale.
+    # ⚠ The inventory endpoint is the RATIFIED COMMIT, not the working ref.
+    #
+    # Generating over a working HEAD recorded a discarded `wip` commit as both the endpoint and a
+    # ratified increment — an unreachable SHA and a throwaway message, bound by digest and therefore
+    # passing every consistency check while being meaningless. The amendment ratifies increments
+    # THROUGH the measurement commit; the commit performing the ratification is not one of them.
+    inventory_to = args.inventory_to or args.measurement_commit
     log = _git("log", "--format=%H%x1f%ad%x1f%s", "--date=short",
-               f"{args.supersedes}..{args.ref}", "--", f"{BACKEND_PREFIX}/app/validation", repo=repo)
+               f"{args.supersedes}..{inventory_to}", "--", f"{BACKEND_PREFIX}/app/validation",
+               repo=repo)
     commits = [dict(zip(("commit", "date", "subject"), line.split("\x1f"), strict=True))
                for line in log.splitlines() if line.strip()]
     inventory = {"kind": "ratified_measurement_increments", "version": "1.0",
-                 "from_commit": args.supersedes, "to_ref_commit": _git(
-                     "rev-parse", args.ref, repo=repo).strip(),
+                 "from_commit": args.supersedes,
+                 "to_commit": _git("rev-parse", inventory_to, repo=repo).strip(),
                  "measured_paths": list(MEASURED_PATHS), "commit_count": len(commits),
                  "commits": commits}
     inv_bytes = json.dumps(inventory, indent=2, sort_keys=True).encode() + b"\n"
@@ -128,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"measured files            {n}")
     print(f"validation_tree_sha256    {digest}")
-    print(f"ratified increments       {len(commits)}")
+    print(f"ratified increments       {len(commits)} (through {inventory_to[:12]}…)")
     print(f"inventory sha256          {manifest['ratified_increment_inventory_sha256']}")
     print(f"amendment sha256          {manifest['amendment_sha256']}")
     print(f"wrote {out}")

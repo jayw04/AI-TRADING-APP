@@ -1,20 +1,10 @@
 {
-  "commit_count": 30,
+  "commit_count": 28,
   "commits": [
     {
-      "commit": "09d329c49c2e535b4d39417f7f6f2d477b17d475",
+      "commit": "d13310a32227c67163250566eca719d5f734dd53",
       "date": "2026-07-31",
-      "subject": "wip"
-    },
-    {
-      "commit": "9664d3d5242645ae05a5918b1dadf970e71e7919",
-      "date": "2026-07-31",
-      "subject": "fix(prereg): re-freeze the measurement instrument in a governed manifest outside the tree it pins"
-    },
-    {
-      "commit": "1ee1bbcf50afdb41cfef91dd9e62e51cdcd18f2c",
-      "date": "2026-07-31",
-      "subject": "fix(layer2): census-completeness readiness gating; derive the attestation from the exact relevance set"
+      "subject": "fix(layer2): census-completeness readiness gating, derived attestation, two-stage Phase C runner (#581)"
     },
     {
       "commit": "7d8af096fcf0f06e08d4936100e9e7a3546b375d",
@@ -157,6 +147,6 @@
   "measured_paths": [
     "app/validation"
   ],
-  "to_ref_commit": "09d329c49c2e535b4d39417f7f6f2d477b17d475",
+  "to_commit": "d13310a32227c67163250566eca719d5f734dd53",
   "version": "1.0"
 }
