@@ -1,0 +1,6 @@
+{
+  "note": "FREEZE-MANIFEST-001 superseded. Active unsealed draft is FREEZE-MANIFEST-002.",
+  "active_draft": "docs/design/ADR0043_Phase0_D_BOX_Freeze_Manifest_002_UNSEALED_DRAFT.json",
+  "superseded": "docs/design/ADR0043_Phase0_D_BOX_Freeze_Manifest_001_SUPERSEDED_UNSEALED.json",
+  "status_001": "UNSEALED \u2014 SUPERSEDED DUE TO ABSENT O3/O4 EVIDENCE IDENTITIES"
+}

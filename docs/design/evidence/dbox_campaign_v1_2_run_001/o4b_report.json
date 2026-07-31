@@ -1,0 +1,183 @@
+{
+  "package": "O4-B",
+  "campaign": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.2",
+  "start_ruling": "ADR0043-PH0-D-BOX-START-002",
+  "freeze_body_sha256": "b2e6090dfe26bd26fbf18a3eb1be02d7e69a49423559194b93e8a95d5d663270",
+  "archive_id": "O4B-CAND-20260730T022316Z",
+  "archive_sha256": "e349f49465aa2689e6c24e20d6ae32286f0a447bfbcdf3b2fbbc531c656bae95",
+  "archive_size_bytes": 260426,
+  "archive_path": "docs/design/evidence/dbox_o34_acq_001/constructed/20260730T022316Z/O4B_CANDIDATE.json",
+  "schema_id": "ADR0043-PH0-D-BOX-O34-O4B-ARCHIVE-SCHEMA-001",
+  "archive_kind": "O4B_FORENSIC",
+  "started_at_utc": "2026-07-30T18:36:57Z",
+  "completed_at_utc": "2026-07-30T18:36:57Z",
+  "git_commit": "d85f4879e8188d4ea08543c57ff4a72bc5ed2f83",
+  "evaluator_version": "phase0_o4_replay.run_o4b@d1c2fbf+adapter",
+  "protocol_ids": [
+    "phase0_o4_replay.O4B",
+    "O4-B-v1"
+  ],
+  "caps": {
+    "loss_target": "3000",
+    "max_round_trips": 12,
+    "max_setup_notional": "25000",
+    "max_position_qty": "1000",
+    "source": "hermetic WP7 / phase0_o4_replay test caps (isolated harness)",
+    "july24_digest_mutated": false
+  },
+  "structural_checks": {
+    "archive_sha256_match": true,
+    "archive_size_match": true,
+    "schema_id_match": true,
+    "archive_kind_match": true,
+    "archive_id_match": true,
+    "n_observations_286": true,
+    "counts_n_fills_286": true,
+    "all_286_ord_mappings": true,
+    "o4b_incomplete_six_excluded": true,
+    "plan_fill_reconcile_1to1": true,
+    "no_o4a_decision_time_payload_mix": true,
+    "o4a_archive_not_substituted": true,
+    "terminal_fill_completeness_flags": true
+  },
+  "required_checks": {
+    "verdict_UNREACHABLE_WITHIN_CAPS": "INCONCLUSIVE - forensic_bundle_incomplete",
+    "uses_complete_terminal_fills": "PASS",
+    "no_mix_with_O4A_only_evidence": "PASS",
+    "both_O4A_and_O4B_required_for_gate_O4": "INCONCLUSIVE - O4-A disposition is INCONCLUSIVE; combined Gate O4 cannot PASS under START-002 until both halves APPROVE"
+  },
+  "counts": {
+    "n_observations": 286,
+    "n_ord_parse_ok": 286,
+    "n_forensic_complete": 0,
+    "n_incomplete": 286,
+    "n_missing_day_change": 286,
+    "n_protocol_pass": 0,
+    "n_protocol_fail_on_complete": 0,
+    "n_reconcile_failures": 0,
+    "n_mix_hits": 0
+  },
+  "o4b_incomplete_expected_excluded": [
+    "ord:1244",
+    "ord:1250",
+    "ord:1252",
+    "ord:1256",
+    "ord:1259",
+    "ord:1384"
+  ],
+  "o4b_incomplete_present_in_archive": [],
+  "parse_failures": [],
+  "reconcile_failures": [],
+  "mix_hits": [],
+  "incomplete_sample": [
+    {
+      "plan_id": "ord:1080",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1081",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1082",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1083",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1084",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1085",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1086",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1087",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1088",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1089",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1090",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1091",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1092",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1093",
+      "missing": [
+        "day_change"
+      ]
+    },
+    {
+      "plan_id": "ord:1094",
+      "missing": [
+        "day_change"
+      ]
+    }
+  ],
+  "protocol_fail_sample": [],
+  "row_results_sha256": "e672d221ba3d98fc406848d0260e388e8c3b56692775a1c9d9237d8a5f772b32",
+  "artifacts": {
+    "o4b_report.json": "this file",
+    "forensic_bundle_hash.txt": "e349f49465aa2689e6c24e20d6ae32286f0a447bfbcdf3b2fbbc531c656bae95",
+    "o4b_row_results.json": "sibling"
+  },
+  "disposition": "INCONCLUSIVE",
+  "disposition_reason": "forensic_bundle_incomplete - 286/286 observations missing surfaces required for UNREACHABLE_WITHIN_CAPS (day_change missing on 286; other missing groups=0). run_o4b yields INDETERMINATE/INSUFFICIENT_EXECUTION_COST without day_change baseline. Reconstruction from O4-A/external records forbidden.",
+  "d_wire_effect": "NONE - O5 deferred; D-WIRE remains BLOCKED",
+  "prior_dispositions": {
+    "O3": "INCONCLUSIVE",
+    "O4-A": "INCONCLUSIVE"
+  },
+  "inherited_packages_not_rerun": [
+    "CORR-06",
+    "O1",
+    "O2"
+  ]
+}

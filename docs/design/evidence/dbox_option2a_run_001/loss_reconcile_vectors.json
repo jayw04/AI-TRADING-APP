@@ -1,0 +1,5 @@
+{
+  "note": "Hermetic loss reconcile vectors exercised in test_phase0_loss_accounting.py",
+  "source_tests": "apps/backend/tests/risk/test_phase0_loss_accounting.py",
+  "cap_or_digest_mutation": false
+}

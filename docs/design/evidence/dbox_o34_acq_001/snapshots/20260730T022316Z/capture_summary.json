@@ -1,0 +1,49 @@
+{
+  "capture_id": "20260730T022316Z",
+  "captured_at_utc": "2026-07-30T02:23:16Z",
+  "host": "ip-172-31-7-230",
+  "freeze_document_id": "ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001",
+  "freeze_body_sha256": "80dfd8ec6d90182cdeabaab2d1457720ca417bcd5cb1511b4dd9d77989951bb0",
+  "start_ruling_id": "ADR0043-PH0-D-BOX-O34-ACQ-START-001",
+  "start_merge": "811a808b7122c12e5948b92947879d327ca8cc29",
+  "selection_performed": false,
+  "broker_calls": [],
+  "sources": {
+    "SRC-APP-AUDIT-PLAN-CKPT-TERM-001": {
+      "live_path": "/opt/workbench/data/workbench.sqlite",
+      "live_pre_sha256": "26bae1f5b754c4ff80e031126674d1818ae4a9a90e4faa6b36820f2690278d5b",
+      "live_post_sha256": "26bae1f5b754c4ff80e031126674d1818ae4a9a90e4faa6b36820f2690278d5b",
+      "live_pre_meta_size_mtime_inode": "22515712 1785378185 1092066",
+      "live_post_meta_size_mtime_inode": "22515712 1785378185 1092066",
+      "immutable_snapshot_path": "/opt/workbench/data/ops/adr0043_o34_acq_snapshots/20260730T022316Z/workbench.sqlite.snapshot",
+      "snapshot_sha256": "26bae1f5b754c4ff80e031126674d1818ae4a9a90e4faa6b36820f2690278d5b",
+      "snapshot_size_bytes": 22515712,
+      "source_mutation_by_capture": "NONE",
+      "binding_status": "BOUND"
+    },
+    "SRC-ACCT3-PAPER-PRIOR-AUTH-001": {
+      "shares_snapshot_with": "SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
+      "snapshot_sha256": "26bae1f5b754c4ff80e031126674d1818ae4a9a90e4faa6b36820f2690278d5b",
+      "binding_status": "BOUND"
+    },
+    "SRC-MKT-QUOTE-LAWFUL-001": {
+      "bar_cache_root": "/opt/workbench/data/bar_cache",
+      "bar_cache_manifest_path": "/opt/workbench/data/ops/adr0043_o34_acq_snapshots/20260730T022316Z/bar_cache.files.sha256",
+      "bar_cache_manifest_sha256": "b32e118732669c2880291cd0a7226589e4b0e2ef20839dc8172c26ce51e0adc7",
+      "market_projection_root": "/opt/workbench/data/market_projection",
+      "market_projection_manifest_path": "/opt/workbench/data/ops/adr0043_o34_acq_snapshots/20260730T022316Z/market_projection.files.sha256",
+      "market_projection_manifest_sha256": "c0148389daa4139dd60a5921d6bec55a224a4156fb7cca080cc2b8fdfb7eb2c1",
+      "binding_status": "BOUND",
+      "s3_version_ids": [],
+      "note": "Local lawful stores pinned by recursive file SHA-256 manifests; no S3 Version IDs declared for these roots"
+    },
+    "SRC-GOV-GIT-IMMUTABLE-001": {
+      "status": "BOUND_VIA_GOVERNING_REFS",
+      "freeze_publish_merge": "a1f1fd3ccbd5f8209047d6e3f8663920abb0d04a",
+      "start_merge": "811a808b7122c12e5948b92947879d327ca8cc29",
+      "binding_status": "BOUND"
+    }
+  },
+  "all_mandatory_snapshots_bound": true,
+  "record_selection_permitted": true
+}

@@ -1,0 +1,7 @@
+{
+  "harness_can_consume_ord_mapping": true,
+  "parse_ord_plan_id_ord_1080": 1080,
+  "o3_bundle_count": 292,
+  "first_plan_id": "ord:1080",
+  "adapter_sha256": "8e7215176ed2106f251e7f8c88d0164443bc16eb7bad1585af44767a9f787632"
+}

@@ -1,0 +1,4578 @@
+[
+  {
+    "plan_id": "ord:1080",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6925.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1081",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7837.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1082",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23236.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1083",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23667.28000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1084",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6915.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1085",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23149.54000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1086",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23478.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1087",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7826.24002000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1088",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23932.08000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1089",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23925.52000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1090",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6006.56000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1091",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7434.89000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1092",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6002.22000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1093",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23842.64000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1094",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23737.84000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1095",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7434.13000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1096",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23932.08000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1097",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23925.45008000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1098",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6006.56000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1099",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7429.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1100",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6002.22000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1101",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23842.64000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1102",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23734.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1103",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7427.29000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1104",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1105",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7426.91000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1106",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23734.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1107",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7426.34000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1108",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1109",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7427.86000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1110",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23734.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1111",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7425.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1112",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1113",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7423.87000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1114",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23732.32000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1115",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7421.21000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1116",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7418.74000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1117",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7418.93000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1118",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7418.55000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1119",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.84000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1120",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.84000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1121",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7414.37000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1122",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.08000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1123",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7415.89000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1124",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7413.41000600",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1125",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7411.52000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1126",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7413.04000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1127",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.46000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1128",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7415.16000100",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1129",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7413.99999400",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1130",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.84000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1131",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.57998500",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1132",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7414.56999400",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1133",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7412.60999200",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1134",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7411.90000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1135",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7410.95000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1136",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7413.42000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1137",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7407.87999900",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1138",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7407.91000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1139",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23932.08000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1140",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1141",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "5997.05000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1142",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7408.86000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1143",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23842.64000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1144",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23730.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1145",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "14815.44000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1146",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7406.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1147",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "5992.72000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1148",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1149",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23932.08000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1150",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "5994.21038600",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1151",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "5988.39000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1152",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23842.64000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1153",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23730.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1154",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7408.67000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1155",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1156",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7410.19000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1157",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23730.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1158",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1159",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23730.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1160",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7408.29000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1161",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1162",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7411.52000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1163",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23730.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1164",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7411.98000900",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1165",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7413.62001300",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1166",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7409.05000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1167",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7408.67000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1168",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7408.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1169",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7411.52000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1170",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7407.53000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1171",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7406.58000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1172",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7404.30000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1173",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7404.11000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1174",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7402.97000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1175",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7406.14001700",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1176",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7407.49999900",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1177",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7406.96000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1178",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7406.17999300",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1179",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7409.81000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1180",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7408.55999000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1181",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7412.28000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1182",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7413.23000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1183",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.65000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1184",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7411.52000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1185",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7415.70000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1186",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7412.85000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1187",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7413.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1188",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.59999200",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1189",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.27000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1190",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.84000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1191",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7419.47999300",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1192",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7417.22000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1193",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7416.64000600",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1194",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7415.19000200",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1195",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7418.39000100",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1196",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7417.79000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1197",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23918.32000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1198",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23914.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1199",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6001.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1200",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7418.42000200",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1201",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "5997.05000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1202",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23730.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1203",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6001.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1204",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "5997.05000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1205",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23918.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1206",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23842.64000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1207",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7420.83000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1208",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23918.32000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1209",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7421.59000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1210",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23842.64000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1211",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23730.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1212",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7420.83000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1214",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6940.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1215",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7705.40000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1216",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24049.44000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1217",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23885.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1218",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23998.14000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1219",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23705.82000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1220",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24049.44000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1221",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23885.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1222",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23998.14000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1223",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23705.82000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1224",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23886.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1225",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23705.82000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1226",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23886.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1227",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23705.82000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1228",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23886.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1229",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23705.82000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1230",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24049.44000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1231",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23886.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1232",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23981.04000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1233",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23700.33000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1234",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23886.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1235",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24049.44000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1236",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23981.04000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1237",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23700.33000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1238",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23886.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1239",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23700.33000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1240",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23886.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1241",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23700.33000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1242",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23886.99000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1243",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23700.33000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1245",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24049.44000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1246",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24049.44000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1247",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23879.67000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1248",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23879.67000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1249",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "47934.72000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1251",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "47393.34000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1253",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23879.67000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1254",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23879.67000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1255",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "47393.34000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1257",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23881.50000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1258",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "23696.67000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1260",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6945.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1261",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7738.24000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1264",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7005.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1265",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7781.60000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1266",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25034.60000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1267",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24912.13000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1268",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24913.90000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1269",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25034.60000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1270",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24913.90000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1271",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24719.22000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1272",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24912.13000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1273",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24719.22000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1274",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24912.13000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1275",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24719.22000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1276",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24912.13000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1277",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24719.22000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1278",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24912.13000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1279",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24719.22000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1280",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25063.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1281",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24915.95000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1282",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24942.30000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1283",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24728.77000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1288",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25063.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1289",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24785.50000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1290",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24956.50000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1291",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24599.30000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1292",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24789.30000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1293",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24599.30000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1294",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24789.30000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1295",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24599.30000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1296",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24791.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1297",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24605.00000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1301",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25105.60000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1302",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24920.40000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1303",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24999.10000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1304",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24620.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1305",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25105.60000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1306",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24920.40000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1307",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24999.10000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1308",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24620.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1309",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24920.40000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1310",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7035.62000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1311",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "7905.30998000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1313",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25056.12000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1314",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24864.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1315",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24928.68000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1316",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24673.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1317",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24864.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1318",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25063.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1319",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24928.68000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1320",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24673.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1321",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24868.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1322",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24673.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1323",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24868.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1324",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24673.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1325",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24868.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1326",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24673.38000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1327",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25045.50000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1328",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24870.11000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1329",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24694.39000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1330",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24928.68000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1331",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25059.66000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1332",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24870.11000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1333",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24928.68000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1334",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24694.39000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1335",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24872.02000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1336",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24694.39000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1337",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24873.93000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1338",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24705.85000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1339",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24873.93000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1340",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24705.85000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1341",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25080.90000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1342",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24944.60000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1343",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24736.41000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1344",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24942.84000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1345",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25070.28000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1346",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24944.60000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1347",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24942.84000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1348",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24734.50000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1349",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24944.60000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1350",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "710.50000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1351",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "393.63000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1353",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24759.33000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1356",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "700.49995000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1357",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "395.95000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1358",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25137.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1359",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25057.19000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1360",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24991.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1361",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25137.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1362",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24991.20000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1363",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24692.42000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1364",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25057.19000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1365",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24692.42000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1366",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25057.19000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1367",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24692.42000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1368",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25059.12000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1369",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24692.42000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1370",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25059.12000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1371",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24692.42000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1372",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25137.16000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1373",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24948.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1374",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25001.88000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1375",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24696.96000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1376",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "STALE_EVIDENCE",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "25122.92000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1377",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24948.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1378",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24987.64000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1379",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24696.96000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1380",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24948.48000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1381",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "24696.96000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1382",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "718.50000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1383",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "6475.50000000",
+    "n_fills": 1
+  },
+  {
+    "plan_id": "ord:1385",
+    "forensic_surfaces_complete": false,
+    "missing_surfaces": [
+      "day_change"
+    ],
+    "reconcile_ok": true,
+    "gate_verdict": "FAIL",
+    "expected_verdict": "UNREACHABLE_WITHIN_CAPS",
+    "adjudicated_verdict": "INDETERMINATE",
+    "adjudicated_reason": "INSUFFICIENT_EXECUTION_COST",
+    "refuse_reason": "UNEXPECTED_VERDICT",
+    "detail": "O4-B got verdict=INDETERMINATE; expected UNREACHABLE_WITHIN_CAPS",
+    "fill_loss_per_round_trip": "391.51000000",
+    "n_fills": 1
+  }
+]

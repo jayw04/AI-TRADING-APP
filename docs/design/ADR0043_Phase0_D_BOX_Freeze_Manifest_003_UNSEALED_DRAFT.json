@@ -1,0 +1,784 @@
+{
+  "schema_version": 1,
+  "document_id": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-003",
+  "manifest_body": {
+    "governing_refs": {
+      "controlling_design_id": "ADR0043-PH0-CTRL-001 v1.1",
+      "integration_design_id": "ADR0043-PH0-INTEGRATION-DESIGN-001 v1.0",
+      "integration_design_sha256": "5d0ab3c1adbb6a145345c6657cac2db2a9395644abe39127b559ae862f974078",
+      "d_box_ruling_id": "ADR0043-PH0-D-BOX-001",
+      "d_box_ruling_content_commit": "05095a6f91520fbcd6e01e8b937ef9895af39fc6",
+      "d_box_ruling_sha256": "9eba4233ed221695b4364a7bb0331700d8f0300e91920baaeeec4a794d56d8bd",
+      "d_box_main_merge_commit": "62f2770ac0a6d277fdfa5704a446792527a9e65a",
+      "campaign_scope_id": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.2",
+      "campaign_scope_sha256": "676fd5a5fa90dc1ef7fc874a090d8495ec7e5228f9a1e8b5cfa2252e9a1f5482",
+      "offline_baseline_commit": "d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+      "offline_baseline_tag": "adr0043-phase0-offline-complete",
+      "campaign_scope_path": "docs/design/ADR0043_Phase0_D_BOX_Campaign_Scope_v1.2.md",
+      "prior_campaign_scope_id": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.1",
+      "o34_evidence_acq_id": "ADR0043-PH0-D-BOX-O34-EVIDENCE-ACQ-001 v1.0",
+      "superseded_freeze_manifest": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-002",
+      "o34_evidence_acq_sha256": "23ce018e15e14b174d535c8361b91c46ef2f84a49049ac9567ed71aa26cd89eb",
+      "o34_evidence_acq_path": "docs/design/ADR0043_Phase0_D_BOX_O34_Evidence_Acquisition_v1.0.md",
+      "prior_campaign_scope_sha256": "60e23e980d98ab277eff0a86598ff4abf666954d3006aca32d5249d789b6a4ab",
+      "prior_freeze_manifest_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f",
+      "option2a_evidence_merge_commit": "5cb711c5be35d53c3d42277adbd0dc379dead44c",
+      "o34_qualification_merge_commit": "646d81abfdd98ce4ca99dde7821a26e869a50824",
+      "o34_construction_merge_commit": "5def3824937b85e859345f6691f2cb37b432105f",
+      "o34_qual_report_path": "docs/design/evidence/dbox_o34_acq_001/qualification/QUAL_001_report.json",
+      "o34_qual_report_sha256": "782a25606742de0ecfde4054d211daaafd9a84ab1c80c093752311a379a54b13",
+      "o34_qual_doc_path": "docs/design/ADR0043_Phase0_D_BOX_O34_ACQ_Qualification_Report_v1.0.md",
+      "o34_qual_doc_sha256": "992e70afeeae00a770f713ee23ccc5a5d7e756f2525ee30ca40e7f5ac5d59a50",
+      "construction_freeze_body_sha256": "80dfd8ec6d90182cdeabaab2d1457720ca417bcd5cb1511b4dd9d77989951bb0",
+      "sqlite_snapshot_sha256": "26bae1f5b754c4ff80e031126674d1818ae4a9a90e4faa6b36820f2690278d5b",
+      "capture_id": "20260730T022316Z"
+    },
+    "campaign": {
+      "campaign_id": "ADR0043-PH0-D-BOX-CAMPAIGN-RUN-003",
+      "runbook_version": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.2",
+      "campaign_label": "O3/O4-A/O4-B EXECUTION CAMPAIGN — O5 DEFERRED — NO D-WIRE ELIGIBILITY",
+      "option": "SUCCESSOR_O34_AFTER_2A",
+      "account_policy": "account_3_only",
+      "packages_executable": [
+        "O3",
+        "O4-A",
+        "O4-B"
+      ],
+      "packages_inherited_approve": [
+        "CORR-06",
+        "O1",
+        "O2"
+      ],
+      "packages_deferred": [
+        "O5"
+      ],
+      "inherited_approve_binding": {
+        "source_campaign": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.1 Option 2A",
+        "evidence_merge_commit": "5cb711c5be35d53c3d42277adbd0dc379dead44c",
+        "freeze_manifest_002_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f",
+        "reopen_policy": "FORBIDDEN unless separate owner ruling explicitly orders rerun/reopen/re-adjudication"
+      },
+      "phase0_modes_allowed": [
+        "DISABLED",
+        "OBSERVE_ONLY_ISOLATED_HARNESS"
+      ],
+      "phase0_modes_forbidden": [
+        "OBSERVE_ONLY_DEPLOYED_PRODUCTION",
+        "PREFLIGHT_REFUSE",
+        "CANARY_AUTHORIZED"
+      ],
+      "d_wire_eligibility": "BLOCKED — O5 deferred with anchors []; all-PASS on O3/O4-A/O4-B does not grant D-WIRE",
+      "execution_order": [
+        "O3",
+        "O4-A",
+        "O4-B"
+      ]
+    },
+    "time_standard": {
+      "timezone": "UTC",
+      "format": "RFC3339",
+      "precision": "second",
+      "example": "2026-07-29T20:00:00Z"
+    },
+    "schema_binding": {
+      "path": "docs/design/schemas/ADR0043_Phase0_D_BOX_Freeze_Manifest.schema.json",
+      "commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+      "sha256": "496b84cfbb238fbb974bc0623a0590ef6b937e43d731f0ed2f32361b8462fab6",
+      "tooling_merge_commit": "974e374271aa04e0bd3d542faf856fcdddd3ff3c",
+      "pr": "https://github.com/jayw04/AI-TRADING-APP/pull/562",
+      "note": "Rebound to published CAMPAIGN v1.2 content tip after PR #562 merge"
+    },
+    "code_and_tools": {
+      "implementation_commit": "d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+      "implementation_commit_note": "Offline Phase-0 baseline (phase0_* + hermetic tests). Live paper deploy b0058bf lacks phase0_* — do not use production OrderRouter stack as campaign runtime.",
+      "deployment_commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+      "deployment_commit_note": "Isolated harness checkout only; not live paper deploy b0058bf335628f8dbde09a93915314f3a1f7743b",
+      "harness_commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+      "production_stack_reference_only": {
+        "deployed_repository_commit": "b0058bf335628f8dbde09a93915314f3a1f7743b",
+        "deployed_build_info_sha256": "d42fbc35d1020d5f7a147166f63a58df5fa18e44a0567e25b6a3082c10586a64",
+        "backend_image_digest": "sha256:3940378076701f5f0ea4ca25a6d573ad02aa877730e60793fa708d4468f9d54c",
+        "wp0_seal_id": "20260729T161843Z",
+        "wp0_seal_manifest_sha256": "08c9a91413c58b0fca69c0810ed88593caeab97c56fa18ed3b15ba9fd9d7cf29",
+        "environment_exclusion": "The production paper deployment (ec2-paper / DEPLOYED_BUILD_INFO commit b0058bf, backend image sha256:39403780…) lacks phase0_* modules and is NOT the D-BOX execution baseline. Do not modify production for this campaign. D-BOX requires a separate isolated checkout derived from d1c2fbf plus governed freeze tooling.",
+        "d_box_execution_baseline": "isolated checkout only",
+        "production_modification": "FORBIDDEN"
+      },
+      "freeze_manifest_validator": {
+        "path": "apps/backend/scripts/adr0043_dbox_freeze_manifest.py",
+        "commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+        "sha256": "652e31336a6606ee8f0e0733e0a924f417b0aafb72f97f2802d397979621bacc",
+        "tests_path": "apps/backend/tests/scripts/test_adr0043_dbox_freeze_manifest.py",
+        "tests_sha256": "3745583bb97b25d5c9cba150bab6241f3fb058bab1a4d49071efa111113472c0",
+        "verification_doc_path": "docs/design/ADR0043_Phase0_D_BOX_Freeze_Tooling_Verification_v1.0.md",
+        "verification_doc_sha256": "82c4a61945b53d6e64ea2e96622e9fe31ad6cfe243498c83448aed7a44452a79",
+        "local_pytest_result": "adapter + freeze-manifest tests green on PR tip; CI Python + FULL + Gate green on #562",
+        "canonicalization": "RFC8785-JCS",
+        "hash_algorithm": "sha256",
+        "encoding": "UTF-8-no-BOM",
+        "final_newline": "excluded",
+        "exact_verification_commands": [
+          "python apps/backend/scripts/adr0043_dbox_freeze_manifest.py check --manifest <manifest.json>",
+          "python apps/backend/scripts/adr0043_dbox_freeze_manifest.py body-hash --manifest <manifest.json>",
+          "python apps/backend/scripts/adr0043_dbox_freeze_manifest.py verify-seal --manifest <sealed.json>",
+          "pytest apps/backend/tests/scripts/test_adr0043_dbox_freeze_manifest.py -q"
+        ],
+        "tooling_merge_commit": "974e374271aa04e0bd3d542faf856fcdddd3ff3c",
+        "pr": "https://github.com/jayw04/AI-TRADING-APP/pull/562"
+      },
+      "tooling": {
+        "python": "3.12.13 (CI/Actions pin; constraints/backend-py312.txt)",
+        "pytest": "9.1.1 (constraints/backend-py312.txt)",
+        "seal_tool": "apps/backend/scripts/adr0043_wp0_seal.py",
+        "probe_note": "Local readiness probe used standby .venv Python 3.13.14 / pytest 9.0.3; governed campaign pin remains 3.12 + lockfile."
+      },
+      "harness_commit_note": "Isolated harness checkout at published content tip 9b62abb98b8adbcf9713cee006201e45f3015deb (merge 974e374271aa04e0bd3d542faf856fcdddd3ff3c). Production b0058bf reference-only FORBIDDEN to modify.",
+      "harness_input_contract": {
+        "plan_id_mapping": "ord:<orders.id>",
+        "accepted": true,
+        "binding_note": "QUALIFIED archives use plan_id=ord:<orders.id> because no execution_plan table exists in bound sqlite snapshot; accepted harness input contract before start decision",
+        "adapter": {
+          "path": "apps/backend/app/risk/loss_control/phase0_o34_archive_adapter.py",
+          "sha256": "8e7215176ed2106f251e7f8c88d0164443bc16eb7bad1585af44767a9f787632",
+          "tests_path": "apps/backend/tests/risk/test_phase0_o34_archive_adapter.py",
+          "tests_sha256": "69854937cf27a5e2e0ac8616c764da3d88cfd5901b5d4bbf9c438f142c00097f",
+          "commit": "9b62abb98b8adbcf9713cee006201e45f3015deb"
+        },
+        "readiness_fail_closed": "If harness cannot consume mapping deterministically, FREEZE-003 readiness FAILS",
+        "o4_runners": "phase0_o4_replay DecisionTimeEvidence / ForensicEvidence via adapter row mappers",
+        "runtime": "isolated_harness_only"
+      }
+    },
+    "repository_state": {
+      "git_commit_full": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+      "merge_commit_full": "974e374271aa04e0bd3d542faf856fcdddd3ff3c",
+      "implementation_baseline": "d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+      "working_tree": "CLEAN_AT_PUBLISHED_TIP — FREEZE-003 tip-rebind commit may follow; content identities bound to PR #562 tip",
+      "clean_tree_proof": "content tip 9b62abb98b8adbcf9713cee006201e45f3015deb published via 974e374271aa04e0bd3d542faf856fcdddd3ff3c / PR #562",
+      "worktree_path_local": "C:/LLM-RAG-APP/ai-trading-app-adr0043-ph0",
+      "branch": "main",
+      "submodules": "none",
+      "publication_pr": "https://github.com/jayw04/AI-TRADING-APP/pull/562",
+      "qualification_tip_on_main": "646d81abfdd98ce4ca99dde7821a26e869a50824"
+    },
+    "runtime_identity": {
+      "os_image": "Campaign runtime = isolated harness (not production compose activation). Box reference OS: Ubuntu 24.04 aarch64 / Linux 6.17.0-1019-aws (production reference only).",
+      "dependency_lockfile_path": "constraints/backend-py312.txt",
+      "dependency_lockfile_sha256": "abd9aea6b958fedbed9a777a2b19d4e6a4a2efc04467cc8c8c078597ab3551eb",
+      "python_identity": "CPython 3.12.13 (Actions/CI governed pin)",
+      "pytest_identity": "pytest==9.1.1 (constraints pin)",
+      "container_image_digest": "sha256:3940378076701f5f0ea4ca25a6d573ad02aa877730e60793fa708d4468f9d54c",
+      "container_image_digest_note": "Reference digest of current production backend image; campaign must not treat production OrderRouter activation as authorized."
+    },
+    "account_3_identity": {
+      "workbench_account_id": 3,
+      "broker_account_id": "PA34USW0Q8UO",
+      "broker_environment": "paper",
+      "credential_mapping_fingerprint_sha256": "828b67a51ca16859c8a01feaf2a1526e4985565a8753aaf9ea536bfad3097257",
+      "credential_mapping_fingerprint_preimage": "workbench_account_id=3|broker_account_id=PA34USW0Q8UO|broker_environment=paper|source=ADR0043_Canary_Manifest_v1.1",
+      "credential_metadata_mutation_policy": "zero_account_1_credential_metadata_mutation; account_3_only",
+      "identity_source": "docs/implementation/ADR0043_Canary_Manifest_v1.0.md (v1.1 re-freeze text)"
+    },
+    "limits_and_loss_control": {
+      "limits_digest_id": "july24_frozen_limits_row_id_3_audit_153",
+      "limits_digest_sha256": "da6659334909a68a2e800d429ff36e7c7de1d18f169082836c07de2973ef706f",
+      "limits_digest_note": "Bound from docs/runbook/ADR0043_Phase0_SameSession_Runbook_v1.0.md (limits row id=3, audit id 153). Recomputed via limits_sha256(LIMITS_ROW) in adr0043_session_open.py; matches fixture. Must remain unchanged; do not mutate.",
+      "limits_digest_source": "docs/runbook/ADR0043_Phase0_SameSession_Runbook_v1.0.md §Prerequisites",
+      "loss_control_state_version_schema": "LOSS_CONTROL_STATE_VERSION=1 (apps/backend/app/risk/loss_control/constants.py @ d1c2fbf)",
+      "loss_control_mode_legacy": "MUST_NOT_FLIP_ENFORCE_FOR_CAMPAIGN",
+      "caps_mutation": "FORBIDDEN",
+      "july24_digest_mutation": "FORBIDDEN"
+    },
+    "datasets": {
+      "entries": [
+        {
+          "sealed_archive_id": "O3-CAND-20260730T022316Z",
+          "storage": "local_sealed",
+          "path": "docs/design/evidence/dbox_o34_acq_001/constructed/20260730T022316Z/O3_CANDIDATE.json",
+          "size_bytes": 164706,
+          "sha256": "53b3310c8db3cdfd3d60a2de3bec990a6eaab8864dd592afc4590e57fc9008b0",
+          "role": "O3",
+          "qualification_status": "QUALIFIED",
+          "n_observations": 292,
+          "post_unseal_substitution": "FORBIDDEN"
+        },
+        {
+          "sealed_archive_id": "O4A-CAND-20260730T022316Z",
+          "storage": "local_sealed",
+          "path": "docs/design/evidence/dbox_o34_acq_001/constructed/20260730T022316Z/O4A_CANDIDATE.json",
+          "size_bytes": 190328,
+          "sha256": "3ba73e61f5e8955a184d820c0aba4ed387de453c30fc6a22d168d84074403c49",
+          "role": "O4-A",
+          "qualification_status": "QUALIFIED",
+          "n_observations": 287,
+          "post_unseal_substitution": "FORBIDDEN"
+        },
+        {
+          "sealed_archive_id": "O4B-CAND-20260730T022316Z",
+          "storage": "local_sealed",
+          "path": "docs/design/evidence/dbox_o34_acq_001/constructed/20260730T022316Z/O4B_CANDIDATE.json",
+          "size_bytes": 260426,
+          "sha256": "e349f49465aa2689e6c24e20d6ae32286f0a447bfbcdf3b2fbbc531c656bae95",
+          "role": "O4-B",
+          "qualification_status": "QUALIFIED",
+          "n_observations": 286,
+          "post_unseal_substitution": "FORBIDDEN"
+        }
+      ],
+      "post_unseal_substitution": "FORBIDDEN",
+      "o3_status": "QUALIFIED",
+      "o3_predetermined_disposition": "EXECUTABLE_AFTER_START",
+      "qualification_id": "ADR0043-PH0-D-BOX-O34-ACQ-QUAL-001",
+      "qualification_merge": "646d81abfdd98ce4ca99dde7821a26e869a50824",
+      "gate_ready_at_qualification": false
+    },
+    "wp5_replacement_policy": {
+      "in_place_mutation_of_sealed_manifest": "FORBIDDEN",
+      "allowed_mechanism": "Create versioned superseding freeze manifest; bind prior_manifest_body_sha256 and new_manifest_body_sha256; owner acknowledgment; then relock",
+      "one_shot_floor_replacement_before_evaluation": true,
+      "replacement_used": true,
+      "prior_manifest_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f",
+      "replacement_manifest_document_id": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-003",
+      "replacement_note": "Successor freeze for CAMPAIGN v1.2; FREEZE-002 not mutated in place"
+    },
+    "o5_live_fill_anchors": {
+      "policy": "PRE_EXISTING_SEALED_TIER_A_ONLY — D-BOX does not authorize generating new live fills",
+      "anchors": [],
+      "inadequate_anchors_disposition": "O5_INCONCLUSIVE",
+      "predetermined_disposition": "INCONCLUSIVE",
+      "disposition_note": "O5 deferred under CAMPAIGN-001 v1.2; anchors []; generating new live fills forbidden"
+    },
+    "evidence_tier_assignments": {
+      "tier_A": [
+        "preexisting_sealed_live_fill_anchors_only_if_accepted_before_evaluation"
+      ],
+      "tier_B": [
+        "paper_fill_evidence_non_binding_for_authorization_per_controlling_design"
+      ],
+      "tier_C": [
+        "model_or_sim_cost_evidence_non_tier_A"
+      ],
+      "tier_D": [
+        "displayed_spread_string_only_NON_BINDING"
+      ]
+    },
+    "sample_and_stratum_definitions": {
+      "o5_planning_floors": {
+        "pooled_binding_reachable_plans": 59,
+        "per_intended_symbol_stratum": 20,
+        "shadow_sessions": 10,
+        "wp5_one_shot_replacement_allowed_before_evaluation": true,
+        "wp5_replacement_used": false,
+        "max_one_sided_upper_bound": "0.05",
+        "confidence_alpha": "0.05",
+        "source": "phase0_statistical_design.py @ d1c2fbf"
+      },
+      "strata": [
+        {
+          "stratum_id": "intended_symbol",
+          "definition": "per intended-symbol stratum for binding REACHABLE plans; diagnostic floor n>=20",
+          "target_n": "20"
+        },
+        {
+          "stratum_id": "pooled_binding_reachable",
+          "definition": "pooled binding REACHABLE execution plans",
+          "target_n": "59"
+        },
+        {
+          "stratum_id": "shadow_sessions",
+          "definition": "shadow sessions for O5",
+          "target_n": "10"
+        }
+      ],
+      "independence_and_clustering_assumptions": "independence_unit=binding_reachable_execution_plan; multiple_plans_per_session_count_separately=true; clustering=same_session_plans_positively_dependent report n_eff<=n_raw; same_symbol_repeats_allowed=true; pooled_weighting=equal_weight_per_binding_reachable_plan; source=ADR0043_Phase0_WP5 / phase0_statistical_design.StatisticalAssumptions"
+    },
+    "permitted_broker_reads": {
+      "policy": "Every read must be declared, account-3 scoped, and proven side-effect-free. Incidental metadata writes prohibited unless enumerated as test-state and accepted by CORR-06.",
+      "operations": []
+    },
+    "broker_read_side_effect_proof": {
+      "method": "pre_post_hash_compare",
+      "pre_account_state_hash_sha256": "NA_NO_BROKER_READS_DECLARED",
+      "post_account_state_hash_sha256": "NA_NO_BROKER_READS_DECLARED",
+      "pre_credential_metadata_hash_sha256": "NA_NO_BROKER_READS_DECLARED",
+      "post_credential_metadata_hash_sha256": "NA_NO_BROKER_READS_DECLARED",
+      "equality_required": true,
+      "note": "When operations[] is empty, pre/post hashes are not applicable. If reads are later declared, replace with real 64-hex hashes."
+    },
+    "permitted_writes": {
+      "operations": [
+        {
+          "op_id": "checkpoint_account3",
+          "kind": "account_3_checkpoint",
+          "targets": [
+            {
+              "object_type": "logical_binding_tuple",
+              "name": "phase0_checkpoint.binding_tuple",
+              "allowed_fields_or_path_patterns": [
+                "plan_hash",
+                "loss_control_state",
+                "loss_control_state_version",
+                "limits_digest",
+                "authorization_id",
+                "account_id",
+                "session_date"
+              ],
+              "prohibited_neighbor_fields": [
+                "api_key",
+                "api_secret",
+                "password",
+                "credential_ciphertext"
+              ]
+            }
+          ]
+        },
+        {
+          "op_id": "test_state_account3",
+          "kind": "account_3_test_state",
+          "targets": [
+            {
+              "object_type": "directory",
+              "name": "/opt/workbench/data/ops/adr0043_dbox_campaign/",
+              "allowed_fields_or_path_patterns": [
+                "**/reports/*.json",
+                "**/attempts/**",
+                "**/freeze/*.json"
+              ],
+              "prohibited_neighbor_fields": [
+                "**/credentials*",
+                "**/*password*",
+                "**/acct1/**"
+              ]
+            }
+          ]
+        },
+        {
+          "op_id": "evidence_seal_output",
+          "kind": "wp0_seal_output",
+          "targets": [
+            {
+              "object_type": "directory",
+              "name": "/opt/workbench/data/ops/adr0043_wp0_seals/",
+              "allowed_fields_or_path_patterns": [
+                "*/seal_record.json",
+                "*/manifest.json",
+                "*/build_stdout.json"
+              ],
+              "prohibited_neighbor_fields": [
+                "*credential*",
+                "*password*"
+              ]
+            }
+          ]
+        }
+      ],
+      "forbidden": [
+        "broker_order_submit",
+        "broker_cancel_replace_risk_placing",
+        "new_live_fill_generation",
+        "production_orderrouter_phase0_submit",
+        "enforce_flip",
+        "cap_change",
+        "july24_limits_digest_edit",
+        "cross_account_write",
+        "account1_credential_metadata_mutation"
+      ]
+    },
+    "gate_packages": {
+      "order": [
+        "CORR-06",
+        "O1",
+        "O2",
+        "O3",
+        "O4-A",
+        "O4-B",
+        "O5"
+      ],
+      "load_bearing": [
+        "CORR-06",
+        "O1",
+        "O2",
+        "O3",
+        "O4-A",
+        "O4-B",
+        "O5"
+      ],
+      "o3_narrower_adjudication": "none",
+      "d_wire_eligibility": "FAIL_CLOSED — even all-PASS on O3/O4 leaves D-WIRE BLOCKED while O5 deferred with anchors []",
+      "pass_criteria": {
+        "CORR-06": {
+          "required_inputs": [
+            "account_3_identity",
+            "permitted_broker_reads",
+            "permitted_writes"
+          ],
+          "protocol_ids": [
+            "phase0_account_isolation",
+            "CORR-06-exit-v1"
+          ],
+          "required_checks": [
+            "account_3_only_ops",
+            "cross_account_refuse",
+            "zero_account1_credential_metadata_mutation",
+            "broker_reads_side_effect_free_if_any"
+          ],
+          "maximum_failures": 0,
+          "failure_thresholds": {
+            "any_required_check_fail": 1
+          },
+          "inconclusive_conditions": [
+            "instrumentation_cannot_prove_side_effect_free_reads"
+          ],
+          "required_artifacts": [
+            "corr06_exit_report.json",
+            "credential_metadata_pre_post_hashes.json"
+          ],
+          "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+          "adjudicator_role": "owner_or_designated_reviewer",
+          "reruns_allowed": false,
+          "failed_attempt_preservation": "retain_full_attempt_tree_under_evidence_root",
+          "execution_status": "INHERITED_APPROVE",
+          "predetermined_disposition": "APPROVE — inherited from Option 2A; not rerun under v1.2",
+          "inherited_from": {
+            "evidence_merge": "5cb711c5be35d53c3d42277adbd0dc379dead44c",
+            "freeze_002_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f"
+          },
+          "reopen_policy": "FORBIDDEN unless separate owner ruling",
+          "pass_possible_under_v1_2_by_rerun": false,
+          "load_bearing_for_d_wire": true
+        },
+        "O1": {
+          "required_inputs": [
+            "ExecutionPlan_schema",
+            "ExecutionContext_shape",
+            "checkpoint_tuple"
+          ],
+          "protocol_ids": [
+            "phase0_authority",
+            "phase0_contracts",
+            "phase0_checkpoint",
+            "O1-structural-v1"
+          ],
+          "required_checks": [
+            "complete_execution_plan_fields",
+            "router_only_submit_invariant_structural",
+            "lifecycle_matrix",
+            "max_leg_reservation_contract",
+            "terminal_package_paths"
+          ],
+          "maximum_failures": 0,
+          "failure_thresholds": {
+            "any_required_check_fail": 1
+          },
+          "inconclusive_conditions": [
+            "harness_cannot_exercise_named_protocol"
+          ],
+          "required_artifacts": [
+            "o1_structural_report.json",
+            "checkpoint_samples/"
+          ],
+          "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+          "adjudicator_role": "owner_or_designated_reviewer",
+          "reruns_allowed": false,
+          "failed_attempt_preservation": "retain_full_attempt_tree_under_evidence_root",
+          "execution_status": "INHERITED_APPROVE",
+          "predetermined_disposition": "APPROVE — inherited from Option 2A; not rerun under v1.2",
+          "inherited_from": {
+            "evidence_merge": "5cb711c5be35d53c3d42277adbd0dc379dead44c",
+            "freeze_002_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f"
+          },
+          "reopen_policy": "FORBIDDEN unless separate owner ruling",
+          "pass_possible_under_v1_2_by_rerun": false,
+          "load_bearing_for_d_wire": true
+        },
+        "O2": {
+          "required_inputs": [
+            "o1_artifacts",
+            "loss_formula_vectors"
+          ],
+          "protocol_ids": [
+            "phase0_authority_properties",
+            "phase0_checkpoint_tamper",
+            "phase0_crash_consistency",
+            "phase0_loss_accounting",
+            "O2-property-v1"
+          ],
+          "required_checks": [
+            "plan_mutation_refuse",
+            "expiry_reduction_only",
+            "timestamp_integrity",
+            "checkpoint_tamper_refuse",
+            "canonical_loss_reconcile",
+            "crash_state_transitions",
+            "no_cap_or_digest_mutation"
+          ],
+          "maximum_failures": 0,
+          "failure_thresholds": {
+            "any_required_check_fail": 1
+          },
+          "inconclusive_conditions": [
+            "floating_point_non_determinism_unbounded"
+          ],
+          "required_artifacts": [
+            "o2_property_report.json",
+            "loss_reconcile_vectors.json"
+          ],
+          "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+          "adjudicator_role": "owner_or_designated_reviewer",
+          "reruns_allowed": false,
+          "failed_attempt_preservation": "retain_full_attempt_tree_under_evidence_root",
+          "execution_status": "INHERITED_APPROVE",
+          "predetermined_disposition": "APPROVE — inherited from Option 2A; not rerun under v1.2",
+          "inherited_from": {
+            "evidence_merge": "5cb711c5be35d53c3d42277adbd0dc379dead44c",
+            "freeze_002_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f"
+          },
+          "reopen_policy": "FORBIDDEN unless separate owner ruling",
+          "pass_possible_under_v1_2_by_rerun": false,
+          "load_bearing_for_d_wire": true
+        },
+        "O3": {
+          "required_inputs": [
+            "datasets.entries[O3]",
+            "harness_input_contract.plan_id_mapping=ord:<orders.id>",
+            "phase0_o34_archive_adapter",
+            "quote_provenance_rules"
+          ],
+          "protocol_ids": [
+            "O3-historical-replay-v1",
+            "phase0_o34_archive_adapter.iter_o3_replay_bundles"
+          ],
+          "required_checks": [
+            "archive_sha256_match",
+            "ord_plan_id_parse",
+            "replay_plan_quote_authority_loss_checkpoint_recovery",
+            "false_reachable_scoring_recorded",
+            "model_coverage_recorded"
+          ],
+          "maximum_failures": 0,
+          "failure_thresholds": {
+            "any_required_check_fail": 1
+          },
+          "inconclusive_conditions": [
+            "eligible_observation_count_below_protocol_minimum"
+          ],
+          "required_artifacts": [
+            "o3_replay_report.json",
+            "false_reachable_table.json"
+          ],
+          "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+          "adjudicator_role": "owner_or_designated_reviewer",
+          "reruns_allowed": false,
+          "failed_attempt_preservation": "retain_full_attempt_tree_under_evidence_root",
+          "execution_status": "EXECUTABLE_AFTER_START",
+          "predetermined_disposition": "none — adjudicate after run",
+          "deferred_reason": "none",
+          "load_bearing_for_d_wire": true,
+          "pass_possible_under_v1_1": false,
+          "pass_possible_under_v1_2": true
+        },
+        "O4-A": {
+          "required_inputs": [
+            "datasets.entries[O4-A]",
+            "harness_input_contract.plan_id_mapping=ord:<orders.id>",
+            "phase0_o34_archive_adapter.o4a_row_to_decision_time",
+            "decision_time_evidence_bundle"
+          ],
+          "protocol_ids": [
+            "phase0_o4_replay.O4A",
+            "O4-A-v1"
+          ],
+          "required_checks": [
+            "verdict_INDETERMINATE",
+            "reason_INSUFFICIENT_EXECUTION_COST_or_MODEL_UNAVAILABLE",
+            "no_fill_lookahead",
+            "no_mix_with_O4B_evidence"
+          ],
+          "maximum_failures": 0,
+          "failure_thresholds": {
+            "any_required_check_fail": 1
+          },
+          "inconclusive_conditions": [
+            "decision_time_bundle_incomplete"
+          ],
+          "required_artifacts": [
+            "o4a_report.json",
+            "decision_time_bundle_hash.txt"
+          ],
+          "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+          "adjudicator_role": "owner_or_designated_reviewer",
+          "reruns_allowed": false,
+          "failed_attempt_preservation": "retain_full_attempt_tree_under_evidence_root",
+          "observation_set_id": "O4A-CAND-20260730T022316Z",
+          "replay_boundary": "evidence available before first broker submission only; no fill look-ahead",
+          "no_mix_rule": "DecisionTimeEvidence must not contain fill/terminal fields; refuse mix with O4-B archive payloads",
+          "discovery_verdict": "QUALIFIED",
+          "execution_status": "EXECUTABLE_AFTER_START",
+          "predetermined_disposition": "none — adjudicate after run",
+          "deferred_reason": "none",
+          "load_bearing_for_d_wire": true,
+          "pass_possible_under_v1_1": false,
+          "observation_set_binding": "QUALIFIED local_sealed archive O4A-CAND-20260730T022316Z",
+          "pass_possible_under_v1_2": true
+        },
+        "O4-B": {
+          "required_inputs": [
+            "datasets.entries[O4-B]",
+            "harness_input_contract.plan_id_mapping=ord:<orders.id>",
+            "phase0_o34_archive_adapter.o4b_row_to_forensic",
+            "forensic_terminal_evidence_bundle"
+          ],
+          "protocol_ids": [
+            "phase0_o4_replay.O4B",
+            "O4-B-v1"
+          ],
+          "required_checks": [
+            "verdict_UNREACHABLE_WITHIN_CAPS",
+            "uses_complete_terminal_fills",
+            "no_mix_with_O4A_only_evidence",
+            "both_O4A_and_O4B_required_for_gate_O4"
+          ],
+          "maximum_failures": 0,
+          "failure_thresholds": {
+            "any_required_check_fail": 1
+          },
+          "inconclusive_conditions": [
+            "forensic_bundle_incomplete"
+          ],
+          "required_artifacts": [
+            "o4b_report.json",
+            "forensic_bundle_hash.txt"
+          ],
+          "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+          "adjudicator_role": "owner_or_designated_reviewer",
+          "reruns_allowed": false,
+          "failed_attempt_preservation": "retain_full_attempt_tree_under_evidence_root",
+          "observation_set_id": "O4B-CAND-20260730T022316Z",
+          "replay_boundary": "complete terminal evidence including fills; no mix with O4-A-only bundle",
+          "no_mix_rule": "ForensicEvidence is a separate bundle; O4-A and O4-B must not share mixed evidence payloads",
+          "discovery_verdict": "QUALIFIED",
+          "execution_status": "EXECUTABLE_AFTER_START",
+          "predetermined_disposition": "none — adjudicate after run",
+          "deferred_reason": "none",
+          "load_bearing_for_d_wire": true,
+          "pass_possible_under_v1_1": false,
+          "observation_set_binding": "QUALIFIED local_sealed archive O4B-CAND-20260730T022316Z",
+          "pass_possible_under_v1_2": true
+        },
+        "O5": {
+          "required_inputs": [
+            "sample_and_stratum_definitions",
+            "o5_live_fill_anchors",
+            "estimator_ladder_config"
+          ],
+          "protocol_ids": [
+            "phase0_statistical_design",
+            "phase0_estimator",
+            "O5-shadow-session-v1"
+          ],
+          "required_checks": [
+            "floors_59_20_10_or_one_governed_replacement_then_lock",
+            "clopper_pearson_bounds_reported",
+            "independence_assumptions_recorded",
+            "no_broker_order_submission",
+            "anchors_preexisting_tier_A_only"
+          ],
+          "maximum_failures": 0,
+          "failure_thresholds": {
+            "any_required_check_fail": 1
+          },
+          "inconclusive_conditions": [
+            "anchors_array_empty_or_inadequate_tier_A_provenance"
+          ],
+          "required_artifacts": [
+            "o5_shadow_report.json",
+            "clopper_pearson_table.json",
+            "anchor_acceptance_record.json"
+          ],
+          "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+          "adjudicator_role": "owner_or_designated_reviewer",
+          "reruns_allowed": false,
+          "failed_attempt_preservation": "retain_full_attempt_tree_under_evidence_root",
+          "clopper_pearson_confidence": "0.95_one_sided (alpha=0.05 per DEFAULT_CONFIDENCE_ALPHA)",
+          "clopper_pearson_acceptance_bound": "0.05 (DEFAULT_MAX_ONE_SIDED_UPPER_BOUND)",
+          "execution_status": "DEFERRED",
+          "predetermined_disposition": "INCONCLUSIVE",
+          "deferred_reason": "Tier-A anchors absent (anchors []); generating new live fills forbidden under HOLD",
+          "load_bearing_for_d_wire": true,
+          "pass_possible_under_v1_1": false,
+          "pass_possible_under_v1_2": false
+        }
+      },
+      "campaign_mode": "SUCCESSOR_O34_V1_2",
+      "executable_gates": [
+        "O3",
+        "O4-A",
+        "O4-B"
+      ],
+      "deferred_gates": [
+        "O5"
+      ],
+      "inherited_approve_gates": [
+        "CORR-06",
+        "O1",
+        "O2"
+      ]
+    },
+    "hold": {
+      "broker_order_submission": "HOLD",
+      "production_imports": "NOT_AUTHORIZED",
+      "deployed_path_observe_only": "NOT_AUTHORIZED",
+      "canary": "HOLD",
+      "enforce": "NOT_AUTHORIZED",
+      "cap_changes": "NOT_AUTHORIZED",
+      "july24_limits_digest_changes": "NOT_AUTHORIZED",
+      "d_wire": "DEFERRED_AND_BLOCKED",
+      "campaign_start": "REQUIRES_SEPARATE_OWNER_DECISION_AFTER_SEAL",
+      "production_stack_b0058bf_modification": "FORBIDDEN",
+      "inherited_approve_reopen": "FORBIDDEN unless separate owner ruling",
+      "o5_new_live_fill_generation": "FORBIDDEN"
+    },
+    "amendment_record": {
+      "from_campaign": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.1",
+      "to_campaign": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.2",
+      "from_freeze": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-002",
+      "to_freeze": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-003",
+      "prior_freeze_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f",
+      "option2a_in_place_reopen": "FORBIDDEN",
+      "inherited_approve": [
+        "CORR-06",
+        "O1",
+        "O2"
+      ],
+      "executable": [
+        "O3",
+        "O4-A",
+        "O4-B"
+      ],
+      "deferred": [
+        "O5"
+      ],
+      "qualification": "ADR0043-PH0-D-BOX-O34-ACQ-QUAL-001 QUALIFIED"
+    }
+  },
+  "seal": {
+    "algorithm": "sha256",
+    "canonicalization": "RFC8785-JCS",
+    "encoding": "UTF-8-no-BOM",
+    "final_newline": "excluded",
+    "body_sha256": null,
+    "sealed_at_utc": null,
+    "manifest_status": "READY_UNSEALED",
+    "operator": null,
+    "operator_acknowledgment_kind": "none",
+    "owner_countersignature": null,
+    "owner_acknowledgment_kind": "none",
+    "verifier_script": {
+      "path": "apps/backend/scripts/adr0043_dbox_freeze_manifest.py",
+      "commit": "9b62abb98b8adbcf9713cee006201e45f3015deb",
+      "sha256": "652e31336a6606ee8f0e0733e0a924f417b0aafb72f97f2802d397979621bacc"
+    },
+    "post_seal_state": "READY_UNSEALED — tip rebound to published PR #562; seal not yet authorized in this step",
+    "campaign_start": "HOLD — requires separate owner start decision after seal"
+  }
+}

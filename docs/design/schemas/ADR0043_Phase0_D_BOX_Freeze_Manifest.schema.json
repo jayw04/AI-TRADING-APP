@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jayw04/AI-TRADING-APP/docs/design/schemas/ADR0043_Phase0_D_BOX_Freeze_Manifest.schema.json",
+  "title": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-001",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "document_id", "manifest_body", "seal"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "document_id": {
+      "type": "string",
+      "const": "ADR0043-PH0-D-BOX-FREEZE-MANIFEST-001"
+    },
+    "manifest_body": { "$ref": "#/$defs/manifest_body" },
+    "seal": { "$ref": "#/$defs/seal" }
+  },
+  "$defs": {
+    "sha256_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "utc_rfc3339": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "gate_criteria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_inputs",
+        "protocol_ids",
+        "required_checks",
+        "maximum_failures",
+        "failure_thresholds",
+        "inconclusive_conditions",
+        "required_artifacts",
+        "evaluator_version",
+        "adjudicator_role",
+        "reruns_allowed",
+        "failed_attempt_preservation"
+      ],
+      "properties": {
+        "required_inputs": { "type": "array", "items": { "type": "string" } },
+        "protocol_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "required_checks": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "maximum_failures": { "type": "integer", "minimum": 0 },
+        "failure_thresholds": { "type": "object" },
+        "inconclusive_conditions": { "type": "array", "items": { "type": "string" } },
+        "required_artifacts": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "evaluator_version": { "type": "string", "minLength": 1 },
+        "adjudicator_role": { "type": "string", "minLength": 1 },
+        "reruns_allowed": { "type": "boolean" },
+        "failed_attempt_preservation": { "type": "string", "minLength": 1 },
+        "observation_set_id": { "type": "string" },
+        "replay_boundary": { "type": "string" },
+        "clopper_pearson_confidence": { "type": "string" },
+        "clopper_pearson_acceptance_bound": { "type": "string" }
+      }
+    },
+    "manifest_body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "governing_refs",
+        "campaign",
+        "code_and_tools",
+        "repository_state",
+        "runtime_identity",
+        "account_3_identity",
+        "limits_and_loss_control",
+        "datasets",
+        "o5_live_fill_anchors",
+        "evidence_tier_assignments",
+        "sample_and_stratum_definitions",
+        "permitted_broker_reads",
+        "permitted_writes",
+        "broker_read_side_effect_proof",
+        "gate_packages",
+        "hold",
+        "time_standard",
+        "schema_binding",
+        "wp5_replacement_policy"
+      ]
+    },
+    "seal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "canonicalization",
+        "encoding",
+        "final_newline",
+        "body_sha256",
+        "sealed_at_utc",
+        "manifest_status",
+        "operator",
+        "operator_acknowledgment_kind",
+        "owner_countersignature",
+        "owner_acknowledgment_kind",
+        "verifier_script"
+      ],
+      "properties": {
+        "algorithm": { "type": "string", "const": "sha256" },
+        "canonicalization": {
+          "type": "string",
+          "const": "RFC8785-JCS"
+        },
+        "encoding": { "type": "string", "const": "UTF-8-no-BOM" },
+        "final_newline": { "type": "string", "const": "excluded" },
+        "body_sha256": {
+          "anyOf": [
+            { "$ref": "#/$defs/sha256_hex" },
+            { "type": "null" }
+          ]
+        },
+        "sealed_at_utc": {
+          "anyOf": [{ "$ref": "#/$defs/utc_rfc3339" }, { "type": "null" }]
+        },
+        "manifest_status": {
+          "type": "string",
+          "enum": ["UNSEALED_DRAFT", "READY_UNSEALED", "SEALED"]
+        },
+        "operator": { "type": ["string", "null"] },
+        "operator_acknowledgment_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "typed_governance_acknowledgment",
+            "cryptographic_signature",
+            "signed_git_commit"
+          ]
+        },
+        "owner_countersignature": { "type": ["string", "null"] },
+        "owner_acknowledgment_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "typed_governance_acknowledgment",
+            "cryptographic_signature",
+            "signed_git_commit"
+          ]
+        },
+        "verifier_script": {
+          "type": "object",
+          "required": ["path", "commit", "sha256"],
+          "properties": {
+            "path": { "type": "string" },
+            "commit": { "type": ["string", "null"] },
+            "sha256": {
+              "anyOf": [{ "$ref": "#/$defs/sha256_hex" }, { "type": "null" }]
+            }
+          }
+        }
+      }
+    }
+  }
+}

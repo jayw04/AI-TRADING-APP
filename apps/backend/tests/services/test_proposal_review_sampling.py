@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import select
 
 from app.db.models.audit_log import AuditLog
@@ -21,8 +22,18 @@ from app.services.proposal_review_sampling import (
 )
 
 # Distinct minute per proposal — §1a's composite-unique-per-minute index blocks
-# same-(strategy, minute) duplicates.
+# same-(strategy, minute) duplicates. Freeze "now" so wall-clock drift between
+# inserts cannot collapse consecutive minute offsets onto the same calendar minute
+# (CI flake under load).
 _seq = 0
+_frozen_now: datetime | None = None
+
+
+@pytest.fixture(autouse=True)
+def _reset_proposal_minute_clock() -> None:
+    global _seq, _frozen_now
+    _seq = 0
+    _frozen_now = None
 
 
 async def _seed_users(session_factory, *user_ids: int) -> None:
@@ -41,14 +52,12 @@ async def _mk(
     user_id: int = 1,
     strategy_id: int = 1,
 ) -> int:
-    global _seq
+    global _seq, _frozen_now
     _seq += 1
+    if _frozen_now is None:
+        _frozen_now = datetime.now(UTC).replace(microsecond=0)
     async with session_factory() as s:
-        ts = (
-            datetime.now(UTC)
-            - timedelta(days=days_ago)
-            - timedelta(minutes=_seq)
-        )
+        ts = _frozen_now - timedelta(days=days_ago) - timedelta(minutes=_seq)
         prop = StrategyProposal(
             strategy_id=strategy_id,
             user_id=user_id,

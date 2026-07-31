@@ -1,0 +1,8 @@
+{
+  "protocol": "O3-historical-replay-v1",
+  "scoring_unit": "binding_reachable_execution_plan_proxy=ord:<orders.id>",
+  "n_scored": 0,
+  "n_false_reachable": 0,
+  "rows": [],
+  "note": "No observations eligible for full historical replay scoring; false-reachable table recorded empty by protocol (not invented)."
+}

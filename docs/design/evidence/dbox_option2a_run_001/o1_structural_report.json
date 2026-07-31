@@ -1,0 +1,43 @@
+{
+  "package": "O1",
+  "campaign": "ADR0043-PH0-D-BOX-CAMPAIGN-001 v1.1 Option 2A",
+  "freeze_body_sha256": "d35de863e85153f8f1a4768b62b7d89a2043525433ec8841631cb8a7c20a2d1f",
+  "depends_on": [
+    "CORR-06"
+  ],
+  "corr06_disposition": "APPROVE",
+  "started_at_utc": "2026-07-30T00:06:26Z",
+  "completed_at_utc": "2026-07-30T00:06:36Z",
+  "git_commit": "7d12c68f0400fe2450992ad2083a744201a3182c",
+  "evaluator_version": "phase0_modules@d1c2fbf0a394c66728f6cc489577ae180ccdfb03",
+  "protocol_ids": [
+    "phase0_authority",
+    "phase0_contracts",
+    "phase0_checkpoint",
+    "O1-structural-v1"
+  ],
+  "required_checks": {
+    "complete_execution_plan_fields": "PASS",
+    "router_only_submit_invariant_structural": "PASS",
+    "lifecycle_matrix": "PASS",
+    "max_leg_reservation_contract": "PASS",
+    "terminal_package_paths": "PASS"
+  },
+  "pytest": {
+    "passed": 0,
+    "failed": 0,
+    "exit_code": 0,
+    "tail": [
+      "\ufffd\ufffd.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000.\u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000 \u0000[\u00001\u00000\u00000\u0000%\u0000]\u0000",
+      "\u0000",
+      "\u0000"
+    ]
+  },
+  "artifacts": {
+    "o1_structural_report.json": "this file",
+    "checkpoint_samples/": "present",
+    "o1_pytest.txt": "5f8966e5916a3e83f1300da57aa044e6feb06e9a390a8b5a4285fd2bbc0253c4"
+  },
+  "disposition": "APPROVE",
+  "d_wire_effect": "NONE"
+}

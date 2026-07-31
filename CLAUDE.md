@@ -88,6 +88,32 @@ LLM calls themselves are audit-logged (P3 introduced the pattern, P5+ extends it
 
 Per-session implementation docs in `docs/implementation/` are first-class artifacts, not afterthoughts. Runbooks in `docs/runbook/` are tested by being followed. ADRs in `docs/adr/` capture decisions that future-you will need to relitigate. When in doubt about whether to write something down, write it down.
 
+What does *not* belong in Git is bulk: generated evidence, backtest output, logs, screenshots, and large Office binaries. Those live in controlled S3, referenced by a manifest that pins Version ID + SHA-256 (GITHUB-OPS-001 §5). The split is *governing vs. generated*, not *important vs. unimportant* — an evidence file can be load-bearing and still belong in S3.
+
+### GitHub development process and cost optimization (GITHUB-OPS-001 v1.2)
+
+**Binding for all development effort** in this repository — agents and humans, every session, no exceptions beyond §7 of the policy.
+
+| Source | Path |
+|---|---|
+| Operational detail for Claude sessions | **`.claude/skills/github-ops/SKILL.md`** — loads automatically on git/PR/CI/S3/docs work |
+| Policy working copy | `docs/methodology/GitHub_Development_Process_and_Cost_Optimization_Policy_v1.2.md` |
+| Formal document (`.docx`) | Not in Git — controlled storage per §6; the markdown above is the working copy |
+| Contributor summary / PR checklist | `CONTRIBUTING.md`, `.github/pull_request_template.md` |
+| Cursor mirror (Cursor only) | `.cursor/rules/github-dev-process-cost-policy.mdc` |
+
+GitHub **Actions** is the confirmed metered cost source: **8,073 Linux runner-minutes in July 2026**, of which ~99.9% came from this repository, essentially all attributed to `.github/workflows/ci.yml`. Actions **compute** was $48.44 against ~$0.02 of Actions **storage** — so repository *size* is not the lever. Target: **≥60% reduction in avoidable Actions consumption** with no loss of quality, traceability, reproducibility, or release safety.
+
+- **Batch coherently:** one review-ready PR per deliverable; normally 1–3 remote pushes per work item; no PRs solely to back up unfinished work; consolidate review feedback into one push.
+- **Validate locally first:** ruff, format, mypy, focused pytest on affected modules, plus any invariant/coverage script the change can break — *before* push. Never push to find out whether CI passes.
+- **Know what your paths trigger.** CI runs a per-project **LIGHT** pass (ruff + mypy + fast invariant checks) on every PR, and adds a project's **FULL** pass (pytest + coverage) when `apps/backend/scripts/ci_classify_changes.py` flags that project. `scripts/**` and `deploy/**` count as *backend*; `.github/workflows/ci.yml` and root dependency manifests flag **every** project. `Python CI Gate` is the single required check and fails closed. The policy's Tier 0–3 vocabulary (§4) is the risk framing; this classifier is the implementation.
+- **Never trade an invariant for a cheaper run.** Full validation stays mandatory for migrations, risk-engine and order-path changes, deployment, and release candidates — regardless of cost pressure.
+- **GitHub vs S3:** Git = source, review, ADRs, runbooks, small fixtures, manifests. S3 = large datasets, generated evidence, archives — always pinned by Version ID, checksum-verified, fail-closed, never unpinned `latest`.
+- **Publish docs weekly or at milestones**, not every edit; immediately when material becomes *governing* (ADR, security finding, release instruction, production incident).
+- **Exceptions** (incident, security, migration review, governing ADR, release gate, collaboration blocker, legal/audit): act immediately; record the reason in the PR.
+
+**Agent rules that follow from this** (see the skill for the full list): do not commit or push unless explicitly asked; prefer fewer, larger commits; do not create documentation the user did not request; do not propose next steps that multiply CI runs. **No cost reduction may weaken an architectural invariant, a CI invariant, a migration control, a security safeguard, or the walk-away discipline** — if they conflict, surface it; the answer is an ADR, not a workaround.
+
 ---
 
 ## Skills loaded for this project
@@ -98,6 +124,7 @@ The `.claude/skills/` directory contains skill packages that Claude loads automa
 - **`audit-log`** — invoked when working on the audit log, the hash chain, the `AuditLogger` API, or audit-related migrations.
 - **`session-doc`** — invoked when drafting or revising per-session implementation documents.
 - **`adr`** — invoked when writing or revising Architecture Decision Records.
+- **`github-ops`** — invoked before any commit, push, branch, PR, or merge; when editing `.github/workflows/**` or CI configuration; when deciding whether a document belongs in Git or in S3/local storage; and when adding or referencing large datasets, generated evidence, or `manifests/s3/` entries. This is the operational detail behind GITHUB-OPS-001 v1.2 (above) — **binding, not advisory**.
 
 Each skill's `SKILL.md` contains the detailed conventions for its domain. You don't need to read them all preemptively; the skill system loads them when the task matches.
 
@@ -164,4 +191,4 @@ This CLAUDE.md is itself a living document. It updates when:
 
 Edits go through PR like any other code change. The PR description should explain *why* the convention changed, not just *that* it changed.
 
-*Last meaningful update: 2026-05-29 (post ADR 0006 v2 and ADR 0007 acceptance; pre P5 execution).*
+*Last meaningful update: 2026-07-29 (GITHUB-OPS-001 v1.2 adopted as binding for all sessions, enforced via the `github-ops` skill).*

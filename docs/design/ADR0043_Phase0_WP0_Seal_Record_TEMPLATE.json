@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "package": "WP0",
+  "controlling_design_id": "ADR0043-PH0-CTRL-001 v1.1",
+  "sealed_at_utc": null,
+  "operator": null,
+  "host_id": null,
+  "deployed_build_info_sha256": null,
+  "manifest_sha256": null,
+  "exclusions": [],
+  "notes": "Fill at seal time. Do not include plaintext credential files in the hashed tree."
+}
