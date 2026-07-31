@@ -175,6 +175,63 @@ def test_evidence_none_is_pure_structural_and_backtested_false():
     assert all(c.backtested is False and c.win_rate is None for c in out)
 
 
+def test_weak_evidence_does_not_grant_priority_ranks_on_structure():
+    # ADR 0028 §Open items (AND-guard): a backtested name with a LOSING win rate (NVDA at 27%,
+    # Sharpe ~0.10) must NOT be lifted above a structurally-stronger unbacktested name. It ranks
+    # on its structural Range Score, but ``backtested`` stays True (the backtest still exists).
+    out = rank_candidates(
+        [
+            _ri("STRONG", atr20_pct=0.080, classification="range_bound", efficiency_ratio=0.1),  # score .072
+            _ri("NVDA", atr20_pct=0.040, classification="range_bound", efficiency_ratio=0.1),     # score .036
+        ],
+        evidence={"NVDA": CandidateEvidence(win_rate=0.27, sharpe=0.10, n_trades=11)},
+    )
+    assert [c.symbol for c in out] == ["STRONG", "NVDA"]
+    nvda = next(c for c in out if c.symbol == "NVDA")
+    assert nvda.backtested is True            # descriptive: a backtest exists
+    assert nvda.win_rate == 0.27              # evidence still surfaced for the audit trail
+
+
+def test_high_winrate_but_nonpositive_sharpe_is_demoted():
+    # AND-guard: win_rate clears 0.50 but Sharpe <= 0 → no priority (both floors required).
+    out = rank_candidates(
+        [
+            _ri("STRONG", atr20_pct=0.080, classification="range_bound", efficiency_ratio=0.1),
+            _ri("BTLOSS", atr20_pct=0.040, classification="range_bound", efficiency_ratio=0.1),
+        ],
+        evidence={"BTLOSS": CandidateEvidence(win_rate=0.65, sharpe=-0.2, n_trades=18)},
+    )
+    assert [c.symbol for c in out] == ["STRONG", "BTLOSS"]
+
+
+def test_guard_failed_evidence_leaks_no_partial_boost():
+    # The subtle bug the guard must avoid: a guard-FAILED backtest (high win rate but below the
+    # 0.50 floor) must contribute NOTHING to order — it ranks purely on structure, so it cannot
+    # sort above a higher-structural-score name on the strength of its (disqualified) win rate.
+    out = rank_candidates(
+        [
+            _ri("STRONG", atr20_pct=0.080, classification="range_bound", efficiency_ratio=0.1),  # score .072, no ev
+            _ri("NEARMISS", atr20_pct=0.040, classification="range_bound", efficiency_ratio=0.1),  # score .036
+        ],
+        evidence={"NEARMISS": CandidateEvidence(win_rate=0.45, sharpe=0.9, n_trades=40)},
+    )
+    assert [c.symbol for c in out] == ["STRONG", "NEARMISS"]  # structure wins; win_rate 0.45 ignored
+
+
+def test_good_evidence_at_guard_boundary_still_leads():
+    # Boundary: win_rate exactly 0.50 AND sharpe just above 0 → clears the guard → leads a
+    # structurally-stronger unbacktested name (regression guard for the existing override path).
+    out = rank_candidates(
+        [
+            _ri("STRONG", atr20_pct=0.080, classification="range_bound", efficiency_ratio=0.1),
+            _ri("GOODBT", atr20_pct=0.030, classification="range_bound", efficiency_ratio=0.2),
+        ],
+        evidence={"GOODBT": CandidateEvidence(win_rate=0.50, sharpe=0.01, n_trades=25)},
+    )
+    assert [c.symbol for c in out] == ["GOODBT", "STRONG"]
+    assert out[0].backtested is True
+
+
 def test_evidence_with_null_win_rate_is_treated_as_no_evidence():
     # A backtest row that produced no win_rate (e.g. zero trades) must not jump the queue.
     out = rank_candidates(

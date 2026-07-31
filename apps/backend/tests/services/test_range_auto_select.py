@@ -366,7 +366,7 @@ async def test_audit_records_selection_evidence(db) -> None:
             )
         ).scalars().first()
     sel = json.loads(row.payload_json)["selection"]
-    assert sel["ranking_version"] == "evidence-first-v1"
+    assert sel["ranking_version"] == "evidence-first-v2-guarded"
     assert sel["n_requested"] == 2 and sel["universe_size"] == 3
     assert [c["symbol"] for c in sel["selected"]] == ["AAA", "BBB"]
     assert all(c["score"] > 0 for c in sel["selected"])
