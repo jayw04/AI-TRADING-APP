@@ -70,6 +70,11 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Protocol
 
+# The ONE production bound on what lands in an immutable observation. Imported rather than restated:
+# a narrow-readiness clause that pins the cap must pin the SAME cap the verifier enforces, and a second
+# copy of the number is a pin that can drift silently. `adjustment_verifier` imports nothing from here,
+# so this direction carries no cycle; the rest of the coupling stays behind `AdjustmentEvidence`.
+from app.validation.adjustment_verifier import MAX_EVIDENCE_ACTIONS
 from app.validation.forward_window import IntegrityStop
 from app.validation.security_lineage import (
     LINEAGE_BRIDGE_HOLE_MIN_SESSIONS,
@@ -151,11 +156,24 @@ class NarrowReadinessAttestation:
     reconciliation_artifact_sha256: str
     relevance_artifact_sha256: str
     quarantine_artifact_sha256: str
+    #: The digest of the EXACT relevance set the readiness construction builds — `relevance_digest`
+    #: over (store identity, window start, session date, sorted names).
+    #:
+    #: ⚠⚠ REQUIRED, and the reason this field exists at all. On 2026-07-27 the attestation's census was
+    #: copied from a DIAGNOSTIC runner that assembled its own relevance set (689 identities) while the
+    #: readiness path assembles a different one (670). Every count downstream of that divergence was
+    #: wrong, and nothing in the contract could see it, because the two sets were never compared. Now
+    #: they are: a census can only be checked against the set it was measured over.
+    relevance_set_sha256: str = ""
     #: PERMANENT identities whose price history this vintage withholds. Unexplained factor movements
     #: are tolerated only on these, and only because they are excluded from the decision path.
     quarantined_identities: frozenset[str] = frozenset()
     #: The per-status census this attestation was written against. If the measurement has moved, the
     #: attestation is stale and is refused rather than reinterpreted.
+    #:
+    #: ⚠ Must be DERIVED from the readiness construction — see `build_narrow_readiness_attestation`.
+    #: Hand-entered or diagnostic-sourced counts are what the `relevance_set_sha256` clause exists to
+    #: catch.
     expected_status_counts: dict[str, int] = field(default_factory=dict)
 
 
@@ -214,10 +232,45 @@ def _narrow_readiness_refusals(
         out.append(f"the disclosure is bound to assessment {str(bound)[:16]}… but the attestation "
                    f"names {attestation.relevance_artifact_sha256[:16]}…")
 
-    # (5) the evidence must be COMPLETE — a truncated census cannot support a completeness claim.
-    action_evidence = adjustment.get("action_evidence") or {}
-    if action_evidence.get("truncated"):
-        out.append("the per-action evidence is truncated, so 'every action assessed' is unverifiable")
+    # (5) every relevant action must be CLASSIFIED — CENSUS completeness, not PAYLOAD completeness.
+    #
+    # ⚠ This clause previously required `truncated == False`, which made the narrow status UNREACHABLE
+    # in production and was only ever satisfied by a diagnostic that raised the cap in its own process.
+    # `truncated` describes the bounded per-action DETAIL carried in the immutable observation; the
+    # census is computed over EVERY check before bounding (`evidence()` in R5b), so truncation says
+    # nothing whatever about whether an action was assessed. Against 1,764 relevant actions and a
+    # 200-action receipt cap, the old clause could not pass however clean the data was.
+    #
+    # The property actually worth proving is that the census accounts for every action, and that the
+    # bounding arithmetic is internally consistent — a receipt cannot claim 200 of 1,764 while the
+    # census sums to something else. The production cap stays exactly where it is.
+    action_evidence = dict(adjustment.get("action_evidence") or {})
+    if not action_evidence:
+        out.append("the adjustment evidence carries no bounded-evidence record, so the per-action "
+                   "census cannot be reconciled against what was serialized")
+    else:
+        total = int(action_evidence.get("total_action_count") or 0)
+        omitted = int(action_evidence.get("omitted_action_count") or 0)
+        cap = int(action_evidence.get("max_actions") or 0)
+        # Measured on the list actually carried, not on the count the record claims for it.
+        serialized = len(list(adjustment.get("checks") or ()))
+        census = sum(int(n) for n in counts.values())
+        if census != total:
+            out.append(f"the per-status census sums to {census} but {total} action(s) were assessed; "
+                       f"'every action classified' is exactly the claim that does not hold")
+        if omitted != total - serialized:
+            out.append(f"the bounded-evidence arithmetic is inconsistent: {total} assessed, "
+                       f"{serialized} serialized, {omitted} recorded as omitted")
+        if bool(action_evidence.get("truncated")) is not (omitted > 0):
+            out.append(f"truncated={action_evidence.get('truncated')} contradicts "
+                       f"{omitted} omitted action(s)")
+        # The cap is a PRODUCTION control. An evidence object built with a raised cap is a diagnostic
+        # one, and a diagnostic must not be able to satisfy a production readiness contract.
+        if cap <= 0 or cap > MAX_EVIDENCE_ACTIONS:
+            out.append(f"the evidence was bounded at {cap} action(s), not the production cap of "
+                       f"{MAX_EVIDENCE_ACTIONS}; a raised cap makes this a diagnostic record")
+        elif serialized > cap:
+            out.append(f"{serialized} action(s) serialized against a cap of {cap}")
 
     # (6) every unexplained factor movement must sit on a QUARANTINED identity.
     #
@@ -234,8 +287,26 @@ def _narrow_readiness_refusals(
         if stray:
             out.append(f"unexplained factor movement(s) on non-quarantined identities {stray}")
 
-    # (7) the measured census must match what the attestation was written against.
-    if attestation.expected_status_counts and dict(attestation.expected_status_counts) != counts:
+    # (7) the census must have been measured over THIS session's relevance set.
+    #
+    # ⚠ Checked BEFORE the counts, because it is the clause that explains them. Two runs over different
+    # identity sets produce different censuses for the same data, and comparing counts alone reports a
+    # stale attestation without saying why. This binds the census to the set it was measured over.
+    measured_set = str(adjustment.get("relevance_set_sha256") or "")
+    if not attestation.relevance_set_sha256:
+        out.append("the attestation names no relevance set, so its census cannot be attributed to any "
+                   "particular construction; derive it with build_narrow_readiness_attestation")
+    elif attestation.relevance_set_sha256 != measured_set:
+        out.append(f"the attestation was written over relevance set "
+                   f"{attestation.relevance_set_sha256[:16]}… but this assessment constructed "
+                   f"{(measured_set or '<none>')[:16]}…; the census describes a different set of "
+                   f"securities and is not evidence about this one")
+
+    # (8) the measured census must match what the attestation was written against.
+    if not attestation.expected_status_counts:
+        out.append("the attestation carries no expected census, so there is nothing to re-derive the "
+                   "measurement against")
+    elif dict(attestation.expected_status_counts) != counts:
         out.append(f"the attestation was written against {dict(attestation.expected_status_counts)} "
                    f"but the measurement is {counts}; the attestation is stale")
     return out
@@ -373,20 +444,36 @@ class DataFinalityEvidence:
         counts = adj.get("checks_by_status") or {}
         reasons = adj.get("checks_by_reason_code") or {}
         tolerated = counts.get(_NARROW_TOLERATED_STATUS, 0)
+        unexplained = int(adj.get("unexplained_adjustment_count") or 0)
         return {
             "session_date": narrow.get("attested_session", self.session_date),
             "limitation_status": _NARROW_TOLERATED_STATUS,
+            # ⚠ The ACTIVE limitation for this session, measured over this session's relevance set.
+            # It is legitimately 0 when the adjudicated events lie outside that set — see below.
             "limitation_count": tolerated,
+            # ⚠ Filtered on the COUNT, not merely on the key's presence. The census carries a key for
+            # every reason code the verifier knows about, so a presence test lists a reason that fired
+            # zero times — which reads as a finding.
             "limitation_reason_codes": sorted(
-                code for code in reasons if code == _NARROW_DISCLOSURE_REASON),
+                code for code, n in reasons.items() if code == _NARROW_DISCLOSURE_REASON and n),
+            # ⚠⚠ The two figures a reader needs in order NOT to be misled. A corpus-wide adjudication
+            # is not a session finding: an event the relevance set never contains cannot limit a
+            # decision the relevance set produced. Stated side by side so neither can be read as the
+            # other.
+            "known_corpus_wide_unsupported_semantics": adj.get("ma_disclosure_entry_count"),
+            "present_in_readiness_relevance_set": tolerated,
+            "readiness_relevance_set_sha256": adj.get("relevance_set_sha256"),
+            "relevant_ticker_count": adj.get("relevant_ticker_count"),
+            "unexplained_movements_on_quarantined_identities": unexplained,
             "reconciliation_artifact_sha256": narrow.get("reconciliation_artifact_sha256"),
             "relevance_artifact_sha256": narrow.get("relevance_artifact_sha256"),
             "quarantine_artifact_sha256": narrow.get("quarantine_artifact_sha256"),
             "quarantined_identities": narrow.get("quarantined_identities", []),
             "full_action_semantics_proven": False,
-            "claim": "the decision this session makes is valid; certain economically terminal "
-                     "corporate actions remain economically unproven and were measured to have no "
-                     "part in it",
+            "claim": "the decision this session makes is valid; the broad proof that EVERY corporate "
+                     "action is economically reconciled does not hold, and each condition that "
+                     "remains was measured over this session's own relevance set to have no part in "
+                     "the decision",
         }
 
 
@@ -559,6 +646,91 @@ def _excluded_by_rule(facts: _TickerFacts | None, window_start: date, session_da
     if facts.first_price is not None and facts.first_price > window_start:
         return True
     return bool(facts.delisted and facts.last_price is not None and facts.last_price < session_date)
+
+
+def build_narrow_readiness_attestation(
+    store: Any,
+    session_date: date,
+    *,
+    construction: ConstructionSpec | None = None,
+    universe_fn: UniverseFn | None = None,
+    adjustment_verifier: AdjustmentVerifier,
+    reconciliation_artifact_sha256: str,
+    relevance_artifact_sha256: str,
+    quarantine_artifact_sha256: str,
+    quarantined_identities: frozenset[str] = frozenset(),
+) -> tuple[NarrowReadinessAttestation, dict[str, Any]]:
+    """Derive an attestation MECHANICALLY from the readiness construction, and record what it was
+    derived from.
+
+    ⚠⚠ THIS IS A SEPARATE, PRE-PRODUCTION STEP AND IS DELIBERATELY NOT REACHABLE FROM
+    `assess_data_finality`. The readiness path must never learn its own expectations: an assessment
+    that derived `expected_status_counts` from the run it is checking would agree with itself by
+    construction, and clause (8) would prove nothing. What makes the derivation honest is that its
+    OUTPUT is an artifact — reviewed, published and bound by digest — consumed by a later, independent
+    run that re-derives every clause and refuses on any divergence.
+
+    ⚠ Why this exists at all: on 2026-07-27 the attestation's census was copied from a DIAGNOSTIC
+    runner that assembled its own relevance set (689 identities) rather than the one the readiness path
+    builds (670). The counts were internally consistent and completely inapplicable, and the deployed
+    runtime correctly refused them. Nothing here may be hand-entered; the relevance set, its digest and
+    the census all come from ONE run of the identical production construction.
+
+    Returns the attestation and an OPEN construction record naming the session, the relevance set it
+    was measured over, that set's digest, the resulting census and every bound artifact digest.
+    """
+    seen: dict[str, Any] = {}
+
+    def capturing(window_start: date, when: date, tickers: list[str],
+                  store_identity: str) -> AdjustmentEvidence:
+        # The relevance set is assembled INSIDE the assessment; capturing it at the one boundary it
+        # crosses is what guarantees the attestation describes the production set and not a rebuild of
+        # it. A second reconstruction here would reintroduce exactly the divergence this repairs.
+        seen["relevant_tickers"] = sorted(set(tickers))
+        seen["window_start"] = window_start
+        return adjustment_verifier(window_start, when, tickers, store_identity)
+
+    ev = assess_data_finality(store, session_date, construction=construction,
+                              universe_fn=universe_fn, adjustment_verifier=capturing)
+    adjustment = ev.adjustment_evidence or {}
+    if not adjustment:
+        raise DataFinalityError(
+            f"the assessment stopped at {ev.verdict} before corporate-action verification, so no "
+            f"relevance set or census exists to attest to: {ev.detail}")
+
+    captured_start = seen.get("window_start")
+    counts = {str(k): int(v) for k, v in (adjustment.get("checks_by_status") or {}).items()}
+    attestation = NarrowReadinessAttestation(
+        session_date=session_date,
+        reconciliation_artifact_sha256=reconciliation_artifact_sha256,
+        relevance_artifact_sha256=relevance_artifact_sha256,
+        quarantine_artifact_sha256=quarantine_artifact_sha256,
+        relevance_set_sha256=str(adjustment.get("relevance_set_sha256") or ""),
+        quarantined_identities=frozenset(quarantined_identities),
+        expected_status_counts=counts)
+    record = {
+        "derived_by": "build_narrow_readiness_attestation",
+        "session_date": session_date.isoformat(),
+        "window_start": captured_start.isoformat() if isinstance(captured_start, date) else None,
+        "readiness_verdict_without_attestation": str(ev.verdict),
+        "scoring_universe_n": ev.construction.get("scoring_universe_n"),
+        "proxy_universe_n": ev.construction.get("proxy_universe_n"),
+        "session_eligible_universe": ev.session_eligible_universe,
+        "proxy_expected_constituents": ev.proxy_expected_constituents,
+        "relevance_set_sha256": attestation.relevance_set_sha256,
+        "relevant_ticker_count": len(seen.get("relevant_tickers") or ()),
+        "relevant_identities": list(seen.get("relevant_tickers") or ()),
+        "expected_status_counts": dict(counts),
+        "store_identity_sha256": ev.store_identity_sha256,
+        "reconciliation_artifact_sha256": reconciliation_artifact_sha256,
+        "relevance_artifact_sha256": relevance_artifact_sha256,
+        "quarantine_artifact_sha256": quarantine_artifact_sha256,
+        "quarantined_identities": sorted(quarantined_identities),
+        "ma_disclosure_sha256": adjustment.get("ma_disclosure_sha256"),
+        "ma_disclosure_entry_count": adjustment.get("ma_disclosure_entry_count"),
+        "unexplained_adjustment_count": adjustment.get("unexplained_adjustment_count"),
+    }
+    return attestation, record
 
 
 def assess_data_finality(
@@ -820,31 +992,57 @@ def assess_data_finality(
         # part in it".
         if narrow_readiness is not None:
             refusals = _narrow_readiness_refusals(adjustment, narrow_readiness, session_date)
+            counts = dict(adjustment.get("checks_by_status") or {})
+            # ⚠ Two DIFFERENT numbers, reported separately and never collapsed. The disclosure is
+            # adjudicated corpus-wide; how many of its events this session's relevance set actually
+            # contains is a measurement, and on 2026-07-27 the answer is zero. Reporting only the
+            # corpus-wide figure would state a limitation this session does not carry; reporting only
+            # the session figure would hide that the adjudication exists at all.
+            disclosed = counts.get(_NARROW_TOLERATED_STATUS, 0)
+            corpus_wide = adjustment.get("ma_disclosure_entry_count")
             narrow = {
                 "attested_session": narrow_readiness.session_date.isoformat(),
                 "reconciliation_artifact_sha256": narrow_readiness.reconciliation_artifact_sha256,
                 "relevance_artifact_sha256": narrow_readiness.relevance_artifact_sha256,
                 "quarantine_artifact_sha256": narrow_readiness.quarantine_artifact_sha256,
+                "attested_relevance_set_sha256": narrow_readiness.relevance_set_sha256,
+                "measured_relevance_set_sha256": adjustment.get("relevance_set_sha256"),
                 "quarantined_identities": sorted(narrow_readiness.quarantined_identities),
                 "full_action_semantics_proven": False,
                 "decision_validity_proven": not refusals,
-                "nondecision_limitations_present": bool(
-                    (adjustment.get("checks_by_status") or {}).get(_NARROW_TOLERATED_STATUS, 0)),
+                # Derived from the MEASUREMENT, never asserted to preserve an expected shape.
+                "nondecision_limitations_present": bool(disclosed),
+                "corpus_wide_unsupported_semantics_count": corpus_wide,
+                "unsupported_semantics_in_readiness_relevance_set": disclosed,
+                "unexplained_movements_on_quarantined_identities": int(
+                    adjustment.get("unexplained_adjustment_count") or 0),
                 "refusals": refusals,
             }
             adjustment = {**adjustment, "narrow_readiness": narrow}
             if not refusals:
-                counts = dict(adjustment.get("checks_by_status") or {})
-                disclosed = counts.get(_NARROW_TOLERATED_STATUS, 0)
+                # The detail must describe WHAT was limited on THIS session. A fixed sentence about
+                # economically terminal actions reads as a finding even when the count is zero.
+                unexplained = int(adjustment.get("unexplained_adjustment_count") or 0)
+                limits = []
+                if disclosed:
+                    limits.append(f"{disclosed} economically terminal corporate action(s) remain "
+                                  f"economically unproven, each machine-verified as outside the "
+                                  f"scoring universe, the proxy contributors, the top five and the "
+                                  f"regime inputs")
+                if unexplained:
+                    limits.append(f"{unexplained} unexplained factor movement(s) sit on quarantined "
+                                  f"identities excluded from the decision path")
+                if corpus_wide:
+                    limits.append(f"the supplied relevance assessment adjudicates {corpus_wide} "
+                                  f"event(s) corpus-wide, of which {disclosed} fall inside this "
+                                  f"session's relevance set")
                 return evidence(
                     DataReadiness.READY_DECISION_VALID_WITH_DISCLOSED_NONDECISION_LIMITATIONS,
-                    f"the July {session_date.day} decision path is proven valid while {disclosed} "
-                    f"economically terminal corporate action(s) remain economically unproven; each "
-                    f"was machine-verified as outside the scoring universe, the proxy contributors, "
-                    f"the top five and the regime inputs, and every unexplained factor movement sits "
-                    f"on a quarantined identity. FULL ACTION SEMANTICS ARE NOT PROVEN — this is a "
-                    f"narrower claim bound to this session and to the reconciliation, relevance and "
-                    f"quarantine artifacts named in the evidence",
+                    f"the {session_date.isoformat()} decision path is proven valid while "
+                    + "; ".join(limits or ["the broad reflection proof does not hold"])
+                    + ". FULL ACTION SEMANTICS ARE NOT PROVEN — this is a narrower claim bound to "
+                      "this session, to the relevance set it constructed, and to the reconciliation, "
+                      "relevance and quarantine artifacts named in the evidence",
                     basis, False, adjustment)
         return evidence(
             DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED,

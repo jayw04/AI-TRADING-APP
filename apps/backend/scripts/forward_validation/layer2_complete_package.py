@@ -278,8 +278,11 @@ def main() -> int:
                                   "LIMITATIONS, reachable ONLY via NarrowReadinessAttestation",
             "guards": "every clause re-derived from the measured evidence: every action assessed · no "
                       "conflict/insufficient · only the disclosed status tolerated · disclosure "
-                      "digest-bound · evidence not truncated · unexplained movements only on "
-                      "quarantined identities · census not stale",
+                      "digest-bound · per-status census sums to the assessed total and the bounding "
+                      "arithmetic is consistent (CENSUS completeness — payload truncation under the "
+                      "200-action production cap is expected and is NOT a refusal) · the census was "
+                      "measured over this session's own relevance set, bound by digest · unexplained "
+                      "movements only on quarantined identities · census not stale",
             "session_scoping": "the attestation names ONE session_date and is REFUSED for any other, "
                                "so the status can never be inherited",
             "not_in_readiness_set": "UNRESOLVED_NONDECISION_MA_SEMANTICS is deliberately NOT in "

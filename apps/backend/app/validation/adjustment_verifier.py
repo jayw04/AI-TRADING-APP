@@ -678,6 +678,12 @@ class AdjustmentVerificationEvidence:
     #: downstream gate can bind the disclosure to the artifact that measured it instead of parsing it
     #: out of prose.
     ma_disclosure_sha256: str | None = None
+    #: How many events the supplied disclosure covers CORPUS-WIDE. Recorded separately from
+    #: `checks_by_status` because the two answer different questions and conflating them is exactly how
+    #: the 2026-07-27 attestation went stale: a disclosure adjudicated over a BROADER identity set lists
+    #: events that this session's relevance set may not contain at all. A reader must be able to see
+    #: "18 known corpus-wide, 0 present in this session" rather than infer one number from the other.
+    ma_disclosure_entry_count: int | None = None
     # A3: `checks` is a BOUNDED selection; `action_evidence` says how bounded and by what rule, so a
     # reader never has to guess whether a short list means "few actions" or "many, truncated".
     action_evidence: BoundedActionEvidence | None = None
@@ -898,6 +904,7 @@ def verify_adjustments(
             checks_by_reason_code=by_reason, factor_census=census,
             ma_disclosure_sha256=(ma_disclosure.assessment_artifact_sha256
                                   if ma_disclosure else None),
+            ma_disclosure_entry_count=(len(ma_disclosure.entries) if ma_disclosure else None),
             unexplained_adjustment_count=unexplained_count, detail=detail,
             tolerance=tol.basis(), action_evidence=bounded, checks=bounded_checks,
             unexplained_examples=unexplained)
