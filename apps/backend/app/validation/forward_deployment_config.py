@@ -92,6 +92,14 @@ class ForwardDeploymentConfig:
     runtime_root: Path = DEFAULT_RUNTIME_ROOT
     #: Deploy-time ancestry attestation, for runtimes with no git repository to ask.
     ancestry_marker_path: Path | None = None
+    #: The external countersignature sidecar for a Layer 2 reconstruction.
+    #:
+    #: ⚠ Optional in the CONFIG, mandatory at COMPOSITION for a Layer 2 construction. It is not in
+    #: `_REQUIRED_KEYS` because a base-plus-delta deployment legitimately has none — its approval
+    #: travels with each delta's own countersignature reference. Absence is therefore diagnosed where
+    #: the construction kind is actually known, by `resolve_governed_construction`, rather than
+    #: refusing every deployment for lacking a file only one kind needs.
+    corpus_countersignature_path: Path | None = None
     runtime_digest_path: Path | None = None
     runtime_digest_env: str | None = None
     expected_commit: str | None = None
@@ -174,6 +182,8 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
         backstop_days=int(payload["backstop_days"]),
         weight_drift_pct=float(payload["weight_drift_pct"]),
         witness=load_witness_config(payload.get("witness")),
+        corpus_countersignature_path=(Path(payload["corpus_countersignature_path"])
+                                      if payload.get("corpus_countersignature_path") else None),
         runtime_digest_path=(Path(payload["runtime_digest_path"])
                              if payload.get("runtime_digest_path") else None),
         runtime_digest_env=(str(payload["runtime_digest_env"])

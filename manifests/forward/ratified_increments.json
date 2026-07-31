@@ -1,152 +1,21 @@
 {
-  "commit_count": 28,
   "commits": [
     {
-      "commit": "d13310a32227c67163250566eca719d5f734dd53",
+      "commit": "7c2ca104f5a6fce3d085ccea06c192068e8b62a1",
       "date": "2026-07-31",
-      "subject": "fix(layer2): census-completeness readiness gating, derived attestation, two-stage Phase C runner (#581)"
-    },
-    {
-      "commit": "7d8af096fcf0f06e08d4936100e9e7a3546b375d",
-      "date": "2026-07-30",
-      "subject": "feat(layer2): native Layer 2 corpus loading, factor-specific adjustment verification, narrow session-scoped readiness (#577)"
-    },
-    {
-      "commit": "5173b7c2b3c64ea5f37687c6de6c4c0ee04203b6",
-      "date": "2026-07-29",
-      "subject": "feat(forward-validation): bind TICKERS into the governed construction and resolve securities by permanent lineage (ADR 0048 amended) (#542)"
-    },
-    {
-      "commit": "1d4fd99d7b9bc0a3673e94eb48742d27818f817f",
-      "date": "2026-07-27",
-      "subject": "ADR 0048: governed corpora as an immutable base plus ordered, countersigned deltas (#528)"
-    },
-    {
-      "commit": "4c16619521c9c28e0888d8c2176255baf644acca",
-      "date": "2026-07-26",
-      "subject": "Step 4D: production witness infrastructure (ADR 0047) \u00e2\u20ac\u201d no AWS resource provisioned (#525)"
-    },
-    {
-      "commit": "181601249cf0da00b00a5a33bcf2e91213723252",
-      "date": "2026-07-26",
-      "subject": "fix(validation): Step 4C idempotency case republishes the stored receipt (#524)"
-    },
-    {
-      "commit": "7a02026ff04d4a7d00a8f192d15a9d501ddc9ec5",
-      "date": "2026-07-26",
-      "subject": "feat(validation): Step 4C platform boundary, plan and integration-proof harness (#523)"
-    },
-    {
-      "commit": "3f41172bdfecdfc2528292b7edb546f9e5479902",
-      "date": "2026-07-26",
-      "subject": "feat(validation): S3 Object-Lock external witness sink (ADR 0046, Step 4B) (#520)"
-    },
-    {
-      "commit": "c4f0790ab5c2497ca501241226409e7bbb39fc08",
-      "date": "2026-07-26",
-      "subject": "feat(validation): AWS KMS witness signer (ADR 0046, Step 4A) (#519)"
-    },
-    {
-      "commit": "9635b815858cbc5dc14655267d5cdeb6c4c740be",
-      "date": "2026-07-26",
-      "subject": "feat(validation): implement algorithm-qualified witness protocol v2 (#516)"
-    },
-    {
-      "commit": "9df14db4b75803b6d166c3492e9f54fd117d6f65",
-      "date": "2026-07-25",
-      "subject": "fix(validation): close forward ACTIONS ingest prerequisites A1-A4 (#513)"
-    },
-    {
-      "commit": "28ceca1c621768260c26b65872f7b09a6e8123d3",
-      "date": "2026-07-25",
-      "subject": "fix(validation): raw verifying-key decoding must not strip key bytes (#514)"
-    },
-    {
-      "commit": "d3c1070d6737f398334c7361ef50280f83c11296",
-      "date": "2026-07-25",
-      "subject": "R5e-2: enforced witness carrier + the production composition root (#510)"
-    },
-    {
-      "commit": "beb5f21281dcc5616b55644a2bea53362d2be22c",
-      "date": "2026-07-25",
-      "subject": "feat(validation): R5e-1 \u00e2\u20ac\u201d production witness enforcement (separately controlled signer, immutable sink) (#509)"
-    },
-    {
-      "commit": "70cb39966a1ed347cc7820af18a2b5f3d890f2b2",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R5d \u00e2\u20ac\u201d independent chain-tip anchor with cross-boundary witness (#508)"
-    },
-    {
-      "commit": "9450172baa322f1aec13d1a7ab8f4737969a4a80",
-      "date": "2026-07-24",
-      "subject": "R5c-2b2: runnable forward-validation session assembly (#507)"
-    },
-    {
-      "commit": "baec4c6b7535ed9e46619de1c74ac542d0ad15d3",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R5c-2b1 \u00e2\u20ac\u201d Account-4 probe, deployment identity, governed config, readiness CLI (#506)"
-    },
-    {
-      "commit": "645d8a9f6d77977827a471f8105e38fac330931c",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R5c-2a \u00e2\u20ac\u201d instrument snapshot + the real capture_seam decision provider (#505)"
-    },
-    {
-      "commit": "a7ced2d558497a37f87529cce47a39adc73fb150",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R5c-1 \u00e2\u20ac\u201d production data bindings + the readiness gate wired into the runner (#504)"
-    },
-    {
-      "commit": "2225666392bf1b00c7658874478f0947bca72bec",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R5b \u00e2\u20ac\u201d corporate-action adjustment verifier + evidence-returning gate seam (#503)"
-    },
-    {
-      "commit": "da4881660878b3275d67acd3ac3d462620dee951",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R5a \u00e2\u20ac\u201d per-session data-finality gate over the registered inputs (#500)"
-    },
-    {
-      "commit": "a5729d4b65f4a180e0f3d0c314cf0d7b8581a65e",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R4 \u00e2\u20ac\u201d forward session runner, one governed observation per eligible session (#497)"
-    },
-    {
-      "commit": "98b0a53cd8cc2fcbce0327255efdaec8443ba5de",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R2b \u00e2\u20ac\u201d forward per-session evaluator with fail-closed boundary checks (#493)"
-    },
-    {
-      "commit": "29c727be0a4a99d363a14b2518c6e42afdff9390",
-      "date": "2026-07-24",
-      "subject": "feat(validation): R3 \u00e2\u20ac\u201d chained session recorder for forward observations 2..N (#494)"
-    },
-    {
-      "commit": "b986d04a9af1928254e38ec270af54c98766e44b",
-      "date": "2026-07-23",
-      "subject": "feat(validation): R2a \u00e2\u20ac\u201d book_decision bridge (live instrument decides, registered cost accounts) (#492)"
-    },
-    {
-      "commit": "31a0d32d94c1cfd161aa5ef06f7852bceb58d557",
-      "date": "2026-07-23",
-      "subject": "feat(validation): R1 \u00e2\u20ac\u201d non-ordering shadow ledger for equal-weight forward validation (#491)"
-    },
-    {
-      "commit": "bba4fc7dd1b48f93dc6e26402d7d663acd04061e",
-      "date": "2026-07-23",
-      "subject": "feat(validation): atomic first-observation directory-commit + full provenance for the forward window (#476)"
-    },
-    {
-      "commit": "c1efd8e85dc876036e1f62fe248c710011066559",
-      "date": "2026-07-23",
-      "subject": "feat(validation): first-session fail-closed integrity gate + sealed observation record (#474)"
+      "subject": "fix(prereg): re-freeze the measurement instrument in a governed manifest outside the tree it pins (#582)"
     }
   ],
-  "from_commit": "764883b58cb96936f23e49182dd02b70d969501b",
+  "current_freeze_range": {
+    "from_commit": "d13310a32227c67163250566eca719d5f734dd53",
+    "to_commit": "7c2ca104f5a6fce3d085ccea06c192068e8b62a1"
+  },
+  "current_increment_count": 1,
+  "inventory_scope": "INCREMENTS_SINCE_THE_IMMEDIATELY_PRECEDING_FREEZE",
   "kind": "ratified_measurement_increments",
   "measured_paths": [
     "app/validation"
   ],
-  "to_commit": "d13310a32227c67163250566eca719d5f734dd53",
-  "version": "1.0"
+  "previous_inventory_sha256": "3c324a25b7c72cab602ca33c184d10f8d1508d6c20544ea7e60e7cb0870850a4",
+  "version": "1.1"
 }

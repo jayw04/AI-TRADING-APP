@@ -21,6 +21,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from app.validation.governed_corpus import (
+    CorpusManifest,
+    Dgs3moManifest,
     load_corpus_manifest,
     load_dgs3mo_manifest,
 )
@@ -98,6 +100,79 @@ def install_governed_construction(tmp_path: Path, session: date) -> dict:
 
     corpus = load_corpus_manifest(corpus_path)
     dgs = load_dgs3mo_manifest(dgs3mo_manifest_path)
+    return _base_block(corpus, dgs)
+
+
+#: The in-repo Layer 2 construction artifacts. Installed REAL, for the same reason the frozen DGS3MO
+#: snapshot is: a fixture that hand-rolls a plausible manifest proves the loader parses fixtures, not
+#: that it accepts the construction actually deployed. Using the committed files means these tests also
+#: re-prove that `corpus_manifest_v2.json` and its countersignature sidecar still hash to the values
+#: every downstream binding names.
+LAYER2_ARTIFACTS = Path(__file__).resolve().parents[4] / "manifests" / "layer2"
+
+#: The session the committed Layer 2 reconstruction was built for. It is a property of that artifact,
+#: not a choice the tests get to make.
+LAYER2_SESSION = date(2026, 7, 27)
+
+
+def install_layer2_construction(tmp_path: Path, *, session: date = LAYER2_SESSION,
+                                sidecar: bool = True) -> dict:
+    """Install the real Layer 2 reconstruction and its countersignature sidecar.
+
+    Returns the deployment manifest `corpus` block, built by the SAME producer the session path
+    recomputes it with — so a test that composes successfully has also proved the generator and the
+    session path agree on the block. Pass ``sidecar=False`` to install the construction WITHOUT its
+    approval, which is the refusal case.
+
+    ⚠ `session` sizes the DGS3MO extension ONLY. The corpus manifest is the real committed artifact
+    and its coverage is a property of that artifact, not of the caller — which is exactly what lets a
+    test compose a DIFFERENT covered session against the same corpus without the risk-free series
+    becoming the binding constraint by accident.
+    """
+    from app.validation.forward_window import DGS3MO_OBSERVATION_CUTOFF, DGS3MO_SNAPSHOT_SHA256
+    from app.validation.governed_corpus import (
+        deployment_corpus_block,
+        load_any_corpus_manifest,
+        load_layer2_countersignature,
+        normalize_corpus_manifest,
+    )
+
+    (tmp_path / "DGS3MO.csv").write_bytes((GOVERNED_ARTIFACTS / "data" / "DGS3MO.csv").read_bytes())
+    (tmp_path / "TrialLedger.json").write_bytes(
+        (GOVERNED_ARTIFACTS / "TrialLedger_v1.0.json").read_bytes())
+
+    corpus_path = tmp_path / "corpus_manifest.json"
+    corpus_path.write_bytes((LAYER2_ARTIFACTS / "corpus_manifest_v2.json").read_bytes())
+    if sidecar:
+        (tmp_path / "countersignature.json").write_bytes(
+            (LAYER2_ARTIFACTS / "corpus_countersignature_v1.json").read_bytes())
+
+    dgs3mo_manifest_path = tmp_path / "dgs3mo_manifest.json"
+    dgs3mo_manifest_path.write_text(json.dumps({
+        "base_sha256": DGS3MO_SNAPSHOT_SHA256,
+        "base_coverage_through": DGS3MO_OBSERVATION_CUTOFF,
+        "extensions": [{
+            "session_date": session.isoformat(),
+            "coverage_through": session.isoformat(),
+            "sha256": "1" * 64,
+            "source_sha256": "2" * 64,
+            "rows": 1,
+            "retrieved_at": f"{session.isoformat()}T22:05:00Z",
+            "countersignature": "fred-dgs3mo-ext-1",
+        }],
+    }), encoding="utf-8")
+
+    corpus = load_any_corpus_manifest(corpus_path)
+    dgs = load_dgs3mo_manifest(dgs3mo_manifest_path)
+    countersignature = (load_layer2_countersignature(tmp_path / "countersignature.json")
+                        if sidecar else None)
+    return deployment_corpus_block(
+        normalize_corpus_manifest(corpus),
+        dgs3mo_manifest_sha256=dgs.dgs3mo_manifest_sha256,
+        countersignature=countersignature) if sidecar else {}
+
+
+def _base_block(corpus: CorpusManifest, dgs: Dgs3moManifest) -> dict:
     return {
         "base_corpus_sha256": corpus.base_corpus_sha256,
         "base_coverage_through": corpus.base_coverage_through.isoformat(),

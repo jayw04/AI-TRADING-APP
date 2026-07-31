@@ -332,7 +332,6 @@ def _resolve_governed_construction(config: ForwardDeploymentConfig,
                                    session: date) -> GovernedConstruction:
     """Validate the governed construction for this session, fail-closed (ADR 0048)."""
     corpus_block = _deployment_corpus_block(config)
-    base_cutoff = _declared_base_cutoff(corpus_block, config)
     return resolve_governed_construction(
         corpus_manifest_path=config.corpus_manifest_path,
         dgs3mo_manifest_path=config.dgs3mo_manifest_path,
@@ -342,15 +341,39 @@ def _resolve_governed_construction(config: ForwardDeploymentConfig,
         frozen_trial_ledger_sha256=TRIAL_LEDGER_SHA256,
         deployment_manifest_corpus_block=corpus_block,
         observation_session=session,
-        expected_sessions=_expected_delta_sessions(base_cutoff, session),
+        expected_sessions=_expected_sessions_for(config, session),
+        countersignature_path=config.corpus_countersignature_path,
     )
 
 
-def _declared_base_cutoff(corpus_block: Any, config: ForwardDeploymentConfig) -> date:
-    """The base cutoff the CORPUS MANIFEST declares — read before validation only to size the expected
-    session list. It is not trusted: `resolve_governed_construction` re-reads the manifest and refuses
-    unless every identity agrees with the deployment manifest, so a manipulated cutoff here produces a
-    session list that the chain then fails to match."""
+def _expected_sessions_for(config: ForwardDeploymentConfig, session: date) -> tuple[date, ...]:
+    """The delta sessions a BASE-PLUS-DELTA construction must carry, or `()` for a reconstruction.
+
+    ⚠ A Layer 2 reconstruction has no delta chain at all, so there is no expected session list to
+    build and no base cutoff to read. Returning `()` states that; synthesizing a cutoff from its
+    governed coverage in order to produce a list would invent a chain the construction does not have.
+    """
+    if _declared_construction_kind(config):
+        return ()
+    return _expected_delta_sessions(_declared_base_cutoff(config), session)
+
+
+def _declared_construction_kind(config: ForwardDeploymentConfig) -> str:
+    """The `kind` the corpus manifest declares, or `""` for the base-plus-delta construction, which
+    predates the marker and carries none."""
+    try:
+        payload = json.loads(Path(config.corpus_manifest_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CompositionError(
+            f"the corpus manifest at {config.corpus_manifest_path} is unreadable: {exc}") from exc
+    return str(payload.get("kind", "")).strip() if isinstance(payload, dict) else ""
+
+
+def _declared_base_cutoff(config: ForwardDeploymentConfig) -> date:
+    """The base cutoff a BASE-PLUS-DELTA corpus manifest declares — read before validation only to
+    size the expected session list. It is not trusted: `resolve_governed_construction` re-reads the
+    manifest and refuses unless every identity agrees with the deployment manifest, so a manipulated
+    cutoff here produces a session list that the chain then fails to match."""
     try:
         payload = json.loads(Path(config.corpus_manifest_path).read_text(encoding="utf-8"))
         return date.fromisoformat(str(payload["base_coverage_through"]))

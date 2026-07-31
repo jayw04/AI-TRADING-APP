@@ -14,8 +14,9 @@
   "build_info_path": "/opt/workbench/forward/evidence/build_info.json",
   "deployment_manifest_path": "/opt/workbench/forward/evidence/deployment_manifest.json",
 
-  "_construction_comment": "The governed construction: immutable base plus ordered, countersigned deltas (ADR 0048).",
+  "_construction_comment": "The governed construction: immutable base plus ordered, countersigned deltas (ADR 0048), OR a layer2_governed_corpus reconstruction, which has no base and no deltas and requires the countersignature sidecar below.",
   "corpus_manifest_path": "/opt/workbench/forward/governed/corpus_manifest.json",
+  "corpus_countersignature_path": "/opt/workbench/forward/governed/layer2/corpus_countersignature_v1.json",
   "dgs3mo_manifest_path": "/opt/workbench/forward/governed/dgs3mo_manifest.json",
 
   "deployment_model": "SOURCE_CHECKOUT",
