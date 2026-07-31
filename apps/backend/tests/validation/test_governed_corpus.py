@@ -449,7 +449,8 @@ class TestObservationIdentities:
     def test_the_construction_identity_may_not_be_sourced_from_the_store(self):
         from app.validation.governed_corpus import construction_identity
 
-        with pytest.raises(ManifestIdentityConflict, match="recomputed from a CorpusManifest"):
+        with pytest.raises(ManifestIdentityConflict,
+                           match="recomputed from a governed corpus manifest"):
             construction_identity(_finality("8" * 64))  # type: ignore[arg-type]
 
     def test_a_hand_built_identity_carries_no_provenance(self):
@@ -579,6 +580,9 @@ class TestCompositionWiring:
             dgs3mo_manifest_path=tmp_path / "dgs3mo_manifest.json",
             dgs3mo_path=tmp_path / "DGS3MO.csv",
             trial_ledger_path=tmp_path / "TrialLedger.json",
+            # A base-plus-delta deployment legitimately configures no sidecar: its approval travels
+            # with each delta's own countersignature reference.
+            corpus_countersignature_path=None,
             deployment_manifest_path=tmp_path / "manifest.json")
 
     def test_the_composition_root_resolves_a_complete_construction(self, tmp_path: Path):

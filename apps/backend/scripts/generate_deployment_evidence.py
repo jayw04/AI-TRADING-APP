@@ -40,10 +40,15 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.validation.governed_corpus import (  # noqa: E402
+    Layer2CorpusManifest,
     canonical_json,
+    deployment_corpus_block,
     file_sha256,
-    load_corpus_manifest,
+    load_any_corpus_manifest,
     load_dgs3mo_manifest,
+    load_layer2_countersignature,
+    normalize_corpus_manifest,
+    require_countersignature,
     verify_frozen_artifact,
 )
 
@@ -149,8 +154,23 @@ def deployment_manifest(repo: Path, *, build: dict[str, Any], corpus_manifest_pa
                         host_identity: str | None, image_digest: str | None) -> dict[str, Any]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
 
-    corpus = load_corpus_manifest(corpus_manifest_path)
+    # Whichever construction the deployment actually installed. The generator must be able to describe
+    # a reconstruction as truthfully as a base-plus-delta chain — a generator that understands only one
+    # of them produces a manifest the session path then refuses, which is how the two drift apart.
+    corpus = load_any_corpus_manifest(corpus_manifest_path)
+    normalized = normalize_corpus_manifest(corpus)
     dgs3mo = load_dgs3mo_manifest(dgs3mo_manifest_path)
+
+    countersignature = None
+    if isinstance(corpus, Layer2CorpusManifest):
+        declared = str(config.get("corpus_countersignature_path", "") or "").strip()
+        if not declared:
+            raise GenerationError(
+                "the deployment installed a Layer 2 reconstruction but its configuration names no "
+                "corpus_countersignature_path; the external approval is part of what the deployment "
+                "is authorized to assemble and is not optional for this construction kind")
+        countersignature = load_layer2_countersignature(Path(declared))
+        require_countersignature(corpus, countersignature)
 
     # The frozen inputs are verified HERE, at generation, as well as at session start. A manifest that
     # binds a drifted artifact would otherwise be produced happily and only refused a day later.
@@ -170,24 +190,20 @@ def deployment_manifest(repo: Path, *, build: dict[str, Any], corpus_manifest_pa
         "commit": build["commit"],
         "created_at": build["created_at"],
         "build_info_sha256": "",          # filled by the caller once build_info.json is on disk
-        "corpus": {
-            # the authorized construction — ADR 0048 (8)
-            "base_corpus_sha256": corpus.base_corpus_sha256,
-            "base_coverage_through": corpus.base_coverage_through.isoformat(),
-            "ordered_delta_manifest_sha256s": list(corpus.ordered_delta_manifest_sha256s),
-            "governed_universe_sha256": corpus.governed_universe_sha256,
-            "actions_manifest_sha256": corpus.actions_manifest_sha256,
-            # Surfaced INDEPENDENTLY of the corpus identity so an operator reading a mismatch can tell
-            # whether TICKERS content moved, the resolver's semantics moved, or some other component
-            # of the construction did. A single rolled-up digest would say only "something changed".
-            "tickers_manifest_sha256": corpus.tickers_manifest_sha256,
-            "security_identity_contract": corpus.security_identity_contract,
-            "corpus_manifest_sha256": corpus.corpus_manifest_sha256,
-            "dgs3mo_manifest_sha256": dgs3mo.dgs3mo_manifest_sha256,
-            # store_identity_sha256 is deliberately ABSENT: it does not exist until a session performs
-            # its reads, and a manifest finalized before observation #1 cannot honestly carry one. It
-            # is required in OBSERVATION evidence instead (ADR 0048 (7)).
-        },
+        # The authorized construction — ADR 0048 (8). Built by the SAME function
+        # `resolve_governed_construction` recomputes it with, so a manifest this generator writes and
+        # the block the session path expects cannot disagree about shape or content.
+        #
+        # Identities are surfaced INDEPENDENTLY rather than rolled up, so an operator reading a
+        # mismatch can tell which component of the construction moved; a single digest would say only
+        # "something changed".
+        #
+        # store_identity_sha256 is deliberately ABSENT: it does not exist until a session performs its
+        # reads, and a manifest finalized before observation #1 cannot honestly carry one. It is
+        # required in OBSERVATION evidence instead (ADR 0048 (7)).
+        "corpus": deployment_corpus_block(
+            normalized, dgs3mo_manifest_sha256=dgs3mo.dgs3mo_manifest_sha256,
+            countersignature=countersignature),
         "frozen_inputs": {
             "dgs3mo_sha256": dgs3mo_sha,
             "trial_ledger_sha256": ledger_sha,

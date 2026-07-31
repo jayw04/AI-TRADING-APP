@@ -698,6 +698,93 @@ REQUIRED_LAYER2_UNIVERSE_IDENTITIES = (
     "source_vintage_sha256",
 )
 
+#: The kind marker an external countersignature sidecar must declare.
+LAYER2_COUNTERSIGNATURE_KIND = "layer2_corpus_countersignature"
+
+#: The only countersignature states that authorize a Layer 2 construction for session composition.
+#:
+#: ⚠ `CONDITIONALLY_COUNTERSIGNED` is authorizing HERE and only here: the conditions it names are the
+#: runtime and readiness gates, which are enforced elsewhere in the session path (deployment identity,
+#: data finality, narrow readiness) rather than by re-reading this field. A status this runtime does
+#: not recognize is REFUSED rather than treated as approval.
+ACCEPTED_COUNTERSIGNATURE_STATUSES = frozenset({
+    "COUNTERSIGNED", "CONDITIONALLY_COUNTERSIGNED",
+})
+
+
+class CountersignatureError(CorpusConstructionError):
+    """The external countersignature record is absent, malformed, or does not bind the construction
+    actually loaded. FAILS CLOSED — an uncountersigned construction is never composed into a session.
+    """
+
+
+@dataclass(frozen=True)
+class Layer2Countersignature:
+    """Governance approval for a Layer 2 construction, recorded OUTSIDE the construction artifact.
+
+    ⚠⚠ Why external. `corpus_manifest_v2.json` carries ``"countersignature": null`` and a
+    construction-time ``status`` string that says PROPOSED. Those are properties of the artifact at the
+    moment it was BUILT — a construction cannot countersign itself, and the approval necessarily comes
+    afterwards. Rewriting the manifest to record the approval would change its digest and invalidate
+    every binding already built around it, so the approval is recorded in a sidecar that NAMES the
+    manifest digest instead.
+
+    The embedded null therefore means "not self-countersigned", never "approval absent". It can
+    neither override a valid sidecar nor substitute for one: the sidecar is required regardless of
+    what the construction artifact says about itself.
+    """
+    countersignature_sha256: str
+    corpus_manifest_sha256: str
+    complete_package_sha256: str
+    countersignature_status: str
+    deployment_status: str
+    supersedes_manifest_sha256: str
+
+    def to_open_provenance(self) -> dict[str, Any]:
+        return {
+            "countersignature_sha256": self.countersignature_sha256,
+            "countersigned_corpus_manifest_sha256": self.corpus_manifest_sha256,
+            "complete_package_sha256": self.complete_package_sha256,
+            "countersignature_status": self.countersignature_status,
+            "deployment_status": self.deployment_status,
+            "supersedes_manifest_sha256": self.supersedes_manifest_sha256,
+        }
+
+    @staticmethod
+    def from_payload(payload: Any, *, computed_sha256: str) -> Layer2Countersignature:
+        if not isinstance(payload, dict):
+            raise CountersignatureError("the countersignature sidecar is not an object")
+        kind = str(payload.get("kind", "")).strip()
+        if kind != LAYER2_COUNTERSIGNATURE_KIND:
+            raise CountersignatureError(
+                f"the countersignature sidecar declares kind {kind!r}, not "
+                f"{LAYER2_COUNTERSIGNATURE_KIND!r}")
+        status = str(payload.get("countersignature_status", "")).strip()
+        if status not in ACCEPTED_COUNTERSIGNATURE_STATUSES:
+            raise CountersignatureError(
+                f"the countersignature sidecar declares countersignature_status {status!r}, which "
+                f"this runtime does not accept as approval (accepted: "
+                f"{sorted(ACCEPTED_COUNTERSIGNATURE_STATUSES)})")
+        deployment_status = str(payload.get("deployment_status", "")).strip()
+        if not deployment_status:
+            raise CountersignatureError(
+                "the countersignature sidecar names no deployment_status; the conditions under which "
+                "the construction may be deployed are part of what was approved")
+        return Layer2Countersignature(
+            countersignature_sha256=computed_sha256,
+            corpus_manifest_sha256=_require_sha256(
+                payload.get("corpus_manifest_sha256"),
+                what="the countersigned corpus manifest identity"),
+            complete_package_sha256=_require_sha256(
+                payload.get("complete_package_sha256"),
+                what="the countersigned complete-package identity"),
+            countersignature_status=status,
+            deployment_status=deployment_status,
+            supersedes_manifest_sha256=_require_sha256(
+                payload.get("supersedes_manifest_sha256"),
+                what="the superseded manifest identity"),
+        )
+
 
 @dataclass(frozen=True)
 class Layer2CorpusManifest:
@@ -858,6 +945,7 @@ class NormalizedCorpusConstruction:
     mapped_identity_universe_size: int | None = None
     store_file_sha256: str | None = None
     evidence_artifact_count: int | None = None
+    source_vintage_sha256: str | None = None
 
     @property
     def has_base_and_deltas(self) -> bool:
@@ -890,6 +978,7 @@ class NormalizedCorpusConstruction:
                 "mapped_identity_universe_size": self.mapped_identity_universe_size,
                 "store_file_sha256": self.store_file_sha256,
                 "evidence_artifact_count": self.evidence_artifact_count,
+                "source_vintage_sha256": self.source_vintage_sha256,
             }
         return out
 
@@ -913,6 +1002,7 @@ def normalize_corpus_manifest(
             mapped_identity_universe_size=manifest.mapped_identity_universe_size,
             store_file_sha256=manifest.store_file_sha256,
             evidence_artifact_count=len(manifest.artifacts),
+            source_vintage_sha256=manifest.universe_identities["source_vintage_sha256"],
         )
     return NormalizedCorpusConstruction(
         corpus_construction_kind="governed_corpus",
@@ -927,6 +1017,55 @@ def normalize_corpus_manifest(
         actions_manifest_sha256=manifest.actions_manifest_sha256,
         tickers_manifest_sha256=manifest.tickers_manifest_sha256,
     )
+
+
+def deployment_corpus_block(
+    normalized: NormalizedCorpusConstruction,
+    *,
+    dgs3mo_manifest_sha256: str,
+    countersignature: Layer2Countersignature | None = None,
+) -> dict[str, Any]:
+    """The `corpus` identity block a deployment manifest records — the ONE producer.
+
+    ⚠ Both sides of the contract call this: `generate_deployment_evidence` WRITES it, and
+    `resolve_governed_construction` RECOMPUTES it to compare against what the deployment declared. A
+    second implementation on the generating side is how a manifest comes to declare something the
+    session path never checks, so there is only one.
+
+    The two constructions expose different fields because they ARE different: a reconstruction has no
+    base, no delta order and no `base_coverage_through`, and its coverage is therefore reported as
+    `governed_coverage_through`. Nothing is defaulted across the two shapes.
+    """
+    if normalized.has_base_and_deltas:
+        return {
+            "base_corpus_sha256": normalized.base_corpus_sha256,
+            "base_coverage_through": (normalized.base_coverage_through.isoformat()
+                                      if normalized.base_coverage_through else None),
+            "ordered_delta_manifest_sha256s": list(normalized.ordered_delta_manifest_sha256s),
+            "governed_universe_sha256": normalized.governed_universe_sha256,
+            "actions_manifest_sha256": normalized.actions_manifest_sha256,
+            "tickers_manifest_sha256": normalized.tickers_manifest_sha256,
+            "security_identity_contract": normalized.security_identity_contract,
+            "corpus_manifest_sha256": normalized.corpus_manifest_sha256,
+            "dgs3mo_manifest_sha256": dgs3mo_manifest_sha256,
+        }
+    if countersignature is None:
+        raise CountersignatureError(
+            "a Layer 2 deployment corpus block cannot be produced without the countersignature "
+            "sidecar; the approval is part of what the deployment is authorized to assemble")
+    return {
+        "corpus_construction_kind": normalized.corpus_construction_kind,
+        "construction_schema_version": normalized.construction_schema_version,
+        "corpus_manifest_sha256": normalized.corpus_manifest_sha256,
+        "source_vintage_sha256": normalized.source_vintage_sha256,
+        "governed_coverage_through": normalized.coverage_through.isoformat(),
+        "governed_universe_sha256": normalized.governed_universe_sha256,
+        "store_file_sha256": normalized.store_file_sha256,
+        "supersedes_corpus_manifest_sha256": normalized.supersedes_corpus_manifest_sha256,
+        "countersignature_sha256": countersignature.countersignature_sha256,
+        "security_identity_contract": normalized.security_identity_contract,
+        "dgs3mo_manifest_sha256": dgs3mo_manifest_sha256,
+    }
 
 
 def load_layer2_corpus_manifest(path: Path) -> Layer2CorpusManifest:
@@ -960,6 +1099,62 @@ def load_any_corpus_manifest(path: Path) -> CorpusManifest | Layer2CorpusManifes
         f"base-plus-delta construction (no kind) and {LAYER2_CORPUS_KIND!r}")
 
 
+def load_layer2_countersignature(path: Path | None) -> Layer2Countersignature:
+    """Load the external countersignature sidecar. Its identity is the sha256 of its own bytes.
+
+    Like the Layer 2 manifest, the file must BE its own canonical serialization, so the digest a
+    deployment manifest binds is reproducible from the bytes on disk.
+    """
+    if path is None:
+        raise CountersignatureError(
+            "no countersignature sidecar is configured; a Layer 2 construction is never composed "
+            "into a session on the strength of the construction artifact alone")
+    p = Path(path)
+    if not p.is_file():
+        raise CountersignatureError(
+            f"the countersignature sidecar is absent at {p}; the construction carries no external "
+            f"governance approval and is refused")
+    raw = p.read_bytes()
+    payload = _load_manifest_json(p, what="the countersignature sidecar")
+    if canonical_json(payload) != raw:
+        raise CountersignatureError(
+            "the countersignature sidecar is not in its own canonical form; its bytes do not "
+            "re-serialize to themselves, so its identity cannot be reproduced")
+    return Layer2Countersignature.from_payload(
+        payload, computed_sha256=hashlib.sha256(raw).hexdigest())
+
+
+def require_countersignature(manifest: Layer2CorpusManifest,
+                             countersignature: Layer2Countersignature) -> None:
+    """The sidecar must bind the EXACT manifest that was loaded.
+
+    ⚠ The failure this exists to catch is a sidecar that is internally valid but approves a DIFFERENT
+    construction — most plausibly the one this manifest supersedes, left installed across an upgrade.
+    That case is diagnosed by name rather than as a generic mismatch, because "the countersignature is
+    for the corpus you replaced" and "the countersignature is for some unrelated corpus" call for
+    different operator responses.
+    """
+    if countersignature.corpus_manifest_sha256 == manifest.supersedes_corpus_manifest_sha256:
+        raise CountersignatureError(
+            f"the countersignature sidecar binds "
+            f"{countersignature.corpus_manifest_sha256[:16]}…, which is the manifest this "
+            f"construction SUPERSEDES, not the loaded manifest "
+            f"{manifest.corpus_manifest_sha256[:16]}…; a superseded countersignature does not carry "
+            f"forward to its successor")
+    if countersignature.corpus_manifest_sha256 != manifest.corpus_manifest_sha256:
+        raise CountersignatureError(
+            f"the countersignature sidecar binds corpus manifest "
+            f"{countersignature.corpus_manifest_sha256[:16]}… but the loaded manifest is "
+            f"{manifest.corpus_manifest_sha256[:16]}…; approval of one construction is never "
+            f"approval of another")
+    if countersignature.supersedes_manifest_sha256 != manifest.supersedes_corpus_manifest_sha256:
+        raise CountersignatureError(
+            f"the countersignature sidecar records the supersession of "
+            f"{countersignature.supersedes_manifest_sha256[:16]}… but the manifest supersedes "
+            f"{manifest.supersedes_corpus_manifest_sha256[:16]}…; the approved supersession and the "
+            f"assembled one are not the same event")
+
+
 def load_corpus_manifest(path: Path) -> CorpusManifest:
     return CorpusManifest.from_payload(_load_manifest_json(path, what="the corpus manifest"))
 
@@ -970,13 +1165,35 @@ def load_dgs3mo_manifest(path: Path) -> Dgs3moManifest:
 
 @dataclass(frozen=True)
 class GovernedConstruction:
-    """The validated construction one observation is authorized to use."""
-    corpus: CorpusManifest
+    """The validated construction one observation is authorized to use.
+
+    ⚠ `corpus` is whichever manifest kind was actually loaded. Consumers that need construction facts
+    should read `normalized`, which exposes the same questions for both kinds and answers `None` where
+    a construction genuinely has no answer.
+    """
+    corpus: CorpusManifest | Layer2CorpusManifest
     dgs3mo: Dgs3moManifest
     corpus_manifest_sha256: str
     dgs3mo_manifest_sha256: str
+    normalized: NormalizedCorpusConstruction
+    #: Present for a Layer 2 reconstruction and `None` for a base-plus-delta construction, whose
+    #: approval is carried by its per-delta countersignature references instead.
+    countersignature: Layer2Countersignature | None = None
 
     def to_open_provenance(self) -> dict[str, Any]:
+        if not isinstance(self.corpus, CorpusManifest):
+            # A reconstruction emits its OWN provenance shape. It must never carry base/delta keys —
+            # not even as nulls: a null `base_corpus_sha256` in governed evidence reads as "there was
+            # a base and we failed to record it", which is a different and false statement.
+            out = dict(self.normalized.to_open_provenance())
+            out |= {
+                "dgs3mo_base_sha256": self.dgs3mo.base_sha256,
+                "dgs3mo_manifest_sha256": self.dgs3mo_manifest_sha256,
+                "dgs3mo_coverage_through": self.dgs3mo.coverage_through.isoformat(),
+            }
+            if self.countersignature is not None:
+                out["countersignature"] = self.countersignature.to_open_provenance()
+            return out
         return {
             "base_corpus_sha256": self.corpus.base_corpus_sha256,
             "base_coverage_through": self.corpus.base_coverage_through.isoformat(),
@@ -1005,6 +1222,7 @@ def resolve_governed_construction(
     deployment_manifest_corpus_block: Any,
     observation_session: date,
     expected_sessions: tuple[date, ...],
+    countersignature_path: Path | None = None,
 ) -> GovernedConstruction:
     """Establish, fail-closed, which governed construction this session is authorized to consume.
 
@@ -1021,30 +1239,59 @@ def resolve_governed_construction(
     verify_frozen_artifact(Path(trial_ledger_path), pinned_sha256=frozen_trial_ledger_sha256,
                            what="the governed trial ledger")
 
-    corpus = load_corpus_manifest(Path(corpus_manifest_path))
+    corpus = load_any_corpus_manifest(Path(corpus_manifest_path))
     dgs3mo = load_dgs3mo_manifest(Path(dgs3mo_manifest_path))
+    normalized = normalize_corpus_manifest(corpus)
 
-    corpus.validate(observation_session=observation_session, expected_sessions=expected_sessions)
+    # ── the approval, before anything else is trusted ──
+    #
+    # A reconstruction replaces a countersigned corpus wholesale, so its authority cannot come from the
+    # chain of per-delta countersignatures the base-plus-delta path relies on. It comes from an
+    # external sidecar, and it is required REGARDLESS of what the construction artifact says about
+    # itself: the embedded `countersignature` field describes whether the artifact self-countersigned
+    # (it cannot), and is therefore neither a substitute for the sidecar nor able to override it.
+    countersignature: Layer2Countersignature | None = None
+    if isinstance(corpus, Layer2CorpusManifest):
+        countersignature = load_layer2_countersignature(countersignature_path)
+        require_countersignature(corpus, countersignature)
+        # ⚠ DELIBERATELY NOT a session-equality check. Two scopes are easy to conflate and must not
+        # be: the corpus countersignature approves the reconstructed CORPUS and its coverage, while a
+        # READINESS ATTESTATION is valid only for its exact session. Refusing any session but the one
+        # the reconstruction was built for would collapse the first into the second and deny a
+        # legitimately covered session that is entitled to its own readiness run. The session binding
+        # stays where it belongs — on the attestation and the receipt.
+    else:
+        corpus.validate(observation_session=observation_session,
+                        expected_sessions=expected_sessions)
     dgs3mo.validate(observation_session=observation_session,
                     frozen_base_sha256=frozen_dgs3mo_sha256)
 
-    if corpus.coverage_through < observation_session:
+    if normalized.coverage_through < observation_session:
         raise CorpusConstructionError(
-            f"the governed corpus reaches {corpus.coverage_through} but the session being observed is "
-            f"{observation_session}; a session cannot be evaluated against data that stops before it")
+            f"the governed corpus reaches {normalized.coverage_through} but the session being "
+            f"observed is {observation_session}; a session cannot be evaluated against data that "
+            f"stops before it")
     if dgs3mo.coverage_through < observation_session:
         raise CorpusConstructionError(
             f"the DGS3MO construction reaches {dgs3mo.coverage_through} but the session being observed "
             f"is {observation_session}; the risk-free series does not cover the session")
 
-    require_declared_identities(deployment_manifest_corpus_block, computed={
-        "base_corpus_sha256": corpus.base_corpus_sha256,
-        "ordered_delta_manifest_sha256s": corpus.ordered_delta_manifest_sha256s,
-        "governed_universe_sha256": corpus.governed_universe_sha256,
-        "actions_manifest_sha256": corpus.actions_manifest_sha256,
-        "tickers_manifest_sha256": corpus.tickers_manifest_sha256,
-        "corpus_manifest_sha256": corpus.corpus_manifest_sha256,
-    })
+    # The deployment must have declared the construction that was actually assembled. The expected
+    # block is RECOMPUTED here from the same single producer the generator wrote it with, so the two
+    # sides cannot drift into declaring and checking different things.
+    expected_block = deployment_corpus_block(
+        normalized, dgs3mo_manifest_sha256=dgs3mo.dgs3mo_manifest_sha256,
+        countersignature=countersignature)
+    if normalized.has_base_and_deltas:
+        require_declared_identities(deployment_manifest_corpus_block, computed={
+            key: expected_block[key] for key in REQUIRED_MANIFEST_IDENTITIES})
+    else:
+        require_declared_identities(
+            deployment_manifest_corpus_block,
+            computed={key: expected_block[key] for key in REQUIRED_LAYER2_MANIFEST_IDENTITIES},
+            required=REQUIRED_LAYER2_MANIFEST_IDENTITIES,
+            sha256_keys=LAYER2_MANIFEST_DIGEST_IDENTITIES,
+            list_keys=())
     declared_dgs3mo = deployment_manifest_corpus_block.get("dgs3mo_manifest_sha256")
     if declared_dgs3mo is None:
         raise ManifestIdentityConflict(
@@ -1059,6 +1306,7 @@ def resolve_governed_construction(
         corpus=corpus, dgs3mo=dgs3mo,
         corpus_manifest_sha256=corpus.corpus_manifest_sha256,
         dgs3mo_manifest_sha256=dgs3mo.dgs3mo_manifest_sha256,
+        normalized=normalized, countersignature=countersignature,
     )
 
 
@@ -1097,6 +1345,36 @@ REQUIRED_MANIFEST_IDENTITIES = (
     "actions_manifest_sha256",
     "tickers_manifest_sha256",
     "corpus_manifest_sha256",
+)
+
+#: The digest-valued keys of the base-plus-delta block. Split out so the Layer 2 path can name its
+#: own without either set silently acquiring the other's fields.
+BASE_MANIFEST_DIGEST_IDENTITIES = (
+    "base_corpus_sha256", "governed_universe_sha256", "actions_manifest_sha256",
+    "tickers_manifest_sha256", "corpus_manifest_sha256",
+)
+
+#: What a deployment manifest must declare for a Layer 2 reconstruction — ADR 0048 as amended.
+#:
+#: ⚠ There is deliberately no `base_corpus_sha256`, no `base_coverage_through` and no
+#: `ordered_delta_manifest_sha256s`: a reconstruction has none of them, and a deployment manifest that
+#: declared them would be describing a construction that does not exist. Coverage is declared as
+#: `governed_coverage_through`, which is what it actually is.
+REQUIRED_LAYER2_MANIFEST_IDENTITIES = (
+    "corpus_construction_kind",
+    "construction_schema_version",
+    "corpus_manifest_sha256",
+    "source_vintage_sha256",
+    "governed_coverage_through",
+    "governed_universe_sha256",
+    "store_file_sha256",
+    "supersedes_corpus_manifest_sha256",
+    "countersignature_sha256",
+)
+
+LAYER2_MANIFEST_DIGEST_IDENTITIES = (
+    "corpus_manifest_sha256", "source_vintage_sha256", "governed_universe_sha256",
+    "store_file_sha256", "supersedes_corpus_manifest_sha256", "countersignature_sha256",
 )
 
 #: Both identities are mandatory in every observation, and neither substitutes for the other.
@@ -1141,12 +1419,16 @@ def _issue(value: str, source: IdentitySource) -> BoundIdentity:
     return identity
 
 
-def construction_identity(manifest: CorpusManifest) -> BoundIdentity:
+def construction_identity(manifest: CorpusManifest | Layer2CorpusManifest) -> BoundIdentity:
     """RECOMPUTED from the canonical governed construction manifest. It cannot be sourced from the
-    store because nothing about the store is an input to it."""
-    if not isinstance(manifest, CorpusManifest):
+    store because nothing about the store is an input to it.
+
+    Either governed construction kind may issue it: both recompute their identity from their own
+    canonical manifest bytes, which is the property that makes the identity independent of the store.
+    """
+    if not isinstance(manifest, CorpusManifest | Layer2CorpusManifest):
         raise ManifestIdentityConflict(
-            f"the construction identity must be recomputed from a CorpusManifest, not from "
+            f"the construction identity must be recomputed from a governed corpus manifest, not from "
             f"{type(manifest).__name__}")
     return _issue(manifest.corpus_manifest_sha256, IdentitySource.GOVERNED_CONSTRUCTION_MANIFEST)
 
@@ -1164,9 +1446,22 @@ def consumed_rows_identity(finality: Any) -> BoundIdentity:
     return _issue(finality.store_identity_sha256, IdentitySource.STREAMED_CONSUMED_ROWS)
 
 
-def require_declared_identities(declared: Any, *, computed: dict[str, Any]) -> dict[str, Any]:
+def require_declared_identities(
+    declared: Any,
+    *,
+    computed: dict[str, Any],
+    required: tuple[str, ...] = REQUIRED_MANIFEST_IDENTITIES,
+    sha256_keys: tuple[str, ...] = BASE_MANIFEST_DIGEST_IDENTITIES,
+    list_keys: tuple[str, ...] = ("ordered_delta_manifest_sha256s",),
+) -> dict[str, Any]:
     """Reject a deployment manifest whose corpus identities are missing or conflict with the
-    identities computed from the artifacts actually installed."""
+    identities computed from the artifacts actually installed.
+
+    The three key sets are parameters rather than constants so a Layer 2 reconstruction can state its
+    own — a reconstruction has no base and no delta list, and demanding them here would refuse a valid
+    construction for lacking fields it never had. The defaults are the base-plus-delta contract, so
+    that call site is unchanged.
+    """
     if not isinstance(declared, dict):
         raise ManifestIdentityConflict(
             "the deployment manifest carries no corpus identity block; a session cannot record which "
@@ -1174,22 +1469,21 @@ def require_declared_identities(declared: Any, *, computed: dict[str, Any]) -> d
     # An EMPTY delta list is a legitimate construction, not a missing field: observation #1 runs on a
     # base whose coverage already reaches the session, with no deltas yet. Treating [] as absent would
     # refuse the first observation the program ever takes.
-    missing = [k for k in REQUIRED_MANIFEST_IDENTITIES if declared.get(k) in (None, "")]
+    missing = [k for k in required if declared.get(k) in (None, "")]
     if missing:
         raise ManifestIdentityConflict(
             f"the deployment manifest's corpus identity block is incomplete; missing {sorted(missing)}")
 
-    for key in ("base_corpus_sha256", "governed_universe_sha256", "actions_manifest_sha256",
-                "tickers_manifest_sha256", "corpus_manifest_sha256"):
+    for key in sha256_keys:
         if not _is_sha256(declared.get(key)):
             raise ManifestIdentityConflict(
                 f"the deployment manifest declares {key}={declared.get(key)!r}, which is not a "
                 f"sha256 digest")
-    ordered = declared.get("ordered_delta_manifest_sha256s")
-    if not isinstance(ordered, list) or not all(_is_sha256(x) for x in ordered):
-        raise ManifestIdentityConflict(
-            "the deployment manifest declares ordered_delta_manifest_sha256s that is not a list of "
-            "sha256 digests")
+    for key in list_keys:
+        ordered = declared.get(key)
+        if not isinstance(ordered, list) or not all(_is_sha256(x) for x in ordered):
+            raise ManifestIdentityConflict(
+                f"the deployment manifest declares {key} that is not a list of sha256 digests")
 
     conflicts = []
     for key, value in computed.items():

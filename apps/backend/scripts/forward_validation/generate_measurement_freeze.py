@@ -66,6 +66,31 @@ def entries_from_git(ref: str, repo: Path) -> list[tuple[str, bytes]]:
     return out
 
 
+def _previous_inventory_link(repo: Path, out: str = "manifests/forward/measurement_freeze.json"
+                             ) -> str | None:
+    """The inventory digest the COMMITTED freeze bound, or `None` if there is no committed freeze.
+
+    Read from `HEAD` rather than from the working tree so that regenerating twice in one increment
+    cannot chain to an intermediate local artifact.
+    """
+    try:
+        blob = subprocess.run(("git", "-C", str(repo), "cat-file", "blob", f"HEAD:{out}"),
+                              capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None                       # no committed freeze yet: this is the first link
+    try:
+        value = json.loads(blob).get("ratified_increment_inventory_sha256")
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"the committed freeze at HEAD:{out} is unreadable: {exc}") from exc
+    text = str(value or "").strip().lower()
+    if len(text) != 64:
+        raise SystemExit(
+            f"the committed freeze at HEAD:{out} records no usable "
+            f"ratified_increment_inventory_sha256 ({value!r}); the inventory chain cannot be linked "
+            f"to a value that is not a digest")
+    return text
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--repo", default=".")
@@ -105,13 +130,39 @@ def main(argv: list[str] | None = None) -> int:
                repo=repo)
     commits = [dict(zip(("commit", "date", "subject"), line.split("\x1f"), strict=True))
                for line in log.splitlines() if line.strip()]
-    inventory = {"kind": "ratified_measurement_increments", "version": "1.0",
-                 "from_commit": args.supersedes,
-                 "to_commit": _git("rev-parse", inventory_to, repo=repo).strip(),
-                 "measured_paths": list(MEASURED_PATHS), "commit_count": len(commits),
+    # ⚠ This file is the INCREMENTAL inventory for the CURRENT freeze range — not a cumulative
+    # history. Each regeneration therefore lists fewer or more commits than the last, and a shrinking
+    # entry count is the range moving rather than evidence being discarded. So that the reduction can
+    # never be mistaken for erasure, the inventories form an explicit CHAIN: each one records the
+    # digest of the inventory it succeeds, which is the same digest the superseded freeze manifest
+    # bound as `ratified_increment_inventory_sha256`. Following that chain backwards reconstructs the
+    # full ratified history from any point.
+    # ⚠⚠ The link is READ FROM THE COMMITTED FREEZE, never hashed from the working tree.
+    #
+    # Hashing the working-tree inventory looks equivalent and is not. Regenerating twice — which
+    # happens whenever a review comment changes the measured code — would make the second run chain to
+    # the FIRST run's output: a local artifact that was never committed and that no freeze ever bound,
+    # silently replacing the real historical link. That is the same defect class as generating a
+    # manifest from a throwaway `wip` commit and leaking an unreachable SHA into the governed record.
+    #
+    # The superseded freeze manifest already states the authoritative value in
+    # `ratified_increment_inventory_sha256`, so it is read from `HEAD` and copied. Reading it also
+    # sidesteps a newline hazard: `.gitattributes` checks JSON out as CRLF on Windows regardless of
+    # `core.autocrlf`, so the same file hashes differently here and on Linux CI, and only the LF form
+    # matches what was bound.
+    inv_path = repo / args.inventory
+    previous_sha = _previous_inventory_link(repo)
+
+    inventory = {"kind": "ratified_measurement_increments", "version": "1.1",
+                 "inventory_scope": "INCREMENTS_SINCE_THE_IMMEDIATELY_PRECEDING_FREEZE",
+                 "previous_inventory_sha256": previous_sha,
+                 "current_freeze_range": {
+                     "from_commit": args.supersedes,
+                     "to_commit": _git("rev-parse", inventory_to, repo=repo).strip()},
+                 "current_increment_count": len(commits),
+                 "measured_paths": list(MEASURED_PATHS),
                  "commits": commits}
     inv_bytes = json.dumps(inventory, indent=2, sort_keys=True).encode() + b"\n"
-    inv_path = repo / args.inventory
     inv_path.parent.mkdir(parents=True, exist_ok=True)
     inv_path.write_bytes(inv_bytes)
 
