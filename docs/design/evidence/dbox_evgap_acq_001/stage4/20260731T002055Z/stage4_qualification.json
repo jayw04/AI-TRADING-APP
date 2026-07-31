@@ -1,0 +1,232 @@
+{
+  "document_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-STAGE4-001",
+  "stage": 4,
+  "role": "INDEPENDENT_QUALIFIER",
+  "constructor_may_not_self_qualify": true,
+  "qualified_at_utc": "2026-07-31T01:34:33Z",
+  "qualifier_commit": "3f256bb2affae631c22eed72a0f54b2e10aabadd",
+  "freeze_body_sha256": "af7693f4b97fd7d9d4ad642ab1af47e9e9a2a8cd680f6a26c4d01fee8d57967e",
+  "stage2_report_sha256": "aac5b599f16324d12a91ca792dc406063d68c7628d1eec9a27b47fde66e3fb0c",
+  "stage3_package_sha256": "3e31e0be78d9908e21c017d4679bbc8ab5eac66efd439da79bd36e743a38e10d",
+  "checks": [
+    {
+      "check": "stage2_report_hash",
+      "pass": true,
+      "detail": "got=aac5b599f16324d12a91ca792dc406063d68c7628d1eec9a27b47fde66e3fb0c"
+    },
+    {
+      "check": "freeze_body_bound",
+      "pass": true,
+      "detail": "af7693f4b97fd7d9d4ad642ab1af47e9e9a2a8cd680f6a26c4d01fee8d57967e"
+    },
+    {
+      "check": "stage2_sha_bound",
+      "pass": true,
+      "detail": "aac5b599f16324d12a91ca792dc406063d68c7628d1eec9a27b47fde66e3fb0c"
+    },
+    {
+      "check": "no_substantive_construction",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "not_gate_basis",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "rows_emitted_zero",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "check": "no_reconstruction",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "no_day_change_copy",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "no_fabrication",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "no_mapping_relax",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "no_o4_mix",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "counts_source_292",
+      "pass": true,
+      "detail": "{'n_source_count': 292, 'n_window_eligible': 292, 'n_deduplicated': 292, 'n_complete_o3': 0, 'n_complete_o4a': 0, 'n_complete_o4b': 0}"
+    },
+    {
+      "check": "counts_complete_zero",
+      "pass": true,
+      "detail": "{'n_source_count': 292, 'n_window_eligible': 292, 'n_deduplicated': 292, 'n_complete_o3': 0, 'n_complete_o4a': 0, 'n_complete_o4b': 0}"
+    },
+    {
+      "check": "reason_codes_match_stage2",
+      "pass": true,
+      "detail": "mismatch"
+    },
+    {
+      "check": "o3_outcome",
+      "pass": true,
+      "detail": "REJECTED_AS_NON_BINDABLE"
+    },
+    {
+      "check": "o4a_outcome",
+      "pass": true,
+      "detail": "REJECTED_AS_NON_BINDABLE"
+    },
+    {
+      "check": "o4b_outcome",
+      "pass": true,
+      "detail": "REJECTED_AS_NON_BINDABLE"
+    },
+    {
+      "check": "o5_outcome",
+      "pass": true,
+      "detail": "INCONCLUSIVE"
+    },
+    {
+      "check": "hash_O3_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "got=3d48598f0352d632d3439bb61f474d6a24a898985aa62350623ce0ad03d84b77 expected=3d48598f0352d632d3439bb61f474d6a24a898985aa62350623ce0ad03d84b77"
+    },
+    {
+      "check": "kind_O3_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "CONSTRUCTION_REFUSAL_CENSUS"
+    },
+    {
+      "check": "outcome_O3_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "REJECTED_AS_NON_BINDABLE"
+    },
+    {
+      "check": "emitted_O3_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "check": "no_candidate_path_O3_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "None"
+    },
+    {
+      "check": "no_qualified_candidate_label_O3_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "label scan"
+    },
+    {
+      "check": "hash_O4A_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "got=e21b0bc4bee8a15a4ec319c6df337f2d33f91e08a80ed4536864525e2958d652 expected=e21b0bc4bee8a15a4ec319c6df337f2d33f91e08a80ed4536864525e2958d652"
+    },
+    {
+      "check": "kind_O4A_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "CONSTRUCTION_REFUSAL_CENSUS"
+    },
+    {
+      "check": "outcome_O4A_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "REJECTED_AS_NON_BINDABLE"
+    },
+    {
+      "check": "emitted_O4A_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "check": "no_candidate_path_O4A_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "None"
+    },
+    {
+      "check": "no_qualified_candidate_label_O4A_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "label scan"
+    },
+    {
+      "check": "hash_O4B_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "got=0024556cd1f2c8531fb5537b8493a7ddb17f9e1c29cc0ab02efeca2264ad42ff expected=0024556cd1f2c8531fb5537b8493a7ddb17f9e1c29cc0ab02efeca2264ad42ff"
+    },
+    {
+      "check": "kind_O4B_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "CONSTRUCTION_REFUSAL_CENSUS"
+    },
+    {
+      "check": "outcome_O4B_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "REJECTED_AS_NON_BINDABLE"
+    },
+    {
+      "check": "emitted_O4B_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "check": "no_candidate_path_O4B_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "None"
+    },
+    {
+      "check": "no_qualified_candidate_label_O4B_CONSTRUCTION_REFUSAL.json",
+      "pass": true,
+      "detail": "label scan"
+    },
+    {
+      "check": "hash_O5_LOCATE_MANIFEST.json",
+      "pass": true,
+      "detail": "got=e49e8ebab05ae4b587ca0c2e5aeda306f0b2a055818c1f3eff8927a1e2e6fe67 expected=e49e8ebab05ae4b587ca0c2e5aeda306f0b2a055818c1f3eff8927a1e2e6fe67"
+    },
+    {
+      "check": "kind_O5_LOCATE_MANIFEST.json",
+      "pass": true,
+      "detail": "O5_LOCATE_MANIFEST"
+    },
+    {
+      "check": "outcome_O5_LOCATE_MANIFEST.json",
+      "pass": true,
+      "detail": "INCONCLUSIVE"
+    },
+    {
+      "check": "emitted_O5_LOCATE_MANIFEST.json",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "check": "o5_anchors_empty",
+      "pass": true,
+      "detail": "[]"
+    }
+  ],
+  "all_checks_pass": true,
+  "qualification_outcomes": {
+    "O3": "REJECTED_AS_NON_BINDABLE",
+    "O4_A": "REJECTED_AS_NON_BINDABLE",
+    "O4_B": "REJECTED_AS_NON_BINDABLE",
+    "O5": "INCONCLUSIVE"
+  },
+  "acq_start_001_complete": true,
+  "gate_campaign_basis": false,
+  "new_gate_freeze_authorized": false,
+  "new_gate_start_authorized": false,
+  "d_wire": "BLOCKED",
+  "gates": "CLOSED",
+  "disposition_note": "ACQ-START-001 completed honestly via Stage 3 refusal + Stage 4 qualification. No basis for a new gate campaign."
+}
