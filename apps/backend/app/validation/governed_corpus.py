@@ -658,6 +658,308 @@ def _load_manifest_json(path: Path, *, what: str) -> dict:
     return payload
 
 
+# ── the Layer 2 whole-corpus reconstruction ──────────────────────────────────────────────────────────
+#
+# A `CorpusManifest` describes `immutable base + ordered deltas`. A Layer 2 construction is NEITHER: it
+# is a whole-corpus reconstruction from ONE sealed source vintage, normalized on the vendor's permanent
+# identifier, and what authorizes it is CONSTRUCTION EVIDENCE — crosswalk, universes, adjudications,
+# censuses, reconciliation, impact analyses — not a delta chain.
+#
+# ⛔ It is therefore given NATIVE support rather than being converted into a synthetic base-plus-delta
+# manifest. A conversion would make the runtime accept the bytes by representing the construction as
+# something it is not: it would have to invent a `base_coverage_through`, a base artifact identity and
+# a delta order, none of which exist. Every one of those inventions would be a false statement carried
+# in governed evidence, and the falsehood would be indistinguishable from the truth downstream.
+#
+# The two loaders are kept SEPARATE and the base-plus-delta path is untouched.
+
+LAYER2_CORPUS_KIND = "layer2_governed_corpus"
+
+#: Schema versions this runtime understands. An unknown version is REFUSED rather than best-effort
+#: parsed — a construction whose meaning has changed must not be read with the old meaning.
+SUPPORTED_LAYER2_SCHEMA_VERSIONS = frozenset({"LAYER2_SINGLE_VINTAGE_PERMANENT_LINEAGE_v1.0"})
+
+#: Every evidence artifact the construction must carry. Absence is a refusal: a manifest that names
+#: fewer artifacts than the construction was authorized with is a different construction.
+REQUIRED_LAYER2_ARTIFACTS = frozenset({
+    "universe_crosswalk_v2", "crosswalk_summary_v2", "universe_exclusions_v2",
+    "quarantine_unresolved_source_master_v2", "july27_exclusion_impact_check",
+    "price_universe_v2", "layer2_price_adjudication",
+    "source_vintage", "extraction_evidence", "normalized_corpus_evidence",
+    "lineage_hole_census",
+    "adjustment_reconciliation_final", "residual_relevance", "tolerance_remeasurement",
+    "shop_tln_quarantine",
+    "step4_comparison", "step5_exclusion_impact_273", "step5_package",
+})
+
+REQUIRED_LAYER2_UNIVERSE_IDENTITIES = (
+    "legacy_governed_universe_sha256", "governed_universe_key_crosswalk_sha256",
+    "governed_mapped_identity_universe_sha256", "governed_price_universe_sha256",
+    "source_vintage_sha256",
+)
+
+
+@dataclass(frozen=True)
+class Layer2CorpusManifest:
+    """A whole-corpus reconstruction, validated on its own terms.
+
+    ⚠ It deliberately exposes NO `base_corpus_sha256`, `base_coverage_through`, delta order or delta
+    coverage, because it has none. Anything that needs those must ask whether they exist rather than
+    assume; see :class:`NormalizedCorpusConstruction`.
+    """
+    construction_schema_version: str
+    session: date
+    security_identity_contract: str
+    corpus_manifest_sha256: str
+    universe_identities: dict[str, str]
+    mapped_identity_universe_size: int
+    price_universe_size: int
+    artifacts: dict[str, str]                       # logical name -> sha256
+    quarantined_histories: dict[str, str]           # filename -> sha256
+    store_file_sha256: str
+    supersedes_corpus_manifest_sha256: str
+    supersession_reason: str
+    countersigned: bool
+
+    @property
+    def governed_universe_sha256(self) -> str:
+        """The PRICE universe — the one that governs SEP restriction, ranking, proxy and corpus
+        identity. ⚠ NOT the mapped-identity universe; the two are never collapsed."""
+        return self.universe_identities["governed_price_universe_sha256"]
+
+    @property
+    def governed_universe_size(self) -> int:
+        return self.price_universe_size
+
+    @staticmethod
+    def from_payload(payload: Any, *, computed_sha256: str) -> Layer2CorpusManifest:
+        if not isinstance(payload, dict):
+            raise CorpusConstructionError("the Layer 2 corpus manifest is not an object")
+        kind = str(payload.get("kind", "")).strip()
+        if kind != LAYER2_CORPUS_KIND:
+            raise CorpusConstructionError(
+                f"the manifest declares kind {kind!r}, not {LAYER2_CORPUS_KIND!r}")
+        version = str(payload.get("construction_schema_version", "")).strip()
+        if version not in SUPPORTED_LAYER2_SCHEMA_VERSIONS:
+            raise CorpusConstructionError(
+                f"the Layer 2 manifest declares construction_schema_version {version!r}, which this "
+                f"runtime does not understand (supported: {sorted(SUPPORTED_LAYER2_SCHEMA_VERSIONS)}); "
+                f"a construction whose meaning may have changed is refused, never best-effort parsed")
+
+        contract = str(payload.get("security_identity_contract", "")).strip()
+        if not contract:
+            raise CorpusConstructionError(
+                "the Layer 2 manifest names no security_identity_contract")
+        try:
+            session = date.fromisoformat(str(payload["session"]))
+        except (KeyError, ValueError) as exc:
+            raise CorpusConstructionError(
+                f"the Layer 2 manifest records no valid session: {exc}") from exc
+
+        declared = payload.get("declared_identities")
+        if not isinstance(declared, dict):
+            raise CorpusConstructionError("the Layer 2 manifest carries no declared_identities")
+        identities = {}
+        for name in REQUIRED_LAYER2_UNIVERSE_IDENTITIES:
+            identities[name] = _require_sha256(declared.get(name), what=f"the {name}")
+
+        raw_artifacts = payload.get("artifacts")
+        if not isinstance(raw_artifacts, dict):
+            raise CorpusConstructionError("the Layer 2 manifest carries no artifacts block")
+        artifacts = {name: _require_sha256((entry or {}).get("sha256"),
+                                           what=f"the {name} artifact identity")
+                     for name, entry in raw_artifacts.items() if isinstance(entry, dict)}
+        missing = sorted(REQUIRED_LAYER2_ARTIFACTS - set(artifacts))
+        if missing:
+            raise CorpusConstructionError(
+                f"the Layer 2 manifest is missing {len(missing)} required evidence artifact(s): "
+                f"{missing}; a manifest naming fewer artifacts than the construction was authorized "
+                f"with describes a different construction")
+
+        raw_quarantine = payload.get("quarantined_histories")
+        if not isinstance(raw_quarantine, dict) or not raw_quarantine:
+            raise CorpusConstructionError(
+                "the Layer 2 manifest carries no quarantined_histories; the withheld price histories "
+                "are part of what the construction is")
+        quarantine = {name: _require_sha256((entry or {}).get("sha256"),
+                                            what=f"the quarantine history {name}")
+                      for name, entry in raw_quarantine.items() if isinstance(entry, dict)}
+
+        store = payload.get("store")
+        if not isinstance(store, dict) or store.get("computed") is not True:
+            raise CorpusConstructionError(
+                "the Layer 2 manifest declares no COMPUTED store identity; a manifest must not claim "
+                "a store it did not hash")
+        store_sha = _require_sha256(store.get("store_file_sha256"), what="the store file identity")
+
+        supersedes = payload.get("supersedes")
+        if not isinstance(supersedes, dict):
+            raise CorpusConstructionError(
+                "the Layer 2 manifest declares no supersession; a whole-corpus reconstruction must "
+                "name the construction it replaces")
+        prior = _require_sha256(supersedes.get("corpus_manifest_sha256"),
+                                what="the superseded corpus manifest identity")
+        if prior == computed_sha256:
+            raise CorpusConstructionError(
+                "the Layer 2 manifest declares itself as its own predecessor")
+        if supersedes.get("prior_identity_altered") is not False:
+            raise CorpusConstructionError(
+                "the Layer 2 manifest does not assert that the prior identity is UNALTERED; a "
+                "supersession replaces a construction without mutating the record that made the "
+                "earlier countersignature checkable")
+        reason = str(supersedes.get("reason", "")).strip()
+        if not reason:
+            raise CorpusConstructionError("the Layer 2 supersession names no reason")
+
+        for name, size_key in (("mapped_identity_universe_size", "mapped_identity_universe_size"),
+                               ("price_universe_size", "price_universe_size")):
+            value = payload.get(size_key)
+            if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                raise CorpusConstructionError(
+                    f"the Layer 2 manifest records {name} as {value!r}")
+
+        return Layer2CorpusManifest(
+            construction_schema_version=version, session=session,
+            security_identity_contract=contract, corpus_manifest_sha256=computed_sha256,
+            universe_identities=identities,
+            mapped_identity_universe_size=int(payload["mapped_identity_universe_size"]),
+            price_universe_size=int(payload["price_universe_size"]),
+            artifacts=artifacts, quarantined_histories=quarantine,
+            store_file_sha256=store_sha, supersedes_corpus_manifest_sha256=prior,
+            supersession_reason=reason,
+            countersigned=payload.get("countersignature") is not None,
+        )
+
+
+@dataclass(frozen=True)
+class NormalizedCorpusConstruction:
+    """What a governed corpus construction exposes REGARDLESS of how it was assembled.
+
+    ⚠⚠ The base-plus-delta fields are `None`/empty for a Layer 2 reconstruction and are NEVER
+    fabricated. A consumer that needs a base or a delta order must ASK whether one exists; silently
+    defaulting them would reintroduce exactly the false statement native support exists to avoid.
+    """
+    corpus_construction_kind: str
+    corpus_manifest_sha256: str
+    governed_universe_sha256: str
+    governed_universe_size: int
+    security_identity_contract: str
+    coverage_through: date
+    construction_schema_version: str | None = None
+    supersedes_corpus_manifest_sha256: str | None = None
+    # base-plus-delta ONLY — absent by design on a reconstruction
+    base_corpus_sha256: str | None = None
+    base_coverage_through: date | None = None
+    ordered_delta_manifest_sha256s: tuple[str, ...] = ()
+    actions_manifest_sha256: str | None = None
+    tickers_manifest_sha256: str | None = None
+    # reconstruction ONLY
+    mapped_identity_universe_sha256: str | None = None
+    mapped_identity_universe_size: int | None = None
+    store_file_sha256: str | None = None
+    evidence_artifact_count: int | None = None
+
+    @property
+    def has_base_and_deltas(self) -> bool:
+        return self.base_corpus_sha256 is not None
+
+    def to_open_provenance(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "corpus_construction_kind": self.corpus_construction_kind,
+            "construction_schema_version": self.construction_schema_version,
+            "corpus_manifest_sha256": self.corpus_manifest_sha256,
+            "governed_universe_sha256": self.governed_universe_sha256,
+            "governed_universe_size": self.governed_universe_size,
+            "security_identity_contract": self.security_identity_contract,
+            "corpus_coverage_through": self.coverage_through.isoformat(),
+            "supersedes_corpus_manifest_sha256": self.supersedes_corpus_manifest_sha256,
+            "has_base_and_deltas": self.has_base_and_deltas,
+        }
+        if self.has_base_and_deltas:
+            out |= {
+                "base_corpus_sha256": self.base_corpus_sha256,
+                "base_coverage_through": (self.base_coverage_through.isoformat()
+                                          if self.base_coverage_through else None),
+                "ordered_delta_manifest_sha256s": list(self.ordered_delta_manifest_sha256s),
+                "actions_manifest_sha256": self.actions_manifest_sha256,
+                "tickers_manifest_sha256": self.tickers_manifest_sha256,
+            }
+        else:
+            out |= {
+                "mapped_identity_universe_sha256": self.mapped_identity_universe_sha256,
+                "mapped_identity_universe_size": self.mapped_identity_universe_size,
+                "store_file_sha256": self.store_file_sha256,
+                "evidence_artifact_count": self.evidence_artifact_count,
+            }
+        return out
+
+
+def normalize_corpus_manifest(
+    manifest: CorpusManifest | Layer2CorpusManifest,
+) -> NormalizedCorpusConstruction:
+    """One representation, two constructions, nothing invented."""
+    if isinstance(manifest, Layer2CorpusManifest):
+        return NormalizedCorpusConstruction(
+            corpus_construction_kind=LAYER2_CORPUS_KIND,
+            construction_schema_version=manifest.construction_schema_version,
+            corpus_manifest_sha256=manifest.corpus_manifest_sha256,
+            governed_universe_sha256=manifest.governed_universe_sha256,
+            governed_universe_size=manifest.governed_universe_size,
+            security_identity_contract=manifest.security_identity_contract,
+            coverage_through=manifest.session,
+            supersedes_corpus_manifest_sha256=manifest.supersedes_corpus_manifest_sha256,
+            mapped_identity_universe_sha256=(
+                manifest.universe_identities["governed_mapped_identity_universe_sha256"]),
+            mapped_identity_universe_size=manifest.mapped_identity_universe_size,
+            store_file_sha256=manifest.store_file_sha256,
+            evidence_artifact_count=len(manifest.artifacts),
+        )
+    return NormalizedCorpusConstruction(
+        corpus_construction_kind="governed_corpus",
+        corpus_manifest_sha256=manifest.corpus_manifest_sha256,
+        governed_universe_sha256=manifest.governed_universe_sha256,
+        governed_universe_size=manifest.governed_universe_size,
+        security_identity_contract=manifest.security_identity_contract,
+        coverage_through=manifest.coverage_through,
+        base_corpus_sha256=manifest.base_corpus_sha256,
+        base_coverage_through=manifest.base_coverage_through,
+        ordered_delta_manifest_sha256s=manifest.ordered_delta_manifest_sha256s,
+        actions_manifest_sha256=manifest.actions_manifest_sha256,
+        tickers_manifest_sha256=manifest.tickers_manifest_sha256,
+    )
+
+
+def load_layer2_corpus_manifest(path: Path) -> Layer2CorpusManifest:
+    """Load and validate a Layer 2 reconstruction manifest.
+
+    The identity is the sha256 of the file's bytes, and the file must BE its own canonical
+    serialization — the payload is re-canonicalized and required to match. That closes the gap where a
+    manifest could carry a valid-looking digest while its bytes said something else.
+    """
+    raw = Path(path).read_bytes()
+    computed = hashlib.sha256(raw).hexdigest()
+    payload = _load_manifest_json(Path(path), what="the Layer 2 corpus manifest")
+    if canonical_json(payload) != raw:
+        raise CorpusConstructionError(
+            "the Layer 2 corpus manifest is not in its own canonical form; its bytes do not "
+            "re-serialize to themselves, so its identity cannot be reproduced")
+    return Layer2CorpusManifest.from_payload(payload, computed_sha256=computed)
+
+
+def load_any_corpus_manifest(path: Path) -> CorpusManifest | Layer2CorpusManifest:
+    """Dispatch on the declared kind. A base-plus-delta manifest carries no `kind` and takes the
+    ORIGINAL path, entirely unchanged."""
+    payload = _load_manifest_json(Path(path), what="the corpus manifest")
+    kind = str(payload.get("kind", "")).strip()
+    if not kind:
+        return CorpusManifest.from_payload(payload)
+    if kind == LAYER2_CORPUS_KIND:
+        return load_layer2_corpus_manifest(Path(path))
+    raise CorpusConstructionError(
+        f"the corpus manifest declares an unrecognized kind {kind!r}; this runtime supports the "
+        f"base-plus-delta construction (no kind) and {LAYER2_CORPUS_KIND!r}")
+
+
 def load_corpus_manifest(path: Path) -> CorpusManifest:
     return CorpusManifest.from_payload(_load_manifest_json(path, what="the corpus manifest"))
 
