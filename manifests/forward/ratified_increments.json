@@ -2,12 +2,12 @@
   "commit_count": 30,
   "commits": [
     {
-      "commit": "3902dbb089721c3b2f21ae63787baf57eb7133d6",
+      "commit": "09d329c49c2e535b4d39417f7f6f2d477b17d475",
       "date": "2026-07-31",
       "subject": "wip"
     },
     {
-      "commit": "cb4b86e972956ae14c7c259d0ee9253306efadc8",
+      "commit": "9664d3d5242645ae05a5918b1dadf970e71e7919",
       "date": "2026-07-31",
       "subject": "fix(prereg): re-freeze the measurement instrument in a governed manifest outside the tree it pins"
     },
@@ -157,6 +157,6 @@
   "measured_paths": [
     "app/validation"
   ],
-  "to_ref_commit": "3902dbb089721c3b2f21ae63787baf57eb7133d6",
+  "to_ref_commit": "09d329c49c2e535b4d39417f7f6f2d477b17d475",
   "version": "1.0"
 }

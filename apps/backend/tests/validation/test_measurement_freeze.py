@@ -407,3 +407,41 @@ def test_the_committed_manifest_was_produced_by_THIS_implementation():
     assert manifest.validation_tree_identity_algorithm == TREE_IDENTITY_ALGORITHM
     assert manifest.validation_tree_sha256 == validation_tree_digest(root), (
         "the committed manifest does not describe the committed measurement content")
+
+
+# ---- every call site supplies the required identity, on EVERY platform ---------------------------
+#
+# ★ This test exists because CI caught what this machine could not. The `scripts/` CLI called
+# `build_forward_context` without the new required arguments; the tests that would have caught it are
+# POSIX-gated (a PRODUCTION witness needs POSIX ownership guarantees), so on Windows all 16 are
+# SKIPPED and the local suite was green while CI was red.
+#
+# An AST check over the call sites runs everywhere. It converts a platform-gated runtime failure into
+# a portable static one, which is the only kind this developer machine can catch.
+
+def test_every_call_site_supplies_the_required_identity_arguments():
+    import ast
+
+    required = {"code_commit", "measurement_freeze", "runtime_root"}
+    backend = Path(__file__).resolve().parents[2]
+    offenders: list[str] = []
+    for src in [*(backend / "app").rglob("*.py"), *(backend / "scripts").rglob("*.py")]:
+        try:
+            tree = ast.parse(src.read_text(encoding="utf-8"))
+        except SyntaxError:                                  # pragma: no cover - not our file
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", "")
+            if name != "build_forward_context":
+                continue
+            supplied = {k.arg for k in node.keywords if k.arg} | (
+                required if any(k.arg is None for k in node.keywords) else set())
+            missing = required - supplied
+            if missing:
+                offenders.append(f"{src.relative_to(backend)}:{node.lineno} missing {sorted(missing)}")
+    assert not offenders, (
+        "a caller omits the deployment identity — it would fail only where the POSIX-gated tests "
+        f"run: {offenders}")

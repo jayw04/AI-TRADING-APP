@@ -1,13 +1,13 @@
 {
   "amendment_sha256": "2b3e06932f14d25ce74cc378594cb27b7ec982fc2642062ae9f0e02ca0e8ba5e",
-  "byte_manifest_sha256": "5d68e17d566a50d7cb082acc94eee1642c8ffb6a96389f721e3719ca20704ae3",
+  "byte_manifest_sha256": "800b41553be85008649af8cb9ed7f401d1d01407c5f8c8a97117292354f96286",
   "manifest_schema_version": "1.0",
   "measured_paths": [
     "app/validation"
   ],
   "measurement_commit": "d13310a32227c67163250566eca719d5f734dd53",
-  "ratified_increment_inventory_sha256": "0f08f3b5bec753b1911def43488440a93a88d106eb9ea7f28c072f0275e29a71",
+  "ratified_increment_inventory_sha256": "a8cb26f25671480c2b1fe51a3f990ee1108f0eb494d0b6a926152170125f380a",
   "supersedes_measurement_commit": "764883b58cb96936f23e49182dd02b70d969501b",
   "validation_tree_identity_algorithm": "PATH_SORTED_SHA256_CRLF_TO_LF_V1",
-  "validation_tree_sha256": "9313fc0b9030fe35ea1186e7b73149b0764befd0e1fdeef4ff2c411474e9e79c"
+  "validation_tree_sha256": "7ba754034dad92e3130bdfa5f88851853960efabee9ece73296bac74427e0795"
 }
