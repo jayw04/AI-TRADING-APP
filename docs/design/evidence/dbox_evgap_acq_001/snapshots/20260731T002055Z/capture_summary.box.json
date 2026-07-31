@@ -1,0 +1,80 @@
+{
+  "document_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-OPENING-001",
+  "stage": 1,
+  "capture_id": "20260731T002055Z",
+  "captured_at_utc": "2026-07-31T00:20:56Z",
+  "host": "ip-172-31-7-230",
+  "operator": "ubuntu",
+  "freeze_document_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-FREEZE-001",
+  "freeze_body_sha256": "af7693f4b97fd7d9d4ad642ab1af47e9e9a2a8cd680f6a26c4d01fee8d57967e",
+  "start_ruling_id": "ADR0043-PH0-D-BOX-EVIDENCE-GAP-ACQ-START-001",
+  "start_merge": "eb9b66043c4d70b407b69d131581de1eda5d3af5",
+  "authorization_merge": "29eece313b1b2e7541a20c0440101455b78b106d",
+  "freeze_content_tip": "853f5f620d3089e66e2a54261b33ee189e79c7cb",
+  "freeze_seal_merge": "ec243c57bb2cdd9e59f903a65489ea6298b99c72",
+  "production_excluded_commit": "b0058bf335628f8dbde09a93915314f3a1f7743b",
+  "production_b0058bf_status": "UNUSED_CONFIRMED",
+  "box_git_head": "UNAVAILABLE",
+  "on_box_capture_root": "/opt/workbench/data/ops/adr0043_evgap_acq_snapshots/20260731T002055Z",
+  "selection_performed": false,
+  "sql_select_performed": false,
+  "o5_anchor_search_performed": false,
+  "recoverability_inspection_performed": false,
+  "broker_calls": [],
+  "sources": {
+    "SRC-APP-AUDIT-PLAN-CKPT-TERM-001": {
+      "live_path": "/opt/workbench/data/workbench.sqlite",
+      "live_pre_sha256": "9e40a9ad2f0176acf884140594ddfa9e946e42d2723794f464bbb0efdc2d9db6",
+      "live_post_sha256": "9e40a9ad2f0176acf884140594ddfa9e946e42d2723794f464bbb0efdc2d9db6",
+      "live_pre_meta_size_mtime_inode": "22683648 1785457230 1092066",
+      "live_post_meta_size_mtime_inode": "22683648 1785457230 1092066",
+      "immutable_snapshot_path": "/opt/workbench/data/ops/adr0043_evgap_acq_snapshots/20260731T002055Z/workbench.sqlite.snapshot",
+      "snapshot_sha256": "9e40a9ad2f0176acf884140594ddfa9e946e42d2723794f464bbb0efdc2d9db6",
+      "snapshot_size_bytes": 22683648,
+      "source_mutation_by_capture": "NONE",
+      "stage1_outcome": "CAPTURED",
+      "commands": [
+        "stat /opt/workbench/data/workbench.sqlite",
+        "sha256sum /opt/workbench/data/workbench.sqlite",
+        "cp -a /opt/workbench/data/workbench.sqlite /opt/workbench/data/ops/adr0043_evgap_acq_snapshots/20260731T002055Z/workbench.sqlite.snapshot"
+      ]
+    },
+    "SRC-ACCT3-PAPER-PRIOR-AUTH-001": {
+      "shares_snapshot_with": "SRC-APP-AUDIT-PLAN-CKPT-TERM-001",
+      "snapshot_sha256": "9e40a9ad2f0176acf884140594ddfa9e946e42d2723794f464bbb0efdc2d9db6",
+      "stage1_outcome": "CAPTURED"
+    },
+    "SRC-MKT-QUOTE-LAWFUL-001": {
+      "bar_cache_root": "/opt/workbench/data/bar_cache",
+      "bar_cache_manifest_path": "/opt/workbench/data/ops/adr0043_evgap_acq_snapshots/20260731T002055Z/bar_cache.files.sha256",
+      "bar_cache_manifest_sha256": "b32e118732669c2880291cd0a7226589e4b0e2ef20839dc8172c26ce51e0adc7",
+      "bar_cache_file_count": 70,
+      "market_projection_root": "/opt/workbench/data/market_projection",
+      "market_projection_manifest_path": "/opt/workbench/data/ops/adr0043_evgap_acq_snapshots/20260731T002055Z/market_projection.files.sha256",
+      "market_projection_manifest_sha256": "c0148389daa4139dd60a5921d6bec55a224a4156fb7cca080cc2b8fdfb7eb2c1",
+      "market_projection_file_count": 2,
+      "s3_version_ids": [],
+      "stage1_outcome": "CAPTURED",
+      "note": "Recursive file SHA-256 manifests only; no quote-content evaluation; no S3 Version IDs for these roots"
+    },
+    "SRC-O5-TIERA-LOCATE-CORPUS-001": {
+      "evidence_tree_root": null,
+      "tree_manifest_path": null,
+      "tree_manifest_sha256": null,
+      "stage1_outcome": "UNAVAILABLE",
+      "note": "Tree identity hash of docs/design/evidence only; O5 anchor content search NOT performed at Stage 1"
+    },
+    "SRC-GOV-GIT-IMMUTABLE-001": {
+      "status": "BOUND_VIA_GOVERNING_REFS",
+      "authorization_merge": "29eece313b1b2e7541a20c0440101455b78b106d",
+      "freeze_content_tip": "853f5f620d3089e66e2a54261b33ee189e79c7cb",
+      "freeze_seal_merge": "ec243c57bb2cdd9e59f903a65489ea6298b99c72",
+      "start_merge": "eb9b66043c4d70b407b69d131581de1eda5d3af5",
+      "stage1_outcome": "CAPTURED"
+    }
+  },
+  "all_mandatory_sources_captured": false,
+  "stage2_permitted": false,
+  "gates": "CLOSED",
+  "d_wire": "BLOCKED"
+}
