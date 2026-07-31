@@ -1310,6 +1310,43 @@ def resolve_governed_construction(
     )
 
 
+def manifest_bound_authority_policy(
+    normalized: NormalizedCorpusConstruction,
+    countersignature: Layer2Countersignature | None,
+) -> Any | None:
+    """The source-authority policy a construction confers — the ONE derivation.
+
+    ⚠ Both sides call this: production session composition and the deployment-evidence generator. A
+    second derivation is how the generator comes to describe a deployment the session path would
+    refuse, so there is only one.
+
+    `None` for a base-plus-delta construction, whose deployment still holds the artifacts it ingested
+    and whose authority is therefore the artifact-path re-hash, unchanged.
+
+    For a countersigned Layer 2 reconstruction the source ZIPs were construction inputs on the build
+    machine, so authority is carried by the manifest, the countersignature that binds it, and the
+    store provenance naming the same governed vintage. That conclusion — and only that conclusion — is
+    handed to `declare_action_source`, which never learns a corpus format.
+    """
+    if normalized.has_base_and_deltas:
+        return None
+    if countersignature is None:                     # pragma: no cover - resolve() refuses first
+        raise CountersignatureError(
+            "a Layer 2 construction reached authority derivation without a countersignature")
+    vintage = normalized.source_vintage_sha256
+    if not _is_sha256(vintage):
+        raise CorpusConstructionError(
+            f"the Layer 2 construction binds no usable source_vintage_sha256 ({vintage!r}); source "
+            f"authority cannot rest on a vintage the manifest does not name")
+    from app.validation.production_bindings import ManifestBoundAuthorityPolicy
+
+    return ManifestBoundAuthorityPolicy(
+        source_vintage_sha256=str(vintage).strip().lower(),
+        corpus_manifest_sha256=normalized.corpus_manifest_sha256,
+        countersignature_sha256=countersignature.countersignature_sha256,
+        construction_kind=normalized.corpus_construction_kind)
+
+
 def verify_frozen_artifact(path: Path, *, pinned_sha256: str, what: str) -> str:
     """Install-by-exact-hash. Refuses drift rather than accepting an equivalent-looking file.
 

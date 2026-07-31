@@ -1,14 +1,14 @@
 {
   "commits": [
     {
-      "commit": "7c2ca104f5a6fce3d085ccea06c192068e8b62a1",
+      "commit": "9c6a2f21bf78d11796b3f64cfbea44a44bfe6959",
       "date": "2026-07-31",
-      "subject": "fix(prereg): re-freeze the measurement instrument in a governed manifest outside the tree it pins (#582)"
+      "subject": "feat(validation): native Layer 2 corpus support on the session-composition path (#583)"
     }
   ],
   "current_freeze_range": {
-    "from_commit": "d13310a32227c67163250566eca719d5f734dd53",
-    "to_commit": "7c2ca104f5a6fce3d085ccea06c192068e8b62a1"
+    "from_commit": "7c2ca104f5a6fce3d085ccea06c192068e8b62a1",
+    "to_commit": "9c6a2f21bf78d11796b3f64cfbea44a44bfe6959"
   },
   "current_increment_count": 1,
   "inventory_scope": "INCREMENTS_SINCE_THE_IMMEDIATELY_PRECEDING_FREEZE",
@@ -16,6 +16,6 @@
   "measured_paths": [
     "app/validation"
   ],
-  "previous_inventory_sha256": "3c324a25b7c72cab602ca33c184d10f8d1508d6c20544ea7e60e7cb0870850a4",
+  "previous_inventory_sha256": "842cb8174297b4c8e91818f624d1530b1a2a46f596516b97c5d065c62197b82b",
   "version": "1.1"
 }

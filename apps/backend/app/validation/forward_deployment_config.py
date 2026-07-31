@@ -184,6 +184,13 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
         witness=load_witness_config(payload.get("witness")),
         corpus_countersignature_path=(Path(payload["corpus_countersignature_path"])
                                       if payload.get("corpus_countersignature_path") else None),
+        # ⚠ Absent => None, and the ancestry check then FAILS CLOSED wherever ancestry evidence is
+        # required. There is deliberately no environment fallback and no default path: a deployment
+        # that cannot point at its ancestry attestation must not have one fabricated for it. The field
+        # existed on the dataclass but was never read from the payload, so it was silently always None
+        # and no deployment could satisfy an ancestry check it did not itself descend from.
+        ancestry_marker_path=(Path(payload["ancestry_marker_path"])
+                              if payload.get("ancestry_marker_path") else None),
         runtime_digest_path=(Path(payload["runtime_digest_path"])
                              if payload.get("runtime_digest_path") else None),
         runtime_digest_env=(str(payload["runtime_digest_env"])

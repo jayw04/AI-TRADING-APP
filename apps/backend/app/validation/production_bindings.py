@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -67,11 +68,94 @@ from app.validation.forward_window import (
 ACTIONS_DATASET = _STORE_ACTIONS_DATASET
 
 
+@dataclass(frozen=True)
+class ManifestBoundAuthorityPolicy:
+    """Where source authority resides for a countersigned whole-corpus reconstruction.
+
+    ⚠⚠ THIS IS NOT A WAIVER OF SOURCE AUTHORITY. It states where authority lives for a construction
+    that was assembled once, off-host, and then countersigned by digest.
+
+    For a base-plus-delta corpus the deployment continues to ingest from artifacts it holds, so the
+    recorded `artifact_path` is a runtime dependency and re-hashing it is the authority check. A Layer
+    2 reconstruction is different in kind: its source ZIPs were CONSTRUCTION inputs on the build
+    machine, and the governed identity of what they produced is bound by the corpus manifest and its
+    countersignature. Every one of its `dataset_coverage` rows therefore records a build-machine
+    filesystem path (`C:\\LLM-RAG-APP\\layer2-vintage\\...`) that cannot exist on the deployment host,
+    and re-hashing it can only ever fail.
+
+    So for a reconstruction the artifact path is demoted to audit metadata and authority is proved
+    instead by: the immutable manifest, the countersignature sidecar that binds it, and the store's own
+    provenance naming the SAME source vintage the manifest binds. A missing, malformed, unbound or
+    mismatched provenance still refuses — the check moves, it does not weaken.
+
+    The policy is constructed at the composition root, never here: this module is handed the conclusion
+    (`the governed vintage is X`) rather than the corpus formats it would have to learn to derive it.
+    """
+    #: The `source_vintage_sha256` the governed manifest binds. The single value every authoritative
+    #: coverage row for the dataset must name.
+    source_vintage_sha256: str
+    #: Recorded so the declaration can name the construction whose authority is being relied on.
+    corpus_manifest_sha256: str
+    countersignature_sha256: str
+    construction_kind: str
+
+
+@dataclass(frozen=True)
+class ParsedSourceIdentity:
+    """The load-bearing fields of a `dataset_coverage.source_identity`."""
+    namespace: str                    # e.g. SHARADAR
+    dataset: str                      # e.g. ACTIONS
+    source_vintage_sha256: str
+
+
+def parse_source_identity(raw: object) -> ParsedSourceIdentity | None:
+    """Parse `SHARADAR/<DATASET>|key=value|…` into its two load-bearing fields, or `None`.
+
+    ⚠ Parsed, never substring-matched, and never compared whole. The recorded string also carries
+    `export_object`, `last_refreshed_time` and `reason`, which are audit metadata and legitimately
+    vary; comparing the whole string would refuse on cosmetic drift, and a substring test would accept
+    a partial match. So the two fields that carry meaning are extracted and compared exactly.
+
+    Refuses (returns None) a malformed identity, a missing or duplicated required key, an absent
+    dataset prefix, or a vintage that is not a sha256.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    head, *rest = text.split("|")
+    if head.count("/") != 1:
+        return None
+    namespace, _, dataset = head.partition("/")
+    if not namespace.strip() or not dataset.strip():
+        return None
+
+    seen: dict[str, str] = {}
+    for field in rest:
+        if "=" not in field:
+            continue                    # audit metadata may be free-form; only keyed fields count
+        key, _, value = field.partition("=")
+        key = key.strip()
+        if key in seen:
+            return None                 # a duplicated key makes the binding ambiguous
+        seen[key] = value.strip()
+
+    vintage = seen.get("source_vintage_sha256", "")
+    if not _is_sha256(vintage):
+        return None
+    return ParsedSourceIdentity(namespace=namespace.strip(), dataset=dataset.strip(),
+                                source_vintage_sha256=vintage)
+
+
 class BindingError(IntegrityStop):
     """A production binding could not be established from an authoritative source. Fails closed."""
 
 
-def declare_action_source(store: Any, *, dataset: str = ACTIONS_DATASET) -> ActionSourceDeclaration:
+def declare_action_source(
+    store: Any,
+    *,
+    dataset: str = ACTIONS_DATASET,
+    authority_policy: ManifestBoundAuthorityPolicy | None = None,
+) -> ActionSourceDeclaration:
     """Derive the corporate-action source declaration from the store's own ingest provenance.
 
     Authoritative ONLY when a completed ingest recorded its coverage window and artifact identity AND
@@ -108,13 +192,23 @@ def declare_action_source(store: Any, *, dataset: str = ACTIONS_DATASET) -> Acti
             identity=f"{dataset}:coverage-incomplete", authoritative=False,
             coverage_start=coverage_start, coverage_end=coverage_end)
 
-    # Authority rests on an IMMUTABLE artifact, so the artifact is re-verified — not merely referenced.
-    # A recorded digest with valid syntax proves nothing about the bytes on disk today.
-    ok, reason = _artifact_matches(artifact_path, str(artifact))
-    if not ok:
-        return ActionSourceDeclaration(
-            identity=f"{dataset}:{reason}", authoritative=False,
-            coverage_start=coverage_start, coverage_end=coverage_end)
+    if authority_policy is None:
+        # Authority rests on an IMMUTABLE artifact, so the artifact is re-verified — not merely
+        # referenced. A recorded digest with valid syntax proves nothing about the bytes on disk today.
+        ok, reason = _artifact_matches(artifact_path, str(artifact))
+        if not ok:
+            return ActionSourceDeclaration(
+                identity=f"{dataset}:{reason}", authoritative=False,
+                coverage_start=coverage_start, coverage_end=coverage_end)
+    else:
+        # Manifest-bound authority. `artifact_path` is audit metadata here and is NOT resolved; the
+        # binding that has to hold is that this store's provenance names the same governed vintage the
+        # countersigned manifest binds — for EVERY authoritative row, not merely the newest one.
+        failure = _manifest_bound_failure(con, dataset=dataset, policy=authority_policy)
+        if failure is not None:
+            return ActionSourceDeclaration(
+                identity=f"{dataset}:{failure}", authoritative=False,
+                coverage_start=coverage_start, coverage_end=coverage_end)
 
     # A running or failed ingest since the coverage was recorded may have mutated the dataset.
     try:
@@ -131,6 +225,47 @@ def declare_action_source(store: Any, *, dataset: str = ACTIONS_DATASET) -> Acti
     return ActionSourceDeclaration(
         identity=f"{source_identity}@{artifact}#{run_id}", authoritative=True,
         coverage_start=coverage_start, coverage_end=coverage_end)
+
+
+def _manifest_bound_failure(con: Any, *, dataset: str,
+                            policy: ManifestBoundAuthorityPolicy) -> str | None:
+    """Why manifest-bound authority does NOT hold for `dataset`, or `None` when it does.
+
+    ⚠ Checked across EVERY authoritative row, not just the one the caller selected. A store carrying
+    two `ok` coverage rows from two different vintages is exactly the conflict worth refusing, and
+    reading only the newest would hide it. Multiple rows from the SAME governed vintage are benign —
+    which is why this is a vintage-agreement test and not a row-count invariant, a rule that would
+    refuse the harmless case and miss the dangerous one.
+    """
+    try:
+        rows = con.execute(
+            "SELECT c.source_identity FROM dataset_coverage c "
+            "JOIN ingest_runs r ON r.run_id = c.ingest_run_id "
+            "WHERE c.dataset = ? AND r.dataset = c.dataset AND LOWER(c.status) = 'ok' "
+            "AND LOWER(r.status) = 'ok' AND r.finished_at IS NOT NULL "
+            "AND r.rows = c.rows_loaded AND c.coverage_start <= c.coverage_end",
+            [dataset]).fetchall()
+    except Exception:                                     # pragma: no cover - defensive
+        return "coverage-unreadable"
+    if not rows:
+        return "coverage-unlinked"
+
+    vintages: set[str] = set()
+    for (raw,) in rows:
+        parsed = parse_source_identity(raw)
+        if parsed is None:
+            return "source-identity-malformed"
+        # The dataset the row claims must be the dataset being declared. A TICKERS row cannot confer
+        # authority on ACTIONS however well-formed it is.
+        if parsed.dataset.strip().upper() != str(dataset).strip().upper():
+            return "source-identity-wrong-dataset"
+        vintages.add(parsed.source_vintage_sha256)
+
+    if len(vintages) > 1:
+        return "source-vintage-conflict"
+    if vintages != {str(policy.source_vintage_sha256).strip().lower()}:
+        return "source-vintage-unbound"
+    return None
 
 
 def _is_sha256(value: object) -> bool:

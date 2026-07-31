@@ -460,7 +460,7 @@ def test_the_readiness_gate_assesses_a_session_once(monkeypatch):
         return f"evidence-for-{session_date}"
 
     monkeypatch.setattr(sc, "assess_data_finality", _fake_assess)
-    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store: None)
+    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store, policy=None: None)
     gate = sc._GovernedReadiness(object(), None, sc.ConstructionSpec())
 
     first, second = gate.assess(SESSION), gate.assess(SESSION)
@@ -476,7 +476,7 @@ def test_memoized_evidence_cannot_leak_between_stores(monkeypatch):
     a second store never sees the first store's evidence."""
     from app.validation import session_composition as sc
 
-    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store: None)
+    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store, policy=None: None)
     monkeypatch.setattr(sc, "assess_data_finality",
                         lambda store, session_date, **kw: f"evidence-for-{store}")
     a = sc._GovernedReadiness("STORE-A", None, sc.ConstructionSpec())
