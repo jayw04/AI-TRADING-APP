@@ -47,6 +47,7 @@ from app.validation.governed_corpus import (  # noqa: E402
     load_any_corpus_manifest,
     load_dgs3mo_manifest,
     load_layer2_countersignature,
+    manifest_bound_authority_policy,
     normalize_corpus_manifest,
     require_countersignature,
     verify_frozen_artifact,
@@ -171,6 +172,11 @@ def deployment_manifest(repo: Path, *, build: dict[str, Any], corpus_manifest_pa
                 "is authorized to assemble and is not optional for this construction kind")
         countersignature = load_layer2_countersignature(Path(declared))
         require_countersignature(corpus, countersignature)
+
+    # Derived through the SAME shared function the session path uses. The generator records nothing
+    # extra from it — it derives it so that a deployment whose authority basis cannot be established
+    # fails HERE, at generation, rather than producing a manifest the session path then refuses.
+    manifest_bound_authority_policy(normalized, countersignature)
 
     # The frozen inputs are verified HERE, at generation, as well as at session start. A manifest that
     # binds a drifted artifact would otherwise be produced happily and only refused a day later.

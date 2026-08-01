@@ -1,13 +1,13 @@
 {
-  "amendment_sha256": "fcf74a2d2ff095baa1344b283fa5c8cbfd233042f2b50ce75fde4fcc8df507df",
-  "byte_manifest_sha256": "725a15ff32c166d3f22eec38100362208fcdd4a89efb1d9dc466223a30099c25",
+  "amendment_sha256": "09b63757835b65cecda5707936a3500b700dbff68e5cdf8b70e066a5ba25b2d4",
+  "byte_manifest_sha256": "a31da9ccf58b3c8b4ae7af989b0050cf1cf13834692cb1ebb872081e44b5c5ef",
   "manifest_schema_version": "1.0",
   "measured_paths": [
     "app/validation"
   ],
-  "measurement_commit": "7c2ca104f5a6fce3d085ccea06c192068e8b62a1",
-  "ratified_increment_inventory_sha256": "842cb8174297b4c8e91818f624d1530b1a2a46f596516b97c5d065c62197b82b",
-  "supersedes_measurement_commit": "d13310a32227c67163250566eca719d5f734dd53",
+  "measurement_commit": "9c6a2f21bf78d11796b3f64cfbea44a44bfe6959",
+  "ratified_increment_inventory_sha256": "a435a8a6c21956f621167eb665502edafd1d71755f871713b74c0d2c6b3eee49",
+  "supersedes_measurement_commit": "7c2ca104f5a6fce3d085ccea06c192068e8b62a1",
   "validation_tree_identity_algorithm": "PATH_SORTED_SHA256_CRLF_TO_LF_V1",
-  "validation_tree_sha256": "3dee95a963517550646506a954963a6db954a862779d4be1d5eda620ac3d2779"
+  "validation_tree_sha256": "d20371a956653534534b9b535f881b37ca3d1f1e8d67432eaa0433d0bb05b4c6"
 }

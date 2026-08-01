@@ -396,7 +396,11 @@ def test_the_bridge_refusal_lands_before_the_frozen_proxy_is_built(tmp_path, mon
             return {}
 
     class _Readiness:
-        def __init__(self, *args):
+        # `**kwargs` rather than a named parameter: this stub stands in for the real gate's
+        # CONSTRUCTION, and the test is about refusal ORDERING, not the gate's signature. Pinning the
+        # exact keywords here would make every future composition-root argument a failure in a test
+        # that does not care about it.
+        def __init__(self, *args, **kwargs):
             pass
 
         def assess(self, session):
@@ -460,7 +464,7 @@ def test_the_readiness_gate_assesses_a_session_once(monkeypatch):
         return f"evidence-for-{session_date}"
 
     monkeypatch.setattr(sc, "assess_data_finality", _fake_assess)
-    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store: None)
+    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store, policy=None: None)
     gate = sc._GovernedReadiness(object(), None, sc.ConstructionSpec())
 
     first, second = gate.assess(SESSION), gate.assess(SESSION)
@@ -476,7 +480,7 @@ def test_memoized_evidence_cannot_leak_between_stores(monkeypatch):
     a second store never sees the first store's evidence."""
     from app.validation import session_composition as sc
 
-    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store: None)
+    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store, policy=None: None)
     monkeypatch.setattr(sc, "assess_data_finality",
                         lambda store, session_date, **kw: f"evidence-for-{store}")
     a = sc._GovernedReadiness("STORE-A", None, sc.ConstructionSpec())

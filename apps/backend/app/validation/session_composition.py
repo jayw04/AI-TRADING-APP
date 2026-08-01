@@ -63,6 +63,7 @@ from app.validation.governed_corpus import (
     GovernedConstruction,
     construction_identity,
     consumed_rows_identity,
+    manifest_bound_authority_policy,
     require_observation_identities,
     resolve_governed_construction,
 )
@@ -131,10 +132,13 @@ class _GovernedReadiness:
     """
 
     def __init__(self, store: Any, config: ForwardDeploymentConfig,
-                 construction: ConstructionSpec) -> None:
+                 construction: ConstructionSpec, authority_policy: Any = None) -> None:
         self._store = store
         self._config = config
         self._construction = construction
+        # Derived once at the composition root from the governed construction; `None` for
+        # base-plus-delta, which keeps that path on the artifact-path re-hash it has always used.
+        self._authority_policy = authority_policy
         self._assessed: tuple[date, DataFinalityEvidence] | None = None
 
     def assess(self, session_date: date) -> DataFinalityEvidence:
@@ -142,7 +146,7 @@ class _GovernedReadiness:
             return self._assessed[1]
         evidence = assess_data_finality(
             self._store, session_date, construction=self._construction,
-            adjustment_verifier=_adjustment_verifier(self._store))
+            adjustment_verifier=_adjustment_verifier(self._store, self._authority_policy))
         self._assessed = (session_date, evidence)
         return evidence
 
@@ -151,11 +155,11 @@ class _GovernedReadiness:
                                construction=self._construction)
 
 
-def _adjustment_verifier(store: Any):
+def _adjustment_verifier(store: Any, authority_policy: Any = None):
     from app.validation.adjustment_verifier import verify_adjustments
     from app.validation.production_bindings import declare_action_source
 
-    source = declare_action_source(store)
+    source = declare_action_source(store, authority_policy=authority_policy)
 
     def verifier(window_start: date, session_date: date, tickers: list[str], store_identity: str):
         return verify_adjustments(store, window_start=window_start, session_date=session_date,
@@ -448,7 +452,10 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         # finding that says its input could fabricate a return — the lineage bridge risk — therefore
         # has to land before it runs. Refusing afterwards would mean the fabricated return had
         # already been computed and averaged into the regime.
-        readiness = _GovernedReadiness(store, config, construction)
+        readiness = _GovernedReadiness(
+            store, config, construction,
+            authority_policy=manifest_bound_authority_policy(
+                governed.normalized, governed.countersignature))
         finality = readiness.assess(session)
         evidence["data_finality"] = finality.to_open_provenance()
         if finality.verdict is DataReadiness.NOT_READY_LINEAGE_BRIDGE_RISK:
