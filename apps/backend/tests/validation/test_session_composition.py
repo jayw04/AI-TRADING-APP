@@ -396,7 +396,11 @@ def test_the_bridge_refusal_lands_before_the_frozen_proxy_is_built(tmp_path, mon
             return {}
 
     class _Readiness:
-        def __init__(self, *args):
+        # `**kwargs` rather than a named parameter: this stub stands in for the real gate's
+        # CONSTRUCTION, and the test is about refusal ORDERING, not the gate's signature. Pinning the
+        # exact keywords here would make every future composition-root argument a failure in a test
+        # that does not care about it.
+        def __init__(self, *args, **kwargs):
             pass
 
         def assess(self, session):
