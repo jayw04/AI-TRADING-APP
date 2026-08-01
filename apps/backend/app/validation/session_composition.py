@@ -536,6 +536,9 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         "run_timestamp": invocation,
         "deployed_tree_identity": deployment.agreed_commit,
         "regime_source_identity": regime_source_identity,
+        # Amendment 6: the owner-approved expected outcome for ONE first-session commit, or None.
+        # Resolved from the governed configuration and from nowhere else.
+        "outcome_pin": config.first_session_outcome_pin,
     }
     return ResolvedSession(runtime=runtime, store=store, run_kwargs=run_kwargs, evidence=evidence)
 

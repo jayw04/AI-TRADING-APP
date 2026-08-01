@@ -28,7 +28,11 @@ from app.validation.decision_provider import (
     ProductionDecisionProvider,
     capture_instrument_snapshot,
 )
-from app.validation.forward_session_runner import ForwardSessionRunner, SessionRunResult
+from app.validation.forward_session_runner import (
+    FirstSessionOutcomePin,
+    ForwardSessionRunner,
+    SessionRunResult,
+)
 from app.validation.forward_window import ForwardRunContext, IntegrityStop
 from app.validation.observation_store import Account4StateProbe, committed_observations
 from app.validation.production_providers import (
@@ -144,6 +148,7 @@ def run_production_session(
     run_timestamp: str,
     deployed_tree_identity: str,
     regime_source_identity: str,
+    outcome_pin: FirstSessionOutcomePin | None = None,
 ) -> SessionRunResult:
     """Assemble and run one governed session. Captures ONE snapshot, wires its digest end to end, binds
     provider evidence into the record, and writes the instrument book after the observation commits."""
@@ -225,7 +230,8 @@ def run_production_session(
         snapshot_capture=capture_snapshot, bind_snapshot=bind_snapshot,
         anchor_signer=runtime.anchor_signer, anchor_verifier=runtime.anchor_verifier,
         external_anchor_sink=runtime.external_anchor_sink,
-        on_committed=_book_writer(lifecycle, adapter))
+        on_committed=_book_writer(lifecycle, adapter),
+        outcome_pin=outcome_pin)
 
     return runner.run_session(session, run_timestamp=run_timestamp)
 

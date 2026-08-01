@@ -1,21 +1,15 @@
 {
-  "commits": [
-    {
-      "commit": "1c73d442e3461530fbda59c9051d023102a291b6",
-      "date": "2026-07-31",
-      "subject": "fix(validation): manifest-bound source authority for Layer 2; load ancestry_marker_path (#584)"
-    }
-  ],
+  "commits": [],
   "current_freeze_range": {
-    "from_commit": "9c6a2f21bf78d11796b3f64cfbea44a44bfe6959",
+    "from_commit": "1c73d442e3461530fbda59c9051d023102a291b6",
     "to_commit": "1c73d442e3461530fbda59c9051d023102a291b6"
   },
-  "current_increment_count": 1,
+  "current_increment_count": 0,
   "inventory_scope": "INCREMENTS_SINCE_THE_IMMEDIATELY_PRECEDING_FREEZE",
   "kind": "ratified_measurement_increments",
   "measured_paths": [
     "app/validation"
   ],
-  "previous_inventory_sha256": "210987189e62e0291d25331440865873c337673d4bc9be015f70f2a15ef05d3f",
+  "previous_inventory_sha256": "4c2c88258fb76dd3b436bbfcdcbfd385cd341509dabb381d7789230104905e62",
   "version": "1.1"
 }

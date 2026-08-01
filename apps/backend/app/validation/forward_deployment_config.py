@@ -108,6 +108,13 @@ class ForwardDeploymentConfig:
     #: written under a different governed quarantine, is a refusal and never a silent fall back to the
     #: broad gate.
     narrow_readiness_attestation_path: Path | None = None
+    #: The owner-approved expected outcome for ONE first-session commit (Amendment 6), or None for
+    #: ordinary unpinned operation. Parsed fail-closed at load: a declared pin with a missing or
+    #: malformed digest refuses the whole configuration rather than degrading into an unpinned run.
+    #:
+    #: ⚠ THE CONFIGURATION FILE IS THE ONLY SOURCE. No environment fallback, no CLI argument, no
+    #: default — expectations that can arrive through an ungoverned channel are suggestions.
+    first_session_outcome_pin: Any | None = None
     runtime_digest_path: Path | None = None
     runtime_digest_env: str | None = None
     expected_commit: str | None = None
@@ -122,6 +129,25 @@ class ForwardDeploymentConfig:
         # component options are summarised by key rather than copied into operator-visible evidence.
         d["witness"] = self.witness.to_open_provenance()
         return d
+
+
+def _parse_outcome_pin(payload: Any) -> Any | None:
+    """Parse the optional first-session outcome pin, fail-closed (Amendment 6).
+
+    `None` when the configuration declares none — ordinary unpinned operation. A DECLARED pin that
+    cannot be parsed refuses the whole configuration: silently dropping it would convert "commit only
+    the reviewed outcome" into an ordinary commit, which is the exact degradation the pin forbids.
+    """
+    if payload is None:
+        return None
+    from app.validation.forward_session_runner import FirstSessionOutcomePin
+
+    try:
+        return FirstSessionOutcomePin.from_payload(payload)
+    except IntegrityStop as exc:
+        raise DeploymentConfigError(
+            f"the declared first_session_outcome_pin is unusable and the configuration is refused "
+            f"rather than run unpinned: {exc}") from exc
 
 
 def config_path() -> Path:
@@ -195,6 +221,7 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
         narrow_readiness_attestation_path=(
             Path(payload["narrow_readiness_attestation_path"])
             if payload.get("narrow_readiness_attestation_path") else None),
+        first_session_outcome_pin=_parse_outcome_pin(payload.get("first_session_outcome_pin")),
         # ⚠ Absent => None, and the ancestry check then FAILS CLOSED wherever ancestry evidence is
         # required. There is deliberately no environment fallback and no default path: a deployment
         # that cannot point at its ancestry attestation must not have one fabricated for it. The field
