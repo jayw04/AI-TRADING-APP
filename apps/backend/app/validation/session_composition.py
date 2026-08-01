@@ -139,16 +139,19 @@ class _GovernedReadiness:
     """
 
     def __init__(self, store: Any, config: ForwardDeploymentConfig,
-                 construction: ConstructionSpec, *, adjustment_verifier: Any,
+                 construction: ConstructionSpec, *, wiring: Any = None,
                  narrow_readiness: NarrowReadinessAttestation | None = None) -> None:
         self._store = store
         self._config = config
         self._construction = construction
-        # ⚠ Both are built at the composition root from the GOVERNED construction and handed in.
-        # The verifier carries the manifest-bound source authority and the pinned non-decision M&A
-        # disclosure; the attestation carries the governed quarantine. Building either here would put
-        # a second derivation inside the gate that is supposed to be checking the first.
-        self._verifier = adjustment_verifier
+        # ⚠ Both are DERIVED at the composition root from the GOVERNED construction and handed in —
+        # deriving either here would put a second derivation inside the gate that is supposed to be
+        # checking the first. `wiring` is the artifact-level derivation only: the VERIFIER it confers
+        # is built lazily inside `assess`, because building it reads the store's ingest provenance,
+        # and the composition root must not touch the store a moment earlier than it always has.
+        # `None` means a construction that confers no wiring (base-plus-delta) — the plain
+        # artifact-path verifier, unchanged.
+        self._wiring = wiring
         self._narrow = narrow_readiness
         self._assessed: tuple[date, DataFinalityEvidence] | None = None
 
@@ -157,7 +160,8 @@ class _GovernedReadiness:
             return self._assessed[1]
         evidence = assess_data_finality(
             self._store, session_date, construction=self._construction,
-            adjustment_verifier=self._verifier, narrow_readiness=self._narrow)
+            adjustment_verifier=_adjustment_verifier(self._store, self._wiring),
+            narrow_readiness=self._narrow)
         self._assessed = (session_date, evidence)
         return evidence
 
@@ -455,21 +459,33 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         # path: `governed_quarantine` was a countersigned block with no consumer in `app/`, so a
         # deployment could pass Phase C readiness and then be unable to run the very session that
         # readiness had just cleared.
+        # ⚠ `None` for a base-plus-delta construction, which declares no governed quarantine. That
+        # path keeps exactly the verifier it has always had — no disclosure, no attestation, no
+        # narrow claim — and this must stay a NO-OP for it rather than a refusal: the format predates
+        # the block, and "declares none" is not a defect.
         wiring = governed_narrow_wiring(
-            store, governed.normalized, governed.countersignature,
+            governed.normalized, governed.countersignature,
             governed_root=Path(config.corpus_manifest_path).parent)
-        evidence["governed_narrow_wiring"] = wiring.to_open_provenance()
-        narrow = _narrow_attestation(config, wiring.quarantine)
-        if narrow is not None:
-            evidence["narrow_readiness_attestation"] = {
-                "path": str(config.narrow_readiness_attestation_path),
-                "attested_session": narrow[0].session_date.isoformat(),
-                "attestation_sha256": narrow[1],
-            }
+        if wiring is None:
+            if config.narrow_readiness_attestation_path is not None:
+                raise CompositionError(
+                    f"the deployment declares a narrow-readiness attestation at "
+                    f"{config.narrow_readiness_attestation_path}, but this construction declares no "
+                    f"governed quarantine to bind it under; an attestation that cannot be bound is "
+                    f"refused rather than consulted")
+            narrow = None
+        else:
+            evidence["governed_narrow_wiring"] = wiring.to_open_provenance()
+            narrow = _narrow_attestation(config, wiring.quarantine)
+            if narrow is not None:
+                evidence["narrow_readiness_attestation"] = {
+                    "path": str(config.narrow_readiness_attestation_path),
+                    "attested_session": narrow[0].session_date.isoformat(),
+                    "attestation_sha256": narrow[1],
+                }
 
         readiness = _GovernedReadiness(
-            store, config, construction,
-            adjustment_verifier=wiring.adjustment_verifier,
+            store, config, construction, wiring=wiring,
             narrow_readiness=narrow[0] if narrow else None)
         finality = readiness.assess(session)
         evidence["data_finality"] = finality.to_open_provenance()
@@ -522,6 +538,22 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         "regime_source_identity": regime_source_identity,
     }
     return ResolvedSession(runtime=runtime, store=store, run_kwargs=run_kwargs, evidence=evidence)
+
+
+def _adjustment_verifier(store: Any, wiring: Any = None) -> Any:
+    """The verifier the readiness gate assesses with — built HERE, at assess time, never earlier.
+
+    Constructing a verifier reads the store's ingest provenance (`declare_action_source`), so this is
+    deliberately deferred out of the composition root: the store must not be interrogated ahead of
+    the refusals the root orders first. With `wiring` (a Layer 2 construction) the verifier carries
+    the manifest-bound authority and the pinned disclosure; without it, the artifact-path source
+    authority with no disclosure — exactly what that construction has always used.
+    """
+    if wiring is not None:
+        return wiring.verifier(store)
+    from app.validation.production_bindings import governed_adjustment_verifier
+
+    return governed_adjustment_verifier(store, authority_policy=None, ma_disclosure=None)
 
 
 def _narrow_attestation(config: ForwardDeploymentConfig, quarantine: GovernedQuarantinePolicy,

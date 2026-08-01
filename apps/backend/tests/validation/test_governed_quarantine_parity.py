@@ -174,17 +174,23 @@ def _record_governed_provenance(st, coverage_start: date) -> None:
 # ── the two derivations ───────────────────────────────────────────────────────────────────────────
 
 def _phase_c_wiring(store, *, governed=LAYER2_ARTIFACTS, countersignature=COUNTERSIGNATURE):
-    """What the READINESS runner measures with — through its own entry point, not reconstructed."""
-    return pc._production_wiring(store, Path(governed), Path(countersignature))
+    """What the READINESS runner measures with — through its own entry point, not reconstructed.
+
+    `store` is accepted for call-site symmetry with `_session_wiring` but the derivation itself is
+    store-free by design — the verifier is bound to a store later, via `wiring.verifier(store)`.
+    """
+    del store
+    return pc._production_wiring(Path(governed), Path(countersignature))
 
 
 def _session_wiring(store, *, governed=LAYER2_ARTIFACTS, countersignature=COUNTERSIGNATURE):
     """What PRODUCTION SESSION COMPOSITION measures with — likewise through its own entry point."""
     from app.validation.production_bindings import governed_narrow_wiring
 
+    del store
     corpus = load_any_corpus_manifest(Path(governed) / "corpus_manifest_v2.json")
     sidecar = load_layer2_countersignature(Path(countersignature))
-    return governed_narrow_wiring(store, normalize_corpus_manifest(corpus), sidecar,
+    return governed_narrow_wiring(normalize_corpus_manifest(corpus), sidecar,
                                   governed_root=Path(governed))
 
 
@@ -192,8 +198,7 @@ def _readiness_via_session_path(store, attestation_path: Path, wiring):
     """The session path's readiness gate, assembled exactly as `build_session_runtime` assembles it."""
     attestation, _ = load_narrow_readiness_attestation(attestation_path,
                                                        quarantine=wiring.quarantine)
-    gate = sc._GovernedReadiness(store, None, SPEC,
-                                 adjustment_verifier=wiring.adjustment_verifier,
+    gate = sc._GovernedReadiness(store, None, SPEC, wiring=wiring,
                                  narrow_readiness=attestation)
     return gate.assess(SESSION)
 
@@ -204,7 +209,7 @@ def attestation(store, tmp_path_factory) -> Path:
     wiring = _phase_c_wiring(store)
     return pc.derive_attestation(
         store, SESSION, out_path=tmp_path_factory.mktemp("att") / "phase_c_attestation.json",
-        construction=SPEC, adjustment_verifier=wiring.adjustment_verifier,
+        construction=SPEC, adjustment_verifier=wiring.verifier(store),
         corpus_manifest_sha256=wiring.quarantine.corpus_manifest_sha256,
         reconciliation_artifact_sha256="a" * 64,
         relevance_artifact_sha256=wiring.ma_disclosure.assessment_artifact_sha256,
@@ -239,7 +244,7 @@ def test_both_paths_reach_the_governed_july_27_readiness_outcome(store, attestat
 
     phase_c = pc.validate_attestation(
         store, SESSION, attestation_path=attestation, construction=SPEC,
-        adjustment_verifier=_phase_c_wiring(store).adjustment_verifier,
+        adjustment_verifier=_phase_c_wiring(store).verifier(store),
         corpus_manifest_sha256=_phase_c_wiring(store).quarantine.corpus_manifest_sha256,
         quarantine=_phase_c_wiring(store).quarantine, prediction=None)
     assert phase_c.refusals == ()
@@ -257,8 +262,7 @@ def test_the_four_governed_movements_are_the_ones_measured(store):
         ("642054", "2026-02-02", "DIVIDEND_FACTOR"),
         ("642054", "2026-02-03", "DIVIDEND_FACTOR"),
     }
-    ev = sc._GovernedReadiness(store, None, SPEC,
-                               adjustment_verifier=wiring.adjustment_verifier).assess(SESSION)
+    ev = sc._GovernedReadiness(store, None, SPEC, wiring=wiring).assess(SESSION)
     measured = ev.adjustment_evidence["unexplained_examples"]
     assert {(m["permaticker"], m["session_date"], m["factor"]) for m in measured} \
         == wiring.quarantine.movement_keys
@@ -288,7 +292,7 @@ def test_the_two_paths_agree_on_the_census_and_the_limitation_digest(store, atte
     """★★ The measured half of parity: one status census, one disclosed limitation, one digest."""
     phase_c = pc.validate_attestation(
         store, SESSION, attestation_path=attestation, construction=SPEC,
-        adjustment_verifier=_phase_c_wiring(store).adjustment_verifier,
+        adjustment_verifier=_phase_c_wiring(store).verifier(store),
         corpus_manifest_sha256=_phase_c_wiring(store).quarantine.corpus_manifest_sha256,
         quarantine=_phase_c_wiring(store).quarantine, prediction=None)
     session = _readiness_via_session_path(store, attestation,
@@ -409,16 +413,17 @@ def test_a_movement_the_policy_does_not_govern_refuses_on_the_session_path(store
     wiring = _session_wiring(store)
     attestation_dir = tmp_path / "att"
     attestation_dir.mkdir()
+    real_verifier = wiring.verifier(store)
     out = pc.derive_attestation(
         store, SESSION, out_path=attestation_dir / "a.json", construction=SPEC,
-        adjustment_verifier=wiring.adjustment_verifier,
+        adjustment_verifier=real_verifier,
         corpus_manifest_sha256=wiring.quarantine.corpus_manifest_sha256,
         reconciliation_artifact_sha256="a" * 64,
         relevance_artifact_sha256=wiring.ma_disclosure.assessment_artifact_sha256,
         quarantine=wiring.quarantine)
 
     def with_an_extra_movement(window_start, session_date, tickers, store_identity):
-        real = wiring.adjustment_verifier(window_start, session_date, tickers, store_identity)
+        real = real_verifier(window_start, session_date, tickers, store_identity)
 
         class _Extra:
             proven = False
@@ -433,9 +438,13 @@ def test_a_movement_the_policy_does_not_govern_refuses_on_the_session_path(store
 
         return _Extra()
 
+    from types import SimpleNamespace
+
     attestation, _ = load_narrow_readiness_attestation(out, quarantine=wiring.quarantine)
-    gate = sc._GovernedReadiness(store, None, SPEC, adjustment_verifier=with_an_extra_movement,
-                                 narrow_readiness=attestation)
+    gate = sc._GovernedReadiness(
+        store, None, SPEC,
+        wiring=SimpleNamespace(verifier=lambda st: with_an_extra_movement),
+        narrow_readiness=attestation)
     ev = gate.assess(SESSION)
     assert ev.verdict is DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED
     assert any("not covered by the countersigned quarantine"
@@ -495,3 +504,27 @@ def test_the_readiness_runner_does_not_import_the_production_composition_root():
     assert not hasattr(sc, "governed_narrow_wiring") or (
         sc.governed_narrow_wiring is production_bindings.governed_narrow_wiring), (
         "one derivation, imported — never re-implemented in the composition root")
+
+
+def test_a_base_plus_delta_construction_derives_NO_quarantine(tmp_path):
+    """★ REGRESSION GUARD, and the one CI caught that Windows could not.
+
+    The base-plus-delta format predates the `governed_quarantine` block and declares none.
+    `governed_narrow_wiring` must return `None` for it — exactly as `manifest_bound_authority_policy`
+    does — so the session path keeps the verifier it has always had. The first version of this change
+    raised instead, which broke every base-plus-delta composition and moved a refusal ahead of the
+    lineage-bridge refusal the composition root deliberately orders first.
+
+    ⚠ "Declares none" is not "quarantines nothing". Synthesizing an empty policy would state
+    something the countersignature never said and hand the session a disclosure basis it has no
+    evidence for.
+    """
+    from app.validation.governed_corpus import load_corpus_manifest, normalize_corpus_manifest
+    from app.validation.production_bindings import governed_narrow_wiring
+    from tests.validation.governed_construction_fixture import install_governed_construction
+
+    install_governed_construction(tmp_path, LAYER2_SESSION)
+    normalized = normalize_corpus_manifest(load_corpus_manifest(tmp_path / "corpus_manifest.json"))
+    assert normalized.has_base_and_deltas
+    assert normalized.governed_quarantine is None, "the format declares none — never an empty one"
+    assert governed_narrow_wiring(normalized, None, governed_root=tmp_path) is None

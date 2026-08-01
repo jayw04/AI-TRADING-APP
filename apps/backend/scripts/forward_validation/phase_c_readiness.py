@@ -300,7 +300,7 @@ def _sha(p: Path) -> str:
     return h.hexdigest()
 
 
-def _production_wiring(store: Any, governed: Path, countersignature: Path):
+def _production_wiring(governed: Path, countersignature: Path):
     """Bind the quarantine, the disclosure and the adjustment verifier THROUGH the production
     composition root, so the result describes the REGISTERED construction rather than one assembled
     here.
@@ -336,8 +336,13 @@ def _production_wiring(store: Any, governed: Path, countersignature: Path):
             "base-plus-delta corpus manifest, which carries no governed quarantine")
     sidecar = load_layer2_countersignature(countersignature)
     require_countersignature(corpus, sidecar)
-    return governed_narrow_wiring(store, normalize_corpus_manifest(corpus), sidecar,
-                                  governed_root=governed)
+    wiring = governed_narrow_wiring(normalize_corpus_manifest(corpus), sidecar,
+                                    governed_root=governed)
+    if wiring is None:                       # pragma: no cover - the isinstance check refuses first
+        raise PhaseCRefusal(
+            "the governed construction declares no quarantine, so there is no narrow claim for this "
+            "runner to evaluate")
+    return wiring
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -362,7 +367,8 @@ def main(argv: list[str] | None = None) -> int:
         load_any_corpus_manifest(governed / "corpus_manifest_v2.json"))
     spec = ConstructionSpec()
     store = FactorDataStore(args.store, read_only=True)
-    wiring = _production_wiring(store, governed, countersignature)
+    wiring = _production_wiring(governed, countersignature)
+    verifier = wiring.verifier(store)
 
     print("== deployed construction ==")
     print(f"   corpus_construction_kind    {manifest.corpus_construction_kind}")
@@ -385,7 +391,7 @@ def main(argv: list[str] | None = None) -> int:
         print("\n== STAGE 1 — derive the attestation from the frozen readiness construction ==")
         derive_attestation(
             store, SESSION, out_path=attestation_path, construction=spec,
-            adjustment_verifier=wiring.adjustment_verifier,
+            adjustment_verifier=verifier,
             corpus_manifest_sha256=manifest.corpus_manifest_sha256,
             reconciliation_artifact_sha256=_sha(governed / "adjustment_reconciliation_final.json"),
             relevance_artifact_sha256=wiring.ma_disclosure.assessment_artifact_sha256,
@@ -402,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = validate_attestation(
             store, SESSION, attestation_path=attestation_path, construction=spec,
-            adjustment_verifier=wiring.adjustment_verifier,
+            adjustment_verifier=verifier,
             corpus_manifest_sha256=manifest.corpus_manifest_sha256,
             quarantine=q, prediction=GOVERNED_PREDICTION)
     except PhaseCRefusal as exc:

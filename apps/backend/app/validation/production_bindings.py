@@ -368,11 +368,23 @@ def governed_adjustment_verifier(store: Any, *, authority_policy: Any = None,
 
 @dataclass(frozen=True)
 class GovernedNarrowWiring:
-    """Everything the narrow readiness claim is measured with, derived from ONE construction."""
+    """Everything the narrow readiness claim is measured with, derived from ONE construction.
+
+    ⚠ It carries no store and no built verifier — only what the GOVERNED ARTIFACTS say. Building the
+    verifier requires reading the store's ingest provenance, and the composition root must not do that
+    a moment earlier than it always has: the readiness gate constructs the verifier lazily inside its
+    own assessment, and moving that work forward would put a store read ahead of refusals the
+    composition root deliberately orders first.
+    """
     quarantine: Any
     ma_disclosure: Any
-    adjustment_verifier: Any
+    authority_policy: Any
     governed_root: Path
+
+    def verifier(self, store: Any) -> Any:
+        """The adjustment verifier this construction confers, bound to `store`. Built on demand."""
+        return governed_adjustment_verifier(store, authority_policy=self.authority_policy,
+                                            ma_disclosure=self.ma_disclosure)
 
     def to_open_provenance(self) -> dict[str, Any]:
         return {
@@ -384,9 +396,20 @@ class GovernedNarrowWiring:
         }
 
 
-def governed_narrow_wiring(store: Any, normalized: Any, countersignature: Any, *,
-                           governed_root: Path) -> GovernedNarrowWiring:
-    """Derive the quarantine policy, the M&A disclosure and the adjustment verifier — once.
+def governed_narrow_wiring(normalized: Any, countersignature: Any, *,
+                           governed_root: Path) -> GovernedNarrowWiring | None:
+    """Derive the quarantine policy, the M&A disclosure and the source-authority policy — once.
+
+    ⚠ TAKES NO STORE, structurally. The derivation reads governed artifacts only; the verifier is
+    built later, from `wiring.verifier(store)`, at the moment the readiness gate assesses. Deriving
+    the verifier here would read the store's ingest provenance at composition time — ahead of
+    refusals the composition root deliberately orders first.
+
+    ⚠ `None` for a BASE-PLUS-DELTA construction, exactly as `manifest_bound_authority_policy` is.
+    That construction format predates the `governed_quarantine` block and declares none, and
+    "declares none" is not "quarantines nothing" — synthesizing an empty policy for it would state
+    something the countersignature never said, and would hand the session a disclosure basis it has
+    no evidence for. The caller keeps the plain verifier it has always used.
 
     ⚠⚠ THIS LIVES HERE, IN THE SHARED BINDINGS, AND NOT IN THE COMPOSITION ROOT. Production session
     composition and the Phase C readiness runner are both CONSUMERS of it; neither calls the other.
@@ -411,15 +434,16 @@ def governed_narrow_wiring(store: Any, normalized: Any, countersignature: Any, *
     from app.validation.governed_corpus import manifest_bound_authority_policy
     from app.validation.governed_quarantine import governed_quarantine_policy
 
+    if normalized.has_base_and_deltas:
+        return None
+
     quarantine = governed_quarantine_policy(
         normalized, countersignature, governed_root=governed_root)
     disclosure = governed_ma_disclosure(normalized, governed_root=governed_root)
-    verifier = governed_adjustment_verifier(
-        store,
+    return GovernedNarrowWiring(
+        quarantine=quarantine, ma_disclosure=disclosure,
         authority_policy=manifest_bound_authority_policy(normalized, countersignature),
-        ma_disclosure=disclosure)
-    return GovernedNarrowWiring(quarantine=quarantine, ma_disclosure=disclosure,
-                                adjustment_verifier=verifier, governed_root=Path(governed_root))
+        governed_root=Path(governed_root))
 
 
 def pit_price_fn(store: Any) -> Callable[[str, date], float | None]:
