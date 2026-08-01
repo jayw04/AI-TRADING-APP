@@ -26,6 +26,10 @@ import pytest
 from app.factor_data.store import FactorDataStore
 from app.validation.data_finality import ConstructionSpec, DataReadiness
 from scripts.forward_validation import phase_c_readiness as pc
+from tests.validation.governed_construction_fixture import (
+    governed_movement_examples,
+    layer2_quarantine_policy,
+)
 
 SESSION = date(2026, 7, 24)
 N_SESSIONS = 300
@@ -35,8 +39,14 @@ SPEC = ConstructionSpec(scoring_universe_n=20, proxy_universe_n=30)
 CORPUS_SHA = "1e" * 32
 RECON_SHA = "a" * 64
 RELEVANCE_SHA = "b" * 64
-QUARANTINE_SHA = "c" * 64
-QUARANTINED = frozenset({"167284", "642054"})
+
+#: ⚠ THE REAL, COUNTERSIGNED QUARANTINE, derived by the ONE derivation from the committed manifest.
+#: The runner no longer carries `QUARANTINED_IDENTITIES` and this file no longer carries its own copy:
+#: two literals agreeing proves nothing about either.
+QUARANTINE_POLICY = layer2_quarantine_policy()
+QUARANTINE_SHA = QUARANTINE_POLICY.quarantine_evidence_sha256
+QUARANTINED = QUARANTINE_POLICY.permanent_identities
+GOVERNED_MOVEMENTS = governed_movement_examples(QUARANTINE_POLICY)
 DISCLOSURE_REASON = "ACQUIRED_SIDE_ECONOMICALLY_TERMINAL_AND_MEASURED_NON_DECISION_RELEVANT"
 
 
@@ -103,9 +113,8 @@ class _SetSensitiveAdjustment:
                 "truncated": self._total > self._serialized,
                 "max_actions": 200,
             },
-            "unexplained_adjustment_count": 4,
-            "unexplained_examples": [{"permaticker": p} for p in
-                                     ("167284", "167284", "642054", "642054")],
+            "unexplained_adjustment_count": len(GOVERNED_MOVEMENTS),
+            "unexplained_examples": list(GOVERNED_MOVEMENTS),
         }
 
 
@@ -117,14 +126,14 @@ def _derive(store, out: Path, *, corpus=CORPUS_SHA) -> Path:
     return pc.derive_attestation(
         store, SESSION, out_path=out, construction=SPEC, adjustment_verifier=_verifier,
         corpus_manifest_sha256=corpus, reconciliation_artifact_sha256=RECON_SHA,
-        relevance_artifact_sha256=RELEVANCE_SHA, quarantine_artifact_sha256=QUARANTINE_SHA,
-        quarantined_identities=QUARANTINED)
+        relevance_artifact_sha256=RELEVANCE_SHA, quarantine=QUARANTINE_POLICY)
 
 
-def _validate(store, path: Path, *, corpus=CORPUS_SHA, prediction=None):
+def _validate(store, path: Path, *, corpus=CORPUS_SHA, prediction=None,
+              quarantine=QUARANTINE_POLICY):
     return pc.validate_attestation(
         store, SESSION, attestation_path=path, construction=SPEC, adjustment_verifier=_verifier,
-        corpus_manifest_sha256=corpus, prediction=prediction)
+        corpus_manifest_sha256=corpus, quarantine=quarantine, prediction=prediction)
 
 
 def _mutate(path: Path, **changes) -> Path:
@@ -168,7 +177,7 @@ def test_deleting_the_artifact_between_stages_is_fatal(store, tmp_path):
     """The corollary: with nothing on disk there is nothing to validate."""
     out = _derive(store, tmp_path / "att.json")
     out.unlink()
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(pc.PhaseCRefusal, match="no narrow-readiness attestation"):
         _validate(store, out)
 
 
@@ -217,7 +226,7 @@ def test_an_attestation_missing_any_required_binding_is_refused(store, tmp_path,
 def test_a_foreign_or_unversioned_artifact_is_refused(store, tmp_path):
     out = _derive(store, tmp_path / "att.json")
     _mutate(out, kind="something_else")
-    with pytest.raises(pc.PhaseCRefusal, match="not a Phase C attestation"):
+    with pytest.raises(pc.PhaseCRefusal, match="not a narrow-readiness attestation"):
         _validate(store, out)
     _mutate(out, kind=pc.ATTESTATION_KIND, schema_version="v99")
     with pytest.raises(pc.PhaseCRefusal, match="unsupported attestation schema"):
@@ -309,12 +318,13 @@ def test_a_fresh_assessment_producing_the_PREDICTED_july_27_census_passes(store,
         store, SESSION, out_path=tmp_path / "att.json", construction=SPEC,
         adjustment_verifier=july27, corpus_manifest_sha256=CORPUS_SHA,
         reconciliation_artifact_sha256=RECON_SHA, relevance_artifact_sha256=RELEVANCE_SHA,
-        quarantine_artifact_sha256=QUARANTINE_SHA, quarantined_identities=QUARANTINED)
+        quarantine=QUARANTINE_POLICY)
     assert json.loads(out.read_bytes())["expected_status_counts"] == counts
 
     result = pc.validate_attestation(
         store, SESSION, attestation_path=out, construction=SPEC, adjustment_verifier=july27,
-        corpus_manifest_sha256=CORPUS_SHA, prediction=pc.GOVERNED_PREDICTION)
+        corpus_manifest_sha256=CORPUS_SHA, quarantine=QUARANTINE_POLICY,
+        prediction=pc.GOVERNED_PREDICTION)
     assert result.prediction_failures == ()
     assert result.passed is True
     assert result.verdict == pc.GOVERNED_PREDICTION.verdict

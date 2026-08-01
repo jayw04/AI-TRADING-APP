@@ -459,13 +459,13 @@ def test_the_readiness_gate_assesses_a_session_once(monkeypatch):
 
     calls: list[date] = []
 
-    def _fake_assess(store, session_date, *, construction=None, adjustment_verifier=None):
+    def _fake_assess(store, session_date, *, construction=None, adjustment_verifier=None,
+                     narrow_readiness=None):
         calls.append(session_date)
         return f"evidence-for-{session_date}"
 
     monkeypatch.setattr(sc, "assess_data_finality", _fake_assess)
-    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store, policy=None: None)
-    gate = sc._GovernedReadiness(object(), None, sc.ConstructionSpec())
+    gate = sc._GovernedReadiness(object(), None, sc.ConstructionSpec(), adjustment_verifier=None)
 
     first, second = gate.assess(SESSION), gate.assess(SESSION)
     assert first is second and calls == [SESSION]
@@ -480,11 +480,10 @@ def test_memoized_evidence_cannot_leak_between_stores(monkeypatch):
     a second store never sees the first store's evidence."""
     from app.validation import session_composition as sc
 
-    monkeypatch.setattr(sc, "_adjustment_verifier", lambda store, policy=None: None)
     monkeypatch.setattr(sc, "assess_data_finality",
                         lambda store, session_date, **kw: f"evidence-for-{store}")
-    a = sc._GovernedReadiness("STORE-A", None, sc.ConstructionSpec())
-    b = sc._GovernedReadiness("STORE-B", None, sc.ConstructionSpec())
+    a = sc._GovernedReadiness("STORE-A", None, sc.ConstructionSpec(), adjustment_verifier=None)
+    b = sc._GovernedReadiness("STORE-B", None, sc.ConstructionSpec(), adjustment_verifier=None)
     assert a.assess(SESSION) == "evidence-for-STORE-A"
     assert b.assess(SESSION) == "evidence-for-STORE-B"
 
@@ -497,7 +496,7 @@ def test_verify_unchanged_is_never_memoized(monkeypatch):
     calls = []
     monkeypatch.setattr(sc, "verify_store_unchanged",
                         lambda store, session_date, expected, **kw: calls.append(session_date))
-    gate = sc._GovernedReadiness(object(), None, sc.ConstructionSpec())
+    gate = sc._GovernedReadiness(object(), None, sc.ConstructionSpec(), adjustment_verifier=None)
     gate.verify_unchanged(SESSION, "evidence")
     gate.verify_unchanged(SESSION, "evidence")
     assert calls == [SESSION, SESSION]

@@ -100,6 +100,14 @@ class ForwardDeploymentConfig:
     #: the construction kind is actually known, by `resolve_governed_construction`, rather than
     #: refusing every deployment for lacking a file only one kind needs.
     corpus_countersignature_path: Path | None = None
+    #: The narrow-readiness attestation the Phase C runner produced for this construction.
+    #:
+    #: ⚠ Optional in the CONFIG for the same reason the sidecar is: a construction whose corporate
+    #: actions are all proven reaches `READY` on the broad claim and needs no narrow attestation. When
+    #: a deployment DOES declare one it is mandatory at composition — an unreadable artifact, or one
+    #: written under a different governed quarantine, is a refusal and never a silent fall back to the
+    #: broad gate.
+    narrow_readiness_attestation_path: Path | None = None
     runtime_digest_path: Path | None = None
     runtime_digest_env: str | None = None
     expected_commit: str | None = None
@@ -184,6 +192,9 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
         witness=load_witness_config(payload.get("witness")),
         corpus_countersignature_path=(Path(payload["corpus_countersignature_path"])
                                       if payload.get("corpus_countersignature_path") else None),
+        narrow_readiness_attestation_path=(
+            Path(payload["narrow_readiness_attestation_path"])
+            if payload.get("narrow_readiness_attestation_path") else None),
         # ⚠ Absent => None, and the ancestry check then FAILS CLOSED wherever ancestry evidence is
         # required. There is deliberately no environment fallback and no default path: a deployment
         # that cannot point at its ancestry attestation must not have one fabricated for it. The field

@@ -327,14 +327,30 @@ class ActionStatus(StrEnum):
     #: than disappearing into the default-deny bucket alongside genuinely unassessed actions.
     UNRESOLVED_NONDECISION_MA_SEMANTICS = "UNRESOLVED_NONDECISION_MA_SEMANTICS"
     SOURCE_CONFLICT = "SOURCE_CONFLICT"
+    #: ⚠⚠ A GOVERNED DISCLOSURE, **NOT A PROOF**, and the only status here that describes a FACTOR
+    #: MOVEMENT rather than a declared action. It says exactly this and nothing more:
+    #:
+    #:   * a movement was observed in the adjusted series;
+    #:   * no reconciled authoritative action explains it;
+    #:   * the identity, the session AND the factor are covered by the countersigned quarantine;
+    #:   * the movement is therefore excluded from trusted adjustment evidence;
+    #:   * a session may proceed over it ONLY under disclosed-limitation readiness.
+    #:
+    #: It does NOT mean the action semantics are proven, the movement is reconciled, a price
+    #: adjustment was verified, or that the identity is decision-irrelevant — the countersigned block
+    #: states in as many words that these identities ARE decision-relevant in the raw construction.
+    #: It lives in this enum rather than one of its own so that every existing consumer which decides
+    #: "is this proven?" by testing membership of `SATISFIES_READINESS` gets the right answer without
+    #: being taught about a second vocabulary.
+    GOVERNED_QUARANTINED_UNEXPLAINED_MOVEMENT = "GOVERNED_QUARANTINED_UNEXPLAINED_MOVEMENT"
 
 
 #: The default. An action is unsupported until a NAMED rule moves it, never the other way round.
 DEFAULT_ACTION_STATUS = ActionStatus.NOT_PROVEN_UNSUPPORTED_SEMANTICS
 
-#: Exactly the statuses that satisfy readiness. ⚠ `UNRESOLVED_NONDECISION_MA_SEMANTICS` is NOT among
-#: them — a disclosed limitation is not a proof, and adding it here would relax the gate rather than
-#: describe the evidence.
+#: Exactly the statuses that satisfy readiness. ⚠ Neither `UNRESOLVED_NONDECISION_MA_SEMANTICS` nor
+#: `GOVERNED_QUARANTINED_UNEXPLAINED_MOVEMENT` is among them — a disclosed limitation is not a proof,
+#: and adding either would relax the gate rather than describe the evidence.
 SATISFIES_READINESS = frozenset({
     ActionStatus.PROVEN_REFLECTED,
     ActionStatus.PROVEN_NO_PRICE_ADJUSTMENT_APPLICABLE,

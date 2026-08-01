@@ -1,14 +1,14 @@
 {
   "commits": [
     {
-      "commit": "9c6a2f21bf78d11796b3f64cfbea44a44bfe6959",
+      "commit": "1c73d442e3461530fbda59c9051d023102a291b6",
       "date": "2026-07-31",
-      "subject": "feat(validation): native Layer 2 corpus support on the session-composition path (#583)"
+      "subject": "fix(validation): manifest-bound source authority for Layer 2; load ancestry_marker_path (#584)"
     }
   ],
   "current_freeze_range": {
-    "from_commit": "7c2ca104f5a6fce3d085ccea06c192068e8b62a1",
-    "to_commit": "9c6a2f21bf78d11796b3f64cfbea44a44bfe6959"
+    "from_commit": "9c6a2f21bf78d11796b3f64cfbea44a44bfe6959",
+    "to_commit": "1c73d442e3461530fbda59c9051d023102a291b6"
   },
   "current_increment_count": 1,
   "inventory_scope": "INCREMENTS_SINCE_THE_IMMEDIATELY_PRECEDING_FREEZE",
@@ -16,6 +16,6 @@
   "measured_paths": [
     "app/validation"
   ],
-  "previous_inventory_sha256": "842cb8174297b4c8e91818f624d1530b1a2a46f596516b97c5d065c62197b82b",
+  "previous_inventory_sha256": "a435a8a6c21956f621167eb665502edafd1d71755f871713b74c0d2c6b3eee49",
   "version": "1.1"
 }

@@ -48,7 +48,9 @@ from app.validation.data_finality import (
     ConstructionSpec,
     DataFinalityEvidence,
     DataReadiness,
+    NarrowReadinessAttestation,
     assess_data_finality,
+    load_narrow_readiness_attestation,
     verify_store_unchanged,
 )
 from app.validation.deployment_identity import verify_deployment_identity
@@ -63,12 +65,17 @@ from app.validation.governed_corpus import (
     GovernedConstruction,
     construction_identity,
     consumed_rows_identity,
-    manifest_bound_authority_policy,
+    file_sha256,
     require_observation_identities,
     resolve_governed_construction,
 )
+from app.validation.governed_quarantine import GovernedQuarantinePolicy
 from app.validation.measurement_freeze import load_measurement_freeze
-from app.validation.production_bindings import build_forward_context, strict_pit_price_fn
+from app.validation.production_bindings import (
+    build_forward_context,
+    governed_narrow_wiring,
+    strict_pit_price_fn,
+)
 from app.validation.security_lineage import SessionLineageFilter
 from app.validation.session_orchestration import SessionRuntime
 from app.validation.witness_enforcement import (
@@ -132,13 +139,17 @@ class _GovernedReadiness:
     """
 
     def __init__(self, store: Any, config: ForwardDeploymentConfig,
-                 construction: ConstructionSpec, authority_policy: Any = None) -> None:
+                 construction: ConstructionSpec, *, adjustment_verifier: Any,
+                 narrow_readiness: NarrowReadinessAttestation | None = None) -> None:
         self._store = store
         self._config = config
         self._construction = construction
-        # Derived once at the composition root from the governed construction; `None` for
-        # base-plus-delta, which keeps that path on the artifact-path re-hash it has always used.
-        self._authority_policy = authority_policy
+        # ⚠ Both are built at the composition root from the GOVERNED construction and handed in.
+        # The verifier carries the manifest-bound source authority and the pinned non-decision M&A
+        # disclosure; the attestation carries the governed quarantine. Building either here would put
+        # a second derivation inside the gate that is supposed to be checking the first.
+        self._verifier = adjustment_verifier
+        self._narrow = narrow_readiness
         self._assessed: tuple[date, DataFinalityEvidence] | None = None
 
     def assess(self, session_date: date) -> DataFinalityEvidence:
@@ -146,27 +157,13 @@ class _GovernedReadiness:
             return self._assessed[1]
         evidence = assess_data_finality(
             self._store, session_date, construction=self._construction,
-            adjustment_verifier=_adjustment_verifier(self._store, self._authority_policy))
+            adjustment_verifier=self._verifier, narrow_readiness=self._narrow)
         self._assessed = (session_date, evidence)
         return evidence
 
     def verify_unchanged(self, session_date: date, expected: DataFinalityEvidence) -> None:
         verify_store_unchanged(self._store, session_date, expected,
                                construction=self._construction)
-
-
-def _adjustment_verifier(store: Any, authority_policy: Any = None):
-    from app.validation.adjustment_verifier import verify_adjustments
-    from app.validation.production_bindings import declare_action_source
-
-    source = declare_action_source(store, authority_policy=authority_policy)
-
-    def verifier(window_start: date, session_date: date, tickers: list[str], store_identity: str):
-        return verify_adjustments(store, window_start=window_start, session_date=session_date,
-                                  relevant_tickers=tickers, source=source,
-                                  store_identity_sha256=store_identity)
-
-    return verifier
 
 
 def _open_store(config: ForwardDeploymentConfig) -> Any:
@@ -452,10 +449,28 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         # finding that says its input could fabricate a return — the lineage bridge risk — therefore
         # has to land before it runs. Refusing afterwards would mean the fabricated return had
         # already been computed and averaged into the regime.
+        # ADR 0048 / owner ruling 2026-07-31: the governed quarantine and the non-decision M&A
+        # disclosure are derived HERE, from the countersigned construction, and the narrow-readiness
+        # attestation is loaded UNDER that quarantine. Until now none of this reached the session
+        # path: `governed_quarantine` was a countersigned block with no consumer in `app/`, so a
+        # deployment could pass Phase C readiness and then be unable to run the very session that
+        # readiness had just cleared.
+        wiring = governed_narrow_wiring(
+            store, governed.normalized, governed.countersignature,
+            governed_root=Path(config.corpus_manifest_path).parent)
+        evidence["governed_narrow_wiring"] = wiring.to_open_provenance()
+        narrow = _narrow_attestation(config, wiring.quarantine)
+        if narrow is not None:
+            evidence["narrow_readiness_attestation"] = {
+                "path": str(config.narrow_readiness_attestation_path),
+                "attested_session": narrow[0].session_date.isoformat(),
+                "attestation_sha256": narrow[1],
+            }
+
         readiness = _GovernedReadiness(
             store, config, construction,
-            authority_policy=manifest_bound_authority_policy(
-                governed.normalized, governed.countersignature))
+            adjustment_verifier=wiring.adjustment_verifier,
+            narrow_readiness=narrow[0] if narrow else None)
         finality = readiness.assess(session)
         evidence["data_finality"] = finality.to_open_provenance()
         if finality.verdict is DataReadiness.NOT_READY_LINEAGE_BRIDGE_RISK:
@@ -507,6 +522,23 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         "regime_source_identity": regime_source_identity,
     }
     return ResolvedSession(runtime=runtime, store=store, run_kwargs=run_kwargs, evidence=evidence)
+
+
+def _narrow_attestation(config: ForwardDeploymentConfig, quarantine: GovernedQuarantinePolicy,
+                        ) -> tuple[NarrowReadinessAttestation, str] | None:
+    """Load the deployment's narrow-readiness attestation, bound to the DERIVED quarantine.
+
+    `None` when the deployment declares none — a construction whose corporate actions are all proven
+    needs no narrow claim, and inventing one for it would be worse than not having it. When the
+    deployment DOES declare one, an unreadable or non-binding artifact is a refusal rather than a
+    silent fall back to the broad gate: the difference between "no narrow claim" and "the narrow claim
+    could not be checked" is exactly the difference this fails closed on.
+    """
+    path = config.narrow_readiness_attestation_path
+    if path is None:
+        return None
+    attestation, _record = load_narrow_readiness_attestation(Path(path), quarantine=quarantine)
+    return attestation, file_sha256(Path(path))
 
 
 def _deployment_blob() -> dict[str, Any]:
