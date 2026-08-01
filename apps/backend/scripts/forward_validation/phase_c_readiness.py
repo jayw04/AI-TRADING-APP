@@ -47,19 +47,28 @@ from pathlib import Path
 from typing import Any
 
 from app.validation.data_finality import (
+    NARROW_ATTESTATION_KIND,
     READINESS_PERMITS_EVALUATION,
     ConstructionSpec,
+    NarrowAttestationError,
     NarrowReadinessAttestation,
     assess_data_finality,
     build_narrow_readiness_attestation,
+    load_narrow_readiness_attestation,
+    narrow_attestation_payload,
 )
+from app.validation.governed_quarantine import GovernedQuarantinePolicy
 
 SESSION = date(2026, 7, 27)
-ATTESTATION_KIND = "phase_c_narrow_readiness_attestation"
-ATTESTATION_SCHEMA_VERSION = "v1.0"
+ATTESTATION_KIND = NARROW_ATTESTATION_KIND
 
-#: SHOP and TLN, by PERMANENT identity — the two histories this vintage withholds.
-QUARANTINED_IDENTITIES = frozenset({"167284", "642054"})
+# ⚠⚠ THERE IS NO `QUARANTINED_IDENTITIES` CONSTANT, AND THERE IS NO FALLBACK.
+#
+# There was one — `frozenset({"167284", "642054"})` — and it was the same defect class Amendment 2
+# removed from the session runner. It happened to match the countersigned `governed_quarantine` block,
+# so the two paths appeared to agree while nothing checked that they still did. The quarantine now
+# comes from `governed_quarantine_policy`, the single manifest-derived derivation that production
+# session composition uses, and this runner cannot construct an attestation without one.
 
 
 @dataclass(frozen=True)
@@ -129,39 +138,26 @@ def derive_attestation(
     corpus_manifest_sha256: str,
     reconciliation_artifact_sha256: str,
     relevance_artifact_sha256: str,
-    quarantine_artifact_sha256: str,
-    quarantined_identities: frozenset[str] = QUARANTINED_IDENTITIES,
+    quarantine: GovernedQuarantinePolicy,
 ) -> Path:
     """Derive the attestation from the frozen readiness construction and serialize it.
 
     ⚠ RETURNS ONLY A PATH. Stage 2 cannot be handed the in-memory attestation even by accident, which
     is what stops this runner validating an object against itself.
+
+    ⚠ `quarantine` has NO DEFAULT. It is the countersigned policy, derived by the same call production
+    session composition makes; there is nothing for this runner to fall back to and nothing for it to
+    assert on its own.
     """
     attestation, record = build_narrow_readiness_attestation(
         store, session_date, construction=construction, universe_fn=universe_fn,
         adjustment_verifier=adjustment_verifier,
         reconciliation_artifact_sha256=reconciliation_artifact_sha256,
         relevance_artifact_sha256=relevance_artifact_sha256,
-        quarantine_artifact_sha256=quarantine_artifact_sha256,
-        quarantined_identities=quarantined_identities)
+        quarantine=quarantine)
 
-    payload = {
-        "kind": ATTESTATION_KIND,
-        "schema_version": ATTESTATION_SCHEMA_VERSION,
-        "session_date": session_date.isoformat(),
-        # The identities stage 2 re-derives and refuses on.
-        "corpus_manifest_sha256": corpus_manifest_sha256,
-        "store_identity_sha256": record["store_identity_sha256"],
-        "relevance_set_sha256": attestation.relevance_set_sha256,
-        "expected_status_counts": dict(attestation.expected_status_counts),
-        "reconciliation_artifact_sha256": attestation.reconciliation_artifact_sha256,
-        "relevance_artifact_sha256": attestation.relevance_artifact_sha256,
-        "quarantine_artifact_sha256": attestation.quarantine_artifact_sha256,
-        "quarantined_identities": sorted(attestation.quarantined_identities),
-        # The full construction record, so a reader can re-derive rather than trust.
-        "construction": record,
-    }
-    blob = _canonical(payload)
+    blob = _canonical(narrow_attestation_payload(
+        attestation, record, corpus_manifest_sha256=corpus_manifest_sha256))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(blob)
     return out_path
@@ -169,29 +165,19 @@ def derive_attestation(
 
 # ── STAGE 2 — reload and independently validate ──────────────────────────────────────────────────────
 
-def load_attestation(path: Path) -> tuple[NarrowReadinessAttestation, dict[str, Any]]:
-    """Rehydrate the attestation FROM BYTES ON DISK — never from a stage-1 object."""
-    raw = Path(path).read_bytes()
-    record = json.loads(raw)
-    if record.get("kind") != ATTESTATION_KIND:
-        raise PhaseCRefusal(f"{path} is {record.get('kind')!r}, not a Phase C attestation")
-    if record.get("schema_version") != ATTESTATION_SCHEMA_VERSION:
-        raise PhaseCRefusal(f"unsupported attestation schema {record.get('schema_version')!r}")
-    for required in ("session_date", "relevance_set_sha256", "expected_status_counts",
-                     "corpus_manifest_sha256", "store_identity_sha256"):
-        if not record.get(required):
-            raise PhaseCRefusal(f"the persisted attestation carries no {required}")
+def load_attestation(path: Path, *, quarantine: GovernedQuarantinePolicy,
+                     ) -> tuple[NarrowReadinessAttestation, dict[str, Any]]:
+    """Rehydrate the attestation FROM BYTES ON DISK — never from a stage-1 object.
 
-    attestation = NarrowReadinessAttestation(
-        session_date=date.fromisoformat(record["session_date"]),
-        reconciliation_artifact_sha256=record["reconciliation_artifact_sha256"],
-        relevance_artifact_sha256=record["relevance_artifact_sha256"],
-        quarantine_artifact_sha256=record["quarantine_artifact_sha256"],
-        relevance_set_sha256=record["relevance_set_sha256"],
-        quarantined_identities=frozenset(record.get("quarantined_identities") or ()),
-        expected_status_counts={str(k): int(v)
-                                for k, v in record["expected_status_counts"].items()})
-    return attestation, record
+    Delegates to the `app/` contract the production session path also reads, so "what the attestation
+    file means" has one definition. The quarantine is supplied by the caller from the countersigned
+    manifest and is refused unless the artifact names the same policy digest: an attestation cannot
+    nominate the movements it wishes to be excused for.
+    """
+    try:
+        return load_narrow_readiness_attestation(Path(path), quarantine=quarantine)
+    except NarrowAttestationError as exc:
+        raise PhaseCRefusal(str(exc)) from exc
 
 
 @dataclass(frozen=True)
@@ -213,6 +199,7 @@ def validate_attestation(
     universe_fn: Any = None,
     adjustment_verifier: Any,
     corpus_manifest_sha256: str,
+    quarantine: GovernedQuarantinePolicy,
     # ⚠ NO DEFAULT, deliberately. Binding `GOVERNED_PREDICTION` here would put the predicted census
     # inside stage 2's own frame, one edit away from being consulted as a fallback. The caller supplies
     # it, and it reaches nothing but the post-hoc comparison below.
@@ -220,9 +207,11 @@ def validate_attestation(
 ) -> PhaseCResult:
     """Reload the persisted attestation and check it against a SECOND, independent assessment.
 
-    ⚠ TAKES ONLY A PATH. Everything it compares against is measured by this run, not carried in.
+    ⚠ TAKES ONLY A PATH. Everything it compares against is measured by this run, not carried in — and
+    the quarantine it binds is re-derived by this run from the countersigned manifest, not read out of
+    the artifact being validated.
     """
-    attestation, record = load_attestation(attestation_path)
+    attestation, record = load_attestation(attestation_path, quarantine=quarantine)
     blob = Path(attestation_path).read_bytes()
 
     # ── producer/consumer bindings, BEFORE the assessment is trusted ──
@@ -311,49 +300,58 @@ def _sha(p: Path) -> str:
     return h.hexdigest()
 
 
-def _production_wiring(store: Any, governed: Path, session_date: date, spec: ConstructionSpec):
-    """Bind the universe callable and the adjustment verifier exactly as `session_composition` does, so
-    the result describes the REGISTERED construction rather than one assembled here."""
-    from app.factor_data.universe import universe_asof
-    from app.validation import adjustment_verifier as av
-    from app.validation.security_lineage import SessionLineageFilter
+def _production_wiring(governed: Path, countersignature: Path):
+    """Bind the quarantine, the disclosure and the adjustment verifier THROUGH the production
+    composition root, so the result describes the REGISTERED construction rather than one assembled
+    here.
 
-    rr_bytes = (governed / "residual_relevance.json").read_bytes()
-    rr = json.loads(rr_bytes)
-    acq = rr["acquired_side"]
-    if not acq["disclosable_as_unresolved_nondecision_ma_semantics"]:
-        raise PhaseCRefusal("the relevance assessment does not support disclosure")
-    disclosure = av.NonDecisionMADisclosure(
-        assessment_artifact_sha256=hashlib.sha256(rr_bytes).hexdigest(),
-        entries=frozenset((g["permaticker"], date.fromisoformat(g["effective_date"]))
-                          for g in acq["groups"]))
+    ⚠ This function used to assemble all three by hand: it read `residual_relevance.json` by a
+    filename of its own choosing, and it wrote an `ActionSourceDeclaration` with a literal identity
+    string and a coverage window taken straight off the `actions` table — while production derived the
+    declaration from the store's own ingest provenance under the manifest-bound authority policy. Two
+    different sources produce two different censuses, so the claim "Phase C measured what the session
+    will measure" was not checkable. It is now structural: this calls `governed_narrow_wiring`.
 
-    window = store.con.execute(
-        "SELECT DISTINCT date FROM sep WHERE date <= ? ORDER BY date DESC LIMIT ?",
-        [session_date, spec.required_history_sessions]).fetchall()
-    lineage = SessionLineageFilter(store, session_date=session_date, lookback_start=window[-1][0])
+    ⚠⚠ That call goes to `app.validation.production_bindings`, NOT to the session composition root.
+    This runner never imports the thing it exists to check; both are consumers of one shared
+    derivation over the same governed inputs, and each runs its own independent assessment.
 
-    def universe_fn(as_of, n):
-        return lineage.filter(list(universe_asof(store, as_of, n=n)))
+    ⚠ No universe callable is bound either. `assess_data_finality` wraps whatever it is given in the
+    session's own `SessionLineageFilter`, so passing a pre-filtered callable was redundant on this
+    side and absent on the other — and "redundant but only here" is how two paths drift.
+    """
+    from app.validation.governed_corpus import (
+        Layer2CorpusManifest,
+        load_any_corpus_manifest,
+        load_layer2_countersignature,
+        normalize_corpus_manifest,
+        require_countersignature,
+    )
+    from app.validation.production_bindings import governed_narrow_wiring
 
-    cov = store.con.execute("SELECT min(date), max(date) FROM actions").fetchone()
-    source = av.ActionSourceDeclaration(
-        identity=("SHARADAR/ACTIONS|layer2 single-vintage reconstruction|"
-                  "HISTORICAL_RECONSTRUCTION_SINGLE_VINTAGE_AND_PERMANENT_LINEAGE"),
-        authoritative=True, coverage_start=cov[0], coverage_end=cov[1])
-
-    def verifier(window_start, when, tickers, store_identity):
-        return av.verify_adjustments(
-            store, window_start=window_start, session_date=when, relevant_tickers=tickers,
-            source=source, store_identity_sha256=store_identity, ma_disclosure=disclosure)
-
-    return universe_fn, verifier, hashlib.sha256(rr_bytes).hexdigest()
+    corpus = load_any_corpus_manifest(governed / "corpus_manifest_v2.json")
+    if not isinstance(corpus, Layer2CorpusManifest):
+        raise PhaseCRefusal(
+            "Phase C validates a Layer 2 reconstruction; the governed directory holds a "
+            "base-plus-delta corpus manifest, which carries no governed quarantine")
+    sidecar = load_layer2_countersignature(countersignature)
+    require_countersignature(corpus, sidecar)
+    wiring = governed_narrow_wiring(normalize_corpus_manifest(corpus), sidecar,
+                                    governed_root=governed)
+    if wiring is None:                       # pragma: no cover - the isinstance check refuses first
+        raise PhaseCRefusal(
+            "the governed construction declares no quarantine, so there is no narrow claim for this "
+            "runner to evaluate")
+    return wiring
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--runtime", default="/opt/workbench/forward/runtime")
     ap.add_argument("--governed", default="/opt/workbench/forward/governed/layer2")
+    ap.add_argument("--countersignature", default=None,
+                    help="the Layer 2 countersignature sidecar; defaults to the one installed "
+                         "beside the corpus manifest. There is no unsigned mode.")
     ap.add_argument("--store", default="/opt/workbench/forward/data/factor_data_layer2.duckdb")
     ap.add_argument("--stage", choices=("derive", "validate", "both"), default="both")
     args = ap.parse_args(argv)
@@ -362,27 +360,42 @@ def main(argv: list[str] | None = None) -> int:
     from app.validation.governed_corpus import load_any_corpus_manifest, normalize_corpus_manifest
 
     governed = Path(args.governed)
+    countersignature = (Path(args.countersignature) if args.countersignature
+                        else governed / "corpus_countersignature_v1.json")
     attestation_path = governed / "phase_c_attestation.json"
     manifest = normalize_corpus_manifest(
         load_any_corpus_manifest(governed / "corpus_manifest_v2.json"))
     spec = ConstructionSpec()
     store = FactorDataStore(args.store, read_only=True)
-    universe_fn, verifier, relevance_sha = _production_wiring(store, governed, SESSION, spec)
+    wiring = _production_wiring(governed, countersignature)
+    verifier = wiring.verifier(store)
 
     print("== deployed construction ==")
     print(f"   corpus_construction_kind    {manifest.corpus_construction_kind}")
     print(f"   corpus_manifest_sha256      {manifest.corpus_manifest_sha256}")
     print(f"   has_base_and_deltas         {manifest.has_base_and_deltas}")
 
+    print("\n== governed quarantine (manifest-derived, shared with session composition) ==")
+    q = wiring.quarantine
+    print(f"   policy_sha256               {q.policy_sha256}")
+    print(f"   countersignature_sha256     {q.countersignature_sidecar_sha256}")
+    print(f"   evidence_sha256             {q.quarantine_evidence_sha256}")
+    print(f"   anomaly_class               {q.anomaly_class}")
+    print(f"   permanent identities        {sorted(q.permanent_identities)}")
+    print(f"   descriptive tickers         {dict(sorted(q.descriptive_tickers.items()))}")
+    print(f"   governed movement dates     {list(q.governed_movement_dates)}")
+    print(f"   governed factor types       {list(q.governed_factor_types)}")
+    print(f"   governed movements          {len(q.movements)}")
+
     if args.stage in ("derive", "both"):
         print("\n== STAGE 1 — derive the attestation from the frozen readiness construction ==")
         derive_attestation(
-            store, SESSION, out_path=attestation_path, construction=spec, universe_fn=universe_fn,
+            store, SESSION, out_path=attestation_path, construction=spec,
             adjustment_verifier=verifier,
             corpus_manifest_sha256=manifest.corpus_manifest_sha256,
             reconciliation_artifact_sha256=_sha(governed / "adjustment_reconciliation_final.json"),
-            relevance_artifact_sha256=relevance_sha,
-            quarantine_artifact_sha256=_sha(governed / "shop_tln_quarantine.json"))
+            relevance_artifact_sha256=wiring.ma_disclosure.assessment_artifact_sha256,
+            quarantine=q)
         print(f"   wrote {attestation_path} ({attestation_path.stat().st_size:,} bytes)")
         print(f"   sha256 {_sha(attestation_path)}")
         # ⚠ Nothing from stage 1 is carried forward in memory. Stage 2 reads the file.
@@ -395,9 +408,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = validate_attestation(
             store, SESSION, attestation_path=attestation_path, construction=spec,
-            universe_fn=universe_fn, adjustment_verifier=verifier,
+            adjustment_verifier=verifier,
             corpus_manifest_sha256=manifest.corpus_manifest_sha256,
-            prediction=GOVERNED_PREDICTION)
+            quarantine=q, prediction=GOVERNED_PREDICTION)
     except PhaseCRefusal as exc:
         print(f"\nPHASE C: STOP — {exc}")
         store.con.close()
@@ -418,6 +431,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"   quarantined movements        "
           f"{lim.get('unexplained_movements_on_quarantined_identities')}")
     print(f"   quarantined identities       {lim.get('quarantined_identities')}")
+    print(f"   quarantine policy sha256     {lim.get('quarantine_policy_sha256')}")
+    print(f"   movement status census       {lim.get('movements_by_status')}")
+    print(f"   limitation digest            {lim.get('limitation_digest')}")
     print(f"   relevance set sha256         {lim.get('readiness_relevance_set_sha256')}")
     print(f"   relevant ticker count        {lim.get('relevant_ticker_count')}")
 

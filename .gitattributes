@@ -8,3 +8,8 @@
 *.service text eol=lf
 *.timer   text eol=lf
 docs/review/momentum_daily/drift_audit/** -text
+
+# The Layer 2 governed artifacts are pinned BY DIGEST in corpus_manifest_v2.json. Any
+# end-of-line translation changes their bytes and therefore their identity, which the
+# runtime refuses. Never let git rewrite them.
+manifests/layer2/*.json -text

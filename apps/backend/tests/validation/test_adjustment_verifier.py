@@ -413,9 +413,15 @@ def test_only_proven_statuses_satisfy_readiness():
         ActionStatus.PROVEN_LINEAGE_EVENT_NO_ADDITIONAL_PRICE_ADJUSTMENT}
     assert expected == SATISFIES_READINESS
     assert ActionStatus.UNRESOLVED_NONDECISION_MA_SEMANTICS not in SATISFIES_READINESS
+    # ⚠ Nor `GOVERNED_QUARANTINED_UNEXPLAINED_MOVEMENT` (2026-07-31). It is a governed DISCLOSURE of
+    # a factor movement, not a proof about an action: it says the movement was observed, unexplained
+    # and covered by the countersigned quarantine — never that the semantics were proven, that the
+    # movement was reconciled, or that the identity is decision-irrelevant.
+    assert ActionStatus.GOVERNED_QUARANTINED_UNEXPLAINED_MOVEMENT not in SATISFIES_READINESS
     for status in ActionStatus:
         if status not in SATISFIES_READINESS:
-            assert status.name.startswith(("PROVEN_NOT", "NOT_PROVEN", "SOURCE", "UNRESOLVED"))
+            assert status.name.startswith(
+                ("PROVEN_NOT", "NOT_PROVEN", "SOURCE", "UNRESOLVED", "GOVERNED_QUARANTINED"))
 
 
 def test_every_reason_code_emitted_is_a_named_rule(store):

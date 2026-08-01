@@ -56,6 +56,17 @@ def _payload(**over) -> dict:
         "artifacts": {name: {"sha256": _sha(name), "bytes": 10, "path": f"{name}.json"}
                       for name in sorted(REQUIRED_LAYER2_ARTIFACTS)},
         "quarantined_histories": {"SHOP.csv": {"sha256": _sha("shop"), "bytes": 5}},
+        # Required since 2026-07-31: a reconstruction that withholds price histories must name the
+        # identities it withholds, because that block is the only governed source of the quarantine.
+        "governed_quarantine": {
+            "class": "UNEXPLAINED_VENDOR_ADJUSTMENT_ANOMALY",
+            "kind": "VERSION_SPECIFIC_PRICE_HISTORY_QUARANTINE",
+            "names": ["SHOP", "TLN"],
+            "permanent_identities": ["167284", "642054"],
+            "permanent_universe_removal": False,
+            "must_not_say": "SHOP/TLN are decision-irrelevant",
+            "statement": ["decision-relevant in raw construction"],
+        },
         "store": {"computed": True, "store_file_sha256": _sha("store"), "bytes": 1},
         "supersedes": {"corpus_manifest_sha256": PRIOR, "prior_identity_altered": False,
                        "reason": "HISTORICAL_RECONSTRUCTION_SINGLE_VINTAGE_AND_PERMANENT_LINEAGE"},

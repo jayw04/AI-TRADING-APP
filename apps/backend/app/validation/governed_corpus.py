@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
@@ -719,6 +719,92 @@ class CountersignatureError(CorpusConstructionError):
 
 
 @dataclass(frozen=True)
+class GovernedQuarantineDeclaration:
+    """The manifest's `governed_quarantine` block, parsed and validated — never interpreted.
+
+    This is the DECLARATION only: who is quarantined, under what class, and in whose words. The
+    movements it covers live in the evidence artifact the manifest pins, and assembling the two into a
+    usable policy is :func:`app.validation.governed_quarantine.governed_quarantine_policy`.
+
+    ⚠ Required on every Layer 2 construction. A reconstruction that withholds price histories without
+    saying which ones is not a construction this runtime can compose a session from: the session would
+    have no way to tell a governed limitation from an undetected data defect.
+    """
+    permanent_identities: frozenset[str]
+    descriptive_tickers: dict[str, str]              # permanent identity -> ticker
+    anomaly_class: str
+    quarantine_kind: str
+    permanent_universe_removal: bool
+    statement: tuple[str, ...]
+    must_not_say: str
+
+    @staticmethod
+    def from_payload(payload: Any) -> GovernedQuarantineDeclaration:
+        if not isinstance(payload, dict):
+            raise CorpusConstructionError(
+                "the Layer 2 manifest carries no governed_quarantine block; a construction that "
+                "withholds price histories must name the identities it withholds")
+        identities = payload.get("permanent_identities")
+        names = payload.get("names")
+        if not isinstance(identities, list) or not identities:
+            raise CorpusConstructionError(
+                "the governed_quarantine block names no permanent_identities")
+        if not isinstance(names, list) or len(names) != len(identities):
+            raise CorpusConstructionError(
+                f"the governed_quarantine block names {len(identities)} permanent identity(ies) but "
+                f"{len(names) if isinstance(names, list) else 'no'} descriptive ticker(s); the two "
+                f"are parallel declarations and an unpaired one cannot be read")
+        # ⚠ The pairing is POSITIONAL because that is how the countersigned artifact states it. It is
+        # not trusted on that basis: a measured movement carries both its ticker and its permanent
+        # identity, and readiness refuses unless the pair matches. A mis-declared pairing can only
+        # refuse, never pass.
+        pairs = {str(i).strip(): str(n).strip() for i, n in zip(identities, names, strict=True)}
+        if "" in pairs or "" in pairs.values():
+            raise CorpusConstructionError(
+                "the governed_quarantine block carries an empty permanent identity or ticker")
+        if len(pairs) != len(identities) or len(set(pairs.values())) != len(names):
+            raise CorpusConstructionError(
+                "the governed_quarantine block repeats a permanent identity or a ticker; the "
+                "quarantine census would be ambiguous")
+        anomaly_class = str(payload.get("class", "")).strip()
+        kind = str(payload.get("kind", "")).strip()
+        if not anomaly_class or not kind:
+            raise CorpusConstructionError(
+                "the governed_quarantine block declares no class/kind; an unclassified quarantine "
+                "states what was withheld without stating why")
+        removal = payload.get("permanent_universe_removal")
+        if not isinstance(removal, bool):
+            raise CorpusConstructionError(
+                "the governed_quarantine block does not state permanent_universe_removal as a "
+                "boolean; whether the identities left the universe is part of what was approved")
+        statement = payload.get("statement")
+        if not isinstance(statement, list) or not statement:
+            raise CorpusConstructionError(
+                "the governed_quarantine block carries no statement; the wording the record must "
+                "use about these identities is part of the countersigned block")
+        return GovernedQuarantineDeclaration(
+            permanent_identities=frozenset(pairs),
+            descriptive_tickers=pairs,
+            anomaly_class=anomaly_class,
+            quarantine_kind=kind,
+            permanent_universe_removal=removal,
+            statement=tuple(str(s) for s in statement),
+            must_not_say=str(payload.get("must_not_say", "")).strip(),
+        )
+
+    def to_open_provenance(self) -> dict[str, Any]:
+        return {
+            "permanent_identities": sorted(self.permanent_identities),
+            "descriptive_tickers": dict(sorted(self.descriptive_tickers.items())),
+            "anomaly_class": self.anomaly_class,
+            "quarantine_kind": self.quarantine_kind,
+            "permanent_universe_removal": self.permanent_universe_removal,
+            "statement": list(self.statement),
+            "must_not_say": self.must_not_say,
+        }
+
+
+@dataclass(frozen=True)
 class Layer2Countersignature:
     """Governance approval for a Layer 2 construction, recorded OUTSIDE the construction artifact.
 
@@ -802,7 +888,13 @@ class Layer2CorpusManifest:
     mapped_identity_universe_size: int
     price_universe_size: int
     artifacts: dict[str, str]                       # logical name -> sha256
+    #: logical name -> the path the manifest declares for it, relative to the governed root. Carried
+    #: so a consumer that must READ an artifact resolves it from the manifest rather than from a
+    #: filename of its own — the digest is only a binding if it names the file that was hashed.
+    artifact_paths: dict[str, str]
     quarantined_histories: dict[str, str]           # filename -> sha256
+    #: The countersigned price-history quarantine. Required: see `GovernedQuarantineDeclaration`.
+    governed_quarantine: GovernedQuarantineDeclaration
     store_file_sha256: str
     supersedes_corpus_manifest_sha256: str
     supersession_reason: str
@@ -856,6 +948,8 @@ class Layer2CorpusManifest:
         artifacts = {name: _require_sha256((entry or {}).get("sha256"),
                                            what=f"the {name} artifact identity")
                      for name, entry in raw_artifacts.items() if isinstance(entry, dict)}
+        artifact_paths = {name: str((entry or {}).get("path", "")).strip()
+                          for name, entry in raw_artifacts.items() if isinstance(entry, dict)}
         missing = sorted(REQUIRED_LAYER2_ARTIFACTS - set(artifacts))
         if missing:
             raise CorpusConstructionError(
@@ -911,7 +1005,10 @@ class Layer2CorpusManifest:
             universe_identities=identities,
             mapped_identity_universe_size=int(payload["mapped_identity_universe_size"]),
             price_universe_size=int(payload["price_universe_size"]),
-            artifacts=artifacts, quarantined_histories=quarantine,
+            artifacts=artifacts, artifact_paths=artifact_paths,
+            quarantined_histories=quarantine,
+            governed_quarantine=GovernedQuarantineDeclaration.from_payload(
+                payload.get("governed_quarantine")),
             store_file_sha256=store_sha, supersedes_corpus_manifest_sha256=prior,
             supersession_reason=reason,
             countersigned=payload.get("countersignature") is not None,
@@ -946,10 +1043,27 @@ class NormalizedCorpusConstruction:
     store_file_sha256: str | None = None
     evidence_artifact_count: int | None = None
     source_vintage_sha256: str | None = None
+    #: The countersigned price-history quarantine, `None` on a base-plus-delta construction which
+    #: declares none. ⚠ NEVER defaulted to an empty declaration: "this construction quarantines
+    #: nothing" and "this construction does not say" are different statements, and only the second is
+    #: true of a corpus format that predates the block.
+    governed_quarantine: GovernedQuarantineDeclaration | None = None
+    #: logical artifact name -> (sha256, path relative to the governed root).
+    pinned_artifacts: dict[str, tuple[str, str]] = field(default_factory=dict)
 
     @property
     def has_base_and_deltas(self) -> bool:
         return self.base_corpus_sha256 is not None
+
+    def artifact_sha256(self, name: str) -> str | None:
+        """The digest the construction pins for one evidence artifact, or `None` if it pins none."""
+        entry = self.pinned_artifacts.get(name)
+        return entry[0] if entry else None
+
+    def artifact_path(self, name: str) -> str | None:
+        """The path the construction declares for one evidence artifact, relative to its root."""
+        entry = self.pinned_artifacts.get(name)
+        return entry[1] if entry and entry[1] else None
 
     def to_open_provenance(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -979,6 +1093,8 @@ class NormalizedCorpusConstruction:
                 "store_file_sha256": self.store_file_sha256,
                 "evidence_artifact_count": self.evidence_artifact_count,
                 "source_vintage_sha256": self.source_vintage_sha256,
+                "governed_quarantine": (self.governed_quarantine.to_open_provenance()
+                                        if self.governed_quarantine else None),
             }
         return out
 
@@ -1003,6 +1119,9 @@ def normalize_corpus_manifest(
             store_file_sha256=manifest.store_file_sha256,
             evidence_artifact_count=len(manifest.artifacts),
             source_vintage_sha256=manifest.universe_identities["source_vintage_sha256"],
+            governed_quarantine=manifest.governed_quarantine,
+            pinned_artifacts={name: (sha, manifest.artifact_paths.get(name, ""))
+                              for name, sha in manifest.artifacts.items()},
         )
     return NormalizedCorpusConstruction(
         corpus_construction_kind="governed_corpus",
@@ -1345,6 +1464,36 @@ def manifest_bound_authority_policy(
         corpus_manifest_sha256=normalized.corpus_manifest_sha256,
         countersignature_sha256=countersignature.countersignature_sha256,
         construction_kind=normalized.corpus_construction_kind)
+
+
+def read_pinned_artifact(normalized: NormalizedCorpusConstruction, name: str, *,
+                         governed_root: Path) -> tuple[bytes, str]:
+    """Read one evidence artifact the construction pins, AFTER proving it IS that artifact.
+
+    ⚠ The filename is never supplied by the caller: it comes from the manifest's own `artifacts`
+    block, because a digest only binds anything if it names the file that was hashed. A caller can
+    point this at a governed root; it cannot point it at a file of its choosing.
+
+    Returns the bytes and their digest, so a consumer can bind the artifact it just read into its own
+    evidence without hashing it a second time.
+    """
+    pinned = normalized.artifact_sha256(name)
+    relative = normalized.artifact_path(name)
+    if not pinned or not relative:
+        raise CorpusConstructionError(
+            f"the governed construction pins no {name} artifact; it cannot be read as evidence")
+    path = Path(governed_root) / relative
+    if not path.is_file():
+        raise FrozenArtifactDrift(
+            f"the governed {name} artifact is absent at {path}; it is installed with the "
+            f"construction, never regenerated")
+    raw = path.read_bytes()
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != pinned:
+        raise FrozenArtifactDrift(
+            f"the governed {name} artifact at {path} hashes to {actual[:16]}… but the corpus "
+            f"manifest pins {pinned[:16]}…; a regenerated or edited artifact is a different artifact")
+    return raw, actual
 
 
 def verify_frozen_artifact(path: Path, *, pinned_sha256: str, what: str) -> str:

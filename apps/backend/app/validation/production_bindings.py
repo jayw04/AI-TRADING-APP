@@ -295,6 +295,157 @@ def _artifact_matches(artifact_path: object, expected_sha256: str) -> tuple[bool
     return True, ""
 
 
+#: The logical name, in the corpus manifest's `artifacts` block, of the decision-relevance assessment
+#: the non-decision M&A disclosure is derived from.
+RELEVANCE_ASSESSMENT_ARTIFACT = "residual_relevance"
+
+
+def governed_ma_disclosure(normalized: Any, *, governed_root: Path) -> Any:
+    """The non-decision M&A disclosure, derived from the construction's PINNED relevance assessment.
+
+    ⚠ The ONE derivation, for the same reason the quarantine policy is: the readiness runner built
+    this by reading a filename of its own choosing and hashing whatever it found, while the production
+    session path built nothing at all — so a session could not reach the narrow verdict its own
+    readiness run had just demonstrated. Both now read the artifact the countersigned manifest pins,
+    by the path the manifest declares, verified before a field of it is consulted.
+
+    The disclosure carries the assessment's digest, so `_narrow_readiness_refusals` clause (4) can
+    refuse a disclosure bound to a different assessment than the attestation names.
+    """
+    from app.validation.adjustment_verifier import NonDecisionMADisclosure
+    from app.validation.governed_corpus import read_pinned_artifact
+
+    raw, digest = read_pinned_artifact(normalized, RELEVANCE_ASSESSMENT_ARTIFACT,
+                                       governed_root=Path(governed_root))
+    import json as _json
+
+    payload = _json.loads(raw.decode("utf-8"))
+    acquired = (payload or {}).get("acquired_side")
+    if not isinstance(acquired, dict):
+        raise BindingError(
+            f"the governed {RELEVANCE_ASSESSMENT_ARTIFACT} assessment carries no acquired_side "
+            f"block; there is no measured basis on which anything could be disclosed")
+    if acquired.get("disclosable_as_unresolved_nondecision_ma_semantics") is not True:
+        raise BindingError(
+            f"the governed {RELEVANCE_ASSESSMENT_ARTIFACT} assessment does not support disclosure; "
+            f"a disclosure without its measured basis is not admissible")
+    groups = acquired.get("groups")
+    if not isinstance(groups, list):
+        raise BindingError(
+            f"the governed {RELEVANCE_ASSESSMENT_ARTIFACT} assessment names no adjudicated groups")
+    try:
+        entries = frozenset((str(g["permaticker"]), date.fromisoformat(str(g["effective_date"])))
+                            for g in groups)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise BindingError(
+            f"the governed {RELEVANCE_ASSESSMENT_ARTIFACT} assessment carries an unreadable "
+            f"adjudicated group: {exc}") from exc
+    return NonDecisionMADisclosure(assessment_artifact_sha256=digest, entries=entries)
+
+
+def governed_adjustment_verifier(store: Any, *, authority_policy: Any = None,
+                                 ma_disclosure: Any = None) -> Callable[..., Any]:
+    """The production adjustment verifier. ONE construction, used by readiness and by the session.
+
+    Phase C previously hand-built an `ActionSourceDeclaration` with a literal identity string and a
+    coverage window read straight off the `actions` table, while production derived the declaration
+    from the store's own ingest provenance under the manifest-bound authority policy. Two different
+    sources produce two different censuses, so a parity claim between the two paths was not checkable.
+    """
+    from app.validation.adjustment_verifier import verify_adjustments
+
+    source = declare_action_source(store, authority_policy=authority_policy)
+
+    def verifier(window_start: date, session_date: date, tickers: list[str],
+                 store_identity: str) -> Any:
+        return verify_adjustments(store, window_start=window_start, session_date=session_date,
+                                  relevant_tickers=tickers, source=source,
+                                  store_identity_sha256=store_identity,
+                                  ma_disclosure=ma_disclosure)
+
+    return verifier
+
+
+@dataclass(frozen=True)
+class GovernedNarrowWiring:
+    """Everything the narrow readiness claim is measured with, derived from ONE construction.
+
+    ⚠ It carries no store and no built verifier — only what the GOVERNED ARTIFACTS say. Building the
+    verifier requires reading the store's ingest provenance, and the composition root must not do that
+    a moment earlier than it always has: the readiness gate constructs the verifier lazily inside its
+    own assessment, and moving that work forward would put a store read ahead of refusals the
+    composition root deliberately orders first.
+    """
+    quarantine: Any
+    ma_disclosure: Any
+    authority_policy: Any
+    governed_root: Path
+
+    def verifier(self, store: Any) -> Any:
+        """The adjustment verifier this construction confers, bound to `store`. Built on demand."""
+        return governed_adjustment_verifier(store, authority_policy=self.authority_policy,
+                                            ma_disclosure=self.ma_disclosure)
+
+    def to_open_provenance(self) -> dict[str, Any]:
+        return {
+            "governed_root": str(self.governed_root),
+            "quarantine_policy_sha256": self.quarantine.policy_sha256,
+            "quarantine": self.quarantine.to_open_provenance(),
+            "ma_disclosure_sha256": self.ma_disclosure.assessment_artifact_sha256,
+            "ma_disclosure_entry_count": len(self.ma_disclosure.entries),
+        }
+
+
+def governed_narrow_wiring(normalized: Any, countersignature: Any, *,
+                           governed_root: Path) -> GovernedNarrowWiring | None:
+    """Derive the quarantine policy, the M&A disclosure and the source-authority policy — once.
+
+    ⚠ TAKES NO STORE, structurally. The derivation reads governed artifacts only; the verifier is
+    built later, from `wiring.verifier(store)`, at the moment the readiness gate assesses. Deriving
+    the verifier here would read the store's ingest provenance at composition time — ahead of
+    refusals the composition root deliberately orders first.
+
+    ⚠ `None` for a BASE-PLUS-DELTA construction, exactly as `manifest_bound_authority_policy` is.
+    That construction format predates the `governed_quarantine` block and declares none, and
+    "declares none" is not "quarantines nothing" — synthesizing an empty policy for it would state
+    something the countersignature never said, and would hand the session a disclosure basis it has
+    no evidence for. The caller keeps the plain verifier it has always used.
+
+    ⚠⚠ THIS LIVES HERE, IN THE SHARED BINDINGS, AND NOT IN THE COMPOSITION ROOT. Production session
+    composition and the Phase C readiness runner are both CONSUMERS of it; neither calls the other.
+    That direction matters: a readiness runner that imported the production composition root would be
+    asking the thing it is supposed to be checking what the answer is, and a parity claim between them
+    would rest on the import rather than on the governed inputs.
+
+    What is shared is the DERIVATION from the countersigned construction — which is the whole point,
+    since two hand-rolled derivations are how the paths came to disagree. What is NOT shared is the
+    ASSESSMENT: each side runs its own `assess_data_finality` over its own relevance set, and the
+    readiness runner's two stages still communicate only through a serialized artifact.
+
+    Takes the NORMALIZED construction and its approval rather than a whole `GovernedConstruction`,
+    because those two are all it reads and the readiness runner legitimately holds nothing else: it
+    has no deployment manifest to agree with and no DGS3MO chain in scope, and a signature that
+    demanded them would have been satisfied with fabricated ones.
+
+    `governed_root` is the directory the construction's evidence artifacts were installed into. Every
+    artifact read from it is located by the path the manifest declares and verified against the digest
+    the manifest pins, so the root selects an installation and never an artifact.
+    """
+    from app.validation.governed_corpus import manifest_bound_authority_policy
+    from app.validation.governed_quarantine import governed_quarantine_policy
+
+    if normalized.has_base_and_deltas:
+        return None
+
+    quarantine = governed_quarantine_policy(
+        normalized, countersignature, governed_root=governed_root)
+    disclosure = governed_ma_disclosure(normalized, governed_root=governed_root)
+    return GovernedNarrowWiring(
+        quarantine=quarantine, ma_disclosure=disclosure,
+        authority_policy=manifest_bound_authority_policy(normalized, countersignature),
+        governed_root=Path(governed_root))
+
+
 def pit_price_fn(store: Any) -> Callable[[str, date], float | None]:
     """A point-in-time `closeadj` reader: the price of `ticker` ON `session`, or None.
 

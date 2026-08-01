@@ -63,6 +63,7 @@ session's reads, and any difference is `INTEGRITY_STOP_DATA_CONFLICT`.
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
@@ -74,8 +75,9 @@ from typing import Any, Protocol
 # a narrow-readiness clause that pins the cap must pin the SAME cap the verifier enforces, and a second
 # copy of the number is a pin that can drift silently. `adjustment_verifier` imports nothing from here,
 # so this direction carries no cycle; the rest of the coupling stays behind `AdjustmentEvidence`.
-from app.validation.adjustment_verifier import MAX_EVIDENCE_ACTIONS
+from app.validation.adjustment_verifier import MAX_EVIDENCE_ACTIONS, ActionStatus
 from app.validation.forward_window import IntegrityStop
+from app.validation.governed_quarantine import GovernedQuarantinePolicy
 from app.validation.security_lineage import (
     LINEAGE_BRIDGE_HOLE_MIN_SESSIONS,
     SessionLineageFilter,
@@ -155,7 +157,13 @@ class NarrowReadinessAttestation:
     session_date: date
     reconciliation_artifact_sha256: str
     relevance_artifact_sha256: str
-    quarantine_artifact_sha256: str
+    #: ⚠⚠ The GOVERNED quarantine, derived from the countersigned corpus manifest — never a literal
+    #: and never carried in the attestation file. Until 2026-07-31 this was a bare set of identities
+    #: supplied by the caller, and the caller was a constant in `scripts/forward_validation`; the two
+    #: sides agreed only because the constant happened to match a block nothing read. It is REQUIRED
+    #: and has no default: an attestation that cannot say which movements governance approved cannot
+    #: distinguish a disclosed limitation from an undetected data defect.
+    quarantine: GovernedQuarantinePolicy
     #: The digest of the EXACT relevance set the readiness construction builds — `relevance_digest`
     #: over (store identity, window start, session date, sorted names).
     #:
@@ -165,9 +173,6 @@ class NarrowReadinessAttestation:
     #: wrong, and nothing in the contract could see it, because the two sets were never compared. Now
     #: they are: a census can only be checked against the set it was measured over.
     relevance_set_sha256: str = ""
-    #: PERMANENT identities whose price history this vintage withholds. Unexplained factor movements
-    #: are tolerated only on these, and only because they are excluded from the decision path.
-    quarantined_identities: frozenset[str] = frozenset()
     #: The per-status census this attestation was written against. If the measurement has moved, the
     #: attestation is stale and is refused rather than reinterpreted.
     #:
@@ -175,6 +180,24 @@ class NarrowReadinessAttestation:
     #: Hand-entered or diagnostic-sourced counts are what the `relevance_set_sha256` clause exists to
     #: catch.
     expected_status_counts: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def quarantined_identities(self) -> frozenset[str]:
+        """PERMANENT identities whose price history this vintage withholds.
+
+        ⚠ A READ-THROUGH to the governed policy, not a field. It was a field, and being a field is
+        what let a script's literal stand in for the countersigned block.
+        """
+        return self.quarantine.permanent_identities
+
+    @property
+    def quarantine_artifact_sha256(self) -> str:
+        """The evidence artifact the countersigned manifest pins for this quarantine."""
+        return self.quarantine.quarantine_evidence_sha256
+
+    @property
+    def quarantine_policy_sha256(self) -> str:
+        return self.quarantine.policy_sha256
 
 
 #: Per-action statuses that a narrow-readiness session may still carry. Exactly one, and it is the
@@ -272,20 +295,42 @@ def _narrow_readiness_refusals(
         elif serialized > cap:
             out.append(f"{serialized} action(s) serialized against a cap of {cap}")
 
-    # (6) every unexplained factor movement must sit on a QUARANTINED identity.
+    # (6) every unexplained factor movement must be GOVERNED — identity, session AND factor.
+    #
+    # ⚠ This clause used to test the permanent identity alone, against a set the caller supplied. Two
+    # things were wrong with that. The set came from a literal in a script rather than from the
+    # countersigned manifest, so the check was against an assertion rather than against governance;
+    # and identity alone would have admitted ANY movement on a quarantined name — an undeclared split
+    # on a lineage the countersignature examined only for a dividend-factor anomaly would have passed
+    # as a governed disclosure. All three must match, and the identity↔ticker pairing the manifest
+    # declares is proved here rather than assumed: the measurement carries both.
     #
     # The examples list is bounded, so it can only discharge this if it is complete; otherwise a
-    # movement could exist on a non-quarantined name and simply not be shown.
+    # movement could exist outside the quarantine and simply not be shown.
     total = int(adjustment.get("unexplained_adjustment_count") or 0)
     examples = list(adjustment.get("unexplained_examples") or [])
     if total != len(examples):
         out.append(f"{total} unexplained factor movement(s) but only {len(examples)} recorded; the "
                    f"census cannot be checked against the quarantine")
     else:
-        stray = sorted({str(e.get("permaticker")) for e in examples
-                        if str(e.get("permaticker")) not in attestation.quarantined_identities})
+        policy = attestation.quarantine
+        stray = sorted({
+            f"{e.get('ticker')}/{e.get('permaticker')} {e.get('session_date')} {e.get('factor')}"
+            for e in examples
+            if not policy.covers(e.get("permaticker"), e.get("session_date"), e.get("factor"))})
         if stray:
-            out.append(f"unexplained factor movement(s) on non-quarantined identities {stray}")
+            out.append(
+                f"{len(stray)} unexplained factor movement(s) are not covered by the countersigned "
+                f"quarantine {policy.policy_sha256[:16]}… — {stray}; a movement outside the governed "
+                f"identity, session and factor is an undetected data defect, not a disclosure")
+        mispaired = sorted({
+            f"{e.get('ticker')} is declared as {policy.descriptive_tickers.get(str(e.get('permaticker')))}"
+            for e in examples
+            if str(e.get("permaticker")) in policy.permanent_identities
+            and str(e.get("ticker")) != policy.descriptive_tickers.get(str(e.get("permaticker")))})
+        if mispaired:
+            out.append(f"the quarantine's identity↔ticker pairing does not match the measurement: "
+                       f"{mispaired}")
 
     # (7) the census must have been measured over THIS session's relevance set.
     #
@@ -445,7 +490,7 @@ class DataFinalityEvidence:
         reasons = adj.get("checks_by_reason_code") or {}
         tolerated = counts.get(_NARROW_TOLERATED_STATUS, 0)
         unexplained = int(adj.get("unexplained_adjustment_count") or 0)
-        return {
+        block = {
             "session_date": narrow.get("attested_session", self.session_date),
             "limitation_status": _NARROW_TOLERATED_STATUS,
             # ⚠ The ACTIVE limitation for this session, measured over this session's relevance set.
@@ -469,12 +514,24 @@ class DataFinalityEvidence:
             "relevance_artifact_sha256": narrow.get("relevance_artifact_sha256"),
             "quarantine_artifact_sha256": narrow.get("quarantine_artifact_sha256"),
             "quarantined_identities": narrow.get("quarantined_identities", []),
+            # ⚠ Carried into the receipt, not only into the narrow block: the digest is what makes
+            # "the same quarantine" a checkable statement rather than a claim about two counts.
+            "quarantine_policy_sha256": narrow.get("quarantine_policy_sha256"),
+            "governed_quarantine": narrow.get("governed_quarantine"),
+            "movements_by_status": narrow.get("movements_by_status", {}),
             "full_action_semantics_proven": False,
             "claim": "the decision this session makes is valid; the broad proof that EVERY corporate "
                      "action is economically reconciled does not hold, and each condition that "
                      "remains was measured over this session's own relevance set to have no part in "
                      "the decision",
         }
+        # The digest of the limitation as STATED. It is the value two independent runs compare when
+        # they claim to have disclosed the same thing; comparing counts would let two different
+        # limitations agree by arithmetic.
+        block["limitation_digest"] = hashlib.sha256(
+            json.dumps(block, sort_keys=True, separators=(",", ":"), default=str)
+            .encode("utf-8")).hexdigest()
+        return block
 
 
 UniverseFn = Callable[[date, int], list[str]]
@@ -657,8 +714,7 @@ def build_narrow_readiness_attestation(
     adjustment_verifier: AdjustmentVerifier,
     reconciliation_artifact_sha256: str,
     relevance_artifact_sha256: str,
-    quarantine_artifact_sha256: str,
-    quarantined_identities: frozenset[str] = frozenset(),
+    quarantine: GovernedQuarantinePolicy,
 ) -> tuple[NarrowReadinessAttestation, dict[str, Any]]:
     """Derive an attestation MECHANICALLY from the readiness construction, and record what it was
     derived from.
@@ -704,9 +760,8 @@ def build_narrow_readiness_attestation(
         session_date=session_date,
         reconciliation_artifact_sha256=reconciliation_artifact_sha256,
         relevance_artifact_sha256=relevance_artifact_sha256,
-        quarantine_artifact_sha256=quarantine_artifact_sha256,
+        quarantine=quarantine,
         relevance_set_sha256=str(adjustment.get("relevance_set_sha256") or ""),
-        quarantined_identities=frozenset(quarantined_identities),
         expected_status_counts=counts)
     record = {
         "derived_by": "build_narrow_readiness_attestation",
@@ -724,12 +779,97 @@ def build_narrow_readiness_attestation(
         "store_identity_sha256": ev.store_identity_sha256,
         "reconciliation_artifact_sha256": reconciliation_artifact_sha256,
         "relevance_artifact_sha256": relevance_artifact_sha256,
-        "quarantine_artifact_sha256": quarantine_artifact_sha256,
-        "quarantined_identities": sorted(quarantined_identities),
+        "quarantine_artifact_sha256": quarantine.quarantine_evidence_sha256,
+        "quarantine_policy_sha256": quarantine.policy_sha256,
+        "governed_quarantine": quarantine.to_open_provenance(),
+        "quarantined_identities": sorted(quarantine.permanent_identities),
         "ma_disclosure_sha256": adjustment.get("ma_disclosure_sha256"),
         "ma_disclosure_entry_count": adjustment.get("ma_disclosure_entry_count"),
         "unexplained_adjustment_count": adjustment.get("unexplained_adjustment_count"),
     }
+    return attestation, record
+
+
+#: The serialized narrow-readiness attestation — the artifact the readiness runner writes and the
+#: production session path reads. One contract, in `app/`, because two implementations of "what the
+#: attestation file means" is how a runner comes to write something the session path cannot check.
+NARROW_ATTESTATION_KIND = "phase_c_narrow_readiness_attestation"
+NARROW_ATTESTATION_SCHEMA_VERSION = "v1.1"
+
+
+class NarrowAttestationError(IntegrityStop):
+    """The persisted attestation is absent, of the wrong kind or schema, or does not bind the
+    construction this run resolved. Fails closed — never reconciled, never reinterpreted."""
+
+
+def narrow_attestation_payload(attestation: NarrowReadinessAttestation, record: dict[str, Any], *,
+                               corpus_manifest_sha256: str) -> dict[str, Any]:
+    """The canonical body of the attestation artifact. ONE producer.
+
+    ⚠ The quarantine is recorded by DIGEST, not by content. A consumer must derive the policy itself
+    from the countersigned manifest and compare; a file that carried its own policy could nominate the
+    identities and sessions it wished to be excused for.
+    """
+    return {
+        "kind": NARROW_ATTESTATION_KIND,
+        "schema_version": NARROW_ATTESTATION_SCHEMA_VERSION,
+        "session_date": attestation.session_date.isoformat(),
+        "corpus_manifest_sha256": corpus_manifest_sha256,
+        "store_identity_sha256": record["store_identity_sha256"],
+        "relevance_set_sha256": attestation.relevance_set_sha256,
+        "expected_status_counts": dict(attestation.expected_status_counts),
+        "reconciliation_artifact_sha256": attestation.reconciliation_artifact_sha256,
+        "relevance_artifact_sha256": attestation.relevance_artifact_sha256,
+        "quarantine_artifact_sha256": attestation.quarantine_artifact_sha256,
+        "quarantine_policy_sha256": attestation.quarantine_policy_sha256,
+        "quarantined_identities": sorted(attestation.quarantined_identities),
+        # The full construction record, so a reader can re-derive rather than trust.
+        "construction": record,
+    }
+
+
+def load_narrow_readiness_attestation(
+    path: Path, *, quarantine: GovernedQuarantinePolicy,
+) -> tuple[NarrowReadinessAttestation, dict[str, Any]]:
+    """Rehydrate a persisted attestation FROM BYTES ON DISK, under a policy derived independently.
+
+    ⚠⚠ `quarantine` is a parameter, not a field of the file. The attestation names a policy digest;
+    this refuses unless that digest is the one the caller derived from the countersigned manifest, and
+    then binds the DERIVED policy — so a tampered artifact cannot widen the set of movements a session
+    may disclose, it can only fail to load.
+    """
+    p = Path(path)
+    if not p.is_file():
+        raise NarrowAttestationError(
+            f"no narrow-readiness attestation at {p}; the deployment declares one and a session that "
+            f"cannot read it has no basis for the narrow verdict")
+    record = json.loads(p.read_bytes())
+    if record.get("kind") != NARROW_ATTESTATION_KIND:
+        raise NarrowAttestationError(
+            f"{p} is {record.get('kind')!r}, not a narrow-readiness attestation")
+    if record.get("schema_version") != NARROW_ATTESTATION_SCHEMA_VERSION:
+        raise NarrowAttestationError(
+            f"unsupported attestation schema {record.get('schema_version')!r}; an attestation whose "
+            f"meaning may have changed is refused, never best-effort parsed")
+    for required in ("session_date", "relevance_set_sha256", "expected_status_counts",
+                     "corpus_manifest_sha256", "store_identity_sha256", "quarantine_policy_sha256"):
+        if not record.get(required):
+            raise NarrowAttestationError(f"the persisted attestation carries no {required}")
+    if record["quarantine_policy_sha256"] != quarantine.policy_sha256:
+        raise NarrowAttestationError(
+            f"the attestation was written under governed quarantine "
+            f"{str(record['quarantine_policy_sha256'])[:16]}… but this run derived "
+            f"{quarantine.policy_sha256[:16]}… from the countersigned construction; one quarantine "
+            f"is not evidence about another")
+
+    attestation = NarrowReadinessAttestation(
+        session_date=date.fromisoformat(record["session_date"]),
+        reconciliation_artifact_sha256=record["reconciliation_artifact_sha256"],
+        relevance_artifact_sha256=record["relevance_artifact_sha256"],
+        quarantine=quarantine,
+        relevance_set_sha256=record["relevance_set_sha256"],
+        expected_status_counts={str(k): int(v)
+                                for k, v in record["expected_status_counts"].items()})
     return attestation, record
 
 
@@ -1000,6 +1140,7 @@ def assess_data_finality(
             # the session figure would hide that the adjudication exists at all.
             disclosed = counts.get(_NARROW_TOLERATED_STATUS, 0)
             corpus_wide = adjustment.get("ma_disclosure_entry_count")
+            unexplained_total = int(adjustment.get("unexplained_adjustment_count") or 0)
             narrow = {
                 "attested_session": narrow_readiness.session_date.isoformat(),
                 "reconciliation_artifact_sha256": narrow_readiness.reconciliation_artifact_sha256,
@@ -1008,6 +1149,17 @@ def assess_data_finality(
                 "attested_relevance_set_sha256": narrow_readiness.relevance_set_sha256,
                 "measured_relevance_set_sha256": adjustment.get("relevance_set_sha256"),
                 "quarantined_identities": sorted(narrow_readiness.quarantined_identities),
+                # ⚠ The governed quarantine, stated in the evidence by DIGEST and in full. A reader
+                # who wants to know which movements this session was permitted to disclose must not
+                # have to reconstruct the answer from a count.
+                "quarantine_policy_sha256": narrow_readiness.quarantine_policy_sha256,
+                "governed_quarantine": narrow_readiness.quarantine.to_open_provenance(),
+                # The one place the new status appears, and it appears as a MOVEMENT census kept
+                # apart from `checks_by_status`. Folding it into the action census would put a
+                # non-action into a count that clause (3) reads as the set of assessed actions.
+                "movements_by_status": (
+                    {str(ActionStatus.GOVERNED_QUARANTINED_UNEXPLAINED_MOVEMENT): unexplained_total}
+                    if unexplained_total else {}),
                 "full_action_semantics_proven": False,
                 "decision_validity_proven": not refusals,
                 # Derived from the MEASUREMENT, never asserted to preserve an expected shape.

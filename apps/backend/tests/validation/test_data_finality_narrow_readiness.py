@@ -28,6 +28,10 @@ from app.validation.data_finality import (
     NarrowReadinessAttestation,
     assess_data_finality,
 )
+from tests.validation.governed_construction_fixture import (
+    governed_movement_examples,
+    layer2_quarantine_policy,
+)
 
 SESSION = date(2026, 7, 24)
 N_SESSIONS = 300
@@ -36,9 +40,16 @@ SPEC = ConstructionSpec(scoring_universe_n=20, proxy_universe_n=30)
 
 RECON_SHA = "a" * 64
 RELEVANCE_SHA = "b" * 64
-QUARANTINE_SHA = "c" * 64
-#: SHOP and TLN, by PERMANENT identity — the two histories this vintage withholds.
-QUARANTINED = frozenset({"167284", "642054"})
+
+#: ⚠ THE REAL, COUNTERSIGNED QUARANTINE — derived from the committed manifest by the ONE derivation,
+#: never a literal here. SHOP and TLN by permanent identity, their four governed dividend-factor
+#: movements, and the evidence/manifest/countersignature digests that bind them.
+QUARANTINE_POLICY = layer2_quarantine_policy()
+QUARANTINE_SHA = QUARANTINE_POLICY.quarantine_evidence_sha256
+QUARANTINED = QUARANTINE_POLICY.permanent_identities
+#: The measurement that exactly matches it. A double that reported bare permatickers could not
+#: exercise a clause which checks identity, session AND factor.
+GOVERNED_MOVEMENTS = governed_movement_examples(QUARANTINE_POLICY)
 
 #: The digest of the relevance set the READINESS construction builds. Distinct from `RELEVANCE_SHA`,
 #: which is the digest of the external decision-relevance ASSESSMENT — two different artifacts that the
@@ -122,9 +133,7 @@ class _CensusAdjustment:
         self._disclosure = disclosure
         self._relevance_set = relevance_set
         self._ma_entries = ma_entries
-        self._unexplained = ([{"permaticker": p} for p in
-                              ("167284", "167284", "642054", "642054")]
-                             if unexplained is None else unexplained)
+        self._unexplained = (list(GOVERNED_MOVEMENTS) if unexplained is None else unexplained)
         self._total = len(self._unexplained) if unexplained_total is None else unexplained_total
         self._reason_count = (self._counts.get("UNRESOLVED_NONDECISION_MA_SEMANTICS", 0)
                               if reason_count is None else reason_count)
@@ -173,8 +182,7 @@ class _ProvenAdjustment:
 def _attestation(session=SESSION, **kw) -> NarrowReadinessAttestation:
     kw.setdefault("reconciliation_artifact_sha256", RECON_SHA)
     kw.setdefault("relevance_artifact_sha256", RELEVANCE_SHA)
-    kw.setdefault("quarantine_artifact_sha256", QUARANTINE_SHA)
-    kw.setdefault("quarantined_identities", QUARANTINED)
+    kw.setdefault("quarantine", QUARANTINE_POLICY)
     kw.setdefault("relevance_set_sha256", RELEVANCE_SET_SHA)
     kw.setdefault("expected_status_counts", dict(DEPLOYED_JULY27_COUNTS))
     return NarrowReadinessAttestation(session_date=session, **kw)
@@ -330,12 +338,45 @@ def test_a_disclosed_action_without_its_named_relevance_reason_is_refused(store)
     assert any("relevance reason code" in r for r in _refusals(ev))
 
 
-def test_an_unexplained_movement_on_a_NON_quarantined_identity_is_refused(store):
-    """Movements are tolerated only where the history is withheld from the decision entirely."""
-    moves = [{"permaticker": "167284"}, {"permaticker": "999999"}]
-    ev = _assess(store, adjustment=lambda i: _CensusAdjustment(i, unexplained=moves))
+def _ungoverned(**changes) -> list[dict]:
+    """The governed movements with ONE of them altered — the shape every refusal case below needs."""
+    moves = [dict(m) for m in GOVERNED_MOVEMENTS]
+    moves[0] = moves[0] | changes
+    return moves
+
+
+@pytest.mark.parametrize("changes, what", [
+    ({"permaticker": "999999"}, "an identity the quarantine does not name"),
+    ({"session_date": "2025-06-30"}, "a session the quarantine does not govern"),
+    ({"factor": "SPLIT_FACTOR"}, "a factor the quarantine did not examine"),
+])
+def test_a_movement_outside_the_governed_quarantine_is_refused(store, changes, what):
+    """★ Identity, session AND factor. The clause used to test the identity alone, against a set a
+    script supplied — so an undeclared split on a lineage the countersignature examined only for a
+    dividend-factor anomaly would have passed as a governed disclosure."""
+    ev = _assess(store, adjustment=lambda i: _CensusAdjustment(i, unexplained=_ungoverned(**changes)))
+    assert ev.verdict is DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED, what
+    assert any("not covered by the countersigned quarantine" in r for r in _refusals(ev))
+
+
+def test_ONE_EXTRA_unexplained_movement_is_refused(store):
+    """The census is the claim. A fifth movement is a fifth movement even if the four are governed."""
+    extra = [*GOVERNED_MOVEMENTS, {"ticker": "ZZZZ", "permaticker": "999999",
+                                   "session_date": "2026-07-01", "factor": "DIVIDEND_FACTOR"}]
+    ev = _assess(store, adjustment=lambda i: _CensusAdjustment(i, unexplained=extra))
     assert ev.verdict is DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED
-    assert any("non-quarantined" in r for r in _refusals(ev))
+    assert any("not covered by the countersigned quarantine" in r for r in _refusals(ev))
+
+
+def test_the_RIGHT_ticker_on_the_WRONG_permanent_identity_is_refused(store):
+    """★ The identity↔ticker pairing the manifest declares positionally is PROVED here, not assumed:
+    the measurement carries both, and SHOP's dates on TLN's identity is not the governed movement."""
+    swapped = _ungoverned(permaticker="642054")
+    ev = _assess(store, adjustment=lambda i: _CensusAdjustment(i, unexplained=swapped))
+    assert ev.verdict is DataReadiness.NOT_READY_ADJUSTMENT_UNVERIFIED
+    refusals = _refusals(ev)
+    assert any("not covered by the countersigned quarantine" in r for r in refusals)
+    assert any("identity↔ticker pairing" in r for r in refusals)
 
 
 def test_an_uncheckable_movement_census_is_refused(store):
@@ -735,7 +776,7 @@ def _derive(store, session=SESSION):
     return build_narrow_readiness_attestation(
         store, session, construction=SPEC, adjustment_verifier=verifier,
         reconciliation_artifact_sha256=RECON_SHA, relevance_artifact_sha256=RELEVANCE_SHA,
-        quarantine_artifact_sha256=QUARANTINE_SHA, quarantined_identities=QUARANTINED)
+        quarantine=QUARANTINE_POLICY)
 
 
 def test_a_derived_attestation_is_accepted_by_the_assessment_it_was_derived_from(store):
@@ -781,9 +822,8 @@ def test_an_attestation_derived_over_a_BROADER_set_is_refused_by_the_readiness_r
     broader = record["relevant_ticker_count"] + 19
     diagnostic = NarrowReadinessAttestation(
         session_date=SESSION, reconciliation_artifact_sha256=RECON_SHA,
-        relevance_artifact_sha256=RELEVANCE_SHA, quarantine_artifact_sha256=QUARANTINE_SHA,
+        relevance_artifact_sha256=RELEVANCE_SHA, quarantine=QUARANTINE_POLICY,
         relevance_set_sha256="%064x" % (broader * 7919),
-        quarantined_identities=QUARANTINED,
         expected_status_counts={"PROVEN_REFLECTED": broader})
     assert diagnostic.relevance_set_sha256 != attestation.relevance_set_sha256
 
@@ -805,7 +845,7 @@ def test_the_builder_refuses_when_the_assessment_never_reached_verification(stor
             store, date(2030, 1, 2), construction=SPEC,
             adjustment_verifier=lambda *a: _CensusAdjustment(a[3]),
             reconciliation_artifact_sha256=RECON_SHA, relevance_artifact_sha256=RELEVANCE_SHA,
-            quarantine_artifact_sha256=QUARANTINE_SHA)
+            quarantine=QUARANTINE_POLICY)
 
 
 def test_the_readiness_path_NEVER_derives_its_own_expected_counts():

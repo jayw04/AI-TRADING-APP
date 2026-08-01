@@ -114,6 +114,12 @@ LAYER2_ARTIFACTS = Path(__file__).resolve().parents[4] / "manifests" / "layer2"
 #: not a choice the tests get to make.
 LAYER2_SESSION = date(2026, 7, 27)
 
+#: The pinned evidence artifacts the narrow-readiness wiring READS (as opposed to merely names): the
+#: countersigned quarantine and the decision-relevance assessment the M&A disclosure derives from.
+#: Committed alongside the manifest that pins them, so a run of these tests also re-proves that both
+#: still hash to the values the countersignature transitively binds.
+LAYER2_EVIDENCE_ARTIFACTS = ("shop_tln_quarantine.json", "residual_relevance.json")
+
 
 def install_layer2_construction(tmp_path: Path, *, session: date = LAYER2_SESSION,
                                 sidecar: bool = True) -> dict:
@@ -146,6 +152,11 @@ def install_layer2_construction(tmp_path: Path, *, session: date = LAYER2_SESSIO
     if sidecar:
         (tmp_path / "countersignature.json").write_bytes(
             (LAYER2_ARTIFACTS / "corpus_countersignature_v1.json").read_bytes())
+    # The pinned evidence artifacts, installed under the names the manifest declares for them —
+    # which is how the runtime locates them, and therefore how a test must. Real, for the same
+    # reason the manifest itself is: a synthetic stand-in would prove the reader parses fixtures.
+    for name in LAYER2_EVIDENCE_ARTIFACTS:
+        (tmp_path / name).write_bytes((LAYER2_ARTIFACTS / name).read_bytes())
 
     dgs3mo_manifest_path = tmp_path / "dgs3mo_manifest.json"
     dgs3mo_manifest_path.write_text(json.dumps({
@@ -170,6 +181,39 @@ def install_layer2_construction(tmp_path: Path, *, session: date = LAYER2_SESSIO
         normalize_corpus_manifest(corpus),
         dgs3mo_manifest_sha256=dgs.dgs3mo_manifest_sha256,
         countersignature=countersignature) if sidecar else {}
+
+
+def layer2_quarantine_policy():
+    """The REAL governed quarantine, derived from the committed artifacts by the ONE derivation.
+
+    ⚠ Tests use this rather than constructing a `GovernedQuarantinePolicy` by hand, and the difference
+    is the whole point of the 2026-07-31 ruling: a hand-built policy in a test is the same defect as
+    the hand-built `QUARANTINED_IDENTITIES` in the runner, and a parity test written against two
+    hand-built policies would agree with itself.
+    """
+    from app.validation.governed_corpus import (
+        load_any_corpus_manifest,
+        load_layer2_countersignature,
+        normalize_corpus_manifest,
+    )
+    from app.validation.governed_quarantine import governed_quarantine_policy
+
+    corpus = load_any_corpus_manifest(LAYER2_ARTIFACTS / "corpus_manifest_v2.json")
+    sidecar = load_layer2_countersignature(LAYER2_ARTIFACTS / "corpus_countersignature_v1.json")
+    return governed_quarantine_policy(normalize_corpus_manifest(corpus), sidecar,
+                                      governed_root=LAYER2_ARTIFACTS)
+
+
+def governed_movement_examples(policy=None) -> list[dict]:
+    """The measured `unexplained_examples` shape for exactly the movements the policy governs.
+
+    Shaped like the verifier's own payload — ticker, permanent identity, session and factor — because
+    clause (6) now checks all four, and a double that omitted any of them could not exercise it.
+    """
+    p = policy or layer2_quarantine_policy()
+    return [{"ticker": m.ticker, "permaticker": m.permanent_identity,
+             "session_date": m.session_date.isoformat(), "factor": str(m.factor)}
+            for m in p.movements]
 
 
 def _base_block(corpus: CorpusManifest, dgs: Dgs3moManifest) -> dict:
