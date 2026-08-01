@@ -336,10 +336,13 @@ def test_open_record_carries_no_performance(ctx, tmp_path):
 
 
 def test_sealed_value_leaking_into_the_open_record_fails_closed(ctx, tmp_path):
+    """⚠ Amendment 7 reshaped the leak: an EXACT string leaf spelling the sealed value, smuggled
+    through operational_exceptions. The old free-text form ("session return was -0.0042") is the
+    substring semantics the owner ruled out — its digits inside prose are no longer a refusal."""
     store = tmp_path / "ledger"
     _open(ctx, store)
     with pytest.raises(ObservationCommitError, match="sealed value"):
         _record(ctx, store, SESSION_2,
-                operational={"operational_exceptions": ["session return was -0.0042"]},
+                operational={"operational_exceptions": ["-0.0042"]},
                 sealed={"strategy_return": -0.0042})
     assert committed_session_count(store) == 1

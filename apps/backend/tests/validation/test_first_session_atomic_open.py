@@ -317,15 +317,90 @@ def test_open_record_leaking_a_sealed_field_name_fails_closed():
 
 
 def test_open_record_leaking_a_sealed_value_fails_closed():
+    """⚠ Amendment 7 changed this case's shape: the leak is now an EXACT string leaf spelling the
+    sealed value. The old form — free text CONTAINING the digits ("return was 0.0137") — is exactly
+    the substring semantics the owner ruled out; free-text scanning is not separately governed."""
     with pytest.raises(WindowOpenError, match="sealed value"):
         assert_open_record_has_no_sealed_content(
-            {"note": "return was 0.0137"}, {"strategy_return": 0.0137})
+            {"note": "0.0137"}, {"strategy_return": 0.0137})
 
 
 def test_clean_open_record_passes():
     assert_open_record_has_no_sealed_content(
         {"session_date": "2026-07-24", "rebalances": 1, "cap_breaches": 0},
         {"strategy_return": 0.0137})
+
+
+# ---- Amendment 7: typed leaf equality, never substrings of larger values --------------------------
+#
+# The July 27 commit was refused because sealed turnover 0.98 substring-matched INSIDE the open
+# price mark 90.98 — a false positive by construction for any window containing a price ending in
+# .98. The comparison is now typed leaf equality; this block is the owner's required matrix.
+
+def _sealed(v=0.98):
+    return {"turnover": v}
+
+
+def test_a_sealed_value_inside_a_LARGER_numeric_leaf_passes():
+    """★ THE JULY 27 FALSE POSITIVE, both measured collisions verbatim."""
+    assert_open_record_has_no_sealed_content(
+        {"data_finality": {"checks": [{"close": 90.98}, {"close": 350.98}]}}, _sealed())
+
+
+def test_an_exactly_equal_numeric_leaf_refuses():
+    with pytest.raises(WindowOpenError, match="sealed value"):
+        assert_open_record_has_no_sealed_content({"x": 0.98}, _sealed())
+
+
+def test_a_string_leaf_spelling_the_sealed_value_refuses():
+    with pytest.raises(WindowOpenError, match="sealed value"):
+        assert_open_record_has_no_sealed_content({"x": "0.98"}, _sealed())
+
+
+def test_an_integer_sealed_value_matches_an_integer_leaf():
+    with pytest.raises(WindowOpenError, match="sealed value"):
+        assert_open_record_has_no_sealed_content({"n": 98}, {"turnover_cost_units": 98})
+
+
+def test_a_string_leaf_containing_but_not_equalling_the_value_passes():
+    """Free text embedding the digits is not an exact leaf. ⚠ The owner's example wording
+    ("turnover was 0.98") is deliberately NOT used verbatim: "turnover" is a sealed field NAME, and
+    the unchanged name scan refuses it first — correctly, and tested separately below."""
+    assert_open_record_has_no_sealed_content({"x": "90.98"}, _sealed())
+    assert_open_record_has_no_sealed_content({"note": "gross was 0.98 this session"}, _sealed())
+
+
+def test_an_exact_leaf_nested_in_lists_and_dicts_refuses():
+    with pytest.raises(WindowOpenError, match="sealed value"):
+        assert_open_record_has_no_sealed_content(
+            {"a": [{"b": [1, 2, {"c": 0.98}]}]}, _sealed())
+
+
+def test_boolean_leaves_never_match_sealed_numerics():
+    """`False == 0` and `True == 1` in Python; the gate must not read a flag as a leaked number."""
+    assert_open_record_has_no_sealed_content(
+        {"flag": False, "other": True}, {"strategy_return": 0.0, "x": 1.0})
+    # ...and a sealed bool (should one ever exist) never matches numeric leaves either.
+    assert_open_record_has_no_sealed_content({"n": 0, "m": 1}, {"flag": True})
+
+
+def test_a_non_finite_sealed_value_refuses_deterministically():
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(WindowOpenError, match="non-finite"):
+            assert_open_record_has_no_sealed_content({"ok": 1}, {"strategy_return": bad})
+
+
+def test_non_finite_OPEN_leaves_never_match_and_never_crash():
+    assert_open_record_has_no_sealed_content(
+        {"weird": float("nan"), "worse": float("inf")}, _sealed())
+
+
+def test_the_name_scan_is_unchanged_by_the_typed_value_scan():
+    """The name scan keeps its serialized-document semantics: a sealed field NAME appearing anywhere
+    — even inside free text — still refuses."""
+    with pytest.raises(WindowOpenError, match="sealed field name"):
+        assert_open_record_has_no_sealed_content(
+            {"note": "the turnover_cost was fine"}, {"strategy_return": 0.0137})
 
 
 # ---- pre-start still fails at the gate inside the opener ------------------------------------------
