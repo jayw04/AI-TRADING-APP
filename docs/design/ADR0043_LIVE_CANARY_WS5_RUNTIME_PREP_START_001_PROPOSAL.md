@@ -1,19 +1,20 @@
-# ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 (AMENDMENT-1 rev-2 — APPROVED FOR AUTHORIZATION, PENDING EFFECTIVE MERGE)
+# ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 (EFFECTIVE (AMENDED) — EXECUTION NOT YET INVOKED)
 
 | Field | Value |
 |-------|-------|
 | Document ID | ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 |
-| Status of this revision | **AMENDMENT-1 rev-2 — APPROVED FOR AUTHORIZATION, PENDING EFFECTIVE MERGE** — owner REVISE corrections 1–3 applied; owner independently recomputed the canonical hash and it matched; not yet merged, not yet effective |
-| Status of the authorization in force | **APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED; OPERATOR INVOCATION HELD PENDING §15 SEQUENCING AMENDMENT** |
+| Status | **EFFECTIVE (AMENDED) — EXECUTION NOT YET INVOKED** (amendment-1 effective `2026-08-02T21:56:47Z`; WS5 not started — the §15.1 Stage-1 operator invocation is still required and has not been issued) |
+| Status of the authorization in force | **EFFECTIVE (AMENDED) — EXECUTION NOT YET INVOKED.** The §15 sequencing hold is discharged: §15 is now satisfiable in two stages. Execution remains un-invoked. |
 | Amendment scope | §15 split into a two-stage invocation (Stage 1 opening / Stage 2 resource-binding checkpoint); §14 amendment continuity, **post-invocation amendment rule**, and **superseded-hash retirement**; §15.1 **application-level database access prohibited before Stage 2** (provider control plane only); three new §10 stop conditions; §4B cross-reference. **No change to any scope item, ceiling, prohibition, dry-run flag, disposition, exit criterion, source commit, schema head, or the expiration formula.** |
-| Amended body SHA-256 (proposed) | `52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae` (over §§1–16 per §17) |
-| Superseded body SHA-256 (in force until the amendment is effective) | `99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0` (merge `f1646719…`, PR #594; re-verified from `main`) |
+| **Effective** authorization body SHA-256 | `52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae` (over §§1–16 per §17; **independently re-verified from `main` post-merge**) |
+| Superseded body SHA-256 | `99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0` (merge `f1646719…`, PR #594) — **PERMANENTLY RETIRED** as an authorizing credential at `2026-08-02T21:56:47Z` per §14 *Superseded-hash retirement*. REFUSED for Stage-1 invocation, Stage-2 checkpointing, resource creation, and resource adoption. |
 | Withdrawn draft hash (never effective) | `f44c9a53a46a382734ea604ac3fa132ef06294d874c9e390fafd2ce3c5580c34` — the first amendment draft, superseded by the owner's REVISE ruling **before** it was ever approved or merged. It never authorized anything. |
-| Amendment merge SHA | *(recorded at the amendment's effective merge)* |
+| Amendment merge SHA | `af2dfc16b8294edd649f2a19fcac2cb954fff00b` (PR #596, base `3920484…`, reviewed head `f57ff64c…`) |
+| Amendment effective at | 2026-08-02T21:56:47Z |
 | Authorization merge SHA (superseded) | `f1646719dde08af497e6dcf1da4e0369cfba7754` (PR #594, base `7342ebb…`, reviewed head `0bc173e…`) |
-| Authorization effective at | 2026-08-02T20:39:37Z — **not reset by amendment** (§14 *Amendment continuity*) |
-| Absolute expiration | 2026-08-16T23:59:59 America/Chicago (`effective_at + 14d`, §14) — **unchanged by this amendment** |
-| Derived runtime identity (proposed) | `adr0043-canary-ws5-52b3ff136196` — supersedes `adr0043-canary-ws5-99f045e09532` and the withdrawn draft identity `adr0043-canary-ws5-f44c9a53a46a`. **No resource exists under any of the three identities**; WS5 has never been invoked. |
+| Authorization effective at | 2026-08-02T20:39:37Z — **preserved; not reset by amendment** (§14 *Amendment continuity*). The 14-day clock still runs from the original effectiveness moment. |
+| Absolute expiration | 2026-08-16T23:59:59 America/Chicago (`effective_at + 14d`, §14) — **unchanged by the amendment** |
+| Derived runtime identity | `adr0043-canary-ws5-52b3ff136196` — supersedes `adr0043-canary-ws5-99f045e09532` and the withdrawn draft identity `adr0043-canary-ws5-f44c9a53a46a`. **No resource exists under any of the three identities**; WS5 has never been invoked. |
 | Date | 2026-08-02 |
 | Governing plan | ADR0043-LIVE-CANARY-IMPL-PLAN-001 v1.0 (WS5) |
 | Contract layer | ADR0043-CANARY-MANIFEST-v1.2 — **APPROVED — WS4A CONTRACT FREEZE** (2026-08-02) |
@@ -21,11 +22,13 @@
 | Baseline design | ADR0043-CANARY-BASELINE-DESIGN-001 v0.2.1 (Model A) |
 | Code capability | WS3 on `main` at merge `0462c25…` (WS3 code `92cbd30…`, PR #591) |
 | Prior publication | Published NON-EFFECTIVE via PR #593 → `main` `7342ebb…` |
-| Effect | **None yet.** Effectiveness and execution are **separate events** (§18): the authorization becomes EFFECTIVE on merge + verified body hash + recorded merge SHA; WS5 execution begins only through the separate §15 operator invocation. |
+| Effect | **No execution.** Effectiveness and execution are **separate events** (§18). The authorization is EFFECTIVE as amended — merged, body hash verified, merge SHA recorded — but WS5 execution begins only through the separate **§15.1 Stage-1 operator invocation**, which has **not** been issued. |
 
-> 🛑 **OPERATOR INVOCATION HELD — AMENDMENT APPROVED, AWAITING EFFECTIVE MERGE.** The authorization merged to `main` at `f1646719…` (PR #594) and became **EFFECTIVE** at `2026-08-02T20:39:37Z` with body hash `99f045e0…` independently re-verified from `main`. It remains effective. However, the §15 operator record as merged required `runtime_resource_ids`, `database_identity`, and `image_digest` **before** execution may begin — values that, under CREATE-AND-ATTACH (§3), do not exist until WS5 itself creates them. **No operator could truthfully produce that record**, so §15 was unsatisfiable as written and invocation is **HELD** pending this amendment. This revision corrects the sequencing only.
+> ✅ **EFFECTIVE (AMENDED) — EXECUTION NOT YET INVOKED.** The original authorization became effective at `2026-08-02T20:39:37Z` (`99f045e0…`, PR #594), but its §15 operator record required `runtime_resource_ids`, `database_identity`, and `image_digest` **before** execution may begin — values that, under CREATE-AND-ATTACH (§3), do not exist until WS5 itself creates them. §15 was therefore unsatisfiable and invocation was held. **Amendment-1 corrects the sequencing** and merged to `main` at `af2dfc16…` (PR #596) at `2026-08-02T21:56:47Z`; its body hash was independently recomputed from the `main` blob (`a53651e…`) as `52b3ff13…` (§17) and the merge SHA recorded. The amendment is **EFFECTIVE**; `99f045e0…` is **permanently retired**.
 >
-> **All runtime and broker HOLDs remain in force.** No provisioning, database access, broker access, migration, or dry-run capture has been or may be started. Effectiveness auto-expires per §14 (`2026-08-16T23:59:59 America/Chicago`) — **the amendment does not extend that ceiling.**
+> **This does NOT start WS5.** Effectiveness and execution remain separate events (§18). No provisioning, database access, broker access, migration, dry-run capture, or readiness-evidence production has been or may be started; WS5 begins **only** through the explicit **§15.1 Stage-1 operator invocation**, which **has not been issued**. The §15.2 Stage-2 checkpoint then gates everything beyond creation.
+>
+> **All runtime and broker HOLDs remain in force.** Effectiveness auto-expires per §14 at `2026-08-16T23:59:59 America/Chicago` — the amendment did **not** reset `authorization_effective_at` and did **not** extend that ceiling.
 
 ---
 
@@ -427,20 +430,24 @@ final document approved (owner: APPROVED FOR AUTHORIZATION)
 | Owner review of the draft | ✅ **REVISE** — three corrections required (Stage-1 database reads; post-invocation amendment; explicit superseded-hash retirement) |
 | Corrections applied; body re-frozen; hash recomputed | ✅ `52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae` (draft `f44c9a53…` **withdrawn, never effective**) |
 | Owner *APPROVED FOR AUTHORIZATION* over the corrected body | ✅ 2026-08-02 — owner independently recomputed `52b3ff13…` and it matched |
-| Amendment merged to `main`; merge SHA recorded | ☐ pending |
-| Amended body hash independently re-verified from `main` (§17) | ☐ pending |
-| Prior hash `99f045e0…` retired per §14 *Superseded-hash retirement*; `runtime_name` re-derived | ☐ pending |
-| Stage-1 operator invocation requested (§15.1) | ☐ pending — **held until every box above is checked** |
+| Amendment merged to `main`; merge SHA recorded | ✅ `af2dfc16b8294edd649f2a19fcac2cb954fff00b` (PR #596, squash of reviewed head `f57ff64c…`) at `2026-08-02T21:56:47Z` |
+| Amended body hash independently re-verified from `main` (§17) | ✅ **PASS** — recomputed from the `main` blob `a53651e…` = `52b3ff13…` |
+| Prior hash `99f045e0…` retired per §14 *Superseded-hash retirement*; `runtime_name` re-derived | ✅ retired `2026-08-02T21:56:47Z`; `runtime_name = adr0043-canary-ws5-52b3ff136196` |
+| Stage-1 operator invocation requested (§15.1) | ☐ **NOT ISSUED** — every box above is checked, but the invocation is a **separate owner act** and has not been made |
 
-**Required amendment effectiveness record (§14 *Superseded-hash retirement*).** When this amendment becomes effective, the following must be recorded here:
+**Amendment effectiveness record (§14 *Superseded-hash retirement*) — satisfied:**
 
 ```
 superseded_authorization_body_sha256 = 99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0
 effective_authorization_body_sha256  = 52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae
-superseded_at_utc                    = <recorded at the amendment's effective merge>
-amendment_merge_sha                  = <recorded at the amendment's effective merge>
-independent_new_hash_verification    = <recomputed from the main blob; PASS/FAIL>
+superseded_at_utc                    = 2026-08-02T21:56:47Z
+amendment_merge_sha                  = af2dfc16b8294edd649f2a19fcac2cb954fff00b
+independent_new_hash_verification    = PASS (recomputed from main blob a53651e…, verifier taken from main)
 ```
+
+`99f045e0…` is **permanently retired** as an authorizing credential from `superseded_at_utc`. It must not be accepted for Stage-1 invocation, Stage-2 checkpointing, resource creation, or resource adoption; presenting it is **REFUSED** (§10, §14). `f44c9a53…` was a withdrawn draft and never carried authority. **No resource exists under any of the three identities.**
+
+`authorization_effective_at` remains `2026-08-02T20:39:37Z` and `absolute_expiration` remains `2026-08-16T23:59:59 America/Chicago` — the amendment did not restart the clock (§14).
 
 Until the amendment is effective, the authorization in force remains the `99f045e0…` revision, with **execution held** — there is no interval in which nothing governs (§14).
 
@@ -450,8 +457,8 @@ Until the amendment is effective, the authorization in force remains the `99f045
 |-------|--------|
 | Approved, pre-merge | `APPROVED FOR AUTHORIZATION — PENDING EFFECTIVE MERGE` |
 | Merged `f1646719…`, hash re-verified, merge SHA recorded | `APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED` |
-| **Now (§15 found unsatisfiable; amendment drafted, pending owner ruling)** | **`APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED; OPERATOR INVOCATION HELD PENDING §15 SEQUENCING AMENDMENT`** |
-| Amendment approved, merged, hash re-verified | `EFFECTIVE (AMENDED) — EXECUTION NOT YET INVOKED` |
+| §15 found unsatisfiable; amendment drafted and approved | `APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED; OPERATOR INVOCATION HELD PENDING §15 SEQUENCING AMENDMENT` |
+| **Now (amendment merged `af2dfc16…`, hash re-verified from `main`, `99f045e0…` retired)** | **`EFFECTIVE (AMENDED) — EXECUTION NOT YET INVOKED`** |
 | After §15.1 Stage-1 operator invocation | `EFFECTIVE — WS5 INVOKED (STAGE 1: CREATION ONLY)` |
 | After the §15.2 Stage-2 checkpoint passes | `EFFECTIVE — WS5 INVOKED (STAGE 2 BOUND)` |
 
@@ -507,6 +514,9 @@ Until the amendment is effective, the authorization in force remains the `99f045
 | Required operator invocation | **YES — two stages**, bound to the amended body hash (§15.1, §15.2, §17) |
 | Owner ruling | ✅ **APPROVED FOR AUTHORIZATION** — issued over the corrected body; owner independently recomputed `52b3ff13…` under the §17 rules and confirmed exactly one occurrence of each excluded scalar and exactly two §15 operator-record fenced blocks |
 | Identities not authorized for future invocation | `99f045e0…` (effective only until this amendment is effective, then **permanently retired**); `f44c9a53…` (withdrawn draft, **never carried authority**) |
+| Amendment merge SHA | `af2dfc16b8294edd649f2a19fcac2cb954fff00b` (PR #596; base `3920484…`; reviewed head `f57ff64c…`; all required checks passed, no override) |
+| Amendment effective at | `2026-08-02T21:56:47Z` |
+| Post-merge body-hash re-verification | **PASS** — recomputed from `main` blob `a53651e…` using the verifier as committed to `main` = `52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae` |
 | Countersignature | Owner ruling, 2026-08-02 |
 | Date | 2026-08-02 |
 
@@ -524,5 +534,6 @@ Until the amendment is effective, the authorization in force remains the `99f045
 | amendment-1 draft (withdrawn) | 2026-08-02 | **§15 sequencing amendment, first draft — returned by owner ruling REVISE; never approved, merged, or effective.** Defect: the merged §15 required `runtime_resource_ids`, `database_identity`, and `image_digest` in the operator record *before* execution may begin, but under CREATE-AND-ATTACH (§3) those resources are created *by* WS5 (§1, §5) — so no operator could truthfully produce the record and §15 was unsatisfiable. Correction: (1) §15 split into **§15.1 Stage 1** (opening invocation; authorizes creation of the isolated runtime, the isolated DB *without* migration, the image built from `authorized_source_commit`, and the §4B opening record — and nothing else) and **§15.2 Stage 2** (resource-binding checkpoint; records and verifies the runtime-created identities, and must pass before migration, DB reads, broker reads, dry-run, or evidence production); (2) §14 gains **Amendment continuity** — an approved amendment supersedes rather than expires the authorization, `authorization_effective_at` is **not** reset (so `absolute_expiration` stays `2026-08-16` and cannot be extended by repeated amendment), and resources under a superseded `authorization_sha` are unauthorized; (3) §4B cross-references the two stages; (4) §17 (non-hashed) states the §15 exclusion structurally so it covers both blocks. **No scope, ceiling, prohibition, dry-run flag, stop condition, disposition, exit criterion, source commit, schema head, or expiration value changed.** Draft body hash `f44c9a53a46a382734ea604ac3fa132ef06294d874c9e390fafd2ce3c5580c34`. Status **AMENDMENT-1 DRAFT — RETURNED BY OWNER RULING REVISE**; never approved, never merged, never effective. |
 | amendment-1 rev-2 (final) | 2026-08-02 | **Owner ruling REVISE — three governance corrections applied; pending owner ruling; not effective, not merged.** (1) **§15.1 Stage-1 database reads prohibited** — no application-level connection, query, read, write, schema inspection, Alembic inspection, or migration; only provider control-plane create/describe/status, resource-ID and endpoint retrieval, network reachability configuration, and recording those values in §4B; the Stage-1 negative sentence restated so the closed authority list leaves nothing to inference. (2) **§14 Post-invocation amendment rule** — amendment continuity applies only before Stage-1 invocation; afterwards a body-changing amendment terminates the attempt as REFUSED, with no hot-patch / retag / adopt / continue, evidence preserved for adjudication, teardown requiring separate authority, and a new authorization plus newly derived runtime identity for any further attempt. (3) **§14 Superseded-hash retirement** — the prior body hash is permanently retired as an authorizing credential and REFUSED for Stage-1 invocation, Stage-2 checkpointing, resource creation, and resource adoption; the amendment effectiveness record must carry `superseded_authorization_body_sha256`, `effective_authorization_body_sha256`, `superseded_at_utc`, `amendment_merge_sha`, `independent_new_hash_verification`. All three mirrored into **§10** as mechanical stop conditions. Body hash recomputed: `52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae`, superseding `99f045e0…` and withdrawing the never-effective draft `f44c9a53…`; derived `runtime_name = adr0043-canary-ws5-52b3ff136196`. Verifier hardened and moved to the tracked path `scripts/governance/hash_ws5_authorization.py` (fail-closed; fixtures pin `99f045e0…` and `52b3ff13…`). **No scope item, ceiling, prohibition, dry-run flag, disposition, exit criterion, source commit, schema head, or expiration value changed.** Status **AMENDMENT-1 rev-2 — FINAL, PENDING OWNER *APPROVED FOR AUTHORIZATION* RULING**; authorization in force stays the `99f045e0…` revision with **operator invocation HELD**; all runtime and broker HOLDs remain. |
 | amendment-1 approved | 2026-08-02 | Owner issued **APPROVED FOR AUTHORIZATION** over the corrected amendment body, having **independently recomputed** the canonical hash from the byte-exact document under the §17 rules: `52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae` — matched, with exactly one occurrence of each excluded scalar and exactly two §15 operator-record fenced blocks. Approved identity `runtime_name = adr0043-canary-ws5-52b3ff136196`. Identities **not authorized for future invocation**: `99f045e0…` (effective only until this amendment becomes effective, then permanently retired per §14) and `f44c9a53…` (withdrawn draft, never carried authority). Owner confirmed all governance defects closed: Stage-1 creation-only; application-level DB access barred until Stage 2; control-plane creation narrowly distinguished from SQL access; migration / broker reads / DB reads / dry-run / readiness evidence only after the Stage-2 checkpoint; post-Stage-1 body-changing amendment ⇒ REFUSED; no retag or adoption of existing resources; superseded hashes expressly retired; no clock restart; expiration remains `2026-08-16T23:59:59 America/Chicago`; no resource exists under any identity; merge alone remains non-executing. Status **APPROVED FOR AUTHORIZATION — PENDING EFFECTIVE MERGE**. §§1–16 unchanged from the reviewed body — hash unchanged. **This ruling does not invoke Stage 1**; all runtime, database, image, broker, migration, dry-run, evidence, baseline, Start A/B, Phase 0, A1–A5, ENFORCE, and D-WIRE HOLDs remain in force. |
+| amendment-1 effective | 2026-08-02 | **PR #596 merged to `main` at `af2dfc16b8294edd649f2a19fcac2cb954fff00b`** (`2026-08-02T21:56:47Z`), squash of the exact reviewed head `f57ff64c1a869ba6ba49ab4d4dd66dd3335edeff`; five files, one commit, base `3920484…` unchanged during review; all required checks (`Detect changes`, `Python (backend)`, `Python FULL (backend)`, `Python CI Gate`) passed with **no bypass, waiver, or administrative override**. Amended body hash **independently recomputed from the `main` blob `a53651e…`, using the verifier as committed to `main`** = `52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae` — matches §17. Effectiveness record filled per §14 *Superseded-hash retirement*: `superseded_authorization_body_sha256 = 99f045e0…`, `effective_authorization_body_sha256 = 52b3ff13…`, `superseded_at_utc = 2026-08-02T21:56:47Z`, `amendment_merge_sha = af2dfc16…`, `independent_new_hash_verification = PASS`. **`99f045e0…` is permanently retired** as an authorizing credential; `f44c9a53…` never carried authority; **no resource exists under any of the three identities**. `authorization_effective_at` preserved at `2026-08-02T20:39:37Z` and `absolute_expiration` preserved at `2026-08-16T23:59:59 America/Chicago` — the amendment did not restart the clock. This entry is **metadata-only and hash-excluded** under §17: §§1–16 are byte-identical to the merged amendment and the body hash is unchanged. Status set to **EFFECTIVE (AMENDED) — EXECUTION NOT YET INVOKED**. **Stage 1 is NOT invoked**; no §15.1 operator record has been issued or constructed; all runtime, database, image, broker, migration, dry-run, readiness-evidence, authoritative-baseline, Start A/B, Phase 0, A1–A5, ENFORCE, and D-WIRE HOLDs remain in force. |
 
-*End of ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 (AMENDMENT-1 rev-2 — APPROVED FOR AUTHORIZATION, PENDING EFFECTIVE MERGE; STAGE 1 NOT INVOKED; ALL EXECUTION HOLDS IN FORCE).*
+*End of ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 (EFFECTIVE (AMENDED) — EXECUTION NOT YET INVOKED; STAGE 1 NOT INVOKED; ALL EXECUTION HOLDS IN FORCE).*
