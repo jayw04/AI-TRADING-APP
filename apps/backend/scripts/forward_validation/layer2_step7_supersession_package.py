@@ -47,60 +47,55 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from app.validation.governed_corpus import canonical_json  # noqa: E402
+from scripts.forward_validation._session_arg import add_session_argument  # noqa: E402
+from scripts.forward_validation._step7_findings import (  # noqa: E402
+    REFUSAL_CODE,
+    FindingsRefused,
+    cross_check,
+    derive_findings,
+    unresolved_requirements,
+)
 
 C2 = Path(os.environ.get("LAYER2_CORPUS_DIR", "."))
 
-# ── MEASURED identities (every one computed in this session, none carried from notes) ───────────────
-REBUILT = {
-    "store_path": "layer2-vintage/corpus-v2/factor_data_layer2.duckdb",
-    "store_file_sha256": "5960a0f7c0ae5dfd5955a15e910abc109376ff511cc3d33a849a712a6eee2a09",
-    "store_bytes": 1_928_343_552,
-    "store_identity_sha256": "fa8fc9a89a3ac83269cb144fd787fce70213ba8a42e1b1f11744b23f6be8f3a7",
-    "store_value_identity_sha256":
-        "455a7b0c43d91f8589fb6cc5f10743475e4c73c7159b49ad44139c72a4771af8",
-    "corpus_manifest_sha256":
-        "1e269fadedff74b04135dea5441f2f3338852464c3d06a74c81c98dfc43ca064",
-}
-SUPERSEDED = {
-    "store_path": "/opt/workbench/forward/data/factor_data_full.duckdb (host i-04910523d12387625)",
-    "declared_base_corpus_sha256":
-        "2659233f97cd3b34631a45812d3f2b6282cc31545793d03b22e8c5569722af87",
-    "store_bytes": 2_047_356_928,
-    "store_identity_sha256": "57234b02322bcf13368caf9c23461ecdda7d7eb015bca4b1ffa778c858cf86ee",
-    "store_value_identity_sha256":
-        "4243ffcb284d314721719bd86e2227d328a434350e4348575ad29013ad7832dd",
-    "corpus_manifest_sha256":
-        "a69ad50ffc3c6925b3c9b6c8fd1c2adc7143ef9d5c98e9378e1c3ea21ca75c49",
-    "base_countersignature": "GoverningCorpus_Countersignature_v2.0",
-    "note": "`declared_base_corpus_sha256` is a DECLARED identity and is never re-hashed against the "
-            "live store; the live file digest legitimately moved when the 2026-07-27 delta was "
-            "ingested. Do not 'fix' a changed store digest.",
-}
+# ── MEASURED identities ─────────────────────────────────────────────────────────────────────────────
+#
+# ⚠ These WERE three module constants (`REBUILT`, `SUPERSEDED`, `CODE_IDENTITY`) whose comment claimed
+# "every one computed in this session, none carried from notes" — while in fact holding literals typed
+# in from one particular run: the 2026-07-27 construction's store digests, its superseded manifest, and
+# a snapshot of a dirty working tree at commit 5173b7c2. Every later construction would have published
+# the PREVIOUS run's identities inside a well-formed supersession record, which is the exact
+# declared-vs-actual gap this package exists to close.
+#
+# They are now DATA, supplied per run — the same discipline `build_normalized_corpus --adjudication`
+# already applies ("identity names and counts are DATA, never primary logic in code"). The manifest
+# digest is still recomputed from disk and refused on mismatch, so nothing is relaxed: the expected
+# value simply moves from a stale literal to an explicit assertion by the operator.
 
-CODE_IDENTITY = {
-    "commit": "5173b7c2b3c64ea5f37687c6de6c4c0ee04203b6",
-    "commit_role": "the merged Layer 1 squash; the forward host runs this exact commit",
-    "tree_clean": False,
-    "working_tree_changes": {
-        "apps/backend/app/validation/adjustment_verifier.py":
-            {"status": "M", "sha256_prefix": "056aa92efd947db3"},
-        "apps/backend/app/validation/data_finality.py":
-            {"status": "M", "sha256_prefix": "637079afae79b3b8"},
-        "apps/backend/scripts/run_forward_validation_session.py":
-            {"status": "M", "sha256_prefix": "2b9c8d35627afb7b"},
-        "apps/backend/tests/validation/test_adjustment_verifier.py":
-            {"status": "M", "sha256_prefix": "2dea72f7b5cd7523"},
-        "apps/backend/tests/validation/test_data_finality_narrow_readiness.py":
-            {"status": "??", "sha256_prefix": "b62c1773feae9efd"},
-    },
-    "frozen_replica_stage4_sha256":
-        "59c46af111556fbefbeeb622753cb8b8cc3963f2d11f44fbbbaab15e3e0199df",
-    "frozen_replica_note": "IDENTICAL on the superseded host runtime and in this worktree — which is "
-                           "what makes the Step-4 comparison attributable to corpus construction "
-                           "rather than code drift",
-    "local_gates": {"full_suite": "4,969 passed / 54 skipped / PYTEST_EXIT=0",
-                    "ruff": "clean", "ci_invariants": "15/15 PASS"},
-}
+#: Keys a measurement file must carry before the package will bind it.
+REQUIRED_REBUILT_KEYS = ("store_path", "store_file_sha256", "store_bytes", "store_identity_sha256",
+                         "store_value_identity_sha256", "corpus_manifest_sha256")
+REQUIRED_SUPERSEDED_KEYS = ("store_path", "store_bytes", "store_identity_sha256",
+                            "store_value_identity_sha256", "corpus_manifest_sha256")
+
+
+def _window_text(manifest: dict) -> str:
+    """State the governed window from the manifest, never from a literal."""
+    w = manifest.get("decision_window")
+    if not w:
+        raise SystemExit(
+            "REFUSED — the manifest carries no decision_window; this package will not state a "
+            "governed window it did not read from the construction.")
+    return f"EXACT {w['sessions']} sessions {w['start']}..{w['end']}"
+
+
+def _load_measurements(path: Path, required: tuple[str, ...], label: str) -> dict:
+    """Load a measurement file and refuse it if any required identity is absent."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    missing = [k for k in required if not data.get(k)]
+    if missing:
+        raise SystemExit(f"REFUSED — {label} measurements {path.name} missing {missing}")
+    return data
 
 
 def _sha(p: Path) -> str:
@@ -114,25 +109,73 @@ def _sha(p: Path) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", required=True)
+    add_session_argument(ap)
+    ap.add_argument("--rebuilt", required=True, type=Path,
+                    help="JSON of the REBUILT construction's measured store/manifest identities")
+    ap.add_argument("--superseded", required=True, type=Path,
+                    help="JSON of the SUPERSEDED corpus's measured identities")
+    ap.add_argument("--code-identity", required=True, type=Path,
+                    help="JSON describing the code tree the construction was produced by")
+    ap.add_argument("--operator-analysis", required=True, type=Path,
+                    help="operator-authored causal analysis. Required: the findings a program cannot "
+                         "derive must be written for THIS construction, and a file carried over from "
+                         "the previous one fails its bindings before its prose is read.")
     args = ap.parse_args()
+    rebuilt = _load_measurements(args.rebuilt, REQUIRED_REBUILT_KEYS, "rebuilt")
+    superseded = _load_measurements(args.superseded, REQUIRED_SUPERSEDED_KEYS, "superseded")
+    code_identity = json.loads(args.code_identity.read_text(encoding="utf-8"))
 
     manifest_path = C2 / "proposed_corpus_manifest_v2.json"
     manifest = json.loads(manifest_path.read_bytes())
     actual = _sha(manifest_path)
-    if actual != REBUILT["corpus_manifest_sha256"]:
-        print(f"REFUSED — manifest digest moved: {actual} != {REBUILT['corpus_manifest_sha256']}")
+    if actual != rebuilt["corpus_manifest_sha256"]:
+        print(f"REFUSED — manifest digest moved: {actual} != {rebuilt['corpus_manifest_sha256']}")
+        return 1
+
+    # ---- the derived/authored split ----
+    step4 = json.loads((C2 / "step4_comparison.json").read_text(encoding="utf-8"))
+    step5 = json.loads((C2 / "step5_exclusion_impact_273.json").read_text(encoding="utf-8"))
+    recon = json.loads(
+        (C2 / "adjustment_reconciliation_final.json").read_text(encoding="utf-8"))
+    try:
+        derived = derive_findings(step4, step5, recon, args.session.isoformat())
+    except FindingsRefused as exc:
+        print(f"REFUSED — {exc}")
+        return 1
+
+    operator_analysis = json.loads(args.operator_analysis.read_text(encoding="utf-8"))
+    bindings = {
+        "target_session": args.session.isoformat(),
+        "corpus_manifest_sha256": rebuilt["corpus_manifest_sha256"],
+        "step4_artifact_sha256": manifest["artifacts"]["step4_comparison"]["sha256"],
+        "step5_artifact_sha256": manifest["artifacts"]["step5_exclusion_impact_273"]["sha256"],
+    }
+    violations = cross_check(operator_analysis, derived, bindings)
+    unresolved = unresolved_requirements(operator_analysis, derived)
+
+    print(f"derived material changes : {[c['key'] for c in derived['material_changes']] or 'none'}")
+    print(f"cross-check violations   : {len(violations)}")
+    for x in violations:
+        print(f"    - {x}")
+    if violations or unresolved:
+        print(f"\nREFUSED — {REFUSAL_CODE}")
+        if unresolved:
+            print(f"  material changes without an APPROVED causal finding: {unresolved}")
         return 1
 
     payload = {
-        "kind": "layer2_store_identity_and_supersession_package", "version": "v1.0",
-        "session": "2026-07-27",
+        # v2.0: findings are now DERIVED from the bound artifacts and the causal narrative is a
+        # separately-bound operator document. The shape changed, so the identity necessarily moves —
+        # the v1.0 package keeps its own digest, unmutated, as the record of the first construction.
+        "kind": "layer2_store_identity_and_supersession_package", "version": "v2.0",
+        "session": args.session.isoformat(),
         "state": {"proposed": True, "countersigned": False, "deployed": False,
                   "account4": "UNCHANGED", "forward_window": "CLOSED"},
 
         # (1)(2)(3) proposed manifest + store identities
-        "proposed": REBUILT,
+        "proposed": rebuilt,
         # (4) previous identities
-        "superseded": SUPERSEDED,
+        "superseded": superseded,
         # (5) supersession reason
         "supersession": {
             "reason": "HISTORICAL_RECONSTRUCTION_SINGLE_VINTAGE_AND_PERMANENT_LINEAGE",
@@ -191,7 +234,7 @@ def main() -> int:
             "tickers.permaticker": {"change": "present in BOTH (Layer 1)"},
         },
         # (10) code/tree identity
-        "code_identity": CODE_IDENTITY,
+        "code_identity": code_identity,
         # (11) Step 3 narrow-readiness limitation statement
         "step3_limitation_statement": {
             "readiness_outcome": "READY_DECISION_VALID_WITH_DISCLOSED_NONDECISION_LIMITATIONS",
@@ -199,46 +242,39 @@ def main() -> int:
             "decision_validity_proven": True,
             "nondecision_limitations_present": True,
             "adjustment_reflection_proven": False,
-            "terminal_census": {"PROVEN_REFLECTED": 1676,
-                                "PROVEN_NO_PRICE_ADJUSTMENT_APPLICABLE": 94,
-                                "PROVEN_LINEAGE_EVENT_NO_ADDITIONAL_PRICE_ADJUSTMENT": 3,
-                                "UNRESOLVED_NONDECISION_MA_SEMANTICS": 18,
-                                "never_assessed": 0, "conflict": 0, "insufficient": 0,
-                                "unexplained_factor_movements": 4},
-            "claim": "the corpus is valid for the governed July 27 decision, while 18 economically "
-                     "terminal acquisition events remain unverifiable from the available vendor "
-                     "schema",
+            "terminal_census": derived["reconciliation"]["terminal_census"],
+            "unexplained_adjustment_count":
+                derived["reconciliation"]["unexplained_adjustment_count"],
+            "verdict": derived["reconciliation"]["verdict"],
             "not_a_claim": "NOT that every corporate action is economically reconciled",
-            "session_scoped": "the attestation names 2026-07-27 and is REFUSED for any other session",
+            "session_scoped": (f"the attestation names {args.session.isoformat()} and is REFUSED "
+                               f"for any other session"),
         },
-        # (12) Step 4 + Step 5 corrected evidence
+        # (12) Step 4 + Step 5 evidence.
+        # ⚠ The findings here are DERIVED from the bound artifacts. They were prose constants
+        # describing the 2026-07-27 construction ("top five AXTI SNDK BE WDC MU — UNCHANGED",
+        # "regime margin +27.2576% -> +12.3491%", "no excluded identity touches the July 27
+        # decision"). Those are true only of that construction; restating them for any other one
+        # would publish a false finding inside a well-formed record.
         "step4_evidence": {
             "artifact_sha256": manifest["artifacts"]["step4_comparison"]["sha256"],
-            "supersedes_artifact_sha256":
-                "c37489877a3e8faaa66b85765ad75bc3748d50425a0121a65ce141efec330bc6",
-            "binding_rule": "the manifest binds ONLY the corrected artifact; the superseded one "
+            "binding_rule": "the manifest binds ONLY the corrected artifact; any superseded one "
                             "remains in the audit trail but is NOT part of the active construction "
                             "evidence set",
-            "decision": "top five AXTI SNDK BE WDC MU — UNCHANGED; weights, ordering and regime state "
-                        "unchanged",
-            "material_correction": "regime margin above the MA +27.2576% -> +12.3491%, proven to be "
-                                   "seam repair (seam-date cross-sectional mean 1-day adjusted "
-                                   "return +38.0398% -> +0.4648%)",
+            "decision_comparison": derived["decision_comparison"],
+            "universe_comparison": derived["universe_comparison"],
         },
         "step5_evidence": {
             "artifact_sha256": manifest["artifacts"]["step5_exclusion_impact_273"]["sha256"],
             "package_sha256": manifest["artifacts"]["step5_package"]["sha256"],
-            "window": "EXACT 273 sessions 2025-06-25..2026-07-27",
-            "verdict": "no excluded identity touches the July 27 decision",
-            "causal_record": {
-                "MARA": "displaced at the TOP-200 boundary by ECHO's restored eligibility",
-                "COO_and_AGX": "displaced at two MONTH-END TOP-500 boundaries (rank 500 -> 501) by "
-                               "broader restored eligibility",
-                "OCCI_HYPG": "absent from every decision set INDEPENDENTLY of their exclusion — best "
-                             "proxy ranks 3,201 and 3,740, never inside the top-500",
-                "SHOP_TLN": "decision-relevant in raw construction; governed-quarantined",
-            },
+            "window": _window_text(manifest),
+            "exclusion_census": derived["exclusion_census"],
         },
+        # (12b) the derived/authored split, stated explicitly so a reader can tell them apart
+        "derived_findings": derived,
+        "operator_analysis": operator_analysis,
+        "cross_check_results": {"violations": [], "clean": True},
+        "unresolved_analysis_requirements": [],
         # (13) deployment compatibility — TESTED, not assumed
         "deployment_compatibility": {
             "registered_loader": "app.validation.governed_corpus.load_corpus_manifest",
@@ -280,17 +316,17 @@ def main() -> int:
     print(f"{'=' * 78}")
     print("LAYER 2 STORE-IDENTITY AND SUPERSESSION PACKAGE")
     print(f"{'=' * 78}")
-    print(f"  proposed corpus_manifest_sha256   {REBUILT['corpus_manifest_sha256']}")
-    print(f"  supersedes                        {SUPERSEDED['corpus_manifest_sha256']}")
+    print(f"  proposed corpus_manifest_sha256   {rebuilt['corpus_manifest_sha256']}")
+    print(f"  supersedes                        {superseded['corpus_manifest_sha256']}")
     print()
     print(f"  {'':<30}{'REBUILT':>34}{'SUPERSEDED':>34}")
     for label, key in (("store_file / declared base", "store_file_sha256"),
                        ("store_identity (registered)", "store_identity_sha256"),
                        ("store_value_identity (full)", "store_value_identity_sha256")):
-        a = REBUILT.get(key, "-")
-        b = SUPERSEDED.get(key) or SUPERSEDED.get("declared_base_corpus_sha256", "-")
+        a = rebuilt.get(key, "-")
+        b = superseded.get(key) or superseded.get("declared_base_corpus_sha256", "-")
         print(f"  {label:<30}{a[:32]:>34}{b[:32]:>34}")
-    print(f"  {'store bytes':<30}{REBUILT['store_bytes']:>34,}{SUPERSEDED['store_bytes']:>34,}")
+    print(f"  {'store bytes':<30}{rebuilt['store_bytes']:>34,}{superseded['store_bytes']:>34,}")
     print()
     print(f"  artifacts bound     {len(payload['artifact_inventory'])}"
           f" + {len(payload['quarantine_inventory'])} quarantine")

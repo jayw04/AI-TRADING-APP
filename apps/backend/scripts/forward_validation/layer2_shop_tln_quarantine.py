@@ -59,8 +59,14 @@ from app.factor_data.universe import universe_asof  # noqa: E402
 from app.validation.data_finality import ConstructionSpec  # noqa: E402
 from app.validation.governed_corpus import canonical_json  # noqa: E402
 from app.validation.security_lineage import SessionLineageFilter  # noqa: E402
+from scripts.forward_validation._session_arg import (  # noqa: E402
+    add_session_argument,
+)
 
-SESSION = date(2026, 7, 27)
+#: The governed session, supplied per run via --session and assigned in main(). Deliberately NOT a
+#: module default -- it WAS `SESSION = date(2026, 7, 27)`. See `_session_arg` for why a default is the
+#: wrong shape for a governed boundary.
+SESSION: date
 
 #: The anomalies as MEASURED by the Step-3 reconciliation on corpus-v2 — not as remembered.
 QUARANTINE = {
@@ -241,7 +247,10 @@ def main() -> int:
     ap.add_argument("--store", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--skip-second-path", action="store_true")
+    add_session_argument(ap)
     args = ap.parse_args()
+    global SESSION
+    SESSION = args.session
 
     spec = ConstructionSpec()
     store = FactorDataStore(args.store, read_only=True)

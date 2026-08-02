@@ -58,8 +58,12 @@ from app.validation.data_finality import (
     narrow_attestation_payload,
 )
 from app.validation.governed_quarantine import GovernedQuarantinePolicy
+from scripts.forward_validation._session_arg import add_session_argument
 
-SESSION = date(2026, 7, 27)
+#: The governed session, supplied per run via --session and assigned in main(). Deliberately NOT a
+#: module default -- it WAS `SESSION = date(2026, 7, 27)`. See `_session_arg` for why a default is the
+#: wrong shape for a governed boundary.
+SESSION: date
 ATTESTATION_KIND = NARROW_ATTESTATION_KIND
 
 # ⚠⚠ THERE IS NO `QUARANTINED_IDENTITIES` CONSTANT, AND THERE IS NO FALLBACK.
@@ -354,7 +358,10 @@ def main(argv: list[str] | None = None) -> int:
                          "beside the corpus manifest. There is no unsigned mode.")
     ap.add_argument("--store", default="/opt/workbench/forward/data/factor_data_layer2.duckdb")
     ap.add_argument("--stage", choices=("derive", "validate", "both"), default="both")
+    add_session_argument(ap)
     args = ap.parse_args(argv)
+    global SESSION
+    SESSION = args.session
 
     from app.factor_data.store import FactorDataStore
     from app.validation.governed_corpus import load_any_corpus_manifest, normalize_corpus_manifest

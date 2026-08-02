@@ -35,9 +35,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import sys
 from pathlib import Path
+
+import duckdb
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -47,6 +50,9 @@ from app.validation.forward_window import (  # noqa: E402
     TRIAL_LEDGER_SHA256,
 )
 from app.validation.governed_corpus import canonical_json  # noqa: E402
+from scripts.forward_validation._session_arg import (  # noqa: E402
+    add_session_argument,
+)
 
 ROOT = Path(os.environ.get("LAYER2_ROOT", "."))
 FVD = ROOT / "forward-validation-deploy"
@@ -56,7 +62,10 @@ C2 = ROOT / "layer2-vintage" / "corpus-v2"
 CONSTRUCTION_SCHEMA_VERSION = "LAYER2_SINGLE_VINTAGE_PERMANENT_LINEAGE_v1.0"
 SECURITY_IDENTITY_CONTRACT = "PERMATICKER_EFFECTIVE_INTERVAL_V1"
 SUPERSESSION_REASON = "HISTORICAL_RECONSTRUCTION_SINGLE_VINTAGE_AND_PERMANENT_LINEAGE"
-SUPERSEDED_MANIFEST_SHA256 = "a69ad50ffc3c6925b3c9b6c8fd1c2adc7143ef9d5c98e9378e1c3ea21ca75c49"
+#: The manifest this one supersedes is a per-run input (`--supersedes`). It WAS the constant
+#: `a69ad50ffc3c6925…`, correct only for the first reconstruction; each later construction supersedes
+#: the manifest actually installed at the time, and a stale constant would break the supersession
+#: chain while still producing a well-formed manifest.
 
 #: (logical name -> path). Every one is hashed from disk; a miss refuses the build.
 ARTIFACTS: dict[str, Path] = {
@@ -90,22 +99,36 @@ ARTIFACTS: dict[str, Path] = {
 STORE = C2 / "factor_data_layer2.duckdb"
 QUARANTINE_DIR = C2 / "quarantine"
 
-#: Digests asserted from inside the artifacts themselves — recorded so the manifest states the
-#: construction's own claimed identities alongside the file digests that carry them.
-DECLARED = {
-    "legacy_governed_universe_sha256":
-        "2b34970fc123689b66c82c6c119d0e946bf99181b9109b878cb1ba6148d3bcc4",
-    "governed_universe_key_crosswalk_sha256":
-        "f6d47ac962749ee2284f03bec4ee4a0030da2d6615483065124714afc77ca3cc",
-    "governed_mapped_identity_universe_sha256":
-        "fd2c843a631f8d9831f221b747937f5e617074c43621c6743cc9b36c718bccc7",
-    "governed_price_universe_sha256":
-        "34e426e4f348051724f17995e2b66452f047e54af3fb243ac327aa6dbbf93df1",
-    "source_vintage_sha256":
-        "36d247f42210b4dc13873ba7c6e052f4dfaee7d059eacbff59eb2b0ea4ea7798",
-}
-MAPPED_IDENTITY_COUNT = 14_145
-PRICE_IDENTITY_COUNT = 14_143
+#: The FROZEN legacy governed universe (14,150 source keys). This one is genuinely a constant: it
+#: describes the legacy key set the crosswalk maps FROM, which does not move when a new vintage is
+#: taken. Every other identity below is construction-specific and is READ from the evidence.
+LEGACY_GOVERNED_UNIVERSE_SHA256 = (
+    "2b34970fc123689b66c82c6c119d0e946bf99181b9109b878cb1ba6148d3bcc4")
+
+#: The identities the construction asserts about itself, keyed as they appear in the manifest.
+#: ⚠ These WERE hard-coded literals carrying the 2026-07-27 construction's values. That contradicted
+#: this module's own stated contract ("every digest is COMPUTED, never declared") and, worse, a later
+#: construction would have silently published the PREVIOUS vintage's identities inside an otherwise
+#: correct manifest — a declared-vs-actual gap of exactly the kind the contract exists to prevent.
+#: They are now read from `normalized_corpus_evidence.json`, and a missing key is a refusal.
+_EVIDENCE_IDENTITY_KEYS = (
+    "governed_universe_key_crosswalk_sha256",
+    "governed_mapped_identity_universe_sha256",
+    "governed_price_universe_sha256",
+    "source_vintage_sha256",
+)
+
+
+def _declared_from_evidence(ev: dict) -> dict[str, str]:
+    """Lift the construction's self-asserted identities out of its own evidence."""
+    missing = [k for k in _EVIDENCE_IDENTITY_KEYS if not ev.get(k)]
+    if missing:
+        raise SystemExit(
+            f"REFUSED — normalized_corpus_evidence.json is missing {missing}; the manifest will not "
+            f"declare an identity it did not read from the construction.")
+    declared = {k: ev[k] for k in _EVIDENCE_IDENTITY_KEYS}
+    declared["legacy_governed_universe_sha256"] = LEGACY_GOVERNED_UNIVERSE_SHA256
+    return declared
 
 
 def _sha256_file(p: Path) -> str:
@@ -122,7 +145,12 @@ def main() -> int:
     ap.add_argument("--skip-store-digest", action="store_true",
                     help="skip the 2 GB store hash (diagnostic only; the manifest REFUSES to claim a "
                          "store identity it did not compute)")
+    add_session_argument(ap)
+    ap.add_argument("--supersedes", required=True,
+                    help="the corpus_manifest_sha256 this construction supersedes — the manifest "
+                         "actually installed at the time, not a constant")
     args = ap.parse_args()
+    session = args.session
 
     missing = [n for n, p in ARTIFACTS.items() if not p.is_file()]
     if missing:
@@ -140,6 +168,43 @@ def main() -> int:
     for p in sorted(QUARANTINE_DIR.glob("*.csv")):
         quarantine[p.name] = {"sha256": _sha256_file(p), "bytes": p.stat().st_size}
     print(f"  quarantine histories: {len(quarantine)} file(s)")
+
+    # ── the construction's self-asserted identities, READ from its evidence, never declared ──
+    evidence = json.loads(ARTIFACTS["normalized_corpus_evidence"].read_text(encoding="utf-8"))
+    declared = _declared_from_evidence(evidence)
+    if evidence.get("governed_cutoff") != session.isoformat():
+        raise SystemExit(
+            f"REFUSED — the construction was built at cutoff {evidence.get('governed_cutoff')} but "
+            f"--session is {session.isoformat()}. A manifest must not label a corpus with a session "
+            f"it was not bounded at.")
+
+    # ── the dataset census, MEASURED from the store ──
+    # These were literals (sep rows 39,125,482 / sessions 7,185 / coverage ending 2026-07-27). A
+    # literal census silently misdescribes any later corpus while remaining perfectly well-formed,
+    # so it is measured. This is a cheap metadata scan, not the 2 GB hash.
+    con = duckdb.connect(str(STORE), read_only=True)
+    try:
+        sep_rows, sep_sessions, sep_lo, sep_hi = con.execute(
+            "SELECT count(*), count(DISTINCT date), min(date), max(date) FROM sep").fetchone()
+        tickers_n = con.execute("SELECT count(*) FROM tickers").fetchone()[0]
+        actions_n = con.execute("SELECT count(*) FROM actions").fetchone()[0]
+    finally:
+        con.close()
+    if sep_hi.isoformat() != session.isoformat():
+        raise SystemExit(
+            f"REFUSED — the store's last SEP session is {sep_hi.isoformat()} but --session is "
+            f"{session.isoformat()}. The manifest will not declare a session the corpus does not end "
+            f"at.")
+    normalized_datasets = {
+        "sep": {"rows": int(sep_rows), "sessions": int(sep_sessions),
+                "coverage": [sep_lo.isoformat(), sep_hi.isoformat()]},
+        "tickers": {"identities": int(tickers_n)},
+        "actions": {"rows": int(actions_n)},
+        "evidence": "normalized_corpus_evidence",
+        "measured": True,
+    }
+    print(f"dataset census (measured): sep {sep_rows:,} rows / {sep_sessions:,} sessions "
+          f"{sep_lo}..{sep_hi} | tickers {tickers_n:,} | actions {actions_n:,}")
 
     store_block: dict
     if args.skip_store_digest:
@@ -162,27 +227,24 @@ def main() -> int:
             "digest": "sha256 over that encoding",
             "shared_with": "app.validation.governed_corpus.canonical_json",
         },
-        "session": "2026-07-27",
+        "session": session.isoformat(),
         "security_identity_contract": SECURITY_IDENTITY_CONTRACT,
         # ── universe identities the construction asserts about itself ──
-        "declared_identities": DECLARED,
-        "mapped_identity_universe_size": MAPPED_IDENTITY_COUNT,
-        "price_universe_size": PRICE_IDENTITY_COUNT,
+        "declared_identities": declared,
+        "mapped_identity_universe_size": int(evidence["governed_mapped_identity_count"]),
+        "price_universe_size": int(evidence["governed_price_identity_count"]),
         "two_universes_never_collapsed": (
-            "the mapped-identity universe (14,145) and the price universe (14,143) are DISTINCT and "
-            "the former is never redefined to mean the latter"),
+            "the mapped-identity universe and the price universe are DISTINCT and the former is "
+            "never redefined to mean the latter"),
         # ── every artifact, hashed from disk ──
         "artifacts": artifacts,
         "quarantined_histories": quarantine,
         "store": store_block,
         # ── normalized dataset identities ──
-        "normalized_datasets": {
-            "sep": {"rows": 39_125_482, "sessions": 7_185,
-                    "coverage": ["1997-12-31", "2026-07-27"]},
-            "tickers": {"identities": 14_143},
-            "actions": {"rows": 286_087},
-            "evidence": "normalized_corpus_evidence",
-        },
+        "normalized_datasets": normalized_datasets,
+        # Carried through from the construction so downstream packages can state the governed window
+        # without re-deriving it (and without a literal that goes stale).
+        "decision_window": evidence.get("decision_window"),
         # ── frozen preregistration artifacts ──
         "frozen_preregistration": {
             "dgs3mo_snapshot_sha256": DGS3MO_SNAPSHOT_SHA256,
@@ -220,10 +282,10 @@ def main() -> int:
         },
         # ── supersession: the prior identity is preserved, not mutated ──
         "supersedes": {
-            "corpus_manifest_sha256": SUPERSEDED_MANIFEST_SHA256,
+            "corpus_manifest_sha256": args.supersedes,
             "base_corpus_sha256":
                 "2659233f97cd3b34631a45812d3f2b6282cc31545793d03b22e8c5569722af87",
-            "governed_universe_sha256": DECLARED["legacy_governed_universe_sha256"],
+            "governed_universe_sha256": declared["legacy_governed_universe_sha256"],
             "governed_universe_size": 14_150,
             "base_countersignature": "GoverningCorpus_Countersignature_v2.0",
             "reason": SUPERSESSION_REASON,
@@ -244,7 +306,7 @@ def main() -> int:
 
     print(f"\n{'=' * 78}")
     print(f"PROPOSED corpus_manifest_sha256 : {digest}")
-    print(f"supersedes                      : {SUPERSEDED_MANIFEST_SHA256}")
+    print(f"supersedes                      : {args.supersedes}")
     print(f"reason                          : {SUPERSESSION_REASON}")
     print(f"artifacts bound                 : {len(artifacts)} + {len(quarantine)} quarantine files")
     print(f"status                          : {payload['status']}")

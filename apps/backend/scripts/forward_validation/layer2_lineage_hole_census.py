@@ -50,8 +50,14 @@ from app.validation.security_lineage import (  # noqa: E402
     assess_universe,
     require_permanent_identifier,
 )
+from scripts.forward_validation._session_arg import (  # noqa: E402
+    add_session_argument,
+)
 
-SESSION = date(2026, 7, 27)
+#: The governed session, supplied per run via --session and assigned in main(). Deliberately NOT a
+#: module default -- it WAS `SESSION = date(2026, 7, 27)`. See `_session_arg` for why a default is the
+#: wrong shape for a governed boundary.
+SESSION: date
 
 #: The old corpus's known lineage landmarks, re-measured on the rebuilt corpus so the repair is
 #: demonstrated rather than asserted.
@@ -62,7 +68,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--store", required=True)
     ap.add_argument("--out", required=True)
+    add_session_argument(ap)
     args = ap.parse_args()
+    global SESSION
+    SESSION = args.session
 
     spec = ConstructionSpec()
     store = FactorDataStore(args.store, read_only=True)
