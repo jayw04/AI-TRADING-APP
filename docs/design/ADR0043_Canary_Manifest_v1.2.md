@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Document ID | ADR0043-CANARY-MANIFEST-v1.2 |
-| Status | **REVISED DRAFT — PENDING OWNER APPROVAL** (blockers A & B corrected; non-blocking items folded) |
+| Status | **APPROVED — WS4A CONTRACT FREEZE** (owner ruling 2026-08-02) |
 | Layer | Contract (WS4A) — stable execution contracts only |
 | Date | 2026-08-02 |
 | Governing plan | ADR0043-LIVE-CANARY-IMPL-PLAN-001 v1.0 |
@@ -121,8 +121,8 @@ Every **structural** contract field is assigned a frozen value here. Only the nu
 | Extended hours | `false` (regular session only) | `false` (regular session only) |
 | `client_order_id` | Deterministic construction: `adr0043-canary-{freeze_id}-{start_a_id}-A2-{attempt}` (idempotent per attempt) | `adr0043-canary-{freeze_id}-{start_a_id}-A3-{attempt}` (idempotent per attempt) |
 | Submission path | Full path: RiskEngine → OrderRouter → broker (this is a real risk-reducing order) | **RiskEngine evaluation only** — OrderRouter / broker adapter **must not be reached** |
-| Submission timeout | Frozen bound; on timeout **never resubmit** — reconcile by `client_order_id` | N/A (no submission expected; see §7.2) |
-| Permitted reconciliation attempts | ≤ frozen bound; deterministic identity only | N/A |
+| Submission response timeout | **30 seconds** (initial broker-response); on timeout **never resubmit** — reconcile by `client_order_id` (§7.5) | N/A (no submission expected; see §7.2) |
+| Permitted reconciliation attempts | **maximum 3**, deterministic identity only (§7.5) | N/A |
 | Terminal interpretation | filled / partially-filled / canceled / rejected / unknown → reconcile per §10.1 | Local risk rejection = pass; any crossing of the broker-facing boundary (§7.2) ⇒ **RED** |
 | Expected outcome | Risk **admitted** (`PERMIT_REDUCTION`); qualifying fill + reconciliation (§7.4) | **Rejected** with `ReasonCode.LOSS_CONTROL_STOP` only; no broker order; no reservation leak |
 
@@ -159,6 +159,23 @@ A2 asserts that a verified risk-reducing order is **admitted** under the loss-co
 2. **Qualifying execution** — a fill ≥ `minimum_qualifying_reduction` (§7.3) with deterministic broker↔local reconciliation.
 
 If admission is proven but a **broker-side condition unrelated to risk admission** (e.g. external cancel, venue halt) prevents a qualifying fill, A2 is **INCONCLUSIVE** (the execution leg is untestable), **not** RED. If admission itself fails — the system wrongly refuses a verified reduction — that is **RED**. Admission-plus-zero-fill therefore does **not** pass A2 on its own; a completed qualifying reduction is part of the assertion.
+
+### 7.5 A2 submission timeout and reconciliation contract (frozen)
+
+All values below are frozen at WS4A (they are stable operator-behavior facts, not runtime facts). They govern behavior under broker submission ambiguity so operator discretion cannot change the outcome.
+
+| Parameter | Frozen value |
+|-----------|--------------|
+| Initial broker-response timeout | **30 seconds** from submission |
+| Maximum reconciliation attempts | **3** |
+| Spacing / backoff rule | **5 seconds** between reconciliation attempts (fixed spacing, no jitter) |
+| Total reconciliation deadline | **15 seconds** after the initial timeout expires |
+| Data sources queried during reconciliation | (1) broker order lookup **by deterministic `client_order_id`**; (2) local order/reservation store. No other source; never a fresh submission. |
+| Resubmission | **Prohibited** — a new order is never submitted to resolve an unknown result |
+
+**Exhaustion rule (frozen).** If the initial submission result is unknown, query by the deterministic `client_order_id` for at most the frozen number of attempts within the deadline. **Never submit another order.** If no terminal or causally complete broker state is established by the deadline, **stop and classify `INCONCLUSIVE`**.
+
+**Late-result rule (frozen).** A broker result learned **after** reconciliation exhaustion is **preserved for adjudication** as evidence but **does not** restart, resume, or continue the canary run. The run's disposition stands as classified at the deadline.
 
 ## 8. Post-A2 state (frozen)
 
@@ -265,13 +282,14 @@ A **GREEN** result does **not** authorize strategy conversion or global ENFORCE;
 |-----|------|--------|
 | draft-1 | 2026-08-02 | Initial WS4A contract freeze returned for owner ruling |
 | draft-2 | 2026-08-02 | Owner ruling **REVISE** folded: **Blocker A** — A3 order contract fully frozen (symbol `MSFT`, BUY, MARKET, DAY, ext-hours false, qty ≥ 1 share, RiskEngine-evaluation-only, `LOSS_CONTROL_STOP`-only); **Blocker B** — A2 partial-fill disposition made mechanical (§10.1) + minimum-qualifying-reduction formula frozen (§7.3); non-blocking A (all "defaults" replaced with frozen values), B (A3 broker-acceptance defined, §7.2), C (A2 admission-vs-execution frozen, §7.4). Returned for final approval. |
+| final | 2026-08-02 | Final blocker folded: A2 submission timeout + reconciliation constants frozen (§7.5 — 30 s initial timeout, max 3 attempts, 5 s spacing, 15 s reconciliation deadline, resubmission prohibited, exhaustion → `INCONCLUSIVE`, late-result preserved-but-non-resuming). Status set **APPROVED — WS4A CONTRACT FREEZE**; owner decision block filled. |
 
 ## 17. Owner decision block
 
 | Decision | Value |
 |----------|-------|
-| Approve WS4A contract freeze (revised draft-2)? | **PENDING** |
-| Countersignature | |
-| Date | |
+| Approve WS4A contract freeze? | **APPROVED** |
+| Countersignature | Owner ruling, 2026-08-02 |
+| Date | 2026-08-02 |
 
-*End of ADR0043-CANARY-MANIFEST-v1.2 (REVISED DRAFT — pending owner approval).*
+*End of ADR0043-CANARY-MANIFEST-v1.2 (APPROVED — WS4A contract freeze).*
