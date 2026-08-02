@@ -1,10 +1,13 @@
-# ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 (APPROVED FOR AUTHORIZATION)
+# ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 (APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED)
 
 | Field | Value |
 |-------|-------|
 | Document ID | ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 |
-| Status | **APPROVED FOR AUTHORIZATION — PENDING EFFECTIVE MERGE** (not yet effective; merge + verified hash + recorded merge SHA make it effective, §18) |
-| Authorization body SHA-256 | `99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0` (over §§1–16 per §17) |
+| Status | **APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED** (effective 2026-08-02; WS5 not started — §15 operator invocation still required) |
+| Authorization body SHA-256 | `99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0` (over §§1–16 per §17; **independently re-verified from `main` post-merge**) |
+| Authorization merge SHA | `f1646719dde08af497e6dcf1da4e0369cfba7754` (PR #594, base `7342ebb…`, reviewed head `0bc173e…`) |
+| Authorization effective at | 2026-08-02T20:39:37Z |
+| Absolute expiration | 2026-08-16T23:59:59 America/Chicago (`effective_at + 14d`, §14) |
 | Derived runtime identity | `adr0043-canary-ws5-99f045e09532` |
 | Date | 2026-08-02 |
 | Governing plan | ADR0043-LIVE-CANARY-IMPL-PLAN-001 v1.0 (WS5) |
@@ -15,7 +18,7 @@
 | Prior publication | Published NON-EFFECTIVE via PR #593 → `main` `7342ebb…` |
 | Effect | **None yet.** Effectiveness and execution are **separate events** (§18): the authorization becomes EFFECTIVE on merge + verified body hash + recorded merge SHA; WS5 execution begins only through the separate §15 operator invocation. |
 
-> ⚠ **APPROVED FOR AUTHORIZATION — NOT YET EFFECTIVE.** The owner issued *APPROVED FOR AUTHORIZATION* on 2026-08-02 over the frozen body (canonical hash `99f045e0…`, §17). This document becomes **EFFECTIVE only** upon merge to `main` with the body hash independently re-verified and the merge SHA recorded (§18). Until then, and even after, **no** provisioning, database access, broker access, migration, or dry-run capture may begin. **Merge does not start WS5** — that requires the separate §15 operator invocation.
+> ✅ **EFFECTIVE — EXECUTION NOT YET INVOKED.** The owner issued *APPROVED FOR AUTHORIZATION* on 2026-08-02; the authorization was merged to `main` at `f1646719…` (PR #594), its canonical body hash independently re-verified from `main` as `99f045e0…` (§17), and the merge SHA recorded — so it is now **EFFECTIVE** as of `2026-08-02T20:39:37Z`. **This does NOT start WS5.** No provisioning, database access, broker access, migration, or dry-run capture has been or may be started by this effectiveness; WS5 execution begins **only** through the separate §15 operator invocation. Effectiveness auto-expires per §14 (`2026-08-16T23:59:59 America/Chicago`).
 
 ---
 
@@ -64,8 +67,8 @@ purpose           = runtime-readiness-only
 execution_enabled = false
 broker_account    = PA34USW0Q8UO
 owner             = jayw04
-authorization_sha = <full final authorization body SHA-256>
-expires_on        = <authorization_effective_at + 14d, 23:59:59 America/Chicago — inserted at finalization (§14)>
+authorization_sha = 99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0
+expires_on        = 2026-08-16T23:59:59 America/Chicago
 ```
 
 ### 4A. Frozen source and schema identity (frozen)
@@ -321,12 +324,14 @@ final document approved (owner: APPROVED FOR AUTHORIZATION)
 
 **The authorization becomes EFFECTIVE when the exact owner-approved revision is merged to `main`, its final body hash is recorded and independently verified, and the merge SHA is recorded. Merge does not begin execution. WS5 begins only through the separate §15 operator invocation.**
 
+**Effectiveness record (satisfied):** merged to `main` at `f1646719dde08af497e6dcf1da4e0369cfba7754` (PR #594) at `2026-08-02T20:39:37Z`; body hash independently recomputed from the `main` blob (`265a31c…`) = `99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0` (matches §17); merge SHA recorded above. The authorization is therefore **APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED**. No WS5 execution has been invoked; the §15 operator record has not been created.
+
 **Status lifecycle:**
 
 | Phase | Status |
 |-------|--------|
-| Now (this document, owner approved, pre-merge) | `APPROVED FOR AUTHORIZATION — PENDING EFFECTIVE MERGE` |
-| After merge + verified hash + recorded merge SHA | `APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED` |
+| Approved, pre-merge | `APPROVED FOR AUTHORIZATION — PENDING EFFECTIVE MERGE` |
+| **Now (this document — merged `f1646719…`, hash re-verified, merge SHA recorded)** | **`APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED`** |
 | After §15 operator invocation | `EFFECTIVE — WS5 INVOKED` |
 
 **Owner ruling block (intended, for final review):**
@@ -344,8 +349,10 @@ final document approved (owner: APPROVED FOR AUTHORIZATION)
 | Required operator invocation | **YES**, bound to final body hash (§15, §17) |
 | **Authorization body SHA-256** (over §§1–16, §17 rule) | `99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0` |
 | Derived runtime identity | `adr0043-canary-ws5-99f045e09532` |
-| Authorization merge SHA | *(recorded post-merge at effectiveness)* |
-| Concrete absolute_expiration | *(recorded post-merge: effective_at + 14d, 23:59:59 America/Chicago)* |
+| Authorization merge SHA | `f1646719dde08af497e6dcf1da4e0369cfba7754` (PR #594; base `7342ebb…`; reviewed head `0bc173e…`) |
+| Authorization effective at | `2026-08-02T20:39:37Z` |
+| Concrete absolute_expiration | `2026-08-16T23:59:59 America/Chicago` (`effective_at + 14d`, §14) |
+| Post-merge body-hash re-verification | **PASS** — recomputed from `main` blob `265a31c…` = `99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0` |
 | Countersignature | Owner ruling, 2026-08-02 |
 | Date | 2026-08-02 |
 
@@ -358,6 +365,7 @@ final document approved (owner: APPROVED FOR AUTHORIZATION)
 | revised | 2026-08-02 | Owner calls folded: CREATE-AND-ATTACH; deterministic identity + tags; infra/broker/DB ceilings; dry-run incapacity; stop conditions; dispositions; expiration; operator invocation; body-hash computation |
 | revised-2 | 2026-08-02 | Five blocking corrections: (1) effectiveness separated from invocation with status lifecycle (§18); (2) exact `authorized_source_commit` + `authorized_alembic_head` frozen, no "descends-from/covered-later" (§4A, §1, §10, §16); (3) concrete DB-role privilege enforcement — no writes on control tables, evidence in dedicated WS5 tables (§7, §8); (4) broker-credential three-tier rules reconciled + no rotation, attach-existing-only (§6); (5) single expiration rule `effective_at + 14d America/Chicago` (§14). Precision: opening-record fields (§4B); clone must-not-copy authoritative/executable state (§5). Status **REVISED PROPOSAL — PENDING FINAL AUTHORIZATION REVIEW** — not effective. |
 | revised-3 (final) | 2026-08-02 | Final consistency correction (§17): `authorized_source_commit` **included** in the hashed body and frozen to `7342ebbd8e061518ba9bd0524803f8e20d760a78` (exact current `main` tip); exclusion list narrowed to genuinely-unknowable values (derived `runtime_name`, `authorization_sha` tag, concrete `expires_on`/`absolute_expiration`, `database_identity`, §15 operator record, ruling/status/doc-control, merge SHA). Canonical body hash computed via `hash_ws5_authorization.py` and recorded: `99f045e0953203a6e03d1d096e3d4a1ba7435f388c50762b701eb6e536738eb0`; derived `runtime_name = adr0043-canary-ws5-99f045e09532`. Status **FINAL — PENDING OWNER *APPROVED FOR AUTHORIZATION* RULING** — not effective; not committed. |
-| authorized | 2026-08-02 | Owner issued **APPROVED FOR AUTHORIZATION** over the frozen body (hash `99f045e0…` unchanged; §§1–16 untouched — only header/warning/§18/§19 metadata edited). Status set to **APPROVED FOR AUTHORIZATION — PENDING EFFECTIVE MERGE**. Committed to a docs-only branch for the effective-merge PR. Merge does not start WS5 (§15). |
+| authorized | 2026-08-02 | Owner issued **APPROVED FOR AUTHORIZATION** over the frozen body (hash `99f045e0…` unchanged; §§1–16 untouched — only header/warning/§18/§19 metadata edited). Status set to **APPROVED FOR AUTHORIZATION — PENDING EFFECTIVE MERGE**. Committed to a docs-only branch (reviewed head `0bc173e…`) for the effective-merge PR #594. Merge does not start WS5 (§15). |
+| effective | 2026-08-02 | PR #594 merged to `main` at `f1646719…` (`2026-08-02T20:39:37Z`); body hash independently re-verified from the `main` blob (`265a31c…`) = `99f045e0…` (matches §17); merge SHA + effective timestamp + concrete `absolute_expiration = 2026-08-16T23:59:59 America/Chicago` recorded; §4 `authorization_sha`/`expires_on` scalar tags filled (hash-excluded per §17). §§1–16 byte-identical to the reviewed head — hash unchanged. Status set to **APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED**. WS5 not invoked; §15 operator record not created; all execution HOLDs remain. |
 
-*End of ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 (APPROVED FOR AUTHORIZATION — pending effective merge; NOT YET EFFECTIVE).*
+*End of ADR0043-LIVE-CANARY-WS5-RUNTIME-PREP-START-001 (APPROVED / EFFECTIVE — EXECUTION NOT YET INVOKED).*
