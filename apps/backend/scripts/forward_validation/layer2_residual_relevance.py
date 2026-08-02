@@ -56,8 +56,14 @@ from app.factor_data.store import FactorDataStore  # noqa: E402
 from app.factor_data.universe import universe_asof  # noqa: E402
 from app.validation.data_finality import ConstructionSpec  # noqa: E402
 from app.validation.governed_corpus import canonical_json  # noqa: E402
+from scripts.forward_validation._session_arg import (  # noqa: E402
+    add_session_argument,
+)
 
-SESSION = date(2026, 7, 27)
+#: The governed session, supplied per run via --session and assigned in main(). Deliberately NOT a
+#: module default -- it WAS `SESSION = date(2026, 7, 27)`. See `_session_arg` for why a default is the
+#: wrong shape for a governed boundary.
+SESSION: date
 #: The registered selection for the session, re-derived by `layer2_shop_tln_quarantine.py`.
 TOP_FIVE = ["AXTI", "SNDK", "BE", "WDC", "MU"]
 
@@ -78,7 +84,10 @@ def main() -> int:
     ap.add_argument("--store", required=True)
     ap.add_argument("--reconciliation", required=True)
     ap.add_argument("--out", required=True)
+    add_session_argument(ap)
     args = ap.parse_args()
+    global SESSION
+    SESSION = args.session
 
     acq, lin, moves = _load_residual(Path(args.reconciliation))
     spec = ConstructionSpec()

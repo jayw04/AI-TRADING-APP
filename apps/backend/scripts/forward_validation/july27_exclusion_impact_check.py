@@ -38,7 +38,14 @@ sys.path.insert(0, str(REPO_BACKEND))
 from app.validation.governed_corpus import canonical_json  # noqa: E402
 
 KEYS = ("DHCC", "EVTV", "GAMB")
-SESSION = date(2026, 7, 27)
+from scripts.forward_validation._session_arg import (  # noqa: E402
+    add_session_argument,
+)
+
+#: The governed session, supplied per run via --session and assigned in main(). Deliberately NOT a
+#: module default -- it WAS `SESSION = date(2026, 7, 27)`. See `_session_arg` for why a default is the
+#: wrong shape for a governed boundary.
+SESSION: date
 
 # Registered construction constants, read from the modules that own them rather than restated:
 # CALENDAR_SPAN_YEARS=4 (session_composition), DEFAULT_LOOKBACK_DAYS=63 (factor_data.universe),
@@ -90,7 +97,10 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--corpus", required=True)
     ap.add_argument("--out", required=True)
+    add_session_argument(ap)
     args = ap.parse_args(argv)
+    global SESSION
+    SESSION = args.session
 
     con = duckdb.connect(args.corpus, read_only=True)
     span_start = date(SESSION.year - CALENDAR_SPAN_YEARS, 1, 1)

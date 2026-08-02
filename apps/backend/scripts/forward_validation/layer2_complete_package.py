@@ -36,6 +36,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from app.validation.governed_corpus import canonical_json  # noqa: E402
+from scripts.forward_validation._session_arg import (  # noqa: E402
+    add_session_argument,
+)
 
 ROOT = Path(os.environ.get("LAYER2_ROOT", "."))
 FVD = ROOT / "forward-validation-deploy"
@@ -43,8 +46,10 @@ V2 = ROOT / "layer2-vintage" / "v2"
 C2 = ROOT / "layer2-vintage" / "corpus-v2"
 
 CONSTRUCTION_SCHEMA_VERSION = "LAYER2_SINGLE_VINTAGE_PERMANENT_LINEAGE_v1.0"
-PROPOSED_MANIFEST = "1e269fadedff74b04135dea5441f2f3338852464c3d06a74c81c98dfc43ca064"
-SUPERSEDED_MANIFEST = "a69ad50ffc3c6925b3c9b6c8fd1c2adc7143ef9d5c98e9378e1c3ea21ca75c49"
+#: The proposed and superseded manifest identities are per-run inputs. They WERE the constants
+#: `1e269fad…` / `a69ad50f…`, correct only for the first reconstruction. `--manifest-sha256`
+#: is still checked against the manifest on disk, so parameterizing it relaxes nothing: it
+#: moves the expected value from a stale literal to an explicit assertion by the operator.
 
 
 def _sha(p: Path) -> str:
@@ -58,14 +63,22 @@ def _sha(p: Path) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", required=True)
+    add_session_argument(ap)
+    ap.add_argument("--manifest-sha256", required=True,
+                    help="the proposed corpus_manifest_sha256; verified against the manifest "
+                         "on disk")
+    ap.add_argument("--supersedes", required=True,
+                    help="the corpus_manifest_sha256 this construction supersedes")
     args = ap.parse_args()
+    proposed_manifest = args.manifest_sha256
+    superseded_manifest = args.supersedes
 
     manifest_p = C2 / "proposed_corpus_manifest_v2.json"
     step7_p = C2 / "step7_supersession_package.json"
     manifest = json.loads(manifest_p.read_bytes())
     step7 = json.loads(step7_p.read_bytes())
 
-    for p, expected, label in ((manifest_p, PROPOSED_MANIFEST, "proposed manifest"),):
+    for p, expected, label in ((manifest_p, proposed_manifest, "proposed manifest"),):
         actual = _sha(p)
         if actual != expected:
             print(f"REFUSED — {label} digest moved: {actual} != {expected}")
@@ -74,7 +87,7 @@ def main() -> int:
     pkg = {
         "kind": "layer2_complete_package", "version": "v1.0",
         "assembled_for": "countersignature ruling",
-        "session": "2026-07-27",
+        "session": args.session.isoformat(),
         "construction_schema_version": CONSTRUCTION_SCHEMA_VERSION,
 
         # ── STATE — the four flags, stated first because everything else is read through them ──
@@ -320,7 +333,7 @@ def main() -> int:
 
         # ── (13)(14)(15) manifest, store identities, supersession ──
         "proposed_corpus_manifest": {
-            "corpus_manifest_sha256": PROPOSED_MANIFEST,
+            "corpus_manifest_sha256": proposed_manifest,
             "artifact_bytes": manifest_p.stat().st_size,
             "reproducible": "re-ran the whole build end-to-end; byte-identical output",
             "every_digest_computed_from_disk": True,
@@ -352,7 +365,7 @@ def main() -> int:
             "runtime_must_expose": {
                 "corpus_construction_kind": "layer2_governed_corpus",
                 "construction_schema_version": CONSTRUCTION_SCHEMA_VERSION,
-                "supersedes_corpus_manifest_sha256": SUPERSEDED_MANIFEST,
+                "supersedes_corpus_manifest_sha256": superseded_manifest,
             },
             "internal_normalization_allowed_only_if": "it does not claim a base or delta exists and "
                                                       "does not generate a misleading registered "
@@ -402,8 +415,8 @@ def main() -> int:
     print(f"  {'account4':<22}{pkg['state']['account4']}")
     print(f"  {'forward_window':<22}{pkg['state']['forward_window']}")
     print()
-    print(f"  proposed manifest     {PROPOSED_MANIFEST}")
-    print(f"  supersedes            {SUPERSEDED_MANIFEST}")
+    print(f"  proposed manifest     {proposed_manifest}")
+    print(f"  supersedes            {superseded_manifest}")
     print(f"  supersession package  {pkg['supersession']['package_sha256']}")
     print(f"  artifacts bound       {pkg['artifact_count']} + "
           f"{len(pkg['quarantine_inventory'])} quarantine histories")

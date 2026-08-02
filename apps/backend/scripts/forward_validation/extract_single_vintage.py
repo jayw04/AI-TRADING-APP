@@ -47,7 +47,7 @@ import os
 import shutil
 import sys
 import zipfile
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -82,10 +82,29 @@ from app.validation.governed_corpus import canonical_json  # noqa: E402
 NDL_BASE = "https://data.nasdaq.com/api/v3/datatables/SHARADAR"
 TABLES = ("TICKERS", "ACTIONS", "SEP")
 
-#: The governed session cutoff. Rows dated after it are recorded as bounded-out evidence, never
-#: silently dropped: at T+2 the source NECESSARILY carries later-dated rows, and future-dated rows are
-#: a point-in-time hazard precisely BECAUSE they exist upstream.
-GOVERNED_CUTOFF = "2026-07-27"
+#: The governed session cutoff is an explicit per-run input — deliberately NOT a module default.
+#: Rows dated after it are recorded as bounded-out evidence, never silently dropped: at T+2 the source
+#: NECESSARILY carries later-dated rows, and future-dated rows are a point-in-time hazard precisely
+#: BECAUSE they exist upstream.
+#:
+#: It WAS the constant `GOVERNED_CUTOFF = "2026-07-27"` through the first governed construction. A
+#: default is the wrong shape for a governed boundary: forgetting the flag would silently rebuild the
+#: PREVIOUS session's corpus, and every downstream identity would still verify, because all of them
+#: would be internally consistent with the wrong cutoff. There is no digest that catches that — the
+#: only defence is to make the boundary an explicit act of the operator. Hence: required, no default.
+
+
+def governed_cutoff(raw: str) -> str:
+    """Validate and canonicalize the governed cutoff.
+
+    Returned as a canonical ISO date so that only a fixed-shape literal ever reaches the SQL below.
+    The cutoff is interpolated into queries, and an unvalidated operator string must never be.
+    """
+    try:
+        return date.fromisoformat(raw).isoformat()
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"--governed-cutoff must be an ISO date (YYYY-MM-DD), got {raw!r}") from exc
 
 #: The date column whose min/max is the "relevant date range" for each table.
 DATE_COLUMN = {"SEP": "date", "ACTIONS": "date", "TICKERS": "lastpricedate"}
@@ -181,7 +200,8 @@ def _schema_fingerprint(csv_path: Path) -> dict:
             "header_line_sha256": hashlib.sha256(header.encode("utf-8")).hexdigest()}
 
 
-def _profile(con: duckdb.DuckDBPyConnection, table: str, csv_path: Path, cols: list[str]) -> dict:
+def _profile(con: duckdb.DuckDBPyConnection, table: str, csv_path: Path, cols: list[str],
+             cutoff: str) -> dict:
     """Parsed-row profile, computed in duckdb so a 39M-row CSV never enters python memory."""
     rel = f"read_csv_auto('{csv_path.as_posix()}', header=true, all_varchar=true)"
     out: dict = {"parsed_row_count": int(
@@ -210,21 +230,21 @@ def _profile(con: duckdb.DuckDBPyConnection, table: str, csv_path: Path, cols: l
             f"SELECT \"table\", count(*) FROM {rel} GROUP BY 1 ORDER BY 1").fetchall()}
     if dcol in cols and table in ("SEP", "ACTIONS"):
         within = int(con.execute(
-            f"SELECT count(*) FROM {rel} WHERE {dcol} <= '{GOVERNED_CUTOFF}'").fetchone()[0])
+            f"SELECT count(*) FROM {rel} WHERE {dcol} <= '{cutoff}'").fetchone()[0])
         beyond = out["parsed_row_count"] - within
-        out |= {"governed_cutoff": GOVERNED_CUTOFF,
+        out |= {"governed_cutoff": cutoff,
                 "rows_within_cutoff": within, "rows_beyond_cutoff": beyond}
         if table == "ACTIONS":
             # "ACTIONS cutoff contents" is a stop condition in its own right.
             rows = con.execute(
-                f"SELECT * FROM {rel} WHERE date <= '{GOVERNED_CUTOFF}' "
+                f"SELECT * FROM {rel} WHERE date <= '{cutoff}' "
                 f"ORDER BY ALL").fetchall()
             out["actions_cutoff_row_count"] = len(rows)
             out["actions_cutoff_contents_sha256"] = hashlib.sha256(
                 canonical_json([[None if c is None else str(c) for c in r] for r in rows])
             ).hexdigest()
             out["actions_cutoff_max_date"] = con.execute(
-                f"SELECT max(date) FROM {rel} WHERE date <= '{GOVERNED_CUTOFF}'").fetchone()[0]
+                f"SELECT max(date) FROM {rel} WHERE date <= '{cutoff}'").fetchone()[0]
     return out
 
 
@@ -236,7 +256,12 @@ def main(argv: list[str] | None = None) -> int:
                          "sealed G5 verification are derived from")
     ap.add_argument("--restart", action="store_true",
                     help="required to overwrite a non-empty output directory (restart from zero)")
+    ap.add_argument("--governed-cutoff", required=True, type=governed_cutoff,
+                    help="the governed session cutoff (YYYY-MM-DD). Rows dated after it are recorded "
+                         "as bounded-out evidence. Required — see the module note on why this has no "
+                         "default.")
     args = ap.parse_args(argv)
+    cutoff: str = args.governed_cutoff
 
     # Artifact-level transactional seal: temporary artifacts -> all guards -> final evidence ->
     # atomic promotion. Three otherwise-valid extractions were discarded because a console print
@@ -312,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
         zpath = Path(pulled[t]["artifact_path"])
         csv_path, member = _unzip_single_csv(zpath, out / "csv")
         schema = _schema_fingerprint(csv_path)
-        prof = _profile(con, t, csv_path, schema["columns"])
+        prof = _profile(con, t, csv_path, schema["columns"], cutoff)
         row_set_sha = _sha256_file(csv_path)
         sources[t] = {
             **{k: v for k, v in probes_open[t].items() if k != "_link"},
@@ -328,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
               f"{prof.get('date_column','-')}: {prof.get('date_min')}..{prof.get('date_max')}")
         print(f"           row_set_identity={row_set_sha}")
         if "rows_beyond_cutoff" in prof:
-            print(f"           within {GOVERNED_CUTOFF}: {prof['rows_within_cutoff']:,} | "
+            print(f"           within {cutoff}: {prof['rows_within_cutoff']:,} | "
                   f"beyond (bounded out): {prof['rows_beyond_cutoff']:,}")
         if "slice_census" in prof:
             print(f"           slices: {prof['slice_census']}")
@@ -356,7 +381,7 @@ def main(argv: list[str] | None = None) -> int:
     candidates = [(r[0], r[1]) for r in con.execute(f"""
         WITH tmap AS (SELECT DISTINCT ticker, permaticker FROM {tk_rel}),
              present AS (SELECT DISTINCT m.permaticker AS p FROM {sep_rel} s
-                         JOIN tmap m ON m.ticker = s.ticker WHERE s.date <= '{GOVERNED_CUTOFF}')
+                         JOIN tmap m ON m.ticker = s.ticker WHERE s.date <= '{cutoff}')
         SELECT _mapped.p,
                (SELECT min(ticker) FROM tmap WHERE permaticker = _mapped.p) AS tkr
         FROM _mapped WHERE _mapped.p NOT IN (SELECT p FROM present) ORDER BY 1""").fetchall()]
@@ -446,7 +471,7 @@ def main(argv: list[str] | None = None) -> int:
         "sealed": True,
         "sealed_at_utc": sealed_at.isoformat(),
         "sealed_verification": sealed_verification,
-        "governed_cutoff": GOVERNED_CUTOFF,
+        "governed_cutoff": cutoff,
         "tables": list(TABLES),
         "vintage_identities": {t: _identity(probes_open[t]) for t in TABLES},
         "artifact_sha256": {t: sources[t]["artifact_sha256"] for t in TABLES},

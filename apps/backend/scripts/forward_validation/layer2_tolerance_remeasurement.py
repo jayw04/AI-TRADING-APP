@@ -64,8 +64,22 @@ ABSOLUTE_TOLERANCE = 0.0
 #: privileged, and the operating factor is not selected here.
 FACTORS = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 15.0, 20.0, 50.0, 100.0]
 
-WINDOW_START = date(2025, 6, 25)
-SESSION = date(2026, 7, 27)
+#: The governed decision window, in sessions. The LENGTH is the governed constant; the START is
+#: derived from the store, because the window is "the last N sessions ending at the session" and slides
+#: with it. `WINDOW_START` WAS the literal `date(2025, 6, 25)` — the July-27 window's start — which
+#: would have silently measured the wrong span for any other session while still producing a full,
+#: plausible tolerance curve.
+REQUIRED_HISTORY_SESSIONS = 273
+WINDOW_START: date
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.forward_validation._session_arg import (  # noqa: E402
+    add_session_argument,
+)
+
+#: The governed session, supplied per run via --session and assigned in main(). Deliberately NOT a
+#: module default -- it WAS `SESSION = date(2026, 7, 27)`. See `_session_arg` for why a default is the
+#: wrong shape for a governed boundary.
+SESSION: date
 
 # The vendor labels the arithmetic consumes, lower-cased. Kept in sync with the verifier by assertion
 # below rather than by duplication drift.
@@ -77,7 +91,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--store", required=True)
     ap.add_argument("--out", required=True)
+    add_session_argument(ap)
     args = ap.parse_args()
+    global SESSION
+    SESSION = args.session
 
     # Guard against silent drift between this measurement and the module it justifies.
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -90,6 +107,17 @@ def main() -> int:
     current = av.NOISE_SAFETY_FACTOR
 
     con = duckdb.connect(args.store, read_only=True)
+
+    global WINDOW_START
+    window = [r[0] for r in con.execute(
+        "SELECT DISTINCT date FROM sep WHERE date <= ? ORDER BY date DESC LIMIT ?",
+        [SESSION, REQUIRED_HISTORY_SESSIONS]).fetchall()]
+    if len(window) < REQUIRED_HISTORY_SESSIONS or max(window) != SESSION:
+        raise SystemExit(
+            f"REFUSED — the store yields {len(window)} sessions ending "
+            f"{max(window) if window else None}; the measurement needs "
+            f"{REQUIRED_HISTORY_SESSIONS} ending exactly {SESSION}.")
+    WINDOW_START = min(window)
 
     cash_in = ",".join(f"'{x}'" for x in CASH_LABELS)
     split_in = ",".join(f"'{x}'" for x in SPLIT_LABELS)
