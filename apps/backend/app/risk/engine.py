@@ -50,6 +50,13 @@ from app.risk.decision_service import (
 from app.risk.halt import is_halted
 from app.risk.loss_control import constants as LC
 from app.risk.loss_control.daily_loss_basis import DailyLossBasis, select_daily_loss_basis
+from app.risk.loss_control.daily_loss_observation import (
+    DailyLossObservation,
+    ObservationStatus,
+    SurfaceAction,
+    map_surface_action,
+    observe_model_a_daily_loss,
+)
 from app.risk.loss_control.gate import (
     ERR_GATE_EVAL,
     ERR_TRIGGER_COMMIT,
@@ -379,10 +386,35 @@ class RiskEngine:
                 # ADR 0043 §D3: choose the daily-loss basis. Flag OFF → state.day_change unchanged
                 # (byte-for-byte legacy); flag ON → prefer the immutable session baseline, with
                 # structured evidence. The gate/threshold semantics are otherwise unchanged.
-                day_change, basis = await self._daily_loss_day_change(
+                day_change, basis, model_a = await self._daily_loss_day_change(
                     session, req.account_id, limits, state
                 )
-                if day_change is not None and day_change <= -limits.max_daily_loss:
+                if (
+                    model_a is not None
+                    and model_a.status != ObservationStatus.AVAILABLE
+                ):
+                    # Fail closed on unavailable/invalid Model A: reject new risk;
+                    # permit verified reduction (ADR-0042) without fabricating a breach.
+                    action = map_surface_action(model_a.status, surface="new_risk")
+                    if action == SurfaceAction.REJECT and not await self._permits_verified_reduction(
+                        req,
+                        lock_state=LOCK_DAILY_LOSS,
+                        lock_reason="model_a_basis_unavailable",
+                        daily_pnl=None,
+                        cache=reduction_cache,
+                    ):
+                        return await self._finalize_with_loss_control(
+                            session,
+                            req,
+                            reduction_cache,
+                            legacy_decision=RiskDecision.REJECT,
+                            legacy_reasons=[ReasonCode.LOSS_CONTROL_STOP],
+                            legacy_outcome="REFUSE",
+                            legacy_permits=False,
+                        )
+                    # Verified reduction (or non-REJECT surface): continue without
+                    # threshold evaluation from an unknown basis.
+                elif day_change is not None and day_change <= -limits.max_daily_loss:
                     # The breach is a HISTORICAL fact and the lock still trips — a permitted
                     # reduction is not required to repair already-realised P&L (ADR 0042,
                     # lock_trigger vs permitted_effect). What changes is what may pass.
@@ -494,27 +526,36 @@ class RiskEngine:
             cb = CircuitBreakerService(session=session, bus=self._bus)
             try:
                 await cb.check(req.account_id)
-            except CircuitBreakerError:
-                # ADR 0043 PR4: a live control detected the breaker trip — drive the state machine.
-                # In ENFORCE a failed transition write fails this order closed (§Finding 1).
-                guard = await self._trigger_and_guard(session, req, TRIGGER_BREAKER_TRIP)
-                if guard is not None:
-                    return guard
+            except CircuitBreakerError as cb_err:
+                if cb_err.trip_recorded:
+                    # ADR 0043 PR4: a live control detected the breaker trip — drive the state machine.
+                    # In ENFORCE a failed transition write fails this order closed (§Finding 1).
+                    guard = await self._trigger_and_guard(session, req, TRIGGER_BREAKER_TRIP)
+                    if guard is not None:
+                        return guard
                 # Same rule, same classifier (ADR 0042). Steps 9 and 13 do NOT implement
                 # similar logic separately — implementing it twice is exactly how the
                 # gross-exposure gate got the reducing-order exemption (ADR 0038) while these
-                # two did not.
+                # two did not. Model A unavailable raises with trip_recorded=False.
                 if not await self._permits_verified_reduction(
                     req,
                     lock_state=LOCK_BREAKER,
-                    lock_reason="circuit_breaker_tripped",
+                    lock_reason=(
+                        "model_a_basis_unavailable"
+                        if not cb_err.trip_recorded
+                        else "circuit_breaker_tripped"
+                    ),
                     daily_pnl=None,
                     cache=reduction_cache,
                 ):
                     return await self._finalize_with_loss_control(
                         session, req, reduction_cache,
                         legacy_decision=RiskDecision.REJECT,
-                        legacy_reasons=[ReasonCode.CIRCUIT_BREAKER],
+                        legacy_reasons=[
+                            ReasonCode.LOSS_CONTROL_STOP
+                            if not cb_err.trip_recorded
+                            else ReasonCode.CIRCUIT_BREAKER
+                        ],
                         legacy_outcome="REFUSE", legacy_permits=False,
                     )
 
@@ -644,7 +685,7 @@ class RiskEngine:
         account_id: int,
         limits: RiskLimits,
         state: AccountState | None,
-    ) -> tuple[Decimal | None, DailyLossBasis | None]:
+    ) -> tuple[Decimal | None, DailyLossBasis | None, DailyLossObservation | None]:
         """The day-change for the step-9 daily-loss gate, plus its basis provenance.
 
         Flag OFF (default): returns ``state.day_change`` unchanged (the legacy last_equity basis)
@@ -652,17 +693,67 @@ class RiskEngine:
         basis (ADR 0043 §D3), preferring the immutable session baseline, and emits structured
         evidence so enforcement is verifiable. Step 9 never sanctioned the cumulative fallback, so
         it is not offered here; a missing session date is never guessed.
+
+        Effective Model A canary binding returns a structured observation; callers must apply
+        ``map_surface_action`` before skipping or evaluating the gate.
         """
         if state is None:
-            return None, None
+            return None, None, None
+        current_equity = Decimal(str(state.equity)) if state.equity is not None else None
+        session_date = resolve_session_date(datetime.now(UTC))
+        model_a = await observe_model_a_daily_loss(
+            session,
+            account_id,
+            current_equity=current_equity,
+            session_date=session_date,
+        )
+        if model_a is not None:
+            logger.info(
+                "risk_daily_loss_basis",
+                account_id=account_id,
+                gate="engine_step9",
+                canary_model_a=True,
+                status=model_a.status.value,
+                reason_code=model_a.reason_code,
+                baseline_id=model_a.baseline_id,
+                raw_response_hash=model_a.raw_response_hash,
+                projection_hash=model_a.projection_hash,
+                surface_action_new_risk=map_surface_action(
+                    model_a.status, surface="new_risk"
+                ).value,
+                daily_pnl=str(model_a.daily_pnl) if model_a.daily_pnl is not None else None,
+            )
+            if model_a.status == ObservationStatus.AVAILABLE and model_a.daily_pnl is not None:
+                basis = DailyLossBasis(
+                    day_change=model_a.daily_pnl,
+                    basis_source=model_a.basis_source,
+                    fallback_reason=None,
+                    market_session_date=model_a.session_date,
+                    current_equity=model_a.current_equity,
+                    baseline_id=model_a.baseline_id,
+                    baseline_equity=model_a.baseline_equity,
+                    applicable_limit=Decimal(str(limits.max_daily_loss)),
+                )
+                return model_a.daily_pnl, basis, model_a
+            # Q1 fail-closed: no legacy last_equity / cumulative under Model A.
+            return None, DailyLossBasis(
+                day_change=None,
+                basis_source=None,
+                fallback_reason=model_a.reason_code or model_a.status.value,
+                market_session_date=model_a.session_date,
+                current_equity=model_a.current_equity,
+                baseline_id=model_a.baseline_id,
+                baseline_equity=model_a.baseline_equity,
+                applicable_limit=Decimal(str(limits.max_daily_loss)),
+            ), model_a
         if not get_settings().session_baseline_enforcement_enabled:
-            return state.day_change, None
+            return state.day_change, None, None
         basis = await select_daily_loss_basis(
             session,
             account_id,
-            current_equity=Decimal(str(state.equity)) if state.equity is not None else None,
+            current_equity=current_equity,
             last_equity=Decimal(str(state.last_equity)) if state.last_equity is not None else None,
-            session_date=resolve_session_date(datetime.now(UTC)),
+            session_date=session_date,
             applicable_limit=Decimal(str(limits.max_daily_loss)),
             allow_cumulative_fallback=False,
         )
@@ -672,7 +763,7 @@ class RiskEngine:
             gate="engine_step9",
             **basis.provenance(),
         )
-        return basis.day_change, basis
+        return basis.day_change, basis, None
 
     async def _fire_loss_control_trigger(
         self, account_id: int, trigger: str

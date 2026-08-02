@@ -20,6 +20,8 @@ from app.db.models.position import Position
 from app.db.models.range_execution_record import RangeExecutionRecord
 from app.db.models.reconciliation_run import ReconciliationRun
 from app.db.models.replay_run import ReplayRun
+from app.db.models.risk_canary_session_baseline import RiskCanarySessionBaseline
+from app.db.models.risk_canary_start_a_authorization import RiskCanaryStartAAuthorization
 from app.db.models.risk_check import RiskCheck
 from app.db.models.risk_control_event import RiskControlEvent
 from app.db.models.risk_decision import RiskDecision
@@ -82,6 +84,8 @@ __all__ = [
     "RiskRecoveryPreflight",
     "RiskRecoveryPreflightCheck",
     "RiskReservation",
+    "RiskCanarySessionBaseline",
+    "RiskCanaryStartAAuthorization",
     "RiskSessionBaseline",
     "RiskSessionBaselineShadowOutcome",
     "ScannerDefinition",
