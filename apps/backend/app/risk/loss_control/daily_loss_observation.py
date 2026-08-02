@@ -270,9 +270,12 @@ async def observe_model_a_daily_loss(
     resolved = await resolve_effective_canary_binding(session, account_id, session_date)
     if resolved is None:
         return None
-    if resolved is ObservationStatus.CONFLICT:
+    if not isinstance(resolved, EffectiveCanaryBinding):
+        # Binding conflict (or other non-binding ObservationStatus from the resolver).
         return _obs(
-            status=ObservationStatus.CONFLICT,
+            status=ObservationStatus.CONFLICT
+            if resolved is ObservationStatus.CONFLICT
+            else resolved,
             reason_code="CANARY_BINDING_CONFLICT",
             binding=None,
             current_equity=current_equity,
@@ -362,6 +365,6 @@ async def load_active_model_a_baseline(
 ) -> RiskCanarySessionBaseline | list[RiskCanarySessionBaseline] | None:
     """Bound lookup via effective Start A authorization (not unbound account/date)."""
     resolved = await resolve_effective_canary_binding(session, account_id, session_date)
-    if resolved is None or resolved is ObservationStatus.CONFLICT:
+    if not isinstance(resolved, EffectiveCanaryBinding):
         return None
     return await load_bound_model_a_baseline(session, resolved)
