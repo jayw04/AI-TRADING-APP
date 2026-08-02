@@ -61,6 +61,11 @@ for _e in (Path(os.environ.get("WORKBENCH_ENV_FILE", ".env")),
 
 from app.factor_data.providers.sharadar import SharadarProvider  # noqa: E402
 from app.validation.governed_corpus import canonical_json  # noqa: E402
+from scripts.forward_validation._governed_window import (  # noqa: E402
+    REQUIRED_HISTORY_SESSIONS,
+    governed_decision_window,
+)
+from scripts.forward_validation._session_arg import add_session_argument  # noqa: E402
 
 LEGACY_UNIVERSE_SHA256 = "2b34970fc123689b66c82c6c119d0e946bf99181b9109b878cb1ba6148d3bcc4"
 
@@ -121,11 +126,21 @@ OWNER_DISPOSITIONS: dict[str, str] = {
     "GAMB": EXCLUDED_UNRESOLVED_SOURCE_MASTER,
 }
 
-#: The 273-session decision window the July 27 strategy inputs are formed over.
-DECISION_WINDOW = (date(2025, 6, 25), date(2026, 7, 27))
+#: The decision window is DERIVED per run from `--session` — see `_governed_window`. It was the
+#: constant `DECISION_WINDOW = (date(2025, 6, 25), date(2026, 7, 27))`, which PR #589's sweep missed
+#: because a tuple is not the assignment shape it looked for. A crosswalk built for one session and
+#: silently scored over another session's window yields evidence that is internally consistent and
+#: wrong, and no downstream digest can detect it. Hence: no window literal, no default.
 
-#: The defective source boundary the three unresolved-source-master keys all terminate at. Asserted,
-#: not assumed: a key ruled out on the strength of this coincidence must actually exhibit it.
+#: ⚠ HISTORICAL CONTRACT FACT — deliberately still a constant, and registered as such in
+#: `scripts/check_layer2_date_literals.py`.
+#:
+#: This is NOT a corpus property and does not move when the corpus does. It is the fixed date at which
+#: the vendor's source master terminates for the three keys the owner ruled out as
+#: EXCLUDED_UNRESOLVED_SOURCE_MASTER on 2026-07-29 — a property of that adjudicated evidence, not of
+#: any session. Measuring it from a corpus would be a category error: it would let a later corpus
+#: silently redefine what a past ruling was made about. Asserted, not assumed — a key ruled out on the
+#: strength of this coincidence must actually exhibit it.
 SOURCE_MASTER_BOUNDARY = date(2026, 6, 12)
 
 
@@ -149,7 +164,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Build the Layer 2 universe crosswalk.")
     ap.add_argument("--corpus", required=True, help="the COUNTERSIGNED corpus defining U_old")
     ap.add_argument("--out", required=True)
+    add_session_argument(ap)
     args = ap.parse_args(argv)
+    session: date = args.session
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -171,7 +188,10 @@ def main(argv: list[str] | None = None) -> int:
         "SELECT ticker, list(date ORDER BY date) FROM sep GROUP BY ticker").fetchall()}
 
     # ---- evidence for the owner-adjudicated keys, measured from the countersigned corpus ----
-    w0, w1 = DECISION_WINDOW
+    # The window is derived from the governed session by the shared rule, never copied as a literal.
+    # It refuses outright when the corpus cannot supply the exact window ending on the session, so a
+    # crosswalk can never be scored over a window belonging to a different session.
+    w0, w1 = governed_decision_window(con, session)
     window_sessions = con.execute(
         "SELECT count(DISTINCT date), max(date) FROM sep WHERE date BETWEEN ? AND ?",
         [w0, w1]).fetchone()
@@ -451,6 +471,8 @@ def main(argv: list[str] | None = None) -> int:
             "legacy_master_lifetime": [master.get("firstpricedate"), master.get("lastpricedate")],
             "priced_span_in_corpus": [row["old_first_priced"], row["old_last_priced"]],
             "price_row_count": row["old_row_count"],
+            "governed_session": session.isoformat(),
+            "required_history_sessions": REQUIRED_HISTORY_SESSIONS,
             "decision_window": [w0.isoformat(), w1.isoformat()],
             "decision_window_sessions_in_corpus": int(window_sessions[0]),
             "decision_window_max_session_in_corpus": _iso(window_sessions[1]),
@@ -645,6 +667,8 @@ def main(argv: list[str] | None = None) -> int:
         "unresolved_key_count": len(rows) - len(resolved) - n_delist - n_srcmaster,
         "disposition_authority": DISPOSITION_AUTHORITY,
         "synthetic_identities_authorized": False,
+        "governed_session": session.isoformat(),
+        "required_history_sessions": REQUIRED_HISTORY_SESSIONS,
         "decision_window": [w0.isoformat(), w1.isoformat()],
         "decision_window_sessions_in_corpus": int(window_sessions[0]),
         "decision_window_max_session_in_corpus": _iso(window_sessions[1]),

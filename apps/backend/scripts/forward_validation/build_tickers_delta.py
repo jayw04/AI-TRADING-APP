@@ -30,7 +30,13 @@ from pathlib import Path
 import pandas as pd
 
 from app.factor_data.providers.sharadar import SharadarProvider  # noqa: E402
+from scripts.forward_validation._base_facts import (  # noqa: E402
+    bind_tickers_base,
+    load_corpus_manifest,
+    measure_base,
+)
 from scripts.forward_validation.capture_verify_session import (  # noqa: E402
+    CORPUS,
     canonical_json,
 )
 
@@ -43,8 +49,11 @@ TICKERS_COLUMNS = ["ticker", "permaticker", "name", "exchange", "category", "sec
 #: Identity-bearing projection digested into `row_identity_sha256` (governed_corpus).
 TICKERS_IDENTITY_COLUMNS = ["permaticker", "ticker", "firstpricedate", "lastpricedate"]
 
-BASE_TICKERS_ROWS = 21_853
-BASE_MAX_LASTPRICEDATE = date(2026, 6, 12)
+# The base TICKERS census is MEASURED from the bound corpus and BOUND to the countersigned TICKERS
+# manifest — see `_base_facts`. These were the constants `BASE_TICKERS_ROWS = 21_853` and
+# `BASE_MAX_LASTPRICEDATE = date(2026, 6, 12)`. Both describe the base corpus, and both move when a
+# TICKERS refresh is committed; a refresh judged against a stale declared census would pass its
+# never-shrinks check against a base that no longer exists.
 
 #: SHARADAR/TICKERS carries one row per (ticker, dataset) across SEP/SF1/SF2/SF3B/SFP — 78,861 rows
 #: in total, of which only the SEP slice describes the price universe. The base corpus holds the SEP
@@ -96,11 +105,24 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Build the governed TICKERS artifact.")
     ap.add_argument("--session", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--base-manifest", required=True,
+                    help="the countersigned corpus manifest carrying the TICKERS census this refresh "
+                         "is judged against. Required and without a default: the census is measured "
+                         "from the bound corpus and must agree with the manifest.")
     args = ap.parse_args(argv)
 
     session = date.fromisoformat(args.session)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+
+    # ---- the base census: measured from the bound corpus, bound to the countersigned manifest ----
+    manifest = load_corpus_manifest(args.base_manifest)
+    measured = measure_base(CORPUS)
+    bind_tickers_base(manifest, measured)
+    base_rows = measured.tickers_rows
+    base_max_lastpricedate = measured.tickers_max_lastpricedate
+    print(f"base TICKERS census {base_rows:,} rows, max lastpricedate {base_max_lastpricedate} "
+          f"(measured, manifest-verified)")
 
     retrieved_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     with SharadarProvider() as provider:
@@ -141,8 +163,8 @@ def main(argv: list[str] | None = None) -> int:
         if u and u > iso and f and last and f <= iso <= last)
 
     checks = [
-        ("row_count_not_below_base", len(rows) >= BASE_TICKERS_ROWS,
-         f"{len(rows):,} rows vs base {BASE_TICKERS_ROWS:,} (a governed refresh never shrinks the "
+        ("row_count_not_below_base", len(rows) >= base_rows,
+         f"{len(rows):,} rows vs base {base_rows:,} (a governed refresh never shrinks the "
          f"dimension)"),
         ("corpus_columns_exact", True, f"projected to {TICKERS_COLUMNS}"),
         ("no_duplicate_tickers", len({r[0] for r in rows}) == len(rows),
@@ -159,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
          f"bound (excluded from the universe join by the IS NOT NULL predicate)"),
         ("session_eligibility_restored", straddling > 0,
          f"{straddling:,} names straddle {session} (base corpus: 0 — max lastpricedate "
-         f"{BASE_MAX_LASTPRICEDATE})"),
+         f"{base_max_lastpricedate})"),
         # PERMATICKER_EFFECTIVE_INTERVAL_V1: the permanent id is mandatory, and one ticker resolving
         # to several permanent ids is ambiguous by construction.
         ("permanent_id_present_on_every_row",
@@ -191,8 +213,13 @@ def main(argv: list[str] | None = None) -> int:
         "source_sha256": source_sha,
         "source_rows_all_tables": source_rows,
         "source_table_slice": SOURCE_TABLE,
-        "base_rows": BASE_TICKERS_ROWS,
-        "base_max_lastpricedate": BASE_MAX_LASTPRICEDATE.isoformat(),
+        "base_rows": base_rows,
+        "base_max_lastpricedate": (base_max_lastpricedate.isoformat()
+                                   if base_max_lastpricedate else None),
+        "base_census_source": "bound corpus (measured), verified against the TICKERS manifest",
+        "base_manifest_path": str(args.base_manifest),
+        "base_manifest_tickers_rows": manifest.tickers.rows,
+        "base_manifest_tickers_coverage_cutoff": manifest.tickers.coverage_cutoff.isoformat(),
         "max_lastpricedate": max((x for x in lpd if x), default=None),
         "max_lastupdated": max((x for x in lup if x), default=None),
         "names_straddling_session": straddling,
@@ -209,10 +236,10 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
 
     print(f"=== governed TICKERS artifact - {session} ===")
-    print(f"rows        {len(rows):,}  (base {BASE_TICKERS_ROWS:,})")
+    print(f"rows        {len(rows):,}  (base {base_rows:,})")
     print(f"sha256      {report['sha256']}")
     print(f"source      {source_sha}")
-    print(f"max lastpricedate {report['max_lastpricedate']}  (base {BASE_MAX_LASTPRICEDATE})")
+    print(f"max lastpricedate {report['max_lastpricedate']}  (base {base_max_lastpricedate})")
     print(f"names straddling {session}: {straddling:,}  (base corpus: 0)")
     print(f"\nPIT policy: no lastupdated cutoff. A cutoff at {session} would have dropped "
           f"{would_be_excluded:,} rows,\n  of which {excluded_but_eligible:,} ARE eligible for the "

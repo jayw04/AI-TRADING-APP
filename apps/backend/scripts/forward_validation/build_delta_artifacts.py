@@ -27,7 +27,14 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from app.factor_data.providers.sharadar import SharadarProvider  # noqa: E402
+from scripts.forward_validation._base_facts import (  # noqa: E402
+    bind_delta_lower_bound,
+    load_corpus_manifest,
+    measure_base,
+    require_delta_window,
+)
 from scripts.forward_validation.capture_verify_session import (  # noqa: E402
+    CORPUS,
     GOVERNED_UNIVERSE_SIZE,
     canonical_json,
     load_governed_context,
@@ -39,7 +46,12 @@ SEP_COLUMNS = ["ticker", "date", "open", "high", "low", "close", "volume",
                "closeadj", "closeunadj", "lastupdated"]
 ACTIONS_COLUMNS = ["date", "action", "ticker", "name", "value", "contraticker"]
 
-BASE_COVERAGE_THROUGH = date(2026, 7, 24)
+# The delta's lower edge is MEASURED from the bound corpus and BOUND to its countersigned manifest —
+# see `_base_facts`. It was the constant `BASE_COVERAGE_THROUGH = date(2026, 7, 24)`, which described
+# the base before any delta. That is the wrong edge for every session after the first: a 2026-07-28
+# delta bounded at 2026-07-24 would re-ingest three sessions the corpus already holds. The edge moves
+# whenever a delta is committed, so it cannot be a declaration.
+
 RATIFIED_UNIVERSE_PREFIX = "2b34970fc123689b"
 
 
@@ -124,12 +136,15 @@ def build_sep(session: date, capture_dir: Path, out: Path, universe_sha: str) ->
     }
 
 
-def build_actions(session: date, out: Path, universe: set[str]) -> dict:
-    """Bounded to (base_coverage_through, session], restricted to the governed universe."""
+def build_actions(session: date, out: Path, universe: set[str], lower: date) -> dict:
+    """Bounded to (lower, session], restricted to the governed universe.
+
+    ``lower`` is the corpus's measured, manifest-bound coverage — never a declared constant.
+    """
     retrieved_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     with SharadarProvider() as provider:
         act = provider.fetch_table(
-            "ACTIONS", **{"date.gte": (BASE_COVERAGE_THROUGH - timedelta(days=1)).isoformat()})
+            "ACTIONS", **{"date.gte": (lower - timedelta(days=1)).isoformat()})
 
     source_payload = canonical_json({
         "table": "ACTIONS", "columns": list(act.columns),
@@ -137,7 +152,7 @@ def build_actions(session: date, out: Path, universe: set[str]) -> dict:
     source_sha = sha256_bytes(source_payload)
 
     dates = act["date"].astype(str)
-    in_window = act[(dates > BASE_COVERAGE_THROUGH.isoformat()) & (dates <= session.isoformat())]
+    in_window = act[(dates > lower.isoformat()) & (dates <= session.isoformat())]
     future = act[dates > session.isoformat()]
     governed = in_window[in_window["ticker"].isin(universe)]
     dropped = len(in_window) - len(governed)
@@ -148,9 +163,11 @@ def build_actions(session: date, out: Path, universe: set[str]) -> dict:
         checks.append({"name": name, "pass": bool(ok), "detail": detail})
 
     win_dates = sorted({str(d) for d in governed["date"].astype(str)})
+    # Refuses rather than records: an out-of-window date means the delta overlaps existing coverage.
+    require_delta_window(lower, session, win_dates)
     check("bounded_to_cutoff",
-          all(BASE_COVERAGE_THROUGH.isoformat() < d <= session.isoformat() for d in win_dates),
-          f"session dates present: {win_dates} (bound: > {BASE_COVERAGE_THROUGH}, <= {session})")
+          all(lower.isoformat() < d <= session.isoformat() for d in win_dates),
+          f"session dates present: {win_dates} (bound: > {lower}, <= {session})")
     check("no_out_of_universe_rows",
           not len(governed) or bool((governed["ticker"].isin(universe)).all()),
           f"{dropped:,} out-of-universe rows dropped from {len(in_window):,} in-window rows")
@@ -203,11 +220,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--session", required=True)
     ap.add_argument("--capture-dir", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--base-manifest", required=True,
+                    help="the countersigned corpus manifest the delta will be appended to. Required "
+                         "and without a default: the delta's lower edge is read from it and "
+                         "cross-checked against the bound corpus, so it cannot be assumed.")
     args = ap.parse_args(argv)
 
     session = date.fromisoformat(args.session)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+
+    # ---- bind the delta's lower edge to the corpus it will actually be appended to ----
+    manifest = load_corpus_manifest(args.base_manifest)
+    measured = measure_base(CORPUS)
+    lower = bind_delta_lower_bound(manifest, measured, session=session)
+    print(f"delta window bound to ({lower}, {session}]  "
+          f"(base {manifest.base_coverage_through} + {len(manifest.deltas)} delta(s))")
 
     ctx = load_governed_context(session)
     universe = ctx["universe"]
@@ -218,11 +246,20 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"universe digest {universe_sha[:16]} != ratified {RATIFIED_UNIVERSE_PREFIX}")
 
     sep = build_sep(session, Path(args.capture_dir), out, universe_sha)
-    actions = build_actions(session, out, universe)
+    actions = build_actions(session, out, universe, lower)
 
     report = {
         "session": session.isoformat(),
-        "base_coverage_through": BASE_COVERAGE_THROUGH.isoformat(),
+        # Named `base_coverage_through` for continuity with the artifact schema, but it is now the
+        # BOUND lower edge — base plus every committed delta — measured and manifest-verified.
+        "base_coverage_through": lower.isoformat(),
+        "delta_lower_bound_source": "corpus_manifest.coverage_through (measured + verified)",
+        "base_manifest_path": str(args.base_manifest),
+        "base_manifest_declared_base_coverage_through":
+            manifest.base_coverage_through.isoformat(),
+        "base_manifest_committed_deltas": len(manifest.deltas),
+        "base_corpus_sha256": manifest.base_corpus_sha256,
+        "measured_base": measured.evidence(),
         "governed_universe_sha256": universe_sha,
         "governed_universe_size": len(universe),
         "sep": sep,

@@ -46,6 +46,9 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.forward_validation._governed_window import (  # noqa: E402
+    REQUIRED_HISTORY_SESSIONS as _REQUIRED_HISTORY_SESSIONS,
+)
 from scripts.forward_validation._session_arg import (  # noqa: E402
     add_session_argument,
 )
@@ -82,7 +85,11 @@ QUARANTINED = {
 #: a by-ticker presence test is the wrong test and reports a false zero.
 REINSTATED = {"VYNE": "120814", "LTGRU": "6399330"}
 
-REQUIRED_HISTORY_SESSIONS = 273
+#: Imported, not redeclared: `build_universe_crosswalk` derives the SAME window from the same rule,
+#: and two copies of the length are two things that can drift. Step 5's own failure semantics are
+#: unchanged — it records an ABORT artifact rather than raising, because a short window here is
+#: evidence about the corpus that the operator needs written down.
+REQUIRED_HISTORY_SESSIONS = _REQUIRED_HISTORY_SESSIONS
 REGIME_MA_SESSIONS = 200
 SCORING_UNIVERSE_N = 200
 PROXY_UNIVERSE_N = 500

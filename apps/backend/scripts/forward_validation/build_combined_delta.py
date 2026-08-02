@@ -18,9 +18,18 @@ import json
 from datetime import date
 from pathlib import Path
 
-from scripts.forward_validation.capture_verify_session import canonical_json
+from scripts.forward_validation._base_facts import (
+    BaseFactsError,
+    bind_delta_lower_bound,
+    load_corpus_manifest,
+    measure_base,
+)
+from scripts.forward_validation.capture_verify_session import CORPUS, canonical_json
 
-BASE_COVERAGE_THROUGH = date(2026, 7, 24)
+# The composed artifact's `base_coverage_through` is taken from the build report and INDEPENDENTLY
+# re-derived from the manifest here — it was the constant `BASE_COVERAGE_THROUGH = date(2026, 7, 24)`.
+# Composition is the last step that can catch a delta bounded against the wrong corpus, so it checks
+# rather than trusts: a build report and a manifest that disagree stop the composition.
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -37,12 +46,32 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Compose the single governed delta artifact.")
     ap.add_argument("--session", required=True)
     ap.add_argument("--dir", required=True)
+    ap.add_argument("--base-manifest", required=True,
+                    help="the countersigned corpus manifest the delta will be appended to. Required "
+                         "and without a default: the composed artifact declares the lower edge, so "
+                         "composition re-derives it instead of trusting the build report alone.")
     args = ap.parse_args(argv)
 
     session = date.fromisoformat(args.session)
     d = Path(args.dir)
 
     build_report = json.loads((d / f"delta_build_report_{session}.json").read_text(encoding="utf-8"))
+
+    # ---- the lower edge, re-derived and reconciled with what the build recorded ----
+    manifest = load_corpus_manifest(args.base_manifest)
+    measured = measure_base(CORPUS)
+    lower = bind_delta_lower_bound(manifest, measured, session=session)
+
+    declared = build_report.get("base_coverage_through")
+    if declared is None:
+        raise BaseFactsError(
+            "the delta build report carries no base_coverage_through; it was produced by a builder "
+            "that declared the lower edge as a constant, and this composition cannot confirm which "
+            "corpus the delta was actually bounded against.")
+    if str(declared) != lower.isoformat():
+        raise BaseFactsError(
+            f"the delta was built against lower edge {declared} but the manifest and the bound corpus "
+            f"agree on {lower.isoformat()}; the artifact would declare coverage it does not have.")
 
     sep_cols, sep_rows, sep_sha = read_csv(d / f"sep_delta_{session}.csv")
     act_cols, act_rows, act_sha = read_csv(d / f"actions_delta_{session}.csv")
@@ -57,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         "kind": "governed_delta",
         "session_date": session.isoformat(),
         "coverage_through": session.isoformat(),
-        "base_coverage_through": BASE_COVERAGE_THROUGH.isoformat(),
+        "base_coverage_through": lower.isoformat(),
         "governed_universe_sha256": build_report["governed_universe_sha256"],
         "governed_universe_size": build_report["governed_universe_size"],
         "sep": {"columns": sep_cols, "rows": sep_rows},
