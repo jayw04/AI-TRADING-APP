@@ -15,6 +15,7 @@ from app.db.enums import (
     TimeInForce,
 )
 from app.db.models.account import Account, AccountMode
+from app.db.models.account_state import AccountState
 from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.risk_limits import RiskLimits
@@ -23,6 +24,7 @@ from app.db.models.user import User
 from app.risk.engine import RiskEngine
 from app.risk.reason_codes import ReasonCode
 from app.risk.types import OrderRequest
+from tests.account_state_helpers import synced_account_state
 
 
 def _now() -> datetime:
@@ -48,6 +50,10 @@ async def seeded(session_factory):
         )
         session.add(RiskLimits(user_id=1, broker_mode=AccountMode.paper, **common))
         session.add(RiskLimits(user_id=1, broker_mode=AccountMode.live, **common))
+        # Both accounts are SYNCED; without a baseline the daily-loss gate refuses every
+        # risk-increasing order and no other gate under test is ever reached.
+        session.add(synced_account_state(account_id=1))
+        session.add(synced_account_state(account_id=2))
         await session.commit()
     return session_factory
 
@@ -112,9 +118,15 @@ async def test_circuit_breaker_already_tripped_rejects(seeded):
 
 
 async def test_circuit_breaker_trips_on_loss_during_evaluate(seeded):
+    # The loss must be a MEASURED day loss against the start-of-day baseline. This test used to
+    # pass on cumulative `realized + unrealized` because the fixture had no accounts_state row —
+    # i.e. on the fallback that reports carried-over losses as today's. A -3000 open position is
+    # not by itself a -3000 day.
     async with seeded() as s:
         s.add(Position(user_id=1, account_id=1, symbol_id=1,
                        unrealized_pl=Decimal("-3000"), updated_at=_now()))
+        st = await s.get(AccountState, 1)
+        st.equity, st.day_change = Decimal("97000"), Decimal("-3000")
         await s.commit()
     eng = RiskEngine(seeded)
     out = await eng.evaluate(_req(), trading_mode="paper")

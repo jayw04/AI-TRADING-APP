@@ -22,6 +22,7 @@ from app.risk.engine import RiskEngine
 from app.risk.halt import is_halted, set_halted
 from app.risk.reason_codes import ReasonCode
 from app.risk.types import OrderRequest
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 
 def _now() -> datetime:
@@ -73,6 +74,7 @@ async def seeded(session_factory):
                 daytrade_count=0,
                 day_change=Decimal(0),
                 day_change_pct=Decimal(0),
+                day_change_basis=BROKER_LAST_EQUITY,
                 status="ACTIVE",
                 pattern_day_trader=False,
                 trading_blocked=False,
@@ -222,6 +224,7 @@ async def test_daily_loss_halt_is_account_scoped(session_factory, seeded) -> Non
                 daytrade_count=0,
                 day_change=Decimal(0),
                 day_change_pct=Decimal(0),
+                day_change_basis=BROKER_LAST_EQUITY,
                 status="ACTIVE",
                 pattern_day_trader=False,
                 trading_blocked=False,

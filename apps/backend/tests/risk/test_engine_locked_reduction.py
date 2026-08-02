@@ -44,6 +44,7 @@ from app.db.models.symbol import Symbol
 from app.db.models.user import User
 from app.risk.engine import RiskEngine
 from app.risk.types import OrderRequest
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D = Decimal
 
@@ -81,6 +82,7 @@ async def _set_day_change(session_factory, day_change: Decimal) -> None:
             last_equity=D("100000"), buying_power=D("0"),
             portfolio_value=D("100000"), daytrade_count=0,
             day_change=day_change, day_change_pct=D("0"),
+            day_change_basis=BROKER_LAST_EQUITY,
             status="ACTIVE", updated_at=_now(), raw_payload={},
         ))
         await s.commit()

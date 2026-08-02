@@ -38,6 +38,7 @@ from app.risk.engine import RiskEngine
 from app.risk.loss_control import constants as C
 from app.risk.reason_codes import ReasonCode
 from app.risk.types import OrderRequest
+from app.services.day_change_basis import BROKER_LAST_EQUITY
 
 D = Decimal
 NOW = datetime(2026, 7, 20, 15, 0, tzinfo=UTC)
@@ -53,6 +54,13 @@ async def seeded(session_factory):
         s.add(RiskLimits(id=1, user_id=1, broker_mode=AccountMode.paper, scope_type=RiskScopeType.GLOBAL,
                          max_daily_loss=D("5000"), created_at=NOW, updated_at=NOW))
         s.add(Symbol(id=1, ticker="AAPL", exchange="NASDAQ", asset_class="us_equity", name="Apple", active=True))
+        # A SYNCED account: the daily-loss gate needs a baseline, and an account with no
+        # accounts_state row cannot supply one (sync-before-admit). Flat day, measured.
+        s.add(AccountState(account_id=1, cash=D("0"), equity=D("100000"), last_equity=D("100000"),
+                           buying_power=D("0"), portfolio_value=D("100000"), daytrade_count=0,
+                           day_change=D("0"), day_change_pct=D("0"),
+                           day_change_basis=BROKER_LAST_EQUITY, status="ACTIVE",
+                           updated_at=NOW, raw_payload={}))
         await s.commit()
     return session_factory
 
@@ -72,11 +80,11 @@ async def _set_state(session_factory, state, *, account_id=1, version=0):
 
 
 async def _breaching_state(session_factory):
+    """Move the seeded (synced, flat) account into a measured daily-loss breach."""
     async with session_factory() as s:
-        s.add(AccountState(account_id=1, cash=D("0"), equity=D("94000"), last_equity=D("100000"),
-                           buying_power=D("0"), portfolio_value=D("94000"), daytrade_count=0,
-                           day_change=D("-6000"), day_change_pct=D("0"), status="ACTIVE",
-                           updated_at=NOW, raw_payload={}))
+        st = await s.scalar(select(AccountState).where(AccountState.account_id == 1))
+        st.equity, st.portfolio_value, st.day_change = D("94000"), D("94000"), D("-6000")
+        st.day_change_basis = BROKER_LAST_EQUITY
         await s.commit()
 
 

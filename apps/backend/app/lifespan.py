@@ -45,6 +45,7 @@ from app.orders.lifecycle import TradeUpdateConsumer
 from app.orders.positions import PositionRecomputer
 from app.risk import RiskEngine
 from app.security import MasterKeyMissingError, verify_master_key
+from app.services.account_state_readiness import await_account_state_ready
 from app.services.account_sync import AccountSyncService
 from app.services.asset_sync import AssetSyncService
 from app.services.backtest_worker import BacktestWorker
@@ -215,6 +216,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # short-circuits before the registry is consulted for them.
             await broker_registry.load_all()
             await broker_registry.adopt_startup_adapter(adapter)
+
+            # Sync-before-admit. The adapters are connected as of the line above, so this is the
+            # first moment a baseline-bearing sync can succeed — and the last moment before the
+            # RiskEngine/OrderRouter are built and strategies resume. Without this, boot races the
+            # scheduler's first sync_all tick and every account sits with NO accounts_state row,
+            # which the daily-loss gate (correctly) refuses to admit risk against.
+            #
+            # Bounded and non-fatal: on expiry we log the alert and continue. Safety does not
+            # depend on this succeeding — the account-scoped gate in risk/engine.py refuses
+            # risk-increasing orders while the basis is unavailable and still permits ADR 0042
+            # reductions. This only makes the window short and MEASURED.
+            await await_account_state_ready(session_factory, account_sync.sync_all)
 
             # BarCache — constructed here (ahead of the StrategyEngine +
             # BacktestWorker below, which also take it) so the RiskEngine can

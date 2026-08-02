@@ -80,6 +80,9 @@ ZERO = Decimal(0)
 LOCK_UNLOCKED = "UNLOCKED"
 LOCK_DAILY_LOSS = "DAILY_LOSS"
 LOCK_BREAKER = "BREAKER"
+# A configured daily-loss limit whose baseline could not be established. Restricted like any
+# other lock; `daily_pnl` is None because nothing was measured. See risk/lock_state.py.
+LOCK_BASELINE_UNAVAILABLE = "BASELINE_UNAVAILABLE"
 
 # One lock per account. Classification, reservation and ledger insertion must not interleave
 # for the same account, or two reductions can each be approved against the same capacity.

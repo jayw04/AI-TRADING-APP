@@ -49,6 +49,7 @@ from app.orders.lifecycle import TradeUpdateConsumer
 from app.orders.positions import PositionRecomputer
 from app.orders.router import OrderRouter
 from app.risk import RiskEngine
+from tests.account_state_helpers import synced_account_state
 
 
 def _now() -> datetime:
@@ -88,6 +89,7 @@ async def _seed(factory: async_sessionmaker) -> None:
                 updated_at=_now(),
             )
         )
+        session.add(synced_account_state(account_id=1))
         await session.commit()
 
 

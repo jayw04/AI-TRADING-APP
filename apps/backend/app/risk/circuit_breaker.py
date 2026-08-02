@@ -344,12 +344,33 @@ class CircuitBreakerService:
         ``realized + total-unrealized`` measure wrongly counted against *today's*
         limit, spuriously halting a book that was merely open and slightly down.
 
-        Fail-closed fallback ``"cumulative_fallback"``: when no usable AccountState
-        baseline exists (no row yet, or ``last_equity`` not populated — e.g. a
-        broker sync hasn't run), fall back to ``realized + unrealized`` (the
-        passed-in cumulative measure). That is the STRICTER number — it can only
-        trip the breaker EARLIER, never later — so an absent baseline never weakens
-        the gate (risk engine fails closed).
+        Fallback ``"cumulative_fallback"``: when no usable AccountState baseline exists
+        (no row yet, or ``last_equity`` not populated — e.g. a broker sync hasn't run),
+        this falls back to ``realized + unrealized``.
+
+        ⚠ **That fallback is NOT fail-closed, and it is not a session measure.**
+        ``realized + unrealized`` is CUMULATIVE account P&L, so it is wrong in both
+        directions:
+
+        * a book that is cumulatively UP yields a large positive number, and the gate
+          ``daily_pnl <= -max_daily_loss`` can then never fire — the daily-loss control is
+          silently DISABLED, however much the account lost today;
+        * a book that is cumulatively DOWN can trip the breaker on the first order of a
+          profitable session, on a loss carried over from prior days — the spurious halt
+          the ``equity_baseline`` measure above was introduced to fix.
+
+        A previous version of this docstring asserted the fallback "can only trip the
+        breaker EARLIER, never later — so an absent baseline never weakens the gate".
+        That claim is false; it is recorded here so the error is not reintroduced.
+
+        Cumulative realized and unrealized P&L are not valid substitutes for session P&L.
+        ``app/risk/engine.py`` step 9 already prohibits this fallback
+        (``allow_cumulative_fallback=False``) and, when no basis can be established,
+        refuses the order while still permitting VERIFIED reductions (ADR 0042) rather
+        than manufacturing a number. **This surface has not yet been brought into
+        conformance** — removing it changes ``status()``, which the ADR 0005 activation
+        path consumes, so it is deferred to the coordinated ADR 0043 basis correction and
+        must be adjudicated as one design decision across every daily-loss surface.
         """
         state = (
             await self._session.execute(
