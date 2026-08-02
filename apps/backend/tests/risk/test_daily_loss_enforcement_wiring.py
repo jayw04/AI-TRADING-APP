@@ -89,9 +89,10 @@ async def test_engine_step9_flag_off_is_byte_identical(seeded, monkeypatch):
     limits = await _limits(seeded)
     state = _state(day_change="-6000")
     async with seeded() as s:
-        day_change, basis = await engine._daily_loss_day_change(s, 1, limits, state)
+        day_change, basis, model_a = await engine._daily_loss_day_change(s, 1, limits, state)
     assert day_change == state.day_change == D("-6000")  # exact legacy value
     assert basis is None  # no basis provenance computed when off
+    assert model_a is None
 
 
 async def test_engine_step9_none_state_is_skip(seeded, monkeypatch):
@@ -99,8 +100,8 @@ async def test_engine_step9_none_state_is_skip(seeded, monkeypatch):
     engine = RiskEngine(seeded)
     limits = await _limits(seeded)
     async with seeded() as s:
-        day_change, basis = await engine._daily_loss_day_change(s, 1, limits, None)
-    assert day_change is None and basis is None
+        day_change, basis, model_a = await engine._daily_loss_day_change(s, 1, limits, None)
+    assert day_change is None and basis is None and model_a is None
 
 
 async def test_engine_step9_flag_on_uses_baseline_with_provenance(seeded, monkeypatch):
@@ -111,12 +112,13 @@ async def test_engine_step9_flag_on_uses_baseline_with_provenance(seeded, monkey
     limits = await _limits(seeded)
     state = _state(equity="98000", last_equity="95000")
     async with seeded() as s:
-        day_change, basis = await engine._daily_loss_day_change(s, 1, limits, state)
+        day_change, basis, model_a = await engine._daily_loss_day_change(s, 1, limits, state)
     assert day_change == D("-2000")  # 98000 − 100000 (baseline), NOT −3000 (last_equity)
     assert basis is not None
     assert basis.basis_source == "SESSION_BASELINE"
     assert basis.baseline_id is not None  # baseline id reaches the trip payload + evidence log
     assert basis.provenance()["baseline_id"] == str(basis.baseline_id)
+    assert model_a is None
 
 
 # ------------------------------------------------------------ circuit-breaker _compute_daily_pnl seam
@@ -128,11 +130,12 @@ async def test_compute_daily_pnl_flag_off_legacy_unchanged(seeded, monkeypatch):
         s.add(_state(equity="99000", last_equity="100000"))
         await s.commit()
     async with seeded() as s:
-        dp, basis, basis_result = await CircuitBreakerService(session=s)._compute_daily_pnl(
+        dp, basis, basis_result, model_a = await CircuitBreakerService(session=s)._compute_daily_pnl(
             1, realized=D("0"), unrealized=D("0"), max_loss=D("500")
         )
     assert dp == D("-1000") and basis == "equity_baseline"  # legacy strings, unchanged
     assert basis_result is None  # no provenance object off
+    assert model_a is None
 
 
 async def test_compute_daily_pnl_flag_on_prefers_session_baseline(seeded, monkeypatch):
@@ -143,7 +146,7 @@ async def test_compute_daily_pnl_flag_on_prefers_session_baseline(seeded, monkey
         s.add(_state(equity="99000", last_equity="99900"))
         await s.commit()
     async with seeded() as s:
-        dp, basis, basis_result = await CircuitBreakerService(session=s)._compute_daily_pnl(
+        dp, basis, basis_result, model_a = await CircuitBreakerService(session=s)._compute_daily_pnl(
             1, realized=D("0"), unrealized=D("0"), max_loss=D("500")
         )
     assert basis == "SESSION_BASELINE"
@@ -151,6 +154,7 @@ async def test_compute_daily_pnl_flag_on_prefers_session_baseline(seeded, monkey
     # Full provenance object retained (not collapsed to a string), incl. the applicable limit.
     assert basis_result is not None and basis_result.baseline_id is not None
     assert basis_result.applicable_limit == D("500")
+    assert model_a is None
 
 
 async def test_compute_daily_pnl_flag_on_falls_back_to_last_equity(seeded, monkeypatch):
@@ -160,11 +164,12 @@ async def test_compute_daily_pnl_flag_on_falls_back_to_last_equity(seeded, monke
         s.add(_state(equity="99000", last_equity="100000"))
         await s.commit()
     async with seeded() as s:
-        dp, basis, basis_result = await CircuitBreakerService(session=s)._compute_daily_pnl(
+        dp, basis, basis_result, model_a = await CircuitBreakerService(session=s)._compute_daily_pnl(
             1, realized=D("0"), unrealized=D("0"), max_loss=D("500")
         )
     assert basis == "LEGACY_LAST_EQUITY" and dp == D("-1000")
     assert basis_result is not None and basis_result.fallback_reason == "NO_BASELINE_CAPTURED"
+    assert model_a is None
 
 
 # ------------------------------------------------------------ durable trip payload (check / evaluate)
