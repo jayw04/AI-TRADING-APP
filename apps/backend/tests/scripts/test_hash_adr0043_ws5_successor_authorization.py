@@ -484,7 +484,7 @@ def test_dispatch_without_credential_fingerprint_is_refused(V, tmp_path):
 EXPIRY_ANCHORS = [
     ("s4a", "`expires_on` is `effective_at + 336 hours exactly` (§14)"),
     ("s4c", "expiration_rule              = authorization_effective_at + 336 hours exactly"),
-    ("s14", "expires_on                 = authorization_effective_at + 336 hours exactly"),
+    ("s14", "expiration_rule            = authorization_effective_at + 336 hours exactly"),
     ("s18", "expires_on                   = <effective_at + 336 hours exactly, §14>"),
 ]
 
@@ -597,3 +597,59 @@ def test_replacement_closure_lists_all_six_events(doc):
         "image executed",
     ):
         assert event in s16, f"closure event missing: {event}"
+
+
+# ------------------------------------------- amendment-1: the rule must actually be hashed
+#
+# Regression. The first cut of amendment-1 restated the section-14 rule under the
+# key `expires_on`, which `apply_exclusions` blanks by key name. The rule left
+# hash coverage entirely — mutating 336 to 672 hours produced a byte-identical
+# authorization identity — while section 17 asserted it "remains hashed".
+
+
+def test_the_expiration_rule_reaches_the_hashed_bytes(V, doc):
+    hashed = V.canonicalize(V.apply_exclusions(V.extract_body(doc))).decode("utf-8")
+    for anchor in (
+        "expiration_rule              = authorization_effective_at + 336 hours exactly",
+        "expiration_rule            = authorization_effective_at + 336 hours exactly",
+    ):
+        assert anchor in hashed, f"expiration rule absent from hashed bytes: {anchor!r}"
+
+
+def test_mutating_the_section_14_rule_cannot_leave_the_identity_unchanged(V, doc, tmp_path):
+    base = V.compute_identity(_write(tmp_path, doc))["authorization_sha256"]
+    mutated = doc.replace(
+        "expiration_rule            = authorization_effective_at + 336 hours exactly",
+        "expiration_rule            = authorization_effective_at + 672 hours exactly",
+    )
+    assert mutated != doc
+    try:
+        after = V.compute_identity(_write(tmp_path, mutated))["authorization_sha256"]
+    except V.ContractError:
+        return  # refused outright, which is stronger
+    assert after != base, "section-14 expiration rule is not bound by the identity"
+
+
+def test_stating_the_rule_under_the_excluded_key_is_refused(V, doc, tmp_path):
+    mutated = doc.replace(
+        "expiration_rule            = authorization_effective_at + 336 hours exactly",
+        "expires_on                 = authorization_effective_at + 336 hours exactly",
+    )
+    assert mutated != doc
+    with pytest.raises(V.ContractError, match="excluded key"):
+        V.compute_identity(_write(tmp_path, mutated))
+
+
+def test_removing_every_hashed_rule_statement_is_refused(V, doc, tmp_path):
+    mutated = doc.replace("expiration_rule", "expiry_note")
+    assert mutated != doc
+    with pytest.raises(V.ContractError):
+        V.compute_identity(_write(tmp_path, mutated))
+
+
+def test_governed_document_and_verifier_fixture_are_byte_identical():
+    """The fixture *is* the authorization. If they drift, every digest reviewed
+    against the fixture describes a document that is not the governed one."""
+    if not _DOCUMENT.exists():
+        pytest.skip("governed document not present")
+    assert _DOCUMENT.read_bytes() == (_FIXTURES / "valid_authorization.md").read_bytes()

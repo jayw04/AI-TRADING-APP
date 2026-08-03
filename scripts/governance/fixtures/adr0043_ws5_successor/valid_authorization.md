@@ -342,10 +342,17 @@ destination path. `mutation_attempt_count` must be `0` in every record.
 
 ```
 authorization_effective_at = authoritative GitHub merged_at timestamp of the effectiveness-trigger PR
-expires_on                 = authorization_effective_at + 336 hours exactly
+expiration_rule            = authorization_effective_at + 336 hours exactly
 ```
 
 UTC timestamps are authoritative. Local-time renderings are informational only. No end-of-day rounding or extension is permitted.
+
+The rule is stated under the key `expiration_rule`, deliberately not under `expires_on`. Exclusion from
+the body hash is applied **by key name** (§17), so a rule written as `expires_on = …` inside sections
+1–16 would be blanked before hashing and the rule itself would become unbound. `expiration_rule` is
+hashed here and in §4C, and its value is additionally pinned by the verifier. `expires_on` names only
+the *concrete* timestamp, which does not exist at freeze time and is derived mechanically from this
+rule at effectiveness and recorded in §18.
 
 **Fresh-clock disclosure.** This is a new authorization governing a new broker account, a new source
 commit, a new deployable image and explicit adoption of unused resources after a terminal REFUSED
@@ -468,7 +475,10 @@ normative exclusions = authorization_sha
 ```
 
 Only those two. `authorization_sha` is self-referential; the concrete `expires_on` does not exist until
-effectiveness. The expiration **rule** remains hashed. `database_identity` is **not** excluded — it is a
+effectiveness. Exclusion is applied **by key name**: any `expires_on = …` line inside sections 1–16 is
+blanked before hashing, whatever it says. The expiration **rule** is therefore stated under the distinct
+key `expiration_rule` (§4C and §14) and remains hashed; the verifier additionally pins its value and
+refuses any expiration rule stated under the excluded key. `database_identity` is **not** excluded — it is a
 fixed known value bound by the §4C manifest, and any statement to the contrary is a defect. Ruling and
 status metadata and the §19 history sit outside sections 1–16 and are therefore outside the body hash
 by construction rather than by exclusion.
@@ -501,6 +511,6 @@ does not invoke any stage — Stage A requires its own explicit invocation.
 | Rev | Date | Change |
 |-----|------|--------|
 | draft | 2026-08-03 | Initial draft against the tested structural contract. Verifier and fixtures written first; the document was drafted to satisfy an already-failing test suite. **NOT EFFECTIVE — NOT INVOKED.** |
-| amendment-1 | 2026-08-03 | **Consolidated pre-effectiveness amendment.** (1) **Expiration made exact.** The prior rule was deterministic but could extend authority by up to approximately 24 hours beyond the intended 336-hour maximum. The practical risk was limited for this read-only workflow, but the rule was corrected before effectiveness because this was the last low-cost opportunity to establish an exact-duration authorization window. All four statements of the rule (§4A, §4C, §14, §18) now read `authorization_effective_at + 336 hours exactly`, with UTC authoritative and local renderings informational. (2) **Stale §17 exclusion statement corrected** — the document claimed `database_identity` was excluded from the hash, contradicting its own verifier, whose exclusion set is `{authorization_sha, expires_on}`; `database_identity` is bound by the §4C manifest. Discovered during the pre-effectiveness sweep. (3) **`OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS` added** — not a refusal, does not consume a refusal count; two consecutive such withdrawals for substantive defects force broader review. (4) **Replacement closure defined** as the first of six discrete post-effectiveness events, with prior ephemeral verification gates explicitly excluded. (5) **Operator-selected expiration rejected**, with owner early-revocation preserved. **No authorization became effective and no governed stage was invoked**; the prior identity `c7eb9737…` is `OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS`, not REFUSED. |
+| amendment-1 | 2026-08-03 | **Consolidated pre-effectiveness amendment.** (1) **Expiration made exact.** The prior rule was deterministic but could extend authority by up to approximately 24 hours beyond the intended 336-hour maximum. The practical risk was limited for this read-only workflow, but the rule was corrected before effectiveness because this was the last low-cost opportunity to establish an exact-duration authorization window. All four statements of the rule (§4A, §4C, §14, §18) now read `authorization_effective_at + 336 hours exactly`, with UTC authoritative and local renderings informational. (2) **Stale §17 exclusion statement corrected** — the document claimed `database_identity` was excluded from the hash, contradicting its own verifier, whose exclusion set is `{authorization_sha, expires_on}`; `database_identity` is bound by the §4C manifest. Discovered during the pre-effectiveness sweep. (3) **`OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS` added** — not a refusal, does not consume a refusal count; two consecutive such withdrawals for substantive defects force broader review. (4) **Replacement closure defined** as the first of six discrete post-effectiveness events, with prior ephemeral verification gates explicitly excluded. (5) **Operator-selected expiration rejected**, with owner early-revocation preserved. (6) **Expiration rule re-bound to the body hash.** The first cut of this amendment restated the §14 rule under the key `expires_on`, which `apply_exclusions` blanks *by key name* — silently removing the rule itself from hash coverage while §17 asserted it "remains hashed". Measured before owner approval: mutating §14 from 336 to 672 hours left the authorization identity byte-identical. §14 now states the rule as `expiration_rule`; the verifier pins its value and refuses any expiration rule stated under an excluded key; §17 now describes exclusion-by-key-name accurately. A regression test asserts the rule reaches the hashed bytes, and a further test asserts the governed document and the verifier fixture are byte-identical. **No authorization became effective and no governed stage was invoked**; the prior identity `c7eb9737…` is `OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS`, not REFUSED. |
 
 *End of ADR0043-LIVE-CANARY-WS5-SUCCESSOR-START-001 (DRAFT — NOT EFFECTIVE — NOT INVOKED).*

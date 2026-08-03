@@ -281,11 +281,18 @@ NORMATIVE_EXCLUSIONS = ("authorization_sha", "expires_on")
 
 
 def _check_expiration_statements(body: str) -> None:
-    """Every expiration statement must be the exact-duration rule.
+    """Every expiration statement must be the exact-duration rule, and hashed.
 
     The prior rule was deterministic but granted up to ~24h beyond the intended
     336-hour maximum, so end-of-day and calendar-day forms are refused here.
+
+    The rule must also be stated under a key that survives `apply_exclusions`.
+    Exclusion is by key name, so a rule written as ``expires_on = ...`` inside
+    sections 1-16 is blanked before hashing and the rule becomes unbound while
+    the document still claims it is hashed. That defect was caught in review of
+    the first cut of amendment-1; this refuses its reintroduction.
     """
+    saw_hashed_rule = False
     for line in body.split("\n"):
         low = line.lower()
         is_expiry_field = (
@@ -300,6 +307,27 @@ def _check_expiration_statements(body: str) -> None:
                 raise ContractError(
                     f"expiration field contains forbidden term {bad!r}: {line.strip()!r}"
                 )
+        stated = re.match(r"^\s*expiration_rule\s*=\s*(.*?)\s*$", line)
+        if stated:
+            saw_hashed_rule = True
+            if stated.group(1) != EXPIRATION_RULE:
+                raise ContractError(
+                    f"expiration_rule must be {EXPIRATION_RULE!r}, "
+                    f"got {stated.group(1)!r}"
+                )
+        if re.match(r"^\s*expires_on\s*=", line) and re.search(
+            r"\bhours?\b|\bdays?\b", low
+        ):
+            raise ContractError(
+                "an expiration rule is stated under the excluded key 'expires_on', "
+                "which is blanked before hashing; state it as 'expiration_rule' so "
+                f"it is bound by the body hash: {line.strip()!r}"
+            )
+    if not saw_hashed_rule:
+        raise ContractError(
+            "sections 1-16 state no hashed 'expiration_rule'; the expiration rule "
+            "must be bound by the body hash"
+        )
     if "336 hours exactly" not in body:
         raise ContractError(
             "the exact-duration expiration rule (336 hours exactly) is absent"
