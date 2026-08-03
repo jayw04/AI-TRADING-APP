@@ -170,8 +170,8 @@ BOUND_SCALARS = [
     ),
     (
         "expiration_rule",
-        "authorization_effective_at + 14 calendar days",
-        "authorization_effective_at + 30 calendar days",
+        "authorization_effective_at + 336 hours exactly",
+        "authorization_effective_at + 672 hours exactly",
     ),
     ("effectiveness_precondition", "owner approval + merge to main", "merge to main only"),
     (
@@ -476,3 +476,180 @@ def test_dispatch_without_credential_fingerprint_is_refused(V, tmp_path):
     p, digest = _seal(tmp_path, rec)
     with pytest.raises(V.ContractError, match="without a credential fingerprint"):
         V.verify_evidence_file(p, exit_code=0, evidence_file_sha256=digest)
+
+
+# ---------------------------------------------------------------- amendment-1: exact expiration
+
+
+EXPIRY_ANCHORS = [
+    ("s4a", "`expires_on` is `effective_at + 336 hours exactly` (§14)"),
+    ("s4c", "expiration_rule              = authorization_effective_at + 336 hours exactly"),
+    ("s14", "expiration_rule            = authorization_effective_at + 336 hours exactly"),
+    ("s18", "expires_on                   = <effective_at + 336 hours exactly, §14>"),
+]
+
+
+@pytest.mark.parametrize("where,text", EXPIRY_ANCHORS, ids=[a[0] for a in EXPIRY_ANCHORS])
+def test_all_four_expiration_locations_state_the_exact_rule(doc, where, text):
+    assert text in doc, f"{where} does not state the exact-duration rule"
+
+
+def test_utc_is_authoritative_and_no_end_of_day(V, doc, tmp_path):
+    assert "UTC timestamps are authoritative" in doc
+    assert "No end-of-day rounding or extension is permitted" in doc
+    V.compute_identity(_write(tmp_path, doc))  # must verify clean
+
+
+@pytest.mark.parametrize(
+    "bad",
+    ["ending 23:59:59 America/Chicago", "end of day", "14 calendar days", "America/Chicago"],
+)
+def test_end_of_day_forms_are_rejected_in_expiration_fields(V, doc, tmp_path, bad):
+    mutated = doc.replace(
+        "expiration_rule              = authorization_effective_at + 336 hours exactly",
+        f"expiration_rule              = authorization_effective_at + {bad}",
+    )
+    assert mutated != doc
+    with pytest.raises(V.ContractError):
+        V.compute_identity(_write(tmp_path, mutated))
+
+
+def test_historical_prior_ceiling_reference_remains_valid(V, doc, tmp_path):
+    """The prior authorization's Chicago deadline is a factual reference, not a rule.
+
+    It must not false-positive against the expiration-field scan.
+    """
+    assert "2026-08-16T23:59:59 America/Chicago" in doc
+    V.compute_identity(_write(tmp_path, doc))  # still verifies
+
+
+def test_expiration_rule_is_bound_in_the_manifest(V, doc, tmp_path):
+    base = V.compute_identity(_write(tmp_path, doc))["binding_manifest_sha256"]
+    mutated = doc.replace(
+        "expiration_rule              = authorization_effective_at + 336 hours exactly",
+        "expiration_rule              = authorization_effective_at + 672 hours exactly",
+    )
+    try:
+        after = V.compute_identity(_write(tmp_path, mutated))["binding_manifest_sha256"]
+    except V.ContractError:
+        return  # refused outright
+    assert after != base
+
+
+# ---------------------------------------------------------------- amendment-1: stated exclusions
+
+
+def test_stated_exclusions_equal_the_verifier_exclusion_set(V, doc):
+    """Finding 8: the document must not contradict its own enforcement mechanism."""
+    s17 = doc.split("## 17.")[1].split("## 18.")[0]
+    for name in V.NORMATIVE_EXCLUSIONS:
+        assert name in s17, f"section 17 omits exclusion {name}"
+    assert "not** excluded" in s17, "section 17 must state database_identity is NOT excluded"
+
+
+def test_reintroducing_the_stale_exclusion_claim_is_refused(V, doc, tmp_path):
+    mutated = doc.replace(
+        "`database_identity` is **not** excluded",
+        "`database_identity` is excluded",
+    )
+    assert mutated != doc
+    with pytest.raises(V.ContractError):
+        V.compute_identity(_write(tmp_path, mutated))
+
+
+# ---------------------------------------------------------------- amendment-1: states and closure
+
+
+@pytest.mark.parametrize(
+    "clause",
+    [
+        "OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS",
+        "consumes refusal count         = no",
+        "two consecutive pre-effectiveness owner-approval withdrawals",
+        "may not select, shorten, extend, round, or otherwise redefine",
+        "early revocation ends authority",
+        "closes at the first occurrence of any listed closure event",
+        "under this effective successor authorization",
+        "Prior ephemeral image-verification gates do not constitute a closure event",
+    ],
+)
+def test_amendment_clauses_present_and_required(V, doc, tmp_path, clause):
+    assert clause in doc, f"amended clause absent: {clause}"
+    mutated = doc.replace(clause, "REMOVED")
+    with pytest.raises(V.ContractError):
+        V.compute_identity(_write(tmp_path, mutated))
+
+
+def test_withdrawal_state_is_not_a_refusal(doc):
+    s14 = doc.split("## 14.")[1].split("## 15.")[0]
+    assert "counts as REFUSED              = no" in s14
+    assert "consumes refusal count         = no" in s14
+
+
+def test_replacement_closure_lists_all_six_events(doc):
+    s16 = doc.split("## 16.")[1].split("## 17.")[0]
+    for event in (
+        "credential attached",
+        "container created",
+        "database created",
+        "migration executed",
+        "broker request dispatched",
+        "image executed",
+    ):
+        assert event in s16, f"closure event missing: {event}"
+
+
+# ------------------------------------------- amendment-1: the rule must actually be hashed
+#
+# Regression. The first cut of amendment-1 restated the section-14 rule under the
+# key `expires_on`, which `apply_exclusions` blanks by key name. The rule left
+# hash coverage entirely — mutating 336 to 672 hours produced a byte-identical
+# authorization identity — while section 17 asserted it "remains hashed".
+
+
+def test_the_expiration_rule_reaches_the_hashed_bytes(V, doc):
+    hashed = V.canonicalize(V.apply_exclusions(V.extract_body(doc))).decode("utf-8")
+    for anchor in (
+        "expiration_rule              = authorization_effective_at + 336 hours exactly",
+        "expiration_rule            = authorization_effective_at + 336 hours exactly",
+    ):
+        assert anchor in hashed, f"expiration rule absent from hashed bytes: {anchor!r}"
+
+
+def test_mutating_the_section_14_rule_cannot_leave_the_identity_unchanged(V, doc, tmp_path):
+    base = V.compute_identity(_write(tmp_path, doc))["authorization_sha256"]
+    mutated = doc.replace(
+        "expiration_rule            = authorization_effective_at + 336 hours exactly",
+        "expiration_rule            = authorization_effective_at + 672 hours exactly",
+    )
+    assert mutated != doc
+    try:
+        after = V.compute_identity(_write(tmp_path, mutated))["authorization_sha256"]
+    except V.ContractError:
+        return  # refused outright, which is stronger
+    assert after != base, "section-14 expiration rule is not bound by the identity"
+
+
+def test_stating_the_rule_under_the_excluded_key_is_refused(V, doc, tmp_path):
+    mutated = doc.replace(
+        "expiration_rule            = authorization_effective_at + 336 hours exactly",
+        "expires_on                 = authorization_effective_at + 336 hours exactly",
+    )
+    assert mutated != doc
+    with pytest.raises(V.ContractError, match="excluded key"):
+        V.compute_identity(_write(tmp_path, mutated))
+
+
+def test_removing_every_hashed_rule_statement_is_refused(V, doc, tmp_path):
+    mutated = doc.replace("expiration_rule", "expiry_note")
+    assert mutated != doc
+    with pytest.raises(V.ContractError):
+        V.compute_identity(_write(tmp_path, mutated))
+
+
+def test_governed_document_and_verifier_fixture_are_byte_identical():
+    """The fixture *is* the authorization. If they drift, every digest reviewed
+    against the fixture describes a document that is not the governed one."""
+    if not _DOCUMENT.exists():
+        pytest.skip("governed document not present")
+    assert _DOCUMENT.read_bytes() == (_FIXTURES / "valid_authorization.md").read_bytes()

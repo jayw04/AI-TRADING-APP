@@ -78,6 +78,19 @@ CREDENTIAL_KEY_FP = "ffab8796516a"
 CREDENTIAL_SECRET_FP = "c2cab6509f1b"
 PLATFORM = "linux/arm64"
 
+EXPIRATION_RULE = "authorization_effective_at + 336 hours exactly"
+
+#: Terms that must never appear in an expiration-rule field. Scoped to those fields
+#: only: the historical reference to the PRIOR authorization's Chicago ceiling is
+#: legitimate and must not false-positive.
+EXPIRATION_FORBIDDEN = (
+    "ending 23:59:59",
+    "end of day",
+    "calendar day",
+    "calendar days",
+    "America/Chicago",
+)
+
 EVIDENCE_DIR = "/var/lib/adr0043-ws5/evidence"
 RESERVED_DB_PATH = "/var/lib/adr0043-ws5/workbench.sqlite"
 
@@ -111,6 +124,16 @@ REQUIRED_CLAUSES = {
     "reserved_db_uncreated": r"RESERVED_PATH_NOT_CREATED",
     "stage_c_override": r"python -m app\.brokers\.adr0043_reconcile",
     "default_cmd_never_runs": r"default (image )?`?Cmd`?[^\n]*(never|must not)",
+    "utc_authoritative": r"UTC timestamps are authoritative",
+    "no_end_of_day": r"No end-of-day rounding or extension is permitted",
+    "withdrawal_state": r"OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS",
+    "withdrawal_not_refusal": r"consumes refusal count\s*=\s*no",
+    "two_withdrawal_review": r"two consecutive pre-effectiveness owner-approval withdrawals",
+    "operator_cannot_choose_expiry": r"may not select, shorten, extend, round, or otherwise redefine",
+    "owner_revocation_preserved": r"early revocation ends authority",
+    "closure_first_event": r"closes at the first occurrence of any listed closure event",
+    "closure_under_this_authorization": r"under this effective successor authorization",
+    "ephemeral_not_closure": r"Prior ephemeral image-verification gates do not constitute a closure event",
 }
 
 # --- Stage-C evidence contract ----------------------------------------------
@@ -240,6 +263,11 @@ def check_authorization_structure(text: str, body: str) -> None:
         ):
             raise ContractError("image index digest is described as deployable")
 
+    _check_expiration_statements(body)
+    # Section 17 sits OUTSIDE sections 1-16, so it must be read from the full
+    # document. Reading it from `body` silently no-opped this check.
+    _check_stated_exclusions(text)
+
 
 #: Excluded from the NORMATIVE body hash only because they are self-referential or
 #: do not exist at freeze time. Everything else operational is bound by the
@@ -250,6 +278,80 @@ def check_authorization_structure(text: str, body: str) -> None:
 #: In the successor both are fixed known values, so excluding them would leave the
 #: published identity not binding them. They are NOT excluded here.
 NORMATIVE_EXCLUSIONS = ("authorization_sha", "expires_on")
+
+
+def _check_expiration_statements(body: str) -> None:
+    """Every expiration statement must be the exact-duration rule, and hashed.
+
+    The prior rule was deterministic but granted up to ~24h beyond the intended
+    336-hour maximum, so end-of-day and calendar-day forms are refused here.
+
+    The rule must also be stated under a key that survives `apply_exclusions`.
+    Exclusion is by key name, so a rule written as ``expires_on = ...`` inside
+    sections 1-16 is blanked before hashing and the rule becomes unbound while
+    the document still claims it is hashed. That defect was caught in review of
+    the first cut of amendment-1; this refuses its reintroduction.
+    """
+    saw_hashed_rule = False
+    for line in body.split("\n"):
+        low = line.lower()
+        is_expiry_field = (
+            "expiration_rule" in low
+            or "expires_on" in low
+            or "absolute_expiration" in low
+        )
+        if not is_expiry_field:
+            continue
+        for bad in EXPIRATION_FORBIDDEN:
+            if bad.lower() in low:
+                raise ContractError(
+                    f"expiration field contains forbidden term {bad!r}: {line.strip()!r}"
+                )
+        stated = re.match(r"^\s*expiration_rule\s*=\s*(.*?)\s*$", line)
+        if stated:
+            saw_hashed_rule = True
+            if stated.group(1) != EXPIRATION_RULE:
+                raise ContractError(
+                    f"expiration_rule must be {EXPIRATION_RULE!r}, "
+                    f"got {stated.group(1)!r}"
+                )
+        if re.match(r"^\s*expires_on\s*=", line) and re.search(
+            r"\bhours?\b|\bdays?\b", low
+        ):
+            raise ContractError(
+                "an expiration rule is stated under the excluded key 'expires_on', "
+                "which is blanked before hashing; state it as 'expiration_rule' so "
+                f"it is bound by the body hash: {line.strip()!r}"
+            )
+    if not saw_hashed_rule:
+        raise ContractError(
+            "sections 1-16 state no hashed 'expiration_rule'; the expiration rule "
+            "must be bound by the body hash"
+        )
+    if "336 hours exactly" not in body:
+        raise ContractError(
+            "the exact-duration expiration rule (336 hours exactly) is absent"
+        )
+
+
+def _check_stated_exclusions(text: str) -> None:
+    """The document's stated exclusions must equal the verifier's actual set.
+
+    Finding 8 of the pre-effectiveness sweep: the document claimed
+    database_identity was excluded while the verifier bound it. A document that
+    contradicts its own enforcement mechanism is a defect even when the verifier
+    is authoritative.
+    """
+    if "## 17." not in text:
+        raise ContractError("section 17 (hash computation) is absent")
+    section = text.split("## 17.", 1)[1].split("## 18.", 1)[0]
+    for name in NORMATIVE_EXCLUSIONS:
+        if name not in section:
+            raise ContractError(f"section 17 does not state exclusion {name!r}")
+    if "database_identity" in section and "not** excluded" not in section:
+        raise ContractError(
+            "section 17 still describes database_identity as excluded; it is bound by the manifest"
+        )
 
 
 def apply_exclusions(body: str) -> str:
@@ -379,6 +481,7 @@ def _check_binding_values(b: dict[str, str]) -> None:
         "alpaca_startup_enabled": "false",
         "container_restart_policy": "no",
         "initial_database_state": "RESERVED_PATH_NOT_CREATED",
+        "expiration_rule": EXPIRATION_RULE,
     }
     for key, want in expected.items():
         if b[key] != want:

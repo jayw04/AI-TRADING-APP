@@ -99,7 +99,7 @@ resource_history            = CREATED_UNDER_REFUSED_AUTHORIZATION_THEN_EXPLICITL
 ```
 
 The successor `authorization_sha` tag value is applied additively at Stage A and equals the
-authorization identity recorded in §18. `expires_on` is `effective_at + 14d` (§14).
+authorization identity recorded in §18. `expires_on` is `effective_at + 336 hours exactly` (§14).
 
 Successor tags are **additive**. The origin `authorization_sha` tag value is retained in the
 resource-history record so a reviewer can reconstruct which authorization created each resource.
@@ -180,7 +180,7 @@ scheduler_enabled            = false
 alpaca_startup_enabled       = false
 container_restart_policy     = no
 permitted_endpoints          = GET /v2/account | GET /v2/positions | GET /v2/orders | GET /v2/account/activities
-expiration_rule              = authorization_effective_at + 14 calendar days ending 23:59:59 America/Chicago
+expiration_rule              = authorization_effective_at + 336 hours exactly
 effectiveness_precondition   = owner approval + merge to main + independent hash recomputation + merge SHA recorded
 ```
 
@@ -341,8 +341,18 @@ destination path. `mutation_attempt_count` must be `0` in every record.
 ## 14. Expiration, clock disclosure and anti-laundering
 
 ```
-absolute_expiration = authorization_effective_at + 14 calendar days, ending 23:59:59 America/Chicago
+authorization_effective_at = authoritative GitHub merged_at timestamp of the effectiveness-trigger PR
+expiration_rule            = authorization_effective_at + 336 hours exactly
 ```
+
+UTC timestamps are authoritative. Local-time renderings are informational only. No end-of-day rounding or extension is permitted.
+
+The rule is stated under the key `expiration_rule`, deliberately not under `expires_on`. Exclusion from
+the body hash is applied **by key name** (§17), so a rule written as `expires_on = …` inside sections
+1–16 would be blanked before hashing and the rule itself would become unbound. `expiration_rule` is
+hashed here and in §4C, and its value is additionally pinned by the verifier. `expires_on` names only
+the *concrete* timestamp, which does not exist at freeze time and is derived mechanically from this
+rule at effectiveness and recorded in §18.
 
 **Fresh-clock disclosure.** This is a new authorization governing a new broker account, a new source
 commit, a new deployable image and explicit adoption of unused resources after a terminal REFUSED
@@ -358,6 +368,22 @@ workstream, no third successor authorization may be drafted without a broader ar
 governance review. For counting: the original WS5 authorization is refusal 1; this document is
 attempt 2. `INCONCLUSIVE` does not automatically consume a refusal count, but repeated inconclusive
 attempts require owner adjudication before retry.
+
+**Pre-effectiveness withdrawal.** A distinct state exists for an authorization that the owner approved
+and then withdrew before it became effective:
+
+```
+OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS
+  authorization became effective = no
+  governed stage invoked         = no
+  counts as REFUSED              = no
+  consumes refusal count         = no
+```
+
+It is not a refusal, because nothing became effective and no governed stage was invoked. To prevent it
+becoming a loophole parallel to repeated refusal: two consecutive pre-effectiveness owner-approval withdrawals caused by substantive authorization defects require broader architecture and governance review before another effectiveness trigger may be proposed. Purely administrative withdrawal — such as closing a duplicate PR without changing the authorization — does not count.
+
+**Expiration is fixed by identity, not chosen by an operator.** The effectiveness completion record may not select, shorten, extend, round, or otherwise redefine `expires_on`. It must mechanically derive the timestamp from the frozen authorization rule. This restriction does not prevent the owner from explicitly revoking or terminating authorization early through a separately governed revocation record; early revocation ends authority but does not redefine the originally frozen expiration rule.
 
 ## 15. Stage model
 
@@ -414,7 +440,18 @@ It requires a reviewed and merged source commit, fully green CI, a new immutable
 owner-approved replacement record, permanent **retirement (not deletion)** of the prior digest, and
 preservation of every prior binding.
 
-Once Stage-B operational exposure begins, replacement is closed.
+Controlled artifact replacement closes at the first occurrence of any listed closure event performed under this effective successor authorization:
+
+```
+1. successor credential attached to the governed WS5 runtime
+2. persistent or Stage-C container created from the authorized image
+3. successor database created
+4. successor migration executed
+5. broker request dispatched from WS5
+6. authorized image executed on WS5 as Stage B/C operational activity
+```
+
+The qualifier "under this effective successor authorization" is load-bearing. Prior ephemeral image-verification gates do not constitute a closure event: they ran before effectiveness, used no credential, created no persistent container, and were not Stage B or Stage C activity. After any listed event occurs, replacement is closed.
 
 **Stage regression.** A recoverable Stage-C packaging or evidence-write failure seals the failed
 attempt and may **return to Stage B**. Each attempt receives its own run ID and sealed result;
@@ -432,11 +469,19 @@ Regression is **not** available for the following, which are REFUSED, or `INCONC
 `authorization_body_sha256` = SHA-256 over the canonical UTF-8 bytes of sections **1–16**, excluding
 only values unknowable until effectiveness or runtime:
 
-- the `authorization_sha` tag value (§4A);
-- the concrete `expires_on` value (§4A) and `absolute_expiration` timestamp (§14) — the formula remains hashed;
-- the runtime-created `database_identity` value (§4A);
-- `successor_authorization_sha` (self-referential);
-- ruling/status metadata and the §19 document-control history.
+```
+normative exclusions = authorization_sha
+                       expires_on
+```
+
+Only those two. `authorization_sha` is self-referential; the concrete `expires_on` does not exist until
+effectiveness. Exclusion is applied **by key name**: any `expires_on = …` line inside sections 1–16 is
+blanked before hashing, whatever it says. The expiration **rule** is therefore stated under the distinct
+key `expiration_rule` (§4C and §14) and remains hashed; the verifier additionally pins its value and
+refuses any expiration rule stated under the excluded key. `database_identity` is **not** excluded — it is a
+fixed known value bound by the §4C manifest, and any statement to the contrary is a defect. Ruling and
+status metadata and the §19 history sit outside sections 1–16 and are therefore outside the body hash
+by construction rather than by exclusion.
 
 **Canonicalization.** Extract `## 1.` up to `## 17.`; replace each excluded scalar's value with
 `<EXCLUDED>`; normalize line endings to `\n`; strip trailing whitespace per line; drop trailing blank
@@ -454,7 +499,7 @@ authorization_body_sha256    = <recorded at owner approval over the frozen body>
 successor_authorization_sha  = <same value, once frozen>
 authorization_merge_sha      = <recorded at the effective merge>
 authorization_effective_at   = <recorded at the effective merge>
-absolute_expiration          = <effective_at + 14d, §14>
+expires_on                   = <effective_at + 336 hours exactly, §14>
 ```
 
 Effectiveness requires: owner approval over the frozen body; merge to `main`; independent
@@ -466,5 +511,6 @@ does not invoke any stage — Stage A requires its own explicit invocation.
 | Rev | Date | Change |
 |-----|------|--------|
 | draft | 2026-08-03 | Initial draft against the tested structural contract. Verifier and fixtures written first; the document was drafted to satisfy an already-failing test suite. **NOT EFFECTIVE — NOT INVOKED.** |
+| amendment-1 | 2026-08-03 | **Consolidated pre-effectiveness amendment.** (1) **Expiration made exact.** The prior rule was deterministic but could extend authority by up to approximately 24 hours beyond the intended 336-hour maximum. The practical risk was limited for this read-only workflow, but the rule was corrected before effectiveness because this was the last low-cost opportunity to establish an exact-duration authorization window. All four statements of the rule (§4A, §4C, §14, §18) now read `authorization_effective_at + 336 hours exactly`, with UTC authoritative and local renderings informational. (2) **Stale §17 exclusion statement corrected** — the document claimed `database_identity` was excluded from the hash, contradicting its own verifier, whose exclusion set is `{authorization_sha, expires_on}`; `database_identity` is bound by the §4C manifest. Discovered during the pre-effectiveness sweep. (3) **`OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS` added** — not a refusal, does not consume a refusal count; two consecutive such withdrawals for substantive defects force broader review. (4) **Replacement closure defined** as the first of six discrete post-effectiveness events, with prior ephemeral verification gates explicitly excluded. (5) **Operator-selected expiration rejected**, with owner early-revocation preserved. (6) **Expiration rule re-bound to the body hash.** The first cut of this amendment restated the §14 rule under the key `expires_on`, which `apply_exclusions` blanks *by key name* — silently removing the rule itself from hash coverage while §17 asserted it "remains hashed". Measured before owner approval: mutating §14 from 336 to 672 hours left the authorization identity byte-identical. §14 now states the rule as `expiration_rule`; the verifier pins its value and refuses any expiration rule stated under an excluded key; §17 now describes exclusion-by-key-name accurately. A regression test asserts the rule reaches the hashed bytes, and a further test asserts the governed document and the verifier fixture are byte-identical. **No authorization became effective and no governed stage was invoked**; the prior identity `c7eb9737…` is `OWNER_APPROVAL_WITHDRAWN_BEFORE_EFFECTIVENESS`, not REFUSED. |
 
 *End of ADR0043-LIVE-CANARY-WS5-SUCCESSOR-START-001 (DRAFT — NOT EFFECTIVE — NOT INVOKED).*
