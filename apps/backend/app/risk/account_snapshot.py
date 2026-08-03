@@ -17,6 +17,21 @@ So:
 Both are broker-issued timestamps, so they are comparable without trusting our own clock. If
 ``broker_cursor < observed_cursor`` the read is behind us: ``INDETERMINATE`` → ``FAIL_CLOSED``.
 
+A broker read containing **no order events** has no timestamp to offer. That is the normal
+state of a settled account — positions held, nothing in flight — and it is NOT evidence of
+staleness. Never substitute a non-temporal identifier (an account id) for the missing stamp:
+it is not a point in time, and it makes every settled account permanently stale. The four
+states the gate must distinguish:
+
+===========================  ==========================  =====================
+broker open orders           local in-flight orders      verdict
+===========================  ==========================  =====================
+none                         none                        causally complete
+none                         present                     ``SNAPSHOT_STALE``
+present, no usable stamp     —                           ``SNAPSHOT_INCOMPLETE``
+stamped, < observed_cursor   —                           ``SNAPSHOT_STALE``
+===========================  ==========================  =====================
+
 A cached positions object is never sufficient here, regardless of nominal age. This module
 always performs a live broker read, initiated for the decision at hand.
 """
@@ -144,10 +159,12 @@ async def fetch_snapshot(
             )
         )
 
-    broker_cursor = max((_event_time(o) for o in broker_orders), default="") or str(
-        acct.get("id", "")
-    )
+    # A broker-issued TIMESTAMP or nothing. NEVER fall back to a non-temporal identifier such
+    # as the account id: it is not a point in time, and a UUID beginning with a digit below
+    # "2" sorts before every ISO timestamp, which silently marks every settled account stale.
+    broker_cursor = max((_event_time(o) for o in broker_orders), default="") or None
     observed_cursor = await _observed_cursor(session, account_id)
+    observed_inflight_cursor = await _observed_inflight_cursor(session, account_id)
 
     return AccountSnapshot(
         account_id=account_id,
@@ -155,8 +172,9 @@ async def fetch_snapshot(
         open_orders=open_orders,
         cash=_dec(acct.get("cash")),
         equity=_dec(acct.get("equity")),
-        broker_cursor=broker_cursor or None,
+        broker_cursor=broker_cursor,
         observed_cursor=observed_cursor,
+        observed_inflight_cursor=observed_inflight_cursor,
         complete=True,
         reserved_reducing_qty=reserved_reducing_qty or {},
         absorbed_reserved_fill_qty=absorbed_reserved_fill_qty or {},
@@ -188,6 +206,45 @@ async def _observed_cursor(session: AsyncSession, account_id: int) -> str | None
             select(func.max(Fill.filled_at))
             .join(Order, Order.id == Fill.order_id)
             .where(Order.account_id == account_id)
+        )
+    ).scalar_one_or_none()
+
+    newest_order = (
+        await session.execute(
+            select(func.max(Order.updated_at)).where(
+                Order.account_id == account_id,
+                Order.status.notin_(TERMINAL_ORDER_STATUSES),
+            )
+        )
+    ).scalar_one_or_none()
+
+    stamps = [str(s) for s in (newest_fill, newest_order) if s is not None]
+    return max(stamps) if stamps else None
+
+
+async def _observed_inflight_cursor(session: AsyncSession, account_id: int) -> str | None:
+    """The newest broker-side event we have persisted that could STILL BE IN FLIGHT.
+
+    Used only when the broker read contains no open orders at all, where there is no broker
+    timestamp to compare against. The question there is not "is this read behind us" but
+    "do we and the broker agree that nothing is in flight".
+
+    Settled (terminal) fills are deliberately excluded HERE — and only here. Their economic
+    effect is already carried by the positions, cash and equity fetched live in this same
+    snapshot, so they are not evidence of a present disagreement. They remain in the ledger,
+    and they still count in ``_observed_cursor`` whenever a broker cursor exists to compare
+    against. Without this distinction an account that is flat of open orders but has ever
+    filled can never be classified again, which blocks the risk-REDUCING path exactly when a
+    locked account needs it (2026-07-27 incident).
+    """
+    newest_fill = (
+        await session.execute(
+            select(func.max(Fill.filled_at))
+            .join(Order, Order.id == Fill.order_id)
+            .where(
+                Order.account_id == account_id,
+                Order.status.notin_(TERMINAL_ORDER_STATUSES),
+            )
         )
     ).scalar_one_or_none()
 

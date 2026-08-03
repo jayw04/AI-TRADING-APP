@@ -124,10 +124,21 @@ class AccountSnapshot:
     open_orders: list[SnapshotOpenOrder]
     cash: Decimal
     equity: Decimal
-    # Broker cursor / sequence / reconciliation stamp — the causality anchor.
+    # Broker cursor / sequence / reconciliation stamp — the causality anchor. A broker-issued
+    # TIMESTAMP, or None when this broker read contained no order events to stamp. It is never
+    # a non-temporal identifier: an account id is not a point in time, and comparing one against
+    # a timestamp silently makes every settled account look stale.
     broker_cursor: str | None
     # Highest broker event we have already observed locally. The snapshot must be >= this.
+    # Used ONLY when `broker_cursor` exists, i.e. when there is something to compare against.
     observed_cursor: str | None = None
+    # Highest broker event we have observed locally that could STILL BE IN FLIGHT (an event on
+    # a non-terminal order). Used when the broker read shows no open orders at all: there is
+    # then no broker timestamp to compare, and the question is not "is the read behind us" but
+    # "does the broker agree that nothing is in flight". A settled historical fill is not
+    # evidence of in-flight disagreement — its economic effect is already carried by the freshly
+    # fetched positions and cash in THIS snapshot.
+    observed_inflight_cursor: str | None = None
     # Set False by the fetcher when the broker read failed or reconciliation was incomplete.
     complete: bool = True
     # Quantities already promised to other in-flight reducing decisions (§ D).
@@ -169,13 +180,33 @@ class AccountSnapshot:
         ).hexdigest()
 
     def is_causally_complete(self) -> tuple[bool, RiskEffectReason | None]:
+        """The § A check, stated as the four states it actually has to distinguish.
+
+        Both cursors are broker-issued timestamps, so the comparison never trusts our clock.
+        But a broker read that contains NO order events has no timestamp to offer, and the
+        absence of one is not itself evidence of staleness — it is the normal state of a
+        settled account holding positions and nothing in flight. That case is decided on
+        whether the two sides AGREE that nothing is in flight, not on a timestamp.
+        """
         if not self.complete:
             return False, RiskEffectReason.SNAPSHOT_INCOMPLETE
+
         if self.broker_cursor is None:
-            return False, RiskEffectReason.SNAPSHOT_INCOMPLETE
-        # Must be AT OR BEYOND every broker event already seen locally.
-        if self.observed_cursor is not None and self.broker_cursor < self.observed_cursor:
+            if self.open_orders:
+                # The broker HAS open orders but none of them carried a usable event stamp,
+                # so we cannot establish where this read sits at all.
+                return False, RiskEffectReason.SNAPSHOT_INCOMPLETE
+            if self.observed_inflight_cursor is not None:
+                # The broker says nothing is in flight; we locally believe something IS.
+                # That is a genuine disagreement about the present, not a settled account.
+                return False, RiskEffectReason.SNAPSHOT_STALE
+            # Broker flat, we are flat: there is no broker event for this read to be behind.
+        elif self.observed_cursor is not None and self.broker_cursor < self.observed_cursor:
+            # Both cursors present and comparable — must be AT OR BEYOND every broker event
+            # already seen locally, INCLUDING settled fills. A read that sits behind a fill we
+            # have recorded is not "a bit old"; it is a different account.
             return False, RiskEffectReason.SNAPSHOT_STALE
+
         if any(o.has_unresolved_partial_fill for o in self.open_orders):
             return False, RiskEffectReason.UNRESOLVED_PARTIAL_FILL
         return True, None
