@@ -61,24 +61,49 @@ Alpaca.
 ## Broker construction-site inventory
 
 Every site that builds a broker client or reaches an Alpaca host, with its
-disposition. **No site was silently rerouted** — rerouting the live order path
-would change behaviour on the paper box.
+disposition. Sites 1-4 are **gated, not rerouted**: their implementations are
+unchanged and still work under `trading` or an unset mode, but construction is
+refused in `read_only`/`disabled`. Nothing about the live paper box's behaviour
+changes until that deployment is deliberately migrated.
 
 | # | Site | Kind | Disposition |
 |---|---|---|---|
-| 1 | `app/lifespan.py:136` `AlpacaAdapter()` | trading-capable | **Left as-is.** Live paper-box startup path. Retrofitting the gate here would break an authorised trading path on next deploy. Adjudication required before rerouting. |
-| 2 | `app/orders/router.py:587` `_resolve_adapter` | trading-capable | **Left as-is.** OrderRouter's per-account resolution; already governed by ADR 0002 `_router_token` and the risk engine. |
-| 3 | `app/brokers/registry.py` `BrokerRegistry` | resolver | **Left as-is.** Feeds sites 1–2. |
-| 4 | `app/brokers/alpaca/streaming.py` `TradeUpdatesStream` | read stream | **Left as-is.** Consumes fills; submits nothing. |
+| 1 | `app/lifespan.py:136` `AlpacaAdapter()` | trading-capable | **GATED.** `AlpacaAdapter.__init__` calls `assert_legacy_construction_allowed` before resolving credentials. |
+| 2 | `app/orders/router.py:587` `_resolve_adapter` | trading-capable | **GATED transitively** — it returns adapters, and no adapter can be constructed in `read_only`/`disabled`. |
+| 3 | `app/brokers/registry.py` `BrokerRegistry` | resolver | **GATED transitively** — it builds `AlpacaAdapter`. |
+| 4 | `app/brokers/alpaca/streaming.py` `TradeUpdatesStream` | trade-updates stream | **GATED** at both `__init__` and `start()`. |
 | 5 | `app/services/bar_stream_adapter_alpaca.py:48` `StockDataStream(` | market data | **Out of scope.** `data.alpaca.markets`, not a trading host; no order surface. |
 | 6 | `app/market_data/**` (`BarCache`) | market data HTTP | **Out of scope.** Market-data host only. |
 | 7 | `scripts/adr0043_scoped_sync.py:629` `AlpacaAdapter(credentials=creds)` | trading-capable | **Operator script, not app runtime.** Not reachable from a WS5 image; flagged for adjudication if ever run against a governed runtime. |
 | 8 | `scripts/adr0043_session_open.py:508` `AlpacaAdapter(creds)` | trading-capable | Same as #7. |
 | 9 | `app/brokers/factory.py` `get_broker_client` | **governed** | The new boundary. The only site a successor WS5 image uses. |
 
-Sites 1–4 and 7–8 remain trading-capable by construction. They are **not**
-governed by `broker_access_mode`; they retain their existing ADR 0002 controls.
-That is a deliberate, disclosed limitation of this PR, not an oversight.
+Sites 1–4 now honour `broker_access_mode`. Sites 7–8 are operator scripts that
+run outside the application image and are unreachable from a WS5 runtime; they
+remain trading-capable and are flagged for adjudication if ever pointed at a
+governed runtime.
+
+### The legacy construction gate is tri-state, deliberately
+
+```
+unset ("")   -> ALLOWED   a deployment that never opted in is unchanged;
+                          a missing setting must not silently disarm the
+                          live paper box
+"trading"    -> ALLOWED   the existing ADR 0002 router-token path operates
+                          under its own controls
+"read_only"  -> DENIED    the successor WS5 posture
+"disabled"   -> DENIED    explicitly configured off
+```
+
+`parse_access_mode` still maps `""` to `DISABLED` for the *governed factory*,
+while an unset value leaves *legacy* construction untouched. Those are two
+different questions and are answered separately on purpose.
+
+**Scope of the guarantee.** "Missing configuration fails closed" applies to the
+governed factory. It does **not** mean an unconfigured deployment has all broker
+paths disabled — an unset mode deliberately preserves the legacy path. Only an
+explicit `read_only`/`disabled` makes the governed wrapper the sole reachable
+authenticated broker path.
 
 ## Configuration a successor WS5 image will use
 

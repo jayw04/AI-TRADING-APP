@@ -35,6 +35,7 @@ from typing import Any
 import structlog
 
 from app.brokers.alpaca.credentials import AlpacaCredentials
+from app.brokers.policy import assert_legacy_construction_allowed
 from app.events.bus import EventBus
 
 logger = structlog.get_logger(__name__)
@@ -59,6 +60,7 @@ class TradeUpdatesStream:
         credentials: AlpacaCredentials,
         bus: EventBus,
     ) -> None:
+        assert_legacy_construction_allowed("TradeUpdatesStream.__init__")
         self._creds = credentials
         self._bus = bus
         self._stream: Any = None  # alpaca.trading.stream.TradingStream
@@ -93,6 +95,7 @@ class TradeUpdatesStream:
             logger.debug("trade_updates_stream_already_started")
             return
 
+        assert_legacy_construction_allowed("TradeUpdatesStream.start")
         from alpaca.trading.stream import TradingStream
 
         self._stream = TradingStream(
@@ -160,7 +163,7 @@ class TradeUpdatesStream:
             connected_at = time.monotonic()
             try:
                 await self._stream._start_ws()  # connect + auth + subscribe
-                await self._stream._consume()   # receive until stop (clean) or error (raises)
+                await self._stream._consume()  # receive until stop (clean) or error (raises)
             except asyncio.CancelledError:
                 logger.info("trade_updates_stream_cancelled")
                 raise
@@ -262,9 +265,7 @@ def _normalize_trade_update(data: Any) -> dict[str, Any]:
     return {
         "event": raw.get("event"),
         "broker_order_id": (order.get("id") if isinstance(order, dict) else None),
-        "client_order_id": (
-            order.get("client_order_id") if isinstance(order, dict) else None
-        ),
+        "client_order_id": (order.get("client_order_id") if isinstance(order, dict) else None),
         "symbol": (order.get("symbol") if isinstance(order, dict) else None),
         "side": (order.get("side") if isinstance(order, dict) else None),
         "order_status": (order.get("status") if isinstance(order, dict) else None),

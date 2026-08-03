@@ -183,3 +183,56 @@ def normalise_path(path: str) -> str:
             continue
         parts.append(seg)
     return "/" + "/".join(parts) if parts else "/"
+
+
+# ---------------------------------------------------------------------------
+# Legacy construction gate
+# ---------------------------------------------------------------------------
+#
+# A governed factory is not a boundary if the same process can import around it.
+# These helpers make the pre-existing trading-capable construction sites honour
+# ``broker_access_mode`` without disturbing deployments that predate it.
+#
+# The tri-state matters and is deliberate:
+#
+#   unset ("")   -> ALLOWED  — a deployment that never opted in keeps today's
+#                   behaviour. A missing setting must not silently disarm the
+#                   live paper box.
+#   "trading"    -> ALLOWED  — the existing ADR 0002 router-token path operates
+#                   under its own controls.
+#   "read_only"  -> DENIED   — the successor WS5 posture.
+#   "disabled"   -> DENIED   — explicitly configured off.
+#
+# So ``parse_access_mode`` still maps "" to DISABLED for the *governed* factory,
+# while an unset value leaves *legacy* construction untouched. The two questions
+# are different and are answered separately on purpose.
+
+
+def legacy_construction_allowed(raw_mode: str | None) -> bool:
+    """May a trading-capable client be constructed outside the governed factory?"""
+    if raw_mode is None or not str(raw_mode).strip():
+        return True  # not configured: legacy deployment, unchanged
+    return parse_access_mode(raw_mode) is BrokerAccessMode.TRADING
+
+
+def assert_legacy_construction_allowed(site: str, raw_mode: str | None = None) -> None:
+    """Raise unless this process may build an unrestricted broker client.
+
+    ``site`` names the construction point so a denial says which import was
+    blocked rather than merely that something failed.
+    """
+    if raw_mode is None:
+        try:
+            from app.config import get_settings
+
+            raw_mode = getattr(get_settings(), "broker_access_mode", "") or ""
+        except Exception:  # pragma: no cover - config unavailable (early import)
+            raw_mode = ""
+    if legacy_construction_allowed(raw_mode):
+        return
+    raise BrokerOperationDenied(
+        site,
+        parse_access_mode(raw_mode).value,
+        "unrestricted broker construction is prohibited outside the governed "
+        "factory in this mode; use app.brokers.factory.get_broker_client()",
+    )

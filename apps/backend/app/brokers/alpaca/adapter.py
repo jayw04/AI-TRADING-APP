@@ -14,6 +14,7 @@ import structlog
 
 from app.brokers.alpaca.credentials import AlpacaCredentials, load_credentials
 from app.brokers.alpaca.errors import classify
+from app.brokers.policy import assert_legacy_construction_allowed
 from app.observability import metrics as obs
 
 logger = structlog.get_logger(__name__)
@@ -34,6 +35,11 @@ class AlpacaAdapter:
     """
 
     def __init__(self, credentials: AlpacaCredentials | None = None) -> None:
+        # ADR 0043 WS5: refuse construction before credentials are resolved
+        # when the process is configured read_only/disabled. Checked here
+        # because this is the single choke point for lifespan startup, the
+        # BrokerRegistry, and OrderRouter adapter resolution.
+        assert_legacy_construction_allowed("AlpacaAdapter.__init__")
         self._creds = credentials or load_credentials()
         self._trading: Any = None  # alpaca.trading.client.TradingClient
         self._fractionable_cache: dict[str, bool] = {}  # symbol -> fractionable (rarely changes)
@@ -97,9 +103,7 @@ class AlpacaAdapter:
             account = self._client().get_account()
             return _to_dict(account)
         except Exception as exc:
-            obs.broker_api_errors_total.labels(
-                adapter="alpaca", operation="get_account"
-            ).inc()
+            obs.broker_api_errors_total.labels(adapter="alpaca", operation="get_account").inc()
             raise classify(exc) from exc
 
     def get_positions(self) -> list[dict[str, Any]]:
@@ -108,9 +112,7 @@ class AlpacaAdapter:
             positions = self._client().get_all_positions()
             return [_to_dict(p) for p in positions]
         except Exception as exc:
-            obs.broker_api_errors_total.labels(
-                adapter="alpaca", operation="get_positions"
-            ).inc()
+            obs.broker_api_errors_total.labels(adapter="alpaca", operation="get_positions").inc()
             raise classify(exc) from exc
 
     def list_assets(self, active_only: bool = True) -> list[dict[str, Any]]:
@@ -234,9 +236,7 @@ class AlpacaAdapter:
             out = self._client().submit_order(req)
             return _to_dict(out)
         except Exception as exc:
-            obs.broker_api_errors_total.labels(
-                adapter="alpaca", operation="submit_order"
-            ).inc()
+            obs.broker_api_errors_total.labels(adapter="alpaca", operation="submit_order").inc()
             raise classify(exc) from exc
 
     def cancel_order(
@@ -249,9 +249,7 @@ class AlpacaAdapter:
         try:
             self._client().cancel_order_by_id(broker_order_id)
         except Exception as exc:
-            obs.broker_api_errors_total.labels(
-                adapter="alpaca", operation="cancel_order"
-            ).inc()
+            obs.broker_api_errors_total.labels(adapter="alpaca", operation="cancel_order").inc()
             raise classify(exc) from exc
 
     def replace_order(
@@ -269,16 +267,12 @@ class AlpacaAdapter:
             # alpaca-py types qty as int and limit_price as float; cast at the boundary.
             req = ReplaceOrderRequest(
                 qty=int(new_qty) if new_qty is not None else None,
-                limit_price=float(new_limit_price)
-                if new_limit_price is not None
-                else None,
+                limit_price=float(new_limit_price) if new_limit_price is not None else None,
             )
             out = self._client().replace_order_by_id(broker_order_id, req)
             return _to_dict(out)
         except Exception as exc:
-            obs.broker_api_errors_total.labels(
-                adapter="alpaca", operation="replace_order"
-            ).inc()
+            obs.broker_api_errors_total.labels(adapter="alpaca", operation="replace_order").inc()
             raise classify(exc) from exc
 
     def _assert_router(self, token: str | None) -> None:
