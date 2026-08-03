@@ -241,8 +241,19 @@ def check_authorization_structure(text: str, body: str) -> None:
             raise ContractError("image index digest is described as deployable")
 
 
+#: Excluded from the NORMATIVE body hash only because they are self-referential or
+#: do not exist at freeze time. Everything else operational is bound by the
+#: binding manifest (§4C) and by the body itself.
+#:
+#: The prior authorization also excluded ``runtime_name`` and ``database_identity``
+#: because there they were derived-from-hash and named-after-creation respectively.
+#: In the successor both are fixed known values, so excluding them would leave the
+#: published identity not binding them. They are NOT excluded here.
+NORMATIVE_EXCLUSIONS = ("authorization_sha", "expires_on")
+
+
 def apply_exclusions(body: str) -> str:
-    for key in ("runtime_name", "authorization_sha", "expires_on", "database_identity"):
+    for key in NORMATIVE_EXCLUSIONS:
         body = re.sub(rf"(?m)^(\s*{re.escape(key)}\s*=\s*).*$", rf"\1{SENTINEL}", body)
     return body
 
@@ -254,11 +265,141 @@ def canonicalize(body: str) -> bytes:
     )
 
 
-def compute_authorization(path: str | Path) -> str:
+#: Every key the §4C manifest must define. Extraction is by key from the document;
+#: a missing or duplicated key is a contract violation, never a silent skip.
+BINDING_KEYS = (
+    "document_id",
+    "execution_mode",
+    "prior_authorization_sha",
+    "prior_disposition",
+    "runtime_instance",
+    "data_volume",
+    "security_group",
+    "iam_role",
+    "instance_profile",
+    "runtime_stack",
+    "evidence_stack",
+    "ecr_repository",
+    "evidence_bucket",
+    "runtime_name",
+    "broker_account_id",
+    "alpaca_account_id",
+    "credential_key_fingerprint",
+    "credential_secret_fingerprint",
+    "credential_name_prefix",
+    "authorized_source_commit",
+    "source_archive_sha256",
+    "source_object_version_id",
+    "dockerfile_sha256",
+    "image_manifest_digest",
+    "image_index_digest",
+    "image_config_digest",
+    "platform",
+    "evidence_directory",
+    "database_identity",
+    "reserved_database_path",
+    "initial_database_state",
+    "broker_access_mode",
+    "strategy_execution_enabled",
+    "scheduler_enabled",
+    "alpaca_startup_enabled",
+    "container_restart_policy",
+    "permitted_endpoints",
+    "expiration_rule",
+    "effectiveness_precondition",
+)
+
+
+def extract_bindings(body: str) -> dict[str, str]:
+    """Read every §4C binding value **from the document**.
+
+    Extraction rather than assertion is the whole point: a hardcoded expectation
+    proves the verifier's opinion, not the document's content. What is hashed is
+    what the document says.
+    """
+    section = _section(body, "### 4C.")
+    found: dict[str, str] = {}
+    for key in BINDING_KEYS:
+        matches = re.findall(rf"(?m)^{re.escape(key)}\s*=\s*(.+?)\s*$", section)
+        if not matches:
+            raise ContractError(f"binding manifest is missing required key {key!r}")
+        if len(matches) > 1:
+            raise ContractError(
+                f"binding manifest defines {key!r} {len(matches)} times"
+            )
+        found[key] = matches[0]
+    return found
+
+
+def binding_manifest_bytes(bindings: dict[str, str]) -> bytes:
+    """Deterministic, ordered serialization of the frozen bindings."""
+    return "\n".join(f"{k}={bindings[k]}" for k in BINDING_KEYS).encode("utf-8")
+
+
+def compute_identity(path: str | Path) -> dict[str, str]:
+    """Return the three digests that together form the authorization identity."""
     text = Path(path).read_text(encoding="utf-8")
     body = extract_body(text)
     check_authorization_structure(text, body)
-    return hashlib.sha256(canonicalize(apply_exclusions(body))).hexdigest()
+    bindings = extract_bindings(body)
+    _check_binding_values(bindings)
+    normative = hashlib.sha256(canonicalize(apply_exclusions(body))).hexdigest()
+    manifest = hashlib.sha256(binding_manifest_bytes(bindings)).hexdigest()
+    authorization = hashlib.sha256((normative + manifest).encode("utf-8")).hexdigest()
+    return {
+        "normative_body_sha256": normative,
+        "binding_manifest_sha256": manifest,
+        "authorization_sha256": authorization,
+    }
+
+
+def _check_binding_values(b: dict[str, str]) -> None:
+    """Refuse a manifest whose values are wrong, in addition to hashing them."""
+    expected = {
+        "document_id": DOCUMENT_ID,
+        "execution_mode": EXECUTION_MODE,
+        "prior_authorization_sha": PRIOR_AUTHORIZATION_SHA,
+        "prior_disposition": PRIOR_DISPOSITION,
+        "broker_account_id": BROKER_ACCOUNT_ID,
+        "alpaca_account_id": ALPACA_ACCOUNT_ID,
+        "credential_key_fingerprint": CREDENTIAL_KEY_FP,
+        "credential_secret_fingerprint": CREDENTIAL_SECRET_FP,
+        "authorized_source_commit": SOURCE_COMMIT,
+        "source_archive_sha256": SOURCE_ARCHIVE_SHA256,
+        "source_object_version_id": SOURCE_OBJECT_VERSION_ID,
+        "dockerfile_sha256": DOCKERFILE_SHA256,
+        "image_manifest_digest": IMAGE_MANIFEST_DIGEST,
+        "image_index_digest": IMAGE_INDEX_DIGEST,
+        "platform": PLATFORM,
+        "evidence_directory": EVIDENCE_DIR,
+        "reserved_database_path": RESERVED_DB_PATH,
+        "broker_access_mode": "read_only",
+        "strategy_execution_enabled": "false",
+        "scheduler_enabled": "false",
+        "alpaca_startup_enabled": "false",
+        "container_restart_policy": "no",
+        "initial_database_state": "RESERVED_PATH_NOT_CREATED",
+    }
+    for key, want in expected.items():
+        if b[key] != want:
+            raise ContractError(f"binding {key}={b[key]!r} must be {want!r}")
+    if b["image_manifest_digest"] == b["image_index_digest"]:
+        raise ContractError("deployable manifest digest equals the index digest")
+    if b["database_identity"] != f"{b['data_volume']} :: {b['reserved_database_path']}":
+        raise ContractError(
+            "database_identity is inconsistent with data_volume/reserved path"
+        )
+    if (
+        not b["evidence_directory"].startswith("/var/lib/adr0043-ws5/")
+        or b["evidence_directory"].rstrip("/") == "/var/lib/adr0043-ws5"
+    ):
+        raise ContractError(
+            "evidence_directory must be a subdirectory, not the volume root"
+        )
+
+
+def compute_authorization(path: str | Path) -> str:
+    return compute_identity(path)["authorization_sha256"]
 
 
 # ---------------------------------------------------------------------------
@@ -387,7 +528,13 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.mode == "authorization":
-            print(compute_authorization(args.document))
+            ids = compute_identity(args.document)
+            for k in (
+                "normative_body_sha256",
+                "binding_manifest_sha256",
+                "authorization_sha256",
+            ):
+                print(f"{k} = {ids[k]}")
         elif args.mode == "stage-c-evidence":
             rec = verify_evidence_file(
                 args.artifact,

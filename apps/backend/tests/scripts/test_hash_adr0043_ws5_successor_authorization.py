@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -64,10 +65,177 @@ def test_authorization_hash_is_reproducible(V, doc, tmp_path):
     )
 
 
-def test_excluded_scalars_do_not_move_the_hash(V, doc, tmp_path):
-    base = V.compute_authorization(_write(tmp_path, doc))
-    mutated = doc.replace("database_identity     = ", "database_identity     = something-else #")
-    assert V.compute_authorization(_write(tmp_path, mutated)) == base
+def test_only_self_referential_values_are_excluded(V):
+    """Exclusions must cover only values that are self-referential or do not yet exist.
+
+    The prior authorization also excluded ``runtime_name`` and ``database_identity``
+    because there they were derived-from-hash and named-after-creation. Carrying that
+    list over would have left the published identity not binding them.
+    """
+    assert set(V.NORMATIVE_EXCLUSIONS) == {"authorization_sha", "expires_on"}
+
+
+def test_identity_has_three_reported_components(V, doc, tmp_path):
+    ids = V.compute_identity(_write(tmp_path, doc))
+    assert set(ids) == {"normative_body_sha256", "binding_manifest_sha256", "authorization_sha256"}
+    assert all(len(v) == 64 for v in ids.values())
+
+
+def test_authorization_identity_covers_both_components(V, doc, tmp_path):
+    ids = V.compute_identity(_write(tmp_path, doc))
+    expected = hashlib.sha256(
+        (ids["normative_body_sha256"] + ids["binding_manifest_sha256"]).encode()
+    ).hexdigest()
+    assert ids["authorization_sha256"] == expected
+
+
+def test_explanatory_prose_outside_the_payload_does_not_move_the_identity(V, doc, tmp_path):
+    """Material outside the canonical payload is not part of the authorization identity."""
+    mutated = doc.replace(
+        "> \U0001f6a7 **DRAFT",
+        "> \U0001f6a7 (editorial) **DRAFT",
+    )
+    assert mutated != doc, "prose anchor not found; this test would be vacuous"
+    before = V.compute_identity(_write(tmp_path, doc))["authorization_sha256"]
+    after = V.compute_identity(_write(tmp_path, mutated))["authorization_sha256"]
+    assert after == before
+
+
+BOUND_SCALARS = [
+    ("runtime_instance", "i-0fff7076ad461aa9a", "i-0000000000000000"),
+    ("data_volume", "vol-0710769fb6981102d", "vol-0000000000000000"),
+    ("security_group", "sg-08b1284b33d9159c4", "sg-00000000000000000"),
+    ("iam_role", "adr0043-canary-ws5-52b3ff136196-role", "some-other-role"),
+    ("instance_profile", "adr0043-canary-ws5-52b3ff136196-profile", "some-other-profile"),
+    (
+        "ecr_repository",
+        "219024422756.dkr.ecr.us-east-1.amazonaws.com/adr0043-canary-ws5",
+        "219024422756.dkr.ecr.us-east-1.amazonaws.com/other-repo",
+    ),
+    ("evidence_bucket", "adr0043-ws5-evidence-219024422756-us-east-1", "other-bucket-name"),
+    ("broker_account", "PA3E97RWHKQZ", "PA34USW0Q8UO"),
+    (
+        "alpaca_account_id",
+        "0fa55b0d-74d6-4a61-a361-ab154857cfb5",
+        "00000000-0000-0000-0000-000000000000",
+    ),
+    ("credential_key_fp", "ffab8796516a", "aaaaaaaaaaaa"),
+    ("credential_secret_fp", "c2cab6509f1b", "bbbbbbbbbbbb"),
+    (
+        "source_commit",
+        "1880fcdb05e367306e81fa96b355b996f73b7819",
+        "ffffffffffffffffffffffffffffffffffffffff",
+    ),
+    (
+        "source_archive_sha256",
+        "17d24c3ead5ee00029b63b6d8df89cf8122bf078cc227efe6fe539d41731dd7c",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    ),
+    (
+        "source_object_version_id",
+        "dEDhokQBpFY8u9AyF7KM0aHX1wDnEEpu",
+        "OTHERVERSIONIDXXXXXXXXXXXXXXXXXX",
+    ),
+    (
+        "dockerfile_sha256",
+        "e4ee353aed8abdce98e8ac7881b928dcbb9c30ab1abef04dea0e261ae6be9042",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    ),
+    (
+        "image_manifest_digest",
+        "sha256:c0c1b0c48fbb4d4318207f589ee9a64ee795ca34100028bfd84d4d9d81c6a54d",
+        "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    ),
+    (
+        "image_index_digest",
+        "sha256:59f3f26123ca0c19174fefc06575f960bb2c50c555c9eba23b0aaeb22f78071d",
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    ),
+    (
+        "image_config_digest",
+        "sha256:a3c2081f067bc412061e285661264ab91a3ca20797d9f38c94cf72467cc9f584",
+        "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    ),
+    ("platform", "linux/arm64", "linux/amd64"),
+    ("evidence_directory", "/var/lib/adr0043-ws5/evidence", "/var/lib/adr0043-ws5/other"),
+    (
+        "reserved_database_path",
+        "/var/lib/adr0043-ws5/workbench.sqlite",
+        "/var/lib/adr0043-ws5/other.sqlite",
+    ),
+    (
+        "prior_authorization_sha",
+        "52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae",
+        "9999999999999999999999999999999999999999999999999999999999999999",
+    ),
+    (
+        "expiration_rule",
+        "authorization_effective_at + 14 calendar days",
+        "authorization_effective_at + 30 calendar days",
+    ),
+    ("effectiveness_precondition", "owner approval + merge to main", "merge to main only"),
+    (
+        "permitted_endpoints",
+        "GET /v2/account | GET /v2/positions",
+        "GET /v2/account | GET /v2/assets",
+    ),
+    (
+        "runtime_stack",
+        "runtime_stack                = adr0043-canary-ws5-52b3ff136196",
+        "runtime_stack                = other-stack",
+    ),
+    (
+        "evidence_stack",
+        "evidence_stack               = adr0043-canary-ws5-52b3ff136196-evidence",
+        "evidence_stack               = other-evidence-stack",
+    ),
+    (
+        "runtime_name",
+        "runtime_name                 = adr0043-canary-ws5-52b3ff136196",
+        "runtime_name                 = adr0043-canary-ws5-other",
+    ),
+]
+
+
+@pytest.mark.parametrize("label,old,new", BOUND_SCALARS, ids=[c[0] for c in BOUND_SCALARS])
+def test_every_bound_scalar_moves_the_authorization_identity(V, doc, tmp_path, label, old, new):
+    """An identity that does not move when an operational value changes does not bind it."""
+    assert old in doc, f"fixture lacks {old!r}; this mutation case would be vacuous"
+    base = V.compute_identity(_write(tmp_path, doc))["authorization_sha256"]
+    mutated = doc.replace(old, new)
+    assert mutated != doc
+    try:
+        after = V.compute_identity(_write(tmp_path, mutated))["authorization_sha256"]
+    except V.ContractError:
+        return  # refused outright, which binds it at least as strongly
+    assert after != base, f"changing {label} did not move the authorization identity"
+
+
+def test_binding_manifest_moves_independently_of_prose(V, doc, tmp_path):
+    """A prose edit moves the body digest but not the binding digest, so a reviewer can
+    see which component changed and why."""
+    base = V.compute_identity(_write(tmp_path, doc))
+    prose = doc.replace("## 5. Infrastructure ceiling", "## 5. Infrastructure ceiling (scope)")
+    after = V.compute_identity(_write(tmp_path, prose))
+    assert after["binding_manifest_sha256"] == base["binding_manifest_sha256"]
+    assert after["normative_body_sha256"] != base["normative_body_sha256"]
+    assert after["authorization_sha256"] != base["authorization_sha256"]
+
+
+@pytest.mark.parametrize("key", ["runtime_instance", "image_manifest_digest", "platform"])
+def test_missing_binding_key_is_refused(V, doc, tmp_path, key):
+    mutated = re.sub(r"(?m)^" + key + r"\s*=.*$", "", doc)
+    with pytest.raises(V.ContractError):
+        V.compute_identity(_write(tmp_path, mutated))
+
+
+def test_duplicate_binding_key_is_refused(V, doc, tmp_path):
+    mutated = doc.replace(
+        "platform                     = linux/arm64",
+        "platform                     = linux/arm64\nplatform                     = linux/amd64",
+    )
+    with pytest.raises(V.ContractError, match="2 times"):
+        V.compute_identity(_write(tmp_path, mutated))
 
 
 def test_normative_body_change_moves_the_hash(V, doc, tmp_path):

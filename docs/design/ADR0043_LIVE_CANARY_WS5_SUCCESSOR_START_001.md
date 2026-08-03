@@ -94,14 +94,12 @@ application_started        = false
 Adoption preserves origin history rather than overwriting it:
 
 ```
-origin_authorization_sha      = 52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae
-successor_authorization_sha   = <computed at freeze; §18>
-resource_history              = CREATED_UNDER_REFUSED_AUTHORIZATION_THEN_EXPLICITLY_ADOPTED
-runtime_name                  = adr0043-canary-ws5-52b3ff136196
-authorization_sha             = <successor value, applied additively at Stage A>
-expires_on                    = <effective_at + 14d, §14>
-database_identity     = vol-0710769fb6981102d :: /var/lib/adr0043-ws5/workbench.sqlite
+origin_authorization_sha    = 52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae
+resource_history            = CREATED_UNDER_REFUSED_AUTHORIZATION_THEN_EXPLICITLY_ADOPTED
 ```
+
+The successor `authorization_sha` tag value is applied additively at Stage A and equals the
+authorization identity recorded in §18. `expires_on` is `effective_at + 14d` (§14).
 
 Successor tags are **additive**. The origin `authorization_sha` tag value is retained in the
 resource-history record so a reviewer can reconstruct which authorization created each resource.
@@ -136,6 +134,62 @@ supporting provenance only, as are the config, attestation, SBOM and provenance 
 7342ebbd… / sha256:37e52bc9…  = PRIOR_STAGE1_ARTIFACT
 ed604d49… / sha256:825ac355…  = SUPERSEDED_PREAUTH_ARTIFACT
 ```
+
+### 4C. Canonical binding manifest
+
+Every frozen operational identity, bound cryptographically. The verifier **extracts these values from
+this block** and hashes them as an ordered manifest — it does not assert them from a hardcoded list,
+because asserting a value appears somewhere is not the same as binding it. Changing any line here
+changes `binding_manifest_sha256` and therefore the authorization identity.
+
+```
+document_id                  = ADR0043-LIVE-CANARY-WS5-SUCCESSOR-START-001
+execution_mode               = ADOPT-CLEAN-UNUSED-RESOURCES
+prior_authorization_sha      = 52b3ff136196e90f0a4d85b92a7280fd19355da64348958fa28706c274ac47ae
+prior_disposition            = REFUSED
+runtime_instance             = i-0fff7076ad461aa9a
+data_volume                  = vol-0710769fb6981102d
+security_group               = sg-08b1284b33d9159c4
+iam_role                     = adr0043-canary-ws5-52b3ff136196-role
+instance_profile             = adr0043-canary-ws5-52b3ff136196-profile
+runtime_stack                = adr0043-canary-ws5-52b3ff136196
+evidence_stack               = adr0043-canary-ws5-52b3ff136196-evidence
+ecr_repository               = 219024422756.dkr.ecr.us-east-1.amazonaws.com/adr0043-canary-ws5
+evidence_bucket              = adr0043-ws5-evidence-219024422756-us-east-1
+runtime_name                 = adr0043-canary-ws5-52b3ff136196
+broker_account_id            = PA3E97RWHKQZ
+alpaca_account_id            = 0fa55b0d-74d6-4a61-a361-ab154857cfb5
+credential_key_fingerprint   = ffab8796516a
+credential_secret_fingerprint = c2cab6509f1b
+credential_name_prefix       = ADR0043_SUCCESSOR_CANARY_ALPACA_
+authorized_source_commit     = 1880fcdb05e367306e81fa96b355b996f73b7819
+source_archive_sha256        = 17d24c3ead5ee00029b63b6d8df89cf8122bf078cc227efe6fe539d41731dd7c
+source_object_version_id     = dEDhokQBpFY8u9AyF7KM0aHX1wDnEEpu
+dockerfile_sha256            = e4ee353aed8abdce98e8ac7881b928dcbb9c30ab1abef04dea0e261ae6be9042
+image_manifest_digest        = sha256:c0c1b0c48fbb4d4318207f589ee9a64ee795ca34100028bfd84d4d9d81c6a54d
+image_index_digest           = sha256:59f3f26123ca0c19174fefc06575f960bb2c50c555c9eba23b0aaeb22f78071d
+image_config_digest          = sha256:a3c2081f067bc412061e285661264ab91a3ca20797d9f38c94cf72467cc9f584
+platform                     = linux/arm64
+evidence_directory           = /var/lib/adr0043-ws5/evidence
+database_identity            = vol-0710769fb6981102d :: /var/lib/adr0043-ws5/workbench.sqlite
+reserved_database_path       = /var/lib/adr0043-ws5/workbench.sqlite
+initial_database_state       = RESERVED_PATH_NOT_CREATED
+broker_access_mode           = read_only
+strategy_execution_enabled   = false
+scheduler_enabled            = false
+alpaca_startup_enabled       = false
+container_restart_policy     = no
+permitted_endpoints          = GET /v2/account | GET /v2/positions | GET /v2/orders | GET /v2/account/activities
+expiration_rule              = authorization_effective_at + 14 calendar days ending 23:59:59 America/Chicago
+effectiveness_precondition   = owner approval + merge to main + independent hash recomputation + merge SHA recorded
+```
+
+**What is deliberately *not* in the manifest, and why.** The concrete `authorization_effective_at` and
+`expires_on` values do not exist at freeze time — they are produced by the effective merge. Binding a
+value that does not yet exist is impossible; a placeholder would change at effectiveness and break the
+very identity it was meant to fix. They are instead bound by the §18 effectiveness record: merge SHA,
+plus independent recomputation of this authorization identity from the `main` blob. The expiration
+*rule* is bound above.
 
 ## 5. Infrastructure ceiling
 
