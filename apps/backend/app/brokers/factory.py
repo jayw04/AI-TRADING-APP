@@ -41,6 +41,10 @@ class BrokerCredentialRef:
     source: str
     fingerprint: str
     resolve: Callable[[], tuple[str, str]]
+    #: SHA-256 prefix of the secret, for audit records. Optional so existing
+    #: call sites are unaffected; the frozen dataclass means it cannot be
+    #: attached after construction.
+    secret_fingerprint: str = ""
 
 
 def get_broker_client(
