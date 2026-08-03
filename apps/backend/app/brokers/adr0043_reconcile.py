@@ -31,6 +31,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
 import uuid
@@ -68,6 +69,23 @@ APPROVED_CALL_ORDER = [
 ENV_KEY = "ADR0043_SUCCESSOR_CANARY_ALPACA_API_KEY"
 ENV_SECRET = "ADR0043_SUCCESSOR_CANARY_ALPACA_API_SECRET"
 ENV_ACCOUNT = "ADR0043_SUCCESSOR_CANARY_ACCOUNT_ID"
+
+#: Provenance binding. Evidence that is not bound to the exact executing source
+#: and image is the artifact-binding problem this workflow exists to prevent, so
+#: both are validated before credentials are resolved or anything is dispatched.
+SOURCE_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+IMAGE_DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+#: The complete Stage-C inert posture. All four are required: a governed client
+#: is not sufficient if the surrounding process is configured to start legacy
+#: Alpaca behaviour. Compared by identity, so truthy strings and ambiguous
+#: coercions are refused rather than accepted.
+REQUIRED_POSTURE: dict[str, object] = {
+    "broker_access_mode": "read_only",
+    "strategy_execution_enabled": False,
+    "scheduler_enabled": False,
+    "alpaca_startup_enabled": False,
+}
 
 
 def _fingerprint(value: str) -> str:
@@ -192,10 +210,31 @@ def write_evidence(record: dict[str, Any], path: Path) -> str:
     return digest
 
 
+def check_provenance(source_commit: str, image_digest: str) -> str | None:
+    """Return a failure detail, or None when the provenance binding is valid."""
+    if not SOURCE_COMMIT_RE.match(source_commit or ""):
+        return f"source_commit {source_commit!r} is not 40 lowercase hex characters"
+    if not IMAGE_DIGEST_RE.match(image_digest or ""):
+        return f"image_digest {image_digest!r} is not sha256:<64 lowercase hex>"
+    return None
+
+
+def check_runtime_posture(settings: Any) -> str | None:
+    """Return a failure detail, or None when the inert posture holds exactly."""
+    for name, required in REQUIRED_POSTURE.items():
+        actual = getattr(settings, name, None)
+        if actual is not required and actual != required:
+            return f"{name}={actual!r} (required {required!r})"
+        # Identity check rejects truthy strings such as "false" for the booleans.
+        if isinstance(required, bool) and actual is not required:
+            return f"{name}={actual!r} is not the boolean {required!r}"
+    return None
+
+
 def reconcile(
     *,
     settings: Any,
-    credential: BrokerCredentialRef,
+    credential: BrokerCredentialRef | None,
     expected_account_id: str,
     base_url: str,
     sender: Any,
@@ -228,8 +267,10 @@ def reconcile(
                 image_digest=image_digest,
                 expected_account=expected_account_id,
                 returned_account=returned,
-                key_fp=credential.fingerprint,
-                secret_fp=getattr(credential, "secret_fingerprint", ""),
+                # Empty when credentials were unavailable: a refusal artifact must
+                # still be publishable, and it must never carry a credential value.
+                key_fp=(credential.fingerprint if credential else ""),
+                secret_fp=(credential.secret_fingerprint if credential else ""),
                 access_mode=str(getattr(settings, "broker_access_mode", "") or ""),
                 calls=calls,
                 account=account,
@@ -243,6 +284,20 @@ def reconcile(
             ),
             disp,
         )
+
+    # ---- fail closed BEFORE credentials are resolved or anything dispatched ----
+    detail = check_provenance(source_commit, image_digest)
+    if detail:
+        return finish(REFUSED, f"provenance_binding_missing_or_invalid: {detail}")
+
+    detail = check_runtime_posture(settings)
+    if detail:
+        return finish(REFUSED, f"unsafe_runtime_posture: {detail}")
+
+    if credential is None:
+        return finish(REFUSED, "missing_credentials: successor canary key/secret unavailable")
+    if not expected_account_id:
+        return finish(REFUSED, "missing_expected_account: no expected account id supplied")
 
     try:
         client = get_broker_client(
@@ -310,23 +365,24 @@ def main(argv: list[str] | None = None) -> int:
     expected = os.environ.get(ENV_ACCOUNT, "") or getattr(
         settings, "broker_expected_account_id", ""
     )
-    if not key or not secret or not expected:
-        print(
-            f"REFUSED: {ENV_KEY}, {ENV_SECRET} and {ENV_ACCOUNT} are all required",
-            file=sys.stderr,
-        )
-        return EXIT_CODES[REFUSED]
 
-    cred = BrokerCredentialRef(
-        source="env:ADR0043_SUCCESSOR_CANARY_*",
-        fingerprint=_fingerprint(key),
-        resolve=lambda: (key, secret),
-        secret_fingerprint=_fingerprint(secret),
+    # A missing credential is a refusal WITH an artifact, not a bare early return.
+    # Every attempt after CLI parsing must leave a sealed result; only an inability
+    # to write the artifact itself may leave none.
+    credential = (
+        BrokerCredentialRef(
+            source=f"env:{ENV_KEY}/{ENV_SECRET}",
+            fingerprint=_fingerprint(key),
+            resolve=lambda: (key, secret),
+            secret_fingerprint=_fingerprint(secret),
+        )
+        if key and secret
+        else None
     )
 
     evidence, disposition = reconcile(
         settings=settings,
-        credential=cred,
+        credential=credential,
         expected_account_id=expected,
         base_url="https://paper-api.alpaca.markets",
         sender=_default_sender(),
@@ -336,6 +392,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         write_evidence(evidence, Path(args.output))
     except Exception as exc:
+        # The only path that legitimately produces no artifact.
         print(f"INCONCLUSIVE: evidence write failed: {exc}", file=sys.stderr)
         return EXIT_CODES[INCONCLUSIVE]
 
