@@ -66,6 +66,25 @@ class Settings(BaseSettings):
     # same Alpaca paper accounts.
     scheduler_enabled: bool = True
 
+    # --- ADR 0043 WS5 governed broker boundary -------------------------------
+    # How much of the broker surface this process may reach, enforced in code by
+    # app.brokers.policy. Absent/empty resolves to "disabled" (fail closed); an
+    # unrecognised value raises at startup rather than silently downgrading.
+    # Deliberately NOT wired into the pre-existing OrderRouter -> AlpacaAdapter
+    # path: that path keeps its own authorisation controls, and repointing it
+    # here would change live paper-box behaviour. See
+    # docs/design/ADR0043_BROKER_ACCESS_MODES.md.
+    broker_access_mode: str = ""
+
+    # Independent of scheduler_enabled. Order capability through the governed
+    # boundary requires broker_access_mode=trading AND both of these gates, so a
+    # trading-capable credential alone can never dispatch an order.
+    strategy_execution_enabled: bool = False
+
+    # The account number a governed read-only client must observe. A mismatch is
+    # an ADR 0043 §10 stop condition and latches the client shut.
+    broker_expected_account_id: str = ""
+
     # When True (default — conservative) /auth/login requires a valid TOTP code
     # in addition to the password. Set WORKBENCH_LOGIN_TOTP_REQUIRED=false to
     # log in with password only (single-user localhost convenience). This gates
