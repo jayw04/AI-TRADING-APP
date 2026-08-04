@@ -431,6 +431,78 @@ bootstrap operational ceiling RSS ≤ 3.0 GiB · temp disk ≤ 12 GiB · min fre
 These are provisional and bound the work that determines the final numbers. Exceeding either is
 `CAPACITY_INSUFFICIENT`, not an occasion to raise the ceiling in place.
 
+### 6.1.2 FROZEN operational limits — derived from §6.1.1, binding from here
+
+The measurement is complete, so these supersede the provisional bootstrap ceiling above. Every
+value carries the measured basis it was set from, and headroom is deliberate rather than arbitrary.
+
+```
+                              FROZEN        projected/measured        basis
+maximum RSS                   3.0 GiB       « 3.0 GiB                 batched DuckDB inserts
+maximum temporary disk        12 GiB        < 1 GiB                   store is 43 MiB at 685k rows
+minimum free disk retained    4 GiB         19 GiB available          destination headroom
+maximum staging-store size    500 MiB       ~27 MiB projected         ~18x headroom
+maximum runtime               6 h           ~25–60 min                ~2,500 sequential requests
+maximum provider rows/day     900,000       ~627,000 projected        provider cap ~1,000,000
+maximum provider requests     3,000         ~2,500 projected          SEP+ACTIONS per-ticker, TICKERS bulk
+concurrency                   1             —                         one refresh only, ever
+stale-lock policy             12 h          2 × max runtime           break with alert, never silently
+```
+
+Universe-growth controls, matching the constants #606 already ships:
+
+```
+hard maximum universe count   2,000         DEFAULT_MAX_UNIVERSE      vs ~500–700 expected
+review threshold              0.25          DEFAULT_GROWTH_REVIEW     report, do not fail
+expected normal range         500 – 900     pool 500 ∪ registered 208 ∪ held ∪ extras
+```
+
+The hard maximum is a genuine stop, not a target: at ~700 expected it sits nearly 3× above normal,
+so reaching it means the universe is being driven by something outside the authorized formula.
+Breach ⇒ `CAPACITY_INSUFFICIENT`. **Never resize the instance or raise a limit in place.**
+
+### 6.1.1 CAPACITY_MEASURED — the measurement, and what it changed
+
+Measured 2026-08-04, read-only sampling against the paper production store. **The store is far
+smaller than the "years of market history" framing assumed**, which makes both bootstrap methods
+cheap and moves the decision from cost to governance.
+
+```
+measurement_sha256 = 72506343a79677ba52a3ba850fc87ccad324118dca4e5b813247fbdea36de9ac
+
+store_bytes                44,576,768  (43 MiB)      tickers_table_rows      22,038
+sep_rows                      685,585                 actions_rows               830
+sep_tickers                     1,254                 distinct_trading_days     7,188
+sep_date_range      1997-12-31 → 2026-07-31           survivorship_pool_lines  14,150
+rows/ticker  min 53 · median 531 · max 7,188
+median ticker's earliest date            2024-06-03   (≈2.2 years, not 28)
+rows in the last 600 calendar days        498,723     (73% of the table)
+WS5 destination: 19 GiB free · 3,825 MiB RAM · aarch64
+```
+
+The 1997–2026 span is carried by a handful of deep tickers; the **median** ticker holds ~531 rows
+from mid-2024. This is an incrementally-grown store, not a full-history archive.
+
+**Projected native build** for a WS5 universe of ≈500–700 tickers (pool 500 ∪ registered 208 ∪
+held 0 ∪ SPY), bounded to ~500 trading days — comfortably beyond C40's needs (252-day momentum
+lookback + 63-day dollar-volume window):
+
+```
+rows          ≈ 627,000        vs provider cap 900,000/day        → fits in one day
+store size    ≈ 27 MiB         vs 19 GiB free                     → 0.14% of capacity
+peak RSS      « 3.0 GiB        batched DuckDB inserts             → far inside the ceiling
+requests      ≈ 2,500          SEP + ACTIONS per-ticker, TICKERS one bulk pull
+runtime       ≈ 25–60 min      vs 6 h ceiling
+```
+
+⚠ **Empty-store degeneracy — the reason a seed list is mandatory.** On an empty store
+`ranking_pool()` returns nothing, so `build_refresh_universe` degenerates to
+registered ∪ extras ≈ 209 tickers, and the store-wide top-500 pool could never form. The bootstrap
+must therefore be seeded from an **explicit governed ticker list**, exactly as the production store
+originally was (`survivorship_pool.txt`, 14,150 names, used for the one-time back-fill). The full
+pool is far too large — 14,150 × 500 ≈ 7.1M rows would breach the daily cap eightfold — so the seed
+must be a bounded subset, pinned in the checkpoint.
+
 ### 6.2 Verified copy from the live paper runtime
 
 Permitted only when every condition holds. ⚠ The source is the **live production runtime** — the one
@@ -705,30 +777,73 @@ UTC timestamp and **verify a difference of exactly 1,209,600 seconds** — deriv
 the measured bootstrap is expected to need longer, that is an amendment before effectiveness, not an
 extension afterwards.
 
-## 16. Bootstrap-method selection is a signed checkpoint
-
-The method may be deferred to measurement, but it **may not be chosen silently by the operator**.
-Before any bootstrap executes, record:
+## 16. BOOTSTRAP_METHOD_SELECTED — sealed checkpoint
 
 ```
 BOOTSTRAP_METHOD_SELECTED
-  method                  = NATIVE_BUILD | VERIFIED_COPY
-  measurement_artifact_sha = <sha256 of the §6 measurement evidence>
-  selection_rationale      = <why, against the measured numbers>
-  capacity_bounds          = <the limits this method will run under>
-  authority_basis          = <owner or delegated authority for the selection>
+  method                   = NATIVE_BUILD
+  measurement_artifact_sha = 72506343a79677ba52a3ba850fc87ccad324118dca4e5b813247fbdea36de9ac
+  seed_universe            = explicit governed ticker list, bounded subset (see below)
+  depth_bound              = ~500 trading days
+  projected_rows           = ~627,000        (cap 900,000/day)
+  projected_store          = ~27 MiB         (19 GiB free)
+  projected_runtime        = ~25–60 min      (6 h ceiling)
+  authority_basis          = owner ruling — method deferred to measurement, selected on evidence
 ```
+
+### 16.1 Why NATIVE_BUILD, on governance rather than cost
+
+Both methods fit the limits easily; a 43 MiB store makes the cost argument nearly moot. The
+decision therefore rests on provenance and workstream separation:
+
+1. **VERIFIED_COPY requires touching the live production runtime mid-incident.** §6.2 demands
+   quiescence or a validated consistent snapshot. The paper box currently has a **deliberately
+   stopped refresh producer**, a store frozen at 2026-07-31, and an **unexplained write** at
+   2026-08-03 09:08:39 — 65 minutes after the run that produced the file and 38 minutes before the
+   timer was disabled. That anomaly is unresolved and is a blocking item in the separate recovery
+   authorization. Snapshotting a store whose recent history is under investigation would import an
+   open incident into this authorization.
+2. **It would entangle two workstreams that are deliberately separate.** Production refresh
+   recovery and WSS substrate establishment are governed by different documents precisely so a
+   failure in one cannot stall or contaminate the other.
+3. **The inherited provenance is worse than the build cost.** A copy carries the 2026-07-06 →
+   2026-07-28 staleness episode and the frozen frontier as history that must be disclosed and
+   reasoned about forever. A native build yields clean genesis for ~40 minutes of work.
+4. **Nothing about the native build strains the host.** 0.14% of free disk, well inside the RSS
+   ceiling, ~70% of one day's provider budget, and roughly a tenth of the runtime ceiling.
+
+The one thing a native build does *not* get for free is the ranking pool, which is why the seed
+list is a pinned input rather than a derived one (§6.1.1).
+
+### 16.2 Seed universe — open for owner ruling
+
+The seed determines which names WS5 can ever rank over, so it is a governed binding, not an
+operator convenience. Recommended: **the production store's current 1,254-ticker membership,
+exported read-only as metadata**. That reproduces the production ranking pool's *membership*
+without copying its *data* or inheriting its provenance, and it is proven to support a 500-name
+pool. At ~500 trading days it projects to ≈627,000 rows — inside the daily cap with headroom for
+retries.
+
+⚠ Exporting the ticker list is a **read-only metadata** operation against production. It does not
+require quiescence, does not touch the store contents, and does not interact with the recovery
+incident. It is nonetheless production contact and is called out here rather than assumed.
 
 ## 17. Remaining open items for owner ruling
 
-1. **Final capacity ceilings and growth review threshold** — §6.1 pins *provisional* bounds that
-   govern the measurement itself; the operational numbers follow from §6 and must be recorded before
-   `BOOTSTRAP_METHOD_SELECTED`.
-2. **Bootstrap method** — deferred to measurement per §6 and §16; this document does not pre-select.
+1. ~~Final capacity ceilings and growth review threshold~~ — **RESOLVED**, frozen in §6.1.2.
+2. ~~Bootstrap method~~ — **RESOLVED**, `NATIVE_BUILD` sealed in §16.
 3. ~~Pinned artifact values~~ — **RESOLVED**, see §2.1.1.
 
-Two of the three original open items remain, and both resolve from the same capacity measurement.
-This document still may not become effective until they are recorded and a final review is held.
+**All three original open items are resolved.** One new item arose from the measurement:
+
+4. **Seed universe for the native build** (§16.2) — recommended: the production store's current
+   1,254-ticker membership exported read-only as metadata. This is a governed binding because it
+   determines which names WSS can ever rank over, and it involves read-only production contact.
+
+This document is now **complete except for item 4 and the effectiveness record**. It may not become
+effective until item 4 is ruled on, the final text is reviewed, the document hash is pinned, owner
+approval is recorded, and an effectiveness record is issued carrying `effective_at` and
+`expiration_at = effective_at + 336 hours`.
 
 ### 17.1 Build-host permission finding (informational)
 
