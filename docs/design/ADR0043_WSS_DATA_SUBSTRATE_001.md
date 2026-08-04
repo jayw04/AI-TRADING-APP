@@ -560,7 +560,121 @@ implies roughly 1,800 fully-populated SEP tickers before ACTIONS/TICKERS and ret
 the 2,000-name universe maximum is a **structural** stop and is not automatically a valid one-day
 bootstrap size.
 
-#### 6.1.3.1 ⚠ Nine WSS symbols are not obtainable from the governed provider
+#### 6.1.3.1 WSS has TWO governed market-data substrates — verified in code
+
+The nine ETFs are not a coverage gap to be worked around. They are the **cross-asset sleeve**, and
+the strategy sources them from a different provider by design. Verified against the implementation:
+
+```
+EQUITY SLEEVE   0.40   Sharadar SEP/TICKERS/ACTIONS -> WS5 DuckDB factor store -> ctx.factors
+                       -> momentum cross-section, top-40 selection
+CROSS-ASSET     0.60   Alpaca daily bars -> ctx.get_recent_bars
+                       -> 9-ETF TSMOM, risk parity, correlation tilt
+```
+
+Code evidence, not inference:
+
+```
+combined_book_v13.py:10      "Two sleeves blended at a fixed 0.40 equity / 0.60 cross-asset weight"
+combined_book_v13.py:86-87   equity_sleeve_weight 0.40 · cross_asset_weight 0.60
+combined_book_v13.py:93      cross_asset_symbols = list(CROSS_ASSET_UNIVERSE)
+cross_asset.py:29            CROSS_ASSET_UNIVERSE = (SPY, EFA, EEM, TLT, IEF, GLD, DBC, UUP, KMLM)
+bar_cache.py:68-69           "bar fetches actually use the historical data client directly because
+                              AlpacaAdapter wraps the trading client, not the market-data client"
+```
+
+⛔ **An equity-only substrate is REJECTED.** It would silently change the governed 40/60
+construction and make the §8.2 dry run prove a different strategy — one that looks clean while
+omitting 60% of the book.
+
+```
+sharadar_unavailable_cross_asset_symbols     9
+sharadar_unavailable_reason                  Core US Equities subscription excludes SFP,
+                                             the fund/ETF price dataset
+factor_store_rows_required_for_these_symbols 0
+silent_drop_permitted                        false
+cross_asset_data_source                      Alpaca daily bars (1Day) via ctx.get_recent_bars
+```
+
+Their absence from Sharadar SEP/TICKERS is an **attributed provider-coverage boundary** — neither
+missingness nor a waived failure.
+
+#### 6.1.3.2 Provider partition — the nine must never be sent to Sharadar
+
+```
+governed bootstrap membership     1,263   8dd3589bf5b673ae4557a6239dc804b845eeb2dfec535b23636adcd94e252549
+  ├─ Sharadar-ingestible set      1,254   189f242e7329736a8c0fb9163e9760373dfdaef1f133ec330abe9a1b47bd04ef
+  └─ cross-asset Alpaca-bars set      9   c03605282965bf17b2a54c625f3f69748ffb8a642c52bf2f84744b2bac9e987b
+overlap between partitions            0   (verified — clean partition, 1,254 + 9 = 1,263)
+
+factor_store_required_symbols       199   226a271cc62a67866511404f3cd8b48a2fcbd870389223e342996ed9ca3701d3
+  = WSS registered (208) − cross_asset_bar_symbols (9)
+```
+
+Reprojected on the **Sharadar partition only**, removing the earlier ambiguity:
+
+```
+Sharadar rows      1,254 × 500 sessions = 627,000    cap 900,000   PASS
+Sharadar requests  1,254 × 2 + 1        =   2,509    cap 3,000     PASS
+Alpaca bar rows        9 × 338          =   3,042    separately bounded, different provider
+```
+
+✅ All nine are present in strategy 9's registered universe, so `ctx.get_recent_bars`'s
+authorization guard passes. This matters: that guard returns an **empty DataFrame and logs a
+warning rather than raising** (`context.py:243-252`), so an unauthorized symbol would silently
+yield no bars and the sleeve would quietly produce nothing.
+
+#### 6.1.3.3 Cross-asset bars acceptance gate
+
+Proven through the runtime path WSS actually uses, before `DATA_SUBSTRATE_READY`:
+
+```
+requested symbols          exactly the governed 9        returned symbols   9/9
+timeframe                  1Day                          duplicate bars     0
+non-monotonic timestamps   0                             null/nonpositive closes  0
+latest completed session   pinned                        missing-session policy   pinned
+provider endpoint          https://data.alpaca.markets   feed  IEX
+broker/order mutations     0
+```
+
+**Required history — pinned from the implementation, not guessed:**
+
+```
+ca_lookback_days 252 + ca_skip_days 21   = 273 trading days (the binding direct lookback)
+ca_vol_lookback_days 60 · ca_corr_lookback 60 · beta_cap_lookback 120 · SPY regime MA 200
+governed minimum                          n >= 338 completed daily bars
+```
+
+338 is not arbitrary: `context.py:257` records that `get_recent_bars(n)` silently capped at ~251
+trading days and **"starved the combined-book cross-asset sleeve, which needs ~338 trading days."**
+Requesting only 252 would reproduce that defect. For `1Day` the fetch window is
+`days_back = max(365, ⌈n × 1.6⌉ + 10)` — at n=338 that is 551 calendar days, covering weekends,
+holidays and suspensions.
+
+⚠ **KMLM's inception is 2020-12** (`cross_asset.py:27`), so it legitimately carries less history
+than the other eight. It must be attributed as short-history, never treated as a fetch failure.
+
+#### 6.1.3.4 Market-data authentication boundary
+
+The B4 credential was proven for **broker identity reads** against the trading host. Market-data
+reads are a **different client and a different host**, and are authorized here explicitly:
+
+```
+market data   https://data.alpaca.markets        trading   https://paper-api.alpaca.markets
+interchangeable = FALSE  (resolved from alpaca.common.enums.BaseURL, not assumed)
+
+ALLOWED      Alpaca market-data daily-bar GETs for exactly the governed 9,
+             plus governed SPY regime / beta-cap reads
+PROHIBITED   orders · cancellations · position mutations · account configuration changes
+             · trading scheduler activation
+```
+
+⚠ Stage C's four approved GETs are bound to the **trading** host and do not cover this path. The
+governed read-only broker boundary wraps the trading client only; the market-data client is
+constructed separately (`bar_cache.py:68-69`), so market-data access is neither granted nor
+constrained by that boundary and must be governed on its own terms.
+
+#### 6.1.3.5 ⚠ The nine, and why they are not obtainable from Sharadar
 
 Computing the union rather than assuming it surfaced this:
 
@@ -741,7 +855,39 @@ required.
 
 ## 8. `DATA_SUBSTRATE_READY` acceptance gate
 
-### 8.1 Store acceptance conditions
+### 8.1 Store acceptance conditions — provider-specific, two gates
+
+⚠ The former single gate, *"all required WSS symbols represented"*, **could never pass** — nine
+registered symbols are outside Sharadar's coverage by design (§6.1.3.1). It is replaced by two
+provider-specific gates plus a **closed** exception registry.
+
+```
+factor_store_required_symbols = WSS registered symbols − governed cross_asset_bar_symbols
+                              = 208 − 9 = 199
+  digest 226a271cc62a67866511404f3cd8b48a2fcbd870389223e342996ed9ca3701d3
+cross_asset_bar_symbols       = 9
+  digest c03605282965bf17b2a54c625f3f69748ffb8a642c52bf2f84744b2bac9e987b
+```
+
+**Gate 1 — equity factor store (Sharadar):**
+
+```
+all provider-available WSS equity symbols represented          (199/199)
+all bootstrap-seed equities represented, subject to attributed provider exceptions
+all registered equity symbols required by C40 represented
+the nine governed ETF exceptions absent by design              (expected, attributed)
+no other required symbol absent
+```
+
+⛔ **The exception registry is exact and closed.** A *tenth* unavailable symbol is a **failure**,
+not an automatic extension of the exception list. Silent drops are prohibited.
+
+**Gate 2 — cross-asset bars (Alpaca):** §6.1.3.3 must pass in full — 9/9 returned, ≥338 daily bars,
+zero duplicates, monotonic timestamps, no null or non-positive closes, zero broker mutations.
+
+Both gates are mandatory. Neither substitutes for the other.
+
+### 8.1.1 Store integrity conditions
 
 "Refresh completed" is not sufficient. All must hold:
 
@@ -758,24 +904,45 @@ refresh dispatch count within bound       no broker endpoint contacted
 ⚠ Freshness is assessed **per-day-per-name**, never by `max(date)`. The `max(date)` reading is what
 allowed 301 of 500 names to sit frozen at 2026-07-06 while every readiness gate reported green.
 
-### 8.2 WSS deterministic decision dry run
+### 8.2 WSS deterministic decision dry run — BOTH sleeves
 
-Plus, with order submission **disabled**:
-
-```
-WSS decision dry run can read the factor store
-WSS decision dry run produces a deterministic ranked set
-order submission remains disabled
-```
-
-Record, for a 40-name C40 selection from roughly 500 symbols:
+Order submission disabled throughout. The dry run must reproduce the **full 40/60 construction**,
+not the equity rank alone — an equity-only reproduction would look clean while omitting 60% of the
+book and would prove a different strategy.
 
 ```
-factor_store_digest   WSS_input_universe_digest   WSS_eligible_universe_digest   WSS_selected_40_digest
+EQUITY SLEEVE (0.40)
+  factor_store_digest                equity_input_universe_digest
+  equity_eligible_universe_digest    equity_selected_40_digest
+  equity_weights_digest
+
+CROSS-ASSET SLEEVE (0.60)
+  nine_symbol_set_digest             bars_panel_digest
+  cross_asset_signal_digest          cross_asset_raw_weights_digest
+  cross_asset_tilted_weights_digest
+
+GOVERNORS
+  market_regime_result               beta_cap_input_digest
+  beta_cap_result_digest
+
+COMBINED
+  pre_trade_target_weights_digest    final_target_weights_digest
+  cash_weight                        deterministic reproduction = MATCH
+  broker mutation attempts = 0       order submissions = 0
 ```
 
-Both the eligible-universe and selected-40 digests are required: without them a later universe drift
-could produce different holdings while the code and factor files appear unchanged.
+Both the eligible-universe and selected-40 digests are required: without them a later universe
+drift could change holdings while the code and factor files appear unchanged.
+
+⚠ A dry run that produces a deterministic ranked set while the cross-asset sleeve silently returned
+no bars is a **failure**, not a pass. `ctx.get_recent_bars` returns an empty frame and logs a
+warning rather than raising, so the sleeve can produce nothing without any error surfacing. Gate 2
+of §8.1 exists to catch precisely that, and `nine_symbol_set_digest` with 9/9 returned symbols must
+be evidenced here too.
+
+Isolation still holds at decision time: a symbol registered only to another strategy may influence
+the store-wide top-*n* cutoff, but must not appear in WSS's eligible or selected set unless WSS
+registers it independently.
 
 ## 9. State machine
 
@@ -926,14 +1093,13 @@ evidence and effectiveness records cite one checkpoint, not two.
 **All three original open items are resolved**, and the seed universe (item 4) was ruled on and is
 sealed in §6.1.3. One new item arose from computing the union rather than assuming it:
 
-5. **Nine WSS registered symbols are outside the governed provider's coverage** (§6.1.3.1). The
-   Sharadar tier carries no ETFs, so `DBC EEM EFA GLD IEF KMLM SPY TLT UUP` cannot be populated by
-   any bootstrap method. This blocks §8.1's acceptance gate as currently worded and puts the
-   cross-asset sleeve's data source in question. It needs a ruling before `DATA_SUBSTRATE_READY` is
-   reachable — either restate the gate to cover only provider-available symbols and identify the
-   sleeve's real source, or accept an equity-only substrate and say so explicitly.
+5. ~~Nine WSS registered symbols outside the provider's coverage~~ — **RESOLVED**. Ruled a
+   dual-source architecture, not a coverage gap: the equity sleeve (0.40) uses Sharadar via
+   `ctx.factors`, the cross-asset sleeve (0.60) uses Alpaca daily bars via `ctx.get_recent_bars`.
+   Verified in code, sealed in §6.1.3.1–§6.1.3.5, with §8.1 restated as two provider-specific gates
+   and §8.2 expanded to reproduce both sleeves. An equity-only substrate is **rejected**.
 
-This document may not become effective until item 5 is ruled on, the final text is reviewed, the
+**All open items are now resolved.** This document may not become effective until the final text is reviewed, the
 document hash is pinned, owner approval is recorded, and an effectiveness record is issued carrying
 `effective_at` and `expiration_at = effective_at + 336 hours`.
 
