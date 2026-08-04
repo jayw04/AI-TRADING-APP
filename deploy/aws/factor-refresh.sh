@@ -30,6 +30,13 @@ LOOKBACK_DAYS="${LOOKBACK_DAYS:-20}"
 FROM="$(date -u -d "-${LOOKBACK_DAYS} days" +%Y-%m-%d)"
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 
+# One-off refresh container only. The corrected scripts/factor_refresh.py is baked into the image
+# (Dockerfile: COPY scripts ./scripts) and is not bind-mounted, so a deployed image built before
+# the file existed cannot run it. The override maps that ONE file, read-only, into the throwaway
+# container — it must never reach the stop/start/exec calls below, which operate on the
+# long-running backend and must see the image exactly as built.
+COMPOSE_REFRESH="$COMPOSE -f deploy/aws/docker-compose.factor-refresh.yml"
+
 log(){ echo "[factor-refresh $(date -u +%FT%TZ)] $*"; }
 cd "$APP"
 
@@ -51,7 +58,7 @@ log "staged a copy of the live store"
 #     The universe is now (ranking pool x headroom) U (registered, ANY status) U (held) U (extras).
 #     Status is deliberately unfiltered: a book pending activation needs fresh data BEFORE it is
 #     activated, or its readiness gate can never go green. See apps/backend/scripts/factor_refresh.py.
-$COMPOSE run --rm --no-deps backend python scripts/factor_refresh.py universe \
+$COMPOSE_REFRESH run --rm --no-deps backend python scripts/factor_refresh.py universe \
     --app-db /app/data/workbench.sqlite \
     --store  /app/data/factor_data.duckdb \
     --as-of  "$(date -u +%Y-%m-%d)" \
@@ -89,7 +96,7 @@ log "ingested SEP/actions/tickers since ${FROM} into staging"
 #     PER-DAY-PER-NAME over the refresh universe, and fails if coverage drops below the threshold or
 #     if any universe name's tickers.lastpricedate lags (such a name is EXCLUDED from the ranking
 #     pool outright, which is strictly worse than being ranked on stale data).
-if ! $COMPOSE run --rm --no-deps backend python scripts/factor_refresh.py verify \
+if ! $COMPOSE_REFRESH run --rm --no-deps backend python scripts/factor_refresh.py verify \
     --live     /app/data/factor_data.duckdb \
     --stage    /app/data/factor_data.staging.duckdb \
     --universe "$UNIVERSE_FILE" \
