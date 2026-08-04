@@ -93,14 +93,67 @@ ones.
 ✅ merged tree verified            exactly 3 files: factor_refresh.py, its tests, factor-refresh.sh
 ✅ no automatic deployment         ci.yml performs no deploy step; no host unit pulls from git;
                                    /opt/workbench/app is not a git repository
-⬜ linux/arm64 candidate image built          PENDING — build location not yet ruled
-⬜ index/manifest digest + platform tuple     PENDING
-⬜ candidate image scan evidence              PENDING
+✅ linux/arm64 candidate image built          native on WS5, 2026-08-04T18:48:19Z → 18:51:09Z, exit 0
+✅ index/manifest digest + platform tuple     pinned in §2.1.1
+✅ candidate image scan evidence              ECR BASIC, COMPLETE, zero findings
 ✅ nothing deployed, pulled, selected or executed on WS5
 ```
 
-⚠ The merged commit is the **source** binding only. It is not deployable and confers nothing until
-the arm64 candidate is built and its digest and platform tuple are pinned above.
+### 2.1.1 Candidate artifact bindings
+
+```
+source commit          a91fe75c041be25f116c9590d1574481443d2a42   (head_matches_pin = true)
+git tree object        f216ec78c796185e98dc8c45c2b9173cc7ad08d0
+source acquisition     shallow anonymous fetch of the pinned commit; detached checkout; tree clean
+build context          apps/backend        (docker-compose.yml pins `context: ./apps/backend`)
+context tree sha256    495600586143bcb8d291bab1d677e1ad4ee736b1df89b83186c734e66da73ab3
+Dockerfile sha256      ff8406ac5743fbe8e0707cf16b15e32538bf0b792f3e5c5f219c998881e820e8
+
+repository             219024422756.dkr.ecr.us-east-1.amazonaws.com/adr0043-canary-ws5
+tag                    candidate-a91fe75c041b        (new tag; nothing overwritten)
+OCI index digest       sha256:fc390cf5cb5fbd43d9d4c6bc256b19db9c7607a3b011d51dc8e28f740e30f31f
+arm64 DEPLOYABLE       sha256:d771197fa4c94bfd85e417f584002e0d811e9bdefa85f863066392870f950f56
+attestation manifest   sha256:583cb64635c34da8d0b1a1d5e29fc11e11c7a31bd4ec802c73d8ae0a984fa6aa
+config digest          sha256:1d7f14392e27bc54aafff0d739e38f43bb98bba1309643add610a5177398f8f4
+platform tuple         os=linux · architecture=arm64 · variant=none
+size / pushed          322,792,101 bytes · 2026-08-04T18:51:08Z
+
+host                   i-0fff7076ad461aa9a (aarch64, t4g.medium, 3825 MiB)
+buildx / buildkit      v0.36.0 / v0.31.2
+builder                wss-arm64-candidate-builder (docker-container), memory-capped 2560m,
+                       BUILDKIT_MAX_PARALLELISM=1 — removed after evidence capture
+provenance / SBOM      --provenance=true --sbom=true; syft v1.11.0 via buildkit-syft-scanner
+vulnerability scan     ECR BASIC (scanOnPush=true) — status COMPLETE, findings: none
+```
+
+⚠ **Pin the arm64 child manifest, not only the index.** An index digest can remain constant while
+platform selection differs, so §4's verification resolves `d771197f…` explicitly. The tag is a
+convenience label; the digests are the binding.
+
+### 2.1.2 Non-invocation proofs
+
+Construction and publication only — the candidate never entered the runtime image store:
+
+```
+candidate tag in local image store        0
+candidate index digest in local store     0
+arm64 child digest in local store         0
+container created from the candidate      none
+unit / compose / config referencing it    none
+local image store after build             c0c1b0c4… (authorized deployable, untagged)
+                                          37e52bc9… (retired PRIOR_STAGE1_ARTIFACT)
+                                          moby/buildkit:buildx-stable-1
+posture vs pre-build baseline             images 3 = 3 · containers 1 = 1 · builder removed
+WS5 inert                                 workbench.sqlite ABSENT · 0 workbench services running
+                                          B4 credential + receipt intact · 1 Stage-C evidence file
+```
+
+`--push` was used **without `--load`**, so the published artifact bypassed the ordinary local image
+store entirely rather than relying on "presence ≠ execution". The single container on the host is
+the retained Stage-C evidence container, `Exited (0)`, unchanged.
+
+⚠ The candidate remains **barred from pulling, selection or execution on WS5** until this document
+becomes effective. Building it conferred no operational authority.
 
 These may proceed at any time. Merging #606 must not automatically deploy to the paper box or WS5,
 must not select or execute any image on WS5, and must not change any database, credential, factor
@@ -672,6 +725,26 @@ BOOTSTRAP_METHOD_SELECTED
    govern the measurement itself; the operational numbers follow from §6 and must be recorded before
    `BOOTSTRAP_METHOD_SELECTED`.
 2. **Bootstrap method** — deferred to measurement per §6 and §16; this document does not pre-select.
-3. **Pinned artifact values** — source commit, index digest, deployable manifest digest and platform
-   tuple are inserted once the §2.1 prerequisites complete. This document cannot become effective
-   with them unfilled.
+3. ~~Pinned artifact values~~ — **RESOLVED**, see §2.1.1.
+
+Two of the three original open items remain, and both resolve from the same capacity measurement.
+This document still may not become effective until they are recorded and a final review is held.
+
+### 17.1 Build-host permission finding (informational)
+
+The WS5 role is genuinely ECR-only. Confirmed during the candidate build:
+
+```
+s3:ListBucket · s3:GetObject · s3:PutObject     DENIED
+ecr:DescribeRepositories · DescribeImageScanFindings   DENIED
+ecr:GetAuthorizationToken · BatchGetImage · push       ALLOWED
+```
+
+This is the same shape as the Stage-B blocker that made B4 an owner-typed checkpoint, and it
+constrained how the pinned source reached the host. It was resolved **without an IAM change**: the
+repository is anonymously readable, so the source arrived by shallow unauthenticated fetch of the
+pinned commit — no credential entered SSM history or host disk, and no policy was broadened.
+
+Consequence for §8: **the substrate's scan and registry-introspection evidence cannot be produced
+from WS5 itself** and must be gathered from an identity that holds those ECR permissions. The scan
+result in §2.1.1 was obtained that way.
