@@ -1,0 +1,29 @@
+# Refresh-only override: make the corrected factor_refresh.py visible to the ONE-OFF
+# refresh container, and to nothing else.
+#
+# WHY THIS EXISTS. `factor-refresh.sh` runs `scripts/factor_refresh.py` inside a throwaway
+# backend container, but that script is baked into the image (`apps/backend/Dockerfile`:
+# `COPY scripts ./scripts`) and is NOT bind-mounted. The deployed image predates the file, so
+# the corrected implementation cannot be delivered by copying it to the host alone.
+#
+# WHY NOT REBUILD THE IMAGE. The deployed image is b0058bf (2026-07-22); rebuilding from the
+# corrected source would carry 182 commits / 502 files into the live trading runtime, touching
+# the risk engine, circuit breaker, audit logger, the whole broker layer and three Alembic
+# migrations — to fix a data job.
+#
+# WHY A SINGLE FILE, NOT THE DIRECTORY. Mounting `./apps/backend/scripts:/app/scripts:ro` would
+# shadow EVERY image-baked script the moment the long-running backend is next recreated. That is
+# a latent application-runtime change well outside a narrow data recovery. This maps exactly one
+# file, read-only, and only into the one-off container that `factor-refresh.sh` starts with this
+# override applied.
+#
+# ⚠ Apply ONLY to `docker compose ... run` invocations of factor_refresh.py. Never add it to the
+# stop/start/exec calls that operate on the long-running backend — those must see the image as
+# built.
+
+services:
+  backend:
+    volumes:
+      # Relative paths in an override resolve against the PROJECT directory
+      # (/opt/workbench/app), not this file's directory.
+      - ./apps/backend/scripts/factor_refresh.py:/app/scripts/factor_refresh.py:ro
