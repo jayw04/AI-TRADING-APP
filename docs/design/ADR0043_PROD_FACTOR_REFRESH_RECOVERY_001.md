@@ -80,10 +80,31 @@ deployed implementation carries the universe and freshness defects that #606 fix
 owner's preferred-recovery reasoning applied by hand. Confirm with the owner before proceeding;
 if that is the reason, this recovery is the sanctioned way to restart it.
 
-⚠ **Open question for Stage A:** the store's mtime is `2026-08-03 09:08:39`, but the refresh
-finished at 06:03:41. Something touched the live store 65 minutes later and 38 minutes before the
-timer was disabled. That is unexplained and must be resolved before promotion — it may be benign
-(a read that updated mtime, a manual inspection) or may indicate an out-of-band write.
+### 3.1 ✅ RESOLVED — the 09:08:39 store mtime was operator inspection, not an out-of-band write
+
+The store's mtime is `2026-08-03 09:08:39`, 65 minutes after the refresh finished at 06:03:41 and
+38 minutes before the timer was disabled. Investigated in `auth.log`:
+
+```
+09:08:57  ubuntu → sudo bash -s
+09:10:04  ubuntu → sudo docker exec workbench-backend python -c
+                   'from app.factor_data.accessor import FactorAccessor
+                    from app.factor_data.store import FactorD…'
+```
+
+An operator was **inspecting the factor store** through `FactorAccessor` / `FactorDataStore` in
+exactly that window. A DuckDB connection opened without `read_only=True` touches the file and bumps
+its mtime without altering data.
+
+Corroborated by content: the store still holds `sep max = 2026-07-31` with 685,585 rows over 1,254
+tickers — consistent with what the 06:03 run logged post-swap (`live sep max after swap:
+2026-07-31 | tickers.lastpricedate: 2026-07-31`). Had anything written *data* after the swap, the
+frontier or row counts would differ.
+
+**Disposition:** benign operator inspection. This no longer blocks promotion.
+
+⚠ Practice note, not a finding: opening the live store read-write while the backend holds it is
+mildly risky and should use `read_only=True`. Nothing was corrupted here.
 
 ## 4. Stage B — deploy the corrected implementation
 
@@ -278,5 +299,7 @@ later when the data drifted. A fresh store must never conceal a dead producer.
 1. **Cause confirmation** — was the 2026-08-03 09:46 stop deliberate containment pending #606?
 2. **§4.2 deployment shape** — compose read-only mount (recommended) versus a follow-up PR that
    mounts scripts from within `factor-refresh.sh`.
-3. **The 09:08:39 store mtime** — unexplained write 65 minutes after the run finished.
+3. ~~The 09:08:39 store mtime~~ — **RESOLVED** (§3.1): operator inspection via
+   `FactorAccessor`/`FactorDataStore`, which bumps mtime without altering data. Corroborated by
+   unchanged frontier and row counts. No longer blocks promotion.
 4. **Effective date**, which sets the 168-hour expiration against the 2026-08-10 deadline.
