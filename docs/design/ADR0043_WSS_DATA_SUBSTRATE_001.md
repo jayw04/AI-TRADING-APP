@@ -85,11 +85,22 @@ ones.
 ### 2.1 Pre-effectiveness prerequisites — completed before this document may become effective
 
 ```
-#606 hardened and merged                     exact merged source commit pinned
-Tier 3 CI evidence pinned                    linux/arm64 candidate image built
-index/manifest digest + platform tuple pinned
-no candidate image deployed, pulled, selected or executed on WS5
+✅ #606 hardened and merged        squash a91fe75c041be25f116c9590d1574481443d2a42  2026-08-04T18:21:00Z
+✅ exact merged source commit      a91fe75c041be25f116c9590d1574481443d2a42
+✅ Tier 3 CI evidence              run 30933387628 on head eac0ecae53d4… → success
+                                   Python CI Gate SUCCESS · Python FULL (backend) SUCCESS
+                                   36 tests / 51 cases · ruff, format, mypy (454 files), bash -n clean
+✅ merged tree verified            exactly 3 files: factor_refresh.py, its tests, factor-refresh.sh
+✅ no automatic deployment         ci.yml performs no deploy step; no host unit pulls from git;
+                                   /opt/workbench/app is not a git repository
+⬜ linux/arm64 candidate image built          PENDING — build location not yet ruled
+⬜ index/manifest digest + platform tuple     PENDING
+⬜ candidate image scan evidence              PENDING
+✅ nothing deployed, pulled, selected or executed on WS5
 ```
+
+⚠ The merged commit is the **source** binding only. It is not deployable and confers nothing until
+the arm64 candidate is built and its digest and platform tuple are pinned above.
 
 These may proceed at any time. Merging #606 must not automatically deploy to the paper box or WS5,
 must not select or execute any image on WS5, and must not change any database, credential, factor
