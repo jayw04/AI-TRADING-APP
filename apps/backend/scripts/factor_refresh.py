@@ -155,6 +155,11 @@ def registered_symbols(app_db: str | Path) -> dict[str, list[str]]:
 def held_symbols(app_db: str | Path) -> list[str]:
     """Symbols currently held in any account.
 
+    ⚠ The column is ``symbols.ticker`` — see ``app/db/models/symbol.py``. An earlier
+    ``sym.symbol`` aborted the 2026-08-04 production recovery with
+    "no such column: sym.symbol"; the unit test had invented a fixture schema that
+    matched the query instead of the database.
+
     A held name must stay priceable even after it rotates out of the ranking
     pool, or the book cannot mark it — or exit it. This is the same class of
     defect as the v1.3 parity run-1 failure, where a holding outside the PIT
@@ -164,7 +169,7 @@ def held_symbols(app_db: str | Path) -> list[str]:
     try:
         rows = con.execute(
             """
-            SELECT DISTINCT sym.symbol
+            SELECT DISTINCT sym.ticker
             FROM positions p
             JOIN symbols sym ON sym.id = p.symbol_id
             WHERE p.qty <> 0

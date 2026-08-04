@@ -41,18 +41,27 @@ def M():
 
 AS_OF = date(2026, 8, 3)
 
+#: Mirrors the REAL production schema (app/db/models/symbol.py). The column is
+#: ``ticker``. A fixture that invented ``symbol`` is what let a broken query ship:
+#: the test agreed with the code and both disagreed with the database.
+_SYMBOLS_DDL = (
+    "CREATE TABLE symbols ("
+    " id INTEGER PRIMARY KEY, ticker VARCHAR(20), exchange VARCHAR(20),"
+    " asset_class VARCHAR(20), name VARCHAR(255), active BOOLEAN)"
+)
+
 
 def _app_db(tmp_path: Path, strategies, positions=()) -> Path:
     """Minimal app DB: only the columns the refresh reads."""
     p = tmp_path / "workbench.sqlite"
     con = sqlite3.connect(p)
     con.execute("CREATE TABLE strategies (id INTEGER PRIMARY KEY, status TEXT, symbols_json TEXT)")
-    con.execute("CREATE TABLE symbols (id INTEGER PRIMARY KEY, symbol TEXT)")
+    con.execute(_SYMBOLS_DDL)
     con.execute("CREATE TABLE positions (id INTEGER PRIMARY KEY, symbol_id INTEGER, qty REAL)")
     for sid, status, syms in strategies:
         con.execute("INSERT INTO strategies VALUES (?,?,?)", (sid, status, json.dumps(syms)))
     for i, (sym, qty) in enumerate(positions, start=1):
-        con.execute("INSERT INTO symbols VALUES (?,?)", (i, sym))
+        con.execute("INSERT INTO symbols (id, ticker) VALUES (?,?)", (i, sym))
         con.execute("INSERT INTO positions VALUES (?,?,?)", (i, i, qty))
     con.commit()
     con.close()
@@ -290,7 +299,7 @@ def _raw_db(tmp_path: Path, rows) -> Path:
     p = tmp_path / "raw.sqlite"
     con = sqlite3.connect(p)
     con.execute("CREATE TABLE strategies (id INTEGER PRIMARY KEY, status TEXT, symbols_json TEXT)")
-    con.execute("CREATE TABLE symbols (id INTEGER PRIMARY KEY, symbol TEXT)")
+    con.execute(_SYMBOLS_DDL)
     con.execute("CREATE TABLE positions (id INTEGER PRIMARY KEY, symbol_id INTEGER, qty REAL)")
     con.executemany("INSERT INTO strategies VALUES (?,?,?)", rows)
     con.commit()
@@ -520,3 +529,36 @@ def test_module_reaches_no_broker_scheduler_or_manifest(M):
         "httpx.post",
     ):
         assert forbidden not in src, f"factor_refresh must not reference {forbidden}"
+
+
+# --------------------------------------------- schema contract vs the real DB
+
+
+def test_held_symbols_query_uses_the_real_column_name():
+    """Regression: 2026-08-04 production recovery aborted with
+    "no such column: sym.symbol". The query said `sym.symbol`; the database has
+    `symbols.ticker`. The unit test passed anyway because its fixture had invented
+    a `symbol` column — the test agreed with the code and both disagreed with
+    production. Pin the query against the ORM, which is the source of truth."""
+    src = _MODULE.read_text(encoding="utf-8")
+    assert "SELECT DISTINCT sym.ticker" in src, "held_symbols must select symbols.ticker"
+    assert "SELECT DISTINCT sym.symbol" not in src, "symbols has no `symbol` column"
+
+
+def test_fixture_schema_matches_the_orm_model():
+    """The fixture must mirror app/db/models/symbol.py. If the model gains or
+    renames a column this fails here rather than in production."""
+    model = (_REPO_ROOT / "apps" / "backend" / "app" / "db" / "models" / "symbol.py").read_text(
+        encoding="utf-8"
+    )
+    assert '__tablename__ = "symbols"' in model
+    for col in ("id", "ticker", "exchange", "asset_class", "name", "active"):
+        assert f"{col}:" in model, f"ORM lost column {col}"
+        assert col in _SYMBOLS_DDL, f"fixture lost column {col}"
+    assert "symbol:" not in model, "the ORM has no `symbol` column; do not reintroduce one"
+
+
+def test_held_symbols_reads_against_the_real_schema(M, tmp_path):
+    """End-to-end against a fixture built from the production DDL."""
+    db = _app_db(tmp_path, [(9, "IDLE", ["AAA"])], positions=[("HELDNAME", 4.0), ("CLOSED", 0.0)])
+    assert M.held_symbols(db) == ["HELDNAME"]
