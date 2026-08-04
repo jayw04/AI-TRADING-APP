@@ -22,7 +22,16 @@ description: Use before any git commit, push, branch, PR, or merge; when editing
 > should go to S3 — but no automated Git↔S3 documentation split is in force yet, so do not assume a
 > missing path means "fetch it from S3." If a path under `docs/` is absent, it is absent.
 
-**Why this exists:** July 2026 billing confirms GitHub **Actions compute** is the metered cost source — **8,073 Linux runner-minutes / $48.44**, of which **8,064 minutes (99.9%) came from AI-TRADING-APP**, all attributed to `.github/workflows/ci.yml`. Actions **storage** was ~$0.02. Gross usage rose roughly tenfold from a prior sub-$5 level; the included-use discount currently nets it to $0, which is exactly why it must be fixed before it exceeds the allowance. Target: **≥60% reduction in avoidable runs and runner minutes** (→ ~3,229 min / ~$19.38) with no increase in escaped defects and no weakening of production safeguards.
+**Why this exists:** GitHub **Actions compute** is the dominant consumption source — July 2026 shows **8,073 Linux runner-minutes**, of which **8,064 minutes (99.9%) came from AI-TRADING-APP**, all attributed to `.github/workflows/ci.yml`. Actions **storage** was ~$0.02. Target: **≥60% reduction in avoidable runs and runner minutes** (→ ~3,229 min) with no increase in escaped defects and no weakening of production safeguards.
+
+⚠ **Displayed usage value ≠ realized expense (unverified as of 2026-08-04).** July **displayed gross** Actions usage was approximately **$48.44**; the **actual billable/net cost, and the effect of public-repository status, remain to be verified in the billing UI.** `AI-TRADING-APP` is currently a **public** repository owned by a **User** account, and GitHub-hosted standard runners are free and unlimited for public repositories — consistent with the observation that the charge nets to $0. Until the billing UI confirms otherwise:
+
+- Do **not** describe $48.44 as money spent, and do not repeat the "rose tenfold from a sub-$5 level" framing without distinguishing *displayed usage value* from *actual charges*.
+- The **behavioral objective is valid regardless** of what was billed: less repeated CI waiting, fewer avoidable runner-minutes, less red-main time, fewer flaky reruns, lower feedback latency, fewer unnecessary full-suite executions.
+- The **financial objective is conditional**: pursue billed-cost reduction only once the billing source and the repository's visibility during the measured period are confirmed.
+- Budget alerts (§9) stay blocked until someone authenticates with the `user` scope deliberately and confirms a meaningful billable threshold exists to alert on.
+
+If net cost was zero, this remains a serious **cycle-time and reliability** programme — it is not thereby void.
 
 **The one-line rule:** GitHub is the system of *change and review*; S3 is the system of *data, generated artifacts, and governed evidence*. Optimize for completed reviewable increments — not repository event count.
 
@@ -208,7 +217,7 @@ report either as the other.**
 | Target | Status | Evidence (Aug 1–4 vs July) |
 |---|---|---|
 | **Behavioral efficiency** | **achieved / trending correctly** | runs/day 22.8 → 15.0 (−34%); pushes per work item 1–3 (median 1) across 25 branches; cancelled-run waste 7.3% → 6.6%; failure minutes 20.6% → 15.0%; LIGHT backend job 5.1 → 2.8 min; docs PRs ~4 min each |
-| **Compute cost** | **failed — needs test-architecture work** | 310 → 372 min/day; minutes per run 13.6 → 24.8; minutes per merged PR 39.4 → 62.1 |
+| **Compute consumption** (runner-minutes, not dollars) | **failed — needs test-architecture work** | 310 → 372 min/day; minutes per run 13.6 → 24.8; minutes per merged PR 39.4 → 62.1 |
 
 **The behavioral controls worked.** What overwhelmed them:
 
