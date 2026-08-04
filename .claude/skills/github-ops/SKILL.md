@@ -22,7 +22,16 @@ description: Use before any git commit, push, branch, PR, or merge; when editing
 > should go to S3 — but no automated Git↔S3 documentation split is in force yet, so do not assume a
 > missing path means "fetch it from S3." If a path under `docs/` is absent, it is absent.
 
-**Why this exists:** July 2026 billing confirms GitHub **Actions compute** is the metered cost source — **8,073 Linux runner-minutes / $48.44**, of which **8,064 minutes (99.9%) came from AI-TRADING-APP**, all attributed to `.github/workflows/ci.yml`. Actions **storage** was ~$0.02. Gross usage rose roughly tenfold from a prior sub-$5 level; the included-use discount currently nets it to $0, which is exactly why it must be fixed before it exceeds the allowance. Target: **≥60% reduction in avoidable runs and runner minutes** (→ ~3,229 min / ~$19.38) with no increase in escaped defects and no weakening of production safeguards.
+**Why this exists:** GitHub **Actions compute** is the dominant consumption source — July 2026 shows **8,073 Linux runner-minutes**, of which **8,064 minutes (99.9%) came from AI-TRADING-APP**, all attributed to `.github/workflows/ci.yml`. Actions **storage** was ~$0.02. Target: **≥60% reduction in avoidable runs and runner minutes** (→ ~3,229 min) with no increase in escaped defects and no weakening of production safeguards.
+
+⚠ **Displayed usage value ≠ realized expense (unverified as of 2026-08-04).** July **displayed gross** Actions usage was approximately **$48.44**; the **actual billable/net cost, and the effect of public-repository status, remain to be verified in the billing UI.** `AI-TRADING-APP` is currently a **public** repository owned by a **User** account, and GitHub-hosted standard runners are free and unlimited for public repositories — consistent with the observation that the charge nets to $0. Until the billing UI confirms otherwise:
+
+- Do **not** describe $48.44 as money spent, and do not repeat the "rose tenfold from a sub-$5 level" framing without distinguishing *displayed usage value* from *actual charges*.
+- The **behavioral objective is valid regardless** of what was billed: less repeated CI waiting, fewer avoidable runner-minutes, less red-main time, fewer flaky reruns, lower feedback latency, fewer unnecessary full-suite executions.
+- The **financial objective is conditional**: pursue billed-cost reduction only once the billing source and the repository's visibility during the measured period are confirmed.
+- Budget alerts (§9) stay blocked until someone authenticates with the `user` scope deliberately and confirms a meaningful billable threshold exists to alert on.
+
+If net cost was zero, this remains a serious **cycle-time and reliability** programme — it is not thereby void.
 
 **The one-line rule:** GitHub is the system of *change and review*; S3 is the system of *data, generated artifacts, and governed evidence*. Optimize for completed reviewable increments — not repository event count.
 
@@ -142,6 +151,18 @@ Practice:
 Reconstructed from the GitHub API (624 runs, 3,820 jobs, per-job durations billed rounded up):
 **8,007 min computed vs 8,073 billed — 99% agreement.** Reproduce with `scripts/ci_usage_report.py`.
 
+⚠ **Two July baselines exist; they measure different windows. Keep both.**
+
+| Baseline | Runs | Jobs | Minutes | What it is |
+|---|---|---|---|---|
+| Original snapshot | 624 | 3,820 | 8,007 computed / 8,073 billed | The invoice-validated figure the ≥60% target and the ~3,229 min goal are derived from. **Partial month** — taken before the last days of July closed. |
+| Complete `2026-07-01..07-31` sweep | 711 | 4,568 | 9,619 computed | Re-run of the same script over the whole month (2026-08-04). Adds the ~87 runs the snapshot predates. |
+
+The original figure is **not erroneous** and must not be overwritten — it is the invoice-anchored
+number. Use the complete sweep only when comparing month-over-month, and always state which
+window a quoted figure came from. Comparing an August sweep against the *partial* July snapshot
+overstates any regression by roughly 20%.
+
 | Job | Billable min | % | Runs | Avg |
 |---|---|---|---|---|
 | `Python (backend)` (LIGHT) | 3,473 | **43.4%** | 582 | 6.0 |
@@ -186,6 +207,33 @@ Levers and their governed status (GITHUB-OPS-001 phase 1):
 🏁 **Wave 1 complete (2026-07-29).** Four PRs merged (#538 #539 #540 #543): **~179 min/month measured recurring saving (~2.2%)** plus deterministic hash-verified dependency resolution. Three optimizations **rejected/deferred by measurement** — LIGHT/FULL dedup (would delete required evidence), fail-fast (~34 min ceiling, real push-cycle cost), env caching (unsound cache key pre-locking). **The 50–60% target is OPEN, not failed** — it depends on the exact-merge-result design.
 
 ⚠ **Do not count outage repairs or locking as recurring cost savings.** Their value is reliability and reproducibility. Only #538 is a measured recurring saving.
+
+### 3.2 Two targets, measured separately (owner ruling, 2026-08-04)
+
+The Aug 1–4 measurement falsified the cost model's central assumption — that reducing run
+frequency would dominate suite growth. It did not. **Track the two targets apart; do not
+report either as the other.**
+
+| Target | Status | Evidence (Aug 1–4 vs July) |
+|---|---|---|
+| **Behavioral efficiency** | **achieved / trending correctly** | runs/day 22.8 → 15.0 (−34%); pushes per work item 1–3 (median 1) across 25 branches; cancelled-run waste 7.3% → 6.6%; failure minutes 20.6% → 15.0%; LIGHT backend job 5.1 → 2.8 min; docs PRs ~4 min each |
+| **Compute consumption** (runner-minutes, not dollars) | **failed — needs test-architecture work** | 310 → 372 min/day; minutes per run 13.6 → 24.8; minutes per merged PR 39.4 → 62.1 |
+
+**The behavioral controls worked.** What overwhelmed them:
+
+- `Python FULL (backend)` grew **16.1 min (Jul 23) → 24.1 min (Aug 4)**, monotonic — 79 new test
+  files / 26,174 lines added under `apps/backend/tests` in 12 days. At ~10.8 FULL runs/day each
+  added minute costs ~335 min/month; the 8 added minutes ≈ **~2,680 min/month of new recurring
+  cost**, against Wave 1's ~179 min/month saving.
+- FULL-invoking runs went **25% → 72%** of all runs, because ADR-0043 work legitimately touches
+  Tier 3 paths and every push to main is Tier 3 (`main` = 46% of the period's minutes).
+
+`Pytest (full, with coverage)` is now **96.1% of the FULL backend job and ~67% of total Actions
+spend**. Per §3.1 the only two levers are *run it less often* (lever 4, blocked by the
+exact-merge-result bar) or *make it genuinely faster*. **Optimize before removing coverage** —
+look for duplicated DB/migration setup, repeated large-fixture construction, unshared session
+fixtures, subprocess/container startup, coverage tracing over irrelevant modules, accidental
+serialization, and mocks with real timeout intervals *before* proposing any path-gating.
 
 ⛔ **Exact-merge-result approval bar** — before reducing push-to-main validation, prove ALL of: the exact **merge result** (not the PR head) was fully tested · the tested SHA **is** the SHA admitted to the protected branch · base movement invalidates stale approval · required checks **always** report · merge-queue/merge-commit/squash/rebase each explicitly handled · direct push, emergency merge and bot paths cannot bypass equivalent validation · post-merge deployment checks stay separate from redundant retesting. Until then the push-to-main FULL run is **expensive but justified**.
 
