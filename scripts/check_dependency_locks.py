@@ -101,18 +101,43 @@ def unhashed(text: str) -> list[str]:
     return bad
 
 
+def generator_header(project: str, directory: str) -> str:
+    """The header the generator prepends to every constraints file.
+
+    Imported from the generator rather than re-implemented so the gate and the generator
+    cannot drift apart on the header format — a drift that would silently make the parity
+    comparison below unsatisfiable again.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from regenerate_dependency_locks import header
+
+    return header(project, directory)
+
+
 def recompile_one(project: str, directory: str, out: Path) -> tuple[bool, str]:
+    """Re-resolve into ``out``, reproducing exactly what the generator commits.
+
+    ``uv`` runs with --no-header and therefore emits only the resolved body, while the
+    committed file is ``header(...) + body``. Comparing the bare body against the committed
+    file is unsatisfiable by construction, so the governed header is prepended here before
+    the caller's byte comparison.
+    """
+    raw = out.with_name(out.name + ".raw")
     cmd = [
         "uv", "pip", "compile", f"{directory}/pyproject.toml",
         *sum([["--extra", e] for e in GOVERNED_EXTRAS], []),
         "--python-version", GOVERNED_PYTHON,
         "--python-platform", GOVERNED_PLATFORM,
         "--generate-hashes", "--no-header",
-        "--output-file", str(out),
+        "--output-file", str(raw),
     ]
     p = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
     if p.returncode != 0:
         return False, f"uv pip compile failed: {p.stderr.strip()[:300]}"
+    out.write_text(
+        generator_header(project, directory) + raw.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     return True, ""
 
 
