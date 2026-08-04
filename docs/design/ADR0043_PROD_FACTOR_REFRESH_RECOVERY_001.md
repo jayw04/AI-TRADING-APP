@@ -39,7 +39,10 @@ units                  workbench-factor-refresh.timer / .service   OnCalendar=Mo
                        workbench-factor-freshness.timer / .service OnCalendar=Mon-Fri 07:00
 host timezone          America/New_York        Persistent=false on both timers
 affected strategies    7 (sector-rotation, `24 10 * * mon`) · 8 (low-volatility, `32 10 * * mon`)
-expiration             effective_at + 168 hours (must complete before 2026-08-10 10:24 ET)
+expiration             EARLIER OF effective_at + 168 h  OR  2026-08-10T13:00:00Z
+                       (= 2026-08-10T09:00:00-04:00; 84-minute buffer before strategy 7
+                        dispatches at 10:24 ET. The fixed deadline is NOT optional — do not
+                        use effective_at + 168 h alone.)
 ```
 
 ## 2. Incident summary
@@ -73,12 +76,24 @@ strategies 7/8 next-run times, and the watchdog's last verdict.
 command · deployment process · incident response · unit replacement · package or host update ·
 failed enablement · other automation.
 
-Evidence already gathered points to an **explicit operator command** (`sudo systemctl stop`, `mask`,
-`disable --now` by `ubuntu`). No operator record exists in `/opt/workbench/data/ops` for that
-window. **Working hypothesis, unconfirmed:** the producer was stopped deliberately because its
-deployed implementation carries the universe and freshness defects that #606 fixes — i.e. the
-owner's preferred-recovery reasoning applied by hand. Confirm with the owner before proceeding;
-if that is the reason, this recovery is the sanctioned way to restart it.
+### 3.0 Cause — owner disposition 2026-08-04
+
+```
+CONFIRMED CAUSE            deliberate interactive operator stop through sudo
+HISTORICAL MOTIVE          unrecorded / NOT ESTABLISHED
+WORKING HYPOTHESIS         containment pending correction of the refresh defects later
+                           fixed by #606
+CURRENT OWNER DISPOSITION  no standing hold remains; recovery may proceed only under #614
+```
+
+**Owner ruling:** *no standing operational hold prevents restoration of the paper production
+factor-refresh producer under the final, effective #614 authorization.*
+
+⚠ The **motive is not upgraded to a finding.** The mechanism is confirmed — `sudo systemctl stop`,
+`mask`, `disable --now` by `ubuntu`, three commands in eight seconds — but no operator record
+exists in `/opt/workbench/data/ops` for that window, so *why* it was stopped remains unrecorded.
+The containment theory is consistent with the timing and with the state of #606 at the time; it is
+not evidence. This closes the decision gate without inventing a historical explanation.
 
 ### 3.1 ✅ RESOLVED — the 09:08:39 store mtime was operator inspection, not an out-of-band write
 
@@ -98,13 +113,30 @@ its mtime without altering data.
 
 Corroborated by content: the store still holds `sep max = 2026-07-31` with 685,585 rows over 1,254
 tickers — consistent with what the 06:03 run logged post-swap (`live sep max after swap:
-2026-07-31 | tickers.lastpricedate: 2026-07-31`). Had anything written *data* after the swap, the
-frontier or row counts would differ.
+2026-07-31 | tickers.lastpricedate: 2026-07-31`).
 
-**Disposition:** benign operator inspection. This no longer blocks promotion.
+```
+MTIME_ANOMALY               EXPLAINED
+SUBSTANTIVE_CONTENT_CHANGE  NOT OBSERVED
+CAUSE                       operator inspection through a non-read-only DuckDB connection
+PROMOTION BLOCK             CLEARED
+```
 
-⚠ Practice note, not a finding: opening the live store read-write while the backend holds it is
-mildly risky and should use `read_only=True`. Nothing was corrupted here.
+⚠ **This is not a proof that no value changed.** Matching row counts and a matching frontier are
+consistent with an unmodified store, but they do not establish that no individual cell was altered.
+The claim is bounded deliberately: a substantive content change was *not observed*, not that a write
+*could not* have occurred.
+
+Two consequences follow, and they are requirements rather than commentary:
+
+1. **Preserve the original store digest**
+   (`13d74f51e52ea1cb15d83c6e22fef25f0566ed79a9180e95492f16c41a277580`) as pre-recovery evidence.
+2. **Build the recovery output through a new staging file**, so the current store is never *trusted*
+   merely because the anomaly is explained. The recovery's own verification gates — not this
+   disposition — are what qualify the promoted store.
+
+⚠ Practice note: opening the live store read-write while the backend holds it should use
+`read_only=True`. Nothing was observed to be corrupted here.
 
 ## 4. Stage B — deploy the corrected implementation
 
@@ -134,41 +166,58 @@ into the live trading runtime in order to fix a data job. It also directly viola
 prohibition on database migrations unrelated to refresh. A narrow recovery must not become an
 unreviewed 182-commit release.
 
-### 4.2 Authorized deployment shape
+### 4.2 Authorized deployment shape — single-file, refresh-only
 
-Deploy to host paths, pinned, with digests recorded before and after and rollback copies retained:
+⛔ The earlier proposal `./apps/backend/scripts:/app/scripts:ro` is **REJECTED**. A directory mount
+would shadow every image-baked script the moment the long-running backend is next recreated — a
+latent application-runtime change outside this recovery, surfacing long after the change that
+caused it.
+
+Deploy exactly three files to pinned host paths, digests recorded before and after, rollback copies
+retained:
 
 ```
-/opt/workbench/app/deploy/aws/factor-refresh.sh              ← bc32ab6c…  (host-executed)
-/opt/workbench/app/apps/backend/scripts/factor_refresh.py    ← b8b7f039…  (new file)
+/opt/workbench/app/apps/backend/scripts/factor_refresh.py          (new file)
+/opt/workbench/app/deploy/aws/docker-compose.factor-refresh.yml    (new file)
+/opt/workbench/app/deploy/aws/factor-refresh.sh                    (replaces a199e855…)
 ```
 
-The host already carries backend sources at `/opt/workbench/app/apps/backend/`, including
-`scripts/`, so the second path exists and is the natural home for it.
-
-Then make the **one-off refresh container** see the host copy, without touching the running
-backend. Recommended: add a read-only mount for the backend `scripts` directory to the backend
-service in `docker-compose.prod.yml`:
+The override maps **one file, read-only**, into the throwaway refresh container only:
 
 ```yaml
-- ./apps/backend/scripts:/app/scripts:ro
+services:
+  backend:
+    volumes:
+      - ./apps/backend/scripts/factor_refresh.py:/app/scripts/factor_refresh.py:ro
 ```
 
-`docker compose run --rm --no-deps backend …` re-reads the compose files per invocation, so the
-one-off refresh container picks this up **while the long-running backend container keeps its
-existing configuration until it is next recreated**. No restart, no image rebuild, no migration.
+`factor-refresh.sh` invokes the one-off container through it:
 
-⚠ Consequence to accept explicitly: when the backend container *is* next recreated, host `scripts/`
-will shadow the image's. The host tree is the same `b0058bf` git-archive the image was built from,
-so the contents are near-identical plus the new file — but this is a persistent behavioural change
-and belongs in the authorization, not in someone's memory.
+```
+docker compose -f docker-compose.yml -f docker-compose.prod.yml                -f deploy/aws/docker-compose.factor-refresh.yml                run --rm --no-deps backend python scripts/factor_refresh.py
+```
 
-**Alternative** if that shadowing is unwanted: a follow-up PR that has `factor-refresh.sh` mount the
-scripts directory explicitly into its own one-off container, pinned to that newer commit. Cleaner
-provenance, costs one review cycle. Both fit before 2026-08-10; the owner should pick.
+Required behaviour, each covered by a test in the implementation PR:
 
-No service or timer starts as part of Stage B. After deployment, run syntax and import validation
-only — no provider contact, no store change.
+```
+one-off refresh container     sees the corrected file
+running backend               unchanged
+future backend recreation     unchanged
+production image              unchanged
+migration execution           none
+other scripts shadowed        none
+```
+
+`ingest_sharadar.py` keeps using the plain compose invocation — it already ships in the image, and
+substituting it would be an unreviewed change. Every `stop`/`start`/`exec` against the long-running
+backend likewise uses plain compose.
+
+No service or timer starts during Stage B. After deployment run syntax and import validation only —
+no provider contact, no store change.
+
+⚠ **Implementation is PR #617 and must be merged before this authorization becomes effective.**
+Its merge commit and the three deployed-file digests are pinned in §14 as an effectiveness
+prerequisite. Merging #617 deploys nothing.
 
 ## 5. Scope
 
@@ -294,12 +343,78 @@ Producer liveness and data freshness are **separate mandatory conditions**. This
 proof: the watchdog reported clean while the producer was already dead, and only escalated a day
 later when the data drifted. A fresh store must never conceal a dead producer.
 
-## 14. Open items for owner ruling
+## 14. Effectiveness prerequisites
 
-1. **Cause confirmation** — was the 2026-08-03 09:46 stop deliberate containment pending #606?
-2. **§4.2 deployment shape** — compose read-only mount (recommended) versus a follow-up PR that
-   mounts scripts from within `factor-refresh.sh`.
-3. ~~The 09:08:39 store mtime~~ — **RESOLVED** (§3.1): operator inspection via
-   `FactorAccessor`/`FactorDataStore`, which bumps mtime without altering data. Corroborated by
-   unchanged frontier and row counts. No longer blocks promotion.
-4. **Effective date**, which sets the 168-hour expiration against the 2026-08-10 deadline.
+This authorization may not become effective until every item below is complete:
+
+```
+1. ✅ §4.2 replaced with the single-file refresh-only override (directory mount REJECTED)
+2. ⬜ isolated implementation PR #617 merged
+3. ⬜ its merge commit + the three deployed-file digests pinned here
+4. ⬜ #614 rebased onto current main
+5. ⬜ exact recovery and rollback commands frozen
+6. ⬜ numeric runtime, disk, request and ticker limits set
+7. ⬜ final document blob and canonical SHA-256 recomputed
+8. ⬜ effectiveness record submitted
+```
+
+Pins to be filled at step 3:
+
+```
+implementation merge commit    <pinned at merge of #617>
+factor_refresh.py              b8b7f0395e7f6d6bbf71fff3ecab5fa483355e422441a97e3f856c9a33ed55a3
+docker-compose.factor-refresh.yml  <pinned at merge>
+factor-refresh.sh              <pinned at merge — supersedes a199e855…>
+```
+
+## 15. ⛔ REQUIRED — dispatch protection before Monday
+
+**Until the producer is recovered and its refreshed generation is verified, strategies 7 and 8 must
+not perform their Monday factor-consuming rebalance.**
+
+#615 detection alone is **insufficient**. It signals; it does not stop anything. The chain today is:
+
+```
+FAIL → non-zero exit + SNS alert → [MISSING] → dispatch proceeds anyway
+```
+
+At least one explicit interlock must exist before 2026-08-10 10:24 ET:
+
+```
+producer liveness FAIL  OR  sealed generation FAIL  OR  data freshness FAIL
+   → strategy 7/8 factor-consuming dispatch PREVENTED
+```
+
+### 15.1 Preferred — permanent consuming interlock
+
+```
+scheduler preflight invokes the readiness check
+nonzero readiness result exits BEFORE strategy execution
+no strategy-status mutation          no broker interaction
+evidence records that the strategy function was never entered
+```
+
+⚠ It must be evaluated **at dispatch**, synchronously. Not strategy code reading the last watchdog
+log; not assuming an alarm was acted on. It must fail closed when readiness is FAIL, missing,
+unreadable, stale relative to the current dispatch, or bound to a different sealed generation or
+factor-store identity.
+
+### 15.2 Fallback — narrowly governed temporary disablement
+
+If the permanent interlock cannot be completed in time, **temporarily disabling only the strategy 7
+and 8 scheduled dispatches is safer than allowing stale-factor execution.** Any such disablement
+and its restoration must be recorded separately, with the same rigour as the producer stop that
+caused this incident — the absence of that record is precisely why §3.0's motive is unrecoverable.
+
+## 16. Open items for owner ruling
+
+1. ~~Cause confirmation~~ — **RULED** (§3.0). Mechanism confirmed; motive not established and
+   deliberately not upgraded to a finding. No standing hold remains.
+2. ~~Deployment shape~~ — **RULED** (§4.2). Single-file refresh-only override; directory mount
+   rejected. Implemented in PR #617.
+3. ~~The 09:08:39 store mtime~~ — **CLEARED** (§3.1), bounded as *not observed* rather than
+   *impossible*, with the original digest preserved and recovery built through new staging.
+4. **Effective date** — still open. Expiration is the **earlier of** `effective_at + 168 h` or
+   `2026-08-10T13:00:00Z`, per §1.
+5. **Dispatch protection** (§15) — permanent consuming interlock, or the governed temporary
+   disablement fallback. **Required before 2026-08-10 10:24 ET regardless of recovery progress.**
