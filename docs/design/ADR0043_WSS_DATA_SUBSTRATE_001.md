@@ -431,36 +431,6 @@ bootstrap operational ceiling RSS ≤ 3.0 GiB · temp disk ≤ 12 GiB · min fre
 These are provisional and bound the work that determines the final numbers. Exceeding either is
 `CAPACITY_INSUFFICIENT`, not an occasion to raise the ceiling in place.
 
-### 6.1.2 FROZEN operational limits — derived from §6.1.1, binding from here
-
-The measurement is complete, so these supersede the provisional bootstrap ceiling above. Every
-value carries the measured basis it was set from, and headroom is deliberate rather than arbitrary.
-
-```
-                              FROZEN        projected/measured        basis
-maximum RSS                   3.0 GiB       « 3.0 GiB                 batched DuckDB inserts
-maximum temporary disk        12 GiB        < 1 GiB                   store is 43 MiB at 685k rows
-minimum free disk retained    4 GiB         19 GiB available          destination headroom
-maximum staging-store size    500 MiB       ~27 MiB projected         ~18x headroom
-maximum runtime               6 h           ~25–60 min                ~2,500 sequential requests
-maximum provider rows/day     900,000       ~627,000 projected        provider cap ~1,000,000
-maximum provider requests     3,000         ~2,500 projected          SEP+ACTIONS per-ticker, TICKERS bulk
-concurrency                   1             —                         one refresh only, ever
-stale-lock policy             12 h          2 × max runtime           break with alert, never silently
-```
-
-Universe-growth controls, matching the constants #606 already ships:
-
-```
-hard maximum universe count   2,000         DEFAULT_MAX_UNIVERSE      vs ~500–700 expected
-review threshold              0.25          DEFAULT_GROWTH_REVIEW     report, do not fail
-expected normal range         500 – 900     pool 500 ∪ registered 208 ∪ held ∪ extras
-```
-
-The hard maximum is a genuine stop, not a target: at ~700 expected it sits nearly 3× above normal,
-so reaching it means the universe is being driven by something outside the authorized formula.
-Breach ⇒ `CAPACITY_INSUFFICIENT`. **Never resize the instance or raise a limit in place.**
-
 ### 6.1.1 CAPACITY_MEASURED — the measurement, and what it changed
 
 Measured 2026-08-04, read-only sampling against the paper production store. **The store is far
@@ -503,7 +473,171 @@ originally was (`survivorship_pool.txt`, 14,150 names, used for the one-time bac
 pool is far too large — 14,150 × 500 ≈ 7.1M rows would breach the daily cap eightfold — so the seed
 must be a bounded subset, pinned in the checkpoint.
 
-### 6.2 Verified copy from the live paper runtime
+### 6.1.2 FROZEN operational limits — derived from §6.1.1, binding from here
+
+The measurement is complete, so these supersede the provisional bootstrap ceiling above. Every
+value carries the measured basis it was set from, and headroom is deliberate rather than arbitrary.
+
+```
+                              FROZEN        projected/measured        basis
+maximum RSS                   3.0 GiB       « 3.0 GiB                 batched DuckDB inserts
+maximum temporary disk        12 GiB        < 1 GiB                   store is 43 MiB at 685k rows
+minimum free disk retained    4 GiB         19 GiB available          destination headroom
+maximum staging-store size    500 MiB       ~27 MiB projected         ~18x headroom
+maximum runtime               6 h           ~25–60 min                ~2,500 sequential requests
+maximum provider rows/day     900,000       ~627,000 projected        provider cap ~1,000,000
+maximum provider requests     3,000         ~2,500 projected          SEP+ACTIONS per-ticker, TICKERS bulk
+concurrency                   1             —                         one refresh only, ever
+stale-lock policy             12 h          2 × max runtime           break with alert, never silently
+```
+
+Universe-growth controls, matching the constants #606 already ships:
+
+```
+hard maximum universe count   2,000         DEFAULT_MAX_UNIVERSE      vs ~500–700 expected
+review threshold              0.25          DEFAULT_GROWTH_REVIEW     report, do not fail
+expected normal range         500 – 900     pool 500 ∪ registered 208 ∪ held ∪ extras
+```
+
+The hard maximum is a genuine stop, not a target: at ~700 expected it sits nearly 3× above normal,
+so reaching it means the universe is being driven by something outside the authorized formula.
+Breach ⇒ `CAPACITY_INSUFFICIENT`. **Never resize the instance or raise a limit in place.**
+
+### 6.1.3 Bootstrap seed universe — sealed export contract
+
+The seed determines which names WS5 can ever rank over, so it is a governed binding.
+
+**Terminology, precisely.** This is **production-store contact**, not production-data inheritance:
+a bounded, read-only query against the production factor store exporting only normalized ticker
+membership. It requires no quiescence, no snapshot, no file copy, no live-store mutation, and no
+transfer of historical market-data rows. It does read the store — saying otherwise would be false.
+
+```
+BOOTSTRAP_SEED_SOURCE      read-only symbol-membership export from the paper production factor store
+BOOTSTRAP_SEED_PURPOSE     bootstrap-only candidate membership from which WS5 constructs its own
+                           store-wide dollar-volume ranking pool
+SOURCE_DATA_INHERITED             false
+SOURCE_STORE_GENERATION_INHERITED false
+PRICE_OR_FACTOR_ROWS_COPIED       0
+
+source_runtime             i-084f47fe4e69192e9
+source_store_path          /opt/workbench/data/factor_data.duckdb
+source_store_digest        13d74f51e52ea1cb15d83c6e22fef25f0566ed79a9180e95492f16c41a277580
+export_timestamp_utc       2026-08-04T21:11:09Z
+extraction_query           SELECT DISTINCT ticker FROM sep ORDER BY ticker      (read_only=True)
+ticker_count               1,254
+seed_sha256                189f242e7329736a8c0fb9163e9760373dfdaef1f133ec330abe9a1b47bd04ef
+duplicates_after_norm      0        blank/null 0        malformed 0
+normalization              trim · uppercase · non-blank · unique · ASCII · [A-Z0-9._-] only
+sort_order                 lexicographic          line_endings LF, final newline present
+content                    symbols only — no prices, dates, volumes, factors, exchange metadata,
+                           company names, strategy state, positions, credentials or account data
+failure_mode               malformed, duplicate-after-normalization, blank or null FAILS the export
+```
+
+**Membership acceptance — computed, not assumed:**
+
+```
+seed count = 1,254                    ✅   ≤ universe hard maximum 2,000            ✅
+duplicate normalized symbols = 0      ✅   blank/null = 0                           ✅
+seed digest reproduced independently  ✅   (canonicalized off-host from the raw export)
+all 208 WSS registered present in seed ❌  — 9 missing, attributed below
+SPY present                            ✅  via governed extras (absent from the seed)
+```
+
+```
+BOOTSTRAP_UNION = seed(1,254) ∪ WSS registered(208) ∪ governed extras(SPY)
+bootstrap_union_count   1,263
+bootstrap_union_sha256  8dd3589bf5b673ae4557a6239dc804b845eeb2dfec535b23636adcd94e252549
+
+projected_sep_rows      631,500   (1,263 × 500 sessions)   cap 900,000     PASS
+projected_requests        2,527   (SEP+ACTIONS per ticker + 1 TICKERS bulk) cap 3,000  PASS
+universe hard maximum     1,263 ≤ 2,000                                     PASS
+```
+
+⚠ The provider-row gate is independently controlling. At 500 sessions the 900,000-row ceiling
+implies roughly 1,800 fully-populated SEP tickers before ACTIONS/TICKERS and retry headroom — so
+the 2,000-name universe maximum is a **structural** stop and is not automatically a valid one-day
+bootstrap size.
+
+#### 6.1.3.1 ⚠ Nine WSS symbols are not obtainable from the governed provider
+
+Computing the union rather than assuming it surfaced this:
+
+```
+DBC · EEM · EFA · GLD · IEF · KMLM · SPY · TLT · UUP
+```
+
+All nine are **ETFs**. Verified against production: they have **zero SEP rows and do not appear in
+the TICKERS reference table at all**. This is not a gap in the production store — the Sharadar
+subscription is Core US Equities and does **not** include SFP (the fund/ETF price dataset), so
+these instruments are outside the governed provider's coverage entirely. Neither a native build
+nor a verified copy could populate them.
+
+Consequences that must be resolved before `DATA_SUBSTRATE_READY` is reachable:
+
+1. **§8.1's "all required WSS symbols represented" cannot pass as written.** Nine symbols are
+   structurally unavailable, so the gate must be restated as *all WSS symbols for which the
+   governed provider carries data*, with these nine explicitly attributed — not silently dropped
+   and not silently waved through.
+2. **WSS's cross-asset sleeve depends on them.** The activation order in the readiness plan is
+   exits → reconcile → **cross-asset sleeve** → reconcile → equity entries. If that sleeve ranks or
+   sizes on these ETFs, the factor store cannot serve it and another source must be identified and
+   governed.
+3. **They will be requested and return nothing.** The bootstrap must attribute them as
+   provider-unavailable rather than counting them as ingest failures.
+
+⚠ Where production strategy 9 currently obtains ETF prices is **not established**. It may use
+Alpaca bars rather than the factor store. That must be determined before the WSS decision dry run
+in §8.2 can be considered meaningful — otherwise the dry run would produce a deterministic ranked
+set over an equity-only universe while the live construction expects a cross-asset sleeve.
+
+### 6.1.4 BOOTSTRAP_METHOD_SELECTED — sealed checkpoint
+
+```
+method                   = NATIVE_BUILD
+measurement_artifact_sha = 72506343a79677ba52a3ba850fc87ccad324118dca4e5b813247fbdea36de9ac
+seed_sha256              = 189f242e7329736a8c0fb9163e9760373dfdaef1f133ec330abe9a1b47bd04ef
+union_sha256             = 8dd3589bf5b673ae4557a6239dc804b845eeb2dfec535b23636adcd94e252549
+bootstrap_history_target = 500 trading sessions per available ticker
+capacity_bounds          = §6.1.2 frozen limits
+provider_limits          = 900,000 rows/day · 3,000 requests · concurrency 1
+authority_basis          = owner ruling 2026-08-04 — NATIVE_BUILD approved, VERIFIED_COPY rejected
+                           for this execution; seed approved as metadata-only export
+```
+
+**Horizon = 500 trading sessions**, covering the 252-day momentum lookback, the 63-day
+dollar-volume window, and warm-up plus missing-session headroom.
+
+Per-ticker outcomes must be attributed, never silently absorbed:
+
+```
+newly listed, < 500 sessions available   ACCEPT, attribute as short-history; evaluate against
+                                         per-name completeness rules, do not fail the bootstrap
+delisted / unavailable                   ACCEPT, attribute as delisted; excluded from freshness
+rows missing inside the requested window ATTRIBUTE per name; fail only if coverage < threshold
+ticker rejected by the provider          ATTRIBUTE as provider-rejected (the 9 ETFs land here)
+ACTIONS outside the SEP date span        ACCEPT, attribute; must not extend the SEP window
+```
+
+A ticker with legitimate short history must not fail the whole bootstrap — but it must be counted,
+attributed, and judged against the per-name completeness rules rather than disappearing.
+
+### 6.1.5 Seed stability — the seed is an input, not a policy
+
+The 1,254-name list is a **bootstrap input only**. Once the native store exists the store-wide
+dollar-volume pool becomes derivable, and normal #606 construction takes over:
+
+```
+bootstrap seed → initial native store → store-wide pool available → #606 refresh construction
+```
+
+Daily refreshes thereafter use `ranking pool × headroom ∪ all registered strategy symbols ∪ held ∪
+governed extras`. ⛔ **Do not keep unioning the original seed** unless a later authorization makes
+it a continuing component — otherwise the bootstrap seed silently becomes an undeclared permanent
+universe floor.
+
+### 6.2 Verified copy from the live paper runtime — REJECTED for this execution
 
 Permitted only when every condition holds. ⚠ The source is the **live production runtime** — the one
 machine where a mistake reaches real positions.
@@ -777,56 +911,11 @@ UTC timestamp and **verify a difference of exactly 1,209,600 seconds** — deriv
 the measured bootstrap is expected to need longer, that is an amendment before effectiveness, not an
 extension afterwards.
 
-## 16. BOOTSTRAP_METHOD_SELECTED — sealed checkpoint
+## 16. Bootstrap-method selection
 
-```
-BOOTSTRAP_METHOD_SELECTED
-  method                   = NATIVE_BUILD
-  measurement_artifact_sha = 72506343a79677ba52a3ba850fc87ccad324118dca4e5b813247fbdea36de9ac
-  seed_universe            = explicit governed ticker list, bounded subset (see below)
-  depth_bound              = ~500 trading days
-  projected_rows           = ~627,000        (cap 900,000/day)
-  projected_store          = ~27 MiB         (19 GiB free)
-  projected_runtime        = ~25–60 min      (6 h ceiling)
-  authority_basis          = owner ruling — method deferred to measurement, selected on evidence
-```
-
-### 16.1 Why NATIVE_BUILD, on governance rather than cost
-
-Both methods fit the limits easily; a 43 MiB store makes the cost argument nearly moot. The
-decision therefore rests on provenance and workstream separation:
-
-1. **VERIFIED_COPY requires touching the live production runtime mid-incident.** §6.2 demands
-   quiescence or a validated consistent snapshot. The paper box currently has a **deliberately
-   stopped refresh producer**, a store frozen at 2026-07-31, and an **unexplained write** at
-   2026-08-03 09:08:39 — 65 minutes after the run that produced the file and 38 minutes before the
-   timer was disabled. That anomaly is unresolved and is a blocking item in the separate recovery
-   authorization. Snapshotting a store whose recent history is under investigation would import an
-   open incident into this authorization.
-2. **It would entangle two workstreams that are deliberately separate.** Production refresh
-   recovery and WSS substrate establishment are governed by different documents precisely so a
-   failure in one cannot stall or contaminate the other.
-3. **The inherited provenance is worse than the build cost.** A copy carries the 2026-07-06 →
-   2026-07-28 staleness episode and the frozen frontier as history that must be disclosed and
-   reasoned about forever. A native build yields clean genesis for ~40 minutes of work.
-4. **Nothing about the native build strains the host.** 0.14% of free disk, well inside the RSS
-   ceiling, ~70% of one day's provider budget, and roughly a tenth of the runtime ceiling.
-
-The one thing a native build does *not* get for free is the ranking pool, which is why the seed
-list is a pinned input rather than a derived one (§6.1.1).
-
-### 16.2 Seed universe — open for owner ruling
-
-The seed determines which names WS5 can ever rank over, so it is a governed binding, not an
-operator convenience. Recommended: **the production store's current 1,254-ticker membership,
-exported read-only as metadata**. That reproduces the production ranking pool's *membership*
-without copying its *data* or inheriting its provenance, and it is proven to support a 500-name
-pool. At ~500 trading days it projects to ≈627,000 rows — inside the daily cap with headroom for
-retries.
-
-⚠ Exporting the ticker list is a **read-only metadata** operation against production. It does not
-require quiescence, does not touch the store contents, and does not interact with the recovery
-incident. It is nonetheless production contact and is called out here rather than assumed.
+Selected and sealed in **§6.1.4**, against the measurement in §6.1.1, the frozen limits in
+§6.1.2 and the seed contract in §6.1.3. Recorded there rather than duplicated here so that later
+evidence and effectiveness records cite one checkpoint, not two.
 
 ## 17. Remaining open items for owner ruling
 
@@ -834,16 +923,19 @@ incident. It is nonetheless production contact and is called out here rather tha
 2. ~~Bootstrap method~~ — **RESOLVED**, `NATIVE_BUILD` sealed in §16.
 3. ~~Pinned artifact values~~ — **RESOLVED**, see §2.1.1.
 
-**All three original open items are resolved.** One new item arose from the measurement:
+**All three original open items are resolved**, and the seed universe (item 4) was ruled on and is
+sealed in §6.1.3. One new item arose from computing the union rather than assuming it:
 
-4. **Seed universe for the native build** (§16.2) — recommended: the production store's current
-   1,254-ticker membership exported read-only as metadata. This is a governed binding because it
-   determines which names WSS can ever rank over, and it involves read-only production contact.
+5. **Nine WSS registered symbols are outside the governed provider's coverage** (§6.1.3.1). The
+   Sharadar tier carries no ETFs, so `DBC EEM EFA GLD IEF KMLM SPY TLT UUP` cannot be populated by
+   any bootstrap method. This blocks §8.1's acceptance gate as currently worded and puts the
+   cross-asset sleeve's data source in question. It needs a ruling before `DATA_SUBSTRATE_READY` is
+   reachable — either restate the gate to cover only provider-available symbols and identify the
+   sleeve's real source, or accept an equity-only substrate and say so explicitly.
 
-This document is now **complete except for item 4 and the effectiveness record**. It may not become
-effective until item 4 is ruled on, the final text is reviewed, the document hash is pinned, owner
-approval is recorded, and an effectiveness record is issued carrying `effective_at` and
-`expiration_at = effective_at + 336 hours`.
+This document may not become effective until item 5 is ruled on, the final text is reviewed, the
+document hash is pinned, owner approval is recorded, and an effectiveness record is issued carrying
+`effective_at` and `expiration_at = effective_at + 336 hours`.
 
 ### 17.1 Build-host permission finding (informational)
 
