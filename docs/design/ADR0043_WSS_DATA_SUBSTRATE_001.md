@@ -59,6 +59,14 @@ credential key fp          ffab8796516a          secret fp   c2cab6509f1b
 barred_manifest_sha256     1e9e0f94…2bf2bb36     disposition NOT_AUTHORIZED_FOR_WSS_ACTIVATION
 ```
 
+### 1.1 Terminology — what "account 7" is, and is not
+
+**"Account 7" is only the internal Workbench account mapping.** The object being prepared here, and
+later activated under Authorization 2, is **WSS / strategy 9**. The broker account is
+`PA3E97RWHKQZ`. The internal account row is **not independently activated** — there is no such thing
+as "activating account 7," and describing the goal that way is what produced earlier confusion
+between this account 7 and the legacy canary.
+
 `barred_manifest_sha256` is **barred from this activation programme**. It is deliberately not
 described as revoked, refused, superseded or invalid — no governing record assigned it any of those
 states, and inventing lifecycle semantics here would misrepresent its history.
@@ -67,28 +75,48 @@ states, and inventing lifecycle semantics here would misrepresent its history.
 times in the governing successor authorization and survives only as provenance *tags* on the WS5
 runtime.
 
-## 2. Authorized scope
+## 2. Scope — preparation is not authorized execution
+
+Repository work and CI do not invoke this authorization and do not touch WS5. They are therefore
+**prerequisites to effectiveness**, not authorized actions against the runtime. Separating them
+means the effectiveness record binds *concrete artifacts* rather than authorizing future unknown
+ones.
+
+### 2.1 Pre-effectiveness prerequisites — completed before this document may become effective
+
+```
+#606 hardened and merged                     exact merged source commit pinned
+Tier 3 CI evidence pinned                    linux/arm64 candidate image built
+index/manifest digest + platform tuple pinned
+no candidate image deployed, pulled, selected or executed on WS5
+```
+
+These may proceed at any time. Merging #606 must not automatically deploy to the paper box or WS5,
+must not select or execute any image on WS5, and must not change any database, credential, factor
+store, scheduler or host state. The arm64 image is built and pushed as a **non-deployed candidate
+artifact** so its exact digests and platform can be inserted into this document.
+
+### 2.2 Authorized scope once effective
 
 Only the following, and only in the sequence of §9:
 
-1. Merge PR #606 after hardening (§3) and exact-head Tier 3 CI.
-2. Rebuild the image from the merged source, targeting `linux/arm64`.
-3. Pin the new source commit, image index digest, deployable manifest digest, and platform tuple.
-4. Install or select the new image on WS5 by digest.
-5. Create the successor database through a dedicated one-shot checkpoint.
-6. Run migrations through a separately logged migration command.
-7. Verify migration head and schema digest.
-8. Seed only the minimum required WSS strategy metadata and universe.
-9. Provision the factor-store directory and volume layout.
-10. Stage narrowly scoped market-data credentials (§7).
-11. Measure capacity and select the bootstrap method (§6).
-12. Execute the store bootstrap (native build or verified copy).
-13. Run an initial bounded incremental factor refresh.
-14. Verify per-symbol freshness and completeness (§8).
-15. Install the factor-refresh schedule, initially **disabled**.
-16. Execute one scheduled-equivalent refresh manually.
-17. Enable **only** the factor-refresh schedule.
-18. Prove no WSS order path, broker mutation path, or trading scheduler is enabled.
+1. Verify the pinned source commit, image digests and platform tuple.
+2. Pull/select the pinned image on WS5 by digest.
+3. Run the bounded image preflight (§4).
+4. Create the successor database through a dedicated one-shot checkpoint.
+5. Run migrations through a separately logged migration command.
+6. Verify migration head and schema digest.
+7. Seed only the minimum required WSS strategy metadata and universe.
+8. Provision the factor-store directory and volume layout.
+9. Stage narrowly scoped market-data credentials (§7).
+10. Measure capacity and select the bootstrap method (§6).
+11. Execute the store bootstrap (native build or verified copy).
+12. Run an initial bounded incremental factor refresh.
+13. Verify per-symbol freshness and completeness (§8).
+14. Install the factor-refresh schedule, initially **disabled**.
+15. Execute one scheduled-equivalent refresh manually.
+16. Enable **only** the factor-refresh schedule.
+17. Prove no WSS order path, broker mutation path, or trading scheduler is enabled.
 
 ## 3. Prerequisite — PR #606, and the eligibility question is CLOSED
 
@@ -182,9 +210,15 @@ empty string             invalid
 JSON value not an array  RefreshError
 array item not a string  RefreshError
 blank string item        RefreshError
-valid empty array        allowed ONLY for records explicitly designated non-symbol strategies;
-                         INVALID for WSS/C40 and any ranked equity strategy
+valid empty array        RefreshError — invalid for EVERY strategy row under the current schema
 ```
+
+The empty array is rejected outright rather than excepted. The draft previously allowed it for
+"records explicitly designated non-symbol strategies," but the current data model has **no such
+field and no authoritative designation**, so that exception could not be mechanically enforced —
+it would be an informal carve-out that the schema cannot check. All ten current rows are non-empty,
+so nothing is lost. A future non-symbol strategy introduces an explicit schema/policy amendment at
+the point it actually exists.
 
 Errors must identify `strategy_id`, `strategy_status`, `failure_class` and `observed_json_type`, and
 must **not** echo the raw value, which may be large or sensitive.
@@ -302,11 +336,38 @@ behaviour.
 
 ⚠ **With 4 GiB RAM, an unconstrained full-history build is prohibited.** Use bounded date
 partitions, provider-side batches, DuckDB incremental inserts with checkpoints, reduced concurrency,
-container memory limits, and an explicit temporary directory on the 20 GiB volume. A pre-authorized
-instance-size increase is permitted only if measurement proves `t4g.medium` insufficient.
+container memory limits, and an explicit temporary directory on the 20 GiB volume.
 **The OS OOM killer must never be the capacity control.**
 
-### 6.1 Verified copy from the live paper runtime
+**If `t4g.medium` proves insufficient, stop at `CAPACITY_INSUFFICIENT`.** Instance resizing is
+**not** authorized by this document. It requires a controlled replacement or an amendment before
+continuing — resizing introduces downtime and changes a bound runtime property, and this document
+names no allowed instance types, memory ceiling, cost ceiling or replacement procedure. Stop and
+return for a ruling rather than improvising a ladder.
+
+⚠ Resizing implies a stack operation on an adopted resource. The 2026-07-27 incident, in which a
+CloudFormation update **replaced a live EC2 instance and destroyed its root volume**, is the
+governing precedent: any such change is create-change-set first, check for `Replacement: True`, and
+never during regular trading hours.
+
+### 6.1 Provisional ceilings governing the measurement itself
+
+The measurement stage must not consume resources without limit, so two levels apply *before* the
+final numbers are known:
+
+```
+measurement safety ceiling   RSS ≤ 2.0 GiB · temp disk ≤ 4 GiB · runtime ≤ 30 min
+                             provider requests ≤ 2,000 rows-equivalent sampling only
+                             read-only against the source; no writes to the paper box
+bootstrap operational ceiling RSS ≤ 3.0 GiB · temp disk ≤ 12 GiB · min free disk retained ≥ 4 GiB
+                             runtime ≤ 6 h · provider rows ≤ 900,000/day (below the ~1M cap)
+                             container memory limit set explicitly; swap disabled
+```
+
+These are provisional and bound the work that determines the final numbers. Exceeding either is
+`CAPACITY_INSUFFICIENT`, not an occasion to raise the ceiling in place.
+
+### 6.2 Verified copy from the live paper runtime
 
 Permitted only when every condition holds. ⚠ The source is the **live production runtime** — the one
 machine where a mistake reaches real positions.
@@ -343,6 +404,21 @@ post_copy_per_name_gate   = passed
 The copied history must not be represented as newly reconstructed or independently clean. The
 incremental refresh and per-name verification are what establish current usability.
 
+The destination must be assigned a **new WS5 generation identifier**; it may not retain only the
+source generation identity. The source generation is recorded as provenance, not as the WS5 store's
+own identity — otherwise two distinct stores on two hosts would claim the same generation and later
+divergence would be untraceable.
+
+```
+ws5_store_generation      = <new, WS5-owned identifier>
+inherited_from_generation = <source generation, provenance only>
+```
+
+**Isolation is permanent after the copy.** Direct mounting, live sharing, network export, or any
+continued synchronisation with the paper-box store is prohibited. What §6.2 permits is a **one-time,
+independently verified snapshot copy** — after which the WS5 store evolves solely through its own
+authorized refresh.
+
 ## 7. Market-data credentials — a separate secret class
 
 Keep the classes separate, with separate permissions, fingerprints, receipts and verification
@@ -353,8 +429,33 @@ commands:
 /etc/adr0043/wss-market-data.env   the market-data provider credential (this document)
 ```
 
-The authorization must specify: provider · allowed endpoints · read-only nature · secret names ·
-fingerprint method · storage path · file ownership and permissions · **interactive owner staging
+### 7.1 Provider binding — resolved
+
+```
+provider              Nasdaq Data Link (Sharadar)
+base                  https://data.nasdaq.com/api/v3/datatables/SHARADAR
+datasets              SHARADAR/SEP · SHARADAR/TICKERS · SHARADAR/ACTIONS
+methods               GET only — no POST/PUT/PATCH/DELETE, no redirects to other hosts
+read-only assertion   the provider is a market-data source; it holds no account, order or
+                      position state and cannot mutate anything the platform owns
+credential name       NASDAQ_DATA_LINK_API_KEY
+storage               /etc/adr0043/wss-market-data.env   0600 root:root, dir 0700 root:root
+fingerprint method    sha256(value) truncated to 12, matching the B4 scheme
+rate ceiling          ~1,000,000 rows/day provider cap; operational bound 900,000/day (§6.1)
+```
+
+**Bootstrap and daily-refresh endpoint patterns differ and must be bounded separately.** SEP and
+ACTIONS are pulled **per ticker**, so a broad historical universe spans multiple days — that is the
+bootstrap shape, and it is the one that can silently exhaust the daily cap. TICKERS is a single
+full-table pull (~22k rows). There is deliberately **no full-market SEP pull**: an explicit ticker
+list or file must always be supplied, so a run cannot silently blow the daily limit. Bootstrap runs
+must use `--skip-existing` to resume cheaply rather than re-fetching.
+
+Key hygiene follows ADR 0018 §5 — the key is read from the environment, printed as a **length
+only**, never as a value, and never written to logs or the audit chain. HTTPS uses the OS trust
+store per ADR 0017; a standalone script must inject `truststore` itself.
+
+The authorization must also specify: file ownership and permissions · **interactive owner staging
 required** · prohibition on logging, CLI arguments and repository fixtures.
 
 Staging reuses the B4 mechanism — an owner-typed interactive entry on `/dev/tty` with echo disabled,
@@ -369,6 +470,8 @@ the credential cannot be consumed by a WSS trading container unless that mount i
 required.
 
 ## 8. `DATA_SUBSTRATE_READY` acceptance gate
+
+### 8.1 Store acceptance conditions
 
 "Refresh completed" is not sufficient. All must hold:
 
@@ -385,7 +488,7 @@ refresh dispatch count within bound       no broker endpoint contacted
 ⚠ Freshness is assessed **per-day-per-name**, never by `max(date)`. The `max(date)` reading is what
 allowed 301 of 500 names to sit frozen at 2026-07-06 while every readiness gate reported green.
 
-### 8.3 WSS deterministic decision dry run
+### 8.2 WSS deterministic decision dry run
 
 Plus, with order submission **disabled**:
 
@@ -475,13 +578,31 @@ has silently returned UTC.
 A failed or stale refresh must **block** later WSS execution. It must never fall back silently to
 old factor data.
 
+### 11.1 Rollback on refresh or freshness failure
+
+A single provider outage should not necessarily disable the schedule, but **readiness is withdrawn
+immediately**:
+
+```
+refresh failure OR freshness-gate failure
+→ factor scheduler continues ONLY per the pinned retry policy
+→ substrate_ready = false            (withdrawn at once, not after N failures)
+→ WSS execution interlock remains CLOSED
+→ no stale store promoted as current
+→ last sealed successful run remains the comparison anchor
+```
+
+Restoring `substrate_ready = true` requires a successful refresh that passes the full §8.1 gate —
+never a manual override, and never the passage of time.
+
 ## 12. Explicitly prohibited
 
 ```
 WSS trading scheduler activation        strategy execution with order submission
 activation manifest issuance            Start-A baseline sealing
 canary orders                           account mutations
-enabling the default application Cmd    sharing the paper box's database or factor files directly
+enabling the default application Cmd    direct mounting, live sharing, network export of, or
+                                        continued synchronisation with the paper-box store
 copying an unverified database snapshot using the old image digest after the new one is pinned
 broadening the instance IAM role        creating workbench.sqlite outside §5's checkpoints
 ```
@@ -509,11 +630,37 @@ attempt 1, and "both legs filled" is not partial-fill evidence. It must be re-sc
 failure semantics rather than to account 3, whose tripped breaker and inactive status are unrelated
 operational hazards. It may not be silently waived at activation time.
 
-## 15. Open items for owner ruling
+## 15. Expiration
 
-1. **Bootstrap method** — deferred to measurement per §6; this draft does not pre-select.
-2. **Market-data provider identity and endpoint allowlist** — §7 specifies the *shape*; the provider,
-   secret names and endpoints are not yet filled in.
-3. **Absolute capacity ceiling and growth review threshold** — §3.7 requires them; the numbers await
-   the §6 measurement.
-4. **Expiration window** for this authorization once effective.
+```
+expiration_at = authorization_effective_at + 336 hours
+```
+
+Consistent with the predecessor's bounded window. The effectiveness record must carry the resolved
+UTC timestamp and **verify a difference of exactly 1,209,600 seconds** — derived, never chosen. If
+the measured bootstrap is expected to need longer, that is an amendment before effectiveness, not an
+extension afterwards.
+
+## 16. Bootstrap-method selection is a signed checkpoint
+
+The method may be deferred to measurement, but it **may not be chosen silently by the operator**.
+Before any bootstrap executes, record:
+
+```
+BOOTSTRAP_METHOD_SELECTED
+  method                  = NATIVE_BUILD | VERIFIED_COPY
+  measurement_artifact_sha = <sha256 of the §6 measurement evidence>
+  selection_rationale      = <why, against the measured numbers>
+  capacity_bounds          = <the limits this method will run under>
+  authority_basis          = <owner or delegated authority for the selection>
+```
+
+## 17. Remaining open items for owner ruling
+
+1. **Final capacity ceilings and growth review threshold** — §6.1 pins *provisional* bounds that
+   govern the measurement itself; the operational numbers follow from §6 and must be recorded before
+   `BOOTSTRAP_METHOD_SELECTED`.
+2. **Bootstrap method** — deferred to measurement per §6 and §16; this document does not pre-select.
+3. **Pinned artifact values** — source commit, index digest, deployable manifest digest and platform
+   tuple are inserted once the §2.1 prerequisites complete. This document cannot become effective
+   with them unfilled.
