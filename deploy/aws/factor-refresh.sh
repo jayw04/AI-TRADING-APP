@@ -39,20 +39,27 @@ cd "$APP"
 cp -f "$LIVE" "$STAGE"
 log "staged a copy of the live store"
 
-# 1b) derive the refresh UNIVERSE from the LIVE books (union of active strategy symbols) — NOT the
-#     14k survivorship pool, which is for one-time back-fill. Keeps the daily pull to a few hundred
-#     tickers (the books only rank over their own universes), well under Sharadar's daily cap.
-$COMPOSE run --rm --no-deps backend python - <<'PYEOF'
-import sqlite3, json
-c = sqlite3.connect("/app/data/workbench.sqlite"); u = set()
-for (s,) in c.execute("SELECT symbols_json FROM strategies WHERE status='PAPER'"):
-    u |= set(json.loads(s or "[]"))
-with open("/app/data/_factor_refresh_universe.txt", "w") as f:
-    f.write("\n".join(sorted(x for x in u if x)))
-print("refresh universe tickers:", len(u))
-c.close()
-PYEOF
-log "derived refresh universe from the live books"
+# 1b) derive the refresh UNIVERSE — NOT the 14k survivorship pool, which is for one-time back-fill.
+#     ⚠ This used to be the union of `symbols_json` over status='PAPER' strategies, on the premise
+#     (stated in the old comment) that "the books only rank over their own universes". That premise
+#     is false and it silently froze 301 of 500 ranking names at 2026-07-06 while every readiness
+#     gate reported green. A book calls momentum_scores(n=len(ctx.symbols)) -> universe_asof ->
+#     dollar_volume_universe: the top-n **store-wide** by trailing dollar volume, with the registered
+#     list applied afterwards as a filter. Unregistered names therefore decide which registered names
+#     survive the cut, and dollar_volume_universe drops any name whose lastpricedate lags — so a
+#     stale name vanishes from the pool rather than merely ranking on old data.
+#     The universe is now (ranking pool x headroom) U (registered, ANY status) U (held) U (extras).
+#     Status is deliberately unfiltered: a book pending activation needs fresh data BEFORE it is
+#     activated, or its readiness gate can never go green. See apps/backend/scripts/factor_refresh.py.
+$COMPOSE run --rm --no-deps backend python scripts/factor_refresh.py universe \
+    --app-db /app/data/workbench.sqlite \
+    --store  /app/data/factor_data.duckdb \
+    --as-of  "$(date -u +%Y-%m-%d)" \
+    --out    "$UNIVERSE_FILE" \
+    --report /app/data/_factor_refresh_universe_report.json \
+    --prior  /app/data/_factor_refresh_universe_sealed.json \
+    --extra  SPY
+log "derived refresh universe (ranking pool + registered + held)"
 
 # 2) incremental upsert of recent SEP (+ corporate actions) into STAGING, via a one-off container
 #    that reuses the backend image (has ingest_sharadar.py, deps, and the .env / Nasdaq key).
@@ -76,32 +83,17 @@ log "ingested SEP/actions/tickers since ${FROM} into staging"
 #     (tickers.lastpricedate >= sep, else the PIT universe empties and every book HOLDS — the
 #     2026-07-06 incident). On any failure we ABORT: the live store is left untouched and the job
 #     exits non-zero (systemd marks it failed; the daily report's >7d staleness check is the backstop).
-if ! $COMPOSE run --rm --no-deps backend python - <<'PY'
-import duckdb, sys
-live = duckdb.connect('/app/data/factor_data.duckdb', read_only=True)
-stage = duckdb.connect('/app/data/factor_data.staging.duckdb', read_only=True)
-def q(con, sql):
-    try:
-        return con.execute(sql).fetchone()[0]
-    except Exception:
-        return None
-l_sep, s_sep = q(live, "SELECT max(date) FROM sep"), q(stage, "SELECT max(date) FROM sep")
-l_tk, s_tk = q(live, "SELECT count(DISTINCT ticker) FROM sep"), q(stage, "SELECT count(DISTINCT ticker) FROM sep")
-s_lpd = q(stage, "SELECT max(lastpricedate) FROM tickers")
-print(f"verify: sep_max live={l_sep} stage={s_sep} | sep tickers live={l_tk} stage={s_tk} | stage lastpricedate={s_lpd}")
-fail = []
-if s_sep is None:
-    fail.append("staging sep is EMPTY")
-elif l_sep is not None and s_sep < l_sep:
-    fail.append(f"sep_max REGRESSED {l_sep}->{s_sep}")
-if s_tk is not None and l_tk and s_tk < 0.9 * l_tk:
-    fail.append(f"ticker count dropped {l_tk}->{s_tk} (>10%)")
-if s_lpd is not None and s_sep is not None and s_lpd < s_sep:
-    fail.append(f"tickers.lastpricedate {s_lpd} BEHIND sep {s_sep} -> PIT universe would EMPTY (books HOLD)")
-if fail:
-    print("VERIFY_FAILED: " + "; ".join(fail)); sys.exit(1)
-print("VERIFY_OK")
-PY
+#     ⚠ The global checks below are necessary but NOT sufficient: `max(date)` over the whole table
+#     is not a freshness measure, because ONE current ticker keeps it green while the rest of the
+#     pool is frozen — which is exactly what happened on 2026-07-06. The gate is therefore also
+#     PER-DAY-PER-NAME over the refresh universe, and fails if coverage drops below the threshold or
+#     if any universe name's tickers.lastpricedate lags (such a name is EXCLUDED from the ranking
+#     pool outright, which is strictly worse than being ranked on stale data).
+if ! $COMPOSE run --rm --no-deps backend python scripts/factor_refresh.py verify \
+    --live     /app/data/factor_data.duckdb \
+    --stage    /app/data/factor_data.staging.duckdb \
+    --universe "$UNIVERSE_FILE" \
+    --report   /app/data/_factor_refresh_verify_report.json
 then
   log "ABORTED: staging verification FAILED — LIVE store left unchanged, refresh NOT applied. Investigate."
   rm -f "$STAGE"
@@ -115,6 +107,14 @@ cp -f "$LIVE" "$DATADIR/factor_data.prev.duckdb"   # rollback point (last known-
 mv -f "$STAGE" "$LIVE"
 $COMPOSE start backend
 log "swapped staging -> live (rollback at factor_data.prev.duckdb); backend restarting"
+
+# 3b) SEAL the universe report only now. The growth control compares against the last
+#     SEALED SUCCESSFUL run, never the last attempt — if a failed refresh could advance
+#     this file, one bad run would silently re-baseline the comparison and the next
+#     expansion would measure against a set nobody accepted.
+cp -f "$DATADIR/_factor_refresh_universe_report.json" \
+      "$DATADIR/_factor_refresh_universe_sealed.json"
+log "sealed the universe report as the new growth-comparison anchor"
 
 # 4) post-swap health: backend up + the live store now reads what staging verified.
 sleep 20
