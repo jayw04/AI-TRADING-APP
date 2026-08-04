@@ -34,6 +34,7 @@ raw stores, exactly as the shell job does.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sqlite3
@@ -61,8 +62,29 @@ DEFAULT_MAX_LAG_DAYS = 4
 DEFAULT_MIN_COVERAGE = 0.98
 
 
+#: Absolute ceiling on the refresh universe, tied to provider and host capacity.
+#: Growth beyond this is a stop, never a raise-the-limit-in-place.
+DEFAULT_MAX_UNIVERSE = 2000
+
+#: Growth beyond this fraction of the prior sealed run is reported for review.
+#: It does not fail on its own — a newly registered strategy or a new holding can
+#: legitimately expand the set — but it must be explained by component attribution.
+DEFAULT_GROWTH_REVIEW = 0.25
+
+
 class RefreshError(RuntimeError):
     """Universe construction or staging verification failed."""
+
+
+def digest(symbols: Iterable[str]) -> str:
+    """Canonical SHA-256 over a symbol set.
+
+    Sorted, uppercased, newline-joined. Always reported *with* its count: a digest
+    alone cannot reveal whether a malformed serialisation dropped or duplicated
+    entries, and two different sets must never be able to present as one.
+    """
+    canonical = "\n".join(sorted({str(s).strip().upper() for s in symbols if str(s).strip()}))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 # --------------------------------------------------------------- universe
@@ -76,6 +98,12 @@ def registered_symbols(app_db: str | Path) -> dict[str, list[str]]:
     activation must have fresh data *before* it is activated, not after. The cost
     of over-inclusion is a few hundred extra tickers on a pull already dominated
     by the ranking pool; the cost of under-inclusion is a silent allocation bug.
+
+    Malformed metadata **fails the refresh**; it is never skipped. A silently
+    omitted strategy drops out of the safety union, its names go stale, and the
+    allocation bug is invisible — the exact failure class this module exists to
+    prevent. Errors name the strategy but never echo the raw value, which may be
+    large or hold data that does not belong in a log.
     """
     con = sqlite3.connect(f"file:{app_db}?mode=ro", uri=True)
     try:
@@ -85,11 +113,42 @@ def registered_symbols(app_db: str | Path) -> dict[str, list[str]]:
 
     out: dict[str, list[str]] = {}
     for sid, status, raw in rows:
+        identity = f"{sid}:{status}"
+
+        if raw is None:
+            raise RefreshError(f"strategy {identity}: symbols_json is NULL")
+        if not isinstance(raw, str) or not raw.strip():
+            raise RefreshError(f"strategy {identity}: symbols_json is empty or non-text")
+
         try:
-            syms = json.loads(raw or "[]")
-        except (TypeError, ValueError):
-            continue
-        out[f"{sid}:{status}"] = sorted({str(s).upper() for s in syms if s})
+            parsed = json.loads(raw)
+        except (TypeError, ValueError) as exc:
+            raise RefreshError(f"strategy {identity}: symbols_json is invalid JSON") from exc
+
+        # A JSON object would iterate its KEYS and yield plausible-but-wrong
+        # symbols with no error at all, which is worse than omission because
+        # nothing signals it. A scalar would raise an unattributed TypeError.
+        if not isinstance(parsed, list):
+            raise RefreshError(
+                f"strategy {identity}: symbols_json must be a JSON array, "
+                f"got {type(parsed).__name__}"
+            )
+        if not parsed:
+            raise RefreshError(f"strategy {identity}: symbols_json is an empty array")
+
+        normalized: set[str] = set()
+        for index, item in enumerate(parsed):
+            if not isinstance(item, str):
+                raise RefreshError(
+                    f"strategy {identity}: symbols_json[{index}] must be a string, "
+                    f"got {type(item).__name__}"
+                )
+            symbol = item.strip().upper()
+            if not symbol:
+                raise RefreshError(f"strategy {identity}: symbols_json[{index}] is blank")
+            normalized.add(symbol)
+
+        out[identity] = sorted(normalized)
     return out
 
 
@@ -214,7 +273,118 @@ def build_refresh_universe(
             "registered_not_in_pool": len(set(reg_union) - set(pool)),
             "held_not_in_pool": len(set(held) - set(pool)),
         },
+        # Every digest is paired with its count. A digest alone cannot show that a
+        # malformed serialisation dropped or duplicated entries.
+        "digests": {
+            "ranking_pool": {"sha256": digest(pool), "count": len(pool)},
+            "registered_union": {"sha256": digest(reg_union), "count": len(reg_union)},
+            "held_symbols": {"sha256": digest(held), "count": len(held)},
+            "final_refresh_universe": {"sha256": digest(universe), "count": len(universe)},
+        },
+        # The component sets themselves, so a later reader can re-derive the union
+        # and attribute every member. Without these, "unexplained growth" is not
+        # checkable — the union is trivially explained by its own definition.
+        "components": {
+            "ranking_pool": pool,
+            "registered_union": reg_union,
+            "held": held,
+            "extra": extras,
+        },
         "strategies": {k: len(v) for k, v in sorted(registered.items())},
+    }
+
+
+def attribute(universe_doc: dict[str, Any]) -> dict[str, list[str]]:
+    """Map each universe member to the components that contributed it.
+
+    This is the integrity check behind "unexplained growth": the universe must be
+    exactly the union of its recorded components. A member belonging to none of
+    them means the artifact was produced by something other than the authorized
+    formula, or was altered after the fact.
+    """
+    comps = universe_doc["components"]
+    sets = {name: set(values) for name, values in comps.items()}
+    union = set().union(*sets.values()) if sets else set()
+    universe = set(universe_doc["universe"])
+
+    orphans = sorted(universe - union)
+    if orphans:
+        raise RefreshError(
+            f"{len(orphans)} universe members belong to no recorded component "
+            f"(first: {orphans[0]}) — the universe is not the union of its components"
+        )
+    missing = sorted(union - universe)
+    if missing:
+        raise RefreshError(
+            f"{len(missing)} component members are absent from the universe "
+            f"(first: {missing[0]}) — the union was not applied faithfully"
+        )
+
+    return {sym: sorted(n for n, s in sets.items() if sym in s) for sym in sorted(universe)}
+
+
+def growth_control(
+    current: dict[str, Any],
+    prior: dict[str, Any] | None,
+    *,
+    max_universe: int = DEFAULT_MAX_UNIVERSE,
+    review_threshold: float = DEFAULT_GROWTH_REVIEW,
+) -> dict[str, Any]:
+    """Compare a universe against the last **sealed successful** run.
+
+    ``prior`` is the last sealed success, never the last attempt: a failed refresh
+    must not become the anchor, or one bad run silently re-baselines the control.
+
+    The first run has no prior. It records a baseline rather than computing growth
+    against zero — a relative delta against an absent or zero prior is undefined,
+    and dividing by it would fail the bootstrap for no reason.
+    """
+    total = current["counts"]["total"]
+    if total > max_universe:
+        raise RefreshError(
+            f"refresh universe {total} exceeds the absolute ceiling {max_universe}; "
+            "this is a stop, not an occasion to raise the ceiling"
+        )
+
+    if prior is None:
+        return {
+            "state": "BOOTSTRAP_BASELINE_RECORDED",
+            "prior_count": None,
+            "current_count": total,
+            "absolute_delta": None,
+            "relative_delta": None,
+            "requires_review": False,
+        }
+
+    prior_count = prior["counts"]["total"]
+    prior_syms = set(prior["universe"])
+    current_syms = set(current["universe"])
+    added = sorted(current_syms - prior_syms)
+    removed = sorted(prior_syms - current_syms)
+
+    # Fail closed when growth cannot be explained. `attribute` raises if any
+    # member belongs to no recorded component; here we additionally record which
+    # component each ADDED name came from, so an operator reviewing an expansion
+    # sees its cause rather than just its size.
+    by_component = attribute(current)
+    added_by_component: dict[str, int] = {}
+    for sym in added:
+        for comp in by_component[sym]:
+            added_by_component[comp] = added_by_component.get(comp, 0) + 1
+
+    absolute = total - prior_count
+    relative = (absolute / prior_count) if prior_count else None
+
+    return {
+        "state": "COMPARATIVE_GROWTH_CONTROL_ACTIVE",
+        "prior_count": prior_count,
+        "current_count": total,
+        "absolute_delta": absolute,
+        "relative_delta": relative,
+        "added_symbols": {"sha256": digest(added), "count": len(added)},
+        "removed_symbols": {"sha256": digest(removed), "count": len(removed)},
+        "component_attribution": added_by_component,
+        "requires_review": bool(relative is not None and relative > review_threshold),
     }
 
 
@@ -385,6 +555,13 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("--report")
     u.add_argument("--headroom", type=float, default=DEFAULT_HEADROOM)
     u.add_argument("--extra", default="", help="comma-separated always-include tickers")
+    u.add_argument(
+        "--prior",
+        help="the last SEALED SUCCESSFUL universe report. Never a failed attempt: "
+        "a failed run must not re-baseline the growth comparison. Absent on the "
+        "first run, which records a baseline instead of computing growth.",
+    )
+    u.add_argument("--max-universe", type=int, default=DEFAULT_MAX_UNIVERSE)
 
     v = sub.add_parser("verify", help="gate the staging store before the swap")
     v.add_argument("--live", required=True)
@@ -405,10 +582,24 @@ def main(argv: list[str] | None = None) -> int:
                 headroom=args.headroom,
                 extra=[s for s in args.extra.split(",") if s.strip()],
             )
+            # Integrity first: the universe must be exactly the union of its
+            # recorded components. Run on EVERY refresh, including the first —
+            # this is what makes "unexplained growth" a checkable claim rather
+            # than a tautology about a union.
+            attribute(res)
+
+            prior = None
+            if args.prior and Path(args.prior).exists():
+                prior = json.loads(Path(args.prior).read_text(encoding="utf-8"))
+            res["growth"] = growth_control(res, prior, max_universe=args.max_universe)
+
             Path(args.out).write_text("\n".join(res["universe"]), encoding="utf-8")
             if args.report:
                 Path(args.report).write_text(json.dumps(res, indent=2), encoding="utf-8")
             print(f"refresh universe: {res['counts']}")
+            print(f"growth: {json.dumps(res['growth'])}")
+            if res["growth"].get("requires_review"):
+                print("growth: REVIEW — expansion exceeds the review threshold", flush=True)
             return 0
 
         universe = [

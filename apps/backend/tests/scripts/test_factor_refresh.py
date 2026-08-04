@@ -160,7 +160,9 @@ def test_held_names_survive_rotation_out_of_the_pool(M, tmp_path):
     universe was invisible, so its exit was never generated. It must stay
     priceable regardless of liquidity rank."""
     store = _store(tmp_path, _bars("BIG", 1e9))
-    db = _app_db(tmp_path, [(9, "IDLE", [])], positions=[("ROTATEDOUT", 3.0)])
+    # A registered list must be non-empty (see the symbols_json contract below);
+    # the point of this test is the HELD name, which is registered nowhere.
+    db = _app_db(tmp_path, [(9, "IDLE", ["UNRELATED"])], positions=[("ROTATEDOUT", 3.0)])
     assert "ROTATEDOUT" in M.build_refresh_universe(db, store, AS_OF)["universe"]
 
 
@@ -278,3 +280,243 @@ def test_constants_match_the_app_universe_module(M):
     )
     assert f"DEFAULT_UNIVERSE_SIZE = {M.DEFAULT_UNIVERSE_SIZE}" in src
     assert f"DEFAULT_LOOKBACK_DAYS = {M.DEFAULT_LOOKBACK_DAYS}" in src
+
+
+# ------------------------------------ symbols_json must fail closed, with attribution
+
+
+def _raw_db(tmp_path: Path, rows) -> Path:
+    """An app DB whose symbols_json is written verbatim, bypassing json.dumps."""
+    p = tmp_path / "raw.sqlite"
+    con = sqlite3.connect(p)
+    con.execute("CREATE TABLE strategies (id INTEGER PRIMARY KEY, status TEXT, symbols_json TEXT)")
+    con.execute("CREATE TABLE symbols (id INTEGER PRIMARY KEY, symbol TEXT)")
+    con.execute("CREATE TABLE positions (id INTEGER PRIMARY KEY, symbol_id INTEGER, qty REAL)")
+    con.executemany("INSERT INTO strategies VALUES (?,?,?)", rows)
+    con.commit()
+    con.close()
+    return p
+
+
+@pytest.mark.parametrize(
+    ("raw", "reason"),
+    [
+        (None, "NULL"),
+        ("", "empty or non-text"),
+        ("   ", "empty or non-text"),
+        ("{oops", "invalid JSON"),
+        ('{"AAPL": 1}', "must be a JSON array"),
+        ("5", "must be a JSON array"),
+        ('"AAPL"', "must be a JSON array"),
+        ("[]", "empty array"),
+        ('["AAA", 7]', "must be a string"),
+        ('["AAA", "  "]', "is blank"),
+    ],
+)
+def test_bad_symbols_json_fails_closed(M, tmp_path, raw, reason):
+    """A silently omitted strategy drops out of the safety union and its names go
+    stale — the exact failure this module exists to prevent. Every malformed shape
+    must raise, and the error must name the offending strategy."""
+    db = _raw_db(tmp_path, [(9, "IDLE", raw)])
+    with pytest.raises(M.RefreshError, match=reason):
+        M.registered_symbols(db)
+
+
+def test_bad_symbols_json_error_names_the_strategy_but_not_the_value(M, tmp_path):
+    """The raw value may be large or hold data that does not belong in a log."""
+    secret = "SENSITIVE-DO-NOT-LOG-" + "X" * 200
+    db = _raw_db(tmp_path, [(9, "IDLE", json.dumps({secret: 1}))])
+    with pytest.raises(M.RefreshError) as exc:
+        M.registered_symbols(db)
+    assert "9:IDLE" in str(exc.value)
+    assert secret not in str(exc.value)
+
+
+def test_non_array_json_does_not_silently_yield_dict_keys(M, tmp_path):
+    """A JSON object iterates its KEYS and would produce plausible-but-wrong
+    symbols with no error at all — worse than omission, because nothing signals
+    it. This is the regression that matters most."""
+    db = _raw_db(tmp_path, [(9, "IDLE", '{"AAA": 1, "BBB": 2}')])
+    with pytest.raises(M.RefreshError):
+        M.registered_symbols(db)
+
+
+def test_valid_symbols_are_stripped_uppercased_deduped_and_sorted(M, tmp_path):
+    db = _raw_db(tmp_path, [(9, "IDLE", '[" bbb ", "aaa", "AAA", "Ccc"]')])
+    assert M.registered_symbols(db) == {"9:IDLE": ["AAA", "BBB", "CCC"]}
+
+
+# ----------------------------------------------------------------- digests
+
+
+def test_universe_report_carries_four_digests_each_with_a_count(M, tmp_path):
+    store = _store(tmp_path, _bars("BIG", 1e9) + _bars("MID", 1e8))
+    db = _app_db(tmp_path, [(9, "IDLE", ["AAA"])], positions=[("HELDNAME", 2.0)])
+    res = M.build_refresh_universe(db, store, AS_OF, extra=["SPY"])
+    for name in ("ranking_pool", "registered_union", "held_symbols", "final_refresh_universe"):
+        entry = res["digests"][name]
+        assert len(entry["sha256"]) == 64
+        assert isinstance(entry["count"], int)
+
+
+def test_digest_is_canonical_and_order_insensitive(M):
+    assert M.digest(["bbb", "AAA"]) == M.digest([" aaa ", "BBB"])
+    assert M.digest(["AAA", "AAA"]) == M.digest(["AAA"])
+    assert M.digest(["AAA"]) != M.digest(["AAB"])
+
+
+def test_digest_counts_distinguish_sets_a_digest_alone_cannot(M, tmp_path):
+    """Count travels with every digest so a malformed serialisation that drops or
+    duplicates entries cannot present as the same set."""
+    store = _store(tmp_path, _bars("BIG", 1e9))
+    db = _app_db(tmp_path, [(9, "IDLE", ["AAA", "BBB"])])
+    res = M.build_refresh_universe(db, store, AS_OF)
+    assert res["digests"]["registered_union"]["count"] == 2
+
+
+# ------------------------------------------------ attribution and growth control
+
+
+def test_universe_is_exactly_the_union_of_its_components(M, tmp_path):
+    store = _store(tmp_path, _bars("BIG", 1e9))
+    db = _app_db(tmp_path, [(9, "IDLE", ["AAA"])])
+    res = M.build_refresh_universe(db, store, AS_OF, extra=["SPY"])
+    attributed = M.attribute(res)
+    assert set(attributed) == set(res["universe"])
+    assert attributed["SPY"] == ["extra"]
+
+
+def test_a_universe_member_from_no_component_fails_closed(M, tmp_path):
+    """The integrity check behind "unexplained growth": the union is trivially
+    explained by its own definition, so what must be caught is an artifact that is
+    NOT the union of its recorded components."""
+    store = _store(tmp_path, _bars("BIG", 1e9))
+    db = _app_db(tmp_path, [(9, "IDLE", ["AAA"])])
+    res = M.build_refresh_universe(db, store, AS_OF)
+    res["universe"] = sorted(set(res["universe"]) | {"SMUGGLED"})
+    with pytest.raises(M.RefreshError, match="no recorded component"):
+        M.attribute(res)
+
+
+def test_component_member_missing_from_the_universe_fails_closed(M, tmp_path):
+    store = _store(tmp_path, _bars("BIG", 1e9))
+    db = _app_db(tmp_path, [(9, "IDLE", ["AAA"])])
+    res = M.build_refresh_universe(db, store, AS_OF)
+    res["universe"] = [s for s in res["universe"] if s != "AAA"]
+    with pytest.raises(M.RefreshError, match="absent from the universe"):
+        M.attribute(res)
+
+
+def _doc(symbols, components=None):
+    comps = components or {
+        "ranking_pool": list(symbols),
+        "registered_union": [],
+        "held": [],
+        "extra": [],
+    }
+    return {"universe": sorted(symbols), "counts": {"total": len(symbols)}, "components": comps}
+
+
+def test_first_run_records_a_baseline_and_computes_no_relative_growth(M):
+    """Relative growth against an absent or zero prior is undefined; dividing by
+    it would fail the bootstrap for no reason."""
+    res = M.growth_control(_doc(["AAA", "BBB"]), None)
+    assert res["state"] == "BOOTSTRAP_BASELINE_RECORDED"
+    assert res["prior_count"] is None
+    assert res["relative_delta"] is None
+    assert res["requires_review"] is False
+
+
+def test_subsequent_runs_compare_against_the_prior_sealed_run(M):
+    prior = _doc(["AAA", "BBB"])
+    res = M.growth_control(_doc(["AAA", "BBB", "CCC"]), prior)
+    assert res["state"] == "COMPARATIVE_GROWTH_CONTROL_ACTIVE"
+    assert res["prior_count"] == 2
+    assert res["absolute_delta"] == 1
+    assert res["added_symbols"]["count"] == 1
+    assert res["removed_symbols"]["count"] == 0
+    assert res["component_attribution"] == {"ranking_pool": 1}
+
+
+def test_large_growth_is_flagged_for_review_not_failed(M):
+    """A newly registered strategy or a new holding can legitimately expand the
+    set, so expansion is reported rather than refused."""
+    res = M.growth_control(_doc([f"S{i}" for i in range(20)]), _doc(["S0", "S1"]))
+    assert res["requires_review"] is True
+    assert res["state"] == "COMPARATIVE_GROWTH_CONTROL_ACTIVE"
+
+
+def test_absolute_ceiling_is_a_stop(M):
+    big = _doc([f"S{i}" for i in range(30)])
+    with pytest.raises(M.RefreshError, match="exceeds the absolute ceiling"):
+        M.growth_control(big, None, max_universe=10)
+
+
+def test_a_failed_attempt_never_becomes_the_comparison_anchor(M):
+    """The anchor is the last SEALED SUCCESSFUL run. If a failed attempt could
+    re-baseline it, one bad run silently moves the reference."""
+    sealed = _doc(["AAA", "BBB"])
+    first = M.growth_control(_doc(["AAA", "BBB", "CCC"]), sealed)
+    second = M.growth_control(_doc(["AAA", "BBB", "CCC"]), sealed)
+    assert first["absolute_delta"] == second["absolute_delta"] == 1
+
+
+# --------------------------------------------- decision-path isolation boundary
+
+
+def test_another_strategys_symbol_may_move_the_cutoff_but_not_enter_wss(M, tmp_path):
+    """Isolation belongs at decision time, not data time. A name registered only
+    to another strategy legitimately competes for the store-wide top-n cutoff, but
+    it must not reach WSS's eligible set unless WSS registers it independently."""
+    store = _store(tmp_path, _bars("OTHERONLY", 9e9) + _bars("WSSNAME", 1e8))
+    db = _app_db(tmp_path, [(9, "IDLE", ["WSSNAME"]), (7, "PAPER", ["OTHERONLY"])])
+    res = M.build_refresh_universe(db, store, AS_OF)
+
+    # Data layer: the shared store carries both — that is the design.
+    assert "OTHERONLY" in res["universe"]
+    assert "OTHERONLY" in res["components"]["ranking_pool"]
+
+    # Decision layer: WSS's eligible set is its own registered list, and the other
+    # strategy's exclusive name is not in it.
+    wss_registered = set(M.registered_symbols(db)["9:IDLE"])
+    wss_eligible = {s for s in res["universe"] if s in wss_registered}
+    assert "WSSNAME" in wss_eligible
+    assert "OTHERONLY" not in wss_eligible
+
+
+# ------------------------------------------------------- no authority coupling
+
+
+def test_refresh_construction_never_mutates_strategy_or_trading_state(M, tmp_path):
+    """The actual security boundary: refresh membership confers no authority.
+    Construction must not touch status, schedulers, trading flags or the broker."""
+    store = _store(tmp_path, _bars("BIG", 1e9))
+    db = _app_db(tmp_path, [(9, "IDLE", ["AAA"]), (7, "PAPER", ["BBB"])])
+
+    query = "SELECT id, status, symbols_json FROM strategies ORDER BY id"
+    before = sqlite3.connect(db).execute(query).fetchall()
+    M.build_refresh_universe(db, store, AS_OF)
+    after = sqlite3.connect(db).execute(query).fetchall()
+
+    assert before == after
+
+
+def test_the_app_db_is_opened_read_only(M):
+    """Even a bug cannot write: the connection is a read-only URI."""
+    src = Path(M.__file__).read_text(encoding="utf-8")
+    assert src.count("mode=ro") >= 2
+
+
+def test_module_reaches_no_broker_scheduler_or_manifest(M):
+    """Static boundary: nothing in this module may dispatch a broker request,
+    enable a scheduler, or create an activation manifest."""
+    src = Path(M.__file__).read_text(encoding="utf-8")
+    for forbidden in (
+        "alpaca",
+        "OrderRouter",
+        "scheduler_enabled",
+        "activation_manifest",
+        "requests.post",
+        "httpx.post",
+    ):
+        assert forbidden not in src, f"factor_refresh must not reference {forbidden}"

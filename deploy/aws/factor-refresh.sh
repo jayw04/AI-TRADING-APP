@@ -57,6 +57,7 @@ $COMPOSE run --rm --no-deps backend python scripts/factor_refresh.py universe \
     --as-of  "$(date -u +%Y-%m-%d)" \
     --out    "$UNIVERSE_FILE" \
     --report /app/data/_factor_refresh_universe_report.json \
+    --prior  /app/data/_factor_refresh_universe_sealed.json \
     --extra  SPY
 log "derived refresh universe (ranking pool + registered + held)"
 
@@ -106,6 +107,14 @@ cp -f "$LIVE" "$DATADIR/factor_data.prev.duckdb"   # rollback point (last known-
 mv -f "$STAGE" "$LIVE"
 $COMPOSE start backend
 log "swapped staging -> live (rollback at factor_data.prev.duckdb); backend restarting"
+
+# 3b) SEAL the universe report only now. The growth control compares against the last
+#     SEALED SUCCESSFUL run, never the last attempt — if a failed refresh could advance
+#     this file, one bad run would silently re-baseline the comparison and the next
+#     expansion would measure against a set nobody accepted.
+cp -f "$DATADIR/_factor_refresh_universe_report.json" \
+      "$DATADIR/_factor_refresh_universe_sealed.json"
+log "sealed the universe report as the new growth-comparison anchor"
 
 # 4) post-swap health: backend up + the live store now reads what staging verified.
 sleep 20
