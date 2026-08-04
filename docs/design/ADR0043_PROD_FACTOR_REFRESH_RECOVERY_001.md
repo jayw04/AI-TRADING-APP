@@ -349,62 +349,133 @@ This authorization may not become effective until every item below is complete:
 
 ```
 1. ✅ §4.2 replaced with the single-file refresh-only override (directory mount REJECTED)
-2. ⬜ isolated implementation PR #617 merged
-3. ⬜ its merge commit + the three deployed-file digests pinned here
-4. ⬜ #614 rebased onto current main
-5. ⬜ exact recovery and rollback commands frozen
-6. ⬜ numeric runtime, disk, request and ticker limits set
-7. ⬜ final document blob and canonical SHA-256 recomputed
-8. ⬜ effectiveness record submitted
+2. ✅ isolated implementation PR #617 merged — squash d5d30d9000f8923c9712d0a25758195d1241dc8c
+3. ✅ merge commit + the three deployed-file digests pinned below
+4. ✅ #614 rebased onto current main
+5. ✅ exact recovery and rollback commands frozen (§14.1 / §14.2)
+6. ✅ numeric runtime, disk, request and ticker limits set (§14.3)
+7. ⬜ final document blob and canonical SHA-256 recomputed  — after this commit
+8. ⬜ effectiveness record issued by the owner
 ```
 
-Pins to be filled at step 3:
+### 14.0 Pinned implementation
 
 ```
-implementation merge commit    <pinned at merge of #617>
-factor_refresh.py              b8b7f0395e7f6d6bbf71fff3ecab5fa483355e422441a97e3f856c9a33ed55a3
-docker-compose.factor-refresh.yml  <pinned at merge>
-factor-refresh.sh              <pinned at merge — supersedes a199e855…>
+implementation merge commit        d5d30d9000f8923c9712d0a25758195d1241dc8c
+apps/backend/scripts/factor_refresh.py
+  sha256  b8b7f0395e7f6d6bbf71fff3ecab5fa483355e422441a97e3f856c9a33ed55a3
+deploy/aws/docker-compose.factor-refresh.yml
+  sha256  afa95eae542df21e733a79702868d4ce9eb38c47a8daa19d8a4b8dd49c3b2115
+deploy/aws/factor-refresh.sh
+  sha256  b5c13624e7bb9300e8015c1eef819c7c388bd4c0921e8359f9b7108821e0ab74
+  supersedes deployed a199e855f0db74cf700209c127a96553c41c3e9f37f202252d633f2297233881
 ```
 
-## 15. ⛔ REQUIRED — dispatch protection before Monday
+⚠ `factor-refresh.sh`'s digest is **not** the `bc32ab6c…` recorded in §1: that was its state at
+`a91fe75c`, before #617 added `COMPOSE_REFRESH`. `b5c13624…` is the digest to deploy.
 
-**Until the producer is recovered and its refreshed generation is verified, strategies 7 and 8 must
-not perform their Monday factor-consuming rebalance.**
+### 14.1 Frozen recovery commands
 
-#615 detection alone is **insufficient**. It signals; it does not stop anything. The chain today is:
-
-```
-FAIL → non-zero exit + SNS alert → [MISSING] → dispatch proceeds anyway
-```
-
-At least one explicit interlock must exist before 2026-08-10 10:24 ET:
+Run in order, on `i-084f47fe4e69192e9`, with the timer still disabled:
 
 ```
-producer liveness FAIL  OR  sealed generation FAIL  OR  data freshness FAIL
-   → strategy 7/8 factor-consuming dispatch PREVENTED
+# 1. preserve pre-recovery evidence
+sha256sum /opt/workbench/data/factor_data.duckdb          # expect 13d74f51…
+cp -a /opt/workbench/data/factor_data.duckdb /opt/workbench/data/factor_data.prerecovery.duckdb
+
+# 2. deploy the three files, digests verified AFTER copy
+sha256sum /opt/workbench/app/apps/backend/scripts/factor_refresh.py
+sha256sum /opt/workbench/app/deploy/aws/docker-compose.factor-refresh.yml
+sha256sum /opt/workbench/app/deploy/aws/factor-refresh.sh
+
+# 3. validation only — no provider contact, no store change
+bash -n /opt/workbench/app/deploy/aws/factor-refresh.sh
+docker compose -f docker-compose.yml -f docker-compose.prod.yml                -f deploy/aws/docker-compose.factor-refresh.yml config >/dev/null
+
+# 4. ONE bounded manual refresh (timer stays disabled)
+sudo systemctl start workbench-factor-refresh.service   # runs the unit's ExecStart once
 ```
 
-### 15.1 Preferred — permanent consuming interlock
+### 14.2 Frozen rollback
 
 ```
-scheduler preflight invokes the readiness check
-nonzero readiness result exits BEFORE strategy execution
-no strategy-status mutation          no broker interaction
-evidence records that the strategy function was never entered
+# the script retains a one-deep rollback automatically:
+/opt/workbench/data/factor_data.prev.duckdb
+
+# to roll back:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml stop backend
+cp -f /opt/workbench/data/factor_data.prev.duckdb /opt/workbench/data/factor_data.duckdb
+docker compose -f docker-compose.yml -f docker-compose.prod.yml start backend
+# verify: sep max returns to the pre-recovery frontier; sealed artifact NOT advanced
 ```
 
-⚠ It must be evaluated **at dispatch**, synchronously. Not strategy code reading the last watchdog
-log; not assuming an alarm was acted on. It must fail closed when readiness is FAIL, missing,
-unreadable, stale relative to the current dispatch, or bound to a different sealed generation or
-factor-store identity.
+A failed verification aborts before the swap and leaves the live store untouched — rollback is only
+needed if a *promoted* store is later judged bad.
 
-### 15.2 Fallback — narrowly governed temporary disablement
+### 14.3 Frozen numeric limits
 
-If the permanent interlock cannot be completed in time, **temporarily disabling only the strategy 7
-and 8 scheduled dispatches is safer than allowing stale-factor execution.** Any such disablement
-and its restoration must be recorded separately, with the same rigour as the producer stop that
-caused this incident — the absence of that record is precisely why §3.0's motive is unrecoverable.
+```
+maximum runtime            60 min      (the 2026-08-03 run completed in ~40 s wall clock)
+maximum provider rows      900,000     (LOOKBACK_DAYS=20 over ~1,254 tickers ≈ 25,000 expected)
+maximum provider requests  3,000
+ticker universe ceiling    2,000       (expected ≈ 1,254 + registered + held + SPY)
+minimum free disk retained 4 GiB
+maximum staging size       500 MiB     (live store is 43 MiB)
+concurrency                1           one refresh only; timer disabled throughout
+```
+
+## 15. Dispatch protection — owner ruling 2026-08-04
+
+```
+DISABLEMENT OF STRATEGIES 7 / 8   NOT REQUIRED
+BASIS                             recovery completes before the 2026-08-10 dispatch,
+                                  so the store is fresh and no stale rebalance occurs
+```
+
+The owner ruled that recovery lands ahead of Monday, making disablement unnecessary. Recorded here
+with the exposure it accepts, because the reasoning matters if recovery slips.
+
+### 15.1 What is being relied upon
+
+**If the store were still frozen at 2026-07-31 on Monday, the books would NOT hold — they would
+rebalance on stale factors.** Verified in code:
+
+```
+FactorAccessor._resolve_as_of:  "clamp a future as_of down to it"
+    if as_of is None or as_of > latest: return latest
+```
+
+`as_of` silently rewinds to the store's latest date, so `dollar_volume_universe`'s
+`lastpricedate >= as_of` filter passes for all 1,249 fresh-at-07-31 names, the universe populates
+normally, and both books rank and trade. There is **no staleness guard** in the strategy-facing
+path (`accessor.py`, `universe.py`).
+
+⚠ This is the **opposite** of the 2026-07-06 incident, where books held. There SEP had advanced
+*past* a stale `lastpricedate`, emptying the universe. Here both sit at 07-31 and agree, so nothing
+empties. Do not reason from that precedent.
+
+Consequence had it occurred: `sector-rotation` rotating on 07-31 momentum, and `low-volatility`
+selecting names whose volatility spiked in the intervening week — selecting precisely what it
+exists to avoid. Sizing stays live while selection is stale, which is what makes it hard to detect
+after the fact. On a paper account the cost is not capital but **evidence contamination**: trades
+that are neither the strategy's real behaviour nor cleanly attributable as error.
+
+### 15.2 Carried forward — the consuming interlock remains absent
+
+Waiving disablement does not close the gap. The chain is still:
+
+```
+readiness FAIL → non-zero exit + SNS alert → [MISSING] → dispatch proceeds anyway
+```
+
+#615 detects; it vetoes nothing. A synchronous dispatch-time interlock — evaluated at dispatch,
+failing closed when readiness is FAIL, missing, unreadable, stale for the current dispatch, or bound
+to a different sealed generation — remains required as separate work. It is simply no longer on the
+Monday critical path once recovery completes.
+
+⚠ **If recovery does not complete before 2026-08-10 10:24 ET, this ruling must be revisited.** The
+fallback is the narrowly governed temporary disablement of only strategies 7 and 8, recorded on both
+disablement and restoration.
 
 ## 16. Open items for owner ruling
 
@@ -416,5 +487,5 @@ caused this incident — the absence of that record is precisely why §3.0's mot
    *impossible*, with the original digest preserved and recovery built through new staging.
 4. **Effective date** — still open. Expiration is the **earlier of** `effective_at + 168 h` or
    `2026-08-10T13:00:00Z`, per §1.
-5. **Dispatch protection** (§15) — permanent consuming interlock, or the governed temporary
-   disablement fallback. **Required before 2026-08-10 10:24 ET regardless of recovery progress.**
+5. ~~Dispatch protection~~ — **RULED** (§15): no disablement; recovery lands before Monday. The
+   consuming interlock remains required as separate work, off the Monday critical path.
