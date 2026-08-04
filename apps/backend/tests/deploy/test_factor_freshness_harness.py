@@ -28,13 +28,22 @@ WATCHDOG = REPO_ROOT / "deploy" / "aws" / "factor-freshness.sh"
 @pytest.mark.skipif(
     sys.platform.startswith("win"), reason="bash harness runs on POSIX/CI, not Windows"
 )
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash unavailable")
-@pytest.mark.skipif(shutil.which("python3") is None, reason="python3 unavailable to the harness")
 def test_factor_freshness_bash_harness_passes():
+    # On POSIX these are ASSERTED, not skipped. A missing interpreter would otherwise
+    # silently stop exercising the watchdog while CI stayed green — the same "silence
+    # reads as success" failure this watchdog exists to remove, reproduced in its own
+    # test suite. The pytest summary line is suppressed by this repo's config, so a
+    # skipped test here would be invisible in the CI log.
+    assert shutil.which("bash"), "bash is required to run the watchdog harness on POSIX"
+    assert shutil.which("python3"), "python3 is required by the watchdog harness on POSIX"
     assert HARNESS.exists(), f"harness missing at {HARNESS}"
     result = subprocess.run(["bash", str(HARNESS)], capture_output=True, text=True, timeout=600)
     assert result.returncode == 0, f"watchdog harness failed:\n{result.stdout}\n{result.stderr}"
-    assert "0 failed" in result.stdout
+    # Pin the count as well as the verdict: "0 failed" alone would also be satisfied by a
+    # harness that silently stopped running cases.
+    assert "0 failed" in result.stdout, result.stdout
+    executed = int(re.search(r"== (\d+) passed, \d+ failed ==", result.stdout).group(1))
+    assert executed >= 80, f"harness executed only {executed} checks:\n{result.stdout}"
 
 
 # Skipped on Windows for the same reason as the harness: `shutil.which("bash")` resolves
@@ -42,8 +51,8 @@ def test_factor_freshness_bash_harness_passes():
 @pytest.mark.skipif(
     sys.platform.startswith("win"), reason="bash harness runs on POSIX/CI, not Windows"
 )
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash unavailable")
 def test_watchdog_shell_syntax_is_clean():
+    assert shutil.which("bash"), "bash is required to syntax-check the watchdog on POSIX"
     result = subprocess.run(
         ["bash", "-n", str(WATCHDOG)], capture_output=True, text=True, timeout=60
     )
