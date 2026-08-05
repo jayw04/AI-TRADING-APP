@@ -149,11 +149,17 @@ def _evaluate(
     checks["lastpricedate_max"] = str(lpd_max)
     if sep_max is None:
         return block("factor store has no SEP rows")
+    # `lastpricedate` is not optional context: dollar_volume_universe FILTERS on it,
+    # so a store that cannot report it cannot be shown to be current. Falling back to
+    # SEP alone would silently reduce the two-sided frontier to one side — exactly the
+    # blind spot this gate exists to remove.
+    if lpd_max is None:
+        return block("factor store has no tickers.lastpricedate frontier")
 
     # The effective frontier is the EARLIER of the two: a lagging lastpricedate
     # removes names from the ranking pool entirely, which is worse than ranking
     # them on old data (2026-07-06).
-    frontier = min(d for d in (sep_max, lpd_max) if d is not None)
+    frontier = min(sep_max, lpd_max)
     checks["effective_frontier"] = str(frontier)
 
     lag_days = (now.date() - frontier).days

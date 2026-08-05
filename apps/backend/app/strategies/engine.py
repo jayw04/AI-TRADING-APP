@@ -732,7 +732,7 @@ class StrategyEngine:
             # P0: HALTED stops DISPATCH on every path, not just the cron one. An event-driven
             # strategy would otherwise keep firing proposals on each streamed bar — the
             # "spinning at maximum rate" ADR 0004 names, at websocket cadence.
-            if not await self._factor_readiness_ok(running):
+            if not await self._factor_readiness_ok(running, dispatch_source="event_bar"):
                 continue
             if not await self._is_dispatchable_now(sid):
                 continue
@@ -901,7 +901,7 @@ class StrategyEngine:
         # the job starting (exactly what happened: the breaker tripped 30 minutes after the
         # scheduler had already armed the 10:00 slot). Fail CLOSED: a status we cannot read is
         # not a licence to trade.
-        if not await self._factor_readiness_ok(running):
+        if not await self._factor_readiness_ok(running, dispatch_source="bar_tick"):
             return
         if not await self._is_dispatchable_now(strategy_id):
             return
@@ -1009,7 +1009,9 @@ class StrategyEngine:
             isinstance(node, ast.Attribute) and node.attr == "factors" for node in ast.walk(tree)
         )
 
-    async def _factor_readiness_ok(self, running: RunningStrategy) -> bool:
+    async def _factor_readiness_ok(
+        self, running: RunningStrategy, *, dispatch_source: str = "unknown"
+    ) -> bool:
         """May this factor-consuming strategy be ENTERED right now?
 
         The 2026-08-03 incident in one line: the producer was stopped, the watchdog
@@ -1026,6 +1028,7 @@ class StrategyEngine:
         """
         if not self._is_factor_consuming(running):
             return True
+        started = time.perf_counter()
         try:
             verdict = evaluate_factor_readiness(
                 store_path=resolve_store_path(),
@@ -1038,11 +1041,25 @@ class StrategyEngine:
                 strategy_id=running.strategy_id,
             )
             return False  # fail closed
+        # Gate latency is telemetry, not decoration: this opens DuckDB and reads JSON
+        # on every classified dispatch, so a high-frequency factor consumer would show
+        # up here before it showed up as a problem.
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
         if verdict.ok:
+            logger.debug(
+                "strategy_dispatch_factor_readiness_ok",
+                strategy_id=running.strategy_id,
+                dispatch_source=dispatch_source,
+                factor_readiness_duration_ms=duration_ms,
+                verdict="PASS",
+            )
             return True
         logger.warning(
             "strategy_dispatch_blocked_factor_not_ready",
             strategy_id=running.strategy_id,
+            dispatch_source=dispatch_source,
+            factor_readiness_duration_ms=duration_ms,
+            verdict="FAIL",
             strategy_function_entered=False,
             broker_calls=0,
             status_mutated=False,
@@ -1211,7 +1228,7 @@ class StrategyEngine:
         # momentum-portfolio runs this overlay daily at 15:00 ET — so on 2026-07-13 it would
         # have fired a SECOND wave of order proposals into the risk engine, hours after the
         # breaker had already halted it.
-        if not await self._factor_readiness_ok(running):
+        if not await self._factor_readiness_ok(running, dispatch_source="overlay"):
             return
         if not await self._is_dispatchable_now(strategy_id):
             return

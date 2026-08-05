@@ -347,10 +347,81 @@ def test_gate_runs_at_every_dispatch_site():
     only some of them is the 2026-07-13 mistake repeated — HALTED was enforced on
     the cron path while the event path kept firing."""
     src = Path(eng_file()).read_text(encoding="utf-8")
-    assert src.count("_factor_readiness_ok(running)") == 3
+    assert src.count("_factor_readiness_ok(running, dispatch_source=") == 3
+    for source in ("bar_tick", "event_bar", "overlay"):
+        assert f'dispatch_source="{source}"' in src, f"{source} dispatch site is ungated"
 
 
 def eng_file() -> str:
     from app.strategies import engine
 
     return engine.__file__
+
+
+# ------------------------------- both frontiers are required, not just SEP
+
+
+def _store_missing_lpd(tmp: Path, sep_max: date) -> Path:
+    """SEP present, tickers table present but empty -> no lastpricedate frontier."""
+    duckdb = pytest.importorskip("duckdb")
+    p = tmp / "no_lpd.duckdb"
+    con = duckdb.connect(str(p))
+    con.execute("CREATE TABLE sep (ticker VARCHAR, date DATE, close DOUBLE, volume DOUBLE)")
+    con.execute("INSERT INTO sep VALUES ('AAA', ?, 1.0, 1.0)", [sep_max])
+    con.execute("CREATE TABLE tickers (ticker VARCHAR, lastpricedate DATE)")
+    con.close()
+    return p
+
+
+def _store_missing_sep(tmp: Path, lpd_max: date) -> Path:
+    duckdb = pytest.importorskip("duckdb")
+    p = tmp / "no_sep.duckdb"
+    con = duckdb.connect(str(p))
+    con.execute("CREATE TABLE sep (ticker VARCHAR, date DATE, close DOUBLE, volume DOUBLE)")
+    con.execute("CREATE TABLE tickers (ticker VARCHAR, lastpricedate DATE)")
+    con.execute("INSERT INTO tickers VALUES ('AAA', ?)", [lpd_max])
+    con.close()
+    return p
+
+
+def test_fresh_sep_with_absent_lastpricedate_blocks(tmp_path):
+    """dollar_volume_universe FILTERS on lastpricedate. A store that cannot report it
+    cannot be shown to be current, and falling back to SEP alone would silently
+    reduce the two-sided frontier to one side."""
+    v = _eval(tmp_path, store_path=_store_missing_lpd(tmp_path, NOW.date()))
+    assert not v.ok
+    assert "no tickers.lastpricedate frontier" in v.reason
+
+
+def test_absent_sep_with_present_lastpricedate_blocks(tmp_path):
+    v = _eval(tmp_path, store_path=_store_missing_sep(tmp_path, NOW.date()))
+    assert not v.ok
+    assert "no SEP rows" in v.reason
+
+
+def test_both_present_and_current_passes(tmp_path):
+    v = _eval(tmp_path, store_path=_store(tmp_path, NOW.date(), NOW.date()))
+    assert v.ok, v.reason
+
+
+@pytest.mark.asyncio
+async def test_absent_lastpricedate_leaves_strategy_never_entered(tmp_path, monkeypatch):
+    """Terminal criterion for this failure mode too, not just staleness."""
+    from app.strategies import engine as eng
+
+    monkeypatch.setattr(
+        eng, "resolve_store_path", lambda *a, **k: _store_missing_lpd(tmp_path, NOW.date())
+    )
+    inst = _FactorStrategy()
+    self_ = type(
+        "E",
+        (),
+        {
+            "_is_factor_consuming": eng.StrategyEngine._is_factor_consuming,
+            "_sealed_universe_path": eng.StrategyEngine._sealed_universe_path,
+            "_factor_readiness_path": eng.StrategyEngine._factor_readiness_path,
+        },
+    )()
+    ok = await eng.StrategyEngine._factor_readiness_ok(self_, _running(inst))
+    assert ok is False
+    assert inst.entered is False
