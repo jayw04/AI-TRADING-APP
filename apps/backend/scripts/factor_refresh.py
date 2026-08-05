@@ -780,24 +780,33 @@ def verify_staging(
             )
 
         total = st["universe_size"]
-        fresh_n = total - len(non_fresh)
         attributed = buckets[PROVIDER_EXHAUSTED] + buckets[PROVIDER_NOT_COVERED]
+        fresh_syms = sorted(set(universe) - set(non_fresh))
         st["classification"] = {
-            "fresh_count": fresh_n,
+            # Four populations. Attributed names are NEVER counted as fresh, so the
+            # raw figure stays honest even when attribution reaches 100%.
+            "fresh_count": len(fresh_syms),
+            "fresh_symbols_digest": digest(fresh_syms),
             "provider_exhausted_count": len(buckets[PROVIDER_EXHAUSTED]),
             "provider_exhausted_symbols": buckets[PROVIDER_EXHAUSTED],
             "provider_exhausted_symbols_digest": digest(buckets[PROVIDER_EXHAUSTED]),
             "provider_not_covered_count": len(buckets[PROVIDER_NOT_COVERED]),
             "provider_not_covered_symbols": buckets[PROVIDER_NOT_COVERED],
             "provider_not_covered_symbols_digest": digest(buckets[PROVIDER_NOT_COVERED]),
-            "unexplained_stale_count": len(buckets[FAILED_OR_UNEXPLAINED]),
-            "unexplained_stale_symbols": buckets[FAILED_OR_UNEXPLAINED],
-            "unexplained_stale_symbols_digest": digest(buckets[FAILED_OR_UNEXPLAINED]),
-            # raw freshness NEVER counts an attributed name as fresh
-            "raw_freshness_coverage": (fresh_n / total) if total else 0.0,
+            "failed_or_unexplained_count": len(buckets[FAILED_OR_UNEXPLAINED]),
+            "failed_or_unexplained_symbols": buckets[FAILED_OR_UNEXPLAINED],
+            "failed_or_unexplained_symbols_digest": digest(buckets[FAILED_OR_UNEXPLAINED]),
+            "raw_freshness_coverage": (len(fresh_syms) / total) if total else 0.0,
             "operationally_attributable_coverage": (
-                ((fresh_n + len(attributed)) / total) if total else 0.0
+                ((len(fresh_syms) + len(attributed)) / total) if total else 0.0
             ),
+            # The per-symbol request outcome is LOG-DERIVED: ingest_runs is
+            # per-dataset, so no per-symbol receipt exists. Disclosed rather than
+            # presented as a machine-enforced fact.
+            "request_evidence_quality": "LOG_DERIVED",
+            "per_symbol_ingest_receipt": "NOT_AVAILABLE",
+            "limitation": "accepted for this bounded recovery; frontiers and operational "
+            "facts are independently recomputed and unproven cases fail closed",
             "records": records,
         }
 
