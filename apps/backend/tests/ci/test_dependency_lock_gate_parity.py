@@ -7,9 +7,15 @@ against the committed file is unsatisfiable by construction, so the gate failed 
 from the day it landed (2026-07-29) until it was repaired — burning a full Tier 3 nightly each
 time and reporting a red result that no longer distinguished real drift from the defect.
 
-This pins the property that makes the gate meaningful: what `recompile_one` writes is exactly
-what the generator would commit, so a clean tree can actually pass. Offline — the `uv`
-invocation is stubbed, because the property under test is the output format, not the network.
+A second fault made it unsatisfiable *over time*: the resolver ran against a live index, so a
+re-resolution could never be required to equal a file committed earlier. Measured 2026-08-04, a
+freshly regenerated set drifted again within six hours. Both scripts now constrain the candidate
+set with the same governed `--exclude-newer` cutoff.
+
+These pin the properties that make the gate meaningful: what `recompile_one` writes is exactly
+what the generator would commit, both invoke the resolver with the same cutoff, and the cutoff is
+recorded in the artifact. Offline — the `uv` invocation is stubbed, because the properties under
+test are the command and the output format, not the network.
 """
 
 from __future__ import annotations
@@ -76,10 +82,48 @@ def test_gate_and_generator_agree_on_the_governed_tuple(gate, generator):
         "GOVERNED_PLATFORM",
         "GOVERNED_UV_VERSION",
         "GOVERNED_EXTRAS",
+        "GOVERNED_EXCLUDE_NEWER",
         "PROJECTS",
     ):
         assert getattr(gate, attr) == getattr(generator, attr), (
             f"{attr} drifted between the scripts"
+        )
+
+
+def test_both_scripts_pass_the_governed_cutoff_to_the_resolver(
+    gate, generator, tmp_path, monkeypatch
+):
+    """Without --exclude-newer the resolver sees a moving index and parity is unsatisfiable.
+
+    This is fault C: a freshly regenerated set drifted again within six hours (2026-08-04),
+    because upstream publishes continuously. Both the generator and the gate must constrain
+    the candidate set to the same instant, or the nightly goes red on someone else's release.
+    """
+    seen: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        seen.append(list(cmd))
+        Path(cmd[cmd.index("--output-file") + 1]).write_text("x==1\n", encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(gate.subprocess, "run", fake_run)
+    gate.recompile_one("backend", "apps/backend", tmp_path / "g.txt")
+
+    monkeypatch.setattr(generator.subprocess, "run", fake_run)
+    generator.compile_one("backend", "apps/backend", tmp_path / "r.txt", False)
+
+    assert len(seen) == 2
+    for cmd in seen:
+        assert "--exclude-newer" in cmd, f"resolver invoked without a cutoff: {cmd}"
+        assert cmd[cmd.index("--exclude-newer") + 1] == generator.GOVERNED_EXCLUDE_NEWER
+
+
+def test_committed_headers_record_the_cutoff(generator):
+    """The cutoff must be discoverable from the artifact, not only from the script."""
+    for project in generator.PROJECTS:
+        text = (REPO_ROOT / "constraints" / f"{project}-py312.txt").read_text(encoding="utf-8")
+        assert generator.GOVERNED_EXCLUDE_NEWER in text, (
+            f"{project}: committed file does not record the governed exclude-newer cutoff"
         )
 
 

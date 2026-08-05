@@ -43,6 +43,10 @@ GOVERNED_PLATFORM = "x86_64-unknown-linux-gnu"
 GOVERNED_UV_VERSION = "0.12.0"
 GOVERNED_REQUIRES_PYTHON = ">=3.12,<3.13"
 GOVERNED_EXTRAS = ("dev",)
+# Resolution cutoff — see scripts/regenerate_dependency_locks.py for why this is part of the
+# governed tuple and how it may be advanced. Without it, `--recompile` below compares against
+# a moving index and can never be satisfied for longer than it takes upstream to publish.
+GOVERNED_EXCLUDE_NEWER = "2026-07-29T18:00:00Z"
 
 PROJECTS: dict[str, str] = {
     "backend": "apps/backend",
@@ -129,6 +133,7 @@ def recompile_one(project: str, directory: str, out: Path) -> tuple[bool, str]:
         "--python-version", GOVERNED_PYTHON,
         "--python-platform", GOVERNED_PLATFORM,
         "--generate-hashes", "--no-header",
+        "--exclude-newer", GOVERNED_EXCLUDE_NEWER,
         "--output-file", str(raw),
     ]
     p = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
@@ -181,7 +186,8 @@ def main(argv: list[str] | None = None) -> int:
 
         for label, value in (("python", GOVERNED_PYTHON_FULL),
                              ("platform", GOVERNED_PLATFORM),
-                             ("uv", GOVERNED_UV_VERSION)):
+                             ("uv", GOVERNED_UV_VERSION),
+                             ("exclude-newer cutoff", GOVERNED_EXCLUDE_NEWER)):
             if value not in text:
                 errors.append(
                     f"{cpath.name}: header does not record the governed {label} ({value}); "
