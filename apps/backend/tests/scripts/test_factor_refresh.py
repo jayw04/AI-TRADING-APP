@@ -652,13 +652,13 @@ def test_current_symbol_is_fresh_and_never_exhausted(M):
                     }
                 )
             },
-            "still reports current trading",
+            "coverage regression, not exhaustion",
         ),
-        ({"held_qty": 12.0}, "needs valuation and exit"),
-        ({"open_orders": 1}, "open order"),
-        ({"registered_in": ["9:IDLE"]}, "registered by strategies"),
+        ({"held_qty": 12.0}, "no proven alternate price source"),
+        ({"open_orders": 1}, "no proven alternate price source"),
+        ({"registered_in": ["9:IDLE"]}, "no alternate source"),
         ({"stage_last": date(2026, 7, 20)}, "!= live"),
-        ({"live_last": None}, "no live SEP history"),
+        ({"live_last": None}, "!= live"),
     ],
 )
 def test_anything_unproven_is_failed_not_exhausted(M, over, because):
@@ -671,11 +671,89 @@ def test_anything_unproven_is_failed_not_exhausted(M, over, because):
 
 
 def test_held_exhausted_symbol_is_fatal_even_with_perfect_evidence(M):
-    """A provider-exhausted HELD name still needs a valuation and exit path, so it
-    cannot become non-fatal on lifecycle evidence alone."""
+    """A provider-exhausted HELD name still needs a valuation and exit path. The
+    instrument is dead everywhere, so no alternate source can price it."""
     verdict, reason = _classify(M, held_qty=100.0)
     assert verdict == M.FAILED_OR_UNEXPLAINED
-    assert "valuation and exit" in reason
+    assert "no proven alternate price source" in reason
+
+
+def _etf_ev(**over):
+    """An ETF outside the provider's subscription: alive, priced elsewhere."""
+    ev = _ev(symbol="GLD")
+    ev["corroboration"] = {
+        "source": "alpaca",
+        "last_date": "2026-08-04",
+        "control_symbol": "AAPL",
+        "control_last_date": "2026-08-04",
+    }
+    ev.update(over)
+    return ev
+
+
+def test_uncovered_etf_with_no_provider_history_is_not_covered(M):
+    """The nine cross-asset ETFs: never in SEP, but trading normally and priced by
+    Alpaca. Not exhausted — the instrument is alive; the provider simply does not
+    carry it."""
+    verdict, reason = M.classify_stale_symbol(
+        "GLD",
+        live_last=None,
+        stage_last=None,
+        cutoff=CUT,
+        evidence=_etf_ev(),
+        held_qty=0,
+        open_orders=0,
+        registered_in=[],
+    )
+    assert verdict == M.PROVIDER_NOT_COVERED
+    assert "outside provider coverage" in reason
+
+
+def test_held_uncovered_etf_is_allowed_because_alternate_source_prices_it(M):
+    """Condition 8: a held name is acceptable when a separate price source is
+    proven. Several of the nine ETFs are held and priced via Alpaca daily bars."""
+    verdict, _ = M.classify_stale_symbol(
+        "GLD",
+        live_last=None,
+        stage_last=None,
+        cutoff=CUT,
+        evidence=_etf_ev(),
+        held_qty=250.0,
+        open_orders=0,
+        registered_in=["9:IDLE"],
+    )
+    assert verdict == M.PROVIDER_NOT_COVERED
+
+
+def test_provider_stopped_while_instrument_still_trades_is_a_coverage_regression(M):
+    """Had provider history, provider stopped, instrument still trades elsewhere.
+    That is a coverage change worth looking at, never a silent pass."""
+    verdict, reason = M.classify_stale_symbol(
+        "XYZ",
+        live_last=DEAD,
+        stage_last=DEAD,
+        cutoff=CUT,
+        evidence=_etf_ev(symbol="XYZ"),
+        held_qty=0,
+        open_orders=0,
+        registered_in=[],
+    )
+    assert verdict == M.FAILED_OR_UNEXPLAINED
+    assert "coverage regression" in reason
+
+
+def test_effective_last_uses_the_earlier_of_sep_and_lastpricedate(M, tmp_path):
+    """A name with FRESH sep but a lagging lastpricedate is still excluded from the
+    ranking pool, so it must not read as fresh. This is the SATS-class gate."""
+    store = _store(
+        tmp_path,
+        _bars("FRESHSEP", 1e9),
+        tickers=[("FRESHSEP", date(2026, 6, 12))],
+    )
+    st = M.per_name_staleness(store, ["FRESHSEP"])
+    assert st["sep_max_by_symbol"]["FRESHSEP"] == str(AS_OF)
+    assert st["effective_last_by_symbol"]["FRESHSEP"] == "2026-06-12"
+    assert st["lastpricedate_stale"] == ["FRESHSEP"]
 
 
 def test_classification_is_pure(M):

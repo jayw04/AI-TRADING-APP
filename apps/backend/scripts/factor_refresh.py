@@ -464,7 +464,20 @@ def per_name_staleness(
     lpd_missing = sorted(t for t in universe if t not in lpd)
 
     covered = len(universe) - len(missing) - len(stale)
+
+    # The ranking pool filters on `lastpricedate`, so a name with fresh SEP but a
+    # lagging lastpricedate is still excluded from it. The EFFECTIVE freshness of a
+    # name is therefore the earlier of the two — otherwise a stale lastpricedate
+    # would be invisible to any check that only looks at SEP.
+    effective: dict[str, Any] = {}
+    for tkr in universe:
+        parts = [d for d in (sep_max.get(tkr), lpd.get(tkr)) if d is not None]
+        effective[tkr] = min(parts) if parts else None
+
     return {
+        "sep_max_by_symbol": {k: str(v) for k, v in sep_max.items()},
+        "lastpricedate_by_symbol": {k: str(v) for k, v in lpd.items()},
+        "effective_last_by_symbol": {k: (str(v) if v else None) for k, v in effective.items()},
         "frontier": frontier.isoformat(),
         "cutoff": cutoff.isoformat(),
         "universe_size": len(universe),
@@ -482,7 +495,12 @@ def per_name_staleness(
 #: A universe symbol's freshness verdict at verification time.
 FRESH = "FRESH"
 PROVIDER_EXHAUSTED = "PROVIDER_EXHAUSTED"
+PROVIDER_NOT_COVERED = "PROVIDER_NOT_COVERED"
 FAILED_OR_UNEXPLAINED = "FAILED_OR_UNEXPLAINED"
+
+#: Verdicts that are attributable — a refresh can never make them fresh HERE, and
+#: each carries per-symbol evidence saying why. They are never counted as fresh.
+ATTRIBUTED = (PROVIDER_EXHAUSTED, PROVIDER_NOT_COVERED)
 
 
 def classify_stale_symbol(
@@ -496,33 +514,32 @@ def classify_stale_symbol(
     open_orders: int,
     registered_in: Sequence[str],
 ) -> tuple[str, str]:
-    """Classify one stale universe symbol. Pure: no I/O, no provider, no store.
+    """Classify one non-fresh universe symbol. Pure: no I/O, provider or store.
 
-    ``PROVIDER_EXHAUSTED`` means the instrument has ceased trading under this
-    symbol, so no refresh can ever make it fresh and blocking on it forever is
-    wrong. It is **not** a way to excuse a refresh that failed.
+    Two distinct reasons a symbol can never be made fresh by this provider, and
+    the alternate source is what tells them apart:
 
-    ⚠ "the provider returned nothing newer" is NOT sufficient on its own — that
+    ``PROVIDER_EXHAUSTED``    the instrument stopped trading — the alternate
+                              source stops too (a delisting, merger or rename).
+    ``PROVIDER_NOT_COVERED``  the instrument trades normally but is outside this
+                              provider's subscription — the alternate source is
+                              current (e.g. ETFs under a Core US Equities plan
+                              that excludes the fund price dataset).
+
+    Everything else is ``FAILED_OR_UNEXPLAINED``.
+
+    ⚠ "the provider returned nothing newer" is NOT sufficient on its own — it
     equally describes a transient outage, a malformed response, an omitted
     request, an entitlement problem or a symbol-specific ingestion bug. Every
-    condition below must hold in the same governed run, and anything unproven is
-    ``FAILED_OR_UNEXPLAINED``, never a silent pass.
+    condition must hold in the same governed run; anything unproven fails closed.
 
-    ``evidence`` supplies only what verification cannot observe for itself — the
-    per-symbol request outcome and an independent lifecycle signal. Everything
-    observable (frontiers, holdings, registration) is recomputed by the caller
-    and cross-checked against the claim here.
+    ``evidence`` supplies only what verification cannot observe for itself: the
+    per-symbol request outcome and an independent lifecycle signal. Frontiers,
+    holdings and registration are recomputed by the caller and cross-checked
+    here, never taken on trust.
     """
     if stage_last is not None and stage_last >= cutoff:
         return FRESH, "stage frontier is within tolerance"
-
-    # --- operationally required names can never be written off -------------
-    if held_qty:
-        return FAILED_OR_UNEXPLAINED, f"held qty {held_qty}: needs valuation and exit path"
-    if open_orders:
-        return FAILED_OR_UNEXPLAINED, f"{open_orders} open order(s) outstanding"
-    if registered_in:
-        return FAILED_OR_UNEXPLAINED, f"registered by strategies {sorted(registered_in)}"
 
     # --- the request itself must be proven to have happened and succeeded ---
     if not evidence:
@@ -541,31 +558,56 @@ def classify_stale_symbol(
             FAILED_OR_UNEXPLAINED,
             f"provider returned {rows} newer row(s); ingestion missed them",
         )
-
-    # --- the store must corroborate that nothing moved ---------------------
-    if live_last is None:
-        return FAILED_OR_UNEXPLAINED, "no live SEP history for this symbol"
     if stage_last != live_last:
         return FAILED_OR_UNEXPLAINED, f"staging frontier {stage_last} != live {live_last}"
-    if live_last >= cutoff:
-        return FAILED_OR_UNEXPLAINED, "live frontier is not actually stale"
 
-    # --- an independent source must show trading has ceased ----------------
+    # --- an independent source must be reachable and current ---------------
     corr = evidence.get("corroboration") or {}
-    for field in ("source", "last_date", "control_symbol", "control_last_date"):
+    for field in ("source", "control_symbol", "control_last_date"):
         if not corr.get(field):
             return FAILED_OR_UNEXPLAINED, f"corroboration missing {field}"
-    c_last, c_ctl = _as_date(corr["last_date"]), _as_date(corr["control_last_date"])
+    c_ctl = _as_date(corr["control_last_date"])
     if c_ctl is None or c_ctl < cutoff:
-        # A control that is itself stale proves the alternate path is broken,
-        # not that the symbol is dead.
+        # A stale control proves the alternate path is broken, not that the
+        # subject symbol is dead. Without it every symbol would look attributable
+        # during an outage of the corroborating source.
         return (
             FAILED_OR_UNEXPLAINED,
             "corroboration control is not current; alternate source unproven",
         )
-    if c_last is None or c_last >= cutoff:
-        return FAILED_OR_UNEXPLAINED, "corroborating source still reports current trading"
+    c_last = _as_date(corr.get("last_date"))
 
+    alive_elsewhere = c_last is not None and c_last >= cutoff
+
+    # --- operational requirements -----------------------------------------
+    # A held name needs a continuing valuation and exit path. That is satisfied
+    # only when the alternate source is currently pricing it.
+    if (held_qty or open_orders) and not alive_elsewhere:
+        need = f"held qty {held_qty}" if held_qty else f"{open_orders} open order(s)"
+        return FAILED_OR_UNEXPLAINED, f"{need} with no proven alternate price source"
+    if registered_in and not alive_elsewhere:
+        return (
+            FAILED_OR_UNEXPLAINED,
+            f"registered by {sorted(registered_in)} with no alternate source",
+        )
+
+    if alive_elsewhere:
+        if live_last is not None:
+            # It once had provider history and the provider stopped while the
+            # instrument kept trading — that is a coverage change, not a dead name,
+            # and it deserves a look rather than a silent pass.
+            return FAILED_OR_UNEXPLAINED, (
+                f"provider stopped at {live_last} but {corr['source']} is current to {c_last}: "
+                "coverage regression, not exhaustion"
+            )
+        return PROVIDER_NOT_COVERED, (
+            f"outside provider coverage; trades normally — {corr['source']} current to {c_last}"
+        )
+
+    if live_last is None:
+        return FAILED_OR_UNEXPLAINED, "no history in either source; symbol unverifiable"
+    if live_last >= cutoff:
+        return FAILED_OR_UNEXPLAINED, "live frontier is not actually stale"
     return PROVIDER_EXHAUSTED, (
         f"ceased trading: provider last {live_last}, {corr['source']} last {c_last}, "
         f"control {corr['control_symbol']} current to {c_ctl}"
@@ -585,6 +627,48 @@ def _as_date(v: Any) -> date | None:
         return None
 
 
+def operational_facts(app_db: str | Path, universe: Sequence[str]) -> dict[str, dict[str, Any]]:
+    """Held quantity, open orders and registration per symbol, read from the app DB.
+
+    Recomputed rather than accepted from the evidence artifact: a stale or crafted
+    file must not be able to declare a held name unheld and so write it off.
+    """
+    out: dict[str, dict[str, Any]] = {
+        s: {"held_qty": 0.0, "open_orders": 0, "registered_in": []} for s in universe
+    }
+    con = sqlite3.connect(f"file:{app_db}?mode=ro", uri=True)
+    try:
+        for tkr, qty in con.execute(
+            "SELECT sym.ticker, SUM(p.qty) FROM positions p "
+            "JOIN symbols sym ON sym.id = p.symbol_id WHERE p.qty <> 0 GROUP BY sym.ticker"
+        ):
+            if tkr in out:
+                out[tkr]["held_qty"] = float(qty or 0)
+        try:
+            for tkr, n in con.execute(
+                "SELECT sym.ticker, COUNT(*) FROM orders o JOIN symbols sym ON sym.id = o.symbol_id "
+                "WHERE o.status NOT IN ('FILLED','CANCELED','EXPIRED','REJECTED') GROUP BY sym.ticker"
+            ):
+                if tkr in out:
+                    out[tkr]["open_orders"] = int(n or 0)
+        except sqlite3.Error:  # pragma: no cover - orders schema drift
+            pass
+        for sid, status, raw in con.execute("SELECT id, status, symbols_json FROM strategies"):
+            try:
+                syms = json.loads(raw or "[]")
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(syms, list):
+                continue
+            for s in syms:
+                key = str(s).strip().upper()
+                if key in out:
+                    out[key]["registered_in"].append(f"{sid}:{status}")
+    finally:
+        con.close()
+    return out
+
+
 def verify_staging(
     live_path: str | Path,
     stage_path: str | Path,
@@ -592,6 +676,8 @@ def verify_staging(
     *,
     max_lag_days: int = DEFAULT_MAX_LAG_DAYS,
     min_coverage: float = DEFAULT_MIN_COVERAGE,
+    evidence: dict[str, dict[str, Any]] | None = None,
+    operational: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[list[str], dict[str, Any]]:
     """Gate the staging store before the swap. Returns ``(failures, report)``.
 
@@ -643,12 +729,89 @@ def verify_staging(
                 f"beyond {max_lag_days}d; e.g. "
                 f"{(st['missing'] + st['stale'])[:8]})"
             )
-        if st["lastpricedate_stale"]:
-            failures.append(
-                f"{len(st['lastpricedate_stale'])} universe tickers have a stale "
-                f"tickers.lastpricedate -> they are EXCLUDED from the ranking pool "
-                f"(e.g. {st['lastpricedate_stale'][:8]})"
+        # Classify every non-fresh name. A dead or uncovered instrument must not
+        # block the store forever, but nothing is written off without per-symbol
+        # evidence — unproven is FAILED, never a silent pass.
+        cutoff = _as_date(st.get("cutoff"))
+        non_fresh = sorted(set(st["missing"]) | set(st["stale"]) | set(st["lastpricedate_stale"]))
+        # The live store's own per-symbol frontier, so "the frontier did not move"
+        # is verified against the store rather than taken from the evidence file.
+        live_eff = (
+            per_name_staleness(live_path, non_fresh, max_lag_days=max_lag_days)[
+                "effective_last_by_symbol"
+            ]
+            if non_fresh
+            else {}
+        )
+        ev, op = evidence or {}, operational or {}
+        buckets: dict[str, list[str]] = {
+            PROVIDER_EXHAUSTED: [],
+            PROVIDER_NOT_COVERED: [],
+            FAILED_OR_UNEXPLAINED: [],
+        }
+        records: list[dict[str, Any]] = []
+        for sym in non_fresh:
+            o = op.get(sym, {})
+            verdict, reason = classify_stale_symbol(
+                sym,
+                live_last=_as_date(live_eff.get(sym)),
+                stage_last=_as_date(st["effective_last_by_symbol"].get(sym)),
+                cutoff=cutoff,
+                evidence=ev.get(sym),
+                held_qty=float(o.get("held_qty") or 0),
+                open_orders=int(o.get("open_orders") or 0),
+                registered_in=o.get("registered_in") or [],
             )
+            buckets[verdict].append(sym)
+            records.append(
+                {
+                    "symbol": sym,
+                    "classification": verdict,
+                    "reason": reason,
+                    "live_effective_last": str(live_eff.get(sym)),
+                    "stage_effective_last": str(st["effective_last_by_symbol"].get(sym)),
+                    "stage_sep_last": st["sep_max_by_symbol"].get(sym),
+                    "stage_lastpricedate": st["lastpricedate_by_symbol"].get(sym),
+                    "held_qty": o.get("held_qty", 0),
+                    "open_orders": o.get("open_orders", 0),
+                    "registered_in": o.get("registered_in") or [],
+                    "evidence": ev.get(sym),
+                }
+            )
+
+        total = st["universe_size"]
+        fresh_n = total - len(non_fresh)
+        attributed = buckets[PROVIDER_EXHAUSTED] + buckets[PROVIDER_NOT_COVERED]
+        st["classification"] = {
+            "fresh_count": fresh_n,
+            "provider_exhausted_count": len(buckets[PROVIDER_EXHAUSTED]),
+            "provider_exhausted_symbols": buckets[PROVIDER_EXHAUSTED],
+            "provider_exhausted_symbols_digest": digest(buckets[PROVIDER_EXHAUSTED]),
+            "provider_not_covered_count": len(buckets[PROVIDER_NOT_COVERED]),
+            "provider_not_covered_symbols": buckets[PROVIDER_NOT_COVERED],
+            "provider_not_covered_symbols_digest": digest(buckets[PROVIDER_NOT_COVERED]),
+            "unexplained_stale_count": len(buckets[FAILED_OR_UNEXPLAINED]),
+            "unexplained_stale_symbols": buckets[FAILED_OR_UNEXPLAINED],
+            "unexplained_stale_symbols_digest": digest(buckets[FAILED_OR_UNEXPLAINED]),
+            # raw freshness NEVER counts an attributed name as fresh
+            "raw_freshness_coverage": (fresh_n / total) if total else 0.0,
+            "operationally_attributable_coverage": (
+                ((fresh_n + len(attributed)) / total) if total else 0.0
+            ),
+            "records": records,
+        }
+
+        if buckets[FAILED_OR_UNEXPLAINED]:
+            bad = buckets[FAILED_OR_UNEXPLAINED]
+            msg = (
+                f"{len(bad)} stale universe tickers are UNEXPLAINED "
+                f"(no accepted evidence): {bad[:8]}"
+            )
+            # Keep the consequence in the message: a lagging lastpricedate does not
+            # merely rank a name on old data, it removes the name from the pool.
+            if any(s in set(st["lastpricedate_stale"]) for s in bad):
+                msg += " -> names with a stale tickers.lastpricedate are EXCLUDED from the ranking pool"
+            failures.append(msg)
 
     return failures, report
 
@@ -682,6 +845,19 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("--universe", required=True, help="the universe file")
     v.add_argument("--report")
     v.add_argument("--max-lag-days", type=int, default=DEFAULT_MAX_LAG_DAYS)
+    v.add_argument(
+        "--evidence",
+        default="/app/data/_factor_exhaustion_evidence.json",
+        help="per-symbol exhaustion evidence. Supplies ONLY what verification cannot "
+        "observe: the request outcome and an independent lifecycle signal. Absent or "
+        "unreadable means no symbol can be attributed, so stale names fail closed.",
+    )
+    v.add_argument(
+        "--app-db",
+        default="/app/data/workbench.sqlite",
+        help="read-only source for held qty, open orders and registration. These are "
+        "RECOMPUTED here, never taken from the evidence file.",
+    )
     v.add_argument("--min-coverage", type=float, default=DEFAULT_MIN_COVERAGE)
 
     args = ap.parse_args(argv)
@@ -720,12 +896,26 @@ def main(argv: list[str] | None = None) -> int:
             for ln in Path(args.universe).read_text(encoding="utf-8").splitlines()
             if ln.strip()
         ]
+        evidence: dict[str, dict[str, Any]] = {}
+        if args.evidence and Path(args.evidence).exists():
+            raw = json.loads(Path(args.evidence).read_text(encoding="utf-8"))
+            evidence = {e["symbol"]: e for e in raw.get("symbols", []) if e.get("symbol")}
+
+        # Operational facts are recomputed from the app DB, never trusted from the
+        # evidence file — an attacker or a stale artifact must not be able to
+        # declare a held name unheld.
+        operational: dict[str, dict[str, Any]] = {}
+        if args.app_db and Path(args.app_db).exists():
+            operational = operational_facts(args.app_db, universe)
+
         failures, report = verify_staging(
             args.live,
             args.stage,
             universe,
             max_lag_days=args.max_lag_days,
             min_coverage=args.min_coverage,
+            evidence=evidence,
+            operational=operational,
         )
         if args.report:
             Path(args.report).write_text(
