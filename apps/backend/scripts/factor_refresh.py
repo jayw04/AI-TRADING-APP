@@ -477,6 +477,114 @@ def per_name_staleness(
     }
 
 
+# ------------------------------------------------- stale-symbol classification
+
+#: A universe symbol's freshness verdict at verification time.
+FRESH = "FRESH"
+PROVIDER_EXHAUSTED = "PROVIDER_EXHAUSTED"
+FAILED_OR_UNEXPLAINED = "FAILED_OR_UNEXPLAINED"
+
+
+def classify_stale_symbol(
+    symbol: str,
+    *,
+    live_last: date | None,
+    stage_last: date | None,
+    cutoff: date,
+    evidence: dict[str, Any] | None,
+    held_qty: float,
+    open_orders: int,
+    registered_in: Sequence[str],
+) -> tuple[str, str]:
+    """Classify one stale universe symbol. Pure: no I/O, no provider, no store.
+
+    ``PROVIDER_EXHAUSTED`` means the instrument has ceased trading under this
+    symbol, so no refresh can ever make it fresh and blocking on it forever is
+    wrong. It is **not** a way to excuse a refresh that failed.
+
+    ⚠ "the provider returned nothing newer" is NOT sufficient on its own — that
+    equally describes a transient outage, a malformed response, an omitted
+    request, an entitlement problem or a symbol-specific ingestion bug. Every
+    condition below must hold in the same governed run, and anything unproven is
+    ``FAILED_OR_UNEXPLAINED``, never a silent pass.
+
+    ``evidence`` supplies only what verification cannot observe for itself — the
+    per-symbol request outcome and an independent lifecycle signal. Everything
+    observable (frontiers, holdings, registration) is recomputed by the caller
+    and cross-checked against the claim here.
+    """
+    if stage_last is not None and stage_last >= cutoff:
+        return FRESH, "stage frontier is within tolerance"
+
+    # --- operationally required names can never be written off -------------
+    if held_qty:
+        return FAILED_OR_UNEXPLAINED, f"held qty {held_qty}: needs valuation and exit path"
+    if open_orders:
+        return FAILED_OR_UNEXPLAINED, f"{open_orders} open order(s) outstanding"
+    if registered_in:
+        return FAILED_OR_UNEXPLAINED, f"registered by strategies {sorted(registered_in)}"
+
+    # --- the request itself must be proven to have happened and succeeded ---
+    if not evidence:
+        return FAILED_OR_UNEXPLAINED, "no exhaustion evidence supplied"
+    if evidence.get("symbol") != symbol:
+        return FAILED_OR_UNEXPLAINED, "evidence symbol mismatch"
+    if evidence.get("requested") is not True:
+        return FAILED_OR_UNEXPLAINED, "symbol was not requested from the provider"
+    if evidence.get("request_status") != "ok":
+        return FAILED_OR_UNEXPLAINED, f"provider request status {evidence.get('request_status')!r}"
+    rows = evidence.get("provider_rows_after_live_frontier")
+    if rows is None:
+        return FAILED_OR_UNEXPLAINED, "provider row count after frontier not reported"
+    if rows != 0:
+        return (
+            FAILED_OR_UNEXPLAINED,
+            f"provider returned {rows} newer row(s); ingestion missed them",
+        )
+
+    # --- the store must corroborate that nothing moved ---------------------
+    if live_last is None:
+        return FAILED_OR_UNEXPLAINED, "no live SEP history for this symbol"
+    if stage_last != live_last:
+        return FAILED_OR_UNEXPLAINED, f"staging frontier {stage_last} != live {live_last}"
+    if live_last >= cutoff:
+        return FAILED_OR_UNEXPLAINED, "live frontier is not actually stale"
+
+    # --- an independent source must show trading has ceased ----------------
+    corr = evidence.get("corroboration") or {}
+    for field in ("source", "last_date", "control_symbol", "control_last_date"):
+        if not corr.get(field):
+            return FAILED_OR_UNEXPLAINED, f"corroboration missing {field}"
+    c_last, c_ctl = _as_date(corr["last_date"]), _as_date(corr["control_last_date"])
+    if c_ctl is None or c_ctl < cutoff:
+        # A control that is itself stale proves the alternate path is broken,
+        # not that the symbol is dead.
+        return (
+            FAILED_OR_UNEXPLAINED,
+            "corroboration control is not current; alternate source unproven",
+        )
+    if c_last is None or c_last >= cutoff:
+        return FAILED_OR_UNEXPLAINED, "corroborating source still reports current trading"
+
+    return PROVIDER_EXHAUSTED, (
+        f"ceased trading: provider last {live_last}, {corr['source']} last {c_last}, "
+        f"control {corr['control_symbol']} current to {c_ctl}"
+    )
+
+
+def _as_date(v: Any) -> date | None:
+    if v is None:
+        return None
+    if hasattr(v, "date") and not isinstance(v, date):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    try:
+        return date.fromisoformat(str(v))
+    except ValueError:
+        return None
+
+
 def verify_staging(
     live_path: str | Path,
     stage_path: str | Path,

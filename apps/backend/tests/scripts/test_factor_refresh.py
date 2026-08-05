@@ -562,3 +562,133 @@ def test_held_symbols_reads_against_the_real_schema(M, tmp_path):
     """End-to-end against a fixture built from the production DDL."""
     db = _app_db(tmp_path, [(9, "IDLE", ["AAA"])], positions=[("HELDNAME", 4.0), ("CLOSED", 0.0)])
     assert M.held_symbols(db) == ["HELDNAME"]
+
+
+# ------------------------------------------- provider-exhaustion classification
+
+CUT = date(2026, 7, 31)
+DEAD = date(2026, 6, 12)
+
+
+def _ev(**over):
+    """Well-formed exhaustion evidence for a genuinely dead symbol."""
+    ev = {
+        "symbol": "SATS",
+        "requested": True,
+        "request_status": "ok",
+        "provider_rows_after_live_frontier": 0,
+        "corroboration": {
+            "source": "alpaca",
+            "last_date": "2026-06-23",
+            "control_symbol": "AAPL",
+            "control_last_date": "2026-08-04",
+        },
+    }
+    ev.update(over)
+    return ev
+
+
+def _classify(M, **over):
+    kw = {
+        "live_last": DEAD,
+        "stage_last": DEAD,
+        "cutoff": CUT,
+        "evidence": _ev(),
+        "held_qty": 0,
+        "open_orders": 0,
+        "registered_in": [],
+    }
+    kw.update(over)
+    return M.classify_stale_symbol("SATS", **kw)
+
+
+def test_dead_symbol_fully_evidenced_is_provider_exhausted(M):
+    """The SATS shape: requested, request OK, no newer rows, frontier unmoved,
+    an independent source also stops, its control is current, and the name is not
+    operationally required."""
+    verdict, reason = _classify(M)
+    assert verdict == M.PROVIDER_EXHAUSTED
+    assert "ceased trading" in reason
+
+
+def test_current_symbol_is_fresh_and_never_exhausted(M):
+    """AAPL-style control: a name inside tolerance is FRESH regardless of evidence."""
+    verdict, _ = _classify(M, stage_last=date(2026, 8, 4), evidence=None)
+    assert verdict == M.FRESH
+
+
+@pytest.mark.parametrize(
+    ("over", "because"),
+    [
+        ({"evidence": None}, "no exhaustion evidence"),
+        ({"evidence": _ev(requested=False)}, "was not requested"),
+        ({"evidence": _ev(request_status="timeout")}, "request status"),
+        ({"evidence": _ev(request_status="error")}, "request status"),
+        ({"evidence": _ev(provider_rows_after_live_frontier=None)}, "not reported"),
+        ({"evidence": _ev(provider_rows_after_live_frontier=14)}, "ingestion missed them"),
+        ({"evidence": _ev(symbol="OTHER")}, "symbol mismatch"),
+        ({"evidence": _ev(corroboration={})}, "corroboration missing"),
+        (
+            {
+                "evidence": _ev(
+                    corroboration={
+                        "source": "alpaca",
+                        "last_date": "2026-06-23",
+                        "control_symbol": "AAPL",
+                        "control_last_date": "2026-06-01",
+                    }
+                )
+            },
+            "control is not current",
+        ),
+        (
+            {
+                "evidence": _ev(
+                    corroboration={
+                        "source": "alpaca",
+                        "last_date": "2026-08-04",
+                        "control_symbol": "AAPL",
+                        "control_last_date": "2026-08-04",
+                    }
+                )
+            },
+            "still reports current trading",
+        ),
+        ({"held_qty": 12.0}, "needs valuation and exit"),
+        ({"open_orders": 1}, "open order"),
+        ({"registered_in": ["9:IDLE"]}, "registered by strategies"),
+        ({"stage_last": date(2026, 7, 20)}, "!= live"),
+        ({"live_last": None}, "no live SEP history"),
+    ],
+)
+def test_anything_unproven_is_failed_not_exhausted(M, over, because):
+    """Every path that is not positively proven must fail closed. 'The provider
+    returned nothing newer' equally describes an outage, a malformed response, an
+    omitted request or an ingestion bug — none of which are a dead instrument."""
+    verdict, reason = _classify(M, **over)
+    assert verdict == M.FAILED_OR_UNEXPLAINED, f"expected fail-closed, got {verdict}: {reason}"
+    assert because in reason
+
+
+def test_held_exhausted_symbol_is_fatal_even_with_perfect_evidence(M):
+    """A provider-exhausted HELD name still needs a valuation and exit path, so it
+    cannot become non-fatal on lifecycle evidence alone."""
+    verdict, reason = _classify(M, held_qty=100.0)
+    assert verdict == M.FAILED_OR_UNEXPLAINED
+    assert "valuation and exit" in reason
+
+
+def test_classification_is_pure(M):
+    """No store, provider or credential reachable from the classifier."""
+    import inspect
+
+    src = inspect.getsource(M.classify_stale_symbol)
+    for banned in ("duckdb", "sqlite3", "connect(", "requests", "httpx", "os.environ"):
+        assert banned not in src, f"classifier must stay pure; found {banned}"
+
+
+def test_sats_is_not_hard_coded_anywhere(M):
+    """The mechanism must generalise to future mergers, delistings and ticker
+    changes — SATS is a fixture, not an exception list."""
+    src = _MODULE.read_text(encoding="utf-8")
+    assert "SATS" not in src
