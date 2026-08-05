@@ -976,9 +976,9 @@ class StrategyEngine:
         classify a strategy as using it. Range Trader does not touch factor data, and
         blocking it on factor staleness would stop a working strategy for no reason.
 
-        âš  An introspection failure returns False (not gated) **deliberately**. Gating
-        everything we cannot classify would turn a diagnostic gap â€” a dynamically
-        loaded module whose source linecache cannot see â€” into a full trading halt,
+        ⚠ An introspection failure returns False (not gated) **deliberately**. Gating
+        everything we cannot classify would turn a diagnostic gap — a dynamically
+        loaded module whose source linecache cannot see — into a full trading halt,
         which is a worse failure than the one this gate exists to prevent. The
         strategies that matter are file-backed templates and classify correctly;
         ``test_all_real_templates_classify_correctly`` pins that against the actual
@@ -1019,10 +1019,10 @@ class StrategyEngine:
 
         The 2026-08-03 incident in one line: the producer was stopped, the watchdog
         alerted, and nothing stopped the books. Detection is not a veto. This is
-        evaluated synchronously AT dispatch â€” not read from a log, not assuming an
+        evaluated synchronously AT dispatch — not read from a log, not assuming an
         alarm was acted on.
 
-        âš  Stale factors do NOT make the books hold. ``_resolve_as_of`` clamps the
+        ⚠ Stale factors do NOT make the books hold. ``_resolve_as_of`` clamps the
         decision date DOWN to the store's latest, so the pool populates and the
         strategy trades on old signals while sizing on live prices. Nothing raises,
         which is exactly why the gate must sit before entry.
@@ -1080,7 +1080,7 @@ class StrategyEngine:
         return resolve_store_path().parent / "_factor_refresh_universe_sealed.json"
 
     def _factor_readiness_path(self) -> Path:
-        """Optional producer-liveness verdict. Absent is tolerated â€” the gate then
+        """Optional producer-liveness verdict. Absent is tolerated — the gate then
         records that producer liveness was NOT verified rather than implying it was."""
         return resolve_store_path().parent / "_factor_readiness.json"
 
