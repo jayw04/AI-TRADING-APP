@@ -50,11 +50,22 @@ def _ready(tmp: Path, *, overall="PASS", age_h=1.0) -> Path:
     return p
 
 
+_UNSET = object()
+
+
 def _eval(tmp: Path, **over):
+    # The readiness artifact defaults to a healthy PASS so that the store/seal cases below
+    # isolate the condition they name. It is REQUIRED in production, so leaving it out of
+    # the default would make every one of those tests assert the artifact check instead.
+    #
+    # The sentinel is load-bearing: `_ready` WRITES, and `over.pop(k, _ready(tmp))` would
+    # evaluate that default on every call — overwriting the very artifact a caller passing
+    # `readiness_path=` had just written, one line earlier, into the same filename.
+    readiness = over.pop("readiness_path", _UNSET)
     kw = {
         "store_path": over.pop("store_path", None) or _store(tmp, NOW.date()),
         "sealed_path": over.pop("sealed_path", None) or _sealed(tmp, NOW.date()),
-        "readiness_path": over.pop("readiness_path", None),
+        "readiness_path": _ready(tmp) if readiness is _UNSET else readiness,
         "now": NOW,
     }
     kw.update(over)
@@ -70,12 +81,14 @@ def test_current_data_with_verified_generation_passes(tmp_path):
     assert v.checks["lag_days"] == 0
 
 
-def test_producer_liveness_is_not_claimed_when_unverifiable(tmp_path):
-    """The systemd timer lives on the host, outside the container. With no readiness
-    artifact the gate must not imply it checked producer liveness."""
+def test_the_happy_path_actually_verified_producer_liveness(tmp_path):
+    """A PASS is only a PASS if all three legs were checked. The systemd timer lives on
+    the host, outside the container, so producer liveness is only ever known from the
+    published artifact — and the verdict must say so rather than implying it."""
     v = _eval(tmp_path)
     assert v.ok
-    assert v.checks["producer_liveness_verified"] is False
+    assert v.checks["producer_liveness_verified"] is True
+    assert v.checks["readiness_required"] is True
 
 
 # ------------------------------------------------- the 2026-08-03 scenario itself
@@ -151,7 +164,7 @@ def test_seal_older_than_the_store_blocks(tmp_path):
     assert "was not produced by a verified run" in v.reason
 
 
-# ------------------------------------------- optional producer-liveness verdict
+# ------------------------------------------- REQUIRED producer-liveness verdict
 
 
 def test_readiness_fail_blocks_even_when_data_looks_current(tmp_path):
@@ -185,12 +198,65 @@ def test_readiness_pass_is_honoured(tmp_path):
     assert v.checks["producer_liveness_verified"] is True
 
 
-def test_absent_readiness_artifact_does_not_block(tmp_path):
-    """#615 does not yet persist a verdict. The gate must still run on what it can
-    prove rather than blocking every dispatch until that lands."""
-    v = _eval(tmp_path, readiness_path=tmp_path / "_factor_readiness.json")
+def test_absent_readiness_artifact_BLOCKS(tmp_path):
+    """The half that was missing until 2026-08-08, and the reason this file changed.
+
+    When the interlock first shipped, an absent artifact was tolerated: the gate
+    recorded ``producer_liveness_verified=False`` and dispatched anyway. That is the
+    2026-08-03 defect wearing a different hat — a check that stops checking instead of
+    failing. A publisher that never ran, whose timer is dead, or that cannot write to
+    the data volume produces exactly this state, and none of those is evidence that the
+    producer is alive.
+    """
+    v = _eval(tmp_path, readiness_path=tmp_path / "does_not_exist.json")
+    assert not v.ok
+    assert "absent" in v.reason
+    assert v.checks["producer_liveness_verified"] is False
+
+
+def test_unconfigured_readiness_path_blocks(tmp_path):
+    """Not passing a path at all must not be a way around the requirement."""
+    v = _eval(tmp_path, readiness_path=None)
+    assert not v.ok
+    assert "required" in v.reason
+
+
+def test_corrupt_readiness_artifact_blocks(tmp_path):
+    """A half-written document is the failure mode the publisher's temp+rename exists to
+    prevent. If one is ever observed anyway, it must halt rather than be skipped."""
+    p = tmp_path / "_factor_readiness.json"
+    p.write_text('{"overall_readiness": "PA', encoding="utf-8")
+    v = _eval(tmp_path, readiness_path=p)
+    assert not v.ok and "readiness artifact unreadable" in v.reason
+
+
+def test_future_dated_readiness_verdict_blocks(tmp_path):
+    """The only way this check could fail OPEN: a verdict stamped ahead of the clock
+    never ages out, so it would be permanent permission to dispatch."""
+    v = _eval(tmp_path, readiness_path=_ready(tmp_path, age_h=-72))
+    assert not v.ok and "FUTURE" in v.reason
+
+
+def test_readiness_required_is_the_default(tmp_path):
+    """Pinned deliberately. The requirement is the control; a default of False would let
+    a caller that simply forgot the flag reintroduce the tolerated-absence behaviour."""
+    import inspect
+
+    sig = inspect.signature(evaluate_factor_readiness)
+    assert sig.parameters["readiness_required"].default is True
+
+
+def test_optional_mode_exists_only_as_an_explicit_opt_out(tmp_path):
+    """Documents what the escape hatch does, so nobody has to guess. Production never
+    passes it — ``test_engine_never_makes_the_readiness_artifact_optional`` proves that."""
+    v = _eval(
+        tmp_path,
+        readiness_path=tmp_path / "does_not_exist.json",
+        readiness_required=False,
+    )
     assert v.ok
     assert v.checks["producer_liveness_verified"] is False
+    assert "NOT verified" in v.reason
 
 
 def test_evaluate_never_raises(tmp_path):
@@ -340,6 +406,96 @@ async def test_non_factor_strategy_is_unaffected(tmp_path, monkeypatch):
     )()
     ok = await eng.StrategyEngine._factor_readiness_ok(self_, _running(_PlainStrategy()))
     assert ok is True, "a non-factor strategy must not be blocked by factor staleness"
+
+
+def _engine_self():
+    from app.strategies import engine as eng
+
+    return type(
+        "E",
+        (),
+        {
+            "_is_factor_consuming": eng.StrategyEngine._is_factor_consuming,
+            "_sealed_universe_path": eng.StrategyEngine._sealed_universe_path,
+            "_factor_readiness_path": eng.StrategyEngine._factor_readiness_path,
+        },
+    )()
+
+
+def _live_data_dir(tmp: Path, *, readiness: str | None = "PASS"):
+    """A data volume as the box has it: current store, current seal, and — unless the
+    caller is testing its absence — a published readiness verdict at the exact basenames
+    the engine derives. Anchored on the real clock because the engine calls the gate
+    without a pinned ``now``.
+
+    Returns a ``resolve_store_path`` replacement rather than a path: the gate calls that
+    function once per artifact it locates, so a fixture that rebuilt the store on each
+    call would fail on the second CREATE TABLE.
+    """
+    today = datetime.now(UTC).date()
+    store = _store(tmp, today, name="factor_data.duckdb")
+    (tmp / "_factor_refresh_universe_sealed.json").write_text(
+        json.dumps({"as_of": today.isoformat(), "counts": {"total": 510}}), encoding="utf-8"
+    )
+    if readiness is not None:
+        stamp = (datetime.now(UTC) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (tmp / "_factor_readiness.json").write_text(
+            json.dumps({"overall_readiness": readiness, "evaluated_at_utc": stamp}),
+            encoding="utf-8",
+        )
+    return lambda *a, **k: store
+
+
+@pytest.mark.asyncio
+async def test_engine_dispatches_when_everything_is_current(tmp_path, monkeypatch):
+    """The gate must not be a permanent halt. With a current store, a current seal and a
+    published PASS, a factor book is allowed to run — otherwise 'fail closed' would just
+    mean 'closed', and the first green Monday would look like a regression."""
+    from app.strategies import engine as eng
+
+    monkeypatch.setattr(eng, "resolve_store_path", _live_data_dir(tmp_path))
+    ok = await eng.StrategyEngine._factor_readiness_ok(_engine_self(), _running(_FactorStrategy()))
+    assert ok is True
+
+
+@pytest.mark.asyncio
+async def test_engine_blocks_when_only_the_readiness_artifact_is_missing(tmp_path, monkeypatch):
+    """The terminal criterion for the half that was still open on 2026-08-06.
+
+    Store current, seal current, data beyond reproach — and the producer's liveness
+    unproven because nothing published a verdict. This is the exact shape of the
+    2026-08-03 window (producer dead, data still clean), and it must not dispatch.
+    """
+    from app.strategies import engine as eng
+
+    monkeypatch.setattr(eng, "resolve_store_path", _live_data_dir(tmp_path, readiness=None))
+    inst = _FactorStrategy()
+    ok = await eng.StrategyEngine._factor_readiness_ok(_engine_self(), _running(inst))
+    assert ok is False
+    assert inst.entered is False
+
+
+@pytest.mark.asyncio
+async def test_engine_blocks_on_a_published_fail_verdict(tmp_path, monkeypatch):
+    from app.strategies import engine as eng
+
+    monkeypatch.setattr(eng, "resolve_store_path", _live_data_dir(tmp_path, readiness="FAIL"))
+    inst = _FactorStrategy()
+    ok = await eng.StrategyEngine._factor_readiness_ok(_engine_self(), _running(inst))
+    assert ok is False
+    assert inst.entered is False
+
+
+def test_engine_never_makes_the_readiness_artifact_optional():
+    """``readiness_required`` defaults to True, and the dispatch path must never pass it
+    at all — a call site that sets it False would silently unarm the producer-liveness
+    veto while every other check kept passing, which is precisely the failure class this
+    interlock exists to remove."""
+    src = Path(eng_file()).read_text(encoding="utf-8")
+    assert "readiness_required" not in src, (
+        "the dispatch path must not parameterise the readiness requirement"
+    )
+    assert "readiness_path=self._factor_readiness_path()" in src
 
 
 def test_gate_runs_at_every_dispatch_site():

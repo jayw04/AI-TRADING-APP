@@ -60,8 +60,9 @@
 # ─────────────────────────────────────────────────────────────────────────────────────
 # EXIT CODES / INTERLOCK
 #
-#   0  OVERALL_READINESS=PASS
+#   0  OVERALL_READINESS=PASS *and* the readiness artifact was published
 #   2  OVERALL_READINESS=FAIL — producer liveness, sealed generation, or data freshness
+#   2  the readiness artifact could not be published (the veto is then unarmed)
 #
 # 2, deliberately, and never 1: workbench-factor-freshness.service declares
 # `SuccessExitStatus=0 1`, so an exit of 1 is recorded by systemd as a SUCCESS and would
@@ -69,11 +70,32 @@
 # below is fail-CLOSED: anything this watchdog cannot determine is a FAIL, because an
 # unknown readiness state must not be allowed to look like a ready one.
 #
-# ⚠ Scope note, stated plainly: the interlock this watchdog participates in is the
-# systemd unit result + the SNS alert. There is no in-app veto that blocks a factor book's
-# dispatch on this exit code today; wiring one is a separate change. What this script
-# guarantees is that the signal is unambiguous, machine-readable (OVERALL_READINESS=…),
-# non-zero, and not swallowed by the unit's SuccessExitStatus.
+# ─────────────────────────────────────────────────────────────────────────────────────
+# THE PUBLISHED ARTIFACT IS THE INTERLOCK (added 2026-08-08; #615 + #621)
+#
+# Until this section existed, everything above was DETECTION: a unit result and an SNS
+# alert. `readiness FAIL -> non-zero + alert -> [MISSING] -> dispatch proceeds`. The box
+# could observe a dead producer and still rebalance a factor book.
+#
+# The missing step is a durable verdict the application can read AT dispatch. Section 5
+# writes `_factor_readiness.json` into the shared data volume; the in-app gate
+# (`app/strategies/factor_readiness.py`, at all three dispatch sites) requires it and
+# blocks the strategy from being entered when it is absent, unreadable, stale (>26h) or
+# does not read exactly `"PASS"`.
+#
+# ⚠ THAT MAKES THIS SCRIPT LOAD-BEARING FOR TRADING, NOT MERELY FOR ALERTING. Three
+# consequences, all deliberate:
+#
+#   * Publication happens on EVERY run, PASS or FAIL. A FAIL verdict must be WRITTEN —
+#     an absent artifact and a FAIL artifact both block, but only the written one tells
+#     the operator why. Never "skip the write because we already failed".
+#   * The write is atomic (temp + rename in the same directory). A reader that catches a
+#     half-written document sees `unreadable`, which under the consumer's contract is a
+#     halt — so open-truncate-write here would self-inflict an outage on every publish.
+#   * The two field names the consumer reads — `evaluated_at_utc` and `overall_readiness`
+#     (uppercase, exact) — are a CONTRACT. Renaming either halts the factor books rather
+#     than warning. `tests/deploy/test_factor_readiness_artifact_contract.py` binds this
+#     writer to that reader so the drift cannot ship.
 #
 # ─────────────────────────────────────────────────────────────────────────────────────
 # HOST-SIDE BY DESIGN. Producer liveness is a systemd fact and is read on the host. The
@@ -131,6 +153,10 @@ BACKEND_CONTAINER="${BACKEND_CONTAINER:-workbench-backend}"
 STORE_PATH="${FACTOR_STORE_PATH:-$CONTAINER_DATADIR/factor_data.duckdb}"
 SUBJECT_PREFIX="${FRESHNESS_SUBJECT_PREFIX:-}"   # e.g. "[TEST] " for manual alert-path tests
 NOW_EPOCH="${WATCHDOG_NOW_EPOCH:-$(date +%s)}"   # clock seam: DST / weekend tests pin this
+# Pinning the clock also pins the timestamp stamped into the published artifact, which is
+# what the consumer ages out against. Recorded in the artifact so an operator can see that
+# a verdict came from a pinned-clock run rather than from the wall clock.
+CLOCK_SOURCE="wall"; [ -n "${WATCHDOG_NOW_EPOCH:-}" ] && CLOCK_SOURCE="pinned"
 DOCKER="${WATCHDOG_DOCKER:-}"
 if [ -z "$DOCKER" ]; then
   DOCKER="docker"; command -v docker >/dev/null 2>&1 || DOCKER="sudo docker"
@@ -139,12 +165,26 @@ fi
 SEALED_PATH="$DATADIR/$SEALED_BASENAME"
 CONTAINER_SEALED="$CONTAINER_DATADIR/$SEALED_BASENAME"
 
+# The dispatch-time verdict the application reads. Host-side path; the container sees the
+# same volume at $CONTAINER_DATADIR, which is how the in-app gate at
+# `resolve_store_path().parent / "_factor_readiness.json"` reaches it. The BASENAME IS
+# PART OF THE CONTRACT — the consumer derives the path itself and does not take it from
+# configuration, so a rename here silently unarms the veto (absent -> blocked) rather
+# than pointing the reader somewhere new.
+READINESS_BASENAME="_factor_readiness.json"
+READINESS_PATH="${READINESS_ARTIFACT_PATH:-$DATADIR/$READINESS_BASENAME}"
+
 EXIT_READY=0
 EXIT_NOT_READY=2
 
 # Three independent problem ledgers. They are never merged before the verdict: the whole
 # point of the hardening is that these conditions cannot substitute for one another.
 P_PRODUCER=(); P_SEALED=(); P_DATA=()
+# A FOURTH ledger, deliberately outside the readiness conjunction. Failing to publish the
+# artifact is not a statement about the factor data — it is a statement about the
+# interlock itself, and conflating the two would let "the veto is unarmed" be reported as
+# "the data is stale". It still exits 2 and still alerts.
+P_PUBLISH=()
 FACTS=()
 SEALED_STALE_CAUSE="N/A"
 
@@ -644,13 +684,158 @@ if [ "$PRODUCER_LIVENESS" = PASS ] && [ "$SEALED_GENERATION" = PASS ] && [ "$DAT
 else
   OVERALL_READINESS=FAIL
 fi
-TOTAL=$(( ${#P_PRODUCER[@]} + ${#P_SEALED[@]} + ${#P_DATA[@]} ))
+
+# ═════════════════════════════════════════════════════════════════════════════════════
+# 5) PUBLISH THE VERDICT — the step that turns detection into a veto.
+#
+# Written on every run, PASS or FAIL, atomically. The document is generated by python
+# rather than assembled as a shell string on purpose: the problem details below are
+# operator prose containing quotes, brackets and '=' signs, and hand-rolled JSON quoting
+# is exactly how a writer starts emitting documents its reader classifies as UNREADABLE —
+# which, under the consumer's fail-closed contract, is a trading halt.
+# ═════════════════════════════════════════════════════════════════════════════════════
+# One "<component>\t<detail>" line per problem. Tab-separated because the details are
+# free prose that already contains every other plausible separator; they never contain a
+# newline or a tab, so this round-trips exactly.
+PROBLEMS_BLOB=""
+blob_add() {  # <component> <problem>...
+  local component="$1" problem line; shift
+  for problem in "$@"; do
+    printf -v line '%s\t%s\n' "$component" "$problem"
+    PROBLEMS_BLOB="${PROBLEMS_BLOB}${line}"
+  done
+}
+blob_add producer_liveness ${P_PRODUCER[@]+"${P_PRODUCER[@]}"}
+blob_add sealed_generation ${P_SEALED[@]+"${P_SEALED[@]}"}
+blob_add data_freshness    ${P_DATA[@]+"${P_DATA[@]}"}
+
+PUBLISH_OUT="$(
+  READINESS_PATH="$READINESS_PATH" \
+  EVALUATED_EPOCH="$NOW_EPOCH" \
+  CLOCK_SOURCE="$CLOCK_SOURCE" \
+  OVERALL="$OVERALL_READINESS" \
+  V_PRODUCER="$PRODUCER_LIVENESS" \
+  V_SEALED="$SEALED_GENERATION" \
+  V_DATA="$DATA_FRESHNESS" \
+  V_CAUSE="$SEALED_STALE_CAUSE" \
+  SEALED_AS_OF="$SEALED_AS_OF" \
+  EXPECTED_DATE="$EXPECTED_DATE" \
+  TIMER_UNIT="$TIMER_UNIT" \
+  SERVICE_UNIT="$SERVICE_UNIT" \
+  SCHEDULE_TZ="$REFRESH_TZ" \
+  PROBLEMS_BLOB="$PROBLEMS_BLOB" \
+  "$PYTHON" - <<'PY' 2>&1
+import contextlib
+import hashlib
+import json
+import os
+import tempfile
+# `timezone.utc`, NOT `datetime.UTC`: this block runs under the HOST's python3, not the
+# container's. The alias was added in 3.11, and a host on an older interpreter would fail
+# to publish on every run — which, once the gate requires the artifact, is a trading halt
+# caused by a stylistic import. Nothing else here needs more than python 3.9.
+from datetime import datetime, timezone
+from pathlib import Path
+
+dest = Path(os.environ["READINESS_PATH"])
+
+problems = []
+for line in os.environ.get("PROBLEMS_BLOB", "").splitlines():
+    if not line.strip():
+        continue
+    component, _, detail = line.partition("\t")
+    problems.append({"component": component, "detail": detail})
+
+
+def opt(name):
+    value = os.environ.get(name, "").strip()
+    return value or None
+
+
+doc = {
+    "schema_version": 1,
+    "artifact": "factor_readiness",
+    # ── CONTRACT FIELDS ───────────────────────────────────────────────────────────
+    # app/strategies/factor_readiness.py reads exactly these two. `evaluated_at_utc`
+    # must parse via datetime.fromisoformat (after Z -> +00:00) and is aged out at 26h;
+    # `overall_readiness` is compared, uppercased, against the literal "PASS". Anything
+    # else BLOCKS factor-consuming dispatch. Do not rename, reformat or drop them.
+    "evaluated_at_utc": datetime.fromtimestamp(
+        int(os.environ["EVALUATED_EPOCH"]), timezone.utc
+    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "overall_readiness": os.environ["OVERALL"].upper(),
+    # ── evidence: why the verdict is what it is ───────────────────────────────────
+    "components": {
+        "producer_liveness": os.environ["V_PRODUCER"].upper(),
+        "sealed_generation": os.environ["V_SEALED"].upper(),
+        "data_freshness": os.environ["V_DATA"].upper(),
+    },
+    "sealed_stale_cause": os.environ.get("V_CAUSE") or "N/A",
+    "sealed_generation_as_of": opt("SEALED_AS_OF"),
+    "expected_refresh_window_date": opt("EXPECTED_DATE"),
+    "problem_count": len(problems),
+    "problems": problems,
+    "producer": {
+        "timer_unit": os.environ["TIMER_UNIT"],
+        "service_unit": os.environ["SERVICE_UNIT"],
+        "schedule_tz": os.environ["SCHEDULE_TZ"],
+    },
+    "clock_source": os.environ.get("CLOCK_SOURCE", "wall"),
+}
+
+payload = json.dumps(doc, indent=2, sort_keys=False) + "\n"
+
+# ATOMIC BY CONSTRUCTION: a fresh temp file in the SAME directory (so rename cannot cross
+# a filesystem boundary and degrade into copy-then-truncate), fsynced, then renamed over
+# the destination. A concurrent reader observes either the whole previous document or the
+# whole new one — never a prefix. The destination is NEVER opened for writing.
+fd, tmp = tempfile.mkstemp(dir=str(dest.parent), prefix=dest.name + ".", suffix=".tmp")
+try:
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+    # The watchdog runs as root on the host; the reader is the backend container. 0644 so
+    # a future non-root container user can still read the verdict it is gated on.
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, dest)
+except BaseException:
+    with contextlib.suppress(OSError):
+        os.unlink(tmp)
+    raise
+# Durability of the rename itself, so a power loss cannot resurrect the previous verdict.
+with contextlib.suppress(OSError):
+    dir_fd = os.open(str(dest.parent), os.O_RDONLY)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+print(f"sha256={hashlib.sha256(payload.encode('utf-8')).hexdigest()} bytes={len(payload)}")
+PY
+)"
+PUBLISH_RC=$?
+
+if [ "$PUBLISH_RC" -eq 0 ]; then
+  READINESS_ARTIFACT=PUBLISHED
+  fact "readiness_artifact=$READINESS_PATH published verdict=$OVERALL_READINESS ${PUBLISH_OUT}"
+else
+  READINESS_ARTIFACT=FAILED
+  # Fail LOUD, not silently: with no artifact the in-app gate blocks factor dispatch once
+  # the previous verdict ages past 26h, so this is an operator-action condition even when
+  # the factor data itself is perfectly current.
+  P_PUBLISH+=("READINESS_ARTIFACT_NOT_PUBLISHED: could not write $READINESS_PATH - the dispatch-time veto has no verdict to read for today, so factor-consuming strategies will be BLOCKED once the previous verdict ages out (26h). Is $DATADIR mounted and writable? Writer said: $(printf '%s' "$PUBLISH_OUT" | tr '\n' ' ' | tail -c 400)")
+  fact "readiness_artifact=$READINESS_PATH NOT PUBLISHED (writer exit $PUBLISH_RC)"
+fi
+
+TOTAL=$(( ${#P_PRODUCER[@]} + ${#P_SEALED[@]} + ${#P_DATA[@]} + ${#P_PUBLISH[@]} ))
 
 # Machine-readable first, so a consumer greps a line rather than parsing prose.
 SUMMARY="PRODUCER_LIVENESS=$PRODUCER_LIVENESS
 SEALED_GENERATION=$SEALED_GENERATION
 DATA_FRESHNESS=$DATA_FRESHNESS
 OVERALL_READINESS=$OVERALL_READINESS
+READINESS_ARTIFACT=$READINESS_ARTIFACT
 SEALED_STALE_CAUSE=$SEALED_STALE_CAUSE"
 
 section() {  # <title> <verdict> [problem ...]
@@ -663,6 +848,7 @@ DETAIL="$(
   section "PRODUCER LIVENESS" "$PRODUCER_LIVENESS" ${P_PRODUCER[@]+"${P_PRODUCER[@]}"}
   section "SEALED GENERATION" "$SEALED_GENERATION" ${P_SEALED[@]+"${P_SEALED[@]}"}
   section "DATA FRESHNESS"    "$DATA_FRESHNESS"    ${P_DATA[@]+"${P_DATA[@]}"}
+  section "READINESS ARTIFACT" "$READINESS_ARTIFACT" ${P_PUBLISH[@]+"${P_PUBLISH[@]}"}
   printf '\nEvidence:\n'
   printf -- '  %s\n' ${FACTS[@]+"${FACTS[@]}"}
   printf '\nStore report:\n%s\n' "${STORE_REPORT:-unavailable}"
@@ -671,11 +857,20 @@ DETAIL="$(
 printf '%s\n' "$SUMMARY"
 printf '%s\n' "$DETAIL"
 
-if [ "$OVERALL_READINESS" = PASS ]; then
+if [ "$OVERALL_READINESS" = PASS ] && [ "$READINESS_ARTIFACT" = PUBLISHED ]; then
   exit "$EXIT_READY"
 fi
 
-BODY="${SUBJECT_PREFIX}Factor-data readiness ${DATE_ET} - NOT READY (${TOTAL} issue(s)).
+# A publication failure on an otherwise-ready box is a DIFFERENT operational condition
+# from stale factor data, and the alert must not misreport one as the other: the data is
+# fine, the veto is unarmed.
+if [ "$OVERALL_READINESS" = PASS ]; then
+  HEADLINE="READY BUT THE INTERLOCK VERDICT WAS NOT PUBLISHED"
+else
+  HEADLINE="NOT READY (${TOTAL} issue(s))"
+fi
+
+BODY="${SUBJECT_PREFIX}Factor-data readiness ${DATE_ET} - ${HEADLINE}.
 
 ${SUMMARY}
 ${DETAIL}
@@ -687,12 +882,18 @@ until the next day). A failed refresh that leaves ${SEALED_BASENAME} unchanged i
 producer behaviour per #606 - the artifact is not corrupt; the successful generation is
 what is missing.
 
+Interlock: this run's verdict is published to ${READINESS_PATH} and read AT DISPATCH by
+the in-app gate. A FAIL verdict, a verdict older than 26h, and an absent or unreadable
+artifact all BLOCK the factor books (momentum / sector / low-vol / combined) from being
+entered at all - they do not merely spoil the resulting orders. Expect that block to be
+visible as 'strategy_dispatch_blocked_factor_not_ready' in the backend log.
+
 Runbook: the factor books (momentum / sector / low-vol / combined) RANK on
 data/factor_data.duckdb. Producer: ${TIMER_UNIT} -> ${SERVICE_UNIT}
 (journalctl -u ${SERVICE_UNIT%.service}). Rollback copy: factor_data.prev.duckdb.
 See deploy/aws/factor-refresh.sh and docs/runbook/aws-migration.md."
 
-SUBJECT="${SUBJECT_PREFIX}FACTOR READINESS ${DATE_ET} - NOT READY (${TOTAL} issue(s))"
+SUBJECT="${SUBJECT_PREFIX}FACTOR READINESS ${DATE_ET} - ${HEADLINE}"
 if "$AWS_BIN" sns publish --region "$REGION" --topic-arn "$TOPIC" \
      --subject "$SUBJECT" --message "$BODY" >/dev/null 2>&1; then
   echo "published: $SUBJECT"

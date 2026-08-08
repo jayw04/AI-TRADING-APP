@@ -1077,8 +1077,11 @@ class StrategyEngine:
         return resolve_store_path().parent / "_factor_refresh_universe_sealed.json"
 
     def _factor_readiness_path(self) -> Path:
-        """Optional producer-liveness verdict. Absent is tolerated — the gate then
-        records that producer liveness was NOT verified rather than implying it was."""
+        """The producer-liveness verdict, published by ``deploy/aws/factor-freshness.sh``
+        on every watchdog run. REQUIRED: absent, unreadable, stale (>26h) or not ``PASS``
+        all block dispatch. The basename is a contract with that writer — this path is
+        derived here rather than configured, so the two cannot be pointed at different
+        files by a config change."""
         return resolve_store_path().parent / "_factor_readiness.json"
 
     async def _is_dispatchable_now(self, strategy_id: int) -> bool:

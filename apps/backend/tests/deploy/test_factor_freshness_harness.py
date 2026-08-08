@@ -43,7 +43,7 @@ def test_factor_freshness_bash_harness_passes():
     # harness that silently stopped running cases.
     assert "0 failed" in result.stdout, result.stdout
     executed = int(re.search(r"== (\d+) passed, \d+ failed ==", result.stdout).group(1))
-    assert executed >= 80, f"harness executed only {executed} checks:\n{result.stdout}"
+    assert executed >= 105, f"harness executed only {executed} checks:\n{result.stdout}"
 
 
 # Skipped on Windows for the same reason as the harness: `shutil.which("bash")` resolves
@@ -83,6 +83,24 @@ def test_embedded_python_blocks_compile():
     assert len(blocks) >= 3, f"expected the embedded python heredocs, found {len(blocks)}"
     for index, block in enumerate(blocks):
         compile(block, f"factor-freshness.sh:<python block {index}>", "exec")
+
+
+def test_the_watchdog_publishes_the_dispatch_time_verdict():
+    """The watchdog is no longer only an alerting path: the artifact it writes is read AT
+    DISPATCH and is what actually blocks a factor book. A publication step that were ever
+    made conditional on the verdict would leave a stale PASS on disk after a FAIL — the
+    watchdog vouching for a box it had just declared not ready.
+
+    Behaviour is covered by the bash harness and the publisher/consumer contract test;
+    what is pinned here is that the obligation exists in the script at all."""
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert 'READINESS_BASENAME="_factor_readiness.json"' in text
+    assert "READINESS_ARTIFACT=PUBLISHED" in text
+    assert "READINESS_ARTIFACT=FAILED" in text
+    # Publication is unconditional: it must not sit inside a verdict branch.
+    body = text.split("# 5) PUBLISH THE VERDICT", 1)[1]
+    publish_line = next(ln for ln in body.splitlines() if ln.startswith("PUBLISH_OUT="))
+    assert publish_line == 'PUBLISH_OUT="$(', publish_line
 
 
 def test_readiness_failure_exit_code_survives_the_unit_success_exit_status():

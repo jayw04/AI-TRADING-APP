@@ -478,6 +478,87 @@ else
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════════════
+# READINESS ARTIFACT PUBLICATION — the step that turns detection into a veto.
+#
+# The in-app gate reads this file AT DISPATCH and refuses to enter a factor book when it
+# is absent, unreadable, stale or not PASS. So the watchdog's obligation is no longer
+# "alert someone": it is "leave a correct, readable verdict on disk, every run". The
+# schema itself is bound to its reader by
+# apps/backend/tests/deploy/test_factor_readiness_artifact_contract.py; what is tested
+# here is that the SCRIPT publishes at all, publishes in both directions, and reports it
+# when it cannot.
+# ═════════════════════════════════════════════════════════════════════════════════════
+echo "-- readiness artifact publication --"
+
+READY_ART="$DATA/_factor_readiness.json"
+# read <jq-ish field> from the artifact
+art() { "$PY" -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8')).get(sys.argv[2]))" "$READY_ART" "$1" 2>/dev/null; }
+
+healthy; rm -f "$READY_ART"; run "$NOW"
+expect "a healthy run still exits 0 with publication enabled" 0 PASS PASS PASS PASS
+[ -f "$READY_ART" ] && ok "  a healthy run PUBLISHES the verdict" || bad "  a healthy run PUBLISHES the verdict"
+line "READINESS_ARTIFACT=PUBLISHED" && ok "  reports READINESS_ARTIFACT=PUBLISHED" || bad "  reports READINESS_ARTIFACT=PUBLISHED"
+[ "$(art overall_readiness)" = "PASS" ] && ok "  the published verdict is PASS" \
+  || bad "  the published verdict is PASS" "got: $(art overall_readiness)"
+"$PY" -c "import json,sys;json.load(open(sys.argv[1],encoding='utf-8'))" "$READY_ART" 2>/dev/null \
+  && ok "  the published document is valid JSON" || bad "  the published document is valid JSON"
+[ "$(art problem_count)" = "0" ] && ok "  a passing verdict carries no problems" \
+  || bad "  a passing verdict carries no problems"
+
+# The timestamp the consumer ages out against must come from THIS run, not from the file's
+# mtime and not from a previous verdict.
+WANT_TS="$("$PY" -c "
+import datetime,sys
+print(datetime.datetime.fromtimestamp(int(sys.argv[1]),datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))" "$NOW")"
+[ "$(art evaluated_at_utc)" = "$WANT_TS" ] && ok "  evaluated_at_utc is this run's evaluation instant" \
+  || bad "  evaluated_at_utc is this run's evaluation instant" "got $(art evaluated_at_utc) want $WANT_TS"
+
+# ⚠ The case that is easiest to get wrong: a FAIL verdict must be WRITTEN. Skipping the
+# write "because we already failed" leaves the previous PASS on disk for up to 26h — the
+# watchdog would then be actively vouching for a box it just declared not ready.
+healthy; timer_fixture "$TIMER_F" loaded disabled inactive dead "" "$TRIG" "$ARMED"
+run "$NOW"; expect "a producer-liveness failure -> FAIL, and still publishes" 2 FAIL PASS PASS FAIL
+line "READINESS_ARTIFACT=PUBLISHED" && ok "  a FAILING run publishes too" || bad "  a FAILING run publishes too"
+[ "$(art overall_readiness)" = "FAIL" ] && ok "  the published verdict is FAIL (it is what BLOCKS dispatch)" \
+  || bad "  the published verdict is FAIL" "got: $(art overall_readiness)"
+[ "$(art problem_count)" -gt 0 ] 2>/dev/null && ok "  the published document carries the problems" \
+  || bad "  the published document carries the problems"
+"$PY" -c "
+import json,sys
+d=json.load(open(sys.argv[1],encoding='utf-8'))
+raise SystemExit(0 if any('TIMER_DISABLED' in p['detail'] for p in d['problems']) else 1)" "$READY_ART" \
+  && ok "  the operator can read WHY from the artifact alone" || bad "  the operator can read WHY from the artifact alone"
+
+# A previous PASS must not survive a later FAIL.
+healthy; run "$NOW"                                   # publishes PASS
+timer_fixture "$TIMER_F" loaded disabled inactive dead "" "$TRIG" "$ARMED"
+run "$NOW"                                            # publishes FAIL over it
+[ "$(art overall_readiness)" = "FAIL" ] && ok "  a later FAIL replaces an earlier PASS" \
+  || bad "  a later FAIL replaces an earlier PASS"
+
+# Atomic write: nothing partial, nothing left behind.
+healthy; run "$NOW"
+RESIDUE="$(find "$DATA" -name '_factor_readiness.json.*' 2>/dev/null | wc -l)"
+[ "$RESIDUE" = "0" ] && ok "  no temp residue beside the artifact" \
+  || bad "  no temp residue beside the artifact" "$RESIDUE leftover file(s)"
+
+# Publication failure on an otherwise-ready box. Data fine, veto unarmed: exit 2 and alert,
+# because the books will halt once the previous verdict ages past 26h.
+healthy; run "$NOW" READINESS_ARTIFACT_PATH="$WORK/no-such-dir/_factor_readiness.json"
+[ "$RC" = 2 ] && ok "an unpublishable verdict exits 2 even when readiness PASSes" \
+  || bad "an unpublishable verdict exits 2 even when readiness PASSes" "rc=$RC"
+line "READINESS_ARTIFACT=FAILED" && ok "  reports READINESS_ARTIFACT=FAILED" || bad "  reports READINESS_ARTIFACT=FAILED"
+line "OVERALL_READINESS=PASS" && ok "  does NOT misreport the factor data as stale" \
+  || bad "  does NOT misreport the factor data as stale"
+has "READINESS_ARTIFACT_NOT_PUBLISHED" && ok "  names READINESS_ARTIFACT_NOT_PUBLISHED" \
+  || bad "  names READINESS_ARTIFACT_NOT_PUBLISHED"
+grep -q "publish" "$SNS_LOG" && ok "  alerts on an unarmed veto" || bad "  alerts on an unarmed veto"
+grep -q "NOT PUBLISHED" "$SNS_LOG" && ok "  the alert subject distinguishes it from stale data" \
+  || bad "  the alert subject distinguishes it from stale data"
+[ ! -e "$WORK/no-such-dir" ] && ok "  a missing data directory is NOT created (an unmounted volume must not look mounted)" \
+  || bad "  a missing data directory is NOT created"
+
+# ═════════════════════════════════════════════════════════════════════════════════════
 # SCOPE GUARDS — this PR must not create a deployment dependency.
 # ═════════════════════════════════════════════════════════════════════════════════════
 echo "-- scope guards --"
