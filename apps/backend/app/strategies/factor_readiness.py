@@ -29,10 +29,16 @@ recomputed in-process from the same artifacts the strategies read:
   makes it evidence of a *successful generation* rather than merely of a run.
 
 **Producer liveness is NOT verifiable from inside the container** — the systemd
-timer is on the host. If a readiness artifact is present it is consumed and its
-producer verdict honoured; if it is absent the gate still runs on what it can
-prove, and records ``producer_liveness_verified=False`` so the evidence never
-overstates what was checked.
+timer is on the host. It is therefore published: ``deploy/aws/factor-freshness.sh``
+writes ``_factor_readiness.json`` into the shared data volume on every run, and this
+gate REQUIRES it (``readiness_required=True``, the default).
+
+⚠ That requirement is the whole point, and it was deliberately made unconditional.
+When this module first shipped (#621) the artifact was optional: absent meant
+"producer liveness not verified" and dispatch proceeded anyway. That reproduces the
+original 2026-08-03 defect in a subtler form — a check that *silently stops
+checking* rather than failing. A broken or unrun publisher must halt the books, not
+quietly downgrade the gate to the two things it can still see.
 
 FAIL CLOSED, always. Anything missing, unreadable, stale, or inconsistent blocks
 dispatch. A factor store we cannot interrogate is not permission to trade on it.
@@ -85,6 +91,7 @@ def evaluate_factor_readiness(
     store_path: str | Path,
     sealed_path: str | Path,
     readiness_path: str | Path | None = None,
+    readiness_required: bool = True,
     now: datetime | None = None,
     max_lag_days: int = DEFAULT_MAX_LAG_DAYS,
     readiness_max_age_hours: int = DEFAULT_READINESS_MAX_AGE_HOURS,
@@ -94,12 +101,18 @@ def evaluate_factor_readiness(
     Totality is a safety property here, not tidiness: this runs inside the dispatch
     path, and a gate that throws would take out the caller rather than refuse the
     trade. Every path returns a verdict.
+
+    ``readiness_required`` DEFAULTS TO TRUE and production never passes it. It exists
+    to make the requirement explicit and testable, not to make it configurable: the
+    only supported caller is the dispatch path, and there the artifact is mandatory.
+    ``test_engine_never_makes_the_readiness_artifact_optional`` pins that.
     """
     try:
         return _evaluate(
             store_path=store_path,
             sealed_path=sealed_path,
             readiness_path=readiness_path,
+            readiness_required=readiness_required,
             now=now,
             max_lag_days=max_lag_days,
             readiness_max_age_hours=readiness_max_age_hours,
@@ -117,6 +130,7 @@ def _evaluate(
     store_path: str | Path,
     sealed_path: str | Path,
     readiness_path: str | Path | None,
+    readiness_required: bool,
     now: datetime | None,
     max_lag_days: int,
     readiness_max_age_hours: int,
@@ -196,33 +210,62 @@ def _evaluate(
     if sealed_lag > max_lag_days:
         return block(f"sealed generation is {sealed_lag}d old (tolerance {max_lag_days}d)")
 
-    # --- 3. optional producer-liveness verdict ----------------------------
-    if readiness_path is not None:
-        rp = Path(readiness_path)
-        if rp.exists():
-            try:
-                rdoc = json.loads(rp.read_text(encoding="utf-8"))
-            except Exception as exc:  # noqa: BLE001
-                return block(f"readiness artifact unreadable: {type(exc).__name__}")
-            evaluated = rdoc.get("evaluated_at_utc")
-            ts = None
-            try:
-                ts = datetime.fromisoformat(str(evaluated).replace("Z", "+00:00"))
-            except (TypeError, ValueError):
-                return block("readiness artifact has no parseable evaluated_at_utc")
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=UTC)
-            age_h = (now - ts).total_seconds() / 3600.0
-            checks["readiness_age_hours"] = round(age_h, 2)
-            if age_h > readiness_max_age_hours:
-                return block(
-                    f"readiness verdict is {age_h:.1f}h old (max {readiness_max_age_hours}h): "
-                    "stale relative to this dispatch"
-                )
-            verdict = str(rdoc.get("overall_readiness", "")).upper()
-            checks["overall_readiness"] = verdict
-            checks["producer_liveness_verified"] = True
-            if verdict != "PASS":
-                return block(f"producer readiness verdict is {verdict or 'ABSENT'}")
+    # --- 3. the producer-liveness verdict, REQUIRED ------------------------
+    # Written by deploy/aws/factor-freshness.sh on every watchdog run (weekdays 07:00 ET),
+    # atomically, PASS or FAIL. Absent means one of: the watchdog has not run since this
+    # host was provisioned, its timer is dead, or it could not write to the data volume.
+    # None of those is evidence that the producer is alive, so none of them may pass.
+    checks["readiness_required"] = readiness_required
+    if readiness_path is None:
+        if readiness_required:
+            return block("readiness artifact is required but no path was configured")
+        return ReadinessVerdict(
+            ok=True, reason="factor data is current (producer liveness NOT verified)", checks=checks
+        )
+
+    rp = Path(readiness_path)
+    checks["readiness_path"] = str(rp)
+    if not rp.exists():
+        if readiness_required:
+            return block(
+                f"producer readiness artifact absent at {rp}: producer liveness is "
+                "unproven, and unproven is not permission to trade"
+            )
+        return ReadinessVerdict(
+            ok=True, reason="factor data is current (producer liveness NOT verified)", checks=checks
+        )
+
+    try:
+        rdoc = json.loads(rp.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return block(f"readiness artifact unreadable: {type(exc).__name__}")
+    evaluated = rdoc.get("evaluated_at_utc")
+    try:
+        ts = datetime.fromisoformat(str(evaluated).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return block("readiness artifact has no parseable evaluated_at_utc")
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=UTC)
+    age_h = (now - ts).total_seconds() / 3600.0
+    checks["readiness_age_hours"] = round(age_h, 2)
+    # A verdict stamped in the future never ages out, so it would be permanent permission
+    # to dispatch — the one way this check could fail OPEN. Host and container share a
+    # clock, so an hour of tolerance is already generous; beyond that the timestamp is
+    # wrong, and a wrong timestamp is not evidence.
+    if age_h < -1:
+        return block(
+            f"readiness verdict is dated {abs(age_h):.1f}h in the FUTURE: "
+            "a verdict that cannot age out is not evidence of liveness"
+        )
+    if age_h > readiness_max_age_hours:
+        return block(
+            f"readiness verdict is {age_h:.1f}h old (max {readiness_max_age_hours}h): "
+            "stale relative to this dispatch"
+        )
+    verdict = str(rdoc.get("overall_readiness", "")).upper()
+    checks["overall_readiness"] = verdict
+    checks["producer_liveness_verified"] = True
+    if verdict != "PASS":
+        return block(f"producer readiness verdict is {verdict or 'ABSENT'}")
 
     return ReadinessVerdict(ok=True, reason="factor data is current and verified", checks=checks)

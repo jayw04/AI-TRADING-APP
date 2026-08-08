@@ -1,0 +1,121 @@
+"""Run the factor-data readiness watchdog's bash harness under pytest so CI exercises it.
+
+The harness (``deploy/aws/tests/test_factor_freshness.sh``) fakes systemd, Docker and AWS
+and drives the real watchdog through every producer-liveness, sealed-generation, freshness,
+calendar and interlock path. It is POSIX bash + python3 + coreutils; it runs in CI (Linux)
+and is skipped on Windows/where bash is absent. When it runs, a non-zero exit fails this
+test with the harness output attached.
+
+The property the harness pins is the 2026-08-03/04 defect: a fresh store must not be able
+to hide a dead producer. Every producer-liveness case runs with a clean store report.
+"""
+
+from __future__ import annotations
+
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+HARNESS = REPO_ROOT / "deploy" / "aws" / "tests" / "test_factor_freshness.sh"
+WATCHDOG = REPO_ROOT / "deploy" / "aws" / "factor-freshness.sh"
+
+
+@pytest.mark.skipif(
+    sys.platform.startswith("win"), reason="bash harness runs on POSIX/CI, not Windows"
+)
+def test_factor_freshness_bash_harness_passes():
+    # On POSIX these are ASSERTED, not skipped. A missing interpreter would otherwise
+    # silently stop exercising the watchdog while CI stayed green — the same "silence
+    # reads as success" failure this watchdog exists to remove, reproduced in its own
+    # test suite. The pytest summary line is suppressed by this repo's config, so a
+    # skipped test here would be invisible in the CI log.
+    assert shutil.which("bash"), "bash is required to run the watchdog harness on POSIX"
+    assert shutil.which("python3"), "python3 is required by the watchdog harness on POSIX"
+    assert HARNESS.exists(), f"harness missing at {HARNESS}"
+    result = subprocess.run(["bash", str(HARNESS)], capture_output=True, text=True, timeout=600)
+    assert result.returncode == 0, f"watchdog harness failed:\n{result.stdout}\n{result.stderr}"
+    # Pin the count as well as the verdict: "0 failed" alone would also be satisfied by a
+    # harness that silently stopped running cases.
+    assert "0 failed" in result.stdout, result.stdout
+    executed = int(re.search(r"== (\d+) passed, \d+ failed ==", result.stdout).group(1))
+    assert executed >= 105, f"harness executed only {executed} checks:\n{result.stdout}"
+
+
+# Skipped on Windows for the same reason as the harness: `shutil.which("bash")` resolves
+# to the WSL stub, which cannot execute. Shell syntax is checked on POSIX/CI.
+@pytest.mark.skipif(
+    sys.platform.startswith("win"), reason="bash harness runs on POSIX/CI, not Windows"
+)
+def test_watchdog_shell_syntax_is_clean():
+    assert shutil.which("bash"), "bash is required to syntax-check the watchdog on POSIX"
+    result = subprocess.run(
+        ["bash", "-n", str(WATCHDOG)], capture_output=True, text=True, timeout=60
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_watchdog_does_not_depend_on_factor_refresh_py():
+    """The production image predates ``scripts/factor_refresh.py`` and bakes ``scripts/``
+    in rather than bind-mounting it. This watchdog must never become the reason that file
+    gets deployed, so it may name the module in a comment but never invoke it."""
+    text = WATCHDOG.read_text(encoding="utf-8")
+    code = [ln for ln in text.splitlines() if not ln.lstrip().startswith("#")]
+    assert not [ln for ln in code if "factor_refresh.py" in ln]
+    # Nor may it deploy, restart, or otherwise mutate the stack as a side effect.
+    assert not [ln for ln in code if "docker compose" in ln or "docker-compose" in ln]
+
+
+def test_watchdog_uses_the_exact_sealed_artifact_name():
+    assert "_factor_refresh_universe_sealed.json" in WATCHDOG.read_text(encoding="utf-8")
+
+
+def test_embedded_python_blocks_compile():
+    """The in-container freshness query only runs against a real DuckDB store on the box —
+    the harness fakes ``docker``, so a syntax error in it would ship unnoticed and the
+    watchdog would degrade to reporting the store as unreadable. Compile every embedded
+    heredoc so that cannot happen."""
+    blocks = re.findall(r"<<'PY'[^\n]*\n(.*?)\nPY\n", WATCHDOG.read_text(encoding="utf-8"), re.S)
+    assert len(blocks) >= 3, f"expected the embedded python heredocs, found {len(blocks)}"
+    for index, block in enumerate(blocks):
+        compile(block, f"factor-freshness.sh:<python block {index}>", "exec")
+
+
+def test_the_watchdog_publishes_the_dispatch_time_verdict():
+    """The watchdog is no longer only an alerting path: the artifact it writes is read AT
+    DISPATCH and is what actually blocks a factor book. A publication step that were ever
+    made conditional on the verdict would leave a stale PASS on disk after a FAIL — the
+    watchdog vouching for a box it had just declared not ready.
+
+    Behaviour is covered by the bash harness and the publisher/consumer contract test;
+    what is pinned here is that the obligation exists in the script at all."""
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert 'READINESS_BASENAME="_factor_readiness.json"' in text
+    assert "READINESS_ARTIFACT=PUBLISHED" in text
+    assert "READINESS_ARTIFACT=FAILED" in text
+    # Publication is unconditional: it must not sit inside a verdict branch.
+    body = text.split("# 5) PUBLISH THE VERDICT", 1)[1]
+    publish_line = next(ln for ln in body.splitlines() if ln.startswith("PUBLISH_OUT="))
+    assert publish_line == 'PUBLISH_OUT="$(', publish_line
+
+
+def test_readiness_failure_exit_code_survives_the_unit_success_exit_status():
+    """``workbench-factor-freshness.service`` declares ``SuccessExitStatus=0 1``, so an
+    exit of 1 is recorded by systemd as a SUCCESS. A readiness failure must exit with a
+    code the unit does NOT absorb, or the interlock signal dies at the unit boundary."""
+    unit = REPO_ROOT / "deploy" / "aws" / "systemd" / "workbench-factor-freshness.service"
+    declared = [
+        ln.split("=", 1)[1].split()
+        for ln in unit.read_text(encoding="utf-8").splitlines()
+        if ln.startswith("SuccessExitStatus=")
+    ]
+    absorbed = {code for line in declared for code in line}
+    assert "2" not in absorbed, f"the unit absorbs exit 2: {absorbed}"
+
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert "EXIT_NOT_READY=2" in text
+    assert "EXIT_READY=0" in text
