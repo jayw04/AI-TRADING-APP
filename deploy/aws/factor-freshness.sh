@@ -174,6 +174,14 @@ CONTAINER_SEALED="$CONTAINER_DATADIR/$SEALED_BASENAME"
 READINESS_BASENAME="_factor_readiness.json"
 READINESS_PATH="${READINESS_ARTIFACT_PATH:-$DATADIR/$READINESS_BASENAME}"
 
+# The refresh pipeline's own adjudication of symbols that are legitimately unavailable —
+# a delisted security (PROVIDER_EXHAUSTED) or one the provider never covered
+# (PROVIDER_NOT_COVERED). Written under ADR0043-PROD-FACTOR-REFRESH-RECOVERY-001 and
+# already fail-closed for the refresh itself; consulted here so this watchdog is not
+# STRICTER than the adjudication the rest of the system performs.
+EXHAUSTION_BASENAME="_factor_exhaustion_evidence.json"
+CONTAINER_EXHAUSTION="$CONTAINER_DATADIR/$EXHAUSTION_BASENAME"
+
 EXIT_READY=0
 EXIT_NOT_READY=2
 
@@ -571,6 +579,7 @@ STORE_REPORT="$($DOCKER exec -i \
   -e MIN_COVERAGE="$MIN_COVERAGE" \
   -e STALE_SAMPLE="$STALE_NAME_SAMPLE" \
   -e SEALED_PATH="$CONTAINER_SEALED" \
+  -e EXHAUSTION_PATH="$CONTAINER_EXHAUSTION" \
   -e STORE_PATH="$STORE_PATH" \
   -e REFRESH_TZ="$REFRESH_TZ" \
   "$BACKEND_CONTAINER" python - <<'PY' 2>/dev/null
@@ -624,29 +633,94 @@ else:
               f"in-container ({type(exc).__name__}), so per-name freshness was NOT "
               "assessed - treated as a failure rather than assumed fresh")
 
+    # ── adjudicated symbols ───────────────────────────────────────────────────────────
+    # A delisted security stops reporting a lastpricedate and is then EXCLUDED from the
+    # ranking pool. That exclusion is correct market mechanics, not a data fault — and the
+    # refresh pipeline already establishes it symbol-by-symbol, with provider corroboration
+    # and a liveness control, in the exhaustion evidence artifact. Without consulting it
+    # this watchdog reports a permanent FAIL for a name everything else has adjudicated,
+    # and once the verdict is published that becomes a live trading veto (2026-08-08: SATS
+    # / EchoStar, ceased trading 06-12, would have blocked strategies 7+8).
+    #
+    # Read STRICTLY: only symbols listed explicitly, only the two adjudicated
+    # classifications, and every failure to read the evidence exempts NOTHING.
+    exempt = set()
+    exempted = []
+    assessable = []
+    exempt_note = "no evidence consulted"
+    try:
+        _ev = json.loads(open(os.environ["EXHAUSTION_PATH"], encoding="utf-8").read())
+        exempt = {
+            str(r.get("symbol", "")).strip().upper()
+            for r in (_ev.get("symbols") or [])
+            if isinstance(r, dict)
+            and str(r.get("expected_classification", "")).strip().upper()
+            in ("PROVIDER_EXHAUSTED", "PROVIDER_NOT_COVERED")
+            and str(r.get("symbol", "")).strip()
+        }
+        exempt_note = (f"{len(exempt)} adjudicated symbol(s), evidence generated "
+                       f"{_ev.get('generated_at_utc')}")
+    except FileNotFoundError:
+        # The strict direction: nothing is exempt, so a genuinely stale name still fails.
+        exempt_note = "evidence artifact ABSENT - nothing exempt"
+    except Exception as exc:  # noqa: BLE001
+        exempt = set()
+        exempt_note = f"evidence artifact UNREADABLE ({type(exc).__name__}) - nothing exempt"
+        print("PROBLEM DATA_EXHAUSTION_EVIDENCE_UNREADABLE: "
+              f"{os.environ['EXHAUSTION_PATH']} could not be parsed "
+              f"({type(exc).__name__}), so no symbol was exempted and an adjudicated "
+              "delisting will read as a freshness failure - repair the evidence artifact "
+              "rather than relaxing the freshness threshold")
+
     if universe:
+        # An exemption list is, structurally, a way to switch this check off. Bound it:
+        # excusing a large slice of the pool is itself a failure, not a pass.
+        exempted = sorted(set(universe) & exempt)
+        ceiling = max(5, int(len(universe) * 0.05))
+        if len(exempted) > ceiling:
+            print(f"PROBLEM DATA_EXEMPTION_IMPLAUSIBLE: {len(exempted)} of {len(universe)} "
+                  f"universe names are marked provider-exhausted/not-covered, above the "
+                  f"{ceiling} ceiling - that is too much of the pool to excuse, and the "
+                  "evidence artifact is being used to suppress a real outage; NOTHING was "
+                  "exempted for this run")
+            exempted = []
+        assessable = [t for t in universe if t not in set(exempted)]
+        if exempted:
+            print(f"NOTE DATA_EXEMPT_ADJUDICATED: {len(exempted)} of {len(universe)} "
+                  "universe names excluded from per-name freshness as adjudicated "
+                  f"provider-exhausted/not-covered ({exempt_note}): "
+                  f"{','.join(exempted[:sample])}")
+        if not assessable:
+            print("PROBLEM DATA_PER_NAME_UNASSESSABLE: every universe name is exempt, so "
+                  "per-name freshness measured nothing at all - an exemption list that "
+                  "covers the whole pool is a suppressed check, not a healthy store")
+
+    if universe and assessable:
         cutoff = sep - datetime.timedelta(days=max_lag)
-        ph = ",".join("?" * len(universe))
+        ph = ",".join("?" * len(assessable))
         sep_rows = c.execute(
             f"SELECT ticker, max(date) FROM sep WHERE ticker IN ({ph}) GROUP BY ticker",  # noqa: S608
-            universe,
+            assessable,
         ).fetchall()
         try:
             lpd_rows = c.execute(
                 f"SELECT ticker, lastpricedate FROM tickers WHERE ticker IN ({ph})",  # noqa: S608
-                universe,
+                assessable,
             ).fetchall()
         except Exception:  # noqa: BLE001 - tickers table absent
             lpd_rows = []
         smax = {t: d(v) for t, v in sep_rows if v is not None}
         lmax = {t: d(v) for t, v in lpd_rows if v is not None}
 
-        missing = sorted(set(universe) - set(smax))
+        missing = sorted(set(assessable) - set(smax))
         stale = sorted(t for t, v in smax.items() if v < cutoff)
-        lpd_stale = sorted(t for t in universe if t in lmax and lmax[t] < cutoff)
-        covered = len(universe) - len(missing) - len(stale)
-        coverage = covered / len(universe)
-        print(f"METRIC universe={len(universe)} covered={covered} coverage={coverage:.4f} "
+        lpd_stale = sorted(t for t in assessable if t in lmax and lmax[t] < cutoff)
+        covered = len(assessable) - len(missing) - len(stale)
+        # Coverage is measured over what is ASSESSABLE, so an adjudicated delisting neither
+        # counts against the pool nor pads it.
+        coverage = covered / len(assessable)
+        print(f"METRIC universe={len(universe)} assessable={len(assessable)} "
+              f"exempt={len(exempted)} covered={covered} coverage={coverage:.4f} "
               f"missing={len(missing)} stale={len(stale)} "
               f"lastpricedate_stale={len(lpd_stale)} frontier={sep} cutoff={cutoff}")
         if coverage < min_cov:
@@ -656,8 +730,9 @@ else:
                   f"{','.join((missing + stale)[:sample])}")
         if lpd_stale:
             print(f"PROBLEM DATA_LASTPRICEDATE_STALE: {len(lpd_stale)} universe tickers "
-                  "have a stale tickers.lastpricedate - they are EXCLUDED from the "
-                  "ranking pool outright (worse than ranking on old data); e.g. "
+                  "have a stale tickers.lastpricedate and are NOT adjudicated "
+                  "provider-exhausted - they are EXCLUDED from the ranking pool outright "
+                  "(worse than ranking on old data); e.g. "
                   f"{','.join(lpd_stale[:sample])}")
 c.close()
 PY
