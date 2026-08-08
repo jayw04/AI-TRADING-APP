@@ -41,18 +41,27 @@ def M():
 
 AS_OF = date(2026, 8, 3)
 
+#: Mirrors the REAL production schema (app/db/models/symbol.py). The column is
+#: ``ticker``. A fixture that invented ``symbol`` is what let a broken query ship:
+#: the test agreed with the code and both disagreed with the database.
+_SYMBOLS_DDL = (
+    "CREATE TABLE symbols ("
+    " id INTEGER PRIMARY KEY, ticker VARCHAR(20), exchange VARCHAR(20),"
+    " asset_class VARCHAR(20), name VARCHAR(255), active BOOLEAN)"
+)
+
 
 def _app_db(tmp_path: Path, strategies, positions=()) -> Path:
     """Minimal app DB: only the columns the refresh reads."""
     p = tmp_path / "workbench.sqlite"
     con = sqlite3.connect(p)
     con.execute("CREATE TABLE strategies (id INTEGER PRIMARY KEY, status TEXT, symbols_json TEXT)")
-    con.execute("CREATE TABLE symbols (id INTEGER PRIMARY KEY, symbol TEXT)")
+    con.execute(_SYMBOLS_DDL)
     con.execute("CREATE TABLE positions (id INTEGER PRIMARY KEY, symbol_id INTEGER, qty REAL)")
     for sid, status, syms in strategies:
         con.execute("INSERT INTO strategies VALUES (?,?,?)", (sid, status, json.dumps(syms)))
     for i, (sym, qty) in enumerate(positions, start=1):
-        con.execute("INSERT INTO symbols VALUES (?,?)", (i, sym))
+        con.execute("INSERT INTO symbols (id, ticker) VALUES (?,?)", (i, sym))
         con.execute("INSERT INTO positions VALUES (?,?,?)", (i, i, qty))
     con.commit()
     con.close()
@@ -290,7 +299,7 @@ def _raw_db(tmp_path: Path, rows) -> Path:
     p = tmp_path / "raw.sqlite"
     con = sqlite3.connect(p)
     con.execute("CREATE TABLE strategies (id INTEGER PRIMARY KEY, status TEXT, symbols_json TEXT)")
-    con.execute("CREATE TABLE symbols (id INTEGER PRIMARY KEY, symbol TEXT)")
+    con.execute(_SYMBOLS_DDL)
     con.execute("CREATE TABLE positions (id INTEGER PRIMARY KEY, symbol_id INTEGER, qty REAL)")
     con.executemany("INSERT INTO strategies VALUES (?,?,?)", rows)
     con.commit()
@@ -520,3 +529,244 @@ def test_module_reaches_no_broker_scheduler_or_manifest(M):
         "httpx.post",
     ):
         assert forbidden not in src, f"factor_refresh must not reference {forbidden}"
+
+
+# --------------------------------------------- schema contract vs the real DB
+
+
+def test_held_symbols_query_uses_the_real_column_name():
+    """Regression: 2026-08-04 production recovery aborted with
+    "no such column: sym.symbol". The query said `sym.symbol`; the database has
+    `symbols.ticker`. The unit test passed anyway because its fixture had invented
+    a `symbol` column — the test agreed with the code and both disagreed with
+    production. Pin the query against the ORM, which is the source of truth."""
+    src = _MODULE.read_text(encoding="utf-8")
+    assert "SELECT DISTINCT sym.ticker" in src, "held_symbols must select symbols.ticker"
+    assert "SELECT DISTINCT sym.symbol" not in src, "symbols has no `symbol` column"
+
+
+def test_fixture_schema_matches_the_orm_model():
+    """The fixture must mirror app/db/models/symbol.py. If the model gains or
+    renames a column this fails here rather than in production."""
+    model = (_REPO_ROOT / "apps" / "backend" / "app" / "db" / "models" / "symbol.py").read_text(
+        encoding="utf-8"
+    )
+    assert '__tablename__ = "symbols"' in model
+    for col in ("id", "ticker", "exchange", "asset_class", "name", "active"):
+        assert f"{col}:" in model, f"ORM lost column {col}"
+        assert col in _SYMBOLS_DDL, f"fixture lost column {col}"
+    assert "symbol:" not in model, "the ORM has no `symbol` column; do not reintroduce one"
+
+
+def test_held_symbols_reads_against_the_real_schema(M, tmp_path):
+    """End-to-end against a fixture built from the production DDL."""
+    db = _app_db(tmp_path, [(9, "IDLE", ["AAA"])], positions=[("HELDNAME", 4.0), ("CLOSED", 0.0)])
+    assert M.held_symbols(db) == ["HELDNAME"]
+
+
+# ------------------------------------------- provider-exhaustion classification
+
+CUT = date(2026, 7, 31)
+DEAD = date(2026, 6, 12)
+
+
+def _ev(**over):
+    """Well-formed exhaustion evidence for a genuinely dead symbol."""
+    ev = {
+        "symbol": "SATS",
+        "requested": True,
+        "request_status": "ok",
+        "provider_rows_after_live_frontier": 0,
+        "corroboration": {
+            "source": "alpaca",
+            "last_date": "2026-06-23",
+            "control_symbol": "AAPL",
+            "control_last_date": "2026-08-04",
+        },
+    }
+    ev.update(over)
+    return ev
+
+
+def _classify(M, **over):
+    kw = {
+        "live_last": DEAD,
+        "stage_last": DEAD,
+        "cutoff": CUT,
+        "evidence": _ev(),
+        "held_qty": 0,
+        "open_orders": 0,
+        "registered_in": [],
+    }
+    kw.update(over)
+    return M.classify_stale_symbol("SATS", **kw)
+
+
+def test_dead_symbol_fully_evidenced_is_provider_exhausted(M):
+    """The SATS shape: requested, request OK, no newer rows, frontier unmoved,
+    an independent source also stops, its control is current, and the name is not
+    operationally required."""
+    verdict, reason = _classify(M)
+    assert verdict == M.PROVIDER_EXHAUSTED
+    assert "ceased trading" in reason
+
+
+def test_current_symbol_is_fresh_and_never_exhausted(M):
+    """AAPL-style control: a name inside tolerance is FRESH regardless of evidence."""
+    verdict, _ = _classify(M, stage_last=date(2026, 8, 4), evidence=None)
+    assert verdict == M.FRESH
+
+
+@pytest.mark.parametrize(
+    ("over", "because"),
+    [
+        ({"evidence": None}, "no exhaustion evidence"),
+        ({"evidence": _ev(requested=False)}, "was not requested"),
+        ({"evidence": _ev(request_status="timeout")}, "request status"),
+        ({"evidence": _ev(request_status="error")}, "request status"),
+        ({"evidence": _ev(provider_rows_after_live_frontier=None)}, "not reported"),
+        ({"evidence": _ev(provider_rows_after_live_frontier=14)}, "ingestion missed them"),
+        ({"evidence": _ev(symbol="OTHER")}, "symbol mismatch"),
+        ({"evidence": _ev(corroboration={})}, "corroboration missing"),
+        (
+            {
+                "evidence": _ev(
+                    corroboration={
+                        "source": "alpaca",
+                        "last_date": "2026-06-23",
+                        "control_symbol": "AAPL",
+                        "control_last_date": "2026-06-01",
+                    }
+                )
+            },
+            "control is not current",
+        ),
+        (
+            {
+                "evidence": _ev(
+                    corroboration={
+                        "source": "alpaca",
+                        "last_date": "2026-08-04",
+                        "control_symbol": "AAPL",
+                        "control_last_date": "2026-08-04",
+                    }
+                )
+            },
+            "coverage regression, not exhaustion",
+        ),
+        ({"held_qty": 12.0}, "no proven alternate price source"),
+        ({"open_orders": 1}, "no proven alternate price source"),
+        ({"registered_in": ["9:IDLE"]}, "no alternate source"),
+        ({"stage_last": date(2026, 7, 20)}, "!= live"),
+        ({"live_last": None}, "!= live"),
+    ],
+)
+def test_anything_unproven_is_failed_not_exhausted(M, over, because):
+    """Every path that is not positively proven must fail closed. 'The provider
+    returned nothing newer' equally describes an outage, a malformed response, an
+    omitted request or an ingestion bug — none of which are a dead instrument."""
+    verdict, reason = _classify(M, **over)
+    assert verdict == M.FAILED_OR_UNEXPLAINED, f"expected fail-closed, got {verdict}: {reason}"
+    assert because in reason
+
+
+def test_held_exhausted_symbol_is_fatal_even_with_perfect_evidence(M):
+    """A provider-exhausted HELD name still needs a valuation and exit path. The
+    instrument is dead everywhere, so no alternate source can price it."""
+    verdict, reason = _classify(M, held_qty=100.0)
+    assert verdict == M.FAILED_OR_UNEXPLAINED
+    assert "no proven alternate price source" in reason
+
+
+def _etf_ev(**over):
+    """An ETF outside the provider's subscription: alive, priced elsewhere."""
+    ev = _ev(symbol="GLD")
+    ev["corroboration"] = {
+        "source": "alpaca",
+        "last_date": "2026-08-04",
+        "control_symbol": "AAPL",
+        "control_last_date": "2026-08-04",
+    }
+    ev.update(over)
+    return ev
+
+
+def test_uncovered_etf_with_no_provider_history_is_not_covered(M):
+    """The nine cross-asset ETFs: never in SEP, but trading normally and priced by
+    Alpaca. Not exhausted — the instrument is alive; the provider simply does not
+    carry it."""
+    verdict, reason = M.classify_stale_symbol(
+        "GLD",
+        live_last=None,
+        stage_last=None,
+        cutoff=CUT,
+        evidence=_etf_ev(),
+        held_qty=0,
+        open_orders=0,
+        registered_in=[],
+    )
+    assert verdict == M.PROVIDER_NOT_COVERED
+    assert "outside provider coverage" in reason
+
+
+def test_held_uncovered_etf_is_allowed_because_alternate_source_prices_it(M):
+    """Condition 8: a held name is acceptable when a separate price source is
+    proven. Several of the nine ETFs are held and priced via Alpaca daily bars."""
+    verdict, _ = M.classify_stale_symbol(
+        "GLD",
+        live_last=None,
+        stage_last=None,
+        cutoff=CUT,
+        evidence=_etf_ev(),
+        held_qty=250.0,
+        open_orders=0,
+        registered_in=["9:IDLE"],
+    )
+    assert verdict == M.PROVIDER_NOT_COVERED
+
+
+def test_provider_stopped_while_instrument_still_trades_is_a_coverage_regression(M):
+    """Had provider history, provider stopped, instrument still trades elsewhere.
+    That is a coverage change worth looking at, never a silent pass."""
+    verdict, reason = M.classify_stale_symbol(
+        "XYZ",
+        live_last=DEAD,
+        stage_last=DEAD,
+        cutoff=CUT,
+        evidence=_etf_ev(symbol="XYZ"),
+        held_qty=0,
+        open_orders=0,
+        registered_in=[],
+    )
+    assert verdict == M.FAILED_OR_UNEXPLAINED
+    assert "coverage regression" in reason
+
+
+def test_effective_last_uses_the_earlier_of_sep_and_lastpricedate(M, tmp_path):
+    """A name with FRESH sep but a lagging lastpricedate is still excluded from the
+    ranking pool, so it must not read as fresh. This is the SATS-class gate."""
+    store = _store(
+        tmp_path,
+        _bars("FRESHSEP", 1e9),
+        tickers=[("FRESHSEP", date(2026, 6, 12))],
+    )
+    st = M.per_name_staleness(store, ["FRESHSEP"])
+    assert st["sep_max_by_symbol"]["FRESHSEP"] == str(AS_OF)
+    assert st["effective_last_by_symbol"]["FRESHSEP"] == "2026-06-12"
+    assert st["lastpricedate_stale"] == ["FRESHSEP"]
+
+
+def test_classification_is_pure(M):
+    """No store, provider or credential reachable from the classifier."""
+    import inspect
+
+    src = inspect.getsource(M.classify_stale_symbol)
+    for banned in ("duckdb", "sqlite3", "connect(", "requests", "httpx", "os.environ"):
+        assert banned not in src, f"classifier must stay pure; found {banned}"
+
+
+def test_sats_is_not_hard_coded_anywhere(M):
+    """The mechanism must generalise to future mergers, delistings and ticker
+    changes — SATS is a fixture, not an exception list."""
+    src = _MODULE.read_text(encoding="utf-8")
+    assert "SATS" not in src
