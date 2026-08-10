@@ -168,6 +168,34 @@ Resources:
 
   Instance:
     Type: AWS::EC2::Instance
+    # 2026-07-27 incident: a full `cloudformation deploy` for an IAM-only tweak
+    # was resolved as "Requested update requires the creation of a new physical
+    # resource". CFN replaced the live paper box and, because the root volume
+    # below carries DeleteOnTermination: true, terminating the old instance
+    # destroyed the volume with it. Retain breaks that chain — CFN leaves the
+    # prior instance (and therefore its root volume) alone instead of
+    # terminating it.
+    #
+    # ⚠ Retain preserves the DATA, and in exchange creates a two-live-boxes
+    # hazard that needs immediate manual attention. The retained instance keeps
+    # running with the same Alpaca credentials, the same market-data websocket
+    # and the same scheduler. Dual-arming the Alpaca data websocket is exactly
+    # the failure mode CLAUDE.md's runtime note warns about. After any
+    # replacement: stop the retained instance BEFORE arming the new one, then
+    # recover from its volume deliberately.
+    #
+    # ⚠ DeletionPolicy: Retain likewise means `delete-stack` orphans a RUNNING
+    # instance rather than tearing it down. That is the intended polarity for a
+    # live trading box — deliberate teardown, not accidental — but it does not
+    # clean up after itself and it keeps billing.
+    #
+    # This is a backstop, not the procedure. The procedure is still: never run a
+    # full-stack deploy during RTH, always create a change set first, and check
+    # for `Replacement: True` before executing it. Prefer a targeted API/IAM
+    # update over a template deploy for anything that does not change the
+    # instance itself.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: !Ref UbuntuAmiId
