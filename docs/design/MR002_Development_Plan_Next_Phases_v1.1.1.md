@@ -1,5 +1,7 @@
 # MR-002 / SPQ-1 Development Plan After Phase 2B — v1.1.1 (governing-source erratum)
 
+> **Superseded by** [`MR002_Development_Plan_Next_Phases_v1.3.md`](MR002_Development_Plan_Next_Phases_v1.3.md) (v1.3.1, 2026-08-09; via v1.2, 2026-07-24). Erratum content (v1.0.4 prereg, bootstrap, DSR dispersion, metric roles) is carried forward in v1.3 §4.1–§4.4 as the frozen execution contract.
+
 **Program:** MR-002 — Sector-Neutral Residual Reversion · **Workstream:** SPQ-1
 **Status:** Phase 2B COMPLETE and CLOSED · **Type:** narrow correction to v1.1 (planning only; opens no data, authorizes no execution)
 **Relationship to v1.1:** This erratum **supersedes v1.1 for the enumerated items in §F** (governing preregistration version, its identities, the bootstrap contract, the DSR-dispersion rule, and the short-side metric-role classification). For every other section, `MR002_Development_Plan_Next_Phases_v1.1.md` remains in force and is read alongside this document.

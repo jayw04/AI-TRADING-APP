@@ -1,5 +1,7 @@
 # MR-002 / SPQ-1 Development Plan After Phase 2B — v1.1
 
+> **Superseded for status and roadmap by** [`MR002_Development_Plan_Next_Phases_v1.3.md`](MR002_Development_Plan_Next_Phases_v1.3.md) (v1.3.1, 2026-08-09; via v1.2, 2026-07-24). Per v1.3 §6, this document remains the **reference** for the full Phase 3A–8 deliverable prose in §4–§9 (A1–A6, §5.3a, §7.6), which v1.3 deliberately does not restate.
+
 **Program:** MR-002 — Sector-Neutral Residual Reversion
 **Workstream:** SPQ-1
 **Current status:** Phase 2B COMPLETE and CLOSED
