@@ -19,73 +19,17 @@ the native source starts a NEW evidence tranche — no pooled GAPPER verdict.
 from __future__ import annotations
 
 import argparse
-import glob
 import json
-import os
-import re
-from typing import Any
 
-_DATE_RE = re.compile(r"premarket_gappers_(\d{4}-\d{2}-\d{2})\.json$")
-
-
-def _dates(directory: str) -> set[str]:
-    out = set()
-    for p in glob.glob(os.path.join(directory, "premarket_gappers_*.json")):
-        m = _DATE_RE.search(p.replace("\\", "/"))
-        if m:
-            out.add(m.group(1))
-    return out
-
-
-def _load(directory: str, date: str) -> list[dict[str, Any]]:
-    path = os.path.join(directory, f"premarket_gappers_{date}.json")
-    try:
-        with open(path, encoding="utf-8") as fh:
-            return json.load(fh).get("gappers") or []
-    except (OSError, json.JSONDecodeError, ValueError):
-        return []
-
-
-def _gate_candidates(evidence_dir: str, date: str) -> tuple[list[str], str | None]:
-    path = os.path.join(evidence_dir, f"premarket_scan_{date}.json")
-    try:
-        with open(path, encoding="utf-8") as fh:
-            rec = json.load(fh)
-        return [c.get("symbol") for c in rec.get("candidates") or []], rec.get("gappers_source")
-    except (OSError, json.JSONDecodeError, ValueError):
-        return [], None
-
-
-def compare_day(
-    native: list[dict[str, Any]], external: list[dict[str, Any]]
-) -> dict[str, Any]:
-    n_syms = {str(g.get("symbol") or "").upper() for g in native if g.get("symbol")}
-    e_syms = {str(g.get("symbol") or "").upper() for g in external if g.get("symbol")}
-    overlap = n_syms & e_syms
-    n_by = {str(g["symbol"]).upper(): g for g in native if g.get("symbol")}
-    e_by = {str(g["symbol"]).upper(): g for g in external if g.get("symbol")}
-    gap_deltas, vol_deltas = [], []
-    for s in overlap:
-        try:
-            gap_deltas.append(abs(float(n_by[s]["gap_pct"]) - float(e_by[s]["gap_pct"])))
-            vol_deltas.append(
-                abs(float(n_by[s]["premarket_volume"]) - float(e_by[s]["premarket_volume"]))
-            )
-        except (KeyError, TypeError, ValueError):
-            continue
-    top_n = {s for s, g in n_by.items() if (g.get("rank") or 99) <= 10}
-    top_e = {s for s, g in e_by.items() if (g.get("rank") or 99) <= 10}
-    return {
-        "native_count": len(n_syms),
-        "external_count": len(e_syms),
-        "overlap_count": len(overlap),
-        "overlap_pct_of_external": round(100 * len(overlap) / len(e_syms), 1) if e_syms else None,
-        "top10_rank_overlap": len(top_n & top_e),
-        "mean_gap_pct_delta": round(sum(gap_deltas) / len(gap_deltas), 2) if gap_deltas else None,
-        "mean_pm_volume_delta": round(sum(vol_deltas) / len(vol_deltas)) if vol_deltas else None,
-        "native_only": sorted(n_syms - e_syms),
-        "external_only": sorted(e_syms - n_syms),
-    }
+# Single source of truth: the comparison logic lives in the service so the daily
+# accrual job (app/jobs/gapper_parity.py) and this ad-hoc report can never drift
+# into measuring parity two different ways.
+from app.services.gapper_source_parity import (
+    compare_day,
+    dates_present as _dates,
+    gate_candidates as _gate_candidates,
+    load_gappers as _load,
+)
 
 
 def main() -> int:

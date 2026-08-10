@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-07-10 |
+| Date | 2026-07-10 (amended 2026-08-10 — Decision 6 discharged; see the amendment section) |
 | Status | Draft |
 | Phase | Ops / AWS independence (post-ADR 0032 cutover); consumed by SCAN-001 (ADR 0024) |
 | Supersedes | — |
@@ -52,6 +52,68 @@ authoritative when both exist?
    `prev_daily_bar.close` is a usable prior close, (c) premarket volume is visible (if it is
    not, do not fake it — escalate to the owner), and (d) the scan completes before the 09:25 ET
    gate consumes it.
+
+## Amendment 2026-08-10 — Decision 6 discharged: the premarket movers-freshness guard
+
+This section **implements Decision 6 rather than amending around it.** Decision 6 gated the
+screener on a live probe. The probe ran, path A failed it, and this is that verdict frozen into a
+conditional.
+
+**Probe verdict.** Five artifacts in `data/native_gapper_probe/` on the box:
+
+| Probe | Window | `movers.last_updated` | Today (ET)? |
+|---|---|---|---|
+| 2026-07-10 09:50 | post-open | same day 13:50Z | ✅ |
+| 2026-07-10 10:09 | post-open | same day 14:09Z | ✅ |
+| 2026-07-13 08:50 | **premarket** | 2026-07-10 23:59Z | ❌ |
+| 2026-07-17 08:55 | **premarket** | 2026-07-16 23:59Z | ❌ |
+| 2026-07-20 08:50 | **premarket** | 2026-07-17 23:59Z | ❌ |
+
+**In the premarket window the movers endpoint serves the previous session** — 3/3 in-window
+observations — while still returning a full, non-empty gainers list. It becomes live after the
+open (2/2).
+
+**The defect this closes.** The screener as originally written degraded to path B only on
+`if not symbols` — an *empty* movers list. A stale tape is not empty, so the fallback was
+unreachable in the only window that matters, and each day would have been built from the previous
+session's universe. Verification then drops names lacking a current print, so the failure surfaced
+as a plausible funnel and an `ok: True` result with a wrong or empty list — silent, and
+indistinguishable from a quiet market.
+
+**Decision.** Path A is used **only when its tape is today's**. A stale, empty, errored, or
+unparseable-freshness tape falls through to path B. Unknown freshness counts as stale (fail
+closed): a current-but-incomplete universe is a safer discovery set than a complete one from the
+wrong session.
+
+Three properties follow, and they are why this is a predicate rather than a deletion of path A:
+
+- **Scoped to the finding.** The probe did not establish "path A is bad"; it established "path A
+  is bad *premarket*, because the tape is stale there". The guard encodes exactly that.
+- **Self-repairing in both directions.** If movers ever becomes fresh premarket, path A resumes
+  with no code change. If it goes stale in some new window, discovery correctly reports nothing
+  rather than fabricating.
+- **Path A retained where it works.** Post-open runs and fidelity comparisons keep a working path.
+
+**Consequence — path B is now the *effective* premarket discovery path**, which supersedes the
+"Alternatives considered" entry rejecting the store sweep as primary. That entry's objection stands
+and is now a live risk rather than a hypothetical: the store is small-cap-sparse and gappers are
+disproportionately small caps. The failure mode has therefore *changed shape*, not disappeared —
+from "a confident list from the wrong session" to "a plausible list from an incomplete universe".
+
+**Write-time provenance.** Every native file records `discovery_path`, `discovery_reason`
+(`MOVERS_FRESH` · `DISCOVERY_STALE` · `MOVERS_EMPTY` · `MOVERS_ERROR`) and `movers_last_updated`.
+`write_gappers_file` refuses a payload lacking them. An unrecorded fall-through would be the same
+defect class as the silent stale-source re-read it replaces, and both §8.1 probation and the
+GAPPER §3.1 fidelity check must be able to stratify days by path.
+
+**Parity accrues daily from probation day 1.** `app/jobs/gapper_parity.py` writes a dated
+native-vs-external comparison every weekday at 09:30 ET. This is deliberately *not* folded into
+§8.1 probation: probation measures **capture rate**, a transport property that an incomplete-but-
+punctual universe would pass cleanly. Parity measures whether path B's output may be treated as
+authoritative for the frozen event definition in GAPPER Stage 0A. Running both across the same
+15-day window yields both verdicts at once at no extra cost. If parity is poor, the remedy is
+engineering — widen the sweep universe or add a premarket-print source — and it is far cheaper to
+discover during probation than during Stage 0A.
 
 ## Rationale
 
@@ -131,6 +193,9 @@ transition; two gappers directories now exist on the box.
 - **Snapshot sweep of the factor-store universe as primary discovery**: the store is
   small-cap-sparse (the GOVCONTRACT-001 finding), and gappers are disproportionately small caps;
   retained only as the automatic fallback when movers returns nothing.
+  ⚠ **Superseded in practice by the 2026-08-10 amendment**: because the movers tape is stale
+  premarket, the sweep *is* the effective premarket path. The objection above was not withdrawn —
+  it is now the live risk that the daily parity accrual exists to measure.
 - **Alpaca SIP subscription** for consolidated-tape parity: recurring cost for an advisory
   input; the probe confirmed it is not currently entitled. Reconsider if the transition window
   shows the IEX universe missing a material share of store-covered gappers.

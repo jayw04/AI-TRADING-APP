@@ -21,9 +21,16 @@ _OK_RESULT = {
     "discovered": 3,
     "verified": 2,
     "count": 1,
+    "discovery_reason": "MOVERS_FRESH",
     "payload": {
         "scanned_at": "2026-07-10T13:05:00Z",
         "source": "box_native_alpaca_v1",
+        # Write-time provenance is a hard contract of write_gappers_file
+        # (ADR 0041 Decision 6 guard; GAPPER v2.1.1 §5.5) — a payload without it
+        # cannot be written, so the fixture must carry it.
+        "discovery_path": "movers",
+        "discovery_reason": "MOVERS_FRESH",
+        "movers_last_updated": "2026-07-10T13:04:00+00:00",
         "gappers": [{"rank": 1, "symbol": "AAA", "price": 10.0, "gap_pct": 8.0,
                      "premarket_volume": 100000, "catalyst": None, "headlines": []}],
     },
@@ -70,7 +77,10 @@ async def test_zero_candidates_still_writes_and_is_distinguished(native_dir, mon
     """A scan that ran and found nothing writes an honest empty file (review §6) —
     distinct from scan_failed, which writes nothing."""
     empty = dict(_OK_RESULT, count=0,
-                 payload={"scanned_at": "x", "source": "box_native_alpaca_v1", "gappers": []})
+                 payload={"scanned_at": "x", "source": "box_native_alpaca_v1",
+                          "discovery_path": "store_sweep",
+                          "discovery_reason": "DISCOVERY_STALE",
+                          "gappers": []})
     _stub_scan(monkeypatch, empty)
     result = await job.run_native_gapper_scan(now=FRIDAY)
     assert result["status"] == "scan_success_zero_candidates"

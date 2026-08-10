@@ -60,6 +60,7 @@ async def run_native_gapper_scan(
             "native_gapper_scan_failed",
             reason=result.get("reason"),
             discovery_path=result.get("discovery_path"),
+            discovery_reason=result.get("discovery_reason"),
             elapsed_s=round(time.monotonic() - t0, 1),
         )
         return None

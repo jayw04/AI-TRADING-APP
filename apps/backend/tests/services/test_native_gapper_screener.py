@@ -41,14 +41,30 @@ def _snap(
 
 
 class _FakeScreener:
-    def __init__(self, gainers: list[SimpleNamespace] | None = None, error: bool = False):
+    """Stand-in for Alpaca's ScreenerClient.
+
+    ``last_updated`` is part of the response and is NOT incidental: it is the only
+    field that distinguishes a live premarket tape from the previous session's,
+    and the endpoint returns a full gainers list either way. A fake that omitted
+    it is what let the stale-tape defect survive review — so it is modelled here,
+    defaulting to a fresh (same-day) tape."""
+
+    def __init__(
+        self,
+        gainers: list[SimpleNamespace] | None = None,
+        error: bool = False,
+        last_updated: datetime | None = NOW,
+    ):
         self._gainers = gainers or []
         self._error = error
+        self._last_updated = last_updated
 
     def get_market_movers(self, _req: Any) -> SimpleNamespace:
         if self._error:
             raise RuntimeError("screener down")
-        return SimpleNamespace(gainers=self._gainers, losers=[])
+        return SimpleNamespace(
+            gainers=self._gainers, losers=[], last_updated=self._last_updated
+        )
 
 
 class _FakeDataClient:
@@ -162,6 +178,77 @@ async def test_path_b_store_sweep_when_movers_empty() -> None:
     assert [r["symbol"] for r in out["payload"]["gappers"]] == ["SWEPT"]
 
 
+async def test_stale_movers_tape_is_disqualified_and_falls_through_to_path_b() -> None:
+    """★ The ADR 0041 Decision-6 guard, and the reason #407 could not merge as built.
+
+    Premarket, the movers endpoint returns a FULL gainers list carrying the PREVIOUS
+    session's ``last_updated`` (3/3 in-window probes: 07-13, 07-17, 07-20). The old
+    predicate degraded to path B only on an EMPTY list, so it never fired and the day
+    was built from the wrong session's universe — silently, with ``ok: True``."""
+    prior_session = datetime(2026, 7, 10, 23, 59, tzinfo=UTC)  # Friday's close
+    screener = _FakeScreener(
+        [_mover(s) for s in ("STLA", "STLB")], last_updated=prior_session
+    )
+    data = _FakeDataClient({
+        "SWEPT": _snap(24.0, 20.0),
+        # Present so a regression that kept path A would visibly produce these:
+        "STLA": _snap(24.0, 20.0),
+        "STLB": _snap(24.0, 20.0),
+    })
+    out = await ngs.scan_native_gappers(
+        now=NOW, screener_client=screener, data_client=data,
+        factor_store=_FakeFactorStore(["SWEPT"]),
+    )
+    assert out["ok"] is True
+    assert out["discovery_path"] == "store_sweep"
+    assert out["discovery_reason"] == ngs.DISCOVERY_STALE
+    # The stale universe must not leak through: only the swept name survives.
+    assert [r["symbol"] for r in out["payload"]["gappers"]] == ["SWEPT"]
+    # Write-time provenance, in the artifact itself (GAPPER v2.1.1 §5.5).
+    assert out["payload"]["discovery_path"] == "store_sweep"
+    assert out["payload"]["discovery_reason"] == ngs.DISCOVERY_STALE
+    assert out["payload"]["movers_last_updated"] == prior_session.isoformat()
+
+
+async def test_fresh_movers_tape_still_uses_path_a() -> None:
+    """The guard is scoped to staleness only — a same-day tape keeps path A, so a
+    post-open run (or a future fresh premarket endpoint) needs no code change."""
+    screener = _FakeScreener([_mover("BIGG")], last_updated=NOW)
+    data = _FakeDataClient({"BIGG": _snap(24.0, 20.0)})
+    out = await ngs.scan_native_gappers(now=NOW, screener_client=screener, data_client=data)
+    assert out["ok"] is True
+    assert out["discovery_path"] == "movers"
+    assert out["discovery_reason"] == ngs.DISCOVERY_MOVERS_FRESH
+    assert out["payload"]["discovery_reason"] == ngs.DISCOVERY_MOVERS_FRESH
+
+
+async def test_unknown_movers_freshness_fails_closed() -> None:
+    """No parseable ``last_updated`` ⇒ treat as stale. A current-but-incomplete
+    universe beats a complete one from an unknown session."""
+    screener = _FakeScreener([_mover("MAYBE")], last_updated=None)
+    data = _FakeDataClient({"SWEPT": _snap(24.0, 20.0), "MAYBE": _snap(24.0, 20.0)})
+    out = await ngs.scan_native_gappers(
+        now=NOW, screener_client=screener, data_client=data,
+        factor_store=_FakeFactorStore(["SWEPT"]),
+    )
+    assert out["discovery_path"] == "store_sweep"
+    assert out["discovery_reason"] == ngs.DISCOVERY_STALE
+    assert out["payload"]["movers_last_updated"] is None
+
+
+async def test_write_refuses_a_payload_without_discovery_provenance(tmp_path) -> None:
+    """§5.5: provenance is stamped at write time or the write does not happen —
+    a record cannot acquire provenance afterwards."""
+    import pytest
+
+    with pytest.raises(ValueError, match="discovery_path"):
+        ngs.write_gappers_file(
+            {"scanned_at": "2026-07-13T13:05:00Z", "source": ngs.SOURCE, "gappers": []},
+            str(tmp_path),
+            date_str="2026-07-13",
+        )
+
+
 async def test_path_b_also_covers_screener_errors() -> None:
     screener = _FakeScreener(error=True)
     data = _FakeDataClient({"SWEPT": _snap(24.0, 20.0)})
@@ -189,12 +276,17 @@ async def test_no_discovery_and_snapshot_errors_fail_soft() -> None:
 async def test_write_and_reader_round_trip(tmp_path, monkeypatch) -> None:
     """The written file is the operational payload: native-wins, not stale, source kept."""
     now = datetime.now(UTC)
-    screener = _FakeScreener([_mover("RT")])
+    # This test runs against the real current date, so the movers tape must be
+    # dated to the same day or the Decision-6 guard correctly rejects path A.
+    screener = _FakeScreener([_mover("RT")], last_updated=now)
     data = _FakeDataClient({"RT": _snap(24.0, 20.0, trade_ts=now)})
     out = await ngs.scan_native_gappers(now=now, screener_client=screener, data_client=data)
     path = ngs.write_gappers_file(out["payload"], str(tmp_path), date_str=out["date"])
     with open(path, encoding="utf-8") as fh:
-        assert json.load(fh)["source"] == ngs.SOURCE
+        written = json.load(fh)
+    assert written["source"] == ngs.SOURCE
+    assert written["discovery_path"] == "movers"
+    assert written["discovery_reason"] == ngs.DISCOVERY_MOVERS_FRESH
 
     monkeypatch.setattr(pg, "_native_directory", lambda: str(tmp_path))
     monkeypatch.setattr(pg, "_directory", lambda: str(tmp_path / "no_external"))

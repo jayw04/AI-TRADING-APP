@@ -9,9 +9,14 @@ premarket scan and the Opportunities panel consume it unchanged — plus a
 
 Pipeline (session doc §1.2):
 
-1. **Discovery** — Alpaca movers screener, gainers side (path A). If it yields
-   nothing and a factor store is available, degrade to a dollar-volume-universe
-   snapshot sweep (path B; honest scope: the store is small-cap-sparse).
+1. **Discovery** — Alpaca movers screener, gainers side (path A), **used only when
+   its tape is today's**. The 2026-07 probe series established that premarket the
+   movers endpoint serves the PRIOR session while still returning a full list, so
+   emptiness cannot detect the failure and freshness is the discriminator (ADR 0041
+   Decision 6). A stale, empty, or failed path A degrades to a dollar-volume-universe
+   snapshot sweep (path B; honest scope: the store is small-cap-sparse). In the
+   premarket window path B is therefore the *effective* path; path A remains correct
+   for post-open runs. Which path ran, and why, is stamped into the output file.
 2. **Verification** — one snapshot call per 200-symbol batch (IEX): the gap is
    recomputed as latest_trade vs previous close, so even a stale movers ranking
    cannot fake a gap. Names whose latest IEX print is not from today are dropped
@@ -54,6 +59,14 @@ STORE_SWEEP_N = 1000  # path-B universe size (top-N by trailing dollar volume)
 STORE_SWEEP_LOOKBACK_DAYS = 30
 SOURCE = "box_native_alpaca_v1"
 
+# Discovery reason codes (ADR 0041 Decision 6 guard; GAPPER v2.1.1 §5.5 write-time
+# provenance). Every native file records WHICH path produced it and WHY, so a
+# path-B fall-through is evidence rather than an invisible behaviour change.
+DISCOVERY_MOVERS_FRESH = "MOVERS_FRESH"  # path A: tape is today's
+DISCOVERY_STALE = "DISCOVERY_STALE"  # path A disqualified: tape is a prior session
+DISCOVERY_MOVERS_EMPTY = "MOVERS_EMPTY"  # path A returned no plain symbols
+DISCOVERY_MOVERS_ERROR = "MOVERS_ERROR"  # path A call raised
+
 # Plain common-stock tickers only: the movers tape includes warrants/units
 # (EONR.WS, MVSTW) and sub-penny instruments the external scanner's Yahoo
 # gainers table never surfaced. Suffixed symbols are dropped at discovery.
@@ -74,13 +87,33 @@ def _default_clients() -> tuple[Any, Any]:
     )
 
 
-def _discover_movers(screener: Any) -> list[str]:
-    """Path A: gainers side of the movers screener, plain symbols only."""
+def _discover_movers(screener: Any, *, now_et: datetime) -> tuple[list[str], bool, str | None]:
+    """Path A: gainers side of the movers screener, plain symbols only.
+
+    Returns ``(symbols, tape_is_today, last_updated_iso)``.
+
+    ``tape_is_today`` is the ADR 0041 Decision-6 discriminator. The probe series
+    (5 artifacts, ``data/native_gapper_probe/``) found that **in the premarket
+    window the movers endpoint serves the PRIOR session** — ``last_updated`` is the
+    previous trading day's 23:59Z — while still returning a full, non-empty gainers
+    list. 3/3 in-window observations (07-13, 07-17, 07-20) failed; the 2 post-open
+    observations (07-10 09:50/10:09) passed. So *staleness*, not emptiness, is what
+    disqualifies path A, and emptiness alone can never detect it.
+
+    Unknown or unparseable freshness counts as **not today** (fail closed): a
+    current-but-incomplete universe (path B) is a safer discovery set than a
+    complete one from the wrong session."""
     from alpaca.data.requests import MarketMoversRequest
 
     movers = screener.get_market_movers(MarketMoversRequest(top=MOVERS_TOP))
     gainers = getattr(movers, "gainers", None) or []
-    return [m.symbol for m in gainers if _PLAIN_SYMBOL_RE.match(str(m.symbol or ""))]
+    symbols = [m.symbol for m in gainers if _PLAIN_SYMBOL_RE.match(str(m.symbol or ""))]
+    last_updated = getattr(movers, "last_updated", None)
+    if isinstance(last_updated, datetime):
+        return symbols, last_updated.astimezone(EASTERN).date() == now_et.date(), (
+            last_updated.isoformat()
+        )
+    return symbols, False, None
 
 
 def _discover_store_sweep(factor_store: Any, today: date) -> list[str]:
@@ -207,12 +240,31 @@ async def scan_native_gappers(
         if screener_client is None or data_client is None:
             screener_client, data_client = await loop.run_in_executor(None, _default_clients)
 
+        # --- Discovery (ADR 0041 Decision 6, as implemented by the probe verdict) ---
+        # Path A is used only when the movers tape is TODAY's. A stale tape is
+        # disqualifying even though it is non-empty; see _discover_movers.
+        now_et = now_utc.astimezone(EASTERN)
         discovery_path = "movers"
+        discovery_reason: str | None = None
+        movers_last_updated: str | None = None
         try:
-            symbols = await loop.run_in_executor(None, _discover_movers, screener_client)
+            symbols, tape_is_today, movers_last_updated = await loop.run_in_executor(
+                None, lambda: _discover_movers(screener_client, now_et=now_et)
+            )
+            if not symbols:
+                discovery_reason = DISCOVERY_MOVERS_EMPTY
+            elif not tape_is_today:
+                # The defect this guard exists for: a full gainers list from the
+                # PREVIOUS session. Discard it — it is the wrong universe entirely.
+                discovery_reason = DISCOVERY_STALE
+                symbols = []
+            else:
+                discovery_reason = DISCOVERY_MOVERS_FRESH
         except Exception:
             logger.exception("native_gapper_movers_failed")
             symbols = []
+            discovery_reason = DISCOVERY_MOVERS_ERROR
+
         if not symbols and factor_store is not None:
             discovery_path = "store_sweep"
             symbols = await loop.run_in_executor(
@@ -220,7 +272,9 @@ async def scan_native_gappers(
             )
         if not symbols:
             return {"ok": False, "reason": "no_discovery_symbols",
-                    "discovery_path": discovery_path}
+                    "discovery_path": discovery_path,
+                    "discovery_reason": discovery_reason,
+                    "movers_last_updated": movers_last_updated}
 
         rows, with_snapshot = await loop.run_in_executor(
             None, lambda: _snapshot_rows(data_client, symbols, today=today)
@@ -228,6 +282,8 @@ async def scan_native_gappers(
         gappers, pass_counts = _filter_rank(rows)
         funnel = {
             "discovery_path": discovery_path,
+            "discovery_reason": discovery_reason,
+            "movers_last_updated": movers_last_updated,
             "symbols_discovered": len(symbols),
             "symbols_with_snapshot": with_snapshot,
             "symbols_with_current_premarket_trade": len(rows),
@@ -239,11 +295,20 @@ async def scan_native_gappers(
             "ok": True,
             "date": today.isoformat(),
             "discovery_path": discovery_path,
+            "discovery_reason": discovery_reason,
             "count": len(gappers),
             "funnel": funnel,
             "payload": {
                 "scanned_at": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "source": SOURCE,
+                # Write-time provenance (GAPPER v2.1.1 §5.5): which discovery path
+                # produced this file and why. A path-B fall-through must be visible
+                # in the artifact itself — an unrecorded fall-through is the same
+                # defect class as the silent stale-source re-read it replaced, and
+                # probation / §3.1 fidelity both need to stratify days by path.
+                "discovery_path": discovery_path,
+                "discovery_reason": discovery_reason,
+                "movers_last_updated": movers_last_updated,
                 "gappers": gappers,
             },
         }
@@ -255,10 +320,17 @@ async def scan_native_gappers(
 def write_gappers_file(payload: dict[str, Any], directory: str, *, date_str: str) -> str:
     """Atomically write ``premarket_gappers_<date>.json`` (tmp + replace, same
     directory so the rename never crosses filesystems): the 09:25 consumer globs
-    the directory, so a half-written file must be impossible. ``source`` is a
-    required contract of every native file (ADR 0041 provenance)."""
+    the directory, so a half-written file must be impossible. ``source`` and the
+    discovery provenance (``discovery_path`` + ``discovery_reason``) are required
+    contracts of every native file (ADR 0041; GAPPER v2.1.1 §5.5 — provenance is
+    stamped at write time because a record cannot acquire it afterwards)."""
     if not payload.get("source"):
         raise ValueError("native gappers payload must carry a 'source' (ADR 0041)")
+    if not payload.get("discovery_path") or not payload.get("discovery_reason"):
+        raise ValueError(
+            "native gappers payload must carry 'discovery_path' and 'discovery_reason' "
+            "(ADR 0041 Decision 6 guard; GAPPER v2.1.1 §5.5 write-time provenance)"
+        )
     os.makedirs(directory, exist_ok=True)
     path = os.path.join(directory, f"premarket_gappers_{date_str}.json")
     tmp = f"{path}.tmp"

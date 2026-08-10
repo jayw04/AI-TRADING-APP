@@ -151,6 +151,13 @@ class Settings(BaseSettings):
     # and the external one is catalyst enrichment only (owner directive 2026-07-10).
     native_gappers_dir: str = "data/premarket_gappers_native"
 
+    # Daily native-vs-external source-parity artifacts (one JSON per weekday). Parity
+    # answers a different question from §8.1 probation: probation measures transport
+    # capture, which a complete-but-wrong universe would pass, while parity measures
+    # whether the native source may be treated as authoritative for the frozen event
+    # definition. Calibration evidence only — never carries a verdict.
+    gapper_parity_dir: str = "data/gapper_source_parity"
+
     # --- SCAN-001 Production Validation Gate evidence (ADR 0024) ---
     # Persistent directory for the forward-evidence records the ~09:25 ET premarket
     # scan writes and the ~16:30 ET back-fill updates (one JSON per trading day).
