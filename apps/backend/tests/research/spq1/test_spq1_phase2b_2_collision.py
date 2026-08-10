@@ -158,6 +158,26 @@ def test_detection_precedes_producer_calls(monkeypatch):
     assert {r["request_symbol"] for r in rows} == {"A", "B"}
 
 
+def test_whole_session_invariant_rejects_split_session(monkeypatch):
+    """A session presented WITHOUT its complete authorized member set must fail-fast (a split batch
+    could hide a collision spanning batches)."""
+    monkeypatch.setattr(CR.ORCH, "run_unit",
+                        lambda ctx, s, t: CR.ORCH.UnitResult("P", s, t, "SIGNAL_DECISION_RECORD_EMITTED",
+                                                             None, "ELIGIBLE", "rec"))
+    ctx = FakeCtx(FakeLineage({("A", 1): "P1", ("B", 1): "P2", ("C", 1): "P3"}), ["d0", "d1"])
+    members = ["A", "B", "C"]
+    # complete set -> ok
+    CR.run_shard_governed(ctx, [("A", 1), ("B", 1), ("C", 1)], expected_members=members)
+    # split (missing C) -> STOP
+    with pytest.raises(ValueError, match="whole-session invariant"):
+        CR.run_shard_governed(ctx, [("A", 1), ("B", 1)], expected_members=members)
+
+
+def test_whole_session_invariant_counts_complete_sessions():
+    assert CR.assert_whole_session_request_set(
+        [("A", 1), ("B", 1), ("A", 2), ("B", 2)], ["A", "B"]) == 2
+
+
 # ---------------- real-data regression fixtures ----------------
 
 @pytest.mark.skipif(not (RESEARCH.exists() and PROV.exists()),
