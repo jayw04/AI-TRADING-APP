@@ -1,104 +1,186 @@
-"""Static check for ADR 0002 — single order entry point.
+"""ADR 0002 — single order entry point.
 
-Greps the backend source tree for any call to AlpacaAdapter.submit_order,
-.cancel_order, or .replace_order outside of app/orders/. The router is the
-only legitimate caller; the adapter's own module contains the method
-*definitions* but does not call them.
+This file used to carry its own copy of the static check plus a fourteen-entry
+whole-file allowlist. The allowlist was the problem: exempting a file to keep
+the check green disables the check for that file forever, and the comment
+telling readers not to do that sat directly above fourteen instances of it. It
+had also drifted red against an untracked strategy that was using the perfectly
+legitimate ``self.ctx.submit_order(...)`` context path.
 
-If this test fails, a future PR has tried to bypass the router. The fix is
-NOT to add the offending file to ALLOWED — it's to route the new code path
-through OrderRouter.
+The check now lives in ``scripts/check_adr0002.sh`` so it runs on every pull
+request alongside the twelve sibling invariant checks — ``pytest`` in this repo
+is FULL-runs-only, so a pytest-only ADR 0002 check was invisible on PRs. This
+module is the script's test harness: it proves the script actually catches a
+bypass rather than merely passing.
+
+A check nobody has watched fail is not a check.
 """
 
 from __future__ import annotations
 
+import os
 import pathlib
-import re
+import shutil
+import subprocess
 
-# `.submit_order(`, `.cancel_order(`, `.replace_order(` on any reference.
-CALL_PATTERN = re.compile(r"\.(submit_order|cancel_order|replace_order)\s*\(")
+import pytest
 
-# Files allowed to contain these patterns.
-ALLOWED = {
-    "app/orders/router.py",
-    "app/brokers/alpaca/adapter.py",  # method definitions
-    "tests/test_adr_0002_invariant.py",  # this file
-    # Tripwire tests deliberately call the mutation methods to assert they
-    # refuse without the router token; the test file is fenced off here.
-    "tests/brokers/alpaca/test_adapter.py",
-    # StrategyContext tests call ctx.submit_order(...) — the regex matches
-    # the literal `.submit_order(` even though this is the *context's*
-    # pass-through to the injected order-router callable, not a direct
-    # adapter call. ADR 0002 is not violated; the context dispatches
-    # through OrderRouter.submit just like every other path.
-    "tests/strategies/test_context.py",
-    # Same case as test_context.py: these all call `ctx.submit_order(...)`
-    # on a StrategyContext or BacktestContext, which dispatches through
-    # OrderRouter (or, for backtests, an in-memory simulator that never
-    # reaches the adapter). No direct adapter access here.
-    "strategies_user/examples/rsi_meanreversion.py",
-    # P8 §7: the range-trading template calls `self.ctx.submit_order(...)` —
-    # the sanctioned context path (dispatches through OrderRouter), same as the
-    # rsi example. Not a direct adapter call.
-    "strategies_user/templates/range_trader.py",
-    # P9 §4: the momentum-portfolio template calls `self.ctx.submit_order(...)`
-    # to trade the weekly rebalance diff — the same sanctioned context path
-    # (dispatches through OrderRouter + the risk engine), not a direct adapter call.
-    "strategies_user/templates/momentum_portfolio.py",
-    # P12 §4: the sector-rotation template (SEC-001 promotion) calls
-    # `self.ctx.submit_order(...)` to trade its weekly sector-basket rebalance —
-    # the same sanctioned context path (dispatches through OrderRouter + the risk
-    # engine), not a direct adapter call.
-    "strategies_user/templates/sector_rotation.py",
-    # Phase 2: the low-volatility template (LOW-001 promotion) calls
-    # `self.ctx.submit_order(...)` to trade its weekly low-vol rebalance — the same
-    # sanctioned context path (dispatches through OrderRouter + the risk engine),
-    # not a direct adapter call.
-    "strategies_user/templates/low_volatility.py",
-    # PORT-001: the combined-book template (Risk-Balanced Multi-Asset Portfolio,
-    # user 7) calls `self.ctx.submit_order(...)` to trade its equity + cross-asset
-    # rebalance diff — the same sanctioned context path (dispatches through
-    # OrderRouter + the risk engine), not a direct adapter call. It is the only
-    # order call site in the file; there is no adapter/broker access.
-    "strategies_user/templates/combined_book.py",
-    "tests/strategies/test_backtester.py",
-    "tests/strategies/test_strategy_risk_integration.py",
-    # P7 §1: the strategy-generation prompt embeds the platform Strategy
-    # interface as EXAMPLE TEXT, which includes `self.ctx.submit_order(...)`.
-    # It is prompt content, not a call site — generated strategies dispatch
-    # through OrderRouter like any other strategy. No ADR 0002 violation.
-    "app/services/strategy_authoring/prompts.py",
-    # P7 §3: the auto-backtest test builds generated-strategy SOURCE STRINGS that
-    # contain `self.ctx.submit_order(...)` — string literals, not call sites.
-    "tests/services/test_strategy_authoring_backtest.py",
-}
-
-# apps/backend/
 BACKEND_ROOT = pathlib.Path(__file__).resolve().parent.parent
+SCRIPT = BACKEND_ROOT / "scripts" / "check_adr0002.sh"
+
+# The tripwire methods, written so this file's own source does not trip the
+# check it is testing (this file is allowlisted, but relying on that would be
+# exactly the whole-file exemption habit being removed here).
+MUTATORS = ("submit" + "_order", "cancel" + "_order", "replace" + "_order")
+TOKEN_NAME = "ROUTER" + "_TOKEN"
 
 
-def _iter_source_files():
-    for p in BACKEND_ROOT.rglob("*.py"):
-        rel = p.relative_to(BACKEND_ROOT).as_posix()
-        if rel.startswith((".venv/", "alembic/versions/")):
+def _resolve_bash() -> str | None:
+    """Find a bash that can actually execute a script.
+
+    On Windows, plain ``bash`` on PATH is often WSL's launcher, which fails with
+    ``execvpe(/bin/bash)`` when no distribution is installed. Resolve to an
+    absolute interpreter and prove it runs before trusting it.
+    """
+    candidates = [
+        shutil.which("bash"),
+        r"C:\Program Files\Git\bin\bash.exe",
+        r"C:\Program Files\Git\usr\bin\bash.exe",
+        "/bin/bash",
+        "/usr/bin/bash",
+    ]
+    for candidate in candidates:
+        if not candidate or not pathlib.Path(candidate).exists():
             continue
-        yield rel, p
-
-
-def test_no_direct_adapter_mutation_calls_outside_router() -> None:
-    offenders: list[str] = []
-    for rel, path in _iter_source_files():
-        if rel in ALLOWED:
+        try:
+            probe = subprocess.run(
+                [candidate, "-c", "printf ok"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+        except OSError:
             continue
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        for m in CALL_PATTERN.finditer(text):
-            # Ignore method *definitions* (`def submit_order(`).
-            start = max(0, m.start() - 4)
-            window = text[start : m.start() + 1]
-            if "def " in window:
-                continue
-            offenders.append(f"{rel}: {m.group(0)}")
-    assert not offenders, (
-        "ADR 0002 violation — these files call AlpacaAdapter mutation methods "
-        "outside the OrderRouter:\n  " + "\n  ".join(offenders)
+        if probe.returncode == 0 and probe.stdout.strip() == "ok":
+            return candidate
+    return None
+
+
+BASH = _resolve_bash()
+
+pytestmark = pytest.mark.skipif(
+    BASH is None,
+    reason="check_adr0002.sh needs bash; CI runs ubuntu-latest and Windows has Git Bash",
+)
+
+
+def _run(root: pathlib.Path) -> subprocess.CompletedProcess[str]:
+    assert BASH is not None
+    env = {**os.environ, "ADR0002_ROOT": root.as_posix()}
+    return subprocess.run(
+        [BASH, SCRIPT.as_posix()],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
     )
+
+
+def _tree(tmp_path: pathlib.Path) -> pathlib.Path:
+    """A minimal well-formed backend tree the check should pass."""
+    (tmp_path / "app" / "services").mkdir(parents=True)
+    (tmp_path / "app" / "orders").mkdir(parents=True)
+    (tmp_path / "strategies_user").mkdir(parents=True)
+    (tmp_path / "app" / "services" / "quiet.py").write_text("X = 1\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_script_exists_and_is_the_named_invariant() -> None:
+    """CLAUDE.md, the risk-engine skill, ADR 0020 and ADR 0021 all cite this path."""
+    assert SCRIPT.is_file(), f"{SCRIPT} is missing — ADR 0002 has no PR-visible check"
+
+
+def test_the_real_repository_satisfies_adr_0002() -> None:
+    result = _run(BACKEND_ROOT)
+    assert result.returncode == 0, f"ADR 0002 violated in this tree:\n{result.stdout}"
+
+
+@pytest.mark.parametrize("mutator", MUTATORS)
+def test_direct_adapter_call_is_caught(tmp_path: pathlib.Path, mutator: str) -> None:
+    """The bypass ADR 0002 exists to prevent: reaching the broker adapter directly.
+
+    This skips the risk engine, the pre-call Order row, and the audit entry —
+    all three of which only exist on the OrderRouter path.
+    """
+    root = _tree(tmp_path)
+    offender = root / "app" / "services" / "emergency_tool.py"
+    offender.write_text(
+        f"def liquidate(adapter):\n    return adapter.{mutator}(symbol='AAPL', qty=1)\n",
+        encoding="utf-8",
+    )
+
+    result = _run(root)
+
+    assert result.returncode == 1, f"bypass NOT caught:\n{result.stdout}"
+    assert "app/services/emergency_tool.py" in result.stdout
+    assert "direct broker order call" in result.stdout
+
+
+def test_router_token_leak_is_caught(tmp_path: pathlib.Path) -> None:
+    """The runtime tripwire assumes only the router knows the token.
+
+    Nothing verified that before this check. A module that imports the token can
+    satisfy the adapter's guard and place an order with the router none the wiser.
+    """
+    root = _tree(tmp_path)
+    (root / "app" / "services" / "sneaky.py").write_text(
+        f"from app.orders import {TOKEN_NAME}\n", encoding="utf-8"
+    )
+
+    result = _run(root)
+
+    assert result.returncode == 1, f"token leak NOT caught:\n{result.stdout}"
+    assert "router-token leak" in result.stdout
+
+
+def test_context_pass_through_is_not_flagged(tmp_path: pathlib.Path) -> None:
+    """``self.ctx.submit_order(...)`` IS the sanctioned path — it is bound to
+    ``OrderRouter.submit``. Flagging it is what forced the old whole-file
+    exemptions, which is how the check lost its teeth.
+    """
+    root = _tree(tmp_path)
+    (root / "strategies_user" / "template.py").write_text(
+        "class S:\n"
+        "    async def rebalance(self):\n"
+        f"        await self.ctx.{MUTATORS[0]}(req)\n"
+        f"        await self.ctx.{MUTATORS[1]}(oid)\n",
+        encoding="utf-8",
+    )
+    (root / "app" / "services" / "nested.py").write_text(
+        f"async def go(running):\n    await running.instance.ctx.{MUTATORS[0]}(req)\n",
+        encoding="utf-8",
+    )
+
+    result = _run(root)
+
+    assert result.returncode == 0, f"sanctioned context path flagged:\n{result.stdout}"
+
+
+def test_method_definitions_are_not_flagged(tmp_path: pathlib.Path) -> None:
+    """``BrokerAdapter`` Protocol and ``StrategyContext`` declare these names."""
+    root = _tree(tmp_path)
+    (root / "app" / "services" / "iface.py").write_text(
+        "class Thing:\n"
+        f"    async def {MUTATORS[0]}(self, req): ...\n"
+        f"    def {MUTATORS[1]}(self, oid): ...\n",
+        encoding="utf-8",
+    )
+
+    result = _run(root)
+
+    assert result.returncode == 0, f"definitions flagged as calls:\n{result.stdout}"
+
+
+def test_clean_tree_passes(tmp_path: pathlib.Path) -> None:
+    assert _run(_tree(tmp_path)).returncode == 0
