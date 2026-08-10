@@ -301,6 +301,10 @@ jobs:
       # dedicated `python-full` job, which runs on push AND on a PR whenever the classifier flags that
       # project — so a red pytest (backend OR aux) cannot merge on green LIGHT. This job is LIGHT only.
 
+      - name: ADR 0002 single-order-entry-point check (backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_adr0002.sh
+
       - name: Strategy isolation invariant check (backend)
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_strategy_isolation.sh

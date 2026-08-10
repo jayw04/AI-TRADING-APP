@@ -20,7 +20,7 @@ These properties are enforced by code where possible, by CI invariants where cod
 
 ### Single OrderRouter (ADR 0002)
 
-Every order — manual, strategy-generated, agent-suggested — flows through exactly one dispatch point: `OrderRouter.submit()` in `apps/backend/app/services/order_router.py`. No code path may call a broker adapter directly. CI invariant `check_adr0002.sh` enforces this.
+Every order — manual, strategy-generated, agent-suggested — flows through exactly one dispatch point: `OrderRouter.submit()` in `apps/backend/app/orders/router.py`. No code path may call a broker adapter directly. CI invariant `check_adr0002.sh` enforces this, and as of this change the script it names actually exists — it was cited here, in the `risk-engine` and `github-ops` skills, and in ADRs 0020 and 0021 for months while the enforcement lived only in `tests/test_adr_0002_invariant.py`. It now runs in the LIGHT block on every backend PR and checks three things: no direct broker order call outside the router, no module outside the router/adapter seam knowing `ROUTER_TOKEN`, and no `strategies_user/` template naming a broker adapter at all.
 
 When working on order-related code, reflexively ask: "does this go through the router?" If the answer is unclear or no, that's a design issue to surface, not a tactical issue to work around.
 
@@ -120,7 +120,7 @@ GitHub **Actions** is the confirmed metered cost source: **8,073 Linux runner-mi
 
 The `.claude/skills/` directory contains skill packages that Claude loads automatically when the task matches. The current set:
 
-- **`risk-engine`** — invoked when working on risk gates, the order router, or risk-related code in `apps/backend/app/risk/` or `apps/backend/app/services/order_router.py`.
+- **`risk-engine`** — invoked when working on risk gates, the order router, or risk-related code in `apps/backend/app/risk/` or `apps/backend/app/orders/router.py`.
 - **`audit-log`** — invoked when working on the audit log, the hash chain, the `AuditLogger` API, or audit-related migrations.
 - **`session-doc`** — invoked when drafting or revising per-session implementation documents.
 - **`adr`** — invoked when writing or revising Architecture Decision Records.
