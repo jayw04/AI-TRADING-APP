@@ -1,0 +1,89 @@
+{
+  "artifact": "MR002_ExecutionSequencing_Direction_v1.1",
+  "program": "MR-002 — Sector-Neutral Residual Reversion",
+  "workstream": "SPQ-1",
+  "type": "owner direction record (sequencing + standing rules)",
+  "date": "2026-08-11",
+  "directed_by": "Jay Wang (owner)",
+  "supersedes": "MR002_ExecutionSequencing_Direction_v1.0.json (committed at 8bec98d)",
+  "supersession_note": "v1.0 is NOT edited and NOT retired. It is committed evidence bound into the WP-C/WP-D submission. Directions D-S1 through D-S6 and standing rule SR-HOST-1 carry forward unchanged EXCEPT where amended below. This v1.1 adds the control-boundary ruling that host qualification and validation credential release are separate acts.",
+
+  "occasion": {
+    "trigger": "The WP-D placeholder trust policy on mr002-validation-reader names a future run-host role. As encoded, provisioning and naming that host role would BE the credential release — collapsing host qualification and P12 into a single edit.",
+    "owner_ruling": "Those two controls do not need to be the same act, and must not be. Qualification identifies the future grantee; P12 activates the grant."
+  },
+
+  "directions_added": [
+    {
+      "id": "D-S7",
+      "subject": "Separation of host qualification from validation credential release",
+      "direction": "Host qualification MUST NOT satisfy or partially satisfy P12. Creating and qualifying the Phase 3C host is a runtime-identity act; releasing validation-partition credentials is an authorization act. They are sequenced, not merged.",
+      "required_sequence": [
+        "1. Provision the Phase 3C host ROLE and instance profile with NO validation-partition access and NO ability to assume mr002-validation-reader. Grant only what is needed to exist and be qualified: container/ECR pull for the bound evaluator image, plus logging/SSM if already part of the operational model.",
+        "2. Provision the actual host using that role and QUALIFY it: instance/role identity, OS + container runtime, architecture and CPU characteristics, evaluator-image resolution path, and every other host requirement already bound by the Phase 3A package.",
+        "3. Capture P10 prospectively on that host THROUGH WP-B ONLY. The Requirement-7 resolver pulls the immutable evaluator image from ECR; that requires no validation-data credential. P10 is therefore satisfiable while validation_authorization = false at _rev 0.",
+        "4. Freeze P10 under SR-HOST-1 and re-evaluate P6–P11 as a complete set — the actual runtime identity now exists WITHOUT validation access having been opened.",
+        "5. Authorize and run WP-F separately, proving C1–C10 + C-R7 against the qualified host and the then-current tree, WHILE the validation reader is still unassumable.",
+        "6. ONLY after WP-F PASS and D3 adjudication does P12 edit the reader-role trust policy to name the already-qualified host role. That edit IS the explicit, durable credential-release event. The CAS false → true follows, and validation access is permitted only afterward."
+      ],
+      "principle": "Qualification identifies the future grantee; P12 activates the grant."
+    },
+    {
+      "id": "D-S8",
+      "subject": "What P12 binds to",
+      "direction": "P12 MUST bind to the qualified instance-profile / IAM ROLE identity plus the frozen host and runtime evidence. It MUST NOT bind to an EC2 instance ID.",
+      "why": "An instance is ephemeral and replaceable; the role is the security principal. Binding authorization to an instance identifier would make the authorization model depend on a disposable identifier, and would force a re-authorization for any instance replacement even when the security principal and runtime identity are unchanged.",
+      "division_of_labour": "The ROLE carries the authorization. SR-HOST-1 carries the numeric-runtime concern: replacing the actual execution host invalidates P10 and forces requalification, without the authorization model touching an EC2 identifier at all."
+    }
+  ],
+
+  "standing_rules": [
+    {
+      "id": "SR-HOST-1",
+      "state": "CARRIED FORWARD, AMENDED BY D-S8",
+      "rule": "Host replacement before validation INVALIDATES P10 and requires a fresh P10 capture and a re-run of grant-readiness verification.",
+      "amendment": "Replacement of the actual execution host additionally requires REQUALIFICATION per D-S7 step 2. The rule is scoped to the numeric runtime and does not, by itself, revoke or re-open the P12 authorization, which is bound to the role identity per D-S8.",
+      "failure_mode_prevented": "A NumericRuntimeIdentityManifest generated on Host A while execution silently moves to Host B."
+    },
+    {
+      "id": "SR-GRANT-1",
+      "state": "NEW at v1.1",
+      "rule": "The mr002-validation-reader trust policy is the credential-release control. It may be edited ONLY as the P12 authorization event, after WP-F PASS and D3 adjudication. No other work package may edit it for any reason.",
+      "current_state": "Trust policy names arn:aws:iam::219024422756:role/mr002-phase3c-run-host-NOT-YET-PROVISIONED. Verified 2026-08-11: that role does NOT exist, and no role matching 'phase3c' exists in the account. The grant is inert.",
+      "trust_policy_sha256_at_p11": "39c42c2a88f97d21e51f7e0b8e6320ee63f829379b5173d2f3f4b6e525a5e7d8",
+      "expected_transition": "The P12 edit WILL change this hash. That change is the authorized transition, not tampering. A verifier re-checking AFTER P12 must expect a mismatch against the P11 snapshot; WP-F runs BEFORE P12 and must match it exactly."
+    }
+  ],
+
+  "trap_to_avoid": {
+    "id": "TRAP-NAME-1",
+    "severity": "HIGH — would silently consume P12 during qualification",
+    "detail": "The placeholder is a LITERAL STRING in a StringEquals condition on aws:PrincipalArn. If the Phase 3C host role were provisioned with the literal name 'mr002-phase3c-run-host-NOT-YET-PROVISIONED', the condition would match and the reader role would become assumable the moment the host role existed — releasing validation credentials during qualification, exactly what D-S7 forbids, and with no edit to any policy to mark the event.",
+    "requirement": "The real host role MUST be given a DIFFERENT name (e.g. 'mr002-phase3c-run-host'). Confirm before creation that the chosen name is not the placeholder string.",
+    "detection": "Any successful sts:AssumeRole against mr002-validation-reader before the recorded P12 event is an integrity failure and is visible as a CloudTrail management event."
+  },
+
+  "next_owner_decision": {
+    "narrow_framing": "Authorize provisioning of a QUALIFICATION-ONLY Phase 3C host, with no validation-reader trust relationship and no validation/OOS access.",
+    "why_this_framing": "It obtains the only remaining producible prerequisite (P10) without risk of consuming P12 while doing so.",
+    "state": "NOT YET AUTHORIZED — no host role, instance profile, or instance has been created."
+  },
+
+  "commits_to_preserve_untouched": {
+    "8bec98d": "WP-C/WP-D custody controls — P6–P9/P11 satisfied",
+    "8197bcc": "pre-existing WP-B custody_review mirror debt repair"
+  },
+
+  "standing_state_unchanged": {
+    "validation_authorization": false,
+    "cas_rev": 0,
+    "validation_partition": "CLOSED — single opening UNCONSUMED",
+    "oos_partition": "UNDER DENY",
+    "wp_f": "NOT AUTHORIZED",
+    "custody_requirement_7": "IMPLEMENTED_PENDING_C_R7_VERIFICATION",
+    "p10": "BLOCKED_ON_RUN_ENVIRONMENT — producer built, instance not captured",
+    "validation_reader_assumable": false
+  },
+
+  "version": "1.1"
+}
