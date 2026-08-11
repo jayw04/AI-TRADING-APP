@@ -1,0 +1,35 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "authority": "Owner ruling 2026-08-11 - rebind chain authorized: publish, verify independently, renew P5 against the published digest.",
+ "bound_image": {
+  "bound_to_the_index_not_the_child": "WP-B resolves and binds the INDEX digest. The child platform manifest sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b is reachable through it and is NOT an identity WP-B may bind.",
+  "digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "digest_kind": "OCI image index digest",
+  "resolution_path": "the WP-B Requirement-7 fail-closed resolver, which is the SOLE permitted path",
+  "verified": "byte-exact rehash of the registry response under the resolver's own media types; chain index -> platform manifest -> config confirmed"
+ },
+ "boundary": "Binding only. No credential released, no partition opened. validation_authorization remains false at _rev 0; OOS remains under DENY; WP-F remains NOT AUTHORIZED; P10 remains UNSATISFIED until captured on the qualified host.",
+ "custodian": "Jay Wang",
+ "date": "2026-08-11",
+ "prerequisite_id": "P5",
+ "record_identity_sha256": "d23a9e3468d704be540a6df57a32cd349f376461f6874ca6996c4600c87e0236",
+ "record_type": "MR002_EvaluatorBinding",
+ "renewal_note": "The prior binding is NOT edited and NOT invalidated as history. It is superseded for RUNTIME use only.",
+ "renews": "MR002_EvaluatorBinding.json (bound to sha256:60b15568)",
+ "runtime_lock": {
+  "platform": "cp313 / x86_64 / glibc 2.36",
+  "record": "MR002_LinuxDependencyLock_v1.1.json",
+  "sha256": "bb38b685d15f78b705fff2681b76807f2277b02f7af5788e4c320951121c7ebd",
+  "source_builds_required": 0
+ },
+ "variant": "RUNTIME_RENEWAL",
+ "version": "1.0",
+ "what_changed_and_what_did_not": {
+  "amendment_classification": "The dependency amendment is RUNTIME-AFFECTING but NOT EVALUATOR-LOGIC-AFFECTING. The research signal and evaluator code are preserved byte-identically; what changed is the executable environment required to make the evaluator runnable at all.",
+  "evaluator_logic_module_set": "UNCHANGED - 21/21 modules byte-identical",
+  "governed_dependency_amendment": "pandas 3.0.5, owner-adjudicated. Required because P10 binds pandas_version and no lock declared it; added rather than removed from the spec because dropping it would cut P10 from 17 bindings to 16, which D-S1 forbids.",
+  "historical_image": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9 remains historical SS4/P5 evidence. It is NOT the runtime image and cannot satisfy P10.",
+  "runtime_dependency_layer": "CHANGED - the numeric stack now exists in the image",
+  "windows_lock": "SUPERSEDED FOR RUNTIME USE, PRESERVED HISTORICALLY. MR002_Increment1_Dependencies.json is unchanged at sha256:17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0 and remains the build-input record that exposed the defect. It is platform-bound to Windows and cannot serve as the Linux runtime lock."
+ }
+}

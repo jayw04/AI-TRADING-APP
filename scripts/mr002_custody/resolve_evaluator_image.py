@@ -82,9 +82,32 @@ REPOSITORY = "mr002-evaluator-p5"
 # MR-002's evaluator to. Changing this constant is a governance event, not a
 # code change: it would silently re-point every future run at a different
 # evaluator while every downstream artifact still claimed the old binding.
+#
+# REBOUND 2026-08-11 under owner authorization, because the previously bound
+# image could not satisfy P10: it contained no numeric stack at all, so the
+# evaluator could not even be imported inside it. See
+# ``docs/review/mr002/MR002_EvaluatorImageRuntimeAdjudication_v1.0.json``.
+#
+# There is exactly ONE bound digest and no dual-accept mode. Accepting the
+# predecessor "for a transition period" would mean a run could execute against
+# an image that provably cannot produce the metrics, and the refusal that
+# exposed this whole defect would stop happening.
 BOUND_INDEX_DIGEST = (
-    "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9"
+    "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
 )
+
+# Retained ONLY so a refusal can name it. Never resolved, never accepted; the
+# resolver has no branch that reaches these.
+SUPERSEDED_DIGESTS = {
+    "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9": (
+        "historical SS4/P5 identity-only image; contains no numeric stack and "
+        "cannot satisfy P10"
+    ),
+    "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b": (
+        "SUPERSEDED_NOT_BOUND single-platform manifest of the same payload; has "
+        "no manifests[] array, so it is not an index this resolver may bind"
+    ),
+}
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -178,7 +201,19 @@ def resolve_bound_image(
     The recomputation is the actual control. Asking a registry for a digest and
     trusting that what came back matches it is trusting the registry to be
     honest about the one property being verified.
+
+    ``expected_digest`` is parameterised so tests can drive the refusal paths.
+    That parameter is also the one way a caller could re-introduce a superseded
+    binding, so superseded digests are refused BY NAME below rather than left to
+    resolve successfully -- the predecessor is a well-formed OCI index whose
+    bytes rehash correctly, so every other check in this function passes on it.
     """
+    if expected_digest in SUPERSEDED_DIGESTS:
+        _refuse(
+            "superseded_digest",
+            f"{expected_digest} is superseded and is never a resolvable binding: "
+            f"{SUPERSEDED_DIGESTS[expected_digest]}. There is no dual-accept mode.",
+        )
     if not isinstance(expected_digest, str) or not DIGEST_RE.match(expected_digest):
         _refuse("malformed_expected_digest", repr(expected_digest))
 

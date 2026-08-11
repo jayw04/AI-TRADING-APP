@@ -275,12 +275,57 @@ def test_malformed_expected_digest_refuses_before_any_call(bad):
 
 
 def test_bound_digest_is_the_preregistered_evaluator_index():
-    """Guards the constant itself. Changing it is a governance event."""
+    """Guards the constant itself. Changing it is a governance event.
+
+    Rebound 2026-08-11 to the runtime image index. The predecessor could not
+    satisfy P10 -- it shipped no numeric stack, so the evaluator could not be
+    imported inside it.
+    """
     assert R.BOUND_INDEX_DIGEST == (
-        "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9"
+        "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
     )
     assert R.REPOSITORY == "mr002-evaluator-p5"
     assert R.REGISTRY_ID == "219024422756"
+
+
+@pytest.mark.parametrize(
+    "old",
+    [
+        "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+        "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b",
+    ],
+)
+def test_a_superseded_digest_is_REFUSED_not_merely_absent(old):
+    """No dual-accept, asserted on BEHAVIOUR.
+
+    This is not hypothetical. The predecessor sha256:60b15568 is a well-formed
+    OCI index whose bytes rehash correctly, so on the first rebind it resolved
+    successfully when passed explicitly -- every other check in the resolver
+    passes on it. A membership assertion would not have caught that; only
+    driving the call does.
+    """
+    assert old in R.SUPERSEDED_DIGESTS
+    assert old != R.BOUND_INDEX_DIGEST
+    with pytest.raises(R.ImageResolutionRefused) as exc:
+        R.resolve_bound_image(expected_digest=old)
+    assert exc.value.reason == "superseded_digest"
+
+
+def test_superseded_refusal_happens_before_any_registry_call():
+    """A superseded binding must not even reach the network."""
+    calls = []
+
+    class Recorder:
+        def batch_get_image(self, **kwargs):
+            calls.append(kwargs)
+            raise AssertionError("registry must not be contacted for a superseded digest")
+
+    with pytest.raises(R.ImageResolutionRefused):
+        R.resolve_bound_image(
+            expected_digest="sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+            client=Recorder(),
+        )
+    assert calls == []
 
 
 def test_module_does_not_import_boto3_at_module_scope():

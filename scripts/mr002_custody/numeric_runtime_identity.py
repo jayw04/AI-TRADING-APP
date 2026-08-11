@@ -133,11 +133,19 @@ SPEC_PATH = (
     REPO / "docs" / "review" / "mr002" / "phase3a"
     / "NumericRuntimeIdentityManifest_v1.0.json"
 )
+# REPOINTED 2026-08-11 to the RUNTIME image and its Linux lock, alongside the
+# WP-B rebind. The historical manifest and the Windows lock are unchanged on
+# disk and remain valid evidence for the SS4/P5 decision they recorded -- they
+# are simply not what a run executes against any more. Leaving these pointed at
+# the old pair would make P10 bind a lock the runtime image was NOT built from,
+# which ``_bind_dependency_lock`` would correctly refuse.
 IMAGE_MANIFEST_PATH = (
-    REPO / "docs" / "review" / "mr002" / "evaluator" / "MR002_EvaluatorImageManifest.json"
+    REPO / "docs" / "review" / "mr002" / "evaluator"
+    / "MR002_EvaluatorImageManifest_Runtime_v1.0.json"
 )
 DEPENDENCY_LOCK_PATH = (
-    REPO / "docs" / "review" / "mr002" / "evaluator" / "MR002_Increment1_Dependencies.json"
+    REPO / "docs" / "review" / "mr002" / "evaluator"
+    / "MR002_LinuxDependencyLock_v1.1.json"
 )
 
 # Where the bound image keeps the evaluator. Recorded in the image manifest as

@@ -1,0 +1,71 @@
+{
+ "authorization_state_unchanged": {
+  "cas_rev": 0,
+  "oos_partition": "UNDER DENY",
+  "p10": "UNSATISFIED",
+  "validation_authorization": false,
+  "validation_reader_assumable": false,
+  "wp_f": "NOT AUTHORIZED"
+ },
+ "custodian": "Jay Wang",
+ "custody_requirements_status": {
+  "1_retain_exact_digest_in_content_addressable_registry": {
+   "evidence": "ECR describe-images reports the index under sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51, 146,141,244 bytes, tagged runtime-index-v1.",
+   "status": "SATISFIED"
+  },
+  "2_retrieval_by_digest_reproduces_manifest_and_config": {
+   "evidence": "batch_get_image BY DIGEST under index media types returned 300 bytes whose sha256 recomputes to the bound digest BYTE-EXACT; the referenced platform manifest resolves to config sha256:226643c46e0d0043fb43147c214a6d71cd28acb847e66a093dcd882ea78d0cf6, the independently verified image.",
+   "status": "SATISFIED"
+  },
+  "3_record_registry_location_and_platform_manifest": {
+   "evidence": "registry_location and image_index above.",
+   "status": "SATISFIED"
+  },
+  "4_cannot_be_overwritten_under_the_bound_digest": {
+   "deliberate_difference_from_the_historical_record": "No destructive negative test was run this time. The historical custody record's negative test left two foreign sub-manifests that had to be deleted. Re-running it would create fresh residue in a repository that now holds governed artifacts, for a property the registry configuration already establishes.",
+   "evidence": "Repository imageTagMutability is IMMUTABLE, and digest addressing is content-addressed and cannot collide by construction.",
+   "status": "SATISFIED"
+  },
+  "5_local_only_availability_not_mistaken_for_durable_custody": {
+   "evidence": "The image is durable in ECR. The copy on the qualification host's EBS volume vol-074b501ce685e1d94 is a convenience replica, not the custodial copy.",
+   "status": "SATISFIED"
+  },
+  "6_superseded_and_current_bindings_independently_verifiable": {
+   "evidence": "All artifacts coexist and are individually addressable: sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9 (historical SS4/P5, tag qualify-d1e7ffc) with its two children; sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b (SUPERSEDED_NOT_BOUND, tag runtime-v1); and sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51 (current runtime binding). Nothing was deleted, retagged or mutated.",
+   "status": "SATISFIED"
+  },
+  "7_resolver_fails_if_exact_digest_unavailable": {
+   "deliberately_not_satisfied": true,
+   "evidence": "The WP-B resolver is rebound to sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51 and remains fail-closed with no dual-accept mode. C-R7 still requires a closed WP-F run, and WP-F is NOT AUTHORIZED.",
+   "status": "IMPLEMENTED_PENDING_C_R7_VERIFICATION"
+  }
+ },
+ "date": "2026-08-11",
+ "image_index": {
+  "attestation_children": 0,
+  "digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "image_config": "sha256:226643c46e0d0043fb43147c214a6d71cd28acb847e66a093dcd882ea78d0cf6",
+  "manifest_count": 1,
+  "platform_manifest": "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b"
+ },
+ "not_covered_by_this_record": {
+  "custody_monitoring": "scripts/mr002_custody/custody_monitor.py still watches sha256:60b15568. The new runtime index is NOT yet monitored. Flagged, not silently accepted.",
+  "independent_offline_recovery_copy": "NOT CREATED for this image. The WP-A archive covers sha256:60b15568 only. A new archive is required and is an OWNER PHYSICAL ACTION: encrypted removable media, verified FROM the medium after a disconnect/reconnect cycle."
+ },
+ "record_identity_sha256": "806852902b7c096d6bdb4932fd932c97077310c30b441c7c25e5a74cc875aa35",
+ "record_type": "MR002_EvaluatorImageCustody",
+ "registry_location": {
+  "encryption": "AES256",
+  "lifecycle_policy": "NONE - confirmed absent via GetLifecyclePolicy (LifecyclePolicyNotFoundException). A lifecycle policy could expire the bound image and must never be added to this repository.",
+  "pull_by_digest": "219024422756.dkr.ecr.us-east-1.amazonaws.com/mr002-evaluator-p5@sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "region": "us-east-1",
+  "registry": "219024422756.dkr.ecr.us-east-1.amazonaws.com",
+  "repository": "mr002-evaluator-p5",
+  "repository_policy": "NONE - confirmed absent",
+  "tag": "runtime-index-v1 (NON-AUTHORITATIVE; the digest is the identity)",
+  "tag_mutability": "IMMUTABLE"
+ },
+ "scope": "A FRESH custody chain for the runtime image index sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51. This is NOT an amendment to the custody record of sha256:60b15568, which is preserved intact.",
+ "variant": "RUNTIME",
+ "version": "1.0"
+}
