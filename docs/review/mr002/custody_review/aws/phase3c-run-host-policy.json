@@ -20,6 +20,17 @@
       "Resource": "*"
     },
     {
+      "Sid": "StagePublishArtifactWriteOnly",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/publish-staging/*",
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "true"
+        }
+      }
+    },
+    {
       "Sid": "DenyAssumingTheValidationReaderRole",
       "Effect": "Deny",
       "Action": "sts:AssumeRole",

@@ -1,0 +1,90 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "authority": "Owner ruling 2026-08-11 - rebind chain authorized with a stop gate: publish, verify independently, and only then renew P5. Follow-up ruling: use the OCI index path; do NOT amend WP-B to accept a single-platform manifest.",
+ "boundary": "Publication and verification only. No control rebound, no credential released, no partition opened. validation_authorization remains false at _rev 0; OOS remains under DENY; WP-F remains NOT AUTHORIZED; P10 remains UNSATISFIED; the validation reader remains unassumable.",
+ "custodian": "Jay Wang",
+ "date": "2026-08-11",
+ "governed_identity": {
+  "bind_this": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "digest_kind": "OCI image index digest (application/vnd.oci.image.index.v1+json)",
+  "tag_is_not_identity": "runtime-index-v1 is a convenience tag and is explicitly NON-AUTHORITATIVE. The immutable index digest is the binding.",
+  "why_the_index_and_not_the_child": "The WP-B resolver requests ONLY index media types and parses index['manifests']. It is the preregistered 'resolve by index digest' contract. The child manifest digest is reachable THROUGH the index and is not itself an identity WP-B may bind."
+ },
+ "historical_artifacts_intact": {
+  "note": "Nothing was deleted, retagged, or mutated.",
+  "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9": "unchanged, still tagged qualify-d1e7ffc - historical SS4/P5 evidence",
+  "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d": "unchanged - the historical index's linux/amd64 child",
+  "sha256:b81cd073e34445ec31f2bffff0bb1345c6ccc31940c20a29fb7d9987915ae7cc": "unchanged - the historical index's attestation child"
+ },
+ "independent_verification": {
+  "byte_exact_match": true,
+  "chain": {
+   "child_platform_manifest": "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b",
+   "config_is_the_verified_candidate": true,
+   "image_config": "sha256:226643c46e0d0043fb43147c214a6d71cd28acb847e66a093dcd882ea78d0cf6",
+   "index": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+  },
+  "manifest_count": 1,
+  "manifests_array_present": true,
+  "media_type": "application/vnd.oci.image.index.v1+json",
+  "method": "Performed with the resolver's own call shape: batch_get_image BY DIGEST, index media types only, then a byte rehash of the registry response.",
+  "recomputed_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "registry_failures": "none",
+  "resolves_under_resolver_media_types": true
+ },
+ "not_yet_done": [
+  "P5 has NOT been renewed against this index digest",
+  "Custody requirements 1-6 have NOT been established for it",
+  "WP-B has NOT been rebound - the resolver still binds sha256:60b15568",
+  "No independent recovery archive exists for this image",
+  "P10 has NOT been captured"
+ ],
+ "publication": {
+  "digest_predicted_before_publication": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "digest_returned_by_registry": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "index_bytes": 300,
+  "prediction_matched": true,
+  "published_by": "arn:aws:iam::219024422756:role/mr002-evaluator-publisher",
+  "publisher_separation": "Publication used a DEDICATED publisher identity on an ephemeral instance, never the qualification host. Simulation confirms the qualification role is explicitDeny on ecr:PutImage and the publisher role is explicitDeny on the sealed store and on assuming mr002-validation-reader. Both publisher instances were terminated after use.",
+  "region": "us-east-1",
+  "repository": "219024422756.dkr.ecr.us-east-1.amazonaws.com/mr002-evaluator-p5"
+ },
+ "publication_invariant": {
+  "attestation_or_provenance_children": 0,
+  "entries": [
+   {
+    "digest": "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b",
+    "kind": "executable platform image",
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    },
+    "size": 2202
+   }
+  ],
+  "invariant_holds": true,
+  "requirement": "index.manifests must contain exactly the intended supported platform entries, with no attestation/provenance child treated as an executable platform image.",
+  "why_manifest_count_is_1_and_not_2": "The historical index sha256:60b15568 had manifest_count 2, but those were NOT two platforms: sha256:a4e3ac54 is the linux/amd64 image and sha256:b81cd073 is a buildx ATTESTATION manifest with platform unknown/unknown, annotated vnd.docker.reference.type=attestation-manifest. Reproducing '2' would have added a provenance child that is not an executable platform image. The new index deliberately carries exactly one platform entry."
+ },
+ "record_identity_sha256": "da920610567cb5f745f1b1a0e6c990f5e712a0d306dfe9a471ce9315b1ee80a9",
+ "record_type": "MR002_RuntimeImagePublication",
+ "status": "PUBLISHED AND INDEPENDENTLY VERIFIED - ELIGIBLE FOR P5/WP-B BINDING; NOT YET BOUND",
+ "superseded_not_bound": {
+  "digest": "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b",
+  "disposition": "PRESERVED, NOT DELETED OR HIDDEN. It is part of the publication history. The publisher role denies ecr:BatchDeleteImage, so no identity in this chain can remove it.",
+  "origin": "A publication-shape mistake: plain docker push emits a single manifest, whereas the historical artifact was produced by buildx, which wraps the image in an index.",
+  "status": "SUPERSEDED_NOT_BOUND",
+  "tag": "runtime-v1",
+  "what_it_is": "A valid published single-platform artifact carrying the same verified payload lineage - its config digest IS the verified candidate.",
+  "why_not_bound": "Its media type is application/vnd.docker.distribution.manifest.v2+json with no manifests[] array, so the governed WP-B resolver would refuse it with malformed_index. It is incompatible with the resolver contract and was never accepted as P5/WP-B runtime identity."
+ },
+ "transfer_provenance": {
+  "archive_bytes": 448781312,
+  "archive_sha256": "b81b4ec562f4ce39c905128f3963f37406410e9ce4769cb6dd463c02fe8b54c5",
+  "identity_asserted_before_push": "The publisher recomputed the archive digest, matched it, ran docker load, and asserted the loaded image ID equalled the verified candidate BEFORE any push. A mismatch would have refused.",
+  "mechanism": "A narrow boundary amendment granted the qualification role s3:PutObject ONLY on s3://workbench-backups-219024422756/mr002/publish-staging/* - write-only, no read, no delete, no ECR push, no change to sealed-store or reader denials.",
+  "problem": "The verified image was 438 MB on the qualification host, which correctly cannot publish.",
+  "write_only_demonstrated": "The qualification host received HTTP 403 Forbidden attempting to read back its own upload. The boundary was proven, not merely configured."
+ },
+ "version": "1.0"
+}

@@ -2,12 +2,16 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ResolveAndPullTheBoundEvaluatorImageOnly",
+      "Sid": "PublishToTheGovernedEvaluatorRepositoryOnly",
       "Effect": "Allow",
       "Action": [
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:BatchCheckLayerAvailability",
         "ecr:BatchGetImage",
         "ecr:GetDownloadUrlForLayer",
-        "ecr:BatchCheckLayerAvailability",
         "ecr:DescribeImages",
         "ecr:ListImages"
       ],
@@ -20,15 +24,24 @@
       "Resource": "*"
     },
     {
-      "Sid": "StagePublishArtifactWriteOnly",
+      "Sid": "ReadTheStagedPublishArtifactOnly",
       "Effect": "Allow",
-      "Action": "s3:PutObject",
-      "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/publish-staging/*",
-      "Condition": {
-        "Bool": {
-          "aws:SecureTransport": "true"
-        }
-      }
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/publish-staging/*"
+    },
+    {
+      "Sid": "DenyDestroyingOrRetaggingExistingCustodyArtifacts",
+      "Effect": "Deny",
+      "Action": [
+        "ecr:BatchDeleteImage",
+        "ecr:DeleteRepository",
+        "ecr:DeleteRepositoryPolicy",
+        "ecr:SetRepositoryPolicy",
+        "ecr:PutLifecyclePolicy",
+        "ecr:DeleteLifecyclePolicy",
+        "ecr:PutImageTagMutability"
+      ],
+      "Resource": "*"
     },
     {
       "Sid": "DenyAssumingTheValidationReaderRole",
@@ -44,20 +57,6 @@
         "arn:aws:s3:::workbench-mr002-sealed-219024422756",
         "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
       ]
-    },
-    {
-      "Sid": "DenyMutatingTheEvaluatorImageOrItsCustody",
-      "Effect": "Deny",
-      "Action": [
-        "ecr:PutImage",
-        "ecr:BatchDeleteImage",
-        "ecr:DeleteRepository",
-        "ecr:SetRepositoryPolicy",
-        "ecr:DeleteRepositoryPolicy",
-        "ecr:PutLifecyclePolicy",
-        "ecr:PutImageTagMutability"
-      ],
-      "Resource": "*"
     },
     {
       "Sid": "DenyEditingTheCredentialReleaseControl",
