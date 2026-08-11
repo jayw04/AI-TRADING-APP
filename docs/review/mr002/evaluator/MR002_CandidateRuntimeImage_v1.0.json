@@ -1,0 +1,121 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "authority": "Owner ruling 2026-08-11 - A3 AUTHORIZED: build a new runtime-capable evaluator image with a NEW identity, after the pre-build Linux dependency-resolution gate. Stop after build/import/smoke verification; do NOT rebind P5/WP-B/custody.",
+ "boundary": "Candidate artifact only. Nothing rebound, nothing pushed, no credential released, no partition opened. validation_authorization remains false at _rev 0; OOS remains under DENY; WP-F remains NOT AUTHORIZED; P10 remains UNSATISFIED; the validation reader remains unassumable.",
+ "build_inputs": {
+  "base_image": "python@sha256:fcbd8dfc2605ba7c2eca646846c5e892b2931e41f6227985154a596f26ab8ed7",
+  "base_image_note": "Identical to the historical image's recorded base digest.",
+  "dependency_lock": "MR002_LinuxDependencyLock_v1.1.json",
+  "dependency_lock_identity_sha256": "e651c0ef6780d3465045747e8a7e6a61ce39ca0b39d7333ad9ce3bb23831e454",
+  "dockerfile_sha256": "d19f76d48cfbbb1a765f527ecd64569e25c67a65a2af6b971faacaf14fd072b8",
+  "evaluator_module_set": "the 21 modules of module_digests_in_image from MR002_EvaluatorImageManifest.json, verified byte-identical BEFORE transfer and re-verified INSIDE the built image",
+  "install_method": "pip install --only-binary=:all: --no-deps --require-hashes -r requirements-linux.txt, followed by pip check. The closure is complete, so --no-deps prevents any unrecorded resolution at build time.",
+  "requirements_sha256": "626377c256a14d6a9a974f710c416cb3a3808c4a81cc8694fdd1a7472ddb2a54"
+ },
+ "custodian": "Jay Wang",
+ "date": "2026-08-11",
+ "delta_from_the_historical_identity_only_image": {
+  "added": {
+   "files": [
+    "/opt/mr002/MR002_LinuxDependencyLock_v1.1.json",
+    "/opt/mr002/requirements-linux.txt"
+   ],
+   "numeric_and_tooling_stack": "11 hash-pinned wheels: numpy 2.2.6, scipy 1.18.0, pandas 3.0.5, pytest 9.0.3, ruff 0.15.13, plus iniconfig, packaging, pluggy, Pygments, python-dateutil, six"
+  },
+  "historical_image": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+  "historical_scope_declaration": "SS4 image-identity leg only; NOT a P10 numeric-runtime qualification",
+  "no_evaluator_logic_change": "Zero. The module set is byte-identical; no signal, metric, gate or evaluator source was modified.",
+  "removed": {
+   "files": [
+    "/opt/mr002/MR002_Increment1_Dependencies.json"
+   ],
+   "why": "The Windows-platform lock is not the lock this Linux runtime was built from. It is preserved unchanged in the repository as historical evidence; it is simply not shipped inside the runtime image."
+  },
+  "size": "44,388,332 bytes -> ~438 MB",
+  "unchanged": [
+   "base image digest",
+   "the 21 evaluator modules (byte-identical, verified in-image)",
+   "evaluator_path_in_image = /opt/mr002/evaluator",
+   "PYTHONDONTWRITEBYTECODE=1 and PYTHONHASHSEED=0"
+  ]
+ },
+ "explicitly_not": [
+  "NOT a repair of sha256:60b15568 - it is a NEW identity",
+  "NOT bound by P5",
+  "NOT resolved by WP-B (the resolver still resolves sha256:60b15568)",
+  "NOT under custody requirements 1-6",
+  "NOT covered by any recovery archive",
+  "NOT used to produce P10 - P10 remains UNSATISFIED"
+ ],
+ "identity": {
+  "digest_kind": "local docker image config digest (image ID)",
+  "image_config_digest": "sha256:226643c46e0d0043fb43147c214a6d71cd28acb847e66a093dcd882ea78d0cf6",
+  "local_tag": "mr002-evaluator-runtime:candidate",
+  "location": "Built on and resident only on the qualified host i-00c1034f7026db45e (EBS vol-074b501ce685e1d94, preserved across stop).",
+  "not_pushed": "The image was deliberately NOT pushed. Pushing is part of establishing custody requirements 1-6 for a new digest, which is NOT yet authorized. The qualification-only host role additionally DENIES ecr:PutImage, so the boundary enforced this rather than relying on discipline.",
+  "registry_manifest_digest": null,
+  "size_bytes_reported": "438MB (docker images)"
+ },
+ "rebind_decision": {
+  "chain_that_would_follow_a_rebind_authorization": [
+   "renewed P5 / pre-access image binding for the new digest",
+   "custody requirements 1-6 for the new digest",
+   "WP-B resolver updated to the newly adjudicated digest",
+   "new independent offline recovery archive",
+   "prospective P10 capture on the qualified host"
+  ],
+  "explicit_limit_carried_forward": "P6-P9 and P11 must NOT be regenerated merely because the evaluator image changes, unless a specific bound cross-reference requires it.",
+  "owner_instruction": "Record the new image digest and the exact delta from the historical identity-only image, then make the rebind decision explicit.",
+  "state": "EXPLICITLY DEFERRED - NOT TAKEN"
+ },
+ "record_identity_sha256": "313d1aac1709a2c5883ce091f2501dd55fa51230310723d5e6dd2b40ed5059a0",
+ "record_type": "MR002_CandidateRuntimeImage",
+ "reproducibility_disclosure": "Docker image IDs are not bit-reproducible across builds: layer metadata includes timestamps. What is recorded here is enough to reconstruct an EQUIVALENT image independently - pinned base digest, hash-pinned wheel closure, Dockerfile hash and the 21 module digests - but an independent rebuild may produce a different image ID. Any future binding must be to a digest actually published and custody-held, not to a claim that a rebuild will reproduce this ID.",
+ "status": "CANDIDATE - BUILT AND VERIFIED, NOT REBOUND",
+ "verification": {
+  "bound_module_set_in_image": "21/21 byte-identical to module_digests_in_image",
+  "build": "SUCCESS",
+  "evaluator_imports_inside_its_own_image": "YES - mr002_valoos_metrics, mr002_valoos_runtime and mr002_valoos_gates all import. The historical image could NOT do this: its two numpy-importing modules were unimportable.",
+  "imports": {
+   "numpy": "2.2.6",
+   "pandas": "3.0.5",
+   "pytest": "9.0.3",
+   "scipy": "1.18.0"
+  },
+  "p10_capture_leg_smoke_test": {
+   "bindings": [
+    "blas",
+    "cpu_architecture",
+    "lapack",
+    "locale",
+    "numpy_scipy_binary_identities",
+    "numpy_version",
+    "pandas_version",
+    "python_executable_identity",
+    "python_version",
+    "rng_algorithm",
+    "scipy_version",
+    "thread_env",
+    "timezone"
+   ],
+   "evaluator_modules_reported": 21,
+   "exit_code": 0,
+   "in_image_bindings_emitted": 13,
+   "in_image_bindings_expected": 13,
+   "observed_blas": "OpenBLAS 0.3.29 USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell",
+   "observed_rng": "PCG64",
+   "record_type_emitted": "MR002_NumericRuntimeObservation",
+   "result": "PASS",
+   "significance": "This is the decisive difference from the historical image. The same capture leg, run against sha256:60b15568, refused with numpy_unavailable. Against this candidate it emits a complete observation.",
+   "thread_env_observed_frozen": {
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_CORETYPE": "HASWELL",
+    "OPENBLAS_NUM_THREADS": "1"
+   }
+  },
+  "pip_check": "passed (part of the RUN layer; build would have failed otherwise)"
+ },
+ "version": "1.0"
+}

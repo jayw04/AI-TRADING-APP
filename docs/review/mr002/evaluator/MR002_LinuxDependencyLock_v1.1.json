@@ -1,0 +1,172 @@
+{
+ "amendment": {
+  "adjudicated_pins_unmoved": {
+   "numpy": "2.2.6 - unchanged by the amendment",
+   "scipy": "1.18.0 - unchanged by the amendment"
+  },
+  "candidates_resolved_before_selection": {
+   "2.2.3": "resolves, wheels, pins held, +python-dateutil/pytz/six/tzdata",
+   "2.3.0": "resolves, wheels, pins held, +python-dateutil/pytz/six/tzdata",
+   "2.3.3": "resolves, wheels, pins held, +python-dateutil/pytz/six/tzdata",
+   "3.0.0": "resolves, wheels, pins held, +python-dateutil/six",
+   "3.0.5": "SELECTED - resolves, wheels, pins held, +python-dateutil/six"
+  },
+  "classification": "GOVERNED DEPENDENCY AMENDMENT - not a resolution detail",
+  "package_added": "pandas",
+  "selection_rationale": "Smallest runtime surface of the resolvable candidates: the 3.x line drops pytz and tzdata. Because no bound evaluator module imports pandas, the 2.x-vs-3.x behavioural differences do not bear on the evaluator.",
+  "version": "3.0.5",
+  "why_added": "P10 requires a pandas_version binding: NumericRuntimeIdentityManifest_v1.0.json lists 'pandas version' among required_bindings, and _versions() REFUSES with required_package_missing when pandas is absent. No lock declared it and none of the 21 bound evaluator modules import it.",
+  "why_added_rather_than_removed_from_the_spec": "Dropping pandas from required_bindings would reduce P10 from 17 bindings to 16. Execution-sequencing direction D-S1 forbids weakening the 17-binding requirement, so the dependency set was amended instead of the preregistered spec."
+ },
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "authority": "Owner ruling 2026-08-11 - A3 authorized with a pre-build Linux dependency-resolution gate; pandas added as a GOVERNED DEPENDENCY AMENDMENT with version 3.0.5 adjudicated by the owner from a resolved candidate matrix.",
+ "boundary": "Dependency-resolution evidence only. No control rebound, no credential released, no partition opened. validation_authorization remains false at _rev 0; OOS remains under DENY; WP-F remains NOT AUTHORIZED; P10 remains UNSATISFIED.",
+ "custodian": "Jay Wang",
+ "date": "2026-08-11",
+ "import_verification": {
+  "numpy": "2.2.6",
+  "pandas": "3.0.5",
+  "pytest": "9.0.3",
+  "ruff": "ok",
+  "scipy": "1.18.0"
+ },
+ "lock_identity_sha256": "e651c0ef6780d3465045747e8a7e6a61ce39ca0b39d7333ad9ce3bb23831e454",
+ "observed_numeric_stack": {
+  "blas": {
+   "detection method": "pkgconfig",
+   "name": "scipy-openblas",
+   "version": "0.3.29"
+  },
+  "default_rng_bit_generator": "PCG64",
+  "lapack": {
+   "detection method": "pkgconfig",
+   "name": "scipy-openblas",
+   "version": "0.3.29"
+  },
+  "matches_registered_seed_rng": "registered_seeds.rng = numpy_PCG64; observed default_rng bit generator is PCG64",
+  "note": "Pre-build observation only. P10 observes and BINDS these at capture time inside the new image; this record does not pre-empt that."
+ },
+ "packages": {
+  "Pygments": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "66fe9540c994c7fe7f839ef2f1c74ad0b6cf27c4669be783a93397261a29d872",
+   "origin": "transitive",
+   "version": "2.20.0",
+   "wheel_filename": "pygments-2.20.0-py3-none-any.whl",
+   "wheel_sha256": "81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176"
+  },
+  "iniconfig": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "348cc4c88dc3fa87914c27041043157ef071fc8dcc167523730cbe117712df22",
+   "origin": "transitive",
+   "version": "2.3.0",
+   "wheel_filename": "iniconfig-2.3.0-py3-none-any.whl",
+   "wheel_sha256": "f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12"
+  },
+  "numpy": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "7fa71129e8e4319acedb61bf6329ae65acf56d6d897136fd8c41b76321a6cdda",
+   "origin": "declared (original adjudicated set)",
+   "version": "2.2.6",
+   "wheel_filename": "numpy-2.2.6-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+   "wheel_sha256": "1bc23a79bfabc5d056d106f9befb8d50c31ced2fbc70eedb8155aec74a45798f"
+  },
+  "packaging": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "e68f52e5c9ab16884fad78c2576eeb1a0d13092557d1dd34e70233e7d4d04cf5",
+   "origin": "transitive",
+   "version": "26.3",
+   "wheel_filename": "packaging-26.3-py3-none-any.whl",
+   "wheel_sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+  },
+  "pandas": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "66d323bf6a883630a06ec2670c629e365f4a2d75a6c41c0d14eda8f0e73b9be9",
+   "origin": "GOVERNED DEPENDENCY AMENDMENT 2026-08-11",
+   "version": "3.0.5",
+   "wheel_filename": "pandas-3.0.5-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl",
+   "wheel_sha256": "4b11c36e218331d0387cbe3a0a5f75162357a1d92d57b2b08a336ff94b19b2be"
+  },
+  "pluggy": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "6b99bd450a1aee58cb086b6ef4539a29adcdce11cfd80e53781beeab1662313b",
+   "origin": "transitive",
+   "version": "1.6.0",
+   "wheel_filename": "pluggy-1.6.0-py3-none-any.whl",
+   "wheel_sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746"
+  },
+  "pytest": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "7a675ed3093e04739a5062d9a62fb743c119698700baa7423d96306c6e12e5ac",
+   "origin": "declared (original adjudicated set)",
+   "version": "9.0.3",
+   "wheel_filename": "pytest-9.0.3-py3-none-any.whl",
+   "wheel_sha256": "2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9"
+  },
+  "python-dateutil": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "866badf7a5db5499c367a2fad02112433affdd3e6c43a097665922961b2c6f96",
+   "origin": "transitive",
+   "version": "2.9.0.post0",
+   "wheel_filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+   "wheel_sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"
+  },
+  "ruff": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "aa34757c1b2eb279a7c8e8b6aae50848f6dedc2a5cb0e17200b66cc96f171d9d",
+   "origin": "declared (original adjudicated set)",
+   "version": "0.15.13",
+   "wheel_filename": "ruff-0.15.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+   "wheel_sha256": "cc411dfebe5eebe55ce041c6ae080eb7668955e866daa2fbb16692a784f1c4ca"
+  },
+  "scipy": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "86320bc4418be016a157d6b2e4f0dc2db689fccd0aea9b7f96d6c4826e2a61e4",
+   "origin": "declared (original adjudicated set)",
+   "version": "1.18.0",
+   "wheel_filename": "scipy-1.18.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+   "wheel_sha256": "a46f9273dbd0eb1cefba61c9b8648b4dfe3cbc14a080176f9a73e44b8336dc7f"
+  },
+  "six": {
+   "artifact_binding": "wheel sha256 + installed dist-info RECORD (complete) sha256",
+   "installed_record_sha256": "6de8d68885f918facfbdf65f4d0fec3ab6d22992593ebbff81699e54b6768081",
+   "origin": "transitive",
+   "version": "1.17.0",
+   "wheel_filename": "six-1.17.0-py2.py3-none-any.whl",
+   "wheel_sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"
+  }
+ },
+ "preserves_not_overwrites": {
+  "historical_windows_lock": "docs/review/mr002/evaluator/MR002_Increment1_Dependencies.json",
+  "note": "Unchanged. It remains the historical build-input record that exposed the defect.",
+  "windows_lock_platform": "Windows-11-10.0.26200-SP0",
+  "windows_lock_sha256": "17a73ede5a2f62bea17c2b851f4d41bb05eb248f09e550a4ec20538e46edbdc0"
+ },
+ "record_type": "MR002_LinuxDependencyLock",
+ "resolution_environment": {
+  "abi_tag": "cpython-313-x86_64-linux-gnu",
+  "base_image": "python@sha256:fcbd8dfc2605ba7c2eca646846c5e892b2931e41f6227985154a596f26ab8ed7",
+  "libc": "glibc 2.36",
+  "machine": "x86_64",
+  "platform_tag": "linux-x86_64",
+  "python_implementation": "cpython",
+  "python_version": "3.13.14",
+  "qualified_host": "i-00c1034f7026db45e (c6a.large, AMD EPYC 7R13, us-east-1d)"
+ },
+ "resolver": {
+  "command": "pip install --dry-run --only-binary=:all: --report amended.json numpy==2.2.6 scipy==1.18.0 pandas==3.0.5 pytest==9.0.3 ruff==0.15.13",
+  "distributions_resolved": 11,
+  "only_binary_enforced": true,
+  "package_source": "files.pythonhosted.org",
+  "resolution_exit_code": 0,
+  "source_builds_required": 0
+ },
+ "supersedes": "MR002_LinuxDependencyLock_v1.0.json (committed at de09775)",
+ "supersession_note": "v1.0 is NOT edited. It recorded the declared set resolving on Linux and the pandas BLOCKING_GAP. This v1.1 records the amended set after the owner adjudicated that gap.",
+ "version": "1.1",
+ "what_this_record_does_NOT_claim": [
+  "It does NOT claim the same numeric behaviour as the Windows environment.",
+  "It does NOT constitute P10 or any part of it.",
+  "It does NOT rebind P5, WP-B, or any custody requirement."
+ ]
+}
