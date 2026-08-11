@@ -1,0 +1,47 @@
+{
+ "all_conditions_met": true,
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "bound_identities": {
+  "p11_snapshot_identity_sha256": "71b4d842de06d035cae22a37a5e602f540fdb18bbd0341125e318ab45dc325bb",
+  "p6_commitment_identity_sha256": "574854a839fc8663982aaea6d289d6517976c07eaf713d253ad98961367c0756",
+  "p7_history_identity_sha256": "b125b4d07509069f4de7710656e508fddcc1074321d0db7753f015171b181195"
+ },
+ "boundary": "Verification only. This report satisfies a prerequisite; it does not authorize a run. validation_authorization remains false; OOS remains under DENY; the single validation opening remains unconsumed.",
+ "conditions": {
+  "content_commitment_stable": {
+   "committed_sha256": "7b0c74cd8e1b9077a8945fc3586fbd4f6c08f51fc28b4e2c7296729b9367b52d",
+   "method": "independent recomputation from the registered snapshot, read-only",
+   "recomputed_sha256": "7b0c74cd8e1b9077a8945fc3586fbd4f6c08f51fc28b4e2c7296729b9367b52d",
+   "row_count": 567354,
+   "stable": true
+  },
+  "no_access_before_authorization": {
+   "met": true,
+   "oos_access_events_before_validation": 0,
+   "source": "P7 hash-chained access history",
+   "validation_access_events_before_authorization": 0
+  },
+  "oos_deny_in_force": {
+   "dedicated_reader": "explicitDeny",
+   "met": true,
+   "ordinary_development_principal": "explicitDeny",
+   "source": "P11 policy simulation, not an attempted read"
+  },
+  "opened_object_ledger_reconciles": {
+   "note": "No authorized run has occurred, so the OpenedObjectLedger is empty by construction. The reconciliation is therefore trivial (0 == 0) and is reported as such rather than dressed up as a substantive check. It becomes substantive only for the authorized Phase 3C run.",
+   "opened_object_ledger_entries": 0,
+   "reconciles": true,
+   "sealed_store_read_events": 0
+  }
+ },
+ "custodian": "Jay Wang",
+ "execution_authority": "owner authorization MR002_PrerequisiteProduction_Authorization_v1.0.json (WP-C, 2026-08-10); direct-execution authority per MR002_ExecutionSequencing_Direction_v1.0.json (D-S2, 2026-08-11)",
+ "prerequisite_id": "P8",
+ "prerequisite_title": "ValidationSealVerificationReport (runtime instance)",
+ "produced_at_utc": "2026-08-11T14:57:46Z",
+ "producer": "scripts/mr002_custody/seal_verification.py",
+ "producer_sha256": "5be8e85ee257cd6ea92c225103f934183f9db6b57a00cffd30f5dea66cdd2f60",
+ "record_type": "ValidationSealVerificationReport",
+ "report_identity_sha256": "3b59a4fd6f0a7a4c02d8777a3ffba54daaf44859f50da790d972cab67a4a1c28",
+ "version": "1.0"
+}

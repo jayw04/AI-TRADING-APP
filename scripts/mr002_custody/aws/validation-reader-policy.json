@@ -1,0 +1,65 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadValidationPartitionOnly",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*"
+    },
+    {
+      "Sid": "ReadOpenReferenceAndDevelopmentPartitions",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*"
+      ]
+    },
+    {
+      "Sid": "ListOnlyTheNonSealedAndValidationPrefixes",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "validation/*",
+            "development/*",
+            "reference/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyOOSEntirelyIncludingListing",
+      "Effect": "Deny",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+      ]
+    },
+    {
+      "Sid": "DenyAnyWriteToTheSealedStore",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:PutBucketPolicy",
+        "s3:DeleteBucketPolicy",
+        "s3:PutBucketVersioning"
+      ],
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+      ]
+    }
+  ]
+}

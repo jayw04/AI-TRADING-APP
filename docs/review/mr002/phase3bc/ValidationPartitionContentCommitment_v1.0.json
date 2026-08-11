@@ -1,0 +1,848 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "boundary": "This commitment grants nothing. validation_authorization remains false; the OOS partition remains under DENY.",
+ "commitment_identity_sha256": "574854a839fc8663982aaea6d289d6517976c07eaf713d253ad98961367c0756",
+ "commitment_scheme": {
+  "algorithm": "SHA-256 over canonical (sorted) partition content",
+  "field_encoding": "length-prefixed; NULL distinct from empty string; floats .17g; TIMESTAMPTZ normalized to UTC",
+  "partition_roll_up": "SHA-256 over the ascii JSON list of {table,row_count,content_sha256} sorted by table",
+  "row_order": "ORDER BY ALL with default_null_order=nulls_first"
+ },
+ "committed_before_authorization": true,
+ "development_partition": {
+  "partition_content_sha256": "9bf04b90319c7b3a64756103a97b2b8ee77915b09045faf29ca409809a7a660c",
+  "tables": {
+   "actions": {
+    "column_order": [
+     "date",
+     "action",
+     "ticker",
+     "name",
+     "value",
+     "contraticker",
+     "contraname"
+    ],
+    "content_sha256": "0f1ec1868cdec25510a061347c0f8cbcd56decb1ecb7382a7435dedc77ce14a2",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 1608,
+     "first": "2013-01-02",
+     "last": "2019-10-02"
+    },
+    "null_counts": {
+     "action": 0,
+     "contraname": 0,
+     "contraticker": 0,
+     "date": 0,
+     "name": 0,
+     "ticker": 0,
+     "value": 414
+    },
+    "row_count": 11193,
+    "security_counts": {
+     "distinct_ticker": 626
+    }
+   },
+   "anchors": {
+    "column_order": [
+     "cik",
+     "ticker",
+     "accession",
+     "report_date",
+     "acceptance_utc",
+     "session_date",
+     "availability_class",
+     "event_time_basis",
+     "is_amendment_origin",
+     "amended_by",
+     "collapsed_duplicates"
+    ],
+    "content_sha256": "7965a21d76180fc0dca10094ba6335d4925673bee201a2021f679feb7da6ffc9",
+    "date_bounds": {
+     "availability_column": "session_date",
+     "distinct_availability_dates": 1462,
+     "first": "2013-01-03",
+     "last": "2019-10-02"
+    },
+    "null_counts": {
+     "acceptance_utc": 0,
+     "accession": 0,
+     "amended_by": 0,
+     "availability_class": 0,
+     "cik": 0,
+     "collapsed_duplicates": 0,
+     "event_time_basis": 0,
+     "is_amendment_origin": 0,
+     "report_date": 0,
+     "session_date": 0,
+     "ticker": 0
+    },
+    "row_count": 16357,
+    "security_counts": {
+     "distinct_cik": 654,
+     "distinct_ticker": 653
+    }
+   },
+   "etf_prices": {
+    "column_order": [
+     "ticker",
+     "date",
+     "adjclose"
+    ],
+    "content_sha256": "6bd1ca4daa3ee6c6d84f14d0886a1dca61762baf8492c459d7c532767fec7814",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 1700,
+     "first": "2013-01-02",
+     "last": "2019-10-02"
+    },
+    "null_counts": {
+     "adjclose": 0,
+     "date": 0,
+     "ticker": 0
+    },
+    "row_count": 18328,
+    "security_counts": {
+     "distinct_ticker": 12
+    }
+   },
+   "prices": {
+    "column_order": [
+     "ticker",
+     "date",
+     "open",
+     "high",
+     "low",
+     "close",
+     "closeadj",
+     "closeunadj",
+     "volume"
+    ],
+    "content_sha256": "b2f34b931df54e868b592517f5acccd2120ca9fa04876d4fb49d39c922f984a5",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 1700,
+     "first": "2013-01-02",
+     "last": "2019-10-02"
+    },
+    "null_counts": {
+     "close": 0,
+     "closeadj": 0,
+     "closeunadj": 0,
+     "date": 0,
+     "high": 0,
+     "low": 0,
+     "open": 0,
+     "ticker": 0,
+     "volume": 0
+    },
+    "row_count": 1018869,
+    "security_counts": {
+     "distinct_ticker": 691
+    }
+   },
+   "sic_observations": {
+    "column_order": [
+     "cik",
+     "accession",
+     "form",
+     "accepted_utc",
+     "sic"
+    ],
+    "content_sha256": "541bcba34e1c5426fc5ef8eb14df9a6493e64dc9314a798bea434e08e2c3173b",
+    "date_bounds": {
+     "availability_column": "accepted_utc",
+     "distinct_availability_dates": 1537,
+     "first": "2013-01-02",
+     "last": "2019-10-01"
+    },
+    "null_counts": {
+     "accepted_utc": 0,
+     "accession": 0,
+     "cik": 0,
+     "form": 0,
+     "sic": 0
+    },
+    "row_count": 16549,
+    "security_counts": {
+     "distinct_cik": 690
+    }
+   },
+   "universe": {
+    "column_order": [
+     "universe_month",
+     "ticker",
+     "permaticker",
+     "siccode",
+     "liquidity_rank",
+     "med_dv_60",
+     "in_long_universe",
+     "in_short_universe"
+    ],
+    "content_sha256": "e20cef921b38dc5274de8ebd29fb542e8b4672cef1358e65c2651a83a6c28a1a",
+    "date_bounds": {
+     "availability_column": "universe_month",
+     "distinct_availability_dates": 81,
+     "first": "2013-02-01",
+     "last": "2019-10-01"
+    },
+    "null_counts": {
+     "in_long_universe": 0,
+     "in_short_universe": 0,
+     "liquidity_rank": 0,
+     "med_dv_60": 0,
+     "permaticker": 0,
+     "siccode": 0,
+     "ticker": 0,
+     "universe_month": 0
+    },
+    "row_count": 20250,
+    "security_counts": {
+     "distinct_permaticker": 537,
+     "distinct_ticker": 537
+    }
+   }
+  },
+  "total_rows": 1101546,
+  "window": "development"
+ },
+ "oos_note": "The OOS commitment is included because the sealed store must physically separate OOS objects to make the DENY enforceable, and that export has to be verifiable. Committing to OOS CONTENT HASHES is not an OOS opening: no OOS value is emitted, and oos_openings remains 0.",
+ "oos_partition": {
+  "partition_content_sha256": "a0595fd8179ca22e47afd90a55ff449239fe87c29b88a6ec5a0ddcbbf020932f",
+  "tables": {
+   "actions": {
+    "column_order": [
+     "date",
+     "action",
+     "ticker",
+     "name",
+     "value",
+     "contraticker",
+     "contraname"
+    ],
+    "content_sha256": "5da42423611cbafe841006381f325d6bd0fb606b7477c2bccc5fe5ee9334bb88",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 808,
+     "first": "2023-02-17",
+     "last": "2026-07-09"
+    },
+    "null_counts": {
+     "action": 0,
+     "contraname": 0,
+     "contraticker": 0,
+     "date": 0,
+     "name": 0,
+     "ticker": 0,
+     "value": 325
+    },
+    "row_count": 5524,
+    "security_counts": {
+     "distinct_ticker": 472
+    }
+   },
+   "anchors": {
+    "column_order": [
+     "cik",
+     "ticker",
+     "accession",
+     "report_date",
+     "acceptance_utc",
+     "session_date",
+     "availability_class",
+     "event_time_basis",
+     "is_amendment_origin",
+     "amended_by",
+     "collapsed_duplicates"
+    ],
+    "content_sha256": "3b17a5c516424c32069dc8da173f33c732490d9fb1cbeeb3c8d6d727a9404016",
+    "date_bounds": {
+     "availability_column": "session_date",
+     "distinct_availability_dates": 729,
+     "first": "2023-02-17",
+     "last": "2026-07-10"
+    },
+    "null_counts": {
+     "acceptance_utc": 0,
+     "accession": 0,
+     "amended_by": 0,
+     "availability_class": 0,
+     "cik": 0,
+     "collapsed_duplicates": 0,
+     "event_time_basis": 0,
+     "is_amendment_origin": 0,
+     "report_date": 0,
+     "session_date": 0,
+     "ticker": 0
+    },
+    "row_count": 8427,
+    "security_counts": {
+     "distinct_cik": 620,
+     "distinct_ticker": 620
+    }
+   },
+   "etf_prices": {
+    "column_order": [
+     "ticker",
+     "date",
+     "adjclose"
+    ],
+    "content_sha256": "f04c286d69de067dede21fadde936c6e6f38f9519d39f711460932fa39ec2c43",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 850,
+     "first": "2023-02-17",
+     "last": "2026-07-10"
+    },
+    "null_counts": {
+     "adjclose": 0,
+     "date": 0,
+     "ticker": 0
+    },
+    "row_count": 10200,
+    "security_counts": {
+     "distinct_ticker": 12
+    }
+   },
+   "prices": {
+    "column_order": [
+     "ticker",
+     "date",
+     "open",
+     "high",
+     "low",
+     "close",
+     "closeadj",
+     "closeunadj",
+     "volume"
+    ],
+    "content_sha256": "4ea68636470d67f9abbe23cfe0f99dcc66dd67bd4a6529a02c0075beca32857b",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 850,
+     "first": "2023-02-17",
+     "last": "2026-07-10"
+    },
+    "null_counts": {
+     "close": 0,
+     "closeadj": 0,
+     "closeunadj": 0,
+     "date": 0,
+     "high": 0,
+     "low": 0,
+     "open": 0,
+     "ticker": 0,
+     "volume": 0
+    },
+    "row_count": 512378,
+    "security_counts": {
+     "distinct_ticker": 626
+    }
+   },
+   "sic_observations": {
+    "column_order": [
+     "cik",
+     "accession",
+     "form",
+     "accepted_utc",
+     "sic"
+    ],
+    "content_sha256": "aef699c5b13fffe36862bda90a0ce3d773ab591c00e12e21336c106b03fef454",
+    "date_bounds": {
+     "availability_column": "accepted_utc",
+     "distinct_availability_dates": 742,
+     "first": "2023-02-17",
+     "last": "2026-07-10"
+    },
+    "null_counts": {
+     "accepted_utc": 0,
+     "accession": 0,
+     "cik": 0,
+     "form": 0,
+     "sic": 0
+    },
+    "row_count": 8502,
+    "security_counts": {
+     "distinct_cik": 634
+    }
+   },
+   "universe": {
+    "column_order": [
+     "universe_month",
+     "ticker",
+     "permaticker",
+     "siccode",
+     "liquidity_rank",
+     "med_dv_60",
+     "in_long_universe",
+     "in_short_universe"
+    ],
+    "content_sha256": "c51bd7f41c3e6b94f451381a769284359f9609c6acc5c38346b12a424248e397",
+    "date_bounds": {
+     "availability_column": "universe_month",
+     "distinct_availability_dates": 41,
+     "first": "2023-03-01",
+     "last": "2026-07-01"
+    },
+    "null_counts": {
+     "in_long_universe": 0,
+     "in_short_universe": 0,
+     "liquidity_rank": 0,
+     "med_dv_60": 0,
+     "permaticker": 0,
+     "siccode": 0,
+     "ticker": 0,
+     "universe_month": 0
+    },
+    "row_count": 10250,
+    "security_counts": {
+     "distinct_permaticker": 439,
+     "distinct_ticker": 439
+    }
+   }
+  },
+  "total_rows": 555281,
+  "window": "oos"
+ },
+ "partition_completeness": {
+  "after_governed_window": 0,
+  "before_governed_window": 446475,
+  "every_in_window_row_committed_exactly_once": true,
+  "in_governed_window": 2224181,
+  "note": "Rows before the governed window are pre-2013 warm-up history carried by the snapshot and used by no window. They are excluded from every partition commitment by construction, and counted here so the exclusion is visible rather than silent.",
+  "tables": {
+   "actions": {
+    "after_governed_window": 0,
+    "before_governed_window": 4316,
+    "committed_across_windows": 21950,
+    "in_governed_window": 21950,
+    "total_rows": 26266
+   },
+   "anchors": {
+    "after_governed_window": 0,
+    "before_governed_window": 6745,
+    "committed_across_windows": 33408,
+    "in_governed_window": 33408,
+    "total_rows": 40153
+   },
+   "etf_prices": {
+    "after_governed_window": 0,
+    "before_governed_window": 10060,
+    "committed_across_windows": 38728,
+    "in_governed_window": 38728,
+    "total_rows": 48788
+   },
+   "prices": {
+    "after_governed_window": 0,
+    "before_governed_window": 418103,
+    "committed_across_windows": 2056074,
+    "in_governed_window": 2056074,
+    "total_rows": 2474177
+   },
+   "sic_observations": {
+    "after_governed_window": 0,
+    "before_governed_window": 7001,
+    "committed_across_windows": 33521,
+    "in_governed_window": 33521,
+    "total_rows": 40522
+   },
+   "universe": {
+    "after_governed_window": 0,
+    "before_governed_window": 250,
+    "committed_across_windows": 40500,
+    "in_governed_window": 40500,
+    "total_rows": 40750
+   }
+  },
+  "total_rows": 2670656
+ },
+ "prerequisite_id": "P6",
+ "prerequisite_title": "ValidationPartitionContentCommitment (runtime instance)",
+ "provenance": {
+  "custodian": "Jay Wang",
+  "custodian_appointment": "docs/review/mr002/MR002_OperationalCustodian_Appointment_v1.0.json",
+  "execution_authority": "owner authorization MR002_PrerequisiteProduction_Authorization_v1.0.json (WP-C, 2026-08-10); direct-execution authority granted by owner direction MR002_ExecutionSequencing_Direction_v1.0.json (D-S2, 2026-08-11)",
+  "produced_at_utc": "2026-08-11T14:35:51Z",
+  "producer": "scripts/mr002_custody/sealed_partition_commitment.py",
+  "producer_sha256": "f50bc0bbb6ddcd1e2b6eebffc815bcd190f0aed54dff7fd05a117c8582facdd4",
+  "read_mode": "READ_ONLY",
+  "session_settings": {
+   "TimeZone": "UTC",
+   "default_null_order": "nulls_first",
+   "default_order": "asc"
+  },
+  "snapshot": "apps/backend/data/mr002_research.duckdb",
+  "snapshot_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "snapshot_unchanged_across_read": true
+ },
+ "record_type": "ValidationPartitionContentCommitment",
+ "reference_tables": {
+  "disclosure": "Interval-valid reference registries. NOT part of any sealed partition and NOT under the OOS DENY: their validity intervals span all three windows by construction, so they cannot be sliced by availability date. They are committed here so their identity is pinned, and disclosed so a reviewer can see exactly what the sealed boundary does and does not cover.",
+  "reference_content_sha256": "a89bf82dce335806547f37a1b91947566442914156b66f2bfab6f60a332d44ff",
+  "tables": {
+   "crosswalk": {
+    "column_order": [
+     "permaticker",
+     "ticker",
+     "cik",
+     "effective_from",
+     "effective_to",
+     "relationship_type",
+     "source",
+     "source_record_id",
+     "confidence",
+     "mapping_rationale",
+     "review_status"
+    ],
+    "content_sha256": "3a8bebf2aa03c403de125a6bbb567e4b2ff03f37ac22716b9e67be64a9701916",
+    "null_counts": {
+     "cik": 0,
+     "confidence": 0,
+     "effective_from": 0,
+     "effective_to": 590,
+     "mapping_rationale": 0,
+     "permaticker": 0,
+     "relationship_type": 0,
+     "review_status": 0,
+     "source": 0,
+     "source_record_id": 0,
+     "ticker": 0
+    },
+    "row_count": 1068,
+    "security_counts": {
+     "distinct_cik": 746,
+     "distinct_permaticker": 754,
+     "distinct_ticker": 1045
+    }
+   },
+   "predecessor_overrides": {
+    "column_order": [
+     "permaticker",
+     "ticker",
+     "predecessor_cik",
+     "successor_cik",
+     "effective_from",
+     "effective_to",
+     "event_type",
+     "event_date",
+     "authoritative_evidence",
+     "continuity_rationale",
+     "baton_test",
+     "predecessor_entity",
+     "predecessor_sic",
+     "predecessor_filing_range",
+     "successor_first_domestic_filing",
+     "gap_months",
+     "flags",
+     "crawl_manifest_included",
+     "review_status",
+     "reviewer",
+     "review_date",
+     "countersign_limitation"
+    ],
+    "content_sha256": "41d78aefc045364570c85f56898e37c542546ddeb172fe2b954c1d98df41b908",
+    "null_counts": {
+     "authoritative_evidence": 0,
+     "baton_test": 0,
+     "continuity_rationale": 0,
+     "countersign_limitation": 17,
+     "crawl_manifest_included": 0,
+     "effective_from": 21,
+     "effective_to": 0,
+     "event_date": 0,
+     "event_type": 0,
+     "flags": 17,
+     "gap_months": 0,
+     "permaticker": 0,
+     "predecessor_cik": 0,
+     "predecessor_entity": 0,
+     "predecessor_filing_range": 0,
+     "predecessor_sic": 0,
+     "review_date": 0,
+     "review_status": 0,
+     "reviewer": 0,
+     "successor_cik": 0,
+     "successor_first_domestic_filing": 0,
+     "ticker": 0
+    },
+    "row_count": 21,
+    "security_counts": {
+     "distinct_permaticker": 21,
+     "distinct_ticker": 21
+    }
+   },
+   "security_sector_overrides": {
+    "column_order": [
+     "permaticker",
+     "ticker",
+     "cik",
+     "effective_from",
+     "effective_to",
+     "research_sector",
+     "sector_etf",
+     "confidence",
+     "review_status",
+     "mapping_rationale",
+     "evidence",
+     "reviewer",
+     "review_date"
+    ],
+    "content_sha256": "080c018482e4b97b4a6985122a55c332449d9b8dfca99b34c8156b83a471400e",
+    "null_counts": {
+     "cik": 0,
+     "confidence": 0,
+     "effective_from": 6,
+     "effective_to": 23,
+     "evidence": 0,
+     "mapping_rationale": 0,
+     "permaticker": 0,
+     "research_sector": 0,
+     "review_date": 0,
+     "review_status": 0,
+     "reviewer": 0,
+     "sector_etf": 0,
+     "ticker": 0
+    },
+    "row_count": 33,
+    "security_counts": {
+     "distinct_cik": 24,
+     "distinct_permaticker": 25,
+     "distinct_ticker": 25
+    }
+   },
+   "sic_mapping": {
+    "column_order": [
+     "sic_start",
+     "sic_end",
+     "effective_from",
+     "effective_to",
+     "research_sector",
+     "sector_etf",
+     "mapping_rationale",
+     "mapping_confidence",
+     "mapping_specificity",
+     "review_status",
+     "reviewer",
+     "review_date",
+     "source_reference"
+    ],
+    "content_sha256": "b7d8283023b88489534fdc8ebfbec100470410adb3d7056a603bf87fbcef7cea",
+    "null_counts": {
+     "effective_from": 102,
+     "effective_to": 102,
+     "mapping_confidence": 0,
+     "mapping_rationale": 0,
+     "mapping_specificity": 0,
+     "research_sector": 0,
+     "review_date": 0,
+     "review_status": 0,
+     "reviewer": 0,
+     "sector_etf": 0,
+     "sic_end": 0,
+     "sic_start": 0,
+     "source_reference": 0
+    },
+    "row_count": 110,
+    "security_counts": {}
+   }
+  }
+ },
+ "validation_partition": {
+  "partition_content_sha256": "7b0c74cd8e1b9077a8945fc3586fbd4f6c08f51fc28b4e2c7296729b9367b52d",
+  "tables": {
+   "actions": {
+    "column_order": [
+     "date",
+     "action",
+     "ticker",
+     "name",
+     "value",
+     "contraticker",
+     "contraname"
+    ],
+    "content_sha256": "1c817ac32a5298372ca8a7e3d9bfa10c083efab0b85e7048419416018c99c367",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 806,
+     "first": "2019-10-03",
+     "last": "2023-02-16"
+    },
+    "null_counts": {
+     "action": 0,
+     "contraname": 0,
+     "contraticker": 0,
+     "date": 0,
+     "name": 0,
+     "ticker": 0,
+     "value": 371
+    },
+    "row_count": 5233,
+    "security_counts": {
+     "distinct_ticker": 512
+    }
+   },
+   "anchors": {
+    "column_order": [
+     "cik",
+     "ticker",
+     "accession",
+     "report_date",
+     "acceptance_utc",
+     "session_date",
+     "availability_class",
+     "event_time_basis",
+     "is_amendment_origin",
+     "amended_by",
+     "collapsed_duplicates"
+    ],
+    "content_sha256": "7a04a7ab2621d17d0d8be527837deba0839ef2917fb59d41c8f9189b58ab3d97",
+    "date_bounds": {
+     "availability_column": "session_date",
+     "distinct_availability_dates": 734,
+     "first": "2019-10-03",
+     "last": "2023-02-16"
+    },
+    "null_counts": {
+     "acceptance_utc": 0,
+     "accession": 0,
+     "amended_by": 0,
+     "availability_class": 0,
+     "cik": 0,
+     "collapsed_duplicates": 0,
+     "event_time_basis": 0,
+     "is_amendment_origin": 0,
+     "report_date": 0,
+     "session_date": 0,
+     "ticker": 0
+    },
+    "row_count": 8624,
+    "security_counts": {
+     "distinct_cik": 641,
+     "distinct_ticker": 641
+    }
+   },
+   "etf_prices": {
+    "column_order": [
+     "ticker",
+     "date",
+     "adjclose"
+    ],
+    "content_sha256": "db741041b997e57fad511b2cf8919a3623a26587d451cda10a4589fc492c0aac",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 850,
+     "first": "2019-10-03",
+     "last": "2023-02-16"
+    },
+    "null_counts": {
+     "adjclose": 0,
+     "date": 0,
+     "ticker": 0
+    },
+    "row_count": 10200,
+    "security_counts": {
+     "distinct_ticker": 12
+    }
+   },
+   "prices": {
+    "column_order": [
+     "ticker",
+     "date",
+     "open",
+     "high",
+     "low",
+     "close",
+     "closeadj",
+     "closeunadj",
+     "volume"
+    ],
+    "content_sha256": "7f3af112db4faf1720ecf8837381c21e5aba9c0796b1c4b827a48668131589e8",
+    "date_bounds": {
+     "availability_column": "date",
+     "distinct_availability_dates": 850,
+     "first": "2019-10-03",
+     "last": "2023-02-16"
+    },
+    "null_counts": {
+     "close": 0,
+     "closeadj": 0,
+     "closeunadj": 0,
+     "date": 0,
+     "high": 0,
+     "low": 0,
+     "open": 0,
+     "ticker": 0,
+     "volume": 0
+    },
+    "row_count": 524827,
+    "security_counts": {
+     "distinct_ticker": 657
+    }
+   },
+   "sic_observations": {
+    "column_order": [
+     "cik",
+     "accession",
+     "form",
+     "accepted_utc",
+     "sic"
+    ],
+    "content_sha256": "ae5f9fa0d9a9eae074e215f82837eceab588f1dda2c6cf073623cb71a574b0b5",
+    "date_bounds": {
+     "availability_column": "accepted_utc",
+     "distinct_availability_dates": 755,
+     "first": "2019-10-03",
+     "last": "2023-02-16"
+    },
+    "null_counts": {
+     "accepted_utc": 0,
+     "accession": 0,
+     "cik": 0,
+     "form": 0,
+     "sic": 0
+    },
+    "row_count": 8470,
+    "security_counts": {
+     "distinct_cik": 660
+    }
+   },
+   "universe": {
+    "column_order": [
+     "universe_month",
+     "ticker",
+     "permaticker",
+     "siccode",
+     "liquidity_rank",
+     "med_dv_60",
+     "in_long_universe",
+     "in_short_universe"
+    ],
+    "content_sha256": "63927e1e1082710d493c5c04956a14f9652e5cb169c7a8606e511be49125c7b7",
+    "date_bounds": {
+     "availability_column": "universe_month",
+     "distinct_availability_dates": 40,
+     "first": "2019-11-01",
+     "last": "2023-02-01"
+    },
+    "null_counts": {
+     "in_long_universe": 0,
+     "in_short_universe": 0,
+     "liquidity_rank": 0,
+     "med_dv_60": 0,
+     "permaticker": 0,
+     "siccode": 0,
+     "ticker": 0,
+     "universe_month": 0
+    },
+    "row_count": 10000,
+    "security_counts": {
+     "distinct_permaticker": 429,
+     "distinct_ticker": 429
+    }
+   }
+  },
+  "total_rows": 567354,
+  "window": "validation"
+ },
+ "version": "1.0"
+}

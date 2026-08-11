@@ -1,0 +1,730 @@
+{
+ "all_window_sessions": {
+  "development": {
+   "declared_end": "2019-10-02",
+   "declared_start": "2013-01-02",
+   "expected_sessions": 1700,
+   "first_session": "2013-01-02",
+   "last_session": "2019-10-02",
+   "observed_sessions": 1700,
+   "session_list_sha256": "f8b244ee96fb6c66db2819730359534ab03ffc093138793922e45b4531cbf962"
+  },
+  "oos": {
+   "declared_end": "2026-07-10",
+   "declared_start": "2023-02-17",
+   "expected_sessions": 850,
+   "first_session": "2023-02-17",
+   "last_session": "2026-07-10",
+   "observed_sessions": 850,
+   "session_list_sha256": "54e8d1f11e8934a3482e5eeae651fb83aaf6974a75e63c52f7eee9d986c79003"
+  },
+  "validation": {
+   "declared_end": "2023-02-16",
+   "declared_start": "2019-10-03",
+   "expected_sessions": 850,
+   "first_session": "2019-10-03",
+   "last_session": "2023-02-16",
+   "observed_sessions": 850,
+   "session_list_sha256": "d9966a3a4fb78d3a1e6083988ddaa211d09a08cd942226b771402ef4979f9a62"
+  }
+ },
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "boundary": "This manifest grants nothing. validation_authorization remains false and the single validation opening remains unconsumed.",
+ "factor_series_coverage": {
+  "series": [
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "SPY"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLB"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLC"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLE"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLF"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLI"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLK"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLP"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLRE"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLU"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLV"
+   },
+   {
+    "first": "2019-10-03",
+    "last": "2023-02-16",
+    "sessions": 850,
+    "ticker": "XLY"
+   }
+  ],
+  "series_count": 12
+ },
+ "governed_calendar": {
+  "governed_session_list_sha256_observed": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+  "governed_session_list_sha256_registered": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+  "governed_sessions_expected": 3400,
+  "governed_sessions_observed": 3400,
+  "reproduces_registered_calendar": true
+ },
+ "latest_source_date": "2026-07-10",
+ "manifest_identity_sha256": "ce276f58840790369480543c067e1df672b8300081e8ce17e05d2e88a0f9603c",
+ "prerequisite_id": "P9",
+ "prerequisite_title": "Precommitted value-blind structural manifest for the validation partition",
+ "produced_before_sealing": true,
+ "provenance": {
+  "custodian": "Jay Wang",
+  "custodian_appointment": "docs/review/mr002/MR002_OperationalCustodian_Appointment_v1.0.json",
+  "execution_authority": "owner authorization MR002_PrerequisiteProduction_Authorization_v1.0.json (WP-C, 2026-08-10); direct-execution authority granted by owner direction MR002_ExecutionSequencing_Direction_v1.0.json (D-S2, 2026-08-11)",
+  "produced_at_utc": "2026-08-11T14:35:51Z",
+  "producer": "scripts/mr002_custody/sealed_partition_commitment.py",
+  "producer_sha256": "f50bc0bbb6ddcd1e2b6eebffc815bcd190f0aed54dff7fd05a117c8582facdd4",
+  "read_mode": "READ_ONLY",
+  "session_settings": {
+   "TimeZone": "UTC",
+   "default_null_order": "nulls_first",
+   "default_order": "asc"
+  },
+  "snapshot": "apps/backend/data/mr002_research.duckdb",
+  "snapshot_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "snapshot_unchanged_across_read": true
+ },
+ "record_type": "MR002_ValidationStructuralManifest",
+ "reference_layer_disclosure": "Interval-valid reference registries. NOT part of any sealed partition and NOT under the OOS DENY: their validity intervals span all three windows by construction, so they cannot be sliced by availability date. They are committed here so their identity is pinned, and disclosed so a reviewer can see exactly what the sealed boundary does and does not cover.",
+ "schema_identity": {
+  "schema_identity_sha256": "45c6607d63895f5c14028fd2a9035e64752d2e94feddd276d742e4aeee7cad7d",
+  "tables": {
+   "actions": [
+    {
+     "name": "date",
+     "type": "DATE"
+    },
+    {
+     "name": "action",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "name",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "value",
+     "type": "DOUBLE"
+    },
+    {
+     "name": "contraticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "contraname",
+     "type": "VARCHAR"
+    }
+   ],
+   "anchors": [
+    {
+     "name": "cik",
+     "type": "BIGINT"
+    },
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "accession",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "report_date",
+     "type": "DATE"
+    },
+    {
+     "name": "acceptance_utc",
+     "type": "TIMESTAMP WITH TIME ZONE"
+    },
+    {
+     "name": "session_date",
+     "type": "DATE"
+    },
+    {
+     "name": "availability_class",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "event_time_basis",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "is_amendment_origin",
+     "type": "BOOLEAN"
+    },
+    {
+     "name": "amended_by",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "collapsed_duplicates",
+     "type": "VARCHAR"
+    }
+   ],
+   "crosswalk": [
+    {
+     "name": "permaticker",
+     "type": "BIGINT"
+    },
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "cik",
+     "type": "BIGINT"
+    },
+    {
+     "name": "effective_from",
+     "type": "DATE"
+    },
+    {
+     "name": "effective_to",
+     "type": "DATE"
+    },
+    {
+     "name": "relationship_type",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "source",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "source_record_id",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_rationale",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_status",
+     "type": "VARCHAR"
+    }
+   ],
+   "etf_prices": [
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "date",
+     "type": "DATE"
+    },
+    {
+     "name": "adjclose",
+     "type": "DOUBLE"
+    }
+   ],
+   "predecessor_overrides": [
+    {
+     "name": "permaticker",
+     "type": "BIGINT"
+    },
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "predecessor_cik",
+     "type": "BIGINT"
+    },
+    {
+     "name": "successor_cik",
+     "type": "BIGINT"
+    },
+    {
+     "name": "effective_from",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "effective_to",
+     "type": "DATE"
+    },
+    {
+     "name": "event_type",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "event_date",
+     "type": "DATE"
+    },
+    {
+     "name": "authoritative_evidence",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "continuity_rationale",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "baton_test",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "predecessor_entity",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "predecessor_sic",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "predecessor_filing_range",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "successor_first_domestic_filing",
+     "type": "DATE"
+    },
+    {
+     "name": "gap_months",
+     "type": "BIGINT"
+    },
+    {
+     "name": "flags",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "crawl_manifest_included",
+     "type": "BOOLEAN"
+    },
+    {
+     "name": "review_status",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "reviewer",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_date",
+     "type": "DATE"
+    },
+    {
+     "name": "countersign_limitation",
+     "type": "VARCHAR"
+    }
+   ],
+   "prices": [
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "date",
+     "type": "DATE"
+    },
+    {
+     "name": "open",
+     "type": "DOUBLE"
+    },
+    {
+     "name": "high",
+     "type": "DOUBLE"
+    },
+    {
+     "name": "low",
+     "type": "DOUBLE"
+    },
+    {
+     "name": "close",
+     "type": "DOUBLE"
+    },
+    {
+     "name": "closeadj",
+     "type": "DOUBLE"
+    },
+    {
+     "name": "closeunadj",
+     "type": "DOUBLE"
+    },
+    {
+     "name": "volume",
+     "type": "DOUBLE"
+    }
+   ],
+   "security_sector_overrides": [
+    {
+     "name": "permaticker",
+     "type": "BIGINT"
+    },
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "cik",
+     "type": "BIGINT"
+    },
+    {
+     "name": "effective_from",
+     "type": "DATE"
+    },
+    {
+     "name": "effective_to",
+     "type": "DATE"
+    },
+    {
+     "name": "research_sector",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "sector_etf",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_status",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_rationale",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "evidence",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "reviewer",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_date",
+     "type": "DATE"
+    }
+   ],
+   "sic_mapping": [
+    {
+     "name": "sic_start",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "sic_end",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "effective_from",
+     "type": "DATE"
+    },
+    {
+     "name": "effective_to",
+     "type": "DATE"
+    },
+    {
+     "name": "research_sector",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "sector_etf",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_rationale",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_confidence",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_specificity",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_status",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "reviewer",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_date",
+     "type": "DATE"
+    },
+    {
+     "name": "source_reference",
+     "type": "VARCHAR"
+    }
+   ],
+   "sic_observations": [
+    {
+     "name": "cik",
+     "type": "BIGINT"
+    },
+    {
+     "name": "accession",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "form",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "accepted_utc",
+     "type": "TIMESTAMP WITH TIME ZONE"
+    },
+    {
+     "name": "sic",
+     "type": "VARCHAR"
+    }
+   ],
+   "universe": [
+    {
+     "name": "universe_month",
+     "type": "DATE"
+    },
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "permaticker",
+     "type": "BIGINT"
+    },
+    {
+     "name": "siccode",
+     "type": "BIGINT"
+    },
+    {
+     "name": "liquidity_rank",
+     "type": "BIGINT"
+    },
+    {
+     "name": "med_dv_60",
+     "type": "DOUBLE"
+    },
+    {
+     "name": "in_long_universe",
+     "type": "BOOLEAN"
+    },
+    {
+     "name": "in_short_universe",
+     "type": "BOOLEAN"
+    }
+   ]
+  }
+ },
+ "sealing_note": "Produced before the sealed store exists, which is the required order: P9 is the sole input the structural preflight may read pre-authorization, and it must be committed before the partition is sealed behind the access boundary.",
+ "structure": {
+  "actions": {
+   "date_bounds": {
+    "availability_column": "date",
+    "distinct_availability_dates": 806,
+    "first": "2019-10-03",
+    "last": "2023-02-16"
+   },
+   "null_counts": {
+    "action": 0,
+    "contraname": 0,
+    "contraticker": 0,
+    "date": 0,
+    "name": 0,
+    "ticker": 0,
+    "value": 371
+   },
+   "row_count": 5233,
+   "security_counts": {
+    "distinct_ticker": 512
+   }
+  },
+  "anchors": {
+   "date_bounds": {
+    "availability_column": "session_date",
+    "distinct_availability_dates": 734,
+    "first": "2019-10-03",
+    "last": "2023-02-16"
+   },
+   "null_counts": {
+    "acceptance_utc": 0,
+    "accession": 0,
+    "amended_by": 0,
+    "availability_class": 0,
+    "cik": 0,
+    "collapsed_duplicates": 0,
+    "event_time_basis": 0,
+    "is_amendment_origin": 0,
+    "report_date": 0,
+    "session_date": 0,
+    "ticker": 0
+   },
+   "row_count": 8624,
+   "security_counts": {
+    "distinct_cik": 641,
+    "distinct_ticker": 641
+   }
+  },
+  "etf_prices": {
+   "date_bounds": {
+    "availability_column": "date",
+    "distinct_availability_dates": 850,
+    "first": "2019-10-03",
+    "last": "2023-02-16"
+   },
+   "null_counts": {
+    "adjclose": 0,
+    "date": 0,
+    "ticker": 0
+   },
+   "row_count": 10200,
+   "security_counts": {
+    "distinct_ticker": 12
+   }
+  },
+  "prices": {
+   "date_bounds": {
+    "availability_column": "date",
+    "distinct_availability_dates": 850,
+    "first": "2019-10-03",
+    "last": "2023-02-16"
+   },
+   "null_counts": {
+    "close": 0,
+    "closeadj": 0,
+    "closeunadj": 0,
+    "date": 0,
+    "high": 0,
+    "low": 0,
+    "open": 0,
+    "ticker": 0,
+    "volume": 0
+   },
+   "row_count": 524827,
+   "security_counts": {
+    "distinct_ticker": 657
+   }
+  },
+  "sic_observations": {
+   "date_bounds": {
+    "availability_column": "accepted_utc",
+    "distinct_availability_dates": 755,
+    "first": "2019-10-03",
+    "last": "2023-02-16"
+   },
+   "null_counts": {
+    "accepted_utc": 0,
+    "accession": 0,
+    "cik": 0,
+    "form": 0,
+    "sic": 0
+   },
+   "row_count": 8470,
+   "security_counts": {
+    "distinct_cik": 660
+   }
+  },
+  "universe": {
+   "date_bounds": {
+    "availability_column": "universe_month",
+    "distinct_availability_dates": 40,
+    "first": "2019-11-01",
+    "last": "2023-02-01"
+   },
+   "null_counts": {
+    "in_long_universe": 0,
+    "in_short_universe": 0,
+    "liquidity_rank": 0,
+    "med_dv_60": 0,
+    "permaticker": 0,
+    "siccode": 0,
+    "ticker": 0,
+    "universe_month": 0
+   },
+   "row_count": 10000,
+   "security_counts": {
+    "distinct_permaticker": 429,
+    "distinct_ticker": 429
+   }
+  }
+ },
+ "value_blind": true,
+ "value_blind_fields_emitted": [
+  "schema identity",
+  "table names",
+  "row counts",
+  "date bounds",
+  "session count",
+  "symbol/security counts",
+  "factor-series coverage",
+  "null-count summaries",
+  "latest source date"
+ ],
+ "version": "1.0",
+ "window": "validation",
+ "window_sessions": {
+  "declared_end": "2023-02-16",
+  "declared_start": "2019-10-03",
+  "expected_sessions": 850,
+  "first_session": "2019-10-03",
+  "last_session": "2023-02-16",
+  "observed_sessions": 850,
+  "session_list_sha256": "d9966a3a4fb78d3a1e6083988ddaa211d09a08cd942226b771402ef4979f9a62"
+ },
+ "withheld_deliberately": "Ticker lists for sealed partitions. Counts are value-blind; membership is not."
+}

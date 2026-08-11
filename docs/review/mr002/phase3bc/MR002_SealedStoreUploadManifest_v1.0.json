@@ -1,0 +1,203 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "bound_export_manifest_identity_sha256": "c2f47fb68a22e9095d640915594b43559045896cd91c5e158dc8c0776e739ce2",
+ "bound_p6_commitment_identity_sha256": "574854a839fc8663982aaea6d289d6517976c07eaf713d253ad98961367c0756",
+ "boundary": "Objects written and pinned by version. No credential released, no partition opened. validation_authorization remains false; OOS remains under DENY.",
+ "bucket": "workbench-mr002-sealed-219024422756",
+ "cloudtrail_data_events_enabled_before_upload": true,
+ "custodian": "Jay Wang",
+ "every_object_server_validated": true,
+ "execution_authority": "owner authorization MR002_PrerequisiteProduction_Authorization_v1.0.json (WP-D, 2026-08-10); direct-execution authority per MR002_ExecutionSequencing_Direction_v1.0.json (D-S2, 2026-08-11)",
+ "integrity_method": "Each object was uploaded with the SHA-256 already verified against P6; S3 recomputed it server-side on the received bytes. No object was read back: a GetObject on the validation prefix before authorization is the event P7 must evidence as zero.",
+ "manifest_identity_sha256": "3834ba8068b0c12bce49a8f65b772f4bc271833f2b90a612d37e40d74587de8d",
+ "object_count": 22,
+ "objects": {
+  "development/actions.parquet": {
+   "bytes": 107620,
+   "checksum_sha256_b64": "lRIAeKSmCPHTz1zFwBWRjKqCMluCCUnego0II9aZiGo=",
+   "key": "development/actions.parquet",
+   "server_validated": true,
+   "sha256": "95120078a4a608f1d3cf5cc5c015918caa82325b820949de828d0823d699886a",
+   "version_id": "HHNAQilv31kyuTqos6Qn7oLxZ.tGprq4"
+  },
+  "development/anchors.parquet": {
+   "bytes": 341989,
+   "checksum_sha256_b64": "D53tYaAWBDo1wshywpXYsnWCanaUgny2rXr72Xm3g0Q=",
+   "key": "development/anchors.parquet",
+   "server_validated": true,
+   "sha256": "0f9ded61a016043a35c2c872c295d8b275826a7694827cb6ad7afbd979b78344",
+   "version_id": "sES5KVYkIqVZRHww_DfCDMiC2Gwntcbu"
+  },
+  "development/etf_prices.parquet": {
+   "bytes": 130528,
+   "checksum_sha256_b64": "+MgQUjOGTApDDPaZHsWK65tGzC9WwkEKkZH45Voy7YU=",
+   "key": "development/etf_prices.parquet",
+   "server_validated": true,
+   "sha256": "f8c8105233864c0a430cf6991ec58aeb9b46cc2f56c2410a9191f8e55a32ed85",
+   "version_id": "AM8SD1BRjfs13uvaghyNCPQdRXh55vF0"
+  },
+  "development/prices.parquet": {
+   "bytes": 31460332,
+   "checksum_sha256_b64": "8nmmQ/UYlxrrDZ07dEXRRkFbcEX+phxvSEtlgmYcwu4=",
+   "key": "development/prices.parquet",
+   "server_validated": true,
+   "sha256": "f279a643f518971aeb0d9d3b7445d146415b7045fea61c6f484b6582661cc2ee",
+   "version_id": "KQFxpPMyCWQeYJzRv1vq2It2xqElpu5h"
+  },
+  "development/sic_observations.parquet": {
+   "bytes": 264825,
+   "checksum_sha256_b64": "OM5shO35fdCP1BKGiXgUsX8ZAoPRJkmNjpAKUUT/a/Y=",
+   "key": "development/sic_observations.parquet",
+   "server_validated": true,
+   "sha256": "38ce6c84edf97dd08fd41286897814b17f190283d126498d8e900a5144ff6bf6",
+   "version_id": "ErlGI7tdNcjk3L7PC0zHqwfxtsUa4KPv"
+  },
+  "development/universe.parquet": {
+   "bytes": 200328,
+   "checksum_sha256_b64": "aX1bCrdGmLL+GiJDDupN4MBPL84eOHB3AfjF6WTMPZk=",
+   "key": "development/universe.parquet",
+   "server_validated": true,
+   "sha256": "697d5b0ab74698b2fe1a22430eea4de0c04f2fce1e38707701f8c5e964cc3d99",
+   "version_id": "uORQiCsEzAgLBhKvY2uJCXthargOkoEH"
+  },
+  "oos/actions.parquet": {
+   "bytes": 57069,
+   "checksum_sha256_b64": "oIwO1rpsZgnmfFAak44CRSd+EcgvPXJC5+JoN5CssQA=",
+   "key": "oos/actions.parquet",
+   "server_validated": true,
+   "sha256": "a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100",
+   "version_id": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+  },
+  "oos/anchors.parquet": {
+   "bytes": 177252,
+   "checksum_sha256_b64": "UJUUnTnSbHrxneOBSnF46TvzzDq4f5JRKZGoHmQBPck=",
+   "key": "oos/anchors.parquet",
+   "server_validated": true,
+   "sha256": "5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9",
+   "version_id": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+  },
+  "oos/etf_prices.parquet": {
+   "bytes": 67010,
+   "checksum_sha256_b64": "9T9EgxL5SCDXaq2A83ilPqK5EEZUy7fGm7gjY7Kl2hU=",
+   "key": "oos/etf_prices.parquet",
+   "server_validated": true,
+   "sha256": "f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15",
+   "version_id": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+  },
+  "oos/prices.parquet": {
+   "bytes": 16173068,
+   "checksum_sha256_b64": "D0XdxYFwvRExuYIFdggOroYd/2W3Frw/A9CPsoTynpo=",
+   "key": "oos/prices.parquet",
+   "server_validated": true,
+   "sha256": "0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a",
+   "version_id": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+  },
+  "oos/sic_observations.parquet": {
+   "bytes": 138814,
+   "checksum_sha256_b64": "F2qEvBVbXsjCRETgkbGaeLl8DTHA2mBvIuykSs5+Es8=",
+   "key": "oos/sic_observations.parquet",
+   "server_validated": true,
+   "sha256": "176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf",
+   "version_id": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+  },
+  "oos/universe.parquet": {
+   "bytes": 111278,
+   "checksum_sha256_b64": "TBorLodvf/3R9lHlyZB51f4EXnQAOvVWw8izJz10bg0=",
+   "key": "oos/universe.parquet",
+   "server_validated": true,
+   "sha256": "4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d",
+   "version_id": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+  },
+  "reference/crosswalk.parquet": {
+   "bytes": 35136,
+   "checksum_sha256_b64": "x1/hsTYsSmJDNYobbWjGxYlvCCOn7+I07Q21JE3OOxY=",
+   "key": "reference/crosswalk.parquet",
+   "server_validated": true,
+   "sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+   "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+  },
+  "reference/predecessor_overrides.parquet": {
+   "bytes": 12140,
+   "checksum_sha256_b64": "E5UmOyiiTBpor4rK9HS0woX6MTAJSCAEtMG2hV2Pwqw=",
+   "key": "reference/predecessor_overrides.parquet",
+   "server_validated": true,
+   "sha256": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+   "version_id": "Srj0T5D.VqjtTULkrLwynvhPeWf422I7"
+  },
+  "reference/security_sector_overrides.parquet": {
+   "bytes": 6940,
+   "checksum_sha256_b64": "B5Dxxf0c42BjPE1Iyt6LWRFpRSFDxtOSEJyVxdmXtb0=",
+   "key": "reference/security_sector_overrides.parquet",
+   "server_validated": true,
+   "sha256": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+   "version_id": "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns"
+  },
+  "reference/sic_mapping.parquet": {
+   "bytes": 10490,
+   "checksum_sha256_b64": "KSw2qCiWFp9UIJMq9DUagiRS86kJ32m4MG4+SNLWIDU=",
+   "key": "reference/sic_mapping.parquet",
+   "server_validated": true,
+   "sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+   "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+  },
+  "validation/actions.parquet": {
+   "bytes": 57564,
+   "checksum_sha256_b64": "VwdVjxHE8SvBmrOrXPswkgfn4EKcFGmQTYPsYZxrn8Q=",
+   "key": "validation/actions.parquet",
+   "server_validated": true,
+   "sha256": "5707558f11c4f12bc19ab3ab5cfb309207e7e0429c1469904d83ec619c6b9fc4",
+   "version_id": "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx"
+  },
+  "validation/anchors.parquet": {
+   "bytes": 190412,
+   "checksum_sha256_b64": "aNUTL7Oe21wcQtQdhbpfLZVYRaqgWd5O3wrNdXWJ4vE=",
+   "key": "validation/anchors.parquet",
+   "server_validated": true,
+   "sha256": "68d5132fb39edb5c1c42d41d85ba5f2d955845aaa059de4edf0acd757589e2f1",
+   "version_id": "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK"
+  },
+  "validation/etf_prices.parquet": {
+   "bytes": 67689,
+   "checksum_sha256_b64": "o9qVLBXJzZdmOVE+ghqaf8HVI2ck9nY8Mldw/FB7NVc=",
+   "key": "validation/etf_prices.parquet",
+   "server_validated": true,
+   "sha256": "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557",
+   "version_id": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo"
+  },
+  "validation/prices.parquet": {
+   "bytes": 16780884,
+   "checksum_sha256_b64": "lBfQXr3VTzQXLMOtPcu04XELHzaSP5jsmLj7gv6VHeI=",
+   "key": "validation/prices.parquet",
+   "server_validated": true,
+   "sha256": "9417d05ebdd54f34172cc3ad3dcbb4e1710b1f36923f98ec98b8fb82fe951de2",
+   "version_id": "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty"
+  },
+  "validation/sic_observations.parquet": {
+   "bytes": 142811,
+   "checksum_sha256_b64": "Z9wFf/1/qpO/Yw7MjeO0byQ7NFEWuabtHAlJQimCIUQ=",
+   "key": "validation/sic_observations.parquet",
+   "server_validated": true,
+   "sha256": "67dc057ffd7faa93bf630ecc8de3b46f243b345116b9a6ed1c09494229822144",
+   "version_id": "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t"
+  },
+  "validation/universe.parquet": {
+   "bytes": 109836,
+   "checksum_sha256_b64": "82n59mAaKBt/vm+qzozLFOlaXVsCCpe9hpuldRLGuFc=",
+   "key": "validation/universe.parquet",
+   "server_validated": true,
+   "sha256": "f369f9f6601a281b7fbe6faace8ccb14e95a5d5b020a97bd869ba57512c6b857",
+   "version_id": "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO"
+  }
+ },
+ "produced_at_utc": "2026-08-11T14:50:08Z",
+ "producer": "scripts/mr002_custody/sealed_store_upload.py",
+ "producer_sha256": "bb96ff71852421cb22978e18c1cbcfb00e4937836ac2bea77a11f5c0cdaa40b8",
+ "record_type": "MR002_SealedStoreUploadManifest",
+ "region": "us-east-1",
+ "sealed_prefixes": [
+  "validation",
+  "oos"
+ ],
+ "total_bytes": 66644015,
+ "version": "1.0"
+}

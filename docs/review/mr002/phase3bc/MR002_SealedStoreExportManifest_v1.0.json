@@ -1,0 +1,226 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "bound_p6_commitment_identity_sha256": "574854a839fc8663982aaea6d289d6517976c07eaf713d253ad98961367c0756",
+ "boundary": "Local export only. No object uploaded, no credential released, no partition opened for research use. validation_authorization remains false.",
+ "custodian": "Jay Wang",
+ "every_object_matches_p6": true,
+ "every_object_round_trip_verified": true,
+ "execution_authority": "owner authorization MR002_PrerequisiteProduction_Authorization_v1.0.json (WP-D, 2026-08-10); direct-execution authority per MR002_ExecutionSequencing_Direction_v1.0.json (D-S2, 2026-08-11)",
+ "manifest_identity_sha256": "c2f47fb68a22e9095d640915594b43559045896cd91c5e158dc8c0776e739ce2",
+ "objects": {
+  "development/actions.parquet": {
+   "content_sha256": "0f1ec1868cdec25510a061347c0f8cbcd56decb1ecb7382a7435dedc77ce14a2",
+   "matches_p6_commitment": true,
+   "object_bytes": 107620,
+   "object_sha256": "95120078a4a608f1d3cf5cc5c015918caa82325b820949de828d0823d699886a",
+   "round_trip_verified": true,
+   "row_count": 11193
+  },
+  "development/anchors.parquet": {
+   "content_sha256": "7965a21d76180fc0dca10094ba6335d4925673bee201a2021f679feb7da6ffc9",
+   "matches_p6_commitment": true,
+   "object_bytes": 341989,
+   "object_sha256": "0f9ded61a016043a35c2c872c295d8b275826a7694827cb6ad7afbd979b78344",
+   "round_trip_verified": true,
+   "row_count": 16357
+  },
+  "development/etf_prices.parquet": {
+   "content_sha256": "6bd1ca4daa3ee6c6d84f14d0886a1dca61762baf8492c459d7c532767fec7814",
+   "matches_p6_commitment": true,
+   "object_bytes": 130528,
+   "object_sha256": "f8c8105233864c0a430cf6991ec58aeb9b46cc2f56c2410a9191f8e55a32ed85",
+   "round_trip_verified": true,
+   "row_count": 18328
+  },
+  "development/prices.parquet": {
+   "content_sha256": "b2f34b931df54e868b592517f5acccd2120ca9fa04876d4fb49d39c922f984a5",
+   "matches_p6_commitment": true,
+   "object_bytes": 31460332,
+   "object_sha256": "f279a643f518971aeb0d9d3b7445d146415b7045fea61c6f484b6582661cc2ee",
+   "round_trip_verified": true,
+   "row_count": 1018869
+  },
+  "development/sic_observations.parquet": {
+   "content_sha256": "541bcba34e1c5426fc5ef8eb14df9a6493e64dc9314a798bea434e08e2c3173b",
+   "matches_p6_commitment": true,
+   "object_bytes": 264825,
+   "object_sha256": "38ce6c84edf97dd08fd41286897814b17f190283d126498d8e900a5144ff6bf6",
+   "round_trip_verified": true,
+   "row_count": 16549
+  },
+  "development/universe.parquet": {
+   "content_sha256": "e20cef921b38dc5274de8ebd29fb542e8b4672cef1358e65c2651a83a6c28a1a",
+   "matches_p6_commitment": true,
+   "object_bytes": 200328,
+   "object_sha256": "697d5b0ab74698b2fe1a22430eea4de0c04f2fce1e38707701f8c5e964cc3d99",
+   "round_trip_verified": true,
+   "row_count": 20250
+  },
+  "oos/actions.parquet": {
+   "content_sha256": "5da42423611cbafe841006381f325d6bd0fb606b7477c2bccc5fe5ee9334bb88",
+   "matches_p6_commitment": true,
+   "object_bytes": 57069,
+   "object_sha256": "a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100",
+   "round_trip_verified": true,
+   "row_count": 5524
+  },
+  "oos/anchors.parquet": {
+   "content_sha256": "3b17a5c516424c32069dc8da173f33c732490d9fb1cbeeb3c8d6d727a9404016",
+   "matches_p6_commitment": true,
+   "object_bytes": 177252,
+   "object_sha256": "5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9",
+   "round_trip_verified": true,
+   "row_count": 8427
+  },
+  "oos/etf_prices.parquet": {
+   "content_sha256": "f04c286d69de067dede21fadde936c6e6f38f9519d39f711460932fa39ec2c43",
+   "matches_p6_commitment": true,
+   "object_bytes": 67010,
+   "object_sha256": "f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15",
+   "round_trip_verified": true,
+   "row_count": 10200
+  },
+  "oos/prices.parquet": {
+   "content_sha256": "4ea68636470d67f9abbe23cfe0f99dcc66dd67bd4a6529a02c0075beca32857b",
+   "matches_p6_commitment": true,
+   "object_bytes": 16173068,
+   "object_sha256": "0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a",
+   "round_trip_verified": true,
+   "row_count": 512378
+  },
+  "oos/sic_observations.parquet": {
+   "content_sha256": "aef699c5b13fffe36862bda90a0ce3d773ab591c00e12e21336c106b03fef454",
+   "matches_p6_commitment": true,
+   "object_bytes": 138814,
+   "object_sha256": "176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf",
+   "round_trip_verified": true,
+   "row_count": 8502
+  },
+  "oos/universe.parquet": {
+   "content_sha256": "c51bd7f41c3e6b94f451381a769284359f9609c6acc5c38346b12a424248e397",
+   "matches_p6_commitment": true,
+   "object_bytes": 111278,
+   "object_sha256": "4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d",
+   "round_trip_verified": true,
+   "row_count": 10250
+  },
+  "reference/crosswalk.parquet": {
+   "content_sha256": "3a8bebf2aa03c403de125a6bbb567e4b2ff03f37ac22716b9e67be64a9701916",
+   "matches_p6_commitment": true,
+   "object_bytes": 35136,
+   "object_sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+   "round_trip_verified": true,
+   "row_count": 1068
+  },
+  "reference/predecessor_overrides.parquet": {
+   "content_sha256": "41d78aefc045364570c85f56898e37c542546ddeb172fe2b954c1d98df41b908",
+   "matches_p6_commitment": true,
+   "object_bytes": 12140,
+   "object_sha256": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+   "round_trip_verified": true,
+   "row_count": 21
+  },
+  "reference/security_sector_overrides.parquet": {
+   "content_sha256": "080c018482e4b97b4a6985122a55c332449d9b8dfca99b34c8156b83a471400e",
+   "matches_p6_commitment": true,
+   "object_bytes": 6940,
+   "object_sha256": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+   "round_trip_verified": true,
+   "row_count": 33
+  },
+  "reference/sic_mapping.parquet": {
+   "content_sha256": "b7d8283023b88489534fdc8ebfbec100470410adb3d7056a603bf87fbcef7cea",
+   "matches_p6_commitment": true,
+   "object_bytes": 10490,
+   "object_sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+   "round_trip_verified": true,
+   "row_count": 110
+  },
+  "validation/actions.parquet": {
+   "content_sha256": "1c817ac32a5298372ca8a7e3d9bfa10c083efab0b85e7048419416018c99c367",
+   "matches_p6_commitment": true,
+   "object_bytes": 57564,
+   "object_sha256": "5707558f11c4f12bc19ab3ab5cfb309207e7e0429c1469904d83ec619c6b9fc4",
+   "round_trip_verified": true,
+   "row_count": 5233
+  },
+  "validation/anchors.parquet": {
+   "content_sha256": "7a04a7ab2621d17d0d8be527837deba0839ef2917fb59d41c8f9189b58ab3d97",
+   "matches_p6_commitment": true,
+   "object_bytes": 190412,
+   "object_sha256": "68d5132fb39edb5c1c42d41d85ba5f2d955845aaa059de4edf0acd757589e2f1",
+   "round_trip_verified": true,
+   "row_count": 8624
+  },
+  "validation/etf_prices.parquet": {
+   "content_sha256": "db741041b997e57fad511b2cf8919a3623a26587d451cda10a4589fc492c0aac",
+   "matches_p6_commitment": true,
+   "object_bytes": 67689,
+   "object_sha256": "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557",
+   "round_trip_verified": true,
+   "row_count": 10200
+  },
+  "validation/prices.parquet": {
+   "content_sha256": "7f3af112db4faf1720ecf8837381c21e5aba9c0796b1c4b827a48668131589e8",
+   "matches_p6_commitment": true,
+   "object_bytes": 16780884,
+   "object_sha256": "9417d05ebdd54f34172cc3ad3dcbb4e1710b1f36923f98ec98b8fb82fe951de2",
+   "round_trip_verified": true,
+   "row_count": 524827
+  },
+  "validation/sic_observations.parquet": {
+   "content_sha256": "ae5f9fa0d9a9eae074e215f82837eceab588f1dda2c6cf073623cb71a574b0b5",
+   "matches_p6_commitment": true,
+   "object_bytes": 142811,
+   "object_sha256": "67dc057ffd7faa93bf630ecc8de3b46f243b345116b9a6ed1c09494229822144",
+   "round_trip_verified": true,
+   "row_count": 8470
+  },
+  "validation/universe.parquet": {
+   "content_sha256": "63927e1e1082710d493c5c04956a14f9652e5cb169c7a8606e511be49125c7b7",
+   "matches_p6_commitment": true,
+   "object_bytes": 109836,
+   "object_sha256": "f369f9f6601a281b7fbe6faace8ccb14e95a5d5b020a97bd869ba57512c6b857",
+   "round_trip_verified": true,
+   "row_count": 10000
+  }
+ },
+ "open_prefixes": [
+  "development",
+  "reference"
+ ],
+ "prefix_summary": {
+  "development": {
+   "bytes": 32505622,
+   "objects": 6,
+   "rows": 1101546
+  },
+  "oos": {
+   "bytes": 16724491,
+   "objects": 6,
+   "rows": 555281
+  },
+  "reference": {
+   "bytes": 64706,
+   "objects": 4,
+   "rows": 1232
+  },
+  "validation": {
+   "bytes": 17349196,
+   "objects": 6,
+   "rows": 567354
+  }
+ },
+ "produced_at_utc": "2026-08-11T14:45:20Z",
+ "producer": "scripts/mr002_custody/sealed_store_export.py",
+ "producer_sha256": "5d4ad624c74af31b5abfa2ed9fab46e4038c6b90f9f6b3d2382f0b65d7869424",
+ "record_type": "MR002_SealedStoreExportManifest",
+ "sealed_prefixes": [
+  "validation",
+  "oos"
+ ],
+ "snapshot": "apps/backend/data/mr002_research.duckdb",
+ "snapshot_sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+ "verification_method": "Each object is re-read FROM DISK and its canonical content hash recomputed and compared against P6. Verification deliberately never reads an uploaded object: a GetObject on the validation prefix before authorization is the exact event P7 must evidence as zero.",
+ "version": "1.0"
+}

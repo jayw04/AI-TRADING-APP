@@ -1,0 +1,237 @@
+{
+ "access_decisions": {
+  "dedicated_reader": {
+   "development": "allowed",
+   "oos": "explicitDeny",
+   "reference": "allowed",
+   "validation": "allowed"
+  },
+  "method": "IAM policy simulation over the identity policy AND the bucket policy together. Deliberately not an attempted read: CloudTrail records a DENIED GetObject as a data event, so proving the DENY by attempting it would create the very pre-authorization sealed-partition event P7 and P8 must show is zero.",
+  "ordinary_development_principal": {
+   "development": "allowed",
+   "oos": "explicitDeny",
+   "reference": "allowed",
+   "validation": "explicitDeny"
+  },
+  "required_decisions_all_met": true
+ },
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "boundary": "Preconditions only. No credential released, no partition opened, no run authorized. validation_authorization remains false; OOS remains under DENY.",
+ "bucket_state": {
+  "bucket": "workbench-mr002-sealed-219024422756",
+  "bucket_key_enabled": true,
+  "bucket_policy": {
+   "Id": "MR002SealedStorePolicy",
+   "Statement": [
+    {
+     "Action": "s3:*",
+     "Condition": {
+      "Bool": {
+       "aws:SecureTransport": "false"
+      }
+     },
+     "Effect": "Deny",
+     "Principal": "*",
+     "Resource": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+     ],
+     "Sid": "DenyInsecureTransport"
+    },
+    {
+     "Action": [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+      "s3:GetObjectAttributes",
+      "s3:GetObjectVersionAttributes"
+     ],
+     "Condition": {
+      "StringNotEquals": {
+       "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-oos-reader-NOT-YET-PROVISIONED"
+      }
+     },
+     "Effect": "Deny",
+     "Principal": "*",
+     "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*",
+     "Sid": "DenyOOSReadsToEveryPrincipalButTheFutureOOSReader"
+    },
+    {
+     "Action": [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+      "s3:GetObjectAttributes",
+      "s3:GetObjectVersionAttributes"
+     ],
+     "Condition": {
+      "StringNotEquals": {
+       "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+      }
+     },
+     "Effect": "Deny",
+     "Principal": "*",
+     "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*",
+     "Sid": "DenyValidationReadsToEveryPrincipalButTheValidationReader"
+    },
+    {
+     "Action": [
+      "s3:DeleteObjectVersion",
+      "s3:PutBucketVersioning"
+     ],
+     "Effect": "Deny",
+     "Principal": "*",
+     "Resource": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*",
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+     ],
+     "Sid": "DenyPermanentDeletionOfSealedObjectVersions"
+    }
+   ],
+   "Version": "2012-10-17"
+  },
+  "bucket_policy_sha256": "1c409eb09dca2bbd466c52e3a2c64f5853cb64bc1413692635f9513568f550ef",
+  "bucket_policy_statements": [
+   "DenyInsecureTransport",
+   "DenyOOSReadsToEveryPrincipalButTheFutureOOSReader",
+   "DenyPermanentDeletionOfSealedObjectVersions",
+   "DenyValidationReadsToEveryPrincipalButTheValidationReader"
+  ],
+  "encryption": "AES256",
+  "public_access_block": {
+   "BlockPublicAcls": true,
+   "BlockPublicPolicy": false,
+   "IgnorePublicAcls": true,
+   "RestrictPublicBuckets": true
+  },
+  "region": "us-east-1",
+  "versioning": "Enabled"
+ },
+ "criteria": {
+  "cloudtrail_s3_data_events_enabled_before_any_access": true,
+  "dedicated_iam_principal": true,
+  "explicit_bucket_key_deny_on_oos": true,
+  "pre_execution_policy_state_snapshot": true,
+  "validation_only_policy": true
+ },
+ "custodian": "Jay Wang",
+ "execution_authority": "owner authorization MR002_PrerequisiteProduction_Authorization_v1.0.json (WP-D, 2026-08-10); direct-execution authority per MR002_ExecutionSequencing_Direction_v1.0.json (D-S2, 2026-08-11)",
+ "iam_state": {
+  "assumable_now": false,
+  "credential_release_mechanism": "The trust policy names a run-host role that does not exist. No principal can assume this role today. Editing the trust policy to name the qualified Phase 3C host IS the time-bounded credential release, and that edit is a CloudTrail management event.",
+  "identity_policy": {
+   "Statement": [
+    {
+     "Action": [
+      "s3:GetObject",
+      "s3:GetObjectVersion"
+     ],
+     "Effect": "Allow",
+     "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*",
+     "Sid": "ReadValidationPartitionOnly"
+    },
+    {
+     "Action": [
+      "s3:GetObject",
+      "s3:GetObjectVersion"
+     ],
+     "Effect": "Allow",
+     "Resource": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*",
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*"
+     ],
+     "Sid": "ReadOpenReferenceAndDevelopmentPartitions"
+    },
+    {
+     "Action": "s3:ListBucket",
+     "Condition": {
+      "StringLike": {
+       "s3:prefix": [
+        "validation/*",
+        "development/*",
+        "reference/*"
+       ]
+      }
+     },
+     "Effect": "Allow",
+     "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+     "Sid": "ListOnlyTheNonSealedAndValidationPrefixes"
+    },
+    {
+     "Action": "s3:*",
+     "Effect": "Deny",
+     "Resource": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+     ],
+     "Sid": "DenyOOSEntirelyIncludingListing"
+    },
+    {
+     "Action": [
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
+      "s3:PutBucketPolicy",
+      "s3:DeleteBucketPolicy",
+      "s3:PutBucketVersioning"
+     ],
+     "Effect": "Deny",
+     "Resource": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+     ],
+     "Sid": "DenyAnyWriteToTheSealedStore"
+    }
+   ],
+   "Version": "2012-10-17"
+  },
+  "identity_policy_sha256": "84e2d1b067d11956f0b1d77eff1e6ff2805a1cc46511dc5f7b6df3d2e6dfb25e",
+  "inline_policy_name": "mr002-validation-only",
+  "role_arn": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+  "role_name": "mr002-validation-reader",
+  "trust_policy": {
+   "Statement": [
+    {
+     "Action": "sts:AssumeRole",
+     "Condition": {
+      "StringEquals": {
+       "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host-NOT-YET-PROVISIONED"
+      }
+     },
+     "Effect": "Allow",
+     "Principal": {
+      "AWS": "arn:aws:iam::219024422756:root"
+     },
+     "Sid": "AssumableOnlyByTheQualifiedPhase3CRunHost"
+    }
+   ],
+   "Version": "2012-10-17"
+  },
+  "trust_policy_sha256": "39c42c2a88f97d21e51f7e0b8e6320ee63f829379b5173d2f3f4b6e525a5e7d8"
+ },
+ "ordering_evidence": {
+  "bound_upload_manifest_identity_sha256": "3834ba8068b0c12bce49a8f65b772f4bc271833f2b90a612d37e40d74587de8d",
+  "data_events_enabled_before_first_object_existed": true,
+  "detail": "S3 data events were enabled on this bucket before any partition object was written, so the log covers the sealed partitions from before they existed. The sealing PUTs are themselves in the trail.",
+  "first_upload_at_utc": "2026-08-11T14:50:08Z"
+ },
+ "prerequisite_id": "P11",
+ "prerequisite_title": "Access-control preconditions in force and snapshotted",
+ "produced_at_utc": "2026-08-11T14:54:36Z",
+ "producer": "scripts/mr002_custody/access_control_snapshot.py",
+ "producer_sha256": "1b53fbed75145b50f035fc7c158fedb6713ea7879c390728bd75a9486f400061",
+ "record_type": "MR002_ValidationAccessControlPreconditions",
+ "snapshot_identity_sha256": "71b4d842de06d035cae22a37a5e602f540fdb18bbd0341125e318ab45dc325bb",
+ "trail_state": {
+  "is_logging": true,
+  "is_multi_region": true,
+  "log_bucket": "workbench-cloudtrail-219024422756",
+  "log_file_validation_enabled": true,
+  "management_events_note": "Adding S3 data events replaces the trail's selector set. Management-event coverage is re-asserted here because losing it would silently disable the ECR custody detection this trail was created for.",
+  "management_events_still_included": true,
+  "s3_data_event_resources": [
+   "arn:aws:s3:::workbench-mr002-sealed-219024422756/"
+  ],
+  "trail": "mr002-custody-trail",
+  "trail_arn": "arn:aws:cloudtrail:us-east-1:219024422756:trail/mr002-custody-trail"
+ },
+ "version": "1.0"
+}

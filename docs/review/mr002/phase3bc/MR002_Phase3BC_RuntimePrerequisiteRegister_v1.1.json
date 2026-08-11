@@ -1,0 +1,211 @@
+{
+ "blocking_unsatisfied_ids": [
+  "P10",
+  "P12"
+ ],
+ "cas_anchor_warning": "The adjudicated prerequisite_digest 088d700b... in MR002_Phase3BC_ValidationAuthorizationState_v1.0.json is DELIBERATELY STALE and is made staler by this record. A future D3 submission MUST supply a fresh adjudicated anchor computed from the then-current register and may NEVER be silently satisfied against the old one.",
+ "counts": {
+  "blocking": 12,
+  "blocking_satisfied": 10,
+  "blocking_unsatisfied": 2,
+  "total": 13
+ },
+ "date": "2026-08-11",
+ "grant_readiness": "NOT_READY",
+ "grant_readiness_note": "Two blocking prerequisites remain. P10 is deferred by owner direction pending the qualified Phase 3C run host (MR002_ExecutionSequencing_Direction_v1.0.json D-S4/D-S5). P12 is the owner grant event itself and is not a completable prerequisite. WP-F remains NOT AUTHORIZED and must not be run until P6-P11 are all satisfied.",
+ "prerequisites": [
+  {
+   "blocks_grant": true,
+   "evidence": "two-review-max cycle CLOSED; Review-2 final corrections at f7319de951b6fd7b84112ad2b207d61376399ac1",
+   "id": "P1",
+   "producer": "OWNER",
+   "status": "SATISFIED",
+   "title": "Phase 3A package accepted by the owner"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "MR002_Phase3BC_Phase3ALineageProof_v1.0.json (25/25 artifacts)",
+   "id": "P2",
+   "producer": "RESEARCH",
+   "status": "SATISFIED",
+   "title": "Phase 3A bindings reproduce with zero drift"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "MR002_ResearchSidePrerequisiteCloseout_v1.0.json \u2014 evaluator operational increment ONLY; establishes no access-path coverage, no numeric runtime, no readiness",
+   "id": "P3",
+   "producer": "RESEARCH (Workstream B)",
+   "status": "SATISFIED",
+   "title": "Evaluator operational increment"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "MR002_ResearchSidePrerequisiteCloseout_v1.0.json \u2014 SS5 acceptance submission",
+   "id": "P4",
+   "producer": "RESEARCH (Workstream B)",
+   "status": "SATISFIED",
+   "title": "Consolidated evaluator acceptance submission (SS5)"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "MR002_ResearchSidePrerequisiteCloseout_v1.0.json \u2014 source + roster + container legs; superseding binding at d1e7ffc",
+   "id": "P5",
+   "producer": "RESEARCH (Workstream B)",
+   "status": "SATISFIED",
+   "title": "Pre-access evaluator binding (SS4)"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "docs/review/mr002/phase3bc/ValidationPartitionContentCommitment_v1.0.json \u2014 RUNTIME_INSTANCE; validation partition content sha256 7b0c74cd8e1b9077a8945fc3586fbd4f6c08f51fc28b4e2c7296729b9367b52d over 567,354 rows; commitment identity 574854a839fc8663982aaea6d289d6517976c07eaf713d253ad98961367c0756; committed BEFORE any authorization; byte-identical on independent re-emission",
+   "id": "P6",
+   "note": "Supersedes the Phase 3A SPECIFICATION_TEMPLATE of the same name.",
+   "producer": "CUSTODIAN",
+   "satisfied_on": "2026-08-11",
+   "status": "SATISFIED",
+   "title": "ValidationPartitionContentCommitment (runtime instance)",
+   "work_package": "WP-C"
+  },
+  {
+   "blocks_grant": true,
+   "disclosed_limitation": "Coverage begins 2026-08-11T14:47:40Z, when CloudTrail S3 data events were enabled on the sealed bucket \u2014 which is before any partition object existed there. The record explicitly does NOT claim store-level coverage of the earlier period during which the corpus existed only as a DuckDB file on the developer workstation; that period rests on the procedural seal in prereg v1.0.4 (sealed_data_read = false).",
+   "evidence": "docs/review/mr002/phase3bc/ValidationPartitionAccessHistory_v1.0.json \u2014 hash-chained, chain verifies; validation_access_events_before_authorization = 0; oos_access_events_before_validation = 0; 12 sealing writes on sealed prefixes, 0 reads; history identity b125b4d07509069f4de7710656e508fddcc1074321d0db7753f015171b181195",
+   "id": "P7",
+   "producer": "CUSTODIAN",
+   "satisfied_on": "2026-08-11",
+   "status": "SATISFIED",
+   "title": "ValidationPartitionAccessHistory (runtime instance)",
+   "work_package": "WP-C"
+  },
+  {
+   "blocks_grant": true,
+   "disclosed_limitation": "The OpenedObjectLedger reconciliation is trivially satisfied (0 == 0) because no authorized run has occurred. It becomes a substantive check only for the Phase 3C run.",
+   "evidence": "docs/review/mr002/phase3bc/ValidationSealVerificationReport_v1.0.json \u2014 content commitment stable (independently recomputed and matched), no access before authorization, OpenedObjectLedger reconciles, OOS DENY in force; report identity 3b59a4fd6f0a7a4c02d8777a3ffba54daaf44859f50da790d972cab67a4a1c28",
+   "id": "P8",
+   "producer": "CUSTODIAN",
+   "satisfied_on": "2026-08-11",
+   "status": "SATISFIED",
+   "title": "ValidationSealVerificationReport (runtime instance)",
+   "work_package": "WP-C"
+  },
+  {
+   "blocks_grant": true,
+   "corroboration": "The producer independently reproduced the registered governed_session_list_sha256 b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f over 3,400 sessions and refuses if it does not.",
+   "evidence": "docs/review/mr002/phase3bc/MR002_ValidationStructuralManifest_v1.0.json \u2014 RUNTIME_INSTANCE; 850 validation sessions 2019-10-03..2023-02-16; schema identity 45c6607d...; 12 factor series; per-column null summaries; manifest identity ce276f58840790369480543c067e1df672b8300081e8ce17e05d2e88a0f9603c",
+   "id": "P9",
+   "produced_before_sealing": true,
+   "producer": "CUSTODIAN (sealing process, before sealing)",
+   "satisfied_on": "2026-08-11",
+   "status": "SATISFIED",
+   "title": "Precommitted value-blind structural manifest for the validation partition",
+   "value_blindness": "Security COUNTS only; sealed universe membership is deliberately withheld. Asserted by test, not by claim.",
+   "work_package": "WP-C"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "Producer and run-time FAIL-STOP gate are BUILT and tested (scripts/mr002_custody/numeric_runtime_identity.py). The runtime INSTANCE does not exist: the qualified launch host i-0f3ceafdd4294c572 no longer exists.",
+   "id": "P10",
+   "owner_direction": "Deferred by MR002_ExecutionSequencing_Direction_v1.0.json D-S4/D-S5: provision and qualify the real Phase 3C execution host FIRST, then capture P10 there prospectively, inside the bound image, with the digest resolved through the WP-B Requirement-7 resolver.",
+   "producer": "RESEARCH (run environment)",
+   "standing_rule": "SR-HOST-1 \u2014 host replacement before validation INVALIDATES P10 and requires a fresh capture plus a re-run of grant-readiness verification.",
+   "status": "BLOCKED_ON_RUN_ENVIRONMENT",
+   "title": "NumericRuntimeIdentityManifest runtime instance",
+   "work_package": "WP-E"
+  },
+  {
+   "access_decisions": {
+    "dedicated_reader_oos": "explicitDeny",
+    "dedicated_reader_validation": "allowed",
+    "ordinary_development_principal_oos": "explicitDeny",
+    "ordinary_development_principal_validation": "explicitDeny"
+   },
+   "blocks_grant": true,
+   "credential_release_gate": "The reader role's trust policy names a run-host role that does not exist, so no principal can assume it today. Editing that trust policy to name the qualified Phase 3C host IS the time-bounded credential release, and that edit is itself a CloudTrail management event.",
+   "evidence": "docs/review/mr002/phase3bc/MR002_ValidationAccessControlPreconditions_v1.0.json \u2014 snapshot identity 71b4d842de06d035cae22a37a5e602f540fdb18bbd0341125e318ab45dc325bb. CloudTrail S3 data events enabled on s3://workbench-mr002-sealed-219024422756 at 2026-08-11T14:47:40Z, BEFORE any partition object existed; dedicated IAM principal arn:aws:iam::219024422756:role/mr002-validation-reader; explicit bucket-policy DENY on the oos/ prefix; validation-only identity policy; policy-state snapshot captured.",
+   "id": "P11",
+   "producer": "CUSTODIAN / INFRASTRUCTURE",
+   "proven_by": "IAM policy simulation over the identity policy AND the bucket policy \u2014 deliberately not an attempted read, because CloudTrail records a DENIED GetObject as a data event and would have created the very pre-authorization event P7/P8 must show is zero.",
+   "satisfied_on": "2026-08-11",
+   "status": "SATISFIED",
+   "title": "Access-control preconditions in force and snapshotted",
+   "work_package": "WP-D"
+  },
+  {
+   "blocks_grant": true,
+   "evidence": "ValidationAuthorization state: validation_authorization = false, _rev = 0",
+   "id": "P12",
+   "producer": "OWNER",
+   "status": "NOT_EXECUTED (this is the act being requested)",
+   "title": "Owner-signed authorization event + time-bounded credential release"
+  },
+  {
+   "blocks_grant": false,
+   "evidence": "unchanged from v1.0",
+   "id": "P13",
+   "producer": "RESEARCH at run time + OWNER countersignature",
+   "status": "PRODUCED_AFTER_AUTHORIZATION_AT_RUN_TIME",
+   "title": "MR002_DSR_TrialDispersion_Validation_v1.0.json (countersigned)"
+  }
+ ],
+ "purpose": "the complete set of conditions that must hold before a Phase 3B/C execution authorization may be granted, with producer and current status",
+ "record_type": "MR002_Phase3BC_RuntimePrerequisiteRegister",
+ "reference_layer": {
+  "binding_note": "Their exact identities are bound into the execution contract HERE so a WP-F verifier can reproduce them rather than trust a filename or a prose description. Any drift in these hashes is a change to the reference layer the validation run reads, and must be treated as such.",
+  "classification": "COMMITTED AND IDENTITY-BOUND, BUT NOT SEALED",
+  "explicitly_not": [
+   "NOT a sealed partition object",
+   "NOT under the OOS DENY",
+   "NOT covered by the validation-only read restriction"
+  ],
+  "object_identities": "Bucket workbench-mr002-sealed-219024422756; per-table object_key/version_id/object_sha256 are recorded inline above and in MR002_SealedStoreUploadManifest_v1.0.json.",
+  "reference_content_sha256": "a89bf82dce335806547f37a1b91947566442914156b66f2bfab6f60a332d44ff",
+  "tables": {
+   "crosswalk": {
+    "content_sha256": "3a8bebf2aa03c403de125a6bbb567e4b2ff03f37ac22716b9e67be64a9701916",
+    "object_key": "reference/crosswalk.parquet",
+    "object_sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+    "row_count": 1068,
+    "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+   },
+   "predecessor_overrides": {
+    "content_sha256": "41d78aefc045364570c85f56898e37c542546ddeb172fe2b954c1d98df41b908",
+    "object_key": "reference/predecessor_overrides.parquet",
+    "object_sha256": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+    "row_count": 21,
+    "version_id": "Srj0T5D.VqjtTULkrLwynvhPeWf422I7"
+   },
+   "security_sector_overrides": {
+    "content_sha256": "080c018482e4b97b4a6985122a55c332449d9b8dfca99b34c8156b83a471400e",
+    "object_key": "reference/security_sector_overrides.parquet",
+    "object_sha256": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+    "row_count": 33,
+    "version_id": "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns"
+   },
+   "sic_mapping": {
+    "content_sha256": "b7d8283023b88489534fdc8ebfbec100470410adb3d7056a603bf87fbcef7cea",
+    "object_key": "reference/sic_mapping.parquet",
+    "object_sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+    "row_count": 110,
+    "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+   }
+  },
+  "why": "These are interval-valid registries whose validity spans all three windows by construction, so they cannot be sliced by availability date. Some of their rows carry intervals extending into the sealed windows. This follows the corpus design already countersigned in the sealed manifest; it is disclosed here, not newly decided."
+ },
+ "standing_state_unchanged": {
+  "cas_rev": 0,
+  "custody_requirement_7": "IMPLEMENTED_PENDING_C_R7_VERIFICATION",
+  "oos_partition": "UNDER DENY \u2014 now enforced at the bucket policy, not only procedurally",
+  "validation_authorization": false,
+  "validation_partition": "CLOSED \u2014 single opening UNCONSUMED",
+  "wp_f": "NOT AUTHORIZED"
+ },
+ "status_domain": [
+  "SATISFIED",
+  "NOT_PRODUCED",
+  "BLOCKED_ON_RUN_ENVIRONMENT",
+  "NOT_EXECUTED (this is the act being requested)",
+  "PRODUCED_AFTER_AUTHORIZATION_AT_RUN_TIME"
+ ],
+ "supersedes": "MR002_Phase3BC_RuntimePrerequisiteRegister_v1.0.json",
+ "supersession_note": "v1.0 is NOT edited and NOT retired. It is the register the 2026-07-22 D3 adjudication bound (prerequisite_register_sha256 0bc80e78...), and mutating it would break that binding. This v1.1 records CURRENT state only.",
+ "version": "1.1"
+}

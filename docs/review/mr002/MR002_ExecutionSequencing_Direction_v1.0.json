@@ -1,0 +1,106 @@
+{
+  "artifact": "MR002_ExecutionSequencing_Direction_v1.0",
+  "program": "MR-002 — Sector-Neutral Residual Reversion",
+  "workstream": "SPQ-1",
+  "type": "owner direction record (sequencing + standing rule)",
+  "date": "2026-08-11",
+  "directed_by": "Jay Wang (owner)",
+  "governing_plan": "docs/design/MR002_Development_Plan_Next_Phases_v1.3.md (v1.3.1, APPROVED 2026-08-09)",
+  "supplements": "MR002_PrerequisiteProduction_Authorization_v1.0.json (2026-08-10). This record does NOT expand that authorization; it sequences the work already authorized there and adds one standing rule.",
+
+  "occasion": {
+    "trigger": "WP-E reached code completion 2026-08-11 (P10 producer + run-time FAIL-STOP gate, 44 tests), but the P10 runtime instance cannot be captured: the qualified launch host i-0f3ceafdd4294c572 no longer exists (InvalidInstanceID.NotFound, us-east-1).",
+    "rejected_option_1": "Capture P10 on the developer laptop. REJECTED — it would bind an Intel/AVX-512 Windows runtime and then FAIL-STOP against any Linux run. The control would be working correctly on an operationally useless artifact.",
+    "rejected_option_2": "Provision a replacement host now, solely to satisfy P10, before the custodian-side controls exist. REJECTED — it inverts the dependency order and produces a host that is not the intended execution environment."
+  },
+
+  "directions": [
+    {
+      "id": "D-S1",
+      "subject": "WP-E",
+      "direction": "FROZEN AT CODE COMPLETE. Treat the P10 producer and the run-time FAIL-STOP gate as complete pending runtime capture. No further WP-E implementation work.",
+      "prohibitions": [
+        "Do NOT weaken the 17-binding requirement.",
+        "Do NOT add an escape hatch around the WP-B Requirement-7 resolver.",
+        "The two-leg design (13 in-image + 4 host bindings) and the 21-module rehash of the observation against module_digests_in_image are the correct boundary and are not to be relaxed."
+      ]
+    },
+    {
+      "id": "D-S2",
+      "subject": "WP-C and WP-D",
+      "direction": "PROCEED NEXT. Produce P6, P7, P8, P9 (WP-C) and P11 (WP-D) under the named operational-custodian / infrastructure roles.",
+      "rationale": "These prerequisites are independent of the eventual CPU and runtime identity and should be established before the execution environment is created."
+    },
+    {
+      "id": "D-S3",
+      "subject": "Custody Requirement 7",
+      "direction": "STATUS HELD at IMPLEMENTED_PENDING_C_R7_VERIFICATION. Do NOT mark Requirement 7 fully satisfied.",
+      "detail": "The live ECR success-path demonstration of 2026-08-11 (bound index sha256:60b15568… pulled, bytes rehashed byte-exact, manifest_count 2, satisfies_requirement_7 true) is valuable evidence but is not C-R7. C-R7 requires a closed WP-F run proving the resolver is the SOLE path used by P10 and the run environment, and demonstrating fail-closed on digest miss, mismatch, and registry unavailability. C-R7 remains properly deferred to WP-F.",
+      "recorded_in": "MR002_EvaluatorImageCustody_v1.0.json (custody requirement 7 status field)"
+    },
+    {
+      "id": "D-S4",
+      "subject": "Phase 3C run host",
+      "direction": "After P6–P9 and P11 are complete, provision the actual Phase 3C run host. It is to be treated as the INTENDED EXECUTION ENVIRONMENT, not a temporary P10 machine.",
+      "qualification_required_before_p10_capture": [
+        "OS and container runtime",
+        "architecture (CPU vendor/family/instruction set)",
+        "network and IAM boundary",
+        "evaluator-image resolution through the WP-B Requirement-7 resolver",
+        "any further host requirements already bound by the Phase 3A package"
+      ]
+    },
+    {
+      "id": "D-S5",
+      "subject": "P10 capture",
+      "direction": "Capture P10 ONLY on that qualified host, PROSPECTIVELY, inside the bound evaluator image resolved through the WP-B resolver. Then seal the resulting NumericRuntimeIdentityManifest and make it the runtime identity against which Phase 3C must FAIL-STOP on drift."
+    },
+    {
+      "id": "D-S6",
+      "subject": "WP-F",
+      "direction": "NOT AUTHORIZED. WP-F may be authorized only after P6–P11 are ALL satisfied. It then verifies C1–C10 plus C-R7, including P10 reproducibility.",
+      "explicit_prohibition": "The disappearance of the old run host is NOT a justification for skipping directly to grant readiness."
+    }
+  ],
+
+  "standing_rule": {
+    "id": "SR-HOST-1",
+    "rule": "Host replacement before validation INVALIDATES P10 and requires a fresh P10 capture and a re-run of grant-readiness verification.",
+    "failure_mode_prevented": "A NumericRuntimeIdentityManifest generated on Host A while execution silently moves to Host B.",
+    "scope": "In force from this record until the Phase 3C validation execution is complete.",
+    "consequence_if_triggered": [
+      "The existing P10 instance is void, not merely stale.",
+      "P10 must be re-captured prospectively on the replacement host, which must first be qualified per D-S4.",
+      "WP-F must be re-run; a prior PASS does not carry over."
+    ]
+  },
+
+  "execution_order_as_directed": [
+    "1. WP-C — P6, P7, P8, P9 (operational custodian)",
+    "2. WP-D — P11 (operational custodian / infrastructure)",
+    "3. Provision AND qualify the real Phase 3C execution host (D-S4)",
+    "4. WP-E — capture the P10 instance on that qualified host (D-S5); seal it",
+    "5. Authorize and build WP-F; closed run over C1–C10 + C-R7 + P10 reproducibility",
+    "6. D3 resubmission with a FRESH adjudicated CAS anchor, then P12",
+    "7. Phase 3B / 3C"
+  ],
+
+  "standing_state_unchanged": {
+    "validation_authorization": false,
+    "cas_rev": 0,
+    "anchor": "docs/review/mr002/phase3bc/MR002_Phase3BC_ValidationAuthorizationState_v1.0.json",
+    "validation_partition": "CLOSED — single opening UNCONSUMED",
+    "oos_partition": "UNDER DENY",
+    "wp_f": "NOT AUTHORIZED",
+    "custody_requirements_1_to_6": "SATISFIED",
+    "custody_requirement_7": "IMPLEMENTED_PENDING_C_R7_VERIFICATION"
+  },
+
+  "standing_prohibitions_reaffirmed": [
+    "Runtime evidence must be produced PROSPECTIVELY. Specification templates, retrospective attestations, inferred state, and placeholder completion do not satisfy a runtime-evidence prerequisite.",
+    "Any prerequisite that cannot be completed truthfully without validation access MUST remain unsatisfied.",
+    "§2.1 bounded scope: no new strategy research, architecture expansion, refactoring, product integration, or additional governance layers before the validation verdict."
+  ],
+
+  "version": "1.0"
+}
