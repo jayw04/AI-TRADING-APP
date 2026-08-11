@@ -301,11 +301,15 @@ precise physical locations.
   'Normally disconnected' is the property being bought: a drive that lives
   plugged into this workstation inherits its threats and is not independent.
 
-  Still outstanding: A5 (custodian record) and A6 (staging disposal).
-  A6 - staging holds TWO unencrypted copies; deleting only the .tar leaves the image:
-      $StagingDir\$TAR_NAME
-      $StagingDir\mr002-evaluator-p5-oci\
-  Do A6 only AFTER A5: the staging copy is the sole fallback if the medium is lost.
+  A5 (custodian record) and A6 (staging disposal) were completed 2026-08-10.
+  WP-A is CLOSED; INDEPENDENT_OFFLINE_RECOVERY_COPY = CREATED.
+
+  If you are RE-RUNNING this procedure onto fresh media, note the ordering that
+  made the 2026-08-10 accidental format a 20-minute setback rather than an
+  unrecoverable one:
+    - A6 (staging disposal) comes strictly AFTER A5, and
+    - never delete staging until -Step A4 returns PASS against the new medium.
+  Staging now holds only the record JSON; the medium and ECR are the copies.
 "@
 }
 

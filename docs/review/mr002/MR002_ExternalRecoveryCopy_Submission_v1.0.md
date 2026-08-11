@@ -292,6 +292,21 @@ Run from the medium, not from staging. Offline: no network, no AWS.
 | Bound identity | **MATCHES** |
 | Verdict | **PASS** |
 
+Verdict record (outside the repository, per ADR 0050 — generated evidence is not Git-resident):
+`C:\LLM-RAG-APP\MR002_WPA_A4_Verdict_20260810.txt`. Reproducible at any time by re-running
+`scripts/mr002_custody/recovery_media_workflow.ps1 -Step A4` against the mounted medium.
+
+### A6 — staging disposal, completed 2026-08-10
+
+Both unencrypted copies were deleted from `C:\LLM-RAG-APP\mr002_recovery_staging\` — the 42.4 MB
+`mr002-evaluator-p5-recovery.tar` **and** the unpacked `mr002-evaluator-p5-oci/` directory
+(84.7 MB → 0 MB of plaintext evaluator). Only `MR002_ExternalRecoveryCopy_v1.0.json`, the record,
+remains. Deletion was gated on the medium copy verifying PASS **after a full
+disconnect/reconnect cycle**, not merely at write time.
+
+⟹ `INDEPENDENT_OFFLINE_RECOVERY_COPY` = **CREATED**. Recovery from ECR loss is **SATISFIED**.
+WP-A is closed and Execution Order Step 1 is complete.
+
 ### ⚠ This appointment does not resolve the operational custodian
 
 The role named above is the **recovery-media** custodian, accountable for the encrypted
