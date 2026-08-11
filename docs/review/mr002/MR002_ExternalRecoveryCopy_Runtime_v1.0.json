@@ -1,0 +1,88 @@
+{
+ "archive": {
+  "contents": "OCI index + linux/amd64 platform manifest + image config + 9 layers",
+  "export_credentials_constraint": "The export identity was arn:aws:iam::219024422756:user/admin, which is explicitDeny on BOTH the validation and OOS prefixes by sealed-store bucket policy. Proven by policy simulation before the export ran. No credential with access to a sealed partition was used.",
+  "filename": "mr002-evaluator-p5-recovery.tar",
+  "objects_present": 12,
+  "objects_referenced": 12,
+  "produced_by": "scripts/mr002_custody/export_recovery_copy.py (commit 8c5ae57)",
+  "sha256": "sha256:08e323a1976f9486929f5eb0c0da92e8a05ddf0e41c2f6558ba2631521f41fb1",
+  "size_bytes": 146165760
+ },
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "authority": "Owner instruction 2026-08-11, MR-002 Next-Step Execution: produce and verify an independent recovery copy for the newly governed runtime image before P10.",
+ "boundary": "Recovery-control evidence only. validation_authorization remains false at _rev 0; OOS remains under DENY; WP-F remains NOT AUTHORIZED; P10 remains UNSATISFIED; the validation reader remains unassumable.",
+ "custodian": {
+  "accountable_for": "physical custody of the medium, its encryption credential, and periodic from-medium re-verification",
+  "recovery_media_custodian": "Jay Wang",
+  "self_attestation_disclosed": "The custodian is also the owner and the operational custodian. Disclosed, as in the WP-A record."
+ },
+ "date": "2026-08-11",
+ "filename_note": "Deliberately named _Runtime_ to avoid colliding with MR002_ExternalRecoveryCopy_v1.0.json, the HISTORICAL WP-A record for sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9. The export tool writes its draft under the historical name; that draft was NOT copied into the repository. The historical record is unmodified.",
+ "governing_identity": {
+  "child_platform_manifest": "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b",
+  "digest_kind": "OCI image index digest",
+  "image_config": "sha256:226643c46e0d0043fb43147c214a6d71cd28acb847e66a093dcd882ea78d0cf6",
+  "oci_index_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "role": "GOVERNING recovery root",
+  "subordinate_note": "The platform manifest, config and layers are evidence recorded BENEATH the governing root. None of them is an alternative accepted root, matching the semantics WP-B enforces."
+ },
+ "medium": {
+  "consistent_with_wp_a": "Same method as the historical WP-A archive, so the two recovery copies are methodologically comparable.",
+  "deliberately_not_recorded": [
+   "encryption password, passphrase or recovery key",
+   "device serial number",
+   "physical storage location"
+  ],
+  "encryption_at_rest": "ENABLED",
+  "encryption_method": "VeraCrypt volume-level, AES, SHA-512, exFAT",
+  "independent_of": [
+   "the qualification host EBS volume",
+   "the development workstation's normal filesystem",
+   "any ECR repository",
+   "network storage",
+   "cloud drives",
+   "always-connected external drives"
+  ],
+  "normally_disconnected": true,
+  "normally_offline": true,
+  "secret_handling_rule": "No secret required to unlock the medium appears in this record, in Git, in logs, or in any MR-002 evidence artifact. This record states only that encryption is enabled and who is accountable.",
+  "type": "removable USB volume, independent of the online execution and registry infrastructure"
+ },
+ "record_identity_sha256": "0514f795954e6087d8372e97b337e9184c5efcd372a7b6de92a46f3114e9fca0",
+ "record_type": "MR002_ExternalRecoveryCopy",
+ "relationship_to_the_historical_recovery_copy": {
+  "historical_image": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+  "historical_record": "docs/review/mr002/MR002_ExternalRecoveryCopy_v1.0.json",
+  "note": "This is a SEPARATE recovery copy for a SEPARATE image. It does not supersede, replace or invalidate the historical archive, which remains the recovery control for the historical SS4/P5 evidence image on its own medium.",
+  "status": "PRESERVED AND UNMODIFIED"
+ },
+ "variant": "RUNTIME",
+ "verification_from_the_medium": {
+  "bound_identity": "MATCHES",
+  "disconnect_reconnect_cycle_performed": true,
+  "exit_code": 0,
+  "inner_semantic_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "medium_was_disconnected_before_verification": true,
+  "not_verified_against": [
+   "the staging archive",
+   "a copy returned to the workstation filesystem",
+   "ECR",
+   "the qualification host",
+   "any network-mounted copy"
+  ],
+  "objects": "12 present / 12 referenced",
+  "outer_wrapper_digest_matched": true,
+  "run_from_removable_medium": true,
+  "superseded_roots_not_accepted": "The verifier binds the governing index only. export_recovery_copy.py refuses sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9 and sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b as governing roots BY NAME, before any registry call (tested).",
+  "verdict": "PASS",
+  "verified_at_utc": "2026-08-11T22:51:49Z",
+  "verifier": "export_recovery_copy.py --verify (network-free, AWS-free by design)"
+ },
+ "version": "1.0",
+ "what_this_record_does_NOT_establish": [
+  "It is NOT an execution gate and does not satisfy custody Requirement 7.",
+  "It does NOT satisfy or advance P10.",
+  "It grants no credential and opens no partition."
+ ]
+}
