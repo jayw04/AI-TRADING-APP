@@ -25,6 +25,7 @@ import tarfile
 
 import pytest
 
+import export_recovery_copy as E
 from export_recovery_copy import INDEX_MEDIA_TYPE, verify_archive
 
 
@@ -355,3 +356,56 @@ def test_offline_verification_does_not_require_the_aws_sdk(tmp_path, graph):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ---------------------------------------------------------------------------
+# Retarget 2026-08-11: the archive root is the governed runtime index
+# ---------------------------------------------------------------------------
+
+
+def test_archive_root_is_the_rebound_runtime_index():
+    """Guards the constant. An archive of the predecessor would preserve an
+    image that no run can execute."""
+    assert E.INDEX == (
+        "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+    )
+
+
+@pytest.mark.parametrize(
+    "old",
+    [
+        "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+        "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b",
+    ],
+)
+def test_a_superseded_root_is_refused_as_the_governing_identity(old):
+    """Same semantics WP-B now enforces: superseded roots are refused by name,
+    not silently archived."""
+    assert old in E.SUPERSEDED_INDEXES
+    assert old != E.INDEX
+    with pytest.raises(SystemExit) as exc:
+        E.walk_graph(object(), root=old)
+    assert "superseded root" in str(exc.value)
+
+
+def test_superseded_root_is_refused_before_any_registry_call():
+    class Recorder:
+        def batch_get_image(self, **kwargs):
+            raise AssertionError("registry must not be contacted for a superseded root")
+
+    with pytest.raises(SystemExit):
+        E.walk_graph(
+            Recorder(),
+            root="sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+        )
+
+
+def test_child_digests_are_evidence_beneath_the_root_not_alternative_roots():
+    """The platform manifest and config are recorded UNDER the governing index.
+    Neither is a root the archive may be built from."""
+    child = "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b"
+    config = "sha256:226643c46e0d0043fb43147c214a6d71cd28acb847e66a093dcd882ea78d0cf6"
+    assert E.INDEX not in (child, config)
+    # the child is explicitly named superseded AS A ROOT, while still being the
+    # legitimate platform manifest beneath the index
+    assert child in E.SUPERSEDED_INDEXES

@@ -38,17 +38,37 @@ from botocore.exceptions import ClientError
 
 REGION = "us-east-1"
 REPOSITORY = "mr002-evaluator-p5"
-TAG = "qualify-d1e7ffc"
+TAG = "runtime-index-v1"
 
-# Bound identities. The INDEX is the governing object; the platform manifest and
-# configuration are subordinate identities and are NOT substitutes for it.
-INDEX = "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9"
-AMD64 = "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d"
-CONFIG = "sha256:6962e4a78792cfbd36f999967a3cfaa26f0d8b1dc8d9ee27403ca4be8556a746"
-ATTEST = "sha256:b81cd073e34445ec31f2bffff0bb1345c6ccc31940c20a29fb7d9987915ae7cc"
+# Bound identities, RETARGETED 2026-08-11 to the runtime image index alongside
+# the WP-B rebind. The INDEX is the governing object; the platform manifest and
+# configuration are subordinate identities and are NOT substitutes for it. A
+# monitor still watching the predecessor would have reported healthy custody of
+# an image no run can execute.
+INDEX = "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+AMD64 = "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b"
+CONFIG = "sha256:226643c46e0d0043fb43147c214a6d71cd28acb847e66a093dcd882ea78d0cf6"
+
+# The governed index carries exactly one platform entry and NO attestation
+# child. The predecessor's descriptor count of 2 was one image plus a buildx
+# attestation, never two platforms, so "expect an attestation" is not a
+# property to carry forward.
+ATTEST = None
+
+# Historical artifacts that MUST remain present. They are superseded, not
+# disposable: the predecessor index is the SS4/P5 evidence, and its children are
+# reachable beneath it. Their disappearance is a custody failure even though no
+# run resolves them.
+HISTORICAL_INDEX = "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9"
+HISTORICAL_AMD64 = "sha256:a4e3ac54151b0bd27dd527b4df13da47058dbb8596be8ec9a77f44b863191a3d"
+HISTORICAL_ATTEST = "sha256:b81cd073e34445ec31f2bffff0bb1345c6ccc31940c20a29fb7d9987915ae7cc"
+PRESERVED_HISTORICAL = {HISTORICAL_INDEX, HISTORICAL_AMD64, HISTORICAL_ATTEST}
 
 INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
-EXPECTED_INVENTORY = {INDEX, AMD64, ATTEST}
+
+# The repository is no longer single-artifact: it holds the governed pair AND
+# the preserved predecessor set. Both absence and foreign additions are drift.
+EXPECTED_INVENTORY = {INDEX, AMD64} | PRESERVED_HISTORICAL
 
 TOPIC_ARN = os.environ.get(
     "CUSTODY_TOPIC_ARN", "arn:aws:sns:us-east-1:219024422756:workbench-paper-alarms"
@@ -95,8 +115,11 @@ def run_checks(ecr):
                     tags_on_index = det.get("imageTags") or []
         foreign = inventory - EXPECTED_INVENTORY
         missing = EXPECTED_INVENTORY - inventory
-        _check(findings, "single_artifact_invariant", not foreign and not missing,
+        _check(findings, "repository_inventory_invariant", not foreign and not missing,
                f"foreign={sorted(foreign)} missing={sorted(missing)}")
+        _check(findings, "historical_artifacts_preserved",
+               PRESERVED_HISTORICAL <= inventory,
+               f"missing_historical={sorted(PRESERVED_HISTORICAL - inventory)}")
         _check(findings, "governing_tag", tags_on_index == [TAG],
                f"tags on index={tags_on_index}")
     except ClientError as exc:
@@ -122,9 +145,15 @@ def run_checks(ecr):
         _check(findings, "amd64_platform",
                (plat.get("os"), plat.get("architecture")) == ("linux", "amd64"),
                f"platform={plat.get('os')}/{plat.get('architecture')}")
-        _check(findings, "attestation_accounted", ATTEST in members,
-               f"attestation descriptor {'present' if ATTEST in members else 'ABSENT'}")
-        _check(findings, "no_extra_descriptors", set(members) == {AMD64, ATTEST},
+        attestations = [
+            d for d, m in members.items()
+            if (m.get("annotations") or {}).get("vnd.docker.reference.type")
+            == "attestation-manifest"
+            or (m.get("platform") or {}).get("architecture") == "unknown"
+        ]
+        _check(findings, "no_attestation_child", not attestations,
+               f"attestation/provenance descriptors={sorted(attestations)}")
+        _check(findings, "no_extra_descriptors", set(members) == {AMD64},
                f"descriptors={sorted(members)}")
     except (ClientError, IndexError, KeyError, ValueError) as exc:
         _check(findings, "index_retrieval", False, f"index retrieval failed: {exc}")

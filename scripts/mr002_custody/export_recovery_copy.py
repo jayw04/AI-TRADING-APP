@@ -41,8 +41,23 @@ from pathlib import Path
 
 REGION = "us-east-1"
 REPOSITORY = "mr002-evaluator-p5"
-INDEX = "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9"
+# RETARGETED 2026-08-11 to the runtime image index alongside the WP-B rebind.
+# The INDEX is the governing root of the archive; every child manifest, config
+# and layer beneath it is evidence, never an alternative accepted root. An
+# archive of the predecessor would preserve an image that no run can execute.
+INDEX = "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
 INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
+
+# Superseded roots. Never archived under this tool's governing identity; named
+# so a mistaken invocation can be refused rather than silently archiving the
+# wrong image. The predecessor's own recovery archive is preserved separately
+# and is not superseded as historical evidence.
+SUPERSEDED_INDEXES = {
+    "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9":
+        "historical SS4/P5 identity-only image; archived separately under WP-A",
+    "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b":
+        "SUPERSEDED_NOT_BOUND single-platform manifest; not an index root",
+}
 
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -128,19 +143,30 @@ def fetch_blob(ecr, digest: str) -> bytes:
     return data
 
 
-def walk_graph(ecr):
+def walk_graph(ecr, root: str = INDEX):
     """Collect every object reachable from the bound index, each digest-verified.
+
+    ``root`` is the GOVERNING identity. Everything discovered beneath it --
+    platform manifests, configs, layers -- is evidence recorded under that root,
+    never an alternative root the archive could be built from. A superseded
+    index is refused by name so a mistaken invocation cannot quietly archive an
+    image no run can execute.
 
     Returns (objects, inventory) where objects maps digest -> bytes.
     """
+    if root in SUPERSEDED_INDEXES:
+        raise SystemExit(
+            f"FATAL superseded root {root} is not archivable as the governing "
+            f"identity: {SUPERSEDED_INDEXES[root]}"
+        )
     objects, inventory = {}, []
 
-    index_bytes = fetch_manifest(ecr, INDEX)
-    objects[INDEX] = index_bytes
+    index_bytes = fetch_manifest(ecr, root)
+    objects[root] = index_bytes
     index = json.loads(index_bytes)
     if index.get("mediaType") != INDEX_MEDIA_TYPE:
         raise SystemExit(f"FATAL index media type: {index.get('mediaType')}")
-    inventory.append({"digest": INDEX, "kind": "index", "role": "GOVERNING bound object",
+    inventory.append({"digest": root, "kind": "index", "role": "GOVERNING bound object",
                       "media_type": index["mediaType"], "size": len(index_bytes)})
 
     for desc in index.get("manifests", []):
@@ -194,7 +220,7 @@ def write_oci_layout(root: Path, objects, index_bytes):
             "digest": INDEX,
             "size": len(index_bytes),
             "annotations": {
-                "org.opencontainers.image.ref.name": "mr002-evaluator-p5:qualify-d1e7ffc",
+                "org.opencontainers.image.ref.name": "mr002-evaluator-p5:runtime-index-v1",
                 "com.globalcomplyai.mr002.binding": "P5 §4 governing execution binding",
             },
         }],

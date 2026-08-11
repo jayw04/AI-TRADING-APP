@@ -14,7 +14,16 @@ import json
 import pytest
 from botocore.exceptions import ClientError
 
-from custody_monitor import AMD64, ATTEST, CONFIG, INDEX, INDEX_MEDIA_TYPE, run_checks
+from custody_monitor import (
+    AMD64,
+    CONFIG,
+    EXPECTED_INVENTORY,
+    HISTORICAL_INDEX,
+    INDEX,
+    INDEX_MEDIA_TYPE,
+    PRESERVED_HISTORICAL,
+    run_checks,
+)
 
 LIFECYCLE_ABSENT = ClientError(
     {"Error": {"Code": "LifecyclePolicyNotFoundException", "Message": "absent"}},
@@ -28,7 +37,6 @@ def _index_manifest(members=None):
         "mediaType": INDEX_MEDIA_TYPE,
         "manifests": members if members is not None else [
             {"digest": AMD64, "platform": {"architecture": "amd64", "os": "linux"}},
-            {"digest": ATTEST, "platform": {"architecture": "unknown", "os": "unknown"}},
         ],
     })
 
@@ -37,10 +45,10 @@ class FakeEcr:
     """Minimal stub of the ECR client surface run_checks() uses."""
 
     def __init__(self, *, mutability="IMMUTABLE", lifecycle=None, inventory=None,
-                 tags=("qualify-d1e7ffc",), index_body=None, config=CONFIG):
+                 tags=("runtime-index-v1",), index_body=None, config=CONFIG):
         self.mutability = mutability
         self.lifecycle = lifecycle
-        self.inventory = inventory if inventory is not None else [INDEX, AMD64, ATTEST]
+        self.inventory = inventory if inventory is not None else sorted(EXPECTED_INVENTORY)
         self.tags = list(tags)
         self.index_body = index_body if index_body is not None else _index_manifest()
         self.config = config
@@ -92,16 +100,16 @@ def test_byte_exactness_cannot_be_forged_by_a_stub():
 
 def test_foreign_object_breaks_single_artifact_invariant():
     """Exactly the probe-residue condition that prompted the invariant."""
-    ecr = FakeEcr(inventory=[INDEX, AMD64, ATTEST, "sha256:" + "ec" * 32])
+    ecr = FakeEcr(inventory=sorted(EXPECTED_INVENTORY) + ["sha256:" + "ec" * 32])
     verdict, findings = run_checks(ecr)
     assert verdict == "FAIL"
-    assert status_of(findings, "single_artifact_invariant") == "FAIL"
+    assert status_of(findings, "repository_inventory_invariant") == "FAIL"
 
 
 def test_missing_bound_object_detected():
     verdict, findings = run_checks(FakeEcr(inventory=[INDEX, AMD64]))
     assert verdict == "FAIL"
-    assert status_of(findings, "single_artifact_invariant") == "FAIL"
+    assert status_of(findings, "repository_inventory_invariant") == "FAIL"
 
 
 def test_tampered_index_bytes_detected():
@@ -112,17 +120,36 @@ def test_tampered_index_bytes_detected():
     assert status_of(findings, "index_byte_exact") == "FAIL"
 
 
-def test_attestation_descriptor_stripped_detected():
-    body = _index_manifest([{"digest": AMD64, "platform": {"architecture": "amd64", "os": "linux"}}])
+def test_injected_attestation_child_detected():
+    """Inverted by the 2026-08-11 retarget.
+
+    The predecessor index CONTAINED a buildx attestation, so the old check
+    asserted its presence. The governed runtime index has exactly one platform
+    entry and no attestation child, so what must now be caught is an INJECTED
+    provenance child being carried as though it were an executable platform
+    image.
+    """
+    body = _index_manifest([
+        {"digest": AMD64, "platform": {"architecture": "amd64", "os": "linux"}},
+        {"digest": "sha256:" + "bb" * 32,
+         "platform": {"architecture": "unknown", "os": "unknown"},
+         "annotations": {"vnd.docker.reference.type": "attestation-manifest"}},
+    ])
     verdict, findings = run_checks(FakeEcr(index_body=body))
     assert verdict == "FAIL"
-    assert status_of(findings, "attestation_accounted") == "FAIL"
+    assert status_of(findings, "no_attestation_child") == "FAIL"
+
+
+def test_the_governed_index_has_no_attestation_child():
+    """The governed shape: one platform entry, zero provenance children."""
+    _, findings = run_checks(FakeEcr())
+    assert status_of(findings, "no_attestation_child") == "PASS"
+    assert status_of(findings, "no_extra_descriptors") == "PASS"
 
 
 def test_extra_platform_descriptor_detected():
     body = _index_manifest([
         {"digest": AMD64, "platform": {"architecture": "amd64", "os": "linux"}},
-        {"digest": ATTEST, "platform": {"architecture": "unknown", "os": "unknown"}},
         {"digest": "sha256:" + "aa" * 32, "platform": {"architecture": "arm64", "os": "linux"}},
     ])
     verdict, findings = run_checks(FakeEcr(index_body=body))
@@ -182,3 +209,41 @@ def test_receipt_never_claims_to_satisfy_requirement_7():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ---------------------------------------------------------------------------
+# Retarget 2026-08-11: the INDEX is the governing root; children are evidence
+# ---------------------------------------------------------------------------
+
+
+def test_the_governing_root_is_the_index_not_a_child():
+    """A child platform manifest or config is evidence BENEATH the root, never
+    an alternative accepted root. This is the same semantics WP-B enforces."""
+    assert INDEX != AMD64
+    assert INDEX != CONFIG
+    assert AMD64 in EXPECTED_INVENTORY
+    body = _index_manifest([
+        {"digest": AMD64, "platform": {"architecture": "amd64", "os": "linux"}}
+    ])
+    _, findings = run_checks(FakeEcr(index_body=body))
+    # The byte-exactness check is performed against the INDEX, and the config is
+    # reached only by descending through the child manifest named by that index.
+    assert any(f["check"] == "index_byte_exact" for f in findings)
+    assert status_of(findings, "amd64_manifest_bound") == "PASS"
+    assert status_of(findings, "config_digest") == "PASS"
+
+
+def test_historical_artifacts_must_remain_present():
+    """Superseded is not disposable: the predecessor index and its children are
+    SS4/P5 evidence and their disappearance is a custody failure."""
+    surviving = sorted(EXPECTED_INVENTORY - {HISTORICAL_INDEX})
+    verdict, findings = run_checks(FakeEcr(inventory=surviving))
+    assert verdict == "FAIL"
+    assert status_of(findings, "historical_artifacts_preserved") == "FAIL"
+
+
+def test_predecessor_is_not_the_monitored_governing_identity():
+    """The retarget itself: a monitor still watching the predecessor would
+    report healthy custody of an image no run can execute."""
+    assert INDEX not in PRESERVED_HISTORICAL
+    assert HISTORICAL_INDEX in PRESERVED_HISTORICAL
