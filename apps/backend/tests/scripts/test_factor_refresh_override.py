@@ -13,6 +13,7 @@ Each test below names the production failure it prevents.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -24,7 +25,16 @@ _OVERRIDE = _REPO_ROOT / "deploy" / "aws" / "docker-compose.factor-refresh.yml"
 
 pytestmark = pytest.mark.skipif(not _SH.exists(), reason="factor-refresh.sh absent")
 
-MOUNT = "./apps/backend/scripts/factor_refresh.py:/app/scripts/factor_refresh.py:ro"
+_SCRIPTS = _REPO_ROOT / "apps" / "backend" / "scripts"
+
+#: The reviewed set. factor_refresh.py imports factor_adjudication as a SIBLING, so
+#: delivering one without the other raises ModuleNotFoundError inside the throwaway
+#: container and the refresh aborts before reading a row — confirmed against the live
+#: image on 2026-08-11, which carried NEITHER file.
+MOUNTS = [
+    "./apps/backend/scripts/factor_refresh.py:/app/scripts/factor_refresh.py:ro",
+    "./apps/backend/scripts/factor_adjudication.py:/app/scripts/factor_adjudication.py:ro",
+]
 
 
 @pytest.fixture(scope="module")
@@ -52,13 +62,44 @@ def test_override_exists_and_is_parseable(override):
     assert set(doc["services"]) == {"backend"}, "only the backend service may be overridden"
 
 
-def test_override_maps_exactly_one_file_read_only(override):
+def test_override_maps_only_reviewed_single_file_mounts(override):
     """A directory mount would shadow EVERY image-baked script the moment the
     long-running backend is next recreated — a latent application-runtime change
-    outside the narrow recovery."""
+    outside the narrow recovery. Each entry must remain a named, reviewed FILE."""
     yaml = pytest.importorskip("yaml")
     vols = yaml.safe_load(override)["services"]["backend"]["volumes"]
-    assert vols == [MOUNT], f"expected exactly one read-only single-file mount, got {vols}"
+    assert vols == MOUNTS, f"expected exactly the reviewed single-file mounts, got {vols}"
+
+
+def test_override_delivers_every_sibling_module_factor_refresh_imports(override):
+    """The list above is a REVIEWED set; this is the drift guard behind it.
+
+    Adding a sibling import to factor_refresh.py without a mount line ships a refresh
+    that dies on ModuleNotFoundError in a throwaway container — and nothing else in the
+    suite can catch it, because every other test imports the module from the source tree
+    where its siblings are simply present.
+
+    Parsed with ``ast``, not grepped: the module names its siblings in prose, and matching
+    that would pass for the wrong reason (the trap that made a grep check on the planner-v3
+    provenance docstring return a false positive)."""
+    tree = ast.parse((_SCRIPTS / "factor_refresh.py").read_text(encoding="utf-8"))
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            imported.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                imported.add(alias.name.split(".")[0])
+    siblings = {n for n in imported if (_SCRIPTS / f"{n}.py").exists()}
+    assert siblings, "expected factor_refresh.py to import at least one sibling module"
+
+    mounted = {m.split(":")[0].rsplit("/", 1)[-1] for m in MOUNTS}
+    missing = {f"{n}.py" for n in siblings} - mounted
+    assert not missing, (
+        f"{sorted(missing)} imported by factor_refresh.py but not mounted. The deployed "
+        "image does not contain these files, so the one-off refresh container would raise "
+        "ModuleNotFoundError and abort the refresh."
+    )
 
 
 def test_override_does_not_mount_the_scripts_directory(override):
@@ -88,11 +129,12 @@ def test_override_declares_no_other_service_or_key(override):
     assert set(backend) == {"volumes"}, f"override must only add volumes, got {sorted(backend)}"
 
 
-def test_mounted_source_file_exists_in_the_repo(override):
-    """The mount source must be a real file, or the container silently gets a
+def test_mounted_source_files_exist_in_the_repo(override):
+    """Every mount source must be a real file, or the container silently gets a
     directory created by the daemon and the import fails at runtime."""
-    src = MOUNT.split(":")[0].lstrip("./")
-    assert (_REPO_ROOT / src).is_file(), f"{src} must exist as a file"
+    for mount in MOUNTS:
+        src = mount.split(":")[0].lstrip("./")
+        assert (_REPO_ROOT / src).is_file(), f"{src} must exist as a file"
 
 
 # ------------------------------------------------------------- shell wiring
