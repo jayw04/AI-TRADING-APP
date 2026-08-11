@@ -1,0 +1,84 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "boundary": "Freeze record only. Grants nothing. validation_authorization remains false at _rev 0; OOS remains under DENY; WP-F remains NOT AUTHORIZED; the validation reader remains unassumable; the single validation opening remains unconsumed.",
+ "custodian": "Jay Wang",
+ "date": "2026-08-11",
+ "frozen_host": {
+  "evidence_of_continuity": "Same instance id, instance type c6a.large, availability zone us-east-1d, instance profile mr002-phase3c-run-host and root volume vol-074b501ce685e1d94 across the stop/start cycle. SR-HOST-1 requires requalification only on REPLACEMENT; this was a restart.",
+  "instance_id": "i-00c1034f7026db45e",
+  "p12_binds_the_role_not_the_instance": "Per D-S8 a future P12 binds the qualified instance-profile / IAM ROLE identity plus this frozen runtime evidence, never the EC2 instance id.",
+  "restarted_not_replaced": true,
+  "security_principal": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+  "state_after_capture": "stopped (image and evidence preserved on EBS)"
+ },
+ "frozen_runtime_identity": {
+  "blas": "scipy-openblas",
+  "container_image_index_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "cpu_machine": "x86_64",
+  "dependency_lockfile_sha256": "bb38b685d15f78b705fff2681b76807f2277b02f7af5788e4c320951121c7ebd",
+  "evaluator_modules_verified": 21,
+  "image_obtained_via": "WP-B Requirement-7 resolver only; produce_p10_manifest accepts no digest, tag, image or observation argument, so there is no path by which another image could have been substituted",
+  "lapack": "scipy-openblas",
+  "numpy_cpu_dispatch": [
+   "SSSE3",
+   "SSE41",
+   "POPCNT",
+   "SSE42",
+   "AVX",
+   "F16C",
+   "FMA3",
+   "AVX2",
+   "AVX512F",
+   "AVX512CD",
+   "AVX512_KNL",
+   "AVX512_KNM",
+   "AVX512_SKX",
+   "AVX512_CLX",
+   "AVX512_CNL",
+   "AVX512_ICL"
+  ],
+  "numpy_version": "2.2.6",
+  "pandas_version": "3.0.5",
+  "python_version": "3.13.14",
+  "rng": "PCG64",
+  "scipy_version": "1.18.0",
+  "thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  }
+ },
+ "p10_instance": {
+  "authorizes": "NOTHING \u2014 P10 is a prerequisite for a run, never an authorization for one. validation_authorization is separate CAS-guarded state.",
+  "bindings_present": 17,
+  "bindings_required": 17,
+  "captured_on": "the qualified host, inside the bound image, before any validation run",
+  "captured_prospectively": true,
+  "path": "docs/review/mr002/phase3bc/MR002_NumericRuntimeIdentityManifest_RuntimeInstance_v1.0.json",
+  "produced_at": "2026-08-11T22:56:54.043641Z",
+  "sha256": "8e5e39471c0d96c5cd6916e7c316bc74fa320336c7e0106515ede11f479c1ed0"
+ },
+ "purpose": "Freeze the execution host and runtime identity as the intended Phase 3C environment, immediately after the prospective P10 capture.",
+ "record_identity_sha256": "59c57d953bd454ebb953b663a29a3f2b3ed79c6fd8d75c4f8009d401846695be",
+ "record_type": "MR002_Phase3CHostFreeze",
+ "staleness_rule": {
+  "enforcement": "require_numeric_runtime() compares every binding at run time and FAIL-STOPS before any metric on mismatch; it requires the resolver to be injected, so the image digest is re-resolved live rather than trusted from the manifest.",
+  "rule": "If any material runtime property changes after this capture, P10 is STALE. Do not reuse a stale P10 manifest: produce a fresh one and repeat the required grant-readiness verification.",
+  "triggers": [
+   "replacement EC2 instance",
+   "different CPU architecture or family where governed by P10",
+   "different container runtime that changes governed bindings",
+   "changed evaluator image digest",
+   "changed Linux dependency lock",
+   "changed numpy / scipy / pandas runtime",
+   "changed BLAS or LAPACK implementation",
+   "changed CPU-dispatch result",
+   "changed frozen thread settings",
+   "changed evaluator module identity"
+  ]
+ },
+ "standing_rule": "SR-HOST-1",
+ "version": "1.0"
+}

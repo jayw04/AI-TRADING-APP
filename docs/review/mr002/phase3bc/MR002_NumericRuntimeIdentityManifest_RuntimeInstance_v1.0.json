@@ -1,0 +1,148 @@
+{
+  "authorizes": "NOTHING \u2014 P10 is a prerequisite for a run, never an authorization for one. validation_authorization is separate CAS-guarded state.",
+  "bindings": {
+    "blas": {
+      "name": "scipy-openblas",
+      "openblas_config": "OpenBLAS 0.3.29  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+      "pc_file": "/project/.openblas",
+      "version": "0.3.29"
+    },
+    "container_image_digest": {
+      "digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+      "digest_kind": "OCI image index digest",
+      "region": "us-east-1",
+      "registry_id": "219024422756",
+      "repository": "mr002-evaluator-p5",
+      "resolution_method": "live registry batch_get_image by imageDigest, bytes rehashed",
+      "resolved_at": "2026-08-11T22:56:51.799363Z",
+      "sole_permitted_path": "resolve_evaluator_image.resolve_bound_image"
+    },
+    "cpu_architecture": {
+      "machine": "x86_64",
+      "numpy_cpu_baseline": [
+        "SSE",
+        "SSE2",
+        "SSE3"
+      ],
+      "numpy_cpu_dispatch": [
+        "SSSE3",
+        "SSE41",
+        "POPCNT",
+        "SSE42",
+        "AVX",
+        "F16C",
+        "FMA3",
+        "AVX2",
+        "AVX512F",
+        "AVX512CD",
+        "AVX512_KNL",
+        "AVX512_KNM",
+        "AVX512_SKX",
+        "AVX512_CLX",
+        "AVX512_CNL",
+        "AVX512_ICL"
+      ],
+      "numpy_cpu_features_enabled": [
+        "AVX",
+        "AVX2",
+        "F16C",
+        "FMA3",
+        "MMX",
+        "POPCNT",
+        "SSE",
+        "SSE2",
+        "SSE3",
+        "SSE41",
+        "SSE42",
+        "SSSE3"
+      ],
+      "processor_model": "AMD EPYC 7R13 Processor"
+    },
+    "dependency_lockfile_sha256": "bb38b685d15f78b705fff2681b76807f2277b02f7af5788e4c320951121c7ebd",
+    "lapack": {
+      "name": "scipy-openblas",
+      "openblas_config": "OpenBLAS 0.3.29  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+      "pc_file": "/project/.openblas",
+      "version": "0.3.29"
+    },
+    "locale": {
+      "lang_env": "",
+      "lc_all": "LC_CTYPE=C.UTF-8;LC_NUMERIC=C;LC_TIME=C;LC_COLLATE=C;LC_MONETARY=C;LC_MESSAGES=C;LC_PAPER=C;LC_NAME=C;LC_ADDRESS=C;LC_TELEPHONE=C;LC_MEASUREMENT=C;LC_IDENTIFICATION=C",
+      "lc_all_env": "",
+      "preferred_encoding": "utf-8"
+    },
+    "numpy_scipy_binary_identities": {
+      "numpy._core._multiarray_umath": {
+        "available": true,
+        "path": "/usr/local/lib/python3.13/site-packages/numpy/_core/_multiarray_umath.cpython-313-x86_64-linux-gnu.so",
+        "sha256": "aa26455b9418a62fc93e36752003b088c9cbcb0d143e7dbb9505234f5a93eca6"
+      },
+      "scipy.linalg._flapack": {
+        "available": true,
+        "path": "/usr/local/lib/python3.13/site-packages/scipy/linalg/_flapack.cpython-313-x86_64-linux-gnu.so",
+        "sha256": "440c3b578ea6a222d2e23ff23ff8cd6bf7c63e8d1d81f53667925655a5496901"
+      },
+      "scipy.linalg.cython_lapack": {
+        "available": true,
+        "path": "/usr/local/lib/python3.13/site-packages/scipy/linalg/cython_lapack.cpython-313-x86_64-linux-gnu.so",
+        "sha256": "e6bb843003a657aab3dd312b40cddb72f52d5b52c86ed5a93b9b7b70e2803f4e"
+      }
+    },
+    "numpy_version": "2.2.6",
+    "pandas_version": "3.0.5",
+    "python_executable_identity": {
+      "build": "main Jun 24 2026 02:07:54",
+      "compiler": "GCC 12.2.0",
+      "implementation": "CPython",
+      "path": "/usr/local/bin/python",
+      "sha256": "73b68fc2dac176af16098180a2c98a03ee9f1f1b02db25d42d44d782e79e2330"
+    },
+    "python_version": "3.13.14",
+    "registered_seeds": {
+      "bootstrap_seed": 20260711,
+      "rng": "numpy_PCG64"
+    },
+    "rng_algorithm": {
+      "default_rng_bit_generator": "PCG64",
+      "numpy_random_module": "numpy.random"
+    },
+    "scipy_version": "1.18.0",
+    "solver_driver": {
+      "dtype": "float64",
+      "lapack": "gelsd/SVD",
+      "rcond": 1e-10,
+      "solver": "numpy.linalg.lstsq"
+    },
+    "thread_env": {
+      "MKL_NUM_THREADS": "1",
+      "NUMEXPR_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_CORETYPE": "HASWELL",
+      "OPENBLAS_NUM_THREADS": "1"
+    },
+    "timezone": {
+      "tz_env": "",
+      "tzname": [
+        "UTC",
+        "UTC"
+      ],
+      "utc_offset_seconds": 0
+    }
+  },
+  "instance_of": "docs/review/mr002/phase3a/NumericRuntimeIdentityManifest_v1.0.json",
+  "mismatch_policy": "a numeric-runtime identity mismatch at run time FAIL-STOPS before any metric",
+  "prerequisite": "P10",
+  "produced_at": "2026-08-11T22:56:54.043641Z",
+  "produced_under": "docs/review/mr002/MR002_PrerequisiteProduction_Authorization_v1.0.json (Execution Order Step 3, WP-E)",
+  "provenance": {
+    "dependency_lock_path": "docs/review/mr002/evaluator/MR002_LinuxDependencyLock_v1.1.json",
+    "evaluator_module_source": "rehashed in-image, compared to the bound image manifest",
+    "evaluator_modules_verified": 21,
+    "image_manifest_sha256": "d3171952af42b79b127409e5123dd01761fdd0a17fc1442a0ad1c31eee1c746b",
+    "observed_at": "2026-08-11T22:56:53.850146Z",
+    "spec_sha256": "0ec253505a4d55befe35b1e832960e6a1de36e6e934fe8ac8a515270f2a8826a"
+  },
+  "record_type": "NumericRuntimeIdentityManifest",
+  "threading_policy_branch": "FROZEN \u2014 the alternative branch (proving that varying the thread-count variables leaves governed output hashes unchanged) has not been performed",
+  "version": "1.0"
+}
