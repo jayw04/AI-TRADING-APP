@@ -1,0 +1,138 @@
+{
+  "artifact": "MR002_EvaluatorImageRuntimeAdjudication_v1.0",
+  "program": "MR-002 — Sector-Neutral Residual Reversion",
+  "workstream": "SPQ-1",
+  "type": "owner adjudication — identity-only image vs executable runtime image",
+  "date": "2026-08-11",
+  "adjudicated_by": "Jay Wang (owner)",
+  "occasion": "First prospective P10 capture on the qualified Phase 3C host i-00c1034f7026db45e refused with numpy_unavailable.",
+
+  "finding": {
+    "summary": "The image bound by P5 and resolved by WP-B is a valid identity/custody artifact but is NOT an executable numeric-runtime artifact. P10 requires numeric properties that do not exist inside it.",
+    "classification": "NOT a P10 implementation defect. An inconsistency between artifacts the program had already bound.",
+    "evidence": {
+      "bound_image_digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+      "image_size_bytes": 44388332,
+      "pip_list_inside_image": ["pip 26.1.2"],
+      "filesystem_search": "find / for numpy* scipy* pandas* returned NOTHING",
+      "declared_but_absent": {
+        "numpy": "2.2.6",
+        "scipy": "1.18.0",
+        "pytest": "9.0.3",
+        "ruff": "0.15.13"
+      },
+      "evaluator_unimportable_in_its_own_image": "2 of the 21 bound modules import numpy (mr002_valoos_metrics.py, mr002_valoos_runtime.py)",
+      "image_manifest_self_description": "scope = 'SS4 image-identity leg only; NOT a P10 numeric-runtime qualification'",
+      "in_image_bindings_unobtainable": [
+        "numpy_version", "scipy_version", "pandas_version", "blas", "lapack",
+        "rng_algorithm", "numpy_scipy_binary_identities"
+      ],
+      "no_alternative_in_registry": "ECR repository mr002-evaluator-p5 holds only this one image family. The sha256:81e8d7a7 image used by the July requalification was local to the destroyed host and exists in no registry.",
+      "dependency_lock_platform_defect": {
+        "lock": "MR002_Increment1_Dependencies.json (sha256 17a73ede5a2f62be...)",
+        "declared_platform": "Windows-11-10.0.26200-SP0",
+        "problem": "The lock P10 would bind as dependency_lockfile_sha256 was captured on the developer workstation, not in a Linux container. It cannot honestly serve as the Linux runtime lock."
+      }
+    },
+    "control_assessment": "The controls worked. P10 REFUSED to manufacture a numeric-runtime identity from an image that has no numeric runtime. That is precisely the failure mode this prerequisite exists to expose."
+  },
+
+  "rulings": [
+    {
+      "id": "A1",
+      "subject": "Do not repair the existing bound image",
+      "ruling": "PROHIBITED: installing NumPy/SciPy into it, mutating it, retagging anything, reconstructing the destroyed local sha256:81e8d7a7 image, or weakening P10.",
+      "status_of_the_old_image": "sha256:60b15568... remains HISTORICALLY VALID for what P5 actually established. It simply cannot satisfy P10."
+    },
+    {
+      "id": "A2",
+      "subject": "Preserve P6-P9 and P11",
+      "ruling": "Nothing in this finding invalidates them. The sealed store, access history, content commitment, structural manifest and access-control state remain valid.",
+      "consequences": {
+        "p10": "UNSATISFIED",
+        "wp_f": "NOT AUTHORIZED",
+        "validation": "UNOPENED"
+      }
+    },
+    {
+      "id": "A3",
+      "subject": "Preferred remediation — a NEW runtime-capable evaluator image",
+      "ruling": "Create a new runtime-capable evaluator image and then explicitly rebind the image-dependent controls. Do NOT present it as the old image with a fix; give it a NEW IDENTITY.",
+      "required_contents": [
+        "exactly the already-bound evaluator source/module set",
+        "no signal or evaluator logic changes",
+        "a reproducible LINUX dependency lock",
+        "the actual numeric stack P10 requires",
+        "immutable image digest",
+        "enough build provenance to reproduce the image independently"
+      ],
+      "authorization_state": "NOT YET AUTHORIZED — this adjudication records the preferred path; the rebuild itself requires an explicit separate authorization."
+    },
+    {
+      "id": "A4",
+      "subject": "Rebind only what the new image actually invalidates",
+      "expected_chain": [
+        "new runtime image",
+        "new image digest",
+        "renewed P5 / pre-access image binding",
+        "custody requirements 1-6 for the new digest",
+        "WP-B resolver updated to the newly adjudicated digest",
+        "new independent recovery archive",
+        "prospective P10 capture"
+      ],
+      "old_artifacts": "The sha256:60b15568... artifacts remain as historical evidence. They are SUPERSEDED, not rewritten.",
+      "explicit_limit": "P6-P9/P11 must NOT be regenerated merely because the evaluator image changes, unless a specific bound cross-reference requires it. Do not needlessly disturb the sealed-store evidence."
+    },
+    {
+      "id": "A5",
+      "subject": "The dual-image interpretation is NOT preferred",
+      "alternative_considered": "Leave sha256:60b15568... as the P5 image and introduce a separate numeric-runtime image only for P10.",
+      "ruling": "NOT RECOMMENDED by default.",
+      "why": "It creates a new identity seam — 'the image whose evaluator identity was approved' versus 'the image that actually executes the metrics' — which is harder to reason about and increases the risk that the runtime artifact diverges from the approved evaluator. A single executable, custody-bound evaluator image is cleaner.",
+      "if_forced": "If there is an architectural reason to maintain two images, that requires an EXPLICIT CONTRACT AMENDMENT defining how source/module identity is proven identical across them."
+    },
+    {
+      "id": "A6",
+      "subject": "The Windows dependency lock requires explicit correction",
+      "ruling": "Do NOT simply reuse its hash in the new Linux runtime. The new build needs a Linux-appropriate lock with explicit provenance.",
+      "demonstration_required": "If the currently declared package versions resolve identically on Linux, that must be DEMONSTRATED, not assumed.",
+      "preservation": "The old Windows lock remains preserved as part of the historical build-input record that exposed this defect."
+    },
+    {
+      "id": "A7",
+      "subject": "Disposition of the work in flight",
+      "committed_as_legitimate": [
+        "The WP-E _repo_root() defect fix and its five regression tests — independently valid, and necessary to expose the real blocker",
+        "The qualification-only host IAM documents — they show no reader trust and no data access",
+        "The Phase 3C host qualification record"
+      ],
+      "prohibited": "Committing anything claiming P10 satisfaction.",
+      "commit": "43a37ed"
+    }
+  ],
+
+  "immediate_sequence": [
+    "1. Stop the EC2 host — DONE (i-00c1034f7026db45e stopped; EBS vol-074b501ce685e1d94, role and instance profile preserved)",
+    "2. Commit the legitimate WP-E / qualification fixes — DONE (43a37ed)",
+    "3. Write this owner adjudication — THIS RECORD",
+    "4. Authorize a new runtime-capable image and rebind the affected image/custody chain — NOT YET AUTHORIZED",
+    "5. Reprovision / resume the qualified host",
+    "6. Capture P10 prospectively",
+    "7. Stop again BEFORE WP-F"
+  ],
+
+  "standing_state_unchanged": {
+    "validation_authorization": false,
+    "cas_rev": 0,
+    "validation_partition": "CLOSED — single opening UNCONSUMED",
+    "oos_partition": "UNDER DENY",
+    "wp_f": "NOT AUTHORIZED",
+    "custody_requirement_7": "IMPLEMENTED_PENDING_C_R7_VERIFICATION",
+    "p6_p9_p11": "SATISFIED — unaffected by this finding",
+    "p10": "UNSATISFIED — blocked pending A3 authorization",
+    "p12": "NOT EXECUTED",
+    "validation_reader_assumable": false
+  },
+
+  "version": "1.0"
+}
