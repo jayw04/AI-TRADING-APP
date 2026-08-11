@@ -1,0 +1,64 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ResolveAndPullTheBoundEvaluatorImageOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:DescribeImages",
+        "ecr:ListImages"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:219024422756:repository/mr002-evaluator-p5"
+    },
+    {
+      "Sid": "EcrAuthTokenIsAccountWideByApiDesign",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyAssumingTheValidationReaderRole",
+      "Effect": "Deny",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+    },
+    {
+      "Sid": "DenyAllAccessToTheSealedStore",
+      "Effect": "Deny",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+      ]
+    },
+    {
+      "Sid": "DenyMutatingTheEvaluatorImageOrItsCustody",
+      "Effect": "Deny",
+      "Action": [
+        "ecr:PutImage",
+        "ecr:BatchDeleteImage",
+        "ecr:DeleteRepository",
+        "ecr:SetRepositoryPolicy",
+        "ecr:DeleteRepositoryPolicy",
+        "ecr:PutLifecyclePolicy",
+        "ecr:PutImageTagMutability"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyEditingTheCredentialReleaseControl",
+      "Effect": "Deny",
+      "Action": [
+        "iam:UpdateAssumeRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:CreateRole",
+        "iam:DeleteRolePolicy"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

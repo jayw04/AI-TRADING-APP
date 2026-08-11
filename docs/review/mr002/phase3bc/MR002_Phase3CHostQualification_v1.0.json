@@ -1,0 +1,118 @@
+{
+ "record_type": "MR002_Phase3CHostQualification",
+ "version": "1.0",
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "date": "2026-08-11",
+ "purpose": "Qualification evidence for the intended Phase 3C execution environment, established under MR002_ExecutionSequencing_Direction_v1.1.json D-S7 step 2.",
+ "authority": "Owner authorization 2026-08-11 — provision a QUALIFICATION-ONLY Phase 3C host with no validation-reader trust relationship and no validation/OOS access.",
+ "custodian": "Jay Wang",
+
+ "p10_outcome": {
+  "status": "NOT CAPTURED",
+  "p10_state": "UNSATISFIED",
+  "this_record_claims_no_p10_satisfaction": true,
+  "reason": "The bound evaluator image contains no numeric stack, so the in-image leg refused with numpy_unavailable. See MR002_EvaluatorImageRuntimeAdjudication_v1.0.json.",
+  "note": "The refusal is the control working. P10 declined to manufacture a numeric-runtime identity from an image that has no numeric runtime."
+ },
+
+ "security_principal": {
+  "role_name": "mr002-phase3c-run-host",
+  "role_arn": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+  "instance_profile_arn": "arn:aws:iam::219024422756:instance-profile/mr002-phase3c-run-host",
+  "naming_note": "Deliberately NOT the placeholder string named in the validation-reader trust policy. Naming it 'mr002-phase3c-run-host-NOT-YET-PROVISIONED' would have made the reader assumable the instant the role existed (TRAP-NAME-1).",
+  "p12_binding_note": "Per D-S8, a future P12 binds THIS role identity plus the frozen runtime evidence — never the EC2 instance id."
+ },
+
+ "boundary_proven": {
+  "method": "IAM policy simulation over the identity policy AND the sealed-store bucket policy. Deliberately not an attempted read.",
+  "decisions": {
+   "assume_mr002_validation_reader": "explicitDeny",
+   "read_sealed_validation_prefix": "explicitDeny",
+   "read_sealed_oos_prefix": "explicitDeny",
+   "pull_bound_evaluator_image": "allowed"
+  },
+  "validation_reader_assumable": false,
+  "trust_policy_edited": false,
+  "validation_or_oos_object_read": false
+ },
+
+ "instance": {
+  "instance_id": "i-00c1034f7026db45e",
+  "instance_type": "c6a.large",
+  "availability_zone": "us-east-1d",
+  "image_id": "ami-07a5b367e8dc8bd92",
+  "account_id": "219024422756",
+  "region": "us-east-1",
+  "private_ip": "172.31.32.52",
+  "launched_utc": "2026-08-11T16:28:37Z",
+  "root_volume": "vol-074b501ce685e1d94",
+  "security_group": "sg-0850bc83ec5826247",
+  "security_group_rules": "no inbound; egress TCP 443 only",
+  "imdsv2_required": true,
+  "state_at_record_time": "stopped",
+  "stopped_reason": "Idle cost avoidance while the blocker is adjudicated at governance level. EBS, role, and instance profile preserved."
+ },
+
+ "runtime_identity": {
+  "cpu_vendor": "AuthenticAMD",
+  "cpu_model": "AMD EPYC 7R13 Processor",
+  "architecture": "x86_64",
+  "vcpus": 2,
+  "threads_per_core": 2,
+  "cores_per_socket": 1,
+  "avx2": "present",
+  "kernel": "6.1.177-224.371.amzn2023.x86_64",
+  "os": "Amazon Linux 2023.12.20260803",
+  "docker_client": "25.0.14",
+  "docker_server": "25.0.16",
+  "root_filesystem": "xfs, 30G, /dev/nvme0n1p1",
+  "containers_at_qualification": 0,
+  "images_at_qualification": 0,
+  "host_leg_interpreter": "Python 3.11.15 (AL2023 default python3 is 3.9, which cannot run the producer: datetime.UTC requires 3.11+)",
+  "host_leg_boto3": "1.43.68"
+ },
+
+ "comparison_with_the_destroyed_qualified_host": {
+  "predecessor": "i-0f3ceafdd4294c572 (no longer exists; InvalidInstanceID.NotFound)",
+  "identical": [
+   "instance type c6a.large",
+   "availability zone us-east-1d",
+   "CPU model AMD EPYC 7R13, x86_64, AVX2 present",
+   "docker client 25.0.14 / server 25.0.16",
+   "root filesystem xfs, 30G"
+  ],
+  "differs": [
+   "kernel 6.1.177-224.371 vs 6.1.176-221.360",
+   "Amazon Linux 2023.12.20260803 vs 2023.12.20260710"
+  ],
+  "assessment": "Same runtime family, same CPU model and instruction set. This is a requalification of the intended execution environment, not an equivalence proof — SR-HOST-1 governs what happens if it changes again."
+ },
+
+ "frozen_thread_environment_applied": {
+  "OPENBLAS_CORETYPE": "HASWELL",
+  "OPENBLAS_NUM_THREADS": "1",
+  "OMP_NUM_THREADS": "1",
+  "MKL_NUM_THREADS": "1",
+  "NUMEXPR_NUM_THREADS": "1",
+  "source": "Transcribed from the frozen invocation recorded in MR002_HostRequalification_Submission_v1.0.md; NUMEXPR_NUM_THREADS added because the producer's FROZEN_THREAD_ENV requires all five and treats unset as not frozen."
+ },
+
+ "wp_b_resolver_evidence": {
+  "resolved_digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+  "resolution_path": "WP-B Requirement-7 fail-closed resolver — the sole permitted path; no tag, local image, rebuild, or hand-supplied digest was used at any point",
+  "docker_independently_confirmed_digest": true,
+  "note": "This is the first end-to-end demonstration of the WP-B path at the container layer: the image was pulled by digest on the intended execution host and Docker independently reported the same digest. Requirement 7 nonetheless remains IMPLEMENTED_PENDING_C_R7_VERIFICATION; C-R7 requires a closed WP-F run, and WP-F is not authorized."
+ },
+
+ "defect_found_and_corrected_during_qualification": {
+  "id": "WP-E REPO defect",
+  "symptom": "The in-image leg crashed with IndexError before observing any binding.",
+  "cause": "REPO was computed at module scope as Path(__file__).resolve().parents[2]. The in-image leg is bind-mounted at /tmp/mr002_capture.py, which has two parents, not three.",
+  "why_44_tests_missed_it": "Every test injected a fake runner, so the real _default_runner bind-mount contract was never executed and the module was never imported from outside the repository layout.",
+  "correction": "Extracted to a tested _repo_root() returning a non-existent sentinel outside the repo layout; host-leg constants are read only through _load_json/_sha256_file, which refuse on an unreadable file, so the fallback fails closed rather than substituting a default.",
+  "owner_authorization": "Approved 2026-08-11 as an amendment to the D-S1 WP-E freeze; does not weaken the 17-binding requirement and adds no escape hatch around the resolver.",
+  "regression_tests_added": 5
+ },
+
+ "boundary": "Qualification evidence only. No credential released, no trust policy edited, no partition opened, no P10 produced. validation_authorization remains false at _rev 0; OOS remains under DENY; WP-F remains NOT AUTHORIZED."
+}
