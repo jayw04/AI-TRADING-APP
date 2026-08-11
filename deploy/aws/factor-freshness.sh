@@ -151,6 +151,7 @@ DATADIR="${WORKBENCH_DATA_DIR:-/opt/workbench/data}"           # host side
 CONTAINER_DATADIR="${WORKBENCH_CONTAINER_DATA_DIR:-/app/data}"  # same volume, in-container
 BACKEND_CONTAINER="${BACKEND_CONTAINER:-workbench-backend}"
 STORE_PATH="${FACTOR_STORE_PATH:-$CONTAINER_DATADIR/factor_data.duckdb}"
+CONTAINER_APP_DB="${WORKBENCH_CONTAINER_APP_DB:-$CONTAINER_DATADIR/workbench.sqlite}"
 SUBJECT_PREFIX="${FRESHNESS_SUBJECT_PREFIX:-}"   # e.g. "[TEST] " for manual alert-path tests
 NOW_EPOCH="${WATCHDOG_NOW_EPOCH:-$(date +%s)}"   # clock seam: DST / weekend tests pin this
 # Pinning the clock also pins the timestamp stamped into the published artifact, which is
@@ -182,12 +183,53 @@ READINESS_PATH="${READINESS_ARTIFACT_PATH:-$DATADIR/$READINESS_BASENAME}"
 EXHAUSTION_BASENAME="_factor_exhaustion_evidence.json"
 CONTAINER_EXHAUSTION="$CONTAINER_DATADIR/$EXHAUSTION_BASENAME"
 
+# The SHARED adjudication implementation. Until 2026-08-11 this watchdog carried its own
+# reading of the evidence artifact above and reached a DIFFERENT verdict from the refresh
+# verifier's: it published coverage 1.0000 / PASS from the same file, store and universe
+# that aborted the refresh at 0.9784. One implementation, consumed by both, is the only
+# structural fix.
+#
+# ⚠ It is resolved from THIS SCRIPT'S OWN checked-out tree and piped into the container as
+# source — never imported from the running image. The image is built and deployed on its
+# own cadence and routinely predates the host tree; an import would make this watchdog
+# fail, or silently adjudicate differently, exactly when the two drift. A readiness
+# watchdog must never become the reason to deploy, and must never be the last component
+# to learn the rules changed. There is deliberately NO import fallback.
+WATCHDOG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ADJUDICATION_PATH="${FACTOR_ADJUDICATION_PATH:-$WATCHDOG_DIR/../../apps/backend/scripts/factor_adjudication.py}"
+
+# Read ONCE, then hash and pipe THE SAME BYTES. Hashing the path and separately re-reading
+# it to pipe would leave a window in which the artifact names an implementation that is not
+# the one that ran — which is the whole property the recorded hash exists to establish.
+ADJUDICATION_SRC=""
+ADJUDICATION_SHA256=""
+ADJUDICATION_AVAILABLE=0
+if [ -r "$ADJUDICATION_PATH" ]; then
+  ADJUDICATION_SRC="$(cat "$ADJUDICATION_PATH" 2>/dev/null)" || ADJUDICATION_SRC=""
+fi
+if [ -n "$ADJUDICATION_SRC" ]; then
+  # `<<<` appends exactly one newline, and the pipe below feeds the container through
+  # the same construct from the same variable - so the bytes hashed ARE the bytes
+  # executed, and the recorded hash cannot name an implementation that did not run.
+  ADJUDICATION_SHA256="$(sha256sum <<< "$ADJUDICATION_SRC" | cut -d' ' -f1)"
+  ADJUDICATION_AVAILABLE=1
+fi
+
 EXIT_READY=0
 EXIT_NOT_READY=2
 
 # Three independent problem ledgers. They are never merged before the verdict: the whole
 # point of the hardening is that these conditions cannot substitute for one another.
 P_PRODUCER=(); P_SEALED=(); P_DATA=()
+
+# FAIL CLOSED on a missing adjudication implementation. No implementation means no
+# adjudication, and an unadjudicated store cannot be declared ready. Never degrade to
+# "assume fresh", and never fall back to an image-resident copy whose provenance we
+# cannot state. Appended here rather than at resolution time because the ledgers above
+# are initialised after the configuration block and would otherwise erase it.
+if [ "$ADJUDICATION_AVAILABLE" -ne 1 ]; then
+  P_DATA+=("DATA_ADJUDICATION_HELPER_UNAVAILABLE: the shared adjudication implementation at '$ADJUDICATION_PATH' is missing or unreadable, so per-name freshness could NOT be adjudicated - freshness is UNKNOWN, which is treated as a failure rather than assumed fresh. Restore it from the checkout; do NOT substitute an image-resident copy.")
+fi
 # A FOURTH ledger, deliberately outside the readiness conjunction. Failing to publish the
 # artifact is not a statement about the factor data — it is a statement about the
 # interlock itself, and conflating the two would let "the veto is unarmed" be reported as
@@ -573,16 +615,10 @@ fi
 # module is baked into the image, the deployed image predates it, and this watchdog must
 # never become a reason to deploy it as a side effect.
 # ═════════════════════════════════════════════════════════════════════════════════════
-STORE_REPORT="$($DOCKER exec -i \
-  -e TOLERANCE="$TOLERANCE" \
-  -e MAX_LAG_DAYS="$MAX_LAG_DAYS" \
-  -e MIN_COVERAGE="$MIN_COVERAGE" \
-  -e STALE_SAMPLE="$STALE_NAME_SAMPLE" \
-  -e SEALED_PATH="$CONTAINER_SEALED" \
-  -e EXHAUSTION_PATH="$CONTAINER_EXHAUSTION" \
-  -e STORE_PATH="$STORE_PATH" \
-  -e REFRESH_TZ="$REFRESH_TZ" \
-  "$BACKEND_CONTAINER" python - <<'PY' 2>/dev/null
+# The shared adjudication implementation is PIPED IN AHEAD of the driver, from the
+# host tree, and the driver runs against those definitions. Never imported from the
+# image: the image is built on its own cadence and routinely predates the host tree.
+STORE_REPORT="$( { cat <<< "$ADJUDICATION_SRC"; cat <<'PY'
 import datetime, json, os, zoneinfo
 
 import duckdb
@@ -591,7 +627,15 @@ tol = int(os.environ["TOLERANCE"])
 max_lag = int(os.environ["MAX_LAG_DAYS"])
 min_cov = float(os.environ["MIN_COVERAGE"])
 sample = int(os.environ["STALE_SAMPLE"])
-et_today = datetime.datetime.now(zoneinfo.ZoneInfo(os.environ["REFRESH_TZ"])).date()
+# Clock seam, mirroring the shell's WATCHDOG_NOW_EPOCH. Without it this block reads the
+# wall clock while its tests pin a frontier, so they rot silently as time passes rather
+# than failing on a real regression.
+_pinned = os.environ.get("ET_TODAY", "").strip()
+et_today = (
+    datetime.date.fromisoformat(_pinned)
+    if _pinned
+    else datetime.datetime.now(zoneinfo.ZoneInfo(os.environ["REFRESH_TZ"])).date()
+)
 
 
 def d(v):
@@ -633,117 +677,131 @@ else:
               f"in-container ({type(exc).__name__}), so per-name freshness was NOT "
               "assessed - treated as a failure rather than assumed fresh")
 
-    # ── adjudicated symbols ───────────────────────────────────────────────────────────
-    # A delisted security stops reporting a lastpricedate and is then EXCLUDED from the
-    # ranking pool. That exclusion is correct market mechanics, not a data fault — and the
-    # refresh pipeline already establishes it symbol-by-symbol, with provider corroboration
-    # and a liveness control, in the exhaustion evidence artifact. Without consulting it
-    # this watchdog reports a permanent FAIL for a name everything else has adjudicated,
-    # and once the verdict is published that becomes a live trading veto (2026-08-08: SATS
-    # / EchoStar, ceased trading 06-12, would have blocked strategies 7+8).
-    #
-    # Read STRICTLY: only symbols listed explicitly, only the two adjudicated
-    # classifications, and every failure to read the evidence exempts NOTHING.
-    exempt = set()
-    exempted = []
-    assessable = []
-    exempt_note = "no evidence consulted"
-    try:
-        _ev = json.loads(open(os.environ["EXHAUSTION_PATH"], encoding="utf-8").read())
-        exempt = {
-            str(r.get("symbol", "")).strip().upper()
-            for r in (_ev.get("symbols") or [])
-            if isinstance(r, dict)
-            and str(r.get("expected_classification", "")).strip().upper()
-            in ("PROVIDER_EXHAUSTED", "PROVIDER_NOT_COVERED")
-            and str(r.get("symbol", "")).strip()
-        }
-        exempt_note = (f"{len(exempt)} adjudicated symbol(s), evidence generated "
-                       f"{_ev.get('generated_at_utc')}")
-    except FileNotFoundError:
-        # The strict direction: nothing is exempt, so a genuinely stale name still fails.
-        exempt_note = "evidence artifact ABSENT - nothing exempt"
-    except Exception as exc:  # noqa: BLE001
-        exempt = set()
-        exempt_note = f"evidence artifact UNREADABLE ({type(exc).__name__}) - nothing exempt"
-        print("PROBLEM DATA_EXHAUSTION_EVIDENCE_UNREADABLE: "
-              f"{os.environ['EXHAUSTION_PATH']} could not be parsed "
-              f"({type(exc).__name__}), so no symbol was exempted and an adjudicated "
-              "delisting will read as a freshness failure - repair the evidence artifact "
-              "rather than relaxing the freshness threshold")
-
     if universe:
-        # An exemption list is, structurally, a way to switch this check off. Bound it:
-        # excusing a large slice of the pool is itself a failure, not a pass.
-        exempted = sorted(set(universe) & exempt)
-        ceiling = max(5, int(len(universe) * 0.05))
-        if len(exempted) > ceiling:
-            print(f"PROBLEM DATA_EXEMPTION_IMPLAUSIBLE: {len(exempted)} of {len(universe)} "
-                  f"universe names are marked provider-exhausted/not-covered, above the "
-                  f"{ceiling} ceiling - that is too much of the pool to excuse, and the "
-                  "evidence artifact is being used to suppress a real outage; NOTHING was "
-                  "exempted for this run")
-            exempted = []
-        assessable = [t for t in universe if t not in set(exempted)]
-        if exempted:
-            print(f"NOTE DATA_EXEMPT_ADJUDICATED: {len(exempted)} of {len(universe)} "
-                  "universe names excluded from per-name freshness as adjudicated "
-                  f"provider-exhausted/not-covered ({exempt_note}): "
-                  f"{','.join(exempted[:sample])}")
-        if not assessable:
-            print("PROBLEM DATA_PER_NAME_UNASSESSABLE: every universe name is exempt, so "
-                  "per-name freshness measured nothing at all - an exemption list that "
-                  "covers the whole pool is a suppressed check, not a healthy store")
-
-    if universe and assessable:
         cutoff = sep - datetime.timedelta(days=max_lag)
-        ph = ",".join("?" * len(assessable))
+        ph = ",".join("?" * len(universe))
         sep_rows = c.execute(
             f"SELECT ticker, max(date) FROM sep WHERE ticker IN ({ph}) GROUP BY ticker",  # noqa: S608
-            assessable,
+            universe,
         ).fetchall()
         try:
             lpd_rows = c.execute(
                 f"SELECT ticker, lastpricedate FROM tickers WHERE ticker IN ({ph})",  # noqa: S608
-                assessable,
+                universe,
             ).fetchall()
         except Exception:  # noqa: BLE001 - tickers table absent
             lpd_rows = []
         smax = {t: d(v) for t, v in sep_rows if v is not None}
         lmax = {t: d(v) for t, v in lpd_rows if v is not None}
 
-        missing = sorted(set(assessable) - set(smax))
-        stale = sorted(t for t, v in smax.items() if v < cutoff)
-        lpd_stale = sorted(t for t in assessable if t in lmax and lmax[t] < cutoff)
-        covered = len(assessable) - len(missing) - len(stale)
-        # Coverage is measured over what is ASSESSABLE, so an adjudicated delisting neither
-        # counts against the pool nor pads it.
-        coverage = covered / len(assessable)
-        print(f"METRIC universe={len(universe)} assessable={len(assessable)} "
-              f"exempt={len(exempted)} covered={covered} coverage={coverage:.4f} "
-              f"missing={len(missing)} stale={len(stale)} "
-              f"lastpricedate_stale={len(lpd_stale)} frontier={sep} cutoff={cutoff}")
-        if coverage < min_cov:
-            print(f"PROBLEM DATA_PER_NAME_COVERAGE: per-name coverage {coverage:.4f} < "
-                  f"{min_cov} ({len(missing)} missing, {len(stale)} stale beyond "
-                  f"{max_lag}d of the {sep} frontier); e.g. "
-                  f"{','.join((missing + stale)[:sample])}")
-        if lpd_stale:
-            print(f"PROBLEM DATA_LASTPRICEDATE_STALE: {len(lpd_stale)} universe tickers "
-                  "have a stale tickers.lastpricedate and are NOT adjudicated "
-                  "provider-exhausted - they are EXCLUDED from the ranking pool outright "
-                  "(worse than ranking on old data); e.g. "
-                  f"{','.join(lpd_stale[:sample])}")
+        # EFFECTIVE freshness is the earlier of the two. A name with current prices but a
+        # lagging lastpricedate is dropped from the ranking pool outright - strictly worse
+        # than being ranked on old data - so it must not read as healthy here.
+        effective = {}
+        for t in universe:
+            parts = [x for x in (smax.get(t), lmax.get(t)) if x is not None]
+            effective[t] = min(parts) if parts else None
+        non_fresh = sorted(
+            t for t in universe if effective[t] is None or effective[t] < cutoff
+        )
+
+        evidence, ev_note, ev_status = load_evidence(os.environ["EXHAUSTION_PATH"])
+        if ev_status in ("unreadable", "malformed"):
+            # A broken control is a finding even on a run where nothing is stale.
+            print("PROBLEM DATA_EXHAUSTION_EVIDENCE_UNREADABLE: "
+                  f"{os.environ['EXHAUSTION_PATH']} could not be used ({ev_note}), so no "
+                  "symbol was attributed and an adjudicated delisting will read as a "
+                  "freshness failure - repair the evidence artifact rather than relaxing "
+                  "the freshness threshold")
+        # Held/registered facts are RECOMPUTED from the app DB, never taken from the
+        # evidence file: a stale or crafted artifact must not be able to declare a held
+        # name unheld and so write it off. Unreadable is a failure, not an empty set -
+        # empty would be LAXER than the refresh verifier, and the two must not diverge.
+        try:
+            operational = operational_facts(os.environ["APP_DB"], universe)
+        except Exception as exc:  # noqa: BLE001
+            operational = None
+            print("PROBLEM DATA_OPERATIONAL_FACTS_UNAVAILABLE: held/registered facts could "
+                  f"not be read from the app DB ({type(exc).__name__}), so adjudication "
+                  "could not verify that an attributed name is neither held nor registered "
+                  "- treated as a failure rather than adjudicated without them")
+
+        if operational is not None:
+            # The watchdog assesses ONE store, so the live and stage frontiers are the same
+            # value: there is no pending swap to disprove.
+            result = adjudicate(
+                universe,
+                stage_effective=effective,
+                live_effective=effective,
+                non_fresh=non_fresh,
+                cutoff=cutoff,
+                evidence=evidence,
+                operational=operational,
+            )
+            coverage = gating_coverage(result)
+            print(f"METRIC universe={result['universe_size']} "
+                  f"assessable={result['assessable_count']} "
+                  f"attributed={result['attributed_count']} covered={result['covered']} "
+                  f"coverage={coverage:.4f} raw_coverage={result['raw_coverage']:.4f} "
+                  f"unexplained={result['failed_or_unexplained_count']} "
+                  f"ceiling={result['exemption_ceiling']} frontier={sep} cutoff={cutoff}")
+            print(f"NOTE DATA_ADJUDICATION_EVIDENCE: {ev_note}")
+            for note in result["notes"]:
+                print(f"NOTE {note}")
+            for problem in result["problems"]:
+                print(f"PROBLEM {problem}")
+            if coverage < min_cov:
+                bad = result["failed_or_unexplained_symbols"]
+                print(f"PROBLEM DATA_PER_NAME_COVERAGE: per-name coverage {coverage:.4f} < "
+                      f"{min_cov} over {result['assessable_count']} assessable names "
+                      f"({result['failed_or_unexplained_count']} unadjudicated) of the "
+                      f"{sep} frontier; e.g. {','.join(bad[:sample])}")
+            if result["failed_or_unexplained_symbols"]:
+                bad = result["failed_or_unexplained_symbols"]
+                print(f"PROBLEM DATA_UNADJUDICATED_STALE: {len(bad)} universe tickers are "
+                      "stale with no accepted evidence - a name with a stale "
+                      "tickers.lastpricedate is EXCLUDED from the ranking pool outright "
+                      f"(worse than ranking on old data); e.g. {','.join(bad[:sample])}")
 c.close()
 PY
-)"
+} | $DOCKER exec -i \
+  -e TOLERANCE="$TOLERANCE" \
+  -e MAX_LAG_DAYS="$MAX_LAG_DAYS" \
+  -e MIN_COVERAGE="$MIN_COVERAGE" \
+  -e STALE_SAMPLE="$STALE_NAME_SAMPLE" \
+  -e SEALED_PATH="$CONTAINER_SEALED" \
+  -e EXHAUSTION_PATH="$CONTAINER_EXHAUSTION" \
+  -e STORE_PATH="$STORE_PATH" \
+  -e APP_DB="$CONTAINER_APP_DB" \
+  -e ET_TODAY="${WATCHDOG_ET_TODAY:-}" \
+  -e REFRESH_TZ="$REFRESH_TZ" \
+  "$BACKEND_CONTAINER" python - 2>/dev/null )"
 STORE_RC=$?
 
 if [ "$STORE_RC" -ne 0 ] || [ -z "$STORE_REPORT" ]; then
   P_DATA+=("DATA_STORE_UNREADABLE: could not read the live factor store from '$BACKEND_CONTAINER' (container down, or duckdb open failed) - freshness is UNKNOWN, which is treated as a failure rather than assumed fresh")
 else
   while IFS= read -r line; do
-    case "$line" in PROBLEM*) P_DATA+=("${line#PROBLEM }");; esac
+    case "$line" in
+      PROBLEM*) P_DATA+=("${line#PROBLEM }");;
+      # The adjudicated populations, lifted out for publication. A verdict that reports
+      # only PASS/FAIL leaves an operator unable to tell a legitimately-attributed pool
+      # from one that is quietly missing data, which is the question this whole change is
+      # about. Parsed rather than recomputed: these are the figures that actually decided
+      # the run, not a second calculation that could disagree with them.
+      METRIC*)
+        for kv in ${line#METRIC }; do
+          case "$kv" in
+            universe=*)      M_UNIVERSE="${kv#universe=}";;
+            assessable=*)    M_ASSESSABLE="${kv#assessable=}";;
+            attributed=*)    M_ATTRIBUTED="${kv#attributed=}";;
+            covered=*)       M_COVERED="${kv#covered=}";;
+            coverage=*)      M_GATING="${kv#coverage=}";;
+            raw_coverage=*)  M_RAW="${kv#raw_coverage=}";;
+            unexplained=*)   M_UNEXPLAINED="${kv#unexplained=}";;
+          esac
+        done;;
+    esac
   done <<< "$STORE_REPORT"
 fi
 
@@ -799,6 +857,15 @@ PUBLISH_OUT="$(
   SERVICE_UNIT="$SERVICE_UNIT" \
   SCHEDULE_TZ="$REFRESH_TZ" \
   PROBLEMS_BLOB="$PROBLEMS_BLOB" \
+  ADJUDICATION_SHA256="$ADJUDICATION_SHA256" \
+  ADJUDICATION_PATH="$ADJUDICATION_PATH" \
+  M_UNIVERSE="${M_UNIVERSE:-}" \
+  M_ASSESSABLE="${M_ASSESSABLE:-}" \
+  M_ATTRIBUTED="${M_ATTRIBUTED:-}" \
+  M_COVERED="${M_COVERED:-}" \
+  M_GATING="${M_GATING:-}" \
+  M_RAW="${M_RAW:-}" \
+  M_UNEXPLAINED="${M_UNEXPLAINED:-}" \
   "$PYTHON" - <<'PY' 2>&1
 import contextlib
 import hashlib
@@ -825,6 +892,22 @@ for line in os.environ.get("PROBLEMS_BLOB", "").splitlines():
 def opt(name):
     value = os.environ.get(name, "").strip()
     return value or None
+
+
+def num(name, cast=float):
+    """A metric the store query reported, or None if it never got that far.
+
+    None is meaningful and is preserved rather than defaulted to zero: it says the
+    per-name assessment did not run, which is a different state from 'nothing was
+    covered'. Zero would read as a measured catastrophe instead of an absent
+    measurement."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        return None
+    try:
+        return cast(value)
+    except ValueError:
+        return None
 
 
 doc = {
@@ -854,6 +937,37 @@ doc = {
         "timer_unit": os.environ["TIMER_UNIT"],
         "service_unit": os.environ["SERVICE_UNIT"],
         "schedule_tz": os.environ["SCHEDULE_TZ"],
+    },
+    # WHICH adjudication implementation produced this verdict. The refresh verifier and
+    # this watchdog consume ONE shared module; recording its hash is what lets an
+    # operator prove after the fact that a given PASS came from the reviewed rules and
+    # not from a drifted copy. A null hash means the helper was unavailable, in which
+    # case data_freshness is FAIL by construction — a verdict with no named
+    # implementation behind it is never a PASS.
+    # The two coverage figures, side by side and never conflated. `gating_coverage` is
+    # the ONLY one any threshold is applied to; `raw_coverage` is observability. An
+    # ATTRIBUTED symbol is not 'fresh' — it is removed from the assessable population
+    # because the provider has been governably determined unable or inapplicable to
+    # supply the observation. So gating_coverage=1.0000 never means 'all names are
+    # current'; read it with attributed_count and raw_coverage beside it.
+    "coverage": {
+        "gating_coverage": num("M_GATING"),
+        "gating_coverage_definition": (
+            "covered / assessable, assessable = universe - validly attributed"
+        ),
+        "raw_coverage": num("M_RAW"),
+        "raw_coverage_use": "observability only; no gate may threshold it",
+        "universe_count": num("M_UNIVERSE", int),
+        "assessable_count": num("M_ASSESSABLE", int),
+        "attributed_count": num("M_ATTRIBUTED", int),
+        "covered_count": num("M_COVERED", int),
+        "unexplained_count": num("M_UNEXPLAINED", int),
+    },
+    "adjudication": {
+        "implementation": os.environ.get("ADJUDICATION_PATH") or None,
+        "sha256": opt("ADJUDICATION_SHA256"),
+        "sourced_from": "host tree, piped into the container as source",
+        "image_import": False,
     },
     "clock_source": os.environ.get("CLOCK_SOURCE", "wall"),
 }

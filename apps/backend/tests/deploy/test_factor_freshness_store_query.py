@@ -33,12 +33,42 @@ TODAY = datetime.date(2026, 8, 8)
 FRONTIER = datetime.date(2026, 8, 6)
 
 
+HELPER = REPO_ROOT / "apps" / "backend" / "scripts" / "factor_adjudication.py"
+
+
 def _query_source() -> str:
-    """The store-query block, lifted out of the shell heredoc that hosts it."""
+    """The store-query block, composed with the shared helper exactly as the watchdog
+    composes them: helper source first, driver second, one program.
+
+    The driver alone is no longer a runnable unit — it calls ``adjudicate`` and friends,
+    which arrive over the same stdin. Composing them here is the point: it is the real
+    arrangement under test, not a fragment of it.
+    """
     blocks = re.findall(r"<<'PY'[^\n]*\n(.*?)\nPY\n", WATCHDOG.read_text(encoding="utf-8"), re.S)
-    matching = [b for b in blocks if "DATA_LASTPRICEDATE_STALE" in b]
+    matching = [b for b in blocks if "DATA_UNADJUDICATED_STALE" in b]
     assert len(matching) == 1, f"expected exactly one store-query block, found {len(matching)}"
-    return matching[0]
+    return HELPER.read_text(encoding="utf-8") + "\n" + matching[0]
+
+
+def _app_db(tmp: Path) -> Path:
+    """A minimal app DB. ``operational_facts`` recomputes held/registered facts from it,
+    and an unreadable DB is a FAILURE rather than an empty set — so the tests must supply
+    a real one, the same as production does."""
+    import sqlite3
+
+    p = tmp / "workbench.sqlite"
+    con = sqlite3.connect(p)
+    con.executescript(
+        """
+        CREATE TABLE symbols (id INTEGER PRIMARY KEY, ticker TEXT);
+        CREATE TABLE positions (id INTEGER PRIMARY KEY, symbol_id INTEGER, qty REAL);
+        CREATE TABLE orders (id INTEGER PRIMARY KEY, symbol_id INTEGER, status TEXT);
+        CREATE TABLE strategies (id INTEGER PRIMARY KEY, status TEXT, symbols_json TEXT);
+        """
+    )
+    con.commit()
+    con.close()
+    return p
 
 
 def _store(tmp: Path, names: dict[str, tuple[datetime.date, datetime.date]]) -> Path:
@@ -73,6 +103,8 @@ def _run(tmp: Path, monkeypatch, capsys, *, universe, evidence, names) -> str:
         "SEALED_PATH": str(sealed),
         "EXHAUSTION_PATH": str(ev_path),
         "STORE_PATH": str(_store(tmp, names)),
+        "APP_DB": str(_app_db(tmp)),
+        "ET_TODAY": TODAY.isoformat(),
         "REFRESH_TZ": "America/New_York",
     }.items():
         monkeypatch.setenv(key, value)
@@ -85,13 +117,39 @@ def _run(tmp: Path, monkeypatch, capsys, *, universe, evidence, names) -> str:
 
 
 def _evidence(*symbols_and_classes) -> dict:
+    """Evidence as the shared adjudicator requires it.
+
+    ⚠ The classification written here is a CLAIM, not a verdict. It selects which records
+    are adjudicable at all; the verdict is re-derived from the frontiers, corroboration
+    and operational facts below. Supplying the label alone — which is all the watchdog
+    used to need — now attributes nothing, which is the defect these tests pin.
+
+    ``last_date`` is what separates the two attributable classes: a dead instrument stops
+    everywhere (PROVIDER_EXHAUSTED), one outside the subscription keeps trading
+    (PROVIDER_NOT_COVERED). AAPL is the liveness control.
+    """
+    records = []
+    for symbol, claim in symbols_and_classes:
+        alive = claim == "PROVIDER_NOT_COVERED"
+        records.append(
+            {
+                "symbol": symbol,
+                "expected_classification": claim,
+                "requested": True,
+                "request_status": "ok",
+                "provider_rows_after_live_frontier": 0,
+                "corroboration": {
+                    "source": "alpaca",
+                    "control_symbol": "AAPL",
+                    "control_last_date": FRONTIER.isoformat(),
+                    "last_date": FRONTIER.isoformat() if alive else None,
+                },
+            }
+        )
     return {
         "generated_at_utc": "2026-08-05T00:44:00Z",
         "governing_authorization": "ADR0043-PROD-FACTOR-REFRESH-RECOVERY-001",
-        "symbols": [
-            {"symbol": s, "expected_classification": c, "requested": True}
-            for s, c in symbols_and_classes
-        ],
+        "symbols": records,
     }
 
 
@@ -118,7 +176,7 @@ def test_an_adjudicated_delisting_does_not_fail_freshness(tmp_path, monkeypatch,
     )
     assert "PROBLEM" not in out, out
     assert "DATA_EXEMPT_ADJUDICATED" in out
-    assert "exempt=1" in out and "assessable=2" in out and "universe=3" in out
+    assert "attributed=1" in out and "assessable=2" in out and "universe=3" in out
     assert "coverage=1.0000" in out
 
 
@@ -133,7 +191,7 @@ def test_a_stale_name_that_is_NOT_adjudicated_still_fails(tmp_path, monkeypatch,
         evidence=_evidence(("SATS", "PROVIDER_EXHAUSTED")),
         names={"AAPL": CURRENT, "MSFT": CURRENT, "ZZZZ": DELISTED},
     )
-    assert "PROBLEM DATA_LASTPRICEDATE_STALE" in out
+    assert "PROBLEM DATA_UNADJUDICATED_STALE" in out
     assert "ZZZZ" in out
 
 
@@ -145,10 +203,10 @@ def test_provider_not_covered_is_also_exempt(tmp_path, monkeypatch, capsys):
         capsys,
         universe=["AAPL", "SPY"],
         evidence=_evidence(("SPY", "PROVIDER_NOT_COVERED")),
-        names={"AAPL": CURRENT, "SPY": DELISTED},
+        names={"AAPL": CURRENT},  # SPY absent from the store entirely: never covered
     )
     assert "PROBLEM" not in out, out
-    assert "exempt=1" in out
+    assert "attributed=1" in out
 
 
 def test_an_unlisted_classification_is_not_exempt(tmp_path, monkeypatch, capsys):
@@ -162,7 +220,7 @@ def test_an_unlisted_classification_is_not_exempt(tmp_path, monkeypatch, capsys)
         evidence=_evidence(("WEIRD", "UNDER_INVESTIGATION")),
         names={"AAPL": CURRENT, "WEIRD": DELISTED},
     )
-    assert "PROBLEM DATA_LASTPRICEDATE_STALE" in out
+    assert "PROBLEM DATA_UNADJUDICATED_STALE" in out
     assert "WEIRD" in out
 
 
@@ -182,8 +240,8 @@ def test_absent_evidence_exempts_nothing(tmp_path, monkeypatch, capsys):
         evidence=None,
         names={"AAPL": CURRENT, "SATS": DELISTED},
     )
-    assert "PROBLEM DATA_LASTPRICEDATE_STALE" in out
-    assert "exempt=0" in out
+    assert "PROBLEM DATA_UNADJUDICATED_STALE" in out
+    assert "attributed=0" in out
 
 
 def test_unreadable_evidence_exempts_nothing_and_says_so(tmp_path, monkeypatch, capsys):
@@ -198,8 +256,8 @@ def test_unreadable_evidence_exempts_nothing_and_says_so(tmp_path, monkeypatch, 
         names={"AAPL": CURRENT, "SATS": DELISTED},
     )
     assert "PROBLEM DATA_EXHAUSTION_EVIDENCE_UNREADABLE" in out
-    assert "PROBLEM DATA_LASTPRICEDATE_STALE" in out
-    assert "exempt=0" in out
+    assert "PROBLEM DATA_UNADJUDICATED_STALE" in out
+    assert "attributed=0" in out
 
 
 def test_an_implausibly_large_exemption_is_itself_a_failure(tmp_path, monkeypatch, capsys):
@@ -216,8 +274,8 @@ def test_an_implausibly_large_exemption_is_itself_a_failure(tmp_path, monkeypatc
         names={t: (DELISTED if t in universe[:15] else CURRENT) for t in universe},
     )
     assert "PROBLEM DATA_EXEMPTION_IMPLAUSIBLE" in out
-    assert "PROBLEM DATA_LASTPRICEDATE_STALE" in out
-    assert "exempt=0" in out
+    assert "PROBLEM DATA_UNADJUDICATED_STALE" in out
+    assert "attributed=0" in out
 
 
 def test_a_wholly_exempt_universe_is_a_failure(tmp_path, monkeypatch, capsys):
@@ -228,9 +286,14 @@ def test_a_wholly_exempt_universe_is_a_failure(tmp_path, monkeypatch, capsys):
         capsys,
         universe=["SATS", "SPY"],
         evidence=_evidence(("SATS", "PROVIDER_EXHAUSTED"), ("SPY", "PROVIDER_NOT_COVERED")),
-        names={"SATS": DELISTED, "SPY": DELISTED},
+        # AAPL is in the STORE but not the universe: it only sets the frontier, so both
+        # universe names are genuinely behind it. SPY is absent from the store entirely —
+        # that is what "never covered" looks like; a stale date would instead describe a
+        # coverage regression, which the shared rules refuse.
+        names={"SATS": DELISTED, "AAPL": CURRENT},
     )
     assert "PROBLEM DATA_PER_NAME_UNASSESSABLE" in out
+    assert "attributed=2" in out and "assessable=0" in out
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════
@@ -278,6 +341,8 @@ def test_sealed_universe_unreadable_is_a_failure(tmp_path, monkeypatch, capsys):
         "SEALED_PATH": str(sealed),
         "EXHAUSTION_PATH": str(ev),
         "STORE_PATH": str(_store(tmp_path, {"AAPL": CURRENT})),
+        "APP_DB": str(_app_db(tmp_path)),
+        "ET_TODAY": TODAY.isoformat(),
         "REFRESH_TZ": "America/New_York",
     }.items():
         monkeypatch.setenv(key, value)
