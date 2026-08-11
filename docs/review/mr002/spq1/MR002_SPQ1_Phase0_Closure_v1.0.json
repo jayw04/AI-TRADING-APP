@@ -1,0 +1,59 @@
+{
+  "artifact": "MR002_SPQ1_Phase0_Closure_v1.0",
+  "program": "MR-002 — Sector-Neutral Residual Reversion",
+  "workstream": "SPQ-1",
+  "phase": "Phase 0 — specification package",
+  "type": "owner closure record",
+  "date": "2026-08-10",
+  "adjudicated_by": "Jay Wang (owner)",
+
+  "disposition": "CLOSED AS SUPERSEDED — no additional substantive review required.",
+
+  "rationale": "The substantive Phase 0 output was the owner rulings recorded in MR002_SPQ1_Phase0_OwnerRulings_v1.0.json. Phases 1, 2A, 2B and 3A were each accepted on top of those rulings, so the specification package has been superseded by accepted downstream work rather than left unreviewed. No further review is warranted.",
+
+  "closed_by_record_not_by_deletion": "This artifact exists deliberately. A record closed by deletion leaves no audit trail that it was ever adjudicated; the closure must be findable, not merely absent.",
+
+  "downstream_acceptances_relied_upon": [
+    {
+      "phase": "Phase 0 rulings",
+      "artifact": "docs/review/mr002/spq1/MR002_SPQ1_Phase0_OwnerRulings_v1.0.json",
+      "role": "the substantive Phase 0 output"
+    },
+    {
+      "phase": "Phase 1",
+      "location": "docs/review/mr002/spq1/phase1/",
+      "state": "accepted"
+    },
+    {
+      "phase": "Phase 2A",
+      "location": "docs/review/mr002/spq1/phase2a/",
+      "state": "accepted"
+    },
+    {
+      "phase": "Phase 2B",
+      "location": "docs/review/mr002/spq1/phase2b/",
+      "state": "CLOSED — 2B-3 closeout, 425,000/425,000 reconciled, deterministic replay PASS"
+    },
+    {
+      "phase": "Phase 3A",
+      "location": "docs/review/mr002/phase3a/",
+      "state": "DELIVERED AND ACCEPTED — P1 satisfied; two-review-max cycle closed at commit f7319de951b6fd7b84112ad2b207d61376399ac1"
+    }
+  ],
+
+  "governing_plan": "docs/design/MR002_Development_Plan_Next_Phases_v1.3.md (v1.3.1, APPROVED 2026-08-09) §3 Housekeeping",
+  "plan_recommendation_followed": true,
+
+  "blocking_status": {
+    "blocking_for_phase_3b_3c": false,
+    "note": "Phase 0 closure was explicitly non-blocking for 3B/C. It is closed here so an unresolved non-blocking record stops accumulating cognitive cost on an already large governance surface."
+  },
+
+  "authorizes_nothing": {
+    "statement": "This is a closure record only. It opens no validation or OOS data, authorizes no performance computation, and changes no authorization state.",
+    "validation_authorization": false,
+    "cas_rev": 0,
+    "validation_partition": "CLOSED — single opening UNCONSUMED",
+    "oos_partition": "UNDER DENY"
+  }
+}

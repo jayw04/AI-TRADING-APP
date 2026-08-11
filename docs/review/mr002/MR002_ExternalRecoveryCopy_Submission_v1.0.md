@@ -260,25 +260,57 @@ would violate one is a stop-the-change event.
 
 ---
 
-## 7. Custodian record — TO BE COMPLETED BY THE OWNER
+## 7. Custodian record — COMPLETED BY THE OWNER 2026-08-10
 
-Deliberately left blank. Naming a custodian is the owner's act, and per the earlier
-adjudication a named operational custodian is still unresolved.
+**Status: COMPLETE.** Recovery-media custodian appointed by the owner (Jay Wang) on
+2026-08-10, following the A1–A4 media write and the §5 verification run against the medium.
 
 | Field | Value |
 |---|---|
-| Human custodian | *(to be named — a real accountable individual)* |
-| Media identifier | *(non-sensitive label only — no serial numbers)* |
-| Physical storage class | *(e.g. offline removable, normally disconnected)* |
-| Encrypted at rest | *(yes/no — method only, never the key)* |
-| Creation date | 2026-07-22 (archive), *(media write date)* |
-| Last verification date | *(from §5, run against the medium)* |
-| Review cadence | *(recommend quarterly)* |
-| Normally disconnected | *(yes/no)* |
-| Any copy cloud-synchronized | Staging copy: **no**. Medium: *(to be recorded)* |
+| Human custodian | **Jay Wang** (owner) — recovery-media custodian |
+| Media identifier | MR-002 recovery, offline (non-sensitive label) |
+| Physical storage class | offline removable, normally disconnected |
+| Encrypted at rest | **yes** — VeraCrypt volume-level, AES / SHA-512 *(method only)* |
+| Creation date | 2026-07-22 (archive), 2026-08-10 (media write) |
+| Last verification date | **2026-08-10T22:24:15Z** — §5 verifier run against the medium, VERDICT: PASS |
+| Review cadence | quarterly |
+| Normally disconnected | **yes** — medium dismounted and physically disconnected 2026-08-10; absence confirmed by device enumeration |
+| Any copy cloud-synchronized | Staging copy: **no**. Medium: **no**. |
 
 **Never record in this table:** encryption keys, passwords, recovery phrases, device serial
-numbers, or precise physical storage locations.
+numbers, or precise physical storage locations. *(None are recorded above.)*
+
+### Verification evidence, 2026-08-10
+
+Run from the medium, not from staging. Offline: no network, no AWS.
+
+| Check | Result |
+|---|---|
+| Outer (wrapper) digest | `sha256:c3cf3b9e3cb1f5a5ce94f79ede72163ab1389803fbd3f0dfc91d8744604f9f8a` |
+| Inner (semantic) digest | `sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9` |
+| Objects | 13 present / 13 referenced |
+| Bound identity | **MATCHES** |
+| Verdict | **PASS** |
+
+### ⚠ This appointment does not resolve the operational custodian
+
+The role named above is the **recovery-media** custodian, accountable for the encrypted
+offline archive: the physical medium, its disconnection, and its scheduled offline
+re-verification.
+
+It is **not** the **operational** custodian, which is accountable for the sealed validation
+partition — producing P6–P9 and P11 as runtime evidence and attesting the partition was never
+opened. That is a separate appointment made at Execution Order Step 2, recorded in
+`MR002_OperationalCustodian_Appointment_v1.0.json`.
+
+The owner has appointed **the same individual to both roles**, which is reasonable at this
+scale — but only because it is recorded explicitly in **both** places. Naming a custodian here
+never, by itself, satisfies Step 2.
+
+### Scope
+
+Governing invariant 10 applies unchanged: no passing recovery verification satisfies custody
+Requirement 7 or authorizes execution. `validation_authorization` remains **false** at `_rev 0`.
 
 ---
 

@@ -1,0 +1,109 @@
+{
+  "artifact": "MR002_PrerequisiteProduction_Authorization_v1.0",
+  "program": "MR-002 — Sector-Neutral Residual Reversion",
+  "workstream": "SPQ-1",
+  "type": "owner authorization record",
+  "date": "2026-08-10",
+  "authorized_by": "Jay Wang (owner)",
+  "governing_plan": "docs/design/MR002_Development_Plan_Next_Phases_v1.3.md (v1.3.1, APPROVED 2026-08-09)",
+  "satisfies": "Execution Order Step 3 — 'Authorize the minimum prerequisite-production block: WP-B, WP-C, WP-D, WP-E. Do not authorize WP-F yet.'",
+
+  "preconditions_satisfied": {
+    "step_1_WP_A": {
+      "state": "A1–A4 COMPLETE",
+      "gate": "§5 verification run FROM THE MEDIUM returned PASS and is recorded",
+      "verified_at": "2026-08-10T22:24:15Z",
+      "outer_digest": "sha256:c3cf3b9e3cb1f5a5ce94f79ede72163ab1389803fbd3f0dfc91d8744604f9f8a",
+      "inner_digest": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+      "objects": "13 present / 13 referenced",
+      "bound_identity": "MATCHES",
+      "remaining": "A5 recorded 2026-08-10; A6 staging disposal pending"
+    },
+    "step_2_operational_custodian": {
+      "state": "NAMED",
+      "individual": "Jay Wang",
+      "record": "docs/review/mr002/MR002_OperationalCustodian_Appointment_v1.0.json",
+      "dual_appointment": "Same individual also appointed recovery-media custodian in MR002_ExternalRecoveryCopy_Submission_v1.0.md §7; recorded explicitly in BOTH places per plan v1.3.1 EI-1"
+    },
+    "phase_0_disposition": {
+      "state": "CLOSED AS SUPERSEDED",
+      "record": "docs/review/mr002/spq1/MR002_SPQ1_Phase0_Closure_v1.0.json"
+    }
+  },
+
+  "authorized": [
+    {
+      "work_package": "WP-B",
+      "deliverable": "Custody Requirement 7 — fail-closed image resolver",
+      "requirement": "Resolve the evaluator strictly by index digest sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9. On any miss, mismatch, or registry unavailability: FAIL CLOSED. No fallback to a tag, to a local image, or to a rebuild.",
+      "blocking_status": "BLOCKING for the D3 grant (plan v1.3.1 EI-2). Gates P10 and grant readiness.",
+      "note": "This authorization is the separate owner authorization the research-side closeout required before work starts."
+    },
+    {
+      "work_package": "WP-C",
+      "deliverable": "P6, P7, P8, P9",
+      "producer": "operational custodian",
+      "requirement": "All four must be ACTUAL RUNTIME INSTANCES. The Phase 3A files of the same name are specification templates and cannot serve as evidence."
+    },
+    {
+      "work_package": "WP-D",
+      "deliverable": "P11 — access-control preconditions in force and snapshotted",
+      "producer": "operational custodian / infrastructure",
+      "requirement": "CloudTrail S3 data events enabled BEFORE any access; dedicated IAM principal; explicit bucket/key DENY on the OOS partition; validation-only policy; pre-execution policy-state snapshot."
+    },
+    {
+      "work_package": "WP-E",
+      "deliverable": "P10 — NumericRuntimeIdentityManifest runtime instance",
+      "requirement": "All 17 required bindings populated, including dependency-lockfile SHA-256 and container-image digest. Mismatch FAIL-STOPS before any metric.",
+      "depends_on": "WP-B — the Requirement-7 fail-closed resolver is the SOLE permitted path for obtaining P10's container-image digest. Binding it by tag, local Docker daemon, rebuild, or a hand-copied value does NOT satisfy P10, however identical the resulting string looks.",
+      "note": "D2 authorizes P10; this record supplies the explicit owner go for the production instance."
+    }
+  ],
+
+  "explicitly_not_authorized": [
+    {
+      "work_package": "WP-F",
+      "deliverable": "closed grant-readiness verification run (C1–C10 + C-R7)",
+      "state": "NOT_BUILT — deliberately withheld",
+      "why": "Authorizing grant-readiness before the prerequisites exist is precisely what D3 denied on 2026-07-22. WP-F requires a separate future authorization at Execution Order Step 5, and WP-B must be complete first because C-R7 cannot pass without it."
+    },
+    {
+      "item": "validation partition access",
+      "state": "PROHIBITED — partition CLOSED, single opening UNCONSUMED"
+    },
+    {
+      "item": "OOS access",
+      "state": "PROHIBITED — UNDER DENY"
+    },
+    {
+      "item": "performance computation, returns, Sharpe, DSR verdict, ranking, portfolio construction",
+      "state": "PROHIBITED"
+    },
+    {
+      "item": "D3 submission and the P12 authorization event",
+      "state": "NOT AUTHORIZED by this record — Step 6"
+    },
+    {
+      "item": "changes to the preregistered evaluator, model identity, acceptance criteria, trial design, or structural bindings",
+      "state": "PROHIBITED"
+    }
+  ],
+
+  "standing_prohibitions_reaffirmed": [
+    "Runtime evidence must be produced PROSPECTIVELY. Specification templates, retrospective attestations, inferred state, and placeholder completion do not satisfy a runtime-evidence prerequisite.",
+    "Any prerequisite that cannot be completed truthfully without validation access MUST remain unsatisfied.",
+    "No grafting into Momentum, Range Trader, or other live templates.",
+    "§2.1 bounded scope: no new strategy research, architecture expansion, refactoring, product integration, or additional governance layers before the validation verdict."
+  ],
+
+  "note_on_d3_resubmission": {
+    "fresh_cas_anchor_required": true,
+    "detail": "The adjudicated prerequisite digest 088d700b… is DELIBERATELY STALE now that P3/P4/P5 are satisfied (current-state digest 8d93b656…). A future D3 submission must supply a fresh adjudicated anchor and may NEVER be silently satisfied against the old one."
+  },
+
+  "standing_state_unchanged": {
+    "validation_authorization": false,
+    "cas_rev": 0,
+    "anchor": "docs/review/mr002/phase3bc/MR002_Phase3BC_ValidationAuthorizationState_v1.0.json"
+  }
+}

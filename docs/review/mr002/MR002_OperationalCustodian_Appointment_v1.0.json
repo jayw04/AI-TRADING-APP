@@ -1,0 +1,65 @@
+{
+  "artifact": "MR002_OperationalCustodian_Appointment_v1.0",
+  "program": "MR-002 — Sector-Neutral Residual Reversion",
+  "workstream": "SPQ-1",
+  "type": "owner appointment record",
+  "date": "2026-08-10",
+  "appointed_by": "Jay Wang (owner)",
+  "governing_plan": "docs/design/MR002_Development_Plan_Next_Phases_v1.3.md (v1.3.1, APPROVED 2026-08-09)",
+  "satisfies": "Execution Order Step 2 — 'A real accountable individual is named in an operational-custodian appointment record'",
+
+  "appointment": {
+    "role": "OPERATIONAL_CUSTODIAN",
+    "individual": "Jay Wang",
+    "accountable_for": [
+      "the sealed validation partition",
+      "producing P6, P7, P8, P9 and P11 as RUNTIME evidence — not specification templates",
+      "attesting that the validation partition was never opened before authorization"
+    ],
+    "effective": "2026-08-10"
+  },
+
+  "dual_appointment_disclosure": {
+    "statement": "The same individual holds BOTH custodian roles. This is an explicit dual appointment, not an inference from a single naming.",
+    "recovery_media_custodian": {
+      "role": "RECOVERY_MEDIA_CUSTODIAN",
+      "individual": "Jay Wang",
+      "recorded_in": "docs/review/mr002/MR002_ExternalRecoveryCopy_Submission_v1.0.md §7",
+      "accountable_for": [
+        "the encrypted offline archive",
+        "the physical medium and its normally-disconnected state",
+        "scheduled offline re-verification (quarterly)"
+      ]
+    },
+    "why_recorded_in_both_places": "Plan v1.3.1 EI-1. The §7 recovery-media record explicitly does NOT satisfy Step 2. An executor following the pre-v1.3.1 gate text literally would have credited Step 2 — unblocking WP-C, WP-D and prerequisites P6–P9 and P11 — the moment the media custodian was named. One individual may hold both roles, but only by explicit appointment recorded in both places. This record is that second appointment."
+  },
+
+  "independence_disclosure": {
+    "statement": "The operational custodian is the owner, so P7's 'partition never opened' attestation is a self-attestation. This is disclosed, not concealed.",
+    "why_acceptable": "The evidence design substitutes MECHANISM for personnel independence. P7 is a hash-chained access history, P8 reconciles the OpenedObjectLedger against the SealedStoreAccessLog, and P11 requires CloudTrail S3 data events enabled BEFORE any access plus a pre-execution policy-state snapshot. The attestation is mechanically verifiable rather than trust-based.",
+    "residual_risk": "Single-principal risk remains disclosed, consistent with the 2026-07-22 detection package. No additional governance layer is added here — doing so would violate the §2.1 bounded-scope ruling.",
+    "reference": "MR002_DevPlan_v1_3_ReviewMemo_v1_0.md, execution note 2"
+  },
+
+  "unblocks": {
+    "WP-C": "P6 ValidationPartitionContentCommitment, P7 ValidationPartitionAccessHistory, P8 ValidationSealVerificationReport, P9 precommitted value-blind structural manifest",
+    "WP-D": "P11 access-control preconditions in force and snapshotted",
+    "condition": "Unblocking is subject to the Step 3 production authorization; this appointment alone authorizes no production."
+  },
+
+  "explicitly_not_authorized_by_this_record": [
+    "opening, reading, querying, sampling or summarizing the validation partition",
+    "any OOS access — OOS remains under DENY",
+    "performance computation, returns, Sharpe, DSR verdict, ranking or portfolio construction",
+    "D3 submission or the P12 authorization event",
+    "WP-F grant-readiness verifier — NOT_BUILT and deliberately not authorized at this step"
+  ],
+
+  "standing_state_unchanged": {
+    "validation_authorization": false,
+    "cas_rev": 0,
+    "validation_partition": "CLOSED — single opening UNCONSUMED",
+    "oos_partition": "UNDER DENY",
+    "anchor": "docs/review/mr002/phase3bc/MR002_Phase3BC_ValidationAuthorizationState_v1.0.json"
+  }
+}
