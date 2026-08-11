@@ -38,9 +38,11 @@
       "status": "SATISFIED"
     },
     "7_resolver_fails_if_exact_digest_unavailable": {
-      "evidence": "no resolver exists yet; building one would be research-side prerequisite production, which the closeout explicitly does not authorize",
+      "evidence": "IMPLEMENTED 2026-08-10 as scripts/mr002_custody/resolve_evaluator_image.py, authorized by MR002_PrerequisiteProduction_Authorization_v1.0.json (Step 3, WP-B). Resolves strictly via ECR batch_get_image by imageDigest and REHASHES the returned bytes, so the registry is not trusted about the one property being verified. Every failure raises ImageResolutionRefused - no sentinel return, no None, no partial record - and there is no cache, so every call is live resolution. Fail-closed demonstrated by 26 tests in test_evaluator_image_resolver.py, including the three C-R7 cases (digest miss, digest mismatch, registry unavailable), plus: never emits an imageTag, never retries or falls back, returns nothing at all on failure, refuses to consume a custody-monitor receipt as a substitute, and is not cached between calls. Also demonstrated LIVE against the real registry on 2026-08-10: with invalid credentials it refused with reason 'registry_unavailable' and exit 1 rather than falling back.",
       "required_behavior": "resolve by index digest; on any miss, mismatch, or unavailability FAIL CLOSED with no fallback to a tag, to a local image, or to a rebuild",
-      "status": "SPECIFIED_NOT_IMPLEMENTED"
+      "status": "IMPLEMENTED_PENDING_C_R7_VERIFICATION",
+      "why_not_yet_SATISFIED": "C-R7 requires more than the resolver existing and failing closed: it requires that the resolver is the SOLE resolution path actually used by P10 and the run environment. P10 (NumericRuntimeIdentityManifest runtime instance, WP-E) does not exist yet, so soleness cannot be demonstrated. Marking this SATISFIED now would assert an unverified property and is exactly the kind of premature credit D3 was denied for on 2026-07-22.",
+      "closes_on": "the WP-F grant-readiness run demonstrating C-R7 against the then-current tree (Execution Order Step 5, separately authorized)"
     }
   },
   "date": "2026-07-22",
