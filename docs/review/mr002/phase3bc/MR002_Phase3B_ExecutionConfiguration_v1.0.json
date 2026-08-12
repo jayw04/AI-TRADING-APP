@@ -26,7 +26,7 @@
   "scipy": "1.18.0"
  },
  "identities": {
-  "code_identity": "d94aa54c0867aa9ecf637c5eea0cdc7491ba48acfbff1acde22bac805908fa1f",
+  "code_identity": "f35e8209bcaac16a23b58ec2c0d75aae338721ab895a5b5d91e6c168506426b2",
   "governing_identity": "2a1fb7755a57b97f9831cf257c6e60c8bd5baf77eab39541b75ae88c27cb5b43",
   "runtime_identity": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
  },
@@ -34,7 +34,7 @@
   "dependency_bundle_sha256": "d5d21eadb52ee5bccc85df832d35a060105327a7787808c5c1a6126e7ed9b5a1",
   "eligibility_evidence_sources": "d2b3e01846e603c172d78f8130ea295836ce852cf859f94ee4df1cf412773f0e",
   "execution_closure_file_count": 41,
-  "execution_closure_sha256": "d94aa54c0867aa9ecf637c5eea0cdc7491ba48acfbff1acde22bac805908fa1f",
+  "execution_closure_sha256": "f35e8209bcaac16a23b58ec2c0d75aae338721ab895a5b5d91e6c168506426b2",
   "pit_identity_registry": "b711c4d77d7a6bea2c7a51a17098cba992b0cf1b904130f3c052a4249d689ed3",
   "pit_sector_source": "61e55b4dc167a653fe9d5a9b33f7d1a7c25e4a3bd26f0d4bcd95d06f0fd6bd4c",
   "price_return_adjustment_policy": "v3",

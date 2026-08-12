@@ -1,0 +1,51 @@
+{
+ "record_type": "MR002_Phase3B_PreAccessReadyEvidence",
+ "version": "1.1",
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "result": "PRE_ACCESS_READY_REACHED",
+ "package": "v3.1 - the governed privilege transition present but NOT exercised",
+ "code_checkpoint": "d88813b72193c60803e3da581be0915fc8604d02",
+ "host_instance_id": "i-00c1034f7026db45e",
+ "image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+ "state": "S7_PRE_ACCESS_READY",
+ "disposition": "PASS",
+ "exit_code": 0,
+ "opening_consumed": false,
+ "sts_called": false,
+ "reader_credentials_obtained": false,
+ "s3_client_constructed": false,
+ "sealed_reads": [],
+ "guard_ledger": [],
+ "output_root_after_run": "/opt/mr002/out absent - wrote nothing",
+ "negative_control": {
+  "method": "the container ran with --network none AND AWS_EC2_METADATA_DISABLED=true",
+  "meaning": "any STS call or credential lookup would have FAILED LOUDLY rather than passing silently; the gate passed, so none occurred"
+ },
+ "reader_binding": {
+  "will_assume": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+  "session_name": "mr002-p3b-validation-v1",
+  "arn_is_a_module_constant": true,
+  "ambient_fallback": "none - assumption failure refuses before any S3 client is built"
+ },
+ "closure": {"files": 41, "set_equality_proven": true,
+             "runtime_audit": {"runtime_modules_observed": 40, "unpredicted": 0, "drift": 0},
+             "entrypoint_blob_sha256_prefix": "ec2de16639913148",
+             "mounted_code_equals_pushed_code": true},
+ "pinned_input_count": 8,
+ "iam_latch": {
+  "state_during_qualification": "CLOSED",
+  "host_assume_reader": "explicitDeny",
+  "host_sealed_s3": "explicitDeny",
+  "reader_validation": "allowed",
+  "reader_reference": "allowed",
+  "reader_oos": "explicitDeny",
+  "method": "IAM policy simulation only; no live AssumeRole probe and no live denial probe"
+ },
+ "known_limitation": {
+  "finding": "execution manifest observed_identities.execution_closure_sha256 is RECORDED but not REFERENCED by any runtime module",
+  "consequence": "manifest-to-mount agreement is established by construction (the manifest is generated from an observation of the same mount) rather than enforced at run time",
+  "mitigation_applied": "the manifest was regenerated from a fresh observation of the exact v3.1 mount, and the entrypoint blob at the pushed checkpoint reproduces the observed closure hash",
+  "not_fixed_here": "enforcing it would change runner.py and therefore the executing closure, which exceeds the two changes authorized for v3.1"
+ },
+ "boundary": "No reader assumed, no --mode execute, no host-role change, no sealed or OOS object opened, no published_at stamped. The single validation opening remains UNSPENT."
+}
