@@ -1,0 +1,172 @@
+{
+ "artifact_kind": "PREFLIGHT_FINDING",
+ "authorization_state_unchanged_by_this_record": {
+  "_rev": 1,
+  "note": "This register grants nothing, revokes nothing, and edits no authorization state.",
+  "opening_consumed": false,
+  "validation_authorization": true
+ },
+ "boundary": "Zero-data instrument. No AWS API call, no sealed object opened, no credential assumed, no reader role used. validation_authorization remains true at _rev 1 and the single granted validation opening remains UNSPENT.",
+ "classification": "EXECUTION_READINESS_BLOCK - AUTHORIZATION_VALID, OPENING_UNSPENT",
+ "classification_note": "This is NOT a validation failure and NOT a governance defect. The authorization machinery is complete; the execution machinery is not.",
+ "consequence_if_ignored": "Launching against the frozen contract as it stands would assume the reader, fail at the first sealed read (no reader implementation exists), and spend the one-time opening on a defect rather than on the validation run - the precise outcome the owner direction and the one-validation-execution rule exist to prevent.",
+ "date": "2026-08-12",
+ "durable_findings": [
+  "P1-P12 and the D3 grant remain VALID.",
+  "Validation authorization is GRANTED and the single opening remains UNCONSUMED.",
+  "No Phase 3B executable exists.",
+  "The development producer CORRECTLY refuses validation data and must not be weakened.",
+  "execution_enrichment.py is outside the currently bound runtime identity.",
+  "Config A/B/C parameters are not concretely bound.",
+  "Input identity is inconsistent between the local DuckDB and the sealed S3 objects.",
+  "The output contract is internally inconsistent and incomplete.",
+  "Therefore no launch manifest can truthfully be produced."
+ ],
+ "governing_direction": "Owner launch direction 2026-08-12, Step 1: resolve every launch parameter from the frozen contract; do not infer a missing value; STOP before spending the opening if the frozen contract does not specify one.",
+ "governing_preregistration": {
+  "file": "MR002_ValidationOOS_Preregistration_v1.0.4.json",
+  "matches": true,
+  "recomputed_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "registered_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+ },
+ "implementation_gap_evidence": {
+  "bound_image_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "bound_module_count": 21,
+  "deliverable_emitter_scan_finding": "No Python module in apps/ or scripts/ names any of the six Phase-3B deliverable record types. Nothing exists that could emit them.",
+  "deliverable_emitters_absent": [
+   "ValidationOpenedObjectLedger_v1.0.json",
+   "ValidationExecutionEnrichmentManifest_v1.0.json",
+   "ValidationDecisionExecutionBindingReport_v1.0.json",
+   "ValidationUnitReconciliation_v1.0.json",
+   "ExecutionEnrichmentEdgeCaseCensus_v1.0.json",
+   "ValidationSealVerificationReport_v1.0.json"
+  ],
+  "enrichment_implementation_location": {
+   "finding": "The frozen ExecutionEnrichmentSchema is implemented OUTSIDE the bound evaluator identity. The 21 modules bound by P5/P10 contain no enrichment code.",
+   "implementation": "apps/backend/app/research/mr002/spq1/execution_enrichment.py",
+   "in_bound_image": false
+  },
+  "entry_point_scan": {
+   "bound_evaluator_modules_scanned": 21,
+   "bound_evaluator_modules_with_entry_point": [],
+   "pattern": "argparse | __main__ | ^def main",
+   "spq1_modules_scanned": 34,
+   "spq1_modules_with_entry_point": []
+  },
+  "producer_partition_binding": {
+   "dev_end": "2019-10-02",
+   "dev_start": "2013-01-02",
+   "finding": "The SPQ-1 signal producer is hard-bound to the DEVELOPMENT partition. Every validation session lies beyond dev_end, so PartitionGuard.guard_range would raise INTEGRITY_STOP:FORBIDDEN_PARTITION_ACCESS on the first validation read. This guard is correct and must not be relaxed to force a launch.",
+   "forbidden_prefixes": [
+    "validation",
+    "oos",
+    "sealed"
+   ],
+   "guard": "apps/backend/app/research/mr002/spq1/adapters/partition_guard.py",
+   "validation_start": "2019-10-03"
+  },
+  "sealed_store_reader_scan": {
+   "bound_evaluator_modules_matching": [],
+   "finding": "No module in the bound evaluator image or the SPQ-1 producer package can read the sealed S3 store the released reader grants access to.",
+   "pattern": "boto3 | botocore | urllib | requests | s3://",
+   "spq1_modules_matching": []
+  }
+ },
+ "owner_ruling_2026_08_12": {
+  "authorized": [
+   "commit this blocker register",
+   "draft MR002_Phase3B_RunSpecification_v1.0 with zero validation access",
+   "implement and qualify the missing execution path on synthetic/non-validation data"
+  ],
+  "deferred_decision": "Whether P12 must be amended or re-granted is decided AFTER the execution specification is frozen, not now. If the evaluator image, its module roster, the P10 runtime, or any other P12-bound identity changes, the current grant must not be used as though nothing happened: recompute the affected prerequisite chain and obtain a fresh authorization first.",
+  "not_authorized": [
+   "validation access",
+   "Phase 3B real execution",
+   "weakening PartitionGuard",
+   "changing Config A/B/C by inference",
+   "rebuilding sha256:194efbdf... without an explicit identity ruling",
+   "Phase 3C metrics",
+   "OOS access"
+  ],
+  "open_architectural_question": "What exactly must be identity-bound as THE EVALUATOR, and what may be a separately governed execution/orchestration layer? That enrichment sits outside the 21-module identity does not by itself mean it must move inside: the boundary was never specified. Do not choose the separate-layer model merely to avoid a rebind."
+ },
+ "parameter_resolution": {
+  "bound_input_source": {
+   "detail": "MR002_EvaluatorBinding.json binds data_manifest_identity to the local file apps/backend/data/mr002_research.duckdb (sha256 24e5153c). The sealed store the released reader grants is S3 parquet. The frozen contract does not say which is the governed Phase-3B input, and no code reads the S3 form.",
+   "status": "CONFLICTING"
+  },
+  "cli_arguments": {
+   "detail": "No CLI exists; no frozen artifact specifies an argument contract.",
+   "status": "UNRESOLVED"
+  },
+  "config_A_B_C_identities": {
+   "detail": "configuration_id is an opaque caller-supplied string in both the producer and the evaluator. No frozen artifact carries the A/B/C parameter values (Z_entry thresholds) or their hashes. Preregistration v1.0.4 names the configs and gates Config B, but never defines them.",
+   "status": "UNRESOLVED"
+  },
+  "evaluator_runtime_identity": {
+   "detail": "OCI index sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51, resolved live by the WP-B fail-closed resolver.",
+   "status": "RESOLVED"
+  },
+  "execution_enrichment_contract": {
+   "detail": "ExecutionEnrichmentSchema 5b2480c1 and ExecutionEnrichmentCodeRegistry 0bddd73c are frozen. Their implementation lives outside the bound evaluator image, so the enrichment that Phase 3B must perform is not covered by the evaluator identity that P5/P10/P12 bind.",
+   "status": "SPECIFIED_BUT_UNBOUND"
+  },
+  "failure_behavior": {
+   "detail": "Fail-closed throughout: EXECUTION_ENRICHMENT_STOP:* codes, INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED, coverage REFUSED_* codes, and the fail-closed AccessBoundary. No silent fallback is permitted.",
+   "status": "RESOLVED"
+  },
+  "oos_prohibition": {
+   "detail": "AccessBoundary.partition_permitted denies OOS unconditionally in code; the S3 DENY remains active and was re-confirmed by policy simulation after the grant. A validation grant never unlocks OOS.",
+   "status": "RESOLVED_AND_ENFORCED"
+  },
+  "output_artifact_schema": {
+   "detail": "No schema exists for any of the six Phase-3B deliverables, and no emitter exists for any of them.",
+   "status": "UNRESOLVED"
+  },
+  "output_directory_and_filenames": {
+   "detail": "MR002_EvaluatorBinding.json expected_output_paths declares two files (valoos/<window>/MR002_ValOOS_<window>_Report.json and _Publication.json). MR002_Phase3BC_DeliverableRegister_v1.0.json declares six different Phase-3B deliverables. The two are never reconciled, and <window> is never bound to a literal. No filesystem or S3 root is specified for either.",
+   "status": "CONFLICTING"
+  },
+  "phase_3b_entry_point": {
+   "detail": "No executable, module entry point, CLI, or __main__ exists in the bound evaluator image or in the SPQ-1 producer package.",
+   "status": "UNRESOLVED"
+  },
+  "run_id": {
+   "detail": "ValidationRunSpecification_v1.0 carries 'MR002-SPQ1-VALIDATION-V1 (PROPOSED; not authorized to execute)'. The parenthetical is part of the frozen string; no artifact promotes it to a bound run identity.",
+   "status": "PROPOSED_ONLY"
+  },
+  "terminal_and_exit_semantics": {
+   "detail": "mr002_valoos_publication.py: PASS=0, FAIL=1, REFUSED=2, INTEGRITY_STOP=3; wrapper/publication-control failure = 3; exit/disposition agreement enforced; occupied destination refused, never overwritten.",
+   "status": "RESOLVED"
+  },
+  "validation_partition_root_and_pins": {
+   "detail": "s3://workbench-mr002-sealed-219024422756/validation/ - 6 parquet objects (actions, anchors, etf_prices, prices, sic_observations, universe) pinned by Version ID + SHA-256 in MR002_SealedStoreUploadManifest_v1.0.json.",
+   "status": "RESOLVED"
+  }
+ },
+ "phase_2b_precedent": {
+  "artifact": "MR002_SPQ1_Phase2B_RunSpecification_v1.1.json",
+  "finding": "The DEVELOPMENT window - which is not sealed and carries no one-time opening - required a full run specification, two amendments, and a four-increment staged qualification before it was executed. The sealed validation window has no equivalent artifact of any version.",
+  "increments": [
+   "2B-0 run specification (no computation)",
+   "2B-1 dry-run + limited-shard qualification gate",
+   "2B-2 full run",
+   "2B-3 reconciliation/determinism/closeout"
+  ],
+  "run_id": "MR002-SPQ1-P2B-DEV-V1"
+ },
+ "recommended_next_action": "Owner decision on scope: a Phase-3B execution program must be specified and built before the opening can be spent. It is NOT covered by the bounded 'get to validation' authorization as currently written, because that scope assumed the executable existed.",
+ "record_identity_sha256": "70b3ebd295ded890004100c5d763641c44a7a0d6ae76484ceb0d5a8386d11a38",
+ "record_type": "MR002_Phase3B_LaunchPreflightBlockerRegister",
+ "stage": "Phase 3B launch preflight, Step 1 (parameter resolution from the frozen contract)",
+ "steps_2_through_5_status": "NOT ATTEMPTED. Step 2 (Phase3BLaunchManifest) cannot bind an executable, launch command, or output location that does not exist; Steps 3-5 depend on it. Producing a launch manifest over inferred values would defeat its purpose.",
+ "verdict": "STOP_BEFORE_SPENDING_THE_OPENING",
+ "version": "1.0",
+ "what_is_NOT_blocked": [
+  "The P12 grant is valid and needs no re-authorization.",
+  "P1-P12 are satisfied; the governance layer is complete.",
+  "The sealed store exists, is pinned by Version ID + SHA-256, and enforces the OOS DENY.",
+  "The evaluator image is published, bound, and P10-qualified.",
+  "This is an execution-readiness gap, not a governance defect."
+ ]
+}
