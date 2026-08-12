@@ -201,22 +201,247 @@ def enrichment_conformance() -> dict:
     }
 
 
+def completeness_gate() -> dict:
+    """Owner-required gate: every frozen edge case must determine exactly one permitted
+    (schema output, registry disposition) pair. Zero unmapped, zero multiply-mapped.
+
+    Also checks the inverse direction - a registry code or census category with no triggering
+    condition is just as unusable as an edge case with no code - and whether every fact the
+    mapping depends on is actually resolvable from the sealed schema.
+    """
+    ec = json.load(open(os.path.join(
+        _REPO, "docs/review/mr002/phase3a/"
+        "MR002_Phase3A_ExecutionEnrichmentEdgeCaseSpecification_v1.0.json"), encoding="ascii"))
+    registry = json.load(open(os.path.join(
+        _REPO, "docs/review/mr002/phase3a/ExecutionEnrichmentCodeRegistry_v1.0.json"),
+        encoding="ascii"))
+    p9 = json.load(open(os.path.join(_HERE, "MR002_ValidationStructuralManifest_v1.0.json"),
+                        encoding="ascii"))
+
+    cases = ec["registered_edge_cases"]
+    codes = set(registry["codes"])
+    categories = ec["census_categories"]
+    if not cases or not codes or not categories:
+        raise SystemExit("REFUSED: completeness gate examined an empty set")
+
+    # The edge-case spec cites codes in BOTH the fully-qualified form
+    # ("EXECUTION_ENRICHMENT_STOP:DELISTING") and the bare form ("CORPORATE_ACTION_UNRESOLVED").
+    # Matching only the qualified form reports a false "unmapped" case, so match both.
+    def cited(code: str, target: str) -> bool:
+        return code in target or code.split(":")[-1] in target
+
+    conditional, unmapped_cases = [], []
+    referenced = set()
+    for case, target in cases.items():
+        hits = sorted(c for c in codes if cited(c, target))
+        if not hits:
+            unmapped_cases.append(case)
+            continue
+        referenced.update(hits)
+        # a target naming a code AND an alternative outcome is conditional, not single-valued
+        if len(hits) > 1 or " OR " in target or "unless" in target:
+            conditional.append({"case": case, "target": target, "codes": hits})
+
+    # SUCCESS is the normal path, not an edge case; its absence from the edge-case table is
+    # expected and is not an orphan. Excluded deliberately, not silently.
+    orphan_codes = sorted(codes - referenced - {"EXECUTION_ENRICHMENT_SUCCESS"})
+
+    # census categories carrying no code, and codes carrying no category
+    CATEGORY_FOR_CODE = {
+        "EXECUTION_ENRICHMENT_SUCCESS": "successful enrichment",
+        "EXECUTION_ENRICHMENT_STOP:NO_OFFICIAL_OPEN": "no-open",
+        "EXECUTION_ENRICHMENT_STOP:TRADING_HALT": "halt",
+        "EXECUTION_ENRICHMENT_STOP:DELISTING": "delisting",
+        "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED": "corporate-action transition",
+        "EXECUTION_ENRICHMENT_STOP:IDENTITY_CONFLICT": "identity conflict",
+        "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": "missing source",
+        "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": "future-information stop",
+    }
+    codes_without_category = sorted(codes - set(CATEGORY_FOR_CODE))
+    categories_without_code = sorted(set(categories) - set(CATEGORY_FOR_CODE.values()))
+
+    price_columns = [c["name"] for c in p9["schema_identity"]["tables"]["prices"]]
+    adjusted_open_present = any("open" in c and "adj" in c for c in price_columns)
+
+    findings = []
+    if unmapped_cases:
+        findings.append({"id": "A-0", "blocking": True,
+                         "detail": f"edge cases with no registry code: {unmapped_cases}"})
+    if not adjusted_open_present:
+        findings.append({
+            "id": "A-1", "blocking": True,
+            "title": "'registered adjusted open' is undefined in the sealed data",
+            "detail": (
+                "Two registered edge cases resolve conditionally on a 'registered adjusted open' "
+                "(dividend_or_distribution: 'registered adjusted open OR "
+                "CORPORATE_ACTION_UNRESOLVED'; split_close_t_to_open_t1: "
+                "'CORPORATE_ACTION_UNRESOLVED unless a registered adjusted open resolves it'). The "
+                f"sealed prices table carries {price_columns} - an adjusted CLOSE (closeadj) and a "
+                "raw open, and NO adjusted open column. The v0.3 gap filter is likewise specified "
+                "over |AdjOpen_t+1 / AdjClose_t - 1| >= 6%, so it names the same missing quantity."),
+            "consequences": [
+                "Reading the condition as unsatisfiable makes both cases collapse to an "
+                "unconditional EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED. That is "
+                "determinate but economically severe: every ex-dividend date in the validation "
+                "window would stop the affected candidate, and dividends are common across ~500 "
+                "names over 775 sessions.",
+                "Reading it as a derivation (for example applying the closeadj/close factor to the "
+                "raw open) requires choosing WHICH session's factor applies across an ex-date "
+                "boundary - precisely the quantity these two edge cases exist to govern. The "
+                "frozen contract specifies no such derivation.",
+            ],
+            "why_it_blocks": "Both readings are choices about research economics, not "
+                             "implementation details. Choosing either during implementation is the "
+                             "invention the owner prohibited.",
+        })
+    if orphan_codes:
+        findings.append({
+            "id": "A-2", "blocking": True,
+            "title": "registry code with no triggering condition",
+            "detail": (f"registry codes referenced by no registered edge case: {orphan_codes}. "
+                       "The census nevertheless carries a category for it, so a run has a bucket it "
+                       "can never fill by any specified rule."),
+        })
+    if codes_without_category:
+        findings.append({
+            "id": "A-3", "blocking": True,
+            "title": "registry code with no dedicated census category",
+            "detail": (
+                f"{codes_without_category} has no census category of its own. It is the target of "
+                "four of the fourteen registered edge cases - the single most common stop - and the "
+                "only remaining bucket is the catch-all 'other registered disposition'. Routing the "
+                "most frequent disposition into a category named 'other' is a mapping choice the "
+                "frozen text does not state."),
+        })
+
+    return {
+        "gate": "every frozen edge case determines exactly one permitted "
+                "(schema output, registry disposition) pair",
+        "verdict": "FAIL" if findings else "PASS",
+        "edge_cases_examined": len(cases),
+        "registry_codes_examined": len(codes),
+        "census_categories_examined": len(categories),
+        "single_valued_cases": len(cases) - len(conditional) - len(unmapped_cases),
+        "conditional_cases": conditional,
+        "unmapped_cases": unmapped_cases,
+        "orphan_codes": orphan_codes,
+        "codes_without_census_category": codes_without_category,
+        "census_categories_without_code": categories_without_code,
+        "sealed_prices_columns": price_columns,
+        "adjusted_open_column_present": adjusted_open_present,
+        "findings": findings,
+    }
+
+
 def build() -> dict:
     bound = verify_bound()
     img = verify_image_and_config()
     conf = enrichment_conformance()
+    gate = completeness_gate()
     return {
         "record_type": "MR002_Phase3B_RunSpecification",
         "version": "1.0",
         "artifact_kind": "EXECUTION_CONTRACT",
-        "status": "DRAFT_BLOCKED_PENDING_OWNER_RATIFICATION",
+        "status": "DRAFT_BLOCKED_ON_COMPLETENESS_GATE",
         "status_reason": (
-            "Drafting uncovered three items the frozen contract does not resolve, two of them "
-            "direct contradictions BETWEEN HASH-BOUND ARTIFACTS. Per the owner's instruction the "
-            "specification stops here rather than choosing. See "
-            "unresolved_items_requiring_owner_ratification."
+            "U-1, U-2 and U-3 are RESOLVED by owner ruling 2026-08-12 and recorded below as R-U1, "
+            "R-U2 and R-U3. The specification still does not freeze: the owner-required "
+            "completeness gate - every frozen edge case determining exactly one permitted "
+            "(schema output, registry disposition) pair - FAILS. See completeness_gate."
         ),
-        "unresolved_items_requiring_owner_ratification": [
+        "owner_resolutions": {
+            "R-U3": {
+                "ruling": (
+                    "The separately hash-bound Phase 3B execution layer runs INSIDE the existing "
+                    f"{GOVERNED_IMAGE} runtime container, mounted READ-ONLY. No second "
+                    "numeric-runtime identity is created; P10 remains the governing numeric-runtime "
+                    "identity."
+                ),
+                "topology": {
+                    "governed_numeric_runtime_and_frozen_evaluator": GOVERNED_IMAGE,
+                    "governed_execution_orchestration_identity":
+                        "the read-only mounted Phase 3B package, independently enumerated and "
+                        "SHA-256 bound under EB-1/EB-2",
+                    "execution_site": "inside the container, under the P10-bound runtime",
+                },
+                "startup_rule": (
+                    "Startup rehashes the mounted roster BEFORE any validation access and fails "
+                    "closed on drift."
+                ),
+                "qualification": (
+                    "EB-4 still binds: the mounted layer may ORCHESTRATE computations but may not "
+                    "independently implement alternative OLS / residual / z-score economics. There "
+                    "must remain ONE frozen source of those calculations."
+                ),
+                "consequence_flagged_by_the_drafter": (
+                    "That single frozen source is NOT in the image. The evaluator explicitly never "
+                    "estimates residuals, z or volatility (Increment 3), so the OLS/residual/"
+                    "normalization economics live in the SPQ-1 producer modules, which become part "
+                    "of the mounted layer. The RunSpecification must therefore bind those producer "
+                    "modules to the SAME identities used by the Phase 2B development run, or the "
+                    "development and validation windows are not produced by the same code and are "
+                    "not comparable. Recorded as a binding requirement, not a discovered fact."
+                ),
+            },
+            "R-U1": {
+                "ruling": (
+                    "ExecutionEnrichmentSchema_v1.0.json is NORMATIVE for the published "
+                    "ExecutionEnrichedCandidateRecord field surface. models.py is NOT edited and "
+                    "its 8-field class is NOT the publication schema."
+                ),
+                "rationale": (
+                    "The binding is specifically of the SignalDecisionRecord MODEL MODULE, while "
+                    "Phase 3A separately and explicitly binds ExecutionEnrichmentSchema as the "
+                    "enrichment contract. The latter has the stronger claim over the published "
+                    "enriched-record shape, and it fits the ratified seam: immutable "
+                    "SignalDecisionRecord -> schema-governed ExecutionEnrichedCandidateRecord."
+                ),
+                "not_co_normative": (
+                    "models.py governs the frozen decision record and its immutability seam "
+                    "(canonical form, decision identity, immutable embedding, "
+                    "verify_decision_unchanged, future-information protection). "
+                    "ExecutionEnrichmentSchema governs the Phase 3B published enriched-record field "
+                    "set. They are not co-normative and the historical dataclass is not modified to "
+                    "match the later schema."
+                ),
+                "classification": "execution-contract adjudication, NOT a change to signal logic",
+            },
+            "R-U2": {
+                "ruling": (
+                    "ExecutionEnrichmentCodeRegistry is NORMATIVE for Phase 3B emitted terminal "
+                    "codes and for the enrichment census. Phase 3B artifacts emit the registered "
+                    "EXECUTION_ENRICHMENT_* namespace - never ADMISSIBLE, CANCELLED_GAP, "
+                    "CANCELLED_MISSING_OPEN, or signal-side INTEGRITY_STOP:* as enrichment "
+                    "dispositions."
+                ),
+                "legacy_labels": (
+                    "May remain INTERNAL intermediate implementation states. They are not "
+                    "publication codes, are not counted in the preregistered census, and "
+                    "signal-production INTEGRITY_STOP:* codes must never masquerade as enrichment "
+                    "dispositions."
+                ),
+                "mapping_rule": (
+                    "Any legacy-to-registry correspondence must be DERIVED from the frozen "
+                    "edge-case specification and code registry. Where a legacy outcome has no "
+                    "unique frozen counterpart, the specification stays blocked and that specific "
+                    "mapping returns for adjudication. No mapping is chosen because it sounds right."
+                ),
+                "census_invariant": (
+                    "One and only one registry-defined terminal enrichment disposition per "
+                    "applicable candidate, plus separately tracked integrity failures required by "
+                    "the gate table, reconciling exactly to the candidate population expected by "
+                    "the frozen contract."
+                ),
+            },
+            "combined_disposition": (
+                "The new separately bound Phase 3B layer is the CONTRACT ADAPTER: frozen decision "
+                "record -> governed enrichment using permitted t+1 facts -> Phase-3A "
+                "schema-compliant record -> Phase-3A registry-compliant terminal code -> integrity "
+                "census. Neither frozen artifact is mutated."
+            ),
+        },
+        "completeness_gate": gate,
+        "items_resolved_by_owner_ruling_2026_08_12": [
             {
                 "id": "U-1",
                 "severity": "CONTRADICTION BETWEEN TWO HASH-BOUND ARTIFACTS",

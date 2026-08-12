@@ -94,6 +94,77 @@
   }
  },
  "boundary": "Specification only. Zero-data: no AWS call, no sealed object opened, no credential assumed, no image change, no logic change. validation_authorization remains true at _rev 1 and the single validation opening remains UNSPENT.",
+ "completeness_gate": {
+  "adjusted_open_column_present": false,
+  "census_categories_examined": 9,
+  "census_categories_without_code": [
+   "other registered disposition"
+  ],
+  "codes_without_census_category": [
+   "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT"
+  ],
+  "conditional_cases": [
+   {
+    "case": "dividend_or_distribution",
+    "codes": [
+     "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED"
+    ],
+    "target": "registered adjusted open OR CORPORATE_ACTION_UNRESOLVED"
+   },
+   {
+    "case": "split_close_t_to_open_t1",
+    "codes": [
+     "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED"
+    ],
+    "target": "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED (unless a registered adjusted open resolves it)"
+   }
+  ],
+  "edge_cases_examined": 14,
+  "findings": [
+   {
+    "blocking": true,
+    "consequences": [
+     "Reading the condition as unsatisfiable makes both cases collapse to an unconditional EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED. That is determinate but economically severe: every ex-dividend date in the validation window would stop the affected candidate, and dividends are common across ~500 names over 775 sessions.",
+     "Reading it as a derivation (for example applying the closeadj/close factor to the raw open) requires choosing WHICH session's factor applies across an ex-date boundary - precisely the quantity these two edge cases exist to govern. The frozen contract specifies no such derivation."
+    ],
+    "detail": "Two registered edge cases resolve conditionally on a 'registered adjusted open' (dividend_or_distribution: 'registered adjusted open OR CORPORATE_ACTION_UNRESOLVED'; split_close_t_to_open_t1: 'CORPORATE_ACTION_UNRESOLVED unless a registered adjusted open resolves it'). The sealed prices table carries ['ticker', 'date', 'open', 'high', 'low', 'close', 'closeadj', 'closeunadj', 'volume'] - an adjusted CLOSE (closeadj) and a raw open, and NO adjusted open column. The v0.3 gap filter is likewise specified over |AdjOpen_t+1 / AdjClose_t - 1| >= 6%, so it names the same missing quantity.",
+    "id": "A-1",
+    "title": "'registered adjusted open' is undefined in the sealed data",
+    "why_it_blocks": "Both readings are choices about research economics, not implementation details. Choosing either during implementation is the invention the owner prohibited."
+   },
+   {
+    "blocking": true,
+    "detail": "registry codes referenced by no registered edge case: ['EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING']. The census nevertheless carries a category for it, so a run has a bucket it can never fill by any specified rule.",
+    "id": "A-2",
+    "title": "registry code with no triggering condition"
+   },
+   {
+    "blocking": true,
+    "detail": "['EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT'] has no census category of its own. It is the target of four of the fourteen registered edge cases - the single most common stop - and the only remaining bucket is the catch-all 'other registered disposition'. Routing the most frequent disposition into a category named 'other' is a mapping choice the frozen text does not state.",
+    "id": "A-3",
+    "title": "registry code with no dedicated census category"
+   }
+  ],
+  "gate": "every frozen edge case determines exactly one permitted (schema output, registry disposition) pair",
+  "orphan_codes": [
+   "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING"
+  ],
+  "registry_codes_examined": 9,
+  "sealed_prices_columns": [
+   "ticker",
+   "date",
+   "open",
+   "high",
+   "low",
+   "close",
+   "closeadj",
+   "closeunadj",
+   "volume"
+  ],
+  "single_valued_cases": 12,
+  "unmapped_cases": [],
+  "verdict": "FAIL"
+ },
  "configurations": {
   "exit_z": 0.35,
   "horizon": 6,
@@ -270,6 +341,79 @@
   "vacuity_rule": "Every census must report the number of items EXAMINED alongside the violation count. A zero over an empty examination set is a REFUSED result, not a pass.",
   "validation_access_events_before_authorization": 0
  },
+ "items_resolved_by_owner_ruling_2026_08_12": [
+  {
+   "candidate_resolution_not_adopted": "The execution layer could emit a SCHEMA-CONFORMING record built FROM the bound model's output - treating models.ExecutionEnrichedCandidateRecord as an internal non-mutation guarantee and the schema record as the published artifact. That edits nothing frozen. It is recorded as a candidate, NOT adopted, because it decides which of two frozen artifacts is normative.",
+   "detail": "ExecutionEnrichmentSchema (bound 5b2480c1...) declares 10 enriched_candidate_record_fields. models.ExecutionEnrichedCandidateRecord, in the module bound as SignalDecisionRecord_model_module_sha256 efc26d3a..., declares 8 differently-named fields. Five schema entries have no model counterpart at all: official_open_source_identity, realization_horizon, corporate_action_identity, conservative_short_flag, ExecutionEnrichmentCode.",
+   "evidence": {
+    "codes_actually_used_by_the_implementation": [
+     "ADMISSIBLE",
+     "CANCELLED_GAP",
+     "CANCELLED_MISSING_OPEN",
+     "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH",
+     "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID",
+     "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"
+    ],
+    "counterpart_note": "decision_record_sha256~decision_record_identity, execution_session_t_plus_1~scheduled_execution_session, official_open_price_ref~official_next_open_price, ExecutionEnrichmentDisposition~execution_admissibility_status; decision_session_t is carried inside decision_record_canonical.",
+    "execution_enrichment_namespace_codes_declared": 8,
+    "execution_enrichment_namespace_codes_used": 0,
+    "model_declared_fields": [
+     "decision_record_canonical",
+     "decision_record_identity",
+     "scheduled_execution_session",
+     "official_next_open_price",
+     "execution_admissibility_status",
+     "gap_filter_result",
+     "missing_open_disposition",
+     "enrichment_timestamp"
+    ],
+    "registry_codes_declared": 9,
+    "registry_codes_used_by_the_bound_implementation": [
+     "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"
+    ],
+    "schema_declared_fields": [
+     "decision_record_sha256",
+     "decision_session_t",
+     "execution_session_t_plus_1",
+     "official_open_source_identity",
+     "official_open_price_ref",
+     "realization_horizon",
+     "ExecutionEnrichmentDisposition",
+     "ExecutionEnrichmentCode",
+     "corporate_action_identity",
+     "conservative_short_flag"
+    ],
+    "schema_fields_with_no_model_counterpart": [
+     "official_open_source_identity",
+     "realization_horizon",
+     "corporate_action_identity",
+     "conservative_short_flag",
+     "ExecutionEnrichmentCode"
+    ],
+    "used_codes_note": "The single match above is INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED, which is the registry's one NON-EXECUTION_ENRICHMENT entry. Zero of the eight EXECUTION_ENRICHMENT_* codes appear anywhere in the package."
+   },
+   "id": "U-1",
+   "severity": "CONTRADICTION BETWEEN TWO HASH-BOUND ARTIFACTS",
+   "title": "The frozen enrichment schema and the hash-bound model declare different enriched-record field sets",
+   "why_it_blocks": "EB-5 requires the run to add only fields permitted by the frozen schema, while the frozen implementation emits a different set. Neither artifact can be edited: editing models.py breaks its binding in ValidationRunSpecification, and editing the schema breaks its binding in bound_schemas AND bound_specifications."
+  },
+  {
+   "detail": "ExecutionEnrichmentCodeRegistry (bound 0bddd73c...) defines EXECUTION_ENRICHMENT_SUCCESS plus seven EXECUTION_ENRICHMENT_STOP:* codes, with the invariant that 'enrichment codes are never reused for signal-production failures' and the namespace declared 'SEPARATE from signal-production refusal codes'. A search of the entire SPQ-1 package for EXECUTION_ENRICHMENT returns ZERO matches. The bound enricher instead reports ADMISSIBLE / CANCELLED_GAP / CANCELLED_MISSING_OPEN and raises INTEGRITY_STOP:* codes - the signal-production namespace the registry separates itself from.",
+   "evidence_pointer": "see U-1 evidence: registry_codes_used_by_the_bound_implementation",
+   "id": "U-2",
+   "severity": "CONTRADICTION BETWEEN TWO HASH-BOUND ARTIFACTS",
+   "title": "The frozen enrichment code registry is used by no code, and the bound implementation uses the namespace the registry forbids",
+   "why_it_blocks": "The registry's invariant requires each code to have exactly one terminal treatment and one census category. The Phase 3B edge-case census (ExecutionEnrichmentEdgeCaseCensus) is defined over the registry's codes, so a run emitting the implementation's codes cannot populate it as specified."
+  },
+  {
+   "candidate_resolution_not_adopted": "Execute the separately hash-bound Phase 3B layer INSIDE the bound image, mounted read-only, leaving the image identity unchanged and inheriting the P10-verified runtime. That satisfies EB-7 and needs no second runtime manifest, and it matches the owner's stated preferred structure. The alternative is a P10-analogue runtime manifest for a host-side layer. Not adopted here: it is an execution-topology ruling, not a drafting detail.",
+   "detail": "P10 (8e5e3947...) is an IN-IMAGE capture: 21 evaluator modules rehashed inside the container, binding py3.13.14 / numpy 2.2.6 / scipy 1.18.0 / pandas 3.0.5 / OpenBLAS 0.3.29 Haswell / PCG64 / all five thread variables = 1. Under Option A the Phase 3B layer executes outside that bound identity, so P10 does not describe the process that will run the OLS regressions, residuals and z-scores.",
+   "id": "U-3",
+   "severity": "GAP WITH GOVERNANCE CONSEQUENCES",
+   "title": "No numeric-runtime identity governs the Phase 3B execution layer",
+   "why_it_blocks": "Phase 3B performs float64 numerical work whose outputs are hashed and later replayed. An unpinned numeric runtime makes those hashes irreproducible, which is precisely what P10 exists to prevent."
+  }
+ ],
  "not_authorized_by_this_specification": [
   "executing the run",
   "assuming the validation reader",
@@ -420,7 +564,33 @@
   "root": "/opt/mr002/out/valoos/validation",
   "root_decision_class": "SPECIFICATION DECISION - the evaluator binding gives the relative form 'valoos/<window>/...' with no root and never binds <window> to a literal. Root chosen on the frozen host inside the run image's writable output mount; <window> bound to the literal 'validation'."
  },
- "record_identity_sha256": "988f188f4974a8844edd94a6a87c066aaa54e83288ef821d6ee31083c58704f6",
+ "owner_resolutions": {
+  "R-U1": {
+   "classification": "execution-contract adjudication, NOT a change to signal logic",
+   "not_co_normative": "models.py governs the frozen decision record and its immutability seam (canonical form, decision identity, immutable embedding, verify_decision_unchanged, future-information protection). ExecutionEnrichmentSchema governs the Phase 3B published enriched-record field set. They are not co-normative and the historical dataclass is not modified to match the later schema.",
+   "rationale": "The binding is specifically of the SignalDecisionRecord MODEL MODULE, while Phase 3A separately and explicitly binds ExecutionEnrichmentSchema as the enrichment contract. The latter has the stronger claim over the published enriched-record shape, and it fits the ratified seam: immutable SignalDecisionRecord -> schema-governed ExecutionEnrichedCandidateRecord.",
+   "ruling": "ExecutionEnrichmentSchema_v1.0.json is NORMATIVE for the published ExecutionEnrichedCandidateRecord field surface. models.py is NOT edited and its 8-field class is NOT the publication schema."
+  },
+  "R-U2": {
+   "census_invariant": "One and only one registry-defined terminal enrichment disposition per applicable candidate, plus separately tracked integrity failures required by the gate table, reconciling exactly to the candidate population expected by the frozen contract.",
+   "legacy_labels": "May remain INTERNAL intermediate implementation states. They are not publication codes, are not counted in the preregistered census, and signal-production INTEGRITY_STOP:* codes must never masquerade as enrichment dispositions.",
+   "mapping_rule": "Any legacy-to-registry correspondence must be DERIVED from the frozen edge-case specification and code registry. Where a legacy outcome has no unique frozen counterpart, the specification stays blocked and that specific mapping returns for adjudication. No mapping is chosen because it sounds right.",
+   "ruling": "ExecutionEnrichmentCodeRegistry is NORMATIVE for Phase 3B emitted terminal codes and for the enrichment census. Phase 3B artifacts emit the registered EXECUTION_ENRICHMENT_* namespace - never ADMISSIBLE, CANCELLED_GAP, CANCELLED_MISSING_OPEN, or signal-side INTEGRITY_STOP:* as enrichment dispositions."
+  },
+  "R-U3": {
+   "consequence_flagged_by_the_drafter": "That single frozen source is NOT in the image. The evaluator explicitly never estimates residuals, z or volatility (Increment 3), so the OLS/residual/normalization economics live in the SPQ-1 producer modules, which become part of the mounted layer. The RunSpecification must therefore bind those producer modules to the SAME identities used by the Phase 2B development run, or the development and validation windows are not produced by the same code and are not comparable. Recorded as a binding requirement, not a discovered fact.",
+   "qualification": "EB-4 still binds: the mounted layer may ORCHESTRATE computations but may not independently implement alternative OLS / residual / z-score economics. There must remain ONE frozen source of those calculations.",
+   "ruling": "The separately hash-bound Phase 3B execution layer runs INSIDE the existing sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51 runtime container, mounted READ-ONLY. No second numeric-runtime identity is created; P10 remains the governing numeric-runtime identity.",
+   "startup_rule": "Startup rehashes the mounted roster BEFORE any validation access and fails closed on drift.",
+   "topology": {
+    "execution_site": "inside the container, under the P10-bound runtime",
+    "governed_execution_orchestration_identity": "the read-only mounted Phase 3B package, independently enumerated and SHA-256 bound under EB-1/EB-2",
+    "governed_numeric_runtime_and_frozen_evaluator": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+   }
+  },
+  "combined_disposition": "The new separately bound Phase 3B layer is the CONTRACT ADAPTER: frozen decision record -> governed enrichment using permitted t+1 facts -> Phase-3A schema-compliant record -> Phase-3A registry-compliant terminal code -> integrity census. Neither frozen artifact is mutated."
+ },
+ "record_identity_sha256": "6daabcfb2d5c38bbc9206c06b73919afef630b86664f0d0e70e98fb9901d9a06",
  "record_type": "MR002_Phase3B_RunSpecification",
  "required_before_execution": "The supplemental execution-identity adjudication, binding this specification's identity together with the complete execution-layer module roster and hashes, the sealed input manifest identities, the output contract, the run id, the one-opening semantics, and the synthetic qualification evidence.",
  "run_identity": {
@@ -432,81 +602,8 @@
   "window": "validation"
  },
  "stage": "SPQ-1 Phase 3B - validation-window signal production and execution enrichment",
- "status": "DRAFT_BLOCKED_PENDING_OWNER_RATIFICATION",
- "status_reason": "Drafting uncovered three items the frozen contract does not resolve, two of them direct contradictions BETWEEN HASH-BOUND ARTIFACTS. Per the owner's instruction the specification stops here rather than choosing. See unresolved_items_requiring_owner_ratification.",
- "unresolved_items_requiring_owner_ratification": [
-  {
-   "candidate_resolution_not_adopted": "The execution layer could emit a SCHEMA-CONFORMING record built FROM the bound model's output - treating models.ExecutionEnrichedCandidateRecord as an internal non-mutation guarantee and the schema record as the published artifact. That edits nothing frozen. It is recorded as a candidate, NOT adopted, because it decides which of two frozen artifacts is normative.",
-   "detail": "ExecutionEnrichmentSchema (bound 5b2480c1...) declares 10 enriched_candidate_record_fields. models.ExecutionEnrichedCandidateRecord, in the module bound as SignalDecisionRecord_model_module_sha256 efc26d3a..., declares 8 differently-named fields. Five schema entries have no model counterpart at all: official_open_source_identity, realization_horizon, corporate_action_identity, conservative_short_flag, ExecutionEnrichmentCode.",
-   "evidence": {
-    "codes_actually_used_by_the_implementation": [
-     "ADMISSIBLE",
-     "CANCELLED_GAP",
-     "CANCELLED_MISSING_OPEN",
-     "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH",
-     "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID",
-     "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"
-    ],
-    "counterpart_note": "decision_record_sha256~decision_record_identity, execution_session_t_plus_1~scheduled_execution_session, official_open_price_ref~official_next_open_price, ExecutionEnrichmentDisposition~execution_admissibility_status; decision_session_t is carried inside decision_record_canonical.",
-    "execution_enrichment_namespace_codes_declared": 8,
-    "execution_enrichment_namespace_codes_used": 0,
-    "model_declared_fields": [
-     "decision_record_canonical",
-     "decision_record_identity",
-     "scheduled_execution_session",
-     "official_next_open_price",
-     "execution_admissibility_status",
-     "gap_filter_result",
-     "missing_open_disposition",
-     "enrichment_timestamp"
-    ],
-    "registry_codes_declared": 9,
-    "registry_codes_used_by_the_bound_implementation": [
-     "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"
-    ],
-    "schema_declared_fields": [
-     "decision_record_sha256",
-     "decision_session_t",
-     "execution_session_t_plus_1",
-     "official_open_source_identity",
-     "official_open_price_ref",
-     "realization_horizon",
-     "ExecutionEnrichmentDisposition",
-     "ExecutionEnrichmentCode",
-     "corporate_action_identity",
-     "conservative_short_flag"
-    ],
-    "schema_fields_with_no_model_counterpart": [
-     "official_open_source_identity",
-     "realization_horizon",
-     "corporate_action_identity",
-     "conservative_short_flag",
-     "ExecutionEnrichmentCode"
-    ],
-    "used_codes_note": "The single match above is INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED, which is the registry's one NON-EXECUTION_ENRICHMENT entry. Zero of the eight EXECUTION_ENRICHMENT_* codes appear anywhere in the package."
-   },
-   "id": "U-1",
-   "severity": "CONTRADICTION BETWEEN TWO HASH-BOUND ARTIFACTS",
-   "title": "The frozen enrichment schema and the hash-bound model declare different enriched-record field sets",
-   "why_it_blocks": "EB-5 requires the run to add only fields permitted by the frozen schema, while the frozen implementation emits a different set. Neither artifact can be edited: editing models.py breaks its binding in ValidationRunSpecification, and editing the schema breaks its binding in bound_schemas AND bound_specifications."
-  },
-  {
-   "detail": "ExecutionEnrichmentCodeRegistry (bound 0bddd73c...) defines EXECUTION_ENRICHMENT_SUCCESS plus seven EXECUTION_ENRICHMENT_STOP:* codes, with the invariant that 'enrichment codes are never reused for signal-production failures' and the namespace declared 'SEPARATE from signal-production refusal codes'. A search of the entire SPQ-1 package for EXECUTION_ENRICHMENT returns ZERO matches. The bound enricher instead reports ADMISSIBLE / CANCELLED_GAP / CANCELLED_MISSING_OPEN and raises INTEGRITY_STOP:* codes - the signal-production namespace the registry separates itself from.",
-   "evidence_pointer": "see U-1 evidence: registry_codes_used_by_the_bound_implementation",
-   "id": "U-2",
-   "severity": "CONTRADICTION BETWEEN TWO HASH-BOUND ARTIFACTS",
-   "title": "The frozen enrichment code registry is used by no code, and the bound implementation uses the namespace the registry forbids",
-   "why_it_blocks": "The registry's invariant requires each code to have exactly one terminal treatment and one census category. The Phase 3B edge-case census (ExecutionEnrichmentEdgeCaseCensus) is defined over the registry's codes, so a run emitting the implementation's codes cannot populate it as specified."
-  },
-  {
-   "candidate_resolution_not_adopted": "Execute the separately hash-bound Phase 3B layer INSIDE the bound image, mounted read-only, leaving the image identity unchanged and inheriting the P10-verified runtime. That satisfies EB-7 and needs no second runtime manifest, and it matches the owner's stated preferred structure. The alternative is a P10-analogue runtime manifest for a host-side layer. Not adopted here: it is an execution-topology ruling, not a drafting detail.",
-   "detail": "P10 (8e5e3947...) is an IN-IMAGE capture: 21 evaluator modules rehashed inside the container, binding py3.13.14 / numpy 2.2.6 / scipy 1.18.0 / pandas 3.0.5 / OpenBLAS 0.3.29 Haswell / PCG64 / all five thread variables = 1. Under Option A the Phase 3B layer executes outside that bound identity, so P10 does not describe the process that will run the OLS regressions, residuals and z-scores.",
-   "id": "U-3",
-   "severity": "GAP WITH GOVERNANCE CONSEQUENCES",
-   "title": "No numeric-runtime identity governs the Phase 3B execution layer",
-   "why_it_blocks": "Phase 3B performs float64 numerical work whose outputs are hashed and later replayed. An unpinned numeric runtime makes those hashes irreproducible, which is precisely what P10 exists to prevent."
-  }
- ],
+ "status": "DRAFT_BLOCKED_ON_COMPLETENESS_GATE",
+ "status_reason": "U-1, U-2 and U-3 are RESOLVED by owner ruling 2026-08-12 and recorded below as R-U1, R-U2 and R-U3. The specification still does not freeze: the owner-required completeness gate - every frozen edge case determining exactly one permitted (schema output, registry disposition) pair - FAILS. See completeness_gate.",
  "version": "1.0",
  "what_is_resolved_and_ready": "Everything below is drafted and hash-verified; only U-1, U-2 and U-3 block the freeze."
 }
