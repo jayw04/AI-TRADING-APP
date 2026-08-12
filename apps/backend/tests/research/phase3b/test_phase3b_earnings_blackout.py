@@ -157,3 +157,60 @@ def test_the_controls_actually_exclude_something():
     reasons = exclusions_for_security([a], CAL)
     excluded = {o for o, r in reasons.items() if r - {NO_ANCHOR}}
     assert len(excluded) > 100, f"only {len(excluded)} sessions excluded; the rule is not firing"
+
+
+# --------------------------------------------------------------------- production wiring
+def _avail(anchors, ts="2020-01-01T12:00:00Z"):
+    return {a.accession: ts for a in anchors}
+
+
+def test_checks_are_indexed_on_the_execution_open_not_the_decision_session():
+    """Cooling is written as "prohibited execution OPENS"; entry executes at t+1."""
+    from app.research.mr002.phase3b.earnings_blackout import (
+        COOLING_RULE_ID,
+        earnings_exclusion_checks,
+    )
+
+    a = _anchor(CAL.sessions[10], "PRE_OPEN")  # prohibits opens 10 and 11
+    for decision_t, expect in ((9, True), (10, True), (11, False)):
+        checks = earnings_exclusion_checks([a], CAL, decision_t, _avail([a]))
+        cooling = [c for c in checks if c.rule_id == COOLING_RULE_ID]
+        assert cooling and cooling[0].excludes is expect, (decision_t, expect)
+
+
+def test_one_rule_id_per_control_not_per_accession():
+    """Per-accession rule ids would make one unavailable anchor fail the whole security."""
+    from app.research.mr002.phase3b.earnings_blackout import (
+        BLACKOUT_RULE_ID,
+        COOLING_RULE_ID,
+        earnings_exclusion_checks,
+    )
+
+    anchors = [
+        _anchor(CAL.sessions[10], "PRE_OPEN", "a1"),
+        _anchor(CAL.sessions[80], "PRE_OPEN", "a2"),
+    ]
+    checks = earnings_exclusion_checks(anchors, CAL, 12, _avail(anchors))
+    assert {c.rule_id for c in checks} == {COOLING_RULE_ID, BLACKOUT_RULE_ID}
+    assert all(c.precedence_category == "event_blackout" for c in checks)
+
+
+def test_the_controls_now_actually_make_a_security_ineligible():
+    """The whole point: evaluate_eligibility must stop returning ELIGIBLE unconditionally."""
+    from app.research.mr002.phase3b.earnings_blackout import earnings_exclusion_checks
+    from app.research.mr002.spq1.eligibility import evaluate_eligibility
+
+    a = _anchor(CAL.sessions[10], "PRE_OPEN")
+    cutoff = "2020-06-01T20:00:00Z"
+    blocked = earnings_exclusion_checks([a], CAL, 9, _avail([a]))
+    assert evaluate_eligibility(blocked, cutoff).status != "ELIGIBLE"
+    clear = earnings_exclusion_checks([a], CAL, 20, _avail([a]))
+    assert evaluate_eligibility(clear, cutoff).status == "ELIGIBLE"
+
+
+def test_a_missing_availability_timestamp_is_refused_not_defaulted():
+    from app.research.mr002.phase3b.earnings_blackout import earnings_exclusion_checks
+
+    a = _anchor(CAL.sessions[10])
+    with pytest.raises(BlackoutRefused, match="no availability timestamp"):
+        earnings_exclusion_checks([a], CAL, 9, {})

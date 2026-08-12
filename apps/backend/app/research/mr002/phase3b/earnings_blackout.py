@@ -156,3 +156,71 @@ def exclusions_for_security(anchors: list[Anchor], calendar: Calendar) -> dict[i
     horizon = len(calendar.sessions) if first_open is None else first_open
     mark(0, horizon - 1, NO_ANCHOR)
     return reasons
+
+
+# --- production wiring: governed ExclusionChecks -------------------------------------------------
+COOLING_RULE_ID = "EARN-COOLING"
+BLACKOUT_RULE_ID = "EARN-STALE-ANCHOR"
+EVENT_BLACKOUT = "event_blackout"  # constants.PRECEDENCE rank 4
+
+
+def earnings_exclusion_checks(
+    anchors: list[Anchor],
+    calendar: Calendar,
+    decision_session: int,
+    availability_by_accession: dict[str, str],
+):
+    """Governed close-t ExclusionChecks for the two earnings controls.
+
+    Indexed on the EXECUTION open, not the decision session. The cooling rule is written in terms
+    of "prohibited execution opens", and an entry under the blackout is likewise an execution at
+    the t+1 open, so a decision at t is blocked when the t+1 OPEN falls inside either interval.
+
+    One rule id per CONTROL, not per accession. `evaluate_eligibility` groups by rule id and
+    PIT-selects the latest record available by close t, which is exactly "the most recently
+    confirmed release governs". Emitting a rule per accession would instead make every accession a
+    separate required rule, so a single anchor not yet available by the cutoff would raise
+    ELIGIBILITY_EVIDENCE_MISSING for the whole security.
+    """
+    from ..spq1.eligibility import ExclusionCheck
+
+    execution_open = decision_session + 1
+    if execution_open >= len(calendar.sessions):
+        return []
+
+    checks: list[ExclusionCheck] = []
+    for anchor in sorted(anchors, key=lambda a: (a.session_date, a.accession)):
+        availability = availability_by_accession.get(anchor.accession)
+        if availability is None:
+            raise BlackoutRefused(f"no availability timestamp for anchor {anchor.accession}")
+
+        window = cooling_interval(anchor, calendar)
+        cooling_hit = window is not None and window[0] <= execution_open <= window[1]
+        checks.append(
+            ExclusionCheck(
+                rule_id=COOLING_RULE_ID,
+                precedence_category=EVENT_BLACKOUT,
+                excludes=cooling_hit,
+                observed_value=f"class={anchor.availability_class};window={window}",
+                threshold="no entry executes in the first two sessions after a confirmed release",
+                source_identity=f"earnings_anchor:{anchor.accession}",
+                availability_timestamp=availability,
+                evidence_present=True,
+            )
+        )
+
+        start = stale_anchor_start(anchor, calendar)
+        blackout_hit = start is not None and execution_open >= start
+        checks.append(
+            ExclusionCheck(
+                rule_id=BLACKOUT_RULE_ID,
+                precedence_category=EVENT_BLACKOUT,
+                excludes=blackout_hit,
+                observed_value=f"anchor={anchor.session_date};blackout_from_ordinal={start}",
+                threshold=f"ineligible from {STALE_ANCHOR_DAYS} calendar days after the anchor",
+                source_identity=f"earnings_anchor:{anchor.accession}",
+                availability_timestamp=availability,
+                evidence_present=True,
+            )
+        )
+    return checks
