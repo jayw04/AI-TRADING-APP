@@ -1,0 +1,512 @@
+{
+ "artifact_kind": "EXECUTION_CONTRACT",
+ "authority": "Owner ruling 2026-08-12: Option A ratified; execution-boundary clarification recorded prospectively; Task 2 authorized zero-data.",
+ "bound_identities": {
+  "ExecutionEnrichmentCodeRegistry": {
+   "path": "docs/review/mr002/phase3a/ExecutionEnrichmentCodeRegistry_v1.0.json",
+   "registered_sha256": "0bddd73c311b790a4f3ff07831279d91edb9c005b12d03543d6594749d705e51",
+   "reproduces_registered_value": true,
+   "sha256": "0bddd73c311b790a4f3ff07831279d91edb9c005b12d03543d6594749d705e51"
+  },
+  "ExecutionEnrichmentEdgeCaseSpecification": {
+   "path": "docs/review/mr002/phase3a/MR002_Phase3A_ExecutionEnrichmentEdgeCaseSpecification_v1.0.json",
+   "registered_sha256": "792c6717c6e4344062ba84c1b762b6eb5b8cf51d4464cb40b280230540794d17",
+   "reproduces_registered_value": true,
+   "sha256": "792c6717c6e4344062ba84c1b762b6eb5b8cf51d4464cb40b280230540794d17"
+  },
+  "ExecutionEnrichmentSchema": {
+   "path": "docs/review/mr002/phase3a/ExecutionEnrichmentSchema_v1.0.json",
+   "registered_sha256": "5b2480c1bc80abfc2d520bbc3f5c00399d20f5ca7b75f815d1e5a4bf2719f71f",
+   "reproduces_registered_value": true,
+   "sha256": "5b2480c1bc80abfc2d520bbc3f5c00399d20f5ca7b75f815d1e5a4bf2719f71f"
+  },
+  "P10_numeric_runtime_instance": {
+   "path": "docs/review/mr002/phase3bc/MR002_NumericRuntimeIdentityManifest_RuntimeInstance_v1.0.json",
+   "registered_sha256": "8e5e39471c0d96c5cd6916e7c316bc74fa320336c7e0106515ede11f479c1ed0",
+   "reproduces_registered_value": true,
+   "sha256": "8e5e39471c0d96c5cd6916e7c316bc74fa320336c7e0106515ede11f479c1ed0"
+  },
+  "P11_access_control_preconditions": {
+   "path": "docs/review/mr002/phase3bc/MR002_ValidationAccessControlPreconditions_v1.0.json",
+   "registered_sha256": null,
+   "reproduces_registered_value": null,
+   "sha256": "714844d6a09f2b34029d7028e079fcbb9918fab532eaa44c452c0cdb96ff5e72"
+  },
+  "P6_content_commitment": {
+   "path": "docs/review/mr002/phase3bc/ValidationPartitionContentCommitment_v1.0.json",
+   "registered_sha256": null,
+   "reproduces_registered_value": null,
+   "sha256": "63f6e0d3bc85daaabb9744834381e3d992469517385356053f6494efd1db7fa3"
+  },
+  "P9_structural_manifest": {
+   "path": "docs/review/mr002/phase3bc/MR002_ValidationStructuralManifest_v1.0.json",
+   "registered_sha256": null,
+   "reproduces_registered_value": null,
+   "sha256": "6b81a319f53d7b1a9ccf45c8f363ca6761909898d5b1e2c9921beb367f518e19"
+  },
+  "SignalDecisionRecord_model_module": {
+   "path": "apps/backend/app/research/mr002/spq1/models.py",
+   "registered_sha256": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+   "reproduces_registered_value": true,
+   "sha256": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f"
+  },
+  "SignalDecisionRecord_schema": {
+   "path": "docs/review/mr002/spq1/MR002_SPQ1_InputOutputSchema_Draft_v1.1.json",
+   "registered_sha256": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f",
+   "reproduces_registered_value": true,
+   "sha256": "49c0e550f78127e04fcf92a649645aef23560173ccf89ef630dab30d4892497f"
+  },
+  "enrichment_implementation": {
+   "path": "apps/backend/app/research/mr002/spq1/execution_enrichment.py",
+   "registered_sha256": null,
+   "reproduces_registered_value": null,
+   "sha256": "da6a730daea287332b51fe98d8a5d4a2580c37d8c0dab915ac64214883cdba05"
+  },
+  "execution_boundary_clarification": {
+   "path": "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionBoundaryClarification_v1.0.json",
+   "registered_sha256": null,
+   "reproduces_registered_value": null,
+   "sha256": "e07f7b666d37c035c1c1ac1caef62890b36b7b1b355f593509a3974e5a0f3889"
+  },
+  "governing_preregistration_v1_0_4": {
+   "path": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "registered_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+   "reproduces_registered_value": true,
+   "sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "sealed_store_export_manifest": {
+   "path": "docs/review/mr002/phase3bc/MR002_SealedStoreExportManifest_v1.0.json",
+   "registered_sha256": null,
+   "reproduces_registered_value": null,
+   "sha256": "07032680f7c73d65e7908a3f30acfe75a062484b748f563da97ab3b117daa7e1"
+  },
+  "sealed_store_upload_manifest": {
+   "path": "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json",
+   "registered_sha256": null,
+   "reproduces_registered_value": null,
+   "sha256": "b16bc89f3fdbdeec3c59e9fa03e237c1d845f0c0fee440b923abb0c5fba2cc15"
+  },
+  "v0_3_gate_table": {
+   "path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "registered_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "reproduces_registered_value": true,
+   "sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  }
+ },
+ "boundary": "Specification only. Zero-data: no AWS call, no sealed object opened, no credential assumed, no image change, no logic change. validation_authorization remains true at _rev 1 and the single validation opening remains UNSPENT.",
+ "configurations": {
+  "exit_z": 0.35,
+  "horizon": 6,
+  "horizon_note": "entry at the t+1 open is session 1, so the time-stop exit at the open of session 6 is the t+6 open; this is preregistration v1.0.4 realization_horizon_governing = 6. The 5-session close-exit variant is the REJECTED alternative.",
+  "implemented_in": "mr002_valoos_portfolio_identity.Z_ENTRY (inside the bound image)",
+  "max_hold_sessions": 5,
+  "mode": "CITE AND VERIFY ONLY - no mapping is constructed, selected or altered",
+  "oos_candidate": "B only, under a separate later authorization",
+  "selection_rule": "mr002_valoos_construction._select_side - bottom/top 10% of the side-eligible z pool AND |z| >= Z_entry",
+  "values": {
+   "A": 1.75,
+   "B": 2.0,
+   "C": 2.25
+  },
+  "verdict_config": "B",
+  "verification": "the run asserts Z_ENTRY equals the v0.3 gate table values and that mr002_valoos_portfolio_identity.py reproduces its bound image digest"
+ },
+ "date": "2026-08-12",
+ "evaluator_and_configuration": {
+  "image_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "module_drift": 0,
+  "modules_verified": 21,
+  "z_entry_mapping": {
+   "A": 1.75,
+   "B": 2.0,
+   "C": 2.25
+  },
+  "z_entry_module": "mr002_valoos_portfolio_identity.py",
+  "z_entry_module_digest": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547"
+ },
+ "execution_boundary": {
+  "clarification": "MR002_Phase3B_ExecutionBoundaryClarification_v1.0.json",
+  "clarification_identity_sha256": "5f54d85b1ff9193ddefdc5a7639d02e8406e28089248e92d211f47c1f300d88f",
+  "conditions_inherited": [
+   "EB-1",
+   "EB-2",
+   "EB-3",
+   "EB-4",
+   "EB-5",
+   "EB-6",
+   "EB-7"
+  ],
+  "development_guard_rule": {
+   "decision_class": "SPECIFICATION DECISION",
+   "rationale": "The development guard is a working control protecting an unsealed partition. Widening it to admit validation dates would delete that control to obtain a capability, which is exactly the bypass pattern the platform forbids. A second guard adds a control instead of removing one.",
+   "requirement": "apps/backend/app/research/mr002/spq1/adapters/partition_guard.py is NOT edited, NOT parameterized and NOT relaxed. The execution layer supplies its OWN validation-scoped guard, constructed with the validation window bounds and the registered validation object set, and recording partition = VALIDATION in its ledger."
+  },
+  "disposition": "OPTION A - orchestration and enrichment execute OUTSIDE the bound evaluator image",
+  "models_py_rule": "models.py is CITED and VERIFIED, never edited. It is hash-bound by the frozen ValidationRunSpecification at efc26d3a...; any edit breaks that binding and the run must refuse."
+ },
+ "fail_closed_rule": {
+  "asymmetry_resolved": "ValidationRunSpecification_v1.0.bound_schemas.fail_closed names only the SignalDecisionRecord SCHEMA identity and the ExecutionEnrichmentSchema identity, while binding SignalDecisionRecord_model_module_sha256 alongside them without naming it in the fail-closed sentence. This specification resolves the asymmetry CONSERVATIVELY: all THREE bound identities are fail-closed. Recorded as an explicit resolution rather than an assumption.",
+  "decision_class": "SPECIFICATION DECISION (conservative resolution of frozen-text asymmetry; strictly stronger than the frozen text, never weaker)",
+  "on_failure": "REFUSED (exit 2) before any reader assumption. The opening is not spent.",
+  "requirement": "The run REFUSES unless ALL of the following reproduce their bound values exactly, verified before any sealed access: the three ValidationRunSpecification bound_schemas identities (ExecutionEnrichmentSchema, SignalDecisionRecord_schema, SignalDecisionRecord_model_module); every module of the Phase 3B execution layer; every one of the 21 evaluator modules against the bound image manifest; the P10 numeric-runtime bindings; and the Z_ENTRY configuration mapping against the v0.3 gate table."
+ },
+ "grants": "NOTHING. No credential, no trust-policy edit, no partition access, no identity change, no performance computed.",
+ "identity_separation": {
+  "execution_identity": {
+   "answers": "WHAT CODE RAN.",
+   "covers": [
+    "the Phase 3B runner/orchestrator module roster and per-module SHA-256",
+    "execution_enrichment.py",
+    "models.py",
+    "the validation-scoped access guard",
+    "the parquet input readers",
+    "the deliverable emitters"
+   ],
+   "may_be_new": true
+  },
+  "research_identity": {
+   "answers": "WHAT WAS TESTED.",
+   "covers": [
+    "Config A/B/C",
+    "gates and thresholds",
+    "the DSR trial ledger",
+    "estimators",
+    "bootstrap design",
+    "windows, folds and seams",
+    "cost model",
+    "execution endpoints"
+   ],
+   "may_be_new": false,
+   "unchanged_assertion": "This specification introduces NO new strategy trial, NO parameter choice, and NO evaluator change. DSR trials_N remains 5 against trial ledger deda5cec0bbb72dd... The configuration set remains exactly {A, B, C} with the frozen v0.3 values. Creating an execution identity is not a trial."
+  },
+  "rule": "A new execution identity may be minted freely as code is written and frozen. A research identity may not change at all. Any change that would alter what was tested - rather than what code performed the test - is out of scope for this specification and requires its own preregistration amendment."
+ },
+ "inputs": {
+  "authoritative_runtime_source": {
+   "bucket": "workbench-mr002-sealed-219024422756",
+   "kind": "sealed S3 objects, pinned by Version ID and SHA-256",
+   "objects": {
+    "validation/actions.parquet": {
+     "bytes": 57564,
+     "sha256": "5707558f11c4f12bc19ab3ab5cfb309207e7e0429c1469904d83ec619c6b9fc4",
+     "version_id": "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx"
+    },
+    "validation/anchors.parquet": {
+     "bytes": 190412,
+     "sha256": "68d5132fb39edb5c1c42d41d85ba5f2d955845aaa059de4edf0acd757589e2f1",
+     "version_id": "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK"
+    },
+    "validation/etf_prices.parquet": {
+     "bytes": 67689,
+     "sha256": "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557",
+     "version_id": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo"
+    },
+    "validation/prices.parquet": {
+     "bytes": 16780884,
+     "sha256": "9417d05ebdd54f34172cc3ad3dcbb4e1710b1f36923f98ec98b8fb82fe951de2",
+     "version_id": "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty"
+    },
+    "validation/sic_observations.parquet": {
+     "bytes": 142811,
+     "sha256": "67dc057ffd7faa93bf630ecc8de3b46f243b345116b9a6ed1c09494229822144",
+     "version_id": "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t"
+    },
+    "validation/universe.parquet": {
+     "bytes": 109836,
+     "sha256": "f369f9f6601a281b7fbe6faace8ccb14e95a5d5b020a97bd869ba57512c6b857",
+     "version_id": "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO"
+    }
+   },
+   "prefix": "validation/",
+   "read_rule": "Every read specifies the pinned VersionId. An unpinned read, a read of an object outside this registered set, or a checksum mismatch is INTEGRITY_STOP:REFUSED_CODE_OR_DATA_IDENTITY.",
+   "region": "us-east-1"
+  },
+  "oos": {
+   "expected_oos_reads": 0,
+   "rule": "The OOS prefix is not read, not listed, not staged, and not referenced by any code path. It remains under explicit DENY throughout."
+  },
+  "reconciliation_with_the_local_duckdb": {
+   "decision_class": "SPECIFICATION DECISION (the frozen contract names both without stating which is the runtime source)",
+   "duckdb_identity": "apps/backend/data/mr002_research.duckdb, sha256 24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+   "registered_as": "preregistration v1.0.4 governing_frozen_sources.authoritative_calendar_snapshot; also EvaluatorBinding.data_manifest_identity",
+   "relationship": "NOT a substitution. The DuckDB is the EXPORT SOURCE and the registered CALENDAR AUTHORITY; the S3 objects are the RUNTIME SOURCE. MR002_SealedStoreExportManifest_v1.0 records snapshot = that DuckDB path with snapshot_sha256 = 24e5153c..., every_object_matches_p6 = true and every_object_round_trip_verified = true, and P6 (ValidationPartitionContentCommitment) commits validation_partition.partition_content_sha256 = 7b0c74cd8e1b9077a8945fc3586fbd4f6c08f51fc28b4e2c7296729b9367b52d. The lineage DuckDB -> export -> upload -> P6 commitment is therefore continuous and hash-verified.",
+   "runtime_rule": "The run reads the S3 objects and NEVER the local DuckDB. Reading the laptop copy would bypass the access boundary, the opened-object ledger and the CloudTrail evidence, and the laptop file is not the governed artifact. The DuckDB identity is CITED as provenance, not opened."
+  },
+  "reference_layer": {
+   "basis": "MR002_SealedStoreExportManifest_v1.0: sealed_prefixes = [validation, oos]; open_prefixes = [development, reference]. ValidationPartitionContentCommitment reference_tables: interval-valid registries spanning all three windows by construction, NOT part of any sealed partition and NOT under the OOS DENY.",
+   "decision_class": "SPECIFICATION DECISION (which principal stages the open prefixes was unspecified)",
+   "objects": {
+    "reference/crosswalk.parquet": {
+     "sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+     "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+    },
+    "reference/predecessor_overrides.parquet": {
+     "sha256": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+     "version_id": "Srj0T5D.VqjtTULkrLwynvhPeWf422I7"
+    },
+    "reference/security_sector_overrides.parquet": {
+     "sha256": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+     "version_id": "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns"
+    },
+    "reference/sic_mapping.parquet": {
+     "sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+     "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+    }
+   },
+   "prefix": "reference/",
+   "sealed": false,
+   "staging_rule": "Reference (and any development) objects are staged BEFORE the run by the ORDINARY DEVELOPMENT PRINCIPAL, never by the validation reader. P11 access_decisions record ordinary_development_principal as allowed on reference and development and explicitDeny on validation. Staging with the ordinary principal keeps the validation reader's FIRST USE the governed validation read itself, satisfying the owner's rule without a probe."
+  }
+ },
+ "integrity_census_required": {
+  "decision_record_mutations": 0,
+  "duplicate_enrichment_identities": 0,
+  "future_information_violations": 0,
+  "missing_decision_enrichment_bindings": 0,
+  "oos_reads": 0,
+  "source": "MR002_Phase3BC_ExecutionGateTable_v1.0.json phase_3b_integrity_gates",
+  "unreconciled_validation_units": 0,
+  "unregistered_data_source_reads": 0,
+  "vacuity_rule": "Every census must report the number of items EXAMINED alongside the violation count. A zero over an empty examination set is a REFUSED result, not a pass.",
+  "validation_access_events_before_authorization": 0
+ },
+ "not_authorized_by_this_specification": [
+  "executing the run",
+  "assuming the validation reader",
+  "any sealed-object access",
+  "Phase 3C metrics, replay, portfolio construction or verdict",
+  "OOS access",
+  "editing models.py, any evaluator module, the image, or the dependency lock",
+  "editing or relaxing the development PartitionGuard",
+  "any change to configurations, gates, costs, folds, seams, estimators or trial count"
+ ],
+ "one_opening_semantics": {
+  "definition_of_consumption": "The opening is consumed by the FIRST SUCCESSFUL read of an object under the validation/ prefix - a GetObject returning content. A denied request is an auditable access-control event but not a partition opening (owner adjudication 82134e6). Reference and development reads never consume the opening and are performed by the ordinary development principal before the run.",
+  "first_sealed_call_rule": "The first sealed API call MUST be a GetObject of a registered validation object at its pinned VersionId, required by the governed input path - never a convenience check. Storage-client initialization must not issue any request.",
+  "prohibited_before_S9": [
+   "HeadObject against any validation object",
+   "ListObjects / ListObjectsV2 against the validation prefix",
+   "GetObjectAttributes, existence tests or metadata inspection",
+   "schema discovery, row counts or sampling",
+   "any retry, probe or 'quick verification' read",
+   "any read of the OOS prefix at any time"
+  ],
+  "restart_disposition": {
+   "after_S9": "PROHIBITED without explicit owner adjudication; classify the outcome under the preregistered failure/recovery rules instead of repairing forward",
+   "before_S9": "unlimited restarts permitted; nothing is spent"
+  },
+  "states": [
+   {
+    "requires": "process start; no network",
+    "state": "S0_INIT"
+   },
+   {
+    "requires": "every execution-layer module and all 21 evaluator modules reproduce their bound digests",
+    "state": "S1_CODE_IDENTITY_VERIFIED"
+   },
+   {
+    "requires": "all three bound_schemas identities plus the enrichment registry, edge-case specification, preregistration and v0.3 gate table reproduce their registered values",
+    "state": "S2_CONTRACT_IDENTITY_VERIFIED"
+   },
+   {
+    "requires": "Z_ENTRY equals the v0.3 table; the configuration module reproduces its bound image digest",
+    "state": "S3_CONFIG_BOUND"
+   },
+   {
+    "requires": "P10 numeric-runtime bindings match; mismatch FAIL-STOPS",
+    "state": "S4_RUNTIME_VERIFIED"
+   },
+   {
+    "requires": "reference/development objects staged and checksum-verified by the ordinary principal; the validation object set is REGISTERED from the upload manifest but NOT touched",
+    "state": "S5_INPUTS_STAGED"
+   },
+   {
+    "requires": "output root exists, is writable, and every destination filename is VACANT",
+    "state": "S6_OUTPUTS_PREPARED"
+   },
+   {
+    "note": "THE GATE. Everything that can fail without cost has already failed here.",
+    "requires": "S1-S6 all passed",
+    "state": "S7_PRE_ACCESS_READY"
+   },
+   {
+    "requires": "S7; assume mr002-validation-reader - the first and only assumption",
+    "state": "S8_READER_ASSUMED"
+   },
+   {
+    "note": "IRREVERSIBLE",
+    "requires": "first successful validation GetObject by pinned VersionId",
+    "state": "S9_OPENING_CONSUMED"
+   },
+   {
+    "requires": "production and enrichment complete",
+    "state": "S10_ENRICHED"
+   },
+   {
+    "requires": "deliverables plus publication pair written and locked",
+    "state": "S11_PUBLISHED"
+   }
+  ]
+ },
+ "outputs": {
+  "artifacts": [
+   {
+    "file": "ValidationOpenedObjectLedger_v1.0.json",
+    "layer": "deliverable",
+    "path": "/opt/mr002/out/valoos/validation/ValidationOpenedObjectLedger_v1.0.json"
+   },
+   {
+    "file": "ValidationExecutionEnrichmentManifest_v1.0.json",
+    "layer": "deliverable",
+    "path": "/opt/mr002/out/valoos/validation/ValidationExecutionEnrichmentManifest_v1.0.json"
+   },
+   {
+    "file": "ValidationDecisionExecutionBindingReport_v1.0.json",
+    "layer": "deliverable",
+    "path": "/opt/mr002/out/valoos/validation/ValidationDecisionExecutionBindingReport_v1.0.json"
+   },
+   {
+    "file": "ValidationUnitReconciliation_v1.0.json",
+    "layer": "deliverable",
+    "path": "/opt/mr002/out/valoos/validation/ValidationUnitReconciliation_v1.0.json"
+   },
+   {
+    "file": "ExecutionEnrichmentEdgeCaseCensus_v1.0.json",
+    "layer": "deliverable",
+    "path": "/opt/mr002/out/valoos/validation/ExecutionEnrichmentEdgeCaseCensus_v1.0.json"
+   },
+   {
+    "file": "ValidationSealVerificationReport_v1.0.json",
+    "layer": "deliverable",
+    "path": "/opt/mr002/out/valoos/validation/ValidationSealVerificationReport_v1.0.json"
+   },
+   {
+    "file": "MR002_ValOOS_validation_Report.json",
+    "layer": "publication",
+    "note": "embeds the sha256 of all six deliverables",
+    "path": "/opt/mr002/out/valoos/validation/MR002_ValOOS_validation_Report.json"
+   },
+   {
+    "file": "MR002_ValOOS_validation_Publication.json",
+    "layer": "publication",
+    "path": "/opt/mr002/out/valoos/validation/MR002_ValOOS_validation_Publication.json"
+   },
+   {
+    "file": "MR002_ValOOS_validation_stderr.txt",
+    "layer": "publication",
+    "note": "written whenever stderr is non-empty",
+    "path": "/opt/mr002/out/valoos/validation/MR002_ValOOS_validation_stderr.txt"
+   }
+  ],
+  "partial_and_failure_disposition": {
+   "after_the_opening_is_consumed": "Whatever has been created is PRESERVED - never deleted, never overwritten. The run publishes the terminal disposition it actually reached (FAIL, REFUSED or INTEGRITY_STOP), with the deliverables it completed and an explicit census of those it did not. A retry or restart is PROHIBITED without an explicit owner adjudication under the preregistered failure/recovery rules.",
+   "before_the_opening_is_consumed": "The run may terminate and be restarted freely. Nothing is spent, no deliverable is written, and no publication occurs.",
+   "never": "A second run must never be able to look like the first. Destination occupancy alone enforces this."
+  },
+  "publication_rules": {
+   "agreement": "the exit code MUST equal the disposition's code (verify_exit_agreement); disagreement is a publication refusal",
+   "creation": "O_CREAT|O_EXCL exclusive creation; an occupied destination REFUSES and is never truncated (mr002_valoos_publication._create_exclusive)",
+   "exit_contract": {
+    "FAIL": 1,
+    "INTEGRITY_STOP": 3,
+    "PASS": 0,
+    "REFUSED": 2,
+    "wrapper_or_publication_failure": 3
+   },
+   "locking": "every written file chmod 0444 after write",
+   "retry_after_publication": "PROHIBITED"
+  },
+  "reconciliation": "The 2-file and 6-artifact views describe DIFFERENT LAYERS and are not in conflict once separated. EvaluatorBinding.expected_output_paths describes the PUBLICATION PAIR emitted by mr002_valoos_publication.publish (a report plus its no-overwrite publication record). MR002_Phase3BC_DeliverableRegister describes the EVIDENCE SET the run must produce. This specification requires BOTH: six deliverables plus the publication pair, with the report embedding the SHA-256 of each deliverable so the pair certifies the set.",
+  "root": "/opt/mr002/out/valoos/validation",
+  "root_decision_class": "SPECIFICATION DECISION - the evaluator binding gives the relative form 'valoos/<window>/...' with no root and never binds <window> to a literal. Root chosen on the frozen host inside the run image's writable output mount; <window> bound to the literal 'validation'."
+ },
+ "record_identity_sha256": "988f188f4974a8844edd94a6a87c066aaa54e83288ef821d6ee31083c58704f6",
+ "record_type": "MR002_Phase3B_RunSpecification",
+ "required_before_execution": "The supplemental execution-identity adjudication, binding this specification's identity together with the complete execution-layer module roster and hashes, the sealed input manifest identities, the output contract, the run id, the one-opening semantics, and the synthetic qualification evidence.",
+ "run_identity": {
+  "decision_class": "SPECIFICATION DECISION (the frozen contract assigns no executable run identity)",
+  "openings": 1,
+  "run_id": "MR002-SPQ1-P3B-VALIDATION-V1",
+  "supersedes_string": "MR002-SPQ1-VALIDATION-V1 (PROPOSED; not authorized to execute)",
+  "supersession_rule": "The Phase 3A string is NOT reused, NOT edited, and was never an executable identity - the parenthetical is part of the frozen text. This run id is a NEW governed identity assigned here, mirroring the Phase 2B precedent MR002-SPQ1-P2B-DEV-V1.",
+  "window": "validation"
+ },
+ "stage": "SPQ-1 Phase 3B - validation-window signal production and execution enrichment",
+ "status": "DRAFT_BLOCKED_PENDING_OWNER_RATIFICATION",
+ "status_reason": "Drafting uncovered three items the frozen contract does not resolve, two of them direct contradictions BETWEEN HASH-BOUND ARTIFACTS. Per the owner's instruction the specification stops here rather than choosing. See unresolved_items_requiring_owner_ratification.",
+ "unresolved_items_requiring_owner_ratification": [
+  {
+   "candidate_resolution_not_adopted": "The execution layer could emit a SCHEMA-CONFORMING record built FROM the bound model's output - treating models.ExecutionEnrichedCandidateRecord as an internal non-mutation guarantee and the schema record as the published artifact. That edits nothing frozen. It is recorded as a candidate, NOT adopted, because it decides which of two frozen artifacts is normative.",
+   "detail": "ExecutionEnrichmentSchema (bound 5b2480c1...) declares 10 enriched_candidate_record_fields. models.ExecutionEnrichedCandidateRecord, in the module bound as SignalDecisionRecord_model_module_sha256 efc26d3a..., declares 8 differently-named fields. Five schema entries have no model counterpart at all: official_open_source_identity, realization_horizon, corporate_action_identity, conservative_short_flag, ExecutionEnrichmentCode.",
+   "evidence": {
+    "codes_actually_used_by_the_implementation": [
+     "ADMISSIBLE",
+     "CANCELLED_GAP",
+     "CANCELLED_MISSING_OPEN",
+     "INTEGRITY_STOP:SESSION_CALENDAR_MISMATCH",
+     "INTEGRITY_STOP:EXECUTION_PRICE_INPUT_INVALID",
+     "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"
+    ],
+    "counterpart_note": "decision_record_sha256~decision_record_identity, execution_session_t_plus_1~scheduled_execution_session, official_open_price_ref~official_next_open_price, ExecutionEnrichmentDisposition~execution_admissibility_status; decision_session_t is carried inside decision_record_canonical.",
+    "execution_enrichment_namespace_codes_declared": 8,
+    "execution_enrichment_namespace_codes_used": 0,
+    "model_declared_fields": [
+     "decision_record_canonical",
+     "decision_record_identity",
+     "scheduled_execution_session",
+     "official_next_open_price",
+     "execution_admissibility_status",
+     "gap_filter_result",
+     "missing_open_disposition",
+     "enrichment_timestamp"
+    ],
+    "registry_codes_declared": 9,
+    "registry_codes_used_by_the_bound_implementation": [
+     "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED"
+    ],
+    "schema_declared_fields": [
+     "decision_record_sha256",
+     "decision_session_t",
+     "execution_session_t_plus_1",
+     "official_open_source_identity",
+     "official_open_price_ref",
+     "realization_horizon",
+     "ExecutionEnrichmentDisposition",
+     "ExecutionEnrichmentCode",
+     "corporate_action_identity",
+     "conservative_short_flag"
+    ],
+    "schema_fields_with_no_model_counterpart": [
+     "official_open_source_identity",
+     "realization_horizon",
+     "corporate_action_identity",
+     "conservative_short_flag",
+     "ExecutionEnrichmentCode"
+    ],
+    "used_codes_note": "The single match above is INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED, which is the registry's one NON-EXECUTION_ENRICHMENT entry. Zero of the eight EXECUTION_ENRICHMENT_* codes appear anywhere in the package."
+   },
+   "id": "U-1",
+   "severity": "CONTRADICTION BETWEEN TWO HASH-BOUND ARTIFACTS",
+   "title": "The frozen enrichment schema and the hash-bound model declare different enriched-record field sets",
+   "why_it_blocks": "EB-5 requires the run to add only fields permitted by the frozen schema, while the frozen implementation emits a different set. Neither artifact can be edited: editing models.py breaks its binding in ValidationRunSpecification, and editing the schema breaks its binding in bound_schemas AND bound_specifications."
+  },
+  {
+   "detail": "ExecutionEnrichmentCodeRegistry (bound 0bddd73c...) defines EXECUTION_ENRICHMENT_SUCCESS plus seven EXECUTION_ENRICHMENT_STOP:* codes, with the invariant that 'enrichment codes are never reused for signal-production failures' and the namespace declared 'SEPARATE from signal-production refusal codes'. A search of the entire SPQ-1 package for EXECUTION_ENRICHMENT returns ZERO matches. The bound enricher instead reports ADMISSIBLE / CANCELLED_GAP / CANCELLED_MISSING_OPEN and raises INTEGRITY_STOP:* codes - the signal-production namespace the registry separates itself from.",
+   "evidence_pointer": "see U-1 evidence: registry_codes_used_by_the_bound_implementation",
+   "id": "U-2",
+   "severity": "CONTRADICTION BETWEEN TWO HASH-BOUND ARTIFACTS",
+   "title": "The frozen enrichment code registry is used by no code, and the bound implementation uses the namespace the registry forbids",
+   "why_it_blocks": "The registry's invariant requires each code to have exactly one terminal treatment and one census category. The Phase 3B edge-case census (ExecutionEnrichmentEdgeCaseCensus) is defined over the registry's codes, so a run emitting the implementation's codes cannot populate it as specified."
+  },
+  {
+   "candidate_resolution_not_adopted": "Execute the separately hash-bound Phase 3B layer INSIDE the bound image, mounted read-only, leaving the image identity unchanged and inheriting the P10-verified runtime. That satisfies EB-7 and needs no second runtime manifest, and it matches the owner's stated preferred structure. The alternative is a P10-analogue runtime manifest for a host-side layer. Not adopted here: it is an execution-topology ruling, not a drafting detail.",
+   "detail": "P10 (8e5e3947...) is an IN-IMAGE capture: 21 evaluator modules rehashed inside the container, binding py3.13.14 / numpy 2.2.6 / scipy 1.18.0 / pandas 3.0.5 / OpenBLAS 0.3.29 Haswell / PCG64 / all five thread variables = 1. Under Option A the Phase 3B layer executes outside that bound identity, so P10 does not describe the process that will run the OLS regressions, residuals and z-scores.",
+   "id": "U-3",
+   "severity": "GAP WITH GOVERNANCE CONSEQUENCES",
+   "title": "No numeric-runtime identity governs the Phase 3B execution layer",
+   "why_it_blocks": "Phase 3B performs float64 numerical work whose outputs are hashed and later replayed. An unpinned numeric runtime makes those hashes irreproducible, which is precisely what P10 exists to prevent."
+  }
+ ],
+ "version": "1.0",
+ "what_is_resolved_and_ready": "Everything below is drafted and hash-verified; only U-1, U-2 and U-3 block the freeze."
+}
