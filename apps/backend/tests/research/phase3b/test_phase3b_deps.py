@@ -125,3 +125,15 @@ def test_p10_critical_set_is_the_numeric_stack():
 
 def test_permitted_set_contains_no_numeric_or_image_package():
     assert not (D.PERMITTED_TOP_LEVEL & {"numpy", "scipy", "pandas", "six", "dateutil", "pytest"})
+
+
+def test_importlib_util_is_explicitly_imported():
+    """A clean interpreter does not bind importlib.util via `import importlib`.
+
+    This failed only inside the bound image: in the dev suite some other module had already
+    imported importlib.util, so the missing import was invisible. Guard it here rather than
+    rediscover it on the qualified host.
+    """
+    with open(D.__file__, encoding="utf-8") as fh:
+        src = fh.read()
+    assert "import importlib.util" in src

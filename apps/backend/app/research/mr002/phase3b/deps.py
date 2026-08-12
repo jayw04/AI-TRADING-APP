@@ -20,6 +20,7 @@ bundle.
 from __future__ import annotations
 
 import importlib
+import importlib.util  # explicit: `importlib` alone does NOT bind .util in a clean interpreter
 import os
 import sys
 
